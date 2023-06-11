@@ -40,10 +40,7 @@ export default function Home() {
           </footer>
         </Link>
       </div>
-      <Analytics beforeSend={(e) =>{ 
-        if (e.url.includes('private')) return null 
-        return e 
-        }}/>
+      <Analytics />
     </>
   )
 }
