@@ -25,8 +25,10 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-hook-form": "^7.44.3",
+    "react-icons": "^4.9.0",
     "react-simple-typewriter": "^5.0.1",
     "react-social-icons": "^5.15.0",
+    "tailwind-scrollbar-hide": "^1.1.7",
     "tailwindcss": "3.3.2",
     "typescript": "5.1.3"
   },

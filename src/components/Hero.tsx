@@ -2,7 +2,6 @@
 import React from 'react'
 import { Cursor, useTypewriter } from 'react-simple-typewriter'
 import BackgroundCircles from './BackgroundCircles'
-import Link from 'next/link'
 import Image from 'next/image'
 type Props = {}
 
@@ -18,9 +17,9 @@ export default function Hero({}: Props) {
     delaySpeed: 2000,
   })
   return (
-    <div className='flex flex-col items-center justify-center h-screen space-y-8 overflow-hidden text-center'>
+    <div className='flex flex-col items-center justify-center h-screen space-y-8 overflow-hidden text-center select-none'>
       <BackgroundCircles />
-      <img className='relative object-cover w-32 h-32 mx-auto rounded-full' src="https://www.github.com/WomB0ComB0.png?size=600" alt="profile picture"/>
+      <Image className='relative object-cover w-32 h-32 mx-auto rounded-full' src="/Profile.png" width={100} height={100} alt="profile picture"/>
       <div className='z-20'>
         <h2 className='pb-2 text-sm tracking-[15px] text-gray-500 uppercase'>
           Software Engineer

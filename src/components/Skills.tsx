@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import Skill from './Skill'
 type Props = {}
 
-function Skills({}: Props) {
+export default function Skills({}: Props) {
   return (
     <motion.div 
     initial={{ opacity: 0 }}
@@ -38,5 +38,3 @@ function Skills({}: Props) {
     </motion.div>
   )
 }
-
-export default Skills

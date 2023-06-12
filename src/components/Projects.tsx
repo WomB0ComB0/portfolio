@@ -4,7 +4,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 type Props = {}
 
-function Projects({}: Props) {
+export default function Projects({}: Props) {
   const projects = [1,2,3,4,5]
   return (
     <div className='relative z-0 flex flex-col items-center h-screen max-w-full mx-auto overflow-hidden text-left md:flex-row justify-evenly'>
@@ -39,5 +39,3 @@ function Projects({}: Props) {
     </div>
   )
 }
-
-export default Projects

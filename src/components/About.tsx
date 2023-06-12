@@ -16,7 +16,7 @@ export default function About({}: Props) {
       duration: 1.5
     }}
     className="relative flex flex-col items-center h-screen px-10 mx-auto text-center md:text-left md:flex-row max-w-7xl justify-evenly">
-      <h3 className='absolute uppercase top-0 tracking-[20px] text-gray-500 text-2xl'>About</h3>
+      <h3 className='absolute uppercase top-24 tracking-[20px] text-gray-500 text-2xl'>About</h3>
       <motion.img 
       initial={{
         x: -200,
