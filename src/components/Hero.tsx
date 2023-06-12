@@ -6,6 +6,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 type Props = {}
 
+export const scrollToElement = (id: string) => {
+  const element = document.getElementById(id)
+  element?.scrollIntoView({behavior: 'smooth'})
+}
 export default function Hero({}: Props) {
   const [text, count] = useTypewriter({
     words: [ "Developer", "Designer", "Creator" ], 
@@ -26,18 +30,10 @@ export default function Hero({}: Props) {
           <Cursor cursorBlinking cursorColor='#7d16bf'/>
         </h1>
         <div className='pt-5'>
-          <Link href="#about">
-            <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40">About</button>
-          </Link>
-          <Link href="#experience">
-            <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40">Experience</button>
-          </Link>
-          <Link href="#skills">
-            <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40">Skills</button>
-          </Link>
-          <Link href="#projects">
-            <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40">Projects</button>
-          </Link>
+          <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40" onClick={() => scrollToElement('about')}>About</button>
+          <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40" onClick={() => scrollToElement('experience')}>Experience</button>
+          <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40" onClick={() => scrollToElement('skills')}>Skills</button>
+          <button className="px-6 py-2 border border-[#242424] rounded-full uppercase text-sm tracking-widest text-gray-500 transition-all hover:border-[#F7AB0A]/40 hover:text-[#F7AB0A]/40" onClick={() => scrollToElement('projects')}>Projects</button>
         </div>
       </div>
     </div>

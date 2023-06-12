@@ -1,0 +1,20 @@
+{
+    "name": "Mike Odnis",
+    "short_name": "modnis",
+    "theme_color": "#560BAD",
+    "start_url": "/",
+    "description": "Mike Odnis' portfolio. Undergraduate, Computer Science student at Farmingdale State College.",
+    "scope": "/",
+    "dir": "ltr",
+    "orientation": "portrait-primary",
+    "display_override": ["browser","minimal-ui","fullscreen"],
+    "display": "standalone",
+    "icons": [
+        {
+            "src": "/MyLogo.png",
+            "type": "image/png",
+            "sizes": "any",
+            "purpose": "maskable any"
+        }
+    ]
+}
