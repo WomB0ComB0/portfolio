@@ -1,3 +1,4 @@
+"use client"
 import './globals.css'
 import React,{ useState, useEffect } from 'react'
 import { Inter } from 'next/font/google'
@@ -6,10 +7,10 @@ import {Loader, Header, Footer} from '@/components'
 import {Analytics} from "@vercel/analytics/react"
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'Mike Odnis',
-  description: 'Mike Odnis\' portfolio. Undergraduate, Computer Science student at Farmingdale State College.',
-}
+// export const metadata = {
+//   title: 'Mike Odnis',
+//   description: 'Mike Odnis\' portfolio. Undergraduate, Computer Science student at Farmingdale State College.',
+// }
 
 export default function RootLayout({
   children,
@@ -27,8 +28,8 @@ export default function RootLayout({
     <html lang="en">
       <Head>
         <meta charSet="utf-8" />
-        <title>{metadata.title}</title>
-        <meta name="description" content={metadata.description} />
+        <title>Mike Odnis</title>
+        <meta name="description" content="Mike Odnis\' portfolio. Undergraduate, Computer Science student at Farmingdale State College." />
         <meta name="viewport" content="width=device-width, initial-sc ale=1" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/manifest.json" />
