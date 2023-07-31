@@ -2,7 +2,156 @@
 @tailwind components;
 @tailwind utilities;
 @tailwind variants;
+html, body, section {
+  overflow-y: hidden;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+.imageBorder {
+  border-radius: 50%;
+  object-fit: cover;
+}
+section {
+  scroll-snap-align: start;
+}
+::-webkit-scrollbar {
+    width: 10px;
+} 
+.customScroll::-webkit-scrollbar-track {
+    background: transparent;
+} 
+.customScroll::-webkit-scrollbar-thumb {
+    background: #525252;
+    border-radius: 50px;
+}
+.customScroll::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+.cursor{
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  z-index: 999;
+  position: fixed;
+  background: black;
+}
+.follower-cursor{
+  width: 30px;
+  height: 30px;
+  background-color: transparent;
+  border: 1px solid black;
+  position: fixed;
+  z-index: 999;
+  border-radius: 50%;
+}
+.loader{
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  position: relative;
+  background:conic-gradient(indigo, purple);
+  animation: 2s rotate linear infinite;
+}
 
-html {
-  overflow: hidden;
+.loader:before{
+  position: absolute;
+  content: '';
+  width: calc(100% - 5px);
+  height: calc(100% - 5px);
+  background: #242424;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+.loader:after{
+  position: absolute;
+  content: '';
+  z-index: -3;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  background: inherit;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  filter: blur(25px);
+  border-radius: 50%;
+}
+@keyframes rotate{
+  from{ 
+    transform: rotate(0deg);
+  }
+  to{
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html, body {
+    scroll-behavior: auto;
+  }
+}
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+ 
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+ 
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+ 
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --ring: 215 20.2% 65.1%;
+ 
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+ 
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+ 
+    --ring: 217.2 32.6% 17.5%;
+  }
 }
