@@ -7,16 +7,16 @@ export default function Skill() {
   return (
     <>
       {Skills.map((skill) => (
-        <div key={skill.name} className='relative flex cursor-pointer group'>
+        <div key={skill.name} className='relative inline-block cursor-pointer group'>
           {skill.certificate ? (
             <Link href={skill.certificate} target='_blank' rel={`noopener noreferrer`}>
             <Image
-              className={`object-contain h-24 transition duration-300 ease-in-out border border-gray-500 ${skill.certificate? `hover:bg-[#BA9BDD]` : ``}  rounded-md w-[150px] xl:w-[100px] xl:h-[100px] filter grayscale-0 group-hover:grayscale md:w-28 md:h-28`}
+              className={`object-contain h-24 transition duration-300 ease-in-out border border-gray-500 ${skill.certificate? `hover:bg-[#BA9BDD]` : ``}  rounded-md w-[150px] xl:w-[100px] xl:h-[100px] filter grayscale-0 group-hover:grayscale md:w-28 md:h-28 sm:h-20 sm:w-20`}
               src={skill.image} alt={`${skill.name} skill badge`} width={200} height={200}/>
               </Link>
             ): (
               <Image
-              className={`object-contain h-24 transition duration-300 ease-in-out border border-gray-500 rounded-md w-[150px] xl:w-[100px] xl:h-[100px] filter grayscale-0 group-hover:grayscale md:w-28 md:h-28`}
+              className={`object-contain h-24 transition duration-300 ease-in-out border border-gray-500 rounded-md w-[150px] xl:w-[100px] xl:h-[100px] filter grayscale-0 group-hover:grayscale md:w-28 md:h-28 sm:h-20 sm:w-20`}
               src={skill.image} alt={`${skill.name} skill badge`} width={200} height={200}/>
             )}
         </div>

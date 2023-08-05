@@ -5,7 +5,7 @@ const nextConfig = {
   },
   images: {
     domains: ['images.g2crowd.com', 'cdn.jsdelivr.net'],
-  }
+  },
 }
 // const withPWA = require('next-pwa')
 // module.exports = withPWA({

@@ -2,10 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 @tailwind variants;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@layer components {
+  .hero-icon{
+  @apply flex items-center gap-2} 
+}
 html, body, section {
   overflow-y: hidden;
   overflow-x: hidden;
   scroll-behavior: smooth;
+}
+svg {
+  fill: #BA9BDD
 }
 .imageBorder {
   border-radius: 50%;
@@ -15,7 +24,8 @@ section {
   scroll-snap-align: start;
 }
 ::-webkit-scrollbar {
-    width: 10px;
+    width: 4px;
+    height: 5px;
 } 
 .customScroll::-webkit-scrollbar-track {
     background: transparent;
@@ -51,6 +61,8 @@ section {
   position: relative;
   background:conic-gradient(indigo, purple);
   animation: 2s rotate linear infinite;
+  border: 5px solid #242424;
+  transition: 0.5s;
 }
 
 .loader:before{
@@ -88,6 +100,27 @@ section {
 @media (prefers-reduced-motion: reduce) {
   html, body {
     scroll-behavior: auto;
+  }
+}
+@media only screen and (max-width: 600px) {
+  .loader {
+    width: 300px;
+    height: 300px;
+  }
+  .heroButtons {
+    flex-direction: column;
+  }
+}
+@media only screen and (min-width: 600px) {
+  .loader {
+    width: 350px;
+    height: 350px;
+  }
+}
+@media only screen and (min-width: 768px) {
+  .loader {
+    width: 400px;
+    height: 400px;
   }
 }
 @layer base {

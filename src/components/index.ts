@@ -7,7 +7,7 @@ import Projects from "../components/Projects";
 import ContactMe from "../components/ContactMe";
 import Loader from "./Loader";
 import Footer from "./Footer";
-import CustomCursor from "./CustomCursor";
+// import CustomCursor from "./CustomCursor";
 export {
     Header,
     Hero,
@@ -18,5 +18,5 @@ export {
     ContactMe,
     Loader,
     Footer,
-    CustomCursor
+    // CustomCursor
 }

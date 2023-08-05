@@ -38,15 +38,27 @@ export default function About({}: Props) {
         <h4 className="text-4xl font-semibold">
           Here is a{" "}<span className='underline decoration-[#560BAD]/50'>little </span> background
         </h4>
+        {/* Couldve wrote a function */}
         <p className='text-base leading-6'>
-          Mike Odnis is an ambitious and driven undergraduate Computer Science student at 
-          <strong>{' '}Farmingdale State College</strong>, specializing in web development and programming. With a solid foundation in HTML, CSS, and SCSS, I craft beautiful and user-friendly websites. His proficiency in 
+          I am an ambitious and driven undergraduate Computer Science student at 
+          <strong>{' '}Farmingdale State College</strong>, specializing in web development and programming. With a solid foundation in 
           <strong>
-          JavaScript  
+          {` HTML, `}
+          </strong>
+          <strong>
+            {`CSS`}
+          </strong>
+          , and
+          <strong>
+          {` SCSS`}
+          </strong> 
+          , I craft beautiful and user-friendly websites. My proficiency in 
+          <strong>
+          {` JavaScript `}  
           </strong>
           , including 
           <strong>
-          TypeScript  
+          {` TypeScript `}  
           </strong>
            and various frameworks like 
           <strong>
@@ -68,7 +80,7 @@ export default function About({}: Props) {
           <strong>
           {` ViteJS `}  
           </strong>
-          , enables him to create dynamic web applications. Mike&apos;s expertise also extends to modern web tools like 
+          , enables me to create dynamic web applications. My expertise also extends to modern web tools like 
           <strong>
           {` Tailwind CSS `}
           </strong>
@@ -96,11 +108,11 @@ export default function About({}: Props) {
           <strong>
           {` Java `}  
           </strong>
-          equips him for diverse software development projects. As a quick learner, I embraces new technologies with enthusiasm and is always eager to expand his skill-set. My passion for coding and problem-solving drives him to deliver exceptional results, and as a 
+          equips me for diverse software development projects. As a quick learner, I embraces new technologies with enthusiasm and is always eager to expand his skill-set. My passion for coding and problem-solving drives me to deliver exceptional results, and as a 
           <strong>
           {` first-generation `}  
           </strong>
-           student, I take pride in his achievements and aims to be a well-rounded addition to any team.
+           student, I take pride in my achievements and aim to be a well-rounded addition to any team.
         </p>
       </div>
     </motion.div>

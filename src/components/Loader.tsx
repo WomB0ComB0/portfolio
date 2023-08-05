@@ -10,12 +10,16 @@ const Loader = (props: Props) => {
           <div className="loader"/>
         </>
         <Image
-            className="absolute select-none h-60 w-60 animate-pulse"
-            src="/MyLogo.svg"
-            alt="Loading..."
-            width={100}
-            height={100}
-          />
+          className="absolute mt-2 transition-all select-none animate-pulse h-52 w-52"
+          src="/MyLogo.svg"
+          alt="Loading..."
+          layout="fill"
+          objectFit="contain"
+          priority={true}
+          loading='eager'
+          height={208}
+          width={208}
+        />
       </div>
     </>
   )

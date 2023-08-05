@@ -7,9 +7,8 @@ import { motion } from 'framer-motion'
 import { Projects as PersonalProjects } from '@/constants/index'
 import { Badge } from './ui/badge'
 import { GlobeAltIcon } from './heroicons/GlobeAltIcon'
-import { DevpostIcon } from './simpleicons/DevpostIcon'
-import { GithubIcon } from './simpleicons/GithubIcon'
-import { FigmaIcon } from './simpleicons/FigmaIcon'
+import { DevpostIcon, GithubIcon,
+FigmaIcon } from './simpleicons/index'
 type Props = {
   name: string;
   description: string[];
@@ -23,7 +22,7 @@ type Props = {
 }
 export default function Projects() {
   return (
-    <div className='relative z-0 flex flex-col items-center h-screen max-w-full mx-auto overflow-hidden text-left md:flex-row justify-evenly'>
+    <div className='relative z-0 flex flex-col items-center h-screen max-w-full mx-auto overflow-hidden text-left transition-all md:flex-row justify-evenly'>
       <h3 className='absolute uppercase top-24 tracking-[20px] text-gray-500 text-2xl select-none'>Projects</h3>
       <div className='relative z-20 flex w-full overflow-x-scroll overflow-y-scroll snap-x snap-mandatory scrollbar-thin scrollbar-track-gray-400/20 scrollbar-thumb-[#f7ab0a]/80 space-x-[45px] [&>*:first-child]:ml-[45px] [&>*:last-child]:mr-[45px] customScroll'>
         {PersonalProjects.map((project) => (
@@ -57,56 +56,29 @@ export const ProjectCard = ({name, description, techStack, link, image, imageAlt
                     {name}
                   </span>
                 </h4>
-                <div className='flex items-center gap-2 mt-4 justify-flex-start'>
-                  {github && (
-                    <>
-                      <Link 
-                        href={github} 
-                        rel='noopener noreferrer' 
-                        target='_blank'>
-                        <GithubIcon width={30}>
-                          {github}
-                        </GithubIcon>
-                      </Link>
-                    </>
-                  )}
-                  {link && (
-                    <>
-                      <Link href={link} rel='noopener noreferrer' target='_blank'>
-                        <GlobeAltIcon width={30}>
-                          {link}
-                        </GlobeAltIcon>
-                      </Link>
-                    </>
-                  )}
-                  {devpost && (
-                    <>
-                      <Link 
-                      href={devpost} 
-                      target={`_blank`} 
-                      rel="noopener noreferrer" 
-                      className={`cursor-pointer`}>
-                        <DevpostIcon 
-                          width={30}>
-                          {devpost}
-                        </DevpostIcon>
-                      </Link>
-                    </>
-                  )}
-                  {figma && (
-                    <>
-                      <Link
-                        href={figma}
-                        target={`_blank`}
-                        rel="noopener noreferrer"
-                        className={`cursor-pointer`}
-                      >
-                        <FigmaIcon width={30}>
-                          {figma}
-                        </FigmaIcon>
-                      </Link>
-                    </>
-                  )}
+                <div className='flex items-center gap-2 mt-4 justify-flex-start transition-color'>
+                  {[
+                    { icon: github, href: github, IconComponent: GithubIcon },
+                    { icon: link, href: link, IconComponent: GlobeAltIcon },
+                    { icon: devpost, href: devpost, IconComponent: DevpostIcon },
+                    { icon: figma, href: figma, IconComponent: FigmaIcon },
+                  ].map((item) => (
+                    item.icon && (
+                      <>
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className={`cursor-pointer`}
+                        >
+                          <item.IconComponent width={30}>
+                            {item.href}
+                          </item.IconComponent>
+                        </Link>
+                      </>
+                    )
+                  ))}
                 </div>
               </div>
             </div>
