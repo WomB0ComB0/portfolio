@@ -18,12 +18,12 @@ const RootDocument = () => {
         <meta name="google-site-verification" content="UEQaFuTqVDx84-mVcEXzo-y2PmglIrDzOPjcetwCnrM" />
         <meta name="google" content="translate"/>
         {/* Start of OG */}
-        <meta property="og:image" content="../../public/PurpleBackground.png"/>
-        <meta property="og:title" content="Mike Ondis | Portfolio"/>
+        <meta property="og:image" content="https://www.mikeodnis.com/api/og"/>
+        <meta property="og:title" content="Mike Odnis | Portfolio"/>
         <meta property="og:description" content="Mike Odnis' portfolio. Undergraduate, Computer Science student at Farmingdale State College." />
         <meta property="og:url" content="https://www.mikeodnis.com"></meta>
         {/* Twitter */}
-        <meta property="twitter:image" content="../../public/PurpleBackground.png"/>
+        <meta property="twitter:image" content="https://www.mikeodnis.com/api/og"/>
         <meta property="twitter:card" content="summary_large_image"/>
         <meta property="twitter:title" content="Mike Odnis | Portfolio"/>
         <meta property="twitter:description" content="Mike Odnis' portfolio. Undergraduate, Computer Science student at Farmingdale State College."/>
