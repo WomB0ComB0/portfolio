@@ -23,7 +23,7 @@ type Props = {
 export default function Projects() {
   return (
     <div className='relative z-0 flex flex-col items-center h-screen max-w-full mx-auto overflow-hidden text-left transition-all md:flex-row justify-evenly'>
-      <h3 className='absolute uppercase top-24 tracking-[20px] text-gray-500 text-2xl select-none'>Projects</h3>
+      <h3 className='absolute uppercase top-24 tracking-[20px] text-gray-500 text-2xl select-none hidden'>Projects</h3>
       <div className='relative z-20 flex w-full overflow-x-scroll overflow-y-scroll snap-x snap-mandatory scrollbar-thin scrollbar-track-gray-400/20 scrollbar-thumb-[#f7ab0a]/80 space-x-[45px] [&>*:first-child]:ml-[45px] [&>*:last-child]:mr-[45px] customScroll'>
         {PersonalProjects.map((project) => (
           <ProjectCard key={project.name} name={project.name} description={project.description} techStack={project.tech} link={project.link} image={project.image} imageAlt={project.imageAlt} github={project.github} devpost={project.devpost} figma={project.figma}
@@ -47,7 +47,7 @@ export const ProjectCard = ({name, description, techStack, link, image, imageAlt
                 alt={imageAlt} 
                 width={512} 
                 height={512} 
-                className={`h-[200px] w-[200px] object-contain rounded-lg`}
+                className={`h-[200px] w-[200px] object-contain rounded-lg select-none`}
               />
               <div className=''>
                 <h4 className='text-4xl font-semibold text-center '>
@@ -85,7 +85,7 @@ export const ProjectCard = ({name, description, techStack, link, image, imageAlt
             <div>
               <div className='flex flex-wrap justify-center w-full mb-[30px] space-x-2'>
                 {techStack.map((technologies) => (
-                  <Badge key={technologies} className='h-[35px] cursor-pointer hover:shadow-md border-2 bg-transparent hover:bg-transparent border-[#BA9BDD] text-[#BA9BDD] transition-all hover:border-[#BA9BDD]/40 hover:text-[#BA9BDD]/40 mb-[5px]'>
+                  <Badge key={technologies} className='h-[35px] cursor-pointer hover:shadow-md border-2 bg-transparent hover:bg-transparent border-[#BA9BDD] text-[#BA9BDD] transition-all hover:border-[#BA9BDD]/40 hover:text-[#BA9BDD]/40 mb-[5px] select-none'>
                     {technologies}
                   </Badge>
                 ))}

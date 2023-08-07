@@ -2,8 +2,9 @@ import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import '../app/globals.css'
+import '../app/global.scss'
 type Props = {}
-
 const NotFound = (props: Props) => {
   return (
     <>

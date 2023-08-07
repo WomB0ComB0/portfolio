@@ -13,12 +13,12 @@ const Loader = (props: Props) => {
           className="absolute mt-2 transition-all select-none animate-pulse h-52 w-52"
           src="/MyLogo.svg"
           alt="Loading..."
-          layout="fill"
+          layout='fixed'
           objectFit="contain"
           priority={true}
           loading='eager'
-          height={208}
-          width={208}
+          width={200}
+          height={200}
         />
       </div>
     </>

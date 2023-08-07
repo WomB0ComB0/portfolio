@@ -9,9 +9,31 @@ import { Buttons } from '../constants/index'
 import { GoogleDriveIcon, MailIcon
 ,LinkedInIcon } from './fontawesome/index'
 import { GithubIcon } from './simpleicons/index'
+import { PhoneIcon, MapPinIcon } from '@heroicons/react/24/solid'
 type Props = {}
+type ContactDetail = {
+  type: string;
+  icon: JSX.Element;
+  text: string;
+  link?: string;
+};
+const styles = 'text-[#560BAD] h-7 w-7 animate-pulse'
+export const contactDetails: ContactDetail[] = [
+  {
+    type: 'phone',
+    icon: <PhoneIcon height={24} width={24} className={`${styles}`} />,
+    text: '+1 (934)-218-7852',
+    link: 'tel:+1-934-218-7852',
+  },
+  {
+    type: 'location',
+    icon: <MapPinIcon height={24} width={24} className={`${styles}`} />,
+    text: 'Brentwood, NY',
+    link: 'https://www.google.com/maps/place/Brentwood,+NY/@40.7809543,-73.3350217,12z/data=!4m6!3m5!1s0x89e8319349a7a5e1:0xfc8ed3b854bd231a!8m2!3d40.7812093!4d-73.2462273!16zL20vMHk4MzM?entry=ttu',
+  },
+];
 export const scrollToElement = (id: string) => {
-  const element = document.getElementById(id)
+  const element = document.getElementById(id.replace('#', '') || '')
   element?.scrollIntoView({behavior: 'smooth'})
 }
 const resume = "https://docs.google.com/document/d/1TdPnmXtZCdSuI3p8_mtmR_o1VDhAKkXFlMVycL8cjpY/edit?usp=sharing" 
@@ -41,7 +63,7 @@ export default function Hero({}: Props) {
             <button key={button.name} className="px-6 py-2 border border-[#BA9BDD] rounded-full uppercase text-sm tracking-widest text-[#BA9BDD] transition-all hover:border-[#BA9BDD]/40 hover:text-[#BA9BDD]/40" onClick={() => scrollToElement(button.name.toLowerCase())}>{button.name}</button>
           ))}
         </div>
-      <div className='relative flex items-center justify-center ml-auto mr-auto '>
+      <div className='relative flex flex-col items-center justify-center gap-3 ml-auto mr-auto'>
       <motion.div
       initial={{x: -500, opacity:0, scale: 0.5}} animate={{x:0,opacity:1, scale:1}} transition={{ duration: 1.5 }} className='items-center ml-auto mr-auto text-gray-300 '
       >
@@ -76,22 +98,20 @@ export default function Hero({}: Props) {
           </div>
         </div>
       </motion.div>
+      <motion.div>
+        <div className='flex space-x-5'> 
+          {contactDetails.map((contact) => (
+            <div key={contact.type} className="flex items-center justify-start space-x-5">
+              {contact.icon}
+              <a href={contact.link} target="_blank" rel="noopener noreferrer" className="hidden text-sm text-gray-400 uppercase md:inline-flex">
+                {contact.text}
+              </a>
+            </div>
+          ))}
+        </div>
+      </motion.div>
       </div>
       </div>
     </div>
   )
 }
-const cursorStyle = {
-  color: '#7d16bf',
-  fontSize: '1.5rem',
-  fontWeight: 500,
-  animation: '1.5s blink step-end infinite',
-};
-
-const mediaQuery = '@media (min-width: 100px)';
-const cursorStyleWithMediaQuery = {
-  ...cursorStyle,
-  [mediaQuery]: {
-    display: 'none',
-  },
-};

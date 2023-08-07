@@ -1,20 +1,50 @@
 {
-    "name": "Mike Odnis",
-    "short_name": "modnis",
-    "theme_color": "#560BAD",
+    "name": "Mike Odnis | Portfolio",
+    "short_name": "Mike Ondis",
+    "theme_color": "#BA9BDD",
+    "background_color": "#560BAD",
     "start_url": "/",
     "description": "Mike Odnis' portfolio. Undergraduate, Computer Science student at Farmingdale State College.",
     "scope": "/",
     "dir": "ltr",
     "orientation": "portrait-primary",
-    "display_override": ["browser","minimal-ui","fullscreen"],
+    "display_override": ["minimal-ui","browser","fullscreen"],
     "display": "standalone",
     "icons": [
         {
-            "src": "/MyLogo.png",
+            "src": "/icon-72x72.png",
             "type": "image/png",
-            "sizes": "any",
-            "purpose": "maskable any"
+            "sizes": "72x72"
+        },
+        {
+            "src": "/icon-96x96.png",
+            "type": "image/png",
+            "sizes": "96x96"
+        },
+        {
+            "src": "/icon-128x128.png",
+            "type": "image/png",
+            "sizes": "128x128"
+        },
+        {
+            "src": "/icon-192x192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        },
+        {
+            "src": "/icon-256x256.png",
+            "type": "image/png",
+            "sizes": "256x256"
+        },
+        {
+            "src": "/icon-384x384.png",
+            "type": "image/png",
+            "sizes": "384x384"
+        },
+        {
+            "src": "/icon-512x512.png",
+            "type": "image/png",
+            "sizes": "512x512"
         }
     ]
 }
