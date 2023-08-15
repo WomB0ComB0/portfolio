@@ -20,7 +20,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "eslint": "8.46.0",
-    "eslint-config-next": "13.4.12",
+    "eslint-config-next": "13.4.16",
     "framer-motion": "^10.15.0",
     "gsap": "^3.12.2",
     "lucide-react": "^0.264.0",
