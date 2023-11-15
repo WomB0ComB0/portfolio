@@ -27,7 +27,7 @@ export default function Header({}: Props) {
             </p>
           </div>
           <div>
-            <SocialIcon className='cursor-pointer ' network='' fgColor='#BA9BDD' bgColor='Transparent' target={`_blank`} url='https://docs.google.com/document/d/1TdPnmXtZCdSuI3p8_mtmR_o1VDhAKkXFlMVycL8cjpY/edit?usp=sharing'/>
+            <SocialIcon className='cursor-pointer ' network='' fgColor='#BA9BDD' bgColor='Transparent' target={`_blank`} url='https://docs.google.com/document/d/1ItV1Ugn87fBE8RvKji7_a5pZ8zbA59eZGVojnCoGiQA/edit?usp=sharing'/>
             <p className='hidden text-sm text-gray-400 uppercase md:inline-flex'>
               Resume  
             </p>

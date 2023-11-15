@@ -3,6 +3,7 @@ import './globals.css'
 import './global.scss'
 import React, { useState, useEffect } from 'react';
 import { Loader } from '@/components';
+import Head from 'next/head';
 import { Analytics } from '@vercel/analytics/react';
 const RootLayout = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +25,9 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
   }, []);
   return (
     <>
+      <Head>
+        <title>Mike Odnis</title>
+      </Head>
       {isLoading ? (
         <Loader />
       ) : (
