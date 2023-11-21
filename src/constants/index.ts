@@ -203,18 +203,18 @@ export const Skills: Skills[] = [
     name: "Android",
     certificate: "",
   },
-  //   {
-  //   image: ("https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg"),
+    {
+    image: ("https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg"),
     
-  //   name: "Flutter",
-  //   certificate: "",
-  // },
-  //   {
-  //   image: ("https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kotlin/kotlin-original.svg"),
+    name: "Flutter",
+    certificate: "",
+  },
+    {
+    image: ("https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kotlin/kotlin-original.svg"),
     
-  //   name: "Kotlin",
-  //   certificate: "",
-  // },
+    name: "Kotlin",
+    certificate: "",
+  },
     {
     image: ("https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg"),
     
@@ -396,6 +396,36 @@ export const WorkExperience = [
     startDate: "March 19th, 2023",
     endDate: "Present",
     description: ["Maintained, and facilitated necessary changes. Oversaw the addition of new features and pages to improve UI/UX and functionality. Continually monitored the site's performance and analytics to identify areas for improvement and implement changes accordingly.","Made certain we were WCAG 2.1, and 508 compliant. Improved, cross-platform compatibility, responsiveness, SEO w/ GSC, and edge-case PWA aspects."]
+  },
+  {
+    logo: require("../../public/assets/images/experience/C180.png"),
+    company: "Campaign 180 LC",
+    title: "Software developer",
+    type: "Freelance",
+    location: "Remote",
+    startDate:"September 15th, 2023",
+    endDate: "Present",
+    description: ["Actively attend meetings and engage in continuous learning, mastering technologies such as Flutter, Dart, MongoDB, and PHP with AWS.","Contributed to projects by integrating UI/UX designs into web platforms, developing both desktop and mobile apps.","Conducted application testing, ensured web quality assurance, and consistently maintained up-to-date documentation and research records."]
+  },
+  {
+    logo: require("../../public/assets/images/experience/Waffle.png"),
+    company: "Waffle Hacks",
+    title: "Full stack developer",
+    type: "Freelance",
+    location: "Remote",
+    startDate:"August 18th, 2023",
+    endDate: "Present",
+    description: ["Entrusted with developing a Next.js application, developed in JavaScript and TypeScript, expected to be utilized by tens of thousands of users, annually."]
+  },
+  {
+    logo: require("../../public/assets/images/experience/GDSC.png"),
+    company: "Google Student Developer Clubs",
+    title: "Lead / Webmaster",
+    type: "Freelance",
+    location: "Hybrid",
+    startDate:"August 28th, 2023",
+    endDate: "Present",
+    description: [" Established the GitHub organization, and designed and hosted two central GDSC (Google Student Developer Clubs) Farmingdale websites. Delivering a professional and impactful online presence for the organization","Created applications using Next.js, Vite, React, Javascript, and Typescript. Improved SEO, implemented PWA, and used Netlify, Github Pages, and Vercel for hosting.","Scraped the top 5 most recent GDSC events using Cheerio and cached results in a MongoDB database, to reduce the scraping needed for older events."]
   }
 ]
 interface Buttons {
