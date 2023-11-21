@@ -36,7 +36,7 @@ export const scrollToElement = (id: string) => {
   const element = document.getElementById(id.replace('#', '') || '')
   element?.scrollIntoView({behavior: 'smooth'})
 }
-const resume = "https://docs.google.com/document/d/1TdPnmXtZCdSuI3p8_mtmR_o1VDhAKkXFlMVycL8cjpY/edit?usp=sharing" 
+const resume = "https://docs.google.com/document/d/1ItV1Ugn87fBE8RvKji7_a5pZ8zbA59eZGVojnCoGiQA/edit?usp=sharing" 
 const github = "https://www.github.com/WomB0ComB0" 
 const linkedin = "https://www.linkedin.com/in/mikeodnis/"
 export default function Hero({}: Props) {
