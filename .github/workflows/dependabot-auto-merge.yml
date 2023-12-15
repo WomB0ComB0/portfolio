@@ -1,0 +1,64 @@
+name: Dependabot Approve and Merge
+
+on:
+  pull_request_target:
+
+jobs:
+  dependabot:
+    name: Auto approve
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    steps:
+      - name: Fetch update types
+        id: update-types
+        env:
+          UPDATE_TYPES: 'version-update:semver-patch version-update:semver-minor'
+        run: |
+          arr=(${UPDATE_TYPES//;/ })
+          count=${#arr[@]}
+          echo "Types: ${arr[*]}"
+          echo "Count: ${count}"
+          echo "types=${arr[*]}" >> $GITHUB_OUTPUT
+          echo "count=${count}" >> $GITHUB_OUTPUT
+
+      - name: Fetch Dependabot metadata
+        if: ${{ fromJson(steps.update-types.outputs.count) > 0 }}
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@v1
+
+      - name: Generate token
+        id: generate-token
+        if: ${{ fromJson(steps.update-types.outputs.count) > 0 && contains(steps.update-types.outputs.types, steps.dependabot-metadata.outputs.update-type) }}
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.BOT_APP_ID }}
+          private_key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+      - name: Authenticate cli
+        id: authenticate-cli
+        if: ${{ fromJson(steps.update-types.outputs.count) > 0 && contains(steps.update-types.outputs.types, steps.dependabot-metadata.outputs.update-type) }}
+        run: echo "${{ steps.generate-token.outputs.token }}" | gh auth login --with-token
+
+      - name: Approve and auto-merge
+        id: auto-merge
+        if: ${{ fromJson(steps.update-types.outputs.count) > 0 && contains(steps.update-types.outputs.types, steps.dependabot-metadata.outputs.update-type) }}
+        run: |
+          gh pr edit "$PR_URL" --add-label "auto-merged"
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --merge "$PR_URL"
+          echo "STATUS=true" >> $GITHUB_OUTPUT
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+      - name: Write summary
+        run: |
+          result="skip. :x:"
+          if [ "${STATUS}" == "true" ]; then
+              result=" auto-merge! :white_check_mark:"
+          fi
+          echo "### Done with ${result}" >> $GITHUB_STEP_SUMMARY
+        env:
+          STATUS: ${{ steps.auto-merge.outputs.STATUS }}
