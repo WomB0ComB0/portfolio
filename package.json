@@ -14,7 +14,7 @@
     "@liveblocks/node": "^1.8.0",
     "@liveblocks/react": "^1.8.0",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "@types/node": "20.10.4",
+    "@types/node": "20.10.8",
     "@types/react": "18.2.38",
     "@types/react-dom": "18.2.17",
     "@vercel/analytics": "^1.1.1",
