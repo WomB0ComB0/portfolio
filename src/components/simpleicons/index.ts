@@ -1,8 +1,3 @@
-import { DevpostIcon, } from "./DevpostIcon"
-import { FigmaIcon, } from "./FigmaIcon"
-import { GithubIcon, } from "./GithubIcon"
-export {
-  DevpostIcon,
-  FigmaIcon,
-  GithubIcon,
-}
+export * from './DevpostIcon';
+export * from './FigmaIcon';
+export * from './GithubIcon';

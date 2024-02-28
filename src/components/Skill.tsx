@@ -1,26 +1,37 @@
-"use client"
-import React from 'react'
-import Image from 'next/image'
-import { Skills } from '../constants/index'
-import Link from 'next/link'
-export default function Skill() {
+'use client';
+
+import Image from 'next/image';
+import Link from 'next/link';
+import React from 'react';
+
+import { Skills } from '../constants/index';
+
+export const Skill: React.FC = () => {
   return (
     <>
       {Skills.map((skill) => (
-        <div key={skill.name} className='relative inline-block transition-all cursor-pointer group'>
+        <div key={skill.name} className="group relative inline-block cursor-pointer transition-all">
           {skill.certificate ? (
-            <Link href={skill.certificate} target='_blank' rel={`noopener noreferrer`}>
-            <Image
-              className={`object-contain h-[50px] transition duration-300 ease-in-out border border-gray-500 ${skill.certificate? `hover:bg-[#BA9BDD]` : ``}  rounded-md w-[50px] xl:w-[100px] xl:h-[100px] filter grayscale-0 group-hover:grayscale md:w-28 md:h-28 sm:h-20 sm:w-20`}
-              src={skill.image} alt={`${skill.name} skill badge`} width={200} height={200}/>
-              </Link>
-            ): (
+            <Link href={skill.certificate} target="_blank" rel={`noopener noreferrer`}>
               <Image
-              className={`object-contain h-[50px] transition duration-300 ease-in-out border border-gray-500 rounded-md w-[50px] xl:w-[100px] xl:h-[100px] filter grayscale-0 group-hover:grayscale md:w-28 md:h-28 sm:h-20 sm:w-20`}
-              src={skill.image} alt={`${skill.name} skill badge`} width={200} height={200}/>
-            )}
+                className={`h-[50px] border border-gray-500 object-contain transition duration-300 ease-in-out ${skill.certificate ? `hover:bg-[#BA9BDD]` : ``}  w-[50px] rounded-md grayscale-0 group-hover:grayscale sm:size-20 md:size-28 xl:size-[100px]`}
+                src={skill.image}
+                alt={`${skill.name} skill badge`}
+                width={200}
+                height={200}
+              />
+            </Link>
+          ) : (
+            <Image
+              className={`size-[50px] rounded-md border border-gray-500 object-contain grayscale-0 transition duration-300 ease-in-out group-hover:grayscale sm:size-20 md:size-28 xl:size-[100px]`}
+              src={skill.image}
+              alt={`${skill.name} skill badge`}
+              width={200}
+              height={200}
+            />
+          )}
         </div>
       ))}
     </>
-  )
-}
+  );
+};

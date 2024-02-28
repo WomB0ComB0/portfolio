@@ -1,27 +1,27 @@
-"use client"
-import React from 'react'
-import Image from 'next/image'
-type Props = {}
-const Loader = (props: Props) => {
+'use client';
+
+import Image from 'next/image';
+import React from 'react';
+
+export const Loader: React.FC = () => {
   return (
     <>
-      <div className="flex items-center justify-center h-screen bg-[rgb(36,36,36)] text-white flex-col">
+      <div className="flex h-screen flex-col items-center justify-center bg-[rgb(36,36,36)] text-white">
         <>
-          <div className="loader"/>
+          <div className="loader" />
         </>
         <Image
-          className="absolute mt-2 transition-all select-none animate-pulse h-52 w-52"
-          src="/MyLogo.svg"
+          className="absolute mt-2 transition-all select-none size-52 animate-pulse"
+          src="/assets/svgs/MyLogo.svg"
           alt="Loading..."
-          layout='fixed'
+          layout="fixed"
           objectFit="contain"
           priority={true}
-          loading='eager'
+          loading="eager"
           width={200}
           height={200}
         />
       </div>
     </>
-  )
-}
-export default Loader
+  );
+};

@@ -1,22 +1,9 @@
-import Header from "../components/Header";
-import Hero from "../components/Hero";
-import About from "../components/About";
-import WorkExperience from "../components/WorkExperience";
-import Skills from "../components/Skills";
-import Projects from "../components/Projects";
-import ContactMe from "../components/ContactMe";
-import Loader from "./Loader";
-import Footer from "./Footer";
-// import CustomCursor from "./CustomCursor";
-export {
-    Header,
-    Hero,
-    About,
-    WorkExperience,
-    Skills,
-    Projects,
-    ContactMe,
-    Loader,
-    Footer,
-    // CustomCursor
-}
+export * from './BackgroundCircles';
+export * from './ExperienceCard';
+export * from './fontawesome';
+export * from './heroicons';
+export * from './Loader';
+export * from './sections';
+export * from './simpleicons';
+export * from './Skill';
+export * from './svg';
