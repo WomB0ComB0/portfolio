@@ -2,9 +2,6 @@ import { ImageResponse } from '@vercel/og';
 
 import { PurpleBackground } from '@/components/svg/PurpleBackground';
 
-export const config = {
-  runtime: 'edge',
-};
 export const OG = () => {
   return new ImageResponse(
     (
