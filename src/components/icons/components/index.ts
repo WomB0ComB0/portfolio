@@ -1,3 +1,3 @@
-export * from './GitHubForkIcon'
-export * from './GitHubStarIcon'
-export * from './LogoIcon'
+export * from './GitHubForkIcon';
+export * from './GitHubStarIcon';
+export * from './LogoIcon';

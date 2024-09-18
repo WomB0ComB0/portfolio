@@ -1,5 +1,5 @@
-"use client"
-import { useState, useEffect } from 'react'
+'use client';
+import { useEffect, useState } from 'react';
 
 const Cursor = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -30,5 +30,5 @@ const Cursor = () => {
       }}
     ></div>
   );
-}
-export default Cursor
+};
+export default Cursor;

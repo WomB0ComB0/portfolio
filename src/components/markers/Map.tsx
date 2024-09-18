@@ -1,30 +1,25 @@
-"use client";
+'use client';
 
-import {
-  APIProvider,
-  Map,
-  useMap,
-  AdvancedMarker,
-} from "@vis.gl/react-google-maps";
-import { MarkerClusterer } from "@googlemaps/markerclusterer";
-import type { Marker } from "@googlemaps/markerclusterer";
-import { useEffect, useState, useRef } from "react";
-import { MapStyles, places } from "src/data/places";
-
+import { env } from '@/env';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import type { Marker } from '@googlemaps/markerclusterer';
+import { APIProvider, AdvancedMarker, Map, useMap } from '@vis.gl/react-google-maps';
+import { useEffect, useRef, useState } from 'react';
+import { MapStyles, places } from 'src/data/places';
 
 export default function GoogleMaps() {
   return (
     <section
       style={{
-        height: "100vh",
-        width: "100%"
+        height: '100vh',
+        width: '100%',
       }}
     >
-      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}>
+      <APIProvider apiKey={env.GOOGLE_MAPS_API_KEY}>
         <Map
           center={{ lat: 40.73061, lng: -73.935242 }}
           zoom={10}
-          mapId={process.env.NEXT_PUBLIC_MAP_ID}
+          mapId={env.GOOGLE_MAPS_MAP_ID}
           zoomControl={true}
           fullscreenControl={false}
           styles={MapStyles}
@@ -80,7 +75,7 @@ const Markers = ({ points }: Props) => {
           key={point.key}
           ref={(marker) => setMarkerRef(marker, point.key)}
         >
-          <span style={{ fontSize: "2rem" }}>📍</span>
+          <span style={{ fontSize: '2rem' }}>📍</span>
         </AdvancedMarker>
       ))}
     </>

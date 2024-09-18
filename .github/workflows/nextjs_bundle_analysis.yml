@@ -1,0 +1,105 @@
+name: 🧺 Next.js Bundle Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - production
+      - staging
+  pull_request:
+    branches:
+      - main
+      - production
+      - staging
+  workflow_dispatch:
+
+defaults:
+  run:
+    # change this if your nextjs app does not live at the root of the repo
+    working-directory: ./
+
+jobs:
+  analyze:
+    env:
+      SKIP_ENV_VALIDATION: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Restore next build
+        uses: actions/cache@v3
+        id: restore-build-cache
+        env:
+          cache-name: cache-next-build
+        with:
+          path: .next/cache
+          # change this if you prefer a more strict cache
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+
+      - name: Build next.js app
+        env:
+          SKIP_BUILD_PRODUCT_REDIRECTS: 1
+        # change this if your site requires a custom build command
+        run: bun run build
+
+      - name: Analyze bundle
+        run: node report-bundle-size.js
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle
+          path: .next/analyze/__bundle_analysis.json
+
+      - name: Download base branch bundle stats
+        uses: dawidd6/action-download-artifact@v2
+        if: success() && github.event.number
+        with:
+          workflow: nextjs_bundle_analysis.yml
+          branch: ${{ github.event.pull_request.base.ref }}
+          path: .next/analyze/base
+
+      - name: Compare with base branch bundle
+        if: success() && github.event.number
+        run: ls -laR .next/analyze/base && npx -p nextjs-bundle-analysis compare
+
+      - name: Get comment body
+        id: get-comment-body
+        if: success() && github.event.number
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const fs = require('fs')
+            const comment = fs.readFileSync('.next/analyze/__bundle_analysis_comment.txt', 'utf8')
+            core.setOutput('body', comment)
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v2
+        if: success() && github.event.number
+        id: fc
+        with:
+          issue-number: ${{ github.event.number }}
+          body-includes: "<!-- __NEXTJS_BUNDLE -->"
+
+      - name: Create Comment
+        uses: peter-evans/create-or-update-comment@v3
+        if: success() && github.event.number && steps.fc.outputs.comment-id == 0
+        with:
+          issue-number: ${{ github.event.number }}
+          body: ${{ steps.get-comment-body.outputs.body }}
+
+      - name: Update Comment
+        uses: peter-evans/create-or-update-comment@v3
+        if: success() && github.event.number && steps.fc.outputs.comment-id != 0
+        with:
+          issue-number: ${{ github.event.number }}
+          body: ${{ steps.get-comment-body.outputs.body }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          edit-mode: replace

@@ -1,15 +1,18 @@
-import NavBar from "./Nav";
-import MobileNavBar from "./MobileNav";
-import { KBarProvider } from "kbar";
-import Palette from "./CMD";
-import { actions } from "../lib/actions";
+'use client';
+
+import Palette from '@/components/CMD';
+import { actions } from '@/lib/actions';
+import { KBarProvider } from 'kbar';
+import { usePathname } from 'next/navigation';
+import MobileNavBar from './MobileNav';
+import NavBar from './Nav';
 
 export default function Layout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const currentRoute = useRouter().pathname;
+  const pathname = usePathname();
   return (
     <div>
       <KBarProvider actions={actions}>
@@ -17,10 +20,10 @@ export default function Layout({
           <Palette />
           <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
             <div className="w-[6%] fixed left-0 h-full z-50 hidden lg:block md:block">
-              <NavBar path={currentRoute} />
+              <NavBar path={pathname} />
             </div>
             <div className="fixed top-0 w-full z-50 block lg:hidden md:hidden px-8 pt-4">
-              <MobileNavBar path={currentRoute} />
+              <MobileNavBar path={pathname} />
             </div>
             {children}
           </div>

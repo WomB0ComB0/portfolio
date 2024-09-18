@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-import type { NextRequest } from "next/server";
+import type { NextRequest } from 'next/server';
 
 export const config = {
-  runtime: "experimental-edge",
+  runtime: 'experimental-edge',
 };
 
 type Repository = {
@@ -17,10 +15,8 @@ type User = {
 };
 
 export default async function handler(req: NextRequest) {
-  const me = await fetch("https://api.github.com/users/WomB0ComB0");
-  const repos = await fetch(
-    "https://api.github.com/users/WomB0ComB0/repos?per_page=100"
-  );
+  const me = await fetch('https://api.github.com/users/WomB0ComB0');
+  const repos = await fetch('https://api.github.com/users/WomB0ComB0/repos?per_page=100');
 
   const meJson = (await me.json()) as User;
   const reposJson = (await repos.json()) as Repository[];
@@ -37,9 +33,9 @@ export default async function handler(req: NextRequest) {
     {
       status: 200,
       headers: {
-        "Content-Type": "application/json",
-        "cache-control": "public, s-maxage=3600, stale-while-revalidate=1800",
+        'Content-Type': 'application/json',
+        'cache-control': 'public, s-maxage=3600, stale-while-revalidate=1800',
       },
-    }
+    },
   );
 }

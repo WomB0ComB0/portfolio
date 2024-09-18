@@ -1,5 +1,5 @@
-import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
+import { createEnv } from '@t3-oss/env-nextjs';
+import { z } from 'zod';
 
 export const env = createEnv({
   /**
@@ -7,7 +7,7 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
-    NODE_ENV: z.enum(["development", "test", "production"]),
+    NODE_ENV: z.enum(['development', 'test', 'production']),
     FIREBASE_API_KEY: z.string(),
     FIREBASE_AUTH_DOMAIN: z.string(),
     FIREBASE_PROJECT_ID: z.string(),
@@ -25,7 +25,14 @@ export const env = createEnv({
     SPOTIFY_CLIENT_ID: z.string(),
     SPOTIFY_CLIENT_SECRET: z.string(),
     SPOTIFY_REFRESH_TOKEN: z.string(),
-    UMAMI_API_KET: z.string(),
+    UMAMI_API_KEY: z.string(),
+    SENTRY_AUTH_TOKEN: z.string(),
+    GCP_PROJECT_ID: z.string(),
+    GCP_PRIVATE_KEY_ID: z.string(),
+    GCP_PRIVATE_KEY: z.string(),
+    GCP_CLIENT_EMAIL: z.string(),
+    GCP_CLIENT_ID: z.string(),
+    GCP_CLIENT_X509_CERT_URL: z.string(),
   },
 
   /**
@@ -60,7 +67,14 @@ export const env = createEnv({
     SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
     SPOTIFY_REFRESH_TOKEN: process.env.SPOTIFY_REFRESH_TOKEN,
-    UMAMI_API_KET: process.env.UMAMI_API_KET,
+    UMAMI_API_KEY: process.env.UMAMI_API_KEY,
+    SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+    GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
+    GCP_PRIVATE_KEY_ID: process.env.GCP_PRIVATE_KEY_ID,
+    GCP_PRIVATE_KEY: process.env.GCP_PRIVATE_KEY,
+    GCP_CLIENT_EMAIL: process.env.GCP_CLIENT_EMAIL,
+    GCP_CLIENT_ID: process.env.GCP_CLIENT_ID,
+    GCP_CLIENT_X509_CERT_URL: process.env.GCP_CLIENT_X509_CERT_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

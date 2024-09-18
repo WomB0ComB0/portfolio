@@ -1,17 +1,15 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable react/display-name */
 import {
-  ActionId,
+  type ActionId,
+  type ActionImpl,
   KBarAnimator,
   KBarPortal,
   KBarPositioner,
-  KBarSearch,
   KBarResults,
+  KBarSearch,
   useMatches,
-  ActionImpl,
   // useRegisterActions,
-} from "kbar";
-import React from "react";
+} from 'kbar';
+import React from 'react';
 
 export default function Palette() {
   return (
@@ -33,7 +31,7 @@ function RenderResults() {
     <KBarResults
       items={results}
       onRender={({ item, active }) =>
-        typeof item === "string" ? (
+        typeof item === 'string' ? (
           <div
             className="w-full h-full p-3 text-xs text-gray-700 uppercase dark:text-zinc-500 cursor-pointer"
             key={item}
@@ -64,13 +62,11 @@ const ResultItem = React.forwardRef(
       active: boolean;
       currentRootActionId: ActionId;
     },
-    ref: React.Ref<HTMLDivElement>
+    ref: React.Ref<HTMLDivElement>,
   ) => {
     const ancestors = React.useMemo(() => {
       if (!currentRootActionId) return action.ancestors;
-      const index = action.ancestors.findIndex(
-        (ancestor) => ancestor.id === currentRootActionId
-      );
+      const index = action.ancestors.findIndex((ancestor) => ancestor.id === currentRootActionId);
       return action.ancestors.slice(index + 1);
     }, [action.ancestors, currentRootActionId]);
 
@@ -79,8 +75,8 @@ const ResultItem = React.forwardRef(
         ref={ref}
         className={`py-2 px-3 flex align-center justify-between cursor-pointer transition-all ${
           active
-            ? "bg-zinc-100 dark:bg-zinc-800 hover:dark:bg-zinc-800 hover:bg-zinc-200 duration-200"
-            : "transparent"
+            ? 'bg-zinc-100 dark:bg-zinc-800 hover:dark:bg-zinc-800 hover:bg-zinc-200 duration-200'
+            : 'transparent'
         }`}
       >
         <div className="flex items-center gap-3">
@@ -96,9 +92,7 @@ const ResultItem = React.forwardRef(
               {action.icon}
               <span>{action.name}</span>
             </div>
-            {action.subtitle && (
-              <span className="text-xs text-zinc-400">{action.subtitle}</span>
-            )}
+            {action.subtitle && <span className="text-xs text-zinc-400">{action.subtitle}</span>}
           </div>
         </div>
         {action.shortcut?.length ? (
@@ -115,5 +109,5 @@ const ResultItem = React.forwardRef(
         ) : null}
       </div>
     );
-  }
+  },
 );

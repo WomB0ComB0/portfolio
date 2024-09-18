@@ -1,36 +1,35 @@
 function isRecord(value: unknown): value is Record<string, unknown> {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 type JsonValidationResult =
   | { success: true; data: Record<string, unknown> }
   | { success: false; error: Error };
 
-
 export function validateJsonObject(json: string): JsonValidationResult {
   try {
-    const parsedJSON: unknown = JSON.parse(json)
+    const parsedJSON: unknown = JSON.parse(json);
     if (!isRecord(parsedJSON)) {
       return {
         success: false,
-        error: new Error("The JSON string is not a valid object")
-      }
+        error: new Error('The JSON string is not a valid object'),
+      };
     }
     return {
       success: true,
-      data: parsedJSON
-    }
+      data: parsedJSON,
+    };
   } catch (e) {
     if (e instanceof Error) {
       return {
         success: false,
-        error: e
-      }
+        error: e,
+      };
     }
     return {
       success: false,
-      error: new Error("An unknown error occurred")
-    }
+      error: new Error('An unknown error occurred'),
+    };
   }
 }
 
@@ -38,7 +37,7 @@ export function validateJsonObject(json: string): JsonValidationResult {
  * const jsonString = `{"name": "John Doe", "age": 30}`
  * const jsonObjectValidation = validateJsonObject(jsonString)
  * jsonObjectValidation.success ? console.log(jsonObjectValidation.data) : console.error(jsonObjectValidation.error)
-*/
+ */
 
 export async function fetchData<JSON>(input: RequestInfo, init?: RequestInit): Promise<JSON> {
   const response = await fetch(input, init);
@@ -55,48 +54,33 @@ export async function fetchData<JSON>(input: RequestInfo, init?: RequestInit): P
   return response.json();
 }
 
-const get = async (
-  url: string,
-  input: Record<string, string>,
-  props: any
-) => {
-  return fetchData<typeof props>(
-    `${url}?${new URLSearchParams(input).toString()}`
-  );
+const get = async (url: string, input: Record<string, string>, props: any) => {
+  return fetchData<typeof props>(`${url}?${new URLSearchParams(input).toString()}`);
 };
 
-const put = async (
-  url: string,
-  input: Record<string, string>
-) => {
+const put = async (url: string, input: Record<string, string>) => {
   return fetch(url, {
-    method: "PUT",
+    method: 'PUT',
     body: JSON.stringify(input),
   });
 };
 
-const patch = async (
-  url: string,
-  input: Record<string, string>
-) => {
+const patch = async (url: string, input: Record<string, string>) => {
   return fetch(url, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify(input),
   });
 };
 
 const del = async (url: string) => {
   return fetch(url, {
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 
-const post = async (
-  url: string,
-  input: Record<string, string>
-) => {
+const post = async (url: string, input: Record<string, string>) => {
   return fetch(url, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify(input),
   });
 };
@@ -108,7 +92,6 @@ export const api = {
   delete: del,
   post,
 };
-
 
 interface Artist {
   external_urls: {
@@ -158,6 +141,6 @@ interface TopArtistsResponse {
   previous: string | null;
 }
 
-
 // Authorization token that must have been created previously. See : https://developer.spotify.com/documentation/web-api/concepts/authorization
-const token = 'BQBfbE9IzTR8_UIbWlsR8bCryDmEgbHurN6YzyJZOVM4m4V3JOvn5_3cX4yrdkW7lYmzzEfW8HijZ4x5t3LenusXrfrOMzi_NS7SOegWBnCVokM1abAGxvfsOMPi9ZeV6t0h1zC7NXJZVo59bvccF1QrkzPjvc-P1pG5CkhAFCSlHRAoMaybOQpCM6Ibib6m7MF-FLqqC88pHebhSledA2qXzh3zY_Xv_pBqq5kxFJhR2hsQm4192zMmXMS416HqTSpi';
+const token =
+  'BQBfbE9IzTR8_UIbWlsR8bCryDmEgbHurN6YzyJZOVM4m4V3JOvn5_3cX4yrdkW7lYmzzEfW8HijZ4x5t3LenusXrfrOMzi_NS7SOegWBnCVokM1abAGxvfsOMPi9ZeV6t0h1zC7NXJZVo59bvccF1QrkzPjvc-P1pG5CkhAFCSlHRAoMaybOQpCM6Ibib6m7MF-FLqqC88pHebhSledA2qXzh3zY_Xv_pBqq5kxFJhR2hsQm4192zMmXMS416HqTSpi';

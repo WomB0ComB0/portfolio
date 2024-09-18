@@ -1,7 +1,7 @@
-import type { PinnedRepos } from "../lib/types";
-import { FiStar, FiArrowRight } from "react-icons/fi";
-import { VscRepoForked } from "react-icons/vsc";
-import Link from "next/link";
+import type { PinnedRepos } from '@/lib/types';
+import Link from 'next/link';
+import { FiArrowRight, FiStar } from 'react-icons/fi';
+import { VscRepoForked } from 'react-icons/vsc';
 
 export default function PinnedRepos(props: { pinnedRepos: PinnedRepos }) {
   return (
@@ -41,7 +41,7 @@ export default function PinnedRepos(props: { pinnedRepos: PinnedRepos }) {
                 </div>
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
       <Link
@@ -50,11 +50,11 @@ export default function PinnedRepos(props: { pinnedRepos: PinnedRepos }) {
         rel="noreferrer"
         className="flex group gap-2 items-center duration-200 text-zinc-500 cursor-pointer no-underline dark:hover:text-zinc-400 hover:text-zinc-700 "
       >
-        View More{" "}
+        View More{' '}
         <span className="group-hover:translate-x-1 duration-200">
           <FiArrowRight />
         </span>
-      </a>
+      </Link>
     </section>
   );
 }

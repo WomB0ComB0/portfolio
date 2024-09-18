@@ -1,12 +1,10 @@
-import Layout from "@/components/Layout/Layout"
+import Layout from '@/components/layout/Layout';
 export default function Page() {
   return (
     <>
-      <Layout emoji="" description="">
-        <>
-
-        </>
+      <Layout>
+        <></>
       </Layout>
     </>
-  )
+  );
 }

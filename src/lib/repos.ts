@@ -1,10 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import axios from "axios";
+import axios from 'axios';
 
 export async function getPinnedRepos() {
   const res = await axios.get(
-    "https://" // TODO
+    'https://', // TODO
   );
   const repos = res.data;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React from 'react';
+import type React from 'react';
 
 export const Loader: React.FC = () => {
   return (

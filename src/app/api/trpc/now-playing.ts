@@ -1,14 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-import type { NextRequest } from "next/server";
-import { getNpOrRpSong } from "../../lib/spotify";
+import { currentlyPlayingSong as getNowPlaying } from '@/lib/spotify';
+import type { NextRequest } from 'next/server';
 
 export const config = {
-  runtime: "experimental-edge",
+  runtime: 'experimental-edge',
 };
 
 export default async function handler(req: NextRequest) {
-  const resp = await getNpOrRpSong();
+  const resp = (await getNowPlaying()) as any;
 
   if (resp.status !== 200) {
     return new Response(JSON.stringify(await resp.json()), {
@@ -20,11 +18,11 @@ export default async function handler(req: NextRequest) {
 
   const song = response.recenttracks.track[0];
 
-  const isPlaying: boolean = song["@attr"]?.nowplaying || false;
+  const isPlaying: boolean = song['@attr']?.nowplaying || false;
   const songName: string = song.name;
-  const artistName: string = song.artist["#text"];
+  const artistName: string = song.artist['#text'];
   const songURL: string = song.url;
-  const imageURL: string = song.image[3]["#text"];
+  const imageURL: string = song.image[3]['#text'];
 
   return new Response(
     JSON.stringify({
@@ -37,9 +35,9 @@ export default async function handler(req: NextRequest) {
     {
       status: 200,
       headers: {
-        "Content-Type": "application/json",
-        "cache-control": "public, s-maxage=60, stale-while-revalidate=30",
+        'Content-Type': 'application/json',
+        'cache-control': 'public, s-maxage=60, stale-while-revalidate=30',
       },
-    }
+    },
   );
 }

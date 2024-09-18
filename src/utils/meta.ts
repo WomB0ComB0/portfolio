@@ -1,20 +1,27 @@
+import { app } from '@/constants';
 import type { Metadata, Viewport } from 'next';
-import { useRouter } from 'next/router';
 
-export async function constructMetadata({
-  image = '/assets/images/PurpleBackground.png',
-  icons = '/assets/svgs/PurpleBackground.svg',
-  description = "Mike Odnis' portfolio. Undergraduate, Computer Science student at Farmingdale State College.",
-  title = 'Mike Odnis',
+export function constructMetadata({
+  title = `${app.name}`,
+  description = `${app.description}`,
+  image = '/opengraph-image.png',
+  twitter = '/twitter-image.png',
+  icons = '/assets/svgs/logo.svg',
   noIndex = false,
-}: MetadataProps = {}): Promise<Metadata> {
-  const currentRoute = useRouter().pathname;
+}: {
+  title?: string;
+  description?: string;
+  image?: string;
+  twitter?: string;
+  icons?: string;
+  noIndex?: boolean;
+} = {}): Metadata {
   return {
     title: {
       default: title,
       template: `${title} - %s`,
     },
-    description,
+    description: description,
     openGraph: {
       title,
       description,
@@ -28,8 +35,8 @@ export async function constructMetadata({
       card: 'summary_large_image',
       title,
       description,
-      images: [image],
-      creator: '@OdnisMike',
+      images: [twitter],
+      creator: '@SparkMind',
     },
     icons: [
       {
@@ -37,8 +44,9 @@ export async function constructMetadata({
         href: icons,
       },
     ],
-    manifest: '/pwa/manifest.json',
-    metadataBase: new URL('https://mikeodnis.com/'),
+    manifest: '/manifest.webmanifest',
+    metadataBase: new URL(app.url),
+
     other: {
       currentYear: new Date().getFullYear(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -52,13 +60,20 @@ export async function constructMetadata({
   };
 }
 
-export async function constructViewport(): Promise<Viewport> {
+export function constructViewport(): Viewport {
   return {
     width: 'device-width',
     height: 'device-height',
     initialScale: 1,
     minimumScale: 1,
-    maximumScale: 1,
-    themeColor: '#BA9BDD',
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: 'cover',
+    interactiveWidget: 'resizes-visual',
+    themeColor: [
+      { media: '(prefers-color-scheme: light)', color: '#BA9BDD' },
+      { media: '(prefers-color-scheme: dark)', color: '#4B0082' },
+    ],
+    colorScheme: 'dark light',
   };
 }

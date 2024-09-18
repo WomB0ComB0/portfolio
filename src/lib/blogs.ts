@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import axios from "axios";
+import axios from 'axios';
 
 export async function getBlogs() {
-  const res = await axios.get("https://dev.to/api/articles?username=womb0comb0");
+  const res = await axios.get('https://dev.to/api/articles?username=womb0comb0');
 
   const blogs = res.data.slice(0, 3);
 

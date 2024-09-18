@@ -1,15 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-import type { NextRequest } from "next/server";
-import { getTopTracks } from "../../lib/spotify";
+import { topTracks as getTopTracks } from '@/lib/spotify';
+import type { NextRequest } from 'next/server';
 
 export const config = {
-  runtime: "experimental-edge",
+  runtime: 'experimental-edge',
 };
-
 export default async function handler(req: NextRequest) {
-  const resp = await getTopTracks();
+  const resp = (await getTopTracks()) as any;
 
   if (resp.status !== 200) {
     return new Response(JSON.stringify(await resp.json()), {
@@ -33,8 +29,8 @@ export default async function handler(req: NextRequest) {
   return new Response(JSON.stringify(topTracks), {
     status: 200,
     headers: {
-      "Content-Type": "application/json",
-      "cache-control": "public, s-maxage=86400",
+      'Content-Type': 'application/json',
+      'cache-control': 'public, s-maxage=86400',
     },
   });
 }

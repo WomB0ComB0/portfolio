@@ -1,31 +1,27 @@
-import "@/styles/globals.css";
-import Head from "next/head";
+import '@/styles/globals.css';
+import { Providers } from '@/providers';
+import { constructMetadata, constructViewport } from '@/utils';
+import type { NextWebVitalsMetric } from 'next/app';
 
-import { Montserrat } from "next/font/google";
+export const metadata = constructMetadata();
+export const viewport = constructViewport();
+export const reportWebVitals = (metric: NextWebVitalsMetric) => {
+  if (metric.label === 'web-vital') {
+    console.log(metric);
+  }
+};
 
-import { TRPCReactProvider } from "@/trpc/react";
-import { Scripts } from "@/scripts/Scripts";
-import Providers from "@/providers/Providers";
-
-const inter = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-montserrat",
-});
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <Head>
-        <Scripts />
-      </Head>
-      <body className={`font-sans ${inter.variable}`}>
-        <TRPCReactProvider>
-          {children}
-        </TRPCReactProvider>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      data-a11y-animated-images="system"
+      data-a11y-link-underlines="false"
+      data-turbo-loaded
+    >
+      <body className={``}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

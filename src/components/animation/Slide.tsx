@@ -1,6 +1,6 @@
-"use client";
-import { motion, useInView, useAnimation } from "framer-motion";
-import { useRef, useEffect } from "react";
+'use client';
+import { motion, useAnimation, useInView } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 type props = {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ export const Slide = ({ children, className, delay }: props) => {
 
   useEffect(() => {
     if (isInview) {
-      controls.start("stop");
+      controls.start('stop');
     }
   }, [controls, isInview]);
 
@@ -27,7 +27,7 @@ export const Slide = ({ children, className, delay }: props) => {
         stop: { opacity: 1, translateY: 0 },
       }}
       transition={{
-        ease: "easeInOut",
+        ease: 'easeInOut',
         duration: 0.3,
         delay: delay,
         stiffness: 0.5,

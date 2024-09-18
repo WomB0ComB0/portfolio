@@ -61,7 +61,7 @@ export const useLiveCursors = () => {
   const cursors = others
     .filter(({ presence }) => presence?.cursor)
     .map(({ connectionId, presence }) => ({
-      x: presence?.cursor ? presence.cursor.x * window.innerWidth ?? 0 : 0,
+      x: presence?.cursor ? (presence.cursor.x * window.innerWidth ?? 0) : 0,
       y: presence?.cursor?.y,
       connectionId,
     }));

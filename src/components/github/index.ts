@@ -1,2 +1,2 @@
-export * from './Repository'
-export * from './PinnedRepos'
+export * from './Repository';
+export * from './PinnedRepos';

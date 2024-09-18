@@ -1,4 +1,6 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Next.js",
   "compilerOptions": {
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -35,17 +37,20 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
+      "@testing": ["./test-fixtures.ts"],
       "@/*": ["./src/*"]
     }
   },
   "include": [
-    ".eslintrc.cjs",
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     "**/*.cjs",
     "**/*.js",
-    ".next/types/**/*.ts"
-, "next.config.mjs"  ],
-  "exclude": ["node_modules"]
+    ".next/types/**/*.ts",
+    "next.config.mjs",
+    "next.config.mjs",
+    "custom.d.ts"
+  ],
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.spec.tsx", "**/*.test.ts", "**/*.test.tsx"]
 }

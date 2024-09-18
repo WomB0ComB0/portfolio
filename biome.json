@@ -1,0 +1,69 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.6.3/schema.json",
+  "organizeImports": {
+    "enabled": true,
+    "ignore": [
+      "node_modules",
+      ".next",
+      "dist",
+      ".nuxt",
+      ".wrangler",
+      ".react-email",
+      "extension/dist"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "off"
+      },
+      "complexity": {
+        "noBannedTypes": "warn"
+      }
+    },
+    "ignore": [
+      "node_modules/**/*",
+      "dist/**/*",
+      "build/**/*",
+      ".next/**/*",
+      "public/**/*.js",
+      "extension/dist/**/*"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "enabled": true,
+    "lineWidth": 100,
+    "ignore": [
+      "node_modules",
+      ".next",
+      "dist",
+      ".wrangler",
+      "pnpm-lock.yaml",
+      "package.json",
+      "package-lock.json",
+      "yarn.lock",
+      "bun.lockb",
+      "extension/dist/**/*"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always"
+    }
+  },
+  "json": {
+    "parser": {
+      "allowComments": true,
+      "allowTrailingCommas": true
+    },
+    "formatter": {
+      "indentStyle": "space",
+      "trailingCommas": "none"
+    }
+  }
+}

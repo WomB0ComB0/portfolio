@@ -1,41 +1,123 @@
-await import("./src/env.js");
+import './src/env.js';
+import pwa from '@ducanh2912/next-pwa';
+import MillionLint from '@million/lint';
+import withBundleAnalyzer from '@next/bundle-analyzer';
+import { withSentryConfig } from '@sentry/nextjs';
 
-import million from 'million/compiler';
-import * as pwa from '@ducanh2912/next-pwa';
-
-const withPwa = pwa.default({
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
+const withPwa = pwa({
   dest: 'public',
-  fallbacks: {
-    document: 'src/app/offline',
-  },
-  workboxOptions: {
-    disableDevLogs: true,
-  },
+  disable: false,
+  register: true,
+  sw: '/sw.js',
+  publicExcludes: ['!noprecache/**/*'],
 });
 
 /**
- * Don't be scared of the generics here.
- * All they do is to give us autocompletion when using this.
- *
- * @template {import('next').NextConfig} T
- * @param {T} config - A generic parameter that flows through to the return type
- * @constraint {{import('next').NextConfig}}
+ * @type {import('next').NextConfig}
  */
 const config = {
+  reactStrictMode: true,
+  // Removed the compiler.removeConsole option
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'http', hostname: 'localhost', port: '3000' },
+      { protocol: 'https', hostname: 'mikeodnis.dev' },
+      { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
+    ],
+  },
+  experimental: {
+    optimizeCss: { preload: true },
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    dirs: ['.'],
+  async rewrites() {
+    return [
+      { source: '/healthz', destination: '/api/health' },
+      { source: '/api/healthz', destination: '/api/health' },
+      { source: '/health', destination: '/api/health' },
+      { source: '/ping', destination: '/api/health' },
+    ];
   },
-  reactStrictMode: true,
-  compiler: {
-    removeConsole: false,
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: 'https://mikeodnis.dev' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT' },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value:
+              'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
+          },
+        ],
+      },
+      {
+        source: '/(.*).png',
+        headers: [{ key: 'Content-Type', value: 'image/png' }],
+      },
+    ];
+  },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.(png|jpe?g|gif|svg|webp|avif)$/i,
+      use: [
+        {
+          loader: 'file-loader',
+          options: {
+            publicPath: '/_next',
+            name: 'static/media/[name].[hash].[ext]',
+          },
+        },
+      ],
+    });
+    return config;
+  },
+  publicRuntimeConfig: {
+    basePath: '',
   },
 };
 
-// @ts-ignore
-export default million.next(withPwa(config), { auto: { rsc: true } });
+const withBundleAnalyzerConfig = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+const withMillion = MillionLint.next({
+  rsc: true,
+  filter: {
+    include: '**/components/*.{mtsx,mjsx,tsx,jsx}',
+  },
+});
+
+const combinedConfig = withMillion(withBundleAnalyzerConfig(withPwa(config)));
+
+export default withSentryConfig(combinedConfig, {
+  org: 'womb0comb0',
+  project: 'portfolio',
+  sentryUrl: 'https://sentry.io/',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+  tunnelRoute: '/monitoring',
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});

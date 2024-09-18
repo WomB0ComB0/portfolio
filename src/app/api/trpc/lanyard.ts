@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-import type { NextRequest } from "next/server";
+import type { NextRequest } from 'next/server';
 
 export const config = {
-  runtime: "experimental-edge",
+  runtime: 'experimental-edge',
 };
 
 type LanyardResponse = {
@@ -17,18 +15,15 @@ type LanyardResponse = {
 };
 
 export default async function handler(req: NextRequest) {
-  const resp = await fetch(
-    "https://api.lanyard.rest/v1/users/${}"
-  );
+  const resp = await fetch('https://api.lanyard.rest/v1/users/${}');
   const response = await resp.json();
   const lanyard = response.data as LanyardResponse;
-
 
   return new Response(JSON.stringify(lanyard), {
     status: 200,
     headers: {
-      "Content-Type": "application/json",
-      "cache-control": "public, s-maxage=60, stale-while-revalidate=30",
+      'Content-Type': 'application/json',
+      'cache-control': 'public, s-maxage=60, stale-while-revalidate=30',
     },
   });
 }

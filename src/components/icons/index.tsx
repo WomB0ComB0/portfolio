@@ -1,9 +1,9 @@
-import { cn } from "@/lib/utils"
-import { 
+import { cn } from '@/lib/utils';
+import {
   GitHubForkIcon as GitHubFork,
   GitHubStarIcon as GitHubStar,
-  LogoIcon as Logo
-} from "./components"
+  LogoIcon as Logo,
+} from './components';
 
 export const Icons: IconsProps = {
   logo: ({ className, size = '4', props }) => (
@@ -18,5 +18,5 @@ export const Icons: IconsProps = {
     gitHubStar: ({ className, size = '4', props }) => (
       <GitHubStar className={cn(className, `w-${size} h-${size}`)} {...props} />
     ),
-  }
-}
+  },
+};

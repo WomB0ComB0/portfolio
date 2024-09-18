@@ -1,18 +1,18 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils';
 export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JSX.Element => {
   return (
     <>
-      <svg 
+      <svg
         version="1.0"
         xmlns="http://www.w3.org/2000/svg"
         width="512.000000pt"
         height="512.000000pt"
         viewBox="0 0 512.000000 512.000000"
         preserveAspectRatio="xMidYMid meet"
-        className={cn(`w-${size} h-${size}`,className)}
+        className={cn(`w-${size} h-${size}`, className)}
         {...props}
       >
-        <g 
+        <g
           transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)"
           fill="#7209b7"
           stroke="#d6b3f0"
@@ -65,17 +65,20 @@ export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JS
               c-162 0 -200 3 -200 14 0 7 27 80 60 162 60 150 71 202 47 223 -15 12 -142 27
               -512 61 -143 13 -158 16 -152 27 2 5 44 130 91 278 48 149 92 282 98 297 8 21
               39 42 146 96 76 39 207 106 292 150 l155 80 3 600 2 599 25 25 c25 26 80 32
-              93 11z"/>
-          <path 
+              93 11z"
+          />
+          <path
             d="M1644 2782 c-22 -14 -36 -82 -29 -138 15 -121 106 -238 233 -297 54
               -25 83 -32 153 -35 93 -5 159 10 159 34 0 66 -197 299 -315 373 -87 55 -173
-              82 -201 63z"/>
-          <path 
+              82 -201 63z"
+          />
+          <path
             d="M3380 2773 c-71 -25 -169 -94 -241 -169 -99 -104 -179 -219 -179
               -258 0 -35 148 -48 248 -22 117 31 234 131 271 231 32 85 30 205 -3 227 -16
-              11 -46 8 -96 -9z"/>
+              11 -46 8 -96 -9z"
+          />
         </g>
       </svg>
     </>
-  )
-}
+  );
+};

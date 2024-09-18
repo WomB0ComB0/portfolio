@@ -1,14 +1,10 @@
-"use client"
-import {
-  FiSun,
-  FiCommand,
-  FiMoon,
-} from "react-icons/fi";
-import { useRouter } from "next/router";
-import { useKBar } from "kbar";
-import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
-import { NavbarItems } from "@/constants/index";
+'use client';
+import { NavbarItems } from '@/constants/index';
+import { useKBar } from 'kbar';
+import { useTheme } from 'next-themes';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
+import { FiCommand, FiMoon, FiSun } from 'react-icons/fi';
 
 export default function MobileNavBar({ path }: { path: string }) {
   const { query } = useKBar();
@@ -23,10 +19,7 @@ export default function MobileNavBar({ path }: { path: string }) {
       <div className="flex justify-evenly gap-4 pl-24">
         {NavbarItems.map((item, index) => {
           return (
-            <button
-              key={index}
-              className="w-full h-12 flex justify-center items-center"
-            >
+            <button key={index} className="w-full h-12 flex justify-center items-center">
               {path === item.slug ? (
                 <item.icon
                   size="2rem"
@@ -48,11 +41,9 @@ export default function MobileNavBar({ path }: { path: string }) {
         {mounted && (
           <button
             className="w-full flex justify-center items-center dark:bg-zinc-800 bg-zinc-700 dark:hover:bg-zinc-700 hover:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           >
-            <div className="p-2 text-zinc-100">
-              {theme === "dark" ? <FiSun /> : <FiMoon />}
-            </div>
+            <div className="p-2 text-zinc-100">{theme === 'dark' ? <FiSun /> : <FiMoon />}</div>
           </button>
         )}
         <button

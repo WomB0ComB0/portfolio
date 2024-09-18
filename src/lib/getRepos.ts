@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import 'server-only';
-import { type RepositoryEdge } from '@/generated/graphql';
+import type { RepositoryEdge } from '@/generated/graphql';
 
 const getRepos = async (): Promise<RepositoryEdge[]> => {
   const res = await fetch('https://api.github.com/graphql', {
@@ -39,9 +37,10 @@ const getRepos = async (): Promise<RepositoryEdge[]> => {
     },
   });
 
-const data: { data: { viewer: { repositories: { edges: RepositoryEdge[] } } } } = await res.json();
+  const data: { data: { viewer: { repositories: { edges: RepositoryEdge[] } } } } =
+    await res.json();
 
-return data?.data?.viewer?.repositories?.edges ?? [];
+  return data?.data?.viewer?.repositories?.edges ?? [];
 };
 
 export default getRepos;

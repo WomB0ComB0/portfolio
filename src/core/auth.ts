@@ -1,19 +1,19 @@
 import {
-  GoogleAuthProvider,
   GithubAuthProvider,
-  User,
-  UserCredential,
+  GoogleAuthProvider,
+  type User,
+  type UserCredential,
   getAuth,
   signInAnonymously,
   signInWithPopup,
-} from "firebase/auth";
-import { atom, useAtomValue } from "jotai";
-import { atomEffect } from "jotai-effect";
-import { loadable } from "jotai/utils";
-import { useCallback, useState } from "react";
-import { app } from './firebase'
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+} from 'firebase/auth';
+import { atom, useAtomValue } from 'jotai';
+import { atomEffect } from 'jotai-effect';
+import { loadable } from 'jotai/utils';
+import { useRouter } from 'next/navigation';
+import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
+import { app } from './firebase';
 
 export const currentUserValue = atom<User | null | undefined>(undefined);
 
@@ -46,36 +46,34 @@ export function useCurrentUserLoadable() {
   return useAtomValue(currentUserLoadable);
 }
 
-export function useSignIn(
-  signInMethod: SignInMethod,
-): [signIn: () => void, inFlight: boolean] {
+export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFlight: boolean] {
   const router = useRouter();
   const [inFlight, setInFlight] = useState(false);
 
   const signIn = useCallback(() => {
     let p: Promise<UserCredential> | null = null;
 
-    if (signInMethod === "anonymous") {
+    if (signInMethod === 'anonymous') {
       const auth = getAuth(app);
       p = signInAnonymously(auth);
     }
 
-    if (signInMethod === "google.com") {
+    if (signInMethod === 'google.com') {
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
-      provider.addScope("profile");
-      provider.addScope("email");
+      provider.addScope('profile');
+      provider.addScope('email');
       provider.setCustomParameters({
         // loginHint: "",
-        prompt: "consent",
+        prompt: 'consent',
       });
       p = signInWithPopup(auth, provider);
     }
 
-    if (signInMethod === "github.com") {
+    if (signInMethod === 'github.com') {
       const auth = getAuth(app);
       const provider = new GithubAuthProvider();
-      provider.addScope("read:user");
+      provider.addScope('read:user');
       p = signInWithPopup(auth, provider);
     }
 
@@ -83,8 +81,8 @@ export function useSignIn(
 
     setInFlight(true);
     p.then(() => {
-      router.push("/")
-      toast.success("Logged in successfully! 🎉");
+      router.push('/');
+      toast.success('Logged in successfully! 🎉');
     }).finally(() => setInFlight(false));
   }, [signInMethod, router]);
 
@@ -98,16 +96,18 @@ export function useSignOut(): [signOut: () => void, inFlight: boolean] {
   const signOut = useCallback(() => {
     const auth = getAuth(app);
     setInFlight(true);
-    auth.signOut().then(() => {
-      router.push("/")
-      toast.success("Signed out successfully! 🎉");
-    }).finally(() => setInFlight(false));
+    auth
+      .signOut()
+      .then(() => {
+        router.push('/');
+        toast.success('Signed out successfully! 🎉');
+      })
+      .finally(() => setInFlight(false));
   }, [router]);
 
   return [signOut, inFlight] as const;
 }
 
-
-export type SignInMethod = "google.com" | "github.com" | "anonymous";
+export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';
 export const signout: SignOutMethod = `Sign out`;
-type SignOutMethod = "Sign out";
+type SignOutMethod = 'Sign out';

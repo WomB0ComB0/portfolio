@@ -9,9 +9,9 @@ const Projects = async () => {
       <div className="grid grid-cols-1 col-span-1 gap-4 md:grid-cols-2 lg:grid-cols-3 md:col-span-2 lg:col-span-3">
         {data
           ? data.map(({ node }) => {
-            if (!node) return null;
-            return <Repository key={node.id} {...node} />;
-          })
+              if (!node) return null;
+              return <Repository key={node.id} {...node} />;
+            })
           : null}
       </div>
     </div>

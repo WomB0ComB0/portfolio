@@ -1,15 +1,11 @@
-"use client"
-import {
-  FiSun,
-  FiMoon,
-  FiCommand,
-} from "react-icons/fi";
-import { useRouter } from "next/router";
-import React from "react";
-import { useState, useEffect } from "react";
-import { useKBar } from "kbar";
-import { useTheme } from "next-themes";
-import { NavbarItems } from "@/constants/index";
+'use client';
+import { NavbarItems } from '@/constants/index';
+import { useKBar } from 'kbar';
+import { useTheme } from 'next-themes';
+import { useRouter } from 'next/router';
+import React from 'react';
+import { useEffect, useState } from 'react';
+import { FiCommand, FiMoon, FiSun } from 'react-icons/fi';
 
 export default function NavBar({ path }: { path: string }) {
   const router = useRouter();
@@ -81,11 +77,9 @@ export default function NavBar({ path }: { path: string }) {
           {mounted === true && (
             <button
               className="w-full flex justify-center items-center dark:bg-zinc-800 dark:hover:bg-zinc-700 bg-zinc-700 hover:bg-zinc-800 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             >
-              <div className="p-2 text-zinc-100">
-                {theme === "dark" ? <FiSun /> : <FiMoon />}
-              </div>
+              <div className="p-2 text-zinc-100">{theme === 'dark' ? <FiSun /> : <FiMoon />}</div>
             </button>
           )}
           <button

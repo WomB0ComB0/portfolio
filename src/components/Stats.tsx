@@ -1,36 +1,20 @@
-import useSWR from "swr";
-import fetcher from "../lib/fetcher";
-import type {
-  GithubStats,
-  LastFmUserResponse,
-  UmamiResponse,
-  WakatimeStats,
-} from "../lib/types";
-import { FiExternalLink } from "react-icons/fi";
-import { useState, useEffect } from "react";
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { FiExternalLink } from 'react-icons/fi';
+import useSWR from 'swr';
+import fetcher from '../lib/fetcher';
+import type { GithubStats, LastFmUserResponse, UmamiResponse, WakatimeStats } from '../lib/types';
 
 export default function Stats() {
-  const { data: githubData } = useSWR<GithubStats>(
-    "/api/github-stats",
-    fetcher
-  );
-  const { data: lastFmData } = useSWR<LastFmUserResponse>(
-    "/api/scrobbles",
-    fetcher
-  );
-  const { data: umamiData } = useSWR<UmamiResponse>("/api/umami", fetcher);
-  const { data: wakatimeData } = useSWR<WakatimeStats>(
-    "/api/wakatime",
-    fetcher
-  );
+  const { data: githubData } = useSWR<GithubStats>('/api/github-stats', fetcher);
+  const { data: lastFmData } = useSWR<LastFmUserResponse>('/api/scrobbles', fetcher);
+  const { data: umamiData } = useSWR<UmamiResponse>('/api/umami', fetcher);
+  const { data: wakatimeData } = useSWR<WakatimeStats>('/api/wakatime', fetcher);
   const diffCalc = () => {
     const diff =
-      (new Date().getTime() - new Date("March 11, 2003").getTime()) /
-      1000 /
-      60 /
-      60 /
-      24 /
-      365;
+      (new Date().getTime() - new Date('March 11, 2003').getTime()) / 1000 / 60 / 60 / 24 / 365;
     return diff.toFixed(9);
   };
   const [age, setAge] = useState(diffCalc());
@@ -46,34 +30,34 @@ export default function Stats() {
 
   const statCards = [
     {
-      title: "My Age",
+      title: 'My Age',
       value: age,
-      link: "https://mikeodnis.com/about",
+      link: 'https://mikeodnis.com/about',
     },
     {
-      title: "GitHub Stars",
+      title: 'GitHub Stars',
       value: githubData?.stars,
-      link: "https://github.com/WomB0ComB0?tab=stars",
+      link: 'https://github.com/WomB0ComB0?tab=stars',
     },
     {
-      title: "GitHub Followers",
+      title: 'GitHub Followers',
       value: githubData?.followers,
-      link: "https://github.com/WomB0ComB0?tab=followers",
+      link: 'https://github.com/WomB0ComB0?tab=followers',
     },
     {
-      title: "Spotify Plays",
-      value: todo, // TODO: Add Spotify
-      link: "",
+      title: 'Spotify Plays',
+      value: 0, // TODO: Add Spotify
+      link: '',
     },
     {
-      title: "Site Views",
+      title: 'Site Views',
       value: umamiData?.pageviews.value,
-      link: "",
+      link: '',
     },
     {
-      title: "Coding Hours",
+      title: 'Coding Hours',
       value: Math.round((wakatimeData?.total_seconds as number) / 3600),
-      link: "https://wakatime.com/@",
+      link: 'https://wakatime.com/@',
     },
   ];
 
@@ -93,10 +77,8 @@ export default function Stats() {
                 rel="noreferrer"
               >
                 {card.title} <FiExternalLink />
-              </a>
-              <h3 className="text-zinc-900 dark:text-zinc-200 m-0">
-                {card.value || "-"}
-              </h3>
+              </Link>
+              <h3 className="text-zinc-900 dark:text-zinc-200 m-0">{card.value || '-'}</h3>
             </div>
           );
         })}

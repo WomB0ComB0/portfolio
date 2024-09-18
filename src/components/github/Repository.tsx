@@ -1,4 +1,6 @@
-import { Repository } from '@/generated/graphql';
+import type { Repository } from '@/generated/graphql';
+import { GitFork, StarIcon } from 'lucide-react';
+import Link from 'next/link';
 
 const Repository = ({ name, description, stargazers, forkCount, languages, url }: Repository) => (
   <Link
@@ -16,7 +18,10 @@ const Repository = ({ name, description, stargazers, forkCount, languages, url }
         <div className="flex justify-between flex-row mb-3">
           <div>
             {languages.nodes.map((item) => (
-              <span className="text-gray-700 dark:text-gray-200 italic mr-2 last:mr-0 text-xs" key={item?.id}>
+              <span
+                className="text-gray-700 dark:text-gray-200 italic mr-2 last:mr-0 text-xs"
+                key={item?.id}
+              >
                 {item?.name}
               </span>
             ))}
@@ -29,12 +34,12 @@ const Repository = ({ name, description, stargazers, forkCount, languages, url }
           <span className="ml-2 text-black dark:text-white">{stargazers.totalCount}</span>
         </div>
         <div className="flex items-center">
-          <ForkIcon className="text-black dark:text-white" />
+          <GitFork className="text-black dark:text-white" />
           <span className="ml-2 text-black dark:text-white">{forkCount}</span>
         </div>
       </div>
     </div>
-  </a>
+  </Link>
 );
 
 export default Repository;

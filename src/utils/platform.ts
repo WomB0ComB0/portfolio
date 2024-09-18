@@ -1,33 +1,51 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export const isIOS = (): boolean => /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+export const isIOS = (): boolean =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 export const isAndroid = (): boolean => /android/i.test(navigator.userAgent);
-export const isMacOS = (): boolean => /Macintosh|Mac|Mac OS|MacIntel|MacPPC|Mac68K/gi.test(navigator.userAgent);
-export const isWindows = (): boolean => /Win32|Win64|Windows|Windows NT|WinCE/gi.test(navigator.userAgent);
+export const isMacOS = (): boolean =>
+  /Macintosh|Mac|Mac OS|MacIntel|MacPPC|Mac68K/gi.test(navigator.userAgent);
+export const isWindows = (): boolean =>
+  /Win32|Win64|Windows|Windows NT|WinCE/gi.test(navigator.userAgent);
 export const isChromeOS = (): boolean => /CrOS/gi.test(navigator.userAgent);
 
 export const getBrowser = (): string => {
   const { userAgent } = navigator;
 
-  return userAgent.match(/edg/i) ? 'edge' :
-    userAgent.match(/chrome|chromium|crios/i) ? 'chrome' :
-    userAgent.match(/firefox|fxios/i) ? 'firefox' :
-    userAgent.match(/safari/i) ? 'safari' :
-    userAgent.match(/opr\//i) ? 'opera' :
-    userAgent.match(/android/i) ? 'android' :
-    userAgent.match(/iphone/i) ? 'iphone' : 'unknown';
-}
+  return userAgent.match(/edg/i)
+    ? 'edge'
+    : userAgent.match(/chrome|chromium|crios/i)
+      ? 'chrome'
+      : userAgent.match(/firefox|fxios/i)
+        ? 'firefox'
+        : userAgent.match(/safari/i)
+          ? 'safari'
+          : userAgent.match(/opr\//i)
+            ? 'opera'
+            : userAgent.match(/android/i)
+              ? 'android'
+              : userAgent.match(/iphone/i)
+                ? 'iphone'
+                : 'unknown';
+};
 
 export const getPlatform = (): string => {
-  return isIOS() ? 'ios' :
-    isAndroid() ? 'android' :
-    isMacOS() ? 'macos' :
-    isChromeOS() ? 'chromeos' :
-    isWindows() ? 'windows' : 'unknown';
-}
+  return isIOS()
+    ? 'ios'
+    : isAndroid()
+      ? 'android'
+      : isMacOS()
+        ? 'macos'
+        : isChromeOS()
+          ? 'chromeos'
+          : isWindows()
+            ? 'windows'
+            : 'unknown';
+};
 
 export const isTouchScreen = (): boolean => {
-  return navigator.maxTouchPoints && navigator.maxTouchPoints > 0 ||
-    window.matchMedia && window.matchMedia("(any-pointer:coarse)").matches;
+  return (
+    (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+    (window.matchMedia && window.matchMedia('(any-pointer:coarse)').matches)
+  );
 };
 
 export const isChrome = (): boolean => getBrowser() === 'chrome';

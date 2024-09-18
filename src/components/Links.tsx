@@ -1,4 +1,4 @@
-import { links } from "../lib/links";
+import { links } from '../lib/links';
 
 export default function LinksComponent() {
   return (
@@ -8,10 +8,10 @@ export default function LinksComponent() {
           <div
             key={index}
             className="flex justify-between items-center dark:bg-zinc-900/60 bg-zinc-100/60 duration-200 p-2 rounded-lg hover:shadow-lg cursor-pointer w-full hover:-translate-y-1"
-            onClick={() => window.open(link.url, "_blank")}
+            onClick={() => window.open(link.url, '_blank')}
           >
             <p className="dark:text-zinc-300 text-zinc-800 m-0 text-sm lg:text-base md:text-base">
-              {link.name} <span className="dark:text-zinc-600 text-zinc-500">{" // "}</span>{" "}
+              {link.name} <span className="dark:text-zinc-600 text-zinc-500">{' // '}</span>{' '}
               {link.value}
             </p>
             <p className="dark:text-zinc-300 text-zinc-800 m-0">{link.icon({})}</p>

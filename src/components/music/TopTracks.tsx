@@ -1,10 +1,10 @@
-import type { TopTracksResponse } from "../lib/types";
-import fetcher from "../lib/fetcher";
-import useSWR from "swr";
+import fetcher from '@/lib/fetcher';
+import type { TopTracksResponse } from '@/lib/types';
+import useSWR from 'swr';
 
 export default function TopTracks() {
-  const { data } = useSWR<TopTracksResponse[]>("/api/top-tracks", fetcher);
-  
+  const { data } = useSWR<TopTracksResponse[]>('/api/top-tracks', fetcher);
+
   return (
     <div className="dark:bg-gradient-to-r dark:from-neutral-800 dark:to-zinc-800 bg-gradient-to-r from-neutral-200 to-zinc-200 rounded-lg shadow-xl p-4 flex flex-col justify-between gap-2">
       <div>
@@ -16,10 +16,10 @@ export default function TopTracks() {
           <div
             key={index}
             className="flex justify-between items-center dark:hover:bg-zinc-900/60 hover:bg-zinc-100/60 rounded-lg p-2 hover:shadow-lg cursor-pointer duration-200"
-            onClick={() => window.open(track.url, "_blank")}
+            onClick={() => window.open(track.url, '_blank')}
           >
             <p className="dark:text-zinc-200 text-zinc-900 m-0 flex flex-col">
-              {track.name}{" "}
+              {track.name}{' '}
               <span className="text-xs dark:text-zinc-400 text-zinc-700">{track.artist}</span>
             </p>
             <p className="dark:text-zinc-200 text-zinc-900 m-0">

@@ -1,13 +1,13 @@
 'use client';
 
-import React from 'react';
 import { COLORS } from '@/constants/index';
 import { useLiveCursors } from '@/hooks/useLiveCursors';
+import React from 'react';
 
 import { Cursor } from './Cursor';
 
 export const CursorCanvas = () => {
-  const cursors: { x: number; y: number | undefined; connectionId: number; }[] = useLiveCursors();
+  const cursors: { x: number; y: number | undefined; connectionId: number }[] = useLiveCursors();
   return (
     <>
       {cursors.map(({ x, y, connectionId }) => (

@@ -1,10 +1,10 @@
-import { publicProcedure, router } from "../trpc";
-import { firestore } from "@/core/firebase";
-import { getDocs, collection } from "firebase/firestore";
+import { firestore } from '@/core/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { createTRPCRouter, publicProcedure } from '../trpc';
 
-let sampleCollection = collection(firestore, "message");
+const sampleCollection = collection(firestore, 'message');
 
-export const sampleGET = router({
+export const messagesGET = createTRPCRouter({
   getSample: publicProcedure.query(async () => {
     const messages: Messages[] = [];
     await getDocs(sampleCollection).then((response) => {

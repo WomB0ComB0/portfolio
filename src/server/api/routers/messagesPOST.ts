@@ -1,16 +1,16 @@
-import { publicProcedure, router } from "src/server/trpc";
-import { firestore } from "src/server/config";
-import { addDoc, collection } from "firebase/firestore";
-import { z } from "zod";
+import { firestore } from '@/core/firebase';
+import { addDoc, collection } from 'firebase/firestore';
+import { z } from 'zod';
+import { createTRPCRouter, publicProcedure } from '../trpc';
 
 //Create your collection in Firestore
-let sampleCollection = collection(firestore, "sample");
+const sampleCollection = collection(firestore, 'message');
 
-export const samplePOST = router({
+export const messagesPOST = createTRPCRouter({
   postSample: publicProcedure
     .input(z.object({ email: z.string(), password: z.string() }))
     .mutation(({ input }) => {
-      let user = {
+      const user = {
         email: input.email,
         password: input.password,
       };

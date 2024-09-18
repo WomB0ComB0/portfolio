@@ -1,9 +1,9 @@
-import type { TopArtistsResponse } from "../lib/types";
-import useSWR from "swr";
-import fetcher from "../lib/fetcher";
+import fetcher from '@/lib/fetcher';
+import type { TopArtistsResponse } from '@/lib/types';
+import useSWR from 'swr';
 
 export default function TopArtists() {
-  const { data } = useSWR<TopArtistsResponse[]>("/api/top-artists", fetcher);
+  const { data } = useSWR<TopArtistsResponse[]>('/api/top-artists', fetcher);
   return (
     <div className="dark:bg-gradient-to-r dark:from-neutral-800 dark:to-zinc-800 bg-gradient-to-r from-neutral-200 to-zinc-200 rounded-lg shadow-xl p-4 flex flex-col justify-between gap-2">
       <div>
@@ -15,7 +15,7 @@ export default function TopArtists() {
           <div
             key={index}
             className="flex justify-between items-center dark:hover:bg-zinc-900/60 hover:bg-zinc-100/60 rounded-lg p-2 hover:shadow-lg cursor-pointer duration-200"
-            onClick={() => window.open(artist.url, "_blank")}
+            onClick={() => window.open(artist.url, '_blank')}
           >
             <p className="dark:text-zinc-200 text-zinc-900 m-0">{artist.name}</p>
             {/* <span className="text-zinc-500">{"//"}</span> */}
