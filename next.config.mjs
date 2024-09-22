@@ -29,6 +29,8 @@ const config = {
       { protocol: 'http', hostname: 'localhost', port: '3000' },
       { protocol: 'https', hostname: 'mikeodnis.dev' },
       { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+      { protocol: 'https', hostname: 'github.com' },
     ],
   },
   experimental: {

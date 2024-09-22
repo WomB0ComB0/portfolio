@@ -140,7 +140,3 @@ interface TopArtistsResponse {
   next: string | null;
   previous: string | null;
 }
-
-// Authorization token that must have been created previously. See : https://developer.spotify.com/documentation/web-api/concepts/authorization
-const token =
-  'BQBfbE9IzTR8_UIbWlsR8bCryDmEgbHurN6YzyJZOVM4m4V3JOvn5_3cX4yrdkW7lYmzzEfW8HijZ4x5t3LenusXrfrOMzi_NS7SOegWBnCVokM1abAGxvfsOMPi9ZeV6t0h1zC7NXJZVo59bvccF1QrkzPjvc-P1pG5CkhAFCSlHRAoMaybOQpCM6Ibib6m7MF-FLqqC88pHebhSledA2qXzh3zY_Xv_pBqq5kxFJhR2hsQm4192zMmXMS416HqTSpi';

@@ -1,5 +1,6 @@
 import 'server-only';
 import type { RepositoryEdge } from '@/generated/graphql';
+import { env } from '@/env';
 
 const getRepos = async (): Promise<RepositoryEdge[]> => {
   const res = await fetch('https://api.github.com/graphql', {
@@ -33,7 +34,7 @@ const getRepos = async (): Promise<RepositoryEdge[]> => {
 			`,
     }),
     headers: {
-      Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
+      Authorization: `bearer ${env.GITHUB_TOKEN}`,
     },
   });
 

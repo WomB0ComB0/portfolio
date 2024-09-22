@@ -44,15 +44,14 @@ export type GithubStats = {
   followers: number;
 };
 
-export type LanyardResponse = {
-  discord_user: {
+export interface LanyardResponse {
+  discord_status?: string;
+  discord_user?: {
     username: string;
     discriminator: string;
-    avatar: string;
     id: string;
   };
-  discord_status: string;
-};
+}
 
 export type LastFmUserResponse = {
   url: string;

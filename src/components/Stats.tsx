@@ -5,13 +5,22 @@ import { useEffect, useState } from 'react';
 import { FiExternalLink } from 'react-icons/fi';
 import useSWR from 'swr';
 import fetcher from '../lib/fetcher';
-import type { GithubStats, LastFmUserResponse, UmamiResponse, WakatimeStats } from '../lib/types';
+import type { GithubStats, WakatimeStats } from '../lib/types';
+import { GAResponse } from '@/lib/google';
 
 export default function Stats() {
-  const { data: githubData } = useSWR<GithubStats>('/api/github-stats', fetcher);
-  const { data: lastFmData } = useSWR<LastFmUserResponse>('/api/scrobbles', fetcher);
-  const { data: umamiData } = useSWR<UmamiResponse>('/api/umami', fetcher);
-  const { data: wakatimeData } = useSWR<WakatimeStats>('/api/wakatime', fetcher);
+  const { data: githubData } = useSWR<GithubStats>('/api/v1/github-stats', fetcher);
+  const { data: googleData } = useSWR<{ analytics: { total_pageviews: number }; response: GAResponse }>('/api/v1/google', fetcher);
+  const { data: wakatimeData } = useSWR<WakatimeStats>('/api/v1/wakatime', fetcher);
+  const { data: spotifyData } = useSWR<{
+    is_playing: boolean;
+    item: {
+      name: string;
+      artists: { name: string }[];
+      external_urls: { spotify: string };
+      album: { images: { url: string }[] };
+    };
+  }>('/api/v1/now-playing', fetcher);
   const diffCalc = () => {
     const diff =
       (new Date().getTime() - new Date('March 11, 2003').getTime()) / 1000 / 60 / 60 / 24 / 365;
@@ -46,12 +55,12 @@ export default function Stats() {
     },
     {
       title: 'Spotify Plays',
-      value: 0, // TODO: Add Spotify
+      value: spotifyData?.is_playing,
       link: '',
     },
     {
       title: 'Site Views',
-      value: umamiData?.pageviews.value,
+      value: googleData?.analytics.total_pageviews,
       link: '',
     },
     {

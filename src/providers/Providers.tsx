@@ -1,8 +1,11 @@
+'use client'
+
 import { actions } from '@/lib/actions';
-import { TRPCReactProvider } from '@/trpc/react';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { KBarProvider } from 'kbar';
 import type { JSXElementConstructor, ReactNode } from 'react';
 import { Events, ThemeProvider } from '.';
+import { QueryProvider } from './QueryProvider';
 
 const Providers: React.FC<
   Readonly<{
@@ -13,7 +16,6 @@ const Providers: React.FC<
     <>
       <ProviderStack
         providers={[
-          [TRPCReactProvider, {}],
           [ThemeProvider, {}],
           [
             KBarProvider,
@@ -22,9 +24,11 @@ const Providers: React.FC<
             },
           ],
           [Events, {}],
+          [QueryProvider, {}],
         ]}
       >
         {children}
+        <ReactQueryDevtools initialIsOpen={false} />
       </ProviderStack>
     </>
   );

@@ -1,8 +1,9 @@
 'use client';
+
 import { NavbarItems } from '@/constants/index';
 import { useKBar } from 'kbar';
 import { useTheme } from 'next-themes';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { FiCommand, FiMoon, FiSun } from 'react-icons/fi';

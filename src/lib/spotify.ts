@@ -1,15 +1,13 @@
-interface SpotifyAccessToken {
-  access_token: string;
-}
+import { env } from '@/env';
 
-const client_id = process.env.SPOTIFY_CLIENT_ID;
-const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+const client_id = env.SPOTIFY_CLIENT_ID;
+const client_secret = env.SPOTIFY_CLIENT_SECRET;
+const refresh_token = env.SPOTIFY_REFRESH_TOKEN;
 
 /**
  * Makes a request to the Spotify API to obtain a new access token using a refresh token.
  */
-const getAccessToken = async (): Promise<SpotifyAccessToken> => {
+const getAccessToken = async (): Promise<{ access_token: string }> => {
   // Make a POST request to the Spotify API to request a new access token
   const response = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',

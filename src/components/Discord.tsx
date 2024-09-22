@@ -6,7 +6,7 @@ import fetcher from '../lib/fetcher';
 import type { LanyardResponse } from '../lib/types';
 
 export default function Discord() {
-  const { data } = useSWR<LanyardResponse>('/api/lanyard', fetcher);
+  const { data } = useSWR<LanyardResponse>('/api/v1/lanyard', fetcher);
 
   return (
     <div className="dark:bg-gradient-to-r dark:from-neutral-800 dark:to-zinc-800 bg-gradient-to-r from-neutral-200 to-zinc-200 rounded-lg shadow-xl p-4 flex justify-between gap-2">
@@ -27,15 +27,15 @@ export default function Discord() {
         </p>
         <div className="flex gap-2 lg:gap-4 md:gap-3 text-sm lg:text-base md:text-base dark:text-zinc-200 text-zinc-900 w-full">
           <p className="m-0">
-            {data?.discord_user.username}#{data?.discord_user.discriminator}
+            {data?.discord_user?.username ?? ''}#{data?.discord_user?.discriminator ?? ''}
           </p>
         </div>
       </div>
       <div className="h-16 w-16 lg:h-20 lg:w-20 md:w-20 md:h-20 justify-center items-center flex">
         <Image
           className="rounded-lg object-fit shadow-lg"
-          src={`https://api.lanyard.rest/${data?.discord_user.id}.jpg`}
-          alt={data?.discord_user.username || ''}
+          src={`https://api.lanyard.rest/${data?.discord_user?.id ?? ''}.jpg`}
+          alt={data?.discord_user?.username ?? ''}
           width={80}
           height={80}
         />

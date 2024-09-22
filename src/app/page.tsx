@@ -1,14 +1,12 @@
 import PinnedRepos from '@/components/github/PinnedRepos';
 import Footer from '@/components/layout/Footer';
 import Layout from '@/components/layout/Layout';
-import { getBlogs } from '@/lib/blogs';
 import { getPinnedRepos } from '@/lib/repos';
-import type { Blog, Repo } from '@/lib/types';
+import type { Repo } from '@/lib/types';
 import Image from 'next/image';
 
 async function Home() {
-  const latestPosts = await getBlogs();
-  const pinnedRepos = await getPinnedRepos();
+  const pinnedRepos = await getPinnedRepos() as Repo[];
 
   return (
     <Layout>
