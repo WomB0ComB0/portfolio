@@ -21,7 +21,7 @@
     "@vercel/og": "^0.5.20",
     "autoprefixer": "10.4.16",
     "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
+    "clsx": "^2.1.1",
     "eslint": "8.55.0",
     "eslint-config-next": "14.1.0",
     "framer-motion": "^10.16.5",
