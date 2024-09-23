@@ -112,19 +112,17 @@ const withMillion = MillionLint.next({
 
 const combinedConfig = withMillion(withBundleAnalyzerConfig(withPwa(config)));
 
-export default combinedConfig;
-
-// export default withSentryConfig(combinedConfig, {
-//   org: 'womb0comb0',
-//   project: 'portfolio',
-//   sentryUrl: 'https://sentry.io/',
-//   silent: !process.env.CI,
-//   widenClientFileUpload: true,
-//   reactComponentAnnotation: {
-//     enabled: true,
-//   },
-//   tunnelRoute: '/monitoring',
-//   hideSourceMaps: true,
-//   disableLogger: true,
-//   automaticVercelMonitors: true,
-// });
+export default withSentryConfig(combinedConfig, {
+  org: 'womb0comb0',
+  project: 'portfolio',
+  sentryUrl: 'https://sentry.io/',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+  tunnelRoute: '/monitoring',
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});
