@@ -1,4 +1,6 @@
-export default async function fetcher<JSON>(input: RequestInfo, init?: RequestInit): Promise<JSON> {
-  const res = await fetch(input, init);
-  return res.json();
+import axios, { type AxiosRequestConfig } from 'axios';
+
+export default async function fetcher<T>(input: string, init?: AxiosRequestConfig): Promise<T> {
+  const res = await axios.get<T>(input, init);
+  return res.data;
 }

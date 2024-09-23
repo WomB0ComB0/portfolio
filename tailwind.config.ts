@@ -27,7 +27,7 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-poppins)'],
+        sans: ['Kodchasan', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -92,12 +92,23 @@ const config = {
             transform: 'translate(calc(-50% - 0.5rem))',
           },
         },
+        'pop-blob': {
+          '0%': { transform: 'scale(1)' },
+          '33%': { transform: 'scale(1.2)' },
+          '66%': { transform: 'scale(0.8)' },
+          '100%': { transform: 'scale(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         scroll:
           'scroll var(--animation-duration, 40s) var(--animation-direction, forwards) linear infinite',
+        'pop-blob': 'pop-blob 5s infinite',
+      },
+      filter: {
+        'blur-20': 'blur(20px)',
+        'blur-25': 'blur(25px)',
       },
     },
   },

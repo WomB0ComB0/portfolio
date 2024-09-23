@@ -1,6 +1,6 @@
-import { env } from '@/env';
 import Script from 'next/script';
 import React from 'react';
+
 export const Scripts = () => {
   return (
     <>
@@ -12,7 +12,7 @@ export const Scripts = () => {
       <Script
         async
         src={`https://maps.googleapis.com/maps/api/js?key=${
-          env.GOOGLE_MAPS_API_KEY
+          process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
         }&callback=console.debug&libraries=maps,marker&v=beta`}
       />
     </>

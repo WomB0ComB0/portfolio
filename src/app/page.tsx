@@ -1,46 +1,44 @@
+import BlurryBlob from '@/components/animation/background/blurry-blob';
 import PinnedRepos from '@/components/github/PinnedRepos';
 import Footer from '@/components/layout/Footer';
 import Layout from '@/components/layout/Layout';
-import { getPinnedRepos } from '@/lib/repos';
-import type { Repo } from '@/lib/types';
+import { DotPattern } from '@/components/magicui';
+import getRepos from '@/lib/getRepos';
 import Image from 'next/image';
 
-async function Home() {
-  const pinnedRepos = await getPinnedRepos() as Repo[];
+export default async function Home() {
+  const pinnedRepos = await getRepos();
 
   return (
     <Layout>
-      <div className="w-full h-full p-8 flex flex-col justify-center items-center relative">
-        <section className="flex flex-col-reverse lg:flex-row md:flex-row w-full justify-between items-start mb-20 mt-16 lg:mt-0 md:mt-0 gap-4 lg:gap-14 md:gap-8 prose">
-          <div className="leading-none">
-            <h2 className="dark:text-zinc-200 text-zinc-900 text-[2.5rem] m-0 font-extrabold">
-              Mike Odnis
-            </h2>
-            <p className="dark:text-zinc-300 text-zinc-800 mb-4 m-0">
-              Undergraduate Computer Science Student
-            </p>
-            <p className="dark:text-zinc-400 text-zinc-700 text-sm m-0">
+      <div className="w-full min-h-screen p-8 flex flex-col justify-start items-center relative">
+        <DotPattern className="opacity-10" />
+        <BlurryBlob
+          firstBlobColor="bg-purple-700"
+          secondBlobColor="bg-purple-400"
+          className="opacity-20"
+        />
+        <section className="flex flex-col-reverse md:flex-row w-full max-w-4xl justify-between items-center mb-20 mt-16 gap-8">
+          <div className="text-center md:text-left">
+            <h1 className="text-4xl font-bold mb-2 text-[#ba9bdd]">Mike Odnis</h1>
+            <p className="text-xl mb-4 text-purple-300">Undergraduate Computer Science Student</p>
+            <p className="text-sm text-gray-400 max-w-lg">
               Passionate about web development and open source. Currently studying at Farmingdale
               State College. I enjoy exploring new technologies and sharing my knowledge with the
               developer community.
             </p>
           </div>
-          <div className="min-w-fit">
-            <Image
-              src="https://avatars.githubusercontent.com/u/95197809?v=4"
-              alt="avatar"
-              className="rounded-full shadow-xl min-w-32 h-32 grayscale m-0"
-              width={128}
-              height={128}
-            />
-          </div>
+          <Image
+            src="https://avatars.githubusercontent.com/u/95197809?v=4"
+            alt="Mike Odnis"
+            className="rounded-full shadow-xl w-32 h-32 grayscale hover:grayscale-0 transition-all duration-300"
+            width={128}
+            height={128}
+          />
         </section>
-        {/* <RecentBlogs recentBlogs={props.latestPosts} /> */}
         <PinnedRepos pinnedRepos={pinnedRepos} />
         <Footer />
       </div>
     </Layout>
   );
 }
-
-export default Home;

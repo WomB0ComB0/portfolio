@@ -61,3 +61,23 @@ interface Messages {
   message: string;
   createdAt: Date;
 }
+
+type GithubStats = {
+  stars: number;
+  repos: number;
+  followers: number;
+};
+
+interface LanyardResponse {
+  discord_status?: string;
+  discord_user?: {
+    username: string;
+    discriminator: string;
+    id: string;
+  };
+}
+
+type WakatimeStats = {
+  text: string;
+  total_seconds: number;
+};

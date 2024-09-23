@@ -12,9 +12,10 @@ export const COLORS = [
 
 import {
   FiBookOpen,
-  FiClock,
+  FiFileText,
   FiHeadphones,
   FiHome,
+  FiMapPin,
   FiPaperclip,
   FiUser,
   FiZap,
@@ -32,9 +33,14 @@ export const NavbarItems = [
     icon: FiUser,
   },
   {
-    name: 'Now',
-    slug: '/now',
-    icon: FiClock,
+    name: 'Resume',
+    slug: '/resume',
+    icon: FiFileText,
+  },
+  {
+    name: 'Places',
+    slug: '/places',
+    icon: FiMapPin,
   },
   {
     name: 'Links',

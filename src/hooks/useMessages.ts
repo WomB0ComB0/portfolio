@@ -3,15 +3,9 @@ import superjson from 'superjson';
 
 interface Message {
   id: string;
+  text: string;
   authorName: string;
-  email: string;
-  message: string;
   createdAt: string;
-}
-
-interface User {
-  email: string;
-  password: string;
 }
 
 export function useGetMessages() {
@@ -29,17 +23,22 @@ export function useGetMessages() {
   });
 }
 
+interface NewMessage {
+  text: string;
+  authorName: string;
+}
+
 export function usePostMessage() {
   const queryClient = useQueryClient();
 
-  return useMutation<{ user: User; id: string }, Error, User>({
-    mutationFn: async (newUser) => {
+  return useMutation<Message, Error, NewMessage>({
+    mutationFn: async (newMessage) => {
       const response = await fetch('/api/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: superjson.stringify(newUser),
+        body: superjson.stringify(newMessage),
       });
       if (!response.ok) {
         throw new Error(`Network response was not ok: ${response.status}`);
@@ -52,12 +51,3 @@ export function usePostMessage() {
     },
   });
 }
-/**
- * gi-stats
- * lanyard
- * now-playing
- * top-artists
- * top-tracks
- * umami
- * wakatime
- */

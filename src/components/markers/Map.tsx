@@ -1,49 +1,60 @@
 'use client';
 
-import { env } from '@/env';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import type { Marker } from '@googlemaps/markerclusterer';
-import { APIProvider, AdvancedMarker, Map, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, AdvancedMarker, InfoWindow, Map, useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useRef, useState } from 'react';
+import { FaMapMarkerAlt } from 'react-icons/fa';
 import { MapStyles, places } from 'src/data/places';
 
 export default function GoogleMaps() {
   return (
-    <section
-      style={{
-        height: '100vh',
-        width: '100%',
-      }}
-    >
-      <APIProvider apiKey={env.GOOGLE_MAPS_API_KEY}>
+    <section className="w-full h-[400px] md:h-[500px] lg:h-[600px] relative rounded-lg overflow-hidden">
+      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
         <Map
-          center={{ lat: 40.73061, lng: -73.935242 }}
-          zoom={10}
-          mapId={env.GOOGLE_MAPS_MAP_ID}
-          zoomControl={true}
-          fullscreenControl={false}
+          defaultCenter={{ lat: 40.73061, lng: -73.935242 }}
+          defaultZoom={4}
+          mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID}
+          gestureHandling={'greedy'}
+          disableDefaultUI={true}
           styles={MapStyles}
         >
-          <Markers points={points} />
+          <Markers places={places} />
         </Map>
       </APIProvider>
     </section>
   );
 }
+type Props = { places: typeof places };
 
-const points: Point[] = places.map(([key, lat, lng]) => ({ key, lat, lng }));
-type Point = google.maps.LatLngLiteral & { key: string };
-type Props = { points: Point[] };
-
-const Markers = ({ points }: Props) => {
+const Markers = ({ places }: Props) => {
   const map = useMap();
   const [markers, setMarkers] = useState<{ [key: string]: Marker }>({});
+  const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const clusterer = useRef<MarkerClusterer | null>(null);
 
   useEffect(() => {
     if (!map) return;
     if (!clusterer.current) {
-      clusterer.current = new MarkerClusterer({ map });
+      clusterer.current = new MarkerClusterer({
+        map,
+        renderer: {
+          render: ({ count, position }) =>
+            new google.maps.Marker({
+              label: { text: String(count), color: '#242424', fontSize: '12px' },
+              position,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 20,
+                fillColor: '#560BAD',
+                fillOpacity: 0.9,
+                strokeColor: '#ba9bdd',
+                strokeWeight: 2,
+              },
+              zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+            }),
+        },
+      });
     }
   }, [map]);
 
@@ -69,15 +80,32 @@ const Markers = ({ points }: Props) => {
 
   return (
     <>
-      {points.map((point) => (
+      {places.map(([name, description, lat, lng]) => (
         <AdvancedMarker
-          position={point}
-          key={point.key}
-          ref={(marker) => setMarkerRef(marker, point.key)}
+          position={{ lat, lng }}
+          key={name}
+          ref={(marker) => setMarkerRef(marker, name)}
+          onClick={() => setActiveMarker(name)}
         >
-          <span style={{ fontSize: '2rem' }}>📍</span>
+          <div className="text-[#560BAD] bg-[#ba9bdd] p-2 rounded-full shadow-lg">
+            <FaMapMarkerAlt size={20} />
+          </div>
         </AdvancedMarker>
       ))}
+      {activeMarker && (
+        <InfoWindow
+          position={{
+            lat: places.find(([name]) => name === activeMarker)?.[2] || 0,
+            lng: places.find(([name]) => name === activeMarker)?.[3] || 0,
+          }}
+          onCloseClick={() => setActiveMarker(null)}
+        >
+          <div className="bg-[#242424] text-[#ba9bdd] p-4 rounded-lg shadow-lg max-w-xs">
+            <h3 className="text-lg font-bold mb-2">{activeMarker}</h3>
+            <p className="text-sm">{places.find(([name]) => name === activeMarker)?.[1]}</p>
+          </div>
+        </InfoWindow>
+      )}
     </>
   );
 };

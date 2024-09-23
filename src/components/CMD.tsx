@@ -7,16 +7,30 @@ import {
   KBarResults,
   KBarSearch,
   useMatches,
-  // useRegisterActions,
 } from 'kbar';
+import {
+  Book,
+  Bookmark,
+  Code,
+  FileText,
+  Headphones,
+  Home,
+  Link,
+  Map,
+  User,
+  Zap,
+} from 'lucide-react';
 import React from 'react';
 
 export default function Palette() {
   return (
     <KBarPortal>
-      <KBarPositioner className="z-50 select-none backdrop-blur bg-zinc-800/30 font-clash overflow-hidden">
-        <KBarAnimator className="w-[90%] lg:w-[44%] md:w-2/3 overflow-hidden text-lg text-white bg-zinc-100 rounded-lg dark:bg-zinc-900 min-w-500 shadow-xl kbar">
-          <KBarSearch className="w-full p-3 text-sm text-gray-900 bg-gray-100 rounded-lg outline-none dark:bg-zinc-900 dark:text-zinc-200" />
+      <KBarPositioner className="z-50 select-none backdrop-blur bg-[#242424]/80 font-clash overflow-hidden">
+        <KBarAnimator className="w-[90%] max-w-[600px] overflow-hidden text-lg bg-[#242424] text-[#ba9bdd] rounded-lg shadow-2xl kbar">
+          <KBarSearch
+            className="w-full p-4 text-base bg-[#242424] text-[#ba9bdd] border-b border-[#560BAD]/30 outline-none placeholder-[#ba9bdd]/50 focus:ring-2 focus:ring-[#560BAD]"
+            placeholder="Type a command or search..."
+          />
           <RenderResults />
         </KBarAnimator>
       </KBarPositioner>
@@ -32,10 +46,7 @@ function RenderResults() {
       items={results}
       onRender={({ item, active }) =>
         typeof item === 'string' ? (
-          <div
-            className="w-full h-full p-3 text-xs text-gray-700 uppercase dark:text-zinc-500 cursor-pointer"
-            key={item}
-          >
+          <div className="px-4 py-2 text-xs text-[#ba9bdd]/70 uppercase" key={item}>
             {item}
           </div>
         ) : (
@@ -70,37 +81,64 @@ const ResultItem = React.forwardRef(
       return action.ancestors.slice(index + 1);
     }, [action.ancestors, currentRootActionId]);
 
+    const getIcon = (name: string) => {
+      switch (name.toLowerCase()) {
+        case 'home':
+          return <Home size={18} />;
+        case 'about':
+          return <User size={18} />;
+        case 'resume':
+          return <FileText size={18} />;
+        case 'places':
+          return <Map size={18} />;
+        case 'links':
+          return <Link size={18} />;
+        case 'dashboard':
+          return <Zap size={18} />;
+        case 'spotify':
+          return <Headphones size={18} />;
+        case 'guestbook':
+          return <Book size={18} />;
+        case 'blog':
+          return <Bookmark size={18} />;
+        case 'projects':
+          return <Code size={18} />;
+        default:
+          return null;
+      }
+    };
+
     return (
       <div
         ref={ref}
-        className={`py-2 px-3 flex align-center justify-between cursor-pointer transition-all ${
-          active
-            ? 'bg-zinc-100 dark:bg-zinc-800 hover:dark:bg-zinc-800 hover:bg-zinc-200 duration-200'
-            : 'transparent'
+        className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-all ${
+          active ? 'bg-[#560BAD] text-[#ba9bdd]' : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex flex-col text-sm text-gray-900 dark:text-zinc-200">
-            <div className="flex gap-2">
+          {getIcon(action.name)}
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 text-sm">
               {ancestors.length > 0 &&
                 ancestors.map((ancestor) => (
-                  <div key={ancestor.id} className="text-zinc-500">
-                    <span className="mr-2">{ancestor.name}</span>
-                    <span>&rsaquo;</span>
-                  </div>
+                  <React.Fragment key={ancestor.id}>
+                    <span className="text-[#ba9bdd]/70">{ancestor.name}</span>
+                    <span className="text-[#ba9bdd]/50">&rsaquo;</span>
+                  </React.Fragment>
                 ))}
-              {action.icon}
               <span>{action.name}</span>
             </div>
-            {action.subtitle && <span className="text-xs text-zinc-400">{action.subtitle}</span>}
+            {action.subtitle && (
+              <span className="text-xs text-[#ba9bdd]/50">{action.subtitle}</span>
+            )}
           </div>
         </div>
         {action.shortcut?.length ? (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center">
             {action.shortcut.map((sc) => (
               <kbd
                 key={sc}
-                className="px-2 py-1 ml-2 text-sm bg-zinc-300 rounded dark:bg-zinc-700 dark:text-zinc-300 text-zinc-600 h-fit"
+                className="px-2 py-1 ml-2 text-xs bg-[#560BAD]/30 text-[#ba9bdd] rounded"
               >
                 {sc}
               </kbd>
@@ -111,3 +149,5 @@ const ResultItem = React.forwardRef(
     );
   },
 );
+
+ResultItem.displayName = 'ResultItem';

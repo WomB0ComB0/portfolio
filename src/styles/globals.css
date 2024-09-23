@@ -1,31 +1,18 @@
+@import "./fonts.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  scroll-behavior: smooth;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  transition: 0.5s;
-}
-
-body,
-* {
-  cursor: none;
-}
-
 .flare {
   position: fixed;
-  border: 2px solid #ffffff2b;
+  border: 2px solid #560bad;
   border-radius: 50%;
   mix-blend-mode: screen;
   pointer-events: none;
   transform: translate(-50%, -50%);
   z-index: 999999 !important;
   backdrop-filter: blur(1px);
-  background-color: #0000005e;
+  background-color: #560bad33;
   transition: width 0.2s ease-in-out, height 0.2s ease-in-out;
   cursor: none !important;
 }
@@ -50,7 +37,7 @@ body,
   height: 400px;
   border-radius: 50%;
   position: relative;
-  background: conic-gradient(indigo, purple);
+  background: conic-gradient(#560bad, #ba9bdd);
   animation: 2s rotate linear infinite;
   border: 5px solid #242424;
   transition: 0.5s;
@@ -121,49 +108,106 @@ body,
 }
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    @apply tabular-nums box-border;
+
+    box-sizing: border-box;
+  }
+
+  img {
+    @apply select-none;
+  }
+
+  :host,
+  html {
+    @apply leading-7 text-base antialiased font-sans tabular-nums transition-all duration-300 list-none scroll-smooth;
+
+    text-size-adjust: 100%;
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    tab-size: 4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+  }
+
+  body {
+    @apply bg-background text-primary transition-colors duration-200 ease-in;
+  }
+
+  body.scav {
+    @apply bg-background;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-sans font-bold leading-5 text-primary;
+  }
+
+  p {
+    @apply font-sans font-normal leading-7 text-primary;
+  }
+
+  a {
+    @apply text-primary no-underline transition-colors duration-200 ease-in;
+  }
+
+  span {
+    @apply font-sans font-normal leading-7 text-primary;
+  }
+
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --background: 0 0% 14%;
+    --foreground: 270 54% 86%;
+    --card: 0 0% 16%;
+    --card-foreground: 270 54% 86%;
+    --popover: 0 0% 16%;
+    --popover-foreground: 270 54% 86%;
+    --primary: 270 54% 73%;
+    --primary-foreground: 0 0% 14%;
+    --secondary: 271 91% 36%;
+    --secondary-foreground: 270 54% 86%;
+    --muted: 271 91% 36%;
+    --muted-foreground: 270 54% 73%;
+    --accent: 271 91% 46%;
+    --accent-foreground: 270 54% 86%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
+    --destructive-foreground: 270 54% 86%;
+    --border: 271 91% 36%;
+    --input: 271 91% 36%;
+    --ring: 270 54% 73%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 0 0% 14%;
+    --foreground: 270 54% 86%;
+    --card: 0 0% 16%;
+    --card-foreground: 270 54% 86%;
+    --popover: 0 0% 16%;
+    --popover-foreground: 270 54% 86%;
+    --primary: 270 54% 73%;
+    --primary-foreground: 0 0% 14%;
+    --secondary: 271 91% 36%;
+    --secondary-foreground: 270 54% 86%;
+    --muted: 271 91% 36%;
+    --muted-foreground: 270 54% 73%;
+    --accent: 271 91% 46%;
+    --accent-foreground: 270 54% 86%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --destructive-foreground: 270 54% 86%;
+    --border: 271 91% 36%;
+    --input: 271 91% 36%;
+    --ring: 270 54% 73%;
   }
 }
 

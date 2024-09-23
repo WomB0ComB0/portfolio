@@ -1,30 +1,83 @@
+'use client';
+
+import { Skeleton } from '@/components/ui/skeleton';
 import fetcher from '@/lib/fetcher';
-import type { TopArtistsResponse } from '@/lib/types';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+
+interface Artist {
+  name: string;
+  url: string;
+  imageUrl: string;
+}
+
+interface ApiResponse {
+  json: Artist[];
+}
 
 export default function TopArtists() {
-  const { data } = useSWR<TopArtistsResponse[]>('/api/top-artists', fetcher);
+  const { data, error, isLoading } = useQuery<string>({
+    queryKey: ['topArtists'],
+    queryFn: () => fetcher<string>('/api/v1/top-artists'),
+  });
+
+  let parsedData: Artist[] = [];
+  if (data) {
+    try {
+      const apiResponse: ApiResponse = JSON.parse(data);
+      parsedData = apiResponse.json;
+    } catch (e) {
+      console.error('Error parsing top artists data:', e);
+    }
+  }
+
   return (
-    <div className="dark:bg-gradient-to-r dark:from-neutral-800 dark:to-zinc-800 bg-gradient-to-r from-neutral-200 to-zinc-200 rounded-lg shadow-xl p-4 flex flex-col justify-between gap-2">
-      <div>
-        <h2 className="m-0 dark:text-zinc-200 text-zinc-900 font-semibold">Top Artists</h2>
-        <p className="m-0 dark:text-zinc-400 text-zinc-700 text-sm">according to last 4 weeks</p>
-      </div>
-      <div className="flex flex-col ">
-        {data?.map((artist, index) => (
-          <div
-            key={index}
-            className="flex justify-between items-center dark:hover:bg-zinc-900/60 hover:bg-zinc-100/60 rounded-lg p-2 hover:shadow-lg cursor-pointer duration-200"
-            onClick={() => window.open(artist.url, '_blank')}
-          >
-            <p className="dark:text-zinc-200 text-zinc-900 m-0">{artist.name}</p>
-            {/* <span className="text-zinc-500">{"//"}</span> */}
-            <p className="dark:text-zinc-200 text-zinc-900 m-0">
-              {artist.playcount} <span className="dark:text-zinc-500 text-zinc-600">plays</span>
-            </p>
-          </div>
-        ))}
-      </div>
+    <div className="bg-gradient-to-br from-purple-900 to-purple-700 rounded-2xl shadow-2xl p-6 overflow-hidden">
+      <h2 className="text-3xl font-bold text-white mb-2">Top Artists</h2>
+      <p className="text-purple-200 mb-6">according to last 4 weeks</p>
+      {isLoading ? (
+        <div className="space-y-4">
+          {[...Array(5)].map((_, index) => (
+            <div key={index} className="flex items-center space-x-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="text-red-400 bg-red-900/20 p-4 rounded-lg">
+          Failed to load top artists. Please try again later.
+        </div>
+      ) : parsedData.length > 0 ? (
+        <div className="space-y-3">
+          {parsedData.map((artist, index) => (
+            <motion.div
+              key={index}
+              className="flex items-center space-x-4 bg-purple-800/30 backdrop-blur-sm rounded-lg p-3 cursor-pointer hover:bg-purple-700/40 transition-all"
+              onClick={() => window.open(artist.url, '_blank')}
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Image
+                src={artist.imageUrl}
+                alt={artist.name}
+                className="w-12 h-12 rounded-full shadow-md"
+                width={48}
+                height={48}
+              />
+              <p className="text-white font-semibold truncate flex-grow">{artist.name}</p>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-purple-200 bg-purple-800/30 p-4 rounded-lg">
+          No top artists data available
+        </p>
+      )}
     </div>
   );
 }

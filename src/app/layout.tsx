@@ -13,7 +13,13 @@ export const reportWebVitals = (metric: NextWebVitalsMetric) => {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      data-a11y-animated-images="system"
+      data-a11y-link-underlines="false"
+      data-turbo-loaded
+    >
       <body>
         <Providers>{children}</Providers>
       </body>

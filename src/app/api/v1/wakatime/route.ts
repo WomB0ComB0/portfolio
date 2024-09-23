@@ -1,6 +1,7 @@
-import { env } from '@/env';
+import axios from 'axios';
 import { NextResponse } from 'next/server';
 import superjson from 'superjson';
+
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 let cache: { data: any; timestamp: number } | null = null;
 
@@ -12,17 +13,18 @@ export async function GET() {
       });
     }
 
-    const resp = await fetch('https://wakatime.com/api/v1/users/current/all_time_since_today', {
+    const resp = await axios.get('https://wakatime.com/api/v1/users/current/all_time_since_today', {
       headers: {
-        Authorization: `Basic ${btoa(env.WAKA_TIME_API_KEY as string)}`,
+        Authorization: `Basic ${btoa(process.env.WAKA_TIME_API_KEY as string)}`,
       },
     });
 
-    if (!resp.ok) {
+    if (resp.status !== 200) {
       throw new Error(`WakaTime API responded with status ${resp.status}`);
     }
 
-    const response = await resp.json();
+    const response = resp.data;
+    // console.log('api-wakatime-response', response);
     cache = { data: response.data, timestamp: Date.now() };
 
     return NextResponse.json(superjson.stringify(response.data), {

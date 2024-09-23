@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { actions } from '@/lib/actions';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';

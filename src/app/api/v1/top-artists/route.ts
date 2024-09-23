@@ -8,7 +8,7 @@ const schema = z.array(
     name: z.string(),
     external_urls: z.object({ spotify: z.string() }),
     images: z.array(z.object({ url: z.string() })),
-  })
+  }),
 );
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours

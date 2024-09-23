@@ -1,4 +1,3 @@
-import './src/env.js';
 import pwa from '@ducanh2912/next-pwa';
 import MillionLint from '@million/lint';
 import withBundleAnalyzer from '@next/bundle-analyzer';
@@ -17,7 +16,6 @@ const withPwa = pwa({
  */
 const config = {
   reactStrictMode: true,
-  // Removed the compiler.removeConsole option
   logging: {
     fetches: {
       fullUrl: true,
@@ -31,10 +29,14 @@ const config = {
       { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
       { protocol: 'https', hostname: 'github.com' },
+      { protocol: 'https', hostname: 'api.lanyard.rest' },
+      { protocol: 'https', hostname: 'i.scdn.co' },
+      { protocol: 'https', hostname: 'cdn.discordapp.com' },
     ],
   },
   experimental: {
     optimizeCss: { preload: true },
+    swcMinify: true,
     turbo: {
       rules: {
         '*.svg': {

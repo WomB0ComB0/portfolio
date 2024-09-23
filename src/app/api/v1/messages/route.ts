@@ -46,16 +46,28 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.text();
-  const { authorName, email, message } = superjson.parse<{
-    authorName: string;
-    email: string;
-    message: string;
-  }>(body);
-  const user = { authorName, email, message };
-  const docRef = await addDoc(sampleCollection, user);
-  return new NextResponse(superjson.stringify({ user, id: docRef.id }), {
-    status: 201,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  try {
+    const body = await request.text();
+    const parsedBody = superjson.parse<{ authorName: string; text: string }>(body);
+
+    const { authorName, text } = parsedBody;
+
+    if (!text) {
+      throw new Error('Message is undefined');
+    }
+
+    const user = { authorName, message: text, createdAt: new Date().toISOString() };
+    const docRef = await addDoc(sampleCollection, user);
+
+    return new NextResponse(superjson.stringify({ user, id: docRef.id }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error adding message:', error);
+    return new NextResponse(superjson.stringify({ error: 'Failed to add message' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }

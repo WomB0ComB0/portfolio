@@ -15,7 +15,7 @@ const Loading = React.memo(() => {
               height: 400px;
               border-radius: 50%;
               position: relative;
-              background: conic-gradient(indigo, purple);
+              background: conic-gradient([#ba9bdd], purple);
               animation: 2s rotate linear infinite;
               border: 5px solid #242424;
               transition: 0.5s;
@@ -71,13 +71,6 @@ const Loading = React.memo(() => {
             height={100}
           />
         </div>
-        <Link href={`/`}>
-          <Button
-            className={`mt-20 w-[200px] bg-transparent px-6 py-2 border border-purple-600 rounded-sm uppercase text-sm tracking-widest text-purple-400 transition-all hover:border-purple-600/40 hover:text-purple-400/40 hover:bg-transparent`}
-          >
-            Go Home
-          </Button>
-        </Link>
       </div>
     </>
   );

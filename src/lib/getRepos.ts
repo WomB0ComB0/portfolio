@@ -1,47 +1,50 @@
 import 'server-only';
-import type { RepositoryEdge } from '@/generated/graphql';
-import { env } from '@/env';
 
-const getRepos = async (): Promise<RepositoryEdge[]> => {
+export interface PinnedRepo {
+  name: string;
+  description: string | null;
+  url: string;
+  stargazerCount: number;
+  forkCount: number;
+  primaryLanguage: {
+    name: string;
+  } | null;
+}
+
+const getRepos = async (): Promise<PinnedRepo[]> => {
   const res = await fetch('https://api.github.com/graphql', {
     method: 'POST',
     body: JSON.stringify({
       query: `
-				query viewer {
-					viewer {
-						repositories(first: 8, orderBy: {field: STARGAZERS, direction: DESC}) {
-							edges {
-								node {
-									id
-									name
-									url
-									description
-									stargazers {
-										totalCount
-									}
-									forkCount
-									languages(first: 3) {
-										nodes {
-											id
-											name
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			`,
+        query {
+          user(login: "WomB0ComB0") {
+            pinnedItems(first: 6, types: [REPOSITORY]) {
+              edges {
+                node {
+                  ... on Repository {
+                    name
+                    description
+                    url
+                    stargazerCount
+                    forkCount
+                    primaryLanguage {
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
     }),
     headers: {
-      Authorization: `bearer ${env.GITHUB_TOKEN}`,
+      Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
     },
   });
 
-  const data: { data: { viewer: { repositories: { edges: RepositoryEdge[] } } } } =
-    await res.json();
-
-  return data?.data?.viewer?.repositories?.edges ?? [];
+  const data = await res.json();
+  return data.data.user.pinnedItems.edges.map((edge: any) => edge.node);
 };
 
 export default getRepos;

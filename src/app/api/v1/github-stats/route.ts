@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { NextResponse } from 'next/server';
 import superjson from 'superjson';
 import { z } from 'zod';
@@ -29,18 +30,20 @@ export async function GET() {
     }
 
     const [meResponse, reposResponse] = await Promise.all([
-      fetch('https://api.github.com/users/WomB0ComB0'),
-      fetch('https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated'),
+      axios.get('https://api.github.com/users/WomB0ComB0'),
+      axios.get('https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated'),
     ]);
 
-    if (!meResponse.ok || !reposResponse.ok) {
+    if (meResponse.status !== 200 || reposResponse.status !== 200) {
       throw new Error(
         `GitHub API responded with status ${meResponse.status} or ${reposResponse.status}`,
       );
     }
 
-    const meJson = UserSchema.parse(await meResponse.json());
-    const reposJson = z.array(RepoSchema).parse(await reposResponse.json());
+    const meJson = UserSchema.parse(meResponse.data);
+    // console.log('api-github-stats-meJson', meJson);
+    const reposJson = z.array(RepoSchema).parse(reposResponse.data);
+    // console.log('api-github-stats-reposJson', reposJson);
 
     const topRepos = reposJson
       .filter((repo) => !repo.fork)

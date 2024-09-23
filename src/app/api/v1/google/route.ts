@@ -5,9 +5,9 @@ import { z } from 'zod';
 
 const schema = z.object({
   analytics: z.object({
-    total_pageviews: z.number(),
+    total_pageviews: z.number().optional(),
   }),
-  response: z.custom<GAResponse>(),
+  response: z.custom<GAResponse>().optional(),
 });
 
 const CACHE_DURATION = 60 * 60 * 1000;
@@ -22,6 +22,8 @@ export async function GET() {
     }
 
     const parsedResp = schema.safeParse(await getAnalytics());
+
+    // console.log('api-google-analytics-parsedResp', parsedResp);
 
     if (!parsedResp.success) {
       throw new Error(`

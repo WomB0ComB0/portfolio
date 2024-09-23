@@ -1,4 +1,4 @@
-import { env } from '@/env';
+import axios from 'axios';
 import { NextResponse } from 'next/server';
 import superjson from 'superjson';
 import { z } from 'zod';
@@ -6,17 +6,19 @@ import { z } from 'zod';
 const CACHE_DURATION = 60 * 1000;
 let cache: { data: any; timestamp: number } | null = null;
 
-export const schema = z.object({
-  data: z.object({
-    discord_user: z.object({
-      username: z.string(),
-      discriminator: z.string(),
-      avatar: z.string(),
-      id: z.string(),
+export const schema = z
+  .object({
+    data: z.object({
+      discord_user: z.object({
+        username: z.string(),
+        discriminator: z.string(),
+        avatar: z.string(),
+        id: z.string(),
+      }),
+      discord_status: z.string(),
     }),
-    discord_status: z.string(),
-  }),
-}).passthrough();
+  })
+  .passthrough();
 
 export async function GET() {
   try {
@@ -26,11 +28,12 @@ export async function GET() {
       });
     }
 
-    const resp = await fetch(`https://api.lanyard.rest/v1/users/${env.DISCORD_ID}`);
-    const rawData = await resp.json();
-    console.log('Lanyard API raw response:', JSON.stringify(rawData, null, 2));
+    const resp = await axios.get(`https://api.lanyard.rest/v1/users/${process.env.DISCORD_ID}`);
+    const rawData = resp.data;
+    // console.log('api-lanyard-rawData', rawData);
 
     const parsedResp = schema.safeParse(rawData);
+    // console.log('api-lanyard-parsedResp', parsedResp);
 
     if (!parsedResp.success) {
       console.error('Lanyard API schema validation error:', parsedResp.error);
@@ -38,7 +41,7 @@ export async function GET() {
     }
 
     const lanyard = parsedResp.data.data;
-
+    // console.log('api-lanyard-lanyard', lanyard);
     cache = { data: lanyard, timestamp: Date.now() };
 
     return NextResponse.json(superjson.stringify(lanyard), {

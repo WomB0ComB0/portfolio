@@ -1,56 +1,47 @@
-export type RawPlace = [string, number, number];
-
-export type Place = {
-  key: string;
-  name: string;
-  lat: number;
-  lng: number;
-};
+export type RawPlace = [string, string, number, number];
 
 export const places: RawPlace[] = [
-  ['Hopper hacks x2', 40.73061, -73.935242],
-  ['SBU hacks', 40.916233, -73.125833],
-  ['Hack Cewit x2', 40.9044783, -73.1363673],
-  ['NYU Hacks', 40.6944235, -73.9968889],
-  ['Treehacks', 35.652832, 139.839478],
-  ['Jane street', 30.2672, -97.7431],
-  ['Squarespace', 34.052235, -118.243683],
-  ['Devfest NYC', 41.8781, -87.6298],
-  ['GitHub Field day', 36.1627, -86.7816],
+  ['Hopper hacks x2', '2x mentor', 40.917137, -73.122467],
+  ['SBU hacks', 'First hackathon 2022', 40.916233, -73.125833],
+  ['Hack Cewit x2', '2x speaker', 40.902315, -73.134435],
+  ['NYU Hacks', 'Mentor and Judge', 40.69417, -73.986839],
+  ['Treehacks', 'Mentor', 37.431314, -122.169365],
+  ['Jane street', 'Visited as part of a program', 40.714443, -74.015849],
+  ['Squarespace', 'Got invited to visit', 40.729735, -74.0106],
+  ['Devfest NYC', 'Cool event', 40.755556, -73.988105],
+  ['GitHub Field day', 'I was there in spirit', 40.756763, -73.98984],
+  ['Hack Dartmouth - 2024', 'Hacker', 43.7037946, -72.2946593],
+  ['HackMIT - 2024', 'Hacker', 42.360092, -71.094162],
+  ['DivHacks - 2024', 'Mentor/Judge', 40.807537, -73.96257],
+  ['MHacks - 2024', 'Mentor/Judge', 42.73262, -84.478668],
+  ['Hack Dearborn 3: Rewind Reality - 2024', 'Mentor', 42.73262, -84.478668],
 ];
 
-const formatted: Place[] = places.map(([name, lat, lng]) => ({
-  name,
-  lat,
-  lng,
-  key: JSON.stringify({ name, lat, lng }),
-}));
-
-export default formatted;
+export default places;
 
 export const MapStyles = [
-  { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+  { elementType: 'geometry', stylers: [{ color: '#242424' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#242424' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#ba9bdd' }] },
   {
     featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#d59563' }],
+    stylers: [{ color: '#ba9bdd' }],
   },
   {
     featureType: 'poi',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#d59563' }],
+    stylers: [{ color: '#ba9bdd' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'geometry',
-    stylers: [{ color: '#263c3f' }],
+    stylers: [{ color: '#2a2a2a' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#6b9a76' }],
+    stylers: [{ color: '#560BAD' }],
   },
   {
     featureType: 'road',
@@ -65,22 +56,22 @@ export const MapStyles = [
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#9ca5b3' }],
+    stylers: [{ color: '#ba9bdd' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'geometry',
-    stylers: [{ color: '#746855' }],
+    stylers: [{ color: '#560BAD' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#1f2835' }],
+    stylers: [{ color: '#242424' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#f3d19c' }],
+    stylers: [{ color: '#ba9bdd' }],
   },
   {
     featureType: 'transit',
@@ -90,21 +81,21 @@ export const MapStyles = [
   {
     featureType: 'transit.station',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#d59563' }],
+    stylers: [{ color: '#ba9bdd' }],
   },
   {
     featureType: 'water',
     elementType: 'geometry',
-    stylers: [{ color: '#17263c' }],
+    stylers: [{ color: '#1c1c1c' }],
   },
   {
     featureType: 'water',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#515c6d' }],
+    stylers: [{ color: '#ba9bdd' }],
   },
   {
     featureType: 'water',
     elementType: 'labels.text.stroke',
-    stylers: [{ color: '#17263c' }],
+    stylers: [{ color: '#242424' }],
   },
 ];

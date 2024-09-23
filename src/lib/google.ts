@@ -1,4 +1,4 @@
-import { env } from '@/env';
+import { serviceAccount } from '@/core/firebase';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { z } from 'zod';
 
@@ -54,14 +54,14 @@ export async function getAnalytics(): Promise<{
 }> {
   const client = new BetaAnalyticsDataClient({
     credentials: {
-      client_email: env.GCP_CLIENT_EMAIL,
-      private_key: env.GCP_PRIVATE_KEY,
+      client_email: serviceAccount.client_email,
+      private_key: serviceAccount.private_key,
     },
   });
 
   const request = {
     property: 'properties/431094773',
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'date' }, { name: 'deviceCategory' }],
     metrics: [{ name: 'screenPageViews' }],
   };

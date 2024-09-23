@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 const Repository = ({ name, description, stargazers, forkCount, languages, url }: Repository) => (
   <Link
-    className="bg-white shadow-md dark:bg-zinc-900 rounded-sm p-4 h-full overflow-hidden flex flex-col justify-between"
+    className="bg-white shadow-md dark:bg-[#ba9bdd] rounded-sm p-4 h-full overflow-hidden flex flex-col justify-between"
     href={url}
     target="_blank"
     rel="noreferrer"
