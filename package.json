@@ -11,7 +11,7 @@
   "dependencies": {
     "@heroicons/react": "^2.0.18",
     "@liveblocks/client": "^1.8.0",
-    "@liveblocks/node": "^1.8.0",
+    "@liveblocks/node": "^2.7.2",
     "@liveblocks/react": "^1.8.0",
     "@radix-ui/react-tooltip": "^1.0.7",
     "@types/node": "20.10.4",
