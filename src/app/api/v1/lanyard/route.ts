@@ -15,6 +15,14 @@ export const schema = z
         avatar: z.string(),
         id: z.string(),
       }),
+      activities: z.array(
+        z.object({
+          name: z.string(),
+          type: z.number(),
+          state: z.string().optional(),
+          details: z.string().optional(),
+        }),
+      ),
       discord_status: z.string(),
     }),
   })

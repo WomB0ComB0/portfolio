@@ -11,26 +11,25 @@ type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
 
 export default function manifest(): ExtendedManifest {
   return {
-    name: 'Medi Glossary',
-    short_name: 'MG',
-    description:
-      'MediGlossary is an instant medical term lookup app that helps users quickly understand complex health-related terminology. It provides definitions and answers to medical questions, making health information more accessible to everyone.',
+    name: "Mike Odnis",
+    short_name: "MO",
+    description: "Explore Mike Odnis' portfolio—an innovative 20-year-old Computer Science student at Farmingdale State College, passionate about software development and technology.",
     categories: [
-      'health',
-      'medical',
-      'glossary',
-      'dictionary',
-      'reference',
-      'terminology',
-      'lookup',
+      'portfolio',
+      'software development',
+      'technology',
+      'computer science',
+      'web development',
+      'personal website',
+      'student projects',
     ],
     lang: 'en-US',
     dir: 'ltr',
     id: '/',
     start_url: '/',
     scope: '/',
-    theme_color: '#002c55',
-    background_color: '#13486e',
+    theme_color: "#BA9BDD",
+    background_color: "#560BAD",
     orientation: 'portrait-primary',
     display_override: ['minimal-ui', 'browser', 'fullscreen', 'window-controls-overlay'],
     display: 'standalone',
@@ -716,11 +715,11 @@ export default function manifest(): ExtendedManifest {
     ],
     shortcuts: [
       {
-        name: 'Terms of Service',
-        short_name: 'Terms',
-        url: '/legal/terms',
+        name: 'About',
+        short_name: 'About',
+        url: '/about',
         description:
-          "The fine print of our digital handshake. Understand MediGloss' Terms of Service.",
+          'Learn more about Mike Odnis, his background, and interests.',
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -731,11 +730,11 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Privacy Policy',
-        short_name: 'Privacy',
-        url: '/legal/privacy',
+        name: 'Dashboard',
+        short_name: 'Dash',
+        url: '/dashboard',
         description:
-          'Your privacy matters to us. Learn how MediGlossary protects your personal information.',
+          'View Mike\'s current projects, skills, and activity at a glance.',
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -746,11 +745,71 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Cookie Policy',
-        short_name: 'Cookie',
-        url: '/legal/cookie',
+        name: 'Guest Book',
+        short_name: 'Book',
+        url: '/guestbook',
         description:
-          'Understand how we use cookies and similar technologies to enhance your experience.',
+          'Leave a message or see what others have said about Mike\'s portfolio.',
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Links',
+        short_name: 'Links',
+        url: '/links',
+        description:
+          'Explore Mike\'s curated collection of useful and interesting links.',
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Places',
+        short_name: 'Places',
+        url: '/places',
+        description:
+          'Discover the locations Mike has visited or plans to explore.',
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Resume',
+        short_name: 'Resume',
+        url: '/resume',
+        description:
+          'View Mike\'s professional experience, skills, and achievements.',
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Mike\'s Spotify',
+        short_name: 'MO',
+        url: '/dashboard',
+        description:
+          'Check out Mike\'s music preferences and current listening habits.',
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',

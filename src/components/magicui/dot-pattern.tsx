@@ -1,5 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/utils';
-import { useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 interface DotPatternProps {
   width?: number;
@@ -23,11 +25,25 @@ export function DotPattern({
   className,
 }: DotPatternProps) {
   const id = useId();
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollPosition(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   return (
     <svg
       aria-hidden="true"
-      className={cn('pointer-events-none absolute inset-0 h-full w-full', className)}
+      className={cn('fixed inset-0 h-full w-full', className)}
+      style={{ transform: `translateY(${scrollPosition * 0.5}px)` }}
     >
       <defs>
         <pattern id={id} width={width} height={height} patternUnits="userSpaceOnUse" x={x} y={y}>

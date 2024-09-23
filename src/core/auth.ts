@@ -1,3 +1,5 @@
+'use client';
+
 import {
   GithubAuthProvider,
   GoogleAuthProvider,
@@ -10,7 +12,6 @@ import {
 import { atom, useAtomValue } from 'jotai';
 import { atomEffect } from 'jotai-effect';
 import { loadable } from 'jotai/utils';
-import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { app } from './firebase';
@@ -31,9 +32,8 @@ export const currentUserAsync = atom(async (get) => {
     const auth = getAuth(app);
     await auth.authStateReady();
     return auth.currentUser;
-  } else {
-    return user;
   }
+  return user;
 });
 
 export const currentUserLoadable = loadable(currentUserAsync);
@@ -47,7 +47,6 @@ export function useCurrentUserLoadable() {
 }
 
 export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFlight: boolean] {
-  const router = useRouter();
   const [inFlight, setInFlight] = useState(false);
 
   const signIn = useCallback(() => {
@@ -64,7 +63,6 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
       provider.addScope('profile');
       provider.addScope('email');
       provider.setCustomParameters({
-        // loginHint: "",
         prompt: 'consent',
       });
       p = signInWithPopup(auth, provider);
@@ -81,16 +79,15 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
 
     setInFlight(true);
     p.then(() => {
-      router.push('/');
+      window.location.reload();
       toast.success('Logged in successfully! 🎉');
     }).finally(() => setInFlight(false));
-  }, [signInMethod, router]);
+  }, [signInMethod]);
 
   return [signIn, inFlight] as const;
 }
 
 export function useSignOut(): [signOut: () => void, inFlight: boolean] {
-  const router = useRouter();
   const [inFlight, setInFlight] = useState(false);
 
   const signOut = useCallback(() => {
@@ -99,15 +96,15 @@ export function useSignOut(): [signOut: () => void, inFlight: boolean] {
     auth
       .signOut()
       .then(() => {
-        router.push('/');
+        window.location.reload();
         toast.success('Signed out successfully! 🎉');
       })
       .finally(() => setInFlight(false));
-  }, [router]);
+  }, []);
 
   return [signOut, inFlight] as const;
 }
 
 export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';
-export const signout: SignOutMethod = `Sign out`;
+export const signout: SignOutMethod = 'Sign out';
 type SignOutMethod = 'Sign out';

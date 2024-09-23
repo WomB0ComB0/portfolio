@@ -177,9 +177,7 @@ export default function Stats() {
                   {card.query === 'google' && <FiEye className="h-4 w-4" />}
                   {card.query === 'wakatime' && <FiClock className="h-4 w-4" />}
                   <AnimatePresence>
-                    <span className="text-2xl font-bold">
-                      {value ?? '-'}
-                    </span>
+                    <span className="text-2xl font-bold">{value ?? '-'}</span>
                   </AnimatePresence>
                 </div>
               </CardContent>

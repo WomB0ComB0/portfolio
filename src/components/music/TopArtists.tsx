@@ -39,7 +39,7 @@ export default function TopArtists() {
       {isLoading ? (
         <div className="space-y-4">
           {[...Array(5)].map((_, index) => (
-            <div key={index} className="flex items-center space-x-4">
+            <div key={`${index + 1}`} className="flex items-center space-x-4">
               <Skeleton className="h-12 w-12 rounded-full" />
               <Skeleton className="h-4 w-3/4" />
             </div>
@@ -53,7 +53,7 @@ export default function TopArtists() {
         <div className="space-y-3">
           {parsedData.map((artist, index) => (
             <motion.div
-              key={index}
+              key={`${artist.name}-${index + 1}`}
               className="flex items-center space-x-4 bg-purple-800/30 backdrop-blur-sm rounded-lg p-3 cursor-pointer hover:bg-purple-700/40 transition-all"
               onClick={() => window.open(artist.url, '_blank')}
               whileHover={{ scale: 1.02, x: 5 }}

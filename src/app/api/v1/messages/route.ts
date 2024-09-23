@@ -1,12 +1,12 @@
 import { firestore } from '@/core/firebase';
-import { addDoc, collection, getDocs } from 'firebase/firestore';
+import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { NextResponse } from 'next/server';
 import superjson from 'superjson';
 
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+const CACHE_DURATION = 60 * 1000; // 1 minute
 let cache: { data: any; timestamp: number } | null = null;
 
-const sampleCollection = collection(firestore, 'message');
+const messageCollection = collection(firestore, 'message');
 
 export async function GET() {
   try {
@@ -17,23 +17,18 @@ export async function GET() {
       });
     }
 
-    const messages: Messages[] = [];
-    await getDocs(sampleCollection).then((response) => {
-      response.forEach((doc) => {
-        const data = doc.data();
-        messages.push({
-          id: doc.id,
-          authorName: data.authorName,
-          email: data.email,
-          message: data.message,
-          createdAt: data.createdAt,
-        });
-      });
-    });
+    const messagesQuery = query(messageCollection, orderBy('createdAt', 'desc'), limit(50));
+    const snapshot = await getDocs(messagesQuery);
 
-    cache = { data: messages, timestamp: currentTime };
+    const messages = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-    return new NextResponse(superjson.stringify({ messages }), {
+    const response = { json: messages };
+    cache = { data: response, timestamp: currentTime };
+
+    return new NextResponse(superjson.stringify(response), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
@@ -48,18 +43,20 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.text();
-    const parsedBody = superjson.parse<{ authorName: string; text: string }>(body);
+    const parsedBody = superjson.parse<{ authorName: string; message: string }>(body);
 
-    const { authorName, text } = parsedBody;
+    const { authorName, message } = parsedBody;
 
-    if (!text) {
+    if (!message) {
       throw new Error('Message is undefined');
     }
 
-    const user = { authorName, message: text, createdAt: new Date().toISOString() };
-    const docRef = await addDoc(sampleCollection, user);
+    const newMessage = { authorName, message, createdAt: new Date().toISOString() };
+    const docRef = await addDoc(messageCollection, newMessage);
 
-    return new NextResponse(superjson.stringify({ user, id: docRef.id }), {
+    cache = null; // Invalidate the cache
+
+    return new NextResponse(superjson.stringify({ id: docRef.id, ...newMessage }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });

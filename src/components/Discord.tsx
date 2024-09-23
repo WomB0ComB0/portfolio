@@ -1,13 +1,13 @@
 'use client';
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import fetcher from '@/lib/fetcher';
 import { useQuery } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
-import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { SiDiscord } from 'react-icons/si';
 
 interface LanyardResponse {
@@ -35,13 +35,6 @@ const statusColors = {
   offline: 'bg-gray-500',
 };
 
-const statusMessages = {
-  online: 'Online',
-  idle: 'Idle',
-  dnd: 'Do Not Disturb',
-  offline: 'Offline',
-};
-
 export default function Discord() {
   const { data, error, isLoading } = useQuery<string>({
     queryKey: ['lanyard'],
@@ -52,7 +45,7 @@ export default function Discord() {
 
   const parsedData: LanyardResponse | null = data ? JSON.parse(data) : null;
 
-  if (isLoading) return <Skeleton className="w-full h-[120px] rounded-lg" />;
+  if (isLoading) return <Skeleton className="w-full h-[180px] rounded-lg" />;
   if (error)
     return (
       <div className="text-red-500 p-4 bg-red-100 rounded-lg">Failed to load Discord status</div>
@@ -61,6 +54,15 @@ export default function Discord() {
   const { discord_status: status, discord_user: user, activities } = parsedData?.json || {};
   const activity = activities?.[0];
 
+  const handleAddFriend = () => {
+    const discordId = process.env.DISCORD_ID;
+    if (discordId) {
+      window.open(`https://discord.com/users/${discordId}`, '_blank');
+    } else {
+      console.error('Discord ID is not set in environment variables');
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
@@ -68,56 +70,46 @@ export default function Discord() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-gradient-to-r from-purple-900 to-[#ba9bdd] p-4 flex items-center gap-4"
+          className="bg-gradient-to-r from-purple-900 to-purple-600 p-6"
         >
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <div className="relative">
-                  <Image
-                    src={`https://cdn.discordapp.com/avatars/${user?.id}/${user?.avatar}.png`}
-                    alt={user?.username || 'Discord User'}
-                    width={80}
-                    height={80}
-                    className="rounded-full border-2 border-white"
-                  />
-                  <div
-                    className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${statusColors[status || 'offline']} border-2 border-white`}
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{statusMessages[status || 'offline']}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <div className="flex-grow">
-            <div className="flex items-center gap-2 mb-1">
-              <SiDiscord className="w-5 h-5 text-white" />
-              <span className="text-lg font-semibold text-white">
-                {user?.username}
-                {user?.discriminator !== '0' ? `#${user?.discriminator}` : ''}
-              </span>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative">
+              <Avatar className="h-16 w-16 border-2 border-white">
+                <AvatarImage
+                  className={'m-0 p-0'}
+                  src={`https://cdn.discordapp.com/avatars/${user?.id}/${user?.avatar}.png`}
+                  alt={user?.username || 'Discord User'}
+                />
+                <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase() || 'DU'}</AvatarFallback>
+              </Avatar>
+              <div
+                className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
+                  statusColors[status || 'offline']
+                } border-2 border-purple-900`}
+              />
             </div>
-            <Badge variant="secondary" className="mb-2">
-              {statusMessages[status || 'offline']}
-            </Badge>
-            <AnimatePresence>
-              {activity && (
-                <motion.p
-                  key={activity.name}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-sm text-purple-100"
-                >
-                  {activity.type === 0 ? 'Playing' : 'Doing'}: {activity.name}
-                  {activity.details && <span className="block text-xs">{activity.details}</span>}
-                </motion.p>
-              )}
-            </AnimatePresence>
+            <div>
+              <div className="flex items-center gap-2">
+                <SiDiscord className="w-5 h-5 text-white" />
+                <span className="text-xl font-semibold text-white">
+                  {user?.username}
+                  {user?.discriminator !== '0' ? `#${user?.discriminator}` : ''}
+                </span>
+              </div>
+              <Badge variant="secondary" className="mt-1 bg-purple-700 text-purple-100">
+                {status === 'online' ? 'Online' : 'Offline'}
+              </Badge>
+            </div>
           </div>
+          <p className="text-sm text-purple-100 mb-4">
+            {activity?.state || 'Coding, building, and growing'}
+          </p>
+          <Button
+            onClick={handleAddFriend}
+            className="w-full bg-purple-500 hover:bg-purple-400 text-white"
+          >
+            Add Friend
+          </Button>
         </motion.div>
       </CardContent>
     </Card>

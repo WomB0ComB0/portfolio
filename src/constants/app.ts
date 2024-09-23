@@ -8,5 +8,5 @@ export const app: Readonly<{
   url: 'https://mikeodnis.dev',
   email: 'mikeodnis3242004@gmail.com',
   description:
-    "Mike Odnis' portfolio. Undergraduate, Computer Science student at Farmingdale State College.",
+    "Explore Mike Odnis' portfolio—an innovative 20-year-old Computer Science student at Farmingdale State College, passionate about software development and technology.",
 };

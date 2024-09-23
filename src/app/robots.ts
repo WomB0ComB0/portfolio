@@ -13,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/legal'],
       },
     ],
-    sitemap: `https://mikeodnis.dev/sitemap.xml`,
+    sitemap: 'https://mikeodnis.dev/sitemap.xml',
   };
 }

@@ -1,37 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import superjson from 'superjson';
 
 interface Message {
   id: string;
-  text: string;
+  message: string;
   authorName: string;
   createdAt: string;
+  email?: string | null;
 }
 
-export function useGetMessages() {
-  return useQuery<Message[], Error>({
-    queryKey: ['messages'],
-    queryFn: async () => {
-      const response = await fetch('/api/v1/messages');
-      if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.status}`);
-      }
-      const text = await response.text();
-      const { messages } = superjson.parse<{ messages: Message[] }>(text);
-      return messages;
-    },
-  });
+interface ApiResponse {
+  json: {
+    json: Message[];
+  };
 }
 
-interface NewMessage {
-  text: string;
-  authorName: string;
+interface MutationContext {
+  previousMessages: ApiResponse | undefined;
 }
 
 export function usePostMessage() {
   const queryClient = useQueryClient();
 
-  return useMutation<Message, Error, NewMessage>({
+  return useMutation<Message, Error, Message, MutationContext>({
     mutationFn: async (newMessage) => {
       const response = await fetch('/api/v1/messages', {
         method: 'POST',
@@ -46,7 +39,28 @@ export function usePostMessage() {
       const text = await response.text();
       return superjson.parse(text);
     },
-    onSuccess: () => {
+    onMutate: async (newMessage) => {
+      await queryClient.cancelQueries({ queryKey: ['messages'] });
+
+      const previousMessages = queryClient.getQueryData<ApiResponse>(['messages']);
+
+      queryClient.setQueryData<ApiResponse>(['messages'], (old) => {
+        if (!old) return { json: { json: [newMessage] } };
+        return {
+          json: {
+            json: [newMessage, ...old.json.json],
+          },
+        };
+      });
+
+      return { previousMessages };
+    },
+    onError: (err, newMessage, context) => {
+      if (context?.previousMessages) {
+        queryClient.setQueryData<ApiResponse>(['messages'], context.previousMessages);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
     },
   });

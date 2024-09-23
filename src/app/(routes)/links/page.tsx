@@ -1,6 +1,5 @@
 'use client';
 
-import Footer from '@/components/layout/Footer';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +49,6 @@ export default function LinksPage() {
             </ScrollArea>
           </CardContent>
         </Card>
-        <Footer />
       </div>
     </Layout>
   );

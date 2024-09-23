@@ -1,6 +1,5 @@
 'use client';
 
-import Footer from '@/components/layout/Footer';
 import Layout from '@/components/layout/Layout';
 import GoogleMaps from '@/components/markers/Map';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +11,14 @@ import { useState } from 'react';
 import { FaInfoCircle } from 'react-icons/fa';
 
 export default function PlacesPage() {
-  const [activePlace, setActivePlace] = useState(places[0]);
+  const [_, setActivePlace] = useState(places[0]);
 
   return (
     <Layout>
       <div className="w-full min-h-screen p-4 md:p-8 text-[#ba9bdd]">
         <Card className="w-full max-w-4xl mx-auto bg-[#242424] border-[#560BAD] rounded-xl overflow-hidden">
           <CardHeader className="bg-[#2a2a2a] p-6">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-2 sr-only">
               <FaInfoCircle className="text-3xl text-[#ba9bdd]" />
               <CardTitle className="text-3xl md:text-4xl font-bold text-[#ba9bdd]">
                 My Places
@@ -79,7 +78,6 @@ export default function PlacesPage() {
             </Tabs>
           </CardContent>
         </Card>
-        <Footer />
       </div>
     </Layout>
   );

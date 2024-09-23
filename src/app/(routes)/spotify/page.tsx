@@ -1,6 +1,5 @@
 'use client';
 
-import Footer from '@/components/layout/Footer';
 import Layout from '@/components/layout/Layout';
 import NowPlaying from '@/components/music/NowPlaying';
 import TopArtists from '@/components/music/TopArtists';
@@ -12,7 +11,7 @@ export default function SpotifyPage() {
     <Layout>
       <div className="w-full min-h-screen p-4 md:p-8">
         <div className="max-w-4xl mx-auto mb-10">
-          <h1 className="text-4xl font-bold mb-8">Spotify Stats</h1>
+          <h1 className="text-4xl font-bold mb-8 sr-only">Spotify Stats</h1>
           <div className="space-y-8">
             <section>
               <NowPlaying />
@@ -44,7 +43,6 @@ export default function SpotifyPage() {
             </section>
           </div>
         </div>
-        <Footer />
       </div>
     </Layout>
   );
