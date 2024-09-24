@@ -6,7 +6,7 @@ export const places: RawPlace[] = [
   ['Hack Cewit x2', '2x speaker', 40.902315, -73.134435],
   ['NYU Hacks', 'Mentor and Judge', 40.69417, -73.986839],
   ['Treehacks', 'Mentor', 37.431314, -122.169365],
-  ['Jane street', 'Visited as part of a program', 40.714443, -74.015849],
+  ['Jane street', 'Visited as part of ColorStack', 40.714443, -74.015849],
   ['Squarespace', 'Got invited to visit', 40.729735, -74.0106],
   ['Devfest NYC', 'Cool event', 40.755556, -73.988105],
   ['GitHub Field day', 'I was there in spirit', 40.756763, -73.98984],

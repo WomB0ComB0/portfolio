@@ -34,6 +34,7 @@ export default function NavBar({ path }: { path: string }) {
                   setTooltipVisibility(temp);
                 }}
                 onClick={() => window.open(item.slug, '_self')}
+                aria-label={`${item.name} link`}
               >
                 <div className="p-2">
                   <item.icon size="1rem" className="text-[#ba9bdd]" />
@@ -51,6 +52,7 @@ export default function NavBar({ path }: { path: string }) {
           <button
             className="w-full flex justify-center items-center bg-[#242424] hover:bg-[#560BAD]/50 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
             onClick={query.toggle}
+            aria-label="Open command menu"
           >
             <div className="p-2">
               <FiCommand size="1rem" className="text-[#ba9bdd]" />
