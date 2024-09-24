@@ -1,4 +1,5 @@
 import '@/styles/globals.css';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Providers } from '@/providers';
 import { constructMetadata, constructViewport } from '@/utils';
 import type { NextWebVitalsMetric } from 'next/app';
@@ -21,7 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       data-turbo-loaded
     >
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <SpeedInsights />
+        </Providers>
       </body>
     </html>
   );
