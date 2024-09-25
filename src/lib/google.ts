@@ -61,7 +61,7 @@ export async function getAnalytics(): Promise<{
 
   const request = {
     property: 'properties/431094773',
-    dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'date' }, { name: 'deviceCategory' }],
     metrics: [{ name: 'screenPageViews' }],
   };
