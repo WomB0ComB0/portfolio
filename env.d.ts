@@ -13,7 +13,7 @@ declare global {
       NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: string;
       LIVEBLOCKS_API_KEY_PROD: string;
       LIVEBLOCKS_API_KEY_DEV: string;
-      DISCORD_ID: string;
+      NEXT_PUBLIC_DISCORD_ID: string;
       GITHUB_TOKEN: string;
       WAKA_TIME_API_KEY: string;
       SPOTIFY_CLIENT_ID: string;

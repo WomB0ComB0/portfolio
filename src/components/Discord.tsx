@@ -55,7 +55,8 @@ export default function Discord() {
   const activity = activities?.[0];
 
   const handleAddFriend = () => {
-    const discordId = process.env.DISCORD_ID;
+    const discordId = process.env.NEXT_PUBLIC_DISCORD_ID;
+    console.log(discordId);
     if (discordId) {
       window.open(`https://discord.com/users/${discordId}`, '_blank');
     } else {
@@ -83,9 +84,8 @@ export default function Discord() {
                 <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase() || 'DU'}</AvatarFallback>
               </Avatar>
               <div
-                className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
-                  statusColors[status || 'offline']
-                } border-2 border-purple-900`}
+                className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${statusColors[status || 'offline']
+                  } border-2 border-purple-900`}
               />
             </div>
             <div>
@@ -105,7 +105,7 @@ export default function Discord() {
             {activity?.state || 'Coding, building, and growing'}
           </p>
           <Button
-            onClick={handleAddFriend}
+            onClick={() => handleAddFriend()}
             className="w-full bg-purple-500 hover:bg-purple-400 text-white"
           >
             Add Friend

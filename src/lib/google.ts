@@ -74,6 +74,7 @@ export async function getAnalytics(): Promise<{
           sum + Number.parseInt(row.metricValues[0]?.value || '0', 10),
         0,
       ) || 0;
+
     return {
       analytics: {
         total_pageviews,

@@ -1,15 +1,13 @@
 'use client';
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import fetcher from '@/lib/fetcher';
 import { useQueries } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { atom, useAtom } from 'jotai';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { FiCalendar, FiClock, FiExternalLink, FiEye } from 'react-icons/fi';
-import { MagicCard } from './magicui';
+import { useEffect, useState, memo } from 'react';
+import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 
 interface StatCard {
   title: string;
@@ -66,7 +64,7 @@ const statCards: StatCard[] = [
 const googleDataAtom = atom<GoogleData | null>(null);
 const wakatimeDataAtom = atom<WakaTimeData | null>(null);
 
-export default function Stats() {
+export default memo(function Stats() {
   const [age, setAge] = useState('');
   const [googleData, setGoogleData] = useAtom(googleDataAtom);
   const [wakatimeData, setWakatimeData] = useAtom(wakatimeDataAtom);
@@ -93,10 +91,14 @@ export default function Stats() {
       return diff.toFixed(5);
     };
 
+    const calculatedAge = calculateAge();
+    setAge(calculatedAge);
+
     const interval = setInterval(() => {
-      const calculatedAge = calculateAge();
-      setAge(calculatedAge);
-    }, 100);
+      const newAge = calculateAge();
+      setAge(newAge);
+    }, 1000 * 60 * 60);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -187,4 +189,4 @@ export default function Stats() {
       })}
     </div>
   );
-}
+});

@@ -5,9 +5,20 @@ export const Scripts = () => {
   return (
     <>
       <Script
-        defer
-        src={`https://analytics.us.umami.is/script.js`}
-        data-website-id="e7be89ea-5e5f-463b-97c3-95457c7cb00a"
+        strategy="afterInteractive"
+        src="https://www.googletagmanager.com/gtag/js?id=G-CS1B01WMJR"
+      />
+      <Script
+        strategy="afterInteractive"
+        id="google-analytics"
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-CS1B01WMJR');
+          `,
+        }}
       />
       <Script
         async

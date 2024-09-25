@@ -33,7 +33,7 @@ export type Links = Link[];
 export const links: Links = [
   {
     name: 'Discord',
-    url: `https://discord.com/users/${process.env.DISCORD_ID}`,
+    url: `https://discord.com/users/${process.env.NEXT_PUBLIC_DISCORD_ID}`,
     value: 'mikeodnis',
     icon: SiDiscord,
   },
