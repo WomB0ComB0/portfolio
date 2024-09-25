@@ -4,7 +4,6 @@ import { Analytics } from '@vercel/analytics/react';
 import { Providers } from '@/providers';
 import { constructMetadata, constructViewport } from '@/utils';
 import type { NextWebVitalsMetric } from 'next/app';
-import Head from 'next/head';
 import { Scripts } from '@/scripts/Scripts';
 
 export const metadata = constructMetadata();
@@ -24,9 +23,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       data-a11y-link-underlines="false"
       data-turbo-loaded
     >
-      <Head>
+      <head>
         <Scripts />
-      </Head>
+      </head>
       <body>
         <Providers>
           {children}
