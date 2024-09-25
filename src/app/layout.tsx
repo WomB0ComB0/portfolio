@@ -27,6 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Scripts />
       </head>
       <body>
+        <noscript>
+          <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NL4XDQ2B"
+          height="0" width="0" style={{ display: 'none', visibility: 'hidden' }}></iframe>
+        </noscript>
         <Providers>
           {children}
           <SpeedInsights />
