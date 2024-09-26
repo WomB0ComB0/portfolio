@@ -6,7 +6,7 @@ import fetcher from '@/lib/fetcher';
 import { useQueries } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { atom, useAtom } from 'jotai';
-import { useEffect, useState, memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 
 interface StatCard {
@@ -94,10 +94,13 @@ export default memo(function Stats() {
     const calculatedAge = calculateAge();
     setAge(calculatedAge);
 
-    const interval = setInterval(() => {
-      const newAge = calculateAge();
-      setAge(newAge);
-    }, 1000 * 60 * 60);
+    const interval = setInterval(
+      () => {
+        const newAge = calculateAge();
+        setAge(newAge);
+      },
+      1000 * 60 * 60,
+    );
 
     return () => clearInterval(interval);
   }, []);

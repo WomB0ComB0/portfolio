@@ -14,6 +14,9 @@ declare global {
       LIVEBLOCKS_API_KEY_PROD: string;
       LIVEBLOCKS_API_KEY_DEV: string;
       NEXT_PUBLIC_DISCORD_ID: string;
+      REACT_EDITOR: string;
+      NEXT_PUBLIC_STRIPE_SECRET_KEY: string;
+      NEXT_PUBLIC_HASHNODE_TOKEN: string;
       GITHUB_TOKEN: string;
       WAKA_TIME_API_KEY: string;
       SPOTIFY_CLIENT_ID: string;

@@ -36,7 +36,9 @@ export async function GET() {
       });
     }
 
-    const resp = await axios.get(`https://api.lanyard.rest/v1/users/${process.env.NEXT_PUBLIC_DISCORD_ID}`);
+    const resp = await axios.get(
+      `https://api.lanyard.rest/v1/users/${process.env.NEXT_PUBLIC_DISCORD_ID}`,
+    );
     const rawData = resp.data;
     // console.log('api-lanyard-rawData', rawData);
 

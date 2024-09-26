@@ -1,16 +1,61 @@
-import axios from 'axios';
+import 'server-only';
 
-export async function getBlogs() {
-  const res = await axios.get('https://dev.to/api/articles?username=womb0comb0');
+const query = `
+  query UserPosts($username: String!, $page: Int!, $pageSize: Int!) {
+    user(username: $username) {
+      posts(page: $page, pageSize: $pageSize) {
+        edges {
+          node {
+            title
+            slug
+            publishedAt
+            brief
+          }
+        }
+      }
+    }
+  }
+`;
 
-  const blogs = res.data.slice(0, 3);
+export interface Blog {
+  title: string;
+  slug: string;
+  publishedAt: string;
+  excerpt: string;
+}
 
-  return blogs.map((blog: any) => {
+export async function getBlogs(username: string, page = 1, pageSize = 10): Promise<Blog[]> {
+  const token = process.env.NEXT_PUBLIC_HASHNODE_TOKEN;
+  const response = await fetch('https://gql.hashnode.com/', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      variables: { username, page, pageSize },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error fetching blogs: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.errors) {
+    throw new Error(data.errors.map((e: any) => e.message).join(', '));
+  }
+
+  const posts = data.data?.user?.posts?.edges || [];
+  return posts.map((edge: any) => {
+    const post = edge.node;
     return {
-      slug: blog.slug,
-      url: blog.url,
-      title: blog.title,
-      public_reactions_count: blog.public_reactions_count,
+      title: post.title,
+      slug: post.slug,
+      publishedAt: post.publishedAt,
+      excerpt: post.brief,
     };
   });
 }

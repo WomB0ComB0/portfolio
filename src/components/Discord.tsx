@@ -84,8 +84,9 @@ export default function Discord() {
                 <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase() || 'DU'}</AvatarFallback>
               </Avatar>
               <div
-                className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${statusColors[status || 'offline']
-                  } border-2 border-purple-900`}
+                className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
+                  statusColors[status || 'offline']
+                } border-2 border-purple-900`}
               />
             </div>
             <div>

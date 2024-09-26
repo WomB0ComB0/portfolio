@@ -1,8 +1,8 @@
 'use client';
 
+import Particles from '@/components/magicui/particles';
 import Image from 'next/image';
 import React from 'react';
-import Particles from "@/components/magicui/particles";
 
 const Loading = React.memo(() => {
   return (

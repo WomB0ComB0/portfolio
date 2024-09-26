@@ -20,7 +20,11 @@ import {
   User,
   Zap,
 } from 'lucide-react';
+
+import { SiHashnode } from 'react-icons/si';
+
 import React from 'react';
+import { FiDollarSign } from 'react-icons/fi';
 
 export default function Palette() {
   return (
@@ -89,18 +93,20 @@ const ResultItem = React.forwardRef(
           return <User size={18} />;
         case 'resume':
           return <FileText size={18} />;
+        case 'blog':
+          return <SiHashnode size={18} />;
         case 'places':
           return <Map size={18} />;
         case 'links':
           return <Link size={18} />;
-        case 'dashboard':
-          return <Zap size={18} />;
-        case 'spotify':
-          return <Headphones size={18} />;
         case 'guestbook':
           return <Book size={18} />;
-        case 'blog':
-          return <Bookmark size={18} />;
+        case 'spotify':
+          return <Headphones size={18} />;
+        case 'dashboard':
+          return <Zap size={18} />;
+        case 'hire':
+          return <FiDollarSign size={18} />;
         case 'projects':
           return <Code size={18} />;
         default:

@@ -33,9 +33,7 @@ export default function Layout({
           <div className="fixed top-0 w-full z-20 block lg:hidden md:hidden px-8 pt-4">
             <MobileNavBar path={pathname} />
           </div>
-          <div className="w-full pt-16 lg:pt-0 lg:pl-[6%]">
-            {children}
-          </div>
+          <div className="w-full pt-16 lg:pt-0 lg:pl-[6%]">{children}</div>
         </div>
         <Footer />
       </main>

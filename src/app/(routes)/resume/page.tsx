@@ -22,7 +22,9 @@ export default function ResumePage() {
           <Card className="w-full max-w-4xl mx-auto bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden shadow-lg">
             <CardContent className="p-4 sm:p-6">
               <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <p className="text-gray-300 text-sm sm:text-base">My professional resume and portfolio</p>
+                <p className="text-gray-300 text-sm sm:text-base">
+                  My professional resume and portfolio
+                </p>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
                     variant="outline"

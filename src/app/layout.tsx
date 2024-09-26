@@ -1,10 +1,10 @@
 import '@/styles/globals.css';
-import { SpeedInsights } from '@vercel/speed-insights/next';
-import { Analytics } from '@vercel/analytics/react';
 import { Providers } from '@/providers';
-import { constructMetadata, constructViewport } from '@/utils';
-import type { NextWebVitalsMetric } from 'next/app';
 import { Scripts } from '@/scripts/Scripts';
+import { constructMetadata, constructViewport } from '@/utils';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import type { NextWebVitalsMetric } from 'next/app';
 
 export const metadata = constructMetadata();
 export const viewport = constructViewport();
@@ -28,8 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <noscript>
-          <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NL4XDQ2B"
-          height="0" width="0" style={{ display: 'none', visibility: 'hidden' }}></iframe>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-NL4XDQ2B"
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
+          ></iframe>
         </noscript>
         <Providers>
           {children}

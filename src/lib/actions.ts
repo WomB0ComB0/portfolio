@@ -1,7 +1,7 @@
 import {
   FiBookOpen,
-  FiBookmark,
   FiCode,
+  FiDollarSign,
   FiFileText,
   FiHeadphones,
   FiHome,
@@ -10,6 +10,7 @@ import {
   FiUser,
   FiZap,
 } from 'react-icons/fi';
+import { SiHashnode } from 'react-icons/si';
 
 export const actions = [
   {
@@ -38,6 +39,15 @@ export const actions = [
     perform: () => (window.location.pathname = '/resume'),
     section: 'Navigation',
     icon: FiFileText({ size: '1rem' }),
+  },
+  {
+    id: 'blog',
+    name: 'Blog',
+    shortcut: ['b'],
+    keywords: 'writing words article',
+    perform: () => (window.location.pathname = '/blog'),
+    section: 'Navigation',
+    icon: SiHashnode({ size: '1rem' }),
   },
   {
     id: 'places',
@@ -85,13 +95,13 @@ export const actions = [
     icon: FiZap({ size: '1rem' }),
   },
   {
-    id: 'blog',
-    name: 'Blog',
-    shortcut: ['b'],
-    keywords: 'writing words article',
-    perform: () => window.open('https://dev.to/womb0comb0', '_blank'),
-    section: 'External',
-    icon: FiBookmark({ size: '1rem' }),
+    id: 'hire',
+    name: 'Hire',
+    shortcut: ['h'],
+    keywords: 'hire',
+    perform: () => (window.location.pathname = '/hire'),
+    section: 'Navigation',
+    icon: FiDollarSign({ size: '1rem' }),
   },
   {
     id: 'projects',

@@ -26,7 +26,6 @@ export const Scripts = () => {
           process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
         }&callback=console.debug&libraries=maps,marker&v=beta`}
       />
-      {/* Google Tag Manager */}
       <Script
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{

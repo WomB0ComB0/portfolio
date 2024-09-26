@@ -12,6 +12,7 @@ export const COLORS = [
 
 import {
   FiBookOpen,
+  FiDollarSign,
   FiFileText,
   FiHeadphones,
   FiHome,
@@ -20,6 +21,8 @@ import {
   FiUser,
   FiZap,
 } from 'react-icons/fi';
+
+import { SiHashnode } from 'react-icons/si';
 
 export const NavbarItems = [
   {
@@ -36,6 +39,11 @@ export const NavbarItems = [
     name: 'Resume',
     slug: '/resume',
     icon: FiFileText,
+  },
+  {
+    name: 'Blog',
+    slug: '/blog',
+    icon: SiHashnode,
   },
   {
     name: 'Places',
@@ -61,5 +69,10 @@ export const NavbarItems = [
     name: 'Dashboard',
     slug: '/dashboard',
     icon: FiZap,
+  },
+  {
+    name: 'Hire',
+    slug: '/hire',
+    icon: FiDollarSign,
   },
 ];
