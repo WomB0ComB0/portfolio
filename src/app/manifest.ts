@@ -813,6 +813,34 @@ export default function manifest(): ExtendedManifest {
           },
         ],
       },
+      {
+        name: 'Blog',
+        short_name: 'Blog',
+        url: '/blog',
+        description: 'Read Mike\'s latest thoughts and updates on his blog.',
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Hire Mike',
+        short_name: 'Hire',
+        url: '/hire',
+        description: 'Contact Mike to discuss your project or needs.',
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
     ],
     screenshots: [
       {
