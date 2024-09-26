@@ -9,6 +9,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Check, Loader2, Star, Code, Rocket, Database, Cloud } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 const tiers = [
   {
@@ -131,9 +134,16 @@ export default function HirePage() {
         body: JSON.stringify({ priceId }),
       })
 
-      const session = await response.json()
-      if (session.url) {
-        window.location.href = session.url
+      if (!response.ok) {
+        throw new Error('Network response was not ok')
+      }
+
+      const { sessionId } = await response.json()
+      const stripe = await stripePromise
+      const { error } = await stripe!.redirectToCheckout({ sessionId })
+
+      if (error) {
+        console.error('Stripe checkout error:', error)
       }
     } catch (error) {
       console.error('Failed to create checkout session:', error)

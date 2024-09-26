@@ -1,13 +1,15 @@
 import { createCheckoutSession } from '@/lib/stripe';
 import { NextResponse } from 'next/server';
 
-export const POST = async (req: Request) => {
+export async function POST(request: Request) {
   try {
-    const { priceId } = await req.json();
+    const { priceId } = await request.json();
+    console.log('Received priceId:', priceId);
     const session = await createCheckoutSession(priceId);
-    return NextResponse.json(session);
+    console.log('Created session:', session.id);
+    return NextResponse.json({ sessionId: session.id });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
+    console.error('Error in checkout API route:', error);
+    return NextResponse.json({ error: 'Failed to create checkout session', details: (error as Error).message }, { status: 500 });
   }
-};
+}

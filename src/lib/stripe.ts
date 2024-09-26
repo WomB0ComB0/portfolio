@@ -15,8 +15,8 @@ export const createCheckoutSession = async (priceId: string) => {
         },
       ],
       mode: 'payment',
-      success_url: `http://localhost:3000/hire/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `http://localhost:3000/hire/cancel`,
+      success_url: `https://mikeodnis.dev/hire/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://mikeodnis.dev/hire/cancel`,
     });
 
     return session;
