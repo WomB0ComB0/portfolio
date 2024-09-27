@@ -16,7 +16,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 const tiers = [
   {
     name: 'Basic',
-    priceId: 'price_1Q3MN2GAWrNI8qCuQ5OonWRY',
+    priceId: 'price_1Q3neXGAWrNI8qCuZ49bYMQj',
     amount: 50,
     icon: <Code className="w-8 h-8 text-blue-400" />,
     timeFrame: '1-3 hours',
@@ -30,7 +30,7 @@ const tiers = [
   },
   {
     name: 'Standard',
-    priceId: 'price_1Q3MLtGAWrNI8qCuG26IGI5c',
+    priceId: 'price_1Q3nh4GAWrNI8qCuzyYIYP9A',
     amount: 100,
     icon: <Rocket className="w-8 h-8 text-green-400" />,
     timeFrame: '3-6 hours',
@@ -44,7 +44,7 @@ const tiers = [
   },
   {
     name: 'Premium',
-    priceId: 'price_1Q3MNMGAWrNI8qCuscYmFrKY',
+    priceId: 'price_1Q3nidGAWrNI8qCudVI668iO',
     amount: 250,
     icon: <Database className="w-8 h-8 text-purple-400" />,
     timeFrame: '6-12 hours',
@@ -60,7 +60,7 @@ const tiers = [
   },
   {
     name: 'Enterprise',
-    priceId: 'price_1Q3MO7GAWrNI8qCuaDKV221Y',
+    priceId: 'price_1Q3njkGAWrNI8qCu9kxNo5Iw',
     amount: 500,
     icon: <Cloud className="w-8 h-8 text-indigo-400" />,
     timeFrame: '12-24 hours',
