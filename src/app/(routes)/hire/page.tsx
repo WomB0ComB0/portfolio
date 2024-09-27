@@ -17,9 +17,9 @@ const tiers = [
   {
     name: 'Basic',
     priceId: 'price_1Q3MN2GAWrNI8qCuQ5OonWRY',
-    amount: 10,
+    amount: 50,
     icon: <Code className="w-8 h-8 text-blue-400" />,
-    timeFrame: '1-3 days',
+    timeFrame: '1-3 hours',
     features: [
       'Frontend fixes and adjustments',
       'Minor feature implementations (e.g., simple form or button)',
@@ -31,9 +31,9 @@ const tiers = [
   {
     name: 'Standard',
     priceId: 'price_1Q3MLtGAWrNI8qCuG26IGI5c',
-    amount: 50,
+    amount: 100,
     icon: <Rocket className="w-8 h-8 text-green-400" />,
-    timeFrame: '1-2 weeks',
+    timeFrame: '3-6 hours',
     features: [
       'Full-stack development (frontend + simple backend integration)',
       'UI/UX enhancements',
@@ -45,9 +45,9 @@ const tiers = [
   {
     name: 'Premium',
     priceId: 'price_1Q3MNMGAWrNI8qCuscYmFrKY',
-    amount: 100,
+    amount: 250,
     icon: <Database className="w-8 h-8 text-purple-400" />,
-    timeFrame: '2-4 weeks',
+    timeFrame: '6-12 hours',
     features: [
       'Advanced full-stack development (React/Node, Next.js, etc.)',
       'Service integrations (e.g., AWS, Firebase, or 3rd-party APIs)',
@@ -61,9 +61,9 @@ const tiers = [
   {
     name: 'Enterprise',
     priceId: 'price_1Q3MO7GAWrNI8qCuaDKV221Y',
-    amount: 200,
+    amount: 500,
     icon: <Cloud className="w-8 h-8 text-indigo-400" />,
-    timeFrame: '1-3 months',
+    timeFrame: '12-24 hours',
     features: [
       'Custom solution architecture and development',
       'Cloud infrastructure (AWS, GCP, Kubernetes)',
