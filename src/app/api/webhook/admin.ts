@@ -1,13 +1,17 @@
-import type Stripe from 'stripe';
 import { stripe } from '@/utils/stripe';
+import type Stripe from 'stripe';
 const upsertProductRecord = async (product: Stripe.Product) => {
   // Here you would typically update your database with the product information
-  console.log(`Product ${product.id} ${product.active ? 'activated' : 'deactivated'}: ${product.name}`);
+  console.log(
+    `Product ${product.id} ${product.active ? 'activated' : 'deactivated'}: ${product.name}`,
+  );
 };
 
 const upsertPriceRecord = async (price: Stripe.Price) => {
   // Here you would typically update your database with the price information
-  console.log(`Price ${price.id} for product ${price.product}: ${price.unit_amount} ${price.currency}`);
+  console.log(
+    `Price ${price.id} for product ${price.product}: ${price.unit_amount} ${price.currency}`,
+  );
 };
 
 const deleteProductRecord = async (product: Stripe.Product) => {
@@ -32,21 +36,29 @@ const createOrRetrieveCustomer = async ({ email, uuid }: { email: string; uuid: 
 const manageSubscriptionStatusChange = async (
   subscriptionId: string,
   customerId: string,
-  createAction = false
+  createAction = false,
 ) => {
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ['default_payment_method'],
   });
 
   // Here you would typically update your database with the subscription information
-  console.log(`Subscription ${subscription.id} for customer ${customerId} is ${subscription.status}`);
+  console.log(
+    `Subscription ${subscription.id} for customer ${customerId} is ${subscription.status}`,
+  );
 
   if (createAction && subscription.default_payment_method) {
-    await copyBillingDetailsToCustomer(customerId, subscription.default_payment_method as Stripe.PaymentMethod);
+    await copyBillingDetailsToCustomer(
+      customerId,
+      subscription.default_payment_method as Stripe.PaymentMethod,
+    );
   }
 };
 
-const copyBillingDetailsToCustomer = async (customerId: string, paymentMethod: Stripe.PaymentMethod) => {
+const copyBillingDetailsToCustomer = async (
+  customerId: string,
+  paymentMethod: Stripe.PaymentMethod,
+) => {
   const { name, phone, address } = paymentMethod.billing_details;
   if (!name || !phone || !address) return;
 

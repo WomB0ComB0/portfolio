@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import {
-  upsertProductRecord,
-  upsertPriceRecord,
-  deleteProductRecord,
   deletePriceRecord,
-  manageSubscriptionStatusChange
+  deleteProductRecord,
+  manageSubscriptionStatusChange,
+  upsertPriceRecord,
+  upsertProductRecord,
 } from './admin';
 
 const stripe = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY!, {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
           await manageSubscriptionStatusChange(
             subscription.id,
             subscription.customer as string,
-            event.type === 'customer.subscription.created'
+            event.type === 'customer.subscription.created',
           );
           break;
         case 'checkout.session.completed':
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
             await manageSubscriptionStatusChange(
               subscriptionId,
               checkoutSession.customer as string,
-              true
+              true,
             );
           }
           break;
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       console.error('Error handling webhook:', error);
       return NextResponse.json(
         { error: 'Webhook handler failed. View your Next.js function logs.' },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } else {

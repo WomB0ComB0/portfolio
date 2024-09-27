@@ -10,6 +10,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ sessionId: session.id });
   } catch (error) {
     console.error('Error in checkout API route:', error);
-    return NextResponse.json({ error: 'Failed to create checkout session', details: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create checkout session', details: (error as Error).message },
+      { status: 500 },
+    );
   }
 }

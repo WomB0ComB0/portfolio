@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import React, { useState } from 'react'
-import { motion } from 'framer-motion'
-import Layout from '@/components/layout/Layout'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Check, Loader2, Star, Code, Rocket, Database, Cloud } from 'lucide-react'
-import { toast } from 'sonner'
-import Link from 'next/link'
-import { loadStripe } from '@stripe/stripe-js'
+import Layout from '@/components/layout/Layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { loadStripe } from '@stripe/stripe-js';
+import { motion } from 'framer-motion';
+import { Check, Cloud, Code, Database, Loader2, Rocket, Star } from 'lucide-react';
+import Link from 'next/link';
+import React, { useState } from 'react';
+import { toast } from 'sonner';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const tiers = [
   {
@@ -25,7 +25,7 @@ const tiers = [
       'Minor feature implementations (e.g., simple form or button)',
       'Basic bug fixes (JavaScript, React, etc.)',
       'Basic code review and feedback',
-      'Email support'
+      'Email support',
     ],
   },
   {
@@ -39,7 +39,7 @@ const tiers = [
       'UI/UX enhancements',
       'Database setup (e.g., MySQL, MongoDB)',
       'Basic CI/CD pipeline setup (GitHub Actions, CircleCI)',
-      'Priority email and chat support'
+      'Priority email and chat support',
     ],
   },
   {
@@ -55,7 +55,7 @@ const tiers = [
       'Comprehensive testing with Jest, PyTest, etc.',
       'DevOps setup (Docker, CI/CD optimization)',
       'Weekly progress meetings',
-      '24/7 support'
+      '24/7 support',
     ],
   },
   {
@@ -72,12 +72,16 @@ const tiers = [
       'Advanced DevOps (monitoring, Prometheus, Grafana)',
       'Comprehensive documentation and training',
       'Dedicated 24/7 support',
-      'Bi-weekly strategy meetings'
+      'Bi-weekly strategy meetings',
     ],
   },
 ];
 
-const PricingTier = ({ tier, onCheckout, isLoading }: { tier: any, onCheckout: any, isLoading: any }) => (
+const PricingTier = ({
+  tier,
+  onCheckout,
+  isLoading,
+}: { tier: any; onCheckout: any; isLoading: any }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -118,13 +122,13 @@ const PricingTier = ({ tier, onCheckout, isLoading }: { tier: any, onCheckout: a
       </CardFooter>
     </Card>
   </motion.div>
-)
+);
 
 export default function HirePage() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   const handleCheckout = async (priceId: string) => {
-    setLoading(true)
+    setLoading(true);
     try {
       const response = await fetch('/api/v1/checkout', {
         method: 'POST',
@@ -132,34 +136,37 @@ export default function HirePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ priceId }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error('Network response was not ok');
       }
 
-      const { sessionId } = await response.json()
-      const stripe = await stripePromise
-      const { error } = await stripe!.redirectToCheckout({ sessionId })
+      const { sessionId } = await response.json();
+      const stripe = await stripePromise;
+      const { error } = await stripe!.redirectToCheckout({ sessionId });
 
       if (error) {
-        console.error('Stripe checkout error:', error)
+        console.error('Stripe checkout error:', error);
       }
     } catch (error) {
-      console.error('Failed to create checkout session:', error)
-      toast.error('Failed to create checkout session. Please try again.')
+      console.error('Failed to create checkout session:', error);
+      toast.error('Failed to create checkout session. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Layout>
       <div className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 text-center ">Hire Me for Your Next Project</h1>
+          <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 text-center ">
+            Hire Me for Your Next Project
+          </h1>
           <p className="text-lg sm:text-xl text-center mb-12 max-w-3xl mx-auto">
-            With expertise in web, mobile, desktop, cloud, and game development, I can bring your vision to life. Choose the plan that fits your project's scope and complexity.
+            With expertise in web, mobile, desktop, cloud, and game development, I can bring your
+            vision to life. Choose the plan that fits your project's scope and complexity.
           </p>
           <div className="grid gap-8 sm:grid-cols-2">
             {tiers.map((tier) => (
@@ -172,7 +179,8 @@ export default function HirePage() {
             ))}
           </div>
           <p className="text-center mt-12 text-purple-200">
-            Not sure which plan is right for you? <Link
+            Not sure which plan is right for you?{' '}
+            <Link
               href="mailto:mikeodnis32420024@gmail.com"
               className="text-purple-400 hover:underline"
             >
@@ -183,5 +191,5 @@ export default function HirePage() {
         </div>
       </div>
     </Layout>
-  )
+  );
 }

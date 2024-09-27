@@ -817,7 +817,7 @@ export default function manifest(): ExtendedManifest {
         name: 'Blog',
         short_name: 'Blog',
         url: '/blog',
-        description: 'Read Mike\'s latest thoughts and updates on his blog.',
+        description: "Read Mike's latest thoughts and updates on his blog.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
