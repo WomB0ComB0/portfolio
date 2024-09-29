@@ -52,7 +52,7 @@ export default function AboutPage() {
                     variant="outline"
                     size="icon"
                     className="bg-purple-900 hover:bg-purple-800 border-purple-700"
-                    onClick={() => window.open('mailto:mikeodnis3242004@gmail.com', '_blank')}
+                    onClick={() => window.open('mailto:mike.odnis@mikeodnis.dev', '_blank')}
                   >
                     <Mail className="h-5 w-5 text-purple-300" />
                   </Button>
