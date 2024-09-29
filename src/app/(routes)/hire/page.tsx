@@ -1,15 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { Check, Cloud, Code, Database, Loader2, Rocket, Star } from 'lucide-react';
+import Link from 'next/link';
+
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { loadStripe } from '@stripe/stripe-js';
-import { motion } from 'framer-motion';
-import { Check, Cloud, Code, Database, Loader2, Rocket, Star } from 'lucide-react';
-import Link from 'next/link';
-import React, { useState } from 'react';
-import { toast } from 'sonner';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -81,7 +82,11 @@ const PricingTier = ({
   tier,
   onCheckout,
   isLoading,
-}: { tier: any; onCheckout: any; isLoading: any }) => (
+}: {
+  tier: any;
+  onCheckout: (priceId: string) => void;
+  isLoading: boolean;
+}) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -101,7 +106,7 @@ const PricingTier = ({
         <p className="text-sm text-center mb-4 text-purple-300">{tier.timeFrame}</p>
         <ScrollArea className="h-[200px] w-full pr-4">
           <ul className="space-y-2 text-sm">
-            {tier.features.map((feature: any, index: any) => (
+            {tier.features.map((feature: string, index: number) => (
               <li key={index} className="flex items-start">
                 <Check className="mr-2 h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
                 <span>{feature}</span>
@@ -127,6 +132,14 @@ const PricingTier = ({
 export default function HirePage() {
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const checkoutStatus = sessionStorage.getItem('checkoutStatus');
+    if (checkoutStatus === 'pending') {
+      setLoading(false);
+      sessionStorage.removeItem('checkoutStatus');
+    }
+  }, []);
+
   const handleCheckout = async (priceId: string) => {
     setLoading(true);
     try {
@@ -143,15 +156,18 @@ export default function HirePage() {
       }
 
       const { sessionId } = await response.json();
+      sessionStorage.setItem('checkoutStatus', 'pending');
       const stripe = await stripePromise;
       const { error } = await stripe!.redirectToCheckout({ sessionId });
 
       if (error) {
         console.error('Stripe checkout error:', error);
+        sessionStorage.removeItem('checkoutStatus');
       }
     } catch (error) {
       console.error('Failed to create checkout session:', error);
       toast.error('Failed to create checkout session. Please try again.');
+      sessionStorage.removeItem('checkoutStatus');
     } finally {
       setLoading(false);
     }
