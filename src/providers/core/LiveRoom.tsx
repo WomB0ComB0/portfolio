@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { RoomProvider } from '../../../liveblocks.config';
 import Cursor from '@/app/_components/liveblocks/Cursor';
-function LiveRoom() {
+
+export default function LiveRoom() {
   const others = useOthers();
   const updateMyPresence = useUpdateMyPresence();
   const roomRef = useRef<HTMLDivElement>(null);
@@ -86,5 +87,3 @@ function useExampleRoomId(roomId: string) {
 
   return exampleRoomId;
 }
-
-export default LiveBlocksProvider;

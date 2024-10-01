@@ -4,7 +4,7 @@ import Palette from '@/components/CMD';
 import BlurryBlob from '@/components/animation/background/blurry-blob';
 import Footer from '@/components/layout/Footer';
 import { DotPattern } from '@/components/magicui';
-// import { LiveBlocksProvider } from '@/providers/core/LiveRoom';
+import { LiveBlocksProvider } from '@/providers/core/LiveRoom';
 import { usePathname } from 'next/navigation';
 import MobileNavBar from './MobileNav';
 import NavBar from './Nav';
@@ -16,7 +16,7 @@ export default function Layout({
 }>) {
   const pathname = usePathname();
   return (
-    <>
+    <LiveBlocksProvider>
       <div className="relative min-h-screen bg-[#242424] font-clash">
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <DotPattern className="absolute inset-0" />
@@ -42,6 +42,6 @@ export default function Layout({
           <MobileNavBar path={pathname ?? ''} />
         </div>
       </div>
-    </>
+    </LiveBlocksProvider>
   );
 }

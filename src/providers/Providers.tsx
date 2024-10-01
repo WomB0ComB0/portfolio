@@ -6,7 +6,6 @@ import { KBarProvider } from 'kbar';
 import type { JSXElementConstructor, ReactNode } from 'react';
 import { Events, ThemeProvider, CustomAnimatedCursor } from '.';
 import { QueryProvider } from './QueryProvider';
-import LiveBlocksProvider from './core/LiveRoom';
 
 const Providers: React.FC<
   Readonly<{
@@ -26,12 +25,13 @@ const Providers: React.FC<
           ],
           [Events, {}],
           [QueryProvider, {}],
-          [LiveBlocksProvider, {}],
         ]}
       >
-        {children}
-        <CustomAnimatedCursor />
-        <ReactQueryDevtools initialIsOpen={false} />
+        <>
+          {children}
+          <CustomAnimatedCursor />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </>
       </ProviderStack>
     </>
   );
