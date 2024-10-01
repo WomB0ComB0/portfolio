@@ -19,7 +19,7 @@ export default async function Home() {
       <div className="w-full min-h-screen p-8 flex flex-col justify-start items-center relative">
         <section className="flex flex-col-reverse md:flex-row w-full max-w-4xl justify-between items-center mb-20 mt-16 gap-8">
           <div className="text-center md:text-left">
-            <h1 className="text-4xl font-bold mb-2 text-[#ba9bdd]">Mike Odnis</h1>
+            <h1 className="text-4xl font-bold mb-2 text-[#ba9bdd] z-10">Mike Odnis</h1>
             <p className="text-xl mb-4 text-purple-300">Undergraduate Computer Science Student</p>
             <p className="relative text-sm text-gray-400 max-w-lg">
               Passionate about web development and open source. Currently studying at Farmingdale

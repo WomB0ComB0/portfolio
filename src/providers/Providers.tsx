@@ -4,8 +4,9 @@ import { actions } from '@/lib/actions';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { KBarProvider } from 'kbar';
 import type { JSXElementConstructor, ReactNode } from 'react';
-import { Events, LiveBlocksProvider, ThemeProvider } from '.';
+import { Events, ThemeProvider, CustomAnimatedCursor } from '.';
 import { QueryProvider } from './QueryProvider';
+import LiveBlocksProvider from './core/LiveRoom';
 
 const Providers: React.FC<
   Readonly<{
@@ -25,10 +26,11 @@ const Providers: React.FC<
           ],
           [Events, {}],
           [QueryProvider, {}],
-          [LiveBlocksProvider, {}]
+          [LiveBlocksProvider, {}],
         ]}
       >
         {children}
+        <CustomAnimatedCursor />
         <ReactQueryDevtools initialIsOpen={false} />
       </ProviderStack>
     </>

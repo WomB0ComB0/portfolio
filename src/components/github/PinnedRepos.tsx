@@ -15,9 +15,9 @@ interface PinnedReposProps {
 
 export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedReposProps) {
   return (
-    <section className="w-full max-w-4xl mb-10">
+    <section className="w-full max-w-4xl mb-10 px-4 sm:px-6 lg:px-8">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-purple-300">Pinned Projects</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
               <Card key={`skeleton-${index}`} className="bg-[#1E1E1E] border-purple-800">
@@ -42,8 +42,8 @@ export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedRe
                 key={`repo-${index + 1}`}
                 className="h-full bg-[#1E1E1E] border border-purple-800 hover:shadow-md transition-shadow duration-300"
               >
-                <Card className="h-full bg-transparent border-none">
-                  <CardHeader>
+                <Card className="h-full bg-transparent border-none flex flex-col">
+                  <CardHeader className="flex-grow">
                     <CardTitle className="text-base sm:text-lg font-semibold text-purple-300">
                       <a
                         href={repo.url}
@@ -54,12 +54,12 @@ export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedRe
                         {repo.name}
                       </a>
                     </CardTitle>
-                    <CardDescription className="text-xs sm:text-sm text-gray-400 line-clamp-2">
+                    <CardDescription className="text-xs sm:text-sm text-gray-400 line-clamp-2 mt-1">
                       {repo.description}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap justify-between items-center mt-2 sm:mt-4 w-full">
+                  <CardContent className="mt-auto">
+                    <div className="flex flex-wrap justify-between items-center gap-2">
                       <div className="flex items-center gap-2 sm:gap-4">
                         <TooltipProvider>
                           <Tooltip>
@@ -70,7 +70,7 @@ export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedRe
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Stars</p>
+                              <p className="text-white">Stars</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -83,7 +83,7 @@ export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedRe
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Forks</p>
+                              <p className="text-white">Forks</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -91,7 +91,7 @@ export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedRe
                       {repo.primaryLanguage && (
                         <Badge
                           variant="outline"
-                          className="text-xs bg-purple-800/30 border-purple-600 mt-2 sm:mt-0 ml-auto"
+                          className="text-xs bg-purple-800/30 border-purple-600"
                         >
                           <Code2 className="h-3 w-3 mr-1" />
                           {repo.primaryLanguage.name}
