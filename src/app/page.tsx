@@ -1,7 +1,15 @@
-import PinnedRepos from '@/components/github/PinnedRepos';
 import Layout from '@/components/layout/Layout';
+import { Skeleton } from '@/components/ui/skeleton';
 import getRepos from '@/lib/getRepos';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
+
+const DynamicPinnedRepos = dynamic(() => import('@/components/github/PinnedRepos'), {
+  loading: () => <Skeleton className="w-full h-full bg-purple-300" />,
+  ssr: false,
+});
+
+export const revalidate = 60 * 60 * 24;
 
 export default async function Home() {
   const pinnedRepos = await getRepos();
@@ -25,9 +33,10 @@ export default async function Home() {
             className="relative rounded-full shadow-xl w-32 h-32 grayscale hover:grayscale-0 transition-all duration-300"
             width={128}
             height={128}
+            priority
           />
         </section>
-        <PinnedRepos pinnedRepos={pinnedRepos} />
+        <DynamicPinnedRepos pinnedRepos={pinnedRepos} />
       </div>
     </Layout>
   );

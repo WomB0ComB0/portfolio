@@ -1,5 +1,5 @@
 import 'server-only';
-
+import { cache } from 'react';
 export interface PinnedRepo {
   name: string;
   description: string | null;
@@ -11,7 +11,7 @@ export interface PinnedRepo {
   } | null;
 }
 
-const getRepos = async (): Promise<PinnedRepo[]> => {
+const getRepos = cache(async (): Promise<PinnedRepo[]> => {
   const res = await fetch('https://api.github.com/graphql', {
     method: 'POST',
     body: JSON.stringify({
@@ -45,6 +45,6 @@ const getRepos = async (): Promise<PinnedRepo[]> => {
 
   const data = await res.json();
   return data.data.user.pinnedItems.edges.map((edge: any) => edge.node);
-};
+});
 
 export default getRepos;

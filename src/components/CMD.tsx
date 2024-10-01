@@ -105,10 +105,10 @@ const ResultItem = React.forwardRef(
           return <Headphones size={18} />;
         case 'dashboard':
           return <Zap size={18} />;
-        case 'hire':
-          return <FiDollarSign size={18} />;
         case 'projects':
           return <Code size={18} />;
+        case 'hire':
+          return <FiDollarSign size={18} />;
         default:
           return null;
       }

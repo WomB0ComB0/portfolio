@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Check, Cloud, Code, Database, Loader2, Rocket, Star } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';

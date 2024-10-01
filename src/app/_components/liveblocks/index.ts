@@ -1,2 +1,3 @@
 export * from './Cursor';
-export * from './CursorCanvas';
+export * from './FlyingReaction';
+export * from './ReactionSelector';

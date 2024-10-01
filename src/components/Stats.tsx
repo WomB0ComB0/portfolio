@@ -5,9 +5,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import fetcher from '@/lib/fetcher';
 import { useQueries } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { atom, useAtom } from 'jotai';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
+import NumberTicker from './ui/number-ticker';
 
 interface StatCard {
   title: string;
@@ -61,13 +61,12 @@ const statCards: StatCard[] = [
   },
 ];
 
-const googleDataAtom = atom<GoogleData | null>(null);
-const wakatimeDataAtom = atom<WakaTimeData | null>(null);
-
 export default memo(function Stats() {
-  const [age, setAge] = useState('');
-  const [googleData, setGoogleData] = useAtom(googleDataAtom);
-  const [wakatimeData, setWakatimeData] = useAtom(wakatimeDataAtom);
+  const [age, setAge] = useState(() => {
+    const diff =
+      (new Date().getTime() - new Date('March 24, 2004').getTime()) / (1000 * 60 * 60 * 24 * 365);
+    return Math.floor(diff).toString();
+  });
 
   const queries = useQueries({
     queries: [
@@ -85,19 +84,12 @@ export default memo(function Stats() {
   });
 
   useEffect(() => {
-    const calculateAge = () => {
-      const diff =
-        (new Date().getTime() - new Date('March 24, 2004').getTime()) / (1000 * 60 * 60 * 24 * 365);
-      return diff.toFixed(5);
-    };
-
-    const calculatedAge = calculateAge();
-    setAge(calculatedAge);
-
     const interval = setInterval(
       () => {
-        const newAge = calculateAge();
-        setAge(newAge);
+        const diff =
+          (new Date().getTime() - new Date('March 24, 2004').getTime()) /
+          (1000 * 60 * 60 * 24 * 365);
+        setAge(Math.floor(diff).toString());
       },
       1000 * 60 * 60,
     );
@@ -105,18 +97,36 @@ export default memo(function Stats() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
+  const googleData = useMemo(() => {
     if (queries[0].data) {
-      const parsedGoogleData: GoogleData = JSON.parse(queries[0].data);
-      setGoogleData(parsedGoogleData);
+      return JSON.parse(queries[0].data) as GoogleData;
     }
+    return null;
+  }, [queries[0].data]);
+
+  const wakatimeData = useMemo(() => {
     if (queries[1].data) {
-      const parsedWakatimeData: WakaTimeData = JSON.parse(queries[1].data);
-      setWakatimeData(parsedWakatimeData);
+      return JSON.parse(queries[1].data) as WakaTimeData;
     }
-  }, [queries, setGoogleData, setWakatimeData]);
+    return null;
+  }, [queries[1].data]);
 
   const isLoading = queries.some((query) => query.isLoading);
+
+  const getCardValue = (card: StatCard) => {
+    switch (card.query) {
+      case 'age':
+        return age;
+      case 'google':
+        return googleData?.json.total_pageviews ?? 'N/A';
+      case 'wakatime':
+        return wakatimeData?.json.total_seconds
+          ? Math.round(wakatimeData.json.total_seconds / 3600)
+          : undefined;
+      default:
+        return undefined;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -141,21 +151,6 @@ export default memo(function Stats() {
       </div>
     );
   }
-
-  const getCardValue = (card: StatCard) => {
-    switch (card.query) {
-      case 'age':
-        return age;
-      case 'google':
-        return googleData?.json.total_pageviews ?? 'N/A';
-      case 'wakatime':
-        return wakatimeData?.json.total_seconds
-          ? Math.round(wakatimeData.json.total_seconds / 3600)
-          : undefined;
-      default:
-        return undefined;
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -182,7 +177,11 @@ export default memo(function Stats() {
                   {card.query === 'google' && <FiEye className="h-4 w-4" />}
                   {card.query === 'wakatime' && <FiClock className="h-4 w-4" />}
                   <AnimatePresence>
-                    <span className="text-2xl font-bold">{value ?? '-'}</span>
+                    <NumberTicker
+                      className="text-2xl font-bold text-white"
+                      value={Number(value) ?? '-'}
+                      decimalPlaces={0}
+                    />
                   </AnimatePresence>
                 </div>
               </CardContent>

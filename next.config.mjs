@@ -5,7 +5,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 
 const withPwa = pwa({
   dest: 'public',
-  disable: false,
+  disable: process.env.NODE_ENV === 'development',
   register: true,
   sw: '/sw.js',
   publicExcludes: ['!noprecache/**/*'],
@@ -24,9 +24,7 @@ const config = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'http', hostname: 'localhost', port: '3000' },
       { protocol: 'https', hostname: 'mikeodnis.dev' },
-      { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
       { protocol: 'https', hostname: 'github.com' },
       { protocol: 'https', hostname: 'api.lanyard.rest' },
@@ -35,7 +33,7 @@ const config = {
     ],
   },
   experimental: {
-    optimizeCss: { preload: true },
+    optimizeCss: true,
     swcMinify: true,
     turbo: {
       rules: {
@@ -78,18 +76,19 @@ const config = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
+    }
     config.module.rules.push({
       test: /\.(png|jpe?g|gif|svg|webp|avif)$/i,
-      use: [
-        {
-          loader: 'file-loader',
-          options: {
-            publicPath: '/_next',
-            name: 'static/media/[name].[hash].[ext]',
-          },
-        },
-      ],
+      type: 'asset',
+      generator: {
+        filename: 'static/media/[hash][ext][query]',
+      },
     });
     return config;
   },
@@ -115,14 +114,28 @@ const combinedConfig = withMillion(withBundleAnalyzerConfig(withPwa(config)));
 export default withSentryConfig(combinedConfig, {
   org: 'womb0comb0',
   project: 'portfolio',
-  sentryUrl: 'https://sentry.io/',
-  silent: !process.env.CI,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: process.env.NODE_ENV === 'production',
+  release: {
+    name: process.env.VERCEL_GIT_COMMIT_SHA || 'local',
+    create: true,
+    setCommits: {
+      auto: true,
+    },
+  },
+  sourcemaps: {
+    assets: './**/*.{js,map}',
+    ignore: ['node_modules/**/*'],
+  },
+  hideSourceMaps: true,
   widenClientFileUpload: true,
+  autoInstrumentServerFunctions: true,
+  autoInstrumentMiddleware: true,
+  autoInstrumentAppDirectory: true,
+  tunnelRoute: '/monitoring',
+  disableLogger: true,
+  automaticVercelMonitors: true,
   reactComponentAnnotation: {
     enabled: true,
   },
-  tunnelRoute: '/monitoring',
-  hideSourceMaps: true,
-  disableLogger: true,
-  automaticVercelMonitors: true,
 });

@@ -4,7 +4,7 @@ import { actions } from '@/lib/actions';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { KBarProvider } from 'kbar';
 import type { JSXElementConstructor, ReactNode } from 'react';
-import { Events, ThemeProvider } from '.';
+import { Events, LiveBlocksProvider, ThemeProvider } from '.';
 import { QueryProvider } from './QueryProvider';
 
 const Providers: React.FC<
@@ -25,6 +25,7 @@ const Providers: React.FC<
           ],
           [Events, {}],
           [QueryProvider, {}],
+          [LiveBlocksProvider, {}]
         ]}
       >
         {children}

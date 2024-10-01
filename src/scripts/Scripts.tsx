@@ -21,10 +21,10 @@ export const Scripts = () => {
         }}
       />
       <Script
-        loading="async"
+        strategy="afterInteractive"
         src={`https://maps.googleapis.com/maps/api/js?key=${
           process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-        }&callback=console.debug&libraries=maps,marker&v=beta`}
+        }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
       />
       <Script
         strategy="afterInteractive"

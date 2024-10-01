@@ -32,6 +32,8 @@ declare global {
       NEXT_PUBLIC_GCP_CLIENT_EMAIL: string;
       NEXT_PUBLIC_GCP_CLIENT_ID: string;
       NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL: string;
+      NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: string;
+      VERCEL_GIT_COMMIT_SHA?: string;
     }
   }
 }

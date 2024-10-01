@@ -97,7 +97,7 @@ export const actions = [
   {
     id: 'hire',
     name: 'Hire',
-    shortcut: ['h'],
+    shortcut: ['i'],
     keywords: 'hire',
     perform: () => (window.location.pathname = '/hire'),
     section: 'Navigation',

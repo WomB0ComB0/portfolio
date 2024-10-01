@@ -1,45 +1,107 @@
+'use client';
+
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { PinnedRepo } from '@/lib/getRepos';
-import Link from 'next/link';
-import { FiStar } from 'react-icons/fi';
-import { VscRepoForked } from 'react-icons/vsc';
+import { Code2, GitFork, Star } from 'lucide-react';
 import { MagicCard } from '../magicui';
 
-export default function PinnedRepos({ pinnedRepos }: { pinnedRepos: PinnedRepo[] }) {
+interface PinnedReposProps {
+  pinnedRepos: PinnedRepo[];
+  isLoading?: boolean;
+}
+
+export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedReposProps) {
   return (
     <section className="w-full max-w-4xl mb-10">
-      <h2 className="text-3xl font-bold mb-6 text-purple-300">Pinned Projects</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {pinnedRepos.map((repo, index: number | string) => (
-          <Link
-            key={`repo-${+index + 1}`}
-            href={repo.url}
-            target="_blank"
-            rel="noreferrer"
-            className="no-underline"
-          >
-            <MagicCard className="h-full bg-[#1E1E1E] border border-purple-800 hover:shadow-md transition-shadow duration-300">
-              <div className="grid grid-rows-[auto_1fr_auto] h-full p-4 gap-2">
-                <h3 className="text-lg font-semibold text-purple-300">{repo.name}</h3>
-                <p className="text-sm text-gray-400 line-clamp-2">{repo.description}</p>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1 text-sm">
-                      <FiStar className="text-yellow-500" />
-                      <span className="text-gray-400">{repo.stargazerCount}</span>
+      <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-purple-300">Pinned Projects</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, index) => (
+              <Card key={`skeleton-${index}`} className="bg-[#1E1E1E] border-purple-800">
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4 bg-purple-300/20" />
+                  <Skeleton className="h-4 w-full bg-gray-400/20 mt-2" />
+                  <Skeleton className="h-4 w-5/6 bg-gray-400/20 mt-1" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-4 w-12 bg-gray-400/20" />
+                      <Skeleton className="h-4 w-12 bg-gray-400/20" />
                     </div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <VscRepoForked className="text-gray-500" />
-                      <span className="text-gray-400">{repo.forkCount}</span>
-                    </div>
+                    <Skeleton className="h-4 w-16 bg-gray-400/20" />
                   </div>
-                  {repo.primaryLanguage && (
-                    <span className="text-xs text-gray-500">{repo.primaryLanguage.name}</span>
-                  )}
-                </div>
-              </div>
-            </MagicCard>
-          </Link>
-        ))}
+                </CardContent>
+              </Card>
+            ))
+          : pinnedRepos.map((repo, index) => (
+              <MagicCard
+                key={`repo-${index + 1}`}
+                className="h-full bg-[#1E1E1E] border border-purple-800 hover:shadow-md transition-shadow duration-300"
+              >
+                <Card className="h-full bg-transparent border-none">
+                  <CardHeader>
+                    <CardTitle className="text-base sm:text-lg font-semibold text-purple-300">
+                      <a
+                        href={repo.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:underline"
+                      >
+                        {repo.name}
+                      </a>
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm text-gray-400 line-clamp-2">
+                      {repo.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap justify-between items-center mt-2 sm:mt-4 w-full">
+                      <div className="flex items-center gap-2 sm:gap-4">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 text-xs sm:text-sm">
+                                <Star className="text-yellow-500 h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="text-gray-400">{repo.stargazerCount}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Stars</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 text-xs sm:text-sm">
+                                <GitFork className="text-gray-500 h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="text-gray-400">{repo.forkCount}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Forks</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      {repo.primaryLanguage && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-purple-800/30 border-purple-600 mt-2 sm:mt-0 ml-auto"
+                        >
+                          <Code2 className="h-3 w-3 mr-1" />
+                          {repo.primaryLanguage.name}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </MagicCard>
+            ))}
       </div>
     </section>
   );
