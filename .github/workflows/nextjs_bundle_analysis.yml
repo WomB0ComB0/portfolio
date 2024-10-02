@@ -71,9 +71,12 @@ jobs:
       - name: Build next.js app
         env:
           SKIP_BUILD_PRODUCT_REDIRECTS: 1
-        # change this if your site requires a custom build command
+        
         run: bun run build
-
+      - name: Sentry Release
+        run: |
+          /home/runner/work/portfolio/portfolio/node_modules/@sentry/cli-linux-x64/bin/sentry-cli releases set-commits local --auto --ignore-missing
+        
       - name: Analyze bundle
         run: node report-bundle-size.js
 
