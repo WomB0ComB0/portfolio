@@ -51,6 +51,7 @@ jobs:
       - name: Build app
         env:
           SKIP_BUILD_PRODUCT_REDIRECTS: 1
+          NODE_ENV: production
         run: bun run build
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
