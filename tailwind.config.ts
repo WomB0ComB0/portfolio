@@ -8,7 +8,7 @@ const { default: flattenColorPalette } = require('tailwindcss/lib/util/flattenCo
 const config = {
   darkMode: ['class'],
   mode: 'jit',
-  content: ['./src/**/*.{ts,tsx}'],
+  content: ['./src/**/*.{ts,tsx,js,jsx}'],
   module: {
     rules: [
       {
