@@ -56,3 +56,6 @@ workbox-*.js
 workbox-*.js.map
 sw.js
 sw.js.*
+
+/playwright-report
+/test-results

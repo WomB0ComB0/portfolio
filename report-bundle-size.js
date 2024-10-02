@@ -8,7 +8,7 @@
 // edited to work with the appdir by @raphaelbadia
 
 // @ts-check
-import gzSize from 'gzip-size';
+import { sync as gzSize } from 'gzip-size';
 import mkdirp from 'mkdirp';
 import fs from 'fs';
 import path from 'path';
