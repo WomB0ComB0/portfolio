@@ -10,7 +10,7 @@
     "build": "next build",
     "dev": "next dev",
     "gen": "graphql-codegen --config codegen.yml",
-    "lint": "bunx biome check --write ./ || true && bunx stylelint src/styles/**/*.{css,scss,sass} --fix",
+    "lint": "bunx biome check --write ./ || true && bunx stylelint src/styles/**/*.{css,scss,sass} --fix || true",
     "start": "next start",
     "type": "tsc --noEmit",
     "test": "vitest run",

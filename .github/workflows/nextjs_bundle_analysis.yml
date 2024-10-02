@@ -11,7 +11,7 @@ on:
 
 defaults:
   run:
-    # change this if your nextjs app does not live at the root of the repo
+    # Change this if your Next.js app does not live at the root of the repo
     working-directory: ./
 
 jobs:
@@ -51,6 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full commit history
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -65,18 +67,19 @@ jobs:
           cache-name: cache-next-build
         with:
           path: .next/cache
-          # change this if you prefer a more strict cache
+          # Change this if you prefer a more strict cache
           key: ${{ runner.os }}-build-${{ env.cache-name }}
 
       - name: Build next.js app
         env:
           SKIP_BUILD_PRODUCT_REDIRECTS: 1
-        
+
         run: bun run build
+
       - name: Sentry Release
         run: |
           /home/runner/work/portfolio/portfolio/node_modules/@sentry/cli-linux-x64/bin/sentry-cli releases set-commits local --auto --ignore-missing
-        
+
       - name: Analyze bundle
         run: node report-bundle-size.js
 
