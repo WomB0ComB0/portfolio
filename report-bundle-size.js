@@ -8,10 +8,14 @@
 // edited to work with the appdir by @raphaelbadia
 
 // @ts-check
-const gzipSize = require('gzip-size');
-const mkdirp = require('mkdirp');
-const fs = require('fs');
-const path = require('path');
+import { gzipSize } from 'gzip-size';
+import { mkdirp } from 'mkdirp';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @typedef {{ raw: number, gzip: number }} ScriptSizes */
 /** @typedef {Record<string, ScriptSizes>} PageSizes */
@@ -95,7 +99,8 @@ const rawData = JSON.stringify({
 // log outputs to the gh actions panel
 console.log(rawData);
 
-mkdirp.sync(path.join(nextMetaRoot, 'analyze/'));
+// Changed this line to use mkdirp directly
+await mkdirp(path.join(nextMetaRoot, 'analyze/'));
 fs.writeFileSync(path.join(nextMetaRoot, 'analyze/__bundle_analysis.json'), rawData);
 
 // --------------
@@ -109,9 +114,9 @@ fs.writeFileSync(path.join(nextMetaRoot, 'analyze/__bundle_analysis.json'), rawD
 function getScriptSizes(scriptPaths) {
   return scriptPaths.reduce(
     (acc, scriptPath) => {
-      const [rawSize, gzipSize] = getScriptSize(scriptPath);
+      const [rawSize, gzSize] = getScriptSize(scriptPath);
       acc.raw += rawSize;
-      acc.gzip += gzipSize;
+      acc.gzip += gzSize;
       return acc;
     },
     { raw: 0, gzip: 0 }
@@ -133,9 +138,9 @@ function getScriptSize(scriptPath) {
   try {
     const textContent = fs.readFileSync(p, encoding);
     const rawSize = Buffer.byteLength(textContent, encoding);
-    const gzipSizeValue = gzipSize.sync(textContent);
-    memoryCache[p] = [rawSize, gzipSizeValue];
-    return [rawSize, gzipSizeValue];
+    const gzSize = gzipSize.sync(textContent);
+    memoryCache[p] = [rawSize, gzSize];
+    return [rawSize, gzSize];
   } catch (error) {
     console.error(`Error reading file: ${p}`, error);
     return [0, 0];
