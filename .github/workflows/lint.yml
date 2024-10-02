@@ -2,9 +2,9 @@ name: ⛑️ Lint
 
 on:
   push:
-    branches: ["main", "production", "staging"]
+    branches: ["master"]
   pull_request:
-    branches: ["main", "production", "staging"]
+    branches: ["master"]
 
 concurrency:
   cancel-in-progress: true

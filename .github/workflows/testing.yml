@@ -2,9 +2,9 @@ name: ⚡ Testing
 
 on:
   push:
-    branches: ["main", "production", "staging"]
+    branches: ["main"]
   pull_request:
-    branches: ["main", "production", "staging"]
+    branches: ["main"]
 
 concurrency:
   cancel-in-progress: true

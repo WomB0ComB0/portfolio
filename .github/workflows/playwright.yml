@@ -2,9 +2,7 @@ name: 🎭 Playwright Tests
 on:
   push:
     branches:
-      - main
-      - production
-      - staging
+      - master
   pull_request: null
   workflow_dispatch: null
 jobs:

@@ -3,14 +3,10 @@ name: 🧺 Next.js Bundle Analysis
 on:
   push:
     branches:
-      - main
-      - production
-      - staging
+      - master
   pull_request:
     branches:
-      - main
-      - production
-      - staging
+      - master
   workflow_dispatch:
 
 defaults:
