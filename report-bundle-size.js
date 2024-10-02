@@ -8,10 +8,10 @@
 // edited to work with the appdir by @raphaelbadia
 
 // @ts-check
-import { sync as gzSize } from 'gzip-size';
-import mkdirp from 'mkdirp';
-import fs from 'fs';
-import path from 'path';
+const gzipSize = require('gzip-size');
+const mkdirp = require('mkdirp');
+const fs = require('fs');
+const path = require('path');
 
 /** @typedef {{ raw: number, gzip: number }} ScriptSizes */
 /** @typedef {Record<string, ScriptSizes>} PageSizes */
@@ -133,10 +133,9 @@ function getScriptSize(scriptPath) {
   try {
     const textContent = fs.readFileSync(p, encoding);
     const rawSize = Buffer.byteLength(textContent, encoding);
-    // @ts-ignore
-    const gzipSize = gzSize.sync(textContent);
-    memoryCache[p] = [rawSize, gzipSize];
-    return [rawSize, gzipSize];
+    const gzipSizeValue = gzipSize.sync(textContent);
+    memoryCache[p] = [rawSize, gzipSizeValue];
+    return [rawSize, gzipSizeValue];
   } catch (error) {
     console.error(`Error reading file: ${p}`, error);
     return [0, 0];
