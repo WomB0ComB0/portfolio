@@ -6,5 +6,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    exclude: ['src/e2e/**', 'node_modules'],
+  
   },
 });
+
