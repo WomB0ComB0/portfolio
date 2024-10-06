@@ -58,7 +58,7 @@ export const links: Links = [
   {
     name: 'Buy me a coffee',
     url: 'https://www.buymeacoffee.com/mikeodnis3a',
-    value: '@womb0comb0',
+    value: '@mikeodnis3a',
     icon: SiBuymeacoffee,
   },
   {
