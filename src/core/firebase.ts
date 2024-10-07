@@ -1,6 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, Auth } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator, Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -25,7 +25,27 @@ const serviceAccount = {
   universe_domain: 'googleapis.com',
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const firestore = getFirestore(app);
+let app: FirebaseApp;
+let auth: Auth;
+let firestore: Firestore;
+
+try {
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+    console.log('Firebase initialized successfully');
+  } else {
+    app = getApps()[0]!;
+  }
+
+  auth = getAuth(app);
+  firestore = getFirestore(app!);
+
+  if (process.env.NODE_ENV === 'development') {
+    connectAuthEmulator(auth, 'http://localhost:9099');
+    connectFirestoreEmulator(firestore, 'localhost', 8080);
+  }
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
+}
+
 export { auth, app, firestore, serviceAccount };

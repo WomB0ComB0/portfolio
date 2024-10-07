@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
 import axios from 'axios';
+import { describe, expect, it, vi } from 'vitest';
 import fetcher from './fetcher';
 
 // Mock the axios module

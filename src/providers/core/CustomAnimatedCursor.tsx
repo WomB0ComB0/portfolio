@@ -2,7 +2,7 @@
 
 import { COLORS } from '@/constants';
 import React, { useState, useEffect } from 'react';
-import AnimatedCursor from "react-animated-cursor"
+import AnimatedCursor from 'react-animated-cursor';
 
 const colors = COLORS;
 
@@ -30,10 +30,10 @@ export const CustomAnimatedCursor = () => {
       outerAlpha={0}
       outerStyle={{
         border: `3px solid ${colors[colorIndex]}`,
-        mixBlendMode: 'exclusion'
+        mixBlendMode: 'exclusion',
       }}
       innerStyle={{
-        backgroundColor: colors[colorIndex]
+        backgroundColor: colors[colorIndex],
       }}
       clickables={[
         'a',
@@ -59,4 +59,4 @@ export const CustomAnimatedCursor = () => {
       ]}
     />
   );
-}
+};

@@ -15,6 +15,7 @@ import { loadable } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { app } from './firebase';
+import { FirebaseError } from 'firebase/app';
 
 export const currentUserValue = atom<User | null | undefined>(undefined);
 
@@ -58,7 +59,7 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
     }
 
     if (signInMethod === 'google.com') {
-      const auth = getAuth(app);
+      const auth = getAuth(app!);
       const provider = new GoogleAuthProvider();
       provider.addScope('profile');
       provider.addScope('email');
@@ -69,7 +70,7 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
     }
 
     if (signInMethod === 'github.com') {
-      const auth = getAuth(app);
+      const auth = getAuth(app!);
       const provider = new GithubAuthProvider();
       provider.addScope('read:user');
       p = signInWithPopup(auth, provider);
@@ -81,6 +82,13 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
     p.then(() => {
       window.location.reload();
       toast.success('Logged in successfully! 🎉');
+    }).catch((error: FirebaseError) => {
+      console.error('Sign-in error:', error);
+      let errorMessage = 'An error occurred during sign-in. Please try again.';
+      if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      }
+      toast.error(errorMessage);
     }).finally(() => setInFlight(false));
   }, [signInMethod]);
 

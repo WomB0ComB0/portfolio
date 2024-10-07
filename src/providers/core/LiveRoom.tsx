@@ -1,11 +1,12 @@
 'use client';
 
-import { COLORS } from '@/constants';
-import { useOthers, useUpdateMyPresence } from "@liveblocks/react";
-import { useSearchParams } from 'next/navigation';
-import React, { useEffect, useMemo, useRef } from 'react';
-import { RoomProvider } from '../../../liveblocks.config';
 import Cursor from '@/app/_components/liveblocks/Cursor';
+import { COLORS } from '@/constants';
+import { useOthers, useUpdateMyPresence } from '@liveblocks/react';
+import { useSearchParams } from 'next/navigation';
+import type React from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { RoomProvider } from '../../../liveblocks.config';
 
 export default function LiveRoom() {
   const others = useOthers();
@@ -28,12 +29,12 @@ export default function LiveRoom() {
       });
     };
 
-    document.addEventListener("pointermove", onPointerMove);
-    document.addEventListener("pointerleave", onPointerLeave);
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerleave', onPointerLeave);
 
     return () => {
-      document.removeEventListener("pointermove", onPointerMove);
-      document.removeEventListener("pointerleave", onPointerLeave);
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerleave', onPointerLeave);
     };
   }, [updateMyPresence]);
 

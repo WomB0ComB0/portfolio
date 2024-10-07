@@ -7,12 +7,12 @@
 
 // edited to work with the appdir by @raphaelbadia
 
-// @ts-check
-import { gzipSize } from 'gzip-size';
-import { mkdirp } from 'mkdirp';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// @ts-check
+import { gzipSize } from 'gzip-size';
+import { mkdirp } from 'mkdirp';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,16 +46,20 @@ try {
   fs.accessSync(nextMetaRoot, fs.constants.R_OK);
 } catch (err) {
   console.error(
-    `No build output found at "${nextMetaRoot}" - you may not have your working directory set correctly, or not have run "next build".`
+    `No build output found at "${nextMetaRoot}" - you may not have your working directory set correctly, or not have run "next build".`,
   );
   process.exit(1);
 }
 
 // if so, we can import the build manifest
 /** @type {BuildManifest} */
-const buildMeta = JSON.parse(fs.readFileSync(path.join(nextMetaRoot, 'build-manifest.json'), 'utf8'));
+const buildMeta = JSON.parse(
+  fs.readFileSync(path.join(nextMetaRoot, 'build-manifest.json'), 'utf8'),
+);
 /** @type {AppDirManifest} */
-const appDirMeta = JSON.parse(fs.readFileSync(path.join(nextMetaRoot, 'app-build-manifest.json'), 'utf8'));
+const appDirMeta = JSON.parse(
+  fs.readFileSync(path.join(nextMetaRoot, 'app-build-manifest.json'), 'utf8'),
+);
 
 /** @type {Record<string, [number, number]>} */
 const memoryCache = {};
@@ -67,12 +71,12 @@ const globalBundleSizes = getScriptSizes(globalBundle);
 const allPageSizes = Object.entries(buildMeta.pages).reduce(
   (acc, [pagePath, scriptPaths]) => {
     const scriptSizes = getScriptSizes(
-      scriptPaths.filter((scriptPath) => !globalBundle.includes(scriptPath))
+      scriptPaths.filter((scriptPath) => !globalBundle.includes(scriptPath)),
     );
     acc[pagePath] = scriptSizes;
     return acc;
   },
-  /** @type {PageSizes} */({})
+  /** @type {PageSizes} */ ({}),
 );
 
 const globalAppDirBundle = buildMeta.rootMainFiles || [];
@@ -82,12 +86,12 @@ const globalAppDirBundleSizes = getScriptSizes(globalAppDirBundle);
 const allAppDirSizes = Object.entries(appDirMeta.pages).reduce(
   (acc, [pagePath, scriptPaths]) => {
     const scriptSizes = getScriptSizes(
-      scriptPaths.filter((scriptPath) => !globalAppDirBundle.includes(scriptPath))
+      scriptPaths.filter((scriptPath) => !globalAppDirBundle.includes(scriptPath)),
     );
     acc[pagePath] = scriptSizes;
     return acc;
   },
-  /** @type {PageSizes} */({})
+  /** @type {PageSizes} */ ({}),
 );
 
 // format and write the output
@@ -119,7 +123,7 @@ function getScriptSizes(scriptPaths) {
       acc.gzip += gzSize;
       return acc;
     },
-    { raw: 0, gzip: 0 }
+    { raw: 0, gzip: 0 },
   );
 }
 
