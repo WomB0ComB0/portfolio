@@ -105,8 +105,8 @@ export const links: Links = [
   },
   {
     name: 'Microsoft Learn',
-    url: 'https://learn.microsoft.com/en-us/users/mikeodnis/',
-    value: '@mikeodnis',
+    url: 'https://learn.microsoft.com/en-us/users/mikeodnis-1859/',
+    value: '@mikeodnis-1859',
     icon: SiMicrosoft,
   },
   {
@@ -123,7 +123,7 @@ export const links: Links = [
   },
   {
     name: 'Bitbucket',
-    url: 'https://bitbucket.org/womb0comb0',
+    url: 'https://bitbucket.org/womb0comb0/workspace/overview/',
     value: '@womb0comb0',
     icon: FaBitbucket,
   },
