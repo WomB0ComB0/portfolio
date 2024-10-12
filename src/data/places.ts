@@ -14,7 +14,7 @@ export const places: RawPlace[] = [
   ['HackMIT - 2024', 'Hacker', 42.360092, -71.094162],
   ['DivHacks - 2024', 'Mentor/Judge', 40.807537, -73.96257],
   ['MHacks - 2024', 'Mentor/Judge', 42.291160, -83.715830],
-  ['Hack Dearborn 3: Rewind Reality - 2024', 'Mentor', 42.317220, -83.230400],
+  ['Hack Dearborn 3: Rewind Reality - 2024', 'Volunteer', 42.317220, -83.230400],
 ];
 
 export default places;
