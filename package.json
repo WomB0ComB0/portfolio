@@ -18,7 +18,7 @@
     "e2e:install": "bunx playwright install"
   },
   "dependencies": {
-    "@biomejs/biome": "1.9.2",
+    "@biomejs/biome": "1.9.4",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@google-analytics/data": "^4.8.0",
     "@googlemaps/markerclusterer": "^2.5.3",
