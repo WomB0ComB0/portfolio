@@ -32,7 +32,7 @@ export default function ResumePage() {
                     className="w-full sm:w-auto bg-purple-900 hover:bg-purple-800 text-purple-300 border-purple-700 text-xs sm:text-sm"
                     onClick={() =>
                       window.open(
-                        'https://docs.google.com/document/d/1BbnVKQLGoIZHTx6J14euqpxq2E_b95zEfi8r0jfbDZA/export?format=pdf',
+                        'https://docs.google.com/document/d/2PACX-1vTsOjtdWXyS93CL-lxxOQvcc52sPQ3y76JWndqRrk7K1F1Y-8APVBcjAwKeolvkEEe5OzMXe2ZMbvP6/export?format=pdf',
                         '_blank',
                       )
                     }
@@ -45,7 +45,7 @@ export default function ResumePage() {
                     className="w-full sm:w-auto bg-purple-900 hover:bg-purple-800 text-purple-300 border-purple-700 text-xs sm:text-sm"
                     onClick={() =>
                       window.open(
-                        'https://docs.google.com/document/d/1BbnVKQLGoIZHTx6J14euqpxq2E_b95zEfi8r0jfbDZA/edit?usp=sharing',
+                        'https://docs.google.com/document/d/2PACX-1vTsOjtdWXyS93CL-lxxOQvcc52sPQ3y76JWndqRrk7K1F1Y-8APVBcjAwKeolvkEEe5OzMXe2ZMbvP6/edit?usp=sharing',
                         '_blank',
                       )
                     }
@@ -64,7 +64,7 @@ export default function ResumePage() {
               ) : (
                 <>
                   <iframe
-                    src="https://docs.google.com/document/d/1BbnVKQLGoIZHTx6J14euqpxq2E_b95zEfi8r0jfbDZA/pub?embedded=true"
+                    src="https://docs.google.com/document/d/e/2PACX-1vTsOjtdWXyS93CL-lxxOQvcc52sPQ3y76JWndqRrk7K1F1Y-8APVBcjAwKeolvkEEe5OzMXe2ZMbvP6/pub?embedded=true"
                     className="w-full h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] border-2 border-purple-800 rounded-lg"
                     title="Mike Odnis Resume"
                   />
