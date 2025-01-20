@@ -1,189 +1,265 @@
-# README.md
+# Project Name: Lint and Testing Workflows
 
-## Project Overview
-
-This repository contains a web application built using Next.js, featuring various functionalities such as a guestbook, a blog, user statistics, and integration with Spotify. The application utilizes Firebase for authentication and real-time data management, and it is styled using Tailwind CSS for a modern look and feel. Additionally, it contains GitHub Actions workflows for continuous integration, testing, linting, and deployment.
+## Introduction
+This repository contains CI/CD workflows for linting, testing, and analyzing a JavaScript project using GitHub Actions. The workflows include code linting, testing (unit and end-to-end), and bundle analysis, which help maintain code quality and performance.
 
 ## Major Parts of the Code
 
-1. **Components**: The application is modularized into reusable components for better maintainability. Key components include:
-   - **Discord**: Displays Discord status and user information.
-   - **Blog**: Fetches and displays blog posts.
-   - **Guestbook**: Allows users to leave messages and view existing messages.
-   - **Statistics**: Displays user statistics such as age, site views, and coding hours.
-   - **Pricing**: Offers various service tiers for hiring.
+### 1. Lint Workflow
+- **Purpose**: To lint the codebase and Dockerfile to ensure quality and adherence to coding standards.
+- **Trigger**: Runs on push and pull requests to the master branch.
+- **Environment Variables**: Utilizes a variety of secrets for configuration, including API keys and project settings.
+- **Steps**:
+  - Checkout the repository.
+  - Setup Bun (JavaScript runtime).
+  - Install dependencies.
+  - Run linter on the codebase.
+  - Lint Dockerfile using Hadolint.
 
-2. **Pages**: The application contains several pages, each serving a specific purpose:
-   - **Dashboard**: An overview page displaying statistics and Discord status.
-   - **Blog Page**: Displays the latest blog posts.
-   - **About Page**: Contains information about the author and skills.
-   - **Guestbook Page**: Allows users to interact with the guestbook.
-   - **Resume Page**: Displays the author's resume.
-   - **Hire Page**: Offers service plans for hiring the author.
-   - **Links Page**: Provides links to various platforms for connecting with the author.
-   - **Spotify Page**: Shows the user's current Spotify tracks and top artists.
+### 2. Testing Workflow
+- **Purpose**: To run unit tests on the codebase.
+- **Trigger**: Runs on push and pull requests to the master branch.
+- **Steps**:
+  - Checkout the repository.
+  - Setup Bun.
+  - Install dependencies.
+  - Build the code.
+  - Run unit tests.
 
-3. **Workflows**: The repository includes GitHub Actions workflows for:
-   - **Bundle Analysis**: Analyzes the bundle size of the application.
-   - **CodeQL**: Scans the code for security vulnerabilities.
-   - **Playwright Tests**: Runs end-to-end tests for the application.
-   - **Linting**: Ensures code quality and consistency.
-   - **Release Management**: Automates the release process using semantic versioning.
+### 3. Playwright Tests Workflow
+- **Purpose**: To run end-to-end tests using Playwright.
+- **Trigger**: Runs on push to the master branch.
+- **Steps**:
+  - Checkout the repository.
+  - Setup Bun.
+  - Install dependencies.
+  - Clear Next.js cache.
+  - Build the application.
+  - Install Playwright browsers.
+  - Run Playwright tests.
+  - Upload test reports.
+
+### 4. Bundle Analysis Workflow
+- **Purpose**: To analyze and report the bundle size of the application.
+- **Trigger**: Runs on push and pull requests to the master branch.
+- **Steps**:
+  - Checkout the repository.
+  - Setup Bun.
+  - Install dependencies.
+  - Build the application.
+  - Analyze the bundle size.
+  - Upload analysis results and compare with the base branch.
+
+### 5. CodeQL Security Analysis Workflow
+- **Purpose**: To perform security analysis on the codebase using CodeQL.
+- **Trigger**: Runs on push and pull requests to the master branch, and on a schedule.
+- **Steps**:
+  - Checkout the repository.
+  - Initialize CodeQL.
+  - Perform CodeQL analysis.
+
+### 6. Release Workflow
+- **Purpose**: To automate the release process using Semantic Release.
+- **Trigger**: Manually triggered or on push to the master branch.
+- **Steps**:
+  - Checkout the repository.
+  - Run Semantic Release to create and publish a new release.
 
 ## Installation Instructions
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/yourusername/repository.git
+   cd repository
+   ```
+
+2. **Install Dependencies**
+   Ensure you have Bun installed, then run:
+   ```bash
+   bun install
+   ```
+
+3. **Setup Secrets**
+   Set up the necessary environment variables in your GitHub repository settings under "Secrets". This includes API keys and configuration settings used in the workflows.
+
+## Usage Instructions
+- **Trigger Workflows**: Workflows are automatically triggered on pushes and pull requests to the `master` branch. You can also manually trigger the release workflow.
+- **Linting**: The code will be automatically linted on every push or pull request.
+- **Testing**: Unit tests will run automatically after the code is built.
+- **End-to-End Testing**: Playwright tests will run after the application is built.
+- **Bundle Analysis**: The bundle size will be analyzed and reported after every push or pull request.
+
+## Conclusion
+This repository provides a comprehensive CI/CD setup for maintaining code quality and security through automated workflows. Follow the installation and usage instructions to leverage the full capabilities of the project.# Project Title
+
+A brief description of what the project does and its purpose.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Features](#features)
+- [Technologies](#technologies)
+- [Examples](#examples)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Installation
 
 To get started with this project, follow these steps:
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/WomB0ComB0/your-repo-name.git
-   cd your-repo-name
+   git clone https://github.com/yourusername/yourproject.git
    ```
 
-2. **Install Dependencies**:
-   Make sure you have Node.js installed. Then run:
+2. **Navigate to the Project Directory**:
+   ```bash
+   cd yourproject
+   ```
+
+3. **Install Dependencies**:
+   Make sure you have Node.js installed, then run:
    ```bash
    npm install
    ```
 
-3. **Set Up Environment Variables**:
-   Create a `.env.local` file in the root directory and add the required environment variables. You can find the necessary keys in the code or documentation.
+4. **Environment Variables**:
+   Create a `.env` file in the root directory and add your environment variables. For example:
+   ```plaintext
+   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+   ```
 
-4. **Run the Development Server**:
-   Start the development server with:
+5. **Run the Development Server**:
+   Start the application using:
    ```bash
    npm run dev
    ```
-   Open your browser and navigate to `http://localhost:3000`.
 
-## Usage Instructions
+## Usage
 
-- **Visit the Pages**: You can navigate between different pages using the navigation bar.
-- **Interact with the Guestbook**: Leave a message in the guestbook section.
-- **Explore the Blog**: Read the latest blog posts and leave comments if enabled.
-- **Check Your Statistics**: View your coding statistics and other relevant data.
-- **Hire Me**: If interested in hiring services, check the pricing section and select a plan that fits your needs.
-- **Spotify Integration**: View your current Spotify track and top artists.
+Once the server is running, you can access the application at `http://localhost:3000`. 
 
-## Contributions
+### Key Features
 
-Feel free to contribute to this project by submitting feature requests or bug reports via GitHub Issues. For larger contributions, please fork the repository and open a pull request.
+- **User Authentication**: Allows users to sign in and out using various methods (Google, GitHub, Anonymous).
+- **Dashboard**: Displays user statistics, Discord status, and other relevant information.
+- **Guestbook**: Users can leave messages and view messages from others.
+- **Dynamic Content**: Fetches and displays data from external APIs (like Spotify and Google Maps).
+- **Responsive Design**: Works well on both mobile and desktop devices.
 
-## License
+### Major Components
 
-This project is licensed under the MIT License. See the LICENSE file for more details.# Kodchasan Project
+1. **Discord Component**: Shows the user's Discord status, including online/offline status and current activity.
+2. **Guestbook Component**: Lets users submit messages and displays a list of all messages.
+3. **Stats Component**: Displays various statistics including age, views, and hours coded.
+4. **Pricing Component**: Offers different service tiers for hire, including features and pricing.
+5. **Google Maps Component**: Displays a map with markers for various locations.
+6. **Resume Component**: Embeds a Google Doc for viewing the user's resume.
 
-The Kodchasan Project is a collection of font software designed to stimulate worldwide development of collaborative font projects. The fonts are licensed under the SIL Open Font License, Version 1.1, which allows for free use, modification, and distribution under specific conditions.
+## Technologies
 
-## Major Parts of the Code
+- **React**: A JavaScript library for building user interfaces.
+- **Next.js**: A React framework for server-side rendering and generating static websites.
+- **Tailwind CSS**: A utility-first CSS framework for styling.
+- **TypeScript**: A typed superset of JavaScript that compiles to plain JavaScript.
+- **Radix UI**: A set of primitives for building accessible design systems.
+- **Framer Motion**: A library for creating animations in React applications.
+- **React Query**: A library for fetching and managing server state in React applications.
 
-1. **Font Files**: The repository contains various SVG and font files that are essential for rendering text in the Kodchasan typeface. These files include both original and modified versions of the font.
+## Examples
 
-2. **SVG Graphics**: The code includes SVG graphics that provide visual representations of the font, showcasing its design and versatility.
+To see some of the components in action, visit the following sections of the app:
 
-3. **License Information**: The repository contains the SIL Open Font License, which outlines the permissions and conditions for using the font software.
+- **Home**: Displays a welcome message and links to various sections.
+- **About**: Contains information about the user and their skills.
+- **Hire**: Provides pricing options for hiring the user for projects.
+- **Spotify Stats**: Shows the user's current Spotify activity and top tracks/artists.
+- **Places**: Displays a map with marked locations.
 
-## Installation Instructions
+## Contributing
 
-To use the Kodchasan font in your project, follow these steps:
-
-1. **Download the Font**: Clone or download the repository to your local machine.
-   ```bash
-   git clone https://github.com/cadsondemak/Kodchasan.git
-   ```
-
-2. **Install the Font**: Locate the font files (usually in `.ttf` or `.otf` format) in the downloaded directory. Install the font on your system by following the appropriate method for your operating system:
-   - **Windows**: Right-click the font file and select "Install".
-   - **Mac**: Double-click the font file and click "Install Font".
-   - **Linux**: Copy the font file to `~/.fonts` or `/usr/share/fonts`, then run `fc-cache -fv`.
-
-3. **Include the Font in Your Project**: Reference the font in your CSS or design software. For example, in CSS:
-   ```css
-   @font-face {
-       font-family: 'Kodchasan';
-       src: url('path/to/font/Kodchasan.ttf') format('truetype');
-   }
-   ```
-
-## Usage Instructions
-
-Once the font is installed, you can use it in your applications or projects:
-
-- **Web Usage**: Include the font in your CSS stylesheets:
-   ```css
-   body {
-       font-family: 'Kodchasan', sans-serif;
-   }
-   ```
-
-- **Graphic Design**: Use the font in graphic design software like Adobe Illustrator, Photoshop, or any other design tools that support custom fonts.
-
-- **Text Rendering**: Utilize the SVG files for custom text rendering in web applications or as part of graphic designs.
+If you would like to contribute to this project, please fork the repository and submit a pull request. Make sure to follow the code style used throughout the project.
 
 ## License
 
-The Kodchasan font software is licensed under the SIL Open Font License, Version 1.1. You can use, study, modify, and distribute the font as long as you adhere to the license conditions. For the detailed license, please refer to the `LICENSE` file in this repository.
+This project is licensed under the [SIL Open Font License](https://opensource.org/licenses/OFL-1.1). See the `LICENSE` file for details.
 
 ---
 
-For any additional questions or contributions, please refer to the project page on GitHub or contact the authors. Enjoy using the Kodchasan font!# README.md
+Feel free to modify the sections as necessary to fit the actual features and components of your project!# Project Name
 
 ## Overview
 
-This repository contains Font Software and configuration files for integrating web applications with Microsoft browsers. The Font Software is distributed under a specific license, and the provided XML configuration is designed for browser compatibility, particularly with Microsoft’s tile interface.
+This project is a web application built using React and Next.js. It features components for a guestbook and a blog, along with a layout component for consistent styling across pages. The application also includes responsive design elements and integrates animations for user interactions.
 
-## License Summary
+## Major Parts of the Code
 
-The Font Software is subject to the following terms:
+1. **Layout Component**: 
+   - Provides a consistent structure for the pages, wrapping the main content.
+   - Includes styles for responsiveness.
 
-1. **Distribution**: The Font Software must be distributed entirely under this license and cannot be distributed under any other license.
-2. **Termination**: The license becomes null and void if any of the conditions are not met.
-3. **Disclaimer**: The Font Software is provided "as is" without any warranty. The copyright holder is not liable for any damages resulting from the use or inability to use the Font Software.
+2. **Guestbook Component**: 
+   - Renders the guestbook section of the application.
+   - Utilizes a section for user interactions and feedback.
 
-## Configuration File
+3. **Blog Component**: 
+   - Displays blog posts within a styled container.
+   - Includes responsive design for better viewing on various devices.
 
-The XML configuration file (`browserconfig.xml`) consists of the following major components:
+4. **GuestbookPage Component**: 
+   - Integrates the Layout and Guestbook components.
+   - Sets up the page structure for the guestbook.
 
-- **Tile Configuration**: Specifies different tile sizes for Windows, including:
-  - `square70x70logo`: Icon for small tiles.
-  - `square150x150logo`: Icon for medium tiles.
-  - `square310x310logo`: Icon for large tiles.
-- **Tile Color**: The background color of the tile, specified as `#d6b3f0`.
+5. **BlogPage Component**: 
+   - Integrates the Layout and Blog components.
+   - Sets up the page structure for the blog.
+
+6. **Hire Function**: 
+   - Redirects users to the hire page when accessed.
 
 ## Installation Instructions
 
-1. **Clone the Repository**: 
+To set up this project locally, follow these steps:
+
+1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/repo-name.git
-   cd repo-name
+   git clone https://github.com/your-username/your-repository.git
+   cd your-repository
    ```
 
-2. **Install Dependencies**: If there are any dependencies, ensure they are installed. For example, if you're using Node.js, you might need to run:
+2. **Install dependencies**:
+   Make sure you have [Node.js](https://nodejs.org/) installed. Then run:
    ```bash
    npm install
    ```
 
-3. **Add Font Files**: Ensure that the font files are included in the directory as specified by the license.
+3. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+   Open your browser and navigate to `http://localhost:3000` to view the application.
 
 ## Usage Instructions
 
-1. **Integrate Font Software**: Include the font files in your web project and reference them in your CSS.
-   ```css
-   @font-face {
-       font-family: 'YourFontName';
-       src: url('./path-to-font/font-file.woff2') format('woff2');
-       font-weight: normal;
-       font-style: normal;
-   }
-   ```
+- **Navigating the Application**:
+  - The main pages include the Guestbook and Blog, which can be accessed via their respective routes.
+  - The application is designed to be responsive, adapting to different screen sizes.
 
-2. **Configure Browser Settings**: Add the `browserconfig.xml` file to the root of your web application. Ensure it is properly linked in your HTML files, typically in the `<head>` section:
-   ```html
-   <meta name="msapplication-config" content="browserconfig.xml">
-   ```
+- **Interacting with the Guestbook**:
+  - Users can submit their entries in the guestbook section, allowing for feedback and interaction.
 
-3. **Test in Microsoft Browsers**: Open your web application in Microsoft browsers to ensure the tile icons and colors are rendered correctly.
+- **Blog Functionality**:
+  - Users can view and read blog posts displayed on the Blog page.
 
-## Conclusion
+## Contributing
 
-Follow the above instructions to effectively use the Font Software and configure your web application for optimal performance in Microsoft browsers. Ensure compliance with the licensing terms when distributing your application.
+If you would like to contribute to this project, please fork the repository and create a pull request with your changes.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for more information.
+
+---
+
+Feel free to modify this README as needed to better fit your project's specifics!
