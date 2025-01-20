@@ -7,11 +7,15 @@
 
 // edited to work with the appdir by @raphaelbadia
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 // @ts-check
-const gzSize = require('gzip-size');
-const mkdirp = require('mkdirp');
-const fs = require('fs');
-const path = require('path');
+import { gzipSize } from 'gzip-size';
+import { mkdirp } from 'mkdirp';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @typedef {{ raw: number, gzip: number }} ScriptSizes */
 /** @typedef {Record<string, ScriptSizes>} PageSizes */
@@ -49,9 +53,13 @@ try {
 
 // if so, we can import the build manifest
 /** @type {BuildManifest} */
-const buildMeta = require(path.join(nextMetaRoot, 'build-manifest.json'));
+const buildMeta = JSON.parse(
+  fs.readFileSync(path.join(nextMetaRoot, 'build-manifest.json'), 'utf8'),
+);
 /** @type {AppDirManifest} */
-const appDirMeta = require(path.join(nextMetaRoot, 'app-build-manifest.json'));
+const appDirMeta = JSON.parse(
+  fs.readFileSync(path.join(nextMetaRoot, 'app-build-manifest.json'), 'utf8'),
+);
 
 /** @type {Record<string, [number, number]>} */
 const memoryCache = {};
@@ -95,7 +103,8 @@ const rawData = JSON.stringify({
 // log outputs to the gh actions panel
 console.log(rawData);
 
-mkdirp.sync(path.join(nextMetaRoot, 'analyze/'));
+// Changed this line to use mkdirp directly
+await mkdirp(path.join(nextMetaRoot, 'analyze/'));
 fs.writeFileSync(path.join(nextMetaRoot, 'analyze/__bundle_analysis.json'), rawData);
 
 // --------------
@@ -109,9 +118,9 @@ fs.writeFileSync(path.join(nextMetaRoot, 'analyze/__bundle_analysis.json'), rawD
 function getScriptSizes(scriptPaths) {
   return scriptPaths.reduce(
     (acc, scriptPath) => {
-      const [rawSize, gzipSize] = getScriptSize(scriptPath);
+      const [rawSize, gzSize] = getScriptSize(scriptPath);
       acc.raw += rawSize;
-      acc.gzip += gzipSize;
+      acc.gzip += gzSize;
       return acc;
     },
     { raw: 0, gzip: 0 },
@@ -133,9 +142,9 @@ function getScriptSize(scriptPath) {
   try {
     const textContent = fs.readFileSync(p, encoding);
     const rawSize = Buffer.byteLength(textContent, encoding);
-    const gzipSize = gzSize.sync(textContent);
-    memoryCache[p] = [rawSize, gzipSize];
-    return [rawSize, gzipSize];
+    const gzSize = gzipSize.sync(textContent);
+    memoryCache[p] = [rawSize, gzSize];
+    return [rawSize, gzSize];
   } catch (error) {
     console.error(`Error reading file: ${p}`, error);
     return [0, 0];
@@ -149,7 +158,7 @@ function getScriptSize(scriptPath) {
 function getOptions(pathPrefix = process.cwd()) {
   try {
     /** @type {{nextBundleAnalysis?: Partial<Options>, name: string}} */
-    const pkg = require(path.join(pathPrefix, 'package.json'));
+    const pkg = JSON.parse(fs.readFileSync(path.join(pathPrefix, 'package.json'), 'utf8'));
     return { ...pkg.nextBundleAnalysis, name: pkg.name };
   } catch (error) {
     console.error('Error reading package.json', error);

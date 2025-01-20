@@ -4,7 +4,7 @@ import { actions } from '@/lib/actions';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { KBarProvider } from 'kbar';
 import type { JSXElementConstructor, ReactNode } from 'react';
-import { Events, ThemeProvider } from '.';
+import { CustomAnimatedCursor, Events, ThemeProvider } from '.';
 import { QueryProvider } from './QueryProvider';
 
 const Providers: React.FC<
@@ -27,8 +27,11 @@ const Providers: React.FC<
           [QueryProvider, {}],
         ]}
       >
-        {children}
-        <ReactQueryDevtools initialIsOpen={false} />
+        <>
+          {children}
+          <CustomAnimatedCursor />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </>
       </ProviderStack>
     </>
   );

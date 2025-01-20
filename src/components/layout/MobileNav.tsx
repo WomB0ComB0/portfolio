@@ -10,9 +10,9 @@ export default function MobileNavBar({ path }: { path: string }) {
   const router = useRouter();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#242424] border-t border-[#560BAD]/30 px-2 py-1 z-50">
+    <nav className="bg-[#242424] border-t border-[#560BAD]/30 px-2 py-1">
       <div className="flex justify-between items-center max-w-screen-lg mx-auto">
-        <div className="flex space-x-1 overflow-x-auto scrollbar-hide mx-auto ">
+        <div className="flex space-x-1 overflow-x-auto scrollbar-hide mx-auto">
           {NavbarItems.map((item, index) => (
             <button
               key={index}

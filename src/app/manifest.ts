@@ -11,9 +11,10 @@ type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
 
 export default function manifest(): ExtendedManifest {
   return {
-    name: "Mike Odnis",
-    short_name: "MO",
-    description: "Explore Mike Odnis' portfolio—an innovative 20-year-old Computer Science student at Farmingdale State College, passionate about software development and technology.",
+    name: 'Mike Odnis',
+    short_name: 'MO',
+    description:
+      "Explore Mike Odnis' portfolio—an innovative 20-year-old Computer Science student at Farmingdale State College, passionate about software development and technology.",
     categories: [
       'portfolio',
       'software development',
@@ -28,8 +29,8 @@ export default function manifest(): ExtendedManifest {
     id: '/',
     start_url: '/',
     scope: '/',
-    theme_color: "#BA9BDD",
-    background_color: "#560BAD",
+    theme_color: '#BA9BDD',
+    background_color: '#560BAD',
     orientation: 'portrait-primary',
     display_override: ['minimal-ui', 'browser', 'fullscreen', 'window-controls-overlay'],
     display: 'standalone',
@@ -718,8 +719,7 @@ export default function manifest(): ExtendedManifest {
         name: 'About',
         short_name: 'About',
         url: '/about',
-        description:
-          'Learn more about Mike Odnis, his background, and interests.',
+        description: 'Learn more about Mike Odnis, his background, and interests.',
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -733,8 +733,7 @@ export default function manifest(): ExtendedManifest {
         name: 'Dashboard',
         short_name: 'Dash',
         url: '/dashboard',
-        description:
-          'View Mike\'s current projects, skills, and activity at a glance.',
+        description: "View Mike's current projects, skills, and activity at a glance.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -748,8 +747,7 @@ export default function manifest(): ExtendedManifest {
         name: 'Guest Book',
         short_name: 'Book',
         url: '/guestbook',
-        description:
-          'Leave a message or see what others have said about Mike\'s portfolio.',
+        description: "Leave a message or see what others have said about Mike's portfolio.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -763,8 +761,7 @@ export default function manifest(): ExtendedManifest {
         name: 'Links',
         short_name: 'Links',
         url: '/links',
-        description:
-          'Explore Mike\'s curated collection of useful and interesting links.',
+        description: "Explore Mike's curated collection of useful and interesting links.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -778,8 +775,7 @@ export default function manifest(): ExtendedManifest {
         name: 'Places',
         short_name: 'Places',
         url: '/places',
-        description:
-          'Discover the locations Mike has visited or plans to explore.',
+        description: 'Discover the locations Mike has visited or plans to explore.',
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -793,8 +789,7 @@ export default function manifest(): ExtendedManifest {
         name: 'Resume',
         short_name: 'Resume',
         url: '/resume',
-        description:
-          'View Mike\'s professional experience, skills, and achievements.',
+        description: "View Mike's professional experience, skills, and achievements.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
@@ -805,11 +800,38 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Mike\'s Spotify',
+        name: "Mike's Spotify",
         short_name: 'MO',
         url: '/dashboard',
-        description:
-          'Check out Mike\'s music preferences and current listening habits.',
+        description: "Check out Mike's music preferences and current listening habits.",
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Blog',
+        short_name: 'Blog',
+        url: '/blog',
+        description: "Read Mike's latest thoughts and updates on his blog.",
+        icons: [
+          {
+            src: '/assets/svgs/logo-small.svg',
+            type: 'image/svg+xml',
+            purpose: 'any',
+            sizes: '96x96',
+          },
+        ],
+      },
+      {
+        name: 'Hire Mike',
+        short_name: 'Hire',
+        url: '/hire',
+        description: 'Contact Mike to discuss your project or needs.',
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',

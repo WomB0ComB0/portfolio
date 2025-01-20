@@ -3,8 +3,7 @@ name: 📦 Release
 on:
   workflow_dispatch:
   push:
-    branches: [master]
-
+    branches: ["master"]
 jobs:
   release:
     name: Release

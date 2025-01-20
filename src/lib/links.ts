@@ -33,7 +33,7 @@ export type Links = Link[];
 export const links: Links = [
   {
     name: 'Discord',
-    url: `https://discord.com/users/${process.env.DISCORD_ID}`,
+    url: `https://discord.com/users/${process.env.NEXT_PUBLIC_DISCORD_ID}`,
     value: 'mikeodnis',
     icon: SiDiscord,
   },
@@ -57,8 +57,8 @@ export const links: Links = [
   },
   {
     name: 'Buy me a coffee',
-    url: 'https://www.buymeacoffee.com/womb0comb0 ',
-    value: '@womb0comb0',
+    url: 'https://www.buymeacoffee.com/mikeodnis3a',
+    value: '@mikeodnis3a',
     icon: SiBuymeacoffee,
   },
   {
@@ -105,8 +105,8 @@ export const links: Links = [
   },
   {
     name: 'Microsoft Learn',
-    url: 'https://learn.microsoft.com/en-us/users/mikeodnis/',
-    value: '@mikeodnis',
+    url: 'https://learn.microsoft.com/en-us/users/mikeodnis-1859/',
+    value: '@mikeodnis-1859',
     icon: SiMicrosoft,
   },
   {
@@ -123,7 +123,7 @@ export const links: Links = [
   },
   {
     name: 'Bitbucket',
-    url: 'https://bitbucket.org/womb0comb0',
+    url: 'https://bitbucket.org/womb0comb0/workspace/overview/',
     value: '@womb0comb0',
     icon: FaBitbucket,
   },

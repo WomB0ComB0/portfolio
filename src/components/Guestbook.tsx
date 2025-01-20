@@ -118,7 +118,7 @@ export default function GuestbookComponent() {
         ) : (
           <Card className="bg-purple-800 text-white">
             <CardContent className="p-4 space-y-4">
-              <h3 className="text-lg font-semibold">Leave a Message 👇</h3>
+              <h3 className="text-lg font-semibold text-[#ba9bdd]">Leave a Message 👇</h3>
               <p className="text-sm text-purple-200">You need to be signed in to post a message.</p>
               <div className="flex gap-2 flex-wrap">
                 <LoginButton signInMethod="google.com" />

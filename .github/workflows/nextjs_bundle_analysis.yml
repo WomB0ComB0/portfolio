@@ -3,28 +3,56 @@ name: 🧺 Next.js Bundle Analysis
 on:
   push:
     branches:
-      - main
-      - production
-      - staging
+      - master
   pull_request:
     branches:
-      - main
-      - production
-      - staging
+      - master
   workflow_dispatch:
 
 defaults:
   run:
-    # change this if your nextjs app does not live at the root of the repo
+    # Change this if your Next.js app does not live at the root of the repo
     working-directory: ./
 
 jobs:
   analyze:
     env:
       SKIP_ENV_VALIDATION: true
+      NODE_ENV: ${{ secrets.NODE_ENV }}
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+      NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID }}
+      NEXT_PUBLIC_DISCORD_ID: ${{ secrets.NEXT_PUBLIC_DISCORD_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      WAKA_TIME_API_KEY: ${{ secrets.WAKA_TIME_API_KEY }}
+      SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+      SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+      SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+      UMAMI_API_KEY: ${{ secrets.UMAMI_API_KEY }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      NEXT_PUBLIC_HASHNODE_TOKEN: ${{ secrets.NEXT_PUBLIC_HASHNODE_TOKEN }}
+      REACT_EDITOR: ${{ secrets.REACT_EDITOR }}
+      NEXT_PUBLIC_STRIPE_SECRET_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_SECRET_KEY }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET: ${{ secrets.NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET }}
+      NEXT_PUBLIC_GCP_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_GCP_PROJECT_ID }}
+      NEXT_PUBLIC_GCP_PRIVATE_KEY_ID: ${{ secrets.NEXT_PUBLIC_GCP_PRIVATE_KEY_ID }}
+      NEXT_PUBLIC_GCP_PRIVATE_KEY: ${{ secrets.NEXT_PUBLIC_GCP_PRIVATE_KEY }}
+      NEXT_PUBLIC_GCP_CLIENT_EMAIL: ${{ secrets.NEXT_PUBLIC_GCP_CLIENT_EMAIL }}
+      NEXT_PUBLIC_GCP_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GCP_CLIENT_ID }}
+      NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL: ${{ secrets.NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL }}
+      NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full commit history
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -39,14 +67,18 @@ jobs:
           cache-name: cache-next-build
         with:
           path: .next/cache
-          # change this if you prefer a more strict cache
+          # Change this if you prefer a more strict cache
           key: ${{ runner.os }}-build-${{ env.cache-name }}
 
       - name: Build next.js app
         env:
           SKIP_BUILD_PRODUCT_REDIRECTS: 1
-        # change this if your site requires a custom build command
+
         run: bun run build
+
+      - name: Sentry Release
+        run: |
+          /home/runner/work/portfolio/portfolio/node_modules/@sentry/cli-linux-x64/bin/sentry-cli releases set-commits local --auto --ignore-missing
 
       - name: Analyze bundle
         run: node report-bundle-size.js
@@ -58,7 +90,7 @@ jobs:
           path: .next/analyze/__bundle_analysis.json
 
       - name: Download base branch bundle stats
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v6
         if: success() && github.event.number
         with:
           workflow: nextjs_bundle_analysis.yml

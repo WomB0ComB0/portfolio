@@ -12,7 +12,7 @@ const MotionButton = motion(Button);
 export default function LinksPage() {
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 min-h-screen flex flex-col justify-center items-center">
+      <div className="container px-4 py-8 min-h-screen flex flex-col justify-flex-start items-center">
         <Card className="w-full max-w-md mx-auto bg-gradient-to-br from-purple-900 to-purple-600 border-none shadow-2xl border border-purple-700">
           <CardHeader className="pb-4">
             <CardTitle className="text-4xl font-bold text-center text-white">My Links</CardTitle>

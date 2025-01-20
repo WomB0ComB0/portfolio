@@ -55,7 +55,8 @@ export default function Discord() {
   const activity = activities?.[0];
 
   const handleAddFriend = () => {
-    const discordId = process.env.DISCORD_ID;
+    const discordId = process.env.NEXT_PUBLIC_DISCORD_ID;
+    console.log(discordId);
     if (discordId) {
       window.open(`https://discord.com/users/${discordId}`, '_blank');
     } else {
@@ -105,7 +106,7 @@ export default function Discord() {
             {activity?.state || 'Coding, building, and growing'}
           </p>
           <Button
-            onClick={handleAddFriend}
+            onClick={() => handleAddFriend()}
             className="w-full bg-purple-500 hover:bg-purple-400 text-white"
           >
             Add Friend

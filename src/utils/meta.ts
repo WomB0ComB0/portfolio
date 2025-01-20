@@ -36,7 +36,7 @@ export function constructMetadata({
       title,
       description,
       images: [twitter],
-      creator: '@SparkMind',
+      creator: '@OdnisMike',
     },
     icons: [
       {
