@@ -68,6 +68,10 @@ const config = {
             value:
               'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
           },
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, must-revalidate, max-age=0',
+          },
         ],
       },
       {
@@ -111,21 +115,25 @@ const withMillion = MillionLint.next({
 
 const combinedConfig = withMillion(withBundleAnalyzerConfig(withPwa(config)));
 
-export default withSentryConfig(combinedConfig, {
+/** @type {import('@sentry/nextjs').SentryBuildOptions} */
+const sentryConfig = {
   org: 'womb0comb0',
   project: 'portfolio',
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: process.env.NODE_ENV === 'production',
   release: {
-    name: process.env.VERCEL_GIT_COMMIT_SHA || 'local',
+    name: process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`,
     create: true,
     setCommits: {
       auto: true,
+      ignoreMissing: true,
+      ignoreEmpty: true
     },
   },
   sourcemaps: {
     assets: './**/*.{js,map}',
     ignore: ['node_modules/**/*'],
+    deleteSourcemapsAfterUpload: true
   },
   hideSourceMaps: true,
   widenClientFileUpload: true,
@@ -138,4 +146,28 @@ export default withSentryConfig(combinedConfig, {
   reactComponentAnnotation: {
     enabled: true,
   },
-});
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayShadowDom: true,
+    excludeReplayIframe: true,
+    excludeReplayWorker: true,
+  }
+};
+
+const withSentry =
+  process.env.NODE_ENV === 'production'
+    ?
+    (
+      /** @type {import('next').NextConfig} */
+      config
+    ) => withSentryConfig(
+      config,
+      sentryConfig
+    )
+    :
+    (
+      /** @type {import('next').NextConfig} */
+      config
+    ) => config;
+
+export default withSentry(combinedConfig);

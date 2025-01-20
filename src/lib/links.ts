@@ -14,10 +14,10 @@ import {
   SiLeetcode,
   SiLinkedin,
   SiMedium,
-  SiMicrosoft,
   SiSpotify,
   SiX,
 } from 'react-icons/si';
+import { FaMicrosoft } from 'react-icons/fa';
 import { SiSololearn } from 'react-icons/si';
 import { SlGraph } from 'react-icons/sl';
 
@@ -107,7 +107,7 @@ export const links: Links = [
     name: 'Microsoft Learn',
     url: 'https://learn.microsoft.com/en-us/users/mikeodnis-1859/',
     value: '@mikeodnis-1859',
-    icon: SiMicrosoft,
+    icon: FaMicrosoft,
   },
   {
     name: 'SoloLearn',

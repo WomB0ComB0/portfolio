@@ -15,7 +15,14 @@ export async function GET() {
     const response = await currentlyPlayingSong();
 
     if (!response || !response.is_playing) {
-      return NextResponse.json({ isPlaying: false });
+      return NextResponse.json(
+        { isPlaying: false },
+        {
+          headers: {
+            'Cache-Control': 'no-cache, must-revalidate, max-age=0',
+          },
+        }
+      );
     }
 
     const song = {
@@ -27,7 +34,11 @@ export async function GET() {
     };
 
     const validatedSong = schema.parse(song);
-    return NextResponse.json(validatedSong);
+    return NextResponse.json(validatedSong, {
+      headers: {
+        'Cache-Control': 'no-cache, must-revalidate, max-age=0',
+      },
+    });
   } catch (error) {
     console.error('Error in now-playing API route:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

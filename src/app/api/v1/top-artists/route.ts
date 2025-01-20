@@ -16,11 +16,15 @@ let cache: { data: any; timestamp: number } | null = null;
 
 export async function GET() {
   try {
-    if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
+    const now = Date.now();
+    const shouldRevalidate = !cache || (now - cache.timestamp > CACHE_DURATION);
+
+    if (!shouldRevalidate && cache) {
       return NextResponse.json(superjson.stringify(cache.data), {
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200',
+
+          'Cache-Control': 'no-cache, must-revalidate, max-age=0',
         },
       });
     }
@@ -34,12 +38,13 @@ export async function GET() {
       imageUrl: artist.images[0]?.url,
     }));
 
-    cache = { data: topArtists, timestamp: Date.now() };
+    cache = { data: topArtists, timestamp: now };
 
     return NextResponse.json(superjson.stringify(topArtists), {
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200',
+
+        'Cache-Control': 'no-cache, must-revalidate, max-age=0',
       },
     });
   } catch (error) {

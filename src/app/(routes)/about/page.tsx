@@ -4,6 +4,7 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Github, Linkedin, Mail } from 'lucide-react';
+import { SiGooglescholar } from 'react-icons/si';
 import Image from 'next/image';
 
 export default function AboutPage() {
@@ -55,6 +56,14 @@ export default function AboutPage() {
                     onClick={() => window.open('mailto:mike.odnis@mikeodnis.dev', '_blank')}
                   >
                     <Mail className="h-5 w-5 text-purple-300" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-purple-900 hover:bg-purple-800 border-purple-700"
+                    onClick={() => window.open('https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ', '_blank')}
+                  >
+                    <SiGooglescholar className="h-5 w-5 text-purple-300" />
                   </Button>
                 </div>
               </div>

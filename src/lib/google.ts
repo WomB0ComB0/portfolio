@@ -52,10 +52,37 @@ export async function getAnalytics(): Promise<{
   analytics: { total_pageviews: number };
   response: GAResponse;
 }> {
+  if (process.env.NODE_ENV === 'development' || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    return {
+      analytics: { total_pageviews: 0 },
+      response: {
+        dimensionHeaders: [],
+        metricHeaders: [],
+        rows: [],
+        rowCount: 0,
+        kind: 'analyticsData#runReport',
+        totals: [],
+        maximums: [],
+        minimums: [],
+        metadata: {
+          samplingMetadatas: [],
+          dataLossFromOtherRow: false,
+          currencyCode: '',
+          _currencyCode: 'currencyCode',
+          timeZone: '',
+          _timeZone: 'timeZone',
+        },
+        propertyQuota: null,
+      } satisfies GAResponse,
+    };
+  }
+
+  const formattedPrivateKey = serviceAccount.private_key.replace(/\\n/g, '\n');
+
   const client = new BetaAnalyticsDataClient({
     credentials: {
       client_email: serviceAccount.client_email,
-      private_key: serviceAccount.private_key,
+      private_key: formattedPrivateKey,
     },
   });
 
