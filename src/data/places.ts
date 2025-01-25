@@ -4,7 +4,7 @@ export const places: RawPlace[] = [
   ['Hopper hacks x2', '2x mentor', 40.917137, -73.122467],
   ['SBU hacks', 'First hackathon 2022', 40.916233, -73.125833],
   ['Hack Cewit x2', '2x speaker', 40.902315, -73.134435],
-  ['NYU Hacks', 'Mentor and Judge', 40.69417, -73.986839],
+  ['Hack NYU', 'Mentor and Judge', 40.69417, -73.986839],
   ['Treehacks', 'Mentor', 37.431314, -122.169365],
   ['Jane street', 'Visited as part of ColorStack', 40.714443, -74.015849],
   ['Squarespace', 'Got invited to visit', 40.729735, -74.0106],
@@ -20,6 +20,10 @@ export const places: RawPlace[] = [
   ['HackPrinceton - Fall -2024', 'Hacker', 40.350292, -74.652831],
   ['IEEE LISAT 2024', 'Research presenter', 40.819012, -73.068539],
   ['Google and Palo Alto Networks Cloud Hero Event', 'Attendee', 40.727630, -74.009924],
+  ['Hack Brown - 2025', 'Hacker', 41.826771, -71.402550],
+  ['Hack NYU', 'Hacker', 40.694632, -73.986704],
+  ['Columbia DevFest', 'Mentor', 40.807427, -73.962519],
+
 ];
 
 export default places;
