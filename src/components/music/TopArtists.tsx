@@ -20,6 +20,8 @@ export default function TopArtists() {
   const { data, error, isLoading } = useQuery<string>({
     queryKey: ['topArtists'],
     queryFn: () => fetcher<string>('/api/v1/top-artists'),
+    staleTime: 1000 * 60 * 60,
+    refetchInterval: 1000 * 60 * 60,
   });
 
   let parsedData: Artist[] = [];

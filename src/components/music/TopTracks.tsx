@@ -21,6 +21,8 @@ export default function TopTracks() {
   const { data, error, isLoading } = useQuery<string>({
     queryKey: ['topTracks'],
     queryFn: () => fetcher<string>('/api/v1/top-tracks'),
+    staleTime: 1000 * 60 * 60,
+    refetchInterval: 1000 * 60 * 60,
   });
 
   let parsedData: Track[] = [];

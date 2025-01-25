@@ -21,6 +21,8 @@ export default function NowPlaying() {
   const { data, error, isLoading } = useQuery<NowPlayingData>({
     queryKey: ['nowPlaying'],
     queryFn: () => fetcher<NowPlayingData>('/api/v1/now-playing'),
+    staleTime: 1000 * 60 * 60,
+    refetchInterval: 1000 * 60 * 60,
   });
 
   return (
