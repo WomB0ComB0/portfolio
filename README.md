@@ -63,7 +63,7 @@ To get started with this project, follow these steps:
 - **Explore the Blog**: Read the latest blog posts and leave comments if enabled.
 - **Check Your Statistics**: View your coding statistics and other relevant data.
 - **Hire Me**: If interested in hiring services, check the pricing section and select a plan that fits your needs.
-- **Spotify Integration**: View your current Spotify track and top artists.
+- **Spotify Integration**: View your current Spotify track and top artists. Test. This is a test.
 
 ## Contributions
 
@@ -152,7 +152,7 @@ The XML configuration file (`browserconfig.xml`) consists of the following major
 
 ## Installation Instructions
 
-1. **Clone the Repository**: 
+1. **Clone the Repository**:
    ```bash
    git clone https://github.com/your-username/repo-name.git
    cd repo-name
