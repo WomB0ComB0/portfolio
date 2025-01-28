@@ -11,6 +11,7 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { app } from '@/constants'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -197,7 +198,7 @@ export default function HirePage() {
           <p className="text-center mt-12 text-purple-200">
             Not sure which plan is right for you?{' '}
             <Link
-              href="mailto:mikeodnis32420024@gmail.com"
+              href={`mailto:${app.email}`}
               className="text-purple-400 hover:underline"
             >
               Contact me
