@@ -8,7 +8,7 @@ const basic = Buffer.from(`${client_id}:${client_secret}`).toString('base64');
 /**
  * Makes a request to the Spotify API to obtain a new access token using a refresh token.
  */
-const getAccessToken = async (): Promise<{ access_token: string }> => {
+export const getAccessToken = async (): Promise<{ access_token: string }> => {
   try {
     // Make a POST request to the Spotify API to request a new access token
     const response = await axios.post(
