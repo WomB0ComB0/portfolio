@@ -23,7 +23,7 @@
     "@google-analytics/data": "^4.8.0",
     "@googlemaps/markerclusterer": "^2.5.3",
     "@hookform/resolvers": "^3.9.0",
-    "@js-temporal/polyfill": "^0.4.4",
+    "@js-temporal/polyfill": "^0.5.1",
     "@liveblocks/client": "^2.8.0",
     "@liveblocks/node": "^2.8.0",
     "@liveblocks/react": "^2.8.0",
