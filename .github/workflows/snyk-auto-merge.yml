@@ -22,7 +22,7 @@ jobs:
       - name: Approve and enable auto-merge for Snyk PRs
         uses: CondeNast/snyk-pr-action@master
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
           approve: true
           merge: true
           merge-minor: true
