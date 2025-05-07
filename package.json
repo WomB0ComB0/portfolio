@@ -75,7 +75,7 @@
     "million": "^3.1.11",
     "mkdirp": "^3.0.1",
     "mongoose": "^8.9.5",
-    "next": "^14.2.13",
+    "next": "^15.3.0",
     "next-compose-plugins": "^2.2.1",
     "next-firebase-auth-edge": "^1.7.1",
     "next-pwa": "^5.6.0",
