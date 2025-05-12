@@ -64,7 +64,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^11.0.0",
     "firebase-admin": "^12.6.0",
-    "framer-motion": "^11.9.0",
+    "framer-motion": "^12.7.3",
     "gzip-size": "^7.0.0",
     "htmlparser2": "^9.1.0",
     "jotai": "^2.10.0",
