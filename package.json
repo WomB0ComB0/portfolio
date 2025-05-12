@@ -95,7 +95,7 @@
     "stylelint-config-standard-scss": "^13.1.0",
     "superjson": "2.2.2",
     "swr": "^2.2.5",
-    "tailwind-merge": "^2.5.2",
+    "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
     "uvcanvas": "^0.3.0",
     "vitest": "^3.0.5",
