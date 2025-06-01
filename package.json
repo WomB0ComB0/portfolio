@@ -27,7 +27,7 @@
     "@liveblocks/client": "^2.8.0",
     "@liveblocks/node": "^2.8.0",
     "@liveblocks/react": "^2.8.0",
-    "@million/lint": "^0.0.73",
+    "@million/lint": "^1.0.14",
     "@opentelemetry/api-logs": "^0.200.0",
     "@opentelemetry/instrumentation": "^0.200.0",
     "@opentelemetry/sdk-logs": "^0.200.0",
