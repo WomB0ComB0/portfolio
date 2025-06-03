@@ -41,7 +41,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@sentry/nextjs": "8",
     "@sentry/types": "^8.32.0",
-    "@stripe/stripe-js": "^4.6.0",
+    "@stripe/stripe-js": "^7.3.0",
     "@svgr/webpack": "^8.1.0",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tanstack/react-query": "^5.56.2",
