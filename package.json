@@ -100,7 +100,7 @@
     "uvcanvas": "^0.3.0",
     "vitest": "^3.0.5",
     "zod": "^3.23.8",
-    "zustand": "^4.5.5"
+    "zustand": "^5.0.4"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "5.0.2",
