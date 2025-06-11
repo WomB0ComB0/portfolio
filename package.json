@@ -68,7 +68,7 @@
     "gzip-size": "^7.0.0",
     "htmlparser2": "^9.1.0",
     "jotai": "^2.10.0",
-    "jotai-effect": "^1.0.3",
+    "jotai-effect": "^2.0.2",
     "jotai-tanstack-query": "^0.9.0",
     "kbar": "0.1.0-beta.45",
     "lucide-react": "^0.510.0",
