@@ -22,7 +22,7 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@google-analytics/data": "^4.8.0",
     "@googlemaps/markerclusterer": "^2.5.3",
-    "@hookform/resolvers": "^3.9.0",
+    "@hookform/resolvers": "^5.0.1",
     "@js-temporal/polyfill": "^0.5.1",
     "@liveblocks/client": "^2.8.0",
     "@liveblocks/node": "^2.8.0",
