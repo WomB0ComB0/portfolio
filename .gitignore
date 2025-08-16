@@ -38,6 +38,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Jetbrains
+.idea
+
 # typescript
 *.tsbuildinfo
 
