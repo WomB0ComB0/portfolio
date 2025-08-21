@@ -20,7 +20,7 @@
   "dependencies": {
     "@biomejs/biome": "1.9.4",
     "@ducanh2912/next-pwa": "^10.2.9",
-    "@google-analytics/data": "^4.8.0",
+    "@google-analytics/data": "^5.1.0",
     "@googlemaps/markerclusterer": "^2.5.3",
     "@hookform/resolvers": "^5.0.1",
     "@js-temporal/polyfill": "^0.5.1",
