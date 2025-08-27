@@ -20,7 +20,7 @@ jobs:
   auto-merge:
     name: Auto-merge dependency PRs
     runs-on: ubuntu-latest
-    
+
     # Only run for bot PRs
     if: |
       github.event.pull_request.user.login == 'dependabot[bot]' ||
@@ -29,7 +29,7 @@ jobs:
       github.actor == 'dependabot[bot]' ||
       github.actor == 'snyk-bot' ||
       github.actor == 'renovate[bot]'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.payload.pull_request?.number || context.payload.pull_request?.number
             });
-            
+
             return {
               number: pr.number,
               title: pr.title,
@@ -65,7 +65,7 @@ jobs:
         run: |
           BOT_USER="${{ fromJson(steps.pr-details.outputs.result).user }}"
           echo "Bot user: $BOT_USER"
-          
+
           case "$BOT_USER" in
             "dependabot[bot]"|"snyk-bot"|"renovate[bot]")
               echo "allowed=true" >> $GITHUB_OUTPUT
@@ -85,65 +85,191 @@ jobs:
           script: |
             const title = `${{ fromJson(steps.pr-details.outputs.result).title }}`.toLowerCase();
             const body = `${{ fromJson(steps.pr-details.outputs.result).body }}` || '';
-            
+            const botType = `${{ steps.check-bot.outputs.bot_type }}`;
+
             let updateType = 'unknown';
             let riskLevel = 'high';
             let autoMergeAllowed = false;
-            
-            // Analyze Dependabot PRs
-            if (title.includes('bump') || title.includes('update')) {
+            let riskFactors = [];
+            let safetyFactors = [];
+
+            // Extract package information dynamically
+            const packageMatch = title.match(/(?:bump|update|upgrade)\s+([^\s]+)/);
+            const packageName = packageMatch ? packageMatch[1] : '';
+
+            // Dynamic risk assessment based on multiple factors
+
+            // 1. Package type analysis
+            const isDevDependency = body.includes('devDependencies') ||
+                                  title.includes('dev-dependencies') ||
+                                  packageName.includes('@types/') ||
+                                  packageName.match(/^(eslint|prettier|jest|webpack|babel|rollup|vite|parcel)/);
+
+            const isTypesPackage = packageName.includes('@types/');
+            const isToolingPackage = packageName.match(/^(eslint|prettier|jest|typescript|webpack|babel)/);
+            const isTestingPackage = packageName.match(/^(jest|mocha|chai|cypress|playwright|vitest)/);
+            const isBuildToolPackage = packageName.match(/^(webpack|rollup|vite|parcel|esbuild)/);
+
+            // 2. Security context analysis
+            const isSecurityUpdate = botType === 'snyk-bot' ||
+                                   title.includes('security') ||
+                                   title.includes('vulnerability') ||
+                                   body.includes('vulnerability') ||
+                                   body.includes('security fix');
+
+            // 3. Breaking change indicators
+            const hasBreakingChangeWarning = body.includes('breaking change') ||
+                                           body.includes('breaking changes') ||
+                                           body.includes('BREAKING CHANGE') ||
+                                           body.includes('may be a breaking change');
+
+            // 4. Version jump analysis
+            const versionMatch = body.match(/from\s+([\d.]+)\s+to\s+([\d.]+)/);
+            let majorVersionJump = 0;
+            let isLargeJump = false;
+
+            if (versionMatch) {
+              const [, fromVersion, toVersion] = versionMatch;
+              const fromMajor = parseInt(fromVersion.split('.')[0]);
+              const toMajor = parseInt(toVersion.split('.')[0]);
+              majorVersionJump = toMajor - fromMajor;
+
+              // Check if it's a large version jump (more than 2 major versions)
+              isLargeJump = majorVersionJump > 2;
+            }
+
+            // 5. Update frequency/stability analysis
+            const versionsAheadMatch = body.match(/(\d+)\s+versions?\s+ahead/);
+            const manyVersionsBehind = versionsAheadMatch && parseInt(versionsAheadMatch[1]) > 10;
+
+            // 6. Recency analysis
+            const recentlyReleasedMatch = body.match(/(day|days|week|weeks)\s+ago/);
+            const isRecentRelease = recentlyReleasedMatch !== null;
+
+            // Calculate risk factors
+            if (hasBreakingChangeWarning) riskFactors.push('explicit-breaking-changes');
+            if (isLargeJump) riskFactors.push(`large-version-jump-${majorVersionJump}`);
+            if (manyVersionsBehind) riskFactors.push('many-versions-behind');
+            if (!isRecentRelease && !isSecurityUpdate) riskFactors.push('old-release');
+
+            // Calculate safety factors
+            if (isDevDependency) safetyFactors.push('dev-dependency');
+            if (isTypesPackage) safetyFactors.push('types-only');
+            if (isToolingPackage) safetyFactors.push('development-tooling');
+            if (isTestingPackage) safetyFactors.push('testing-framework');
+            if (isBuildToolPackage) safetyFactors.push('build-tool');
+            if (isSecurityUpdate) safetyFactors.push('security-priority');
+            if (isRecentRelease) safetyFactors.push('recent-release');
+
+            // Dynamic decision making
+            const riskScore = riskFactors.length;
+            const safetyScore = safetyFactors.length;
+            const netSafetyScore = safetyScore - riskScore;
+
+            console.log(`Package: ${packageName}`);
+            console.log(`Risk factors (${riskScore}): ${riskFactors.join(', ')}`);
+            console.log(`Safety factors (${safetyScore}): ${safetyFactors.join(', ')}`);
+            console.log(`Net safety score: ${netSafetyScore}`);
+
+            // Determine update type and permissions
+            if (isSecurityUpdate) {
+              updateType = 'security';
+
+              if (hasBreakingChangeWarning && !isDevDependency && riskScore > safetyScore) {
+                // High-risk security update with breaking changes
+                riskLevel = 'high';
+                autoMergeAllowed = false;
+                console.log('Security update blocked: High risk with breaking changes');
+              } else if (netSafetyScore >= 0) {
+                // Security update with neutral or positive safety score
+                riskLevel = 'medium';
+                autoMergeAllowed = true;
+                console.log('Security update approved: Acceptable risk profile');
+              } else {
+                // Security update with negative safety score
+                riskLevel = 'high';
+                autoMergeAllowed = false;
+                console.log('Security update blocked: Negative safety score');
+              }
+            } else {
+              // Regular dependency updates
               if (title.includes('patch') || body.includes('patch')) {
                 updateType = 'patch';
                 riskLevel = 'low';
                 autoMergeAllowed = true;
               } else if (title.includes('minor') || body.includes('minor')) {
                 updateType = 'minor';
-                riskLevel = 'medium';
-                autoMergeAllowed = true;
+                riskLevel = netSafetyScore >= 0 ? 'low' : 'medium';
+                autoMergeAllowed = netSafetyScore >= -1; // Allow if not too risky
               } else if (title.includes('major') || body.includes('major')) {
                 updateType = 'major';
-                riskLevel = 'high';
-                autoMergeAllowed = false; // Require manual review for major updates
+
+                if (netSafetyScore >= 2) {
+                  // High confidence in safety
+                  riskLevel = 'low';
+                  autoMergeAllowed = true;
+                  console.log('Major update approved: High safety confidence');
+                } else if (netSafetyScore >= 0 && !hasBreakingChangeWarning) {
+                  // Moderate confidence, no explicit breaking changes
+                  riskLevel = 'medium';
+                  autoMergeAllowed = true;
+                  console.log('Major update approved: Moderate safety confidence');
+                } else {
+                  // Low confidence or explicit risks
+                  riskLevel = 'high';
+                  autoMergeAllowed = false;
+                  console.log('Major update blocked: Low safety confidence or high risk');
+                }
               }
             }
-            
-            // Analyze Snyk PRs (security updates)
-            if (title.includes('snyk') || title.includes('security') || title.includes('vulnerability')) {
-              updateType = 'security';
-              riskLevel = 'medium'; // Security updates are important but need some validation
-              autoMergeAllowed = true;
-            }
-            
-            // Analyze Renovate PRs
-            if (title.includes('renovate') || body.includes('renovate')) {
-              if (title.includes('patch')) {
-                updateType = 'patch';
-                riskLevel = 'low';
-                autoMergeAllowed = true;
-              } else if (title.includes('minor')) {
-                updateType = 'minor';
-                riskLevel = 'medium';
-                autoMergeAllowed = true;
-              } else {
-                updateType = 'major';
-                riskLevel = 'high';
-                autoMergeAllowed = false;
-              }
-            }
-            
-            // Override for dev dependencies (lower risk)
-            if (body.includes('devDependencies') || title.includes('dev-dependencies')) {
+
+            // Final safety override for dev dependencies
+            if (isDevDependency && !hasBreakingChangeWarning) {
               riskLevel = 'low';
               autoMergeAllowed = true;
+              console.log('Dev dependency override: Auto-merge enabled');
             }
-            
-            console.log(`Update type: ${updateType}, Risk level: ${riskLevel}, Auto-merge: ${autoMergeAllowed}`);
-            
+
+            console.log(`Final decision: ${updateType} update, ${riskLevel} risk, auto-merge: ${autoMergeAllowed}`);
+
             return {
               updateType,
               riskLevel,
-              autoMergeAllowed
+              autoMergeAllowed,
+              packageName,
+              riskFactors,
+              safetyFactors,
+              riskScore,
+              safetyScore,
+              netSafetyScore
             };
+
+      - name: Enhanced merge decision
+        if: steps.analyze-changes.outputs.result && fromJson(steps.analyze-changes.outputs.result).autoMergeAllowed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const analysis = ${{ steps.analyze-changes.outputs.result }};
+            const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
+
+            // Add detailed analysis comment
+            const analysisComment = `🤖 **Auto-merge Analysis**\n\n` +
+              `**Package:** \`${analysis.packageName}\`\n` +
+              `**Update Type:** ${analysis.updateType}\n` +
+              `**Risk Level:** ${analysis.riskLevel}\n` +
+              `**Net Safety Score:** ${analysis.netSafetyScore} (${analysis.safetyScore} safety - ${analysis.riskScore} risk)\n\n` +
+              `**Safety Factors:** ${analysis.safetyFactors.length > 0 ? analysis.safetyFactors.join(', ') : 'none'}\n` +
+              `**Risk Factors:** ${analysis.riskFactors.length > 0 ? analysis.riskFactors.join(', ') : 'none'}\n\n` +
+              `✅ **Decision:** Auto-merge approved based on dynamic risk assessment.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: analysisComment
+            });
+
+            console.log('Added detailed analysis comment to PR');
 
       - name: Wait for status checks
         id: wait-for-checks
@@ -154,10 +280,10 @@ jobs:
             const maxWaitTime = 10 * 60 * 1000; // 10 minutes
             const pollInterval = 30 * 1000; // 30 seconds
             const startTime = Date.now();
-            
+
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
             const headSha = '${{ fromJson(steps.pr-details.outputs.result).head_sha }}';
-            
+
             while (Date.now() - startTime < maxWaitTime) {
               // Get status checks
               const { data: statusChecks } = await github.rest.repos.getCombinedStatusForRef({
@@ -165,54 +291,54 @@ jobs:
                 repo: context.repo.repo,
                 ref: headSha
               });
-              
+
               // Get check runs
               const { data: checkRuns } = await github.rest.checks.listForRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: headSha
               });
-              
+
               const allStatuses = statusChecks.statuses || [];
               const allCheckRuns = checkRuns.check_runs || [];
-              
+
               // Check if we have any status checks or check runs
               const hasChecks = allStatuses.length > 0 || allCheckRuns.length > 0;
-              
+
               if (!hasChecks) {
                 console.log('No status checks found, waiting...');
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
                 continue;
               }
-              
+
               // Check status checks
               const pendingStatuses = allStatuses.filter(status => status.state === 'pending');
               const failedStatuses = allStatuses.filter(status => status.state === 'failure' || status.state === 'error');
-              
+
               // Check check runs
-              const pendingCheckRuns = allCheckRuns.filter(run => 
+              const pendingCheckRuns = allCheckRuns.filter(run =>
                 run.status === 'queued' || run.status === 'in_progress'
               );
-              const failedCheckRuns = allCheckRuns.filter(run => 
+              const failedCheckRuns = allCheckRuns.filter(run =>
                 run.conclusion === 'failure' || run.conclusion === 'cancelled' || run.conclusion === 'timed_out'
               );
-              
+
               if (failedStatuses.length > 0 || failedCheckRuns.length > 0) {
                 console.log('Some checks failed:');
                 failedStatuses.forEach(status => console.log(`- ${status.context}: ${status.state}`));
                 failedCheckRuns.forEach(run => console.log(`- ${run.name}: ${run.conclusion}`));
                 return { success: false, reason: 'checks_failed' };
               }
-              
+
               if (pendingStatuses.length === 0 && pendingCheckRuns.length === 0) {
                 console.log('All checks passed!');
                 return { success: true, reason: 'checks_passed' };
               }
-              
+
               console.log(`Waiting for ${pendingStatuses.length + pendingCheckRuns.length} checks to complete...`);
               await new Promise(resolve => setTimeout(resolve, pollInterval));
             }
-            
+
             console.log('Timeout waiting for checks');
             return { success: false, reason: 'timeout' };
 
@@ -223,29 +349,29 @@ jobs:
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
-            
+
             // Get fresh PR details to check current mergeable state
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
-            
+
             console.log(`PR mergeable: ${pr.mergeable}, mergeable_state: ${pr.mergeable_state}`);
-            
+
             // Check for conflicts
             if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
-              return { 
-                hasConflicts: true, 
-                mergeable: pr.mergeable, 
+              return {
+                hasConflicts: true,
+                mergeable: pr.mergeable,
                 mergeable_state: pr.mergeable_state,
                 prState: pr.state
               };
             }
-            
-            return { 
-              hasConflicts: false, 
-              mergeable: pr.mergeable, 
+
+            return {
+              hasConflicts: false,
+              mergeable: pr.mergeable,
               mergeable_state: pr.mergeable_state,
               prState: pr.state
             };
@@ -257,9 +383,9 @@ jobs:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
             const botType = `${{ steps.check-bot.outputs.bot_type }}`;
-            
+
             console.log(`Closing PR #${prNumber} due to merge conflicts`);
-            
+
             // Add explanatory comment before closing
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -275,7 +401,7 @@ jobs:
                     `**Mergeable:** \`${{ fromJson(steps.check-conflicts.outputs.result).mergeable }}\`\n\n` +
                     `*This action was performed automatically by the auto-merge workflow.*`
             });
-            
+
             // Close the PR
             await github.rest.pulls.update({
               owner: context.repo.owner,
@@ -283,7 +409,7 @@ jobs:
               pull_number: prNumber,
               state: 'closed'
             });
-            
+
             console.log(`Successfully closed PR #${prNumber}`);
 
       - name: Check PR requirements
@@ -293,52 +419,52 @@ jobs:
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
-            
+
             // Get PR details again to check current state
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
-            
+
             // Check if PR is still open
             if (pr.state !== 'open') {
               return { canMerge: false, reason: 'PR is not open' };
             }
-            
+
             if (pr.draft) {
               return { canMerge: false, reason: 'PR is in draft state' };
             }
-            
+
             // Double-check mergeable state (should be clean at this point)
             if (pr.mergeable === false) {
               return { canMerge: false, reason: 'PR still has merge conflicts' };
             }
-            
+
             if (pr.mergeable_state === 'blocked') {
               return { canMerge: false, reason: 'PR is blocked by branch protection rules' };
             }
-            
+
             if (pr.mergeable_state === 'dirty') {
               return { canMerge: false, reason: 'PR has merge conflicts' };
             }
-            
+
             // Check if there are any requested reviews from humans
             const { data: reviews } = await github.rest.pulls.listReviews({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
-            
-            const humanReviews = reviews.filter(review => 
-              !review.user.login.includes('bot') && 
+
+            const humanReviews = reviews.filter(review =>
+              !review.user.login.includes('bot') &&
               review.state === 'CHANGES_REQUESTED'
             );
-            
+
             if (humanReviews.length > 0) {
               return { canMerge: false, reason: 'Human reviewers requested changes' };
             }
-            
+
             return { canMerge: true, reason: 'All requirements met' };
 
       - name: Auto-approve PR
@@ -347,7 +473,7 @@ jobs:
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
-            
+
             try {
               await github.rest.pulls.createReview({
                 owner: context.repo.owner,
@@ -369,7 +495,7 @@ jobs:
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
             const updateType = `${{ fromJson(steps.analyze-changes.outputs.result).updateType }}`;
             const botType = `${{ steps.check-bot.outputs.bot_type }}`;
-            
+
             try {
               const result = await github.rest.pulls.merge({
                 owner: context.repo.owner,
@@ -379,9 +505,9 @@ jobs:
                 commit_message: `Automatically merged ${botType} PR after successful checks.\n\nUpdate type: ${updateType}\nPR: #${prNumber}`,
                 merge_method: 'squash' // Use squash merge to keep history clean
               });
-              
+
               console.log(`Successfully merged PR #${prNumber}`);
-              
+
               // Add a comment explaining the auto-merge
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -394,10 +520,10 @@ jobs:
                       `- Update type is considered low/medium risk ✅\n` +
                       `- No human reviews requested changes ✅`
               });
-              
+
             } catch (error) {
               console.error('Failed to merge PR:', error.message);
-              
+
               // Add a comment explaining why auto-merge failed
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -407,7 +533,7 @@ jobs:
                       `Could not automatically merge this PR: ${error.message}\n` +
                       `Manual intervention may be required.`
               });
-              
+
               throw error;
             }
 
@@ -417,21 +543,21 @@ jobs:
         with:
           script: |
             const prDetails = ${{ steps.pr-details.outputs.result || '{}' }};
-            
+
             if (!prDetails.number) {
               console.log('No PR number available, skipping cleanup comment');
               return;
             }
-            
+
             const prNumber = prDetails.number;
-            
+
             // Only add comment if PR wasn't closed due to conflicts
             const conflictCheck = ${{ steps.check-conflicts.outputs.result || '{}' }};
             if (conflictCheck.hasConflicts) {
               console.log('PR was closed due to conflicts, skipping failure comment');
               return;
             }
-            
+
             // Add a comment if the workflow failed
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -448,7 +574,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: auto-merge
     if: always()
-    
+
     steps:
       - name: Notify on Slack (optional)
         if: needs.auto-merge.result == 'success'
@@ -458,7 +584,7 @@ jobs:
             // Add your Slack notification logic here if needed
             // This is just a placeholder
             console.log('Auto-merge completed successfully');
-            
+
             // Example: You could send a webhook to Slack, Teams, etc.
             // const webhook_url = '${{ secrets.SLACK_WEBHOOK_URL }}';
             // if (webhook_url) {
