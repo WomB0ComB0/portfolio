@@ -62,7 +62,7 @@
     "clsx": "^2.1.1",
     "critters": "^0.0.25",
     "date-fns": "^4.1.0",
-    "firebase": "^11.0.0",
+    "firebase": "^12.0.0",
     "firebase-admin": "^13.4.0",
     "framer-motion": "^12.7.3",
     "gzip-size": "^7.0.0",
