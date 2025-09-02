@@ -28,7 +28,7 @@
     "@liveblocks/node": "^2.8.0",
     "@liveblocks/react": "^3.2.1",
     "@million/lint": "^1.0.14",
-    "@opentelemetry/api-logs": "^0.201.1",
+    "@opentelemetry/api-logs": "^0.203.0",
     "@opentelemetry/instrumentation": "^0.203.0",
     "@opentelemetry/sdk-logs": "^0.201.1",
     "@radix-ui/react-avatar": "^1.1.0",
