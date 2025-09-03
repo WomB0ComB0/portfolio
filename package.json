@@ -24,7 +24,7 @@
     "@googlemaps/markerclusterer": "^2.5.3",
     "@hookform/resolvers": "^5.0.1",
     "@js-temporal/polyfill": "^0.5.1",
-    "@liveblocks/client": "^2.8.0",
+    "@liveblocks/client": "^3.3.3",
     "@liveblocks/node": "^2.8.0",
     "@liveblocks/react": "^3.2.1",
     "@million/lint": "^1.0.14",
