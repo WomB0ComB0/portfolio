@@ -74,8 +74,8 @@ export const NavbarItems = [
     icon: FiHeadphones,
   },
   {
-    name: 'Hire',
-    slug: '/hire',
-    icon: FiDollarSign,
+    name: 'Links',
+    slug: '/links',
+    icon: FiPaperclip,
   },
 ];

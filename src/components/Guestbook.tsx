@@ -7,21 +7,21 @@ import fetcher from '@/lib/fetcher';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useMemo, useState } from 'react';
-import { FiAlertCircle, FiSend } from 'react-icons/fi';
+import { FiAlertCircle, FiSend, FiMessageSquare } from 'react-icons/fi';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { LoginButton } from './custom/login-button';
 import { LogoutButton } from './custom/logout-button';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Skeleton } from './ui/skeleton';
 import { Textarea } from './ui/textarea';
 
 const inputSchema = z.object({
   text: z
     .string()
-    .min(1, { message: 'Message is empty!' })
-    .max(100, { message: 'Message should not be more than 100 characters!' }),
+    .min(1, { message: 'Message cannot be empty.' })
+    .max(280, { message: 'Message must be less than 280 characters.' }),
 });
 
 interface Message {
@@ -73,6 +73,7 @@ export default function GuestbookComponent() {
     try {
       await postMessage.mutateAsync(newMessage);
       setMessage('');
+      toast.success('Message sent successfully!');
     } catch (error) {
       console.error('Error adding message:', error);
       toast.error('Failed to send message. Please try again.');
@@ -85,42 +86,61 @@ export default function GuestbookComponent() {
       return 'Invalid date';
     }
     return new Intl.DateTimeFormat('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     }).format(date);
   }, []);
 
   return (
-    <section className="w-full min-h-full">
-      <article className="space-y-6">
+    <section className="w-full min-h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e] p-8 rounded-2xl shadow-2xl">
+      <article className="space-y-8">
+        <h1 className="text-4xl font-bold text-purple-300 text-center tracking-wider">
+          Digital Guestbook
+        </h1>
+
         {user ? (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-white">Welcome, {user.displayName || 'Anonymous'}</p>
-              <LogoutButton className="text-white hover:text-purple-300" aria-label="Sign out" />
-            </div>
-            <Textarea
-              className="w-full h-32 p-2 rounded-md bg-purple-800 text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Leave a message..."
-            />
-            <Button
-              className="w-full px-6 py-2 bg-purple-600 text-white hover:bg-purple-500 focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-purple-800"
-              onClick={handleSubmit}
-              disabled={postMessage.isPending}
-              aria-label="Send message"
-            >
-              <FiSend className="inline-block mr-2" />
-              {postMessage.isPending ? 'Sending...' : 'Send Message'}
-            </Button>
-          </div>
+          <Card className="bg-purple-900 bg-opacity-40 border-purple-700">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-purple-300">
+                  Welcome, {user.displayName || 'Anonymous'}
+                </CardTitle>
+                <LogoutButton
+                  className="text-purple-300 hover:text-white"
+                  aria-label="Sign out"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Textarea
+                  className="w-full h-32 p-3 rounded-md bg-purple-800 bg-opacity-50 text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-400 border-purple-700"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Leave your mark..."
+                />
+                <Button
+                  className="w-full px-6 py-3 bg-green-600 text-white font-bold hover:bg-green-500 focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-purple-900 transition-all duration-300"
+                  onClick={handleSubmit}
+                  disabled={postMessage.isPending}
+                  aria-label="Send message"
+                >
+                  <FiSend className="inline-block mr-2" />
+                  {postMessage.isPending ? 'Submitting...' : 'Submit Message'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
-          <Card className="bg-purple-800 text-white">
-            <CardContent className="p-4 space-y-4">
-              <h3 className="text-lg font-semibold text-[#ba9bdd]">Leave a Message 👇</h3>
-              <p className="text-sm text-purple-200">You need to be signed in to post a message.</p>
-              <div className="flex gap-2 flex-wrap">
+          <Card className="bg-purple-900 bg-opacity-40 text-white border-purple-700">
+            <CardContent className="p-6 space-y-4 text-center">
+              <FiMessageSquare className="text-5xl text-purple-400 mx-auto" />
+              <h3 className="text-xl font-semibold text-purple-300">Join the Conversation</h3>
+              <p className="text-purple-200">Sign in to leave a message on the guestbook.</p>
+              <div className="flex gap-4 justify-center flex-wrap">
                 <LoginButton signInMethod="google.com" />
                 <LoginButton signInMethod="github.com" />
                 <LoginButton signInMethod="anonymous" />
@@ -128,7 +148,8 @@ export default function GuestbookComponent() {
             </CardContent>
           </Card>
         )}
-        <ScrollArea className="h-[400px] w-full rounded-md border border-purple-700">
+
+        <ScrollArea className="h-[500px] w-full rounded-lg border border-purple-700 bg-purple-900 bg-opacity-20">
           <div className="p-4 space-y-4">
             {isLoading ? (
               <LoadingUI />
@@ -136,18 +157,21 @@ export default function GuestbookComponent() {
               <ErrorUI error={error} />
             ) : (
               <AnimatePresence>
-                {messages.map((message) => (
+                {messages.map((msg) => (
                   <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="bg-purple-800 p-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-purple-800 bg-opacity-50 p-4 rounded-lg shadow-lg border border-purple-700 hover:border-purple-500 transition-all duration-300"
                   >
-                    <p className="text-white text-sm lg:text-base break-words">{message.message}</p>
-                    <div className="flex justify-between items-center mt-2 text-purple-300 text-xs">
-                      <p>by {message.authorName}</p>
-                      <p>{formatDate(message.createdAt)}</p>
+                    <p className="text-white text-base break-words mb-2">{msg.message}</p>
+                    <div className="flex justify-between items-center text-purple-300 text-xs">
+                      <p className="font-semibold">
+                        {msg.authorName}
+                      </p>
+                      <p>{formatDate(msg.createdAt)}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -163,11 +187,11 @@ export default function GuestbookComponent() {
 function LoadingUI() {
   return (
     <div className="space-y-4">
-      {[...Array(3)].map((_, index) => (
-        <Card key={`loading-${index + 1}`} className="bg-purple-800">
-          <CardContent className="p-4 space-y-2">
-            <Skeleton className="h-4 w-3/4 bg-purple-700" />
-            <Skeleton className="h-4 w-1/2 bg-purple-700" />
+      {[...Array(5)].map((_, index) => (
+        <Card key={`loading-${index + 1}`} className="bg-purple-800 bg-opacity-50 border-purple-700">
+          <CardContent className="p-4 space-y-3">
+            <Skeleton className="h-4 w-4/5 bg-purple-700" />
+            <Skeleton className="h-4 w-3/5 bg-purple-700" />
             <div className="flex justify-between items-center mt-2">
               <Skeleton className="h-3 w-1/4 bg-purple-700" />
               <Skeleton className="h-3 w-1/4 bg-purple-700" />
@@ -181,18 +205,16 @@ function LoadingUI() {
 
 function ErrorUI({ error }: { error: Error }) {
   return (
-    <Card className="bg-red-800 text-white">
-      <CardContent className="p-4 space-y-2">
-        <div className="flex items-center space-x-2">
-          <FiAlertCircle className="text-2xl" />
-          <h3 className="text-lg font-semibold">Error loading messages</h3>
-        </div>
-        <p className="text-sm text-red-200">{error.message}</p>
+    <Card className="bg-red-900 bg-opacity-50 text-white border-red-700">
+      <CardContent className="p-6 text-center">
+        <FiAlertCircle className="text-5xl text-red-400 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-red-300">Failed to Load Messages</h3>
+        <p className="text-sm text-red-200 mb-4">{error.message}</p>
         <Button
-          className="mt-2 bg-red-600 hover:bg-red-500"
+          className="bg-red-600 hover:bg-red-500 text-white font-bold"
           onClick={() => window.location.reload()}
         >
-          Try Again
+          Retry
         </Button>
       </CardContent>
     </Card>
