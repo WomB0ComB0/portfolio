@@ -11,7 +11,10 @@ export const COLORS = [
 ];
 
 import {
+  FiAward,
   FiBookOpen,
+  FiBriefcase,
+  FiClipboard, // Added FiClipboard
   FiDollarSign,
   FiFileText,
   FiHeadphones,
@@ -31,9 +34,19 @@ export const NavbarItems = [
     icon: FiHome,
   },
   {
-    name: 'About',
-    slug: '/about',
-    icon: FiUser,
+    name: 'Projects',
+    slug: '/projects',
+    icon: FiBriefcase,
+  },
+  {
+    name: 'Certifications',
+    slug: '/certifications',
+    icon: FiAward,
+  },
+  {
+    name: 'Experience',
+    slug: '/experience',
+    icon: FiClipboard,
   },
   {
     name: 'Resume',
@@ -51,11 +64,6 @@ export const NavbarItems = [
     icon: FiMapPin,
   },
   {
-    name: 'Links',
-    slug: '/links',
-    icon: FiPaperclip,
-  },
-  {
     name: 'Guestbook',
     slug: '/guestbook',
     icon: FiBookOpen,
@@ -64,11 +72,6 @@ export const NavbarItems = [
     name: 'Spotify',
     slug: '/spotify',
     icon: FiHeadphones,
-  },
-  {
-    name: 'Dashboard',
-    slug: '/dashboard',
-    icon: FiZap,
   },
   {
     name: 'Hire',

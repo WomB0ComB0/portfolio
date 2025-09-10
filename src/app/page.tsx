@@ -1,42 +1,119 @@
+'use client'; // Required for onClick handlers in buttons
+
 import Layout from '@/components/layout/Layout';
-import { Skeleton } from '@/components/ui/skeleton';
-import getRepos from '@/lib/getRepos';
-import dynamic from 'next/dynamic';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Github, Linkedin, Mail } from 'lucide-react';
+import { SiGooglescholar } from 'react-icons/si';
 import Image from 'next/image';
+import Link from 'next/link'; // Added import for navigation links
 
-const DynamicPinnedRepos = dynamic(() => import('@/components/github/PinnedRepos'), {
-  loading: () => <Skeleton className="w-full h-full bg-purple-300" />,
-  ssr: false,
-});
-
-export const revalidate = 60 * 60 * 24;
-
-export default async function Home() {
-  const pinnedRepos = await getRepos();
-
+export default function Home() {
   return (
     <Layout>
-      <div className="w-full min-h-screen p-8 flex flex-col justify-start items-center relative">
-        <section className="flex flex-col-reverse md:flex-row w-full max-w-4xl justify-between items-center mb-20 mt-16 gap-8">
-          <div className="text-center md:text-left">
-            <h1 className="text-4xl font-bold mb-2 text-[#ba9bdd] z-10">Mike Odnis</h1>
-            <p className="text-xl mb-4 text-purple-300">Undergraduate Computer Science Student</p>
-            <p className="relative text-sm text-gray-400 max-w-lg">
-              Passionate about web development and open source. Currently studying at Farmingdale
-              State College. I enjoy exploring new technologies and sharing my knowledge with the
-              developer community.
-            </p>
-          </div>
-          <Image
-            src="https://avatars.githubusercontent.com/u/95197809?v=4"
-            alt="Mike Odnis"
-            className="relative rounded-full shadow-xl w-32 h-32 grayscale hover:grayscale-0 transition-all duration-300"
-            width={128}
-            height={128}
-            priority
-          />
+      <div className="container mx-auto px-4 py-8">
+        <section className="w-full max-w-4xl mx-auto bg-[#1E1E1E] border border-purple-800 rounded-xl overflow-hidden">
+          <article className="p-6 space-y-6">
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              <div className="flex-shrink-0">
+                <Image
+                  src="/assets/images/Profile.png" // Updated image path
+                  alt="Mike Odnis"
+                  width={200}
+                  height={200}
+                  className="rounded-full object-cover w-48 h-48"
+                  priority // Added priority as it's LCP
+                />
+              </div>
+              <div className="flex-grow">
+                <h2 className="text-3xl font-semibold mb-2 text-purple-300">Mike Odnis</h2>
+                <p className="text-gray-300 mb-4">
+                  I am an ambitious and driven undergraduate Computer Science student specializing
+                  in web development and programming. With a solid foundation in various programming
+                  languages and frameworks, I craft beautiful, user-friendly websites and
+                  applications. As a quick learner and first-generation student, I take pride in my
+                  achievements and aim to be a well-rounded addition to any team.
+                </p>
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-purple-900 hover:bg-purple-800 border-purple-700"
+                    onClick={() => window.open('https://github.com/WomB0ComB0', '_blank')}
+                  >
+                    <Github className="h-5 w-5 text-purple-300" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-purple-900 hover:bg-purple-800 border-purple-700"
+                    onClick={() => window.open('https://linkedin.com/in/mikeodnis', '_blank')}
+                  >
+                    <Linkedin className="h-5 w-5 text-purple-300" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-purple-900 hover:bg-purple-800 border-purple-700"
+                    onClick={() => window.open('mailto:mike.odnis@mikeodnis.dev', '_blank')}
+                  >
+                    <Mail className="h-5 w-5 text-purple-300" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-purple-900 hover:bg-purple-800 border-purple-700"
+                    onClick={() => window.open('https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ', '_blank')}
+                  >
+                    <SiGooglescholar className="h-5 w-5 text-purple-300" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            {/* Adjusted grid for Skills card - now it will take full width in this specific layout */}
+            <div className="grid gap-6 md:grid-cols-1">
+              <Card className="bg-[#2a2a2a] border-purple-800">
+                <CardHeader>
+                  <CardTitle className="text-purple-300">Skills</CardTitle>
+                </CardHeader>
+                <CardContent className="text-gray-300">
+                  <ul className="list-disc list-inside space-y-2">
+                    <li>JavaScript, TypeScript, Python, Java, C++, C#</li>
+                    <li>React, Next.js, Node.js, Express.js, Angular</li>
+                    <li>HTML, CSS, SCSS, Tailwind CSS</li>
+                    <li>Database Management (SQL, MongoDB)</li>
+                    <li>DevOps (Docker, CI/CD)</li>
+                    <li>UI/UX Design (Figma)</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Links to dedicated pages */}
+            <div className="mt-10 pt-6 border-t border-purple-700 text-center">
+              <p className="text-gray-300 mb-3 text-lg">
+                Dive deeper into my professional journey:
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                <Link href="/experience" passHref legacyBehavior>
+                  <Button variant="outline" className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto">
+                    View Work Experience
+                  </Button>
+                </Link>
+                <Link href="/certifications" passHref legacyBehavior>
+                  <Button variant="outline" className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto">
+                    Explore Certifications
+                  </Button>
+                </Link>
+                <Link href="/projects" passHref legacyBehavior>
+                  <Button variant="outline" className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto">
+                    Discover My Projects
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </article>
         </section>
-        <DynamicPinnedRepos pinnedRepos={pinnedRepos} />
       </div>
     </Layout>
   );
