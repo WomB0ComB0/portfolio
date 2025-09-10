@@ -6,9 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Github, Linkedin, Mail } from 'lucide-react';
 import { SiGooglescholar } from 'react-icons/si';
 import Image from 'next/image';
-import Link from 'next/link'; // Added import for navigation links
 
-export default function Home() {
+const DynamicPinnedRepos = dynamic(() => import('@/components/github/PinnedRepos'), {
+  loading: () => <Skeleton className="w-full h-full bg-purple-300" />,
+  ssr: true,
+});
+
+export const revalidate = 86400;
+
+export default async function Home() {
+  const pinnedRepos = (await getRepos());
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">

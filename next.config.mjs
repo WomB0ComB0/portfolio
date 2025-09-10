@@ -30,11 +30,12 @@ const config = {
       { protocol: 'https', hostname: 'api.lanyard.rest' },
       { protocol: 'https', hostname: 'i.scdn.co' },
       { protocol: 'https', hostname: 'cdn.discordapp.com' },
+      { protocol: 'https', hostname: 'linktr.ee' },
     ],
   },
   experimental: {
     optimizeCss: true,
-    swcMinify: true,
+    // swcMinify: true,
     turbo: {
       rules: {
         '*.svg': {
@@ -135,7 +136,7 @@ const sentryConfig = {
     ignore: ['node_modules/**/*'],
     deleteSourcemapsAfterUpload: true
   },
-  hideSourceMaps: true,
+  // hideSourceMaps: true,
   widenClientFileUpload: true,
   autoInstrumentServerFunctions: true,
   autoInstrumentMiddleware: true,
