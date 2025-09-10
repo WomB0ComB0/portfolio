@@ -17,7 +17,7 @@ export default function Home() {
             <div className="flex flex-col md:flex-row items-start gap-6">
               <div className="flex-shrink-0">
                 <Image
-                  src="/assets/images/Profile.png" // Updated image path
+                  src="https://github.com/WomB0ComB0.png" // Updated image path
                   alt="Mike Odnis"
                   width={200}
                   height={200}

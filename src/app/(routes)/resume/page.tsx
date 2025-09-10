@@ -10,9 +10,18 @@ import React, { useEffect, useState } from 'react';
 export default function ResumePage() {
   const [isLoading, setIsLoading] = useState(true);
 
+  // Your Google Doc -> PDF export URL
+  const DOC_ID = '1kZOEXQJ4BQUI4EFeUQmJgWtfsC38iMufvW2rFrFTc0Y';
+  const pdfUrl = `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`;
+
+  // Optional fallback viewer (can help on some mobiles; not 100% guaranteed)
+  const driveViewerUrl = `https://drive.google.com/viewerng/viewer?embedded=1&url=${encodeURIComponent(
+    pdfUrl
+  )}`;
+
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setIsLoading(false), 900);
+    return () => clearTimeout(t);
   }, []);
 
   return (
@@ -23,37 +32,30 @@ export default function ResumePage() {
             <CardContent className="p-4 sm:p-6">
               <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <p className="text-gray-300 text-sm sm:text-base">
-                  My professional resume and portfolio
+                  My professional resume (PDF viewer)
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full sm:w-auto bg-purple-900 hover:bg-purple-800 text-purple-300 border-purple-700 text-xs sm:text-sm"
-                    onClick={() =>
-                      window.open(
-                        'https://docs.google.com/document/d/2PACX-1vTsOjtdWXyS93CL-lxxOQvcc52sPQ3y76JWndqRrk7K1F1Y-8APVBcjAwKeolvkEEe5OzMXe2ZMbvP6/export?format=pdf',
-                        '_blank',
-                      )
-                    }
+                    onClick={() => window.open(pdfUrl, '_blank')}
                   >
-                    <Download className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Download PDF
+                    <Download className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    Download PDF
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full sm:w-auto bg-purple-900 hover:bg-purple-800 text-purple-300 border-purple-700 text-xs sm:text-sm"
-                    onClick={() =>
-                      window.open(
-                        'https://docs.google.com/document/d/2PACX-1vTsOjtdWXyS93CL-lxxOQvcc52sPQ3y76JWndqRrk7K1F1Y-8APVBcjAwKeolvkEEe5OzMXe2ZMbvP6/edit?usp=sharing',
-                        '_blank',
-                      )
-                    }
+                    onClick={() => window.open(pdfUrl, '_blank')}
                   >
-                    <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Open in Google Docs
+                    <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    Open PDF
                   </Button>
                 </div>
               </div>
+
               {isLoading ? (
                 <div className="space-y-4">
                   <Skeleton className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full bg-purple-900/20" />
@@ -63,13 +65,33 @@ export default function ResumePage() {
                 </div>
               ) : (
                 <>
-                  <iframe
-                    src="https://docs.google.com/document/d/e/2PACX-1vTsOjtdWXyS93CL-lxxOQvcc52sPQ3y76JWndqRrk7K1F1Y-8APVBcjAwKeolvkEEe5OzMXe2ZMbvP6/pub?embedded=true"
-                    className="w-full h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] border-2 border-purple-800 rounded-lg"
-                    title="Mike Odnis Resume"
-                  />
+                  {/* Primary PDF embed (preferred) */}
+<div className="relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-purple-800 overflow-hidden">
+  <iframe
+    title="Resume PDF"
+    src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(
+      `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`
+    )}`}
+    className="w-full h-full"
+    loading="lazy"
+  />
+</div>
+
                   <p className="text-center text-gray-400 mt-4 text-xs sm:text-sm">
-                    Viewing Mike Odnis's Resume - Last updated: {new Date().toLocaleDateString()}
+                    If the inline viewer doesn’t load on your device,{' '}
+                    <a
+                      href={pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline decoration-purple-500"
+                    >
+                      open the PDF in a new tab
+                    </a>
+                    .
+                  </p>
+
+                  <p className="text-center text-gray-500 mt-1 text-[11px]">
+                    Last updated: {new Date().toLocaleDateString()}
                   </p>
                 </>
               )}

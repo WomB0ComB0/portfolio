@@ -31,6 +31,7 @@ const config = {
       { protocol: 'https', hostname: 'i.scdn.co' },
       { protocol: 'https', hostname: 'cdn.discordapp.com' },
       { protocol: 'https', hostname: 'linktr.ee' },
+      { protocol: 'https', hostname: 'docs.google.com' },
     ],
   },
   experimental: {
