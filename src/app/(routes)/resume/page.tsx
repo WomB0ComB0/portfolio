@@ -10,14 +10,8 @@ import React, { useEffect, useState } from 'react';
 export default function ResumePage() {
   const [isLoading, setIsLoading] = useState(true);
 
-  // Your Google Doc -> PDF export URL
   const DOC_ID = '1kZOEXQJ4BQUI4EFeUQmJgWtfsC38iMufvW2rFrFTc0Y';
   const pdfUrl = `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`;
-
-  // Optional fallback viewer (can help on some mobiles; not 100% guaranteed)
-  const driveViewerUrl = `https://drive.google.com/viewerng/viewer?embedded=1&url=${encodeURIComponent(
-    pdfUrl
-  )}`;
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 900);
@@ -65,17 +59,16 @@ export default function ResumePage() {
                 </div>
               ) : (
                 <>
-                  {/* Primary PDF embed (preferred) */}
-<div className="relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-purple-800 overflow-hidden">
-  <iframe
-    title="Resume PDF"
-    src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(
-      `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`
-    )}`}
-    className="w-full h-full"
-    loading="lazy"
-  />
-</div>
+                  <div className="relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-purple-800 overflow-hidden">
+                    <iframe
+                      title="Resume PDF"
+                      src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(
+                        `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`
+                      )}`}
+                      className="w-full h-full"
+                      loading="lazy"
+                    />
+                  </div>
 
                   <p className="text-center text-gray-400 mt-4 text-xs sm:text-sm">
                     If the inline viewer doesn’t load on your device,{' '}
