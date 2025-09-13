@@ -1,10 +1,9 @@
-import { experienceData } from '../../../data/homeSections';
-import { ExperienceItem } from '../../../types/sections';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import { experienceData } from '@/data/homeSections';
+import { ArrowLeft, ExternalLink, Paperclip } from 'lucide-react'; // Added Paperclip for media links
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, Paperclip } from 'lucide-react'; // Added Paperclip for media links
 
 export async function generateStaticParams() {
   return experienceData.map((exp) => ({

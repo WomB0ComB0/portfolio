@@ -80,6 +80,13 @@ const config = {
         source: '/(.*).png',
         headers: [{ key: 'Content-Type', value: 'image/png' }],
       },
+      {
+        source: '/links',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://linktr.ee" },
+        ],
+      },
     ];
   },
   webpack: (config, { isServer }) => {
