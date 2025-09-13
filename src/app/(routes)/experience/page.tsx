@@ -54,7 +54,7 @@ export default function ExperiencePage() {
                   </p>
                 </CardContent>
                 <div className="p-6 border-t border-purple-700 mt-auto">
-                  <Link href={`/experience/${item.id}`} passHref legacyBehavior>
+                  <Link href={`/experience/${item.id}`} passHref legacyBehavior scroll={false}>
                     <Button
                       variant="outline"
                       className="w-full bg-purple-800 hover:bg-purple-700 border-purple-700 text-purple-200"

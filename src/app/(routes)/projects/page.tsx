@@ -105,58 +105,42 @@ export default function ProjectsPage() {
         {filteredProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProjects.map((project) => (
-              <Card key={project.id} className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300">
-                {project.imageUrl && (
-                  <div className="w-full h-48 relative">
-                    <Image
-                      src={project.imageUrl}
-                      alt={project.title}
-                      layout="fill"
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-                <CardHeader className="p-6">
-                  <CardTitle className="text-xl font-semibold text-purple-300 mb-1">{project.title}</CardTitle>
-                  <p className="text-sm text-gray-400">Category: {project.category}</p>
-                </CardHeader>
-                <CardContent className="p-6 flex-grow">
-                  <p className="text-sm text-gray-300 mb-4 line-clamp-4">{project.description}</p>
-                  {project.tags && project.tags.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-xs text-purple-400 mb-1 font-semibold">TAGS:</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {project.tags.map(tag => (
-                          <span key={tag} className="px-2 py-0.5 text-xs bg-purple-700 text-purple-200 rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+              <Link key={project.id} href={`/projects/${project.id}`} scroll={false}>
+                <Card className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300 h-full">
+                  {project.imageUrl && (
+                    <div className="w-full h-48 relative">
+                      <Image
+                        src={project.imageUrl}
+                        alt={project.title}
+                        layout="fill"
+                        className="object-cover"
+                      />
                     </div>
                   )}
-                </CardContent>
-                <div className="p-6 border-t border-purple-700 mt-auto">
-                  <div className="flex gap-4">
-                    {project.projectUrl && (
-                      <Link href={project.projectUrl} passHref legacyBehavior>
-                        <Button variant="outline" size="sm" className="flex-1 bg-purple-800 hover:bg-purple-700 border-purple-600 text-purple-200">
-                          View Live <ExternalLink className="ml-2 h-4 w-4" />
-                        </Button>
-                      </Link>
+                  <CardHeader className="p-6">
+                    <CardTitle className="text-xl font-semibold text-purple-300 mb-1">{project.title}</CardTitle>
+                    <p className="text-sm text-gray-400">Category: {project.category}</p>
+                  </CardHeader>
+                  <CardContent className="p-6 flex-grow">
+                    <p className="text-sm text-gray-300 mb-4 line-clamp-4">{project.description}</p>
+                    {project.tags && project.tags.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="text-xs text-purple-400 mb-1 font-semibold">TAGS:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {project.tags.map(tag => (
+                            <span key={tag} className="px-2 py-0.5 text-xs bg-purple-700 text-purple-200 rounded-full">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    {project.repoUrl && (
-                      <Link href={project.repoUrl} passHref legacyBehavior>
-                        <Button variant="outline" size="sm" className="flex-1 bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200">
-                          View Code <Code className="ml-2 h-4 w-4" />
-                        </Button>
-                      </Link>
-                    )}
+                  </CardContent>
+                  <div className="p-6 border-t border-purple-700 mt-auto">
+                    <p className="text-xs text-center text-purple-400">Click to view details</p>
                   </div>
-                   {!project.projectUrl && !project.repoUrl && (
-                    <p className="text-xs text-center text-gray-500">No external links available.</p>
-                  )}
-                </div>
-              </Card>
+                </Card>
+              </Link>
             ))}
           </div>
         ) : (
