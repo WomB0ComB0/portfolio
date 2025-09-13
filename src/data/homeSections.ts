@@ -22,7 +22,6 @@ export const experienceData: ExperienceItem[] = [
   {
     id: 'exp-tech-innovators',
     companyTitle: 'Tech Innovators Inc.',
-    companyImage: '/assets/images/company/tech_innovators_logo.png', // Example path
     employmentPeriod: 'Jan 2023 - Present',
     jobTitle: 'Junior Web Developer',
     jobDescriptionShort:
