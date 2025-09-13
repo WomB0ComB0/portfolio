@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 
-export default function ExperienceModal({ params }: { params: { id: string } }) {
-  const experience = experienceData.find(e => e.id === params.id);
+export default async function ExperienceModal({ params }: { params: { id: string } }) {
+  const { id } = await params;
+  const experience = experienceData.find(e => e.id === id);
 
   if (!experience) {
     notFound();
@@ -23,7 +24,8 @@ export default function ExperienceModal({ params }: { params: { id: string } }) 
                 <Image
                   src={experience.companyImage}
                   alt={`${experience.companyTitle} logo`}
-                  layout="fill"
+                  fill
+                  sizes="96px"
                   className="rounded-md object-contain bg-white p-1"
                 />
               </div>
@@ -62,7 +64,7 @@ export default function ExperienceModal({ params }: { params: { id: string } }) 
                   {experience.media.map((mediaItem, index) => (
                     <div key={index}>
                       {mediaItem.type === 'link' && (
-                        <Link href={mediaItem.url} passHref legacyBehavior>
+                        <Link href={mediaItem.url} target="_blank" rel="noopener noreferrer">
                           <Button variant="outline" size="sm" className="bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200">
                             {mediaItem.title} <ExternalLink className="ml-2 h-4 w-4" />
                           </Button>

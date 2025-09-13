@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { ExternalLink, Code } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 
-export default function ProjectModal({ params }: { params: { id: string } }) {
-  const project = projectsData.find(p => p.id === params.id);
+export default async function ProjectModal({ params }: { params: { id: string } }) {
+  const { id } = await params;
+  const project = projectsData.find(p => p.id === id);
 
   if (!project) {
     notFound();
@@ -22,7 +23,8 @@ export default function ProjectModal({ params }: { params: { id: string } }) {
               <Image
                 src={project.imageUrl}
                 alt={project.title}
-                layout="fill"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover rounded-t-xl"
               />
             </div>
@@ -47,14 +49,14 @@ export default function ProjectModal({ params }: { params: { id: string } }) {
             )}
             <div className="flex gap-4">
               {project.projectUrl && (
-                <Link href={project.projectUrl} passHref legacyBehavior>
+                <Link href={project.projectUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="sm" className="flex-1 bg-purple-800 hover:bg-purple-700 border-purple-600 text-purple-200">
                     View Live <ExternalLink className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
               )}
               {project.repoUrl && (
-                <Link href={project.repoUrl} passHref legacyBehavior>
+                <Link href={project.repoUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="sm" className="flex-1 bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200">
                     View Code <Code className="ml-2 h-4 w-4" />
                   </Button>

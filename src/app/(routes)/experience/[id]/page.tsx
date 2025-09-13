@@ -58,7 +58,8 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
                   <Image
                     src={companyImage}
                     alt={`${companyTitle} logo`}
-                    layout="fill"
+                    fill
+                    sizes="96px"
                     className="rounded-lg object-contain bg-white p-1"
                   />
                 </div>
@@ -111,7 +112,7 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
                         </>
                       )}
                       {mediaItem.type === 'link' && mediaItem.url && (
-                        <a
+                        <Link
                           href={mediaItem.url}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -122,7 +123,7 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
                             {mediaItem.title || mediaItem.url}
                           </span>
                           <ExternalLink className="ml-auto h-4 w-4 flex-shrink-0" />
-                        </a>
+                        </Link>
                       )}
                     </div>
                   ))}
@@ -131,7 +132,7 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
             )}
 
             <div className="mt-8 pt-6 border-t border-purple-700">
-              <Link href="/" passHref legacyBehavior>
+              <Link href="/">
                 <Button variant="outline" className="text-purple-300 border-purple-700 hover:bg-purple-800">
                   <ArrowLeft className="mr-2 h-5 w-5" /> Back to Home
                 </Button>
