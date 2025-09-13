@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ExternalLink, Code } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 
-export default async function ProjectModal({ params }: { params: { id:string } }) {
+export default async function ProjectModal({ params }: { params: { id: string } }) {
   const { id } = await params;
   const project = projectsData.find(p => p.id === id);
 
