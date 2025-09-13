@@ -8,7 +8,8 @@ import { ExternalLink } from 'lucide-react';
 import Modal from '@/components/ui/modal';
 
 export default async function ExperienceModal({ params }: { params: { id: string } }) {
-  const experience = experienceData.find(e => e.id === params.id);
+  const { id } = await params;
+  const experience = experienceData.find(e => e.id === id);
 
   if (!experience) {
     notFound();
