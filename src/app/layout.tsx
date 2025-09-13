@@ -14,7 +14,13 @@ export const reportWebVitals = (metric: NextWebVitalsMetric) => {
   }
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
@@ -37,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </noscript>
         <Providers>
           {children}
+          {modal}
           <SpeedInsights />
           <Analytics />
         </Providers>
