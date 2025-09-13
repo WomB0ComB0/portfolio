@@ -35,49 +35,49 @@ export default function TopArtists() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-purple-900 to-purple-700 rounded-2xl shadow-2xl p-6 overflow-hidden">
-      <h2 className="text-3xl font-bold text-white mb-2">Top Artists</h2>
-      <p className="text-purple-200 mb-6">according to last 4 weeks</p>
+    <div className="bg-gradient-to-br from-purple-900 to-purple-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
+      <h2 className="text-3xl font-bold text-white mb-2 text-center">Top Artists</h2>
+      <p className="text-purple-200 mb-6 text-center">My most played artists in the last 4 weeks.</p>
       {isLoading ? (
-        <div className="space-y-4">
-          {[...Array(5)].map((_, index) => (
-            <div key={`${index + 1}`} className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <Skeleton className="h-4 w-3/4" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {[...Array(10)].map((_, index) => (
+            <div key={index} className="flex flex-col items-center space-y-2">
+              <Skeleton className="h-24 w-24 rounded-full bg-purple-700" />
+              <Skeleton className="h-4 w-3/4 bg-purple-700" />
             </div>
           ))}
         </div>
       ) : error ? (
-        <div className="text-red-400 bg-red-900/20 p-4 rounded-lg">
+        <div className="text-red-400 bg-red-900/20 p-4 rounded-lg text-center">
           Failed to load top artists. Please try again later.
         </div>
       ) : parsedData.length > 0 ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {parsedData.map((artist, index) => (
             <motion.div
-              key={`${artist.name}-${index + 1}`}
-              className="flex items-center space-x-4 bg-purple-800/30 backdrop-blur-sm rounded-lg p-3 cursor-pointer hover:bg-purple-700/40 transition-all"
+              key={`${artist.name}-${index}`}
+              className="flex flex-col items-center space-y-3 p-4 bg-purple-800/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-purple-700/60 transition-all text-center"
               onClick={() => window.open(artist.url, '_blank')}
-              whileHover={{ scale: 1.02, x: 5 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: index * 0.05 }}
             >
               <Image
                 src={artist.imageUrl}
                 alt={artist.name}
-                className="w-12 h-12 rounded-full shadow-md"
-                width={48}
-                height={48}
+                className="w-24 h-24 rounded-full shadow-lg border-2 border-purple-600"
+                width={96}
+                height={96}
               />
-              <p className="text-white font-semibold truncate flex-grow">{artist.name}</p>
+              <p className="text-white font-semibold truncate w-full">{artist.name}</p>
             </motion.div>
           ))}
         </div>
       ) : (
-        <p className="text-purple-200 bg-purple-800/30 p-4 rounded-lg">
-          No top artists data available
+        <p className="text-purple-200 bg-purple-800/30 p-4 rounded-lg text-center">
+          No top artists data available at the moment.
         </p>
       )}
     </div>

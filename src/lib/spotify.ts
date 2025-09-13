@@ -43,7 +43,7 @@ export const topTracks = async (): Promise<any[]> => {
   // Make a request to the Spotify API to retrieve the user's top tracks in last 4 weeks
 
   const response = await axios.get(
-    'https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=short_term',
+    'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=short_term',
     {
       headers: {
         // Set the Authorization header with the access token
@@ -69,7 +69,7 @@ export const topArtists = async (): Promise<any[]> => {
 
   // Make a request to the Spotify API to retrieve the user's top artists in last 4 weeks
   const response = await axios.get(
-    'https://api.spotify.com/v1/me/top/artists?limit=5&time_range=short_term',
+    'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=short_term',
     {
       headers: {
         // Set the Authorization header with the access token
