@@ -1,6 +1,6 @@
 import '@/styles/globals.css';
-import { Providers } from '@/providers';
-import { Scripts } from '@/scripts/Scripts';
+import { Provider } from '@/providers';
+import { Scripts } from '@/scripts';
 import { constructMetadata, constructViewport } from '@/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -41,12 +41,12 @@ export default function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           ></iframe>
         </noscript>
-        <Providers>
+        <Provider>
           {children}
           {modal}
           <SpeedInsights />
           <Analytics />
-        </Providers>
+        </Provider>
       </body>
     </html>
   );

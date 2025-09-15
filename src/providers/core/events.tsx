@@ -1,5 +1,5 @@
 import { Toaster } from '@/components/ui/sonner';
-const Events: React.FC<
+export const Events: React.FC<
   Readonly<{
     children: React.ReactNode;
   }>
@@ -21,5 +21,5 @@ const Events: React.FC<
     </>
   );
 };
-
-export { Events };
+Events.displayName = 'Events';
+export default Events;

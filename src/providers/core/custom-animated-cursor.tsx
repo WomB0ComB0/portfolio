@@ -60,3 +60,5 @@ export const CustomAnimatedCursor = () => {
     />
   );
 };
+CustomAnimatedCursor.displayName = 'CustomAnimatedCursor';
+export default CustomAnimatedCursor;

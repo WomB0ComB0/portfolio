@@ -5,7 +5,7 @@ interface BlobProps extends React.HTMLAttributes<HTMLDivElement> {
   secondBlobColor: string;
 }
 
-export default function BlurryBlob({ className, firstBlobColor, secondBlobColor }: BlobProps) {
+export const BlurryBlob = ({ className, firstBlobColor, secondBlobColor }: BlobProps) => {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
       <div className="relative w-full h-full">
@@ -26,4 +26,6 @@ export default function BlurryBlob({ className, firstBlobColor, secondBlobColor 
       </div>
     </div>
   );
-}
+};
+BlurryBlob.displayName = 'BlurryBlob';
+export default BlurryBlob;

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react';
 
-const NotFound = () => {
+export const NotFound = () => {
   return (
     <div className="relative flex items-center justify-center h-screen bg-[#242424] text-white overflow-hidden">
       <Particles
@@ -106,4 +106,5 @@ const NotFound = () => {
   );
 };
 
+NotFound.displayName = 'NotFound';
 export default NotFound;

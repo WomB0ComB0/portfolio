@@ -1,14 +1,14 @@
-'use client'; // Required for onClick handlers in buttons
+'use client';
 
-import Layout from '@/components/layout/Layout';
+import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Github, Linkedin, Mail } from 'lucide-react';
 import { SiGooglescholar } from 'react-icons/si';
 import Image from 'next/image';
-import Link from 'next/link'; // Added import for navigation links
+import Link from 'next/link';
 
-export default function Home() {
+export const Home = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -118,3 +118,5 @@ export default function Home() {
     </Layout>
   );
 }
+Home.displayName = 'Home';
+export default Home;

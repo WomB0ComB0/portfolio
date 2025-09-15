@@ -1,2 +1,2 @@
-export * from './useMessages';
-export * from './useIntervals';
+export * from './use-messages';
+export * from './use-intervals';

@@ -40,3 +40,5 @@ export const Slide = ({ children, className, delay }: props) => {
     </motion.div>
   );
 };
+Slide.displayName = 'Slide';
+export default Slide;

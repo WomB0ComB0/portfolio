@@ -2,6 +2,19 @@
   "name": "portfolio",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://github.com/WomB0ComB0/portfolio/",
+  "bugs": {
+    "url": "https://github.com/WomB0ComB0/portfolio/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WomB0ComB0/portfolio.git"
+  },
+  "author": "Product Decoder",
+  "contributors": [
+    "WomB0ComB0"
+  ],
+  "sideEffects": false,
   "type": "module",
   "scripts": {
     "analyze": "cross-env ANALYZE=true next build && bun report-bundle-size.js",
@@ -9,17 +22,35 @@
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
     "build": "next build",
     "dev": "next dev",
+    "e2e:ci": "bun run e2e:install && bunx playwright test --project=chromium",
+    "e2e:install": "bunx playwright install",
     "gen": "graphql-codegen --config codegen.yml",
     "lint": "bunx biome check --write ./ || true && bunx stylelint src/styles/**/*.{css,scss,sass} --fix || true",
     "start": "next start",
-    "type": "tsc --noEmit",
     "test": "vitest run",
-    "e2e:ci": "bun run e2e:install && bunx playwright test --project=chromium",
-    "e2e:install": "bunx playwright install"
+    "type": "tsc --noEmit"
+  },
+  "browserslist": {
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ],
+    "production": [
+      "defaults",
+      "not dead",
+      "not IE 11",
+      "not IE_Mob 11",
+      "maintained node versions"
+    ]
   },
   "dependencies": {
     "@biomejs/biome": "2.2.0",
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@elysiajs/cors": "^1.3.3",
+    "@elysiajs/opentelemetry": "^1.3.0",
+    "@elysiajs/server-timing": "^1.3.0",
+    "@elysiajs/swagger": "^1.3.0",
     "@google-analytics/data": "^5.1.0",
     "@googlemaps/markerclusterer": "^2.5.3",
     "@hookform/resolvers": "^5.0.1",
@@ -30,6 +61,7 @@
     "@million/lint": "^1.0.14",
     "@opentelemetry/api-logs": "^0.203.0",
     "@opentelemetry/instrumentation": "^0.203.0",
+    "@opentelemetry/resources": "^2.0.1",
     "@opentelemetry/sdk-logs": "^0.203.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
@@ -51,6 +83,7 @@
     "@trpc/next": "^11.1.2",
     "@trpc/react-query": "^11.1.4",
     "@trpc/server": "^11.1.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@vercel/analytics": "^1.3.1",
     "@vercel/og": "^1.0.0",
     "@vercel/otel": "^1.10.0",
@@ -63,6 +96,10 @@
     "clsx": "^2.1.1",
     "critters": "^0.0.25",
     "date-fns": "^4.1.0",
+    "elysia": "1.3.5",
+    "elysia-ip": "^1.0.10",
+    "elysia-rate-limit": "^4.4.0",
+    "elysiajs-helmet": "^1.0.2",
     "firebase": "^12.0.0",
     "firebase-admin": "^13.4.0",
     "framer-motion": "^12.7.3",
@@ -72,6 +109,7 @@
     "jotai-effect": "^2.1.1",
     "jotai-tanstack-query": "^0.11.0",
     "kbar": "0.1.0-beta.45",
+    "logixlysia": "^5.1.0",
     "lucide-react": "^0.540.0",
     "million": "^3.1.11",
     "mkdirp": "^3.0.1",
@@ -123,6 +161,15 @@
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.2"
   },
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
   "ct3aMetadata": {
     "initVersion": "7.28.0"
   }

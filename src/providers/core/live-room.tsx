@@ -1,6 +1,6 @@
 'use client';
 
-import Cursor from '@/app/_components/liveblocks/Cursor';
+import Cursor from '@/app/_components/liveblocks/cursor';
 import { COLORS } from '@/constants';
 import { useOthers, useUpdateMyPresence } from '@liveblocks/react';
 import { useSearchParams } from 'next/navigation';

@@ -20,3 +20,4 @@ export const Icons: IconsProps = {
     ),
   },
 };
+export default Icons;
