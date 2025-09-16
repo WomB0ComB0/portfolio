@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import superjson from 'superjson';
 import { z } from 'zod';
 
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-let cache: { data: any; timestamp: number } | null = null;
+const CACHE_DURATION = 60 * 60 * 1_000; // 1 hour
+let cache: { data: unknown; timestamp: number } | null = null;
 
 const RepoSchema = z.object({
   name: z.string(),
