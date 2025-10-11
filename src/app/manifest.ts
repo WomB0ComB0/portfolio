@@ -1,12 +1,119 @@
 import type { MetadataRoute } from 'next';
 
-// @ts-ignore
-type ExtendedScreenshot = MetadataRoute.Manifest['screenshots'][number] & {
-  form_factor?: 'narrow' | 'wide';
-};
+/**
+ * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property
+ * @typedef {Object} ExtendedScreenshot
+ * @property {string} src - Source URL of the screenshot image
+ * @property {string} sizes - Dimensions of the screenshot in format "widthxheight"
+ * @property {string} type - MIME type of the image (e.g. "image/png")
+ * @property {'narrow' | 'wide'} [form_factor] - Optional form factor indicating if screenshot is for narrow/mobile or wide/desktop views
+ */
 
+/**
+ * Extended manifest type that overrides screenshots array with ExtendedScreenshot type
+ * @typedef {Object} ExtendedManifest
+ * @extends {Omit<MetadataRoute.Manifest, 'screenshots'>}
+ * @property {ExtendedScreenshot[]} [screenshots] - Array of screenshots with optional form factor property
+ */
 type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
-  screenshots?: ExtendedScreenshot[];
+  screenshots?: Array<{
+    src: string;
+    sizes: string;
+    type: string;
+    form_factor?: 'narrow' | 'wide';
+  }>;
+  tab_strip?: {
+    [key: string]: {
+      url: string;
+      icons: Array<{
+        src: string;
+        sizes: string;
+        type: string;
+        purpose: string;
+      }>;
+    };
+  };
+
+  launch_handler?: {
+    client_mode: 'auto' | 'focus-existing' | 'navigate-existing' | 'navigate-new';
+    navigate_existing_client?: 'always' | 'never';
+  };
+
+  edge_side_panel?: {
+    preferred_width?: number;
+  };
+
+  file_handlers?: Array<{
+    action: string;
+    accept: Record<string, string[]>;
+    launch_type?: 'single-client' | 'multiple-clients';
+  }>;
+
+  protocol_handlers?: Array<{
+    protocol: string;
+    url: string;
+    title?: string;
+  }>;
+
+  share_target?: {
+    action: string;
+    method: string;
+    enctype?: string;
+    params?: {
+      title?: string;
+      text?: string;
+      url?: string;
+      files?: Array<{
+        name: string;
+        accept: string[];
+      }>;
+    };
+  };
+
+  shortcuts_menu_items?: Array<{
+    name: string;
+    url: string;
+    description?: string;
+    icons?: Array<{
+      src: string;
+      sizes: string;
+      type: string;
+    }>;
+  }>;
+
+  widgets?: {
+    [key: string]: {
+      name: string;
+      description: string;
+      tag: string;
+      ms_ac_template: string;
+      data: string;
+      type: string;
+      screenshots: Array<{
+        src: string;
+        sizes: string;
+        type: string;
+        platform?: string;
+      }>;
+      icons: Array<{
+        src: string;
+        sizes: string;
+        type: string;
+      }>;
+      auth?: boolean;
+      update?: number;
+    };
+  };
+
+  handle_links?: 'auto' | 'preferred' | 'not-preferred';
+
+  scope_extensions?: Array<{
+    origin: string;
+  }>;
+
+  note_taking?: {
+    new_note_url: string;
+  };
 };
 
 export default function manifest(): ExtendedManifest {
@@ -34,6 +141,51 @@ export default function manifest(): ExtendedManifest {
     orientation: 'portrait-primary',
     display_override: ['minimal-ui', 'browser', 'fullscreen', 'window-controls-overlay'],
     display: 'standalone',
+    share_target: {
+      action: '/',
+      method: 'GET',
+      enctype: 'application/x-www-form-urlencoded',
+      params: {
+        title: 'Check out this portfolio!',
+        text: 'I found this portfolio really interesting.',
+        url: 'https://mikeodnis.dev',
+      },
+    },
+    handle_links: 'preferred',
+    scope_extensions: [
+      { origin: '*.mikeodnis.dev' },
+    ],
+    edge_side_panel: {
+      preferred_width: 480,
+    },
+    protocol_handlers: [
+      {
+        protocol: 'mailto',
+        url: 'mailto:example@example.com',
+      },
+      {
+        protocol: 'web+mikeodnis',
+        url: 'https://mikeodnis.dev',
+      }
+    ],
+    launch_handler: {
+      client_mode: 'auto',
+      navigate_existing_client: 'always',
+    },
+    // TODO: Add file_handlers when needed
+    tab_strip: {
+      '<name>': {
+        url: '/',
+        icons: [
+          {
+            src: '/assets/svgs/logo.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    },
     icons: [
       {
         src: '/assets/svgs/logo.svg',
@@ -857,5 +1009,5 @@ export default function manifest(): ExtendedManifest {
       },
     ],
     prefer_related_applications: false,
-  } as ExtendedManifest;
+  } as const satisfies ExtendedManifest;
 }

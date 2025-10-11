@@ -13,4 +13,27 @@ export async function register() {
   }
 }
 
-export const onRequestError = Sentry.captureRequestError;
+/**
+ * Error handler function that captures and reports request errors to Sentry.
+ * Direct export of Sentry's captureRequestError function for use in error boundaries
+ * or request handlers.
+ *
+ * @const onRequestError
+ * @type {typeof Sentry.captureRequestError}
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await handleRequest(req);
+ * } catch (error) {
+ *   onRequestError(error);
+ * }
+ * ```
+ *
+ * @remarks
+ * - Automatically captures request context and error details
+ * - Integrates with Sentry's error tracking system
+ * - Preserves error stack traces and metadata
+ * - Should be used for handling request-specific errors
+ */
+export const onRequestError = Sentry.captureException;

@@ -1,6 +1,11 @@
 import type { MetadataRoute } from 'next';
+import { headers } from 'next/headers';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const headersList = await headers();
+  const domain = headersList.get('host') as string;
+  const protocol = 'https';
+
   return [
     {
       url: 'https://mikeodnis.dev',

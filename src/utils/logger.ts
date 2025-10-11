@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 GDG on Campus Farmingdale State College
+ * Copyright 2025 Product Decoder
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ export interface LogData {
 	/**
 	 * Any key-value pairs to include in the log
 	 */
-	[key: PropertyKey]: unknown;
+	[key: string]: unknown;
 }
 
 /**
@@ -143,7 +143,7 @@ export class Logger {
 	};
 
 	/** Mapping of log levels to their display colors */
-	private levelColors: Record<PropertyKey, ColorKey> = {
+	private levelColors: Record<string, ColorKey> = {
 		error: "red",
 		warn: "yellow",
 		info: "blue",
@@ -311,7 +311,7 @@ export class Logger {
 		if (!this.shouldLog(LogLevel.INFO)) return;
 		const formattedData = this.formatMessage("info", message, data);
 		console.log(
-			this.colorize(this.levelColors.info, this.formatLogLevel("info")) +
+			this.colorize(this.levelColors.info!, this.formatLogLevel("info")) +
 				" " +
 				this.formatOutput(formattedData),
 		);
@@ -339,7 +339,7 @@ export class Logger {
 		console.error(
 			this.colorize(
 				"bold",
-				this.colorize(this.levelColors.error, this.formatLogLevel("error")),
+				this.colorize(this.levelColors.error!, this.formatLogLevel("error")),
 			) +
 				" " +
 				this.formatOutput(formattedData),
@@ -356,7 +356,7 @@ export class Logger {
 		if (!this.shouldLog(LogLevel.WARN)) return;
 		const formattedData = this.formatMessage("warn", message, data);
 		console.warn(
-			this.colorize(this.levelColors.warn, this.formatLogLevel("warn")) +
+			this.colorize(this.levelColors.warn!, this.formatLogLevel("warn")) +
 				" " +
 				this.formatOutput(formattedData),
 		);
@@ -372,7 +372,7 @@ export class Logger {
 		if (!this.shouldLog(LogLevel.DEBUG)) return;
 		const formattedData = this.formatMessage("debug", message, data);
 		console.debug(
-			this.colorize(this.levelColors.debug, this.formatLogLevel("debug")) +
+			this.colorize(this.levelColors.debug!, this.formatLogLevel("debug")) +
 				" " +
 				this.formatOutput(formattedData),
 		);
@@ -388,7 +388,7 @@ export class Logger {
 		if (!this.shouldLog(LogLevel.TRACE)) return;
 		const formattedData = this.formatMessage("trace", message, data);
 		console.debug(
-			this.colorize(this.levelColors.trace, this.formatLogLevel("trace")) +
+			this.colorize(this.levelColors.trace!, this.formatLogLevel("trace")) +
 				" " +
 				this.formatOutput(formattedData),
 		);
@@ -404,7 +404,7 @@ export class Logger {
 		if (!this.shouldLog(LogLevel.INFO)) return;
 		const formattedData = this.formatMessage("action", message, data);
 		console.log(
-			this.colorize(this.levelColors.action, this.formatLogLevel("action")) +
+			this.colorize(this.levelColors.action!, this.formatLogLevel("action")) +
 				" " +
 				this.formatOutput(formattedData),
 		);
@@ -420,7 +420,7 @@ export class Logger {
 		if (!this.shouldLog(LogLevel.INFO)) return;
 		const formattedData = this.formatMessage("success", message, data);
 		console.log(
-			this.colorize(this.levelColors.success, this.formatLogLevel("success")) +
+			this.colorize(this.levelColors.success!, this.formatLogLevel("success")) +
 				" " +
 				this.formatOutput(formattedData),
 		);
@@ -484,7 +484,7 @@ const logger = new Logger("UserService");
 logger.info("User logged in", { userId: "123" });
 
 // With options
-const detailedLogger = new Logger("AuthService", {
+const detailedLogger = new Logger("AuthService", { 
   minLevel: LogLevel.DEBUG,
   includeTimestamp: true,
   colorize: true

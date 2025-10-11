@@ -34,23 +34,17 @@ const app = new Elysia({ prefix: "/api/v1" })
       path: '/swagger',
       documentation: {
         info: {
-          title: '🦊 Product Decoder API Server',
+          title: '🦊 Portfolio v3 API Server',
           version: version || '1.0.0',
           description: `
-						**Product Decoder API Server**
+						Portfolio v3
 
-						This API provides:
-						- 🔍 **Search & Vision**: Google Custom Search, YouTube search, and reverse image search
-						- 📰 **News**: GNews integration for articles and headlines
-						- 🚀 **Performance**: OpenTelemetry tracing, rate limiting, and caching
-						- 🔒 **Security**: Helmet security headers and CORS protection
-						- 📊 **Monitoring**: Health checks, status endpoints, and observability
 
-						> **Contact:** [API Support](mailto:support@your-api.com)
+						> **Contact: [API Support](mailto:mike@mikeodnis.dev)
           `,
           contact: {
             name: 'API Support',
-            email: 'support@your-api.com',
+            email: 'mike@mikeodnis.dev',
           },
         },
         tags: [
@@ -61,22 +55,6 @@ const app = new Elysia({ prefix: "/api/v1" })
           {
             name: 'Info',
             description: 'API information endpoints',
-          },
-          {
-            name: 'Vision',
-            description: 'Google Vision API integration',
-          },
-          {
-            name: 'News',
-            description: 'GNews API integration',
-          },
-          {
-            name: 'Search',
-            description: 'Google Custom Search integration',
-          },
-          {
-            name: 'YouTube',
-            description: 'YouTube Data API integration',
           },
         ],
       },

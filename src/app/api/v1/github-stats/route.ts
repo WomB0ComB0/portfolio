@@ -70,7 +70,7 @@ export async function GET() {
         language: repo.language,
         url: repo.html_url,
       })),
-    };
+    } as const;
 
     cache = { data, timestamp: Date.now() };
 

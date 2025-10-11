@@ -48,7 +48,7 @@
     "**/*.cjs",
     "**/*.js",
     ".next/types/**/*.ts",
-    "next.config.mjs",
+    "next.config.ts",
     "custom.d.ts"
   ],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.spec.tsx", "**/*.test.ts", "**/*.test.tsx"]
