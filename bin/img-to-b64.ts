@@ -1,3 +1,6 @@
+#!/usr/bin/env bun
+// -*- typescript -*-
+
 import { $ } from 'bun';
 import sharp from 'sharp';
 

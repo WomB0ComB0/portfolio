@@ -173,6 +173,17 @@ alias clip='xclip -selection clipboard'
 alias sb='source ~/.bashrc'
 alias nb='nano ~/.bashrc'
 
+# Portfolio bin scripts
+alias audit='bun run bin:audit'
+alias check-unused='bun run bin:check-unused'
+alias copyright='bun run bin:copyright'
+alias copyright-check='bun run bin:copyright:check'
+alias img-to-b64='bun run bin:img-to-b64'
+alias lighthouse='bun run bin:lighthouse'
+alias package-cost='bun run bin:package-cost'
+alias remove-duplicates='bun run bin:remove-duplicates'
+alias tree-shake='bun run bin:tree-shake'
+
 # Add an "alert" alias for long running commands
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 

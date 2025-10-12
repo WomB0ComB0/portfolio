@@ -28,7 +28,16 @@
     "lint": "bunx biome check --write ./ || true && bunx stylelint src/styles/**/*.{css,scss,sass} --fix || true",
     "start": "next start",
     "test": "vitest run",
-    "type": "tsc --noEmit"
+    "type": "tsc --noEmit",
+    "bin:audit": "bun run bin/audit.ts",
+    "bin:check-unused": "bun run bin/check-unused.ts",
+    "bin:copyright": "bun run bin/copyright.ts",
+    "bin:copyright:check": "bun run bin/copyright.ts --check",
+    "bin:img-to-b64": "bun run bin/img-to-b64.ts",
+    "bin:lighthouse": "bun run bin/light-house.ts",
+    "bin:package-cost": "bun run bin/package-cost.ts",
+    "bin:remove-duplicates": "bun run bin/remove-duplicate-packages.ts",
+    "bin:tree-shake": "bun run bin/unused-tree-shake.ts"
   },
   "browserslist": {
     "development": [

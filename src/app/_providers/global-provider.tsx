@@ -3,9 +3,9 @@
 import { Analytics } from '@vercel/analytics/react';
 import type React from 'react';
 import { useEffect } from 'react';
-import WebVitals from '@/app/_components/web-vitals';
+import { WebVitals } from '@/app/_components';
 import { PageTransition, TailwindIndicator } from '@/components';
-import { Events, GlobalStoreProvider, Providers, ScrollProvider } from '@/providers';
+import { Events, GlobalStoreProvider, Providers } from '@/providers';
 
 const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   useEffect(() => {
@@ -25,7 +25,6 @@ const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
       <Providers
         providers={[
           [GlobalStoreProvider, {}],
-          [ScrollProvider, {}],
           [Events, {}],
         ]}
       >

@@ -1,3 +1,6 @@
+#!/usr/bin/env tsx
+// -*- typescript -*-
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { $ } from 'bun';
@@ -11,7 +14,7 @@ const packageJsonPath = path.join(rootDir, 'package.json');
 console.log('Checking:', packageJsonPath);
 
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as PackageJson;
-const OUTPUT_DIR = './scripts/out';
+const OUTPUT_DIR = './bin/out';
 
 const options = {
   ignoreMatches: [
@@ -31,7 +34,7 @@ const options = {
     'public',
     'node_modules',
     'coverage',
-    'scripts',
+    'bin',
     'out',
     '.next',
     '.vscode',

@@ -1,3 +1,6 @@
+#!/usr/bin/env bun
+// -*- typescript -*-
+
 export default (Array.from(
   (await Bun.$`bun run audit`.text()).split('\n').filter(Boolean).filter(isNotNull),
 )
