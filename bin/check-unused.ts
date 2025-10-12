@@ -3,6 +3,7 @@ import path from 'node:path';
 import { $ } from 'bun';
 import depcheck from 'depcheck';
 import type { PackageJson } from 'type-fest';
+import { Stringify } from '@/utils';
 
 // If you're coming from GitHub Gist, you can remove or change this
 const rootDir = path.join(__dirname, '..'); // Go up one level to project root
@@ -51,19 +52,19 @@ depcheck(rootDir, options)
     console.log('\nUnused Dependencies:');
     fs.writeFileSync(
       `${OUTPUT_DIR}/unused-dependencies.json`,
-      JSON.stringify(unused.dependencies, null, 2),
+      Stringify(unused.dependencies),
     );
 
     console.log('\nUnused DevDependencies:');
     fs.writeFileSync(
       `${OUTPUT_DIR}/unused-dev-dependencies.json`,
-      JSON.stringify(unused.devDependencies, null, 2),
+      Stringify(unused.devDependencies),
     );
 
     console.log('\nMissing Dependencies:');
     fs.writeFileSync(
       `${OUTPUT_DIR}/missing-dependencies.json`,
-      JSON.stringify(unused.missing, null, 2),
+      Stringify(unused.missing),
     );
 
     const allDependencies = Object.keys(packageJson.dependencies || {}).concat(

@@ -1,7 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { redis } from '@/classes/redis';
-import { logger } from '@/utils';
-import { isIpInBanListString } from './get-ip';
+import { Logger } from '@/utils';
+import { isIdentifierBanned, isIdentifierSlowed } from './banlist';
 
 export type RateLimitHelper = {
   rateLimitingType?: 'default' | 'forcedSlowMode' | 'auth' | 'api' | 'ai';
@@ -39,15 +39,31 @@ const limiter = {
     analytics: true,
     prefix: 'ratelimit:ai',
   }),
-} as const;
+} as const satisfies Record<string, Ratelimit>;
 
 export const rateLimiter = (rateLimitingType: RateLimitHelper['rateLimitingType'] = 'default') => {
-  const log = logger.getSubLogger({ prefix: ['RateLimit', rateLimitingType] });
+  const log = Logger.getLogger(`RateLimit:${rateLimitingType}`);
+
   return async function rateLimit({ identifier }: RateLimitHelper) {
-    if (isIpInBanListString(identifier)) {
-      log.info('IP is in ban list', { identifier });
+    // Check if identifier is permanently banned (returns 403-equivalent)
+    if (await isIdentifierBanned(identifier)) {
+      log.info('Hard-banned identifier blocked', { identifier });
+      // Return a rate limit response that will be rejected
+      return {
+        success: false,
+        remaining: 0,
+        limit: 0,
+        reset: Math.floor(Date.now() / 1_000),
+        pending: Promise.resolve(),
+      };
+    }
+
+    // Check if identifier should be rate-limited more aggressively
+    if (await isIdentifierSlowed(identifier)) {
+      log.info('Slow-mode identifier detected', { identifier });
       return limiter.forcedSlowMode.limit(identifier);
     }
+
     log.info('Rate limiting', { identifier });
     return limiter[rateLimitingType].limit(identifier);
   };

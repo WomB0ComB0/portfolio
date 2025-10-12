@@ -6,7 +6,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import fetcher from '@/lib/fetcher';
+import { fetcher } from '@/lib';
 import NumberTicker from './ui/number-ticker';
 
 interface StatCard {

@@ -15,14 +15,11 @@ import {
   FiBookOpen,
   FiBriefcase,
   FiClipboard, // Added FiClipboard
-  FiDollarSign,
   FiFileText,
   FiHeadphones,
   FiHome,
   FiMapPin,
   FiPaperclip,
-  FiUser,
-  FiZap,
 } from 'react-icons/fi';
 
 import { SiHashnode } from 'react-icons/si';

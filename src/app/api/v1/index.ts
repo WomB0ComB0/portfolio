@@ -4,7 +4,6 @@ export { githubStatsRoute } from './[[...route]]/github-stats';
 export { googleRoute } from './[[...route]]/google';
 export { lanyardRoute } from './[[...route]]/lanyard';
 export { messagesRoute } from './[[...route]]/messages';
-// Re-export individual routes for use elsewhere if needed
 export { nowPlayingRoute } from './[[...route]]/now-playing';
 export * from './[[...route]]/route';
 export { topArtistsRoute } from './[[...route]]/top-artists';

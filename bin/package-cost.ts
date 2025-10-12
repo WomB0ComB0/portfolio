@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // -*- typescript -*-
 
+import { Stringify } from '@/utils';
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -52,7 +53,7 @@ const categorizedPackages = {
 
 () => mkdirSync(OUTPUT_DIR, { recursive: true });
 
-writeFileSync(`${OUTPUT_DIR}/package-sizes.json`, JSON.stringify(categorizedPackages, null, 2), {
+writeFileSync(`${OUTPUT_DIR}/package-sizes.json`, Stringify(categorizedPackages), {
   flag: 'w',
 });
 

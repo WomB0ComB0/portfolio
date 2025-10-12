@@ -1,6 +1,6 @@
+import type { MetadataRoute } from 'next';
 import { app } from '@/constants';
 import { obfuscateLink } from '@/utils';
-import type { MetadataRoute } from 'next';
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property

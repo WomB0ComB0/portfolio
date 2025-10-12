@@ -17,7 +17,6 @@ export const test = base.extend<
       page: Page & TestExtras;
     }
 >({
-  //@ts-expect-error
   page: async ({ baseURL, page }, use, testInfo) => {
     const testFilePath = testInfo.titlePath[0] || '';
 

@@ -19,7 +19,7 @@ import { logger } from '@/utils';
  * ```
  *
  * @remarks
- * - Uses JSON.stringify() internally with null replacer and 2-space indent
+ * - Uses Stringify() internally with null replacer and 2-space indent
  * - Handles circular references by throwing an error
  * - Preserves object structure and nesting
  * - Useful for debugging, logging, and data serialization
@@ -360,7 +360,7 @@ export const Capitalize = (text: string): string => {
  * - Handles inherited properties
  * - Performance optimized
  * - Type-agnostic
- * - Consistent with JSON.stringify
+ * - Consistent with Stringify
  * - ES5+ compatible
  */
 export const IsObjectEmpty = (obj: any): boolean => {
@@ -510,11 +510,11 @@ function defaultCacheKey(...args: any[]): string {
     }
 
     if (typeof arg === 'object') {
-      return JSON.stringify(arg);
+      return Stringify(arg);
     }
   }
 
-  return JSON.stringify(args);
+  return Stringify(args);
 }
 
 /**

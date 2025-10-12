@@ -1,4 +1,4 @@
-import { createCacheHeaders, createErrorHandler } from '../shared/middleware';
+import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 
 export const cacheHeaders = createCacheHeaders('JsonOnly');
 

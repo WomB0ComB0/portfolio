@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { signout, useSignOut } from '@/core/auth';
+import { JSX } from 'react';
 
 export function LogoutButton(props: LogoutButtonProps): JSX.Element {
   const { ...other } = props;

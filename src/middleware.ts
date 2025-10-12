@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { redis } from '@/classes/redis';
 import { env } from '@/env';
-import { csrfToken, getRateLimitReset, rateLimiter } from '@/lib';
 import type { RateLimitHelper } from '@/lib';
-import { logger } from '@/utils';
+import { csrfToken, getRateLimitReset, rateLimiter } from '@/lib';
+import { getClientIP } from '@/lib/security/get-ip';
+import { Logger, Stringify } from '@/utils';
+
+const logger = Logger.getLogger('Middleware');
 
 const publicAssetPaths = new Set<string>([
   '/assets/',
@@ -53,32 +57,37 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // Check for banned IPs early (before rate limiting)
+    if (env.NODE_ENV === 'production') {
+      const clientIp = getClientIP(request);
+      if (clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+        const isBanned = await redis.sismember('ban:ips', clientIp);
+        if (isBanned) {
+          logger.warn('Blocked banned IP at edge', {
+            ip: clientIp,
+            path: request.nextUrl.pathname,
+          });
+          return new NextResponse(
+            Stringify({
+              error: 'Forbidden',
+              message: 'Access denied',
+            }),
+            {
+              status: 403,
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
+          );
+        }
+      }
+    }
+
     const response = NextResponse.next({
       request: {
         headers: request.headers,
       },
     });
-
-    // Authentication logic commented out
-    /*
-    if (request.nextUrl.pathname.startsWith('/dashboard')) {
-      logger.debug('Checking authentication for dashboard access');
-      const { data: session } = await betterFetch<Session>('/api/auth/get-session', {
-        baseURL: request.nextUrl.origin,
-        headers: {
-          //get the cookie from the request
-          cookie: request.headers.get('cookie') || '',
-        },
-      });
-      if (!session) {
-        logger.info('Redirecting unauthenticated user from dashboard', {
-          path: request.nextUrl.pathname,
-        });
-        return NextResponse.redirect(new URL('/auth/login', request.url));
-      }
-      logger.debug('User authenticated for dashboard access', { userId: session.user?.id });
-    }
-    */
 
     if (!request.cookies.get('csrfToken')) {
       logger.debug('Setting CSRF token cookie');
@@ -117,7 +126,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
           reset: result.reset,
         });
         return new NextResponse(
-          JSON.stringify({
+          Stringify({
             error: 'Too Many Requests',
             message: `Please try again later. Reset time: ${getRateLimitReset(result.reset)}`,
             retryAfter: getRateLimitReset(result.reset),

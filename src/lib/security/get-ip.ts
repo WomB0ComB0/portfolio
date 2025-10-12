@@ -1,47 +1,45 @@
 import type { NextApiRequest } from 'next';
-import { z } from 'zod';
-
-export const parseIpFromHeaders = (value: string | string[]): string | undefined => Array.isArray(value) ? value[0] : value.split(',')[0];
 
 /**
- * Tries to extract IP address from a request
- * @see https://github.com/vercel/examples/blob/main/edge-middleware/ip-blocking/lib/get-ip.ts
- **/
+ * Helper to extract the first value from a header (handles arrays and comma-separated strings)
+ * @param value - Header value (string, string[], null, or undefined)
+ * @returns First extracted value or undefined
+ */
+const first = (value: string | string[] | null | undefined): string | undefined => {
+  if (!value) return undefined;
+  return Array.isArray(value) ? value[0] : value.split(',')[0]?.trim();
+};
+
+/**
+ * Extracts the client IP address from a request with Cloudflare/Vercel support.
+ * Priority order: CF-Connecting-IP → X-Real-IP → X-Forwarded-For → fallback to 127.0.0.1
+ *
+ * @param req - Next.js Request or NextApiRequest object
+ * @returns The client IP address or '127.0.0.1' as fallback
+ * @see https://developers.cloudflare.com/fundamentals/reference/http-headers/
+ */
+export function getClientIP(req: Request | NextApiRequest): string {
+  const headers =
+    req instanceof Request ? Object.fromEntries(req.headers) : (req.headers as Record<string, any>);
+
+  // Cloudflare sets this when traffic passes through CF (preferred)
+  const cf = first(headers['cf-connecting-ip'] || headers['CF-Connecting-IP']);
+  if (cf) return cf;
+
+  // Common reverse proxy header
+  const xr = first(headers['x-real-ip'] || headers['X-Real-IP']);
+  if (xr) return xr;
+
+  // Standard proxy chain header (get first IP in chain)
+  const xff = first(headers['x-forwarded-for'] || headers['X-Forwarded-For']);
+  if (xff) return xff;
+
+  return '127.0.0.1';
+}
+
+/**
+ * @deprecated Use getClientIP instead. Kept for backwards compatibility.
+ */
 export default function getIP(request: Request | NextApiRequest): string | undefined {
-  let xff =
-    request instanceof Request
-      ? request.headers.get('cf-connecting-ip')
-      : request.headers['cf-connecting-ip'];
-
-  if (xff === null) {
-    xff =
-      request instanceof Request ? request.headers.get('x-real-ip') : request.headers['x-real-ip'];
-  }
-
-  return xff ? parseIpFromHeaders(xff) : '127.0.0.1';
-}
-
-const banlistSchema = z.array(z.string());
-
-export const isIpInBanlist = (request: Request | NextApiRequest): boolean => {
-  const IP = getIP(request);
-  // TODO: Use env
-  const rawBanListJson = process.env.IP_BANLIST || '[]';
-  const banList = banlistSchema.parse(JSON.parse(rawBanListJson));
-  if (IP && banList.includes(IP)) {
-    console.log(`Found banned IP: ${IP} in IP_BANLIST`);
-    return true;
-  }
-  return false;
-}
-
-export const isIpInBanListString = (identifer: string): boolean => {
-  // TODO: Use env
-  const rawBanListJson = process.env.IP_BANLIST || '[]';
-  const banList = banlistSchema.parse(JSON.parse(rawBanListJson));
-  if (banList.includes(identifer)) {
-    console.log(`Found banned IP: ${identifer} in IP_BANLIST`);
-    return true;
-  }
-  return false;
+  return getClientIP(request);
 }

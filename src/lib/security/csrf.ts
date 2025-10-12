@@ -1,6 +1,6 @@
 import defer * as _ from 'crypto';
-import { env } from '@/env';
 import { nextCsrf } from 'next-csrf';
+import { env } from '@/env';
 
 const { setup, csrf } = nextCsrf({
   tokenKey: 'x-csrf-token',

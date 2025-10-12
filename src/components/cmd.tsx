@@ -10,7 +10,6 @@ import {
 } from 'kbar';
 import {
   Book,
-  Bookmark,
   Code,
   FileText,
   Headphones,

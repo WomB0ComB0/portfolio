@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FiCommand } from 'react-icons/fi';
 import { NavbarItems } from '@/constants/index';
 
-export default function MobileNavBar({ path }: { path: string }) {
+export const MobileNavBar = ({ path }: { path: string }) => {
   const { query } = useKBar();
   const router = useRouter();
 
@@ -44,3 +44,5 @@ export default function MobileNavBar({ path }: { path: string }) {
     </nav>
   );
 }
+MobileNavBar.displayName = 'MobileNavBar';
+export default MobileNavBar;

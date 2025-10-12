@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export default function Footer() {
+export const Footer = () => {
   return (
     <footer className="flex w-full prose absolute bottom-0 py-4 lg:px-0 md:px-8 px-8">
       <p className="dark:text-[#ba9bdd] text-[#ba9bdd]-700 m-0 text-sm">
@@ -25,3 +25,5 @@ export default function Footer() {
     </footer>
   );
 }
+Footer.displayName = 'Footer';
+export default Footer

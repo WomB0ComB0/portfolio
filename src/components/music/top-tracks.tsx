@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
-import fetcher from '@/lib/fetcher';
+import { fetcher } from '@/lib';
 
 interface Track {
   name: string;

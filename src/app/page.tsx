@@ -7,7 +7,6 @@ import { SiGooglescholar } from 'react-icons/si';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { obfuscateLink } from '@/utils';
 import { app } from '@/constants';
 
 export const Home = () => {

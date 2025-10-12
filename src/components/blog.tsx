@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import fetcher from '@/lib/fetcher';
+import { fetcher } from '@/lib';
 import { MagicCard } from './magicui';
 
 interface BlogPost {

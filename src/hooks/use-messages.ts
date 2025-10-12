@@ -1,5 +1,6 @@
 'use client';
 
+import { Stringify } from '@/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import superjson from 'superjson';
 
@@ -31,7 +32,7 @@ export function usePostMessage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: superjson.stringify(newMessage),
+        body: Stringify(newMessage),
       });
       if (!response.ok) {
         throw new Error(`Network response was not ok: ${response.status}`);

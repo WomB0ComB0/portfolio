@@ -29,7 +29,7 @@ export const permission = {
  * @type {import('@opentelemetry/resources').Resource}
  */
 export const otelResource = resourceFromAttributes({
-  [ATTR_SERVICE_NAME]: 'elysia-api',
+  [ATTR_SERVICE_NAME]: 'portfolio.elysia-api',
 });
 
 /**

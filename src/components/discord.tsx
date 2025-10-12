@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import fetcher from '@/lib/fetcher';
+import { fetcher } from '@/lib';
 
 interface LanyardResponse {
   json: {

@@ -18,7 +18,7 @@ export default (async () => {
       [
         'unlighthouse',
         '--site',
-        `${(await import('../packages/shared/src/constants')).app.url}`,
+        `${(await import('@/constants')).app.url}`,
         '--debug',
         '--no-cache',
         '--throttle',
@@ -26,7 +26,7 @@ export default (async () => {
         '5',
         // '--desktop',
         '--output-path',
-        '../../.unlighthouse',
+        '../.unlighthouse',
       ],
       { stdio: 'inherit', env: stringEnv as any },
     ).toString(),

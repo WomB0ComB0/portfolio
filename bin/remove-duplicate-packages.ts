@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 // -*- typescript -*-
+import { Stringify } from '@/utils';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PackageJson } from 'type-fest';
@@ -43,7 +44,7 @@ if (require.main === module) {
   (async () => {
     try {
       packageJson.dependencies = picked;
-      writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+      writeFileSync(packageJsonPath, Stringify(packageJson));
     } catch (error) {
       console.error(`${error instanceof Error ? error.message : error}`);
     } finally {

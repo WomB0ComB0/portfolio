@@ -2,12 +2,10 @@
 
 import { usePathname } from 'next/navigation';
 import BlurryBlob from '@/components/animation/background/blurry-blob';
-import Palette from '@/components/CMD';
-import Footer from '@/components/layout/Footer';
+import Palette from '@/components/cmd';
+import { Footer, MobileNavBar, NavBar } from '.';
 import { DotPattern } from '@/components/magicui';
-import { LiveBlocksProvider } from '@/providers/core/LiveRoom';
-import MobileNavBar from './MobileNav';
-import NavBar from './Nav';
+import { LiveBlocksProvider } from '@/providers/core';
 
 export default function Layout({
   children,

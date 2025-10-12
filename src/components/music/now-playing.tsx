@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { SiSpotify } from 'react-icons/si';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import fetcher from '@/lib/fetcher';
+import { fetcher } from '@/lib';
 
 interface NowPlayingData {
   isPlaying: boolean;

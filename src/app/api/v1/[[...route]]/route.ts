@@ -7,8 +7,8 @@ import { Elysia } from 'elysia';
 import { ip } from 'elysia-ip';
 import { DefaultContext, type Generator, rateLimit } from 'elysia-rate-limit';
 import { elysiaHelmet } from 'elysiajs-helmet';
-import { logger, Stringify } from '@/utils';
-import { batchSpanProcessor, IS_VERCEL, otelResource, permission, version } from './constants';
+import { getURL, logger, Stringify } from '@/utils';
+import { batchSpanProcessor, IS_VERCEL, otelResource, permission, version } from '../../_elysia/constants';
 import { apiRoutes, utilityRoutes } from './elysia';
 
 /**
@@ -25,6 +25,10 @@ const app = new Elysia({ prefix: '/api/v1' })
     if (contentType === 'multipart/form-data') {
       return request.formData();
     }
+    if (contentType === 'application/json') {
+      return request.json();
+    }
+    return null;
   })
   .use(utilityRoutes)
   .use(apiRoutes)
@@ -133,7 +137,7 @@ const app = new Elysia({ prefix: '/api/v1' })
   // --- CORS configuration for cross-origin requests ---
   .use(
     cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Configurable frontend URL
+      origin: getURL(),
       methods: ['GET', 'POST', 'OPTIONS'], // Specify allowed HTTP methods
       allowedHeaders: ['Content-Type', 'Authorization'], // Specify allowed headers
       credentials: true, // Allow credentials (e.g., cookies, authorization headers)

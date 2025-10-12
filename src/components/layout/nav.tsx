@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { FiCommand } from 'react-icons/fi';
 import { NavbarItems } from '@/constants/index';
 
-export default function NavBar({ path }: { path: string }) {
+export const NavBar = ({ path }: { path: string }) => {
   const { query } = useKBar();
   const [tooltipVisibility, setTooltipVisibility] = useState(Array(7).fill(false));
 
@@ -63,3 +63,5 @@ export default function NavBar({ path }: { path: string }) {
     </div>
   );
 }
+NavBar.displayName = 'NavBar';
+export default NavBar;

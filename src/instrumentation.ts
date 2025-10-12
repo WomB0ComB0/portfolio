@@ -1,8 +1,9 @@
 'use server';
 
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
-import * as Sentry from '@sentry/nextjs';
-import { type Configuration, registerOTel } from '@vercel/otel';
+import defer * as Sentry from '@sentry/nextjs';
+import type { Configuration } from '@vercel/otel';
+import { registerOTel } from '@vercel/otel';
 import { env } from '@/env';
 
 /**
@@ -20,7 +21,7 @@ import { env } from '@/env';
  * ```
  *
  * @remarks
- * - Initializes OpenTelemetry with the service name 'ktp-national'
+ * - Initializes OpenTelemetry with the service name 'portfolio'
  * - Conditionally imports Sentry configs based on runtime environment
  * - Handles both Node.js and Edge runtime environments
  * - Should be called before the application starts handling requests
@@ -33,7 +34,7 @@ export const register = async (): Promise<void> => {
   try {
     if (process.env.NEXT_PUBLIC_VERCEL_ENV) {
       registerOTel({
-        serviceName: 'ktp-national',
+        serviceName: 'portfolio',
         instrumentations: runtime === 'edge' ? [] : undefined,
         instrumentationConfig: {
           fetch: {
@@ -52,18 +53,25 @@ export const register = async (): Promise<void> => {
     if (env.NEXT_PUBLIC_SENTRY_DSN) {
       try {
         if (runtime === 'edge') {
-          await import('../instrumentation-edge');
+          (await import('../instrumentation-edge').catch(() => {
+            throw new Error('Could not load Sentry edge config');
+          })) satisfies typeof import('../instrumentation-edge');
         } else {
-          await import('../instrumentation-server');
+          (await import('../instrumentation-server').catch(() => {
+            throw new Error('Could not load Sentry server config');
+          })) satisfies typeof import('../instrumentation-server');
         }
       } catch (e) {
         console.warn('Could not load Sentry config:', e);
-        // Optionally continue without Sentry rather than crashing
+        // Optionally continue without Sentry rather than crashing  
       }
     }
   } catch (error) {
-    console.error(`[${runtime} Instrumentation] Initialization error:`, error);
-    throw new Error(`[${runtime} Instrumentation] Initialization error: ${error}`);
+    console.error(`[Instrumentation:${runtime || 'unknown'}]`, Error.isError(error) ? error : `Error: ${String(error)}`);
+    Sentry.captureException(error);
+    throw Error.isError(error)
+      ? error 
+      : new Error(`Instrumentation initialization failed: ${String(error)}`);
   }
 };
 

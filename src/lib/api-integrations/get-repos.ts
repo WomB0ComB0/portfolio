@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { cache } from 'react';
+import { Stringify } from '@/utils';
 
 export interface PinnedRepo {
   name: string;
@@ -16,7 +17,7 @@ export interface PinnedRepo {
 export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
   const res = await fetch('https://api.github.com/graphql', {
     method: 'POST',
-    body: JSON.stringify({
+    body: Stringify({
       query: `
         query {
           user(login: "WomB0ComB0") {

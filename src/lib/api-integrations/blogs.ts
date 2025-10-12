@@ -1,3 +1,4 @@
+import { Stringify } from '@/utils';
 import 'server-only';
 
 const query = `
@@ -32,7 +33,7 @@ export async function getBlogs(username: string, page = 1, pageSize = 10): Promi
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
+    body: Stringify({
       query,
       variables: { username, page, pageSize },
     }),

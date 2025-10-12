@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Stringify } from "..";
+
 /**
  * @fileoverview A comprehensive logging utility for both client and server environments.
  * Provides structured logging with support for different log levels, colorization,
@@ -287,10 +289,10 @@ export class Logger {
         const { error, ...restData } = data;
         if (Object.keys(restData).length > 0) {
           logParts.push('\nAdditional Data:');
-          logParts.push(JSON.stringify(restData, null, 2));
+          logParts.push(Stringify(restData));
         }
       } else {
-        logParts.push('\n' + JSON.stringify(data, null, 2));
+        logParts.push('\n' + Stringify(data));
       }
     }
 

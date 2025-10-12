@@ -30,6 +30,9 @@ const env = createEnv({
 
     // CSRF
     CSRF_SECRET: z.string().min(1, 'CSRF Secret is required'),
+
+    // Admin
+    ADMIN_API_TOKEN: z.string().min(1, 'Admin API Token is required'),
   },
   client: {
     // Firebase Configuration
@@ -87,7 +90,7 @@ const env = createEnv({
     VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
     REACT_EDITOR: process.env.REACT_EDITOR,
     CSRF_SECRET: process.env.CSRF_SECRET,
-    
+
     // Client variables
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -110,6 +113,7 @@ const env = createEnv({
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
     NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
+    ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
   },
 });
 

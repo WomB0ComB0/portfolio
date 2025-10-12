@@ -6,4 +6,3 @@
  */
 
 export * from './get-contrasting-color';
-export * from './utils';
