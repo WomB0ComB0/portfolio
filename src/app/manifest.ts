@@ -1,3 +1,5 @@
+import { app } from '@/constants';
+import { obfuscateLink } from '@/utils';
 import type { MetadataRoute } from 'next';
 
 /**
@@ -152,21 +154,22 @@ export default function manifest(): ExtendedManifest {
       },
     },
     handle_links: 'preferred',
-    scope_extensions: [
-      { origin: '*.mikeodnis.dev' },
-    ],
+    scope_extensions: [{ origin: '*.mikeodnis.dev' }],
     edge_side_panel: {
       preferred_width: 480,
     },
     protocol_handlers: [
       {
         protocol: 'mailto',
-        url: 'mailto:example@example.com',
+        url: `${obfuscateLink({
+          scheme: 'mailto',
+          address: app.email,
+        })}`,
       },
       {
         protocol: 'web+mikeodnis',
         url: 'https://mikeodnis.dev',
-      }
+      },
     ],
     launch_handler: {
       client_mode: 'auto',

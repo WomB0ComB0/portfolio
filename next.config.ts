@@ -1,10 +1,9 @@
-import pwa, { type PluginOptions }  from '@ducanh2912/next-pwa';
+import pwa, { type PluginOptions } from '@ducanh2912/next-pwa';
 import MillionLint from '@million/lint';
 import withBundleAnalyzer from '@next/bundle-analyzer';
 import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 import './src/env';
-
 
 // Just in case you accidentally import these packages
 const EXEMPT_DEPS: Set<string> = new Set([
@@ -118,7 +117,7 @@ const config: NextConfig = {
       fullUrl: true,
     },
   },
-  
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
@@ -135,7 +134,7 @@ const config: NextConfig = {
     minimumCacheTTL: 60, // Cache images for 60 seconds minimum
     dangerouslyAllowSVG: false, // Prevent SVG XSS attacks
   },
-  
+
   experimental: {
     // nodeMiddleware: true,
     optimizePackageImports: [
@@ -189,15 +188,15 @@ const config: NextConfig = {
       },
     },
   },
-  
+
   typescript: {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors in production
   },
-  
+
   eslint: {
     ignoreDuringBuilds: false, // Don't ignore ESLint errors in production
   },
-  
+
   async rewrites() {
     return [
       { source: '/healthz', destination: '/api/health' },
@@ -206,32 +205,32 @@ const config: NextConfig = {
       { source: '/ping', destination: '/api/health' },
     ];
   },
-  
+
   async headers() {
     const securityHeaders = [
       {
         key: 'X-DNS-Prefetch-Control',
-        value: 'on'
+        value: 'on',
       },
       {
         key: 'Strict-Transport-Security',
-        value: 'max-age=63072000; includeSubDomains; preload'
+        value: 'max-age=63072000; includeSubDomains; preload',
       },
       {
         key: 'X-Content-Type-Options',
-        value: 'nosniff'
+        value: 'nosniff',
       },
       {
         key: 'X-XSS-Protection',
-        value: '1; mode=block'
+        value: '1; mode=block',
       },
       {
         key: 'Referrer-Policy',
-        value: 'strict-origin-when-cross-origin'
+        value: 'strict-origin-when-cross-origin',
       },
       {
         key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+        value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
       },
     ];
 
@@ -239,7 +238,7 @@ const config: NextConfig = {
       ...securityHeaders,
       {
         key: 'X-Frame-Options',
-        value: 'SAMEORIGIN'
+        value: 'SAMEORIGIN',
       },
     ];
 
@@ -266,11 +265,15 @@ const config: NextConfig = {
         source: '/api/:path*',
         headers: [
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: process.env.ALLOWED_ORIGIN || 'https://mikeodnis.dev' },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: process.env.ALLOWED_ORIGIN || 'https://mikeodnis.dev',
+          },
           { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS' },
           {
             key: 'Access-Control-Allow-Headers',
-            value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
+            value:
+              'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
           },
           {
             key: 'Cache-Control',
@@ -306,13 +309,11 @@ const config: NextConfig = {
       },
       {
         source: '/(.*).png',
-        headers: [
-          { key: 'Content-Type', value: 'image/png' },
-        ],
+        headers: [{ key: 'Content-Type', value: 'image/png' }],
       },
     ];
   },
-  
+
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -323,7 +324,7 @@ const config: NextConfig = {
         child_process: false,
       };
     }
-    
+
     config.module.rules.push({
       test: /\.(png|jpe?g|gif|svg|webp|avif)$/i,
       type: 'asset',
@@ -331,19 +332,19 @@ const config: NextConfig = {
         filename: 'static/media/[hash][ext][query]',
       },
     });
-    
+
     // Security: Disable source maps in production
     if (process.env.NODE_ENV === 'production') {
       config.devtool = false;
     }
-    
+
     return config;
   },
-  
+
   publicRuntimeConfig: {
     basePath: '',
   },
-  
+
   // Environment variable validation
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://mikeodnis.dev',
@@ -370,7 +371,7 @@ const sentryConfig = {
   project: process.env.SENTRY_PROJECT || 'portfolio',
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: process.env.NODE_ENV !== 'development',
-  
+
   release: {
     name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
     create: true,
@@ -380,13 +381,13 @@ const sentryConfig = {
       ignoreEmpty: true,
     },
   },
-  
+
   sourcemaps: {
     assets: ['.next/**/*.js', '.next/**/*.map'],
     ignore: ['node_modules/**/*', '.next/cache/**/*'],
     deleteSourcemapsAfterUpload: true,
   },
-  
+
   widenClientFileUpload: true,
   autoInstrumentServerFunctions: true,
   autoInstrumentMiddleware: true,
@@ -394,11 +395,11 @@ const sentryConfig = {
   tunnelRoute: '/monitoring',
   disableLogger: true,
   automaticVercelMonitors: true,
-  
+
   reactComponentAnnotation: {
     enabled: true,
   },
-  
+
   bundleSizeOptimizations: {
     excludeDebugStatements: true,
     excludeReplayShadowDom: true,

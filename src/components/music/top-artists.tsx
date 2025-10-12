@@ -1,10 +1,10 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { motion } from 'motion/react';
+import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import fetcher from '@/lib/fetcher';
-import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
 
 interface Artist {
   name: string;
@@ -37,7 +37,9 @@ export default function TopArtists() {
   return (
     <div className="bg-gradient-to-br from-purple-900 to-purple-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
       <h2 className="text-3xl font-bold text-white mb-2 text-center">Top Artists</h2>
-      <p className="text-purple-200 mb-6 text-center">My most played artists in the last 4 weeks.</p>
+      <p className="text-purple-200 mb-6 text-center">
+        My most played artists in the last 4 weeks.
+      </p>
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {[...Array(10)].map((_, index) => (

@@ -1,17 +1,6 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.6.3/schema.json",
-  "organizeImports": {
-    "enabled": true,
-    "ignore": [
-      "node_modules",
-      ".next",
-      "dist",
-      ".nuxt",
-      ".wrangler",
-      ".react-email",
-      "extension/dist"
-    ]
-  },
+  "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
@@ -23,13 +12,14 @@
         "noBannedTypes": "warn"
       }
     },
-    "ignore": [
-      "node_modules/**/*",
-      "dist/**/*",
-      "build/**/*",
-      ".next/**/*",
-      "public/**/*.js",
-      "extension/dist/**/*"
+    "includes": [
+      "**",
+      "!**/node_modules/**/*",
+      "!**/dist/**/*",
+      "!**/build/**/*",
+      "!**/.next/**/*",
+      "!**/public/**/*.js",
+      "!**/extension/dist/**/*"
     ]
   },
   "formatter": {
@@ -37,17 +27,18 @@
     "indentWidth": 2,
     "enabled": true,
     "lineWidth": 100,
-    "ignore": [
-      "node_modules",
-      ".next",
-      "dist",
-      ".wrangler",
-      "pnpm-lock.yaml",
-      "package.json",
-      "package-lock.json",
-      "yarn.lock",
-      "bun.lockb",
-      "extension/dist/**/*"
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/.wrangler",
+      "!**/pnpm-lock.yaml",
+      "!**/package.json",
+      "!**/package-lock.json",
+      "!**/yarn.lock",
+      "!**/bun.lockb",
+      "!**/extension/dist/**/*"
     ]
   },
   "javascript": {

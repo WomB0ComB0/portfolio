@@ -417,7 +417,6 @@ declare const sleep = <A extends number, R extends void>(n: A): Promise<R> => {
   return new Promise((resolve) => setTimeout(resolve, n));
 };
 
-
 /**
  * Handles an error value by optionally transforming it with a provided function.
  *
@@ -449,16 +448,8 @@ declare const sleep = <A extends number, R extends void>(n: A): Promise<R> => {
  * const value = 42;
  * const result = error(value); // result === 42
  */
-const error = <I, O>(
-  e: I, 
-  fn?: (error: I, ...args: any[]) => O, 
-  ...opts: any[]
-): I | O => {
+const error = <I, O>(e: I, fn?: (error: I, ...args: any[]) => O, ...opts: any[]): I | O => {
   const isError = Error.isError(e);
-  return isError 
-    ? ( fn 
-      ? fn(e, ...opts) 
-      : e) 
-    : e;
+  return isError ? (fn ? fn(e, ...opts) : e) : e;
 };
 //#endregion

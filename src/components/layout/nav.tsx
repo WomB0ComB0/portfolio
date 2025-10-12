@@ -1,10 +1,9 @@
 'use client';
 
-import { NavbarItems } from '@/constants/index';
 import { useKBar } from 'kbar';
-import React from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { FiCommand } from 'react-icons/fi';
+import { NavbarItems } from '@/constants/index';
 
 export default function NavBar({ path }: { path: string }) {
   const { query } = useKBar();

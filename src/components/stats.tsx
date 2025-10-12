@@ -1,12 +1,12 @@
 'use client';
 
+import { useQueries } from '@tanstack/react-query';
+import { AnimatePresence, motion } from 'motion/react';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import fetcher from '@/lib/fetcher';
-import { useQueries } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useEffect, useMemo, useState } from 'react';
-import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 import NumberTicker from './ui/number-ticker';
 
 interface StatCard {

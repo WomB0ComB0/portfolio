@@ -1,14 +1,14 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { motion } from 'motion/react';
+import { SiDiscord } from 'react-icons/si';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import fetcher from '@/lib/fetcher';
-import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { SiDiscord } from 'react-icons/si';
 
 interface LanyardResponse {
   json: {

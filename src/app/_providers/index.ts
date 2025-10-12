@@ -1,2 +1,2 @@
-export * from './main-provider';
 export * from './global-provider';
+export * from './main-provider';

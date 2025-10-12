@@ -1,4 +1,8 @@
-import Elysia from "elysia";
+import { record } from '@elysiajs/opentelemetry';
+import Elysia from 'elysia';
+import { Stringify } from '@/utils';
+import { IS_VERCEL, version } from '../constants';
+import { timingMiddleware } from '../middleware';
 
 /**
  * Utility routes for status, version, info, and health endpoints.

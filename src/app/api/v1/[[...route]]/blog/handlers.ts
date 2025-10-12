@@ -1,0 +1,27 @@
+import { getBlogs } from '@/lib';
+
+interface Blog {
+  title: string;
+  slug: string;
+  publishedAt: string;
+  excerpt: string;
+}
+
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+let cache: { data: Blog[]; timestamp: number } | null = null;
+
+export async function fetchBlogs(): Promise<Blog[]> {
+  if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
+    return cache.data;
+  }
+
+  const blogs: Blog[] = await getBlogs('WomB0ComB0');
+
+  if (!blogs || !Array.isArray(blogs)) {
+    throw new Error('Failed to fetch blogs');
+  }
+
+  cache = { data: blogs, timestamp: Date.now() };
+
+  return blogs;
+}

@@ -2,9 +2,8 @@
  * @module OpenGraph
  */
 
-import { constructMetadata, getURL } from '@/utils';
 import { ImageResponse } from 'next/og';
-
+import { constructMetadata, getURL } from '@/utils';
 
 /**
  * Generates an OpenGraph image for social media sharing
@@ -34,7 +33,7 @@ export async function GET(request: Request) {
   const title = searchParams?.get('title')?.[0] || metadata.title || 'Default Title';
   const description = searchParams?.get('description')?.[0] || String(metadata.description || '');
   console.log({ description });
-  // @ts-ignore
+  // @ts-expect-error
   console.log({ title: title.default });
 
   try {
@@ -50,22 +49,19 @@ export async function GET(request: Request) {
         console.warn('Failed to load Palatino font, falling back to system font');
         return null;
       });
-    return new ImageResponse(
-        <></>,
-              {
-        width: 1200,
-        height: 630,
-        ...(fontData && {
-          fonts: [
-            {
-              name: 'Palatino',
-              data: fontData,
-              style: 'normal',
-            },
-          ],
-        }),
-      },
-    )
+    return new ImageResponse(<></>, {
+      width: 1200,
+      height: 630,
+      ...(fontData && {
+        fonts: [
+          {
+            name: 'Palatino',
+            data: fontData,
+            style: 'normal',
+          },
+        ],
+      }),
+    });
   } catch (e: any) {
     console.log(`${e.message}`);
     return new Response('Failed to generate the image', {

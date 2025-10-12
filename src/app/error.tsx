@@ -33,6 +33,9 @@ const InternalServerError = dynamic(
 export default function Error({
   error,
   reset,
-}: { error: Error & { digest?: string }; reset: () => void }) {
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return <InternalServerError error={error} reset={reset} />;
 }

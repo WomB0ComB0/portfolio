@@ -1,8 +1,14 @@
-import { PlaceItem, PhotoItem } from '../types/places';
+import type { PhotoItem, PlaceItem } from '../types/places';
 
 const placeholderPhotos: PhotoItem[] = [
-  { url: 'https://via.placeholder.com/600x400.png?text=Landmark+View', caption: 'View from the location.' },
-  { url: 'https://via.placeholder.com/600x400.png?text=Event+Snapshot', caption: 'A snapshot from the event.' },
+  {
+    url: 'https://via.placeholder.com/600x400.png?text=Landmark+View',
+    caption: 'View from the location.',
+  },
+  {
+    url: 'https://via.placeholder.com/600x400.png?text=Event+Snapshot',
+    caption: 'A snapshot from the event.',
+  },
 ];
 
 const assignCategory = (name: string, description: string): string => {
@@ -10,8 +16,19 @@ const assignCategory = (name: string, description: string): string => {
   const lowerDescription = description.toLowerCase();
 
   if (lowerName.includes('hack') || lowerDescription.includes('hackathon')) return 'Hackathon';
-  if (lowerName.includes('devfest') || lowerName.includes('lisat') || lowerName.includes('field day') || lowerName.includes('conference')) return 'Conference';
-  if (lowerName.includes('jane street') || lowerName.includes('squarespace') || lowerName.includes('google') && (lowerName.includes('office') || lowerName.includes('event'))) return 'Tech Office'; // Google event could be tech office visit
+  if (
+    lowerName.includes('devfest') ||
+    lowerName.includes('lisat') ||
+    lowerName.includes('field day') ||
+    lowerName.includes('conference')
+  )
+    return 'Conference';
+  if (
+    lowerName.includes('jane street') ||
+    lowerName.includes('squarespace') ||
+    (lowerName.includes('google') && (lowerName.includes('office') || lowerName.includes('event')))
+  )
+    return 'Tech Office'; // Google event could be tech office visit
   if (lowerName.includes('columbia') && lowerDescription.includes('mentor')) return 'Event'; // Could be hackathon too, but let's be specific if possible
   return 'Event'; // Default category
 };
@@ -29,14 +46,14 @@ const rawPlacesData: Array<[string, string, number, number]> = [
   ['Hack Dartmouth - 2024', 'Hacker', 43.7037946, -72.2946593],
   ['HackMIT - 2024', 'Hacker', 42.360092, -71.094162],
   ['DivHacks - 2024', 'Mentor/Judge', 40.807537, -73.96257],
-  ['MHacks - 2024', 'Mentor/Judge', 42.291160, -83.715830],
-  ['Hack Dearborn 3: Rewind Reality - 2024', 'Volunteer', 42.317220, -83.230400],
-  ['Googly DevFest NYC 2024', 'Attendee',40.743661, -74.009000],
-  ['HackRU - Fall - 2024', 'Mentor/Hacker', 40.500820, -74.447395],
+  ['MHacks - 2024', 'Mentor/Judge', 42.29116, -83.71583],
+  ['Hack Dearborn 3: Rewind Reality - 2024', 'Volunteer', 42.31722, -83.2304],
+  ['Googly DevFest NYC 2024', 'Attendee', 40.743661, -74.009],
+  ['HackRU - Fall - 2024', 'Mentor/Hacker', 40.50082, -74.447395],
   ['HackPrinceton - Fall -2024', 'Hacker', 40.350292, -74.652831],
   ['IEEE LISAT 2024', 'Research presenter', 40.819012, -73.068539],
-  ['Google and Palo Alto Networks Cloud Hero Event', 'Attendee', 40.727630, -74.009924],
-  ['Hack Brown - 2025', 'Hacker', 41.826771, -71.402550],
+  ['Google and Palo Alto Networks Cloud Hero Event', 'Attendee', 40.72763, -74.009924],
+  ['Hack Brown - 2025', 'Hacker', 41.826771, -71.40255],
   ['Hack NYU', 'Hacker', 40.694632, -73.986704], // Duplicate name, different coords slightly & role
   ['Columbia DevFest', 'Mentor', 40.807427, -73.962519],
 ];
@@ -52,7 +69,7 @@ export const places: PlaceItem[] = rawPlacesData.map((place, index) => {
     latitude,
     longitude,
     category: assignCategory(name, description),
-    photos: placeholderPhotos.map(photo => ({ ...photo })), // Create new photo instances
+    photos: placeholderPhotos.map((photo) => ({ ...photo })), // Create new photo instances
   };
 });
 

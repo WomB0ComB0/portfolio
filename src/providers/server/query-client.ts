@@ -38,32 +38,32 @@ export const createQueryClient = cache(() => {
           },
           onSettled: (data, error, query) => {
             console.debug(`Query settled`, { data, error, query });
-          }
+          },
         }),
         mutationCache: new MutationCache({
           onError: (error) => {
-            console.error(`Mutation error: ${error}`, { message: error.message, stack: error.stack });
+            console.error(`Mutation error: ${error}`, {
+              message: error.message,
+              stack: error.stack,
+            });
             return Promise.resolve();
           },
           onSuccess: (data, variables, context, mutation) => {
-            console.info(
-              "Mutation succeeded",
-              {
-                data,
-                variables,
-                context,
-                mutationKey: mutation?.options?.mutationKey,
-                mutationFn: mutation?.options?.mutationFn?.name || "anonymous"
-              }
-            );
+            console.info('Mutation succeeded', {
+              data,
+              variables,
+              context,
+              mutationKey: mutation?.options?.mutationKey,
+              mutationFn: mutation?.options?.mutationFn?.name || 'anonymous',
+            });
             return Promise.resolve();
-          }
+          },
         }),
         defaultOptions: {
           dehydrate: {
             serializeData: SuperJSON.serialize,
             shouldDehydrateQuery: (query) =>
-              typeof defaultShouldDehydrateQuery !== "undefined"
+              typeof defaultShouldDehydrateQuery !== 'undefined'
                 ? defaultShouldDehydrateQuery(query) || query.state.status === 'pending'
                 : query.state.status === 'pending',
           },

@@ -1,10 +1,10 @@
 'use client';
 
-import Particles from '@/components/magicui/particles';
-import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react';
+import Particles from '@/components/magicui/particles';
+import { Button } from '@/components/ui/button';
 
 export const NotFound = () => {
   return (

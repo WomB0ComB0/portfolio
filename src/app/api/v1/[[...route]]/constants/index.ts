@@ -2,6 +2,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { app } from '@/constants';
 
 /**
  * Check if running on Vercel
@@ -62,9 +63,4 @@ export const batchSpanProcessor = otlpExporter
  * The current application version, loaded from package.json.
  * @type {string}
  */
-export const version: string =
-  (await import('../../../../../../package.json', { with: { type: 'json' } })
-    .then((t) => t.version)
-    .catch((err) => {
-      logger.error('Failed to load version from package.json', err);
-    })) || 'N/A';
+export const version: string = app.version;

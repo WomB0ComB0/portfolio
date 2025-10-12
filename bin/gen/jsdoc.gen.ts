@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-import { GoogleGenAI } from '@google/genai';
 import { execSync } from 'node:child_process';
 import { readdir, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
+import { GoogleGenAI } from '@google/genai';
 
 /**
  * @interface GenerationConfig
@@ -777,10 +777,7 @@ async function main() {
   let targetDirectory: string | null = null;
 
   if (concurrencyIndex !== -1 && concurrencyIndex < args.length - 1) {
-    maxConcurrency = Number.parseInt(
-      args[concurrencyIndex + 1] ?? '3',
-      10
-    );
+    maxConcurrency = Number.parseInt(args[concurrencyIndex + 1] ?? '3', 10);
     if (isNaN(maxConcurrency) || maxConcurrency < 1) {
       console.error('❌ Invalid concurrency value. Must be a positive integer.');
       process.exit(1);
@@ -788,10 +785,7 @@ async function main() {
   }
 
   if (retryIndex !== -1 && retryIndex < args.length - 1) {
-    retryAttempts = Number.parseInt(
-      args[retryIndex + 1] ?? '2', 
-      10
-    );
+    retryAttempts = Number.parseInt(args[retryIndex + 1] ?? '2', 10);
     if (isNaN(retryAttempts) || retryAttempts < 0) {
       console.error('❌ Invalid retry attempts value. Must be a non-negative integer.');
       process.exit(1);

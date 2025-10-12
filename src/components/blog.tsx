@@ -1,15 +1,15 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import fetcher from '@/lib/fetcher';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { AnimatePresence, motion } from 'framer-motion';
 import { atom, useAtom } from 'jotai';
 import { atomEffect } from 'jotai-effect';
 import { CalendarIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import fetcher from '@/lib/fetcher';
 import { MagicCard } from './magicui';
 
 interface BlogPost {

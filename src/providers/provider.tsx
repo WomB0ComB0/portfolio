@@ -1,10 +1,11 @@
 'use client';
 
-import { actions } from '@/lib/actions';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { KBarProvider } from 'kbar';
+import { actions } from '@/lib';
 import { CustomAnimatedCursor, Events, Providers, ThemeProvider } from '.';
-import { QueryProvider } from './QueryProvider';
+import { createQueryClient } from './server';
 
 export const Provider: React.FC<
   Readonly<{
@@ -23,7 +24,7 @@ export const Provider: React.FC<
             },
           ],
           [Events, {}],
-          [QueryProvider, {}],
+          [QueryClientProvider, { client: createQueryClient() }],
         ]}
       >
         <>

@@ -1,9 +1,9 @@
 'use client';
 
-import { NavbarItems } from '@/constants/index';
 import { useKBar } from 'kbar';
 import { useRouter } from 'next/navigation';
 import { FiCommand } from 'react-icons/fi';
+import { NavbarItems } from '@/constants/index';
 
 export default function MobileNavBar({ path }: { path: string }) {
   const { query } = useKBar();

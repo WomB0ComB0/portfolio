@@ -28,7 +28,7 @@ const generateLazyImage = async (
 };
 
 class ImageToB64 {
-  // @ts-ignore
+  // @ts-expect-error
   private readonly images: string[];
   private readonly width: number;
   private readonly height: number;

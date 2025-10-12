@@ -1,6 +1,6 @@
-import type { Repository } from '@/generated/graphql';
 import { GitFork, StarIcon } from 'lucide-react';
 import Link from 'next/link';
+import type { Repository } from '@/generated/graphql';
 
 const Repository = ({ name, description, stargazers, forkCount, languages, url }: Repository) => (
   <Link

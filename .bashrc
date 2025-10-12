@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2025 Product Decoder
+# Copyright 2025 Mike Odnis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -148,10 +148,6 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 alias lt='ls -lrth'  # Sort by time, human readable
-
-# project scripts
-alias killports='./bin/killports'
-alias docker='./bin/docker'
 
 # Directory navigation
 alias ..='cd ..'

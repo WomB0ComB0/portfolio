@@ -1,10 +1,10 @@
 'use client';
 
+import { ExternalLink, Globe } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ExternalLink, Globe } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 
 export default function LinksPage() {
   const [loaded, setLoaded] = useState(false);

@@ -1,8 +1,8 @@
 'use client';
 
-import { COLORS } from '@/constants';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import AnimatedCursor from 'react-animated-cursor';
+import { COLORS } from '@/constants';
 
 const colors = COLORS;
 

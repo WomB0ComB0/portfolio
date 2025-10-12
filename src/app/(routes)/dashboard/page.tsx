@@ -1,6 +1,6 @@
 import Discord from '@/components/Discord';
-import Stats from '@/components/Stats';
 import Layout from '@/components/layout/Layout';
+import Stats from '@/components/Stats';
 
 export default function DashboardPage() {
   return (

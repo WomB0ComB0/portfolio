@@ -16,6 +16,6 @@ export const GlobalError = ({ error }: { error: Error & { digest?: string } }) =
       </body>
     </html>
   );
-}
+};
 GlobalError.displayName = 'GlobalError';
 export default GlobalError;

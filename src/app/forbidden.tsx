@@ -1,5 +1,5 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 export const metadata = constructMetadata({ title: 'Forbidden' });
 

@@ -1,11 +1,11 @@
 'use client'; // Keep as client component if any interactivity is planned, or convert if not.
 
-import { CertificationItem } from '../../../types/sections';
-import { certificationsData } from '../../../data/homeSections';
+import { Award } from 'lucide-react'; // Using Award from lucide-react
+import Image from 'next/image';
 import Layout from '@/components/layout/Layout'; // Adjusted path
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Image from 'next/image';
-import { Award } from 'lucide-react'; // Using Award from lucide-react
+import { certificationsData } from '../../../data/homeSections';
+import type { CertificationItem } from '../../../types/sections';
 
 export default function CertificationsPage() {
   // Helper to format dates (can be moved to a utils file if used elsewhere)
@@ -13,19 +13,22 @@ export default function CertificationsPage() {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   };
 
   // Group certifications by category
-  const groupedCertifications = certificationsData.reduce((acc, cert) => {
-    const category = cert.category || 'General'; // Default category if none provided
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(cert);
-    return acc;
-  }, {} as Record<string, CertificationItem[]>);
+  const groupedCertifications = certificationsData.reduce(
+    (acc, cert) => {
+      const category = cert.category || 'General'; // Default category if none provided
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(cert);
+      return acc;
+    },
+    {} as Record<string, CertificationItem[]>,
+  );
 
   return (
     <Layout>
@@ -52,7 +55,9 @@ export default function CertificationsPage() {
                     className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300"
                   >
                     {cert.imageUrl && (
-                      <div className="w-full h-48 relative bg-gray-800"> {/* Added bg for better image presentation */}
+                      <div className="w-full h-48 relative bg-gray-800">
+                        {' '}
+                        {/* Added bg for better image presentation */}
                         <Image
                           src={cert.imageUrl}
                           alt={`${cert.title} logo`}
@@ -85,7 +90,7 @@ export default function CertificationsPage() {
           </section>
         ))}
         {Object.keys(groupedCertifications).length === 0 && (
-           <div className="text-center py-12">
+          <div className="text-center py-12">
             <p className="text-xl text-gray-400">No certifications available at the moment.</p>
           </div>
         )}

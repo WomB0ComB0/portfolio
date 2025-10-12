@@ -1,9 +1,9 @@
-import Layout from '@/components/layout/Layout';
-import { Button } from '@/components/ui/button';
-import { experienceData } from '@/data/homeSections';
 import { ArrowLeft, ExternalLink, Paperclip } from 'lucide-react'; // Added Paperclip for media links
 import Image from 'next/image';
 import Link from 'next/link';
+import Layout from '@/components/layout/Layout';
+import { Button } from '@/components/ui/button';
+import { experienceData } from '@/data/homeSections';
 
 export async function generateStaticParams() {
   return experienceData.map((exp) => ({
@@ -27,7 +27,10 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
             The experience item you are looking for does not exist.
           </p>
           <Link href="/" passHref legacyBehavior>
-            <Button variant="outline" className="text-purple-300 border-purple-700 hover:bg-purple-800">
+            <Button
+              variant="outline"
+              className="text-purple-300 border-purple-700 hover:bg-purple-800"
+            >
               <ArrowLeft className="mr-2 h-5 w-5" /> Back to Home
             </Button>
           </Link>
@@ -96,10 +99,17 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
                 <h3 className="text-xl font-semibold text-purple-300 mb-3">Related Media</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {media.map((mediaItem, index) => (
-                    <div key={index} className="bg-[#2a2a2a] p-3 rounded-lg border border-purple-700">
+                    <div
+                      key={index}
+                      className="bg-[#2a2a2a] p-3 rounded-lg border border-purple-700"
+                    >
                       {mediaItem.type === 'image' && mediaItem.url && (
                         <>
-                          {mediaItem.title && <p className="text-sm font-medium text-purple-300 mb-2">{mediaItem.title}</p>}
+                          {mediaItem.title && (
+                            <p className="text-sm font-medium text-purple-300 mb-2">
+                              {mediaItem.title}
+                            </p>
+                          )}
                           <div className="relative w-full h-40 rounded overflow-hidden">
                             <Image
                               src={mediaItem.url}
@@ -118,9 +128,7 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
                           className="flex items-center text-purple-400 hover:text-purple-300 transition-colors"
                         >
                           <Paperclip className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="truncate">
-                            {mediaItem.title || mediaItem.url}
-                          </span>
+                          <span className="truncate">{mediaItem.title || mediaItem.url}</span>
                           <ExternalLink className="ml-auto h-4 w-4 flex-shrink-0" />
                         </Link>
                       )}
@@ -132,7 +140,10 @@ export default function ExperienceDetailPage({ params }: ExperienceDetailPagePro
 
             <div className="mt-8 pt-6 border-t border-purple-700">
               <Link href="/">
-                <Button variant="outline" className="text-purple-300 border-purple-700 hover:bg-purple-800">
+                <Button
+                  variant="outline"
+                  className="text-purple-300 border-purple-700 hover:bg-purple-800"
+                >
                   <ArrowLeft className="mr-2 h-5 w-5" /> Back to Home
                 </Button>
               </Link>

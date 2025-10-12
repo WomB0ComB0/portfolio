@@ -1,9 +1,9 @@
 import {
+  test as base,
+  expect,
   type Page,
   type PlaywrightTestArgs,
   type PlaywrightTestOptions,
-  test as base,
-  expect,
 } from '@playwright/test';
 
 export * from '@playwright/test';
@@ -17,7 +17,7 @@ export const test = base.extend<
       page: Page & TestExtras;
     }
 >({
-  //@ts-ignore
+  //@ts-expect-error
   page: async ({ baseURL, page }, use, testInfo) => {
     const testFilePath = testInfo.titlePath[0] || '';
 

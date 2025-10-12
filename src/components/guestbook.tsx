@@ -1,15 +1,15 @@
 'use client';
 
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useCurrentUser } from '@/core/auth';
-import { usePostMessage } from '@/hooks/useMessages';
-import fetcher from '@/lib/fetcher';
 import { useQuery } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useMemo, useState } from 'react';
-import { FiAlertCircle, FiSend, FiMessageSquare } from 'react-icons/fi';
+import { FiAlertCircle, FiMessageSquare, FiSend } from 'react-icons/fi';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useCurrentUser } from '@/core/auth';
+import { usePostMessage } from '@/hooks';
+import { fetcher } from '@/lib/http-clients';
 import { LoginButton } from './custom/login-button';
 import { LogoutButton } from './custom/logout-button';
 import { Button } from './ui/button';
@@ -108,10 +108,7 @@ export default function GuestbookComponent() {
                 <CardTitle className="text-purple-300">
                   Welcome, {user.displayName || 'Anonymous'}
                 </CardTitle>
-                <LogoutButton
-                  className="text-purple-300 hover:text-white"
-                  aria-label="Sign out"
-                />
+                <LogoutButton className="text-purple-300 hover:text-white" aria-label="Sign out" />
               </div>
             </CardHeader>
             <CardContent>
@@ -168,9 +165,7 @@ export default function GuestbookComponent() {
                   >
                     <p className="text-white text-base break-words mb-2">{msg.message}</p>
                     <div className="flex justify-between items-center text-purple-300 text-xs">
-                      <p className="font-semibold">
-                        {msg.authorName}
-                      </p>
+                      <p className="font-semibold">{msg.authorName}</p>
                       <p>{formatDate(msg.createdAt)}</p>
                     </div>
                   </motion.div>
@@ -188,7 +183,10 @@ function LoadingUI() {
   return (
     <div className="space-y-4">
       {[...Array(5)].map((_, index) => (
-        <Card key={`loading-${index + 1}`} className="bg-purple-800 bg-opacity-50 border-purple-700">
+        <Card
+          key={`loading-${index + 1}`}
+          className="bg-purple-800 bg-opacity-50 border-purple-700"
+        >
           <CardContent className="p-4 space-y-3">
             <Skeleton className="h-4 w-4/5 bg-purple-700" />
             <Skeleton className="h-4 w-3/5 bg-purple-700" />

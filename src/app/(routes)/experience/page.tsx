@@ -1,13 +1,13 @@
 'use client'; // Keep as client component for consistency, can be server if no client hooks needed
 
-import { ExperienceItem } from '../../../types/sections';
-import { experienceData } from '../../../data/homeSections';
-import Layout from '@/components/layout/Layout'; // Adjusted path
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Briefcase, ExternalLink } from 'lucide-react'; // Using Briefcase from lucide-react for page title
 import Image from 'next/image';
 import Link from 'next/link';
-import { ExternalLink, Briefcase } from 'lucide-react'; // Using Briefcase from lucide-react for page title
+import Layout from '@/components/layout/Layout'; // Adjusted path
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { experienceData } from '../../../data/homeSections';
+import { ExperienceItem } from '../../../types/sections';
 
 export default function ExperiencePage() {
   return (
@@ -31,7 +31,9 @@ export default function ExperiencePage() {
               >
                 <CardHeader className="flex flex-row items-start gap-4 p-6">
                   {item.companyImage && (
-                    <div className="flex-shrink-0 w-16 h-16 relative"> {/* Adjusted size for consistency */}
+                    <div className="flex-shrink-0 w-16 h-16 relative">
+                      {' '}
+                      {/* Adjusted size for consistency */}
                       <Image
                         src={item.companyImage}
                         alt={`${item.companyTitle} logo`}

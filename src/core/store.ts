@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 const schema = z.object({
   count: z.number(),

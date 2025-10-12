@@ -1,10 +1,10 @@
 import '@/styles/globals.css';
-import { Provider } from '@/providers';
-import { Scripts } from '@/scripts';
-import { constructMetadata, constructViewport } from '@/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { NextWebVitalsMetric } from 'next/app';
+import { Provider } from '@/providers';
+import { Scripts } from '@/scripts';
+import { constructMetadata, constructViewport } from '@/utils';
 
 export const metadata = constructMetadata();
 export const viewport = constructViewport();

@@ -1,12 +1,14 @@
 'use client';
 
+import { Github, Linkedin, Mail } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { SiGooglescholar } from 'react-icons/si';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Github, Linkedin, Mail } from 'lucide-react';
-import { SiGooglescholar } from 'react-icons/si';
-import Image from 'next/image';
-import Link from 'next/link';
+import { obfuscateLink } from '@/utils';
+import { app } from '@/constants';
 
 export const Home = () => {
   return (
@@ -55,7 +57,7 @@ export const Home = () => {
                     variant="outline"
                     size="icon"
                     className="bg-purple-900 hover:bg-purple-800 border-purple-700"
-                    onClick={() => window.open('mailto:mike.odnis@mikeodnis.dev', '_blank')}
+                    onClick={() => window.open(`mailto:${app.email}`, '_blank')}
                   >
                     <Mail className="h-5 w-5 text-purple-300" />
                   </Button>
@@ -63,7 +65,12 @@ export const Home = () => {
                     variant="outline"
                     size="icon"
                     className="bg-purple-900 hover:bg-purple-800 border-purple-700"
-                    onClick={() => window.open('https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ', '_blank')}
+                    onClick={() =>
+                      window.open(
+                        'https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ',
+                        '_blank',
+                      )
+                    }
                   >
                     <SiGooglescholar className="h-5 w-5 text-purple-300" />
                   </Button>
@@ -96,17 +103,26 @@ export const Home = () => {
               </p>
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
                 <Link href="/experience" passHref legacyBehavior>
-                  <Button variant="outline" className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
+                  >
                     View Work Experience
                   </Button>
                 </Link>
                 <Link href="/certifications" passHref legacyBehavior>
-                  <Button variant="outline" className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
+                  >
                     Explore Certifications
                   </Button>
                 </Link>
                 <Link href="/projects" passHref legacyBehavior>
-                  <Button variant="outline" className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
+                  >
                     Discover My Projects
                   </Button>
                 </Link>
@@ -117,6 +133,6 @@ export const Home = () => {
       </div>
     </Layout>
   );
-}
+};
 Home.displayName = 'Home';
 export default Home;

@@ -1,11 +1,11 @@
 'use client';
 
+import { Download, ExternalLink } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, ExternalLink } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
 
 export default function ResumePage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -63,7 +63,7 @@ export default function ResumePage() {
                     <iframe
                       title="Resume PDF"
                       src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(
-                        `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`
+                        `https://docs.google.com/document/d/${DOC_ID}/export?format=pdf`,
                       )}`}
                       className="w-full h-full"
                       loading="lazy"

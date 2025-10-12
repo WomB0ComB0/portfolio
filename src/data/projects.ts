@@ -1,4 +1,4 @@
-import { ProjectItem } from '../types/projects';
+import type { ProjectItem } from '../types/projects';
 
 export const projectsData: ProjectItem[] = [
   {

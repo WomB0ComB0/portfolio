@@ -1,15 +1,16 @@
-("use client");
+('use client');
 
-import { FetchHttpClient } from "@effect/platform";
-import type { QueryKey } from "@tanstack/react-query";
+import { FetchHttpClient } from '@effect/platform';
+import type { QueryKey } from '@tanstack/react-query';
 import {
   type UseSuspenseQueryOptions,
   useQueryClient,
   useSuspenseQuery,
-} from "@tanstack/react-query";
-import type { Type } from "arktype";
-import { Effect, pipe } from "effect";
-import React, { Suspense, useCallback, useMemo } from "react";
+} from '@tanstack/react-query';
+import type { Type } from 'arktype';
+import { Effect, pipe } from 'effect';
+import React, { Suspense, useCallback, useMemo } from 'react';
+import { ClientError, Loader } from '@/components/client';
 import {
   FetcherError,
   type FetcherOptions,
@@ -17,9 +18,8 @@ import {
   get,
   type QueryParams,
   ValidationError,
-} from "@/lib";
-import { Loader, ClientError } from "@/components/client";
-import { parseCodePath } from "@/utils";
+} from '@/lib';
+import { parseCodePathDetailed } from '@/utils';
 
 /**
  * @module effect-data-loader
@@ -101,9 +101,7 @@ interface BaseDataLoaderProps<T> {
   /** Custom loading component */
   LoadingComponent?: React.ReactNode;
   /** Custom error component */
-  ErrorComponent?:
-  | React.ComponentType<{ error: Error; retry: () => void }>
-  | React.ReactElement;
+  ErrorComponent?: React.ComponentType<{ error: Error; retry: () => void }> | React.ReactElement;
   /** Fetcher options (retries, timeout, etc.) */
   options?: FetcherOptions<T>;
   /** Query parameters */
@@ -136,8 +134,8 @@ export interface DataLoaderProps<T> extends BaseDataLoaderProps<T> {
    * Render prop that receives data and optional utilities.
    */
   children:
-  | ((data: T) => React.ReactNode)
-  | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
+    | ((data: T) => React.ReactNode)
+    | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
   /** ArkType schema for runtime validation (optional) */
   schema?: never;
 }
@@ -151,11 +149,8 @@ export interface DataLoaderPropsWithSchema<S extends Type<any>>
    * Render prop that receives validated data and optional utilities.
    */
   children:
-  | ((data: InferArkType<S>) => React.ReactNode)
-  | ((
-    data: InferArkType<S>,
-    utils: DataLoaderRenderProps<InferArkType<S>>,
-  ) => React.ReactNode);
+    | ((data: InferArkType<S>) => React.ReactNode)
+    | ((data: InferArkType<S>, utils: DataLoaderRenderProps<InferArkType<S>>) => React.ReactNode);
   /** ArkType schema for runtime validation */
   schema: S;
   /** Fetcher options with schema */
@@ -185,9 +180,7 @@ export interface DataLoaderPropsWithSchema<S extends Type<any>>
  * </DataLoader>
  * ```
  */
-export function DataLoader<T = unknown>(
-  props: DataLoaderProps<T>,
-): React.ReactElement;
+export function DataLoader<T = unknown>(props: DataLoaderProps<T>): React.ReactElement;
 export function DataLoader<S extends Type<any>>(
   props: DataLoaderPropsWithSchema<S>,
 ): React.ReactElement;
@@ -208,7 +201,7 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
   refetchOnWindowFocus = false,
   refetchOnReconnect = true,
   schema,
-  // @ts-ignore
+  // @ts-expect-error
   ...props // 🚩
 }: (DataLoaderProps<T> | DataLoaderPropsWithSchema<S>) & {
   schema?: S;
@@ -221,14 +214,7 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
     const headers = options?.headers;
     const timeout = options?.timeout;
     const schemaKey = schema ? `schema:${schema.toString()}` : null;
-    const keyArray = [
-      "dataloader",
-      url,
-      params,
-      headers,
-      timeout,
-      schemaKey,
-    ].filter(Boolean);
+    const keyArray = ['dataloader', url, params, headers, timeout, schemaKey].filter(Boolean);
     return keyArray;
   }, [queryKey, url, params, options, schema]);
 
@@ -239,18 +225,16 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
       retryDelay: 1_000,
       timeout: 30_000,
       onError: (err) => {
-        const path = parseCodePath(url, fetcher);
+        const path = parseCodePathDetailed(url, fetcher);
         console.error(`[DataLoader]: ${path}`);
 
         if (err instanceof FetcherError) {
           console.error(`[DataLoader]: Status ${err.status}`, err.responseData);
         } else if (err instanceof ValidationError) {
-          console.error(
-            `[DataLoader]: Validation failed - ${err.getProblemsString()}`,
-          );
+          console.error(`[DataLoader]: Validation failed - ${err.getProblemsString()}`);
           console.error(`[DataLoader]: Invalid data:`, err.responseData);
         } else {
-          console.error("[DataLoader]: Unexpected error", err);
+          console.error('[DataLoader]: Unexpected error', err);
         }
 
         // Call user-provided error handler
@@ -268,22 +252,13 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
   const queryFn = useCallback(async () => {
     try {
       const effect = schema
-        ? pipe(
-          get(url, fetcherOptions, params),
-          Effect.provide(FetchHttpClient.layer),
-        )
-        : pipe(
-          get<T>(url, fetcherOptions, params),
-          Effect.provide(FetchHttpClient.layer),
-        );
+        ? pipe(get(url, fetcherOptions, params), Effect.provide(FetchHttpClient.layer))
+        : pipe(get<T>(url, fetcherOptions, params), Effect.provide(FetchHttpClient.layer));
 
       const result = await Effect.runPromise(effect);
 
       // Apply transformation if provided (note: schema validation happens first)
-      const finalResult =
-        transform && typeof transform === "function"
-          ? transform(result)
-          : result;
+      const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
 
       // Call success callback
       if (onSuccess) onSuccess(finalResult as any);
@@ -297,7 +272,7 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
 
       // Wrap unexpected errors
       throw new FetcherError(
-        error instanceof Error ? error.message : "Unknown error occurred",
+        error instanceof Error ? error.message : 'Unknown error occurred',
         url,
         undefined,
         error,
@@ -327,8 +302,7 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
 
         return failureCount < 3;
       },
-      retryDelay: (attemptIndex: number) =>
-        Math.min(1_000 * 2 ** attemptIndex, 30_000),
+      retryDelay: (attemptIndex: number) => Math.min(1_000 * 2 ** attemptIndex, 30_000),
       ...(queryOptions || {}),
     };
 
@@ -343,9 +317,7 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
     queryOptions,
   ]);
 
-  const { data, error, refetch, isRefetching } = useSuspenseQuery(
-    queryOptionsWithDefaults,
-  );
+  const { data, error, refetch, isRefetching } = useSuspenseQuery(queryOptionsWithDefaults);
 
   // Enhanced render props
   const renderProps = useMemo(() => {
@@ -386,13 +358,11 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
 
   // Determine how to call children function
   const renderChildren = useCallback(() => {
-    if (typeof children === "function") {
+    if (typeof children === 'function') {
       // Check if it's a function that accepts 2 parameters (data + utils)
       try {
         const result =
-          children.length > 1
-            ? (children as any)(data, renderProps)
-            : (children as any)(data);
+          children.length > 1 ? (children as any)(data, renderProps) : (children as any)(data);
         return result;
       } catch {
         // Fallback to simple call if inspection fails
@@ -403,46 +373,30 @@ export function DataLoader<T = unknown, S extends Type<any> = any>({
   }, [children, data, renderProps]);
 
   return (
-    <Suspense fallback={LoadingComponent}>
-      {error ? renderError(error) : renderChildren()}
-    </Suspense>
+    <Suspense fallback={LoadingComponent}>{error ? renderError(error) : renderChildren()}</Suspense>
   );
 }
 
-DataLoader.displayName = "DataLoader";
+DataLoader.displayName = 'DataLoader';
 
 /**
  * Hook version of DataLoader for use outside of JSX.
  */
 export function useDataLoader<T = unknown>(
   url: string,
-  options?: Omit<
-    DataLoaderProps<T>,
-    "children" | "LoadingComponent" | "ErrorComponent"
-  >,
+  options?: Omit<DataLoaderProps<T>, 'children' | 'LoadingComponent' | 'ErrorComponent'>,
 ): ReturnType<typeof useSuspenseQuery<T, Error, T, QueryKey>>;
 
 export function useDataLoader<S extends Type<any>>(
   url: string,
-  options: Omit<
-    DataLoaderPropsWithSchema<S>,
-    "children" | "LoadingComponent" | "ErrorComponent"
-  >,
-): ReturnType<
-  typeof useSuspenseQuery<InferArkType<S>, Error, InferArkType<S>, QueryKey>
->;
+  options: Omit<DataLoaderPropsWithSchema<S>, 'children' | 'LoadingComponent' | 'ErrorComponent'>,
+): ReturnType<typeof useSuspenseQuery<InferArkType<S>, Error, InferArkType<S>, QueryKey>>;
 
 export function useDataLoader<T = unknown, S extends Type<any> = any>(
   url: string,
   options: (
-    | Omit<
-      DataLoaderProps<T>,
-      "children" | "LoadingComponent" | "ErrorComponent"
-    >
-    | Omit<
-      DataLoaderPropsWithSchema<S>,
-      "children" | "LoadingComponent" | "ErrorComponent"
-    >
+    | Omit<DataLoaderProps<T>, 'children' | 'LoadingComponent' | 'ErrorComponent'>
+    | Omit<DataLoaderPropsWithSchema<S>, 'children' | 'LoadingComponent' | 'ErrorComponent'>
   ) & { schema?: S } = {},
 ) {
   const {
@@ -465,14 +419,7 @@ export function useDataLoader<T = unknown, S extends Type<any> = any>(
     const headers = (fetcherOptions as any)?.headers;
     const timeout = (fetcherOptions as any)?.timeout;
     const schemaKey = schema ? `schema:${schema.toString()}` : null;
-    const keyArray = [
-      "dataloader",
-      url,
-      params,
-      headers,
-      timeout,
-      schemaKey,
-    ].filter(Boolean);
+    const keyArray = ['dataloader', url, params, headers, timeout, schemaKey].filter(Boolean);
     return keyArray;
   }, [queryKey, url, params, fetcherOptions, schema]);
 
@@ -483,12 +430,10 @@ export function useDataLoader<T = unknown, S extends Type<any> = any>(
       timeout: 30_000,
       onError: (err) => {
         if (err instanceof ValidationError) {
-          console.error(
-            `[useDataLoader]: Validation failed - ${err.getProblemsString()}`,
-          );
+          console.error(`[useDataLoader]: Validation failed - ${err.getProblemsString()}`);
         }
 
-        if (typeof onError === "function" && err instanceof Error) {
+        if (typeof onError === 'function' && err instanceof Error) {
           onError(err);
         }
       },
@@ -505,19 +450,18 @@ export function useDataLoader<T = unknown, S extends Type<any> = any>(
   const queryFn = useCallback(async () => {
     const effect = schema
       ? pipe(
-        get(url, enhancedFetcherOptions, params as QueryParams),
-        Effect.provide(FetchHttpClient.layer),
-      )
+          get(url, enhancedFetcherOptions, params as QueryParams),
+          Effect.provide(FetchHttpClient.layer),
+        )
       : pipe(
-        get<T>(url, enhancedFetcherOptions, params as QueryParams),
-        Effect.provide(FetchHttpClient.layer),
-      );
+          get<T>(url, enhancedFetcherOptions, params as QueryParams),
+          Effect.provide(FetchHttpClient.layer),
+        );
 
     const result = await Effect.runPromise(effect);
-    const finalResult =
-      transform && typeof transform === "function" ? transform(result) : result;
+    const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
 
-    if (typeof onSuccess === "function") {
+    if (typeof onSuccess === 'function') {
       onSuccess(finalResult);
     }
 
@@ -544,8 +488,7 @@ export function useDataLoader<T = unknown, S extends Type<any> = any>(
         }
         return failureCount < 3;
       },
-      retryDelay: (attemptIndex: number) =>
-        Math.min(1_000 * 2 ** attemptIndex, 30_000),
+      retryDelay: (attemptIndex: number) => Math.min(1_000 * 2 ** attemptIndex, 30_000),
       ...(queryOptions || {}),
     };
 

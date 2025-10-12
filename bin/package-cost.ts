@@ -2,7 +2,7 @@
 // -*- typescript -*-
 
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PackageJson } from 'type-fest';
 
@@ -39,4 +39,28 @@ const packageSizes = allDependencies
 
 const sortedPackageSizes = packageSizes.sort((a, b) => b.size - a.size);
 
-writeFileSync(`${OUTPUT_DIR}/package-sizes.json`, JSON.stringify(sortedPackageSizes, null, 2));
+const LOW_THRESHOLD = 1_000_000; // 1 MB
+const MEDIUM_THRESHOLD = 10_000_000; // 10 MB
+
+const categorizedPackages = {
+  high: sortedPackageSizes.filter((pkg) => pkg.size > MEDIUM_THRESHOLD),
+  medium: sortedPackageSizes.filter(
+    (pkg) => pkg.size > LOW_THRESHOLD && pkg.size <= MEDIUM_THRESHOLD,
+  ),
+  low: sortedPackageSizes.filter((pkg) => pkg.size <= LOW_THRESHOLD),
+};
+
+() => mkdirSync(OUTPUT_DIR, { recursive: true });
+
+writeFileSync(`${OUTPUT_DIR}/package-sizes.json`, JSON.stringify(categorizedPackages, null, 2), {
+  flag: 'w',
+});
+
+console.log('\n📦 Package Size Summary:');
+console.log(`   🔴 High (> 10 MB): ${categorizedPackages.high.length} packages`);
+console.log(`   🟡 Medium (1-10 MB): ${categorizedPackages.medium.length} packages`);
+console.log(`   🟢 Low (< 1 MB): ${categorizedPackages.low.length} packages`);
+console.log(
+  `\n📊 Total size: ${(sortedPackageSizes.reduce((sum, pkg) => sum + pkg.size, 0) / 1_000_000).toFixed(2)} MB`,
+);
+console.log(`\n📄 Results saved to ${OUTPUT_DIR}/package-sizes.json`);

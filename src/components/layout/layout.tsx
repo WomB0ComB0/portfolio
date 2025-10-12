@@ -1,11 +1,11 @@
 'use client';
 
-import Palette from '@/components/CMD';
+import { usePathname } from 'next/navigation';
 import BlurryBlob from '@/components/animation/background/blurry-blob';
+import Palette from '@/components/CMD';
 import Footer from '@/components/layout/Footer';
 import { DotPattern } from '@/components/magicui';
 import { LiveBlocksProvider } from '@/providers/core/LiveRoom';
-import { usePathname } from 'next/navigation';
 import MobileNavBar from './MobileNav';
 import NavBar from './Nav';
 

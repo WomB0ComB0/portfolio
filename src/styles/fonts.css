@@ -2,82 +2,106 @@
   font-family: Kodchasan;
   font-style: normal;
   font-weight: 700;
-  src: local(""), url("/assets/fonts/Kodchasan-Bold.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-Bold.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: italic;
   font-weight: 700;
-  src: local(""), url("/assets/fonts/Kodchasan-BoldItalic.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-BoldItalic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: normal;
   font-weight: 200;
-  src: local(""), url("/assets/fonts/Kodchasan-ExtraLight.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-ExtraLight.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: italic;
   font-weight: 200;
-  src: local(""), url("/assets/fonts/Kodchasan-ExtraLightItalic.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-ExtraLightItalic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: italic;
   font-weight: 400;
-  src: local(""), url("/assets/fonts/Kodchasan-Italic.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-Italic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: normal;
   font-weight: 300;
-  src: local(""), url("/assets/fonts/Kodchasan-Light.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-Light.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: italic;
   font-weight: 300;
-  src: local(""), url("/assets/fonts/Kodchasan-LightItalic.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-LightItalic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: normal;
   font-weight: 500;
-  src: local(""), url("/assets/fonts/Kodchasan-Medium.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-Medium.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: italic;
   font-weight: 500;
-  src: local(""), url("/assets/fonts/Kodchasan-MediumItalic.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-MediumItalic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: normal;
   font-weight: 400;
-  src: local(""), url("/assets/fonts/Kodchasan-Regular.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-Regular.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: normal;
   font-weight: 600;
-  src: local(""), url("/assets/fonts/Kodchasan-SemiBold.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-SemiBold.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Kodchasan;
   font-style: italic;
   font-weight: 600;
-  src: local(""), url("/assets/fonts/Kodchasan-SemiBoldItalic.ttf") format("truetype");
+  src:
+    local(""),
+    url("/assets/fonts/Kodchasan-SemiBoldItalic.ttf") format("truetype");
 }

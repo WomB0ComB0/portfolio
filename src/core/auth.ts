@@ -1,21 +1,21 @@
 'use client';
 
+import type { FirebaseError } from 'firebase/app';
 import {
   GithubAuthProvider,
   GoogleAuthProvider,
-  type User,
-  type UserCredential,
   getAuth,
   signInAnonymously,
   signInWithPopup,
+  type User,
+  type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { atomEffect } from 'jotai-effect';
 import { loadable } from 'jotai/utils';
+import { atomEffect } from 'jotai-effect';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { app } from './firebase';
-import { FirebaseError } from 'firebase/app';
 
 export const currentUserValue = atom<User | null | undefined>(undefined);
 
@@ -82,14 +82,16 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
     p.then(() => {
       window.location.reload();
       toast.success('Logged in successfully! 🎉');
-    }).catch((error: FirebaseError) => {
-      console.error('Sign-in error:', error);
-      let errorMessage = 'An error occurred during sign-in. Please try again.';
-      if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Network error. Please check your internet connection and try again.';
-      }
-      toast.error(errorMessage);
-    }).finally(() => setInFlight(false));
+    })
+      .catch((error: FirebaseError) => {
+        console.error('Sign-in error:', error);
+        let errorMessage = 'An error occurred during sign-in. Please try again.';
+        if (error.code === 'auth/network-request-failed') {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        }
+        toast.error(errorMessage);
+      })
+      .finally(() => setInFlight(false));
   }, [signInMethod]);
 
   return [signIn, inFlight] as const;

@@ -1,11 +1,11 @@
 'use client';
 
+import { Code2, GitFork, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { PinnedRepo } from '@/lib/getRepos';
-import { Code2, GitFork, Star } from 'lucide-react';
 import { MagicCard } from '../magicui';
 
 interface PinnedReposProps {

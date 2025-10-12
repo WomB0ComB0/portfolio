@@ -20,11 +20,9 @@ import {
   User,
   Zap,
 } from 'lucide-react';
-
-import { SiHashnode } from 'react-icons/si';
-
 import React from 'react';
 import { FiDollarSign } from 'react-icons/fi';
+import { SiHashnode } from 'react-icons/si';
 
 export default function Palette() {
   return (

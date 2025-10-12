@@ -1,4 +1,4 @@
-const { execSync } = require("node:child_process");
+const { execSync } = require('node:child_process');
 
 module.exports = (newMajor_minor, oldMajor_minor) => {
   try {
@@ -14,6 +14,6 @@ module.exports = (newMajor_minor, oldMajor_minor) => {
       `git add SECURITY.md && git commit -m 'Update SECURITY.md [skip ci]' && git push origin ${process.env.BRANCH}`,
     );
   } catch (error) {
-    console.error("Failed to update SECURITY.md or it was already updated", error);
+    console.error('Failed to update SECURITY.md or it was already updated', error);
   }
 };

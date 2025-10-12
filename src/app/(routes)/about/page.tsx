@@ -1,11 +1,12 @@
 'use client';
 
-import Layout from '@/components/layout/Layout';
+import { Briefcase, Github, Linkedin, Mail } from 'lucide-react';
+import Image from 'next/image';
+import { SiGooglescholar } from 'react-icons/si';
+import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Github, Linkedin, Mail, Briefcase } from 'lucide-react';
-import { SiGooglescholar } from 'react-icons/si';
-import Image from 'next/image';
+import { app } from '@/constants';
 
 export default function AboutPage() {
   return (
@@ -34,7 +35,13 @@ export default function AboutPage() {
                   Software Developer & Computer Science Student
                 </h3>
                 <p className="text-gray-300 mb-6 leading-relaxed">
-                  I am a passionate and driven undergraduate Computer Science student with a strong specialization in full-stack web development. My journey in technology is fueled by a desire to build beautiful, intuitive, and high-performance applications. As a first-generation student, I am proud of my accomplishments and continuously strive to learn and grow. I am a quick learner, a collaborative team player, and I am currently seeking new opportunities to apply my skills and contribute to innovative projects.
+                  I am a passionate and driven undergraduate Computer Science student with a strong
+                  specialization in full-stack web development. My journey in technology is fueled
+                  by a desire to build beautiful, intuitive, and high-performance applications. As a
+                  first-generation student, I am proud of my accomplishments and continuously strive
+                  to learn and grow. I am a quick learner, a collaborative team player, and I am
+                  currently seeking new opportunities to apply my skills and contribute to
+                  innovative projects.
                 </p>
                 <div className="flex justify-center lg:justify-start gap-4 flex-wrap">
                   <Button
@@ -56,7 +63,7 @@ export default function AboutPage() {
                   <Button
                     variant="outline"
                     className="bg-red-800 hover:bg-red-700 border-red-600 text-red-300"
-                    onClick={() => window.open('mailto:mike.odnis@mikeodnis.dev', '_blank')}
+                    onClick={() => window.open(`mailto:${app.email}`, '_blank')}
                   >
                     <Mail className="h-5 w-5 mr-2" />
                     Email
@@ -64,7 +71,12 @@ export default function AboutPage() {
                   <Button
                     variant="outline"
                     className="bg-gray-700 hover:bg-gray-600 border-gray-500 text-gray-300"
-                    onClick={() => window.open('https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ', '_blank')}
+                    onClick={() =>
+                      window.open(
+                        'https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ',
+                        '_blank',
+                      )
+                    }
                   >
                     <SiGooglescholar className="h-5 w-5 mr-2" />
                     Scholar
@@ -74,11 +86,16 @@ export default function AboutPage() {
             </div>
 
             <div className="bg-purple-900 bg-opacity-30 p-6 rounded-lg text-center">
-              <h3 className="text-2xl font-semibold text-purple-300 mb-2">I&apos;m available for hire!</h3>
-              <p className="text-purple-400 mb-4">I am actively looking for freelance, part-time, or full-time opportunities. <br/> If you have a project in mind or a role to fill, let&apos;s connect!</p>
+              <h3 className="text-2xl font-semibold text-purple-300 mb-2">
+                I&apos;m available for hire!
+              </h3>
+              <p className="text-purple-400 mb-4">
+                I am actively looking for freelance, part-time, or full-time opportunities. <br />{' '}
+                If you have a project in mind or a role to fill, let&apos;s connect!
+              </p>
               <Button
                 className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg"
-                onClick={() => window.open('mailto:mike.odnis@mikeodnis.dev')}
+                onClick={() => window.open(`mailto:${app.email}`)}
               >
                 <Briefcase className="h-5 w-5 mr-2" />
                 Let&apos;s Work Together
@@ -92,18 +109,38 @@ export default function AboutPage() {
                 </CardHeader>
                 <CardContent className="text-gray-300">
                   <ul className="space-y-3">
-                    <li className="flex items-center"><span className="font-bold text-purple-400 mr-2">Languages:</span> JavaScript, TypeScript, Python, Java, C++, C#</li>
-                    <li className="flex items-center"><span className="font-bold text-purple-400 mr-2">Frameworks:</span> React, Next.js, Node.js, Express.js, Angular</li>
-                    <li className="flex items-center"><span className="font-bold text-purple-400 mr-2">Web Tech:</span> HTML, CSS, SCSS, Tailwind CSS</li>
-                    <li className="flex items-center"><span className="font-bold text-purple-400 mr-2">Databases:</span> SQL, MongoDB, PostgreSQL</li>
-                    <li className="flex items-center"><span className="font-bold text-purple-400 mr-2">DevOps:</span> Docker, CI/CD, GitHub Actions</li>
-                    <li className="flex items-center"><span className="font-bold text-purple-400 mr-2">Design:</span> Figma, UI/UX Principles</li>
+                    <li className="flex items-center">
+                      <span className="font-bold text-purple-400 mr-2">Languages:</span> JavaScript,
+                      TypeScript, Python, Java, C++, C#
+                    </li>
+                    <li className="flex items-center">
+                      <span className="font-bold text-purple-400 mr-2">Frameworks:</span> React,
+                      Next.js, Node.js, Express.js, Angular
+                    </li>
+                    <li className="flex items-center">
+                      <span className="font-bold text-purple-400 mr-2">Web Tech:</span> HTML, CSS,
+                      SCSS, Tailwind CSS
+                    </li>
+                    <li className="flex items-center">
+                      <span className="font-bold text-purple-400 mr-2">Databases:</span> SQL,
+                      MongoDB, PostgreSQL
+                    </li>
+                    <li className="flex items-center">
+                      <span className="font-bold text-purple-400 mr-2">DevOps:</span> Docker, CI/CD,
+                      GitHub Actions
+                    </li>
+                    <li className="flex items-center">
+                      <span className="font-bold text-purple-400 mr-2">Design:</span> Figma, UI/UX
+                      Principles
+                    </li>
                   </ul>
                 </CardContent>
               </Card>
               <Card className="bg-[#2a2a2a] border-purple-800 transform hover:scale-105 transition-transform duration-300">
                 <CardHeader>
-                  <CardTitle className="text-purple-300 text-2xl">Education & Credentials</CardTitle>
+                  <CardTitle className="text-purple-300 text-2xl">
+                    Education & Credentials
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="text-gray-300">
                   <div className="mb-4">

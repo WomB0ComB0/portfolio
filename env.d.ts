@@ -21,7 +21,7 @@ declare global {
       SPOTIFY_CLIENT_ID: string;
       SPOTIFY_CLIENT_SECRET: string;
       SPOTIFY_REFRESH_TOKEN: string;
-      UMAMI_API_KEY: string;
+      NEXT_PUBLIC_SENTRY_DSN: string;
       SENTRY_AUTH_TOKEN: string;
       NEXT_PUBLIC_GCP_PROJECT_ID: string;
       NEXT_PUBLIC_GCP_PRIVATE_KEY_ID: string;
@@ -31,6 +31,9 @@ declare global {
       NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL: string;
       NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: string;
       VERCEL_GIT_COMMIT_SHA?: string;
+      NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: string;
+      NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: string;
+      CSRF_SECRET: string;
     }
   }
 }

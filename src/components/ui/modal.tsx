@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useRef, useEffect, MouseEventHandler } from 'react';
-import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { type MouseEventHandler, useCallback, useEffect, useRef } from 'react';
 
 export default function Modal({ children }: { children: React.ReactNode }) {
   const overlay = useRef<HTMLDivElement>(null);
@@ -19,14 +19,14 @@ export default function Modal({ children }: { children: React.ReactNode }) {
         onDismiss();
       }
     },
-    [onDismiss, overlay, wrapper]
+    [onDismiss, overlay, wrapper],
   );
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDismiss();
     },
-    [onDismiss]
+    [onDismiss],
   );
 
   useEffect(() => {
@@ -45,17 +45,15 @@ export default function Modal({ children }: { children: React.ReactNode }) {
         className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden max-w-3xl w-full max-h-[90vh] flex flex-col"
       >
         <div className="flex justify-end p-2">
-            <button
-                onClick={onDismiss}
-                className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-                aria-label="Close modal"
-            >
-                <X size={24} />
-            </button>
+          <button
+            onClick={onDismiss}
+            className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+            aria-label="Close modal"
+          >
+            <X size={24} />
+          </button>
         </div>
-        <div className="overflow-y-auto px-6 pb-6">
-            {children}
-        </div>
+        <div className="overflow-y-auto px-6 pb-6">{children}</div>
       </div>
     </div>
   );
