@@ -109,7 +109,7 @@ const withPwa = pwa({
 
 const config: NextConfig = {
   reactStrictMode: true,
-  pageExtensions: ['tsx', 'mdx', 'ts', 'js'],
+  pageExtensions: ['tsx'],
   poweredByHeader: false,
   compress: true,
   logging: {
@@ -136,36 +136,18 @@ const config: NextConfig = {
   },
 
   experimental: {
-    // nodeMiddleware: true,
     optimizePackageImports: [
-      ...new Set([
-        'react-email', // 149.2 MB
-        'next', // 120.6 MB
-        'react-icons', // 86.2 MB
-        'lucide-react', // 28.6 MB
-        'effect', // 24.8 MB
-        'typescript', // 22.7 MB
-        'date-fns', // 22.6 MB
-        '@prisma/client', // 8.6 MB
-        'react-dom', // 6.4 MB
-        'react-spinners', // 5.6 MB
-        'recharts', // 4.7 MB
-        '@radix-ui/react-icons', // 3.4 MB
-        '@sentry/nextjs', // 2.8 MB
-        'use-context-selector', // 19.8 MB
-        'usehooks-ts', // 18.8 MB
-        'uuid', // 18.7 MB
-        'vaul', // 18.6 MB
-        'vitest', // 18.5 MB
-        'yaml-eslint-parser', // 18.4 MB
-        'zod', // 18.3 MB
-        'motion', // 18.2 MB
-        'zustand', // 18.2 MB
-        '@prisma/client', // ???
-        'better-auth', // ???
-      ])
-        .difference(EXEMPT_DEPS)
-        .values(),
+      ...(() => {
+        try {
+          const highPackages = require('./bin/out/high.json');
+          const mediumPackages = require('./bin/out/medium.json');
+          return Array.from(new Set([...highPackages, ...mediumPackages]))
+            .filter(pkg => !EXEMPT_DEPS.has(pkg));
+        } catch (error) {
+          console.warn('Failed to load package optimization lists:', error);
+          return [];
+        }
+      })(),
     ],
     optimizeCss: true,
     serverActions: {

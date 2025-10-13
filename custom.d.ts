@@ -264,8 +264,72 @@ declare global {
       currentYear: number;
       timeZone: string;
     };
+
+    /**
+     * Service worker registration object.
+     */
+    serviceWorker: ServiceWorkerContainer;
+    
+    /**
+     * The user's preferred color scheme ('light' or 'dark').
+     */
+    colorScheme: 'light' | 'dark';
+
+    /**
+     * Indicates if the user prefers reduced motion.
+     */
+    prefersReducedMotion: boolean;
+
+    /**
+     * Indicates if the user prefers a high contrast interface.
+     */
+    prefersHighContrast: boolean;
+
+    /**
+     * The user's preferred language (e.g., 'en-US').
+     */
+    preferredLanguage: string;
+
+    /**
+     * The user's preferred font size (e.g., 'medium', 'large').
+     */
+    preferredFontSize: string;
+
+    /**
+     * The user's preferred text direction ('ltr' or 'rtl').
+     */
+    preferredTextDirection: 'ltr' | 'rtl';
+
+    /**
+     * The user's preferred color depth (e.g., 24, 32).
+     */
+    preferredColorDepth: number;
+
+    /**
+     * The user's preferred contrast level (e.g., 'no-preference', 'high', 'low').
+     */
+    preferredContrast: 'no-preference' | 'high' | 'low';
+
+    /**
+     * Google Analytics gtag function for event tracking.
+     * @param command - The gtag command (e.g., 'event').
+     * @param eventName - The name of the event to log.
+     * @param eventParams - Additional parameters for the event.
+     * @see https://developers.google.com/analytics/devguides/collection/gtagjs/events
+    */
+    gtag: (
+      command: string,
+      eventName: string,
+      eventParams: {
+        value?: number
+        event_label?: string
+        non_interaction?: boolean
+      }
+    ) => void
   }
 }
+
+
 
 declare module 'react' {
   interface ScriptHTMLAttributes<T extends HTMLScriptElement>

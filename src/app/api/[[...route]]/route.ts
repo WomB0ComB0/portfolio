@@ -1,4 +1,40 @@
-import { app } from './elysia';
+import { logger } from '@/utils';
+import { batchSpanProcessor, createElysiaApp, IS_VERCEL, version } from '../_elysia';
+import { apiRoutes } from './elysia';
+
+/**
+ * Main API route composition
+ * Includes all admin and health routes
+ */
+export const app = createElysiaApp({
+  prefix: '/api',
+  swagger: {
+    path: '/swagger',
+    title: '🦊 Portfolio Admin API',
+    version: version || '1.0.0',
+    description: `
+      Portfolio Admin & Health API
+
+      This API provides admin functionality and health checks.
+
+      > **Contact: [API Support](mailto:mike@mikeodnis.dev)
+    `,
+    contact: {
+      name: 'API Support',
+      email: 'mike@mikeodnis.dev',
+    },
+    tags: [
+      {
+        name: 'Admin',
+        description: 'Admin endpoints for managing the application',
+      },
+      {
+        name: 'Health',
+        description: 'Health check endpoints',
+      },
+    ],
+  },
+}).use(apiRoutes);
 
 /**
  * Next.js API route handlers
@@ -10,3 +46,27 @@ export const PUT = app.handle;
 export const PATCH = app.handle;
 export const DELETE = app.handle;
 export const OPTIONS = app.handle;
+
+/**
+ * Gracefully shuts down telemetry on Vercel using waitUntil if available.
+ * For local development, flushes the batch span processor.
+ */
+const shutdown = async (): Promise<void> => {
+  if (IS_VERCEL) {
+    // On Vercel, we can't rely on process signals, so this is mainly for cleanup
+    logger.info('Vercel function cleanup');
+  } else {
+    logger.info('Shutting down 🦊 Elysia');
+    if (batchSpanProcessor) {
+      await batchSpanProcessor.forceFlush();
+    }
+  }
+};
+
+// Don't set up process listeners on Vercel
+if (!IS_VERCEL) {
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+export type API = typeof app;

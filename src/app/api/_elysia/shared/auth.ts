@@ -1,4 +1,4 @@
-import { StatusMap, type HTTPHeaders } from 'elysia';
+import { type HTTPHeaders, StatusMap } from 'elysia';
 import { Logger } from '@/utils';
 
 /**

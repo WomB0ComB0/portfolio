@@ -12,7 +12,7 @@ const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as Packag
 const dependencies = Object.keys(packageJson.dependencies || {});
 const devDependencies = Object.keys(packageJson.devDependencies || {});
 const allDependencies = [...dependencies, ...devDependencies];
-const OUTPUT_DIR = `${process.cwd()}/out`;
+const OUTPUT_DIR = `${process.cwd()}/bin/out`;
 
 const getPackageSize = (packageName: string): { name: string; size: number } | null => {
   try {
@@ -33,6 +33,10 @@ const getPackageSize = (packageName: string): { name: string; size: number } | n
   }
 };
 
+const isNotNull = <Value>(value: Value): value is Exclude<Value, null> => {
+  return value !== null;
+};
+
 const packageSizes = allDependencies
   .map((packageName) => getPackageSize(packageName))
   .filter(Boolean)
@@ -51,11 +55,35 @@ const categorizedPackages = {
   low: sortedPackageSizes.filter((pkg) => pkg.size <= LOW_THRESHOLD),
 };
 
-() => mkdirSync(OUTPUT_DIR, { recursive: true });
+mkdirSync(OUTPUT_DIR, { recursive: true });
 
-writeFileSync(`${OUTPUT_DIR}/package-sizes.json`, Stringify(categorizedPackages), {
-  flag: 'w',
-});
+/**
+ * Import as JSON
+ * import highPackages from './out/high.json' assert { type: 'json' };
+*/
+writeFileSync(
+  `${OUTPUT_DIR}/high.json`,
+  Stringify([...categorizedPackages.high].map(e => e.name)), 
+  {
+    flag: 'w',
+  }
+);
+
+writeFileSync(
+  `${OUTPUT_DIR}/medium.json`,
+  Stringify([...categorizedPackages.medium].map(e => e.name)), 
+  {
+    flag: 'w',
+  }
+);
+
+writeFileSync(
+  `${OUTPUT_DIR}/low.json`,
+  Stringify([...categorizedPackages.low].map(e => e.name)), 
+  {
+    flag: 'w',
+  }
+);
 
 console.log('\n📦 Package Size Summary:');
 console.log(`   🔴 High (> 10 MB): ${categorizedPackages.high.length} packages`);

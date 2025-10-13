@@ -49,7 +49,7 @@
     "**/*.js",
     ".next/types/**/*.ts",
     "next.config.ts",
-    "custom.d.ts"
+    "./*.d.ts"
   ],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.spec.tsx", "**/*.test.ts", "**/*.test.tsx"]
 }

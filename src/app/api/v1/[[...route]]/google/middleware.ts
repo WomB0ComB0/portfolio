@@ -1,4 +1,7 @@
-import { createCacheHeaders, createErrorHandlerWithDefault } from '@/app/api/_elysia/shared/middleware';
+import {
+  createCacheHeaders,
+  createErrorHandlerWithDefault,
+} from '@/app/api/_elysia/shared/middleware';
 
 export const cacheHeaders = createCacheHeaders('Medium');
 

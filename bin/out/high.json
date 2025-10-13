@@ -1,0 +1,10 @@
+[
+  "next",
+  "next-csrf",
+  "react-icons",
+  "lucide-react",
+  "firebase",
+  "typescript",
+  "date-fns",
+  "@effect/platform"
+]

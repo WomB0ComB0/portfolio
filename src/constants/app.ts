@@ -120,5 +120,5 @@ export const app: Readonly<{
     'First-Generation Technologist',
     'Self-Taught Developer',
   ],
-  logo: new URL(encodeURIComponent(`${baseUrl}/`)),
+  logo: new URL(`${baseUrl}/`),
 };

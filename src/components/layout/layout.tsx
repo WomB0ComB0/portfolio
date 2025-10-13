@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import BlurryBlob from '@/components/animation/background/blurry-blob';
+import BlurryBlob from '@/components/animations/background/blurry-blob';
 import Palette from '@/components/cmd';
 import { Footer, MobileNavBar, NavBar } from '.';
 import { DotPattern } from '@/components/magicui';
