@@ -30,7 +30,7 @@ const FORMAT_TYPES: FormatType[] = [
   { regex: /\.html$/, header: '<!--', body: '', footer: '-->' },
   { regex: /\.sh$/, header: '#', body: '', footer: '' },
 ] as const;
-const COPYRIGHT = ` Copyright ${new Date().getFullYear()} Product Decoder
+const COPYRIGHT = ` Copyright ${new Date().getFullYear()} Mike Odnis
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.

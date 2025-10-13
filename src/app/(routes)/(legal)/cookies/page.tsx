@@ -1,9 +1,9 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Cookies = dynamic(
   () => import('@/app/(routes)/(legal)/cookies/_interface').then((mod) => mod.Cookies),
-  { ssr: true }
+  { ssr: true },
 );
 
 export const metadata = constructMetadata({

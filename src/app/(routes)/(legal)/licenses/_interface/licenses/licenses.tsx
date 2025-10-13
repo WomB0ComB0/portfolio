@@ -12,9 +12,7 @@ export const Licenses = () => {
           and their licenses.
         </p>
         <h2>Attribution</h2>
-        <p>
-          We acknowledge and are grateful to the open source community for their contributions.
-        </p>
+        <p>We acknowledge and are grateful to the open source community for their contributions.</p>
       </div>
     </section>
   );

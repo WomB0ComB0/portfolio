@@ -1,5 +1,5 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const About = dynamic(
   () => import('@/app/(routes)/(main)/about/_interface/about').then((mod) => mod.About),

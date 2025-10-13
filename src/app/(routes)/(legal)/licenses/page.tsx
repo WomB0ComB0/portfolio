@@ -1,9 +1,9 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Licenses = dynamic(
   () => import('@/app/(routes)/(legal)/licenses/_interface').then((mod) => mod.Licenses),
-  { ssr: true }
+  { ssr: true },
 );
 
 export const metadata = constructMetadata({

@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Product Decoder
+ * Copyright 2025 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Stringify } from "..";
+import { Stringify } from '..';
 
 /**
  * @fileoverview A comprehensive logging utility for both client and server environments.

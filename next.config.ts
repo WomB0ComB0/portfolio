@@ -46,7 +46,7 @@ const withPwa = pwa({
   fallbacks: {
     document: '/offline', // Fallback route for pages
     image: '/assets/images/logo.webp', // Fallback route for images
-    font: '/assets/fonts/palatino.woff2', // Fallback route for fonts
+    font: '/assets/fonts/Kodchasan-Regular.ttf', // Fallback route for fonts
   },
   workboxOptions: {
     exclude: [/\/_next\/static\/.*(?<!\.p)\.woff2/, /\.map$/, /^manifest.*\.js$/, /\.pdf$/], // Exclude specific files from precaching
@@ -141,8 +141,9 @@ const config: NextConfig = {
         try {
           const highPackages = require('./bin/out/high.json');
           const mediumPackages = require('./bin/out/medium.json');
-          return Array.from(new Set([...highPackages, ...mediumPackages]))
-            .filter(pkg => !EXEMPT_DEPS.has(pkg));
+          return Array.from(new Set([...highPackages, ...mediumPackages])).filter(
+            (pkg) => !EXEMPT_DEPS.has(pkg),
+          );
         } catch (error) {
           console.warn('Failed to load package optimization lists:', error);
           return [];
@@ -392,7 +393,7 @@ const sentryConfig = {
 
 const withSentry =
   process.env.NODE_ENV === 'production' && process.env.SENTRY_AUTH_TOKEN
-    ? (config) => withSentryConfig(config, sentryConfig)
-    : (config) => config;
+    ? (config: any) => withSentryConfig(config, sentryConfig)
+    : (config: any) => config;
 
 export default withSentry(combinedConfig);

@@ -1,14 +1,12 @@
 'use client';
 
-import type { HonoApp } from '@/app/api/[[...route]]/route';
-import type { App } from '@/app/api/v1/[[...routes]]/route';
-import { getURL } from '@/utils';
 import { edenFetch } from '@elysiajs/eden';
-import { hc } from 'hono/client';
-
 import type { QueryClient } from '@tanstack/react-query';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import type { API } from '@/app/api/[[...route]]/route';
+import type { API_V1 } from '@/app/api/v1';
+import { getURL } from '@/utils';
 import { createQueryClient } from '.';
 
 /**
@@ -22,10 +20,11 @@ import { createQueryClient } from '.';
  *
  * @type {App} - The typed API router instance
  */
-export const elysia_api = edenFetch<App>(
+export const elysia_api = edenFetch<API>(
   typeof window === 'undefined' ? getURL() : window.location.origin,
 );
-export const hono_api = hc<HonoApp>(
+
+export const elysia_apiv1 = edenFetch<API_V1>(
   typeof window === 'undefined' ? getURL() : window.location.origin,
 );
 
@@ -36,7 +35,7 @@ export const hono_api = hc<HonoApp>(
  * @type {QueryClient | undefined} - The singleton QueryClient instance
  * @private
  */
-let clientQueryClientSingleton: QueryClient | undefined = undefined;
+let clientQueryClientSingleton: QueryClient | undefined;
 
 /**
  * Get or create a QueryClient instance based on the execution context.

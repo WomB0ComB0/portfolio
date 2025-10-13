@@ -1,12 +1,12 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
 import { experienceData } from '@/data/home-sections';
+import { constructMetadata } from '@/utils';
 
 const ExperienceDetail = dynamic(
   () =>
-    import(
-      '@/app/(routes)/(main)/experience/_interface/experience-detail'
-    ).then((mod) => mod.ExperienceDetail),
+    import('@/app/(routes)/(main)/experience/_interface/experience-detail').then(
+      (mod) => mod.ExperienceDetail,
+    ),
   {
     ssr: true,
   },

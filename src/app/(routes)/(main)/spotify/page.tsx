@@ -1,11 +1,8 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Spotify = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/spotify/_interface/spotify').then(
-      (mod) => mod.Spotify,
-    ),
+  () => import('@/app/(routes)/(main)/spotify/_interface/spotify').then((mod) => mod.Spotify),
   {
     ssr: true,
   },

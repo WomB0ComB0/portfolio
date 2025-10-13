@@ -64,3 +64,4 @@ sw.js.*
 /test-results
 
 bun.lock
+yarn.lock

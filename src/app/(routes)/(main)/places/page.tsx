@@ -1,9 +1,8 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Places = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/places/_interface/places').then((mod) => mod.Places),
+  () => import('@/app/(routes)/(main)/places/_interface/places').then((mod) => mod.Places),
   {
     ssr: true,
   },

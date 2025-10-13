@@ -1,2 +1,2 @@
-export * from './liveblocks'
-export * from './web-vitals'
+export * from './liveblocks';
+export * from './vitals';

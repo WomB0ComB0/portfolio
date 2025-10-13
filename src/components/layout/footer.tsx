@@ -24,6 +24,6 @@ export const Footer = () => {
       </p>
     </footer>
   );
-}
+};
 Footer.displayName = 'Footer';
-export default Footer
+export default Footer;

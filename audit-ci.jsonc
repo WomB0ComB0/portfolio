@@ -1,0 +1,19 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "package-manager": "bun",
+  "allowlist": [],
+  "critical": true,
+  "high": true,
+  "moderate": false,
+  "low": false,
+  "retry-count": 3,
+  "output-format": "text",
+  "report-type": "important",
+  "show-found": true,
+  "show-not-found": true,
+  "skip-dev": false,
+  "directory": "./",
+  "extra-args": [],
+  "pass-enoaudit": false,
+  "registry": "undefined"
+}

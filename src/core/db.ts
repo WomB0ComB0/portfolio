@@ -1,29 +1,45 @@
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, type DocumentData, onSnapshot } from 'firebase/firestore';
 import { atom, useAtomValue } from 'jotai';
 import { loadable } from 'jotai/utils';
+import { atomEffect } from 'jotai-effect';
+import type { Message } from '../schema/message';
 import { firestore } from './firebase';
 
-const messagesCollection = atom(
-  (_get) => {
-    const messages = collection(firestore, 'message');
-    return new Promise((resolve) => {
-      const unsubscribe = onSnapshot(messages, (snapshot) => {
-        const messages = snapshot.docs.map((doc) => ({
+// Internal atom to hold the messages state
+const messagesValue = atom<Message[]>([]);
+
+// Effect atom to set up real-time listener
+const messagesListener = atomEffect((_get, set) => {
+  const messagesRef = collection(firestore, 'message');
+
+  const unsubscribe = onSnapshot(
+    messagesRef,
+    (snapshot) => {
+      const messages = snapshot.docs.map((doc) => {
+        const data = doc.data() as DocumentData;
+        return {
           id: doc.id,
-          ...doc.data(),
-        }));
-        resolve(messages);
+          content: data.content as string,
+          createdAt: data.createdAt as string,
+          updatedAt: data.updatedAt as string,
+        } satisfies Message;
       });
+      set(messagesValue, messages);
+    },
+    (error) => {
+      console.error('Error fetching messages:', error);
+      set(messagesValue, []);
+    },
+  );
 
-      return () => {
-        unsubscribe();
-      };
-    });
-  },
-  (_get, set, update) => {
-    set(messagesCollection, update);
-  },
-);
+  return unsubscribe;
+});
 
-export const messagesCollectionAtom = atom(loadable(messagesCollection));
+// Async atom that returns messages with listener attached
+const messagesCollection = atom(async (get) => {
+  get(messagesListener);
+  return get(messagesValue);
+});
+
+export const messagesCollectionAtom = loadable(messagesCollection);
 export const useMessagesCollection = () => useAtomValue(messagesCollectionAtom);

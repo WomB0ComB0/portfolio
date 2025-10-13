@@ -1,9 +1,9 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Privacy = dynamic(
   () => import('@/app/(routes)/(legal)/privacy/_interface').then((mod) => mod.Privacy),
-  { ssr: true }
+  { ssr: true },
 );
 
 export const metadata = constructMetadata({

@@ -1,6 +1,5 @@
-import Discord from '@/components/dashboard/discord';
+import { Discord, Stats } from '@/app/(routes)/(main)/dashboard/_components';
 import Layout from '@/components/layout/layout';
-import Stats from '@/components/dashboard/stats';
 
 export const Dashboard = () => {
   return (

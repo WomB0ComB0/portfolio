@@ -3,10 +3,10 @@
  * TypeScript module declarations for importing various asset types (images, audio, video, JSON)
  * and global interface augmentations for browser APIs and React. These declarations enable
  * TypeScript-aware imports and type safety for static assets and custom browser features
- * used throughout the Product Decoder project.
+ * used throughout the Mike Odnis project.
  *
  * @copyright
- *   Copyright 2025 Product Decoder
+ *   Copyright 2025 Mike Odnis
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -269,7 +269,7 @@ declare global {
      * Service worker registration object.
      */
     serviceWorker: ServiceWorkerContainer;
-    
+
     /**
      * The user's preferred color scheme ('light' or 'dark').
      */
@@ -316,20 +316,18 @@ declare global {
      * @param eventName - The name of the event to log.
      * @param eventParams - Additional parameters for the event.
      * @see https://developers.google.com/analytics/devguides/collection/gtagjs/events
-    */
+     */
     gtag: (
       command: string,
       eventName: string,
       eventParams: {
-        value?: number
-        event_label?: string
-        non_interaction?: boolean
-      }
-    ) => void
+        value?: number;
+        event_label?: string;
+        non_interaction?: boolean;
+      },
+    ) => void;
   }
 }
-
-
 
 declare module 'react' {
   interface ScriptHTMLAttributes<T extends HTMLScriptElement>

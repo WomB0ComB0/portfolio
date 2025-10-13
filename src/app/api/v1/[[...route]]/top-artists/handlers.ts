@@ -1,4 +1,5 @@
-import { topArtists as getTopArtists } from '@/lib/spotify';
+import { topArtists as getTopArtists } from '@/lib';
+import type { topArtistsSchema } from './schema';
 
 interface SpotifyArtist {
   name: string;
@@ -8,11 +9,7 @@ interface SpotifyArtist {
   images: Array<{ url: string }>;
 }
 
-interface TopArtist {
-  name: string;
-  url: string;
-  imageUrl?: string;
-}
+type TopArtist = (typeof topArtistsSchema)['top-artists.response'][number];
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 let cache: { data: TopArtist[]; timestamp: number } | null = null;

@@ -1,4 +1,4 @@
-import Blog from '@/components/blog/blog';
+import { Blog } from '@/app/(routes)/(main)/blog/_components';
 import Layout from '@/components/layout/layout';
 
 export const BlogView = () => {

@@ -63,14 +63,17 @@ export const register = async (): Promise<void> => {
         }
       } catch (e) {
         console.warn('Could not load Sentry config:', e);
-        // Optionally continue without Sentry rather than crashing  
+        // Optionally continue without Sentry rather than crashing
       }
     }
   } catch (error) {
-    console.error(`[Instrumentation:${runtime || 'unknown'}]`, Error.isError(error) ? error : `Error: ${String(error)}`);
+    console.error(
+      `[Instrumentation:${runtime || 'unknown'}]`,
+      Error.isError(error) ? error : `Error: ${String(error)}`,
+    );
     Sentry.captureException(error);
     throw Error.isError(error)
-      ? error 
+      ? error
       : new Error(`Instrumentation initialization failed: ${String(error)}`);
   }
 };

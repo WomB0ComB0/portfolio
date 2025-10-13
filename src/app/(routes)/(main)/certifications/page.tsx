@@ -1,11 +1,11 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Certifications = dynamic(
   () =>
-    import(
-      '@/app/(routes)/(main)/certifications/_interface/certifications'
-    ).then((mod) => mod.Certifications),
+    import('@/app/(routes)/(main)/certifications/_interface/certifications').then(
+      (mod) => mod.Certifications,
+    ),
   {
     ssr: true,
   },

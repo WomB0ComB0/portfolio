@@ -1,6 +1,6 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
 import { projectsData } from '@/data/projects';
+import { constructMetadata } from '@/utils';
 
 const ProjectDetail = dynamic(
   () =>

@@ -30,9 +30,7 @@ export default async function ProjectModal({ params }: { params: { id: string } 
           </div>
         )}
         <CardHeader className="p-0">
-          <CardTitle className="text-3xl font-bold text-purple-300 mb-2">
-            {project.title}
-          </CardTitle>
+          <CardTitle className="text-3xl font-bold text-purple-300 mb-2">{project.title}</CardTitle>
           <p className="text-lg text-gray-400">Category: {project.category}</p>
         </CardHeader>
         <CardContent className="p-0 pt-6">

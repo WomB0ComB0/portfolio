@@ -43,6 +43,6 @@ export const MobileNavBar = ({ path }: { path: string }) => {
       </div>
     </nav>
   );
-}
+};
 MobileNavBar.displayName = 'MobileNavBar';
 export default MobileNavBar;

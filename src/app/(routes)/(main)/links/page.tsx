@@ -1,5 +1,5 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Links = dynamic(
   () => import('@/app/(routes)/(main)/links/_interface/links').then((mod) => mod.Links),

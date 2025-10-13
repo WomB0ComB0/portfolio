@@ -1,9 +1,7 @@
 'use client';
 
+import { NowPlaying, TopArtists, TopTracks } from '@/app/(routes)/(main)/spotify/_components';
 import Layout from '@/components/layout/layout';
-import NowPlaying from '@/components/music/now-playing';
-import TopArtists from '@/components/music/top-artists';
-import TopTracks from '@/components/music/top-tracks';
 
 export const Spotify = () => {
   return (

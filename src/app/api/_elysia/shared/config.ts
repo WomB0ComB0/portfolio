@@ -277,11 +277,13 @@ export function createElysiaApp(config: ElysiaApiConfig) {
  * Default error handler for API routes
  * Can be imported and used by individual routes
  */
-export const defaultErrorHandler = DEFAULT_CONFIG.errorHandler ?? (({ code, error, set }) => {
-  logger.error('API error handler', error, { code });
-  set.status = code === 'NOT_FOUND' ? 404 : 500;
-  return Stringify({
-    error: error instanceof Error ? Stringify({ error }) : Stringify({ error }),
-    status: set.status,
+export const defaultErrorHandler =
+  DEFAULT_CONFIG.errorHandler ??
+  (({ code, error, set }) => {
+    logger.error('API error handler', error, { code });
+    set.status = code === 'NOT_FOUND' ? 404 : 500;
+    return Stringify({
+      error: error instanceof Error ? Stringify({ error }) : Stringify({ error }),
+      status: set.status,
+    });
   });
-});

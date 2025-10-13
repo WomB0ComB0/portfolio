@@ -8,17 +8,7 @@ import {
   KBarSearch,
   useMatches,
 } from 'kbar';
-import {
-  Book,
-  Code,
-  FileText,
-  Headphones,
-  Home,
-  Link,
-  Map,
-  User,
-  Zap,
-} from 'lucide-react';
+import { Book, Code, FileText, Headphones, Home, Link, Map, User, Zap } from 'lucide-react';
 import React from 'react';
 import { FiDollarSign } from 'react-icons/fi';
 import { SiHashnode } from 'react-icons/si';

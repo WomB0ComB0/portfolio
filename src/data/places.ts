@@ -11,26 +11,72 @@ const placeholderPhotos: PhotoItem[] = [
   },
 ];
 
-const assignCategory = (name: string, description: string): string => {
-  const lowerName = name.toLowerCase();
-  const lowerDescription = description.toLowerCase();
+const categoryRules = [
+  {
+    category: 'Hackathon',
+    patterns: [
+      /\bhackathon\b/i,
+      /hack(?!er\b)/i, // Match "hack" but not "hacker"
+      /\bhacks?\b/i,
+    ],
+  },
+  {
+    category: 'Conference',
+    patterns: [
+      /\bconference\b/i,
+      /\bdevfest\b/i,
+      /\bsymposium\b/i,
+      /\bfield day\b/i,
+      /\bsummit\b/i,
+      /\bworkshop\b/i,
+    ],
+  },
+  {
+    category: 'Research',
+    patterns: [
+      /\bresearch\b/i,
+      /\bpresenter\b/i,
+      /\bieee\b/i,
+      /\bpaper\b/i,
+      /\bpublication\b/i,
+      /\bacademic\b/i,
+    ],
+  },
+  {
+    category: 'Tech Office',
+    patterns: [
+      /\boffice\b/i,
+      /\bcompany visit\b/i,
+      /\bvisited as part\b/i,
+      /\b(jane street|squarespace|meta|amazon|microsoft)\b/i,
+      /\bgoogle(?!.*devfest)/i, // Google but not DevFest
+    ],
+  },
+  {
+    category: 'Mentorship',
+    patterns: [
+      /\bmentor(?!.*hack)/i, // Mentor but not in hackathon context
+      /\bjudge(?!.*hack)/i,
+      /\bspeaker\b/i,
+      /\bvolunteer(?!.*hack)/i,
+      /\bpanelist\b/i,
+    ],
+  },
+] as const satisfies Array<{
+  category: string;
+  patterns: RegExp[];
+}>;
 
-  if (lowerName.includes('hack') || lowerDescription.includes('hackathon')) return 'Hackathon';
-  if (
-    lowerName.includes('devfest') ||
-    lowerName.includes('lisat') ||
-    lowerName.includes('field day') ||
-    lowerName.includes('conference')
-  )
-    return 'Conference';
-  if (
-    lowerName.includes('jane street') ||
-    lowerName.includes('squarespace') ||
-    (lowerName.includes('google') && (lowerName.includes('office') || lowerName.includes('event')))
-  )
-    return 'Tech Office'; // Google event could be tech office visit
-  if (lowerName.includes('columbia') && lowerDescription.includes('mentor')) return 'Event'; // Could be hackathon too, but let's be specific if possible
-  return 'Event'; // Default category
+const assignCategory = (name: string, description: string): string => {
+  const combined = `${name} ${description}`.toLowerCase();
+
+  for (const rule of categoryRules) {
+    if (rule.patterns.some((pattern) => pattern.test(combined))) {
+      return rule.category;
+    }
+  }
+
+  return 'Event';
 };
 
 const rawPlacesData: Array<[string, string, number, number]> = [
@@ -73,7 +119,7 @@ export const places: PlaceItem[] = rawPlacesData.map((place, index) => {
   };
 });
 
-export default places; // Default export remains the same array, now of PlaceItem[]
+export default places;
 
 export const MapStyles = [
   { elementType: 'geometry', stylers: [{ color: '#242424' }] },
@@ -154,4 +200,4 @@ export const MapStyles = [
     elementType: 'labels.text.stroke',
     stylers: [{ color: '#242424' }],
   },
-];
+] as const satisfies google.maps.MapTypeStyle[];

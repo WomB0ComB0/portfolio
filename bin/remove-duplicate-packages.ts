@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
+
 // -*- typescript -*-
 
-import { Stringify } from '@/utils';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PackageJson } from 'type-fest';
+import { Stringify } from '@/utils';
 
 const rootDir = join(__dirname, '..', '..');
 const packageJsonPath = join(rootDir, 'package.json');

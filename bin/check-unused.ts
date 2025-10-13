@@ -53,10 +53,7 @@ if (!fs.existsSync('./node_modules/depcheck')) {
 depcheck(rootDir, options)
   .then((unused: any) => {
     console.log('\nUnused Dependencies:');
-    fs.writeFileSync(
-      `${OUTPUT_DIR}/unused-dependencies.json`,
-      Stringify(unused.dependencies),
-    );
+    fs.writeFileSync(`${OUTPUT_DIR}/unused-dependencies.json`, Stringify(unused.dependencies));
 
     console.log('\nUnused DevDependencies:');
     fs.writeFileSync(
@@ -65,10 +62,7 @@ depcheck(rootDir, options)
     );
 
     console.log('\nMissing Dependencies:');
-    fs.writeFileSync(
-      `${OUTPUT_DIR}/missing-dependencies.json`,
-      Stringify(unused.missing),
-    );
+    fs.writeFileSync(`${OUTPUT_DIR}/missing-dependencies.json`, Stringify(unused.missing));
 
     const allDependencies = Object.keys(packageJson.dependencies || {}).concat(
       Object.keys(packageJson.devDependencies || {}),

@@ -7,9 +7,7 @@ export const Cookies = () => {
       <div className="prose dark:prose-invert max-w-none">
         <p>This page describes how cookies are used on this site.</p>
         <h2>What are cookies?</h2>
-        <p>
-          Cookies are small text files that are stored on your device when you visit a website.
-        </p>
+        <p>Cookies are small text files that are stored on your device when you visit a website.</p>
         <h2>How we use cookies</h2>
         <p>
           We use cookies to improve your experience, analyze site traffic, and personalize content.

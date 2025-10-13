@@ -1,4 +1,4 @@
-import { JSX } from 'react';
+import type { JSX } from 'react';
 import { cn } from '@/lib/utils';
 export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JSX.Element => {
   return (

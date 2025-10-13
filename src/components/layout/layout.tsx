@@ -3,9 +3,9 @@
 import { usePathname } from 'next/navigation';
 import BlurryBlob from '@/components/animations/background/blurry-blob';
 import Palette from '@/components/cmd';
-import { Footer, MobileNavBar, NavBar } from '.';
 import { DotPattern } from '@/components/magicui';
 import { LiveBlocksProvider } from '@/providers/core';
+import { Footer, MobileNavBar, NavBar } from '.';
 
 export default function Layout({
   children,

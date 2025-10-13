@@ -1,27 +1,82 @@
 import '@/styles/globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { Provider } from '@/providers';
-import { Scripts } from '@/scripts';
-import { constructMetadata, constructViewport } from '@/utils';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
-import env from '@/env';
+import { GlobalProvider } from '@/app/_providers';
+import { Scripts } from '@/scripts';
+import { constructMetadata, constructViewport } from '@/utils';
 
 export const metadata = constructMetadata();
 export const viewport = constructViewport();
 
 const kodchasanFont = localFont({
-  src: [{}],
+  src: [
+    {
+      path: '../../../public/assets/fonts/Kodchasan-ExtraLight.ttf',
+      weight: '200',
+      style: 'normal',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-ExtraLightItalic.ttf',
+      weight: '200',
+      style: 'italic',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-Light.ttf',
+      weight: '300',
+      style: 'normal',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-LightItalic.ttf',
+      weight: '300',
+      style: 'italic',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-Regular.ttf',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-Italic.ttf',
+      weight: '400',
+      style: 'italic',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-Medium.ttf',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-MediumItalic.ttf',
+      weight: '500',
+      style: 'italic',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-SemiBold.ttf',
+      weight: '600',
+      style: 'normal',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-SemiBoldItalic.ttf',
+      weight: '600',
+      style: 'italic',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-Bold.ttf',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../../../public/assets/fonts/Kodchasan-BoldItalic.ttf',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
   variable: '--font-kodchasan',
   display: 'swap',
-  preload: true
-})
-// export const reportWebVitals = (metric: NextWebVitalsMetric) => {
-//   if (metric.label === 'web-vital') {
-//     console.log(metric);
-//   }
-// };
+  preload: true,
+});
 
 export default async function RootLayout({
   children,
@@ -69,12 +124,12 @@ export default async function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           ></iframe>
         </noscript>
-        <Provider>
+        <GlobalProvider>
           {children}
           {modal}
           <SpeedInsights />
           <Analytics />
-        </Provider>
+        </GlobalProvider>
       </body>
     </html>
   );

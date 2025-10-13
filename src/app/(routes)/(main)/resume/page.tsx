@@ -1,9 +1,8 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Resume = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/resume/_interface/resume').then((mod) => mod.Resume),
+  () => import('@/app/(routes)/(main)/resume/_interface/resume').then((mod) => mod.Resume),
   {
     ssr: true,
   },

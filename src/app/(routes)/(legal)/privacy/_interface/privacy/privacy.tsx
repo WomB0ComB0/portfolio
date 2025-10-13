@@ -12,13 +12,9 @@ export const Privacy = () => {
           use of our services.
         </p>
         <h2>How We Use Your Information</h2>
-        <p>
-          We use the information we collect to provide, maintain, and improve our services.
-        </p>
+        <p>We use the information we collect to provide, maintain, and improve our services.</p>
         <h2>Data Security</h2>
-        <p>
-          We implement appropriate security measures to protect your personal information.
-        </p>
+        <p>We implement appropriate security measures to protect your personal information.</p>
       </div>
     </section>
   );

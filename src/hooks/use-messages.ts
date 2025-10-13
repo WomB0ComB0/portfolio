@@ -1,8 +1,8 @@
 'use client';
 
-import { Stringify } from '@/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import superjson from 'superjson';
+import { Stringify } from '@/utils';
 
 interface Message {
   id: string;

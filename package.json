@@ -20,15 +20,10 @@
     "analyze": "cross-env ANALYZE=true next build && bun report-bundle-size.js",
     "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build",
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
-    "build": "next build",
-    "dev": "next dev",
-    "e2e:ci": "bun run e2e:install && bunx playwright test --project=chromium",
-    "e2e:install": "bunx playwright install",
-    "gen": "graphql-codegen --config codegen.yml",
-    "lint": "bunx biome check --write ./ || true && bunx stylelint src/styles/**/*.{css,scss,sass} --fix || true",
-    "start": "next start",
-    "test": "vitest run",
-    "type": "tsc --noEmit",
+    "audit": "bun run prepare:audit && bunx audit-ci@^7.1.0 --critical --report-type important",
+    "audit:high": "bun run prepare:audit && bunx audit-ci@^7.1.0 --high --report-type full",
+    "audit:moderate": "bun run prepare:audit && bunx audit-ci@^7.1.0 --moderate --report-type summary",
+    "audit:ts": "bun run ./bin/audit.ts",
     "bin:audit": "bun run bin/audit.ts",
     "bin:check-unused": "bun run bin/check-unused.ts",
     "bin:copyright": "bun run bin/copyright.ts",
@@ -37,7 +32,17 @@
     "bin:lighthouse": "bun run bin/light-house.ts",
     "bin:package-cost": "bun run bin/package-cost.ts",
     "bin:remove-duplicates": "bun run bin/remove-duplicate-packages.ts",
-    "bin:tree-shake": "bun run bin/unused-tree-shake.ts"
+    "bin:tree-shake": "bun run bin/unused-tree-shake.ts",
+    "build": "next build",
+    "dev": "next dev",
+    "e2e:ci": "bun run e2e:install && bunx playwright test --project=chromium",
+    "e2e:install": "bunx playwright install",
+    "gen": "graphql-codegen --config codegen.yml",
+    "lint": "bunx biome check --write ./ || true && bunx stylelint src/styles/**/*.{css,scss,sass} --fix || true",
+    "prepare:audit": "bun install --yarn > yarn.lock",
+    "start": "next start",
+    "test": "vitest run",
+    "type": "tsc --noEmit"
   },
   "browserslist": {
     "development": [
@@ -179,8 +184,7 @@
     "type-fest": "^5.0.1",
     "vaul": "^1.1.2",
     "vitest": "^3.2.4",
-    "zod": "^4.1.12",
-    "zustand": "^5.0.8"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "6.0.0",

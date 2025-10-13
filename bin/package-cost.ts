@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
+
 // -*- typescript -*-
 
-import { Stringify } from '@/utils';
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PackageJson } from 'type-fest';
+import { Stringify } from '@/utils';
 
 const packageJsonPath = join(process.cwd(), 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as PackageJson;
@@ -60,29 +61,29 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 /**
  * Import as JSON
  * import highPackages from './out/high.json' assert { type: 'json' };
-*/
+ */
 writeFileSync(
   `${OUTPUT_DIR}/high.json`,
-  Stringify([...categorizedPackages.high].map(e => e.name)), 
+  Stringify([...categorizedPackages.high].map((e) => e.name)),
   {
     flag: 'w',
-  }
+  },
 );
 
 writeFileSync(
   `${OUTPUT_DIR}/medium.json`,
-  Stringify([...categorizedPackages.medium].map(e => e.name)), 
+  Stringify([...categorizedPackages.medium].map((e) => e.name)),
   {
     flag: 'w',
-  }
+  },
 );
 
 writeFileSync(
   `${OUTPUT_DIR}/low.json`,
-  Stringify([...categorizedPackages.low].map(e => e.name)), 
+  Stringify([...categorizedPackages.low].map((e) => e.name)),
   {
     flag: 'w',
-  }
+  },
 );
 
 console.log('\n📦 Package Size Summary:');

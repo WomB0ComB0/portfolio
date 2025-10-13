@@ -1,8 +1,8 @@
 import 'server-only';
-import { getURL } from '@/utils';
 import { edenTreaty } from '@elysiajs/eden';
-import { API_V1 } from '@/app/api/v1';
-import { API } from '@/app/api/[[...route]]/route';
+import type { API } from '@/app/api/[[...route]]/route';
+import type { API_V1 } from '@/app/api/v1';
+import { getURL } from '@/utils';
 
 /**
  * Server-side API client instance created using Elysia's Eden treaty pattern.

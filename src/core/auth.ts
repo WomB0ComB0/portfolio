@@ -47,48 +47,63 @@ export function useCurrentUserLoadable() {
   return useAtomValue(currentUserLoadable);
 }
 
-export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFlight: boolean] {
+export function useSignIn(
+  signInMethod: SignInMethod,
+): readonly [signIn: () => void, inFlight: boolean] {
   const [inFlight, setInFlight] = useState(false);
 
   const signIn = useCallback(() => {
-    let p: Promise<UserCredential> | null = null;
+    const auth = getAuth(app);
+    let authPromise: Promise<UserCredential>;
 
-    if (signInMethod === 'anonymous') {
-      const auth = getAuth(app);
-      p = signInAnonymously(auth);
+    switch (signInMethod) {
+      case 'anonymous':
+        authPromise = signInAnonymously(auth);
+        break;
+
+      case 'google.com': {
+        const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+        provider.setCustomParameters({
+          prompt: 'consent',
+        });
+        authPromise = signInWithPopup(auth, provider);
+        break;
+      }
+
+      case 'github.com': {
+        const provider = new GithubAuthProvider();
+        provider.addScope('read:user');
+        authPromise = signInWithPopup(auth, provider);
+        break;
+      }
+
+      default:
+        throw new Error(`Unsupported sign-in method: ${signInMethod satisfies never}`);
     }
-
-    if (signInMethod === 'google.com') {
-      const auth = getAuth(app!);
-      const provider = new GoogleAuthProvider();
-      provider.addScope('profile');
-      provider.addScope('email');
-      provider.setCustomParameters({
-        prompt: 'consent',
-      });
-      p = signInWithPopup(auth, provider);
-    }
-
-    if (signInMethod === 'github.com') {
-      const auth = getAuth(app!);
-      const provider = new GithubAuthProvider();
-      provider.addScope('read:user');
-      p = signInWithPopup(auth, provider);
-    }
-
-    if (!p) throw new Error(`Not supported: ${signInMethod}`);
 
     setInFlight(true);
-    p.then(() => {
-      window.location.reload();
-      toast.success('Logged in successfully! 🎉');
-    })
+    authPromise
+      .then(() => {
+        toast.success('Logged in successfully! 🎉');
+        window.location.reload();
+      })
       .catch((error: FirebaseError) => {
         console.error('Sign-in error:', error);
-        let errorMessage = 'An error occurred during sign-in. Please try again.';
-        if (error.code === 'auth/network-request-failed') {
-          errorMessage = 'Network error. Please check your internet connection and try again.';
-        }
+
+        const errorMessages: Record<string, string> = {
+          'auth/network-request-failed':
+            'Network error. Please check your internet connection and try again.',
+          'auth/popup-blocked': 'Pop-up blocked. Please allow pop-ups for this site.',
+          'auth/popup-closed-by-user': 'Sign-in cancelled.',
+          'auth/cancelled-popup-request': 'Sign-in cancelled.',
+          'auth/account-exists-with-different-credential':
+            'An account already exists with this email.',
+        };
+
+        const errorMessage =
+          errorMessages[error.code] ?? 'An error occurred during sign-in. Please try again.';
         toast.error(errorMessage);
       })
       .finally(() => setInFlight(false));
@@ -97,7 +112,7 @@ export function useSignIn(signInMethod: SignInMethod): [signIn: () => void, inFl
   return [signIn, inFlight] as const;
 }
 
-export function useSignOut(): [signOut: () => void, inFlight: boolean] {
+export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] {
   const [inFlight, setInFlight] = useState(false);
 
   const signOut = useCallback(() => {
@@ -106,8 +121,12 @@ export function useSignOut(): [signOut: () => void, inFlight: boolean] {
     auth
       .signOut()
       .then(() => {
-        window.location.reload();
         toast.success('Signed out successfully! 🎉');
+        window.location.reload();
+      })
+      .catch((error: FirebaseError) => {
+        console.error('Sign-out error:', error);
+        toast.error('Failed to sign out. Please try again.');
       })
       .finally(() => setInFlight(false));
   }, []);
@@ -116,5 +135,3 @@ export function useSignOut(): [signOut: () => void, inFlight: boolean] {
 }
 
 export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';
-export const signout: SignOutMethod = 'Sign out';
-type SignOutMethod = 'Sign out';

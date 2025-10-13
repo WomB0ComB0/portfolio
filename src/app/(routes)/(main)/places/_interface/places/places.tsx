@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { FaInfoCircle } from 'react-icons/fa';
+import { GoogleMaps } from '@/app/(routes)/(main)/places/_components';
 import Layout from '@/components/layout/layout';
-import GoogleMaps from '@/components/markers/map';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';

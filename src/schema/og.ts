@@ -13,11 +13,9 @@ const OG_RULES = {
 };
 
 export const ogImageSchema = z.object({
-  title: z
-    .string()
-    .max(OG_RULES.TITLE.MAX_LENGTH, {
-      message: `Title must be ${OG_RULES.TITLE.MAX_LENGTH} characters or less`,
-    }),
+  title: z.string().max(OG_RULES.TITLE.MAX_LENGTH, {
+    message: `Title must be ${OG_RULES.TITLE.MAX_LENGTH} characters or less`,
+  }),
   description: z
     .string()
     .max(OG_RULES.DESCRIPTION.MAX_LENGTH, {
@@ -30,7 +28,5 @@ export const ogImageSchema = z.object({
       message: `Type must be ${OG_RULES.TYPE.MAX_LENGTH} characters or less`,
     })
     .optional(),
-  mode: z
-    .enum(['light', 'dark'])
-    .default('dark'),
+  mode: z.enum(['light', 'dark']).default('dark'),
 });

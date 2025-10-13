@@ -1,11 +1,8 @@
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 const Guestbook = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/guestbook/_interface/guestbook').then(
-      (mod) => mod.Guestbook,
-    ),
+  () => import('@/app/(routes)/(main)/guestbook/_interface/guestbook').then((mod) => mod.Guestbook),
   {
     ssr: true,
   },

@@ -1,51 +1,58 @@
-import { type FirebaseApp, getApps, initializeApp } from 'firebase/app';
+import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from 'firebase/app';
 import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
 import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
+import { config } from '@/config';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+  apiKey: config.firebase.apiKey,
+  authDomain: config.firebase.authDomain,
+  projectId: config.firebase.projectId,
+  storageBucket: config.firebase.storageBucket,
+  messagingSenderId: config.firebase.messagingSenderId,
+  appId: config.firebase.appId,
+  measurementId: config.firebase.measurementId,
+} as const satisfies FirebaseOptions;
 
 const serviceAccount = {
   type: 'service_account',
-  project_id: process.env.NEXT_PUBLIC_GCP_PROJECT_ID,
-  private_key_id: process.env.NEXT_PUBLIC_GCP_PRIVATE_KEY_ID,
-  private_key: process.env.NEXT_PUBLIC_GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  client_email: process.env.NEXT_PUBLIC_GCP_CLIENT_EMAIL,
-  client_id: process.env.NEXT_PUBLIC_GCP_CLIENT_ID,
+  project_id: config.gcp.projectId,
+  private_key_id: config.gcp.privateKeyId,
+  private_key: config.gcp.privateKey.replace(/\\n/g, '\n'),
+  client_email: config.gcp.clientEmail,
+  client_id: config.gcp.clientId,
   auth_uri: 'https://accounts.google.com/o/oauth2/auth',
   token_uri: 'https://oauth2.googleapis.com/token',
   auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-  client_x509_cert_url: process.env.NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL,
+  client_x509_cert_url: config.gcp.clientX509CertUrl,
   universe_domain: 'googleapis.com',
-};
+} as const;
 
-let app: FirebaseApp;
-let auth: Auth;
-let firestore: Firestore;
+function initializeFirebase(): { app: FirebaseApp; auth: Auth; firestore: Firestore } {
+  const existingApp = getApps()[0];
+  const app = existingApp ?? initializeApp(firebaseConfig);
 
-try {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
+  if (!existingApp) {
     console.log('Firebase initialized successfully');
-  } else {
-    app = getApps()[0]!;
   }
 
-  auth = getAuth(app);
-  firestore = getFirestore(app!);
+  const auth = getAuth(app);
+  const firestore = getFirestore(app);
 
-  if (process.env.NODE_ENV === 'development') {
-    connectAuthEmulator(auth, 'http://localhost:9099');
-    connectFirestoreEmulator(firestore, 'localhost', 8080);
+  // Connect to emulators in development (only once)
+  if (process.env.NODE_ENV === 'development' && !existingApp) {
+    try {
+      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+      connectFirestoreEmulator(firestore, 'localhost', 8080);
+      console.log('Connected to Firebase emulators');
+    } catch (error) {
+      // Emulators already connected or not available
+      console.warn('Firebase emulators connection warning:', error);
+    }
   }
-} catch (error) {
-  console.error('Error initializing Firebase:', error);
+
+  return { app, auth, firestore };
 }
 
-export { auth, app, firestore, serviceAccount };
+const { app, auth, firestore } = initializeFirebase();
+
+export { app, auth, firestore, serviceAccount };

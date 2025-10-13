@@ -33,11 +33,7 @@ import { motion } from 'motion/react';
  * - Timing function: easeInOut
  * - Duration: 0.75 seconds
  */
-export const TransitionAnimation = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const TransitionAnimation = ({ children }: { children: React.ReactNode }) => {
   return (
     <motion.div
       initial={{ y: 20, opacity: 0 }}

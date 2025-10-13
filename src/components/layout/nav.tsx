@@ -62,6 +62,6 @@ export const NavBar = ({ path }: { path: string }) => {
       <div className="border-r-2 border-[#ba9bdd] h-full mt-4"></div>
     </div>
   );
-}
+};
 NavBar.displayName = 'NavBar';
 export default NavBar;

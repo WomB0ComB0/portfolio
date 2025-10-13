@@ -4,6 +4,8 @@ import { flushSync } from 'react-dom';
 import { app } from '@/constants';
 import { generateSchema, Stringify } from '@/utils';
 
+const mapsApiKey = await import('@/config').then((mod) => mod.config.google.maps.apiKey);
+
 /**
  * Configuration type for preload/prefetch behavior
  * @typedef {Object} PreloadConfig
@@ -16,6 +18,13 @@ type PreloadConfig = {
   prefetchPaths: string[];
   excludePaths: string[];
 };
+
+/**
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Speculation_Rules_API
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API
+ * @see https://schema.org/
+ */
 
 export const Scripts = () => {
   const schemaOrg = {
@@ -242,7 +251,7 @@ export const Scripts = () => {
       <Script
         strategy="afterInteractive"
         src={`https://maps.googleapis.com/maps/api/js?key=${
-          process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+          mapsApiKey
         }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
       />
       <Script
