@@ -30,7 +30,7 @@ describe('parseCodePathDetailed', () => {
     });
     expect(result).toContain('custom:');
     expect(result).toContain('@myFunction: test context');
-    expect(result).toMatch(/:\d+\s/);
+    expect(result).toMatch(/:(\d+):\d+/);
     expect(result).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/);
   });
 });
