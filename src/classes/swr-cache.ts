@@ -243,7 +243,7 @@ export async function fetchWithSWR<T>(
  * Example usage:
  *
  * ```typescript
- * import { fetchWithSWR } from '@/lib/swr-cache';
+ * import { fetchWithSWR } from '@/class/swr-cache';
  *
  * export async function getGitHubStats() {
  *   return fetchWithSWR(

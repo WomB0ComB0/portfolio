@@ -3,54 +3,66 @@
 import { Briefcase, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { experienceData } from '@/data/home-sections';
+import { useSanityExperiences } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
+import type { Experience } from '@/lib/sanity/types';
 
-export const ExperienceList = () => {
+const ExperienceListContent = () => {
+  const { data: experiences } = useSanityExperiences();
+  const experienceList = experiences as Experience[];
+
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <header className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-purple-300 flex items-center justify-center">
-            <Briefcase className="mr-3 h-10 w-10" /> My Work Experience
-          </h1>
-          <p className="text-lg text-gray-400 mt-2">
-            A summary of my professional roles and contributions.
-          </p>
-        </header>
+    <>
+      <header className="mb-12 text-center">
+        <h1 className="text-4xl font-bold text-purple-300 flex items-center justify-center">
+          <Briefcase className="mr-3 h-10 w-10" /> My Work Experience
+        </h1>
+        <p className="text-lg text-gray-400 mt-2">
+          A summary of my professional roles and contributions.
+        </p>
+      </header>
 
-        {experienceData.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {experienceData.map((item) => (
+      {experienceList && experienceList.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {experienceList.map((item) => {
+            const period = item.current
+              ? `${new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present`
+              : `${new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${item.endDate ? new Date(item.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Present'}`;
+
+            return (
               <Card
-                key={item.id}
+                key={item._id}
                 className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300"
               >
                 <CardHeader className="flex flex-row items-start gap-4 p-6">
-                  {item.companyImage && (
+                  {item.logo && (
                     <div className="flex-shrink-0 w-16 h-16 relative">
                       <Image
-                        src={item.companyImage}
-                        alt={`${item.companyTitle} logo`}
-                        layout="fill"
+                        src={urlFor(item.logo).width(64).height(64).url()}
+                        alt={`${item.company} logo`}
+                        width={64}
+                        height={64}
                         className="rounded-md object-contain bg-white p-1"
                       />
                     </div>
                   )}
                   <div className="flex-grow">
                     <CardTitle className="text-xl font-semibold text-purple-300 mb-1">
-                      {item.jobTitle}
+                      {item.position}
                     </CardTitle>
-                    <p className="text-md text-gray-400">{item.companyTitle}</p>
-                    <p className="text-xs text-gray-500">{item.employmentPeriod}</p>
+                    <p className="text-md text-gray-400">{item.company}</p>
+                    <p className="text-xs text-gray-500">{period}</p>
+                    {item.location && (
+                      <p className="text-xs text-gray-500">{item.location}</p>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 flex-grow">
-                  <p className="text-sm text-gray-300 mb-4 line-clamp-3">
-                    {item.jobDescriptionShort}
-                  </p>
+                  <p className="text-sm text-gray-300 mb-4 line-clamp-3">{item.description}</p>
                 </CardContent>
                 <div className="p-6 border-t border-purple-700 mt-auto">
                   <Button
@@ -58,19 +70,38 @@ export const ExperienceList = () => {
                     variant="outline"
                     className="w-full bg-purple-800 hover:bg-purple-700 border-purple-700 text-purple-200"
                   >
-                    <Link href={`/experience/${item.id}`} scroll={false}>
+                    <Link href={`/experience/${item._id}`} scroll={false}>
                       View Details <ExternalLink className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                 </div>
               </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-xl text-gray-400">No work experience listed at the moment.</p>
-          </div>
-        )}
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-xl text-gray-400">No work experience listed at the moment.</p>
+        </div>
+      )}
+    </>
+  );
+};
+
+export const ExperienceList = () => {
+  return (
+    <Layout>
+      <div className="container mx-auto px-4 py-12">
+        <Suspense
+          fallback={
+            <div className="text-center py-12">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent"></div>
+              <p className="text-gray-400 mt-4">Loading experiences...</p>
+            </div>
+          }
+        >
+          <ExperienceListContent />
+        </Suspense>
       </div>
     </Layout>
   );

@@ -255,6 +255,25 @@ Metadata: ${JSON.stringify(this.metadata, null, 2)}`
     }
     return this.toString();
   }
+  /**
+   * Custom Deno inspection method for better console output in Deno environment.
+   * This method is automatically called by Deno utilities like `console.log`
+   *
+   * @returns {string} The string representation of the error
+   */
+  [Symbol.for('Deno.customInspect')](): string {
+    return this.toString();
+  }
+
+  /**
+   * Custom React element inspection method for better console output in React environment.
+   * This method is automatically called by React utilities like `console.log`
+   *
+   * @returns {string} The string representation of the error
+   */
+  [Symbol.for('react.element')](): string {
+    return this.toString();
+  }
 
   /**
    * Returns an array of key-value pairs representing error properties.
