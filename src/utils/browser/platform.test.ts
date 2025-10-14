@@ -76,6 +76,11 @@ describe('Browser Detection', () => {
     expect(getBrowser()).toBe('edge');
     expect(isEdge()).toBe(true);
   });
+
+  it('should return "unknown" for an unknown browser', () => {
+    setUserAgent('unknown');
+    expect(getBrowser()).toBe('unknown');
+  });
 });
 
 describe('getPlatform', () => {
@@ -83,14 +88,30 @@ describe('getPlatform', () => {
     setUserAgent('iPhone');
     expect(getPlatform()).toBe('ios');
   });
+
+  it('should return "unknown" for an unknown platform', () => {
+    setUserAgent('unknown');
+    expect(getPlatform()).toBe('unknown');
+  });
 });
 
 describe('isTouchScreen', () => {
-  it('should detect touch screen capabilities', () => {
+  it('should detect touch screen capabilities via maxTouchPoints', () => {
     Object.defineProperty(navigator, 'maxTouchPoints', {
       value: 5,
       writable: true,
     });
+    expect(isTouchScreen()).toBe(true);
+  });
+
+  it('should detect touch screen capabilities via matchMedia', () => {
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      value: 0,
+      writable: true,
+    });
+    window.matchMedia = vi.fn().mockImplementation(query => ({
+      matches: query === '(any-pointer:coarse)',
+    }));
     expect(isTouchScreen()).toBe(true);
   });
 });
