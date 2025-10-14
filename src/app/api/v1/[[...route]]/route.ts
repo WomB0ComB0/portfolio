@@ -1,43 +1,67 @@
 import { logger } from '@/utils';
-import { batchSpanProcessor, IS_VERCEL, version } from '../../_elysia/constants';
+import { batchSpanProcessor, IS_VERCEL } from '../../_elysia/constants';
 import { createElysiaApp } from '../../_elysia/shared/config';
 import { apiRoutes, utilityRoutes } from './elysia';
 
+// Next.js file path provides /api/v1, so don't add prefix here
 const app = createElysiaApp({
-  prefix: '/api/v1',
-  swagger: {
-    path: '/swagger',
-    title: '🦊 Portfolio v3 API Server',
-    version: version || '1.0.0',
-    description: `
-      Portfolio v3
-
-      > **Contact: [API Support](mailto:mike@mikeodnis.dev)
-    `,
-    contact: {
-      name: 'API Support',
-      email: 'mike@mikeodnis.dev',
-    },
-    tags: [
-      {
-        name: 'Utility',
-        description: 'Status, version, and health check endpoints',
-      },
-      {
-        name: 'Info',
-        description: 'API information endpoints',
-      },
-    ],
-  },
+  prefix: '',
 })
   .use(utilityRoutes)
-  .use(apiRoutes);
+  .use(apiRoutes)
+  .onError(({ code, error }) => {
+    logger.error('Elysia error', error, { code });
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Internal server error',
+        code,
+      }),
+      {
+        status: code === 'NOT_FOUND' ? 404 : 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  });
 
-export const GET = app.handle;
-export const POST = app.handle;
-export const PUT = app.handle;
-export const DELETE = app.handle;
-export const PATCH = app.handle;
+/**
+ * Wraps Elysia handler to ensure it always returns a Response
+ */
+const wrapHandler = (handler: typeof app.handle) => async (request: Request) => {
+  try {
+    const response = await handler(request);
+    if (!response) {
+      logger.warn('Handler returned null/undefined, creating fallback response');
+      return new Response(
+        JSON.stringify({ error: 'No response from handler' }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+    return response;
+  } catch (error) {
+    logger.error('Handler error', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+};
+
+export const GET = wrapHandler(app.handle);
+export const POST = wrapHandler(app.handle);
+export const PUT = wrapHandler(app.handle);
+export const DELETE = wrapHandler(app.handle);
+export const PATCH = wrapHandler(app.handle);
+export const OPTIONS = wrapHandler(app.handle);
 
 /**
  * Gracefully shuts down telemetry on Vercel using waitUntil if available.

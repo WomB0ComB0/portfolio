@@ -26,14 +26,15 @@ export const ExperienceDetail = ({ params }: ExperienceDetailProps) => {
           <p className="text-gray-400 mb-8">
             The experience item you are looking for does not exist.
           </p>
-          <Link href="/" passHref legacyBehavior>
-            <Button
-              variant="outline"
-              className="text-purple-300 border-purple-700 hover:bg-purple-800"
-            >
+          <Button
+            asChild
+            variant="outline"
+            className="text-purple-300 border-purple-700 hover:bg-purple-800"
+          >
+            <Link href="/">
               <ArrowLeft className="mr-2 h-5 w-5" /> Back to Home
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </Layout>
     );
@@ -139,14 +140,15 @@ export const ExperienceDetail = ({ params }: ExperienceDetailProps) => {
             )}
 
             <div className="mt-8 pt-6 border-t border-purple-700">
-              <Link href="/experience">
-                <Button
-                  variant="outline"
-                  className="text-purple-300 border-purple-700 hover:bg-purple-800"
-                >
+              <Button
+                asChild
+                variant="outline"
+                className="text-purple-300 border-purple-700 hover:bg-purple-800"
+              >
+                <Link href="/experience">
                   <ArrowLeft className="mr-2 h-5 w-5" /> Back to Experience
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </article>
         </section>

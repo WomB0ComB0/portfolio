@@ -1,6 +1,8 @@
-import { Effect, pipe, Schema } from 'effect';
 import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { ensureBaseError } from '@/classes/error';
+import { env } from '@/env';
 
 interface WakaTimeData {
   text: string;
@@ -32,7 +34,7 @@ export async function getWakaTimeData(): Promise<WakaTimeData> {
   const effect = pipe(
     get('https://wakatime.com/api/v1/users/current/all_time_since_today', {
       headers: {
-        Authorization: `Basic ${btoa(process.env.WAKA_TIME_API_KEY as string)}`,
+        Authorization: `Basic ${btoa(env.WAKA_TIME_API_KEY as string)}`,
       },
       schema: WakaTimeResponseSchema,
       retries: 2,
@@ -48,7 +50,9 @@ export async function getWakaTimeData(): Promise<WakaTimeData> {
 
     return data;
   } catch (error) {
-    console.error('Error fetching WakaTime data:', error);
-    throw error;
+    throw ensureBaseError(error, 'wakatime:fetch', {
+      endpoint: 'all_time_since_today',
+      cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
+    });
   }
 }

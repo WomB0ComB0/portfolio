@@ -255,8 +255,9 @@ export const Scripts = () => {
       />
       <Script
         strategy="afterInteractive"
-        src={`https://maps.googleapis.com/maps/api/js?key=${mapsApiKey
-          }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
+        src={`https://maps.googleapis.com/maps/api/js?key=${
+          mapsApiKey
+        }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
       />
       <Script
         strategy="afterInteractive"

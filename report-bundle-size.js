@@ -91,7 +91,7 @@ const allAppDirSizes = Object.entries(appDirMeta.pages).reduce(
     acc[pagePath] = scriptSizes;
     return acc;
   },
-  /** @type {PageSizes} */({}),
+  /** @type {PageSizes} */ ({}),
 );
 
 // format and write the output

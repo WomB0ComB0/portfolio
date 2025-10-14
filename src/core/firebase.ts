@@ -2,6 +2,7 @@ import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from '
 import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
 import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
 import { config } from '@/config';
+import { onRequestError } from '@/instrumentation';
 
 const firebaseConfig = {
   apiKey: config.firebase.apiKey,
@@ -47,6 +48,7 @@ function initializeFirebase(): { app: FirebaseApp; auth: Auth; firestore: Firest
     } catch (error) {
       // Emulators already connected or not available
       console.warn('Firebase emulators connection warning:', error);
+      onRequestError(error);
     }
   }
 

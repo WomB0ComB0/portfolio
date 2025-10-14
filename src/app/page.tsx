@@ -101,30 +101,27 @@ function Home() {
                 Dive deeper into my professional journey:
               </p>
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                <Link href="/experience" passHref legacyBehavior>
-                  <Button
-                    variant="outline"
-                    className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
-                  >
-                    View Work Experience
-                  </Button>
-                </Link>
-                <Link href="/certifications" passHref legacyBehavior>
-                  <Button
-                    variant="outline"
-                    className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
-                  >
-                    Explore Certifications
-                  </Button>
-                </Link>
-                <Link href="/projects" passHref legacyBehavior>
-                  <Button
-                    variant="outline"
-                    className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
-                  >
-                    Discover My Projects
-                  </Button>
-                </Link>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
+                >
+                  <Link href="/experience">View Work Experience</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
+                >
+                  <Link href="/certifications">Explore Certifications</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="text-purple-300 border-purple-600 hover:bg-purple-800 hover:border-purple-500 w-full sm:w-auto"
+                >
+                  <Link href="/projects">Discover My Projects</Link>
+                </Button>
               </div>
             </div>
           </article>

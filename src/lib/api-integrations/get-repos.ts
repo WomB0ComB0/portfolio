@@ -4,6 +4,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { cache } from 'react';
 import { post } from '@/lib/http-clients/effect-fetcher';
+import { env } from '@/env';
 
 const PrimaryLanguageSchema = Schema.Struct({
   name: Schema.String,
@@ -22,8 +23,10 @@ export type PinnedRepo = Schema.Schema.Type<typeof PinnedRepoSchema>;
 
 export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
   const effect = pipe(
-    post('https://api.github.com/graphql', {
-      query: `
+    post(
+      'https://api.github.com/graphql',
+      {
+        query: `
         query {
           user(login: "WomB0ComB0") {
             pinnedItems(first: 6, types: [REPOSITORY]) {
@@ -45,15 +48,17 @@ export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
           }
         }
       `,
-    }, {
-      headers: {
-        Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
       },
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer)
+      {
+        headers: {
+          Authorization: `bearer ${env.GITHUB_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        retries: 2,
+        timeout: 10_000,
+      },
+    ),
+    Effect.provide(FetchHttpClient.layer),
   );
 
   try {

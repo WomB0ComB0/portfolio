@@ -1,5 +1,6 @@
 import { Address4, Address6 } from 'ip-address';
 import { redis } from '@/classes/redis';
+import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
 
 const log = Logger.getLogger('BanlistCIDR');
@@ -87,6 +88,7 @@ export async function isIpInAnyCidr(ip: string): Promise<boolean> {
           cidr,
           error: error instanceof Error ? error.message : String(error),
         });
+        onRequestError(error);
       }
     }
 
@@ -96,6 +98,7 @@ export async function isIpInAnyCidr(ip: string): Promise<boolean> {
       ip,
       error: error instanceof Error ? error.message : String(error),
     });
+    onRequestError(error);
     return false;
   }
 }
@@ -137,6 +140,7 @@ export async function banCidr(cidr: string, reason?: string): Promise<void> {
       cidr,
       error: error instanceof Error ? error.message : String(error),
     });
+    onRequestError(error);
     throw error;
   }
 }
@@ -155,6 +159,7 @@ export async function unbanCidr(cidr: string): Promise<void> {
       cidr,
       error: error instanceof Error ? error.message : String(error),
     });
+    onRequestError(error);
     throw error;
   }
 }
@@ -170,6 +175,7 @@ export async function getBannedCidrs(): Promise<string[]> {
     return cidrs as string[];
   } catch (error) {
     log.error('Error fetching banned CIDR ranges', { error });
+    onRequestError(error);
     return [];
   }
 }

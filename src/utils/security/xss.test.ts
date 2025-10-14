@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
+  escapeHtml,
   sanitizeHtml,
+  sanitizeJson,
   sanitizeMarkdown,
   sanitizeUrl,
   validateUserInput,
-  escapeHtml,
-  sanitizeJson,
 } from './xss';
 
 describe('sanitizeHtml', () => {

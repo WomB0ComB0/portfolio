@@ -1,8 +1,8 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Effect, Schema, pipe } from 'effect';
 import { FetchHttpClient } from '@effect/platform';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
 import { post } from '@/lib/http-clients/effect-fetcher';
 
 interface Message {

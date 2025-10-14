@@ -55,27 +55,29 @@ export default function TopArtists() {
             <>
               {data.json.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                  {data.json.map((artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
-                    <motion.div
-                      key={`${artist.name}-${index}`}
-                      className="flex flex-col items-center space-y-3 p-4 bg-purple-800/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-purple-700/60 transition-all text-center"
-                      onClick={() => window.open(artist.url, '_blank')}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Image
-                        src={artist.imageUrl}
-                        alt={artist.name}
-                        className="w-24 h-24 rounded-full shadow-lg border-2 border-purple-600"
-                        width={96}
-                        height={96}
-                      />
-                      <p className="text-white font-semibold truncate w-full">{artist.name}</p>
-                    </motion.div>
-                  ))}
+                  {data.json.map(
+                    (artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
+                      <motion.div
+                        key={`${artist.name}-${index}`}
+                        className="flex flex-col items-center space-y-3 p-4 bg-purple-800/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-purple-700/60 transition-all text-center"
+                        onClick={() => window.open(artist.url, '_blank')}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Image
+                          src={artist.imageUrl}
+                          alt={artist.name}
+                          className="w-24 h-24 rounded-full shadow-lg border-2 border-purple-600"
+                          width={96}
+                          height={96}
+                        />
+                        <p className="text-white font-semibold truncate w-full">{artist.name}</p>
+                      </motion.div>
+                    ),
+                  )}
                 </div>
               ) : (
                 <p className="text-purple-200 bg-purple-800/30 p-4 rounded-lg text-center">

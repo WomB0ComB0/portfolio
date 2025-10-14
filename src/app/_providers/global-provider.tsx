@@ -8,6 +8,7 @@ import type React from 'react';
 import { useEffect } from 'react';
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
+import { useCursorFix } from '@/hooks';
 import { actions } from '@/lib/navigation';
 import { CustomAnimatedCursor, Events, Providers, ThemeProvider } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
@@ -18,6 +19,9 @@ const GlobalProvider: React.FC<
     children: React.ReactNode;
   }>
 > = ({ children }) => {
+  // Fix cursor hydration issues
+  useCursorFix();
+
   useEffect(() => {
     const handleOffline = () => {
       if (!navigator.onLine) {
@@ -36,7 +40,7 @@ const GlobalProvider: React.FC<
         providers={[
           [Events, {}],
           [ThemeProvider, {}],
-          [KBarProvider, { actions }],
+          [KBarProvider, { actions: actions }],
           [QueryClientProvider, { client: createQueryClient() }],
         ]}
       >

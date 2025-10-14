@@ -1,11 +1,12 @@
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
-import { post, get } from '@/lib/http-clients/effect-fetcher';
+import { get, post } from '@/lib/http-clients/effect-fetcher';
+import { env } from '@/env';
 import 'server-only';
 
-const client_id = process.env.SPOTIFY_CLIENT_ID;
-const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+const client_id = env.SPOTIFY_CLIENT_ID;
+const client_secret = env.SPOTIFY_CLIENT_SECRET;
+const refresh_token = env.SPOTIFY_REFRESH_TOKEN;
 
 const basic = Buffer.from(`${client_id}:${client_secret}`).toString('base64');
 
@@ -47,7 +48,7 @@ export const getAccessToken = async (): Promise<{ access_token: string }> => {
       timeout: 10_000,
       bodyType: 'text', // Send as form-encoded text, not JSON
     }),
-    Effect.provide(FetchHttpClient.layer)
+    Effect.provide(FetchHttpClient.layer),
   );
 
   try {
@@ -74,7 +75,7 @@ export const topTracks = async (): Promise<any[]> => {
       retries: 2,
       timeout: 10_000,
     }),
-    Effect.provide(FetchHttpClient.layer)
+    Effect.provide(FetchHttpClient.layer),
   );
 
   try {
@@ -102,7 +103,7 @@ export const topArtists = async (): Promise<any[]> => {
       retries: 2,
       timeout: 10_000,
     }),
-    Effect.provide(FetchHttpClient.layer)
+    Effect.provide(FetchHttpClient.layer),
   );
 
   try {
@@ -129,7 +130,7 @@ export const currentlyPlayingSong = async () => {
         retries: 2,
         timeout: 10_000,
       }),
-      Effect.provide(FetchHttpClient.layer)
+      Effect.provide(FetchHttpClient.layer),
     );
 
     return await Effect.runPromise(effect);

@@ -12,12 +12,12 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
         const data = await fetchMessages();
         set.headers = cacheHeaders();
         return {
-          json: data.json.map(item => ({
+          json: data.json.map((item) => ({
             id: item.id,
             authorName: item.authorName,
             message: item.message,
-            createdAt: item.createdAt
-          }))
+            createdAt: item.createdAt,
+          })),
         };
       } catch (error) {
         const errorResponse = errorHandler(error, 'fetch');

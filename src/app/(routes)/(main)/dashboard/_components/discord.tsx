@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import { config } from '@/config';
 
 const ActivitySchema = Schema.Struct({
   name: Schema.String,
@@ -63,7 +64,7 @@ export default function Discord() {
           const activity = activities?.[0];
 
           const handleAddFriend = () => {
-            const discordId = process.env.NEXT_PUBLIC_DISCORD_ID;
+            const discordId = config.discord.id;
             console.log(discordId);
             if (discordId) {
               window.open(`https://discord.com/users/${discordId}`, '_blank');
@@ -89,11 +90,14 @@ export default function Discord() {
                           src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`}
                           alt={user.username || 'Discord User'}
                         />
-                        <AvatarFallback>{user.username.slice(0, 2).toUpperCase() || 'DU'}</AvatarFallback>
+                        <AvatarFallback>
+                          {user.username.slice(0, 2).toUpperCase() || 'DU'}
+                        </AvatarFallback>
                       </Avatar>
                       <div
-                        className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${statusColors[status || 'offline']
-                          } border-2 border-purple-900`}
+                        className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
+                          statusColors[status || 'offline']
+                        } border-2 border-purple-900`}
                       />
                     </div>
                     <div>

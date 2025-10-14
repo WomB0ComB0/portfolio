@@ -1,6 +1,8 @@
-import { Effect, pipe, Schema } from 'effect';
 import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { ensureBaseError } from '@/classes/error';
+import { config } from '@/config';
 
 interface DiscordUser {
   username: string;
@@ -56,7 +58,7 @@ export async function getLanyardData(): Promise<LanyardData> {
   }
 
   const effect = pipe(
-    get(`https://api.lanyard.rest/v1/users/${process.env.NEXT_PUBLIC_DISCORD_ID}`, {
+    get(`https://api.lanyard.rest/v1/users/${config.discord.id}`, {
       schema: LanyardResponseSchema,
       retries: 2,
       timeout: 10_000,
@@ -71,7 +73,9 @@ export async function getLanyardData(): Promise<LanyardData> {
 
     return lanyard;
   } catch (error) {
-    console.error('Error fetching Lanyard data:', error);
-    throw error;
+    throw ensureBaseError(error, 'lanyard:fetch', {
+      discordId: config.discord.id,
+      cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
+    });
   }
 }

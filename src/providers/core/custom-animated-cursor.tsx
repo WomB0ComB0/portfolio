@@ -1,25 +1,38 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
-import AnimatedCursor from 'react-animated-cursor';
 import { COLORS } from '@/constants';
 
 const colors = COLORS;
 
+// Dynamically import AnimatedCursor with no SSR
+const AnimatedCursor = dynamic(() => import('react-animated-cursor'), {
+  ssr: false,
+});
+
 export const CustomAnimatedCursor = () => {
-  const [isClient, setIsClient] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [colorIndex, setColorIndex] = useState(0);
 
   useEffect(() => {
-    setIsClient(true);
+    // Wait for hydration to complete before mounting the cursor
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 200);
+
     const intervalId = setInterval(() => {
       setColorIndex((prevIndex) => (prevIndex + 1) % colors.length);
     }, 5000); // Change color every 5 seconds
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(intervalId);
+    };
   }, []);
 
-  if (!isClient) return null;
+  // Don't render anything until mounted (after hydration)
+  if (!isMounted) return null;
 
   return (
     <AnimatedCursor

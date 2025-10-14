@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { getBlogs } from '@/lib';
+import { BaseError } from '@/classes/error';
 
 export const BlogSchema = Schema.Struct({
   title: Schema.String,
@@ -21,7 +22,10 @@ export async function fetchBlogs(): Promise<Blog[]> {
   const blogs: Blog[] = await getBlogs('WomB0ComB0');
 
   if (!blogs || !Array.isArray(blogs)) {
-    throw new Error('Failed to fetch blogs');
+    throw new BaseError(new Error('Failed to fetch blogs'), 'blog:fetch', {
+      username: 'WomB0ComB0',
+      cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
+    });
   }
 
   cache = { data: blogs, timestamp: Date.now() };

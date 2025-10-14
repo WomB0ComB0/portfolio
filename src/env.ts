@@ -80,7 +80,7 @@ const env = createEnv({
     NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'Upstash Redis REST Token is required'),
 
     // Cloudinary
-    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().min(1, 'Cloudinary Cloud Name is required')
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().min(1, 'Cloudinary Cloud Name is required'),
   },
   runtimeEnv: {
     // Server variables

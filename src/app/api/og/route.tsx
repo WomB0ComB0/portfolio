@@ -21,7 +21,7 @@ import { constructMetadata, getURL } from '@/utils';
  * - A custom background with gradient effects
  * - The page title in large text
  * - A description excerpt below the title
- * - Custom Palatino font rendering
+ * - Custom Kodchasan font rendering
  *
  * @example
  * // Request:

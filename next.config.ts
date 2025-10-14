@@ -4,6 +4,7 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 import './src/env';
+import { getURL } from '@/utils';
 
 // Just in case you accidentally import these packages
 const EXEMPT_DEPS: Set<string> = new Set([
@@ -331,7 +332,7 @@ const config: NextConfig = {
 
   // Environment variable validation
   env: {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://mikeodnis.dev',
+    NEXT_PUBLIC_APP_URL: getURL(),
   },
 };
 

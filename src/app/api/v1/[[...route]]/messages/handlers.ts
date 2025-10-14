@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { firestore } from '@/core/firebase';
+import { BaseError } from '@/classes/error';
 
 export const MessageDataSchema = Schema.Struct({
   authorName: Schema.String,
@@ -61,7 +62,10 @@ export async function createMessage(data: {
   const { authorName, message } = data;
 
   if (!message) {
-    throw new Error('Message is undefined');
+    throw new BaseError(new Error('Message is undefined'), 'message:create', {
+      authorName,
+      hasMessage: !!message,
+    });
   }
 
   const newMessage = { authorName, message, createdAt: new Date().toISOString() };

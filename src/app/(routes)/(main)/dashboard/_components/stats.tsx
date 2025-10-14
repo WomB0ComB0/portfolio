@@ -1,16 +1,16 @@
 'use client';
 
-import { useQueries } from '@tanstack/react-query';
-import { Effect, Schema, pipe } from 'effect';
 import { FetchHttpClient } from '@effect/platform';
+import { useQueries } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { age } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
 
 interface StatCard {
   title: string;

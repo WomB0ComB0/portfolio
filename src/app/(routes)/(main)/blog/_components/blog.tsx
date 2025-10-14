@@ -1,7 +1,7 @@
 'use client';
 
-import { Schema } from 'effect';
 import { format } from 'date-fns';
+import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';

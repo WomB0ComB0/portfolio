@@ -53,14 +53,15 @@ export const ExperienceList = () => {
                   </p>
                 </CardContent>
                 <div className="p-6 border-t border-purple-700 mt-auto">
-                  <Link href={`/experience/${item.id}`} passHref legacyBehavior scroll={false}>
-                    <Button
-                      variant="outline"
-                      className="w-full bg-purple-800 hover:bg-purple-700 border-purple-700 text-purple-200"
-                    >
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full bg-purple-800 hover:bg-purple-700 border-purple-700 text-purple-200"
+                  >
+                    <Link href={`/experience/${item.id}`} scroll={false}>
                       View Details <ExternalLink className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 </div>
               </Card>
             ))}

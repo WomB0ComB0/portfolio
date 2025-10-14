@@ -21,10 +21,7 @@ const TopTracksResponseSchema = Schema.Struct({
 const TopTracksSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {[...Array(12)].map((_, index) => (
-      <div
-        key={index}
-        className="flex items-center space-x-4 p-3 bg-purple-700/50 rounded-lg"
-      >
+      <div key={index} className="flex items-center space-x-4 p-3 bg-purple-700/50 rounded-lg">
         <Skeleton className="w-16 h-16 rounded-md bg-purple-600/50" />
         <div className="flex-grow space-y-2">
           <Skeleton className="h-5 w-3/4 bg-purple-600/50" />
@@ -86,7 +83,9 @@ export default function TopTracks() {
                   ))}
                 </div>
               ) : (
-                <p className="text-purple-200 text-center">No top tracks data available at the moment.</p>
+                <p className="text-purple-200 text-center">
+                  No top tracks data available at the moment.
+                </p>
               )}
             </>
           )}

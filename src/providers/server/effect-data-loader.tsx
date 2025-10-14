@@ -128,8 +128,8 @@ export interface DataLoaderProps<T> extends BaseDataLoaderProps<T> {
    * Render prop that receives data and optional utilities.
    */
   children:
-  | ((data: T) => React.ReactNode)
-  | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
+    | ((data: T) => React.ReactNode)
+    | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
   /** Effect Schema for runtime validation (optional) */
   schema?: never;
 }
@@ -143,11 +143,11 @@ export interface DataLoaderPropsWithSchema<S extends Schema.Schema<any, any, nev
    * Render prop that receives validated data and optional utilities.
    */
   children:
-  | ((data: Schema.Schema.Type<S>) => React.ReactNode)
-  | ((
-    data: Schema.Schema.Type<S>,
-    utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
-  ) => React.ReactNode);
+    | ((data: Schema.Schema.Type<S>) => React.ReactNode)
+    | ((
+        data: Schema.Schema.Type<S>,
+        utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
+      ) => React.ReactNode);
   /** Effect Schema for runtime validation */
   schema: S;
   /** Fetcher options with schema */
@@ -405,8 +405,8 @@ export function useDataLoader(url: string, options: any = {}) {
 
   const finalQueryKey = useMemo(() => {
     if (queryKey) return queryKey;
-    const headers = (fetcherOptions)?.headers;
-    const timeout = (fetcherOptions)?.timeout;
+    const headers = fetcherOptions?.headers;
+    const timeout = fetcherOptions?.timeout;
     const schemaKey = schema ? `schema:${Schema.format(schema)}` : null;
     const keyArray = ['dataloader', url, params, headers, timeout, schemaKey].filter(Boolean);
     return keyArray;

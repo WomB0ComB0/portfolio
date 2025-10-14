@@ -9,6 +9,7 @@ import {
 } from '@/lib/security/banlist';
 import { banCidr, getBannedCidrs, unbanCidr } from '@/lib/security/banlist-cidr';
 import { Logger } from '@/utils';
+import { BaseError } from '@/classes/error';
 import type { BanAction } from './schema';
 
 const log = Logger.getLogger('BanAPI');
@@ -32,7 +33,13 @@ export async function handleBan(body: BanRequestBody) {
   const { ip, reason, seconds, bannedBy } = body;
 
   if (!ip) {
-    throw new Error('IP address is required for ban action');
+    throw new BaseError(new Error('IP address is required for ban action'), 'admin:ban', {
+      action: 'ban',
+      providedIp: ip,
+      reason,
+      seconds,
+      bannedBy,
+    });
   }
 
   await banIp(ip, reason, seconds, bannedBy);
@@ -51,7 +58,10 @@ export async function handleUnban(body: BanRequestBody) {
   const { ip } = body;
 
   if (!ip) {
-    throw new Error('IP address is required for unban action');
+    throw new BaseError(new Error('IP address is required for unban action'), 'admin:unban', {
+      action: 'unban',
+      providedIp: ip,
+    });
   }
 
   await unbanIp(ip);
@@ -70,7 +80,11 @@ export async function handleSlow(body: BanRequestBody) {
   const { ip, reason } = body;
 
   if (!ip) {
-    throw new Error('IP address is required for slow action');
+    throw new BaseError(new Error('IP address is required for slow action'), 'admin:slow', {
+      action: 'slow',
+      providedIp: ip,
+      reason,
+    });
   }
 
   await slowIp(ip, reason);
@@ -89,7 +103,10 @@ export async function handleUnslow(body: BanRequestBody) {
   const { ip } = body;
 
   if (!ip) {
-    throw new Error('IP address is required for unslow action');
+    throw new BaseError(new Error('IP address is required for unslow action'), 'admin:unslow', {
+      action: 'unslow',
+      providedIp: ip,
+    });
   }
 
   await unslowIp(ip);
@@ -108,7 +125,12 @@ export async function handleBanCidr(body: BanRequestBody) {
   const { cidr, reason, bannedBy } = body;
 
   if (!cidr) {
-    throw new Error('CIDR is required for ban-cidr action');
+    throw new BaseError(new Error('CIDR is required for ban-cidr action'), 'admin:ban-cidr', {
+      action: 'ban-cidr',
+      providedCidr: cidr,
+      reason,
+      bannedBy,
+    });
   }
 
   await banCidr(cidr, reason);
@@ -127,7 +149,10 @@ export async function handleUnbanCidr(body: BanRequestBody) {
   const { cidr } = body;
 
   if (!cidr) {
-    throw new Error('CIDR is required for unban-cidr action');
+    throw new BaseError(new Error('CIDR is required for unban-cidr action'), 'admin:unban-cidr', {
+      action: 'unban-cidr',
+      providedCidr: cidr,
+    });
   }
 
   await unbanCidr(cidr);
@@ -187,7 +212,10 @@ export async function handleGetMeta(body: BanRequestBody) {
   const { ip } = body;
 
   if (!ip) {
-    throw new Error('IP address is required for get-meta action');
+    throw new BaseError(new Error('IP address is required for get-meta action'), 'admin:get-meta', {
+      action: 'get-meta',
+      providedIp: ip,
+    });
   }
 
   const metadata = await getBanMetadata(ip);

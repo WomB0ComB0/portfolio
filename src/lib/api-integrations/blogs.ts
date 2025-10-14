@@ -2,6 +2,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import 'server-only';
+import { config } from '@/config';
 
 const query = `
   query UserPosts($username: String!, $page: Int!, $pageSize: Int!) {
@@ -30,21 +31,25 @@ export const BlogSchema = Schema.Struct({
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;
 
 export async function getBlogs(username: string, page = 1, pageSize = 10): Promise<Blog[]> {
-  const token = process.env.NEXT_PUBLIC_HASHNODE_TOKEN;
-  
+  const token = config.hashnode.token;
+
   const effect = pipe(
-    post('https://gql.hashnode.com/', {
-      query,
-      variables: { username, page, pageSize },
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+    post(
+      'https://gql.hashnode.com/',
+      {
+        query,
+        variables: { username, page, pageSize },
       },
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer)
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        retries: 2,
+        timeout: 10_000,
+      },
+    ),
+    Effect.provide(FetchHttpClient.layer),
   );
 
   try {

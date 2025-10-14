@@ -1,8 +1,8 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { Effect, Schema, pipe } from 'effect';
 import { FetchHttpClient } from '@effect/platform';
+import { useQuery } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useMemo, useState } from 'react';
 import { FiAlertCircle, FiMessageSquare, FiSend } from 'react-icons/fi';

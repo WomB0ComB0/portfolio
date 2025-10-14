@@ -1,6 +1,7 @@
-import { Effect, pipe, Schema } from 'effect';
 import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { ensureBaseError } from '@/classes/error';
 
 interface GitHubRepo {
   name: string;
@@ -120,7 +121,9 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
 
     return data;
   } catch (error) {
-    console.error('Error fetching GitHub stats:', error);
-    throw error;
+    throw ensureBaseError(error, 'github:stats', {
+      username: 'WomB0ComB0',
+      cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
+    });
   }
 }

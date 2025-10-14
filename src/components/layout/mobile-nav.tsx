@@ -16,10 +16,11 @@ export const MobileNavBar = ({ path }: { path: string }) => {
           {NavbarItems.map((item, index) => (
             <button
               key={index}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-300 ${path === item.slug
+              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-300 ${
+                path === item.slug
                   ? 'bg-[#560BAD] text-[#ba9bdd]'
                   : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
-                }`}
+              }`}
               onClick={() => router.push(item.slug)}
               suppressHydrationWarning
             >

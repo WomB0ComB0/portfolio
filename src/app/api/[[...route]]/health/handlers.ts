@@ -3,6 +3,8 @@
  * Business logic for health check endpoints
  */
 
+import { app } from "@/constants";
+
 export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;
@@ -22,7 +24,7 @@ export function handleHealthCheck(): { message: string; data: HealthCheckResult 
       status: 'healthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
+      version: app.version,
     },
   };
 }
@@ -42,10 +44,10 @@ export function handleDetailedHealthCheck(): { message: string; data: HealthChec
       status: 'healthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
+      version: app.version,
       services: {
         api: true,
-        database: true, // Could add actual database health check
+        // database: true,
       },
     },
   };

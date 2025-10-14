@@ -1,5 +1,6 @@
 import type { NextApiRequest } from 'next';
 import { redis } from '@/classes/redis';
+import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
 import { getClientIP } from './get-ip';
 
@@ -41,6 +42,7 @@ export async function isIpBanned(req: Request | NextApiRequest): Promise<boolean
     return !!isBanned;
   } catch (error) {
     log.error('Error checking IP ban status', { ip, error });
+    onRequestError(error);
     return false; // Fail open to avoid blocking legitimate traffic on Redis errors
   }
 }
@@ -62,6 +64,7 @@ export async function isIpSlowed(req: Request | NextApiRequest): Promise<boolean
     return !!isSlowed;
   } catch (error) {
     log.error('Error checking IP slow mode status', { ip, error });
+    onRequestError(error);
     return false;
   }
 }
@@ -82,6 +85,7 @@ export async function isIdentifierBanned(identifier: string): Promise<boolean> {
     return !!isBanned;
   } catch (error) {
     log.error('Error checking identifier ban status', { identifier, error });
+    onRequestError(error);
     return false;
   }
 }
@@ -102,6 +106,7 @@ export async function isIdentifierSlowed(identifier: string): Promise<boolean> {
     return !!isSlowed;
   } catch (error) {
     log.error('Error checking identifier slow mode status', { identifier, error });
+    onRequestError(error);
     return false;
   }
 }
@@ -153,6 +158,7 @@ export async function banIp(
     }
   } catch (error) {
     log.error('Error banning IP', { ip, error });
+    onRequestError(error);
     throw error;
   }
 }
@@ -169,6 +175,7 @@ export async function unbanIp(ip: string): Promise<void> {
     log.info('Unbanned IP', { ip });
   } catch (error) {
     log.error('Error unbanning IP', { ip, error });
+    onRequestError(error);
     throw error;
   }
 }
@@ -192,6 +199,7 @@ export async function slowIp(ip: string, reason?: string): Promise<void> {
     log.info('Added IP to slow mode', { ip, reason });
   } catch (error) {
     log.error('Error adding IP to slow mode', { ip, error });
+    onRequestError(error);
     throw error;
   }
 }
@@ -208,6 +216,7 @@ export async function unslowIp(ip: string): Promise<void> {
     log.info('Removed IP from slow mode', { ip });
   } catch (error) {
     log.error('Error removing IP from slow mode', { ip, error });
+    onRequestError(error);
     throw error;
   }
 }
@@ -222,6 +231,7 @@ export async function getBannedIps(): Promise<string[]> {
     return ips as string[];
   } catch (error) {
     log.error('Error fetching banned IPs', { error });
+    onRequestError(error);
     return [];
   }
 }
@@ -236,6 +246,7 @@ export async function getSlowedIps(): Promise<string[]> {
     return ips as string[];
   } catch (error) {
     log.error('Error fetching slowed IPs', { error });
+    onRequestError(error);
     return [];
   }
 }
@@ -251,6 +262,7 @@ export async function getBanMetadata(ip: string): Promise<BanMetadata | null> {
     return metadata;
   } catch (error) {
     log.error('Error fetching ban metadata', { ip, error });
+    onRequestError(error);
     return null;
   }
 }

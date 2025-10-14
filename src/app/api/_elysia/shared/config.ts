@@ -3,8 +3,6 @@ import type { ElysiaOpenTelemetryOptions } from '@elysiajs/opentelemetry';
 import { opentelemetry } from '@elysiajs/opentelemetry';
 import type { ServerTimingOptions } from '@elysiajs/server-timing';
 import { serverTiming } from '@elysiajs/server-timing';
-import type { ElysiaSwaggerConfig } from '@elysiajs/swagger';
-import { swagger } from '@elysiajs/swagger';
 import type { SocketAddress } from 'bun';
 import { Elysia } from 'elysia';
 import { ip } from 'elysia-ip';
@@ -26,24 +24,6 @@ export interface ElysiaApiConfig {
    * API prefix (e.g., '/api/v1')
    */
   prefix: string;
-
-  /**
-   * Swagger documentation configuration
-   */
-  swagger?: Partial<ElysiaSwaggerConfig> & {
-    title: string;
-    version: string;
-    description: string;
-    contact?: {
-      name: string;
-      email: string;
-      url?: string;
-    };
-    tags?: Array<{
-      name: string;
-      description: string;
-    }>;
-  };
 
   /**
    * CORS configuration
@@ -171,7 +151,7 @@ export function createElysiaApp(config: ElysiaApiConfig) {
     serverTiming: { ...DEFAULT_CONFIG.serverTiming, ...config.serverTiming },
   } as Required<ElysiaApiConfig>;
 
-  const app = new Elysia({ prefix: mergedConfig.prefix })
+  const api = new Elysia({ prefix: mergedConfig.prefix })
     .onParse(({ request, contentType }) => {
       if (contentType === 'multipart/form-data') {
         return request.formData();
@@ -247,30 +227,15 @@ export function createElysiaApp(config: ElysiaApiConfig) {
       }),
     );
 
-  // Add Swagger if configured
-  if (mergedConfig.swagger) {
-    app.use(
-      swagger({
-        path: mergedConfig.swagger.path || '/swagger',
-        documentation: {
-          info: {
-            title: mergedConfig.swagger.title,
-            version: mergedConfig.swagger.version,
-            description: mergedConfig.swagger.description,
-            contact: mergedConfig.swagger.contact,
-          },
-          tags: mergedConfig.swagger.tags,
-        },
-      }),
-    );
-  }
+  // Swagger is disabled due to compatibility issues with Next.js serverless environment
+  // To enable API documentation, consider using a separate documentation solution
 
   // Add error handler
   if (mergedConfig.errorHandler) {
-    app.onError(mergedConfig.errorHandler);
+    api.onError(mergedConfig.errorHandler);
   }
 
-  return app;
+  return api;
 }
 
 /**

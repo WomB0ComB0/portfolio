@@ -71,6 +71,7 @@ export const register = async (): Promise<void> => {
       `[Instrumentation:${runtime || 'unknown'}]`,
       Error.isError(error) ? error : `Error: ${String(error)}`,
     );
+    // Use Sentry.captureException directly here since onRequestError is not yet available during initialization
     Sentry.captureException(error);
     throw Error.isError(error)
       ? error
