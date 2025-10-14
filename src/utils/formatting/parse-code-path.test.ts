@@ -1,0 +1,36 @@
+import { describe, it, expect } from 'vitest';
+import { parseCodePath, parseCodePathDetailed } from './parse-code-path';
+
+describe('parseCodePath', () => {
+  it('should format the code path correctly for a function', () => {
+    function myFunction() {}
+    const result = parseCodePath('test context', myFunction);
+    expect(result).toContain('@myFunction: test context');
+  });
+
+  it('should handle anonymous functions', () => {
+    const result = parseCodePath('test context', () => {});
+    expect(result).toContain('@AnonymousFunction: test context');
+  });
+
+  it('should handle classes', () => {
+    class MyClass {}
+    const result = parseCodePath('test context', new MyClass());
+    expect(result).toContain('@MyClass: test context');
+  });
+});
+
+describe('parseCodePathDetailed', () => {
+  it('should format the code path with detailed options', () => {
+    function myFunction() {}
+    const result = parseCodePathDetailed('test context', myFunction, {
+      includeLineNumber: true,
+      includeTimestamp: true,
+      customPrefix: 'custom',
+    });
+    expect(result).toContain('custom:');
+    expect(result).toContain('@myFunction: test context');
+    expect(result).toMatch(/:\d+\s/);
+    expect(result).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/);
+  });
+});
