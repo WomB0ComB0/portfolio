@@ -45,6 +45,7 @@ export const getAccessToken = async (): Promise<{ access_token: string }> => {
       schema: AccessTokenSchema,
       retries: 2,
       timeout: 10_000,
+      bodyType: 'text', // Send as form-encoded text, not JSON
     }),
     Effect.provide(FetchHttpClient.layer)
   );

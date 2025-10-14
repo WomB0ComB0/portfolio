@@ -17,11 +17,10 @@ export const NavBar = ({ path }: { path: string }) => {
           return (
             <div key={item.slug}>
               <button
-                className={`w-full flex justify-center items-center ${
-                  isActive
+                className={`w-full flex justify-center items-center ${isActive
                     ? 'bg-[#560BAD] hover:bg-[#560BAD]/80'
                     : 'bg-[#242424] hover:bg-[#560BAD]/50'
-                } shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out relative`}
+                  } shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out relative`}
                 onMouseLeave={() => {
                   const temp = [...tooltipVisibility];
                   temp[index] = false;
@@ -34,6 +33,7 @@ export const NavBar = ({ path }: { path: string }) => {
                 }}
                 onClick={() => window.open(item.slug, '_self')}
                 aria-label={`${item.name} link`}
+                suppressHydrationWarning
               >
                 <div className="p-2">
                   <item.icon size="1rem" className="text-[#ba9bdd]" />
@@ -52,6 +52,7 @@ export const NavBar = ({ path }: { path: string }) => {
             className="w-full flex justify-center items-center bg-[#242424] hover:bg-[#560BAD]/50 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out"
             onClick={query.toggle}
             aria-label="Open command menu"
+            suppressHydrationWarning
           >
             <div className="p-2">
               <FiCommand size="1rem" className="text-[#ba9bdd]" />

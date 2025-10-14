@@ -127,6 +127,8 @@ export interface FetcherOptions<T = unknown> {
   schema?: Schema.Schema<T, any, never>;
   /** Abortsignal */
   signal?: AbortSignal;
+  /** Body type - defaults to 'json', use 'text' for form-encoded data */
+  bodyType?: 'json' | 'text';
 }
 
 /**
@@ -314,6 +316,7 @@ export function fetcher<T = unknown>(
     timeout = 10_000,
     headers = {},
     schema,
+    bodyType = 'json',
   } = options;
 
   /**
@@ -338,7 +341,8 @@ export function fetcher<T = unknown>(
     return urlParams.toString();
   };
 
-  const url = params ? `${input}?${buildQueryString(params)}` : input;
+  const queryString = buildQueryString(params);
+  const url = queryString ? `${input}?${queryString}` : input;
 
   /**
    * Builds a type-safe HttpClientRequest for the given method and URL.
@@ -398,24 +402,32 @@ export function fetcher<T = unknown>(
 
     // Build the request object
     let req = buildRequest(method, url);
-    req = HttpClientRequest.setHeaders(headers)(req);
 
     // Add body for methods that support it with proper error handling
     if (body != null && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      req = yield* pipe(
-        HttpClientRequest.bodyJson(body)(req),
-        Effect.mapError(
-          (error) =>
-            new FetcherError(
-              `Failed to serialize request body: ${error instanceof Error ? error.message : String(error)}`,
-              url,
-              undefined,
-              undefined,
-              attempt,
-            ),
-        ),
-      );
+      if (bodyType === 'text') {
+        // bodyText returns HttpClientRequest directly
+        req = HttpClientRequest.bodyText(String(body))(req);
+      } else {
+        // bodyJson returns an Effect that may fail during serialization
+        req = yield* pipe(
+          HttpClientRequest.bodyJson(body)(req),
+          Effect.mapError(
+            (error) =>
+              new FetcherError(
+                `Failed to serialize request body: ${error instanceof Error ? error.message : String(error)}`,
+                url,
+                undefined,
+                undefined,
+                attempt,
+              ),
+          ),
+        );
+      }
     }
+
+    // Set headers AFTER body to ensure Content-Type can be overridden
+    req = HttpClientRequest.setHeaders(headers)(req);
 
     /**
      * Wraps an Effect with a timeout, converting timeout errors to FetcherError.
