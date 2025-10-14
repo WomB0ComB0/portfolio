@@ -33,6 +33,9 @@ const env = createEnv({
 
     // Admin
     ADMIN_API_TOKEN: z.string().min(1, 'Admin API Token is required'),
+
+    // Cloudinary
+    CLOUDINARY_URL: z.string().min(1, 'Cloudinary URL is required'),
   },
   client: {
     // Firebase Configuration
@@ -75,6 +78,9 @@ const env = createEnv({
     // Upstash (Redis)
     NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: z.string().min(1, 'Upstash Redis REST URL is required'),
     NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'Upstash Redis REST Token is required'),
+
+    // Cloudinary
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().min(1, 'Cloudinary Cloud Name is required')
   },
   runtimeEnv: {
     // Server variables
@@ -90,6 +96,8 @@ const env = createEnv({
     VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
     REACT_EDITOR: process.env.REACT_EDITOR,
     CSRF_SECRET: process.env.CSRF_SECRET,
+    ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
+    CLOUDINARY_URL: process.env.CLOUDINARY_URL,
 
     // Client variables
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -113,7 +121,7 @@ const env = createEnv({
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
     NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
-    ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
   },
 });
 

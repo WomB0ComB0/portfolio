@@ -11,7 +11,14 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
       try {
         const data = await fetchMessages();
         set.headers = cacheHeaders();
-        return data;
+        return {
+          json: data.json.map(item => ({
+            id: item.id,
+            authorName: item.authorName,
+            message: item.message,
+            createdAt: item.createdAt
+          }))
+        };
       } catch (error) {
         const errorResponse = errorHandler(error, 'fetch');
         set.status = StatusMap['Internal Server Error'];

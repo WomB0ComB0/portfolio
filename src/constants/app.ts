@@ -1,8 +1,12 @@
-const age = Math.floor(
+export const age = Math.floor(
   (new Date().getTime() - new Date('March 24, 2004').getTime()) / 1_000 / 60 / 60 / 24 / 365.25,
 );
 
 const baseUrl = 'https://mikeodnis.dev';
+
+// Import package.json statically to avoid top-level await
+import packageJson from '../../package.json';
+
 export const app: Readonly<{
   name: string;
   url: string;
@@ -16,7 +20,7 @@ export const app: Readonly<{
   url: baseUrl,
   email: 'mikeodnis3242004@gmail.com',
   description: `Explore Mike Odnis' portfolio, an innovative, ${age} year-old Computer Science student at Farmingdale State College, passionate about software development and technology.`,
-  version: (await import('../../package.json', { with: { type: 'json' } })).version,
+  version: packageJson.version,
   keywords: [
     /** Core & Brand */
     'Mike Odnis',

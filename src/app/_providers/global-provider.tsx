@@ -8,7 +8,7 @@ import type React from 'react';
 import { useEffect } from 'react';
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
-import { actions } from '@/lib';
+import { actions } from '@/lib/navigation';
 import { CustomAnimatedCursor, Events, Providers, ThemeProvider } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
 import { createQueryClient } from '@/providers/server';

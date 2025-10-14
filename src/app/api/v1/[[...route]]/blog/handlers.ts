@@ -1,11 +1,14 @@
+import { Schema } from 'effect';
 import { getBlogs } from '@/lib';
 
-interface Blog {
-  title: string;
-  slug: string;
-  publishedAt: string;
-  excerpt: string;
-}
+export const BlogSchema = Schema.Struct({
+  title: Schema.String,
+  slug: Schema.String,
+  publishedAt: Schema.String,
+  excerpt: Schema.String,
+});
+
+export type Blog = Schema.Schema.Type<typeof BlogSchema>;
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 let cache: { data: Blog[]; timestamp: number } | null = null;

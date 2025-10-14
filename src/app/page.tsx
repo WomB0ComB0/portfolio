@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { app } from '@/constants';
 
-export const Home = () => {
+function Home() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -132,6 +132,8 @@ export const Home = () => {
       </div>
     </Layout>
   );
-};
+}
+
 Home.displayName = 'Home';
+
 export default Home;

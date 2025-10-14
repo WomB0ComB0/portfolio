@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
 import { projectsData } from '@/data/projects';
 
-export default async function ProjectModal({ params }: { params: { id: string } }) {
+export default async function ProjectModal({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const project = projectsData.find((p) => p.id === id);
 

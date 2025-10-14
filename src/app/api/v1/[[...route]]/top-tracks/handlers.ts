@@ -1,22 +1,38 @@
-import { topTracks as getTopTracks } from '@/lib/spotify';
+import { Schema } from 'effect';
+import { topTracks as getTopTracks } from '@/lib/api-integrations/spotify';
 
-interface SpotifyTrack {
-  name: string;
-  artists: Array<{ name: string }>;
-  album: {
-    images: Array<{ url: string }>;
-  };
-  external_urls: {
-    spotify: string;
-  };
-}
+const SpotifyArtistSchema = Schema.Struct({
+  name: Schema.String,
+});
 
-interface TopTrack {
-  name: string;
-  artist?: string;
-  url?: string;
-  imageUrl?: string;
-}
+const SpotifyImageSchema = Schema.Struct({
+  url: Schema.String,
+});
+
+const SpotifyAlbumSchema = Schema.Struct({
+  images: Schema.Array(SpotifyImageSchema),
+});
+
+const SpotifyExternalUrlsSchema = Schema.Struct({
+  spotify: Schema.String,
+});
+
+const SpotifyTrackSchema = Schema.Struct({
+  name: Schema.String,
+  artists: Schema.Array(SpotifyArtistSchema),
+  album: SpotifyAlbumSchema,
+  external_urls: SpotifyExternalUrlsSchema,
+});
+
+export const TopTrackSchema = Schema.Struct({
+  name: Schema.String,
+  artist: Schema.String,
+  url: Schema.String,
+  imageUrl: Schema.String,
+});
+
+type SpotifyTrack = Schema.Schema.Type<typeof SpotifyTrackSchema>;
+export type TopTrack = Schema.Schema.Type<typeof TopTrackSchema>;
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 let cache: { data: TopTrack[]; timestamp: number } | null = null;
@@ -29,13 +45,13 @@ export async function fetchTopTracks(): Promise<TopTrack[]> {
     return cache.data;
   }
 
-  const resp: SpotifyTrack[] = await getTopTracks();
+  const resp = (await getTopTracks()) as unknown as SpotifyTrack[];
 
   const topTracks: TopTrack[] = resp.map((track) => ({
     name: track.name,
-    artist: track.artists?.[0]?.name,
-    url: track.external_urls?.spotify,
-    imageUrl: track.album.images?.[0]?.url,
+    artist: track.artists?.[0]?.name ?? 'Unknown Artist',
+    url: track.external_urls?.spotify ?? '',
+    imageUrl: track.album.images?.[0]?.url ?? '',
   }));
 
   cache = { data: topTracks, timestamp: now };

@@ -6,7 +6,7 @@ import { apiRoutes } from './elysia';
  * Main API route composition
  * Includes all admin and health routes
  */
-export const app = createElysiaApp({
+const app = createElysiaApp({
   prefix: '/api',
   swagger: {
     path: '/swagger',
@@ -69,4 +69,5 @@ if (!IS_VERCEL) {
   process.on('SIGTERM', shutdown);
 }
 
+// Export type for use in other modules
 export type API = typeof app;

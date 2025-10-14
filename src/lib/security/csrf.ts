@@ -1,4 +1,4 @@
-import defer * as _ from 'crypto';
+import * as _ from 'crypto';
 import { nextCsrf } from 'next-csrf';
 import { env } from '@/env';
 

@@ -1,8 +1,9 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import superjson from 'superjson';
-import { Stringify } from '@/utils';
+import { Effect, Schema, pipe } from 'effect';
+import { FetchHttpClient } from '@effect/platform';
+import { post } from '@/lib/http-clients/effect-fetcher';
 
 interface Message {
   id: string;
@@ -22,23 +23,39 @@ interface MutationContext {
   previousMessages: ApiResponse | undefined;
 }
 
+// Schema for the message response
+const MessageSchema = Schema.Struct({
+  id: Schema.String,
+  message: Schema.String,
+  authorName: Schema.String,
+  createdAt: Schema.String,
+  email: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+});
+
 export function usePostMessage() {
   const queryClient = useQueryClient();
 
   return useMutation<Message, Error, Message, MutationContext>({
     mutationFn: async (newMessage) => {
-      const response = await fetch('/api/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: Stringify(newMessage),
-      });
-      if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.status}`);
-      }
-      const text = await response.text();
-      return superjson.parse(text);
+      // Convert Message to plain object for Effect fetcher
+      const messageData = {
+        id: newMessage.id,
+        message: newMessage.message,
+        authorName: newMessage.authorName,
+        createdAt: newMessage.createdAt,
+        ...(newMessage.email && { email: newMessage.email }),
+      };
+
+      const effect = pipe(
+        post('/api/v1/messages', messageData, {
+          retries: 2,
+          timeout: 10_000,
+          schema: MessageSchema,
+        }),
+        Effect.provide(FetchHttpClient.layer),
+      );
+
+      return await Effect.runPromise(effect);
     },
     onMutate: async (newMessage) => {
       await queryClient.cancelQueries({ queryKey: ['messages'] });
@@ -56,7 +73,7 @@ export function usePostMessage() {
 
       return { previousMessages };
     },
-    onError: (err, newMessage, context) => {
+    onError: (_err, _newMessage, context) => {
       if (context?.previousMessages) {
         queryClient.setQueryData<ApiResponse>(['messages'], context.previousMessages);
       }

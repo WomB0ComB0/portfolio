@@ -1,19 +1,27 @@
+import { Schema } from 'effect';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { firestore } from '@/core/firebase';
 
-export interface MessageData {
-  authorName: string;
-  message: string;
-  createdAt: string;
-}
+export const MessageDataSchema = Schema.Struct({
+  authorName: Schema.String,
+  message: Schema.String,
+  createdAt: Schema.String,
+});
 
-export interface Message extends MessageData {
-  id: string;
-}
+export const MessageSchema = Schema.extend(
+  MessageDataSchema,
+  Schema.Struct({
+    id: Schema.String,
+  }),
+);
 
-export interface MessagesResponse {
-  json: Message[];
-}
+export const MessagesResponseSchema = Schema.Struct({
+  json: Schema.Array(MessageSchema),
+});
+
+export type MessageData = Schema.Schema.Type<typeof MessageDataSchema>;
+export type Message = Schema.Schema.Type<typeof MessageSchema>;
+export type MessagesResponse = Schema.Schema.Type<typeof MessagesResponseSchema>;
 
 const CACHE_DURATION = 60 * 1000; // 1 minute
 let cache: { data: MessagesResponse; timestamp: number } | null = null;
@@ -33,9 +41,9 @@ export async function fetchMessages(): Promise<MessagesResponse> {
     const data = doc.data();
     return {
       id: doc.id,
-      authorName: data.authorName,
-      message: data.message,
-      createdAt: data.createdAt,
+      authorName: data.authorName as string,
+      message: data.message as string,
+      createdAt: data.createdAt as string,
     };
   });
 

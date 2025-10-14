@@ -109,7 +109,7 @@ const withPwa = pwa({
 
 const config: NextConfig = {
   reactStrictMode: true,
-  pageExtensions: ['tsx'],
+  pageExtensions: ['ts', 'tsx'],
   poweredByHeader: false,
   compress: true,
   logging: {
@@ -174,6 +174,7 @@ const config: NextConfig = {
 
   typescript: {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors in production
+    tsconfigPath: './tsconfig.json',
   },
 
   eslint: {

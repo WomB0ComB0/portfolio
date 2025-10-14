@@ -18,8 +18,9 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const project = projectsData.find((p) => p.id === params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const project = projectsData.find((p) => p.id === id);
 
   if (!project) {
     return constructMetadata({
@@ -35,8 +36,9 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   });
 }
 
-const ProjectDetailPage = ({ params }: { params: { id: string } }) => {
-  return <ProjectDetail params={params} />;
+const ProjectDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const resolvedParams = await params;
+  return <ProjectDetail params={resolvedParams} />;
 };
 
 export default ProjectDetailPage;

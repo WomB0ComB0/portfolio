@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 @import "./fonts.css";
 
 @custom-variant dark (&:is(.dark *));
@@ -176,48 +174,64 @@
   }
 
   :root {
-    --background: 0 0% 14%;
-    --foreground: 270 54% 86%;
-    --card: 0 0% 16%;
-    --card-foreground: 270 54% 86%;
-    --popover: 0 0% 16%;
-    --popover-foreground: 270 54% 86%;
-    --primary: 270 54% 73%;
-    --primary-foreground: 0 0% 14%;
-    --secondary: 271 91% 36%;
-    --secondary-foreground: 270 54% 86%;
-    --muted: 271 91% 36%;
-    --muted-foreground: 270 54% 73%;
-    --accent: 271 91% 46%;
-    --accent-foreground: 270 54% 86%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 270 54% 86%;
-    --border: 271 91% 36%;
-    --input: 271 91% 36%;
-    --ring: 270 54% 73%;
     --radius: 0.5rem;
+    --background: oklch(0.27 0 0);
+    --foreground: oklch(0.88 0.09 285);
+    --card: oklch(0.30 0 0);
+    --card-foreground: oklch(0.88 0.09 285);
+    --popover: oklch(0.30 0 0);
+    --popover-foreground: oklch(0.88 0.09 285);
+    --primary: oklch(0.76 0.12 285);
+    --primary-foreground: oklch(0.27 0 0);
+    --secondary: oklch(0.48 0.18 285);
+    --secondary-foreground: oklch(0.88 0.09 285);
+    --muted: oklch(0.48 0.18 285);
+    --muted-foreground: oklch(0.76 0.12 285);
+    --accent: oklch(0.58 0.18 285);
+    --accent-foreground: oklch(0.88 0.09 285);
+    --destructive: oklch(0.65 0.22 27);
+    --destructive-foreground: oklch(0.88 0.09 285);
+    --border: oklch(0.48 0.18 285);
+    --input: oklch(0.48 0.18 285);
+    --ring: oklch(0.76 0.12 285);
+    --sidebar: oklch(0.98 0 0);
+    --sidebar-foreground: oklch(0.32 0.01 240);
+    --sidebar-primary: oklch(0.20 0.01 240);
+    --sidebar-primary-foreground: oklch(0.98 0 0);
+    --sidebar-accent: oklch(0.96 0.005 240);
+    --sidebar-accent-foreground: oklch(0.20 0.01 240);
+    --sidebar-border: oklch(0.92 0.01 220);
+    --sidebar-ring: oklch(0.65 0.21 230);
   }
 
   .dark {
-    --background: 0 0% 14%;
-    --foreground: 270 54% 86%;
-    --card: 0 0% 16%;
-    --card-foreground: 270 54% 86%;
-    --popover: 0 0% 16%;
-    --popover-foreground: 270 54% 86%;
-    --primary: 270 54% 73%;
-    --primary-foreground: 0 0% 14%;
-    --secondary: 271 91% 36%;
-    --secondary-foreground: 270 54% 86%;
-    --muted: 271 91% 36%;
-    --muted-foreground: 270 54% 73%;
-    --accent: 271 91% 46%;
-    --accent-foreground: 270 54% 86%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 270 54% 86%;
-    --border: 271 91% 36%;
-    --input: 271 91% 36%;
-    --ring: 270 54% 73%;
+    --background: oklch(0.27 0 0);
+    --foreground: oklch(0.88 0.09 285);
+    --card: oklch(0.30 0 0);
+    --card-foreground: oklch(0.88 0.09 285);
+    --popover: oklch(0.30 0 0);
+    --popover-foreground: oklch(0.88 0.09 285);
+    --primary: oklch(0.76 0.12 285);
+    --primary-foreground: oklch(0.27 0 0);
+    --secondary: oklch(0.48 0.18 285);
+    --secondary-foreground: oklch(0.88 0.09 285);
+    --muted: oklch(0.48 0.18 285);
+    --muted-foreground: oklch(0.76 0.12 285);
+    --accent: oklch(0.58 0.18 285);
+    --accent-foreground: oklch(0.88 0.09 285);
+    --destructive: oklch(0.45 0.15 27);
+    --destructive-foreground: oklch(0.88 0.09 285);
+    --border: oklch(0.48 0.18 285);
+    --input: oklch(0.48 0.18 285);
+    --ring: oklch(0.76 0.12 285);
+    --sidebar: oklch(0.20 0.01 240);
+    --sidebar-foreground: oklch(0.96 0.005 240);
+    --sidebar-primary: oklch(0.55 0.18 230);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.28 0.01 240);
+    --sidebar-accent-foreground: oklch(0.96 0.005 240);
+    --sidebar-border: oklch(0.28 0.01 240);
+    --sidebar-ring: oklch(0.65 0.21 230);
   }
 }
 
@@ -231,29 +245,30 @@
   }
 }
 
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
 @theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -264,6 +279,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-scroll: scroll var(--animation-duration, 40s) var(--animation-direction, forwards) linear infinite;
+  --animate-pop-blob: pop-blob 5s infinite;
 
   @keyframes accordion-down {
     from {
@@ -280,6 +297,27 @@
     }
     to {
       height: 0;
+    }
+  }
+
+  @keyframes scroll {
+    to {
+      transform: translate(calc(-50% - 0.5rem));
+    }
+  }
+
+  @keyframes pop-blob {
+    0% {
+      transform: scale(1);
+    }
+    33% {
+      transform: scale(1.2);
+    }
+    66% {
+      transform: scale(0.8);
+    }
+    100% {
+      transform: scale(1);
     }
   }
 }

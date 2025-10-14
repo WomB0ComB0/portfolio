@@ -1,23 +1,28 @@
 import 'server-only';
 
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { cache } from 'react';
-import { Stringify } from '@/utils';
+import { post } from '@/lib/http-clients/effect-fetcher';
 
-export interface PinnedRepo {
-  name: string;
-  description: string | null;
-  url: string;
-  stargazerCount: number;
-  forkCount: number;
-  primaryLanguage: {
-    name: string;
-  } | null;
-}
+const PrimaryLanguageSchema = Schema.Struct({
+  name: Schema.String,
+});
+
+export const PinnedRepoSchema = Schema.Struct({
+  name: Schema.String,
+  description: Schema.Union(Schema.String, Schema.Null),
+  url: Schema.String,
+  stargazerCount: Schema.Number,
+  forkCount: Schema.Number,
+  primaryLanguage: Schema.Union(PrimaryLanguageSchema, Schema.Null),
+});
+
+export type PinnedRepo = Schema.Schema.Type<typeof PinnedRepoSchema>;
 
 export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
-  const res = await fetch('https://api.github.com/graphql', {
-    method: 'POST',
-    body: Stringify({
+  const effect = pipe(
+    post('https://api.github.com/graphql', {
       query: `
         query {
           user(login: "WomB0ComB0") {
@@ -40,14 +45,24 @@ export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
           }
         }
       `,
+    }, {
+      headers: {
+        Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      retries: 2,
+      timeout: 10_000,
     }),
-    headers: {
-      Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
-    },
-  });
+    Effect.provide(FetchHttpClient.layer)
+  );
 
-  const data = await res.json();
-  return data.data.user.pinnedItems.edges.map((edge: any) => edge.node);
+  try {
+    const data: any = await Effect.runPromise(effect);
+    return data.data.user.pinnedItems.edges.map((edge: any) => edge.node);
+  } catch (error) {
+    console.error('Error fetching GitHub repos:', error);
+    throw error;
+  }
 });
 
 export default getRepos;

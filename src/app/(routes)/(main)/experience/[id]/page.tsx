@@ -18,8 +18,9 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const experienceItem = experienceData.find((exp) => exp.id === params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const experienceItem = experienceData.find((exp) => exp.id === id);
 
   if (!experienceItem) {
     return constructMetadata({
@@ -34,8 +35,9 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   });
 }
 
-const ExperienceDetailPage = ({ params }: { params: { id: string } }) => {
-  return <ExperienceDetail params={params} />;
+const ExperienceDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const resolvedParams = await params;
+  return <ExperienceDetail params={resolvedParams} />;
 };
 
 export default ExperienceDetailPage;

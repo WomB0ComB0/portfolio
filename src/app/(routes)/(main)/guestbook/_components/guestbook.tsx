@@ -1,6 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { Effect, Schema, pipe } from 'effect';
+import { FetchHttpClient } from '@effect/platform';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useMemo, useState } from 'react';
 import { FiAlertCircle, FiMessageSquare, FiSend } from 'react-icons/fi';
@@ -15,7 +17,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/core/auth';
 import { usePostMessage } from '@/hooks';
-import { fetcher } from '@/lib/http-clients';
+import { get } from '@/lib/http-clients/effect-fetcher';
+import { escapeHtml, validateUserInput } from '@/utils/security/xss';
 
 const inputSchema = z.object({
   text: z
@@ -38,13 +41,40 @@ interface ApiResponse {
   };
 }
 
+// Schema for messages response
+const MessageSchema = Schema.Struct({
+  id: Schema.String,
+  message: Schema.String,
+  authorName: Schema.String,
+  createdAt: Schema.String,
+  email: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+});
+
+const MessagesResponseSchema = Schema.Struct({
+  json: Schema.Struct({
+    json: Schema.Array(MessageSchema),
+  }),
+});
+
 export default function GuestbookComponent() {
   const [message, setMessage] = useState('');
   const user = useCurrentUser();
 
   const { data, error, isLoading } = useQuery<ApiResponse, Error>({
     queryKey: ['messages'],
-    queryFn: () => fetcher<ApiResponse>('/api/v1/messages'),
+    queryFn: async () => {
+      const effect = pipe(
+        get('/api/v1/messages', {
+          retries: 2,
+          timeout: 10_000,
+          schema: MessagesResponseSchema,
+        }),
+        Effect.provide(FetchHttpClient.layer),
+      );
+      const result = await Effect.runPromise(effect);
+      // Cast readonly types to mutable for React Query compatibility
+      return result as unknown as ApiResponse;
+    },
     staleTime: 60000,
     refetchInterval: 300000,
   });
@@ -62,10 +92,19 @@ export default function GuestbookComponent() {
       return;
     }
 
+    // Sanitize the message to prevent XSS attacks
+    const sanitizedMessage = validateUserInput(input.data.text, 280, false);
+
+    // Additional validation after sanitization
+    if (!sanitizedMessage || sanitizedMessage.length === 0) {
+      toast.error('Message contains invalid content.');
+      return;
+    }
+
     const newMessage: Message = {
       id: Date.now().toString(),
-      message: input.data.text,
-      authorName: user?.displayName || 'Anonymous',
+      message: sanitizedMessage,
+      authorName: escapeHtml(user?.displayName || 'Anonymous'),
       createdAt: new Date().toISOString(),
       email: user?.email || null,
     };
@@ -163,9 +202,11 @@ export default function GuestbookComponent() {
                     transition={{ duration: 0.3 }}
                     className="bg-purple-800 bg-opacity-50 p-4 rounded-lg shadow-lg border border-purple-700 hover:border-purple-500 transition-all duration-300"
                   >
-                    <p className="text-white text-base break-words mb-2">{msg.message}</p>
+                    <p className="text-white text-base break-words mb-2">
+                      {escapeHtml(msg.message)}
+                    </p>
                     <div className="flex justify-between items-center text-purple-300 text-xs">
-                      <p className="font-semibold">{msg.authorName}</p>
+                      <p className="font-semibold">{escapeHtml(msg.authorName)}</p>
                       <p>{formatDate(msg.createdAt)}</p>
                     </div>
                   </motion.div>

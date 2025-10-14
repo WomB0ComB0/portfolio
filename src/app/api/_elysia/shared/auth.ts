@@ -110,6 +110,7 @@ export function createBearerGuard(config: AuthConfig) {
         message: config.errorMessage || 'Invalid or missing authentication token',
       };
     }
+    return undefined; // Auth successful
   };
 }
 

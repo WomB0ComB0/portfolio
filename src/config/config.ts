@@ -52,4 +52,7 @@ export const config = {
       restToken: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
     },
   },
+  cloudinary: {
+    cloudName: env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  },
 } as const;

@@ -4,7 +4,6 @@ import { AlertTriangle, Home, RotateCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import type React from 'react';
 import { memo } from 'react';
-import { AnimatedBackground } from '@/components';
 import { Button } from '@/components/ui/button';
 
 const ErrorLayout: React.FC<{
@@ -26,7 +25,6 @@ const ErrorLayout: React.FC<{
   }): React.JSX.Element => {
     return (
       <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden p-4">
-        <AnimatedBackground />
         <motion.div
           style={{
             zIndex: 10,

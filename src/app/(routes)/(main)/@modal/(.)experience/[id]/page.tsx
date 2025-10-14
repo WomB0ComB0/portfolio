@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
 import { experienceData } from '@/data/home-sections';
 
-export default async function ExperienceModal({ params }: { params: { id: string } }) {
+export default async function ExperienceModal({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const experience = experienceData.find((e) => e.id === id);
 

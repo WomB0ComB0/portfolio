@@ -13,62 +13,62 @@ export const viewport = constructViewport();
 const kodchasanFont = localFont({
   src: [
     {
-      path: '../../../public/assets/fonts/Kodchasan-ExtraLight.ttf',
+      path: '../../public/assets/fonts/Kodchasan-ExtraLight.ttf',
       weight: '200',
       style: 'normal',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-ExtraLightItalic.ttf',
+      path: '../../public/assets/fonts/Kodchasan-ExtraLightItalic.ttf',
       weight: '200',
       style: 'italic',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-Light.ttf',
+      path: '../../public/assets/fonts/Kodchasan-Light.ttf',
       weight: '300',
       style: 'normal',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-LightItalic.ttf',
+      path: '../../public/assets/fonts/Kodchasan-LightItalic.ttf',
       weight: '300',
       style: 'italic',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-Regular.ttf',
+      path: '../../public/assets/fonts/Kodchasan-Regular.ttf',
       weight: '400',
       style: 'normal',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-Italic.ttf',
+      path: '../../public/assets/fonts/Kodchasan-Italic.ttf',
       weight: '400',
       style: 'italic',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-Medium.ttf',
+      path: '../../public/assets/fonts/Kodchasan-Medium.ttf',
       weight: '500',
       style: 'normal',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-MediumItalic.ttf',
+      path: '../../public/assets/fonts/Kodchasan-MediumItalic.ttf',
       weight: '500',
       style: 'italic',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-SemiBold.ttf',
+      path: '../../public/assets/fonts/Kodchasan-SemiBold.ttf',
       weight: '600',
       style: 'normal',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-SemiBoldItalic.ttf',
+      path: '../../public/assets/fonts/Kodchasan-SemiBoldItalic.ttf',
       weight: '600',
       style: 'italic',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-Bold.ttf',
+      path: '../../public/assets/fonts/Kodchasan-Bold.ttf',
       weight: '700',
       style: 'normal',
     },
     {
-      path: '../../../public/assets/fonts/Kodchasan-BoldItalic.ttf',
+      path: '../../public/assets/fonts/Kodchasan-BoldItalic.ttf',
       weight: '700',
       style: 'italic',
     },

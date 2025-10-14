@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import type { JSX } from 'react';
 import { Button } from '@/components/ui/button';
-import { signout, useSignOut } from '@/core/auth';
+import { useSignOut } from '@/core/auth';
 
 export function LogoutButton(props: LogoutButtonProps): JSX.Element {
   const { ...other } = props;
@@ -15,7 +15,7 @@ export function LogoutButton(props: LogoutButtonProps): JSX.Element {
         className={'w-full'}
         {...other}
       >
-        {signout}
+        Sign Out
       </Button>
     </>
   );
