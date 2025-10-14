@@ -1,4 +1,4 @@
-import type { PhotoItem, PlaceItem } from '../types/places';
+import type { PhotoItem, PlaceItem } from '@/types/places';
 
 const placeholderPhotos: PhotoItem[] = [
   {
