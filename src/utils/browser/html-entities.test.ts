@@ -1,0 +1,43 @@
+import { describe, it, expect } from 'vitest';
+import { obfuscateLink } from './html-entities';
+
+describe('obfuscateLink', () => {
+  it('should obfuscate a mailto link', () => {
+    const { encodedHref, encodedText } = obfuscateLink({
+      scheme: 'mailto',
+      address: 'test@example.com',
+    });
+    expect(encodedHref).toBe(
+      '&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#116;&#101;&#115;&#116;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;',
+    );
+    expect(encodedText).toBe(
+      '&#116;&#101;&#115;&#116;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;',
+    );
+  });
+
+  it('should obfuscate a tel link with custom text', () => {
+    const { encodedHref, encodedText } = obfuscateLink({
+      scheme: 'tel',
+      address: '+12015550123',
+      text: '+1 (201) 555-0123',
+    });
+    expect(encodedHref).toBe('&#116;&#101;&#108;&#58;&#43;&#49;&#50;&#48;&#49;&#53;&#53;&#53;&#48;&#49;&#50;&#51;');
+    expect(encodedText).toBe(
+      '&#43;&#49;&#32;&#40;&#50;&#48;&#49;&#41;&#32;&#53;&#53;&#53;&#45;&#48;&#49;&#50;&#51;',
+    );
+  });
+
+  it('should handle mailto links with params', () => {
+    const { encodedHref } = obfuscateLink({
+      scheme: 'mailto',
+      address: 'test@example.com',
+      params: {
+        subject: 'hello',
+        body: 'world',
+      },
+    });
+    console.log('encodedHref', encodedHref);
+    const expectedHref = "mailto:test@example.com?subject=hello&body=world";
+    expect(encodedHref).toBe(expectedHref.split('').map(c => `&#${c.charCodeAt(0)};`).join(''));
+  });
+});
