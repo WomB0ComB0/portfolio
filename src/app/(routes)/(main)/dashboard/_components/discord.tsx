@@ -93,9 +93,8 @@ export default function Discord() {
                         </AvatarFallback>
                       </Avatar>
                       <div
-                        className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
-                          statusColors[status]
-                        } border-2 border-purple-900`}
+                        className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${statusColors[status]
+                          } border-2 border-purple-900`}
                       />
                     </div>
                     <div>

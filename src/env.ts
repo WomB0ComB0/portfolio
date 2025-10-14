@@ -36,6 +36,9 @@ const env = createEnv({
 
     // Cloudinary
     CLOUDINARY_URL: z.string().min(1, 'Cloudinary URL is required'),
+
+    // Sanity CMS (Server-side token)
+    SANITY_API_TOKEN: z.string().optional(),
   },
   client: {
     // Firebase Configuration
@@ -49,9 +52,9 @@ const env = createEnv({
     NEXT_PUBLIC_FIREBASE_APP_ID: z.string().min(1, 'Firebase App ID is required'),
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: z.string().min(1, 'Firebase Measurement ID is required'),
 
-    // Google Maps
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().min(1, 'Google Maps API Key is required'),
-    NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: z.string().min(1, 'Google Maps Map ID is required'),
+    // Google Maps (optional in development, required in production)
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional().or(z.literal('')),
+    NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: z.string().optional().or(z.literal('')),
 
     // GCP Service Account
     NEXT_PUBLIC_GCP_PROJECT_ID: z.string().min(1, 'GCP Project ID is required'),
@@ -81,6 +84,11 @@ const env = createEnv({
 
     // Cloudinary
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().min(1, 'Cloudinary Cloud Name is required'),
+
+    // Sanity CMS (Public config)
+    NEXT_PUBLIC_SANITY_PROJECT_ID: z.string().min(1, 'Sanity Project ID is required'),
+    NEXT_PUBLIC_SANITY_DATASET: z.string().default('production'),
+    NEXT_PUBLIC_SANITY_API_VERSION: z.string().default('2024-10-14'),
   },
   runtimeEnv: {
     // Server variables
@@ -98,6 +106,7 @@ const env = createEnv({
     CSRF_SECRET: process.env.CSRF_SECRET,
     ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
     CLOUDINARY_URL: process.env.CLOUDINARY_URL,
+    SANITY_API_TOKEN: process.env.SANITY_API_TOKEN,
 
     // Client variables
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -122,6 +131,9 @@ const env = createEnv({
     NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
     NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    NEXT_PUBLIC_SANITY_PROJECT_ID: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+    NEXT_PUBLIC_SANITY_DATASET: process.env.NEXT_PUBLIC_SANITY_DATASET,
+    NEXT_PUBLIC_SANITY_API_VERSION: process.env.NEXT_PUBLIC_SANITY_API_VERSION,
   },
 });
 

@@ -40,7 +40,12 @@ function initializeFirebase(): { app: FirebaseApp; auth: Auth; firestore: Firest
   const firestore = getFirestore(app);
 
   // Connect to emulators in development (only once)
-  if (process.env.NODE_ENV === 'development' && !existingApp) {
+  // Set NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true to enable
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true' &&
+    !existingApp
+  ) {
     try {
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
       connectFirestoreEmulator(firestore, 'localhost', 8080);

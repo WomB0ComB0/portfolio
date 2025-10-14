@@ -9,6 +9,7 @@ const colors = COLORS;
 // Dynamically import AnimatedCursor with no SSR
 const AnimatedCursor = dynamic(() => import('react-animated-cursor'), {
   ssr: false,
+  loading: () => null,
 });
 
 export const CustomAnimatedCursor = () => {
@@ -16,10 +17,29 @@ export const CustomAnimatedCursor = () => {
   const [colorIndex, setColorIndex] = useState(0);
 
   useEffect(() => {
-    // Wait for hydration to complete before mounting the cursor
+    // Wait for hydration to complete AND initial render to finish
+    // This prevents the cursor library from modifying DOM during hydration
     const timer = setTimeout(() => {
       setIsMounted(true);
-    }, 200);
+      // Add a global style to hide default cursor once animated cursor is ready
+      const style = document.createElement('style');
+      style.id = 'animated-cursor-style';
+      style.textContent = `
+        body.cursor-initialized a,
+        body.cursor-initialized button,
+        body.cursor-initialized input,
+        body.cursor-initialized select,
+        body.cursor-initialized textarea,
+        body.cursor-initialized label[for],
+        body.cursor-initialized .link,
+        body.cursor-initialized .custom {
+          cursor: none !important;
+        }
+      `;
+      if (!document.getElementById('animated-cursor-style')) {
+        document.head.appendChild(style);
+      }
+    }, 500); // Increased delay to ensure hydration is complete
 
     const intervalId = setInterval(() => {
       setColorIndex((prevIndex) => (prevIndex + 1) % colors.length);
@@ -28,6 +48,11 @@ export const CustomAnimatedCursor = () => {
     return () => {
       clearTimeout(timer);
       clearInterval(intervalId);
+      // Clean up the style when component unmounts
+      const style = document.getElementById('animated-cursor-style');
+      if (style) {
+        style.remove();
+      }
     };
   }, []);
 

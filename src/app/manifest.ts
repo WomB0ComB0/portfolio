@@ -158,12 +158,8 @@ export default function manifest(): ExtendedManifest {
     },
     protocol_handlers: [
       {
-        protocol: 'mailto',
-        url: `mailto:${app.email}?subject=%s`,
-      },
-      {
         protocol: 'web+mikeodnis',
-        url: '/?url=%s',
+        url: `${app.url}?url=%s`,
       },
     ],
     launch_handler: {

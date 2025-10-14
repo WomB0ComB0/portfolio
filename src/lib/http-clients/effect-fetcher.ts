@@ -1,8 +1,33 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
-import { getURL } from '@/utils';
 
 const EMPTY = '';
+
+/**
+ * Get the base URL for API requests.
+ * - Client-side: returns empty string (uses relative URLs)
+ * - Server-side: returns absolute URL for SSR
+ */
+const getBaseURL = (): string => {
+  // Client-side: use relative URLs
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+
+  // Server-side: need absolute URL for SSR
+  // Check for explicit site URL first (production)
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
+  }
+
+  // Vercel deployment (preview/production)
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  }
+
+  // Local development
+  return 'http://localhost:3000';
+};
 
 /**
  * @module effect-fetcher
@@ -343,9 +368,21 @@ export function fetcher<T = unknown>(
   };
 
   const queryString = buildQueryString(params);
-  // Convert relative URLs to absolute URLs for @effect/platform HttpClient
-  const absoluteUrl = input.startsWith('http') ? input : getURL(input);
-  const url = queryString ? `${absoluteUrl}?${queryString}` : absoluteUrl;
+  
+  // Build URL based on environment:
+  // - Client-side: keep relative URLs for same-origin requests
+  // - Server-side: convert to absolute URLs for SSR
+  // - External URLs: keep as-is
+  let url: string;
+  if (input.startsWith('http')) {
+    // Already absolute (external API)
+    url = queryString ? `${input}?${queryString}` : input;
+  } else {
+    // Relative URL - prepend base URL for SSR, keep relative for client
+    const baseURL = getBaseURL();
+    const fullPath = baseURL ? `${baseURL}${input}` : input;
+    url = queryString ? `${fullPath}?${queryString}` : fullPath;
+  }
 
   /**
    * Builds a type-safe HttpClientRequest for the given method and URL.

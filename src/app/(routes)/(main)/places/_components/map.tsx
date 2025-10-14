@@ -14,6 +14,20 @@ interface GoogleMapsProps {
 }
 
 export default function GoogleMaps({ placesToDisplay }: GoogleMapsProps) {
+  // Check if API key is available
+  if (!config.google.maps.apiKey) {
+    return (
+      <section className="w-full h-[400px] md:h-[500px] lg:h-[600px] relative rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+        <div className="text-center p-4">
+          <FaMapMarkerAlt className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-muted-foreground">
+            Google Maps is not configured. Please add your API key to display the map.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="w-full h-[400px] md:h-[500px] lg:h-[600px] relative rounded-lg overflow-hidden">
       <APIProvider apiKey={config.google.maps.apiKey}>
@@ -134,8 +148,8 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
                 <p className="text-xs text-gray-400 mb-1">{activePlace.category}</p>
                 <p className="text-sm text-gray-300 mb-2 line-clamp-3">{activePlace.description}</p>
                 {activePlace.photos &&
-                activePlace.photos.length > 0 &&
-                activePlace.photos[0]?.url ? (
+                  activePlace.photos.length > 0 &&
+                  activePlace.photos[0]?.url ? (
                   <img
                     src={activePlace.photos[0].url}
                     alt={activePlace.photos[0].caption || activePlace.name}

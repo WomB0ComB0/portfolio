@@ -20,32 +20,15 @@ interface StatCard {
 
 // Schema for Google Analytics response
 const GoogleResponseSchema = Schema.Struct({
-  json: Schema.Struct({
-    total_pageviews: Schema.Number,
-  }),
+  total_pageviews: Schema.optional(Schema.Number),
 });
 
 // Schema for WakaTime response
 const WakaTimeResponseSchema = Schema.Struct({
-  json: Schema.Struct({
-    total_seconds: Schema.Number,
-    text: Schema.String,
-    decimal: Schema.String,
-    digital: Schema.String,
-    daily_average: Schema.Number,
-    is_up_to_date: Schema.Boolean,
-    percent_calculated: Schema.Number,
-    range: Schema.Struct({
-      start: Schema.String,
-      start_date: Schema.String,
-      start_text: Schema.String,
-      end: Schema.String,
-      end_date: Schema.String,
-      end_text: Schema.String,
-      timezone: Schema.String,
-    }),
-    timeout: Schema.Number,
-  }),
+  text: Schema.String,
+  digital: Schema.String,
+  decimal: Schema.String,
+  total_seconds: Schema.Number,
 });
 
 const statCards: StatCard[] = [
@@ -119,10 +102,10 @@ export default memo(function Stats() {
       case 'age':
         return age;
       case 'google':
-        return googleData?.json.total_pageviews ?? 'N/A';
+        return googleData?.total_pageviews ?? 'N/A';
       case 'wakatime':
-        return wakatimeData?.json.total_seconds
-          ? Math.round(wakatimeData.json.total_seconds / 3600)
+        return wakatimeData?.total_seconds
+          ? Math.round(wakatimeData.total_seconds / 3600)
           : undefined;
       default:
         return undefined;

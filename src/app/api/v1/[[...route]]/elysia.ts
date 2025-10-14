@@ -5,6 +5,7 @@ import { googleRoute } from './google';
 import { lanyardRoute } from './lanyard';
 import { messagesRoute } from './messages';
 import { nowPlayingRoute } from './now-playing';
+import { sanityRoutes } from './sanity';
 import { topArtistsRoute } from './top-artists';
 import { topTracksRoute } from './top-tracks';
 import { wakatimeRoute } from './wakatime';
@@ -21,6 +22,7 @@ import { wakatimeRoute } from './wakatime';
  *   - /top-tracks (Spotify)
  *   - /blog
  *   - /messages (GET and POST)
+ *   - /sanity/* (CMS content)
  * @type {Elysia}
  */
 export const apiRoutes = new Elysia()
@@ -32,7 +34,8 @@ export const apiRoutes = new Elysia()
   .use(topArtistsRoute)
   .use(topTracksRoute)
   .use(blogRoute)
-  .use(messagesRoute);
+  .use(messagesRoute)
+  .use(sanityRoutes);
 
 // Debug logging
 console.log('[ELYSIA DEBUG] Blog route type:', typeof blogRoute);
