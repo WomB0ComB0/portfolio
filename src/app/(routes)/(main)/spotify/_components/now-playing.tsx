@@ -12,10 +12,10 @@ import { DataLoader } from '@/providers/server/effect-data-loader';
 
 const NowPlayingSchema = Schema.Struct({
   isPlaying: Schema.Boolean,
-  songName: Schema.String,
-  artistName: Schema.String,
-  songURL: Schema.String,
-  imageURL: Schema.String,
+  songName: Schema.optional(Schema.String),
+  artistName: Schema.optional(Schema.String),
+  songURL: Schema.optional(Schema.String),
+  imageURL: Schema.optional(Schema.String),
 });
 
 const NowPlayingSkeleton = () => (
@@ -68,15 +68,15 @@ export default function NowPlaying() {
                         rel="noreferrer"
                         className="text-[#ba9bdd] hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
                       >
-                        {data.songName}
+                        {data.songName ?? 'Unknown'}
                       </Link>
                       <Link
-                        href={data.songURL.split('/').slice(0, 5).join('/') ?? '#'}
+                        href={data.songURL?.split('/').slice(0, 5).join('/') ?? '#'}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[#ba9bdd]/80 hover:text-[#ba9bdd] transition-colors duration-200 text-sm truncate"
                       >
-                        {data.artistName}
+                        {data.artistName ?? 'Unknown Artist'}
                       </Link>
                     </div>
                   </div>
@@ -90,7 +90,7 @@ export default function NowPlaying() {
                       <Image
                         className="rounded-lg object-cover shadow-lg"
                         src={data.imageURL}
-                        alt={data.songName}
+                        alt={data.songName ?? 'Album cover'}
                         width={80}
                         height={80}
                       />

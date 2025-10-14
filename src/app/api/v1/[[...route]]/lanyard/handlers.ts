@@ -1,8 +1,8 @@
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { ensureBaseError } from '@/classes/error';
 import { config } from '@/config';
+import { get } from '@/lib/http-clients/effect-fetcher';
 
 interface DiscordUser {
   username: string;

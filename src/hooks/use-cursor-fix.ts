@@ -27,7 +27,7 @@ export function useCursorFix() {
     // Simply mark that hydration is complete
     // The CustomAnimatedCursor component handles its own mounting logic
     document.body.classList.add('cursor-initialized');
-    
+
     return () => {
       document.body.classList.remove('cursor-initialized');
     };

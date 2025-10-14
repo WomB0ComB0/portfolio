@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
-import { getBlogs } from '@/lib';
 import { BaseError } from '@/classes/error';
+import { getBlogs } from '@/lib';
 
 export const BlogSchema = Schema.Struct({
   title: Schema.String,

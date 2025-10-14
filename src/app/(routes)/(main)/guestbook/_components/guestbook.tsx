@@ -36,9 +36,7 @@ interface Message {
 }
 
 interface ApiResponse {
-  json: {
-    json: Message[];
-  };
+  json: Message[];
 }
 
 // Schema for messages response
@@ -51,9 +49,7 @@ const MessageSchema = Schema.Struct({
 });
 
 const MessagesResponseSchema = Schema.Struct({
-  json: Schema.Struct({
-    json: Schema.Array(MessageSchema),
-  }),
+  json: Schema.Array(MessageSchema),
 });
 
 export default function GuestbookComponent() {
@@ -80,7 +76,7 @@ export default function GuestbookComponent() {
   });
 
   const messages = useMemo(() => {
-    return data?.json?.json || [];
+    return data?.json || [];
   }, [data]);
 
   const postMessage = usePostMessage();
@@ -193,7 +189,7 @@ export default function GuestbookComponent() {
               <ErrorUI error={error} />
             ) : (
               <AnimatePresence>
-                {messages.map((msg) => (
+                {messages.map((msg: Message) => (
                   <motion.div
                     key={msg.id}
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}

@@ -3,8 +3,8 @@
  * Provides configurable cache headers and error handling.
  */
 
-import { onRequestError } from '@/core';
 import { ensureBaseError, isBaseError } from '@/classes/error';
+import { onRequestError } from '@/core';
 
 export interface CacheConfig {
   /**

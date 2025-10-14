@@ -1,13 +1,10 @@
 import {
   FiBookOpen,
   FiCode,
-  FiDollarSign,
   FiFileText,
   FiHeadphones,
   FiHome,
   FiMapPin,
-  FiPaperclip,
-  FiUser,
   FiZap,
 } from 'react-icons/fi';
 import { SiHashnode } from 'react-icons/si';
@@ -21,15 +18,6 @@ export const actions = [
     perform: () => (window.location.pathname = '/'),
     section: 'Navigation',
     icon: FiHome({ size: '1rem' }),
-  },
-  {
-    id: 'about',
-    name: 'About',
-    shortcut: ['a'],
-    keywords: 'about',
-    perform: () => (window.location.pathname = '/about'),
-    section: 'Navigation',
-    icon: FiUser({ size: '1rem' }),
   },
   {
     id: 'resume',
@@ -59,15 +47,6 @@ export const actions = [
     icon: FiMapPin({ size: '1rem' }),
   },
   {
-    id: 'links',
-    name: 'Links',
-    shortcut: ['l'],
-    keywords: 'email link discord twitter github',
-    perform: () => (window.location.pathname = '/links'),
-    section: 'Navigation',
-    icon: FiPaperclip({ size: '1rem' }),
-  },
-  {
     id: 'guestbook',
     name: 'Guestbook',
     shortcut: ['g'],
@@ -93,15 +72,6 @@ export const actions = [
     perform: () => (window.location.pathname = '/dashboard'),
     section: 'Navigation',
     icon: FiZap({ size: '1rem' }),
-  },
-  {
-    id: 'hire',
-    name: 'Hire',
-    shortcut: ['i'],
-    keywords: 'hire',
-    perform: () => (window.location.pathname = '/hire'),
-    section: 'Navigation',
-    icon: FiDollarSign({ size: '1rem' }),
   },
   {
     id: 'projects',

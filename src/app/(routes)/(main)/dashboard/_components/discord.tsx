@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { config } from '@/config';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 
 const ActivitySchema = Schema.Struct({
   name: Schema.String,
@@ -27,11 +27,9 @@ const DiscordUserSchema = Schema.Struct({
 });
 
 const LanyardResponseSchema = Schema.Struct({
-  json: Schema.Struct({
-    discord_status: Schema.Literal('online', 'idle', 'dnd', 'offline'),
-    discord_user: DiscordUserSchema,
-    activities: Schema.optional(Schema.Array(ActivitySchema)),
-  }),
+  discord_status: Schema.Literal('online', 'idle', 'dnd', 'offline'),
+  discord_user: DiscordUserSchema,
+  activities: Schema.optional(Schema.Array(ActivitySchema)),
 });
 
 const statusColors = {
@@ -60,7 +58,7 @@ export default function Discord() {
         LoadingComponent={<DiscordSkeleton />}
       >
         {(data: Schema.Schema.Type<typeof LanyardResponseSchema>) => {
-          const { discord_status: status, discord_user: user, activities } = data.json;
+          const { discord_status: status, discord_user: user, activities } = data;
           const activity = activities?.[0];
 
           const handleAddFriend = () => {
@@ -96,7 +94,7 @@ export default function Discord() {
                       </Avatar>
                       <div
                         className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
-                          statusColors[status || 'offline']
+                          statusColors[status]
                         } border-2 border-purple-900`}
                       />
                     </div>

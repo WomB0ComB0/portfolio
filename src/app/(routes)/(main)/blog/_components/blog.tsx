@@ -18,9 +18,7 @@ const BlogPostSchema = Schema.Struct({
   excerpt: Schema.String,
 });
 
-const BlogResponseSchema = Schema.Struct({
-  json: Schema.Array(BlogPostSchema),
-});
+const BlogResponseSchema = Schema.Array(BlogPostSchema);
 
 const Blog = () => {
   return (
@@ -38,7 +36,7 @@ const Blog = () => {
           {(data: Schema.Schema.Type<typeof BlogResponseSchema>) => (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence>
-                {data.json.map((blog: Schema.Schema.Type<typeof BlogPostSchema>, index: number) => (
+                {data.map((blog: Schema.Schema.Type<typeof BlogPostSchema>, index: number) => (
                   <motion.div
                     key={blog.slug}
                     initial={{ opacity: 0, y: 20 }}

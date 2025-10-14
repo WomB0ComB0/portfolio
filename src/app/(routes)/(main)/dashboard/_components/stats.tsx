@@ -51,7 +51,7 @@ const WakaTimeResponseSchema = Schema.Struct({
 const statCards: StatCard[] = [
   {
     title: 'Age',
-    link: 'https://mikeodnis.dev/about',
+    link: 'https://mikeodnis.dev',
     query: 'age',
   },
   {

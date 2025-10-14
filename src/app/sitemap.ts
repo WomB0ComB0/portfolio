@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
-      url: `${protocol}://${domain}/about`,
+      url: `${protocol}://${domain}/blog`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,
@@ -32,12 +32,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${protocol}://${domain}/links`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
       url: `${protocol}://${domain}/places`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
@@ -51,18 +45,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${protocol}://${domain}/spotify`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${protocol}://${domain}/blog`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${protocol}://${domain}/hire`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,

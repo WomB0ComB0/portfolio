@@ -4,7 +4,6 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 import './src/env';
-import { getURL } from '@/utils';
 
 // Just in case you accidentally import these packages
 const EXEMPT_DEPS: Set<string> = new Set([
@@ -158,21 +157,20 @@ const config: NextConfig = {
     },
     webVitalsAttribution: ['CLS', 'LCP', 'TTFB', 'FCP', 'FID'],
     authInterrupts: true,
-    typedRoutes: false,
-    turbo: {
-      resolveAlias: {
-        '@/*': './src/*',
+  },
+  typedRoutes: false,
+  turbo: {
+    resolveAlias: {
+      '@/*': './src/*',
+    },
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-        '**/*.{ts,tsx}': ['typescript'],
-      },
+      '**/*.{ts,tsx}': ['typescript'],
     },
   },
-
   typescript: {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors in production
     tsconfigPath: './tsconfig.json',
@@ -215,7 +213,7 @@ const config: NextConfig = {
       },
       {
         key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+        value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
       },
     ];
 
@@ -229,14 +227,6 @@ const config: NextConfig = {
 
     return [
       // Pages that need to embed external iframes (no X-Frame-Options)
-      {
-        source: '/links',
-        headers: [
-          ...securityHeaders,
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://linktr.ee" },
-        ],
-      },
-      // Add any other pages that embed iframes here
       {
         source: '/embed/:path*',
         headers: securityHeaders, // No X-Frame-Options on embed pages
@@ -332,7 +322,7 @@ const config: NextConfig = {
 
   // Environment variable validation
   env: {
-    NEXT_PUBLIC_APP_URL: getURL(),
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://mikeodnis.dev',
   },
 };
 

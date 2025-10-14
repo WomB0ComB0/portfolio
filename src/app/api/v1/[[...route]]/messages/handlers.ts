@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
-import { firestore } from '@/core/firebase';
 import { BaseError } from '@/classes/error';
+import { firestore } from '@/core/firebase';
 
 export const MessageDataSchema = Schema.Struct({
   authorName: Schema.String,

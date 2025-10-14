@@ -1,3 +1,4 @@
+import { BaseError } from '@/classes/error';
 import {
   banIp,
   getBanMetadata,
@@ -9,7 +10,6 @@ import {
 } from '@/lib/security/banlist';
 import { banCidr, getBannedCidrs, unbanCidr } from '@/lib/security/banlist-cidr';
 import { Logger } from '@/utils';
-import { BaseError } from '@/classes/error';
 import type { BanAction } from './schema';
 
 const log = Logger.getLogger('BanAPI');

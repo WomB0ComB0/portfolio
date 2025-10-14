@@ -8,7 +8,7 @@ import { apiRoutes } from './elysia';
  */
 // Next.js file path provides /api, so don't add prefix here
 const app = createElysiaApp({
-  prefix: '',
+  prefix: '/api',
 }).use(apiRoutes);
 
 /**

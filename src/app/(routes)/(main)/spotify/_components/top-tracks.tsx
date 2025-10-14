@@ -14,9 +14,7 @@ const TrackSchema = Schema.Struct({
   imageUrl: Schema.String,
 });
 
-const TopTracksResponseSchema = Schema.Struct({
-  json: Schema.Array(TrackSchema),
-});
+const TopTracksResponseSchema = Schema.Array(TrackSchema);
 
 const TopTracksSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -55,9 +53,9 @@ export default function TopTracks() {
         >
           {(data: Schema.Schema.Type<typeof TopTracksResponseSchema>) => (
             <>
-              {data.json.length > 0 ? (
+              {data.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.json.map((track: Schema.Schema.Type<typeof TrackSchema>, index: number) => (
+                  {data.map((track: Schema.Schema.Type<typeof TrackSchema>, index: number) => (
                     <motion.div
                       key={index}
                       className="flex items-center space-x-4 bg-purple-800/60 rounded-lg p-3 cursor-pointer hover:bg-purple-700/70 transition-all duration-300"

@@ -1,7 +1,8 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
+import { getURL } from '@/utils';
 
-declare const EMPTY = '';
+const EMPTY = '';
 
 /**
  * @module effect-fetcher
@@ -342,7 +343,9 @@ export function fetcher<T = unknown>(
   };
 
   const queryString = buildQueryString(params);
-  const url = queryString ? `${input}?${queryString}` : input;
+  // Convert relative URLs to absolute URLs for @effect/platform HttpClient
+  const absoluteUrl = input.startsWith('http') ? input : getURL(input);
+  const url = queryString ? `${absoluteUrl}?${queryString}` : absoluteUrl;
 
   /**
    * Builds a type-safe HttpClientRequest for the given method and URL.

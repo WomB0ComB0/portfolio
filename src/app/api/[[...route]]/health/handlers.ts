@@ -3,7 +3,7 @@
  * Business logic for health check endpoints
  */
 
-import { app } from "@/constants";
+import { app } from '@/constants';
 
 export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';

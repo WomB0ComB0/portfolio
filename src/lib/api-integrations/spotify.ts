@@ -1,7 +1,7 @@
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
-import { get, post } from '@/lib/http-clients/effect-fetcher';
 import { env } from '@/env';
+import { get, post } from '@/lib/http-clients/effect-fetcher';
 import 'server-only';
 
 const client_id = env.SPOTIFY_CLIENT_ID;

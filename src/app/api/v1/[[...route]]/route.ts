@@ -5,12 +5,16 @@ import { apiRoutes, utilityRoutes } from './elysia';
 
 // Next.js file path provides /api/v1, so don't add prefix here
 const app = createElysiaApp({
-  prefix: '',
+  prefix: '/api/v1',
 })
   .use(utilityRoutes)
   .use(apiRoutes)
-  .onError(({ code, error }) => {
-    logger.error('Elysia error', error, { code });
+  .onError(({ code, error, request }) => {
+    logger.error('Elysia error', error, {
+      code,
+      url: request.url,
+      path: new URL(request.url).pathname,
+    });
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error',
@@ -25,6 +29,11 @@ const app = createElysiaApp({
     );
   });
 
+// Log all registered routes for debugging
+logger.info('Registered Elysia routes', {
+  routes: app.routes.map((r) => ({ method: r.method, path: r.path })),
+});
+
 /**
  * Wraps Elysia handler to ensure it always returns a Response
  */
@@ -33,20 +42,17 @@ const wrapHandler = (handler: typeof app.handle) => async (request: Request) => 
     const response = await handler(request);
     if (!response) {
       logger.warn('Handler returned null/undefined, creating fallback response');
-      return new Response(
-        JSON.stringify({ error: 'No response from handler' }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
+      return new Response(JSON.stringify({ error: 'No response from handler' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
     return response;
   } catch (error) {
     logger.error('Handler error', error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Internal server error',
       }),
       {
         status: 500,

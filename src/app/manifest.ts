@@ -1,6 +1,5 @@
 import type { MetadataRoute } from 'next';
 import { app } from '@/constants';
-import { obfuscateLink } from '@/utils';
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property
@@ -154,21 +153,17 @@ export default function manifest(): ExtendedManifest {
       },
     },
     handle_links: 'preferred',
-    scope_extensions: [{ origin: '*.mikeodnis.dev' }],
     edge_side_panel: {
       preferred_width: 480,
     },
     protocol_handlers: [
       {
         protocol: 'mailto',
-        url: `${obfuscateLink({
-          scheme: 'mailto',
-          address: app.email,
-        })}`,
+        url: `mailto:${app.email}?subject=%s`,
       },
       {
         protocol: 'web+mikeodnis',
-        url: 'https://mikeodnis.dev',
+        url: '/?url=%s',
       },
     ],
     launch_handler: {
@@ -1543,9 +1538,9 @@ export default function manifest(): ExtendedManifest {
     ],
     shortcuts: [
       {
-        name: 'About',
-        short_name: 'About',
-        url: '/about',
+        name: 'Home',
+        short_name: 'Home',
+        url: '/',
         description: 'Learn more about Mike Odnis, his background, and interests.',
         icons: [
           {
@@ -1575,20 +1570,6 @@ export default function manifest(): ExtendedManifest {
         short_name: 'Book',
         url: '/guestbook',
         description: "Leave a message or see what others have said about Mike's portfolio.",
-        icons: [
-          {
-            src: '/assets/svgs/logo-small.svg',
-            type: 'image/svg+xml',
-            purpose: 'any',
-            sizes: '96x96',
-          },
-        ],
-      },
-      {
-        name: 'Links',
-        short_name: 'Links',
-        url: '/links',
-        description: "Explore Mike's curated collection of useful and interesting links.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',

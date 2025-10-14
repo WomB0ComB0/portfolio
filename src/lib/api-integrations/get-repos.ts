@@ -3,8 +3,8 @@ import 'server-only';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { cache } from 'react';
-import { post } from '@/lib/http-clients/effect-fetcher';
 import { env } from '@/env';
+import { post } from '@/lib/http-clients/effect-fetcher';
 
 const PrimaryLanguageSchema = Schema.Struct({
   name: Schema.String,
