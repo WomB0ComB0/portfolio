@@ -49,7 +49,16 @@
     "**/*.js",
     ".next/types/**/*.ts",
     "next.config.ts",
-    "./*.d.ts"
+    "./*.d.ts",
+    "postcss.config.mjs"
   ],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.spec.tsx", "**/*.test.ts", "**/*.test.tsx"]
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "public/**/*.js",
+    "sanity.config.ts"
+  ]
 }

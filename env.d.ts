@@ -35,6 +35,8 @@ declare global {
       NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: string;
       CSRF_SECRET: string;
       ADMIN_API_TOKEN: string;
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: string;
+      CLOUDINARY_URL: string;
     }
   }
 }

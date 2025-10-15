@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import { experienceData } from '@/data/home-sections';
+import { getExperiences } from '@/lib/sanity/api';
 import { constructMetadata } from '@/utils';
 
 const ExperienceDetail = dynamic(
@@ -13,29 +13,47 @@ const ExperienceDetail = dynamic(
 );
 
 export async function generateStaticParams() {
-  return experienceData.map((exp) => ({
-    id: exp.id,
-  }));
+  try {
+    const experiences = await getExperiences();
+    return experiences.map((exp) => ({
+      id: exp._id,
+    }));
+  } catch (error) {
+    console.error('Error generating static params:', error);
+    return [];
+  }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const experienceItem = experienceData.find((exp) => exp.id === params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
-  if (!experienceItem) {
+  try {
+    const experiences = await getExperiences();
+    const experienceItem = experiences.find((exp) => exp._id === id);
+
+    if (!experienceItem) {
+      return constructMetadata({
+        title: 'Experience Not Found',
+        description: 'The requested experience item could not be found',
+      });
+    }
+
     return constructMetadata({
-      title: 'Experience Not Found',
-      description: 'The requested experience item could not be found',
+      title: `${experienceItem.position} at ${experienceItem.company}`,
+      description: experienceItem.description,
+    });
+  } catch (error) {
+    console.error('Error generating metadata:', error);
+    return constructMetadata({
+      title: 'Experience',
+      description: 'View professional experience details',
     });
   }
-
-  return constructMetadata({
-    title: `${experienceItem.jobTitle} at ${experienceItem.companyTitle}`,
-    description: experienceItem.jobDescriptionShort,
-  });
 }
 
-const ExperienceDetailPage = ({ params }: { params: { id: string } }) => {
-  return <ExperienceDetail params={params} />;
+const ExperienceDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const resolvedParams = await params;
+  return <ExperienceDetail params={resolvedParams} />;
 };
 
 export default ExperienceDetailPage;

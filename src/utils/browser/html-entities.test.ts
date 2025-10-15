@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { obfuscateLink } from './html-entities';
 
 describe('obfuscateLink', () => {
@@ -21,7 +21,9 @@ describe('obfuscateLink', () => {
       address: '+12015550123',
       text: '+1 (201) 555-0123',
     });
-    expect(encodedHref).toBe('&#116;&#101;&#108;&#58;&#43;&#49;&#50;&#48;&#49;&#53;&#53;&#53;&#48;&#49;&#50;&#51;');
+    expect(encodedHref).toBe(
+      '&#116;&#101;&#108;&#58;&#43;&#49;&#50;&#48;&#49;&#53;&#53;&#53;&#48;&#49;&#50;&#51;',
+    );
     expect(encodedText).toBe(
       '&#43;&#49;&#32;&#40;&#50;&#48;&#49;&#41;&#32;&#53;&#53;&#53;&#45;&#48;&#49;&#50;&#51;',
     );
@@ -37,7 +39,12 @@ describe('obfuscateLink', () => {
       },
     });
     console.log('encodedHref', encodedHref);
-    const expectedHref = "mailto:test@example.com?subject=hello&body=world";
-    expect(encodedHref).toBe(expectedHref.split('').map(c => `&#${c.charCodeAt(0)};`).join(''));
+    const expectedHref = 'mailto:test@example.com?subject=hello&body=world';
+    expect(encodedHref).toBe(
+      expectedHref
+        .split('')
+        .map((c) => `&#${c.charCodeAt(0)};`)
+        .join(''),
+    );
   });
 });

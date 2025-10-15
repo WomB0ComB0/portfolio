@@ -11,7 +11,8 @@ export const metadata = constructMetadata({
   description: 'Information about open source and third-party licenses.',
 });
 
-export const LicensesPage = () => <Licenses />;
-LicensesPage.displayName = 'LicensesPage';
+export default function LicensesPage() {
+  return <Licenses />;
+}
 
-export default LicensesPage;
+LicensesPage.displayName = 'LicensesPage';

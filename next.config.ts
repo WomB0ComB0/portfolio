@@ -109,7 +109,7 @@ const withPwa = pwa({
 
 const config: NextConfig = {
   reactStrictMode: true,
-  pageExtensions: ['tsx'],
+  pageExtensions: ['ts', 'tsx'],
   poweredByHeader: false,
   compress: true,
   logging: {
@@ -139,8 +139,8 @@ const config: NextConfig = {
     optimizePackageImports: [
       ...(() => {
         try {
-          const highPackages = require('./bin/out/high.json');
-          const mediumPackages = require('./bin/out/medium.json');
+          const highPackages = require('./scripts/out/high.json');
+          const mediumPackages = require('./scripts/out/medium.json');
           return Array.from(new Set([...highPackages, ...mediumPackages])).filter(
             (pkg) => !EXEMPT_DEPS.has(pkg),
           );
@@ -157,23 +157,23 @@ const config: NextConfig = {
     },
     webVitalsAttribution: ['CLS', 'LCP', 'TTFB', 'FCP', 'FID'],
     authInterrupts: true,
-    typedRoutes: false,
-    turbo: {
-      resolveAlias: {
-        '@/*': './src/*',
+  },
+  typedRoutes: false,
+  turbo: {
+    resolveAlias: {
+      '@/*': './src/*',
+    },
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-        '**/*.{ts,tsx}': ['typescript'],
-      },
+      '**/*.{ts,tsx}': ['typescript'],
     },
   },
-
   typescript: {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors in production
+    tsconfigPath: './tsconfig.json',
   },
 
   eslint: {
@@ -213,7 +213,7 @@ const config: NextConfig = {
       },
       {
         key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+        value: 'camera=(), microphone=(), geolocation=()',
       },
     ];
 
@@ -227,14 +227,6 @@ const config: NextConfig = {
 
     return [
       // Pages that need to embed external iframes (no X-Frame-Options)
-      {
-        source: '/links',
-        headers: [
-          ...securityHeaders,
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://linktr.ee" },
-        ],
-      },
-      // Add any other pages that embed iframes here
       {
         source: '/embed/:path*',
         headers: securityHeaders, // No X-Frame-Options on embed pages

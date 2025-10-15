@@ -17,9 +17,10 @@ declare global {
 
 import { createClient } from '@liveblocks/client';
 import { createRoomContext } from '@liveblocks/react';
+import { config } from '@/config';
 
 export const client = createClient({
-  publicApiKey: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY!,
+  publicApiKey: config.liveblocks.publicKey,
 });
 
 export const {

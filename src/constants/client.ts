@@ -19,7 +19,6 @@ import {
   FiHeadphones,
   FiHome,
   FiMapPin,
-  FiPaperclip,
 } from 'react-icons/fi';
 
 import { SiHashnode } from 'react-icons/si';
@@ -69,10 +68,5 @@ export const NavbarItems = [
     name: 'Spotify',
     slug: '/spotify',
     icon: FiHeadphones,
-  },
-  {
-    name: 'Links',
-    slug: '/links',
-    icon: FiPaperclip,
   },
 ];

@@ -17,7 +17,7 @@ import {
   get,
   type QueryParams,
   ValidationError,
-} from '@/lib';
+} from '@/lib/http-clients';
 import { parseCodePathDetailed } from '@/utils';
 
 /**
@@ -405,8 +405,8 @@ export function useDataLoader(url: string, options: any = {}) {
 
   const finalQueryKey = useMemo(() => {
     if (queryKey) return queryKey;
-    const headers = (fetcherOptions as any)?.headers;
-    const timeout = (fetcherOptions as any)?.timeout;
+    const headers = fetcherOptions?.headers;
+    const timeout = fetcherOptions?.timeout;
     const schemaKey = schema ? `schema:${Schema.format(schema)}` : null;
     const keyArray = ['dataloader', url, params, headers, timeout, schemaKey].filter(Boolean);
     return keyArray;

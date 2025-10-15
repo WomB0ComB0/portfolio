@@ -19,6 +19,7 @@ import {
   SiX,
 } from 'react-icons/si';
 import { SlGraph } from 'react-icons/sl';
+import { config } from '@/config';
 
 export type Link = {
   name: string;
@@ -32,7 +33,7 @@ export type Links = Link[];
 export const links: Links = [
   {
     name: 'Discord',
-    url: `https://discord.com/users/${process.env.NEXT_PUBLIC_DISCORD_ID}`,
+    url: `https://discord.com/users/${config.discord.id}`,
     value: 'mikeodnis',
     icon: SiDiscord,
   },

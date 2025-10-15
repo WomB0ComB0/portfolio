@@ -9,13 +9,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// import { fileURLToPath } from 'node:url';
 // @ts-check
-import { gzipSize } from 'gzip-size';
+import { gzipSizeSync } from 'gzip-size';
 import { mkdirp } from 'mkdirp';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ESM compatibility - currently unused but may be needed for future changes
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 /** @typedef {{ raw: number, gzip: number }} ScriptSizes */
 /** @typedef {Record<string, ScriptSizes>} PageSizes */
@@ -64,20 +65,19 @@ const appDirMeta = JSON.parse(
 /** @type {Record<string, [number, number]>} */
 const memoryCache = {};
 
-const globalBundle = buildMeta.pages['/_app'] || [];
-const globalBundleSizes = getScriptSizes(globalBundle);
-
-/** @type {PageSizes} */
-const allPageSizes = Object.entries(buildMeta.pages).reduce(
-  (acc, [pagePath, scriptPaths]) => {
-    const scriptSizes = getScriptSizes(
-      scriptPaths.filter((scriptPath) => !globalBundle.includes(scriptPath)),
-    );
-    acc[pagePath] = scriptSizes;
-    return acc;
-  },
-  /** @type {PageSizes} */ ({}),
-);
+// Legacy pages bundle calculation (currently unused as we're focusing on App Dir)
+// const globalBundle = buildMeta.pages['/_app'] || [];
+// const globalBundleSizes = getScriptSizes(globalBundle);
+// const allPageSizes = Object.entries(buildMeta.pages).reduce(
+//   (acc, [pagePath, scriptPaths]) => {
+//     const scriptSizes = getScriptSizes(
+//       scriptPaths.filter((scriptPath) => !globalBundle.includes(scriptPath)),
+//     );
+//     acc[pagePath] = scriptSizes;
+//     return acc;
+//   },
+//   /** @type {PageSizes} */ ({}),
+// );
 
 const globalAppDirBundle = buildMeta.rootMainFiles || [];
 const globalAppDirBundleSizes = getScriptSizes(globalAppDirBundle);
@@ -142,7 +142,7 @@ function getScriptSize(scriptPath) {
   try {
     const textContent = fs.readFileSync(p, encoding);
     const rawSize = Buffer.byteLength(textContent, encoding);
-    const gzSize = gzipSize.sync(textContent);
+    const gzSize = gzipSizeSync(textContent);
     memoryCache[p] = [rawSize, gzSize];
     return [rawSize, gzSize];
   } catch (error) {

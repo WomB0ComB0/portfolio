@@ -1,25 +1,63 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
-import AnimatedCursor from 'react-animated-cursor';
 import { COLORS } from '@/constants';
 
 const colors = COLORS;
 
+// Dynamically import AnimatedCursor with no SSR
+const AnimatedCursor = dynamic(() => import('react-animated-cursor'), {
+  ssr: false,
+  loading: () => null,
+});
+
 export const CustomAnimatedCursor = () => {
-  const [isClient, setIsClient] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [colorIndex, setColorIndex] = useState(0);
 
   useEffect(() => {
-    setIsClient(true);
+    // Wait for hydration to complete AND initial render to finish
+    // This prevents the cursor library from modifying DOM during hydration
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+      // Add a global style to hide default cursor once animated cursor is ready
+      const style = document.createElement('style');
+      style.id = 'animated-cursor-style';
+      style.textContent = `
+        body.cursor-initialized a,
+        body.cursor-initialized button,
+        body.cursor-initialized input,
+        body.cursor-initialized select,
+        body.cursor-initialized textarea,
+        body.cursor-initialized label[for],
+        body.cursor-initialized .link,
+        body.cursor-initialized .custom {
+          cursor: none !important;
+        }
+      `;
+      if (!document.getElementById('animated-cursor-style')) {
+        document.head.appendChild(style);
+      }
+    }, 500); // Increased delay to ensure hydration is complete
+
     const intervalId = setInterval(() => {
       setColorIndex((prevIndex) => (prevIndex + 1) % colors.length);
     }, 5000); // Change color every 5 seconds
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(intervalId);
+      // Clean up the style when component unmounts
+      const style = document.getElementById('animated-cursor-style');
+      if (style) {
+        style.remove();
+      }
+    };
   }, []);
 
-  if (!isClient) return null;
+  // Don't render anything until mounted (after hydration)
+  if (!isMounted) return null;
 
   return (
     <AnimatedCursor

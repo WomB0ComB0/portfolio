@@ -1,33 +1,58 @@
-import axios from 'axios';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
+import { env } from '@/env';
+import { get, post } from '@/lib/http-clients/effect-fetcher';
+import 'server-only';
 
-const client_id = process.env.SPOTIFY_CLIENT_ID;
-const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+const client_id = env.SPOTIFY_CLIENT_ID;
+const client_secret = env.SPOTIFY_CLIENT_SECRET;
+const refresh_token = env.SPOTIFY_REFRESH_TOKEN;
 
 const basic = Buffer.from(`${client_id}:${client_secret}`).toString('base64');
+
+// Schema for access token response
+const AccessTokenSchema = Schema.Struct({
+  access_token: Schema.String,
+  token_type: Schema.String,
+  expires_in: Schema.Number,
+  scope: Schema.optional(Schema.String),
+});
+
+// Schema for Spotify track item
+const SpotifyTrackSchema = Schema.Struct({
+  items: Schema.Array(Schema.Unknown),
+});
+
+// Schema for Spotify artist item
+const SpotifyArtistSchema = Schema.Struct({
+  items: Schema.Array(Schema.Unknown),
+});
 
 /**
  * Makes a request to the Spotify API to obtain a new access token using a refresh token.
  */
 export const getAccessToken = async (): Promise<{ access_token: string }> => {
-  try {
-    // Make a POST request to the Spotify API to request a new access token
-    const response = await axios.post(
-      'https://accounts.spotify.com/api/token',
-      new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refresh_token!,
-      }),
-      {
-        headers: {
-          Authorization: `Basic ${basic}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      },
-    );
+  const formData = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refresh_token!,
+  }).toString();
 
-    // Return the JSON response from the API
-    return response.data;
+  const effect = pipe(
+    post('https://accounts.spotify.com/api/token', formData, {
+      headers: {
+        Authorization: `Basic ${basic}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      schema: AccessTokenSchema,
+      retries: 2,
+      timeout: 10_000,
+      bodyType: 'text', // Send as form-encoded text, not JSON
+    }),
+    Effect.provide(FetchHttpClient.layer),
+  );
+
+  try {
+    return await Effect.runPromise(effect);
   } catch (error) {
     console.error('Error getting Spotify access token:', error);
     throw error;
@@ -39,26 +64,27 @@ export const getAccessToken = async (): Promise<{ access_token: string }> => {
  */
 export const topTracks = async (): Promise<any[]> => {
   // Obtain an access token
-  const { access_token }: { access_token: string } = await getAccessToken();
+  const { access_token } = await getAccessToken();
 
-  // Make a request to the Spotify API to retrieve the user's top tracks in last 4 weeks
-
-  const response = await axios.get(
-    'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=short_term',
-    {
+  const effect = pipe(
+    get('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=short_term', {
       headers: {
-        // Set the Authorization header with the access token
         Authorization: `Bearer ${access_token}`,
       },
-    },
+      schema: SpotifyTrackSchema,
+      retries: 2,
+      timeout: 10_000,
+    }),
+    Effect.provide(FetchHttpClient.layer),
   );
 
-  // Handle the response and convert it to the expected type
-  if (response.status !== 200) {
-    throw new Error('Failed to fetch top artists.');
+  try {
+    const result = await Effect.runPromise(effect);
+    return result.items as any[];
+  } catch (error) {
+    console.error('Error fetching top tracks:', error);
+    throw error;
   }
-  const data = response.data;
-  return data.items as any[];
 };
 
 /**
@@ -68,24 +94,25 @@ export const topArtists = async (): Promise<any[]> => {
   // Obtain an access token
   const { access_token } = await getAccessToken();
 
-  // Make a request to the Spotify API to retrieve the user's top artists in last 4 weeks
-  const response = await axios.get(
-    'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=short_term',
-    {
+  const effect = pipe(
+    get('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=short_term', {
       headers: {
-        // Set the Authorization header with the access token
         Authorization: `Bearer ${access_token}`,
       },
-    },
+      schema: SpotifyArtistSchema,
+      retries: 2,
+      timeout: 10_000,
+    }),
+    Effect.provide(FetchHttpClient.layer),
   );
 
-  // Handle the response and convert it to the expected type
-  if (response.status !== 200) {
-    throw new Error('Failed to fetch top artists.');
+  try {
+    const result = await Effect.runPromise(effect);
+    return result.items as any[];
+  } catch (error) {
+    console.error('Error fetching top artists:', error);
+    throw error;
   }
-
-  const data = response.data;
-  return data.items as any[];
 };
 
 /**
@@ -95,20 +122,18 @@ export const currentlyPlayingSong = async () => {
   try {
     const { access_token } = await getAccessToken();
 
-    const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    });
+    const effect = pipe(
+      get('https://api.spotify.com/v1/me/player/currently-playing', {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+        retries: 2,
+        timeout: 10_000,
+      }),
+      Effect.provide(FetchHttpClient.layer),
+    );
 
-    if (response.status === 204 || response.status > 400) {
-      console.error(`function-currently-playing-response-error`, response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    // console.log(`function-currently-playing-response`, data);
-    return data;
+    return await Effect.runPromise(effect);
   } catch (error) {
     console.error('Error fetching currently playing song:', error);
     return null;

@@ -3,6 +3,9 @@
  * Provides configurable cache headers and error handling.
  */
 
+import { ensureBaseError, isBaseError } from '@/classes/error';
+import { onRequestError } from '@/core';
+
 export interface CacheConfig {
   /**
    * Content-Type header value
@@ -94,14 +97,22 @@ export function createCacheHeaders(config: CacheConfig | keyof typeof CachePrese
  */
 export function createErrorHandler(config: ErrorHandlerConfig) {
   return (error: unknown) => {
-    console.error(`Error ${config.context}:`, error);
+    // Wrap error in BaseError if it isn't already
+    const baseError = ensureBaseError(error, config.context, {
+      includeErrorDetails: config.includeErrorDetails,
+    });
+
+    console.error(`Error ${config.context}:`, baseError.toString());
+
+    // Capture error to Sentry for monitoring
+    onRequestError(baseError);
 
     let errorMessage: string;
 
     if (config.customMessage) {
-      errorMessage = config.customMessage(error);
-    } else if (config.includeErrorDetails && error instanceof Error) {
-      errorMessage = error.message;
+      errorMessage = config.customMessage(baseError);
+    } else if (config.includeErrorDetails) {
+      errorMessage = baseError.cause.message;
     } else {
       errorMessage = `Failed to ${config.context}`;
     }
@@ -109,6 +120,9 @@ export function createErrorHandler(config: ErrorHandlerConfig) {
     return {
       error: errorMessage,
       status: 500,
+      ...(config.includeErrorDetails && isBaseError(error)
+        ? { metadata: baseError.metadata, command: baseError.command }
+        : {}),
     };
   };
 }
@@ -124,13 +138,24 @@ export function createErrorHandlerWithDefault<T extends Record<string, unknown>>
   defaultData: T,
 ) {
   return (error: unknown) => {
-    console.error(`Error ${config.context}:`, error);
+    // Wrap error in BaseError if it isn't already
+    const baseError = ensureBaseError(error, config.context, {
+      defaultData,
+    });
 
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error(`Error ${config.context}:`, baseError.toString());
+
+    // Capture error to Sentry for monitoring
+    onRequestError(baseError);
+
+    const errorMessage = baseError.cause.message;
 
     return {
       ...defaultData,
       error: errorMessage,
+      ...(config.includeErrorDetails
+        ? { command: baseError.command, timestamp: baseError.timestamp }
+        : {}),
     };
   };
 }

@@ -1,95 +1,101 @@
-import { ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
-import { experienceData } from '@/data/home-sections';
+import { getExperiences } from '@/lib/sanity/api';
+import { urlFor } from '@/lib/sanity/client';
 
-export default async function ExperienceModal({ params }: { params: { id: string } }) {
+export default async function ExperienceModal({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const experience = experienceData.find((e) => e.id === id);
+
+  let experience;
+  try {
+    const experiences = await getExperiences();
+    experience = experiences.find((e) => e._id === id);
+  } catch (error) {
+    console.error('Error fetching experience:', error);
+  }
 
   if (!experience) {
     notFound();
   }
 
+  const period = experience.current
+    ? `${new Date(experience.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present`
+    : `${new Date(experience.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${experience.endDate ? new Date(experience.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Present'}`;
+
   return (
     <Modal>
       <Card className="bg-transparent border-0">
         <CardHeader className="flex flex-row items-start gap-4 p-0">
-          {experience.companyImage && (
+          {experience.logo && (
             <div className="flex-shrink-0 w-24 h-24 relative">
               <Image
-                src={experience.companyImage}
-                alt={`${experience.companyTitle} logo`}
-                fill
-                sizes="96px"
+                src={urlFor(experience.logo).width(96).height(96).url()}
+                alt={`${experience.company} logo`}
+                width={96}
+                height={96}
                 className="rounded-md object-contain bg-white p-1"
               />
             </div>
           )}
           <div className="flex-grow">
             <CardTitle className="text-3xl font-semibold text-purple-300 mb-1">
-              {experience.jobTitle}
+              {experience.position}
             </CardTitle>
-            <p className="text-xl text-gray-400">{experience.companyTitle}</p>
-            <p className="text-md text-gray-500">{experience.employmentPeriod}</p>
+            <p className="text-xl text-gray-400">{experience.company}</p>
+            <p className="text-md text-gray-500">{period}</p>
+            {experience.location && (
+              <p className="text-sm text-gray-500">{experience.location}</p>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0 pt-6">
-          <h4 className="text-lg text-purple-400 mb-2 font-semibold">Job Description:</h4>
+          <h4 className="text-lg text-purple-400 mb-2 font-semibold">Description:</h4>
           <p className="text-base text-gray-300 mb-6 whitespace-pre-line">
-            {experience.jobDescriptionLong}
+            {experience.description}
           </p>
 
-          {experience.skills && experience.skills.length > 0 && (
+          {experience.responsibilities && experience.responsibilities.length > 0 && (
             <div className="mb-6">
-              <h4 className="text-lg text-purple-400 mb-2 font-semibold">Skills:</h4>
+              <h4 className="text-lg text-purple-400 mb-2 font-semibold">
+                Key Responsibilities:
+              </h4>
+              <ul className="list-disc list-inside space-y-1 text-gray-300">
+                {experience.responsibilities.map((responsibility, index) => (
+                  <li key={index}>{responsibility}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {experience.technologies && experience.technologies.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-lg text-purple-400 mb-2 font-semibold">Technologies:</h4>
               <div className="flex flex-wrap gap-2">
-                {experience.skills.map((skill) => (
+                {experience.technologies.map((tech) => (
                   <span
-                    key={skill}
+                    key={tech}
                     className="px-3 py-1 text-sm bg-purple-700 text-purple-200 rounded-full"
                   >
-                    {skill}
+                    {tech}
                   </span>
                 ))}
               </div>
             </div>
           )}
 
-          {experience.media && experience.media.length > 0 && (
+          {experience.companyUrl && (
             <div>
-              <h4 className="text-lg text-purple-400 mb-2 font-semibold">Related Media:</h4>
-              <div className="flex flex-col gap-4">
-                {experience.media.map((mediaItem, index) => (
-                  <div key={index}>
-                    {mediaItem.type === 'link' && (
-                      <Link href={mediaItem.url} target="_blank" rel="noopener noreferrer">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200"
-                        >
-                          {mediaItem.title} <ExternalLink className="ml-2 h-4 w-4" />
-                        </Button>
-                      </Link>
-                    )}
-                    {mediaItem.type === 'image' && (
-                      <div className="w-full h-64 relative">
-                        <Image
-                          src={mediaItem.url}
-                          alt={mediaItem.title || 'Experience media'}
-                          layout="fill"
-                          className="object-contain"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <Link
+                href={experience.companyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-400 hover:text-purple-300 underline"
+              >
+                Visit Company Website →
+              </Link>
             </div>
           )}
         </CardContent>

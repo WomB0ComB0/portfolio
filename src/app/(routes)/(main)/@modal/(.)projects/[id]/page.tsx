@@ -5,11 +5,19 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
-import { projectsData } from '@/data/projects';
+import { getProjects } from '@/lib/sanity/api';
+import { urlFor } from '@/lib/sanity/client';
 
-export default async function ProjectModal({ params }: { params: { id: string } }) {
+export default async function ProjectModal({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const project = projectsData.find((p) => p.id === id);
+
+  let project;
+  try {
+    const projects = await getProjects();
+    project = projects.find((p) => p._id === id);
+  } catch (error) {
+    console.error('Error fetching project:', error);
+  }
 
   if (!project) {
     notFound();
@@ -18,41 +26,52 @@ export default async function ProjectModal({ params }: { params: { id: string } 
   return (
     <Modal>
       <Card className="bg-transparent border-0">
-        {project.imageUrl && (
+        {project.image && (
           <div className="w-full h-64 relative mb-4">
             <Image
-              src={project.imageUrl}
-              alt={project.title}
-              fill
-              sizes="(max-width: 768px) 100vw, 600px"
-              className="object-cover rounded-lg"
+              src={urlFor(project.image).width(600).height(256).url()}
+              alt={project.image.alt || project.title}
+              width={600}
+              height={256}
+              className="object-cover rounded-lg w-full"
             />
           </div>
         )}
         <CardHeader className="p-0">
           <CardTitle className="text-3xl font-bold text-purple-300 mb-2">{project.title}</CardTitle>
-          <p className="text-lg text-gray-400">Category: {project.category}</p>
+          <div className="flex gap-4 text-sm text-gray-400">
+            <p>Category: {project.category}</p>
+            <p>Status: {project.status}</p>
+          </div>
         </CardHeader>
         <CardContent className="p-0 pt-6">
           <p className="text-base text-gray-300 mb-6">{project.description}</p>
-          {project.tags && project.tags.length > 0 && (
+
+          {project.longDescription && (
             <div className="mb-6">
-              <h4 className="text-md text-purple-400 mb-2 font-semibold">TAGS:</h4>
+              <h4 className="text-md text-purple-400 mb-2 font-semibold">Overview:</h4>
+              <p className="text-sm text-gray-300 whitespace-pre-line">{project.longDescription}</p>
+            </div>
+          )}
+
+          {project.technologies && project.technologies.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-md text-purple-400 mb-2 font-semibold">TECHNOLOGIES:</h4>
               <div className="flex flex-wrap gap-2">
-                {project.tags.map((tag) => (
+                {project.technologies.map((tech) => (
                   <span
-                    key={tag}
+                    key={tech}
                     className="px-3 py-1 text-sm bg-purple-700 text-purple-200 rounded-full"
                   >
-                    {tag}
+                    {tech}
                   </span>
                 ))}
               </div>
             </div>
           )}
           <div className="flex gap-4">
-            {project.projectUrl && (
-              <Link href={project.projectUrl} target="_blank" rel="noopener noreferrer">
+            {project.liveUrl && (
+              <Link href={project.liveUrl} target="_blank" rel="noopener noreferrer">
                 <Button
                   variant="outline"
                   size="sm"
@@ -62,8 +81,8 @@ export default async function ProjectModal({ params }: { params: { id: string } 
                 </Button>
               </Link>
             )}
-            {project.repoUrl && (
-              <Link href={project.repoUrl} target="_blank" rel="noopener noreferrer">
+            {project.githubUrl && (
+              <Link href={project.githubUrl} target="_blank" rel="noopener noreferrer">
                 <Button
                   variant="outline"
                   size="sm"

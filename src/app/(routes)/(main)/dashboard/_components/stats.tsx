@@ -1,13 +1,16 @@
 'use client';
 
+import { FetchHttpClient } from '@effect/platform';
 import { useQueries } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetcher } from '@/lib';
+import { age } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
 
 interface StatCard {
   title: string;
@@ -15,38 +18,23 @@ interface StatCard {
   query: string;
 }
 
-interface GoogleData {
-  json: {
-    total_pageviews: number;
-  };
-}
+// Schema for Google Analytics response
+const GoogleResponseSchema = Schema.Struct({
+  total_pageviews: Schema.optional(Schema.Number),
+});
 
-interface WakaTimeData {
-  json: {
-    total_seconds: number;
-    text: string;
-    decimal: string;
-    digital: string;
-    daily_average: number;
-    is_up_to_date: boolean;
-    percent_calculated: number;
-    range: {
-      start: string;
-      start_date: string;
-      start_text: string;
-      end: string;
-      end_date: string;
-      end_text: string;
-      timezone: string;
-    };
-    timeout: number;
-  };
-}
+// Schema for WakaTime response
+const WakaTimeResponseSchema = Schema.Struct({
+  text: Schema.String,
+  digital: Schema.String,
+  decimal: Schema.String,
+  total_seconds: Schema.Number,
+});
 
 const statCards: StatCard[] = [
   {
     title: 'Age',
-    link: 'https://mikeodnis.dev/about',
+    link: 'https://mikeodnis.dev',
     query: 'age',
   },
   {
@@ -62,53 +50,49 @@ const statCards: StatCard[] = [
 ];
 
 export default memo(function Stats() {
-  const [age, setAge] = useState(() => {
-    const diff =
-      (new Date().getTime() - new Date('March 24, 2004').getTime()) / (1000 * 60 * 60 * 24 * 365);
-    return Math.floor(diff).toString();
-  });
-
   const queries = useQueries({
     queries: [
       {
         queryKey: ['google'],
-        queryFn: () => fetcher<string>('/api/v1/google'),
+        queryFn: async () => {
+          const effect = pipe(
+            get('/api/v1/google', {
+              retries: 2,
+              timeout: 10_000,
+              schema: GoogleResponseSchema,
+            }),
+            Effect.provide(FetchHttpClient.layer),
+          );
+          return await Effect.runPromise(effect);
+        },
         staleTime: 1000 * 60 * 5,
       },
       {
         queryKey: ['wakatime'],
-        queryFn: () => fetcher<string>('/api/v1/wakatime'),
+        queryFn: async () => {
+          const effect = pipe(
+            get('/api/v1/wakatime', {
+              retries: 2,
+              timeout: 10_000,
+              schema: WakaTimeResponseSchema,
+            }),
+            Effect.provide(FetchHttpClient.layer),
+          );
+          return await Effect.runPromise(effect);
+        },
         staleTime: 1000 * 60 * 60,
       },
     ],
   });
 
-  useEffect(() => {
-    const interval = setInterval(
-      () => {
-        const diff =
-          (new Date().getTime() - new Date('March 24, 2004').getTime()) /
-          (1000 * 60 * 60 * 24 * 365);
-        setAge(Math.floor(diff).toString());
-      },
-      1000 * 60 * 60,
-    );
-
-    return () => clearInterval(interval);
-  }, []);
-
   const googleData = useMemo(() => {
-    if (queries[0].data) {
-      return JSON.parse(queries[0].data) as GoogleData;
-    }
-    return null;
+    // Data is already parsed and validated by Effect Schema
+    return queries[0].data ?? null;
   }, [queries[0].data]);
 
   const wakatimeData = useMemo(() => {
-    if (queries[1].data) {
-      return JSON.parse(queries[1].data) as WakaTimeData;
-    }
-    return null;
+    // Data is already parsed and validated by Effect Schema
+    return queries[1].data ?? null;
   }, [queries[1].data]);
 
   const isLoading = queries.some((query) => query.isLoading);
@@ -118,10 +102,10 @@ export default memo(function Stats() {
       case 'age':
         return age;
       case 'google':
-        return googleData?.json.total_pageviews ?? 'N/A';
+        return googleData?.total_pageviews ?? 'N/A';
       case 'wakatime':
-        return wakatimeData?.json.total_seconds
-          ? Math.round(wakatimeData.json.total_seconds / 3600)
+        return wakatimeData?.total_seconds
+          ? Math.round(wakatimeData.total_seconds / 3600)
           : undefined;
       default:
         return undefined;

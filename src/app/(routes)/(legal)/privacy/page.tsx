@@ -11,7 +11,8 @@ export const metadata = constructMetadata({
   description: 'Details about privacy and data handling on this site.',
 });
 
-export const PrivacyPage = () => <Privacy />;
-PrivacyPage.displayName = 'PrivacyPage';
+export default function PrivacyPage() {
+  return <Privacy />;
+}
 
-export default PrivacyPage;
+PrivacyPage.displayName = 'PrivacyPage';

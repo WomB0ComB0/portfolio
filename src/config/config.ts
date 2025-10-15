@@ -52,4 +52,12 @@ export const config = {
       restToken: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
     },
   },
+  cloudinary: {
+    cloudName: env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  },
+  sanity: {
+    projectId: env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+    dataset: env.NEXT_PUBLIC_SANITY_DATASET,
+    apiVersion: env.NEXT_PUBLIC_SANITY_API_VERSION,
+  },
 } as const;

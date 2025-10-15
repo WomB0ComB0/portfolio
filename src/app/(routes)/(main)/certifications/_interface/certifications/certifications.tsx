@@ -2,12 +2,18 @@
 
 import { Award } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense, useMemo } from 'react';
 import Layout from '@/components/layout/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { certificationsData } from '@/data/home-sections';
-import type { CertificationItem } from '@/types/sections';
+import { useSanityCertifications } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
+import type { Certification } from '@/lib/sanity/types';
 
-export const Certifications = () => {
+const CertificationsContent = () => {
+  const { data: certifications } = useSanityCertifications();
+  const certificationsList = certifications as any[];
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -16,80 +22,135 @@ export const Certifications = () => {
     });
   };
 
-  const groupedCertifications = certificationsData.reduce(
-    (acc, cert) => {
-      const category = cert.category || 'General';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(cert);
-      return acc;
-    },
-    {} as Record<string, CertificationItem[]>,
-  );
+  const groupedCertifications = useMemo(() => {
+    if (!certificationsList) return {};
+    return certificationsList.reduce(
+      (acc, cert) => {
+        const category = cert.issuer || 'General';
+        if (!acc[category]) {
+          acc[category] = [];
+        }
+        acc[category].push(cert);
+        return acc;
+      },
+      {} as Record<string, Certification[]>,
+    );
+  }, [certificationsList]);
 
+  return (
+    <>
+      <header className="mb-12 text-center">
+        <h1 className="text-4xl font-bold text-purple-300 flex items-center justify-center">
+          <Award className="mr-3 h-10 w-10" /> My Certifications
+        </h1>
+        <p className="text-lg text-gray-400 mt-2">
+          A collection of my professional certifications and credentials.
+        </p>
+      </header>
+
+      {Object.entries(groupedCertifications).map(([issuer, certs]) => (
+        <section key={issuer} className="mb-12">
+          <h2 className="text-2xl font-semibold text-purple-400 mb-6 border-b-2 border-purple-700 pb-2">
+            {issuer}
+          </h2>
+          {(certs as any[]).length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {(certs as any[]).map((cert: any) => (
+                <Card
+                  key={cert._id}
+                  className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300"
+                >
+                  {cert.logo && (
+                    <div className="w-full h-48 relative bg-gray-800">
+                      <Image
+                        src={urlFor(cert.logo).width(384).height(192).url()}
+                        alt={`${cert.name} logo`}
+                        width={384}
+                        height={192}
+                        className="object-contain p-4"
+                      />
+                    </div>
+                  )}
+                  <CardHeader className="p-6">
+                    <CardTitle className="text-xl font-semibold text-purple-300 mb-1">
+                      {cert.name}
+                    </CardTitle>
+                    <p className="text-sm text-gray-400">{cert.issuer}</p>
+                  </CardHeader>
+                  <CardContent className="p-6 flex-grow">
+                    <p className="text-sm text-gray-400 mb-1">
+                      <strong>Issued:</strong> {formatDate(cert.issueDate)}
+                    </p>
+                    {cert.expiryDate && (
+                      <p className="text-sm text-gray-400 mb-2">
+                        <strong>Expires:</strong> {formatDate(cert.expiryDate)}
+                      </p>
+                    )}
+                    {cert.credentialId && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        <strong>ID:</strong> {cert.credentialId}
+                      </p>
+                    )}
+                    {cert.description && (
+                      <p className="text-sm text-gray-300 mt-3">{cert.description}</p>
+                    )}
+                    {cert.skills && cert.skills.length > 0 && (
+                      <div className="mt-3">
+                        <h4 className="text-xs text-purple-400 mb-1 font-semibold">SKILLS:</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {cert.skills.map((skill: string) => (
+                            <span
+                              key={skill}
+                              className="px-2 py-0.5 text-xs bg-purple-700 text-purple-200 rounded-full"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {cert.credentialUrl && (
+                      <Link
+                        href={cert.credentialUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-400 hover:text-purple-300 underline mt-3 inline-block"
+                      >
+                        View Certificate →
+                      </Link>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400">No certifications listed from this issuer yet.</p>
+          )}
+        </section>
+      ))}
+      {Object.keys(groupedCertifications).length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-xl text-gray-400">No certifications available at the moment.</p>
+        </div>
+      )}
+    </>
+  );
+};
+
+export const Certifications = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
-        <header className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-purple-300 flex items-center justify-center">
-            <Award className="mr-3 h-10 w-10" /> My Certifications
-          </h1>
-          <p className="text-lg text-gray-400 mt-2">
-            A collection of my professional certifications and credentials.
-          </p>
-        </header>
-
-        {Object.entries(groupedCertifications).map(([category, certs]) => (
-          <section key={category} className="mb-12">
-            <h2 className="text-2xl font-semibold text-purple-400 mb-6 border-b-2 border-purple-700 pb-2">
-              {category}
-            </h2>
-            {certs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {certs.map((cert) => (
-                  <Card
-                    key={cert.id}
-                    className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300"
-                  >
-                    {cert.imageUrl && (
-                      <div className="w-full h-48 relative bg-gray-800">
-                        <Image
-                          src={cert.imageUrl}
-                          alt={`${cert.title} logo`}
-                          layout="fill"
-                          className="object-contain p-4"
-                        />
-                      </div>
-                    )}
-                    <CardHeader className="p-6">
-                      <CardTitle className="text-xl font-semibold text-purple-300 mb-1">
-                        {cert.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 flex-grow">
-                      <p className="text-sm text-gray-400 mb-1">
-                        <strong>Acquired:</strong> {formatDate(cert.acquisitionDate)}
-                      </p>
-                      {cert.expirationDate && (
-                        <p className="text-sm text-gray-400">
-                          <strong>Expires:</strong> {formatDate(cert.expirationDate)}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400">No certifications listed in this category yet.</p>
-            )}
-          </section>
-        ))}
-        {Object.keys(groupedCertifications).length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-xl text-gray-400">No certifications available at the moment.</p>
-          </div>
-        )}
+        <Suspense
+          fallback={
+            <div className="text-center py-12">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent"></div>
+              <p className="text-gray-400 mt-4">Loading certifications...</p>
+            </div>
+          }
+        >
+          <CertificationsContent />
+        </Suspense>
       </div>
     </Layout>
   );

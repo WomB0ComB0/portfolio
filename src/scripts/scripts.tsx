@@ -1,11 +1,10 @@
 'use client';
+
 import Script from 'next/script';
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { app } from '@/constants';
 import { generateSchema, Stringify } from '@/utils';
-
-const mapsApiKey = await import('@/config').then((mod) => mod.config.google.maps.apiKey);
 
 /**
  * Configuration type for preload/prefetch behavior
@@ -28,6 +27,11 @@ type PreloadConfig = {
  */
 
 export const Scripts = () => {
+  const [mapsApiKey, setMapsApiKey] = useState<string>('');
+
+  useEffect(() => {
+    import('@/config').then((mod) => setMapsApiKey(mod.config.google.maps.apiKey || ''));
+  }, []);
   const schemaOrg = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -251,9 +255,8 @@ export const Scripts = () => {
       />
       <Script
         strategy="afterInteractive"
-        src={`https://maps.googleapis.com/maps/api/js?key=${
-          mapsApiKey
-        }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
+        src={`https://maps.googleapis.com/maps/api/js?key=${mapsApiKey
+          }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
       />
       <Script
         strategy="afterInteractive"

@@ -1,7 +1,33 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
 
-declare const EMPTY = '';
+const EMPTY = '';
+
+/**
+ * Get the base URL for API requests.
+ * - Client-side: returns empty string (uses relative URLs)
+ * - Server-side: returns absolute URL for SSR
+ */
+const getBaseURL = (): string => {
+  // Client-side: use relative URLs
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+
+  // Server-side: need absolute URL for SSR
+  // Check for explicit site URL first (production)
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
+  }
+
+  // Vercel deployment (preview/production)
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  }
+
+  // Local development
+  return 'http://localhost:3000';
+};
 
 /**
  * @module effect-fetcher
@@ -127,6 +153,8 @@ export interface FetcherOptions<T = unknown> {
   schema?: Schema.Schema<T, any, never>;
   /** Abortsignal */
   signal?: AbortSignal;
+  /** Body type - defaults to 'json', use 'text' for form-encoded data */
+  bodyType?: 'json' | 'text';
 }
 
 /**
@@ -314,6 +342,7 @@ export function fetcher<T = unknown>(
     timeout = 10_000,
     headers = {},
     schema,
+    bodyType = 'json',
   } = options;
 
   /**
@@ -338,7 +367,22 @@ export function fetcher<T = unknown>(
     return urlParams.toString();
   };
 
-  const url = params ? `${input}?${buildQueryString(params)}` : input;
+  const queryString = buildQueryString(params);
+  
+  // Build URL based on environment:
+  // - Client-side: keep relative URLs for same-origin requests
+  // - Server-side: convert to absolute URLs for SSR
+  // - External URLs: keep as-is
+  let url: string;
+  if (input.startsWith('http')) {
+    // Already absolute (external API)
+    url = queryString ? `${input}?${queryString}` : input;
+  } else {
+    // Relative URL - prepend base URL for SSR, keep relative for client
+    const baseURL = getBaseURL();
+    const fullPath = baseURL ? `${baseURL}${input}` : input;
+    url = queryString ? `${fullPath}?${queryString}` : fullPath;
+  }
 
   /**
    * Builds a type-safe HttpClientRequest for the given method and URL.
@@ -398,24 +442,32 @@ export function fetcher<T = unknown>(
 
     // Build the request object
     let req = buildRequest(method, url);
-    req = HttpClientRequest.setHeaders(headers)(req);
 
     // Add body for methods that support it with proper error handling
     if (body != null && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      req = yield* pipe(
-        HttpClientRequest.bodyJson(body)(req),
-        Effect.mapError(
-          (error) =>
-            new FetcherError(
-              `Failed to serialize request body: ${error instanceof Error ? error.message : String(error)}`,
-              url,
-              undefined,
-              undefined,
-              attempt,
-            ),
-        ),
-      );
+      if (bodyType === 'text') {
+        // bodyText returns HttpClientRequest directly
+        req = HttpClientRequest.bodyText(String(body))(req);
+      } else {
+        // bodyJson returns an Effect that may fail during serialization
+        req = yield* pipe(
+          HttpClientRequest.bodyJson(body)(req),
+          Effect.mapError(
+            (error) =>
+              new FetcherError(
+                `Failed to serialize request body: ${error instanceof Error ? error.message : String(error)}`,
+                url,
+                undefined,
+                undefined,
+                attempt,
+              ),
+          ),
+        );
+      }
     }
+
+    // Set headers AFTER body to ensure Content-Type can be overridden
+    req = HttpClientRequest.setHeaders(headers)(req);
 
     /**
      * Wraps an Effect with a timeout, converting timeout errors to FetcherError.

@@ -11,7 +11,8 @@ export const metadata = constructMetadata({
   description: 'Information about how cookies are used on this site.',
 });
 
-export const CookiesPage = () => <Cookies />;
-CookiesPage.displayName = 'CookiesPage';
+export default function CookiesPage() {
+  return <Cookies />;
+}
 
-export default CookiesPage;
+CookiesPage.displayName = 'CookiesPage';
