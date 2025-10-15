@@ -14,14 +14,19 @@ export const SANITY_API_BASE = '/api/v1/sanity';
 
 /**
  * Default cache configuration for Sanity data
+ * 
+ * Updated to prevent rate limiting:
+ * - Longer staleTime: data stays fresh for 15 minutes
+ * - No auto-refetch: removes background polling that causes excessive requests
+ * - Longer gcTime: keeps cached data for 30 minutes
  */
 export const SANITY_CACHE_CONFIG = {
-  /** How long data is considered fresh (5 minutes) */
-  staleTime: 5 * 60 * 1000,
-  /** How long to keep unused data in cache (10 minutes) */
-  gcTime: 10 * 60 * 1000,
-  /** How often to refetch in background (5 minutes) */
-  refetchInterval: 5 * 60 * 1000,
+  /** How long data is considered fresh (15 minutes) */
+  staleTime: 15 * 60 * 1000,
+  /** How long to keep unused data in cache (30 minutes) */
+  gcTime: 30 * 60 * 1000,
+  /** How often to refetch in background (disabled to prevent rate limiting) */
+  refetchInterval: false as const,
 } as const;
 
 /**

@@ -484,10 +484,22 @@ export function fetcher<T = unknown>(
         }),
       );
 
-    // Retry schedule with exponential backoff and maximum number of retries
-    const retrySchedule = Schedule.intersect(
+    // Enhanced retry schedule:
+    // - Exponential backoff starting from retryDelay  
+    // - Maximum number of retries
+    // - Special handling for 429 rate limit errors
+    const retrySchedule = pipe(
       Schedule.exponential(Duration.millis(retryDelay)),
-      Schedule.recurs(retries),
+      Schedule.intersect(Schedule.recurs(retries)),
+      Schedule.whileInput((error: FetcherError | ValidationError) => {
+        // Don't retry validation errors or client errors (except 429)
+        if (error instanceof ValidationError) return false;
+        if (error instanceof FetcherError && error.status) {
+          if (error.status === 429) return true; // Always retry 429 rate limits
+          if (error.status >= 400 && error.status < 500) return false; // Don't retry other 4xx
+        }
+        return true;
+      }),
     );
 
     /**
@@ -520,8 +532,13 @@ export function fetcher<T = unknown>(
           Effect.catchAll(() => Effect.succeed(undefined)),
         );
 
+        // Enhanced error handling for 429 Rate Limit responses
+        const errorMessage = response.status === 429
+          ? `Rate limit exceeded (429). Please slow down requests to ${url}`
+          : `HTTP ${response.status}: ${response.text || 'Request failed'}`;
+
         const error = new FetcherError(
-          `HTTP ${response.status}: ${response.text || 'Request failed'}`,
+          errorMessage,
           url,
           response.status,
           errorData,

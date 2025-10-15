@@ -16,6 +16,7 @@ import {
   fetcher,
   get,
   type QueryParams,
+  requestQueue,
   ValidationError,
 } from '@/lib/http-clients';
 import { parseCodePathDetailed } from '@/utils';
@@ -110,8 +111,8 @@ interface BaseDataLoaderProps<T> {
   transform?: (data: any) => T;
   /** Stale time in milliseconds (default: 5 minutes) */
   staleTime?: number;
-  /** Refetch interval in milliseconds (default: 5 minutes) */
-  refetchInterval?: number;
+  /** Refetch interval in milliseconds or false to disable (default: 5 minutes) */
+  refetchInterval?: number | false;
   /** Whether to refetch on window focus (default: false) */
   refetchOnWindowFocus?: boolean;
   /** Whether to refetch on reconnect (default: true) */
@@ -128,8 +129,8 @@ export interface DataLoaderProps<T> extends BaseDataLoaderProps<T> {
    * Render prop that receives data and optional utilities.
    */
   children:
-    | ((data: T) => React.ReactNode)
-    | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
+  | ((data: T) => React.ReactNode)
+  | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
   /** Effect Schema for runtime validation (optional) */
   schema?: never;
 }
@@ -143,11 +144,11 @@ export interface DataLoaderPropsWithSchema<S extends Schema.Schema<any, any, nev
    * Render prop that receives validated data and optional utilities.
    */
   children:
-    | ((data: Schema.Schema.Type<S>) => React.ReactNode)
-    | ((
-        data: Schema.Schema.Type<S>,
-        utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
-      ) => React.ReactNode);
+  | ((data: Schema.Schema.Type<S>) => React.ReactNode)
+  | ((
+    data: Schema.Schema.Type<S>,
+    utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
+  ) => React.ReactNode);
   /** Effect Schema for runtime validation */
   schema: S;
   /** Fetcher options with schema */
@@ -243,12 +244,25 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
     return baseOptions;
   }, [url, options, onError, schema]);
 
-  // Memoized query function with schema support
+  // Memoized query function with schema support and request deduplication
   const queryFn = useCallback(async () => {
     try {
-      const effect = pipe(get(url, fetcherOptions, params), Effect.provide(FetchHttpClient.layer));
-
-      const result = await Effect.runPromise(effect);
+      // Wrap the Effect execution in the request queue for automatic deduplication
+      const result = await requestQueue.enqueue(
+        url,
+        'GET',
+        async () => {
+          const effect = pipe(
+            get(url, fetcherOptions, params),
+            Effect.provide(FetchHttpClient.layer),
+          );
+          return await Effect.runPromise(effect);
+        },
+        {
+          headers: fetcherOptions?.headers,
+          bypassDeduplication: false,
+        },
+      );
 
       // Apply transformation if provided (note: schema validation happens first)
       const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
@@ -437,12 +451,23 @@ export function useDataLoader(url: string, options: any = {}) {
   }, [fetcherOptions, onError, schema]);
 
   const queryFn = useCallback(async () => {
-    const effect = pipe(
-      get(url, enhancedFetcherOptions, params as QueryParams),
-      Effect.provide(FetchHttpClient.layer),
+    // Wrap the Effect execution in the request queue for automatic deduplication
+    const result = await requestQueue.enqueue(
+      url,
+      'GET',
+      async () => {
+        const effect = pipe(
+          get(url, enhancedFetcherOptions, params as QueryParams),
+          Effect.provide(FetchHttpClient.layer),
+        );
+        return await Effect.runPromise(effect);
+      },
+      {
+        headers: enhancedFetcherOptions?.headers,
+        bypassDeduplication: false,
+      },
     );
 
-    const result = await Effect.runPromise(effect);
     const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
 
     if (typeof onSuccess === 'function') {
