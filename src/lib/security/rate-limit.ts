@@ -29,7 +29,7 @@ const limiter = {
   }),
   api: new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(30, '60 s'),
+    limiter: Ratelimit.slidingWindow(60, '60 s'),
     analytics: true,
     prefix: 'ratelimit:api',
   }),
