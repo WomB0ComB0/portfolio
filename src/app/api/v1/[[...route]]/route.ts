@@ -1,9 +1,7 @@
 import { logger } from '@/utils';
-import { batchSpanProcessor, IS_VERCEL } from '../../_elysia/constants';
-import { createElysiaApp } from '../../_elysia/shared/config';
+import { batchSpanProcessor, IS_VERCEL, createElysiaApp } from '../../_elysia';
 import { apiRoutes, utilityRoutes } from './elysia';
 
-// Next.js file path provides /api/v1, so don't add prefix here
 const app = createElysiaApp({
   prefix: '/api/v1',
 })
@@ -29,14 +27,6 @@ const app = createElysiaApp({
     );
   });
 
-// Log all registered routes for debugging
-logger.info('Registered Elysia routes', {
-  routes: app.routes.map((r) => ({ method: r.method, path: r.path })),
-});
-
-/**
- * Wraps Elysia handler to ensure it always returns a Response
- */
 const wrapHandler = (handler: typeof app.handle) => async (request: Request) => {
   try {
     const response = await handler(request);
@@ -69,26 +59,20 @@ export const DELETE = wrapHandler(app.handle);
 export const PATCH = wrapHandler(app.handle);
 export const OPTIONS = wrapHandler(app.handle);
 
-/**
- * Gracefully shuts down telemetry on Vercel using waitUntil if available.
- * For local development, flushes the batch span processor.
- */
-const shutdown = async (): Promise<void> => {
+const shutdown = async (signal: string): Promise<void> => {
   if (IS_VERCEL) {
-    // On Vercel, we can't rely on process signals, so this is mainly for cleanup
     logger.info('Vercel function cleanup');
   } else {
-    logger.info('Shutting down 🦊 Elysia');
+    logger.info(`Shutting down /api/v1 due to ${signal}`);
     if (batchSpanProcessor) {
       await batchSpanProcessor.forceFlush();
     }
   }
 };
 
-// Don't set up process listeners on Vercel
 if (!IS_VERCEL) {
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 export type API_V1 = typeof app;

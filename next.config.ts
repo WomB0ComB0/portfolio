@@ -139,8 +139,8 @@ const config: NextConfig = {
     optimizePackageImports: [
       ...(() => {
         try {
-          const highPackages = require('./bin/out/high.json');
-          const mediumPackages = require('./bin/out/medium.json');
+          const highPackages = require('./scripts/out/high.json');
+          const mediumPackages = require('./scripts/out/medium.json');
           return Array.from(new Set([...highPackages, ...mediumPackages])).filter(
             (pkg) => !EXEMPT_DEPS.has(pkg),
           );

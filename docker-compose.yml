@@ -1,0 +1,33 @@
+version: '3.8'
+# Start Jaeger: docker compose up -d
+# Stop Jaeger: docker compose down
+# View logs: docker compose logs -f jaeger
+# http://localhost:16686/search
+services:
+  jaeger:
+    image: jaegertracing/jaeger:2.1.0
+    container_name: jaeger
+    restart: unless-stopped
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # OTLP gRPC
+      - "4317:4317"
+      # OTLP HTTP
+      - "4318:4318"
+      # Jaeger Collector gRPC
+      - "14250:14250"
+      # Jaeger Collector HTTP
+      - "14268:14268"
+      # Zipkin compatible endpoint
+      - "9411:9411"
+      # Serve configs (for agent)
+      - "5778:5778"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - observability
+
+networks:
+  observability:
+    driver: bridge

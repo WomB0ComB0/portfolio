@@ -2,47 +2,76 @@ import { logger } from '@/utils';
 import { batchSpanProcessor, createElysiaApp, IS_VERCEL } from '../_elysia';
 import { apiRoutes } from './elysia';
 
-/**
- * Main API route composition
- * Includes all admin and health routes
- */
-// Next.js file path provides /api, so don't add prefix here
 const app = createElysiaApp({
   prefix: '/api',
-}).use(apiRoutes);
+})
+  .use(apiRoutes)
+  .onError(({ code, error, request }) => {
+    logger.error('Elysia error', error, {
+      code,
+      url: request.url,
+      path: new URL(request.url).pathname,
+    });
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Internal server error',
+        code,
+      }),
+      {
+        status: code === 'NOT_FOUND' ? 404 : 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  });
 
-/**
- * Next.js API route handlers
- * Delegates to Elysia app for all HTTP methods
- */
-export const GET = app.handle;
-export const POST = app.handle;
-export const PUT = app.handle;
-export const PATCH = app.handle;
-export const DELETE = app.handle;
-export const OPTIONS = app.handle;
+const wrapHandler = (handler: typeof app.handle) => async (request: Request) => {
+  try {
+    const response = await handler(request);
+    if (!response) {
+      logger.warn('Handler returned null/undefined, creating fallback response');
+      return new Response(JSON.stringify({ error: 'No response from handler' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return response;
+  } catch (error) {
+    logger.error('Handler error', error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Internal server error',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+};
 
-/**
- * Gracefully shuts down telemetry on Vercel using waitUntil if available.
- * For local development, flushes the batch span processor.
- */
-const shutdown = async (): Promise<void> => {
+export const GET = wrapHandler(app.handle);
+export const POST = wrapHandler(app.handle);
+export const PUT = wrapHandler(app.handle);
+export const DELETE = wrapHandler(app.handle);
+export const PATCH = wrapHandler(app.handle);
+export const OPTIONS = wrapHandler(app.handle);
+
+const shutdown = async (signal: string): Promise<void> => {
   if (IS_VERCEL) {
-    // On Vercel, we can't rely on process signals, so this is mainly for cleanup
     logger.info('Vercel function cleanup');
   } else {
-    logger.info('Shutting down 🦊 Elysia');
+    logger.info(`Shutting down /api due to ${signal}`);
     if (batchSpanProcessor) {
       await batchSpanProcessor.forceFlush();
     }
   }
 };
 
-// Don't set up process listeners on Vercel
 if (!IS_VERCEL) {
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
-// Export type for use in other modules
 export type API = typeof app;
