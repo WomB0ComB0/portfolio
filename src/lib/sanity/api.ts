@@ -19,10 +19,11 @@ import {
   certificationsQuery,
   experiencesQuery,
   featuredProjectsQuery,
+  placesQuery,
   projectBySlugQuery,
   projectsQuery,
 } from './queries';
-import type { Certification, Experience, Project } from './types';
+import type { Certification, Experience, Place, Project } from './types';
 
 /**
  * Cache duration for Sanity data (in seconds)
@@ -101,6 +102,20 @@ export async function getCertifications(): Promise<Certification[]> {
 }
 
 /**
+ * Fetch all places from Sanity
+ * @returns Promise with array of places
+ */
+export async function getPlaces(): Promise<Place[]> {
+  try {
+    const places = await sanityFetch<Place[]>(placesQuery);
+    return places;
+  } catch (error) {
+    console.error('Error fetching places from Sanity:', error);
+    return [];
+  }
+}
+
+/**
  * Revalidation tags for Next.js ISR
  */
 export const revalidateTags = {
@@ -108,6 +123,7 @@ export const revalidateTags = {
   projects: 'projects',
   certifications: 'certifications',
   skills: 'skills',
+  places: 'places',
 } as const;
 
 /**

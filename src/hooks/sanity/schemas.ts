@@ -51,18 +51,20 @@ export const ProjectSchema = Schema.Struct({
   liveUrl: Schema.NullishOr(Schema.String),
   featured: Schema.Boolean,
   category: Schema.Union(
-    Schema.Literal('web'),
-    Schema.Literal('mobile'),
-    Schema.Literal('design'),
-    Schema.Literal('other'),
+    Schema.Literal('Web Development'),
+    Schema.Literal('Mobile App'),
+    Schema.Literal('Machine Learning'),
+    Schema.Literal('Data Science'),
+    Schema.Literal('DevOps'),
+    Schema.Literal('Other'),
   ),
   startDate: Schema.String,
   endDate: Schema.NullishOr(Schema.String),
-  order: Schema.Number,
+  order: Schema.NullishOr(Schema.Number),
   status: Schema.Union(
-    Schema.Literal('completed'),
-    Schema.Literal('in-progress'),
-    Schema.Literal('archived'),
+    Schema.Literal('In Progress'),
+    Schema.Literal('Completed'),
+    Schema.Literal('Archived'),
   ),
 });
 
@@ -88,8 +90,35 @@ export const CertificationSchema = Schema.Struct({
 });
 
 /**
+ * Sanity Place Schema with Effect Schema validation
+ */
+export const PlaceSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('place'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  name: Schema.String,
+  description: Schema.String,
+  category: Schema.Union(
+    Schema.Literal('Hackathon'),
+    Schema.Literal('Conference'),
+    Schema.Literal('Research'),
+    Schema.Literal('Tech Office'),
+    Schema.Literal('Mentorship'),
+    Schema.Literal('Event'),
+  ),
+  latitude: Schema.Number,
+  longitude: Schema.Number,
+  photos: Schema.NullishOr(Schema.Array(Schema.Unknown)), // SanityImage array
+  order: Schema.NullishOr(Schema.Number),
+  featured: Schema.Boolean,
+});
+
+/**
  * Array schemas for list endpoints
  */
 export const ExperiencesSchema = Schema.Array(ExperienceSchema);
 export const ProjectsSchema = Schema.Array(ProjectSchema);
 export const CertificationsSchema = Schema.Array(CertificationSchema);
+export const PlacesSchema = Schema.Array(PlaceSchema);

@@ -42,6 +42,7 @@ export const SANITY_ENDPOINTS = {
   projects: `${SANITY_API_BASE}/projects`,
   featuredProjects: `${SANITY_API_BASE}/projects/featured`,
   certifications: `${SANITY_API_BASE}/certifications`,
+  places: `${SANITY_API_BASE}/places`,
 } as const;
 
 /**

@@ -19,7 +19,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe } from 'effect';
 import { get } from '@/lib/http-clients';
-import type { Certification, Experience, Project } from '@/lib/sanity/types';
+import type { Certification, Experience, Place, Project } from '@/lib/sanity/types';
 import {
   SANITY_CACHE_CONFIG,
   SANITY_ENDPOINTS,
@@ -29,6 +29,7 @@ import {
 import {
   CertificationsSchema,
   ExperiencesSchema,
+  PlacesSchema,
   ProjectsSchema,
   type CertificationSchema,
   type ExperienceSchema,
@@ -140,6 +141,19 @@ export function useCertifications() {
     queryKey: createSanityQueryKey('certifications'),
     queryFn: () =>
       fetchSanityData<Certification[]>(SANITY_ENDPOINTS.certifications, CertificationsSchema),
+    staleTime: SANITY_CACHE_CONFIG.staleTime,
+    gcTime: SANITY_CACHE_CONFIG.gcTime,
+  });
+}
+
+/**
+ * Hook to fetch places with Effect Schema validation
+ */
+export function usePlaces() {
+  return useQuery({
+    queryKey: createSanityQueryKey('places'),
+    queryFn: () =>
+      fetchSanityData<Place[]>(SANITY_ENDPOINTS.places, PlacesSchema),
     staleTime: SANITY_CACHE_CONFIG.staleTime,
     gcTime: SANITY_CACHE_CONFIG.gcTime,
   });

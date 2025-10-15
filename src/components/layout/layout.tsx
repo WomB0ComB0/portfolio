@@ -14,7 +14,7 @@ export default function Layout({
 }>) {
   const pathname = usePathname();
   return (
-    // <LiveBlocksProvider>
+    <LiveBlocksProvider>
       <div className="relative min-h-screen bg-[#242424] font-clash">
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <DotPattern className="absolute inset-0" />
@@ -40,6 +40,6 @@ export default function Layout({
           <MobileNavBar path={pathname ?? ''} />
         </div>
       </div>
-    // </LiveBlocksProvider>
+    </LiveBlocksProvider>
   );
 }

@@ -4,6 +4,7 @@ import {
   getCertificationsHandler,
   getExperiencesHandler,
   getFeaturedProjectsHandler,
+  getPlacesHandler,
   getProjectsHandler,
 } from './handlers';
 import { sanityCacheHeaders, sanityMiddleware } from './middleware';
@@ -26,6 +27,11 @@ const handleFeaturedProjectsError = createErrorHandler({
 
 const handleCertificationsError = createErrorHandler({
   context: 'fetch certifications from Sanity',
+  includeErrorDetails: false,
+});
+
+const handlePlacesError = createErrorHandler({
+  context: 'fetch places from Sanity',
   includeErrorDetails: false,
 });
 
@@ -68,6 +74,14 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
     } catch (error) {
       set.status = 500;
       return handleCertificationsError(error);
+    }
+  })
+  .get('/places', async ({ set }) => {
+    try {
+      return await getPlacesHandler();
+    } catch (error) {
+      set.status = 500;
+      return handlePlacesError(error);
     }
   });
 

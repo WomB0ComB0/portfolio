@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { FaInfoCircle } from 'react-icons/fa';
@@ -9,8 +10,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import places from '@/data/places';
+import { usePlaces } from '@/hooks/sanity/use-sanity-query';
+import { urlFor } from '@/lib/sanity/client';
+import type { SanityImage } from '@/lib/sanity/types';
 import type { PlaceItem } from '@/types/places';
+
+// Helper to convert Sanity Place to PlaceItem
+function convertSanityPlaceToPlaceItem(sanityPlace: any): PlaceItem {
+  return {
+    id: sanityPlace._id,
+    name: sanityPlace.name,
+    description: sanityPlace.description,
+    latitude: sanityPlace.latitude,
+    longitude: sanityPlace.longitude,
+    category: sanityPlace.category,
+    photos: (sanityPlace.photos || []).map((photo: SanityImage) => ({
+      url: urlFor(photo).width(800).height(600).url() || '',
+      caption: (photo as any).caption || '',
+    })),
+  };
+}
 
 export const Places = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -19,13 +38,22 @@ export const Places = () => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
 
-  const categories = useMemo(() => ['All', ...new Set(places.map((p) => p.category))], []);
+  // Fetch places from Sanity
+  const { data: sanityPlaces, isLoading, error } = usePlaces();
+
+  // Convert Sanity places to PlaceItem format
+  const places = useMemo(() => {
+    if (!sanityPlaces) return [];
+    return sanityPlaces.map(convertSanityPlaceToPlaceItem);
+  }, [sanityPlaces]);
+
+  const categories = useMemo(() => ['All', ...new Set(places.map((p) => p.category))], [places]);
 
   const filteredPlaces = useMemo(() => {
     return places.filter(
       (place) => selectedCategory === 'All' || place.category === selectedCategory,
     );
-  }, [selectedCategory]);
+  }, [places, selectedCategory]);
 
   const openModal = (place: PlaceItem) => {
     if (place.photos && place.photos.length > 0) {
@@ -51,6 +79,38 @@ export const Places = () => {
       (prevIndex) => (prevIndex - 1 + selectedPlacePhotos.length) % selectedPlacePhotos.length,
     );
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="w-full min-h-screen p-4 md:p-8 text-[#ba9bdd] flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-lg">Loading places...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Layout>
+        <div className="w-full min-h-screen p-4 md:p-8 text-[#ba9bdd] flex items-center justify-center">
+          <Card className="max-w-md mx-auto bg-[#242424] border-red-500">
+            <CardHeader>
+              <CardTitle className="text-red-400">Error Loading Places</CardTitle>
+              <CardDescription className="text-gray-400">
+                Failed to fetch places data. Please try again later.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -178,13 +238,15 @@ export const Places = () => {
             </p>
             <div className="relative mb-4 aspect-video">
               {selectedPlacePhotos[currentPhotoIndex] && (
-                <img
+                <Image
                   src={selectedPlacePhotos[currentPhotoIndex].url}
                   alt={
                     selectedPlacePhotos[currentPhotoIndex].caption ||
                     `Photo ${currentPhotoIndex + 1} of ${selectedPlaceName}`
                   }
-                  className="w-full h-full object-contain rounded-md"
+                  fill
+                  className="object-contain rounded-md"
+                  sizes="(max-width: 768px) 100vw, 672px"
                 />
               )}
             </div>

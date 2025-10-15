@@ -19,21 +19,42 @@ import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 
 const ProjectsListContent = () => {
-  const { data: projects } = useSanityProjects();
+  const { data: projects, isLoading, error } = useSanityProjects();
   const projectsList = projects as any[];
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
   const [selectedTag, setSelectedTag] = useState<string | 'all'>('all');
 
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent"></div>
+        <p className="text-gray-400 mt-4">Loading projects...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-[#1E1E1E] border-purple-800 p-6">
+        <CardContent>
+          <p className="text-red-400">Error loading projects. Please try again later.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const categories = useMemo(() => {
     if (!projectsList) return ['all'];
-    const allCategories = new Set(projectsList.map((p) => p.category));
+    const allCategories = new Set(projectsList.map((p) => p.category).filter(Boolean));
     return ['all', ...Array.from(allCategories)];
   }, [projectsList]);
 
   const tags = useMemo(() => {
     if (!projectsList) return ['all'];
-    const allTags = new Set(projectsList.flatMap((p) => p.technologies));
+    const allTags = new Set(
+      projectsList.flatMap((p) => (Array.isArray(p.technologies) ? p.technologies : [])).filter(Boolean)
+    );
     return ['all', ...Array.from(allTags)];
   }, [projectsList]);
 
@@ -41,13 +62,14 @@ const ProjectsListContent = () => {
     if (!projectsList) return [];
     return projectsList.filter((project) => {
       const matchesCategory = selectedCategory === 'all' || project.category === selectedCategory;
+      const projectTechnologies = Array.isArray(project.technologies) ? project.technologies : [];
       const matchesTag =
-        selectedTag === 'all' || project.technologies.includes(selectedTag);
+        selectedTag === 'all' || projectTechnologies.includes(selectedTag);
       const matchesSearch =
         searchTerm === '' ||
-        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.technologies.some((tech: string) => tech.toLowerCase().includes(searchTerm.toLowerCase()));
+        project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        projectTechnologies.some((tech: string) => tech?.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesCategory && matchesTag && matchesSearch;
     });
   }, [projectsList, searchTerm, selectedCategory, selectedTag]);

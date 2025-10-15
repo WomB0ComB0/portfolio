@@ -2,6 +2,7 @@ import {
   getCertifications,
   getExperiences,
   getFeaturedProjects,
+  getPlaces,
   getProjects,
 } from '@/lib/sanity/api';
 
@@ -93,6 +94,25 @@ export async function getCertificationsHandler() {
   } catch (error) {
     console.error('Error in getCertificationsHandler:', error);
     throw new Error('Failed to fetch certifications');
+  }
+}
+
+/**
+ * Get all places from Sanity
+ */
+export async function getPlacesHandler() {
+  const cached = getCached('places');
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const places = await getPlaces();
+    setCache('places', places);
+    return places;
+  } catch (error) {
+    console.error('Error in getPlacesHandler:', error);
+    throw new Error('Failed to fetch places');
   }
 }
 

@@ -216,6 +216,48 @@ export const skillCategoriesQuery = `
 `;
 
 /**
+ * Fetch all places ordered by order field
+ */
+export const placesQuery = `
+  *[_type == "place"] | order(order asc) {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    name,
+    description,
+    category,
+    latitude,
+    longitude,
+    photos,
+    order,
+    featured
+  }
+`;
+
+/**
+ * Fetch a single place by ID
+ */
+export const placeByIdQuery = `
+  *[_type == "place" && _id == $id][0] {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    name,
+    description,
+    category,
+    latitude,
+    longitude,
+    photos,
+    order,
+    featured
+  }
+`;
+
+/**
  * Get counts for all content types
  */
 export const contentCountsQuery = `
@@ -223,7 +265,8 @@ export const contentCountsQuery = `
     "experiences": count(*[_type == "experience"]),
     "projects": count(*[_type == "project"]),
     "certifications": count(*[_type == "certification"]),
-    "skills": count(*[_type == "skillCategory"])
+    "skills": count(*[_type == "skillCategory"]),
+    "places": count(*[_type == "place"])
   }
 `;
 

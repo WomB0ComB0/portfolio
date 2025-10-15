@@ -131,6 +131,14 @@ export const projectType = defineType({
       title: 'End Date',
       type: 'date',
     }),
+    defineField({
+      name: 'order',
+      title: 'Display Order',
+      type: 'number',
+      description: 'Used to order projects in lists (lower numbers appear first)',
+      validation: (Rule) => Rule.required(),
+      initialValue: 0,
+    }),
   ],
   preview: {
     select: {

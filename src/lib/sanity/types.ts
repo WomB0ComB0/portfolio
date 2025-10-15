@@ -128,6 +128,21 @@ export interface SkillCategory extends SanityDocument {
   order: number;
 }
 
+/**
+ * Place document from Sanity
+ */
+export interface Place extends SanityDocument {
+  _type: 'place';
+  name: string;
+  description: string;
+  category: 'Hackathon' | 'Conference' | 'Research' | 'Tech Office' | 'Mentorship' | 'Event';
+  latitude: number;
+  longitude: number;
+  photos?: SanityImage[]; // Photo gallery
+  order: number; // For sorting
+  featured: boolean;
+}
+
 // Re-export for convenience
 export type { SanityImageSource };
 
