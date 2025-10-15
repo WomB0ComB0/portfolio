@@ -1,3 +1,4 @@
+'use client';
 import Script from 'next/script';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';

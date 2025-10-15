@@ -1,7 +1,7 @@
 'use server';
 
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
-import defer * as Sentry from '@sentry/nextjs';
+import * as Sentry from '@sentry/nextjs';
 import type { Configuration } from '@vercel/otel';
 import { registerOTel } from '@vercel/otel';
 import { env } from '@/env';

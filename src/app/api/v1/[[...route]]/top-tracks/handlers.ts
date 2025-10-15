@@ -1,4 +1,4 @@
-import { topTracks as getTopTracks } from '@/lib/spotify';
+import { topTracks as getTopTracks } from '@/lib/api-integrations/spotify';
 
 interface SpotifyTrack {
   name: string;
