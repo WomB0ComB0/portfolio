@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode } from 'react';
 
 type PageTransitionProps = {
   children: ReactNode;
@@ -16,17 +16,6 @@ const variants = {
 
 export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
   const pathname = usePathname();
-
-  useEffect(() => {
-    if (!document.startViewTransition) return;
-
-    const handleNavigation = () => {
-      document.startViewTransition(() => {});
-    };
-
-    window.addEventListener('navigate', handleNavigation);
-    return () => window.removeEventListener('navigate', handleNavigation);
-  }, []);
 
   return (
     <AnimatePresence mode="wait" initial={false}>

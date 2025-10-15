@@ -1,6 +1,6 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import { browserTracingIntegration, init, replayIntegration } from '@sentry/nextjs';
+import { browserTracingIntegration, init, replayIntegration, consoleLoggingIntegration } from '@sentry/nextjs';
 import { config } from '@/config';
 
 if (!config.sentry.dsn) {
@@ -13,8 +13,13 @@ if (!config.sentry.dsn) {
     dsn: config.sentry.dsn,
 
     // Add optional integrations for additional features
-    integrations: [replayIntegration(), browserTracingIntegration()],
-
+    integrations: [
+      replayIntegration(),
+      browserTracingIntegration(),
+      consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+  ],
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
     // Adjust the sample rate for traces in production
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0, // 10% in production, 100% in development
 

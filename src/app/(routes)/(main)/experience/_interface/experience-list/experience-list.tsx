@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import type { Experience } from '@/lib/sanity/types';

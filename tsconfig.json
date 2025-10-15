@@ -58,6 +58,7 @@
     "**/*.spec.tsx",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "public/**/*.js"
+    "public/**/*.js",
+    "sanity.config.ts"
   ]
 }

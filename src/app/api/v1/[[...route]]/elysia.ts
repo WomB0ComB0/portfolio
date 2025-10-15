@@ -37,9 +37,4 @@ export const apiRoutes = new Elysia()
   .use(messagesRoute)
   .use(sanityRoutes);
 
-// Debug logging
-console.log('[ELYSIA DEBUG] Blog route type:', typeof blogRoute);
-console.log('[ELYSIA DEBUG] Blog route instance:', blogRoute instanceof Elysia);
-console.log('[ELYSIA DEBUG] Blog route keys:', Object.keys(blogRoute));
-
 export { utilityRoutes } from './utility';
