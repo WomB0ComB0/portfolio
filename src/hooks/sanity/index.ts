@@ -58,6 +58,7 @@ export {
   useSanityProjects,
   useSanityFeaturedProjects,
   useSanityCertifications,
+  useSanityResume,
 } from './use-sanity-suspense';
 
 // Declarative DataLoader components
@@ -68,9 +69,11 @@ export {
   ExperienceSchema,
   ProjectSchema,
   CertificationSchema,
+  ResumeSchema,
   ExperiencesSchema,
   ProjectsSchema,
   CertificationsSchema,
+  type Resume,
 } from './schemas';
 
 // Configuration utilities

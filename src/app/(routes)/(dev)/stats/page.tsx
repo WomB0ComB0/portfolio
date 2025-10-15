@@ -1,20 +1,20 @@
 import dynamic from 'next/dynamic';
 import { constructMetadata } from '@/utils';
 
-const Dashboard = dynamic(
-  () => import('@/app/(routes)/(main)/dashboard/_interface/dashboard').then((mod) => mod.Dashboard),
+const Stats = dynamic(
+  () => import('@/app/(routes)/(dev)/stats/_interface/stats').then((mod) => mod.Stats),
   {
     ssr: true,
   },
 );
 
 export const metadata = constructMetadata({
-  title: 'Dashboard',
+  title: 'Stats',
   description: 'View my live stats, Discord status, and activity metrics',
 });
 
-const DashboardPage = () => {
-  return <Dashboard />;
+const StatsPage = () => {
+  return <Stats />;
 };
 
-export default DashboardPage;
+export default StatsPage;

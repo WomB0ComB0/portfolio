@@ -12,11 +12,13 @@ export const COLORS = [
 
 import {
   FiAward,
+  FiBarChart,
   FiBookOpen,
   FiBriefcase,
-  FiClipboard, // Added FiClipboard
+  FiClipboard,
   FiFileText,
   FiHeadphones,
+  FiHeart,
   FiHome,
   FiMapPin,
 } from 'react-icons/fi';
@@ -35,14 +37,14 @@ export const NavbarItems = [
     icon: FiBriefcase,
   },
   {
-    name: 'Certifications',
-    slug: '/certifications',
-    icon: FiAward,
-  },
-  {
     name: 'Experience',
     slug: '/experience',
     icon: FiClipboard,
+  },
+  {
+    name: 'Certifications',
+    slug: '/certifications',
+    icon: FiAward,
   },
   {
     name: 'Resume',
@@ -60,14 +62,23 @@ export const NavbarItems = [
     icon: FiMapPin,
   },
   {
+    name: 'Spotify',
+    slug: '/spotify',
+    icon: FiHeadphones,
+  },
+  {
     name: 'Guestbook',
     slug: '/guestbook',
     icon: FiBookOpen,
   },
   {
-    name: 'Spotify',
-    slug: '/spotify',
-    icon: FiHeadphones,
+    name: 'Stats',
+    slug: '/stats',
+    icon: FiBarChart,
   },
-  
+  {
+    name: 'Sponsor',
+    slug: '/sponsor',
+    icon: FiHeart,
+  },
 ];

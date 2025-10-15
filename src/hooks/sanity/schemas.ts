@@ -116,6 +116,37 @@ export const PlaceSchema = Schema.Struct({
 });
 
 /**
+ * Sanity File Schema
+ */
+export const SanityFileSchema = Schema.Struct({
+  _id: Schema.optional(Schema.String),
+  url: Schema.String,
+  originalFilename: Schema.optional(Schema.String),
+  size: Schema.optional(Schema.Number),
+  mimeType: Schema.optional(Schema.String),
+});
+
+/**
+ * Sanity Resume Schema with Effect Schema validation
+ */
+export const ResumeSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('resume'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  pdfFile: SanityFileSchema,
+  lastUpdated: Schema.String,
+  isActive: Schema.Boolean,
+});
+
+/**
+ * TypeScript types derived from schemas
+ */
+export type Resume = Schema.Schema.Type<typeof ResumeSchema>;
+
+/**
  * Array schemas for list endpoints
  */
 export const ExperiencesSchema = Schema.Array(ExperienceSchema);

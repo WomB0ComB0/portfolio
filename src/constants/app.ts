@@ -4,7 +4,6 @@ export const age = Math.floor(
 
 const baseUrl = 'https://mikeodnis.dev';
 
-// Import package.json statically to avoid top-level await
 import packageJson from '../../package.json';
 
 export const app: Readonly<{

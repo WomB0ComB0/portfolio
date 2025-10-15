@@ -49,7 +49,7 @@ const statCards: StatCard[] = [
   },
 ];
 
-export default memo(function Stats() {
+export default memo(function DevStats() {
   const queries = useQueries({
     queries: [
       {
@@ -87,13 +87,17 @@ export default memo(function Stats() {
 
   const googleData = useMemo(() => {
     // Data is already parsed and validated by Effect Schema
-    return queries[0].data ?? null;
-  }, [queries[0].data]);
+    const data = queries[0].data ?? null;
+    console.log('[Stats] Google data:', data, 'Error:', queries[0].error);
+    return data;
+  }, [queries[0].data, queries[0].error]);
 
   const wakatimeData = useMemo(() => {
     // Data is already parsed and validated by Effect Schema
-    return queries[1].data ?? null;
-  }, [queries[1].data]);
+    const data = queries[1].data ?? null;
+    console.log('[Stats] WakaTime data:', data, 'Error:', queries[1].error);
+    return data;
+  }, [queries[1].data, queries[1].error]);
 
   const isLoading = queries.some((query) => query.isLoading);
 
@@ -102,7 +106,9 @@ export default memo(function Stats() {
       case 'age':
         return age;
       case 'google':
-        return googleData?.total_pageviews ?? 'N/A';
+        const pageviews = googleData?.total_pageviews;
+        console.log('[Stats] Getting google card value:', pageviews);
+        return pageviews ?? 'N/A';
       case 'wakatime':
         return wakatimeData?.total_seconds
           ? Math.round(wakatimeData.total_seconds / 3600)

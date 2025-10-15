@@ -1548,9 +1548,9 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Dashboard',
+        name: 'Stats Dashboard',
         short_name: 'Dash',
-        url: '/dashboard',
+        url: '/stats',
         description: "View Mike's current projects, skills, and activity at a glance.",
         icons: [
           {

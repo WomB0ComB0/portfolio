@@ -7,7 +7,7 @@ test('navigation links', async ({ page }) => {
 
   const links = [
     { name: 'About', path: '/about' },
-    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Stats', path: '/stats' },
     { name: 'Projects', path: '/projects' },
     { name: 'Blog', path: '/blog' },
     { name: 'Guestbook', path: '/guestbook' },

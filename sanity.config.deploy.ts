@@ -13,10 +13,13 @@ import type { PluginOptions } from 'sanity'
 import { certificationType } from './src/sanity/schemaTypes/certification'
 import { experienceType } from './src/sanity/schemaTypes/experience'
 import { projectType } from './src/sanity/schemaTypes/project'
+import { resumeType } from './src/sanity/schemaTypes/resume'
+import { placeType } from './src/sanity/schemaTypes/place'
 
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || ''
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'
 const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION || '2025-10-15'
+
 // @ts-ignore
 export default defineConfig({
   name: 'default',
@@ -30,6 +33,8 @@ export default defineConfig({
       certificationType,
       experienceType,
       projectType,
+      resumeType,
+      placeType,
     ],
   },
   

@@ -1,6 +1,24 @@
+/**
+ * GitHub Statistics API Handler
+ * 
+ * Fetches combined GitHub statistics from:
+ * - Personal repositories (WomB0ComB0) - includes private repos if GITHUB_TOKEN is set
+ * - Organization repositories (ElysiumOSS) - public repos
+ * 
+ * Authentication:
+ * Set the GITHUB_TOKEN environment variable to include private repositories.
+ * Without authentication, only public repositories will be counted.
+ * 
+ * To create a GitHub token:
+ * 1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+ * 2. Generate new token with 'repo' scope (for private repo access)
+ * 3. Add to .env.local: GITHUB_TOKEN=your_token_here
+ */
+
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
+import env from '@/env';
 import { get } from '@/lib/http-clients/effect-fetcher';
 
 interface GitHubRepo {
@@ -59,48 +77,79 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
     return cache.data;
   }
 
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'Portfolio-Dashboard',
+  };
+
+  if (env.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${env.GITHUB_TOKEN}`;
+  }
+
   const userEffect = pipe(
     get('https://api.github.com/users/WomB0ComB0', {
       schema: GitHubUserSchema,
       retries: 2,
       timeout: 10_000,
+      headers,
     }),
     Effect.provide(FetchHttpClient.layer),
   );
 
-  const reposEffect = pipe(
-    get('https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated', {
+  const personalReposUrl = env.GITHUB_TOKEN
+    ? 'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner'
+    : 'https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated';
+
+  const personalReposEffect = pipe(
+    get(personalReposUrl, {
       schema: GitHubReposArraySchema,
       retries: 2,
       timeout: 10_000,
+      headers,
+    }),
+    Effect.provide(FetchHttpClient.layer),
+  );
+
+  const orgReposEffect = pipe(
+    get('https://api.github.com/orgs/ElysiumOSS/repos?per_page=100&sort=updated', {
+      schema: GitHubReposArraySchema,
+      retries: 2,
+      timeout: 10_000,
+      headers,
     }),
     Effect.provide(FetchHttpClient.layer),
   );
 
   try {
-    const [meJson, reposJson] = await Promise.all([
+    const [meJson, personalReposJson, orgReposJson] = await Promise.all([
       Effect.runPromise(userEffect),
-      Effect.runPromise(reposEffect),
+      Effect.runPromise(personalReposEffect),
+      Effect.runPromise(orgReposEffect),
     ]);
 
-    const topRepos = (reposJson as any as GitHubRepo[])
+    // Combine personal and organization repos
+    const allRepos = [
+      ...(personalReposJson as any as GitHubRepo[]),
+      ...(orgReposJson as any as GitHubRepo[]),
+    ];
+
+    // Filter out forks and sort by stars
+    const topRepos = allRepos
       .filter((repo) => !repo.fork)
       .sort((a, b) => b.stargazers_count - a.stargazers_count)
-      .slice(0, 5);
+      .slice(0, 10);
 
-    const totalStars = (reposJson as any as GitHubRepo[]).reduce(
-      (acc, curr) => acc + curr.stargazers_count,
-      0,
-    );
+    // Calculate total stars from all repos (personal + org)
+    const totalStars = allRepos.reduce((acc, curr) => acc + curr.stargazers_count, 0);
+
+    // Get unique languages from all repos
     const languages = new Set(
-      (reposJson as any as GitHubRepo[])
-        .map((repo) => repo.language)
-        .filter((lang): lang is string => lang !== null),
+      allRepos.map((repo) => repo.language).filter((lang): lang is string => lang !== null),
     );
 
     const data: GitHubStatsData = {
       user: {
-        repos: meJson.public_repos,
+        repos: meJson.public_repos + (orgReposJson as any as GitHubRepo[]).length, // Include org repos in count
         followers: meJson.followers,
         avatar_url: meJson.avatar_url,
       },
@@ -123,6 +172,7 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
   } catch (error) {
     throw ensureBaseError(error, 'github:stats', {
       username: 'WomB0ComB0',
+      organization: 'ElysiumOSS',
       cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
     });
   }

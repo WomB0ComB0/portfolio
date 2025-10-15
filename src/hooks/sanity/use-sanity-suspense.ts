@@ -20,7 +20,12 @@
 
 import { useDataLoader } from '@/providers/server/effect-data-loader';
 import { SANITY_ENDPOINTS, createDataLoaderOptions } from './config';
-import { CertificationsSchema, ExperiencesSchema, ProjectsSchema } from './schemas';
+import {
+  CertificationsSchema,
+  ExperiencesSchema,
+  ProjectsSchema,
+  ResumeSchema,
+} from './schemas';
 
 /**
  * Hook to fetch experiences with Effect Schema validation and Suspense
@@ -54,4 +59,11 @@ export function useSanityCertifications() {
     SANITY_ENDPOINTS.certifications,
     createDataLoaderOptions(CertificationsSchema),
   );
+}
+
+/**
+ * Hook to fetch resume with Effect Schema validation and Suspense
+ */
+export function useSanityResume() {
+  return useDataLoader(SANITY_ENDPOINTS.resume, createDataLoaderOptions(ResumeSchema));
 }

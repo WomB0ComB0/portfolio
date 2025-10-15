@@ -116,6 +116,38 @@ export async function getPlaces(): Promise<Place[]> {
 }
 
 /**
+ * Fetch active resume from Sanity
+ * @returns Promise with resume data or null
+ */
+export async function getResume() {
+  try {
+    const resumeQuery = `*[_type == "resume" && isActive == true] | order(_updatedAt desc) [0] {
+      _id,
+      _type,
+      _createdAt,
+      _updatedAt,
+      _rev,
+      title,
+      "pdfFile": pdfFile.asset->{
+        _id,
+        url,
+        originalFilename,
+        size,
+        mimeType
+      },
+      lastUpdated,
+      isActive
+    }`;
+    
+    const resume = await sanityFetch(resumeQuery);
+    return resume;
+  } catch (error) {
+    console.error('Error fetching resume from Sanity:', error);
+    return null;
+  }
+}
+
+/**
  * Revalidation tags for Next.js ISR
  */
 export const revalidateTags = {
@@ -124,6 +156,7 @@ export const revalidateTags = {
   certifications: 'certifications',
   skills: 'skills',
   places: 'places',
+  resume: 'resume',
 } as const;
 
 /**

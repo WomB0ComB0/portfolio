@@ -2,6 +2,21 @@
 @import "./fonts.css";
 @custom-variant dark (&:is(.dark *));
 
+/* Mobile navigation safe area */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Hide scrollbar for mobile nav overflow */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .flare {
   position: fixed;
   border: 2px solid #560bad;

@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { blogRoute } from './blog';
+import { githubSponsorsRoute } from './github-sponsors';
 import { githubStatsRoute } from './github-stats';
 import { googleRoute } from './google';
 import { lanyardRoute } from './lanyard';
@@ -17,6 +18,7 @@ import { wakatimeRoute } from './wakatime';
  *   - /lanyard (Discord)
  *   - /wakatime
  *   - /github-stats
+ *   - /github-sponsors (GitHub Sponsors)
  *   - /google (Analytics)
  *   - /top-artists (Spotify)
  *   - /top-tracks (Spotify)
@@ -30,6 +32,7 @@ export const apiRoutes = new Elysia()
   .use(lanyardRoute)
   .use(wakatimeRoute)
   .use(githubStatsRoute)
+  .use(githubSponsorsRoute)
   .use(googleRoute)
   .use(topArtistsRoute)
   .use(topTracksRoute)

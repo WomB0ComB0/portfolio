@@ -52,7 +52,9 @@ export async function getAnalytics(): Promise<{
   analytics: { total_pageviews: number };
   response: GAResponse;
 }> {
-  if (process.env.NODE_ENV === 'development' || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+  // Skip Firebase emulator check - only skip if explicitly disabled via env var
+  if (process.env.DISABLE_ANALYTICS === 'true') {
+    console.log('[Analytics] Analytics disabled via DISABLE_ANALYTICS env var');
     return {
       analytics: { total_pageviews: 0 },
       response: {
@@ -76,6 +78,8 @@ export async function getAnalytics(): Promise<{
       } satisfies GAResponse,
     };
   }
+
+  console.log('[Analytics] Fetching Google Analytics data...');
 
   const formattedPrivateKey = serviceAccount.private_key.replace(/\\n/g, '\n');
 
@@ -102,6 +106,8 @@ export async function getAnalytics(): Promise<{
         0,
       ) || 0;
 
+    console.log(`[Analytics] Successfully fetched ${total_pageviews} pageviews from ${gaResponse.rows?.length || 0} rows`);
+
     return {
       analytics: {
         total_pageviews,
@@ -109,7 +115,16 @@ export async function getAnalytics(): Promise<{
       response: gaResponse,
     };
   } catch (error) {
-    console.error('Error fetching GA data:', error);
+    console.error('[Analytics] Error fetching GA data:', error);
+    console.error('[Analytics] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      credentials: {
+        hasClientEmail: !!serviceAccount.client_email,
+        hasPrivateKey: !!serviceAccount.private_key,
+        privateKeyLength: serviceAccount.private_key?.length || 0,
+      },
+    });
     throw new Error(`${error instanceof Error ? error.message : 'Unknown error @ getAnalytics'}`);
   }
 }

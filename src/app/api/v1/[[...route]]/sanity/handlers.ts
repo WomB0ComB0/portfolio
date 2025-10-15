@@ -4,6 +4,7 @@ import {
   getFeaturedProjects,
   getPlaces,
   getProjects,
+  getResume,
 } from '@/lib/sanity/api';
 
 const CACHE_DURATION = 60 * 5 * 1000; // 5 minutes
@@ -113,6 +114,25 @@ export async function getPlacesHandler() {
   } catch (error) {
     console.error('Error in getPlacesHandler:', error);
     throw new Error('Failed to fetch places');
+  }
+}
+
+/**
+ * Get active resume from Sanity
+ */
+export async function getResumeHandler() {
+  const cached = getCached('resume');
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const resume = await getResume();
+    setCache('resume', resume);
+    return resume;
+  } catch (error) {
+    console.error('Error in getResumeHandler:', error);
+    throw new Error('Failed to fetch resume');
   }
 }
 

@@ -1,215 +1,184 @@
 'use client';
 
-import { Briefcase, Search } from 'lucide-react';
+import { Briefcase, ExternalLink, Github } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense } from 'react';
+import { motion } from 'motion/react';
 import Layout from '@/components/layout/layout';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 
 const ProjectsListContent = () => {
   const { data: projects, isLoading, error } = useSanityProjects();
-  const projectsList = projects as any[];
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
-  const [selectedTag, setSelectedTag] = useState<string | 'all'>('all');
+  const projectsList = (projects as any[]) || [];
 
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent"></div>
-        <p className="text-gray-400 mt-4">Loading projects...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent mb-4"></div>
+          <p className="text-gray-400 text-lg">Loading projects...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="bg-[#1E1E1E] border-purple-800 p-6">
-        <CardContent>
-          <p className="text-red-400">Error loading projects. Please try again later.</p>
+      <Card className="bg-gradient-to-br from-red-900/20 to-red-800/20 border-red-800">
+        <CardContent className="p-8 text-center">
+          <p className="text-red-400 text-lg">Failed to load projects. Please try again later.</p>
         </CardContent>
       </Card>
     );
   }
 
-  const categories = useMemo(() => {
-    if (!projectsList) return ['all'];
-    const allCategories = new Set(projectsList.map((p) => p.category).filter(Boolean));
-    return ['all', ...Array.from(allCategories)];
-  }, [projectsList]);
-
-  const tags = useMemo(() => {
-    if (!projectsList) return ['all'];
-    const allTags = new Set(
-      projectsList.flatMap((p) => (Array.isArray(p.technologies) ? p.technologies : [])).filter(Boolean)
-    );
-    return ['all', ...Array.from(allTags)];
-  }, [projectsList]);
-
-  const filteredProjects = useMemo(() => {
-    if (!projectsList) return [];
-    return projectsList.filter((project) => {
-      const matchesCategory = selectedCategory === 'all' || project.category === selectedCategory;
-      const projectTechnologies = Array.isArray(project.technologies) ? project.technologies : [];
-      const matchesTag =
-        selectedTag === 'all' || projectTechnologies.includes(selectedTag);
-      const matchesSearch =
-        searchTerm === '' ||
-        project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        projectTechnologies.some((tech: string) => tech?.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesCategory && matchesTag && matchesSearch;
-    });
-  }, [projectsList, searchTerm, selectedCategory, selectedTag]);
-
   return (
     <>
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl font-bold text-purple-300 flex items-center justify-center">
-          <Briefcase className="mr-3 h-10 w-10" /> Projects Showcase
-        </h1>
-        <p className="text-lg text-gray-400 mt-2">
-          Explore a collection of my work, from web development to machine learning.
-        </p>
-      </header>
-
-      {/* Filters Section */}
-      <Card className="mb-8 bg-[#1E1E1E] border-purple-800 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="search" className="block text-sm font-medium text-purple-300 mb-1">
-              Search Projects
-            </label>
-            <div className="relative">
-              <Input
-                id="search"
-                type="text"
-                placeholder="Enter keywords, title, or tag..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-[#2a2a2a] border-purple-700 text-gray-200 pl-10"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-purple-300 mb-1">
-              Filter by Category
-            </label>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger
-                id="category"
-                className="bg-[#2a2a2a] border-purple-700 text-gray-200"
-              >
-                <SelectValue placeholder="Select Category" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#2a2a2a] border-purple-700 text-gray-200">
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat} className="hover:bg-purple-700">
-                    {cat === 'all' ? 'All Categories' : cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label htmlFor="tag" className="block text-sm font-medium text-purple-300 mb-1">
-              Filter by Tag
-            </label>
-            <Select value={selectedTag} onValueChange={setSelectedTag}>
-              <SelectTrigger id="tag" className="bg-[#2a2a2a] border-purple-700 text-gray-200">
-                <SelectValue placeholder="Select Tag" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#2a2a2a] border-purple-700 text-gray-200">
-                {tags.map((tag) => (
-                  <SelectItem key={tag} value={tag} className="hover:bg-purple-700">
-                    {tag === 'all' ? 'All Tags' : tag}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Header */}
+      <motion.header
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="mb-16 text-center"
+      >
+        <div className="flex items-center justify-center mb-4">
+          <Briefcase className="h-12 w-12 text-purple-400 mr-4" />
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+            Projects
+          </h1>
         </div>
-      </Card>
+        <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+          A showcase of my work spanning web development, mobile apps, machine learning, and more.
+        </p>
+        <div className="mt-6 flex items-center justify-center gap-4 text-sm text-gray-500">
+          <span className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+            {projectsList.length} Projects
+          </span>
+        </div>
+      </motion.header>
 
       {/* Projects Grid */}
-      {filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProjects.map((project) => (
-            <Link key={project._id} href={`/projects/${project._id}`} scroll={false}>
-              <Card className="bg-[#1E1E1E] border-purple-800 rounded-xl overflow-hidden flex flex-col hover:shadow-xl hover:shadow-purple-500/40 transition-shadow duration-300 h-full">
-                {project.image && (
-                  <div className="w-full h-48 relative">
-                    <Image
-                      src={urlFor(project.image).width(400).height(192).url()}
-                      alt={project.image.alt || project.title}
-                      width={400}
-                      height={192}
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-                <CardHeader className="p-6">
-                  <CardTitle className="text-xl font-semibold text-purple-300 mb-1">
-                    {project.title}
-                  </CardTitle>
-                  <p className="text-sm text-gray-400">Category: {project.category}</p>
-                  <p className="text-xs text-gray-500">Status: {project.status}</p>
-                </CardHeader>
-                <CardContent className="p-6 flex-grow">
-                  <p className="text-sm text-gray-300 mb-4 line-clamp-4">{project.description}</p>
-                  {project.technologies && project.technologies.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-xs text-purple-400 mb-1 font-semibold">
-                        TECHNOLOGIES:
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {project.technologies.map((tech: string) => (
-                          <span
-                            key={tech}
-                            className="px-2 py-0.5 text-xs bg-purple-700 text-purple-200 rounded-full"
-                          >
-                            {tech}
-                          </span>
-                        ))}
-                      </div>
+      {projectsList.length > 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {projectsList.map((project: any, index: number) => (
+            <motion.div
+              key={project._id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <Link href={`/projects/${project._id}`} scroll={false} className="block h-full">
+                <Card className="group bg-[#1E1E1E] border-purple-800/50 hover:border-purple-600 rounded-xl overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1">
+                  {/* Project Image */}
+                  {project.image && (
+                    <div className="relative w-full h-48 overflow-hidden bg-gradient-to-br from-purple-900/20 to-indigo-900/20">
+                      <Image
+                        src={urlFor(project.image).width(400).height(192).url()}
+                        alt={project.image.alt || project.title}
+                        width={400}
+                        height={192}
+                        className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E1E1E] via-transparent to-transparent opacity-60"></div>
                     </div>
                   )}
-                </CardContent>
-                <div className="p-6 border-t border-purple-700 mt-auto">
-                  <p className="text-xs text-center text-purple-400">Click to view details</p>
-                </div>
-              </Card>
-            </Link>
+
+                  {/* Project Info */}
+                  <CardHeader className="p-5 pb-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <CardTitle className="text-xl font-semibold text-purple-300 group-hover:text-purple-200 transition-colors line-clamp-2">
+                        {project.title}
+                      </CardTitle>
+                      {project.githubUrl && (
+                        <Github className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className="bg-purple-900/30 text-purple-300 text-xs">
+                        {project.category}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${project.status === 'Completed'
+                            ? 'border-green-700 text-green-400'
+                            : project.status === 'In Progress'
+                              ? 'border-yellow-700 text-yellow-400'
+                              : 'border-gray-700 text-gray-400'
+                          }`}
+                      >
+                        {project.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  {/* Project Description */}
+                  <CardContent className="p-5 pt-0 flex-grow flex flex-col">
+                    <p className="text-sm text-gray-400 mb-4 line-clamp-3 flex-grow">
+                      {project.description}
+                    </p>
+
+                    {/* Technologies */}
+                    {project.technologies && project.technologies.length > 0 && (
+                      <div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {project.technologies.slice(0, 6).map((tech: any, idx: number) => {
+                            const techName =
+                              typeof tech === 'string' ? tech : tech?.name || tech?.title || 'Unknown';
+                            return (
+                              <span
+                                key={`${techName}-${idx}`}
+                                className="px-2 py-1 text-xs bg-purple-900/40 text-purple-300 rounded-md border border-purple-800/30"
+                              >
+                                {techName}
+                              </span>
+                            );
+                          })}
+                          {project.technologies.length > 6 && (
+                            <span className="px-2 py-1 text-xs text-gray-500 flex items-center">
+                              +{project.technologies.length - 6} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+
+                  {/* View Details Footer */}
+                  <div className="p-5 pt-3 border-t border-purple-800/30 mt-auto">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-purple-400 group-hover:text-purple-300 transition-colors font-medium">
+                        View Details
+                      </span>
+                      <ExternalLink className="h-4 w-4 text-purple-400 group-hover:text-purple-300 transition-all group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-xl text-gray-400">No projects found matching your criteria.</p>
-          <Button
-            variant="link"
-            onClick={() => {
-              setSearchTerm('');
-              setSelectedCategory('all');
-              setSelectedTag('all');
-            }}
-            className="text-purple-400 hover:text-purple-300 mt-2"
-          >
-            Clear Filters
-          </Button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-20"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-purple-900/20 mb-4">
+            <Briefcase className="h-10 w-10 text-purple-500" />
+          </div>
+          <p className="text-xl text-gray-400">No projects available yet.</p>
+          <p className="text-sm text-gray-500 mt-2">Check back soon for updates!</p>
+        </motion.div>
       )}
     </>
   );

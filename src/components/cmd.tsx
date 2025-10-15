@@ -8,9 +8,20 @@ import {
   KBarSearch,
   useMatches,
 } from 'kbar';
-import { Book, Code, FileText, Headphones, Home, Link, Map, User, Zap } from 'lucide-react';
 import React from 'react';
-import { FiDollarSign } from 'react-icons/fi';
+import {
+  FiAward,
+  FiBarChart,
+  FiBookOpen,
+  FiBriefcase,
+  FiClipboard,
+  FiFileText,
+  FiHeadphones,
+  FiHeart,
+  FiHome,
+  FiMapPin,
+  FiUser,
+} from 'react-icons/fi';
 import { SiHashnode } from 'react-icons/si';
 
 export default function Palette() {
@@ -75,27 +86,29 @@ const ResultItem = React.forwardRef(
     const getIcon = (name: string) => {
       switch (name.toLowerCase()) {
         case 'home':
-          return <Home size={18} />;
-        case 'about':
-          return <User size={18} />;
+          return <FiHome size={18} />;
+        case 'projects':
+          return <FiClipboard size={18} />;
+        case 'experience':
+          return <FiBriefcase size={18} />;
+        case 'certifications':
+          return <FiAward size={18} />;
         case 'resume':
-          return <FileText size={18} />;
+          return <FiFileText size={18} />;
         case 'blog':
           return <SiHashnode size={18} />;
         case 'places':
-          return <Map size={18} />;
-        case 'links':
-          return <Link size={18} />;
-        case 'guestbook':
-          return <Book size={18} />;
+          return <FiMapPin size={18} />;
+        case 'stats':
+          return <FiBarChart size={18} />;
         case 'spotify':
-          return <Headphones size={18} />;
-        case 'dashboard':
-          return <Zap size={18} />;
-        case 'projects':
-          return <Code size={18} />;
-        case 'hire':
-          return <FiDollarSign size={18} />;
+          return <FiHeadphones size={18} />;
+        case 'guestbook':
+          return <FiBookOpen size={18} />;
+        case 'sponsor':
+          return <FiHeart size={18} />;
+        case 'about':
+          return <FiUser size={18} />;
         default:
           return null;
       }
@@ -104,9 +117,8 @@ const ResultItem = React.forwardRef(
     return (
       <div
         ref={ref}
-        className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-all ${
-          active ? 'bg-[#560BAD] text-[#ba9bdd]' : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
-        }`}
+        className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-all ${active ? 'bg-[#560BAD] text-[#ba9bdd]' : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
+          }`}
       >
         <div className="flex items-center gap-3">
           {getIcon(action.name)}

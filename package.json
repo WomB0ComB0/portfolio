@@ -32,7 +32,7 @@
     "scripts:package-cost": "bun run ./scripts/package-cost.ts",
     "scripts:remove-duplicates": "bun run ./scripts/remove-duplicate-packages.ts",
     "scripts:tree-shake": "bun run ./scripts/unused-tree-shake.ts",
-    "build": "next build",
+    "build": "bun run scripts:package-cost && next build",
     "dev": "next dev",
     "e2e:ci": "bun run e2e:install && bunx playwright test --project=chromium",
     "e2e:install": "bunx playwright install",
@@ -41,7 +41,12 @@
     "prepare:audit": "bun install --yarn > yarn.lock",
     "start": "next start",
     "test": "vitest run",
-    "type": "tsc --noEmit"
+    "type": "tsc --noEmit",
+    "sanity:dev": "cd studio && sanity dev",
+    "sanity:start": "cd studio && sanity start",
+    "sanity:build": "cd studio && sanity build",
+    "sanity:deploy": "cd studio && sanity deploy",
+    "sanity:graphql:deploy": "cd studio && sanity graphql deploy"
   },
   "browserslist": {
     "development": [
