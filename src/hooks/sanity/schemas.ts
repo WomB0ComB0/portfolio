@@ -19,16 +19,16 @@ export const ExperienceSchema = Schema.Struct({
   _rev: Schema.String,
   company: Schema.String,
   position: Schema.String,
-  location: Schema.String,
+  location: Schema.NullishOr(Schema.String),
   startDate: Schema.String,
-  endDate: Schema.optional(Schema.String),
+  endDate: Schema.NullishOr(Schema.String),
   current: Schema.Boolean,
   description: Schema.String,
-  responsibilities: Schema.Array(Schema.String),
-  technologies: Schema.Array(Schema.String),
-  logo: Schema.optional(Schema.Unknown), // SanityImage
-  companyUrl: Schema.optional(Schema.String),
-  order: Schema.Number,
+  responsibilities: Schema.NullishOr(Schema.Array(Schema.String)),
+  technologies: Schema.NullishOr(Schema.Array(Schema.String)),
+  logo: Schema.NullishOr(Schema.Unknown), // SanityImage
+  companyUrl: Schema.NullishOr(Schema.String),
+  order: Schema.NullishOr(Schema.Number),
 });
 
 /**
@@ -43,12 +43,12 @@ export const ProjectSchema = Schema.Struct({
   title: Schema.String,
   slug: Schema.Unknown, // SanitySlug
   description: Schema.String,
-  longDescription: Schema.optional(Schema.String),
+  longDescription: Schema.NullishOr(Schema.String),
   image: Schema.Unknown, // SanityImage
-  images: Schema.optional(Schema.Array(Schema.Unknown)),
-  technologies: Schema.Array(Schema.String),
-  githubUrl: Schema.optional(Schema.String),
-  liveUrl: Schema.optional(Schema.String),
+  images: Schema.NullishOr(Schema.Array(Schema.Unknown)),
+  technologies: Schema.NullishOr(Schema.Array(Schema.String)),
+  githubUrl: Schema.NullishOr(Schema.String),
+  liveUrl: Schema.NullishOr(Schema.String),
   featured: Schema.Boolean,
   category: Schema.Union(
     Schema.Literal('web'),
@@ -57,7 +57,7 @@ export const ProjectSchema = Schema.Struct({
     Schema.Literal('other'),
   ),
   startDate: Schema.String,
-  endDate: Schema.optional(Schema.String),
+  endDate: Schema.NullishOr(Schema.String),
   order: Schema.Number,
   status: Schema.Union(
     Schema.Literal('completed'),
@@ -75,16 +75,16 @@ export const CertificationSchema = Schema.Struct({
   _createdAt: Schema.String,
   _updatedAt: Schema.String,
   _rev: Schema.String,
-  name: Schema.String,
+  title: Schema.String,
   issuer: Schema.String,
   issueDate: Schema.String,
-  expiryDate: Schema.optional(Schema.String),
-  credentialId: Schema.optional(Schema.String),
-  credentialUrl: Schema.optional(Schema.String),
-  logo: Schema.optional(Schema.Unknown), // SanityImage
-  description: Schema.optional(Schema.String),
-  skills: Schema.Array(Schema.String),
-  order: Schema.Number,
+  expiryDate: Schema.NullishOr(Schema.String),
+  credentialId: Schema.NullishOr(Schema.String),
+  credentialUrl: Schema.NullishOr(Schema.String),
+  image: Schema.NullishOr(Schema.Unknown), // SanityImage
+  description: Schema.NullishOr(Schema.String),
+  skills: Schema.NullishOr(Schema.Array(Schema.String)),
+  order: Schema.NullishOr(Schema.Number),
 });
 
 /**

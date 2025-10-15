@@ -78,6 +78,14 @@ export const experienceType = defineType({
       type: 'boolean',
       initialValue: false,
     }),
+    defineField({
+      name: 'order',
+      title: 'Display Order',
+      type: 'number',
+      description: 'Used to order experiences in lists (lower numbers appear first)',
+      validation: (Rule) => Rule.required(),
+      initialValue: 0,
+    }),
   ],
   preview: {
     select: {

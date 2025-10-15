@@ -2,18 +2,27 @@
 'use client'
 
 /**
- * This configuration is used to for the Sanity Studio that's mounted on the `/app/studio/[[...tool]]/page.tsx` route
+ * Sanity Studio configuration for standalone deployment at https://<hostname>.sanity.studio/
+ * This config is used only for building and deploying the standalone studio via `bunx sanity deploy`
  */
 
 import {visionTool} from '@sanity/vision'
 import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
+import type {PluginOptions} from 'sanity'
+// Import schema and structure
+import {schema} from './src/sanity/schemaTypes'
+import {structure} from './src/sanity/structure'
 
-// Go to https://www.sanity.io/docs/api-versioning to learn how API versioning works
-import {apiVersion, dataset, projectId} from '@/sanity/env'
-import {schema} from '@/sanity/schemaTypes'
-import {structure} from '@/sanity/structure'
+// Hardcoded values for standalone deployment
+// These are safe to expose as they're public client-side values
+// In Next.js app: process.env values will be injected at build time
+// In standalone deployment: fallback values ensure studio works
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || '34jrnkds'
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'
+const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION || '2025-10-15'
 
+// @ts-ignore
 export default defineConfig({
   basePath: '/studio',
   projectId,
@@ -26,4 +35,4 @@ export default defineConfig({
     // https://www.sanity.io/docs/the-vision-plugin
     visionTool({defaultApiVersion: apiVersion}),
   ],
-})
+} as unknown as PluginOptions)

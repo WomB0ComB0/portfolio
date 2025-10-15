@@ -112,7 +112,7 @@ const config: NextConfig = {
   pageExtensions: ['ts', 'tsx'],
   poweredByHeader: false,
   compress: true,
-  output: 'standalone', // Required for optimized Docker builds
+  output: 'standalone',
   logging: {
     fetches: {
       fullUrl: true,
@@ -130,6 +130,7 @@ const config: NextConfig = {
       { protocol: 'https', hostname: 'cdn.discordapp.com' },
       { protocol: 'https', hostname: 'linktr.ee' },
       { protocol: 'https', hostname: 'docs.google.com' },
+      { protocol: 'https', hostname: 'cdn.sanity.io' },
     ],
     formats: ['image/avif', 'image/webp'], // Modern image formats
     minimumCacheTTL: 60, // Cache images for 60 seconds minimum

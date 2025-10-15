@@ -50,15 +50,6 @@ const rateLimitExemptPaths = [...publicAssetPaths, '/_next', '/api/health'];
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   logger.debug('Processing middleware request', { path: request.nextUrl.pathname });
 
-  // Block access to Sanity Studio in production
-  if (process.env.NODE_ENV === 'production' && request.nextUrl.pathname.startsWith('/studio')) {
-    logger.warn('Blocked studio access in production', {
-      path: request.nextUrl.pathname,
-      ip: getClientIP(request),
-    });
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
   // Early return for exempt paths
   if (rateLimitExemptPaths.some((path) => request.nextUrl.pathname.startsWith(path))) {
     logger.debug('Skipping middleware for exempt path', { path: request.nextUrl.pathname });

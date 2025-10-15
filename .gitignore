@@ -75,3 +75,5 @@ yarn.lock
 logs/
 backups/
 docker-compose.override.yml
+.sanity
+dist

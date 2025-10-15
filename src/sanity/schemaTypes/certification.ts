@@ -66,6 +66,14 @@ export const certificationType = defineType({
       type: 'array',
       of: [{ type: 'string' }],
     }),
+    defineField({
+      name: 'order',
+      title: 'Display Order',
+      type: 'number',
+      description: 'Used to order certifications in lists',
+      validation: (Rule) => Rule.required(),
+      initialValue: 0,
+    }),
   ],
   preview: {
     select: {
