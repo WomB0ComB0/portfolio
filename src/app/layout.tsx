@@ -13,16 +13,6 @@ export const viewport = constructViewport();
 const kodchasanFont = localFont({
   src: [
     {
-      path: '../../public/assets/fonts/Kodchasan-ExtraLight.ttf',
-      weight: '200',
-      style: 'normal',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-ExtraLightItalic.ttf',
-      weight: '200',
-      style: 'italic',
-    },
-    {
       path: '../../public/assets/fonts/Kodchasan-Light.ttf',
       weight: '300',
       style: 'normal',

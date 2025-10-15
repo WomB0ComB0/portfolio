@@ -69,3 +69,9 @@ swe-worker-*.js
 
 bun.lock
 yarn.lock
+
+# Docker
+.env.docker
+logs/
+backups/
+docker-compose.override.yml

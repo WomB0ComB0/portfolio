@@ -1,12 +1,69 @@
-version: '3.8'
-# Start Jaeger: docker compose up -d
-# Stop Jaeger: docker compose down
-# View logs: docker compose logs -f jaeger
-# http://localhost:16686/search
 services:
+  # Next.js application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
+    container_name: portfolio-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+      - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+      - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+      - NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=${NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID}
+      - NEXT_PUBLIC_DISCORD_ID=${NEXT_PUBLIC_DISCORD_ID}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - WAKA_TIME_API_KEY=${WAKA_TIME_API_KEY}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+      - SPOTIFY_REFRESH_TOKEN=${SPOTIFY_REFRESH_TOKEN}
+      - SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+      - NEXT_PUBLIC_HASHNODE_TOKEN=${NEXT_PUBLIC_HASHNODE_TOKEN}
+      - NEXT_PUBLIC_STRIPE_SECRET_KEY=${NEXT_PUBLIC_STRIPE_SECRET_KEY}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET=${NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET}
+      - NEXT_PUBLIC_GCP_PROJECT_ID=${NEXT_PUBLIC_GCP_PROJECT_ID}
+      - NEXT_PUBLIC_GCP_PRIVATE_KEY_ID=${NEXT_PUBLIC_GCP_PRIVATE_KEY_ID}
+      - NEXT_PUBLIC_GCP_PRIVATE_KEY=${NEXT_PUBLIC_GCP_PRIVATE_KEY}
+      - NEXT_PUBLIC_GCP_CLIENT_EMAIL=${NEXT_PUBLIC_GCP_CLIENT_EMAIL}
+      - NEXT_PUBLIC_GCP_CLIENT_ID=${NEXT_PUBLIC_GCP_CLIENT_ID}
+      - NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL=${NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL}
+      - NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY=${NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY}
+      - NEXT_PUBLIC_UPSTASH_REDIS_REST_URL=${NEXT_PUBLIC_UPSTASH_REDIS_REST_URL}
+      - NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN=${NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN}
+      - CSRF_SECRET=${CSRF_SECRET}
+      - ADMIN_API_TOKEN=${ADMIN_API_TOKEN}
+      - NEXT_PUBLIC_SANITY_PROJECT_ID=${NEXT_PUBLIC_SANITY_PROJECT_ID}
+      - NEXT_PUBLIC_SANITY_DATASET=${NEXT_PUBLIC_SANITY_DATASET:-production}
+      - NEXT_PUBLIC_SANITY_API_VERSION=${NEXT_PUBLIC_SANITY_API_VERSION:-2024-10-14}
+      - SANITY_API_TOKEN=${SANITY_API_TOKEN}
+    networks:
+      - app-network
+      - observability
+    depends_on:
+      - jaeger
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Jaeger for OpenTelemetry tracing
   jaeger:
     image: jaegertracing/jaeger:2.1.0
-    container_name: jaeger
+    container_name: portfolio-jaeger
     restart: unless-stopped
     ports:
       # Jaeger UI
@@ -29,5 +86,7 @@ services:
       - observability
 
 networks:
+  app-network:
+    driver: bridge
   observability:
     driver: bridge

@@ -69,4 +69,5 @@ export const NavbarItems = [
     slug: '/spotify',
     icon: FiHeadphones,
   },
+  
 ];

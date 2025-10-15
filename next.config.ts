@@ -112,6 +112,7 @@ const config: NextConfig = {
   pageExtensions: ['ts', 'tsx'],
   poweredByHeader: false,
   compress: true,
+  output: 'standalone', // Required for optimized Docker builds
   logging: {
     fetches: {
       fullUrl: true,

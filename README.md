@@ -299,3 +299,37 @@ Custom React hooks for reusable logic.
 ### 17. Types (`types`)
 
 *   **`global.d.ts`**: Contains global TypeScript type definitions used across the application (e.g., `SVGIconProps`, `MetadataProps`, basic types for API responses like `GithubStats`, `LanyardResponse`).
+
+---
+
+## 🐳 Docker Deployment
+
+This project supports containerized deployment using Docker. See **[DOCKER.md](./DOCKER.md)** for comprehensive Docker deployment guide.
+
+### Quick Start with Docker
+
+```bash
+# Build the Docker image
+make build
+
+# Run with Docker Compose
+make up
+
+# View logs
+make logs
+
+# Stop services
+make down
+```
+
+### Docker Features
+
+- ✅ Multi-stage optimized build (200-300MB final image)
+- ✅ Non-root user for security
+- ✅ Health checks configured
+- ✅ Production-ready standalone output
+- ✅ Alpine Linux base for minimal footprint
+- ✅ Integrated with Jaeger for OpenTelemetry tracing
+- ✅ Multi-platform support (amd64/arm64)
+
+For detailed instructions, troubleshooting, and deployment strategies, see the [Docker Deployment Guide](./DOCKER.md).

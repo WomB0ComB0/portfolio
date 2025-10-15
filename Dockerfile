@@ -1,31 +1,76 @@
-FROM oven/bun:1 as base
-
-# Next.js app lives here
+# ---- Base Stage ----
+FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
-# Set production environment
-ENV BUN_ENV="production"
+# Install dependencies for Next.js and sharp (image optimization)
+RUN apk add --no-cache libc6-compat
 
+# ---- Dependencies Stage ----
+FROM base AS deps
 
-# Throw-away build stage to reduce the size of the final image
-FROM base as build
+# Copy package files
+COPY package.json bun.lock* ./
 
-# Install node modules
-COPY bun.lockb package.json ./
-RUN bun install
+# Install dependencies
+RUN bun install --frozen-lockfile --production=false
 
-# Copy application code
+# ---- Builder Stage ----
+FROM base AS builder
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy all source files
 COPY . .
 
-# Build application
+# Set build-time environment variables
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+# Disable Sentry during build if no auth token
+ARG SENTRY_AUTH_TOKEN
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+
+# Generate any required files (e.g., GraphQL types)
+RUN bun run gen || true
+
+# Build the Next.js application
 RUN bun run build
 
-# Final stage for app image
-FROM base
+# ---- Production Stage ----
+FROM base AS runner
 
-# Copy built application
-COPY --from=build /app /app
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Start the server by default, this can be overwritten at runtime
+# Create a non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy public assets
+COPY --from=builder /app/public ./public
+
+# Set the correct permissions for prerender cache
+RUN mkdir .next && chown nextjs:nodejs .next
+
+# Copy the Next.js build output
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
+USER nextjs
+
+# Expose the application port
 EXPOSE 3000
-CMD [ "bun", "run", "start" ]
+
+# Set the port environment variable
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD bun --version > /dev/null || exit 1
+
+# Start the Next.js server
+CMD ["node", "server.js"]

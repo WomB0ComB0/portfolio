@@ -184,6 +184,7 @@ alias package-cost='bun run scripts:package-cost'
 alias remove-duplicates='bun run scripts:remove-duplicates'
 alias tree-shake='bun run scripts:tree-shake'
 alias install='./bin/install.sh'
+alias nix='nix develop --impure'
 
 # Add an "alert" alias for long running commands
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
