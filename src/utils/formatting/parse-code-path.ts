@@ -1,4 +1,3 @@
-
 /**
  * Parses and constructs a formatted string representing the code location, including the file path,
  * associated entity name (such as a function, class, component, or decorator), and human context.
@@ -182,4 +181,3 @@ export const parseCodePathDetailed = <C, T>(
 
   return `${locationInfo} @${entityName}: ${context}`;
 };
-

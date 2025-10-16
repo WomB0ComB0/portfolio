@@ -1,4 +1,3 @@
-
 /**
  * Represents a sensitive or secret value meant to be concealed from string, JSON, or developer output.
  *
@@ -10,7 +9,7 @@
  * @version 1.0.0
  * @see {@link https://github.com/WomB0ComB0/portfolio | portfolio project}
  * @example
-* * const secret = Redacted.make('supersecret');
+ * * const secret = Redacted.make('supersecret');
  * console.log(secret.toString()); // [REDACTED]
  * ```
  */

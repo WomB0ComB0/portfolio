@@ -1,12 +1,11 @@
-
 import 'server-only';
 
-import { env } from '@/env';
-import { post } from '@/lib/http-clients/effect-fetcher';
-import { logger } from '@/utils';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { cache } from 'react';
+import { env } from '@/env';
+import { post } from '@/lib/http-clients/effect-fetcher';
+import { logger } from '@/utils';
 
 /**
  * @readonly
@@ -117,4 +116,3 @@ export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
 });
 
 export default getRepos;
-

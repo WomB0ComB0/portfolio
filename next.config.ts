@@ -44,7 +44,6 @@ const withPwa = pwa({
   cacheStartUrl: true, // Cache the start URL
   reloadOnOnline: true, // Reload the app when it comes back online
   fallbacks: {
-    document: '/offline', // Fallback route for pages
     image: '/assets/images/logo.webp', // Fallback route for images
     font: '/assets/fonts/Kodchasan-Regular.ttf', // Fallback route for fonts
   },
@@ -52,16 +51,6 @@ const withPwa = pwa({
     exclude: [/\/_next\/static\/.*(?<!\.p)\.woff2/, /\.map$/, /^manifest.*\.js$/, /\.pdf$/], // Exclude specific files from precaching
     ignoreURLParametersMatching: [/^utm_/, /^fbclid$/], // Ignore specific URL parameters
     runtimeCaching: [
-      {
-        urlPattern: /\/offline/,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'offline-page',
-          expiration: {
-            maxEntries: 1,
-          },
-        },
-      },
       {
         urlPattern: /\.(?:png|jpg|jpeg|svg|webp)$/,
         handler: 'CacheFirst',
@@ -128,8 +117,6 @@ const config: NextConfig = {
       { protocol: 'https', hostname: 'api.lanyard.rest' },
       { protocol: 'https', hostname: 'i.scdn.co' },
       { protocol: 'https', hostname: 'cdn.discordapp.com' },
-      { protocol: 'https', hostname: 'linktr.ee' },
-      { protocol: 'https', hostname: 'docs.google.com' },
       { protocol: 'https', hostname: 'cdn.sanity.io' },
     ],
     formats: ['image/avif', 'image/webp'], // Modern image formats

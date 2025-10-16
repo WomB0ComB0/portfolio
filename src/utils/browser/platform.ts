@@ -1,4 +1,3 @@
-
 /**
  * Detects if the current user agent is an iOS device (iPad, iPhone, iPod).
  *
@@ -357,4 +356,3 @@ export const isIOSOpera = (): boolean => getBrowser() === 'opera' && isIOS();
  * @version 1.0.0
  */
 export const isAndroidOpera = (): boolean => getBrowser() === 'opera' && isAndroid();
-

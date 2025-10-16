@@ -1,5 +1,3 @@
-
-import { config } from '@/config';
 import type { IconType } from 'react-icons';
 import { FaBitbucket, FaFreeCodeCamp, FaGithubAlt, FaMicrosoft } from 'react-icons/fa';
 import {
@@ -21,6 +19,7 @@ import {
   SiX,
 } from 'react-icons/si';
 import { SlGraph } from 'react-icons/sl';
+import { config } from '@/config';
 
 /**
  * @interface Link
@@ -201,4 +200,3 @@ export const links: Links = [
     icon: SiHashnode,
   },
 ];
-

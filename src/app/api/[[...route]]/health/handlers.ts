@@ -1,4 +1,3 @@
-
 import { app } from '@/constants';
 
 /**
@@ -136,4 +135,3 @@ export function handleLivenessCheck(): { message: string; data: { alive: boolean
     },
   };
 }
-

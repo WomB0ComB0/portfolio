@@ -1,6 +1,5 @@
-
-import { logger } from '@/utils';
 import type { KebabCase } from 'type-fest';
+import { logger } from '@/utils';
 
 /**
  * Converts any object into a well-formatted JSON string with a 2-space indent.
@@ -529,4 +528,3 @@ export function memoize<T extends (...args: any[]) => any>(
 export function truncate(str: string, length: number): string {
   return str.length > length ? `${str.substring(0, length)}...` : str;
 }
-

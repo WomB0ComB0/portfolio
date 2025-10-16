@@ -1,4 +1,3 @@
-
 import {
   type ActionId,
   type ActionImpl,
@@ -9,7 +8,7 @@ import {
   KBarSearch,
   useMatches,
 } from 'kbar';
-import React, { JSX } from 'react';
+import React, { type JSX } from 'react';
 import {
   FiAward,
   FiBarChart,
@@ -40,10 +39,10 @@ import { SiHashnode } from 'react-icons/si';
 export default function Palette(): JSX.Element {
   return (
     <KBarPortal>
-      <KBarPositioner className="z-50 select-none backdrop-blur bg-[#242424]/80 font-clash overflow-hidden">
-        <KBarAnimator className="w-[90%] max-w-[600px] overflow-hidden text-lg bg-[#242424] text-[#ba9bdd] rounded-lg shadow-2xl kbar">
+      <KBarPositioner className="z-50 select-none backdrop-blur bg-background/80 font-clash overflow-hidden">
+        <KBarAnimator className="w-[90%] max-w-[600px] overflow-hidden text-lg bg-background text-foreground rounded-lg shadow-2xl kbar">
           <KBarSearch
-            className="w-full p-4 text-base bg-[#242424] text-[#ba9bdd] border-b border-[#560BAD]/30 outline-none placeholder-[#ba9bdd]/50 focus:ring-2 focus:ring-[#560BAD]"
+            className="w-full p-4 text-base bg-background text-foreground border-b border-accent/30 outline-none placeholder-foreground/50 focus:ring-2 focus:ring-accent"
             placeholder="Type a command or search..."
           />
           <RenderResults />
@@ -70,7 +69,7 @@ function RenderResults(): JSX.Element {
       items={results}
       onRender={({ item, active }) =>
         typeof item === 'string' ? (
-          <div className="px-4 py-2 text-xs text-[#ba9bdd]/70 uppercase" key={item}>
+          <div className="px-4 py-2 text-xs text-foreground/70 uppercase" key={item}>
             {item}
           </div>
         ) : (
@@ -170,7 +169,7 @@ const ResultItem = React.forwardRef(
       <div
         ref={ref}
         className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-all ${
-          active ? 'bg-[#560BAD] text-[#ba9bdd]' : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
+          active ? 'bg-accent text-foreground' : 'text-foreground hover:bg-accent/20'
         }`}
       >
         <div className="flex items-center gap-3">
@@ -180,24 +179,21 @@ const ResultItem = React.forwardRef(
               {ancestors.length > 0 &&
                 ancestors.map((ancestor) => (
                   <React.Fragment key={ancestor.id}>
-                    <span className="text-[#ba9bdd]/70">{ancestor.name}</span>
-                    <span className="text-[#ba9bdd]/50">&rsaquo;</span>
+                    <span className="text-foreground/70">{ancestor.name}</span>
+                    <span className="text-foreground/50">&rsaquo;</span>
                   </React.Fragment>
                 ))}
               <span>{action.name}</span>
             </div>
             {action.subtitle && (
-              <span className="text-xs text-[#ba9bdd]/50">{action.subtitle}</span>
+              <span className="text-xs text-foreground/50">{action.subtitle}</span>
             )}
           </div>
         </div>
         {action.shortcut?.length ? (
           <div className="flex items-center">
             {action.shortcut.map((sc) => (
-              <kbd
-                key={sc}
-                className="px-2 py-1 ml-2 text-xs bg-[#560BAD]/30 text-[#ba9bdd] rounded"
-              >
+              <kbd key={sc} className="px-2 py-1 ml-2 text-xs bg-accent/30 text-foreground rounded">
                 {sc}
               </kbd>
             ))}
@@ -209,4 +205,3 @@ const ResultItem = React.forwardRef(
 );
 
 ResultItem.displayName = 'ResultItem';
-

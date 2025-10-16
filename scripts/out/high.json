@@ -2,6 +2,7 @@
   "next",
   "next-csrf",
   "react-icons",
+  "sanity",
   "lucide-react",
   "firebase",
   "typescript",

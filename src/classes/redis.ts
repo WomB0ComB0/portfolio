@@ -1,6 +1,5 @@
-
-import { env } from '@/env';
 import { Redis } from '@upstash/redis';
+import { env } from '@/env';
 
 /**
  * A singleton instance of the Upstash Redis client, configured for use with Upstash REST API.
@@ -30,4 +29,3 @@ export const redis = new Redis({
   keepAlive: true,
   readYourWrites: true,
 });
-

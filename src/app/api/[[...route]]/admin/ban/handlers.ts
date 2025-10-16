@@ -1,4 +1,3 @@
-
 import { BaseError } from '@/classes/error';
 import {
   banIp,
@@ -394,4 +393,3 @@ export const actionHandlers = {
   list: handleList,
   'get-meta': handleGetMeta,
 } as const;
-

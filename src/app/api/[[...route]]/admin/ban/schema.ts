@@ -1,4 +1,3 @@
-
 import { t } from 'elysia';
 
 /**
@@ -139,4 +138,3 @@ export const banSchemas = {
   ...banResponseSchemas,
   'ban.request': banRequestSchema,
 };
-

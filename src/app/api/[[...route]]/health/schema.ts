@@ -1,4 +1,3 @@
-
 import { t } from 'elysia';
 
 /**
@@ -137,4 +136,3 @@ export const healthSchemas = {
   'health.liveness': livenessCheckSchema,
   'health.error': errorSchema,
 };
-

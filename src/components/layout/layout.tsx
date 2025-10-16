@@ -1,13 +1,12 @@
-
 'use client';
 
-import BlurryBlob from '@/components/animations/background/blurry-blob';
-import Palette from '@/components/cmd';
-import { DotPattern } from '@/components/magicui';
-import { LiveBlocksProvider } from '@/providers/core';
 import { usePathname } from 'next/navigation';
+// import BlurryBlob from '@/components/animations/background/blurry-blob';
+import Palette from '@/components/cmd';
+import { LightRays } from '@/components/ui/light-rays';
+// import { DotPattern } from '@/components/magicui';
+import { LiveBlocksProvider } from '@/providers/core';
 import { Footer, MobileNavBar, NavBar } from '.';
-
 /**
  * @function Layout
  * @public
@@ -29,7 +28,7 @@ import { Footer, MobileNavBar, NavBar } from '.';
  * @author Mike Odnis
  * @see https://github.com/WomB0ComB0/portfolio
  * @web
- * @version 1.0.0
+ * @version 2.0.0
  */
 export default function Layout({
   children,
@@ -39,16 +38,28 @@ export default function Layout({
   const pathname = usePathname();
   return (
     <LiveBlocksProvider>
-      <div className="relative min-h-screen bg-[#242424] font-clash">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <DotPattern className="absolute inset-0" />
-          <BlurryBlob
-            firstBlobColor="bg-purple-700"
-            secondBlobColor="bg-purple-400"
-            className="ml-[70%] mr-[30%] absolute inset-0 opacity-20"
+      <div className="relative min-h-screen bg-background font-clash">
+        {/* <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
+          
+          <DotPattern 
+            className="absolute inset-0 text-foreground/[0.02]" 
+            width={20} 
+            height={20} 
+            cr={0.6}
           />
-        </div>
-        <main className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden selection:bg-purple-200/30">
+          
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl opacity-20" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/10 rounded-full blur-3xl opacity-20" />
+          
+          <BlurryBlob
+            firstBlobColor="bg-primary"
+            secondBlobColor="bg-primary/50"
+            className="ml-[70%] mr-[30%] opacity-10"
+          />
+        </div> */}
+
+        <main className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden selection:bg-primary/30">
           <Palette />
           <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
             <div className="w-[6%] fixed left-0 h-full z-20 hidden lg:block md:block">
@@ -59,6 +70,7 @@ export default function Layout({
             </div>
           </div>
           <Footer />
+          <LightRays />
         </main>
         <div className="fixed bottom-0 left-0 right-0 z-50 block lg:hidden md:hidden">
           <MobileNavBar path={pathname ?? ''} />
@@ -67,4 +79,3 @@ export default function Layout({
     </LiveBlocksProvider>
   );
 }
-

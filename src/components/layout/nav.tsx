@@ -2,12 +2,11 @@
 
 import { useKBar } from 'kbar';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { FiCommand } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { NavbarItems } from '@/constants/index';
-
-export const NavBar = ({ path }: { path: string }) => {
+export const NavBar = memo(({ path }: { path: string }) => {
   const { query } = useKBar();
   const [tooltipVisibility, setTooltipVisibility] = useState(
     Array(NavbarItems.length + 1).fill(false),
@@ -23,9 +22,7 @@ export const NavBar = ({ path }: { path: string }) => {
               <Button
                 asChild
                 className={`w-full flex justify-center items-center ${
-                  isActive
-                    ? 'bg-[#560BAD] hover:bg-[#560BAD]/80'
-                    : 'bg-[#242424] hover:bg-[#560BAD]/50'
+                  isActive ? 'bg-primary hover:bg-primary/80' : 'bg-card hover:bg-primary/50'
                 } shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out relative`}
                 onMouseLeave={() => {
                   const temp = [...tooltipVisibility];
@@ -42,14 +39,14 @@ export const NavBar = ({ path }: { path: string }) => {
               >
                 <Link href={item.slug}>
                   <div className="p-2">
-                    <item.icon size="1rem" className="text-[#ba9bdd]" />
+                    <item.icon size="1rem" className="text-accent" />
                   </div>
                 </Link>
               </Button>
               {tooltipVisibility[index] && (
-                <span className="hidden md:block absolute min-w-max text-sm font-medium leading-none right-[-8rem] top-1/2 -translate-y-1/2 px-3 py-2 rounded-md shadow-lg text-[#ba9bdd] bg-[#242424] border border-[#560BAD] z-50 pointer-events-none animate-in fade-in slide-in-from-left-2 duration-200">
+                <span className="hidden md:block absolute min-w-max text-sm font-medium leading-none right-[-8rem] top-1/2 -translate-y-1/2 px-3 py-2 rounded-md shadow-lg text-accent bg-card border border-primary z-50 pointer-events-none animate-in fade-in slide-in-from-left-2 duration-200">
                   {item.name}
-                  <span className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-[#242424] border-l border-b border-[#560BAD]"></span>
+                  <span className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-card border-l border-b border-primary"></span>
                 </span>
               )}
             </div>
@@ -58,7 +55,7 @@ export const NavBar = ({ path }: { path: string }) => {
         <div className="flex flex-col gap-4">
           <div className="relative group">
             <Button
-              className="w-full flex justify-center items-center bg-[#242424] hover:bg-[#560BAD]/50 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out relative"
+              className="w-full flex justify-center items-center bg-card hover:bg-primary/50 shadow hover:shadow-xl rounded hover:scale-110 duration-300 ease-in-out relative"
               onClick={query.toggle}
               onMouseLeave={() => {
                 const temp = [...tooltipVisibility];
@@ -74,21 +71,21 @@ export const NavBar = ({ path }: { path: string }) => {
               suppressHydrationWarning
             >
               <div className="p-2">
-                <FiCommand size="1rem" className="text-[#ba9bdd]" />
+                <FiCommand size="1rem" className="text-accent" />
               </div>
             </Button>
             {tooltipVisibility[NavbarItems.length] && (
-              <span className="hidden md:block absolute min-w-max text-sm font-medium leading-none right-[-8rem] top-1/2 -translate-y-1/2 px-3 py-2 rounded-md shadow-lg text-[#ba9bdd] bg-[#242424] border border-[#560BAD] z-50 pointer-events-none animate-in fade-in slide-in-from-left-2 duration-200">
+              <span className="hidden md:block absolute min-w-max text-sm font-medium leading-none right-[-8rem] top-1/2 -translate-y-1/2 px-3 py-2 rounded-md shadow-lg text-accent bg-card border border-primary z-50 pointer-events-none animate-in fade-in slide-in-from-left-2 duration-200">
                 Command Menu
-                <span className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-[#242424] border-l border-b border-[#560BAD]"></span>
+                <span className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-card border-l border-b border-primary"></span>
               </span>
             )}
           </div>
         </div>
       </div>
-      <div className="border-r-2 border-[#ba9bdd] h-full mt-4"></div>
+      <div className="border-r-2 border-accent h-full mt-4"></div>
     </div>
   );
-};
+});
 NavBar.displayName = 'NavBar';
 export default NavBar;

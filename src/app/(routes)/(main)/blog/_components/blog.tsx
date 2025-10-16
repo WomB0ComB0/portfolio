@@ -1,16 +1,15 @@
-
 'use client';
 
-import { MagicCard } from '@/components/magicui';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { format } from 'date-fns';
 import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
+import { MagicCard } from '@/components/magicui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @readonly
@@ -143,20 +142,23 @@ const BlogSkeleton = (): JSX.Element => (
     <Skeleton className="w-64 h-10 mb-8 mx-auto" />
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {[...Array(6)].map((_, i) => (
-        <Card key={i} className="h-full">
-          <CardHeader>
-            <Skeleton className="h-6 w-3/4" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-2/3 mb-4" />
-            <div className="flex justify-between">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-          </CardContent>
-        </Card>
+        <MagicCard key={i} className="h-full">
+          <Card className="h-full">
+            <CardHeader>
+              <Skeleton className="h-6 w-11/12" />
+              <Skeleton className="h-6 w-3/4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-5/6 mb-4" />
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Skeleton className="w-4 h-4 mr-1 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+        </MagicCard>
       ))}
     </div>
   </div>
@@ -178,9 +180,9 @@ const BlogSkeleton = (): JSX.Element => (
  */
 const ErrorMessage = (): JSX.Element => (
   <div className="container mx-auto px-4 py-8">
-    <Card className="bg-red-50 border-red-200">
+    <Card className="border-destructive/30 bg-destructive/10">
       <CardContent className="flex items-center justify-center p-6">
-        <p className="text-red-600 font-semibold">
+        <p className="font-semibold text-destructive">
           Failed to load blog posts. Please try again later.
         </p>
       </CardContent>
@@ -189,4 +191,3 @@ const ErrorMessage = (): JSX.Element => (
 );
 
 export default Blog;
-

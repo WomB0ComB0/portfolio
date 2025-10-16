@@ -1,4 +1,3 @@
-
 import {
   FiAward,
   FiBarChart,
@@ -230,4 +229,3 @@ export const actions = [
     icon: FiHeart({ size: '1rem' }),
   },
 ];
-

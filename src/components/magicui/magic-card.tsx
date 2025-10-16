@@ -1,4 +1,3 @@
-
 'use client';
 
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
@@ -116,7 +115,7 @@ export function MagicCard({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'group relative flex size-full overflow-hidden rounded-xl bg-[#ba9bdd]-50 dark:bg-[#ba9bdd] border border-[#ba9bdd] dark:border-[#ba9bdd]-700 text-[#ba9bdd] dark:text-[#ba9bdd]',
+        'group relative flex size-full overflow-hidden rounded-xl bg-primary/5 dark:bg-primary border border-primary dark:border-primary/70 text-primary dark:text-primary',
         className,
       )}
     >
@@ -133,4 +132,3 @@ export function MagicCard({
     </div>
   );
 }
-

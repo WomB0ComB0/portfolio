@@ -75,11 +75,7 @@ const rawPlacesData: Array<[string, string, number, number]> = [
 const categoryRules = [
   {
     category: 'Hackathon',
-    patterns: [
-      /\bhackathon\b/i,
-      /hack(?!er\b)/i,
-      /\bhacks?\b/i,
-    ],
+    patterns: [/\bhackathon\b/i, /hack(?!er\b)/i, /\bhacks?\b/i],
   },
   {
     category: 'Conference',
@@ -168,7 +164,7 @@ const assignCategory = (name: string, description: string): string => {
  */
 const isFeatured = (name: string): boolean => {
   const majorEvents = ['Treehacks'];
-  return majorEvents.some(event => name.includes(event));
+  return majorEvents.some((event) => name.includes(event));
 };
 
 /**

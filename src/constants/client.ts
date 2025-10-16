@@ -1,4 +1,3 @@
-
 /**
  * @readonly
  * @public
@@ -119,4 +118,3 @@ export const NavbarItems = [
     icon: FiHeart,
   },
 ];
-

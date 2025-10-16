@@ -1,16 +1,16 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { age } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQueries } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { age } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
 
 /**
  * @interface StatCard
@@ -88,6 +88,49 @@ const statCards: StatCard[] = [
     query: 'wakatime',
   },
 ];
+
+/**
+ * Codestats badge component.
+ */
+function CodeStatsBadge() {
+  return (
+    <a
+      href="https://codestats.net/users/WomB0ComB0"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="View my CodeStats profile"
+      className="inline-flex items-center mb-4 w-fit px-2 py-0.5 rounded-full text-xs font-semibold bg-[#23252b] text-white shadow hover:opacity-90 transition"
+      style={{ gap: 4 }}
+    >
+      {/* You can insert an icon here if you want, e.g., a code icon */}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden="true"
+        className="mr-1"
+      >
+        <rect width="20" height="20" rx="6" fill="#5CC3F6" />
+        <path
+          d="M7.5 6L4.5 10L7.5 14"
+          stroke="#23252b"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M12.5 14L15.5 10L12.5 6"
+          stroke="#23252b"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span>CodeStats</span>
+    </a>
+  );
+}
 
 /**
  * DevStats React component displays a set of developer-related statistics using animated cards.
@@ -257,14 +300,18 @@ export default memo(function DevStats() {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* CodeStats badge on top */}
+        <div className="col-span-full flex justify-start">
+          <CodeStatsBadge />
+        </div>
         {statCards.map((card, index) => (
           <Card
             key={`${card.title}-${index}-skeleton`}
-            className="overflow-hidden h-full shadow-lg bg-gradient-to-br from-purple-600 to-indigo-700"
+            className="overflow-hidden h-full shadow-lg bg-card"
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader>
+              {/* Updated: Removed the extra icon skeleton from CardHeader */}
               <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-4 rounded-full" />
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-2">
@@ -281,6 +328,10 @@ export default memo(function DevStats() {
   // Render main animated statistics grid
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* CodeStats badge on top */}
+      <div className="col-span-full flex justify-start">
+        <CodeStatsBadge />
+      </div>
       {statCards.map((card, index) => {
         const value = getCardValue(card);
         return (
@@ -290,10 +341,10 @@ export default memo(function DevStats() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
           >
-            <Card className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-600 to-indigo-700 text-white">
+            <Card className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-primary text-primary-foreground">
               <CardHeader>
                 <CardTitle
-                  className={`${card.title === 'Site Views' ? 'text-white' : 'text-gray-300'}`}
+                  className={`${card.title === 'Site Views' ? 'text-primary-foreground' : 'text-primary-foreground/80'}`}
                 >
                   {card.title}
                 </CardTitle>
@@ -305,7 +356,7 @@ export default memo(function DevStats() {
                   {card.query === 'wakatime' && <FiClock className="h-4 w-4" />}
                   <AnimatePresence>
                     <NumberTicker
-                      className="text-2xl font-bold text-white"
+                      className="text-2xl font-bold text-primary-foreground"
                       value={Number(value) ?? '-'}
                       decimalPlaces={0}
                     />

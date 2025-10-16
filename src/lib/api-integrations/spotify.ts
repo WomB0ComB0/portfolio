@@ -1,9 +1,8 @@
-
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { env } from '@/env';
 import { get, post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import 'server-only';
 
 const client_id = env.SPOTIFY_CLIENT_ID;
@@ -201,4 +200,3 @@ export const currentlyPlayingSong = async (): Promise<any | null> => {
     return null;
   }
 };
-

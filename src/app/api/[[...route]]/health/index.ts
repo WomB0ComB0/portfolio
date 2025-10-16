@@ -1,4 +1,3 @@
-
 import { Elysia } from 'elysia';
 import {
   handleDetailedHealthCheck,
@@ -217,4 +216,3 @@ export const healthRoute = new Elysia({ prefix: '/health' })
       },
     },
   );
-

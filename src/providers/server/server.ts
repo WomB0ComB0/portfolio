@@ -1,8 +1,7 @@
-
+import { edenTreaty } from '@elysiajs/eden';
 import type { API } from '@/app/api/[[...route]]/route';
 import type { API_V1 } from '@/app/api/v1';
 import { getURL } from '@/utils';
-import { edenTreaty } from '@elysiajs/eden';
 import 'server-only';
 
 /**
@@ -51,4 +50,3 @@ const apiv1 = edenTreaty<API_V1>(getURL());
 const api = edenTreaty<API>(getURL());
 
 export { api, apiv1 };
-

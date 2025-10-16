@@ -1,7 +1,5 @@
-
 'use client';
 
-import { logger } from '@/utils';
 import type { FirebaseError } from 'firebase/app';
 import {
   GithubAuthProvider,
@@ -13,10 +11,11 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { atomEffect } from 'jotai-effect';
 import { loadable } from 'jotai/utils';
+import { atomEffect } from 'jotai-effect';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
+import { logger } from '@/utils';
 import { app } from './firebase';
 
 /**
@@ -248,4 +247,3 @@ export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] 
  * @version 1.0.0
  */
 export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';
-

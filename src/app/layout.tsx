@@ -68,13 +68,7 @@ const kodchasanFont = localFont({
   preload: true,
 });
 
-export default async function RootLayout({
-  children,
-  modal,
-}: {
-  children: React.ReactNode;
-  modal: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const pathname = headersList.get('x-url') || '';
   return (
@@ -116,7 +110,6 @@ export default async function RootLayout({
         </noscript>
         <GlobalProvider>
           {children}
-          {modal}
           <SpeedInsights />
           <Analytics />
         </GlobalProvider>

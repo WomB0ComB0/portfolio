@@ -1,6 +1,5 @@
-
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 /**
  * @constant Privacy
@@ -66,4 +65,3 @@ export default function PrivacyPage() {
 }
 
 PrivacyPage.displayName = 'PrivacyPage';
-

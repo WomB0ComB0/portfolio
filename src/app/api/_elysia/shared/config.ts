@@ -1,5 +1,3 @@
-
-import { getURL, logger, Stringify } from '@/utils';
 import { cors } from '@elysiajs/cors';
 import type { ElysiaOpenTelemetryOptions } from '@elysiajs/opentelemetry';
 import { opentelemetry } from '@elysiajs/opentelemetry';
@@ -10,11 +8,12 @@ import { Elysia } from 'elysia';
 import { ip } from 'elysia-ip';
 import {
   DefaultContext,
-  rateLimit,
   type Generator,
   type Options as RateLimitOptions,
+  rateLimit,
 } from 'elysia-rate-limit';
 import { elysiaHelmet } from 'elysiajs-helmet';
+import { getURL, logger, Stringify } from '@/utils';
 import { batchSpanProcessor, otelResource, permission } from '../constants';
 
 /**

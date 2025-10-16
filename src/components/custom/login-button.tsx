@@ -33,17 +33,17 @@ export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
 
   return (
     <Button
-      variant="outline"
+      variant="default"
       onClick={signIn}
       disabled={inFlight}
-      className="bg-purple-700 text-white hover:bg-purple-600 focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-purple-800"
+      className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       {...props}
     >
       {getIcon()}
       {getText()}
     </Button>
   );
-}
+};
 
 type LoginButtonProps = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {

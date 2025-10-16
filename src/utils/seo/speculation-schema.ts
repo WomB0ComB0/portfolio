@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -133,4 +132,3 @@ export const generateSchema = (props: SchemaProps): Record<string, unknown> => {
 
   return schema;
 };
-

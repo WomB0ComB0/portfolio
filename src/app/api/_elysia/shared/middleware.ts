@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview
  * Shared middleware utilities for Elysia routes.
@@ -218,4 +217,3 @@ export function createErrorHandlerWithDefault<T extends Record<string, unknown>>
     };
   };
 }
-

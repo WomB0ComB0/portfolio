@@ -1,6 +1,5 @@
-
-import { Logger } from '@/utils';
 import { type HTTPHeaders, StatusMap } from 'elysia';
+import { Logger } from '@/utils';
 
 /**
  * @interface AuthConfig

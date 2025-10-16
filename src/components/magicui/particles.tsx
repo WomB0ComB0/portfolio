@@ -1,4 +1,3 @@
-
 'use client';
 
 import type React from 'react';
@@ -432,4 +431,3 @@ const Particles: React.FC<ParticlesProps> = ({
 };
 
 export default Particles;
-

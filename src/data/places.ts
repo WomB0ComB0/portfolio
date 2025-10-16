@@ -1,4 +1,3 @@
-
 /**
  * An array of Google Maps style definitions for customizing the appearance of the map in the portfolio project.
  *
@@ -103,4 +102,3 @@ export const MapStyles = [
     stylers: [{ color: '#242424' }],
   },
 ] as const satisfies google.maps.MapTypeStyle[];
-

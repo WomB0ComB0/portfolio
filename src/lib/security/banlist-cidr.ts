@@ -1,8 +1,7 @@
-
+import { Address4, Address6 } from 'ip-address';
 import { redis } from '@/classes/redis';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
-import { Address4, Address6 } from 'ip-address';
 
 const log = Logger.getLogger('BanlistCIDR');
 
@@ -209,4 +208,3 @@ export async function getBannedCidrs(): Promise<string[]> {
     return [];
   }
 }
-

@@ -1,4 +1,4 @@
-
+import { ImageResponse } from 'next/og';
 /**
  * @module OpenGraph
  * @description Handles dynamic OpenGraph image generation for social media sharing.
@@ -9,7 +9,6 @@
  * @version 1.0.0
  */
 import { constructMetadata, getURL, logger } from '@/utils';
-import { ImageResponse } from 'next/og';
 
 /**
  * Generates an OpenGraph-compliant image response for embedding in social and messaging platforms.
@@ -136,4 +135,3 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
     });
   }
 }
-

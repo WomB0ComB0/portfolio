@@ -1,6 +1,5 @@
-
-import { Stringify } from '@/utils';
 import { StatusMap } from 'elysia';
+import { Stringify } from '@/utils';
 
 /**
  * Represents the structure of a successful API response.
@@ -219,4 +218,3 @@ export function createUnauthorizedResponse(message = 'Unauthorized'): Response {
 export function createNotFoundResponse(message = 'Not Found'): Response {
   return createErrorResponse(message, undefined, { status: 'Not Found' });
 }
-

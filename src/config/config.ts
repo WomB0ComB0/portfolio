@@ -1,4 +1,3 @@
-
 import { app } from '@/constants';
 import { env } from '@/env';
 
@@ -172,4 +171,3 @@ export const config = {
     apiVersion: env.NEXT_PUBLIC_SANITY_API_VERSION,
   },
 } as const;
-

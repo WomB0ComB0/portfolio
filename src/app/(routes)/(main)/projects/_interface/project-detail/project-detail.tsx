@@ -1,220 +1,242 @@
-
 'use client';
 
-import Layout from '@/components/layout/layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSanityProjects } from '@/hooks';
-import { urlFor } from '@/lib/sanity/client';
-import { ArrowLeft, Code, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Github } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { type JSX, Suspense } from 'react';
+import { notFound } from 'next/navigation';
+import type { JSX } from 'react';
+import Layout from '@/components/layout/layout';
+import { Button } from '@/components/ui/button';
+import { useSanityProjects } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
+import { formatDatePeriod, formatMonthYear } from '@/utils';
 
-/**
- * Props for {@link ProjectDetail} component that receives route parameters.
- *
- * @interface ProjectDetailProps
- * @property {object} params - Route parameters.
- * @property {string} params.id - The ID of the project to display in detail.
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @readonly
- */
 interface ProjectDetailProps {
   params: { id: string };
 }
 
-/**
- * Project detail content section.
- *
- * Renders the full details for a given project by ID, including gallery, description, and action buttons.
- *
- * @function
- * @param {object} props - The component props.
- * @param {string} props.id - The Sanity document id for the project.
- * @returns {JSX.Element} The rendered project detail interface.
- * @throws {Error} If the project is not found, a not-found UI is rendered.
- * @example
- * <ProjectDetailContent id="abc123" />
- * @web
- * @see ProjectDetail
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- */
-const ProjectDetailContent = ({ id }: { id: string }): JSX.Element => {
-  const { data: projects } = useSanityProjects();
-  const project = (projects as any[]).find((p: any) => p._id === id);
+const ProjectDetailSkeleton = (): JSX.Element => (
+  <Layout>
+    {/* Hero Skeleton */}
+    <div className="relative w-full h-[60vh] min-h-[400px] max-h-[600px] bg-muted animate-pulse">
+      {/* Back Button Skeleton */}
+      <div className="absolute top-8 left-8 z-20">
+        <div className="h-10 w-28 bg-muted animate-pulse rounded-md" />
+      </div>
+    </div>
+
+    {/* Content Skeleton */}
+    <div className="container mx-auto px-4 -mt-32 relative z-10 pb-24">
+      <div className="max-w-4xl mx-auto">
+        {/* Title & Meta Skeleton */}
+        <div className="mb-12">
+          <div className="h-12 w-3/4 bg-muted animate-pulse rounded-md mb-6" /> {/* Title */}
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <div className="h-6 w-24 bg-muted animate-pulse rounded-full" /> {/* Category */}
+            <div className="h-6 w-20 bg-muted animate-pulse rounded-full" /> {/* Status */}
+            <div className="h-6 w-32 bg-muted animate-pulse rounded-md" /> {/* Date Range */}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="h-12 w-32 bg-muted animate-pulse rounded-md" /> {/* Live Button */}
+            <div className="h-12 w-36 bg-muted animate-pulse rounded-md" /> {/* Github Button */}
+          </div>
+        </div>
+
+        {/* Description Skeleton */}
+        <div className="mb-12">
+          <div className="h-7 w-full bg-muted animate-pulse rounded-md mb-3" />
+          <div className="h-7 w-11/12 bg-muted animate-pulse rounded-md mb-3" />
+          <div className="h-7 w-full bg-muted animate-pulse rounded-md" />
+        </div>
+
+        {/* Long Description Skeleton */}
+        <div className="mb-12">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-4" /> {/* Overview Title */}
+          <div className="h-7 w-full bg-muted animate-pulse rounded-md mb-3" />
+          <div className="h-7 w-11/12 bg-muted animate-pulse rounded-md mb-3" />
+          <div className="h-7 w-full bg-muted animate-pulse rounded-md" />
+        </div>
+
+        {/* Technologies Skeleton */}
+        <div className="mb-12">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-4" />{' '}
+          {/* Technologies Title */}
+          <div className="flex flex-wrap gap-2">
+            <div className="h-10 w-24 bg-muted animate-pulse rounded-lg" />
+            <div className="h-10 w-28 bg-muted animate-pulse rounded-lg" />
+            <div className="h-10 w-20 bg-muted animate-pulse rounded-lg" />
+            <div className="h-10 w-32 bg-muted animate-pulse rounded-lg" />
+          </div>
+        </div>
+
+        {/* Gallery Skeleton */}
+        <div className="mb-12">
+          <div className="h-8 w-32 bg-muted animate-pulse rounded-md mb-6" /> {/* Gallery Title */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="relative aspect-video rounded-lg bg-muted animate-pulse" />
+            <div className="relative aspect-video rounded-lg bg-muted animate-pulse" />
+            <div className="relative aspect-video rounded-lg bg-muted animate-pulse hidden sm:block" />
+            <div className="relative aspect-video rounded-lg bg-muted animate-pulse hidden lg:block" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </Layout>
+);
+
+export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
+  const { data: projects, isLoading } = useSanityProjects();
+
+  if (isLoading) {
+    return <ProjectDetailSkeleton />;
+  }
+
+  const project = (projects as any[])?.find((p: any) => p._id === params.id);
 
   if (!project) {
-    return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <h1 className="text-3xl font-bold text-purple-300 mb-4">Project Not Found</h1>
-        <p className="text-gray-400 mb-8">The project you are looking for does not exist.</p>
-        <Button
-          asChild
-          variant="outline"
-          className="text-purple-300 border-purple-700 hover:bg-purple-800"
-        >
-          <Link href="/projects">
-            <ArrowLeft className="mr-2 h-5 w-5" /> Back to Projects
-          </Link>
-        </Button>
-      </div>
-    );
+    notFound();
   }
 
   const dateRange = project.endDate
-    ? `${new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
-    : `Started ${new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+    ? formatDatePeriod(project.startDate, project.endDate)
+    : `Started ${formatMonthYear(project.startDate)}`;
 
   return (
-    <Card className="bg-[#1E1E1E] border-purple-800">
-      {project.image && (
-        <div className="w-full h-96 relative">
+    <Layout>
+      {/* Hero Section */}
+      <div className="relative w-full h-[60vh] min-h-[400px] max-h-[600px] bg-card">
+        {project.image ? (
           <Image
-            src={urlFor(project.image).width(1200).height(384).url()}
+            src={urlFor(project.image).width(1920).height(1080).url() || '/placeholder.svg'}
             alt={project.image.alt || project.title}
-            width={1200}
-            height={384}
-            className="object-cover w-full"
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 100vw"
           />
-        </div>
-      )}
-      <CardHeader className="p-6">
-        <CardTitle className="text-3xl font-bold text-purple-300 mb-2">{project.title}</CardTitle>
-        <div className="flex gap-4 text-sm text-gray-400">
-          <p>Category: {project.category}</p>
-          <p>Status: {project.status}</p>
-        </div>
-        <p className="text-sm text-gray-500">{dateRange}</p>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        <div>
-          <h3 className="text-xl font-semibold text-purple-300 mb-2">Description</h3>
-          <p className="text-base text-gray-300">{project.description}</p>
-        </div>
-
-        {project.longDescription && (
-          <div>
-            <h3 className="text-xl font-semibold text-purple-300 mb-2">Detailed Overview</h3>
-            <p className="text-base text-gray-300 whitespace-pre-line">{project.longDescription}</p>
-          </div>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-secondary to-accent" />
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
-        {project.technologies && project.technologies.length > 0 && (
-          <div>
-            <h3 className="text-xl font-semibold text-purple-300 mb-2">Technologies</h3>
-            <div className="flex flex-wrap gap-2">
-              {project.technologies.map((tech: string) => (
-                <span
-                  key={tech}
-                  className="px-3 py-1 text-sm bg-purple-700 text-purple-200 rounded-full"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {project.images && project.images.length > 0 && (
-          <div>
-            <h3 className="text-xl font-semibold text-purple-300 mb-2">Gallery</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {project.images.map((img: any, index: number) => (
-                <div key={index} className="relative h-64">
-                  <Image
-                    src={urlFor(img).width(600).height(256).url()}
-                    alt={img.alt || `${project.title} screenshot ${index + 1}`}
-                    width={600}
-                    height={256}
-                    className="object-cover rounded-lg"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-4 pt-4">
-          {project.liveUrl && (
-            <Link href={project.liveUrl} target="_blank" rel="noopener noreferrer">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-purple-800 hover:bg-purple-700 border-purple-600 text-purple-200"
-              >
-                View Live <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          )}
-          {project.githubUrl && (
-            <Link href={project.githubUrl} target="_blank" rel="noopener noreferrer">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200"
-              >
-                View Code <Code className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        <div className="pt-6 border-t border-purple-700">
+        {/* Back Button */}
+        <div className="absolute top-8 left-8 z-20">
           <Button
             asChild
             variant="outline"
-            className="text-purple-300 border-purple-700 hover:bg-purple-800"
+            size="sm"
+            className="bg-background/80 backdrop-blur-sm border-border hover:bg-background"
           >
             <Link href="/projects">
-              <ArrowLeft className="mr-2 h-5 w-5" /> Back to Projects
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
             </Link>
           </Button>
         </div>
-      </CardContent>
-    </Card>
-  );
-};
+      </div>
 
-/**
- * Project detail page for the <b>portfolio</b> project.
- *
- * Renders the full detail view for a project specified via route parameters,
- * including a loading suspense fallback and layout wrapping.
- *
- * @function
- * @param {ProjectDetailProps} props - Parameters including the project id from Next.js routing.
- * @returns {JSX.Element} The rendered project details page within the layout.
- * @throws {Error} If the project fails to load, a fallback UI is rendered.
- * @web
- * @see https://github.com/WomB0ComB0/portfolio
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @public
- * @example
- * <ProjectDetail params={{ id: "abc123" }} />
- */
-export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
-  return (
-    <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <Suspense
-          fallback={
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent"></div>
-              <p className="text-gray-400 mt-4">Loading project details...</p>
+      {/* Content */}
+      <div className="container mx-auto px-4 -mt-32 relative z-10 pb-24">
+        <div className="max-w-4xl mx-auto">
+          {/* Title & Meta */}
+          <div className="mb-12">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-6 text-balance">
+              {project.title}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
+              <span className="px-3 py-1 bg-secondary/20 text-secondary-foreground rounded-full">
+                {project.category}
+              </span>
+              <span className="px-3 py-1 bg-accent/20 text-accent-foreground rounded-full">
+                {project.status}
+              </span>
+              <span>{dateRange}</span>
             </div>
-          }
-        >
-          <ProjectDetailContent id={params.id} />
-        </Suspense>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3">
+              {project.liveUrl && (
+                <Button asChild size="lg" className="gap-2">
+                  <Link href={project.liveUrl} target="_blank" rel="noopener noreferrer">
+                    View Live
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
+              {project.githubUrl && (
+                <Button asChild variant="outline" size="lg" className="gap-2 bg-transparent">
+                  <Link href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                    <Github className="h-4 w-4" />
+                    Source Code
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="prose prose-invert max-w-none mb-12">
+            <p className="text-lg sm:text-xl text-foreground/90 leading-relaxed">
+              {project.description}
+            </p>
+          </div>
+
+          {/* Long Description */}
+          {project.longDescription && (
+            <div className="mb-12">
+              <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4">Overview</h2>
+              <p className="text-foreground/80 leading-relaxed whitespace-pre-line">
+                {project.longDescription}
+              </p>
+            </div>
+          )}
+
+          {/* Technologies */}
+          {project.technologies && project.technologies.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4">
+                Technologies
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {project.technologies.map((tech: string) => (
+                  <span
+                    key={tech}
+                    className="px-4 py-2 bg-muted text-muted-foreground rounded-lg text-sm font-medium"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Gallery */}
+          {project.images && project.images.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-6">Gallery</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {project.images.map((img: any, index: number) => (
+                  <div
+                    key={index}
+                    className="relative aspect-video rounded-lg overflow-hidden bg-card"
+                  >
+                    <Image
+                      src={urlFor(img).width(1200).height(675).url() || '/placeholder.svg'}
+                      alt={img.alt || `${project.title} screenshot ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );
 };
-
+ProjectDetail.displayName = 'ProjectDetail';
+export default ProjectDetail;

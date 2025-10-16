@@ -1,11 +1,10 @@
-
 'use client';
 
 import {
   AnimatePresence,
   motion,
-  useInView,
   type UseInViewOptions,
+  useInView,
   type Variants,
 } from 'motion/react';
 import { useRef } from 'react';

@@ -1,13 +1,12 @@
-
 'use client';
 
-import type { API } from '@/app/api/[[...route]]/route';
-import type { API_V1 } from '@/app/api/v1';
-import { getURL } from '@/utils';
 import { edenFetch } from '@elysiajs/eden';
 import type { QueryClient } from '@tanstack/react-query';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import type { API } from '@/app/api/[[...route]]/route';
+import type { API_V1 } from '@/app/api/v1';
+import { getURL } from '@/utils';
 import { createQueryClient } from '.';
 
 /**

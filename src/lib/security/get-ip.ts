@@ -1,4 +1,3 @@
-
 import type { NextApiRequest } from 'next';
 
 /**
@@ -74,4 +73,3 @@ export function getClientIP(req: Request | NextApiRequest): string {
 export default function getIP(request: Request | NextApiRequest): string | undefined {
   return getClientIP(request);
 }
-

@@ -28,7 +28,7 @@ const allDependencies = [...dependencies, ...devDependencies];
  * @readonly
  * @description The absolute path to the output directory where the categorized package size JSON files will be saved.
  */
-const OUTPUT_DIR = `${process.cwd()}/bin/out`;
+const OUTPUT_DIR = `${process.cwd()}/scripts/out`;
 
 /**
  * Fetches the unpacked size of a given package from the npm registry.

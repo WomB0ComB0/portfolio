@@ -1,7 +1,6 @@
-
-import { env } from '@/env';
 import * as _ from 'crypto';
 import { nextCsrf } from 'next-csrf';
+import { env } from '@/env';
 
 /**
  * Initializes CSRF protection utilities using `next-csrf`.
@@ -55,4 +54,3 @@ const { setup, csrf } = nextCsrf({
 const csrfToken = _.randomBytes(32).toString('hex');
 
 export { csrf, csrfToken, setup };
-

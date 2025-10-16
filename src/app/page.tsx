@@ -5,90 +5,78 @@ import Image from 'next/image';
 import { SiGooglescholar } from 'react-icons/si';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { app } from '@/constants';
 
 export default function HomePage() {
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <section className="w-full max-w-5xl mx-auto bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-purple-700 rounded-2xl overflow-hidden shadow-2xl">
-          <article className="p-8 space-y-8">
-            <div className="flex flex-col lg:flex-row items-center gap-8">
-              <div className="flex-shrink-0 relative group">
-                <Image
-                  src="/assets/images/Profile.png"
-                  alt="Mike Odnis"
-                  width={250}
-                  height={250}
-                  className="rounded-full object-cover w-56 h-56 lg:w-64 lg:h-64 border-4 border-purple-500 shadow-lg group-hover:scale-105 transition-transform duration-300"
-                  priority
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span className="text-white text-lg font-semibold">Mike Odnis</span>
-                </div>
-              </div>
-              <div className="flex-grow text-center lg:text-left">
-                <h1 className="text-4xl font-bold mb-3 text-purple-300 tracking-wider">
-                  Mike Odnis
-                </h1>
-                <h2 className="text-xl font-medium text-purple-400 mb-4">
-                  Software Developer & Computer Science Student
-                </h2>
-                <p className="text-gray-300 mb-6 leading-relaxed">
-                  I am a passionate and driven undergraduate Computer Science student with a strong
-                  specialization in full-stack web development. My journey in technology is fueled
-                  by a desire to build beautiful, intuitive, and high-performance applications. As a
-                  first-generation student, I am proud of my accomplishments and continuously strive
-                  to learn and grow. I am a quick learner, a collaborative team player, and I am
-                  currently seeking new opportunities to apply my skills and contribute to
-                  innovative projects.
-                </p>
-                <div className="flex justify-center lg:justify-start gap-4 flex-wrap">
-                  <Button
-                    variant="outline"
-                    className="bg-purple-800 hover:bg-purple-700 border-purple-600 text-purple-300"
-                    onClick={() => window.open('https://github.com/WomB0ComB0', '_blank')}
-                  >
-                    <Github className="h-5 w-5 mr-2" />
+      <div className="container mx-auto px-6 py-16 max-w-4xl">
+        {/* Hero Section */}
+        <section className="mb-20">
+          <div className="flex flex-col md:flex-row gap-12 items-start">
+            <div className="flex-shrink-0">
+              <Image
+                src="https://avatars.githubusercontent.com/u/95197809?v=4"
+                alt="Mike Odnis's profile picture"
+                width={160}
+                height={160}
+                className="rounded-full object-cover w-40 h-40 border border-border"
+                priority={true}
+                sizes="160px"
+                placeholder="empty"
+              />
+            </div>
+            <div className="flex-grow">
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground text-balance">
+                Mike Odnis
+              </h1>
+              <p className="text-xl text-muted-foreground mb-6 leading-relaxed">
+                Software Developer & Computer Science Student
+              </p>
+              <p className="text-base text-foreground leading-relaxed mb-8 max-w-2xl">
+                I am a passionate and driven undergraduate Computer Science student specializing in
+                full-stack web development. My journey in technology is fueled by a desire to build
+                beautiful, intuitive, and high-performance applications. As a first-generation
+                student, I continuously strive to learn and grow while seeking opportunities to
+                contribute to innovative projects.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+                  <a href="https://github.com/WomB0ComB0" target="_blank" rel="noopener noreferrer">
+                    <Github className="h-4 w-4" />
                     GitHub
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-blue-800 hover:bg-blue-700 border-blue-600 text-blue-300"
-                    onClick={() => window.open('https://linkedin.com/in/mikeodnis', '_blank')}
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+                  <a
+                    href="https://linkedin.com/in/mikeodnis"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <Linkedin className="h-5 w-5 mr-2" />
+                    <Linkedin className="h-4 w-4" />
                     LinkedIn
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-red-800 hover:bg-red-700 border-red-600 text-red-300"
-                    onClick={() => window.open(`mailto:${app.email}`, '_blank')}
-                  >
-                    <Mail className="h-5 w-5 mr-2" />
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+                  <a href={`mailto:${app.email}`} target="_blank" rel="noopener noreferrer">
+                    <Mail className="h-4 w-4" />
                     Email
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-gray-700 hover:bg-gray-600 border-gray-500 text-gray-300"
-                    onClick={() =>
-                      window.open(
-                        'https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ',
-                        '_blank',
-                      )
-                    }
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+                  <a
+                    href="https://scholar.google.com/citations?hl=en&authuser=1&user=P-wHEGsAAAAJ"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <SiGooglescholar className="h-5 w-5 mr-2" />
+                    <SiGooglescholar className="h-4 w-4" />
                     Scholar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-green-700 hover:bg-green-600 border-green-600 text-green-300"
-                    onClick={() => window.open('https://linktr.ee/mikeodnis', '_blank')}
-                  >
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
+                  <a href="https://linktr.ee/mikeodnis" target="_blank" rel="noopener noreferrer">
                     <svg
-                      className="h-5 w-5 mr-2"
+                      className="h-4 w-4"
                       viewBox="0 0 24 24"
                       fill="currentColor"
                       xmlns="http://www.w3.org/2000/svg"
@@ -96,87 +84,29 @@ export default function HomePage() {
                       <path d="M7.953 15.066c-.08.163-.08.324-.08.486.08.517.528.897 1.052.89h1.294v4.776c0 .486-.404.89-.89.89H6.577a.898.898 0 0 1-.889-.891v-4.774H.992c-.728 0-1.214-.729-.89-1.377l6.96-12.627a1.065 1.065 0 0 1 1.863 0l2.913 5.585-3.885 7.042zm15.945 0-6.96-12.627a1.065 1.065 0 0 0-1.862 0l-2.995 5.586 3.885 7.04c.081.164.081.326.081.487-.08.517-.529.897-1.052.89h-1.296v4.776c0 .486.404.89.89.89h2.914a.9.9 0 0 0 .892-.89v-4.775h4.612c.728 0 1.214-.729.89-1.377z" />
                     </svg>
                     Linktree
-                  </Button>
-                </div>
+                  </a>
+                </Button>
               </div>
             </div>
+          </div>
+        </section>
 
-            <div className="bg-purple-900 bg-opacity-30 p-6 rounded-lg text-center">
-              <h3 className="text-2xl font-semibold text-purple-300 mb-2">
-                I&apos;m available for hire!
-              </h3>
-              <p className="text-purple-400 mb-4">
-                I am actively looking for freelance, part-time, or full-time opportunities. <br />{' '}
-                If you have a project in mind or a role to fill, let&apos;s connect!
-              </p>
-              <Button
-                className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg"
-                onClick={() => window.open(`mailto:${app.email}`)}
-              >
-                <Briefcase className="h-5 w-5 mr-2" />
-                Let&apos;s Work Together
-              </Button>
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-2">
-              <Card className="bg-[#2a2a2a] border-purple-800 transform hover:scale-105 transition-transform duration-300">
-                <CardHeader>
-                  <CardTitle className="text-purple-300 text-2xl">Core Competencies</CardTitle>
-                </CardHeader>
-                <CardContent className="text-gray-300">
-                  <ul className="space-y-3">
-                    <li className="flex items-center">
-                      <span className="font-bold text-purple-400 mr-2">Languages:</span> JavaScript,
-                      TypeScript, Python, Java, C++, C#
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-bold text-purple-400 mr-2">Frameworks:</span> React,
-                      Next.js, Node.js, Express.js, Angular
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-bold text-purple-400 mr-2">Web Tech:</span> HTML, CSS,
-                      SCSS, Tailwind CSS
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-bold text-purple-400 mr-2">Databases:</span> SQL,
-                      MongoDB, PostgreSQL
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-bold text-purple-400 mr-2">DevOps:</span> Docker, CI/CD,
-                      GitHub Actions
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-bold text-purple-400 mr-2">Design:</span> Figma, UI/UX
-                      Principles
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-              <Card className="bg-[#2a2a2a] border-purple-800 transform hover:scale-105 transition-transform duration-300">
-                <CardHeader>
-                  <CardTitle className="text-purple-300 text-2xl">
-                    Education & Credentials
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-gray-300">
-                  <div className="mb-4">
-                    <p className="font-semibold text-lg">B.S. in Computer Science</p>
-                    <p className="text-purple-400">Farmingdale State College</p>
-                    <p className="text-sm text-gray-400">Expected Graduation: May 2026</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-lg mb-2">Certifications</p>
-                    <ul className="list-disc list-inside space-y-2">
-                      <li>Google Data Analytics Certification</li>
-                      <li>Advanced Google Data Analytics</li>
-                      <li>Google Analytics Certification</li>
-                      <li>CodePath Advanced Web Development</li>
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </article>
+        {/* Available for Hire CTA */}
+        <section className="mb-20 p-8 bg-accent/5 border border-accent/20 rounded-lg">
+          <h2 className="text-2xl font-semibold mb-3 text-foreground">
+            I&apos;m available for hire
+          </h2>
+          <p className="text-muted-foreground mb-6 leading-relaxed">
+            I am actively looking for freelance, part-time, or full-time opportunities. If you have
+            a project in mind or a role to fill, let&apos;s connect.
+          </p>
+          <Button
+            className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
+            onClick={() => window.open(`mailto:${app.email}`)}
+          >
+            <Briefcase className="h-4 w-4" />
+            Let&apos;s Work Together
+          </Button>
         </section>
       </div>
     </Layout>

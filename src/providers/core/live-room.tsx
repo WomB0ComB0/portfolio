@@ -1,12 +1,11 @@
-
 'use client';
 
-import Cursor from '@/app/_components/liveblocks/cursor';
-import { COLORS } from '@/constants';
 import { useOthers, useUpdateMyPresence } from '@liveblocks/react';
 import { useSearchParams } from 'next/navigation';
 import type React from 'react';
 import { useEffect, useMemo, useRef } from 'react';
+import Cursor from '@/app/_components/liveblocks/cursor';
+import { COLORS } from '@/constants';
 import { RoomProvider } from '../../../liveblocks.config';
 
 /**
@@ -162,4 +161,3 @@ function useExampleRoomId(roomId: string): string {
 
   return exampleRoomId;
 }
-

@@ -1,15 +1,14 @@
-
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { SiSpotify } from 'react-icons/si';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @typedef {Object} NowPlayingSchemaType
@@ -53,11 +52,11 @@ const NowPlayingSchema = Schema.Struct({
 const NowPlayingSkeleton = () => (
   <div className="flex justify-between items-center gap-4 w-full">
     <div className="flex flex-col gap-2 flex-grow">
-      <Skeleton className="h-4 w-24 bg-[#ba9bdd]/20" />
-      <Skeleton className="h-6 w-48 bg-[#ba9bdd]/20" />
-      <Skeleton className="h-4 w-32 bg-[#ba9bdd]/20" />
+      <Skeleton className="h-4 w-24 bg-accent/20" />
+      <Skeleton className="h-6 w-48 bg-accent/20" />
+      <Skeleton className="h-4 w-32 bg-accent/20" />
     </div>
-    <Skeleton className="h-20 w-20 rounded-lg bg-[#ba9bdd]/20" />
+    <Skeleton className="h-20 w-20 rounded-lg bg-accent/20" />
   </div>
 );
 
@@ -73,7 +72,7 @@ const NowPlayingSkeleton = () => (
  * <NowPlayingError />
  */
 const NowPlayingError = () => (
-  <div className="text-red-400 bg-red-900/20 p-4 rounded-lg w-full">
+  <div className="text-destructive-foreground bg-destructive/20 p-4 rounded-lg w-full">
     Failed to load now playing data. Please try again later.
   </div>
 );
@@ -98,9 +97,9 @@ const NowPlayingError = () => (
  */
 export default function NowPlaying() {
   return (
-    <Card className="bg-gradient-to-br from-purple-900 to-purple-700 overflow-hidden">
-      <CardContent className="p-0 bg-gradient-to-br from-purple-900 to-purple-700">
-        <div className="bg-gradient-to-br from-purple-900 to-purple-700 p-4 flex justify-between items-center gap-4">
+    <Card className="bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end overflow-hidden">
+      <CardContent className="p-0 bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end">
+        <div className="bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end p-4 flex justify-between items-center gap-4">
           <Suspense fallback={<NowPlayingSkeleton />}>
             <DataLoader
               url="/api/v1/now-playing"
@@ -122,7 +121,7 @@ export default function NowPlaying() {
                       <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className={`text-sm ${data.isPlaying ? 'text-green-400' : 'text-[#ba9bdd]'}`}
+                        className={`text-sm ${data.isPlaying ? 'text-success' : 'text-spotify-foreground'}`}
                       >
                         <SiSpotify className="inline-block mr-2 w-4 h-4" />
                         {data.isPlaying ? 'Currently Playing' : 'Last Played'}
@@ -132,7 +131,7 @@ export default function NowPlaying() {
                           href={data.songURL ?? '#'}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[#ba9bdd] hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
+                          className="text-spotify-foreground hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
                         >
                           {data.songName ?? 'Unknown'}
                         </Link>
@@ -140,7 +139,7 @@ export default function NowPlaying() {
                           href={data.songURL?.split('/').slice(0, 5).join('/') ?? '#'}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[#ba9bdd]/80 hover:text-[#ba9bdd] transition-colors duration-200 text-sm truncate"
+                          className="text-spotify-foreground/80 hover:text-spotify-foreground transition-colors duration-200 text-sm truncate"
                         >
                           {data.artistName ?? 'Unknown Artist'}
                         </Link>
@@ -159,6 +158,9 @@ export default function NowPlaying() {
                           alt={data.songName ?? 'Album cover'}
                           width={80}
                           height={80}
+                          priority={false}
+                          sizes="(max-width: 768px) 80px, 80px"
+                          placeholder="empty"
                         />
                       )}
                     </motion.div>
@@ -172,4 +174,3 @@ export default function NowPlaying() {
     </Card>
   );
 }
-

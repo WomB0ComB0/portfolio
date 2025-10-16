@@ -1,4 +1,3 @@
-
 /**
  * @readonly
  * @const
@@ -182,4 +181,3 @@ export const app: Readonly<{
  * @example
  *   <img src={app.logo.toString()} alt={`${app.name} logo`} />
  */
-

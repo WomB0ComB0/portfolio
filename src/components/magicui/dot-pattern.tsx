@@ -1,8 +1,7 @@
-
 'use client';
 
-import { cn } from '@/lib/utils';
 import { useEffect, useId, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 /**
  * @interface DotPatternProps
@@ -106,4 +105,3 @@ export function DotPattern({
 }
 
 export default DotPattern;
-

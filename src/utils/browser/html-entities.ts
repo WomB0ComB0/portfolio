@@ -1,4 +1,3 @@
-
 /**
  * @copyright Copyright (c) 2025 Mike Odnis
  *
@@ -97,4 +96,3 @@ export const obfuscateLink = (opts: {
 
   return { encodedHref, encodedText };
 };
-

@@ -1,4 +1,3 @@
-
 /**
  * Returns a highly contrasting color (#000000 or #ffffff) for a given input color string,
  * useful for ensuring text or UI elements remain visible against varying backgrounds.
@@ -124,4 +123,3 @@ function hexToRgb(hex: string): RGB {
       }
     : null;
 }
-

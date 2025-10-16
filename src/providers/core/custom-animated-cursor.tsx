@@ -1,10 +1,9 @@
-
 'use client';
 
-import { COLORS } from '@/constants';
 import dynamic from 'next/dynamic';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { COLORS } from '@/constants';
 
 const colors = COLORS;
 
@@ -134,4 +133,3 @@ export const CustomAnimatedCursor = (): React.ReactElement | null => {
 };
 CustomAnimatedCursor.displayName = 'CustomAnimatedCursor';
 export default CustomAnimatedCursor;
-

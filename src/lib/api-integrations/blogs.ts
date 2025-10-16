@@ -1,9 +1,8 @@
-
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { config } from '@/config';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import 'server-only';
 
 /**
@@ -121,4 +120,3 @@ export async function getBlogs(username: string, page = 1, pageSize = 10): Promi
     throw error;
   }
 }
-

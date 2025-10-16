@@ -1436,18 +1436,6 @@ export default function manifest(): ExtendedManifest {
         purpose: 'any',
       },
       {
-        src: '/pwa/ios/144.png',
-        sizes: '144x144',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/pwa/ios/144.webp',
-        sizes: '144x144',
-        type: 'image/webp',
-        purpose: 'any',
-      },
-      {
         src: '/pwa/ios/152.png',
         sizes: '152x152',
         type: 'image/png',

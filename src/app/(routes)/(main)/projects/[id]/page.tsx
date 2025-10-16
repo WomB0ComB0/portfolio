@@ -1,8 +1,7 @@
-
+import dynamic from 'next/dynamic';
 import { getProjects } from '@/lib/sanity/api';
 import { urlFor } from '@/lib/sanity/client';
 import { constructMetadata, logger } from '@/utils';
-import dynamic from 'next/dynamic';
 
 /**
  * ProjectDetail React component (dynamically imported).
@@ -131,4 +130,3 @@ const ProjectDetailPage = async ({ params }: { params: Promise<{ id: string }> }
 };
 
 export default ProjectDetailPage;
-

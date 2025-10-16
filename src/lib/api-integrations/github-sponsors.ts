@@ -1,4 +1,3 @@
-
 /**
  * @module api-integrations/github-sponsors
  * @description
@@ -13,12 +12,12 @@
  * @web
  */
 
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 
 // Schema for GitHub Sponsors response
 const SponsorEntitySchema = Schema.Struct({

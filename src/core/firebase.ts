@@ -1,10 +1,9 @@
-
-import { config } from '@/config';
-import { onRequestError } from '@/instrumentation';
-import { logger } from '@/utils';
 import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from 'firebase/app';
 import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
 import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
+import { config } from '@/config';
+import { onRequestError } from '@/instrumentation';
+import { logger } from '@/utils';
 
 /**
  * @readonly
@@ -114,4 +113,3 @@ function initializeFirebase(): { app: FirebaseApp; auth: Auth; firestore: Firest
 const { app, auth, firestore } = initializeFirebase();
 
 export { app, auth, firestore, serviceAccount };
-

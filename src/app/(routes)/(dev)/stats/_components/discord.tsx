@@ -33,17 +33,42 @@ const LanyardResponseSchema = Schema.Struct({
   activities: Schema.optional(Schema.Array(ActivitySchema)),
 });
 
+// Replaced explicit color numbers with semantic Tailwind variable classes.
+// Assumes 'success' and 'warning' are defined in the project's tailwind.config.ts
+// or globals.css, consistent with shadcn/ui styling conventions.
 const statusColors = {
-  online: 'bg-green-500',
-  idle: 'bg-yellow-500',
-  dnd: 'bg-red-500',
-  offline: 'bg-gray-500',
+  online: 'bg-success',
+  idle: 'bg-warning',
+  dnd: 'bg-destructive',
+  offline: 'bg-muted',
 } as const;
 
-const DiscordSkeleton = () => <Skeleton className="w-full h-[180px] rounded-lg" />;
+const DiscordSkeleton = () => (
+  <Card className="overflow-hidden">
+    <CardContent className="p-0">
+      <div className="bg-gradient-to-r from-primary to-primary/80 p-6">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative">
+            <Skeleton className="h-16 w-16 rounded-full border-2 border-white" />
+            <Skeleton className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-background" />
+          </div>
+          <div className="flex-1">
+            <Skeleton className="h-6 w-3/4 mb-2" />
+            <Skeleton className="h-5 w-1/3" />
+          </div>
+        </div>
+        <Skeleton className="h-4 w-full mb-4" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    </CardContent>
+  </Card>
+);
 
 const DiscordError = () => (
-  <div className="text-red-500 p-4 bg-red-100 rounded-lg">Failed to load Discord status</div>
+  // Replaced explicit color numbers with semantic Tailwind variable classes
+  <div className="text-destructive p-4 bg-destructive/10 rounded-lg">
+    Failed to load Discord status
+  </div>
 );
 
 export default function Discord() {
@@ -78,7 +103,8 @@ export default function Discord() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="bg-gradient-to-r from-purple-900 to-purple-600 p-6"
+                  // Replaced explicit color numbers with semantic Tailwind variable classes
+                  className="bg-gradient-to-r from-primary to-primary/80 p-6"
                 >
                   <div className="flex items-center gap-4 mb-4">
                     <div className="relative">
@@ -95,28 +121,38 @@ export default function Discord() {
                       <div
                         className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
                           statusColors[status]
-                        } border-2 border-purple-900`}
+                        } border-2 border-background`} // Replaced explicit color with semantic
                       />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <SiDiscord className="w-5 h-5 text-white" />
-                        <span className="text-xl font-semibold text-white">
+                        <SiDiscord className="w-5 h-5 text-primary-foreground" />{' '}
+                        {/* Replaced text-white with semantic */}
+                        <span className="text-xl font-semibold text-primary-foreground">
+                          {' '}
+                          {/* Replaced text-white with semantic */}
                           {user.username}
                           {user.discriminator !== '0' ? `#${user.discriminator}` : ''}
                         </span>
                       </div>
-                      <Badge variant="secondary" className="mt-1 bg-purple-700 text-purple-100">
+                      <Badge
+                        variant="secondary"
+                        // Replaced explicit color numbers with semantic Tailwind variable classes
+                        className="mt-1 bg-primary/80 text-primary-foreground"
+                      >
                         {status === 'online' ? 'Online' : 'Offline'}
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-sm text-purple-100 mb-4">
+                  <p className="text-sm text-primary-foreground/90 mb-4">
+                    {' '}
+                    {/* Replaced text-purple-100 with semantic */}
                     {activity?.state || 'Coding, building, and growing'}
                   </p>
                   <Button
                     onClick={() => handleAddFriend()}
-                    className="w-full bg-purple-500 hover:bg-purple-400 text-white"
+                    // Replaced explicit color numbers with semantic Tailwind variable classes
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     Add Friend
                   </Button>

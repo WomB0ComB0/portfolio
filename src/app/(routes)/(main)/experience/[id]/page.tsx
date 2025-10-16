@@ -1,7 +1,6 @@
-
+import dynamic from 'next/dynamic';
 import { getExperiences } from '@/lib/sanity/api';
 import { constructMetadata, logger } from '@/utils';
-import dynamic from 'next/dynamic';
 
 /**
  * Dynamically imports the ExperienceDetail component for SSR.
@@ -123,4 +122,3 @@ const ExperienceDetailPage = async ({ params }: { params: Promise<{ id: string }
 };
 
 export default ExperienceDetailPage;
-

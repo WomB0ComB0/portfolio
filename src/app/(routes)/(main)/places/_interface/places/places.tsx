@@ -1,33 +1,20 @@
-
 'use client';
 
+import Link from 'next/link';
+import { useMemo } from 'react';
+import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 import { GoogleMaps } from '@/app/(routes)/(main)/places/_components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { usePlaces } from '@/hooks/sanity/use-sanity-query';
 import { urlFor } from '@/lib/sanity/client';
 import type { SanityImage } from '@/lib/sanity/types';
 import type { PlaceItem } from '@/types/places';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { FaInfoCircle } from 'react-icons/fa';
 
 /**
- * Helper function to convert a Sanity Place object to an internal {@link PlaceItem} type.
- *
- * @function
- * @param {any} sanityPlace - The raw place data object retrieved from Sanity backend.
- * @returns {PlaceItem} The normalized place object used within the UI.
- * @example
- * const internalPlace = convertSanityPlaceToPlaceItem(sanityData);
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @private
- * @see https://www.sanity.io/docs
+ * Helper function to convert Sanity Place to PlaceItem
  */
 function convertSanityPlaceToPlaceItem(sanityPlace: any): PlaceItem {
   return {
@@ -36,7 +23,7 @@ function convertSanityPlaceToPlaceItem(sanityPlace: any): PlaceItem {
     description: sanityPlace.description,
     latitude: sanityPlace.latitude,
     longitude: sanityPlace.longitude,
-    category: sanityPlace.category,
+    category: sanityPlace.category || 'Uncategorized',
     photos: (sanityPlace.photos || []).map((photo: SanityImage) => ({
       url: urlFor(photo).width(800).height(600).url() || '',
       caption: (photo as any).caption || '',
@@ -45,173 +32,85 @@ function convertSanityPlaceToPlaceItem(sanityPlace: any): PlaceItem {
 }
 
 /**
- * Places page component for the portfolio project.
- * Renders an interactive list and map of all locations pulled from Sanity,
- * with category filtering and modals for viewing photos.
- *
- * @function
- * @returns {JSX.Element} Rendered Places page view including list and map.
- * @throws {Error} Renders an error message if fetching places fails.
- * @web
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @see Places in the portfolio project for usage context.
+ * Skeleton loader for place cards
+ */
+const PlaceCardSkeleton = () => (
+  <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+    <CardHeader className="pb-3">
+      <div className="flex items-start gap-2 mb-3">
+        <Skeleton className="h-5 w-5 bg-muted/50 rounded" />
+        <Skeleton className="h-6 w-3/4 bg-muted/50" />
+      </div>
+      <Skeleton className="h-4 w-full bg-muted/50 mb-2" />
+      <Skeleton className="h-4 w-2/3 bg-muted/50 mb-4" />
+      <Skeleton className="h-6 w-28 bg-muted/50 rounded-full" />
+    </CardHeader>
+  </Card>
+);
+
+/**
+ * Loading state component
+ */
+const LoadingState = () => (
+  <Layout>
+    <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-2xl bg-muted/50" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-32 sm:h-10 sm:w-40 bg-muted/50" />
+              <Skeleton className="h-5 w-32 bg-muted/50" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="w-full max-w-7xl mx-auto">
+        <Skeleton className="w-full h-[400px] md:h-[500px] bg-muted/50 rounded-2xl" />
+      </div>
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <PlaceCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    </div>
+  </Layout>
+);
+
+/**
+ * Places page component with interactive list and map
  */
 export const Places = () => {
-  /**
-   * Selected category filter for displaying places.
-   * @type {[string, (category: string) => void]}
-   * @readonly
-   * @private
-   */
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  /**
-   * Controls visibility of the photo modal.
-   * @type {[boolean, (open: boolean) => void]}
-   * @readonly
-   * @private
-   */
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  /**
-   * Holds the array of photos for the currently selected place.
-   * @type {[PlaceItem['photos'], (photos: PlaceItem['photos']) => void]}
-   * @readonly
-   * @private
-   */
-  const [selectedPlacePhotos, setSelectedPlacePhotos] = useState<PlaceItem['photos']>([]);
-  /**
-   * Tracks which photo index is currently shown in the modal.
-   * @type {[number, (index: number) => void]}
-   * @readonly
-   * @private
-   */
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
-  /**
-   * Holds the name of the currently selected place for modal display.
-   * @type {[string, (name: string) => void]}
-   * @readonly
-   * @private
-   */
-  const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
-
-  /**
-   * Fetches and caches the places data from Sanity CMS.
-   * @see usePlaces for additional implementation details.
-   */
   const { data: sanityPlaces, isLoading, error } = usePlaces();
 
-  /**
-   * Memoized computation for converting Sanity places into PlaceItem format.
-   *
-   * @type {PlaceItem[]}
-   * @readonly
-   * @private
-   */
   const places = useMemo(() => {
     if (!sanityPlaces) return [];
     return sanityPlaces.map(convertSanityPlaceToPlaceItem);
   }, [sanityPlaces]);
 
-  /**
-   * Memoized array of unique categories for filtering, including 'All'.
-   * @type {string[]}
-   * @readonly
-   * @private
-   */
-  const categories = useMemo(() => ['All', ...new Set(places.map((p) => p.category))], [places]);
+  if (isLoading) return <LoadingState />;
 
-  /**
-   * Returns the list of places filtered by currently selected category.
-   * @type {PlaceItem[]}
-   * @readonly
-   * @private
-   */
-  const filteredPlaces = useMemo(() => {
-    return places.filter(
-      (place) => selectedCategory === 'All' || place.category === selectedCategory,
-    );
-  }, [places, selectedCategory]);
-
-  /**
-   * Handles opening the modal for viewing photos of a given place.
-   *
-   * @param {PlaceItem} place - The place to show photos for.
-   * @returns {void}
-   * @private
-   * @author Mike Odnis
-   * @example
-   * openModal(place)
-   */
-  const openModal = (place: PlaceItem) => {
-    if (place.photos && place.photos.length > 0) {
-      setSelectedPlacePhotos(place.photos);
-      setSelectedPlaceName(place.name);
-      setCurrentPhotoIndex(0);
-      setIsModalOpen(true);
-    }
-  };
-
-  /**
-   * Closes the photo modal, resetting related state.
-   * @returns {void}
-   * @private
-   * @author Mike Odnis
-   */
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedPlacePhotos([]);
-    setSelectedPlaceName('');
-  };
-
-  /**
-   * Advances to the next photo in the modal carousel.
-   * Loops to the beginning if at the end.
-   * @returns {void}
-   * @private
-   */
-  const nextPhoto = () => {
-    setCurrentPhotoIndex((prevIndex) => (prevIndex + 1) % selectedPlacePhotos.length);
-  };
-
-  /**
-   * Moves to the previous photo in the modal carousel.
-   * Loops to the end if at the beginning.
-   * @returns {void}
-   * @private
-   */
-  const prevPhoto = () => {
-    setCurrentPhotoIndex(
-      (prevIndex) => (prevIndex - 1 + selectedPlacePhotos.length) % selectedPlacePhotos.length,
-    );
-  };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="w-full min-h-screen p-4 md:p-8 text-[#ba9bdd] flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-lg">Loading places...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Error state
   if (error) {
     return (
       <Layout>
-        <div className="w-full min-h-screen p-4 md:p-8 text-[#ba9bdd] flex items-center justify-center">
-          <Card className="max-w-md mx-auto bg-[#242424] border-red-500">
-            <CardHeader>
-              <CardTitle className="text-red-400">Error Loading Places</CardTitle>
-              <CardDescription className="text-gray-400">
-                Failed to fetch places data. Please try again later.
-              </CardDescription>
-            </CardHeader>
+        <div className="w-full min-h-screen p-8 flex items-center justify-center">
+          <Card className="max-w-md mx-auto bg-card/50 backdrop-blur-sm border-border/50">
+            <CardContent className="py-16 px-8 text-center space-y-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10">
+                <FiMapPin className="text-4xl text-destructive" />
+              </div>
+              <div className="space-y-2">
+                <CardTitle className="text-xl">Unable to Load Places</CardTitle>
+                <CardDescription>
+                  Failed to fetch places data. Please try again later.
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </CardContent>
           </Card>
         </div>
       </Layout>
@@ -220,169 +119,103 @@ export const Places = () => {
 
   return (
     <Layout>
-      <div className="w-full min-h-screen p-4 md:p-8 text-[#ba9bdd]">
-        <Card className="w-full max-w-4xl mx-auto bg-[#242424] border-[#560BAD] rounded-xl overflow-hidden">
-          <CardHeader className="bg-[#2a2a2a] p-6">
-            <div className="flex items-center gap-3 mb-2 sr-only">
-              <FaInfoCircle className="text-3xl text-[#ba9bdd]" />
-              <CardTitle className="text-3xl md:text-4xl font-bold text-[#ba9bdd]">
-                My Places
-              </CardTitle>
-            </div>
-            <CardDescription className="text-[#ba9bdd]/80 text-lg">
-              Explore the locations I've visited, including hackathons, tech events, and notable
-              places. Use the filter to narrow down by category.
-            </CardDescription>
-            <div className="mt-4">
-              <label
-                htmlFor="category-filter"
-                className="block text-sm font-medium text-[#ba9bdd]/90 mb-1"
-              >
-                Filter by Category:
-              </label>
-              <select
-                id="category-filter"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full md:w-1/3 bg-[#2a2a2a] border border-[#560BAD] text-[#ba9bdd] rounded-md p-2 focus:ring-[#7c3aed] focus:border-[#7c3aed]"
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Tabs defaultValue="list" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-[#2a2a2a] rounded-lg p-1 mb-6">
-                <TabsTrigger
-                  value="map"
-                  className="text-[#ba9bdd] data-[state=active]:bg-[#560BAD]"
-                >
-                  Map View
-                </TabsTrigger>
-                <TabsTrigger
-                  value="list"
-                  className="text-[#ba9bdd] data-[state=active]:bg-[#560BAD]"
-                >
-                  List View
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="map">
-                <div className="w-full h-[500px] rounded-lg overflow-hidden">
-                  <GoogleMaps placesToDisplay={filteredPlaces} />
-                </div>
-              </TabsContent>
-              <TabsContent value="list">
-                <ScrollArea className="h-[500px] w-full pr-4">
-                  {filteredPlaces.length > 0 ? (
-                    filteredPlaces.map((place) => (
-                      <Card
-                        key={place.id}
-                        className="mb-4 bg-[#2a2a2a] border-purple-700 border rounded-lg hover:bg-[#3a3a3a] transition-colors"
-                      >
-                        <CardHeader className="pb-2">
-                          <Link
-                            href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
-                            target="_blank"
-                            className="w-full h-full group block"
-                            rel="noopener noreferrer"
-                          >
-                            <CardTitle className="text-xl text-[#ba9bdd] group-hover:text-purple-400 transition-colors">
-                              {place.name}
-                            </CardTitle>
-                            <CardDescription className="text-[#ba9bdd]/70 text-base mt-1">
-                              {place.description}
-                            </CardDescription>
-                            <p className="text-xs text-purple-400 mt-2">{place.category}</p>
-                          </Link>
-                        </CardHeader>
-                        <CardContent className="pt-2 pb-4 px-6">
-                          {place.photos && place.photos.length > 0 && (
-                            <Button
-                              onClick={() => openModal(place)}
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 w-full bg-purple-700 hover:bg-purple-600 border-purple-600 text-purple-100"
-                            >
-                              View Photos ({place.photos.length})
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <p className="text-center text-gray-400 py-10">
-                      No places match the selected category.
-                    </p>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Modal for Photos */}
-      {isModalOpen && selectedPlacePhotos.length > 0 && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-[#2a2a2a] p-5 md:p-6 rounded-lg shadow-xl max-w-2xl w-full relative border border-purple-700">
-            <button
-              onClick={closeModal}
-              className="absolute top-3 right-3 text-gray-300 hover:text-white text-3xl font-bold leading-none"
-              aria-label="Close modal"
-            >
-              &times;
-            </button>
-            <h3 className="text-xl lg:text-2xl font-bold text-purple-300 mb-1">
-              {selectedPlaceName}
-            </h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Photo {currentPhotoIndex + 1} of {selectedPlacePhotos.length}
-            </p>
-            <div className="relative mb-4 aspect-video">
-              {selectedPlacePhotos[currentPhotoIndex] && (
-                <Image
-                  src={selectedPlacePhotos[currentPhotoIndex].url}
-                  alt={
-                    selectedPlacePhotos[currentPhotoIndex].caption ||
-                    `Photo ${currentPhotoIndex + 1} of ${selectedPlaceName}`
-                  }
-                  fill
-                  className="object-contain rounded-md"
-                  sizes="(max-width: 768px) 100vw, 672px"
-                />
-              )}
-            </div>
-            {selectedPlacePhotos[currentPhotoIndex]?.caption && (
-              <p className="text-center text-sm text-gray-300 mt-2 mb-4">
-                {selectedPlacePhotos[currentPhotoIndex].caption}
-              </p>
-            )}
-            <div className="flex justify-between items-center mt-4">
-              <Button
-                onClick={prevPhoto}
-                disabled={selectedPlacePhotos.length <= 1}
-                variant="outline"
-                className="bg-purple-700 hover:bg-purple-600 border-purple-600 text-purple-100 disabled:opacity-50"
-              >
-                Previous
-              </Button>
-              <Button
-                onClick={nextPhoto}
-                disabled={selectedPlacePhotos.length <= 1}
-                variant="outline"
-                className="bg-purple-700 hover:bg-purple-600 border-purple-600 text-purple-100 disabled:opacity-50"
-              >
-                Next
-              </Button>
+      <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
+        {/* Header Section */}
+        <div className="w-full max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <FiMapPin className="text-3xl text-primary" />
+              </div>
+              <div>
+                <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+                  Places
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {places.length} {places.length === 1 ? 'location' : 'locations'} found
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Map Section */}
+        <div className="w-full max-w-7xl mx-auto">
+          <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden shadow-xl rounded-2xl">
+            <CardContent className="p-0">
+              <div className="w-full h-[400px] md:h-[500px] relative">
+                <GoogleMaps placesToDisplay={places} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Cards Grid Section */}
+        <div className="w-full max-w-7xl mx-auto">
+          {places.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {places.map((place) => (
+                <Card
+                  key={place.id}
+                  className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col"
+                >
+                  <CardHeader className="pb-4 flex-1">
+                    <Link
+                      href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
+                      target="_blank"
+                      className="w-full block group/link"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <CardTitle className="text-xl text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2.5">
+                          <FiMapPin className="h-5 w-5 flex-shrink-0" />
+                          {place.name}
+                        </CardTitle>
+                        <FiExternalLink className="h-5 w-5 text-muted-foreground group-hover/link:text-primary flex-shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                      </div>
+                      <CardDescription className="text-muted-foreground leading-relaxed mb-4">
+                        {place.description}
+                      </CardDescription>
+                      <div className="inline-block">
+                        <span className="text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+                          {place.category}
+                        </span>
+                      </div>
+                    </Link>
+                  </CardHeader>
+                  {place.photos && place.photos.length > 0 && (
+                    <CardContent className="pt-0 pb-5 px-6">
+                      <Link
+                        href={`/places/${place.id}`}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-all duration-300 flex items-center justify-center gap-2.5 text-sm font-medium"
+                      >
+                        <FiImage className="h-4 w-4" />
+                        View Photos ({place.photos.length})
+                      </Link>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+              <CardContent className="py-20">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-muted/50">
+                    <FiMapPin className="text-3xl text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-foreground font-medium">No places found</p>
+                    <p className="text-muted-foreground text-sm">
+                      There are currently no locations to display.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </Layout>
   );
 };
-

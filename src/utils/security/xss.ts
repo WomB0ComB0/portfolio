@@ -1,4 +1,3 @@
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -250,4 +249,3 @@ export const sanitizeJson = <T>(jsonString: string): T | null => {
     return null;
   }
 };
-

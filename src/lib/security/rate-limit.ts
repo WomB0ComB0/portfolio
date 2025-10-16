@@ -1,7 +1,6 @@
-
+import { Ratelimit } from '@upstash/ratelimit';
 import { redis } from '@/classes/redis';
 import { Logger } from '@/utils';
-import { Ratelimit } from '@upstash/ratelimit';
 import { isIdentifierBanned, isIdentifierSlowed } from './banlist';
 
 /**
@@ -145,4 +144,3 @@ export const rateLimiter = (rateLimitingType: RateLimitHelper['rateLimitingType'
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString}
  */
 export const getRateLimitReset = (result: number) => new Date(result * 1000).toLocaleString();
-

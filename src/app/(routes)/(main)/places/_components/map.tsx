@@ -1,14 +1,14 @@
-
 'use client';
 
-import { config } from '@/config';
-import type { PlaceItem } from '@/types/places';
 import type { Marker } from '@googlemaps/markerclusterer';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { AdvancedMarker, APIProvider, InfoWindow, Map, useMap } from '@vis.gl/react-google-maps';
+import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 import { MapStyles } from 'src/data/places';
+import { config } from '@/config';
+import type { PlaceItem } from '@/types/places';
 
 /**
  * Props for the GoogleMaps component.
@@ -44,9 +44,9 @@ export default function GoogleMaps({ placesToDisplay }: GoogleMapsProps) {
   // Check if API key is available
   if (!config.google.maps.apiKey) {
     return (
-      <section className="w-full h-[400px] md:h-[500px] lg:h-[600px] relative rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-        <div className="text-center p-4">
-          <FaMapMarkerAlt className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+      <section className="relative flex h-[400px] w-full items-center justify-center overflow-hidden rounded-lg bg-muted md:h-[500px] lg:h-[600px]">
+        <div className="p-4 text-center">
+          <FaMapMarkerAlt className="mx-auto mb-2 h-12 w-12 text-muted-foreground" />
           <p className="text-muted-foreground">
             Google Maps is not configured. Please add your API key to display the map.
           </p>
@@ -56,7 +56,7 @@ export default function GoogleMaps({ placesToDisplay }: GoogleMapsProps) {
   }
 
   return (
-    <section className="w-full h-[400px] md:h-[500px] lg:h-[600px] relative rounded-lg overflow-hidden">
+    <section className="relative h-[400px] w-full overflow-hidden rounded-lg md:h-[500px] lg:h-[600px]">
       <APIProvider apiKey={config.google.maps.apiKey}>
         <Map
           defaultCenter={{ lat: 40.73061, lng: -73.935242 }}
@@ -128,15 +128,15 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
             const clusterIcon = document.createElement('div');
             clusterIcon.className = 'custom-cluster-icon';
             clusterIcon.style.cssText = `
-              background-color: #560BAD;
-              border: 2px solid #ba9bdd;
+              background-color: var(--primary);
+              border: 2px solid var(--primary-foreground);
               border-radius: 50%;
               width: 40px;
               height: 40px;
               display: flex;
               align-items: center;
               justify-content: center;
-              color: #ffffff;
+              color: var(--primary-foreground);
               font-size: 14px;
               font-weight: bold;
               box-shadow: 0 2px 6px rgba(0,0,0,0.3);
@@ -198,7 +198,7 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
           ref={(marker) => setMarkerRef(marker, place.id)}
           onClick={() => setActiveMarker(place.id)}
         >
-          <div className="text-[#560BAD] bg-[#ba9bdd] p-2 rounded-full shadow-lg">
+          <div className="rounded-full bg-primary/20 p-2 shadow-lg text-primary">
             <FaMapMarkerAlt size={20} />
           </div>
         </AdvancedMarker>
@@ -214,20 +214,28 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
               onCloseClick={() => setActiveMarker(null)}
               pixelOffset={[0, -30]}
             >
-              <div className="bg-[#1E1E1E] text-[#ba9bdd] p-3 rounded-lg shadow-xl max-w-xs border border-purple-700">
-                <h3 className="text-md font-semibold mb-1 text-purple-300">{activePlace.name}</h3>
-                <p className="text-xs text-gray-400 mb-1">{activePlace.category}</p>
-                <p className="text-sm text-gray-300 mb-2 line-clamp-3">{activePlace.description}</p>
+              <div className="max-w-xs rounded-lg border border-primary bg-card p-3 shadow-xl">
+                <h3 className="mb-1 text-md font-semibold text-primary">{activePlace.name}</h3>
+                <p className="mb-1 text-xs text-muted-foreground">{activePlace.category}</p>
+                <p className="mb-2 line-clamp-3 text-sm text-foreground">
+                  {activePlace.description}
+                </p>
                 {activePlace.photos &&
                 activePlace.photos.length > 0 &&
                 activePlace.photos[0]?.url ? (
-                  <img
-                    src={activePlace.photos[0].url}
-                    alt={activePlace.photos[0].caption || activePlace.name}
-                    className="w-full h-auto rounded-md max-h-32 object-cover mt-1"
-                  />
+                  <div className="relative mt-1 h-32 w-full">
+                    <Image
+                      src={activePlace.photos[0].url}
+                      alt={activePlace.photos[0].caption || activePlace.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 320px"
+                      className="rounded-md object-cover"
+                      priority={false}
+                      placeholder="empty"
+                    />
+                  </div>
                 ) : (
-                  <p className="text-xs text-gray-500 mt-1">No photo available.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">No photo available.</p>
                 )}
               </div>
             </InfoWindow>
@@ -236,4 +244,3 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
     </>
   );
 };
-

@@ -1,7 +1,6 @@
-
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
+import { constructMetadata } from '@/utils';
 
 /**
  * @constant Licenses
@@ -67,4 +66,3 @@ export default function LicensesPage(): JSX.Element {
 }
 
 LicensesPage.displayName = 'LicensesPage';
-

@@ -1,11 +1,10 @@
-
 'use client';
 
-import { app } from '@/constants';
-import { generateSchema, logger, Stringify } from '@/utils';
 import Script from 'next/script';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { app } from '@/constants';
+import { generateSchema, logger, Stringify } from '@/utils';
 
 /**
  * A type representing the configuration for speculative preloading, prefetching, and exclusions,
@@ -444,4 +443,3 @@ export const Scripts = () => {
 Scripts.displayName = 'Scripts';
 
 export default Scripts;
-

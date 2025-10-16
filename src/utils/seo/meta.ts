@@ -1,6 +1,5 @@
-
-import { app } from '@/constants';
 import type { Metadata, Viewport } from 'next';
+import { app } from '@/constants';
 
 /**
  * Constructs the metadata object for web pages, including OpenGraph, Twitter, and icon data.
@@ -84,7 +83,7 @@ export function constructMetadata({
     category: 'technology',
     manifest: '/manifest.webmanifest',
     metadataBase: new URL(app.url),
-
+    keywords: [...app.keywords],
     other: {
       currentYear: new Date().getFullYear(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -135,4 +134,3 @@ export function constructViewport(): Viewport {
     colorScheme: 'dark light',
   };
 }
-

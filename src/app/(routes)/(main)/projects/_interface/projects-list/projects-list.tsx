@@ -1,54 +1,86 @@
-
 'use client';
 
-import Layout from '@/components/layout/layout';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSanityProjects } from '@/hooks';
-import { urlFor } from '@/lib/sanity/client';
 import { Briefcase, ExternalLink, Github } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
+import Layout from '@/components/layout/layout';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSanityProjects } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
 
-/**
- * Renders the main content for the list of projects in the portfolio.
- * Handles loading, error, and data display states for all projects found via Sanity backend.
- *
- * @function
- * @returns {JSX.Element} The rendered React node containing list/grid of project cards, or fallback states.
- * @throws {Error} If there is a problem fetching project data.
- * @web
- * @public
- * @see https://nextjs.org/docs
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @example
- * // Used inside a parent suspense/layout wrapper:
- * <ProjectsListContent />
- */
+// Skeleton component for a single project card
+const ProjectCardSkeleton = (): JSX.Element => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.6, delay: 0.2 }}
+    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+  >
+    {[...Array(6)].map((_, index) => (
+      <motion.div
+        key={index}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.1 }}
+      >
+        <Card className="group bg-card border-border rounded-xl overflow-hidden flex flex-col h-full animate-pulse">
+          <div className="relative w-full h-48 overflow-hidden bg-muted/20"></div>{' '}
+          {/* Image placeholder */}
+          <CardHeader className="p-6 pb-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="h-6 w-3/4 bg-muted/30 rounded-md"></div> {/* Title placeholder */}
+              <div className="h-5 w-5 bg-muted/30 rounded-md flex-shrink-0"></div>{' '}
+              {/* Github icon placeholder */}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="h-6 w-20 bg-muted/30 rounded-md"></div>{' '}
+              {/* Category badge placeholder */}
+              <div className="h-6 w-16 bg-muted/30 rounded-md"></div>{' '}
+              {/* Status badge placeholder */}
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 pt-0 flex-grow flex flex-col">
+            <div className="space-y-2 flex-grow mb-4">
+              <div className="h-4 w-full bg-muted/30 rounded-md"></div> {/* Description line 1 */}
+              <div className="h-4 w-11/12 bg-muted/30 rounded-md"></div> {/* Description line 2 */}
+              <div className="h-4 w-5/6 bg-muted/30 rounded-md"></div> {/* Description line 3 */}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <div className="h-6 w-20 bg-muted/30 rounded-md"></div> {/* Tech badge 1 */}
+              <div className="h-6 w-16 bg-muted/30 rounded-md"></div> {/* Tech badge 2 */}
+              <div className="h-6 w-24 bg-muted/30 rounded-md"></div> {/* Tech badge 3 */}
+            </div>
+          </CardContent>
+          <div className="p-6 pt-3 border-t border-border/50 mt-auto">
+            <div className="flex items-center justify-between text-sm">
+              <div className="h-4 w-24 bg-muted/30 rounded-md"></div> {/* View Details text */}
+              <div className="h-4 w-4 bg-muted/30 rounded-md"></div> {/* External link icon */}
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    ))}
+  </motion.div>
+);
+
 const ProjectsListContent = (): JSX.Element => {
   const { data: projects, isLoading, error } = useSanityProjects();
   const projectsList = (projects as any[]) || [];
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent mb-4"></div>
-          <p className="text-gray-400 text-lg">Loading projects...</p>
-        </div>
-      </div>
-    );
+    return <ProjectCardSkeleton />;
   }
 
   if (error) {
     return (
-      <Card className="bg-gradient-to-br from-red-900/20 to-red-800/20 border-red-800">
+      <Card className="bg-destructive/10 border-destructive/50">
         <CardContent className="p-8 text-center">
-          <p className="text-red-400 text-lg">Failed to load projects. Please try again later.</p>
+          <p className="text-destructive-foreground text-lg">
+            Failed to load projects. Please try again later.
+          </p>
         </CardContent>
       </Card>
     );
@@ -56,37 +88,33 @@ const ProjectsListContent = (): JSX.Element => {
 
   return (
     <>
-      {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="mb-16 text-center"
+        className="mb-16"
       >
-        <div className="flex items-center justify-center mb-4">
-          <Briefcase className="h-12 w-12 text-purple-400 mr-4" />
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-            Projects
-          </h1>
+        <div className="flex items-center gap-4 mb-4">
+          <Briefcase className="h-10 w-10 text-primary" />
+          <h1 className="text-5xl font-bold text-foreground text-balance">Projects</h1>
         </div>
-        <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+        <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
           A showcase of my work spanning web development, mobile apps, machine learning, and more.
         </p>
-        <div className="mt-6 flex items-center justify-center gap-4 text-sm text-gray-500">
+        <div className="mt-6 flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+            <div className="h-2 w-2 rounded-full bg-primary"></div>
             {projectsList.length} Projects
           </span>
         </div>
       </motion.header>
 
-      {/* Projects Grid */}
       {projectsList.length > 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {projectsList.map((project: any, index: number) => (
             <motion.div
@@ -95,64 +123,55 @@ const ProjectsListContent = (): JSX.Element => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <Link href={`/projects/${project._id}`} scroll={false} className="block h-full">
-                <Card className="group bg-[#1E1E1E] border-purple-800/50 hover:border-purple-600 rounded-xl overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1">
-                  {/* Project Image */}
+              <Link href={`/projects/${project._id}`} className="block h-full">
+                <Card className="group bg-card border-border hover:border-primary/50 rounded-xl overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
                   {project.image && (
-                    <div className="relative w-full h-48 overflow-hidden bg-gradient-to-br from-purple-900/20 to-indigo-900/20">
+                    <div className="relative w-full h-48 overflow-hidden bg-muted/20">
                       <Image
-                        src={urlFor(project.image).width(400).height(192).url()}
+                        src={
+                          urlFor(project.image).width(400).height(192).url() || '/placeholder.svg'
+                        }
                         alt={project.image.alt || project.title}
                         width={400}
                         height={192}
-                        className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                        className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E1E1E] via-transparent to-transparent opacity-60"></div>
                     </div>
                   )}
 
-                  {/* Project Info */}
-                  <CardHeader className="p-5 pb-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <CardTitle className="text-xl font-semibold text-purple-300 group-hover:text-purple-200 transition-colors line-clamp-2">
+                  <CardHeader className="p-6 pb-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <CardTitle className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                         {project.title}
                       </CardTitle>
                       {project.githubUrl && (
-                        <Github className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                        <Github className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge
                         variant="secondary"
-                        className="bg-purple-900/30 text-purple-300 text-xs"
+                        className="bg-secondary/30 text-secondary-foreground text-xs border-0"
                       >
                         {project.category}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className={`text-xs ${
-                          project.status === 'Completed'
-                            ? 'border-green-700 text-green-400'
-                            : project.status === 'In Progress'
-                              ? 'border-yellow-700 text-yellow-400'
-                              : 'border-gray-700 text-gray-400'
-                        }`}
+                        className="text-xs border-border text-muted-foreground"
                       >
                         {project.status}
                       </Badge>
                     </div>
                   </CardHeader>
 
-                  {/* Project Description */}
-                  <CardContent className="p-5 pt-0 flex-grow flex flex-col">
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-3 flex-grow">
+                  <CardContent className="p-6 pt-0 flex-grow flex flex-col">
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3 flex-grow leading-relaxed">
                       {project.description}
                     </p>
 
-                    {/* Technologies */}
                     {project.technologies && project.technologies.length > 0 && (
                       <div>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {project.technologies.slice(0, 6).map((tech: any, idx: number) => {
                             const techName =
                               typeof tech === 'string'
@@ -161,15 +180,15 @@ const ProjectsListContent = (): JSX.Element => {
                             return (
                               <span
                                 key={`${techName}-${idx}`}
-                                className="px-2 py-1 text-xs bg-purple-900/40 text-purple-300 rounded-md border border-purple-800/30"
+                                className="px-2.5 py-1 text-xs bg-muted/50 text-muted-foreground rounded-md border border-border/50"
                               >
                                 {techName}
                               </span>
                             );
                           })}
                           {project.technologies.length > 6 && (
-                            <span className="px-2 py-1 text-xs text-gray-500 flex items-center">
-                              +{project.technologies.length - 6} more
+                            <span className="px-2.5 py-1 text-xs text-muted-foreground flex items-center">
+                              +{project.technologies.length - 6}
                             </span>
                           )}
                         </div>
@@ -177,13 +196,12 @@ const ProjectsListContent = (): JSX.Element => {
                     )}
                   </CardContent>
 
-                  {/* View Details Footer */}
-                  <div className="p-5 pt-3 border-t border-purple-800/30 mt-auto">
+                  <div className="p-6 pt-3 border-t border-border/50 mt-auto">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-purple-400 group-hover:text-purple-300 transition-colors font-medium">
+                      <span className="text-primary group-hover:text-primary/80 transition-colors font-medium">
                         View Details
                       </span>
-                      <ExternalLink className="h-4 w-4 text-purple-400 group-hover:text-purple-300 transition-all group-hover:translate-x-1" />
+                      <ExternalLink className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </Card>
@@ -193,44 +211,22 @@ const ProjectsListContent = (): JSX.Element => {
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-purple-900/20 mb-4">
-            <Briefcase className="h-10 w-10 text-purple-500" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/20 mb-4">
+            <Briefcase className="h-10 w-10 text-muted-foreground" />
           </div>
-          <p className="text-xl text-gray-400">No projects available yet.</p>
-          <p className="text-sm text-gray-500 mt-2">Check back soon for updates!</p>
+          <p className="text-xl text-foreground">No projects available yet.</p>
+          <p className="text-sm text-muted-foreground mt-2">Check back soon for updates!</p>
         </motion.div>
       )}
     </>
   );
 };
 
-/**
- * @function ProjectsList
- * @description The page-level wrapper for the portfolio project list.
- * Wraps {@link ProjectsListContent} in layout and suspense (for SSR/streaming and error boundaries).
- *
- * @returns {JSX.Element} The portfolio projects page with layout, header, and list.
- * @web
- * @public
- * @version 1.0.0
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @see https://github.com/WomB0ComB0/portfolio
- * @example
- * // Used as default export/page body:
- * <ProjectsList />
- */
 export const ProjectsList = (): JSX.Element => {
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <Suspense
-          fallback={
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-500 border-r-transparent"></div>
-              <p className="text-gray-400 mt-4">Loading projects...</p>
-            </div>
-          }
-        >
+      <div className="container mx-auto px-6 py-16 max-w-7xl">
+        <Suspense fallback={<ProjectCardSkeleton />}>
           <ProjectsListContent />
         </Suspense>
       </div>
@@ -238,3 +234,4 @@ export const ProjectsList = (): JSX.Element => {
   );
 };
 
+export default ProjectsList;

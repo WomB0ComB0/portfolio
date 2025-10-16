@@ -1,4 +1,3 @@
-
 import type { MetadataRoute } from 'next';
 import { headers } from 'next/headers';
 
@@ -118,7 +117,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,
-    }
+    },
   ];
 }
-

@@ -1,4 +1,3 @@
-
 // @ts-check
 
 /**
@@ -181,4 +180,3 @@ export class Redacted<T = string> {
     return this._value;
   }
 }
-
