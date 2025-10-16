@@ -137,29 +137,29 @@ Here's a high-level overview of the application's architecture, illustrating the
 
 ```mermaid
 graph TD
-    A[Client Browser/PWA] -->|HTTP/HTTPS| B(Next.js Frontend - Vercel)
+    A["Client Browser/PWA"] -->|HTTP/HTTPS| B(Next.js Frontend - Vercel)
 
     subgraph Next.js Frontend
-        B --&gt;|Server Components| C(Server-Side Logic / Data Fetching)
-        B --&gt;|Client Components| D(Client-Side UI / Interactivity)
+        B -->|"Server Components"| C["Server-Side Logic / Data Fetching"]
+        B -->|"Client Components"| D["Client-Side UI / Interactivity"]
     end
 
-    C --&gt;|GraphQL / REST| E(Elysia.js Backend API - Vercel Serverless)
-    D --&gt;|REST / WebSockets| E
+    C -->|GraphQL / REST| E(Elysia.js Backend API - Vercel Serverless)
+    D -->|REST / WebSockets| E
 
-    E --&gt;|Read/Write| F[Sanity.io CMS]
-    E --&gt;|Auth/Read/Write| G[Firebase (Auth & Firestore)]
-    E --&gt;|External API Calls| H(Spotify API)
-    E --&gt;|External API Calls| I(GitHub API)
-    E --&gt;|External API Calls| J(Hashnode API)
-    E --&gt;|External API Calls| K(Lanyard API)
-    E --&gt;|External API Calls| L(Wakatime API)
-    E --&gt;|Caching| M[Redis]
+    E -->|Read/Write| F[Sanity.io CMS]
+    E -->|Auth/Read/Write| G["Firebase (Auth & Firestore)"]
+    E -->|External API Calls| H(Spotify API)
+    E -->|External API Calls| I(GitHub API)
+    E -->|External API Calls| J(Hashnode API)
+    E -->|External API Calls| K(Lanyard API)
+    E -->|External API Calls| L(Wakatime API)
+    E -->|Caching| M[Redis]
 
     subgraph Monitoring & Analytics
-        B --&gt;|Telemetry| N(OpenTelemetry/Sentry)
-        C --&gt;|Telemetry| N
-        B --&gt;|Analytics| O(Google Analytics / Vercel Analytics)
+        B -->|Telemetry| N["OpenTelemetry/Sentry"]
+        C -->|Telemetry| N
+        B -->|Analytics| O["Google Analytics / Vercel Analytics"]
     end
 
     subgraph CI/CD & Deployment
@@ -168,8 +168,8 @@ graph TD
         Q --> E
     end
 
-    F --&gt;|Real-time Content Updates| C
-    G --&gt;|User Authentication| D
+    F -->|Real-time Content Updates| C
+    G -->|User Authentication| D
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style B fill:#bbf,stroke:#333,stroke-width:2px
