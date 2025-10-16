@@ -5,10 +5,37 @@
  *
  * This script tests all API endpoints and logs detailed results to the console.
  * Use this for quick manual testing during development.
+ * @version 1.0.0
+ * @author Mike Odnis
+ * @see {@link https://bun.sh/docs/runtime/exec#env-variables Bun Env Variables}
  */
 
+/**
+ * The base URL for the API endpoints to be tested.
+ * Defaults to 'http://localhost:3000' if `NEXT_PUBLIC_SITE_URL` environment variable is not set.
+ * @type {string}
+ * @readonly
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
+/**
+ * Represents the detailed result of an API endpoint test.
+ * @interface TestResult
+ * @property {string} endpoint - The path of the API endpoint tested (e.g., '/api/v1/now-playing').
+ * @property {'GET' | 'POST'} method - The HTTP method used for the request (e.g., 'GET', 'POST').
+ * @property {number} status - The HTTP status code of the response (e.g., 200, 404).
+ * @property {string} statusText - The HTTP status text of the response (e.g., 'OK', 'Not Found').
+ * @property {boolean} success - Indicates whether the request was successful (HTTP status 2xx).
+ * @property {number} responseTime - The time taken for the request to complete in milliseconds.
+ * @property {unknown} [data] - The parsed response body. Can be JSON object or raw text.
+ * @property {string} [error] - An error message if the request failed at the network level or encountered an exception.
+ * @property {Record<string, string>} [headers] - A dictionary of response headers.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 interface TestResult {
   endpoint: string;
   method: string;
@@ -21,6 +48,14 @@ interface TestResult {
   headers?: Record<string, string>;
 }
 
+/**
+ * Defines ANSI escape codes for console text colors.
+ * Used for stylized output in the console.
+ * @readonly
+ * @type {Readonly<Record<string, string>>}
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -32,11 +67,46 @@ const colors = {
   cyan: '\x1b[36m',
 };
 
+/**
+ * Logs a message to the console with optional ANSI color styling.
+ * @public
+ * @param {string} message - The message string to log.
+ * @param {keyof typeof colors} [color] - The name of the color to apply to the message (e.g., 'red', 'green').
+ * @returns {void}
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * log("This is a success message", "green");
+ * log("This is a plain message");
+ */
 function log(message: string, color?: keyof typeof colors) {
   const colorCode = color ? colors[color] : '';
   console.log(`${colorCode}${message}${colors.reset}`);
 }
 
+/**
+ * Tests a single API endpoint by making an HTTP request.
+ * It measures response time, parses the response, and captures status and any errors.
+ * @public
+ * @async
+ * @web
+ * @param {string} endpoint - The path of the API endpoint to test (e.g., '/api/v1/now-playing').
+ * @param {'GET' | 'POST'} [method='GET'] - The HTTP method to use for the request.
+ * @param {unknown} [body] - The request body for 'POST' requests. Will be JSON stringified.
+ * @returns {Promise<TestResult>} A promise that resolves to a {@link TestResult} object containing the test details.
+ * @throws {Error} If a network error occurs that prevents the `fetch` call from completing.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * // Test a GET endpoint
+ * const resultGet = await testEndpoint('/api/v1/github-stats');
+ * printResult(resultGet);
+ *
+ * @example
+ * // Test a POST endpoint with a body
+ * const resultPost = await testEndpoint('/api/v1/messages', 'POST', { name: 'Test', message: 'Hello' });
+ * printResult(resultPost);
+ */
 async function testEndpoint(
   endpoint: string,
   method: 'GET' | 'POST' = 'GET',
@@ -102,6 +172,22 @@ async function testEndpoint(
   }
 }
 
+/**
+ * Prints the detailed result of an API endpoint test to the console using color-coded output.
+ * It provides a summary of status, response time, data, and relevant headers.
+ * @public
+ * @param {TestResult} result - The {@link TestResult} object to be printed.
+ * @returns {void}
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link TestResult}
+ * @example
+ * const mockResult: TestResult = {
+ *   endpoint: '/api/v1/test', method: 'GET', status: 200, statusText: 'OK',
+ *   success: true, responseTime: 120, data: { message: 'Success' }, headers: {}
+ * };
+ * printResult(mockResult);
+ */
 function printResult(result: TestResult) {
   const statusColor = result.success ? 'green' : result.status === 0 ? 'red' : 'yellow';
   const emoji = result.success ? '✅' : result.status === 0 ? '❌' : '⚠️';
@@ -154,6 +240,23 @@ function printResult(result: TestResult) {
   }
 }
 
+/**
+ * Executes a series of predefined API endpoint tests and logs a comprehensive summary.
+ * This function iterates through a list of endpoints, calls {@link testEndpoint} for each,
+ * prints the results using {@link printResult}, and then displays a final summary including
+ * success rates, average response time, and details of any failed endpoints.
+ * The process exits with a non-zero code if network errors occurred.
+ * @public
+ * @async
+ * @returns {Promise<void>} A promise that resolves when all tests are complete.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link testEndpoint}
+ * @see {@link printResult}
+ * @example
+ * // To run the tests, simply call the function:
+ * runTests().catch(error => console.error("Test execution failed:", error));
+ */
 async function runTests() {
   log('\n╔═══════════════════════════════════════════════════╗', 'bright');
   log('║        API Endpoints Integration Test             ║', 'bright');
@@ -228,6 +331,16 @@ async function runTests() {
   }
 }
 
+/**
+ * Initiates the API testing process.
+ * If any fatal errors occur during the execution of {@link runTests},
+ * they are caught here, logged, and the process exits with an error code.
+ * @async
+ * @throws {Error} If an uncaught exception occurs during the test run.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link runTests}
+ */
 // Run the tests
 runTests().catch((error) => {
   log(`\n❌ Fatal error: ${error.message}`, 'red');

@@ -1,18 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
-  isIOS,
-  isAndroid,
-  isMacOS,
-  isWindows,
-  isChromeOS,
   getBrowser,
   getPlatform,
-  isTouchScreen,
+  isAndroid,
   isChrome,
-  isFirefox,
-  isSafari,
-  isOpera,
+  isChromeOS,
   isEdge,
+  isFirefox,
+  isIOS,
+  isMacOS,
+  isOpera,
+  isSafari,
+  isTouchScreen,
+  isWindows,
 } from './platform';
 
 const setUserAgent = (userAgent: string) => {
@@ -109,7 +109,7 @@ describe('isTouchScreen', () => {
       value: 0,
       writable: true,
     });
-    window.matchMedia = vi.fn().mockImplementation(query => ({
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
       matches: query === '(any-pointer:coarse)',
     }));
     expect(isTouchScreen()).toBe(true);

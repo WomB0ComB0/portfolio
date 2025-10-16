@@ -1,13 +1,6 @@
+
 'use client';
 
-import { FetchHttpClient } from '@effect/platform';
-import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
-import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useMemo, useState } from 'react';
-import { FiAlertCircle, FiMessageSquare, FiSend } from 'react-icons/fi';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
 import { Button } from '@/components/ui/button';
@@ -18,8 +11,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/core/auth';
 import { usePostMessage } from '@/hooks';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { logger } from '@/utils';
 import { escapeHtml, validateUserInput } from '@/utils/security/xss';
+import { FetchHttpClient } from '@effect/platform';
+import { useQuery } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
+import { AnimatePresence, motion } from 'motion/react';
+import { useCallback, useMemo, useState } from 'react';
+import { FiAlertCircle, FiMessageSquare, FiSend } from 'react-icons/fi';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
+/**
+ * Zod validation schema for input messages.
+ * Messages must be [1, 280] chars.
+ * @readonly
+ * @type {z.ZodObject<{ text: z.ZodString }>}
+ * @private
+ */
 const inputSchema = z.object({
   text: z
     .string()
@@ -27,6 +36,18 @@ const inputSchema = z.object({
     .max(280, { message: 'Message must be less than 280 characters.' }),
 });
 
+/**
+ * Represents a single guestbook message.
+ * @interface Message
+ * @property {string} id - Unique identifier for the message.
+ * @property {string} message - The content of the message.
+ * @property {string} authorName - Name of the author.
+ * @property {string} createdAt - ISO string of creation date.
+ * @property {string | null | undefined} [email] - Optional email of the author.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @readonly
+ */
 interface Message {
   id: string;
   message: string;
@@ -35,11 +56,23 @@ interface Message {
   email?: string | null;
 }
 
+/**
+ * Guestbook API response wrapper.
+ * @interface ApiResponse
+ * @property {Message[]} json - An array of Message objects.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @readonly
+ */
 interface ApiResponse {
   json: Message[];
 }
 
-// Schema for messages response
+/**
+ * Effect schema for a single message (internal use).
+ * @readonly
+ * @private
+ */
 const MessageSchema = Schema.Struct({
   id: Schema.String,
   message: Schema.String,
@@ -48,16 +81,53 @@ const MessageSchema = Schema.Struct({
   email: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
 });
 
+/**
+ * Effect schema for an array of guestbook messages (internal use).
+ * @readonly
+ * @private
+ */
 const MessagesResponseSchema = Schema.Struct({
   json: Schema.Array(MessageSchema),
 });
 
+/**
+ * GuestbookComponent
+ *
+ * Main UI and logic for the digital guestbook in the portfolio project.
+ * Handles authentication, message form, entry listing, loading and error states.
+ * Uses effect-fetcher and React Query for async data access.
+ * Messages are sanitized and validated before posting.
+ *
+ * @function
+ * @returns {JSX.Element} Main digital guestbook section.
+ * @throws {Error} Will throw if fetching messages or posting fails critically.
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ * <GuestbookComponent />
+ */
 export default function GuestbookComponent() {
   const [message, setMessage] = useState('');
   const user = useCurrentUser();
 
+  /**
+   * Fetches guestbook messages from the API using react-query.
+   * @type {import('@tanstack/react-query').UseQueryResult<ApiResponse, Error>}
+   * @readonly
+   */
   const { data, error, isLoading } = useQuery<ApiResponse, Error>({
     queryKey: ['messages'],
+    /**
+     * Asynchronous query function to fetch all messages.
+     * Uses typed effect-based fetcher with schema and error handling.
+     * @async
+     * @returns {Promise<ApiResponse>}
+     * @throws {Error} If fetching or validation fails.
+     * @private
+     */
     queryFn: async () => {
       const effect = pipe(
         get('/api/v1/messages', {
@@ -75,12 +145,37 @@ export default function GuestbookComponent() {
     refetchInterval: 300000,
   });
 
+  /**
+   * Memoized guestbook messages list from the fetched API response.
+   * Returns an empty list if data is not loaded.
+   * @type {Message[]}
+   * @readonly
+   */
   const messages = useMemo(() => {
     return data?.json || [];
   }, [data]);
 
+  /**
+   * Custom mutation hook for posting a new guestbook message.
+   * @readonly
+   */
   const postMessage = usePostMessage();
 
+  /**
+   * Handles message form submission.
+   * Sanitizes and validates user input before posting to API.
+   *
+   * @function
+   * @async
+   * @throws {Error} If posting message fails.
+   * @returns {Promise<void>}
+   * @web
+   * @private
+   * @example
+   * await handleSubmit();
+   * @author Mike Odnis
+   * @version 1.0.0
+   */
   const handleSubmit = useCallback(async () => {
     const input = inputSchema.safeParse({ text: message.trim() });
     if (!input.success) {
@@ -110,11 +205,24 @@ export default function GuestbookComponent() {
       setMessage('');
       toast.success('Message sent successfully!');
     } catch (error) {
-      console.error('Error adding message:', error);
+      logger.error('Error adding message:', error);
       toast.error('Failed to send message. Please try again.');
     }
   }, [message, postMessage, user]);
 
+  /**
+   * Formats a date string (ISO) into a human-readable string.
+   * Returns 'Invalid date' if provided string is not a valid date.
+   *
+   * @function
+   * @param {string} dateString - The ISO date string to format.
+   * @returns {string} Formatted, human-readable date.
+   * @readonly
+   * @example
+   * formatDate("2023-01-01T12:34:56.000Z"); // Jan 1, 2023, 12:34 PM
+   * @web
+   * @private
+   */
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) {
@@ -216,6 +324,20 @@ export default function GuestbookComponent() {
   );
 }
 
+/**
+ * LoadingUI
+ *
+ * Renders a loading skeleton state for guestbook messages.
+ * Used while the guestbook message data is loading.
+ *
+ * @function
+ * @returns {JSX.Element} Loading skeleton cards visually indicating data loading.
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see GuestbookComponent
+ * @version 1.0.0
+ */
 function LoadingUI() {
   return (
     <div className="space-y-4">
@@ -238,6 +360,24 @@ function LoadingUI() {
   );
 }
 
+/**
+ * ErrorUI
+ *
+ * Renders a user interface to display errors in fetching or posting messages.
+ * Shows a retry button and error message.
+ *
+ * @function
+ * @param {{ error: Error }} props - Error prop containing message to display.
+ * @returns {JSX.Element} Error card UI with retry behavior.
+ * @throws {Error} May throw on reload depending on browser or context.
+ * @web
+ * @public
+ * @see GuestbookComponent
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @example
+ * <ErrorUI error={new Error("Something went wrong")} />
+ */
 function ErrorUI({ error }: { error: Error }) {
   return (
     <Card className="bg-red-900 bg-opacity-50 text-white border-red-700">

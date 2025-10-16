@@ -62,12 +62,6 @@ interface Messages {
   createdAt: Date;
 }
 
-type GithubStats = {
-  stars: number;
-  repos: number;
-  followers: number;
-};
-
 interface LanyardResponse {
   discord_status?: string;
   discord_user?: {

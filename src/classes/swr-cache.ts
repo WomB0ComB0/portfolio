@@ -10,6 +10,8 @@
  * - Graceful degradation (serve stale on fetch failure)
  */
 
+import { logger } from '@/utils';
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -148,7 +150,7 @@ class SWRCache {
     promise
       .catch((error) => {
         // Silently log errors from background revalidation
-        console.error(`Background revalidation failed for ${key}:`, error);
+        logger.error(`Background revalidation failed for ${key}:`, error);
       })
       .finally(() => {
         this.pendingRequests.delete(key);
@@ -234,7 +236,7 @@ export async function fetchWithSWR<T>(
   return swrCache.fetch(key, fetcher, {
     ttl,
     onError: (error) => {
-      console.error(`[SWR] Failed to fetch ${key}:`, error.message);
+      logger.error(`[SWR] Failed to fetch ${key}:`, error.message);
     },
   });
 }

@@ -1,3 +1,4 @@
+
 import {
   type ActionId,
   type ActionImpl,
@@ -8,7 +9,7 @@ import {
   KBarSearch,
   useMatches,
 } from 'kbar';
-import React from 'react';
+import React, { JSX } from 'react';
 import {
   FiAward,
   FiBarChart,
@@ -24,7 +25,19 @@ import {
 } from 'react-icons/fi';
 import { SiHashnode } from 'react-icons/si';
 
-export default function Palette() {
+/**
+ * @function Palette
+ * @public
+ * @description Renders the command palette modal interface using KBar components. Provides a styled search UI and result display for quick command or navigation actions within the application.
+ * @returns {JSX.Element} A React element rendering the palette modal and search results.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ *   <Palette />
+ */
+export default function Palette(): JSX.Element {
   return (
     <KBarPortal>
       <KBarPositioner className="z-50 select-none backdrop-blur bg-[#242424]/80 font-clash overflow-hidden">
@@ -40,7 +53,16 @@ export default function Palette() {
   );
 }
 
-function RenderResults() {
+/**
+ * @function RenderResults
+ * @private
+ * @description Renders the results section in the command palette. Maps each result to either a section header or a ResultItem component, coordinating ancestor context for each action.
+ * @returns {JSX.Element} A React fragment rendering all matched command results or section headers.
+ * @author Mike Odnis
+ * @see https://kbar.vercel.app/docs/usage
+ * @version 1.0.0
+ */
+function RenderResults(): JSX.Element {
   const { results, rootActionId } = useMatches();
 
   return (
@@ -64,6 +86,24 @@ function RenderResults() {
   );
 }
 
+/**
+ * @readonly
+ * @public
+ * @description
+ * Displays an individual action within the KBar results, supporting nested actions (ancestors), shortcut display, and dynamic icon mapping based on action name.
+ * @param {object} props The properties object.
+ * @param {ActionImpl} props.action The action entry details to render.
+ * @param {boolean} props.active Whether this result is the currently selected/active result.
+ * @param {ActionId} props.currentRootActionId The root action context for ancestor calculation.
+ * @param {React.Ref<HTMLDivElement>} ref Reference to the container div element, set by KBar for keyboard navigation.
+ * @returns {JSX.Element} The rendered action result entry.
+ * @author Mike Odnis
+ * @web
+ * @see https://kbar.vercel.app/docs/components/results
+ * @version 1.0.0
+ * @example
+ *   <ResultItem action={action} active={isActive} currentRootActionId={rootId} ref={ref} />
+ */
 const ResultItem = React.forwardRef(
   (
     {
@@ -76,14 +116,26 @@ const ResultItem = React.forwardRef(
       currentRootActionId: ActionId;
     },
     ref: React.Ref<HTMLDivElement>,
-  ) => {
+  ): JSX.Element => {
+    /**
+     * @description
+     * Computes the ancestors for the displayed action, omitting any that are present in the current root action context.
+     * @type {ActionImpl['ancestors']}
+     */
     const ancestors = React.useMemo(() => {
       if (!currentRootActionId) return action.ancestors;
       const index = action.ancestors.findIndex((ancestor) => ancestor.id === currentRootActionId);
       return action.ancestors.slice(index + 1);
     }, [action.ancestors, currentRootActionId]);
 
-    const getIcon = (name: string) => {
+    /**
+     * @function getIcon
+     * @private
+     * @description Maps an action name to its associated icon React component.
+     * @param {string} name The action name to look up.
+     * @returns {JSX.Element | null} The corresponding icon element, or null if not mapped.
+     */
+    const getIcon = (name: string): JSX.Element | null => {
       switch (name.toLowerCase()) {
         case 'home':
           return <FiHome size={18} />;
@@ -117,8 +169,9 @@ const ResultItem = React.forwardRef(
     return (
       <div
         ref={ref}
-        className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-all ${active ? 'bg-[#560BAD] text-[#ba9bdd]' : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
-          }`}
+        className={`px-4 py-2 flex items-center justify-between cursor-pointer transition-all ${
+          active ? 'bg-[#560BAD] text-[#ba9bdd]' : 'text-[#ba9bdd] hover:bg-[#560BAD]/20'
+        }`}
       >
         <div className="flex items-center gap-3">
           {getIcon(action.name)}
@@ -156,3 +209,4 @@ const ResultItem = React.forwardRef(
 );
 
 ResultItem.displayName = 'ResultItem';
+

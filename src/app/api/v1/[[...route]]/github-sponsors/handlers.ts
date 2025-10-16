@@ -4,6 +4,7 @@
  */
 
 import { getGitHubSponsors } from '@/lib/api-integrations/github-sponsors';
+import { logger } from '@/utils';
 
 /**
  * Handler for /api/v1/github-sponsors
@@ -25,7 +26,7 @@ export async function getGitHubSponsorsHandler() {
       },
     });
   } catch (error) {
-    console.error('[GitHub Sponsors API] Error:', error);
+    logger.error('[GitHub Sponsors API] Error:', error);
 
     return new Response(
       JSON.stringify({
@@ -63,7 +64,7 @@ export async function getActiveSponsorsHandler() {
       },
     });
   } catch (error) {
-    console.error('[GitHub Sponsors API] Error (active):', error);
+    logger.error('[GitHub Sponsors API] Error (active):', error);
 
     return new Response(
       JSON.stringify({

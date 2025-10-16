@@ -1,6 +1,6 @@
 /**
  * @fileoverview Request queue manager for preventing concurrent API requests
- * 
+ *
  * Implements request deduplication, queuing, and throttling to prevent
  * rate limiting from external APIs. Ensures only one request per unique
  * endpoint is in flight at a time.
@@ -53,7 +53,7 @@ const DEFAULT_RATE_LIMIT: RateLimitConfig = {
 
 /**
  * Singleton request queue manager
- * 
+ *
  * Features:
  * - Automatic request deduplication
  * - Request queuing with timing control
@@ -64,16 +64,16 @@ const DEFAULT_RATE_LIMIT: RateLimitConfig = {
 class RequestQueueManager {
   /** Map of endpoint URLs to pending requests */
   private pendingRequests = new Map<string, PendingRequest<any>>();
-  
+
   /** Map of endpoint URLs to request timing data */
   private requestTimings = new Map<string, RequestTiming>();
-  
+
   /** Map of endpoint patterns to rate limit configs */
   private rateLimits = new Map<string | RegExp, RateLimitConfig>();
-  
+
   /** Global rate limit applied to all requests */
   private globalRateLimit: RateLimitConfig = DEFAULT_RATE_LIMIT;
-  
+
   /** Cleanup interval ID */
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -114,7 +114,7 @@ class RequestQueueManager {
         return config;
       }
     }
-    
+
     return this.globalRateLimit;
   }
 
@@ -140,9 +140,7 @@ class RequestQueueManager {
     }
 
     // Check max requests per window
-    const recentRequests = timing.requests.filter(
-      (timestamp) => now - timestamp < config.windowMs
-    );
+    const recentRequests = timing.requests.filter((timestamp) => now - timestamp < config.windowMs);
 
     if (recentRequests.length >= config.maxRequests) {
       const oldestRequest = Math.min(...recentRequests);
@@ -162,7 +160,7 @@ class RequestQueueManager {
   private recordRequest(url: string): void {
     const now = Date.now();
     const config = this.getRateLimitConfig(url);
-    
+
     const timing = this.requestTimings.get(url) || {
       lastRequest: 0,
       requests: [],
@@ -173,9 +171,7 @@ class RequestQueueManager {
     timing.requests.push(now);
 
     // Clean up old requests outside the window
-    timing.requests = timing.requests.filter(
-      (timestamp) => now - timestamp < config.windowMs
-    );
+    timing.requests = timing.requests.filter((timestamp) => now - timestamp < config.windowMs);
 
     this.requestTimings.set(url, timing);
   }
@@ -187,14 +183,14 @@ class RequestQueueManager {
     url: string,
     method: string,
     body?: unknown,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
   ): string {
     const parts = [method, url];
-    
+
     if (body) {
       parts.push(JSON.stringify(body));
     }
-    
+
     // Include relevant headers that affect response (e.g., Authorization)
     if (headers) {
       const relevantHeaders = ['authorization', 'content-type'];
@@ -203,7 +199,7 @@ class RequestQueueManager {
         if (value) parts.push(`${key}:${value}`);
       }
     }
-    
+
     return parts.join('|');
   }
 
@@ -218,7 +214,7 @@ class RequestQueueManager {
       body?: unknown;
       headers?: Record<string, string>;
       bypassDeduplication?: boolean;
-    }
+    },
   ): Promise<T> {
     const cacheKey = this.getCacheKey(url, method, options?.body, options?.headers);
 
@@ -228,7 +224,7 @@ class RequestQueueManager {
       if (pending) {
         pending.refCount++;
         logger.info(
-          `[RequestQueue] Deduplicating request to ${url} (${pending.refCount} consumers)`
+          `[RequestQueue] Deduplicating request to ${url} (${pending.refCount} consumers)`,
         );
         return pending.promise as Promise<T>;
       }
@@ -237,9 +233,7 @@ class RequestQueueManager {
     // Check rate limits
     const rateCheck = this.canMakeRequest(url);
     if (!rateCheck.allowed && rateCheck.waitTime) {
-      logger.info(
-        `[RequestQueue] Rate limit reached for ${url}, waiting ${rateCheck.waitTime}ms`
-      );
+      logger.info(`[RequestQueue] Rate limit reached for ${url}, waiting ${rateCheck.waitTime}ms`);
       await this.sleep(rateCheck.waitTime);
     }
 
@@ -254,7 +248,7 @@ class RequestQueueManager {
       })
       .catch((error) => {
         this.pendingRequests.delete(cacheKey);
-        
+
         // Handle 429 rate limit responses
         if (this.is429Error(error)) {
           logger.warn(`[RequestQueue] 429 Rate Limit hit for ${url}`);
@@ -264,7 +258,7 @@ class RequestQueueManager {
             minInterval: Math.min(currentConfig.minInterval * 2, 5000),
           });
         }
-        
+
         throw error;
       });
 

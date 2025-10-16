@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity'
+import { defineField, defineType } from 'sanity';
 
 export const resumeType = defineType({
   name: 'resume',
@@ -34,7 +34,8 @@ export const resumeType = defineType({
       name: 'isActive',
       title: 'Is Active',
       type: 'boolean',
-      description: 'Is this the current active resume to display? Only one should be active at a time.',
+      description:
+        'Is this the current active resume to display? Only one should be active at a time.',
       initialValue: true,
       validation: (Rule) => Rule.required(),
     }),
@@ -49,7 +50,7 @@ export const resumeType = defineType({
       return {
         title: title || 'Resume',
         subtitle: `Last updated: ${lastUpdated || 'N/A'} ${isActive ? '✓ Active' : ''}`,
-      }
+      };
     },
   },
-})
+});

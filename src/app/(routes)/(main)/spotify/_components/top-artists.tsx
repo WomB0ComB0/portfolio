@@ -1,20 +1,54 @@
+
 'use client';
 
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 
+/**
+ * Schema definition for a Spotify artist object.
+ *
+ * @typedef {Object} ArtistSchema
+ * @property {string} name - The display name of the artist.
+ * @property {string} url - The Spotify profile URL for the artist.
+ * @property {string} imageUrl - The artist's image URL.
+ * @readonly
+ * @author Mike Odnis
+ * @see https://developer.spotify.com/documentation/web-api/reference/get-an-artists-profile
+ * @version 1.0.0
+ */
 const ArtistSchema = Schema.Struct({
   name: Schema.String,
   url: Schema.String,
   imageUrl: Schema.String,
 });
 
+/**
+ * Schema definition for the response containing the array of top artists.
+ *
+ * @typedef {ArtistSchema[]} TopArtistsResponseSchema
+ * @readonly
+ * @author Mike Odnis
+ * @see ArtistSchema
+ * @version 1.0.0
+ */
 const TopArtistsResponseSchema = Schema.Array(ArtistSchema);
 
+/**
+ * Skeleton loader displayed while the top artists data is loading.
+ *
+ * @function
+ * @returns {JSX.Element} A skeleton placeholder for the top artists grid.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * <TopArtistsSkeleton />
+ * @web
+ * @public
+ */
 const TopArtistsSkeleton = () => (
   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
     {[...Array(10)].map((_, index) => (
@@ -26,12 +60,40 @@ const TopArtistsSkeleton = () => (
   </div>
 );
 
+/**
+ * Error UI component shown when fetching the top artists fails.
+ *
+ * @function
+ * @returns {JSX.Element} A styled error message indicating failure.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * <TopArtistsError />
+ * @web
+ * @public
+ */
 const TopArtistsError = () => (
   <div className="text-red-400 bg-red-900/20 p-4 rounded-lg text-center">
     Failed to load top artists. Please try again later.
   </div>
 );
 
+/**
+ * @function TopArtists
+ * @description Displays a grid of the user's top artists fetched from the Spotify API for the past 4 weeks.
+ * Fetches artist data using a type-safe schema, shows a loader while fetching, and handles error and empty states.
+ * The grid is responsive and each artist can be clicked to open their Spotify profile in a new tab.
+ *
+ * @returns {JSX.Element} The rendered top artists UI containing a title, description, and the grid or states.
+ * @throws {Error} If loading or decoding the artist data fails, see DataLoader for thrown errors.
+ * @author Mike Odnis
+ * @see TopArtistsSkeleton, TopArtistsError, DataLoader, https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @web
+ * @public
+ * @example
+ * <TopArtists />
+ */
 export default function TopArtists() {
   return (
     <div className="bg-gradient-to-br from-purple-900 to-purple-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
@@ -49,41 +111,55 @@ export default function TopArtists() {
           ErrorComponent={TopArtistsError}
           LoadingComponent={<TopArtistsSkeleton />}
         >
-          {(data: Schema.Schema.Type<typeof TopArtistsResponseSchema>) => (
-            <>
-              {data.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                  {data.map((artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
-                    <motion.div
-                      key={`${artist.name}-${index}`}
-                      className="flex flex-col items-center space-y-3 p-4 bg-purple-800/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-purple-700/60 transition-all text-center"
-                      onClick={() => window.open(artist.url, '_blank')}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Image
-                        src={artist.imageUrl}
-                        alt={artist.name}
-                        className="w-24 h-24 rounded-full shadow-lg border-2 border-purple-600"
-                        width={96}
-                        height={96}
-                      />
-                      <p className="text-white font-semibold truncate w-full">{artist.name}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-purple-200 bg-purple-800/30 p-4 rounded-lg text-center">
-                  No top artists data available at the moment.
-                </p>
-              )}
-            </>
-          )}
+          {
+            /**
+             * @param {ArtistSchema[]} data - Array of top artist objects from the API response.
+             */
+            (data: Schema.Schema.Type<typeof TopArtistsResponseSchema>) => (
+              <>
+                {data.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {data.map(
+                      /**
+                       * Renders an individual artist card, clickable to open the artist's Spotify profile.
+                       * @param {ArtistSchema} artist - The artist object.
+                       * @param {number} index - The artist's index in the array for animation delay and key.
+                       * @returns {JSX.Element} The rendered artist card.
+                       */
+                      (artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
+                        <motion.div
+                          key={`${artist.name}-${index}`}
+                          className="flex flex-col items-center space-y-3 p-4 bg-purple-800/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-purple-700/60 transition-all text-center"
+                          onClick={() => window.open(artist.url, '_blank')}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <Image
+                            src={artist.imageUrl}
+                            alt={artist.name}
+                            className="w-24 h-24 rounded-full shadow-lg border-2 border-purple-600"
+                            width={96}
+                            height={96}
+                          />
+                          <p className="text-white font-semibold truncate w-full">{artist.name}</p>
+                        </motion.div>
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-purple-200 bg-purple-800/30 p-4 rounded-lg text-center">
+                    No top artists data available at the moment.
+                  </p>
+                )}
+              </>
+            )
+          }
         </DataLoader>
       </Suspense>
     </div>
   );
 }
+

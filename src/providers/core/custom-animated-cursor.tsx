@@ -1,24 +1,58 @@
+
 'use client';
 
-import dynamic from 'next/dynamic';
-import React, { useEffect, useState } from 'react';
 import { COLORS } from '@/constants';
+import dynamic from 'next/dynamic';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 
 const colors = COLORS;
 
-// Dynamically import AnimatedCursor with no SSR
+/**
+ * Dynamically imports the AnimatedCursor component from 'react-animated-cursor' with SSR disabled.
+ *
+ * @constant
+ * @readonly
+ * @type {React.ComponentType<any>}
+ * @see {@link https://www.npmjs.com/package/react-animated-cursor}
+ * @web
+ */
 const AnimatedCursor = dynamic(() => import('react-animated-cursor'), {
   ssr: false,
   loading: () => null,
 });
 
-export const CustomAnimatedCursor = () => {
-  const [isMounted, setIsMounted] = useState(false);
-  const [colorIndex, setColorIndex] = useState(0);
+/**
+ * `CustomAnimatedCursor` is a React component that renders a customizable, animated
+ * cursor for web applications. It cycles through a palette of colors, hides the system
+ * cursor over clickable elements, and supports clickables targeting various HTML elements.
+ *
+ * Color cycling uses a set interval, and cursor styling is injected globally via a <style> element.
+ * Hydration- and SSR-safety are considered. Intended for use in portfolio web applications.
+ *
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis (@WomB0ComB0)
+ * @version 1.0.0
+ * @returns {React.ReactElement|null} The animated cursor, or null until after hydration
+ * @example
+ * <CustomAnimatedCursor />
+ * @throws {Error} Will not throw directly, but improper usage or running in unsupported environments may cause runtime errors.
+ * @see {@link https://www.npmjs.com/package/react-animated-cursor} Animated Cursor npm
+ * @see COLORS {@link ../../constants}
+ */
+export const CustomAnimatedCursor = (): React.ReactElement | null => {
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [colorIndex, setColorIndex] = useState<number>(0);
 
   useEffect(() => {
-    // Wait for hydration to complete AND initial render to finish
-    // This prevents the cursor library from modifying DOM during hydration
+    /**
+     * Handles hydration-completion and sets up animated cursor color cycling and
+     * global cursor hiding, cleaning up on unmount.
+     *
+     * @private
+     */
     const timer = setTimeout(() => {
       setIsMounted(true);
       // Add a global style to hide default cursor once animated cursor is ready
@@ -39,11 +73,11 @@ export const CustomAnimatedCursor = () => {
       if (!document.getElementById('animated-cursor-style')) {
         document.head.appendChild(style);
       }
-    }, 500); // Increased delay to ensure hydration is complete
+    }, 500);
 
     const intervalId = setInterval(() => {
       setColorIndex((prevIndex) => (prevIndex + 1) % colors.length);
-    }, 5000); // Change color every 5 seconds
+    }, 5000);
 
     return () => {
       clearTimeout(timer);
@@ -100,3 +134,4 @@ export const CustomAnimatedCursor = () => {
 };
 CustomAnimatedCursor.displayName = 'CustomAnimatedCursor';
 export default CustomAnimatedCursor;
+

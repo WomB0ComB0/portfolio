@@ -1,27 +1,54 @@
-import 'server-only';
-import { edenTreaty } from '@elysiajs/eden';
+
 import type { API } from '@/app/api/[[...route]]/route';
 import type { API_V1 } from '@/app/api/v1';
 import { getURL } from '@/utils';
+import { edenTreaty } from '@elysiajs/eden';
+import 'server-only';
 
 /**
- * Server-side API client instance created using Elysia's Eden treaty pattern.
+ * Instantiates a type-safe, server-only API client for v1 endpoints using the Eden treaty pattern.
  *
- * @remarks
- * This exports a type-safe API client that can only be used on the server-side,
- * preventing accidental client-side usage through the 'server-only' import.
- *
- * @example
- * ```ts
- * // Usage in server-side code:
- * const result = await elysia_server_api.someEndpoint.get()
- * ```
- *
+ * @type {import('@elysiajs/eden').EdenTreaty<API_V1>}
+ * @readonly
+ * @public
+ * @web
+ * @author Mike Odnis <WomB0ComB0>
+ * @version 1.0.0
  * @see {@link https://elysiajs.com/eden/treaty.html Eden Treaty Documentation}
- *
- * @returns A type-safe API client instance with endpoints matching the app router structure
+ * @see {@link https://github.com/WomB0ComB0/portfolio Portfolio Repository}
+ * @remarks
+ * This instance enforces server-side usage only via the `server-only` import. It provides full type safety and auto-complete for all v1 API routes.
+ * @example
+ * * // Fetch data from the v1 API
+ * const result = await apiv1.exampleRoute.get();
+ * ```
+ * @throws {Error} Network errors or contract violations may throw exceptions at runtime.
+ * @returns {import('@elysiajs/eden').EdenTreaty<API_V1>} A treaty-wrapped, type-safe API v1 client instance.
  */
 const apiv1 = edenTreaty<API_V1>(getURL());
+
+/**
+ * Instantiates a type-safe, server-only API client for the full app router using the Eden treaty pattern.
+ *
+ * @type {import('@elysiajs/eden').EdenTreaty<API>}
+ * @readonly
+ * @public
+ * @web
+ * @author Mike Odnis <WomB0ComB0>
+ * @version 1.0.0
+ * @see {@link https://elysiajs.com/eden/treaty.html Eden Treaty Documentation}
+ * @see {@link https://github.com/WomB0ComB0/portfolio Portfolio Repository}
+ * @remarks
+ * This instance enforces server-side usage only via the `server-only` import. It provides full type safety and auto-complete for all route endpoints.
+ * @example
+ * ```ts
+ * // Fetch data from any API endpoint
+ * const data = await api.someEndpoint.get();
+ * ```
+ * @throws {Error} Network errors or contract violations may throw exceptions at runtime.
+ * @returns {import('@elysiajs/eden').EdenTreaty<API>} A treaty-wrapped, type-safe API client instance for all app endpoints.
+ */
 const api = edenTreaty<API>(getURL());
 
-export { apiv1, api };
+export { api, apiv1 };
+

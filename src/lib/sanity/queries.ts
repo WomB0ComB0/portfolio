@@ -269,4 +269,3 @@ export const contentCountsQuery = `
     "places": count(*[_type == "place"])
   }
 `;
-

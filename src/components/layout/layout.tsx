@@ -1,12 +1,36 @@
+
 'use client';
 
-import { usePathname } from 'next/navigation';
 import BlurryBlob from '@/components/animations/background/blurry-blob';
 import Palette from '@/components/cmd';
 import { DotPattern } from '@/components/magicui';
 import { LiveBlocksProvider } from '@/providers/core';
+import { usePathname } from 'next/navigation';
 import { Footer, MobileNavBar, NavBar } from '.';
 
+/**
+ * @function Layout
+ * @public
+ * @description
+ * Provides the core layout structure for all pages within the application. It establishes
+ * the visual foundation, global styling, core navigation (side and mobile bars), animated
+ * backgrounds/effects, and children content. The component ensures a responsive, visually-rich
+ * shell using overlayed SVG/canvas backgrounds, contextual navigation bars, and a global command palette.
+ *
+ * @param {Readonly<{children: React.ReactNode}>} props - Props object containing the children React nodes to render within the layout.
+ *   @param {React.ReactNode} props.children - The main child content for the layout (routed page content).
+ * @returns {JSX.Element} A React JSX element composing the full application layout, including navigation, backgrounds, and children.
+ * @throws {Error} If required child components fail to render, or if any sub-provider encounters an initialization error.
+ * @example
+ * // Usage wrapping a page route:
+ * <Layout>
+ *   <YourPageContent />
+ * </Layout>
+ * @author Mike Odnis
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @web
+ * @version 1.0.0
+ */
 export default function Layout({
   children,
 }: Readonly<{
@@ -43,3 +67,4 @@ export default function Layout({
     </LiveBlocksProvider>
   );
 }
+

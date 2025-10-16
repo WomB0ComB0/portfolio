@@ -1,6 +1,6 @@
 /**
  * @fileoverview Effect Schema definitions for Sanity CMS data types
- * 
+ *
  * Centralized schema definitions for all Sanity document types with
  * Effect Schema validation. These schemas are shared across both
  * standard React Query hooks and Suspense-based useDataLoader hooks.

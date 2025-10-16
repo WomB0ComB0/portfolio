@@ -21,8 +21,8 @@
  * - Client: Uses @/config for public-only variables (NEXT_PUBLIC_*)
  */
 
-import { createClient } from '@sanity/client';
 import type { SanityClient } from '@sanity/client';
+import { createClient } from '@sanity/client';
 import imageUrlBuilder from '@sanity/image-url';
 import type { ImageUrlBuilder } from '@sanity/image-url/lib/types/builder';
 import type { SanityImageSource } from '@sanity/image-url/lib/types/types';
@@ -94,10 +94,10 @@ const builder: ImageUrlBuilder = imageUrlBuilder(sanityClient);
 /**
  * Helper function to generate optimized image URLs from Sanity
  * Safe to use in both server and client components
- * 
+ *
  * @param source - Sanity image source
  * @returns Image URL builder instance
- * 
+ *
  * @example
  * ```ts
  * const imageUrl = urlFor(image)
@@ -114,7 +114,7 @@ export function urlFor(source: SanityImageSource) {
 /**
  * Type-safe GROQ query helper
  * Safe to use in both server and client components
- * 
+ *
  * @param query - GROQ query string
  * @param params - Query parameters
  * @returns Promise with typed result
@@ -129,7 +129,7 @@ export async function sanityFetch<T = any>(
 /**
  * Type-safe GROQ query helper with authentication
  * SERVER-ONLY: Falls back to regular fetch on client-side
- * 
+ *
  * @param query - GROQ query string
  * @param params - Query parameters
  * @returns Promise with typed result
@@ -142,4 +142,3 @@ export async function sanityFetchWithToken<T = any>(
 }
 
 export { sanityClient as client, sanityClientWithToken as clientWithToken };
-

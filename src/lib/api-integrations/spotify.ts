@@ -1,13 +1,22 @@
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
+
 import { env } from '@/env';
 import { get, post } from '@/lib/http-clients/effect-fetcher';
+import { logger } from '@/utils';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import 'server-only';
 
 const client_id = env.SPOTIFY_CLIENT_ID;
 const client_secret = env.SPOTIFY_CLIENT_SECRET;
 const refresh_token = env.SPOTIFY_REFRESH_TOKEN;
 
+// Spotify API authorization value (read-only)
+/**
+ * @readonly
+ * @type {string}
+ * @description Spotify API Basic Auth token
+ * @see https://developer.spotify.com/documentation/general/guides/authorization/
+ */
 const basic = Buffer.from(`${client_id}:${client_secret}`).toString('base64');
 
 // Schema for access token response
@@ -29,7 +38,20 @@ const SpotifyArtistSchema = Schema.Struct({
 });
 
 /**
- * Makes a request to the Spotify API to obtain a new access token using a refresh token.
+ * Retrieves a new Spotify access token using the provided refresh token.
+ *
+ * @async
+ * @function
+ * @public
+ * @returns {Promise<{ access_token: string }>} Resolves with the access token object.
+ * @throws {Error} If an error occurs while fetching the access token.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://developer.spotify.com/documentation/web-api/tutorials/refreshing-tokens
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @web
+ * @example
+ * const { access_token } = await getAccessToken();
  */
 export const getAccessToken = async (): Promise<{ access_token: string }> => {
   const formData = new URLSearchParams({
@@ -54,13 +76,26 @@ export const getAccessToken = async (): Promise<{ access_token: string }> => {
   try {
     return await Effect.runPromise(effect);
   } catch (error) {
-    console.error('Error getting Spotify access token:', error);
+    logger.error('Error getting Spotify access token:', error);
     throw error;
   }
 };
 
 /**
- * Makes a request to the Spotify API to retrieve the user's top tracks.
+ * Fetches the user's top 20 Spotify tracks for the short-term range.
+ *
+ * @async
+ * @function
+ * @public
+ * @returns {Promise<any[]>} Promise resolving with an array of top track objects.
+ * @throws {Error} If fetching the top tracks fails or the access token cannot be retrieved.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @web
+ * @example
+ * const tracks = await topTracks();
  */
 export const topTracks = async (): Promise<any[]> => {
   // Obtain an access token
@@ -82,13 +117,26 @@ export const topTracks = async (): Promise<any[]> => {
     const result = await Effect.runPromise(effect);
     return result.items as any[];
   } catch (error) {
-    console.error('Error fetching top tracks:', error);
+    logger.error('Error fetching top tracks:', error);
     throw error;
   }
 };
 
 /**
- * Makes a request to the Spotify API to retrieve the user's top artists.
+ * Fetches the user's top 20 Spotify artists for the short-term range.
+ *
+ * @async
+ * @function
+ * @public
+ * @returns {Promise<any[]>} Promise resolving with an array of top artist objects.
+ * @throws {Error} If fetching the top artists fails or the access token cannot be retrieved.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @web
+ * @example
+ * const artists = await topArtists();
  */
 export const topArtists = async (): Promise<any[]> => {
   // Obtain an access token
@@ -110,15 +158,29 @@ export const topArtists = async (): Promise<any[]> => {
     const result = await Effect.runPromise(effect);
     return result.items as any[];
   } catch (error) {
-    console.error('Error fetching top artists:', error);
+    logger.error('Error fetching top artists:', error);
     throw error;
   }
 };
 
 /**
- * Makes a request to the Spotify API to retrieve the currently playing song for the user.
+ * Retrieves the user's currently playing Spotify song, if available.
+ *
+ * @async
+ * @function
+ * @public
+ * @returns {Promise<any|null>} Resolves with the currently playing song object, or null if not available.
+ * @throws {Error} If authorizing or fetching from the Spotify API fails.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://developer.spotify.com/documentation/web-api/reference/get-the-users-currently-playing-track
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @web
+ * @example
+ * const song = await currentlyPlayingSong();
+ * if (song) { ... }
  */
-export const currentlyPlayingSong = async () => {
+export const currentlyPlayingSong = async (): Promise<any | null> => {
   try {
     const { access_token } = await getAccessToken();
 
@@ -135,7 +197,8 @@ export const currentlyPlayingSong = async () => {
 
     return await Effect.runPromise(effect);
   } catch (error) {
-    console.error('Error fetching currently playing song:', error);
+    logger.error('Error fetching currently playing song:', error);
     return null;
   }
 };
+

@@ -19,7 +19,7 @@ import {
   requestQueue,
   ValidationError,
 } from '@/lib/http-clients';
-import { parseCodePathDetailed } from '@/utils';
+import { logger, parseCodePathDetailed } from '@/utils';
 
 /**
  * @module effect-data-loader
@@ -129,8 +129,8 @@ export interface DataLoaderProps<T> extends BaseDataLoaderProps<T> {
    * Render prop that receives data and optional utilities.
    */
   children:
-  | ((data: T) => React.ReactNode)
-  | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
+    | ((data: T) => React.ReactNode)
+    | ((data: T, utils: DataLoaderRenderProps<T>) => React.ReactNode);
   /** Effect Schema for runtime validation (optional) */
   schema?: never;
 }
@@ -144,11 +144,11 @@ export interface DataLoaderPropsWithSchema<S extends Schema.Schema<any, any, nev
    * Render prop that receives validated data and optional utilities.
    */
   children:
-  | ((data: Schema.Schema.Type<S>) => React.ReactNode)
-  | ((
-    data: Schema.Schema.Type<S>,
-    utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
-  ) => React.ReactNode);
+    | ((data: Schema.Schema.Type<S>) => React.ReactNode)
+    | ((
+        data: Schema.Schema.Type<S>,
+        utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
+      ) => React.ReactNode);
   /** Effect Schema for runtime validation */
   schema: S;
   /** Fetcher options with schema */
@@ -222,15 +222,15 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
       timeout: 30_000,
       onError: (err) => {
         const path = parseCodePathDetailed(url, fetcher);
-        console.error(`[DataLoader]: ${path}`);
+        logger.info(`[DataLoader]: ${path}`);
 
         if (err instanceof FetcherError) {
-          console.error(`[DataLoader]: Status ${err.status}`, err.responseData);
+          logger.error(`[DataLoader]: Status ${err.status}`, err.responseData);
         } else if (err instanceof ValidationError) {
-          console.error(`[DataLoader]: Validation failed - ${err.getProblemsString()}`);
-          console.error(`[DataLoader]: Invalid data:`, err.responseData);
+          logger.error(`[DataLoader]: Validation failed - ${err.getProblemsString()}`);
+          logger.error(`[DataLoader]: Invalid data:`, err.responseData);
         } else {
-          console.error('[DataLoader]: Unexpected error', err);
+          logger.error('[DataLoader]: Unexpected error', err);
         }
 
         // Call user-provided error handler
@@ -433,7 +433,7 @@ export function useDataLoader(url: string, options: any = {}) {
       timeout: 30_000,
       onError: (err) => {
         if (err instanceof ValidationError) {
-          console.error(`[useDataLoader]: Validation failed - ${err.getProblemsString()}`);
+          logger.error(`[useDataLoader]: Validation failed - ${err.getProblemsString()}`);
         }
 
         if (typeof onError === 'function' && err instanceof Error) {

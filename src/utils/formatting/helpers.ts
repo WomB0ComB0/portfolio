@@ -1,55 +1,99 @@
-import type { KebabCase } from 'type-fest';
+
 import { logger } from '@/utils';
+import type { KebabCase } from 'type-fest';
 
 /**
- * Converts an object to a formatted JSON string with proper indentation.
+ * Converts any object into a well-formatted JSON string with a 2-space indent.
+ * Useful for human-readable output, debugging, data serialization, and logging.
  *
- * @param {object} obj - The object to convert to a JSON string
- * @returns {string} A properly formatted JSON string representation of the input object with 2-space indentation
- *
+ * @author Mike Odnis
+ * @param {object} obj The object to be stringified.
+ * @returns {string} The stringified JSON with indentation.
+ * @throws {TypeError} Throws if the input object contains circular references.
  * @example
- * ```ts
- * const obj = { name: "John", age: 30 };
- * const jsonString = Stringify(obj);
- * // Returns:
- * // {
- * //   "name": "John",
- * //   "age": 30
- * // }
- * ```
- *
- * @remarks
- * - Uses Stringify() internally with null replacer and 2-space indent
- * - Handles circular references by throwing an error
- * - Preserves object structure and nesting
- * - Useful for debugging, logging, and data serialization
- * - Safe with primitives, arrays, objects, null and undefined
+ *   const formatted = Stringify({user: "John", age: 30});
+ *   // returns '{\n  "user": "John",\n  "age": 30\n}'
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+ * @version 1.0.0
  */
 export const Stringify = (obj: object): string => {
   return JSON.stringify(obj, null, 2);
 };
 
+/**
+ * @template T
+ * @interface
+ * @readonly
+ * Represents a successful result in a Result union.
+ *
+ * @property {true} success Indicates if operation succeeded (always true).
+ * @property {T} value The value returned as a result.
+ *
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 type Success<T> = {
   readonly success: true;
   readonly value: T;
 };
 
+/**
+ * @template E
+ * @interface
+ * @readonly
+ * Represents a failed result in a Result union.
+ *
+ * @property {false} success Indicates if operation succeeded (always false).
+ * @property {E} error The error value associated with the failure.
+ *
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 type Failure<E> = {
   readonly success: false;
   readonly error: E;
 };
 
+/**
+ * @template T, E
+ * @type {object}
+ * A discriminated union for representing either a successful or failed result.
+ * Use with `success()` and `failure()` helpers.
+ *
+ * @see success
+ * @see failure
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 type Result<T, E> = Success<T> | Failure<E>;
 
 /**
- * Creates a successful result
- * @param value The value to wrap in a success result
+ * Wraps the provided value in a successful Result object.
+ *
+ * @template T
+ * @param {T} value Value to wrap as a success.
+ * @returns {Success<T>} Success-wrapped result (immutable).
+ * @readonly
+ * @public
+ * @author Mike Odnis
+ * @example
+ *   success(42) // { success: true, value: 42 }
+ * @version 1.0.0
  */
 export const success = <T>(value: T): Success<T> => Object.freeze({ success: true, value });
 
 /**
- * Creates a failed result
- * @param error The error to wrap in a failure result
+ * Wraps the provided error in a failed Result object.
+ *
+ * @template E
+ * @param {E} error Error value to wrap as a failure.
+ * @returns {Failure<E>} Failure-wrapped result (immutable).
+ * @readonly
+ * @public
+ * @author Mike Odnis
+ * @example
+ *   failure(new Error("Oops")) // { success: false, error: Error }
+ * @version 1.0.0
  */
 export const failure = <E>(error: E): Failure<E> => Object.freeze({ success: false, error });
 
@@ -57,6 +101,23 @@ type ExtractAsyncArgs<Args extends Array<any>> = Args extends Array<infer Potent
   ? [PotentialArgTypes]
   : [];
 
+/**
+ * Catches and handles errors for async functions, returning a Result for safe error handling.
+ *
+ * @template Args, ReturnType
+ * @async
+ * @public
+ * @param {(args: ExtractAsyncArgs<Args>) => Promise<ReturnType>} asyncFunction The async function to execute.
+ * @param {...ExtractAsyncArgs<Args>} args Parameters to pass to the async function.
+ * @returns {Promise<Result<ReturnType, Error>>} Promise that resolves to a Result. Success if no error, else Failure with Error.
+ * @throws {any} Will not throw; wraps exceptions instead.
+ * @author Mike Odnis
+ * @example
+ *   const result = await catchError(fetchUser, userId);
+ *   if (result.success) { ... } else { ... }
+ * @see Result
+ * @version 1.0.0
+ */
 export const catchError = async <Args extends Array<any>, ReturnType>(
   asyncFunction: (...args: ExtractAsyncArgs<Args>) => Promise<ReturnType>,
   ...args: ExtractAsyncArgs<Args>
@@ -71,8 +132,15 @@ export const catchError = async <Args extends Array<any>, ReturnType>(
 };
 
 /**
- * Maps a successful result to a new value
- * @param fn Mapping function to apply to the successful value
+ * Maps a successful Result to a new value, wrapping errors unchanged.
+ *
+ * @template T,U,E
+ * @public
+ * @param {(value: T) => U} fn The mapping function to apply to a Success value.
+ * @returns {(result: Result<T,E>) => Result<U,E>} Function accepting a Result and returning Result.
+ * @author Mike Odnis
+ * @see Result
+ * @version 1.0.0
  */
 export const map =
   <T, U, E>(fn: (value: T) => U): ((result: Result<T, E>) => Result<U, E>) =>
@@ -80,8 +148,15 @@ export const map =
     result.success ? success(fn(result.value)) : result;
 
 /**
- * Chains a result-returning function after a successful result
- * @param fn Function that returns a new result
+ * Chains a result-returning function after a successful Result, propagating failures.
+ *
+ * @template T,U,E
+ * @param {(value: T) => Result<U,E>} fn Function to execute for a Success.
+ * @returns {(result: Result<T,E>) => Result<U,E>} Result-propagating chain function.
+ * @public
+ * @author Mike Odnis
+ * @see Result
+ * @version 1.0.0
  */
 export const bind =
   <T, U, E>(fn: (value: T) => Result<U, E>): ((result: Result<T, E>) => Result<U, E>) =>
@@ -89,10 +164,17 @@ export const bind =
     result.success ? fn(result.value) : result;
 
 /**
- * Applies a series of functions to an input value, short-circuiting on the first failure
- * @param input Initial input value
- * @param functions Array of functions to apply sequentially
- * @returns Final result after applying all functions or first encountered failure
+ * Composes Result-returning functions in sequence, passing output of one to next.
+ * Short-circuits and returns immediately on the first failure encountered.
+ *
+ * @template TInput, TOutput, E
+ * @param {TInput} input The initial input value.
+ * @param {...Array<(input: any) => Result<any, E>>} functions Sequence of functions to process input.
+ * @returns {Result<TOutput, E>} Final Result after transformations.
+ * @public
+ * @author Mike Odnis
+ * @see Result
+ * @version 1.0.0
  */
 export const railway = <TInput, TOutput, E>(
   input: TInput,
@@ -105,8 +187,15 @@ export const railway = <TInput, TOutput, E>(
 };
 
 /**
- * Recovers from a failure by applying a function to the error
- * @param fn Function to handle the error and return a new result
+ * Recovers from a failed Result by applying a recovery function to the error.
+ *
+ * @template T, E1, E2
+ * @param {(error: E1) => Result<T, E2>} fn Error-handling/recovery function.
+ * @returns {(result: Result<T, E1>) => Result<T, E2>} Result handler applying fn for failures.
+ * @public
+ * @author Mike Odnis
+ * @see Result
+ * @version 1.0.0
  */
 export const recover =
   <T, E1, E2>(fn: (error: E1) => Result<T, E2>): ((result: Result<T, E1>) => Result<T, E2>) =>
@@ -114,8 +203,15 @@ export const recover =
     result.success ? result : fn(result.error);
 
 /**
- * Taps into a result chain for side effects without modifying the value
- * @param fn Side effect function to execute on success
+ * Executes a side effect for successful Results, leaving the Result unchanged.
+ *
+ * @template T, E
+ * @param {(value: T) => void} fn Side-effect function invoked for a Success.
+ * @returns {(result: Result<T,E>) => Result<T,E>} Pass-through function with side effects on Success.
+ * @public
+ * @author Mike Odnis
+ * @see Result
+ * @version 1.0.0
  */
 export const tap =
   <T, E>(fn: (value: T) => void): ((result: Result<T, E>) => Result<T, E>) =>
@@ -127,35 +223,19 @@ export const tap =
   };
 
 /**
- * Constructs a fully qualified URL by combining environment-specific base URLs with an optional path.
- * Prioritizes URLs in the following order:
- * 1. NEXT_PUBLIC_SITE_URL
- * 2. NEXT_PUBLIC_VERCEL_URL
- * 3. Fallback to localhost:3000
+ * Constructs a fully qualified URL based on environment variables and optional path.
+ * Prefers NEXT_PUBLIC_SITE_URL, then NEXT_PUBLIC_VERCEL_URL, or defaults to localhost.
  *
- * @param {string} [path=''] - Optional path to append to the base URL
- * @returns {string} Complete URL with proper formatting and protocol
- *
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @param {string} [path=''] The path or endpoint to append to base URL.
+ * @returns {string} Fully composed absolute URL including protocol.
  * @example
- * ```ts
- * // With NEXT_PUBLIC_SITE_URL = "example.com"
- * getURL("api/users") // Returns "https://example.com/api/users"
- * getURL() // Returns "https://example.com"
- *
- * // With no env variables set
- * getURL("test") // Returns "http://localhost:3000/test"
- * ```
- *
- * @remarks
- * - Automatically adds https:// if protocol is missing
- * - Removes trailing slashes from base URL
- * - Removes leading slashes from path
- * - Handles empty/undefined path gracefully
- * - Environment variable aware
- * - Safe for both development and production
- * - Normalizes URL format
- * - Supports path segments
- * - Vercel deployment compatible
+ *   const api = getURL("api/users"); // https://example.com/api/users
+ * @throws {TypeError} On invalid environmental configuration.
+ * @see https://vercel.com/docs/concepts/projects/environment-variables
+ * @version 1.0.0
  */
 export const getURL = (path = ''): string => {
   let url =
@@ -173,32 +253,19 @@ export const getURL = (path = ''): string => {
 };
 
 /**
- * Smoothly scrolls the viewport to center the specified element vertically.
- * Calculates the exact position needed to center the element in the viewport,
- * taking into account the element's height and window dimensions.
+ * Smoothly scrolls the page to vertically center an element matching a selector,
+ * considering the current scroll position, height, and viewport.
  *
- * @param {string} href - CSS selector for the target element
- *
+ * @web
+ * @author Mike Odnis
+ * @public
+ * @param {string} href Any valid `querySelector` selector for the element to scroll into view.
+ * @returns {void}
  * @example
- * ```ts
- * // Center an element with id="my-element"
- * ScrollIntoCenterView("#my-element");
- *
- * // Center first element with class="section"
- * ScrollIntoCenterView(".section");
- * ```
- *
- * @remarks
- * - Uses smooth scrolling behavior for a pleasant user experience
- * - Does nothing if the element is not found
- * - Takes into account both element position and dimensions
- * - Considers window scroll position and viewport height
- * - Handles fixed/sticky positioned elements
- * - Works with dynamic content
- * - Respects user's reduced motion preferences
- * - Compatible with all modern browsers
- * - Handles nested scrollable containers
- * - Maintains scroll position for other elements
+ *   ScrollIntoCenterView("#aboutMe");
+ * @throws {Error} If the environment does not support window/document APIs.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Window/scrollTo
+ * @version 1.0.0
  */
 export const ScrollIntoCenterView = (href: string) => {
   const element = document.querySelector(href);
@@ -215,30 +282,19 @@ export const ScrollIntoCenterView = (href: string) => {
 };
 
 /**
- * Converts a string into a URL-friendly slug by removing special characters,
- * converting to lowercase, and replacing spaces with hyphens.
+ * Converts arbitrary text into a kebab-case, URL-safe slug.
+ * Removes or replaces invalid characters, normalizes case, and trims extraneous delimiters.
  *
- * @param {string} text - The text to convert into a URL-friendly slug
- * @returns {string} A lowercase, hyphenated string with all special characters removed
- *
+ * @author Mike Odnis
+ * @public
+ * @param {string} str The input text to slugify.
+ * @param {boolean} [forDisplayingInput] Whether to keep trailing hyphens/periods (used for display feedback).
+ * @returns {KebabCase<string>} The slugified, lowercase string.
+ * @throws {TypeError} If input is not a string (guarded by usage).
  * @example
- * ```ts
- * Slugify("Hello World!") // Returns "hello-world"
- * Slugify("My Cool Article Title 123") // Returns "my-cool-article-title-123"
- * Slugify("Special $#@ Characters") // Returns "special-characters"
- * ```
- *
- * @remarks
- * - Converts all characters to lowercase
- * - Replaces spaces with hyphens
- * - Removes all non-word characters (except hyphens)
- * - Safe for use in URLs
- * - Handles international characters
- * - Preserves numbers
- * - Removes consecutive hyphens
- * - Trims leading/trailing hyphens
- * - SEO-friendly output
- * - Consistent with common slug formats
+ *   slugify('Hello World!') // 'hello-world'
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
+ * @version 1.0.0
  */
 export const slugify = (str: string, forDisplayingInput?: boolean): KebabCase<string> => {
   if (!str) {
@@ -266,37 +322,20 @@ export const slugify = (str: string, forDisplayingInput?: boolean): KebabCase<st
 };
 
 /**
- * Creates a debounced version of a function that delays its execution until after
- * a specified time has elapsed since the last time it was invoked.
+ * Produces a debounced version of a function that will postpone its execution until after
+ * a specified wait time has elapsed since its last invocation.
  *
- * @param {Function} fn - The function to debounce
- * @param {number} [time=300] - The number of milliseconds to delay execution
- * @returns {Function} A debounced version of the input function
- *
+ * @web
+ * @author Mike Odnis
+ * @public
+ * @param {Function} fn The function to debounce.
+ * @param {number} [time=300] Delay in ms before function can fire after the last call.
+ * @returns {Function} Debounced function that delays invocation.
  * @example
- * ```ts
- * // Basic usage
- * const debouncedSearch = debounce((query) => {
- *   performSearch(query);
- * }, 500);
- *
- * // With event listener
- * window.addEventListener('resize', debounce(() => {
- *   updateLayout();
- * }, 250));
- * ```
- *
- * @remarks
- * - Useful for rate-limiting expensive operations
- * - Maintains the correct 'this' context
- * - Cancels pending executions when called again
- * - Common use cases: search inputs, window resize handlers, API calls
- * - Preserves function arguments
- * - Memory efficient
- * - Handles rapid successive calls
- * - Cancellable (via clearTimeout)
- * - Thread-safe
- * - Preserves return value timing
+ *   const debounced = debounce(alert, 200);
+ * @throws {TypeError} If fn is not callable.
+ * @see https://lodash.com/docs/4.17.15#debounce
+ * @version 1.0.0
  */
 export const debounce = (fn: Function, time = 300): Function => {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -309,149 +348,79 @@ export const debounce = (fn: Function, time = 300): Function => {
 };
 
 /**
- * Capitalizes the first character of a string while leaving the rest unchanged.
+ * Uppercases the first letter of a string, leaving the rest of the string unchanged.
  *
- * @param {string} text - The string to capitalize
- * @returns {string} The input string with its first character capitalized
- *
+ * @author Mike Odnis
+ * @public
+ * @param {string} text String to capitalize.
+ * @returns {string} String with its first character capitalized.
  * @example
- * ```ts
- * Capitalize("hello") // Returns "Hello"
- * Capitalize("john doe") // Returns "John doe"
- * Capitalize("ALREADY CAPS") // Returns "ALREADY CAPS"
- * ```
- *
- * @remarks
- * - Does not modify the rest of the string
- * - Works with single-character strings
- * - Safe with empty strings
- * - Preserves case of all other characters
- * - Unicode-safe
- * - Handles special characters
- * - No side effects
- * - Immutable operation
- * - Consistent with title case rules
- * - Language-agnostic
+ *   Capitalize("hello") // "Hello"
+ * @throws {TypeError} If argument is not a string.
+ * @version 1.0.0
  */
 export const Capitalize = (text: string): string => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
 /**
- * Checks if an object has no enumerable properties.
+ * Determines if an object has no own enumerable properties.
  *
- * @param {any} obj - The object to check for emptiness
- * @returns {boolean} True if the object has no enumerable properties, false otherwise
- *
+ * @author Mike Odnis
+ * @public
+ * @param {any} obj Object to test for emptiness.
+ * @returns {boolean} True if the object has no enumerable properties, false otherwise.
  * @example
- * ```ts
- * IsObjectEmpty({}) // Returns true
- * IsObjectEmpty({ key: "value" }) // Returns false
- * IsObjectEmpty(Object.create(null)) // Returns true
- * IsObjectEmpty(new Date()) // Returns false
- * ```
- *
- * @remarks
- * - Uses Object.keys() to check for enumerable properties
- * - Works with plain objects and class instances
- * - Does not check prototype chain
- * - Considers objects with non-enumerable properties as empty
- * - Safe with null/undefined
- * - Handles inherited properties
- * - Performance optimized
- * - Type-agnostic
- * - Consistent with Stringify
- * - ES5+ compatible
+ *   IsObjectEmpty({}) // true
+ * @see Stringify
+ * @version 1.0.0
  */
 export const IsObjectEmpty = (obj: any): boolean => {
   return Object.keys(obj).length === 0;
 };
 
 /**
- * Checks if an array contains no elements.
+ * Checks if an array has zero elements.
  *
- * @param {any[]} arr - The array to check for emptiness
- * @returns {boolean} True if the array has no elements, false otherwise
- *
+ * @author Mike Odnis
+ * @public
+ * @param {any[]} arr The array to examine.
+ * @returns {boolean} True if empty, false otherwise.
  * @example
- * ```ts
- * IsArrayEmpty([]) // Returns true
- * IsArrayEmpty([1, 2, 3]) // Returns false
- * IsArrayEmpty(new Array(3)) // Returns true
- * IsArrayEmpty(['']) // Returns false
- * ```
- *
- * @remarks
- * - Uses array.length property
- * - Empty slots in sparse arrays count towards length
- * - Works with any array-like object with a length property
- * - Type-safe
- * - Handles typed arrays
- * - Fast O(1) operation
- * - Immutable check
- * - Consistent behavior
- * - Safe with array subclasses
- * - Respects array-like objects
+ *   IsArrayEmpty([]) // true
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/length
+ * @version 1.0.0
  */
 export const IsArrayEmpty = (arr: any[]): boolean => {
   return arr.length === 0;
 };
 
 /**
- * Checks if a string is empty or contains only whitespace characters.
+ * Checks if a string is empty or consists of only whitespace.
  *
- * @param {string} str - The string to check for emptiness
- * @returns {boolean} True if the string is empty or contains only whitespace, false otherwise
- *
+ * @author Mike Odnis
+ * @public
+ * @param {string} str String to check.
+ * @returns {boolean} True if the string is empty or whitespace; false otherwise.
  * @example
- * ```ts
- * IsStringEmpty("") // Returns true
- * IsStringEmpty("  ") // Returns true
- * IsStringEmpty("\n\t") // Returns true
- * IsStringEmpty("hello") // Returns false
- * ```
- *
- * @remarks
- * - Trims whitespace before checking
- * - Considers strings with only spaces/tabs/newlines as empty
- * - Case-sensitive
- * - Unicode-safe
- * - Handles all whitespace characters
- * - Normalizes string input
- * - Consistent with form validation
- * - Performance optimized
- * - Safe with special characters
- * - Follows ECMAScript standards
+ *   IsStringEmpty("  ") // true
+ * @version 1.0.0
  */
 export const IsStringEmpty = (str: string): boolean => {
   return str.trim() === '';
 };
 
 /**
- * Type checks if a value is a string primitive or String object.
+ * Checks whether a given value is a string primitive (not an object String).
  *
- * @param {any} str - The value to check
- * @returns {boolean} True if the value is a string, false otherwise
- *
+ * @author Mike Odnis
+ * @public
+ * @param {any} str The value to check.
+ * @returns {boolean} True if the value is a string primitive, false otherwise.
  * @example
- * ```ts
- * IsString("hello") // Returns true
- * IsString(new String("hello")) // Returns true
- * IsString(123) // Returns false
- * IsString(null) // Returns false
- * ```
- *
- * @remarks
- * - Uses typeof operator for type checking
- * - Works with both string primitives and String objects
- * - Returns false for null and undefined
- * - Type-safe operation
- * - Handles edge cases
- * - Fast primitive check
- * - Consistent behavior
- * - Safe with any input
- * - ES3+ compatible
- * - Useful for type guards
+ *   IsString("foo") // true
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#string_type
+ * @version 1.0.0
  */
 export const IsString = (str: any): boolean => {
   return typeof str === 'string';
@@ -460,31 +429,21 @@ export const IsString = (str: any): boolean => {
 const EMPTY = Symbol('EMPTY') as any;
 
 /**
- * Generates a cache key string from the provided arguments using various serialization strategies.
- * Used internally by the memoize function to create unique keys for caching function results.
+ * Generates a cache key string from input arguments, suitable for memoization.
+ * Handles primitives, arrays, and objects with deterministic serialization.
+ * Used as the default cacheKey function for memoize.
  *
- * @param {...any[]} args - Arguments to generate a cache key from
- * @returns {string} A string representation suitable for use as a cache key
- *
+ * @author Mike Odnis
+ * @param {...any[]} args Arguments to compute a cache key from.
+ * @returns {string} Key string for caching.
  * @example
- * ```ts
- * defaultCacheKey("hello", 123) // Returns JSON string of args
- * defaultCacheKey({ foo: "bar" }) // Returns serialized object
- * defaultCacheKey([1, 2, 3]) // Returns "1,2,3"
- * defaultCacheKey() // Returns Symbol(EMPTY)
- * ```
- *
- * @remarks
- * - Handles primitive types directly
- * - Serializes arrays by joining elements
- * - JSON stringifies objects
- * - Special handling for empty argument list
- * - Handles nested structures
- * - Deterministic output
- * - Collision resistant
- * - Memory efficient
- * - Supports circular references
- * - Type-aware serialization
+ *   defaultCacheKey("a", 1)       // '"a",1'
+ *   defaultCacheKey([1,2,3])      // '1,2,3'
+ *   defaultCacheKey({foo: 'bar'}) // '{\n  "foo": "bar"\n}'
+ *   defaultCacheKey()             // Symbol(EMPTY)
+ * @private
+ * @see memoize
+ * @version 1.0.0
  */
 function defaultCacheKey(...args: any[]): string {
   if (args.length === 0) {
@@ -518,40 +477,21 @@ function defaultCacheKey(...args: any[]): string {
 }
 
 /**
- * Creates a memoized version of a function that caches its results based on the input arguments.
- * Subsequent calls with the same arguments return the cached result instead of re-executing the function.
+ * Returns a memoized version of the input function, caching results by argument.
+ * Results are cached by a deterministic key derived from arguments,
+ * leveraging either the default serialization or a user-provided method.
  *
- * @template T - The type of the function to memoize
- * @param {T} fn - The function to memoize
- * @param {(...args: Parameters<T>) => string} [cacheKey=defaultCacheKey] - Optional custom function to generate cache keys
- * @returns {T} A memoized version of the input function
- *
+ * @author Mike Odnis
+ * @template T extends (...args: any[]) => any
+ * @public
+ * @param {T} fn The function to memoize.
+ * @param {(...args: Parameters<T>) => string} [cacheKey=defaultCacheKey] Optionally override default cache key generator.
+ * @returns {T} Memoized function with the same signature.
  * @example
- * ```ts
- * // Basic usage
- * const expensiveOperation = memoize((n: number) => {
- *   // Complex calculation
- *   return n * n;
- * });
- *
- * // With custom cache key
- * const memoizedFn = memoize(
- *   (obj: any) => doSomething(obj),
- *   (obj) => obj.id.toString()
- * );
- * ```
- *
- * @remarks
- * - Uses Map for efficient caching
- * - Preserves function signature and return type
- * - Supports custom cache key generation
- * - Useful for expensive computations
- * - Cache persists for the lifetime of the memoized function
- * - Thread-safe
- * - Memory efficient
- * - Type-safe with generics
- * - Handles all argument types
- * - Maintains referential integrity
+ *   const fastFib = memoize(fib);
+ *   fastFib(25); // cached after first execution
+ * @see defaultCacheKey
+ * @version 1.0.0
  */
 export function memoize<T extends (...args: any[]) => any>(
   fn: T,
@@ -574,32 +514,19 @@ export function memoize<T extends (...args: any[]) => any>(
 }
 
 /**
- * Truncates a string to a specified maximum length and adds an ellipsis if truncated.
- * Useful for creating previews or summaries of longer text content.
+ * Truncates a string to a specific length and appends an ellipsis if truncation has occurred.
  *
- * @param {string} str - The string to truncate
- * @param {number} length - Maximum length of the resulting string (excluding ellipsis)
- * @returns {string} Truncated string with ellipsis if necessary, or original string if shorter than max length
- *
+ * @author Mike Odnis
+ * @public
+ * @param {string} str The input string to truncate.
+ * @param {number} length The maximum length for the output (before "...").
+ * @returns {string} Truncated string with "..." if needed, else original string.
  * @example
- * ```ts
- * truncate("Hello World", 5) // Returns "Hello..."
- * truncate("Short", 10) // Returns "Short"
- * truncate("Very long text", 7) // Returns "Very lo..."
- * ```
- *
- * @remarks
- * - Adds "..." only if string is actually truncated
- * - Preserves original string if shorter than max length
- * - Length parameter refers to characters before ellipsis
- * - Safe with multi-byte characters
- * - Unicode-aware
- * - No word breaking
- * - Preserves string encoding
- * - Handles edge cases
- * - Memory efficient
- * - Immutable operation
+ *   truncate("portfolio by WomB0ComB0", 10) // 'portfolio ...'
+ * @throws {RangeError} For negative lengths.
+ * @version 1.0.0
  */
 export function truncate(str: string, length: number): string {
   return str.length > length ? `${str.substring(0, length)}...` : str;
 }
+

@@ -1,11 +1,47 @@
-import React from 'react';
-
+/**
+ * @public
+ * @interface Props
+ * @description Defines the properties for the Cursor component.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 type Props = {
+  /**
+   * @property {string} color - The fill color for the SVG cursor.
+   * @readonly
+   */
   color: string;
+  /**
+   * @property {number} x - The X-coordinate for the cursor's position on the screen.
+   * @readonly
+   */
   x: number;
+  /**
+   * @property {number} y - The Y-coordinate for the cursor's position on the screen.
+   * @readonly
+   */
   y: number;
 };
 
+/**
+ * @public
+ * @function Cursor
+ * @web
+ * @description A React functional component that renders an SVG cursor at a specified position with a given color.
+ * This component is typically used in collaborative environments to display other users' cursors.
+ * @param {Props} { color, x, y } - The properties for the cursor component.
+ * @param {string} color - The fill color for the SVG cursor.
+ * @param {number} x - The X-coordinate for the cursor's position.
+ * @param {number} y - The Y-coordinate for the cursor's position.
+ * @returns {JSX.Element} A React SVG element representing the cursor.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * ```tsx
+ * <Cursor color="#FF0000" x={100} y={200} />
+ * ```
+ * @see {@link https://www.w3.org/TR/SVG11/|SVG Specification}
+ */
 export default function Cursor({ color, x, y }: Props) {
   return (
     <svg

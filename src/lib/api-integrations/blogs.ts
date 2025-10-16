@@ -1,9 +1,17 @@
+
+import { config } from '@/config';
+import { post } from '@/lib/http-clients/effect-fetcher';
+import { logger } from '@/utils';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
-import { post } from '@/lib/http-clients/effect-fetcher';
 import 'server-only';
-import { config } from '@/config';
 
+/**
+ * GraphQL query for fetching user blog posts from Hashnode.
+ * @readonly
+ * @private
+ * @see https://hashnode.com/graphql
+ */
 const query = `
   query UserPosts($username: String!, $page: Int!, $pageSize: Int!) {
     user(username: $username) {
@@ -21,6 +29,16 @@ const query = `
   }
 `;
 
+/**
+ * @readonly
+ * @description
+ * Schema definition for a blog object returned from Hashnode via GraphQL.
+ * Used for type validation and transformation of post data.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ * @see https://hashnode.com/graphql
+ */
 export const BlogSchema = Schema.Struct({
   title: Schema.String,
   slug: Schema.String,
@@ -28,8 +46,37 @@ export const BlogSchema = Schema.Struct({
   excerpt: Schema.String,
 });
 
+/**
+ * TypeScript type representing a blog/article fetched from Hashnode.
+ * @see BlogSchema
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;
 
+/**
+ * Fetches blog posts for a given Hashnode username.
+ *
+ * This function retrieves paginated blog posts written by a user on Hashnode
+ * using the Hashnode GraphQL API. Includes customizable page and pageSize for pagination.
+ *
+ * @async
+ * @function
+ * @public
+ * @param {string} username - Hashnode username to retrieve posts for.
+ * @param {number} [page=1] - The page of posts to fetch (for pagination).
+ * @param {number} [pageSize=10] - Number of posts to fetch per page.
+ * @returns {Promise<Blog[]>} Resolves to an array of {@link Blog} objects containing blog metadata.
+ * @throws {Error} Throws if API request fails or if the Hashnode API returns an error response.
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://hashnode.com/graphql
+ * @example
+ * const blogs = await getBlogs('WomB0ComB0', 1, 5);
+ * blogs.forEach(blog => console.log(blog.title, blog.slug, blog.excerpt));
+ */
 export async function getBlogs(username: string, page = 1, pageSize = 10): Promise<Blog[]> {
   const token = config.hashnode.token;
 
@@ -70,7 +117,8 @@ export async function getBlogs(username: string, page = 1, pageSize = 10): Promi
       };
     });
   } catch (error) {
-    console.error('Error fetching blogs:', error);
+    logger.error('Error fetching blogs:', error);
     throw error;
   }
 }
+

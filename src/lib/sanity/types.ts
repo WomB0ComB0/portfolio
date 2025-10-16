@@ -145,4 +145,3 @@ export interface Place extends SanityDocument {
 
 // Re-export for convenience
 export type { SanityImageSource };
-

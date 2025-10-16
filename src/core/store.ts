@@ -1,2 +1,2 @@
 // effect-atom
-export { }
+export {};

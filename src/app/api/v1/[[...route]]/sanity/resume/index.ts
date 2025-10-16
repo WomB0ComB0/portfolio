@@ -4,8 +4,8 @@
  */
 
 import { Elysia } from 'elysia';
-import { logger } from '@/utils';
 import { getResume } from '@/lib/sanity/api';
+import { logger } from '@/utils';
 
 export const resumeRoute = new Elysia({ prefix: '/resume' }).get('/', async () => {
   try {

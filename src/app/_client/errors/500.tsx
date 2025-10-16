@@ -1,3 +1,29 @@
+/**
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link ErrorLayout} for the underlying layout component.
+ * @description React functional component that displays a 500 Internal Server Error page.
+ * This component is designed to be used as an error boundary fallback UI.
+ * It leverages `React.memo` for performance optimization, preventing unnecessary re-renders
+ * if its props remain shallowly equal.
+ *
+ * @param {object} props - The properties for the InternalServerError component.
+ * @param {Error & { digest?: string }} props.error - The error object caught by the error boundary.
+ *                                                   It may include a `digest` property for additional context.
+ * @param {() => void} props.reset - A function provided by the error boundary to reset the state
+ *                                   and attempt to re-render the component tree.
+ * @returns {JSX.Element} A React element representing the 500 error page.
+ *
+ * @example
+ * ```tsx
+ * <ErrorBoundary fallbackRender={({ error, reset }) => (
+ *   <InternalServerError error={error} reset={reset} />
+ * )}>
+ *   <App />
+ * </ErrorBoundary>
+ * ```
+ */
 'use client';
 
 import React from 'react';

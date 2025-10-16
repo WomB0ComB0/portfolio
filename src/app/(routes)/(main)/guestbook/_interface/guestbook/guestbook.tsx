@@ -1,6 +1,14 @@
 import { GuestbookComponent } from '@/app/(routes)/(main)/guestbook/_components';
 import Layout from '@/components/layout/layout';
 
+/**
+ * Guestbook component.
+ * Renders the guestbook interface where users can leave messages.
+ *
+ * @returns {JSX.Element} The guestbook view.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export const Guestbook = () => {
   return (
     <Layout>

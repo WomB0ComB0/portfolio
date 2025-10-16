@@ -2,7 +2,7 @@ import { FaGithub, FaGoogle, FaUserSecret } from 'react-icons/fa';
 import { type SignInMethod, useSignIn } from '@/core/auth';
 import { Button } from '../ui/button';
 
-export function LoginButton({ signInMethod, ...props }: LoginButtonProps) {
+export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
   const [signIn, inFlight] = useSignIn(signInMethod);
 
   const getIcon = () => {

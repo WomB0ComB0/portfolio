@@ -1,11 +1,54 @@
+
+/**
+ * @readonly
+ * @const
+ * @public
+ * @type {number}
+ * @description
+ * Age in years, dynamically calculated from birth date (March 24, 2004) to current time.
+ * Uses average year length (365.25 days) to account for leap years.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ *   console.log(age); // e.g., 20
+ */
 export const age = Math.floor(
   (new Date().getTime() - new Date('March 24, 2004').getTime()) / 1_000 / 60 / 60 / 24 / 365.25,
 );
 
+/**
+ * @readonly
+ * @const
+ * @private
+ * @type {string}
+ * @description
+ * Canonical root URL for the portfolio site, used as reference throughout app constants.
+ * @author Mike Odnis
+ * @see https://mikeodnis.dev
+ */
 const baseUrl = 'https://mikeodnis.dev';
 
 import packageJson from '../../package.json';
 
+/**
+ * @interface AppMetadata
+ * @readonly
+ * @public
+ * @description
+ * Structure defining core metadata for the portfolio's main application package.
+ * - name: App or author name
+ * - url: Canonical portfolio url
+ * - email: Primary contact email
+ * - description: Short site summary with dynamic age
+ * - version: Current application/package version from package.json
+ * - keywords: Array of branding, technology, and experience keywords for SEO/metadata
+ * - logo: Root-level logo image URL
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ */
 export const app: Readonly<{
   name: string;
   url: string;
@@ -125,3 +168,18 @@ export const app: Readonly<{
   ],
   logo: new URL(`${baseUrl}/`),
 };
+/**
+ * @readonly
+ * @public
+ * @type {Readonly<AppMetadata>}
+ * @description
+ * Main exported app metadata object. Contains branding, contact, version, logo, and SEO keyword information for Mike Odnis' web portfolio.
+ * Safe to expose to web clients for rendering structured meta tags and UI branding.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ *   <img src={app.logo.toString()} alt={`${app.name} logo`} />
+ */
+

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { logger } from '@/utils';
 import { sanityFetch } from './client';
 import {
   certificationsQuery,
@@ -39,7 +40,7 @@ export async function getExperiences(): Promise<Experience[]> {
     const experiences = await sanityFetch<Experience[]>(experiencesQuery);
     return experiences;
   } catch (error) {
-    console.error('Error fetching experiences from Sanity:', error);
+    logger.error('Error fetching experiences from Sanity:', error);
     return [];
   }
 }
@@ -53,7 +54,7 @@ export async function getProjects(): Promise<Project[]> {
     const projects = await sanityFetch<Project[]>(projectsQuery);
     return projects;
   } catch (error) {
-    console.error('Error fetching projects from Sanity:', error);
+    logger.error('Error fetching projects from Sanity:', error);
     return [];
   }
 }
@@ -67,7 +68,7 @@ export async function getFeaturedProjects(): Promise<Project[]> {
     const projects = await sanityFetch<Project[]>(featuredProjectsQuery);
     return projects;
   } catch (error) {
-    console.error('Error fetching featured projects from Sanity:', error);
+    logger.error('Error fetching featured projects from Sanity:', error);
     return [];
   }
 }
@@ -82,7 +83,7 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
     const project = await sanityFetch<Project | null>(projectBySlugQuery, { slug });
     return project;
   } catch (error) {
-    console.error(`Error fetching project with slug "${slug}":`, error);
+    logger.error(`Error fetching project with slug "${slug}":`, error);
     return null;
   }
 }
@@ -96,7 +97,7 @@ export async function getCertifications(): Promise<Certification[]> {
     const certifications = await sanityFetch<Certification[]>(certificationsQuery);
     return certifications;
   } catch (error) {
-    console.error('Error fetching certifications from Sanity:', error);
+    logger.error('Error fetching certifications from Sanity:', error);
     return [];
   }
 }
@@ -110,7 +111,7 @@ export async function getPlaces(): Promise<Place[]> {
     const places = await sanityFetch<Place[]>(placesQuery);
     return places;
   } catch (error) {
-    console.error('Error fetching places from Sanity:', error);
+    logger.error('Error fetching places from Sanity:', error);
     return [];
   }
 }
@@ -138,11 +139,11 @@ export async function getResume() {
       lastUpdated,
       isActive
     }`;
-    
+
     const resume = await sanityFetch(resumeQuery);
     return resume;
   } catch (error) {
-    console.error('Error fetching resume from Sanity:', error);
+    logger.error('Error fetching resume from Sanity:', error);
     return null;
   }
 }
@@ -170,4 +171,3 @@ export function getCacheOptions(tag: string) {
     },
   };
 }
-

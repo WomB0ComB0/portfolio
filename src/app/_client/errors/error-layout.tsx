@@ -1,3 +1,56 @@
+/**
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link https://nextjs.org/docs/app/building-your-application/routing/error-handling | Next.js Error Handling}
+ *
+ * @typedef {object} ErrorLayoutProps
+ * @property {string} title - The main title to display on the error page.
+ * @property {string} description - A descriptive message explaining the error.
+ * @property {Error & { digest?: string }} [error] - The error object, potentially including a digest for identification.
+ * @property {() => void} [reset] - A function to reset the error boundary and attempt to re-render the component tree.
+ */
+
+/**
+ * `ErrorLayout` is a client-side React component designed to display a user-friendly error page.
+ * It provides options to try again or navigate back to the home page.
+ * The layout includes a prominent error icon, a customizable title and description,
+ * and optional display of an error digest.
+ *
+ * @param {ErrorLayoutProps} props - The properties for the ErrorLayout component.
+ * @returns {React.JSX.Element} A React element representing the error layout.
+ *
+ * @example
+ * ```tsx
+ * // In an error.tsx file within an App Router route segment
+ * 'use client';
+ *
+ * import { useEffect } from 'react';
+ * import { ErrorLayout } from '@/app/_client/errors/error-layout';
+ *
+ * export default function Error({
+ *   error,
+ *   reset,
+ * }: {
+ *   error: Error & { digest?: string };
+ *   reset: () => void;
+ * }) {
+ *   useEffect(() => {
+ *     // Log the error to an error reporting service
+ *     console.error(error);
+ *   }, [error]);
+ *
+ *   return (
+ *     <ErrorLayout
+ *       title="Something went wrong!"
+ *       description="We're sorry, but an unexpected error occurred. Please try again or go back home."
+ *       error={error}
+ *       reset={reset}
+ *     />
+ *   );
+ * }
+ * ```
+ */
 'use client';
 
 import { AlertTriangle, Home, RotateCw } from 'lucide-react';

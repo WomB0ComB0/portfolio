@@ -1,20 +1,46 @@
+
 'use client';
 
-import { Award } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
 import Layout from '@/components/layout/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import type { Certification } from '@/lib/sanity/types';
+import { Award } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense, useMemo } from 'react';
 
+/**
+ * @function CertificationsContent
+ * @description
+ *   Displays a grouped list of professional certifications retrieved from Sanity.
+ *   Groups certifications by issuer and displays category sections with cards per certification.
+ *   Includes formatting for dates, credential IDs, links, logos, skills, and empty states.
+ * @returns {JSX.Element} A fragment containing grouped certification sections and UI states.
+ * @throws {Error} Throws if `useSanityCertifications` fails or certifications data is in an unexpected shape.
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ * // Usage in parent component:
+ * <CertificationsContent />
+ */
 const CertificationsContent = () => {
   const { data: certifications } = useSanityCertifications();
   const certificationsList = certifications as any[];
 
-  const formatDate = (dateString: string) => {
+  /**
+   * @function formatDate
+   * @description
+   *   Formats an ISO date string as a human-readable date in 'en-US' locale.
+   * @param {string} dateString - The ISO date string to format.
+   * @returns {string} The formatted date string.
+   * @private
+   */
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -22,6 +48,12 @@ const CertificationsContent = () => {
     });
   };
 
+  /**
+   * @readonly
+   * @description
+   *   Groups certifications by issuer/category using useMemo for optimized re-renders.
+   * @type {Record<string, Certification[]>}
+   */
   const groupedCertifications = useMemo(() => {
     if (!certificationsList) return {};
     return certificationsList.reduce(
@@ -137,6 +169,21 @@ const CertificationsContent = () => {
   );
 };
 
+/**
+ * @function Certifications
+ * @description
+ *   Renders the entire certifications page wrapped within the application's main layout.
+ *   Uses Suspense to handle async loading of certification content and displays a loading fallback.
+ * @returns {JSX.Element} The JSX for the certifications page with loading support.
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @see CertificationsContent
+ * @example
+ * // Usage:
+ * <Certifications />
+ */
 export const Certifications = () => {
   return (
     <Layout>
@@ -155,3 +202,4 @@ export const Certifications = () => {
     </Layout>
   );
 };
+

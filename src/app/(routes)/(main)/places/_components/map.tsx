@@ -1,18 +1,45 @@
+
 'use client';
 
+import { config } from '@/config';
+import type { PlaceItem } from '@/types/places';
 import type { Marker } from '@googlemaps/markerclusterer';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { AdvancedMarker, APIProvider, InfoWindow, Map, useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useRef, useState } from 'react';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 import { MapStyles } from 'src/data/places';
-import { config } from '@/config';
-import type { PlaceItem } from '@/types/places';
 
+/**
+ * Props for the GoogleMaps component.
+ * @interface GoogleMapsProps
+ * @property {PlaceItem[]} placesToDisplay - Array of place items to display as markers.
+ * @author Mike Odnis
+ * @readonly
+ * @version 1.0.0
+ */
 interface GoogleMapsProps {
   placesToDisplay: PlaceItem[];
 }
 
+/**
+ * Renders an interactive Google Map displaying markers for places.
+ * Handles API key validation, configures APIProvider and renders map styles
+ * and markers via the Markers component. Shows informational message if configuration missing.
+ *
+ * @function
+ * @param {GoogleMapsProps} props - The props object containing places to display on the map.
+ * @returns {JSX.Element} Google Maps view or fallback notice.
+ * @throws {Error} Throws if API key/Map config are missing (renders UI warning instead).
+ * @example
+ * <GoogleMaps placesToDisplay={[{ id, name, ... }]} />
+ * @web
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://developers.google.com/maps/documentation
+ * @see https://github.com/visgl/react-google-maps
+ * @public
+ * @version 1.0.0
+ */
 export default function GoogleMaps({ placesToDisplay }: GoogleMapsProps) {
   // Check if API key is available
   if (!config.google.maps.apiKey) {
@@ -32,29 +59,60 @@ export default function GoogleMaps({ placesToDisplay }: GoogleMapsProps) {
     <section className="w-full h-[400px] md:h-[500px] lg:h-[600px] relative rounded-lg overflow-hidden">
       <APIProvider apiKey={config.google.maps.apiKey}>
         <Map
-          defaultCenter={{ lat: 40.73061, lng: -73.935242 }} // Center can be dynamic based on placesToDisplay if needed
-          defaultZoom={4} // Zoom can also be dynamic
+          defaultCenter={{ lat: 40.73061, lng: -73.935242 }}
+          defaultZoom={4}
           mapId={config.google.maps.mapId}
           gestureHandling={'greedy'}
           disableDefaultUI={true}
           styles={MapStyles}
         >
-          <Markers placesToDisplay={placesToDisplay} /> {/* Pass prop down */}
+          <Markers placesToDisplay={placesToDisplay} />
         </Map>
       </APIProvider>
     </section>
   );
 }
 
-type MarkersComponentProps = { placesToDisplay: PlaceItem[] }; // Type for Markers component's props
+/**
+ * Props for the Markers component.
+ * @typedef {object} MarkersComponentProps
+ * @property {PlaceItem[]} placesToDisplay - Array of places to render as markers.
+ * @readonly
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
+type MarkersComponentProps = { placesToDisplay: PlaceItem[] };
 
+/**
+ * Handles marker and marker cluster rendering on the Google Map.
+ * Manages marker state, active marker focus, cluster rendering, and InfoWindows.
+ *
+ * @param {MarkersComponentProps} props - The props object containing places to display.
+ * @returns {JSX.Element} Markers and dynamic InfoWindow routing.
+ * @throws {Error} Throws if Google Maps script errors or clustering fails.
+ * @example
+ * <Markers placesToDisplay={[{ id, latitude, longitude, ... }]} />
+ * @web
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://developers.google.com/maps/documentation/javascript/marker-clustering
+ * @see https://github.com/googlemaps/js-markerclusterer
+ * @public
+ * @version 1.0.0
+ */
 const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
-  // Use the new type name
   const map = useMap();
   const [markers, setMarkers] = useState<{ [key: string]: Marker }>({});
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const clusterer = useRef<MarkerClusterer | null>(null);
 
+  /**
+   * Initializes marker clustering for the map.
+   *
+   * @private
+   * @returns {void}
+   * @author Mike Odnis
+   * @see https://developers.google.com/maps/documentation/javascript/marker-clustering
+   */
   useEffect(() => {
     if (!map) return;
     if (!clusterer.current) {
@@ -94,11 +152,28 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
     }
   }, [map]);
 
+  /**
+   * Updates clusterer instance with current markers.
+   * Clears and adds all markers as cluster items.
+   *
+   * @private
+   * @returns {void}
+   * @author Mike Odnis
+   */
   useEffect(() => {
     clusterer.current?.clearMarkers();
     clusterer.current?.addMarkers(Object.values(markers));
   }, [markers]);
 
+  /**
+   * Handles refs to track marker instances for clustering.
+   *
+   * @param {Marker | null} marker - Reference to the Marker instance
+   * @param {string} key - The unique place.id key
+   * @returns {void}
+   * @private
+   * @author Mike Odnis
+   */
   const setMarkerRef = (marker: Marker | null, key: string) => {
     if (marker && markers[key]) return;
     if (!marker && !markers[key]) return;
@@ -116,22 +191,18 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
 
   return (
     <>
-      {placesToDisplay.map(
-        (
-          place, // Iterate over placesToDisplay
-        ) => (
-          <AdvancedMarker
-            position={{ lat: place.latitude, lng: place.longitude }} // Use place properties
-            key={place.id} // Use place.id as key
-            ref={(marker) => setMarkerRef(marker, place.id)} // Use place.id for ref key
-            onClick={() => setActiveMarker(place.id)} // Use place.id for active marker
-          >
-            <div className="text-[#560BAD] bg-[#ba9bdd] p-2 rounded-full shadow-lg">
-              <FaMapMarkerAlt size={20} />
-            </div>
-          </AdvancedMarker>
-        ),
-      )}
+      {placesToDisplay.map((place) => (
+        <AdvancedMarker
+          position={{ lat: place.latitude, lng: place.longitude }}
+          key={place.id}
+          ref={(marker) => setMarkerRef(marker, place.id)}
+          onClick={() => setActiveMarker(place.id)}
+        >
+          <div className="text-[#560BAD] bg-[#ba9bdd] p-2 rounded-full shadow-lg">
+            <FaMapMarkerAlt size={20} />
+          </div>
+        </AdvancedMarker>
+      ))}
       {activeMarker &&
         (() => {
           const activePlace = placesToDisplay.find((p) => p.id === activeMarker);
@@ -139,7 +210,7 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
 
           return (
             <InfoWindow
-              position={{ lat: activePlace.latitude, lng: activePlace.longitude }} // Use activePlace properties
+              position={{ lat: activePlace.latitude, lng: activePlace.longitude }}
               onCloseClick={() => setActiveMarker(null)}
               pixelOffset={[0, -30]}
             >
@@ -148,8 +219,8 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
                 <p className="text-xs text-gray-400 mb-1">{activePlace.category}</p>
                 <p className="text-sm text-gray-300 mb-2 line-clamp-3">{activePlace.description}</p>
                 {activePlace.photos &&
-                  activePlace.photos.length > 0 &&
-                  activePlace.photos[0]?.url ? (
+                activePlace.photos.length > 0 &&
+                activePlace.photos[0]?.url ? (
                   <img
                     src={activePlace.photos[0].url}
                     alt={activePlace.photos[0].caption || activePlace.name}
@@ -165,3 +236,4 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
     </>
   );
 };
+

@@ -1,3 +1,19 @@
+/**
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @see https://nextjs.org/docs/app/api-reference/functions/use-report-web-vitals
+ * @description
+ * WebVitals is a client-side component that reports Next.js Web Vitals metrics.
+ * It uses `useReportWebVitals` to capture performance metrics such as TTFB, FCP, LCP, FID, CLS, and INP.
+ * These metrics are logged to the console using a custom logger and also sent to Google Analytics (gtag)
+ * for tracking and analysis.
+ *
+ * The component itself renders nothing (`return null;`) as its sole purpose is to
+ * initialize the Web Vitals reporting mechanism.
+ *
+ * @returns {null} This component does not render any UI elements.
+ */
 'use client';
 
 import type { NextWebVitalsMetric } from 'next/app';
@@ -6,6 +22,18 @@ import { memo } from 'react';
 import { logger } from '@/utils';
 
 export const WebVitals = memo(() => {
+  /**
+   * @private
+   * @web
+   * @description
+   * Callback function for `useReportWebVitals` that processes each Web Vitals metric.
+   * It logs the metric to the console and dispatches it as an event to Google Analytics (gtag).
+   * For CLS (Cumulative Layout Shift), the value is multiplied by 1000 before sending to gtag
+   * to align with common reporting practices (e.g., 0.1 CLS becomes 100).
+   *
+   * @param {NextWebVitalsMetric} metric - The Web Vitals metric object reported by Next.js.
+   * @returns {void}
+   */
   useReportWebVitals((metric: NextWebVitalsMetric) => {
     switch (metric.name) {
       case 'TTFB': {

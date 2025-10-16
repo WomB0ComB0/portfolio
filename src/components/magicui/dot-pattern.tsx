@@ -1,8 +1,28 @@
+
 'use client';
 
-import { useEffect, useId, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useEffect, useId, useState } from 'react';
 
+/**
+ * @interface DotPatternProps
+ * @readonly
+ * @public
+ * @description
+ * Props for the {@link DotPattern} component controlling SVG pattern settings.
+ * @property {number} [width] - Width of the SVG pattern tile in pixels. Default: 16.
+ * @property {number} [height] - Height of the SVG pattern tile in pixels. Default: 16.
+ * @property {number} [x] - Horizontal offset of the pattern. Default: 0.
+ * @property {number} [y] - Vertical offset of the pattern. Default: 0.
+ * @property {number} [cx] - X coordinate of the dot's center within the tile. Default: 1.
+ * @property {number} [cy] - Y coordinate of the dot's center within the tile. Default: 1.
+ * @property {number} [cr] - Radius of the dot. Default: 0.5.
+ * @property {string} [className] - Additional class names for SVG styling.
+ * @author Mike Odnis
+ * @web
+ * @see https://developer.mozilla.org/docs/Web/SVG/Element/pattern
+ * @version 1.0.0
+ */
 interface DotPatternProps {
   width?: number;
   height?: number;
@@ -14,6 +34,31 @@ interface DotPatternProps {
   className?: string;
 }
 
+/**
+ * DotPattern displays an animated SVG background of repeated dots, shifting vertically in response
+ * to page scroll. It provides a utility pattern overlay for use in interactive or aesthetic backgrounds.
+ *
+ * @function
+ * @public
+ * @param {DotPatternProps} props - Configurable properties for pattern size and styling.
+ * @param {number} [props.width=16] - Pattern tile width in pixels.
+ * @param {number} [props.height=16] - Pattern tile height in pixels.
+ * @param {number} [props.x=0] - Pattern horizontal offset.
+ * @param {number} [props.y=0] - Pattern vertical offset.
+ * @param {number} [props.cx=1] - X coordinate of dot center within tile.
+ * @param {number} [props.cy=1] - Y coordinate of dot center within tile.
+ * @param {number} [props.cr=0.5] - Radius of the dot.
+ * @param {string} [props.className] - Additional CSS classes.
+ * @returns {JSX.Element} Fixed-position SVG pattern animated by window scroll.
+ * @throws {Error} If used outside of a React DOM environment or if pattern generation fails.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @see https://developer.mozilla.org/docs/Web/SVG/Element/pattern
+ * @example
+ *   <DotPattern width={20} height={20} cr={1} className="text-gray-200/50" />
+ * @version 1.0.0
+ */
 export function DotPattern({
   width = 16,
   height = 16,
@@ -28,6 +73,11 @@ export function DotPattern({
   const [scrollPosition, setScrollPosition] = useState(0);
 
   useEffect(() => {
+    /**
+     * Handles window scroll event to update vertical pattern translation.
+     * @private
+     * @see https://developer.mozilla.org/docs/Web/API/Window/scrollY
+     */
     const handleScroll = () => {
       setScrollPosition(window.scrollY);
     };
@@ -56,3 +106,4 @@ export function DotPattern({
 }
 
 export default DotPattern;
+

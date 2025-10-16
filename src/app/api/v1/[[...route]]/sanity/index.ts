@@ -1,5 +1,5 @@
-import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 import { Elysia } from 'elysia';
+import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 import {
   getCertificationsHandler,
   getExperiencesHandler,
@@ -98,4 +98,3 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
       return handleResumeError(error);
     }
   });
-

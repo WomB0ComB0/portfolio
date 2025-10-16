@@ -6,6 +6,7 @@ import {
   getProjects,
   getResume,
 } from '@/lib/sanity/api';
+import { logger } from '@/utils';
 
 const CACHE_DURATION = 60 * 5 * 1000; // 5 minutes
 const caches = new Map<string, { data: any; timestamp: number }>();
@@ -36,7 +37,7 @@ export async function getExperiencesHandler() {
     setCache('experiences', experiences);
     return experiences;
   } catch (error) {
-    console.error('Error in getExperiencesHandler:', error);
+    logger.error('Error in getExperiencesHandler:', error);
     throw new Error('Failed to fetch experiences');
   }
 }
@@ -55,7 +56,7 @@ export async function getProjectsHandler() {
     setCache('projects', projects);
     return projects;
   } catch (error) {
-    console.error('Error in getProjectsHandler:', error);
+    logger.error('Error in getProjectsHandler:', error);
     throw new Error('Failed to fetch projects');
   }
 }
@@ -74,7 +75,7 @@ export async function getFeaturedProjectsHandler() {
     setCache('featuredProjects', projects);
     return projects;
   } catch (error) {
-    console.error('Error in getFeaturedProjectsHandler:', error);
+    logger.error('Error in getFeaturedProjectsHandler:', error);
     throw new Error('Failed to fetch featured projects');
   }
 }
@@ -93,7 +94,7 @@ export async function getCertificationsHandler() {
     setCache('certifications', certifications);
     return certifications;
   } catch (error) {
-    console.error('Error in getCertificationsHandler:', error);
+    logger.error('Error in getCertificationsHandler:', error);
     throw new Error('Failed to fetch certifications');
   }
 }
@@ -112,7 +113,7 @@ export async function getPlacesHandler() {
     setCache('places', places);
     return places;
   } catch (error) {
-    console.error('Error in getPlacesHandler:', error);
+    logger.error('Error in getPlacesHandler:', error);
     throw new Error('Failed to fetch places');
   }
 }
@@ -131,8 +132,7 @@ export async function getResumeHandler() {
     setCache('resume', resume);
     return resume;
   } catch (error) {
-    console.error('Error in getResumeHandler:', error);
+    logger.error('Error in getResumeHandler:', error);
     throw new Error('Failed to fetch resume');
   }
 }
-

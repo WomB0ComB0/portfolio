@@ -1,33 +1,39 @@
+
 /**
  * @module OpenGraph
+ * @description Handles dynamic OpenGraph image generation for social media sharing.
+ * @web
+ * @author Mike Odnis
+ * @see {@link https://ogp.me/ Open Graph protocol}
+ * @see {@link https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image Open Graph Image API}
+ * @version 1.0.0
  */
-
+import { constructMetadata, getURL, logger } from '@/utils';
 import { ImageResponse } from 'next/og';
-import { constructMetadata, getURL } from '@/utils';
 
 /**
- * Generates an OpenGraph image for social media sharing
+ * Generates an OpenGraph-compliant image response for embedding in social and messaging platforms.
+ *
+ * This endpoint processes query parameters to generate a dynamic image containing title and description
+ * rendered with a custom Kodchasan font and branded background. Falls back gracefully to system font if unavailable.
+ *
  * @async
  * @function GET
- * @param {Request} request - The incoming HTTP request
- * @throws {Error} When image generation fails
- * @returns {Promise<ImageResponse|Response>} The generated image response or error response
- *
- * @description
- * This endpoint generates a dynamic OpenGraph image based on provided title and description
- * parameters. It creates a branded image with a custom background and typography.
- *
- * The image includes:
- * - A custom background with gradient effects
- * - The page title in large text
- * - A description excerpt below the title
- * - Custom Kodchasan font rendering
- *
+ * @param {Request} request - The incoming HTTP request with optional `title` and `description` search params.
+ * @returns {Promise<ImageResponse | Response>} Returns an ImageResponse for valid requests, or a Response with a 500 status if image generation fails.
+ * @throws {Error} Throws on image or font generation/loading failures.
  * @example
- * // Request:
- * GET /api/og?title=My%20Page&description=Page%20description
+ * // Example Request:
+ * // GET /api/og?title=My%20Page&description=My%20Page%20Description
+ * // Example Response: An OpenGraph image with the given title and description
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @see {@link https://github.com/WomB0ComB0/portfolio portfolio on GitHub}
+ * @readonly
+ * @version 1.0.0
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<ImageResponse | Response> {
   const { searchParams } = new URL(request.url);
   const titleParam = searchParams?.get('title');
   const descriptionParam = searchParams?.get('description');
@@ -46,18 +52,25 @@ export async function GET(request: Request) {
     String(metadata.description || 'Full-stack developer and software engineer');
 
   try {
+    /**
+     * Loads the Kodchasan custom font for OpenGraph image rendering.
+     * Falls back to system font if loading fails.
+     * @type {ArrayBuffer|null}
+     * @private
+     */
     const fontData = await fetch(new URL('/assets/fonts/Kodchasan-Bold.ttf', getURL()))
       .then((res) => {
         if (!res.ok) {
-          console.error(`Font loading failed: ${res.status} ${res.statusText}`);
+          logger.error(`Font loading failed: ${res.status} ${res.statusText}`);
           throw new Error(`Failed to load font: ${res.status}`);
         }
         return res.arrayBuffer();
       })
       .catch(() => {
-        console.warn('Failed to load Kodchasan font, falling back to system font');
+        logger.warn('Failed to load Kodchasan font, falling back to system font');
         return null;
       });
+
     return new ImageResponse(
       <div
         style={{
@@ -112,9 +125,15 @@ export async function GET(request: Request) {
       },
     );
   } catch (e: any) {
-    console.log(`${e.message}`);
+    /**
+     * Handles rendering or font loading errors.
+     * Logs error and returns a 500 error response.
+     * @private
+     */
+    logger.error(`${e.message}`);
     return new Response('Failed to generate the image', {
       status: 500,
     });
   }
 }
+

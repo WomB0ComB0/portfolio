@@ -1,18 +1,63 @@
+
 'use client';
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink, FileCode, FileText, Image } from 'lucide-react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { JSX } from 'react';
 
+/**
+ * Props interface for the LicenseCard component.
+ *
+ * Represents the properties required to render a license information card.
+ *
+ * @interface
+ * @readonly
+ * @author Mike Odnis
+ * @see [Lucide Icon Components](https://lucide.dev/)
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ */
 interface LicenseCardProps {
-  title: string;
-  description: string;
-  licenseName: string;
-  licenseUrl: string;
-  icon: React.ReactNode;
+  /** The heading displayed on the card. */
+  readonly title: string;
+  /** The descriptive text about what is licensed. */
+  readonly description: string;
+  /** The official name of the license. */
+  readonly licenseName: string;
+  /** The URL to the license text/details. */
+  readonly licenseUrl: string;
+  /** An icon representing the content type. */
+  readonly icon: React.ReactNode;
 }
 
-const LicenseCard = ({ title, description, licenseName, licenseUrl, icon }: LicenseCardProps) => (
+/**
+ * Renders a card displaying license details for a specific content type.
+ * Clicking the license name opens the license URL in a new tab.
+ *
+ * @function
+ * @param {LicenseCardProps} props - Properties for license card rendering.
+ * @returns {JSX.Element} The rendered license card.
+ * @author Mike Odnis
+ * @see LicenseCardProps
+ * @web
+ * @version 1.0.0
+ * @example
+ * <LicenseCard
+ *   title="Blog Posts"
+ *   description="All blog posts are licensed under CC BY 4.0."
+ *   licenseName="CC BY 4.0"
+ *   licenseUrl="https://creativecommons.org/licenses/by/4.0/"
+ *   icon={<FileText className="h-6 w-6" />}
+ * />
+ */
+const LicenseCard = ({
+  title,
+  description,
+  licenseName,
+  licenseUrl,
+  icon,
+}: LicenseCardProps): JSX.Element => (
   <Card className="bg-[#1E1E1E] border-purple-800 hover:border-purple-600 transition-colors">
     <CardHeader>
       <div className="flex items-center gap-3 mb-2">
@@ -35,7 +80,28 @@ const LicenseCard = ({ title, description, licenseName, licenseUrl, icon }: Lice
   </Card>
 );
 
-export const Licenses = () => {
+/**
+ * Renders the full content licensing documentation page for the portfolio.
+ * This section includes:
+ * - An overview of licensing principles
+ * - Cards for each license category
+ * - Third-party dependency license summary
+ * - A contact prompt for additional licensing questions
+ *
+ * This component is the main interface for displaying license and permissions information within the project.
+ *
+ * @function
+ * @returns {JSX.Element} The rendered licensing documentation interface.
+ * @throws {Error} If critical licensing data is not available (not expected in static usage).
+ * @author Mike Odnis
+ * @see LicenseCard
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @web
+ * @version 1.0.0
+ * @example
+ * <Licenses />
+ */
+export const Licenses = (): JSX.Element => {
   return (
     <section className="container mx-auto px-4 py-12 max-w-5xl">
       <div className="mb-12">
@@ -110,3 +176,4 @@ export const Licenses = () => {
 Licenses.displayName = 'Licenses';
 
 export default Licenses;
+

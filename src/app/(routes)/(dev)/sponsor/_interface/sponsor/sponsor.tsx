@@ -1,16 +1,29 @@
 'use client';
 
+import { Coffee, ExternalLink, Gift, Heart, Users } from 'lucide-react';
 import { motion } from 'motion/react';
-import { ExternalLink, Heart, Coffee, Gift, Users } from 'lucide-react';
-import { SiGithubsponsors, SiKofi, SiBuymeacoffee, SiOpencollective } from 'react-icons/si';
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
+import { SiBuymeacoffee, SiGithubsponsors, SiKofi, SiOpencollective } from 'react-icons/si';
 import Layout from '@/components/layout/layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useActiveSponsors, type Sponsor as SponsorType } from '@/hooks/use-github-sponsors';
+import { type Sponsor as SponsorType, useActiveSponsors } from '@/hooks/use-github-sponsors';
 
+/**
+ * @interface SponsorPlatform
+ * @description Defines the structure for a sponsorship platform.
+ * @property {string} name - The display name of the sponsorship platform (e.g., 'GitHub Sponsors').
+ * @property {string} username - The username or identifier on the platform.
+ * @property {string} url - The URL to the sponsorship page on the platform.
+ * @property {React.ReactNode} icon - The icon component associated with the platform.
+ * @property {string} color - Tailwind CSS gradient color classes for styling.
+ * @property {string} description - A brief description of the platform and its sponsorship method.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ */
 interface SponsorPlatform {
   name: string;
   username: string;
@@ -20,6 +33,15 @@ interface SponsorPlatform {
   description: string;
 }
 
+/**
+ * @constant
+ * @readonly
+ * @type {SponsorPlatform[]}
+ * @description An array of objects, each representing a different platform where sponsorship is possible.
+ * @see SponsorPlatform
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const sponsorPlatforms: SponsorPlatform[] = [
   {
     name: 'GitHub Sponsors',
@@ -27,7 +49,8 @@ const sponsorPlatforms: SponsorPlatform[] = [
     url: 'https://github.com/sponsors/WomB0ComB0',
     icon: <SiGithubsponsors className="h-8 w-8" />,
     color: 'from-pink-500 to-purple-600',
-    description: 'Sponsor me directly through GitHub with flexible monthly or one-time contributions.',
+    description:
+      'Sponsor me directly through GitHub with flexible monthly or one-time contributions.',
   },
   {
     name: 'Open Collective',
@@ -55,7 +78,32 @@ const sponsorPlatforms: SponsorPlatform[] = [
   },
 ];
 
-const benefits = [
+/**
+ * @interface BenefitItem
+ * @description Defines the structure for a sponsorship benefit item.
+ * @property {React.ReactNode} icon - The icon component representing the benefit.
+ * @property {string} title - The title of the benefit.
+ * @property {string} description - A detailed description of the benefit.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ */
+interface BenefitItem {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+/**
+ * @constant
+ * @readonly
+ * @type {BenefitItem[]}
+ * @description An array of benefits offered to sponsors, highlighting reasons for contribution.
+ * @see BenefitItem
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
+const benefits: BenefitItem[] = [
   {
     icon: <Heart className="h-6 w-6" />,
     title: 'Support Open Source',
@@ -64,7 +112,8 @@ const benefits = [
   {
     icon: <Coffee className="h-6 w-6" />,
     title: 'Fuel Development',
-    description: 'Your support helps cover hosting costs, tools, and resources for better projects.',
+    description:
+      'Your support helps cover hosting costs, tools, and resources for better projects.',
   },
   {
     icon: <Gift className="h-6 w-6" />,
@@ -78,6 +127,26 @@ const benefits = [
   },
 ];
 
+/**
+ * @function Sponsor
+ * @description A React functional component that displays information about sponsoring the author's work.
+ *   It showcases various sponsorship platforms, benefits for sponsors, and a list of current GitHub Sponsors.
+ * @returns {JSX.Element} The rendered sponsorship page.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ * @web
+ * @see {@link Layout} for the page layout wrapper.
+ * @see {@link Card} and related components for UI elements.
+ * @see {@link Button} for interactive elements.
+ * @see {@link Skeleton} for loading states.
+ * @see {@link useActiveSponsors} for fetching sponsor data.
+ * @see {@link SponsorPlatform} for platform data structure.
+ * @see {@link BenefitItem} for benefit data structure.
+ * @example
+ * // Render the Sponsor page
+ * <Sponsor />
+ */
 export const Sponsor = () => {
   const { data: sponsorsData, isLoading, error } = useActiveSponsors();
 
@@ -108,9 +177,7 @@ export const Sponsor = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <h2 className="text-2xl font-bold text-purple-300 mb-6 text-center">
-              Why Sponsor Me?
-            </h2>
+            <h2 className="text-2xl font-bold text-purple-300 mb-6 text-center">Why Sponsor Me?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {benefits.map((benefit, index) => (
                 <motion.div
@@ -232,9 +299,7 @@ export const Sponsor = () => {
                     <div className="flex flex-wrap justify-center gap-4">
                       <div className="flex items-center gap-2 px-4 py-2 bg-[#1E1E1E] border border-purple-800 rounded-lg">
                         <Heart className="h-4 w-4 text-pink-500" />
-                        <span className="text-gray-400 text-sm">
-                          Awaiting our first sponsor...
-                        </span>
+                        <span className="text-gray-400 text-sm">Awaiting our first sponsor...</span>
                       </div>
                     </div>
                   </div>

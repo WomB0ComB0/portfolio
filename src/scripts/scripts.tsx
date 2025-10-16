@@ -1,17 +1,25 @@
+
 'use client';
 
+import { app } from '@/constants';
+import { generateSchema, logger, Stringify } from '@/utils';
 import Script from 'next/script';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { app } from '@/constants';
-import { generateSchema, Stringify } from '@/utils';
 
 /**
- * Configuration type for preload/prefetch behavior
+ * A type representing the configuration for speculative preloading, prefetching, and exclusions,
+ * primarily used for navigation performance optimizations.
+ *
  * @typedef {Object} PreloadConfig
- * @property {string[]} prerenderPaths - Paths to prerender eagerly for instant navigation
- * @property {string[]} prefetchPaths - Paths to prefetch in the background
- * @property {string[]} excludePaths - Paths to exclude from preloading
+ * @property {readonly string[]} prerenderPaths Paths that should be eagerly prerendered.
+ * @property {readonly string[]} prefetchPaths Paths to prefetch in the background.
+ * @property {readonly string[]} excludePaths Paths to exclude from preloading or speculation rules.
+ * @readonly
+ * @author Mike Odnis
+ * @see https://wicg.github.io/nav-speculation/speculation-rules.html
+ * @public
+ * @version 1.0.0
  */
 type PreloadConfig = {
   prerenderPaths: string[];
@@ -20,18 +28,59 @@ type PreloadConfig = {
 };
 
 /**
+ * Scripts component responsible for:
+ * - Preloading and prefetching routes intelligently via Speculation Rules API.
+ * - Integrating tracking/analytics (Google Tag Manager, GA4).
+ * - Injecting Google Maps API key (loaded securely from config).
+ * - Exposing Schema.org Rich Results for the main Organization via JSON-LD.
+ * - Handling view transitions with the View Transitions API.
+ * - Preventing default context menu and managing script cleanup.
+ *
+ * @function Scripts
+ * @constructor
+ * @returns {JSX.Element} React component that injects scripts and sets up relevant preloading, tracking, and structured data.
+ * @web
+ * @public
+ * @author Mike Odnis
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Speculation_Rules_API
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API
  * @see https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API
- * @see https://schema.org/
+ * @see https://schema.org/Organization
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.1.0
+ * @example
+ * // Use in layout/app for head/global scripts
+ * <Scripts />
  */
-
 export const Scripts = () => {
+  /**
+   * Holds the Google Maps API key (fetched from configuration at runtime).
+   *
+   * @type {[string, React.Dispatch<React.SetStateAction<string>>]}
+   * @private
+   */
   const [mapsApiKey, setMapsApiKey] = useState<string>('');
 
+  /**
+   * Loads Google Maps API key from configuration.
+   *
+   * @function
+   * @returns {Promise<void>}
+   * @async
+   * @private
+   * @throws {Error} If config cannot be loaded or accessed.
+   */
   useEffect(() => {
     import('@/config').then((mod) => setMapsApiKey(mod.config.google.maps.apiKey || ''));
   }, []);
+
+  /**
+   * Static organization schema (JSON-LD) for Schema.org (for SEO)
+   *
+   * @see https://schema.org/Organization
+   * @readonly
+   * @private
+   */
   const schemaOrg = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -49,8 +98,13 @@ export const Scripts = () => {
       'https://bsky.app/profile/mikeodnis.dev',
     ],
   } as const;
+
   /**
-   * Configuration object defining paths for preloading behavior
+   * The configuration object controlling rules for speculation (preloading/prefetching/exclusion).
+   *
+   * @type {PreloadConfig}
+   * @readonly
+   * @private
    */
   const config: PreloadConfig = {
     prerenderPaths: ['/'],
@@ -59,28 +113,49 @@ export const Scripts = () => {
   };
 
   /**
-   * Ref to store the intersection observer instance
+   * Reference to the IntersectionObserver used to observe visible links for speculation logic.
+   *
+   * @type {React.MutableRefObject<IntersectionObserver | null>}
+   * @private
    */
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   /**
-   * Ref to track which links have already had speculation rules added
+   * Reference to a Set tracking links for which speculation scripts have been injected.
+   *
+   * @type {React.MutableRefObject<Set<string>>}
+   * @private
    */
   const speculationScriptsRef = useRef<Set<string>>(new Set());
 
   /**
-   * Prevents default context menu behavior
-   * @param {MouseEvent} event - The context menu event
+   * Prevents the default browser context menu from showing up (used for extra UX security/control).
+   *
+   * @function
+   * @param {MouseEvent} event - The mouse contextmenu event to prevent.
+   * @returns {void}
+   * @private
+   * @web
+   * @author Mike Odnis
+   * @version 1.0.0
    */
-  const handleContextMenu = useCallback((event: MouseEvent) => {
+  const handleContextMenu = useCallback((event: MouseEvent): void => {
     event.preventDefault();
   }, []);
 
   /**
-   * Handles view transitions between pages using the View Transitions API
-   * Adds and removes transition classes for animation
+   * Initiates and manages page view transitions using the View Transitions API,
+   * allowing for smooth animation between navigations (if supported by the browser).
+   *
+   * @function
+   * @returns {void}
+   * @private
+   * @web
+   * @author Mike Odnis
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API
+   * @version 1.0.0
    */
-  const handleViewTransition = useCallback(() => {
+  const handleViewTransition = useCallback((): void => {
     if (!document.startViewTransition) return;
 
     document.startViewTransition(() => {
@@ -92,11 +167,22 @@ export const Scripts = () => {
   }, []);
 
   /**
-   * Creates a speculation rules script element
-   * @param {object} rules - The speculation rules to apply
-   * @returns {HTMLScriptElement} The created script element
+   * Dynamically creates a script element with given speculation rules.
+   *
+   * @function
+   * @param {object} rules - The speculation rules object (SpeculationRules Schema).
+   * @returns {HTMLScriptElement} Created script element for the rules.
+   * @private
+   * @throws {Error} If the script cannot be created.
+   * @web
+   * @author Mike Odnis
+   * @see https://wicg.github.io/nav-speculation/speculation-rules.html
+   * @version 1.0.0
+   * @example
+   * const s = createSpeculationScript({ prefetch: [ ... ] });
+   * document.head.appendChild(s);
    */
-  const createSpeculationScript = useCallback((rules: object) => {
+  const createSpeculationScript = useCallback((rules: object): HTMLScriptElement => {
     const script = document.createElement('script');
     script.type = 'speculationrules';
     script.text = Stringify(rules);
@@ -104,11 +190,20 @@ export const Scripts = () => {
   }, []);
 
   /**
-   * Adds dynamic speculation rules for a specific link
-   * @param {string} link - The URL to add speculation rules for
+   * Adds a dynamic speculation rules script for a given link.
+   *
+   * @function
+   * @param {string} link - The internal URL path to prefetch.
+   * @returns {void}
+   * @private
+   * @web
+   * @throws {Error} If script cannot be appended.
+   * @author WomB0ComB0
+   * @see https://wicg.github.io/nav-speculation/speculation-rules.html
+   * @version 1.0.0
    */
   const addDynamicSpeculation = useCallback(
-    (link: string) => {
+    (link: string): void => {
       if (speculationScriptsRef.current.has(link)) return;
 
       const rules = {
@@ -128,12 +223,18 @@ export const Scripts = () => {
   );
 
   /**
-   * Handles intersection observer entries
-   * Adds speculation rules for links as they become visible
-   * @param {IntersectionObserverEntry[]} entries - The intersection entries to process
+   * Handles entries for the Intersection Observer, initiating speculation/prefetch
+   * for links becoming visible in the viewport.
+   *
+   * @function
+   * @param {IntersectionObserverEntry[]} entries - Array of intersection entries.
+   * @returns {void}
+   * @private
+   * @web
+   * @version 1.0.0
    */
   const handleIntersection = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
+    (entries: IntersectionObserverEntry[]): void => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const link = entry.target.getAttribute('href');
@@ -145,11 +246,20 @@ export const Scripts = () => {
     },
     [addDynamicSpeculation],
   );
+
   /**
-   * Sets up intersection observer, event listeners, and cleanup
-   * - Initializes intersection observer for link prefetching
-   * - Adds event listeners for context menu and navigation
-   * - Cleans up observers and listeners on unmount
+   * Side effect: Sets up speculation rules, intersection observation of links, event listeners,
+   * and script cleanup logic on unmount.
+   *
+   * @function
+   * @returns {void}
+   * @async
+   * @private
+   * @web
+   * @author WomB0ComB0
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API
+   * @see https://wicg.github.io/nav-speculation/speculation-rules.html
+   * @version 1.0.0
    */
   useEffect(() => {
     observerRef.current = new IntersectionObserver(handleIntersection, {
@@ -175,13 +285,16 @@ export const Scripts = () => {
     };
   }, [handleContextMenu, handleIntersection, handleViewTransition]);
 
-  // TODO: 🚩
   /**
-   * Base speculation rules configuration for prerendering and prefetching
-   * Defines rules for:
-   * - Prerendering specific paths with different eagerness levels
-   * - Prefetching paths and patterns with conditions
-   * - Excluding certain paths from speculation
+   * Base speculation rules configuration for prerendering and prefetching.
+   * Structured for Speculation Rules API consumption. This includes:
+   *   - List-based eager prerendering of specified paths.
+   *   - Prefetch for pattern-matched/legal and resource-based paths.
+   *   - Exclusion patterns for API routes.
+   *
+   * @see https://wicg.github.io/nav-speculation/speculation-rules.html
+   * @readonly
+   * @private
    */
   const baseSpeculationRules = {
     prerender: [
@@ -219,6 +332,13 @@ export const Scripts = () => {
     ],
   } as const;
 
+  /**
+   * Organization schema (JSON-LD, extended) generated for rich SEO.
+   *
+   * @readonly
+   * @private
+   * @see https://schema.org/Organization
+   */
   const organizationSchema = generateSchema({
     type: 'Organization',
     name: app.name,
@@ -235,8 +355,10 @@ export const Scripts = () => {
       'https://bsky.app/profile/mikeodnis.dev',
     ],
   } as const);
+
   return (
     <>
+      {/* Google Analytics 4 (Gtag) */}
       <Script
         strategy="afterInteractive"
         src="https://www.googletagmanager.com/gtag/js?id=G-CS1B01WMJR"
@@ -253,11 +375,14 @@ export const Scripts = () => {
           `,
         }}
       />
+      {/* Google Maps JS API (key is loaded dynamically and securely) */}
       <Script
         strategy="afterInteractive"
-        src={`https://maps.googleapis.com/maps/api/js?key=${mapsApiKey
-          }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
+        src={`https://maps.googleapis.com/maps/api/js?key=${
+          mapsApiKey
+        }&callback=console.debug&libraries=maps,marker&v=beta&loading=async`}
       />
+      {/* Google Tag Manager script */}
       <Script
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
@@ -270,6 +395,7 @@ export const Scripts = () => {
           `,
         }}
       />
+      {/* Speculation Rules API for prerender/prefetch for navigation */}
       <Script
         id="speculation-rules"
         strategy="beforeInteractive"
@@ -278,10 +404,10 @@ export const Scripts = () => {
           __html: Stringify(baseSpeculationRules),
         }}
         onError={(event) => {
-          console.error('Error loading speculation rules script:', event);
+          logger.error('Error loading speculation rules script:', event);
         }}
       />
-
+      {/* Schema.org Organization */}
       <Script
         type="application/ld+json"
         id="schema-org"
@@ -290,10 +416,10 @@ export const Scripts = () => {
           __html: Stringify(schemaOrg),
         }}
         onError={(event) => {
-          console.error('Error loading Schema.org script:', event);
+          logger.error('Error loading Schema.org script:', event);
         }}
       />
-
+      {/* Schema.org Extended/Custom Organization Schema */}
       <Script
         type="application/ld+json"
         id="schema-org-extended"
@@ -302,11 +428,20 @@ export const Scripts = () => {
           __html: Stringify(organizationSchema),
         }}
         onError={(event) => {
-          console.error('Error loading Schema.org extended script:', event);
+          logger.error('Error loading Schema.org extended script:', event);
         }}
       />
     </>
   );
 };
+
+/**
+ * The display name for Scripts component, as used in React dev tools/UI.
+ * @type {string}
+ * @public
+ * @readonly
+ */
 Scripts.displayName = 'Scripts';
+
 export default Scripts;
+

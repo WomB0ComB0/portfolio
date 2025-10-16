@@ -1,19 +1,50 @@
+
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { type JSX, Suspense } from 'react';
 
+/**
+ * Interface representing the route parameters for the ExperienceDetail component.
+ *
+ * @interface
+ * @property {object} params - The route parameters.
+ * @property {string} params.id - The ID of the experience detail.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see [Next.js Dynamic Routes](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes)
+ * @readonly
+ */
 interface ExperienceDetailProps {
   params: { id: string };
 }
 
-const ExperienceDetailContent = ({ id }: { id: string }) => {
+/**
+ * Displays the content and detailed information for a specific experience.
+ *
+ * Fetches experiences from the Sanity CMS and renders details for the experience matching the provided ID.
+ * Handles missing experience entries gracefully and displays appropriate messages.
+ *
+ * @function
+ * @param {{ id: string }} props - The props object.
+ * @param {string} props.id - The unique identifier of the experience to display.
+ * @returns {JSX.Element} The rendered detailed experience content or a 'Not Found' message.
+ * @throws {Error} Throws error if data fetching or rendering fails unexpectedly.
+ * @author Mike Odnis
+ * @web
+ * @version 1.0.0
+ * @example
+ * <ExperienceDetailContent id="abc123" />
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @public
+ */
+const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
   const { data: experiences } = useSanityExperiences();
   const experienceItem = (experiences as any[]).find((exp: any) => exp._id === id);
 
@@ -57,12 +88,8 @@ const ExperienceDetailContent = ({ id }: { id: string }) => {
             </div>
           )}
           <div className="flex-grow">
-            <h1 className="text-3xl font-bold text-purple-300 mb-1">
-              {experienceItem.position}
-            </h1>
-            <h2 className="text-xl font-semibold text-purple-400 mb-1">
-              {experienceItem.company}
-            </h2>
+            <h1 className="text-3xl font-bold text-purple-300 mb-1">{experienceItem.position}</h1>
+            <h2 className="text-xl font-semibold text-purple-400 mb-1">{experienceItem.company}</h2>
             <p className="text-sm text-gray-500">{period}</p>
             {experienceItem.location && (
               <p className="text-sm text-gray-500">{experienceItem.location}</p>
@@ -79,42 +106,35 @@ const ExperienceDetailContent = ({ id }: { id: string }) => {
             )}
           </div>
         </div>
-
         <div>
           <h3 className="text-xl font-semibold text-purple-300 mb-2">Description</h3>
           <p className="text-gray-300 whitespace-pre-line">{experienceItem.description}</p>
         </div>
-
-        {experienceItem.responsibilities &&
-          experienceItem.responsibilities.length > 0 && (
-            <div>
-              <h3 className="text-xl font-semibold text-purple-300 mb-2">
-                Key Responsibilities
-              </h3>
-              <ul className="list-disc list-inside space-y-1 text-gray-300">
-                {experienceItem.responsibilities.map((responsibility: string, index: number) => (
-                  <li key={index}>{responsibility}</li>
-                ))}
-              </ul>
+        {experienceItem.responsibilities && experienceItem.responsibilities.length > 0 && (
+          <div>
+            <h3 className="text-xl font-semibold text-purple-300 mb-2">Key Responsibilities</h3>
+            <ul className="list-disc list-inside space-y-1 text-gray-300">
+              {experienceItem.responsibilities.map((responsibility: string, index: number) => (
+                <li key={index}>{responsibility}</li>
+              ))}
+            </ul>
+          </div>
+        )}{' '}
+        {experienceItem.technologies && experienceItem.technologies.length > 0 && (
+          <div>
+            <h3 className="text-xl font-semibold text-purple-300 mb-2">Technologies Used</h3>
+            <div className="flex flex-wrap gap-2">
+              {experienceItem.technologies.map((tech: string, index: number) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 text-sm bg-purple-700 text-purple-200 rounded-full"
+                >
+                  {tech}
+                </span>
+              ))}
             </div>
-          )}        {experienceItem.technologies && experienceItem.technologies.length > 0 && (
-            <div>
-              <h3 className="text-xl font-semibold text-purple-300 mb-2">
-                Technologies Used
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {experienceItem.technologies.map((tech: string, index: number) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 text-sm bg-purple-700 text-purple-200 rounded-full"
-                  >
-                    {tech}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
+          </div>
+        )}
         <div className="mt-8 pt-6 border-t border-purple-700">
           <Button
             asChild
@@ -131,7 +151,23 @@ const ExperienceDetailContent = ({ id }: { id: string }) => {
   );
 };
 
-export const ExperienceDetail = ({ params }: ExperienceDetailProps) => {
+/**
+ * Renders the ExperienceDetail page, including suspense state and layout.
+ *
+ * Orchestrates layout and suspense-loading for the detailed experience view, handling fallback UI if content is not yet available.
+ *
+ * @function
+ * @param {ExperienceDetailProps} props - The properties containing route parameters with experience ID.
+ * @returns {JSX.Element} The Experience detail page inside the main layout.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ * <ExperienceDetail params={{ id: "abc123" }} />
+ * @public
+ */
+export const ExperienceDetail = ({ params }: ExperienceDetailProps): JSX.Element => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
@@ -149,3 +185,4 @@ export const ExperienceDetail = ({ params }: ExperienceDetailProps) => {
     </Layout>
   );
 };
+

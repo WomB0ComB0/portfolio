@@ -1,16 +1,32 @@
+
 'use client';
 
+import { MagicCard } from '@/components/magicui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 import { format } from 'date-fns';
 import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
-import { Suspense } from 'react';
-import { MagicCard } from '@/components/magicui';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
+import { type JSX, Suspense } from 'react';
 
+/**
+ * @readonly
+ * @constant
+ * @description
+ *   Schema definition for a single blog post object containing the basic metadata required for display.
+ * @property {string} title - The title of the blog post.
+ * @property {string} slug - The unique slug identifier for the blog post.
+ * @property {string} publishedAt - Date string indicating when the post was published.
+ * @property {string} excerpt - Short excerpt or summary of the blog post.
+ * @author Mike Odnis
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @web
+ * @public
+ */
 const BlogPostSchema = Schema.Struct({
   title: Schema.String,
   slug: Schema.String,
@@ -18,9 +34,42 @@ const BlogPostSchema = Schema.Struct({
   excerpt: Schema.String,
 });
 
+/**
+ * @readonly
+ * @constant
+ * @description
+ *   Schema definition for an array of blog post objects, utilizing BlogPostSchema as its item definition.
+ * @author Mike Odnis
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @web
+ * @public
+ */
 const BlogResponseSchema = Schema.Array(BlogPostSchema);
 
-const Blog = () => {
+/**
+ * @function Blog
+ * @description
+ *   Renders a list of blog posts retrieved from a backend API. Utilizes suspense and data loader
+ *   to provide loading, error, and fully-rendered states. Each blog post is displayed as a card
+ *   with animation, title, excerpt, and publication date. Supports skeleton loading UI and error feedback.
+ * @returns {JSX.Element} The React JSX element containing the styled blog post grid with loading and error states.
+ * @throws {Error} May throw if DataLoader fails unexpectedly, or if a rendering error occurs.
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @see https://nextjs.org/docs/app/building-your-application/data-fetching/patterns
+ * @see DataLoader
+ * @see BlogSkeleton
+ * @see ErrorMessage
+ * @example
+ * // Usage in Next.js page:
+ * export default function BlogPage() {
+ *   return <Blog />;
+ * }
+ * @version 1.0.0
+ */
+const Blog = (): JSX.Element => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8 text-center">Latest Blog Posts</h1>
@@ -75,7 +124,21 @@ const Blog = () => {
   );
 };
 
-const BlogSkeleton = () => (
+/**
+ * @function BlogSkeleton
+ * @description
+ *   Renders a skeleton loading UI for the blog post grid.
+ *   Used as a fallback while the blog data is loading.
+ * @returns {JSX.Element} A stylized skeleton placeholder for the blog list.
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://mantine.dev/core/skeleton/
+ * @example
+ * <Suspense fallback={<BlogSkeleton />} />
+ */
+const BlogSkeleton = (): JSX.Element => (
   <div className="container mx-auto px-4 py-8">
     <Skeleton className="w-64 h-10 mb-8 mx-auto" />
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -99,7 +162,21 @@ const BlogSkeleton = () => (
   </div>
 );
 
-const ErrorMessage = () => (
+/**
+ * @function ErrorMessage
+ * @description
+ *   Displays an error UI message for when loading blog posts fails.
+ *   Used as the error fallback within DataLoader.
+ * @returns {JSX.Element} React JSX element for the UI error state.
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see DataLoader
+ * @example
+ * <DataLoader ErrorComponent={ErrorMessage} />
+ */
+const ErrorMessage = (): JSX.Element => (
   <div className="container mx-auto px-4 py-8">
     <Card className="bg-red-50 border-red-200">
       <CardContent className="flex items-center justify-center p-6">
@@ -112,3 +189,4 @@ const ErrorMessage = () => (
 );
 
 export default Blog;
+

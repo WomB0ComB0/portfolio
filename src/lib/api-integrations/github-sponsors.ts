@@ -1,20 +1,24 @@
+
 /**
- * GitHub Sponsors API Integration
- * 
- * Fetches sponsor information from GitHub Sponsors using GraphQL API.
- * Requires GITHUB_TOKEN with read:org and read:user scopes.
- * 
- * To enable:
- * 1. Generate a GitHub token at: https://github.com/settings/tokens
- * 2. Select scopes: read:org, read:user
- * 3. Add to .env.local: GITHUB_TOKEN=your_token_here
+ * @module api-integrations/github-sponsors
+ * @description
+ * GitHub Sponsors API Integration for portfolio (by WomB0ComB0)
+ *
+ * Provides functions for fetching sponsor information from GitHub Sponsors using the GraphQL API.
+ * Requires a GitHub access token with `read:org` and `read:user` scopes.
+ *
+ * @see https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @web
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { post } from '@/lib/http-clients/effect-fetcher';
+import { logger } from '@/utils';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
 // Schema for GitHub Sponsors response
 const SponsorEntitySchema = Schema.Struct({
@@ -25,12 +29,23 @@ const SponsorEntitySchema = Schema.Struct({
   url: Schema.String,
 });
 
+/**
+ * @readonly
+ * @description Effect Schema definition for a GitHub sponsor tier.
+ * @private
+ */
 const SponsorTierSchema = Schema.Struct({
   name: Schema.String,
   monthlyPriceInDollars: Schema.Number,
   monthlyPriceInCents: Schema.Number,
 });
 
+/**
+ * @readonly
+ * @description
+ * Effect Schema definition for a GitHub Sponsorship Node—an individual sponsorship of a maintainer.
+ * @private
+ */
 const SponsorshipNodeSchema = Schema.Struct({
   sponsorEntity: SponsorEntitySchema,
   tier: Schema.NullishOr(SponsorTierSchema),
@@ -39,6 +54,11 @@ const SponsorshipNodeSchema = Schema.Struct({
   privacyLevel: Schema.String,
 });
 
+/**
+ * @readonly
+ * @description Effect Schema definition for the complete GitHub Sponsors GraphQL API response.
+ * @private
+ */
 const GitHubSponsorsResponseSchema = Schema.Struct({
   data: Schema.Struct({
     user: Schema.NullishOr(
@@ -56,29 +76,73 @@ const GitHubSponsorsResponseSchema = Schema.Struct({
   }),
 });
 
+/**
+ * Represents a GitHub sponsor of the maintainer (user or organization).
+ *
+ * @interface
+ * @public
+ * @see https://docs.github.com/en/sponsors/receiving-sponsorships-through-github-sponsors/about-github-sponsors
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export interface Sponsor {
+  /** The sponsor's GitHub login. */
   login: string;
+  /** The sponsor's name, if available. */
   name: string | null;
+  /** The sponsor's GitHub avatar URL. */
   avatarUrl: string;
+  /** URL to the sponsor's GitHub profile. */
   url: string;
+  /** The tier of sponsorship, or null if not recurring. */
   tier: {
     name: string;
     monthlyPriceInDollars: number;
   } | null;
+  /** When the sponsorship started. */
   createdAt: string;
+  /** Whether the sponsorship is currently active. */
   isActive: boolean;
+  /** The type of the sponsor entity: "User" or "Organization". */
   type: 'User' | 'Organization';
 }
 
+/**
+ * Data structure containing the fetched sponsors and aggregate information.
+ *
+ * @interface
+ * @public
+ * @property {Sponsor[]} sponsors - Array of sponsorships.
+ * @property {number} totalCount - Total number of sponsors.
+ * @property {number} totalMonthlyIncome - Total active monthly income in USD from sponsors.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export interface GitHubSponsorsData {
   sponsors: Sponsor[];
   totalCount: number;
   totalMonthlyIncome: number;
 }
 
+/**
+ * @readonly
+ * @private
+ * @description Duration (in ms) for which sponsor data is cached in memory.
+ */
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+/**
+ * @readonly
+ * @private
+ * @description In-memory cache for sponsor data to avoid unnecessary API calls.
+ */
 let cache: { data: GitHubSponsorsData; timestamp: number } | null = null;
 
+/**
+ * @readonly
+ * @private
+ * @description GitHub GraphQL query string for retrieving sponsorship data.
+ */
 const GITHUB_GRAPHQL_QUERY = `
   query($login: String!, $first: Int!, $after: String) {
     user(login: $login) {
@@ -124,15 +188,30 @@ const GITHUB_GRAPHQL_QUERY = `
 `;
 
 /**
- * Fetches all sponsors from GitHub Sponsors API
- * Handles pagination automatically to get all sponsors
+ * Fetches all sponsors from the GitHub Sponsors API for a given user.
+ * Handles pagination to collect all sponsor records and caches results in memory for 1 hour.
+ * Requires the `GITHUB_TOKEN` environment variable with `read:org` and `read:user` scopes.
+ *
+ * @function
+ * @async
+ * @public
+ * @param {string} [username='WomB0ComB0'] - The GitHub username whose sponsors will be fetched.
+ * @returns {Promise<GitHubSponsorsData>} Promise resolving to sponsor info, totals, and income.
+ * @throws {Error} Throws if fetching or decoding sponsor API response fails.
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://docs.github.com/en/graphql
+ * @example
+ * const data = await getGitHubSponsors('WomB0ComB0');
+ * console.log(data.sponsors.length);
  */
 export async function getGitHubSponsors(
   username: string = 'WomB0ComB0',
 ): Promise<GitHubSponsorsData> {
   // Return cached data if still valid
   if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
-    console.log('[GitHub Sponsors] Returning cached data');
+    logger.info('[GitHub Sponsors] Returning cached data');
     return cache.data;
   }
 
@@ -147,7 +226,7 @@ export async function getGitHubSponsors(
   }
 
   try {
-    console.log('[GitHub Sponsors] Fetching sponsors for:', username);
+    logger.info('[GitHub Sponsors] Fetching sponsors for:', { username });
 
     const allSponsors: Sponsor[] = [];
     let hasNextPage = true;
@@ -217,7 +296,7 @@ export async function getGitHubSponsors(
 
       allSponsors.push(...sponsors);
 
-      console.log(
+      logger.info(
         `[GitHub Sponsors] Fetched ${sponsors.length} sponsors (page ${allSponsors.length / 100})`,
       );
     }
@@ -233,7 +312,7 @@ export async function getGitHubSponsors(
       totalMonthlyIncome,
     };
 
-    console.log('[GitHub Sponsors] Successfully fetched:', {
+    logger.info('[GitHub Sponsors] Successfully fetched:', {
       totalSponsors: allSponsors.length,
       activeSponsors: allSponsors.filter((s) => s.isActive).length,
       totalMonthlyIncome: `$${totalMonthlyIncome}`,
@@ -244,7 +323,7 @@ export async function getGitHubSponsors(
 
     return data;
   } catch (error) {
-    console.error('[GitHub Sponsors] Error fetching sponsors:', error);
+    logger.error('[GitHub Sponsors] Error fetching sponsors:', error);
     throw ensureBaseError(error, 'github:sponsors', {
       username,
       hasToken: !!env.GITHUB_TOKEN,
@@ -253,7 +332,22 @@ export async function getGitHubSponsors(
 }
 
 /**
- * Get only active sponsors
+ * Gets only active GitHub sponsors for a user.
+ * Internally calls {@link getGitHubSponsors}.
+ *
+ * @function
+ * @async
+ * @public
+ * @param {string} [username='WomB0ComB0'] - GitHub username.
+ * @returns {Promise<Sponsor[]>} Array of active sponsors.
+ * @throws {Error} On API failure or decoding issue.
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see getGitHubSponsors
+ * @example
+ * const active = await getActiveSponsors('WomB0ComB0');
+ * console.log(active.length);
  */
 export async function getActiveSponsors(username: string = 'WomB0ComB0'): Promise<Sponsor[]> {
   const data = await getGitHubSponsors(username);
@@ -261,7 +355,23 @@ export async function getActiveSponsors(username: string = 'WomB0ComB0'): Promis
 }
 
 /**
- * Get sponsors grouped by tier
+ * Gets active sponsors grouped by their tier for a user.
+ *
+ * @function
+ * @async
+ * @public
+ * @param {string} [username='WomB0ComB0'] - GitHub username.
+ * @returns {Promise<Map<string, Sponsor[]>>} Sponsors grouped by tier name.
+ * @throws {Error} On API failure or decoding issue.
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see getGitHubSponsors
+ * @example
+ * const byTier = await getSponsorsByTier('WomB0ComB0');
+ * for (const [tier, sponsors] of byTier.entries()) {
+ *   console.log(tier, sponsors.length);
+ * }
  */
 export async function getSponsorsByTier(
   username: string = 'WomB0ComB0',

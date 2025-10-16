@@ -1,6 +1,32 @@
-import { Discord, GitHubStats, DevStats } from '@/app/(routes)/(dev)/stats/_components';
+import { DevStats, Discord, GitHubStats } from '@/app/(routes)/(dev)/stats/_components';
 import Layout from '@/components/layout/layout';
 
+/**
+ * @function Stats
+ * @description
+ *      Top-level presentational component providing a dashboard summary with layout, general prose,
+ *      and a vertical stack of key personal statistics including Discord presence, coding/dev stats,
+ *      and GitHub analytics for the portfolio project.
+ *      Acts as the single export for the stats module page.
+ *
+ * @web
+ * @public
+ * @readonly
+ * @returns {JSX.Element}
+ *      React component wrapping statistics dashboard UI, including layout and individual stats widgets.
+ * @throws {Error}
+ *      May throw rendering errors if child components throw.
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @see Layout
+ * @see Discord
+ * @see DevStats
+ * @see GitHubStats
+ * @example
+ * // Usage in routing:
+ * <Stats />
+ */
 export const Stats = () => {
   return (
     <Layout>
@@ -22,3 +48,4 @@ export const Stats = () => {
     </Layout>
   );
 };
+

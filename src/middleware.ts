@@ -8,6 +8,13 @@ import { Logger, Stringify } from '@/utils';
 
 const logger = Logger.getLogger('Middleware');
 
+/**
+ * @readonly
+ * @private
+ * @description A Set containing paths that are considered public assets and should bypass certain middleware logic (like rate limiting or authentication).
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const publicAssetPaths = new Set<string>([
   '/assets/',
   '/pwa/',
@@ -24,28 +31,42 @@ const publicAssetPaths = new Set<string>([
   '/sw.js',
 ]);
 
-// Add paths that should bypass rate limiting
+/**
+ * @readonly
+ * @private
+ * @description An array of paths that are explicitly exempt from rate limiting. It includes public assets and Next.js internal paths.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const rateLimitExemptPaths = [...publicAssetPaths, '/_next', '/api/health'];
 
 /**
- * Middleware function to handle authentication and session management for incoming requests.
- * This middleware integrates Supabase authentication with Next.js middleware capabilities.
+ * @async
+ * @public
+ * @description Middleware function to handle security concerns like IP banning, CSRF token management, and rate limiting for incoming requests.
+ * This middleware integrates various security measures with Next.js middleware capabilities.
  *
- * @param {NextRequest} request - The incoming Next.js request object containing headers, cookies and other request data
- * @returns {Promise<NextResponse>} A promise that resolves to the modified Next.js response object
+ * @param {NextRequest} request - The incoming Next.js request object containing headers, cookies and other request data.
+ * @returns {Promise<NextResponse>} A promise that resolves to the modified Next.js response object, potentially with security headers or error responses.
+ * @throws {Error} If an unexpected error occurs during middleware processing.
  *
  * @remarks
- * - Creates a new response object with preserved request headers
- * - Checks if request is for public asset using isPublicAsset()
- * - Initializes Supabase client with cookie handling
- * - Manages authentication state via getUser()
- * - Handles cookie operations (get/set/remove) for session management
+ * - Checks for banned IPs early in the request lifecycle.
+ * - Sets a CSRF token cookie if one is not present.
+ * - Applies rate limiting based on the request path and identifier.
+ * - Handles rate limit exceeded responses with appropriate headers.
  *
  * @example
  * ```ts
  * // Automatically applied to matching routes via Next.js middleware
  * const response = await middleware(request);
  * ```
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link https://nextjs.org/docs/app/building-your-application/routing/middleware Next.js Middleware}
+ * @see {@link ../classes/redis.ts Redis Client}
+ * @see {@link ../lib/security/get-ip.ts getClientIP}
+ * @see {@link ../lib/rate-limiter.ts rateLimiter}
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   logger.debug('Processing middleware request', { path: request.nextUrl.pathname });
@@ -102,7 +123,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (env.NODE_ENV === 'production') {
       let rateLimitingType: RateLimitHelper['rateLimitingType'] = 'default';
       if (request.nextUrl.pathname.startsWith('/api/v1')) {
-        rateLimitingType = 'forcedSlowMode';
+        rateLimitingType = 'apiv1';
       } else if (request.nextUrl.pathname.startsWith('/api')) {
         rateLimitingType = 'api';
       }
@@ -162,17 +183,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Determines if the incoming request is for a public asset that should bypass authentication.
+ * @private
+ * @description Determines if the incoming request is for a public asset that should bypass certain middleware logic.
  * Public assets include static files, images, favicons, and other publicly accessible resources.
  *
- * @param {NextRequest} request - The incoming Next.js request object to check
- * @returns {boolean} True if the request is for a public asset, false otherwise
+ * @param {NextRequest} request - The incoming Next.js request object to check.
+ * @returns {boolean} True if the request is for a public asset, false otherwise.
  *
  * @remarks
- * - Checks request path against predefined list of public asset paths
- * - Uses startsWith() to match path prefixes
- * - Includes common static assets like favicons, images, PWA assets
- * - Includes common web standard files like robots.txt and sitemap.xml
+ * - Checks request path against predefined list of public asset paths.
+ * - Uses startsWith() to match path prefixes.
+ * - Includes common static assets like favicons, images, PWA assets.
+ * - Includes common web standard files like robots.txt and sitemap.xml.
  *
  * @example
  * ```ts
@@ -181,24 +203,26 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
  *   return response;
  * }
  * ```
+ * @author Mike Odnis
+ * @version 1.0.0
  */
-
 const isPublicAsset = (request: NextRequest): boolean =>
   publicAssetPaths.has(request.nextUrl.pathname);
 
 /**
- * Configuration object that defines which routes the middleware should be applied to.
+ * @public
+ * @description Configuration object that defines which routes the middleware should be applied to.
  * Uses Next.js middleware matcher patterns to include/exclude specific paths.
  *
- * @type {Object}
- * @property {string[]} matcher - Array of path patterns to match against incoming requests
+ * @property {string[]} matcher - Array of path patterns to match against incoming requests.
+ * @property {'nodejs'} runtime - Specifies the runtime environment for the middleware.
  *
  * @remarks
- * - Matches all paths by default
- * - Excludes Next.js internal paths (_next/static, _next/image)
- * - Excludes favicon.ico requests
- * - Pattern can be modified to include additional paths
- * - Uses negative lookahead (?!) in regex for exclusions
+ * - Matches all paths by default.
+ * - Excludes Next.js internal paths (_next/static, _next/image).
+ * - Excludes favicon.ico requests.
+ * - Pattern can be modified to include additional paths.
+ * - Uses negative lookahead (?!) in regex for exclusions.
  *
  * @example
  * ```ts
@@ -207,6 +231,9 @@ const isPublicAsset = (request: NextRequest): boolean =>
  *   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
  * };
  * ```
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher Next.js Middleware Matcher}
  */
 export const config = {
   matcher: [

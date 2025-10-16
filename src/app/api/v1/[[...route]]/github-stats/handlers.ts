@@ -1,14 +1,14 @@
 /**
  * GitHub Statistics API Handler
- * 
+ *
  * Fetches combined GitHub statistics from:
  * - Personal repositories (WomB0ComB0) - includes private repos if GITHUB_TOKEN is set
  * - Organization repositories (ElysiumOSS) - public repos
- * 
+ *
  * Authentication:
  * Set the GITHUB_TOKEN environment variable to include private repositories.
  * Without authentication, only public repositories will be counted.
- * 
+ *
  * To create a GitHub token:
  * 1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
  * 2. Generate new token with 'repo' scope (for private repo access)
@@ -78,7 +78,7 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
   }
 
   const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github.v3+json',
+    Accept: 'application/vnd.github.v3+json',
     'User-Agent': 'Portfolio-Dashboard',
   };
 

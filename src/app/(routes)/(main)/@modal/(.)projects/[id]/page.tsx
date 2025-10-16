@@ -1,13 +1,50 @@
-import { Code, ExternalLink } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
 import { getProjects } from '@/lib/sanity/api';
 import { urlFor } from '@/lib/sanity/client';
+import { logger } from '@/utils';
+import { Code, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
+/**
+ * @function ProjectModal
+ * @description
+ *      Renders a modal overlay with detailed information about a specific project. Fetches
+ *      project data by its unique identifier using a server-side asynchronous call. Displays
+ *      project image, title, category, status, description, long description, technologies used,
+ *      and external links to the live project and source code if available. Falls back to a 404
+ *      modal if not found.
+ *
+ * @async
+ * @param {{ params: Promise<{ id: string }> }} arg
+ *      An object with a single property, `params`, which is a promise resolving
+ *      to an object containing the unique project ID (`id`) as a string.
+ *
+ * @returns {Promise<JSX.Element>}
+ *      Returns a Promise that resolves to a React JSX Element containing the modal
+ *      and project details, or triggers notFound() for a 404 state.
+ *
+ * @throws {Error}
+ *      Throws an error if the project fetching fails. Triggers Next.js notFound()
+ *      if the project is not discovered for the given ID.
+ *
+ * @example
+ * // Usage as a modal route:
+ * export default async function Page(params) {
+ *   return <ProjectModal params={params} />;
+ * }
+ *
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @see https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts#modals
+ * @version 1.0.0
+ */
 export default async function ProjectModal({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -16,7 +53,7 @@ export default async function ProjectModal({ params }: { params: Promise<{ id: s
     const projects = await getProjects();
     project = projects.find((p) => p._id === id);
   } catch (error) {
-    console.error('Error fetching project:', error);
+    logger.error('Error fetching project:', error);
   }
 
   if (!project) {
@@ -98,3 +135,4 @@ export default async function ProjectModal({ params }: { params: Promise<{ id: s
     </Modal>
   );
 }
+

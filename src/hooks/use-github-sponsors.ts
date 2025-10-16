@@ -1,12 +1,28 @@
-/**
- * React Query hook for fetching GitHub Sponsors data
- */
 
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import { get } from '@/lib/http-clients/effect-fetcher';
 
+/**
+ * @interface Sponsor
+ * @description
+ * Represents an individual GitHub sponsor with associated metadata, including account, tier, and sponsorship details.
+ * Returned as elements of {@link GitHubSponsorsData.sponsors}.
+ * @property {string} login - Sponsor's GitHub login/username.
+ * @property {string | null} name - Display name of the sponsor or null.
+ * @property {string} avatarUrl - URL to the sponsor's avatar image.
+ * @property {string} url - Profile URL of the sponsor on GitHub.
+ * @property {{name: string; monthlyPriceInDollars: number} | null} tier - Sponsorship tier info or null if not available.
+ * @property {string} createdAt - ISO timestamp when sponsorship began.
+ * @property {boolean} isActive - Whether the sponsor's support is currently active.
+ * @property {'User' | 'Organization'} type - Account type; either 'User' or 'Organization'.
+ * @public
+ * @readonly
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ */
 export interface Sponsor {
   login: string;
   name: string | null;
@@ -21,13 +37,34 @@ export interface Sponsor {
   type: 'User' | 'Organization';
 }
 
+/**
+ * @interface GitHubSponsorsData
+ * @description
+ * Structure of the response containing sponsors and related metadata, returned by GitHub Sponsors API integrations.
+ * @property {Sponsor[]} sponsors - Array of {@link Sponsor} objects.
+ * @property {number} totalCount - Total number of sponsors (active and inactive).
+ * @property {number} totalMonthlyIncome - Aggregated monthly income from all sponsors in US dollars.
+ * @public
+ * @readonly
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export interface GitHubSponsorsData {
   sponsors: Sponsor[];
   totalCount: number;
   totalMonthlyIncome: number;
 }
 
-// Schema for GitHub Sponsors response
+/**
+ * @readonly
+ * @private
+ * @const
+ * GitHub Sponsors response validation schema (for type-safe API integration).
+ * @type {Schema.Struct}
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://github.com/sponsors
+ */
 const GitHubSponsorsSchema = Schema.Struct({
   sponsors: Schema.Array(
     Schema.Struct({
@@ -51,7 +88,26 @@ const GitHubSponsorsSchema = Schema.Struct({
 });
 
 /**
- * Fetches all GitHub sponsors (active and inactive)
+ * Custom React Query hook to fetch all GitHub sponsors—both active and inactive—using the portfolio API endpoint.
+ * Uses Effect, schema validation, and retries.
+ *
+ * @function useGitHubSponsors
+ * @returns {import('@tanstack/react-query').UseQueryResult<GitHubSponsorsData, unknown>}
+ *   React Query result containing the sponsors data and query state.
+ * @throws {Error} Throws if the request fails or response cannot be parsed/validated.
+ * @async
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://docs.github.com/en/sponsors/receiving-sponsorships/about-github-sponsors
+ * @example
+ * const { data, isLoading, error } = useGitHubSponsors();
+ * if (data) {
+ *   data.sponsors.forEach(sponsor => {
+ *     console.log(sponsor.login, sponsor.tier?.name);
+ *   });
+ * }
  */
 export function useGitHubSponsors() {
   return useQuery<GitHubSponsorsData>({
@@ -75,7 +131,24 @@ export function useGitHubSponsors() {
 }
 
 /**
- * Fetches only active GitHub sponsors
+ * Custom React Query hook to fetch only active GitHub sponsors using the portfolio API endpoint.
+ * Uses Effect, schema validation, and retries.
+ *
+ * @function useActiveSponsors
+ * @returns {import('@tanstack/react-query').UseQueryResult<GitHubSponsorsData, unknown>}
+ *   React Query result with filtered (active-only) sponsors and query state.
+ * @throws {Error} Throws if the request fails or response cannot be parsed/validated.
+ * @async
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see useGitHubSponsors
+ * @example
+ * const { data } = useActiveSponsors();
+ * if (data?.totalCount) {
+ *   console.log('Active sponsors:', data.totalCount);
+ * }
  */
 export function useActiveSponsors() {
   return useQuery<GitHubSponsorsData>({
@@ -97,3 +170,4 @@ export function useActiveSponsors() {
     retry: 2,
   });
 }
+

@@ -1,6 +1,37 @@
-import type { Metadata, Viewport } from 'next';
-import { app } from '@/constants';
 
+import { app } from '@/constants';
+import type { Metadata, Viewport } from 'next';
+
+/**
+ * Constructs the metadata object for web pages, including OpenGraph, Twitter, and icon data.
+ *
+ * @function
+ * @public
+ * @author Mike Odnis
+ * @see {@link https://nextjs.org/docs/app/building-your-application/optimizing/metadata Next.js Metadata Documentation}
+ * @web
+ * @version 1.0.0
+ *
+ * @param {Object} [params] - Configuration options for the metadata.
+ * @param {string} [params.title] - The page title. Defaults to app.name.
+ * @param {string} [params.description] - The page description. Defaults to app.description.
+ * @param {string} [params.image] - URL for the OpenGraph preview image. Defaults to '/opengraph-image.png'.
+ * @param {string} [params.twitter] - URL for the Twitter card image. Defaults to '/twitter-image.png'.
+ * @param {string} [params.icons] - URL for the site favicon/icon. Defaults to '/assets/svgs/logo.svg'.
+ * @param {boolean} [params.noIndex] - If true, prevents indexing of the page by search engines.
+ * @param {string} [params.url] - Canonical URL of the page. Defaults to app.url.
+ *
+ * @returns {Metadata} Metadata configuration suitable for Next.js app router.
+ *
+ * @example
+ * // Basic usage for metadata construction
+ * const meta = constructMetadata({ title: 'About', description: 'About page' });
+ *
+ * @throws {TypeError} If a provided URL is malformed and cannot be parsed.
+ * @readonly
+ * @project portfolio
+ * @author WomB0ComB0
+ */
 export function constructMetadata({
   title = `${app.name}`,
   description = `${app.description}`,
@@ -67,6 +98,26 @@ export function constructMetadata({
   };
 }
 
+/**
+ * Constructs a viewport object containing responsive and accessibility-related viewport settings for web browsers.
+ *
+ * @function
+ * @public
+ * @author Mike Odnis
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag MDN: Viewport Meta Tag}
+ * @web
+ * @version 1.0.0
+ *
+ * @returns {Viewport} Viewport configuration for HTML meta tags.
+ *
+ * @example
+ * // Usage in Next.js app/layout.tsx
+ * export const viewport = constructViewport();
+ *
+ * @readonly
+ * @project portfolio
+ * @author WomB0ComB0
+ */
 export function constructViewport(): Viewport {
   return {
     width: 'device-width',
@@ -84,3 +135,4 @@ export function constructViewport(): Viewport {
     colorScheme: 'dark light',
   };
 }
+

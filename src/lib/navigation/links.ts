@@ -1,3 +1,5 @@
+
+import { config } from '@/config';
 import type { IconType } from 'react-icons';
 import { FaBitbucket, FaFreeCodeCamp, FaGithubAlt, FaMicrosoft } from 'react-icons/fa';
 import {
@@ -19,8 +21,22 @@ import {
   SiX,
 } from 'react-icons/si';
 import { SlGraph } from 'react-icons/sl';
-import { config } from '@/config';
 
+/**
+ * @interface Link
+ * @description
+ * Represents a navigable external resource or social profile.
+ * Used in the navigation system to unify social and project links.
+ *
+ * @property {string} name - The display name of the resource.
+ * @property {string} url - The external URL pointing to the resource or profile.
+ * @property {string} value - The user handle, id, or unique value associated with the link.
+ * @property {IconType} icon - The icon representing this resource (from react-icons).
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ * @see https://github.com/WomB0ComB0/portfolio
+ */
 export type Link = {
   name: string;
   url: string;
@@ -28,8 +44,35 @@ export type Link = {
   icon: IconType;
 };
 
+/**
+ * @typedef {Link[]} Links
+ * @description
+ * An array of {@link Link} entries, each representing a social profile, project, or developer platform.
+ * Used by UI navigation components to dynamically render social and external links.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ * @see https://github.com/WomB0ComB0/portfolio
+ */
 export type Links = Link[];
 
+/**
+ * @constant
+ * @readonly
+ * @public
+ * @type {Links}
+ * @description
+ * List of all external navigation and social links used throughout the application.
+ * Each object describes a social or development platform presence.
+ *
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @example
+ * // Mapping all platforms' urls to display in a footer:
+ * links.map(l => <a href={l.url}>{l.name}</a>)
+ */
 export const links: Links = [
   {
     name: 'Discord',
@@ -158,3 +201,4 @@ export const links: Links = [
     icon: SiHashnode,
   },
 ];
+

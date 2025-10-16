@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 type PageTransitionProps = {
   children: ReactNode;

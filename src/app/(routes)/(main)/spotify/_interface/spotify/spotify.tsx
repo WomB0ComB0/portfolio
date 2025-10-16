@@ -3,6 +3,14 @@
 import { NowPlaying, TopArtists, TopTracks } from '@/app/(routes)/(main)/spotify/_components';
 import Layout from '@/components/layout/layout';
 
+/**
+ * Spotify component.
+ * Displays Spotify statistics including now playing, top artists, and top tracks.
+ *
+ * @returns {JSX.Element} The Spotify stats view.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export const Spotify = () => {
   return (
     <Layout>

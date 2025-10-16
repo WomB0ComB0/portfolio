@@ -16,6 +16,14 @@ export const metadata = constructMetadata({
   description: 'Explore my portfolio of web development, machine learning, and software projects',
 });
 
+/**
+ * Projects page component.
+ * Renders the list of projects showcasing the portfolio.
+ *
+ * @returns {JSX.Element} The projects page.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const ProjectsPage = () => {
   return <ProjectsList />;
 };

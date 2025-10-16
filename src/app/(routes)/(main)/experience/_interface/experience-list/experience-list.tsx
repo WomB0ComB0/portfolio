@@ -1,16 +1,34 @@
+
 'use client';
 
-import { Briefcase, ExternalLink } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import type { Experience } from '@/lib/sanity/types';
+import { Briefcase, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense } from 'react';
 
+/**
+ * React component for rendering a list of professional experiences.
+ * Retrieves and displays information about each experience, structured as cards.
+ *
+ * @function
+ * @name ExperienceListContent
+ * @memberof module:portfolio
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see Experience, useSanityExperiences, urlFor
+ * @returns {JSX.Element} React fragment containing the header and mapped experience cards.
+ * @throws {Error} If data fetching from Sanity fails.
+ * @example
+ * <ExperienceListContent />
+ */
 const ExperienceListContent = () => {
   const { data: experiences } = useSanityExperiences();
   const experienceList = experiences as Experience[];
@@ -29,6 +47,11 @@ const ExperienceListContent = () => {
       {experienceList && experienceList.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {experienceList.map((item) => {
+            /**
+             * Generates display period for the experience.
+             * @type {string}
+             * @readonly
+             */
             const period = item.current
               ? `${new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - Present`
               : `${new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${item.endDate ? new Date(item.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Present'}`;
@@ -56,9 +79,7 @@ const ExperienceListContent = () => {
                     </CardTitle>
                     <p className="text-md text-gray-400">{item.company}</p>
                     <p className="text-xs text-gray-500">{period}</p>
-                    {item.location && (
-                      <p className="text-xs text-gray-500">{item.location}</p>
-                    )}
+                    {item.location && <p className="text-xs text-gray-500">{item.location}</p>}
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 flex-grow">
@@ -88,6 +109,22 @@ const ExperienceListContent = () => {
   );
 };
 
+/**
+ * Renders the full experience list page, including header, loading spinner, and all experience cards.
+ * Uses Suspense for async loading state.
+ *
+ * @function
+ * @name ExperienceList
+ * @memberof module:portfolio
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see ExperienceListContent
+ * @returns {JSX.Element} Top-level layout wrapped experience list page, ready for user interaction.
+ * @example
+ * <ExperienceList />
+ */
 export const ExperienceList = () => {
   return (
     <Layout>
@@ -106,3 +143,4 @@ export const ExperienceList = () => {
     </Layout>
   );
 };
+

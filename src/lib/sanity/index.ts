@@ -14,6 +14,16 @@
  * limitations under the License.
  */
 
+// API function exports
+export {
+  getCacheOptions,
+  getCertifications,
+  getExperiences,
+  getFeaturedProjects,
+  getProjectBySlug,
+  getProjects,
+  revalidateTags,
+} from './api';
 // Client exports
 export {
   client,
@@ -25,18 +35,6 @@ export {
   sanityFetchWithToken,
   urlFor,
 } from './client';
-
-// Type exports
-export type {
-  Certification,
-  Experience,
-  Project,
-  SanityDocument,
-  SanityImage,
-  SanityImageSource,
-  SanitySlug,
-  SkillCategory,
-} from './types';
 
 // Query exports
 export {
@@ -50,15 +48,14 @@ export {
   projectsQuery,
   skillCategoriesQuery,
 } from './queries';
-
-// API function exports
-export {
-  getCacheOptions,
-  getCertifications,
-  getExperiences,
-  getFeaturedProjects,
-  getProjectBySlug,
-  getProjects,
-  revalidateTags,
-} from './api';
-
+// Type exports
+export type {
+  Certification,
+  Experience,
+  Project,
+  SanityDocument,
+  SanityImage,
+  SanityImageSource,
+  SanitySlug,
+  SkillCategory,
+} from './types';

@@ -1,20 +1,51 @@
+
 'use client';
 
-import { ArrowLeft, Code, ExternalLink } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { ArrowLeft, Code, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { type JSX, Suspense } from 'react';
 
+/**
+ * Props for {@link ProjectDetail} component that receives route parameters.
+ *
+ * @interface ProjectDetailProps
+ * @property {object} params - Route parameters.
+ * @property {string} params.id - The ID of the project to display in detail.
+ * @see https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @readonly
+ */
 interface ProjectDetailProps {
   params: { id: string };
 }
 
-const ProjectDetailContent = ({ id }: { id: string }) => {
+/**
+ * Project detail content section.
+ *
+ * Renders the full details for a given project by ID, including gallery, description, and action buttons.
+ *
+ * @function
+ * @param {object} props - The component props.
+ * @param {string} props.id - The Sanity document id for the project.
+ * @returns {JSX.Element} The rendered project detail interface.
+ * @throws {Error} If the project is not found, a not-found UI is rendered.
+ * @example
+ * <ProjectDetailContent id="abc123" />
+ * @web
+ * @see ProjectDetail
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ */
+const ProjectDetailContent = ({ id }: { id: string }): JSX.Element => {
   const { data: projects } = useSanityProjects();
   const project = (projects as any[]).find((p: any) => p._id === id);
 
@@ -22,9 +53,7 @@ const ProjectDetailContent = ({ id }: { id: string }) => {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-3xl font-bold text-purple-300 mb-4">Project Not Found</h1>
-        <p className="text-gray-400 mb-8">
-          The project you are looking for does not exist.
-        </p>
+        <p className="text-gray-400 mb-8">The project you are looking for does not exist.</p>
         <Button
           asChild
           variant="outline"
@@ -56,9 +85,7 @@ const ProjectDetailContent = ({ id }: { id: string }) => {
         </div>
       )}
       <CardHeader className="p-6">
-        <CardTitle className="text-3xl font-bold text-purple-300 mb-2">
-          {project.title}
-        </CardTitle>
+        <CardTitle className="text-3xl font-bold text-purple-300 mb-2">{project.title}</CardTitle>
         <div className="flex gap-4 text-sm text-gray-400">
           <p>Category: {project.category}</p>
           <p>Status: {project.status}</p>
@@ -74,9 +101,7 @@ const ProjectDetailContent = ({ id }: { id: string }) => {
         {project.longDescription && (
           <div>
             <h3 className="text-xl font-semibold text-purple-300 mb-2">Detailed Overview</h3>
-            <p className="text-base text-gray-300 whitespace-pre-line">
-              {project.longDescription}
-            </p>
+            <p className="text-base text-gray-300 whitespace-pre-line">{project.longDescription}</p>
           </div>
         )}
 
@@ -156,7 +181,25 @@ const ProjectDetailContent = ({ id }: { id: string }) => {
   );
 };
 
-export const ProjectDetail = ({ params }: ProjectDetailProps) => {
+/**
+ * Project detail page for the <b>portfolio</b> project.
+ *
+ * Renders the full detail view for a project specified via route parameters,
+ * including a loading suspense fallback and layout wrapping.
+ *
+ * @function
+ * @param {ProjectDetailProps} props - Parameters including the project id from Next.js routing.
+ * @returns {JSX.Element} The rendered project details page within the layout.
+ * @throws {Error} If the project fails to load, a fallback UI is rendered.
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @public
+ * @example
+ * <ProjectDetail params={{ id: "abc123" }} />
+ */
+export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
@@ -174,3 +217,4 @@ export const ProjectDetail = ({ params }: ProjectDetailProps) => {
     </Layout>
   );
 };
+

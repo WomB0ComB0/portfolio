@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity'
+import { defineField, defineType } from 'sanity';
 
 export const placeType = defineType({
   name: 'place',
@@ -94,4 +94,4 @@ export const placeType = defineType({
       media: 'photos.0',
     },
   },
-})
+});

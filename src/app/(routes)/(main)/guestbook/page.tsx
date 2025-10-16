@@ -13,6 +13,14 @@ export const metadata = constructMetadata({
   description: 'Sign my guestbook and leave a message!',
 });
 
+/**
+ * Guestbook page component.
+ * Renders the guestbook interface for users to leave messages.
+ *
+ * @returns {JSX.Element} The guestbook page.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const GuestbookPage = () => {
   return <Guestbook />;
 };

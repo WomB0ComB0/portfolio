@@ -1,24 +1,101 @@
 /**
- * API Endpoints Integration Tests
- * Tests all /api/v1/* endpoints to verify they're working correctly
+ * @file API Endpoints Integration Tests
+ * @description Tests all /api/v1/* endpoints to verify they're working correctly.
  * Run with: bun test src/__tests__/api-endpoints.test.ts
+ * @author Mike Odnis
+ * @since 2025
+ * @version 1.0.0
+ * @see https://vitest.dev/guide/
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
+/**
+ * @interface ApiTestResult
+ * @description Represents the structured result of an API endpoint test,
+ * including status, success, response data, and response time.
+ * @author Mike Odnis
+ * @since 1.0.0
+ * @version 1.0.0
+ */
 interface ApiTestResult {
-  endpoint: string;
-  status: number;
-  success: boolean;
-  data?: unknown;
-  error?: string;
-  responseTime: number;
+  /**
+   * @readonly
+   * @type {string}
+   * The API endpoint that was tested.
+   */
+  readonly endpoint: string;
+  /**
+   * @readonly
+   * @type {number}
+   * The HTTP status code of the response. Will be 0 if a network error occurred.
+   */
+  readonly status: number;
+  /**
+   * @readonly
+   * @type {boolean}
+   * Indicates if the request was successful (HTTP status 2xx).
+   */
+  readonly success: boolean;
+  /**
+   * @readonly
+   * @type {unknown}
+   * The parsed response data (JSON or text). Undefined if an error occurred before parsing.
+   */
+  readonly data?: unknown;
+  /**
+   * @readonly
+   * @type {string}
+   * An error message if the fetch operation failed (e.g., network error).
+   */
+  readonly error?: string;
+  /**
+   * @readonly
+   * @type {number}
+   * The time taken for the API call to complete in milliseconds.
+   */
+  readonly responseTime: number;
 }
 
 /**
- * Generic API test helper
+ * @function testApiEndpoint
+ * @description A generic asynchronous helper function to test a given API endpoint.
+ * It sends a request, measures response time, and parses the response data.
+ * @public
+ * @async
+ * @web
+ * @author Mike Odnis
+ * @since 1.0.0
+ * @version 1.0.0
+ *
+ * @param {string} endpoint The API endpoint path to test, relative to `BASE_URL`. E.g., '/api/v1/now-playing'.
+ * @param {RequestInit} [options={}] Optional request initialization options for the `fetch` API.
+ *                                   Defaults to `{}`. Common options include `method`, `headers`, `body`.
+ * @returns {Promise<ApiTestResult>} A promise that resolves to an `ApiTestResult` object containing
+ *                                   the status, success, data, error, and response time of the API call.
+ * @throws {Error} Although caught internally, network errors or issues preventing
+ *                 a response entirely could conceptually throw an error. The function
+ *                 itself handles errors by returning an `ApiTestResult` with `success: false`
+ *                 and an `error` message.
+ *
+ * @example
+ * // Test a simple GET endpoint
+ * const result = await testApiEndpoint('/api/v1/now-playing');
+ * console.log(result.status); // e.g., 200
+ * console.log(result.data);   // e.g., { track: 'Song Title' }
+ *
+ * @example
+ * // Test a POST endpoint with a JSON body
+ * const postResult = await testApiEndpoint('/api/v1/messages', {
+ *   method: 'POST',
+ *   headers: {
+ *     'Content-Type': 'application/json',
+ *   },
+ *   body: JSON.stringify({ message: 'Hello Vitest!' }),
+ * });
+ * console.log(postResult.success); // e.g., true
  */
 async function testApiEndpoint(
   endpoint: string,

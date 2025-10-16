@@ -13,6 +13,14 @@ export const metadata = constructMetadata({
   description: 'View and download my professional resume',
 });
 
+/**
+ * Resume page component.
+ * Renders the resume interface for viewing and downloading the professional resume.
+ *
+ * @returns {JSX.Element} The resume page.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const ResumePage = () => {
   return <Resume />;
 };

@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity'
+import { defineField, defineType } from 'sanity';
 
 export const projectType = defineType({
   name: 'project',
@@ -147,4 +147,4 @@ export const projectType = defineType({
       media: 'image',
     },
   },
-})
+});

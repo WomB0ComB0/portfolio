@@ -19,10 +19,11 @@ export const MobileNavBar = ({ path }: { path: string }) => {
               asChild
               variant="ghost"
               size="sm"
-              className={`flex flex-col items-center justify-center min-w-[60px] h-auto py-1.5 px-2 rounded-lg transition-all duration-300 ${path === item.slug
+              className={`flex flex-col items-center justify-center min-w-[60px] h-auto py-1.5 px-2 rounded-lg transition-all duration-300 ${
+                path === item.slug
                   ? 'bg-[#560BAD] text-[#ba9bdd] hover:bg-[#560BAD]/90'
                   : 'text-[#ba9bdd]/70 hover:bg-[#560BAD]/20 hover:text-[#ba9bdd]'
-                }`}
+              }`}
               suppressHydrationWarning
             >
               <Link href={item.slug} className="flex flex-col items-center justify-center gap-0.5">

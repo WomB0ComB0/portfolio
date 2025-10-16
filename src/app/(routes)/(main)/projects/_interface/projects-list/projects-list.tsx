@@ -1,17 +1,35 @@
+
 'use client';
 
-import { Briefcase, ExternalLink, Github } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense } from 'react';
-import { motion } from 'motion/react';
 import Layout from '@/components/layout/layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { Briefcase, ExternalLink, Github } from 'lucide-react';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { type JSX, Suspense } from 'react';
 
-const ProjectsListContent = () => {
+/**
+ * Renders the main content for the list of projects in the portfolio.
+ * Handles loading, error, and data display states for all projects found via Sanity backend.
+ *
+ * @function
+ * @returns {JSX.Element} The rendered React node containing list/grid of project cards, or fallback states.
+ * @throws {Error} If there is a problem fetching project data.
+ * @web
+ * @public
+ * @see https://nextjs.org/docs
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @example
+ * // Used inside a parent suspense/layout wrapper:
+ * <ProjectsListContent />
+ */
+const ProjectsListContent = (): JSX.Element => {
   const { data: projects, isLoading, error } = useSanityProjects();
   const projectsList = (projects as any[]) || [];
 
@@ -104,17 +122,21 @@ const ProjectsListContent = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="bg-purple-900/30 text-purple-300 text-xs">
+                      <Badge
+                        variant="secondary"
+                        className="bg-purple-900/30 text-purple-300 text-xs"
+                      >
                         {project.category}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className={`text-xs ${project.status === 'Completed'
+                        className={`text-xs ${
+                          project.status === 'Completed'
                             ? 'border-green-700 text-green-400'
                             : project.status === 'In Progress'
                               ? 'border-yellow-700 text-yellow-400'
                               : 'border-gray-700 text-gray-400'
-                          }`}
+                        }`}
                       >
                         {project.status}
                       </Badge>
@@ -133,7 +155,9 @@ const ProjectsListContent = () => {
                         <div className="flex flex-wrap gap-1.5">
                           {project.technologies.slice(0, 6).map((tech: any, idx: number) => {
                             const techName =
-                              typeof tech === 'string' ? tech : tech?.name || tech?.title || 'Unknown';
+                              typeof tech === 'string'
+                                ? tech
+                                : tech?.name || tech?.title || 'Unknown';
                             return (
                               <span
                                 key={`${techName}-${idx}`}
@@ -168,11 +192,7 @@ const ProjectsListContent = () => {
           ))}
         </motion.div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-20"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-purple-900/20 mb-4">
             <Briefcase className="h-10 w-10 text-purple-500" />
           </div>
@@ -184,7 +204,22 @@ const ProjectsListContent = () => {
   );
 };
 
-export const ProjectsList = () => {
+/**
+ * @function ProjectsList
+ * @description The page-level wrapper for the portfolio project list.
+ * Wraps {@link ProjectsListContent} in layout and suspense (for SSR/streaming and error boundaries).
+ *
+ * @returns {JSX.Element} The portfolio projects page with layout, header, and list.
+ * @web
+ * @public
+ * @version 1.0.0
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @example
+ * // Used as default export/page body:
+ * <ProjectsList />
+ */
+export const ProjectsList = (): JSX.Element => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
@@ -202,3 +237,4 @@ export const ProjectsList = () => {
     </Layout>
   );
 };
+

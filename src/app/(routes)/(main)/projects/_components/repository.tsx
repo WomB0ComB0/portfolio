@@ -1,7 +1,37 @@
+
+import type { Repository as RepositoryType } from '@/generated/graphql';
 import { GitFork, StarIcon } from 'lucide-react';
 import Link from 'next/link';
-import type { Repository as RepositoryType } from '@/generated/graphql';
 
+/**
+ * @function Repository
+ * @description React component rendering a GitHub repository card with details including name, description, star and fork counts, and primary languages.
+ * @param {RepositoryType} props - The repository properties.
+ * @param {string} props.name - Name of the repository.
+ * @param {string | null | undefined} props.description - Repository description.
+ * @param {{ totalCount: number }} props.stargazers - Stargazer statistics.
+ * @param {number} props.forkCount - Count of repository forks.
+ * @param {{ nodes: Array<{ id?: string | null; name?: string | null }> } | null | undefined} props.languages - Languages associated with the repository.
+ * @param {string} props.url - External URL to the GitHub repository.
+ * @returns {JSX.Element} The rendered repository link card component.
+ * @throws {Error} Throws if required fields such as `name` or `url` are missing.
+ * @example
+ * <Repository
+ *   name="portfolio"
+ *   description="My portfolio project"
+ *   stargazers={{ totalCount: 12 }}
+ *   forkCount={3}
+ *   languages={{ nodes: [{ id: '1', name: 'TypeScript' }] }}
+ *   url="https://github.com/WomB0ComB0/portfolio"
+ * />
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @see https://nextjs.org/docs/api-reference/next/link
+ * @see https://lucide.dev/icons/
+ * @version 1.0.0
+ * @module src/app/(routes)/(main)/projects/_components/repository
+ */
 const Repository = ({
   name,
   description,
@@ -50,3 +80,4 @@ const Repository = ({
 );
 
 export default Repository;
+

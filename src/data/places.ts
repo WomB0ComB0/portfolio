@@ -1,3 +1,28 @@
+
+/**
+ * An array of Google Maps style definitions for customizing the appearance of the map in the portfolio project.
+ *
+ * This style configuration provides a dark visual theme optimized for user readability and aesthetics,
+ * including colors for roads, water, parks, points of interest, and administrative areas.
+ * Use this constant when initializing a Google Map instance's `styles` property to apply the visual theme.
+ *
+ * @readonly
+ * @public
+ * @type {readonly google.maps.MapTypeStyle[]}
+ * @web
+ * @see {@link https://developers.google.com/maps/documentation/javascript/style-reference Google Maps Style Reference}
+ * @see {@link https://github.com/WomB0ComB0/portfolio GitHub portfolio project}
+ * @version 1.0.0
+ * @author Mike Odnis
+ *
+ * @example
+ * import { MapStyles } from './src/data/places';
+ * new google.maps.Map(document.getElementById('map') as HTMLElement, {
+ *   center: { lat: 40.7128, lng: -74.006 },
+ *   zoom: 12,
+ *   styles: MapStyles
+ * });
+ */
 export const MapStyles = [
   { elementType: 'geometry', stylers: [{ color: '#242424' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#242424' }] },
@@ -78,3 +103,4 @@ export const MapStyles = [
     stylers: [{ color: '#242424' }],
   },
 ] as const satisfies google.maps.MapTypeStyle[];
+

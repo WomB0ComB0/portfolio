@@ -1,3 +1,5 @@
+
+import { getURL, logger, Stringify } from '@/utils';
 import { cors } from '@elysiajs/cors';
 import type { ElysiaOpenTelemetryOptions } from '@elysiajs/opentelemetry';
 import { opentelemetry } from '@elysiajs/opentelemetry';
@@ -8,67 +10,92 @@ import { Elysia } from 'elysia';
 import { ip } from 'elysia-ip';
 import {
   DefaultContext,
+  rateLimit,
   type Generator,
   type Options as RateLimitOptions,
-  rateLimit,
 } from 'elysia-rate-limit';
 import { elysiaHelmet } from 'elysiajs-helmet';
-import { getURL, logger, Stringify } from '@/utils';
 import { batchSpanProcessor, otelResource, permission } from '../constants';
 
 /**
- * Configuration options for the Elysia API application
+ * @interface ElysiaApiConfig
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://elysiajs.com/
+ * @see https://github.com/WomB0ComB0/portfolio
+ *
+ * Configuration options for the Elysia API application.
  */
 export interface ElysiaApiConfig {
   /**
-   * API prefix (e.g., '/api/v1')
+   * API endpoint prefix (e.g., '/api/v1').
+   * @readonly
    */
   prefix: string;
 
   /**
-   * CORS configuration
-   * Uses the same parameters as the @elysiajs/cors plugin
+   * CORS configuration.
+   * Uses the same parameters as the @elysiajs/cors plugin.
+   * @see https://elysiajs.com/plugins/cors.html
    */
   cors?: Parameters<typeof cors>[0];
 
   /**
-   * Rate limiting configuration
-   * Uses the same options as the elysia-rate-limit plugin
+   * Rate limiting configuration.
+   * Uses the same options as the elysia-rate-limit plugin.
+   * @see https://github.com/elysiajs/elysia-rate-limit
    */
   rateLimit?: Partial<RateLimitOptions>;
 
   /**
-   * Security headers configuration
-   * Uses the same parameters as the elysiajs-helmet plugin
+   * Security headers configuration.
+   * Uses the same parameters as the elysiajs-helmet plugin.
+   * @see https://github.com/EverlastingBugstopper/elysiajs-helmet
    */
   security?: Parameters<typeof elysiaHelmet>[0];
 
   /**
-   * Server timing trace configuration
-   * Uses the trace options from @elysiajs/server-timing
+   * Server timing trace configuration.
+   * Uses the trace options from @elysiajs/server-timing.
+   * @see https://elysiajs.com/plugins/server-timing.html
    */
   serverTiming?: ServerTimingOptions['trace'];
 
   /**
-   * Whether to enable OpenTelemetry tracing
+   * Whether to enable OpenTelemetry tracing.
    * @default true (enabled only in non-Vercel environments)
+   * @see https://opentelemetry.io/docs/
    */
   enableTelemetry?: boolean;
 
   /**
-   * OpenTelemetry configuration
-   * Uses the same options as the @elysiajs/opentelemetry plugin
+   * OpenTelemetry configuration.
+   * Uses the same options as the @elysiajs/opentelemetry plugin.
+   * @see https://elysiajs.com/plugins/opentelemetry.html
    */
   telemetry?: Partial<ElysiaOpenTelemetryOptions>;
 
   /**
-   * Custom error handler
+   * Custom error handler.
+   * @param context - Contains `code`, `error`, and response `set` modifier
+   * @returns {any}
+   * @example
+   *   * errorHandler: ({ code, error, set }) => { set.status = 404; return {...}; }
+   * ```
+   * @throws Error
    */
   errorHandler?: (context: { code: string; error: Error | unknown; set: any }) => any;
 }
 
 /**
- * Default configuration values
+ * @const DEFAULT_CONFIG
+ * @type {Partial<ElysiaApiConfig>}
+ * @readonly
+ * @author Mike Odnis
+ * @see ElysiaApiConfig
+ * @description
+ * Default configuration values used for initializing the Elysia API.
  */
 const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
   cors: {
@@ -128,18 +155,36 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
 };
 
 /**
- * Generates a unique identifier for rate limiting based on the request's IP address.
- * @param {*} _r - The request object (unused).
- * @param {*} _s - The response object (unused).
- * @param {{ ip: SocketAddress }} param2 - The context containing the IP address.
- * @returns {string} The IP address or 'unknown' if not available.
+ * Generates a unique identifier for rate limiting using the request's IP address.
+ * @function
+ * @author Mike Odnis
+ * @param {any} _r - The request object (unused in context).
+ * @param {any} _s - The response object (unused in context).
+ * @param {{ ip: SocketAddress }} param2 - The Elysia context containing the client IP.
+ * @returns {string} The client's IP address or 'unknown' if not available.
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @example
+ * const id = ipGenerator(req, res, { ip: { address: '127.0.0.1' } });
  */
 const ipGenerator: Generator<{ ip: SocketAddress }> = (_r, _s, { ip }) => ip?.address ?? 'unknown';
 
 /**
- * Creates a configured Elysia application instance with all standard middleware
- * @param config - Configuration options for the Elysia app
- * @returns Configured Elysia instance
+ * Creates a configured Elysia application instance with all standard middleware.
+ * @function
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @public
+ * @web
+ * @param {ElysiaApiConfig} config - Configuration options for the Elysia app.
+ * @returns {Elysia} Configured Elysia instance.
+ * @throws Error If plugin initialization fails.
+ * @see https://elysiajs.com/
+ * @see ElysiaApiConfig
+ * @async
+ * @example
+ * ```ts
+ * const app = createElysiaApp({ prefix: '/api', cors: {...} });
+ * ```
  */
 export function createElysiaApp(config: ElysiaApiConfig) {
   const mergedConfig = {
@@ -163,8 +208,19 @@ export function createElysiaApp(config: ElysiaApiConfig) {
     })
     .trace(
       /**
-       * Configures tracing hooks for before/after/error handling.
-       * Logs timing and errors for each request.
+       * Registers tracing hooks for before/after/error handling.
+       * Logs timing and errors per request lifecycle.
+       *
+       * @async
+       * @param {{
+       *    onBeforeHandle: Function,
+       *    onAfterHandle: Function,
+       *    onError: Function
+       * }} context Elysia trace event APIs.
+       * @returns {Promise<void>}
+       * @author Mike Odnis
+       * @version 1.0.0
+       * @see https://elysiajs.com/plugins/opentelemetry.html
        */
       async ({ onBeforeHandle, onAfterHandle, onError }) => {
         onBeforeHandle(({ begin, onStop }) => {
@@ -239,8 +295,21 @@ export function createElysiaApp(config: ElysiaApiConfig) {
 }
 
 /**
- * Default error handler for API routes
- * Can be imported and used by individual routes
+ * Default error handler for API routes.
+ * @constant
+ * @public
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @description
+ * Can be imported and used by individual API routes for consistent error formatting and logging.
+ * @param {{ code: string, error: Error | unknown, set: any }} context - Error handling context.
+ * @returns {any} JSON serialization of the error payload.
+ * @throws Error If context.error is thrown further.
+ * @example
+ * ```ts
+ * app.onError(defaultErrorHandler);
+ * ```
  */
 export const defaultErrorHandler =
   DEFAULT_CONFIG.errorHandler ??

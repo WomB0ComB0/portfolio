@@ -1,23 +1,43 @@
-import type { NextApiRequest } from 'next';
+
 import { redis } from '@/classes/redis';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
+import type { NextApiRequest } from 'next';
 import { getClientIP } from './get-ip';
 
 const log = Logger.getLogger('Banlist');
 
 /**
- * Redis keys for ban management
+ * @constant
+ * @readonly
+ * @public
+ * @version 1.0.0
+ * @description
+ * Redis keys and resolvers used for managing ban and slow mode state.
+ * - `BAN_IPS`: Set of permanently banned IP addresses
+ * - `BAN_CIDRS`: Set of banned IP CIDR ranges
+ * - `SLOW_IPS`: Set of IPs under aggressive (slowmode) rate limiting
+ * - `BAN_META`: Function to generate a key for ban metadata by IP
+ * @author Mike Odnis
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export const REDIS_KEYS = {
-  BAN_IPS: 'ban:ips', // Set of permanently banned IPs
-  BAN_CIDRS: 'ban:cidrs', // Set of banned CIDR ranges (optional)
-  SLOW_IPS: 'ban:slow', // Set of IPs in forced slow mode
-  BAN_META: (ip: string) => `ban:meta:${ip}`, // Metadata for bans (reason, timestamp)
+  BAN_IPS: 'ban:ips',
+  BAN_CIDRS: 'ban:cidrs',
+  SLOW_IPS: 'ban:slow',
+  BAN_META: (ip: string) => `ban:meta:${ip}`,
 } as const;
 
 /**
- * Metadata stored for each ban
+ * @interface BanMetadata
+ * @public
+ * @version 1.0.0
+ * @description Structure for storing metadata about a banned IP or identifier.
+ *   - `reason`: Optional string describing the reason for the ban.
+ *   - `ts`: Unix timestamp (ms) of when the ban was imposed.
+ *   - `bannedBy`: Optional string for the user or system who issued the ban.
+ * @author Mike Odnis
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export interface BanMetadata {
   reason?: string;
@@ -26,9 +46,20 @@ export interface BanMetadata {
 }
 
 /**
- * Check if an IP is permanently banned
- * @param req - Request object (Request or NextApiRequest)
- * @returns true if IP is in the ban list
+ * Checks if a given request's origin IP is permanently banned.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {Request | NextApiRequest} req - HTTP request object (Fetch API's Request or NextApiRequest)
+ * @returns {Promise<boolean>} `true` if IP is banned, `false` otherwise or on error.
+ * @throws {Error} Logs and emits in case of Redis communication failure, but returns false ("fail open").
+ * @example
+ *   const forbidden = await isIpBanned(req);
+ *   if(forbidden) { return res.status(403).end(); }
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function isIpBanned(req: Request | NextApiRequest): Promise<boolean> {
   const ip = getClientIP(req);
@@ -43,14 +74,24 @@ export async function isIpBanned(req: Request | NextApiRequest): Promise<boolean
   } catch (error) {
     log.error('Error checking IP ban status', { ip, error });
     onRequestError(error);
-    return false; // Fail open to avoid blocking legitimate traffic on Redis errors
+    return false;
   }
 }
 
 /**
- * Check if an IP is in slow mode (rate limited more aggressively)
- * @param req - Request object (Request or NextApiRequest)
- * @returns true if IP is in the slow mode list
+ * Checks if a given request's origin IP is in forced slowmode (aggressively throttled).
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {Request | NextApiRequest} req - HTTP request object (Fetch API's Request or NextApiRequest)
+ * @returns {Promise<boolean>} `true` if IP is in slow mode, `false` otherwise or on error.
+ * @throws {Error} Logs and emits in case of Redis communication failure, but returns false ("fail open").
+ * @example
+ *   if (await isIpSlowed(req)) { // Apply throttle middleware }
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function isIpSlowed(req: Request | NextApiRequest): Promise<boolean> {
   const ip = getClientIP(req);
@@ -70,9 +111,19 @@ export async function isIpSlowed(req: Request | NextApiRequest): Promise<boolean
 }
 
 /**
- * Check if a specific identifier (IP or user ID) is banned
- * @param identifier - IP address or user identifier
- * @returns true if identifier is in the ban list
+ * Checks if an arbitrary identifier (IP or user ID) is permanently banned.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} identifier - IP address or user identifier to check
+ * @returns {Promise<boolean>} `true` if identifier is banned, `false` otherwise or on error.
+ * @throws {Error} Logs and emits in case of Redis communication failure, but returns false.
+ * @example
+ *   if(await isIdentifierBanned('203.0.113.99')) { ... }
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function isIdentifierBanned(identifier: string): Promise<boolean> {
   if (!identifier || identifier === '127.0.0.1') return false;
@@ -91,9 +142,19 @@ export async function isIdentifierBanned(identifier: string): Promise<boolean> {
 }
 
 /**
- * Check if a specific identifier is in slow mode
- * @param identifier - IP address or user identifier
- * @returns true if identifier is in the slow mode list
+ * Checks if an arbitrary identifier (IP or user ID) is in slowmode.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} identifier - IP address or user identifier to check
+ * @returns {Promise<boolean>} `true` if identifier is slowed, `false` otherwise or on error.
+ * @throws {Error} Logs and emits in case of Redis communication failure, but returns false.
+ * @example
+ *   if(await isIdentifierSlowed('userId123')) { ... }
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function isIdentifierSlowed(identifier: string): Promise<boolean> {
   if (!identifier || identifier === '127.0.0.1') return false;
@@ -112,11 +173,22 @@ export async function isIdentifierSlowed(identifier: string): Promise<boolean> {
 }
 
 /**
- * Ban an IP address with optional reason and TTL
- * @param ip - IP address to ban
- * @param reason - Optional reason for the ban
- * @param seconds - Optional TTL in seconds for temporary bans
- * @param bannedBy - Optional identifier of who issued the ban
+ * Adds an IP address to the ban list with optional metadata and time-to-live.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} ip - IP address to ban
+ * @param {string} [reason] - Optional reason for the ban
+ * @param {number} [seconds] - Optional time to live (ban expires after this many seconds)
+ * @param {string} [bannedBy] - Optional user ID or descriptor of banning authority
+ * @returns {Promise<void>}
+ * @throws {Error} Throws after logging if Redis fails to apply the ban.
+ * @example
+ *   await banIp('192.0.2.8', 'Bot activity detected', 3600, 'adminUser');
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function banIp(
   ip: string,
@@ -130,10 +202,8 @@ export async function banIp(
   }
 
   try {
-    // Add to ban set
     await redis.sadd(REDIS_KEYS.BAN_IPS, ip);
 
-    // Store metadata if provided
     if (reason || bannedBy || seconds) {
       const metadata: BanMetadata = {
         reason,
@@ -148,10 +218,7 @@ export async function banIp(
       }
     }
 
-    // If temporary ban, schedule removal from set
     if (seconds) {
-      // Note: We rely on the metadata expiring. For auto-cleanup of the set member,
-      // you'd need a cron job or use Redis Streams. For now, metadata expiry is sufficient.
       log.info('Temporarily banned IP', { ip, reason, seconds, bannedBy });
     } else {
       log.info('Permanently banned IP', { ip, reason, bannedBy });
@@ -164,8 +231,19 @@ export async function banIp(
 }
 
 /**
- * Unban an IP address
- * @param ip - IP address to unban
+ * Removes an IP address from the ban list and deletes associated metadata.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} ip - IP address to unban
+ * @returns {Promise<void>}
+ * @throws {Error} Throws after logging if Redis fails to unban.
+ * @example
+ *   await unbanIp('203.0.113.52');
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function unbanIp(ip: string): Promise<void> {
   if (!ip) return;
@@ -181,9 +259,20 @@ export async function unbanIp(ip: string): Promise<void> {
 }
 
 /**
- * Add an IP to slow mode
- * @param ip - IP address to slow
- * @param reason - Optional reason for slow mode
+ * Adds an IP address to slowmode list, applying more aggressive rate limiting.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} ip - IP address to place in slowmode
+ * @param {string} [reason] - Optional reason for slow mode
+ * @returns {Promise<void>}
+ * @throws {Error} Throws after logging if Redis fails to update slowmode status.
+ * @example
+ *   await slowIp('198.51.100.10', 'Potential abuse detected');
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function slowIp(ip: string, reason?: string): Promise<void> {
   if (!ip || ip === '127.0.0.1') {
@@ -205,8 +294,19 @@ export async function slowIp(ip: string, reason?: string): Promise<void> {
 }
 
 /**
- * Remove an IP from slow mode
- * @param ip - IP address to remove from slow mode
+ * Removes an IP address from slowmode and deletes its slowmode metadata.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} ip - IP address to remove from slowmode
+ * @returns {Promise<void>}
+ * @throws {Error} Throws after logging if Redis fails to update slowmode status.
+ * @example
+ *   await unslowIp('203.0.113.98');
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function unslowIp(ip: string): Promise<void> {
   if (!ip) return;
@@ -222,8 +322,18 @@ export async function unslowIp(ip: string): Promise<void> {
 }
 
 /**
- * Get all banned IPs
- * @returns Array of banned IP addresses
+ * Retrieves all permanently banned IP addresses.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @returns {Promise<string[]>} Array of IP addresses
+ * @throws {Error} Logs and emits in case of Redis error, returns empty array on failure.
+ * @example
+ *   const bannedIps = await getBannedIps();
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function getBannedIps(): Promise<string[]> {
   try {
@@ -237,8 +347,18 @@ export async function getBannedIps(): Promise<string[]> {
 }
 
 /**
- * Get all slowed IPs
- * @returns Array of slowed IP addresses
+ * Retrieves all IP addresses currently in slowmode.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @returns {Promise<string[]>} Array of IP addresses
+ * @throws {Error} Logs and emits in case of Redis error, returns empty array on failure.
+ * @example
+ *   const slowedIps = await getSlowedIps();
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function getSlowedIps(): Promise<string[]> {
   try {
@@ -252,9 +372,19 @@ export async function getSlowedIps(): Promise<string[]> {
 }
 
 /**
- * Get metadata for a banned IP
- * @param ip - IP address
- * @returns Ban metadata or null if not found
+ * Retrieves ban metadata for the provided IP, if present.
+ * @async
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @param {string} ip - IP address to query
+ * @returns {Promise<BanMetadata | null>} Metadata object or null if not set or expired.
+ * @throws {Error} Logs and emits in case of error, returns null on failure.
+ * @example
+ *   const meta = await getBanMetadata('203.0.113.55');
+ * @see https://github.com/WomB0ComB0/portfolio
  */
 export async function getBanMetadata(ip: string): Promise<BanMetadata | null> {
   try {
@@ -268,7 +398,11 @@ export async function getBanMetadata(ip: string): Promise<BanMetadata | null> {
 }
 
 /**
- * Backwards compatibility: Check if identifier is in ban list (string-based)
- * @deprecated Use isIdentifierBanned instead
+ * @deprecated since 1.1.0 - Use {@link isIdentifierBanned} instead.
+ * @readonly
+ * @public
+ * @author Mike Odnis
+ * @see isIdentifierBanned
  */
 export const isIpInBanListString = isIdentifierBanned;
+

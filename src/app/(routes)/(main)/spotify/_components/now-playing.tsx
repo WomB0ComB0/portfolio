@@ -1,15 +1,35 @@
+
 'use client';
 
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { SiSpotify } from 'react-icons/si';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 
+/**
+ * @typedef {Object} NowPlayingSchemaType
+ * @property {boolean} isPlaying - Indicates if a song is currently playing.
+ * @property {string} [songName] - The name of the currently or last played song.
+ * @property {string} [artistName] - The artist name for the currently or last played song.
+ * @property {string} [songURL] - The Spotify URL for the song.
+ * @property {string} [imageURL] - The cover image URL for the song or album.
+ */
+
+/**
+ * Schema definition for Now Playing Spotify data, used for runtime validation.
+ *
+ * @readonly
+ * @type {Schema.Schema<NowPlayingSchemaType>}
+ * @constant
+ * @see https://effect-ts.github.io/schema for more information about Effect Schema
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const NowPlayingSchema = Schema.Struct({
   isPlaying: Schema.Boolean,
   songName: Schema.optional(Schema.String),
@@ -18,6 +38,18 @@ const NowPlayingSchema = Schema.Struct({
   imageURL: Schema.optional(Schema.String),
 });
 
+/**
+ * Skeleton loader UI component for the Now Playing card.
+ *
+ * @function
+ * @returns {JSX.Element} Visual skeleton indicating data loading state.
+ * @author Mike Odnis
+ * @see {@link https://ui.shadcn.com/docs/components/skeleton|Skeleton component documentation}
+ * @public
+ *
+ * @example
+ * <NowPlayingSkeleton />
+ */
 const NowPlayingSkeleton = () => (
   <div className="flex justify-between items-center gap-4 w-full">
     <div className="flex flex-col gap-2 flex-grow">
@@ -29,12 +61,41 @@ const NowPlayingSkeleton = () => (
   </div>
 );
 
+/**
+ * Error state UI component for the Now Playing card when loading fails.
+ *
+ * @function
+ * @returns {JSX.Element} Visual error notification for failed data loading.
+ * @author Mike Odnis
+ * @public
+ *
+ * @example
+ * <NowPlayingError />
+ */
 const NowPlayingError = () => (
   <div className="text-red-400 bg-red-900/20 p-4 rounded-lg w-full">
     Failed to load now playing data. Please try again later.
   </div>
 );
 
+/**
+ * The NowPlaying Spotify component displays the user's current or last played song using the Spotify API.
+ * Handles loading and error states with skeletons and fallback messages. Uses Effect Schema for type validation and
+ * the DataLoader abstraction for data fetching. Visuals feature rich animated presentation and theme styling.
+ *
+ * @function
+ * @returns {JSX.Element} Card UI with real-time music status, visuals, and Spotify reference.
+ * @throws {Error} If the DataLoader fetch fails or schema validation fails.
+ * @web
+ * @author Mike Odnis
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @see https://developer.spotify.com/documentation/web-api/
+ * @version 1.0.0
+ * @public
+ *
+ * @example
+ * <NowPlaying />
+ */
 export default function NowPlaying() {
   return (
     <Card className="bg-gradient-to-br from-purple-900 to-purple-700 overflow-hidden">
@@ -50,54 +111,60 @@ export default function NowPlaying() {
               ErrorComponent={NowPlayingError}
               LoadingComponent={<NowPlayingSkeleton />}
             >
-              {(data: Schema.Schema.Type<typeof NowPlayingSchema>) => (
-                <>
-                  <div className="flex flex-col justify-between gap-2 flex-grow">
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className={`text-sm ${data.isPlaying ? 'text-green-400' : 'text-[#ba9bdd]'}`}
-                    >
-                      <SiSpotify className="inline-block mr-2 w-4 h-4" />
-                      {data.isPlaying ? 'Currently Playing' : 'Last Played'}
-                    </motion.p>
-                    <div className="flex flex-col gap-1">
-                      <Link
-                        href={data.songURL ?? '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#ba9bdd] hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
+              {
+                /**
+                 * The validated and fetched now playing data.
+                 * @param {NowPlayingSchemaType} data
+                 */
+                (data: Schema.Schema.Type<typeof NowPlayingSchema>) => (
+                  <>
+                    <div className="flex flex-col justify-between gap-2 flex-grow">
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={`text-sm ${data.isPlaying ? 'text-green-400' : 'text-[#ba9bdd]'}`}
                       >
-                        {data.songName ?? 'Unknown'}
-                      </Link>
-                      <Link
-                        href={data.songURL?.split('/').slice(0, 5).join('/') ?? '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#ba9bdd]/80 hover:text-[#ba9bdd] transition-colors duration-200 text-sm truncate"
-                      >
-                        {data.artistName ?? 'Unknown Artist'}
-                      </Link>
+                        <SiSpotify className="inline-block mr-2 w-4 h-4" />
+                        {data.isPlaying ? 'Currently Playing' : 'Last Played'}
+                      </motion.p>
+                      <div className="flex flex-col gap-1">
+                        <Link
+                          href={data.songURL ?? '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#ba9bdd] hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
+                        >
+                          {data.songName ?? 'Unknown'}
+                        </Link>
+                        <Link
+                          href={data.songURL?.split('/').slice(0, 5).join('/') ?? '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#ba9bdd]/80 hover:text-[#ba9bdd] transition-colors duration-200 text-sm truncate"
+                        >
+                          {data.artistName ?? 'Unknown Artist'}
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="h-20 w-20 flex-shrink-0"
-                  >
-                    {data.imageURL && (
-                      <Image
-                        className="rounded-lg object-cover shadow-lg"
-                        src={data.imageURL}
-                        alt={data.songName ?? 'Album cover'}
-                        width={80}
-                        height={80}
-                      />
-                    )}
-                  </motion.div>
-                </>
-              )}
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="h-20 w-20 flex-shrink-0"
+                    >
+                      {data.imageURL && (
+                        <Image
+                          className="rounded-lg object-cover shadow-lg"
+                          src={data.imageURL}
+                          alt={data.songName ?? 'Album cover'}
+                          width={80}
+                          height={80}
+                        />
+                      )}
+                    </motion.div>
+                  </>
+                )
+              }
             </DataLoader>
           </Suspense>
         </div>
@@ -105,3 +172,4 @@ export default function NowPlaying() {
     </Card>
   );
 }
+

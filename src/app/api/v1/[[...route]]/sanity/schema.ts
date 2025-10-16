@@ -108,4 +108,3 @@ export const sanitySchemas = {
     message: t.Optional(t.String()),
   }),
 };
-

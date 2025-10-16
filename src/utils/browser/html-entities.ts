@@ -1,5 +1,6 @@
+
 /**
- * Copyright (c) 2025 Mike Odnis
+ * @copyright Copyright (c) 2025 Mike Odnis
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,26 +21,59 @@
  * SOFTWARE.
  */
 
-// Encode every character as a decimal HTML character reference.
-const toEntities = (str: string) =>
+/**
+ * Encodes every character in a string as a decimal HTML character reference.
+ *
+ * @param {string} str The string to encode.
+ * @returns {string} The string with every character replaced by its HTML decimal entity.
+ * @throws {TypeError} If the provided value is not a string.
+ * @private
+ * @author Mike Odnis
+ * @see https://developer.mozilla.org/en-US/docs/Glossary/Entity
+ * @see https://dev.w3.org/html5/html-author/charref
+ * @version 1.0.0
+ */
+const toEntities = (str: string): string =>
   str
     .split('')
     .map((c) => `&#${c.charCodeAt(0)};`)
     .join('');
 
 /**
- * Build and obfuscate an href for "mailto:", "tel:", etc.
- * opts = {
- *   scheme: "mailto" | "tel" | string,
- *   address: string,          // email or phone
- *   params?: Record<string,string>, // optional query params for mailto:
- *   text?: string             // optional visible text; defaults to address
- * }
- * const { encodedHref: tHref, encodedText: tText } = obfuscateLink({
-  scheme: "tel",
-  address: "+12015550123",
-  text: "+1 (201) 555-0123"
-});
+ * Obfuscates and encodes a contact hyperlink (such as mailto or tel) as HTML entities.
+ *
+ * This helps mitigate email/phone scraping from bots by encoding both the link and visible text.
+ *
+ * @param {Object} opts Configuration options for link obfuscation.
+ * @param {'mailto'|'tel'|string} opts.scheme The URI scheme (e.g., 'mailto', 'tel', or custom).
+ * @param {string} opts.address The contact address (email or phone number).
+ * @param {Record<string, string>} [opts.params] Optional query parameters (used for mailto links).
+ * @param {string} [opts.text] Optional visible link text. Defaults to address.
+ * @returns {{ encodedHref: string, encodedText: string }} Object containing the obfuscated/encoded href and visible text.
+ * @throws {TypeError} If required fields are missing or invalid.
+ * @web
+ * @public
+ * @author Mike Odnis
+ * @author WomB0ComB0
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#security_and_privacy
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @example
+ * // Basic obfuscate mailto link
+ * const { encodedHref, encodedText } = obfuscateLink({
+ *   scheme: 'mailto',
+ *   address: 'jane.doe@example.com',
+ *   text: 'Contact Jane'
+ * });
+ * // Use in HTML: <a href={encodedHref}>{encodedText}</a>
+ *
+ * @example
+ * // Obfuscate tel link
+ * const { encodedHref, encodedText } = obfuscateLink({
+ *   scheme: 'tel',
+ *   address: '+12015550123',
+ *   text: '+1 (201) 555-0123'
+ * });
  */
 export const obfuscateLink = (opts: {
   scheme: 'mailto' | 'tel' | string;
@@ -49,10 +83,8 @@ export const obfuscateLink = (opts: {
 }) => {
   const { scheme, address, params, text } = opts;
 
-  // Build the URI
   let uri = `${scheme}:${address}`;
 
-  // If we have params (e.g., mailto subject/body), percent-encode them
   if (params && Object.keys(params).length) {
     const qs = Object.entries(params)
       .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
@@ -60,9 +92,9 @@ export const obfuscateLink = (opts: {
     uri += `?${qs}`;
   }
 
-  // Entity-encode the full href (including the scheme) and the visible text
   const encodedHref = toEntities(uri);
   const encodedText = toEntities(text ?? address);
 
   return { encodedHref, encodedText };
 };
+

@@ -1,33 +1,73 @@
 #!/usr/bin/env bun
 /**
- * Type Safety Validation Script
- * Run with: bun src/__tests__/type-check.ts
+ * @file Type Safety Validation Script
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @description This script performs comprehensive type safety validation across various parts of the codebase.
+ * It checks for:
+ * - Consistency and correctness of Effect Schema definitions and their validation.
+ * - Accurate compile-time type inference from Effect Schemas.
+ * - Validation of URL handling logic.
  *
- * This script validates type safety across the codebase, checking:
- * - Effect fetcher type consistency
- * - Schema validation types
- * - API response types
- * - Component prop types
+ * To run this script, execute: `bun src/__tests__/type-check.ts`
  */
 
 import { Schema } from 'effect';
 
+/**
+ * @readonly
+ * @description ANSI escape codes for terminal text coloring.
+ */
 const colors = {
+  /** @readonly */
   reset: '\x1b[0m',
+  /** @readonly */
   bright: '\x1b[1m',
+  /** @readonly */
   red: '\x1b[31m',
+  /** @readonly */
   green: '\x1b[32m',
+  /** @readonly */
   yellow: '\x1b[33m',
+  /** @readonly */
   blue: '\x1b[34m',
+  /** @readonly */
   cyan: '\x1b[36m',
 };
 
+/**
+ * Logs a message to the console with optional color formatting.
+ * @param {string} message - The message to log.
+ * @param {keyof typeof colors} [color] - The color to apply to the message. If not provided, defaults to no color.
+ * @returns {void}
+ */
 function log(message: string, color?: keyof typeof colors) {
   const colorCode = color ? colors[color] : '';
   console.log(`${colorCode}${message}${colors.reset}`);
 }
 
-// Test Schema definitions
+/**
+ * @description Effect Schema definition for a Spotify track object.
+ * @readonly
+ * @type {Schema.Schema<
+ *   {
+ *     title: string;
+ *     artist: string;
+ *     album?: string | undefined;
+ *     albumImageUrl?: string | undefined;
+ *     songUrl?: string | undefined;
+ *     isPlaying: boolean;
+ *   },
+ *   {
+ *     title: string;
+ *     artist: string;
+ *     album?: string | undefined;
+ *     albumImageUrl?: string | undefined;
+ *     songUrl?: string | undefined;
+ *     isPlaying: boolean;
+ *   }
+ * >}
+ */
 const SpotifyTrackSchema = Schema.Struct({
   title: Schema.String,
   artist: Schema.String,
@@ -37,6 +77,28 @@ const SpotifyTrackSchema = Schema.Struct({
   isPlaying: Schema.Boolean,
 });
 
+/**
+ * @description Effect Schema definition for GitHub statistics, including stars, followers, and repos.
+ * @readonly
+ * @type {Schema.Schema<
+ *   {
+ *     success: boolean;
+ *     data?: {
+ *       stars?: number | undefined;
+ *       followers?: number | undefined;
+ *       repos?: number | undefined;
+ *     } | undefined;
+ *   },
+ *   {
+ *     success: boolean;
+ *     data?: {
+ *       stars?: number | undefined;
+ *       followers?: number | undefined;
+ *       repos?: number | undefined;
+ *     } | undefined;
+ *   }
+ * >}
+ */
 const GitHubStatsSchema = Schema.Struct({
   success: Schema.Boolean,
   data: Schema.optional(
@@ -48,6 +110,36 @@ const GitHubStatsSchema = Schema.Struct({
   ),
 });
 
+/**
+ * Creates a generic Effect Schema for an API response wrapper.
+ * This schema includes `success`, an optional `data` field (typed by the provided schema),
+ * and optional `error` and `message` fields.
+ * @template T - The type of the data field's schema. Must extend `Schema.Schema.Any`.
+ * @param {T} dataSchema - The Effect Schema for the `data` field of the API response.
+ * @returns {Schema.Schema<
+ *   {
+ *     success: boolean;
+ *     data?: Schema.Schema.Type<T> | undefined;
+ *     error?: string | undefined;
+ *     message?: string | undefined;
+ *   },
+ *   {
+ *     success: boolean;
+ *     data?: Schema.Schema.Encoded<T> | undefined;
+ *     error?: string | undefined;
+ *     message?: string | undefined;
+ *   }
+ * >} An Effect Schema representing the API response structure.
+ * @example
+ * // Define a schema for an API response containing a string
+ * const StringResponseSchema = ApiResponseSchema(Schema.String);
+ *
+ * // Example of valid data for StringResponseSchema
+ * const validStringData = { success: true, data: "Hello API" };
+ *
+ * // Example of invalid data (data field type mismatch)
+ * const invalidStringData = { success: true, data: 123 };
+ */
 const ApiResponseSchema = <T extends Schema.Schema.Any>(dataSchema: T) =>
   Schema.Struct({
     success: Schema.Boolean,
@@ -56,7 +148,17 @@ const ApiResponseSchema = <T extends Schema.Schema.Any>(dataSchema: T) =>
     message: Schema.optional(Schema.String),
   });
 
-async function validateSchemaTypes() {
+/**
+ * @async
+ * @description Validates various Effect Schema definitions against valid and invalid data.
+ * It logs the results of each validation test, indicating success or failure.
+ * @returns {Promise<{ passedTests: number; failedTests: number }>} An object containing the count of passed and failed schema validation tests.
+ * @author Mike Odnis
+ * @see {@link SpotifyTrackSchema}
+ * @see {@link GitHubStatsSchema}
+ * @see {@link ApiResponseSchema}
+ */
+async function validateSchemaTypes(): Promise<{ passedTests: number; failedTests: number }> {
   log('\n╔═══════════════════════════════════════════════════╗', 'bright');
   log('║           Type Safety Validation Tests            ║', 'bright');
   log('╚═══════════════════════════════════════════════════╝', 'bright');
@@ -167,7 +269,16 @@ async function validateSchemaTypes() {
   return { passedTests, failedTests };
 }
 
-async function checkTypeInference() {
+/**
+ * @async
+ * @description Checks the correctness of TypeScript's type inference from Effect Schemas.
+ * It validates that `Schema.Schema.Type` correctly derives types, handles optional fields,
+ * and infers types for nested schemas.
+ * @returns {Promise<{ passed: number; failed: number }>} An object containing the count of passed and failed type inference tests.
+ * @author Mike Odnis
+ * @see {@link https://effect.website/docs/schema/guide/inference}
+ */
+async function checkTypeInference(): Promise<{ passed: number; failed: number }> {
   log('\n\n╔═══════════════════════════════════════════════════╗', 'bright');
   log('║              Type Inference Tests                 ║', 'bright');
   log('╚═══════════════════════════════════════════════════╝', 'bright');
@@ -261,7 +372,15 @@ async function checkTypeInference() {
   return { passed, failed };
 }
 
-async function validateUrlConversion() {
+/**
+ * @async
+ * @description Validates the expected behavior of URL conversion, distinguishing between absolute and relative URLs.
+ * It simulates how URLs might be handled or converted in a web context.
+ * @returns {Promise<{ passed: number; failed: number }>} An object containing the count of passed and failed URL conversion tests.
+ * @web
+ * @author Mike Odnis
+ */
+async function validateUrlConversion(): Promise<{ passed: number; failed: number }> {
   log('\n\n╔═══════════════════════════════════════════════════╗', 'bright');
   log('║            URL Conversion Validation              ║', 'bright');
   log('╚═══════════════════════════════════════════════════╝', 'bright');
@@ -301,7 +420,19 @@ async function validateUrlConversion() {
   return { passed, failed };
 }
 
-async function main() {
+/**
+ * @async
+ * @description The main function that orchestrates all type safety validation tests.
+ * It runs schema validation, type inference checks, and URL conversion tests,
+ * then prints a consolidated summary of all results.
+ * Exits with a status code of 1 if any tests fail, otherwise exits successfully.
+ * @returns {Promise<void>}
+ * @author Mike Odnis
+ * @see {@link validateSchemaTypes}
+ * @see {@link checkTypeInference}
+ * @see {@link validateUrlConversion}
+ */
+async function main(): Promise<void> {
   log('\n🚀 Starting Type Safety Validation...\n', 'bright');
 
   const schemaResults = await validateSchemaTypes();
@@ -339,7 +470,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch((error: Error) => {
   log(`\n❌ Fatal error: ${error.message}`, 'red');
   console.error(error);
   process.exit(1);

@@ -1,6 +1,6 @@
 /**
  * Sanity Studio Schema Definitions
- * 
+ *
  * Copy these schemas to your Sanity Studio project
  * Location: schemas/ directory in your Sanity Studio
  */
@@ -397,4 +397,3 @@ export const skillCategorySchema = {
     },
   },
 };
-

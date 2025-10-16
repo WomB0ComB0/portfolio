@@ -6,6 +6,36 @@ import sharp from 'sharp';
 
 sharp.cache(false);
 
+/**
+ * Generates a base64-encoded Low-Quality Image Placeholder (LQIP) for a given image source.
+ * The LQIP is resized to the specified dimensions and returned as a data URL.
+ *
+ * @async
+ * @author AI Assistant
+ * @since 1.0.0
+ * @version 1.0.0
+ * @web This function generates a web-ready base64 data URL, suitable for `src` attributes of `img` tags.
+ * @see {@link https://sharp.pixelplumbing.com/api-resize | sharp.resize documentation}
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs | Data URLs}
+ *
+ * @param {string} src - The file path to the source image (e.g., 'path/to/image.webp').
+ * @param {number} width - The desired width for the resized LQIP in pixels.
+ * @param {number} height - The desired height for the resized LQIP in pixels.
+ *
+ * @returns {Promise<{ src: string; lqip: string }>} A promise that resolves to an object containing:
+ *   - `src`: The original image's base name (e.g., 'image' from 'path/to/image.webp'), useful as an identifier.
+ *   - `lqip`: The base64-encoded data URL of the low-quality image placeholder (e.g., `data:image/webp;base64,...`).
+ *
+ * @throws {Error} If the file specified by `src` cannot be read, or if `sharp` encounters an error during image processing.
+ *
+ * @example
+ * ```typescript
+ * // Generate an LQIP for 'my-image.webp' with dimensions 20x15 pixels.
+ * const result = await generateLazyImage('public/assets/images/my-image.webp', 20, 15);
+ * console.log(result.src); // 'my-image'
+ * console.log(result.lqip); // 'data:image/webp;base64,... (base64 string of the LQIP)'
+ * ```
+ */
 const generateLazyImage = async (
   src: string,
   width: number,
@@ -30,34 +60,99 @@ const generateLazyImage = async (
   };
 };
 
+/**
+ * @class ImageToB64
+ * @description
+ * A utility class designed to manage and generate low-quality image placeholders (LQIP)
+ * for a collection of images using predefined dimensions. It provides a convenient
+ * interface to the `generateLazyImage` function.
+ *
+ * @author AI Assistant
+ * @since 1.0.0
+ * @version 1.0.0
+ * @see {@link generateLazyImage} for the underlying LQIP generation logic.
+ */
 class ImageToB64 {
+  /**
+   * @private
+   * @readonly
+   * @type {string[]}
+   * @description An array of file paths to the images that this instance is configured to process.
+   * Note: The `@ts-expect-error` is present in the original code, indicating an expected TypeScript issue.
+   */
   // @ts-expect-error
   private readonly images: string[];
+  /**
+   * @private
+   * @readonly
+   * @type {number}
+   * @description The default width in pixels to be used when generating LQIPs for images.
+   */
   private readonly width: number;
+  /**
+   * @private
+   * @readonly
+   * @type {number}
+   * @description The default height in pixels to be used when generating LQIPs for images.
+   */
   private readonly height: number;
 
+  /**
+   * @public
+   * @description Creates an instance of the ImageToB64 class.
+   * @param {string[]} images - An array of file paths to the images to be processed by this instance.
+   * @param {number} width - The default width in pixels to use for generated LQIPs.
+   * @param {number} height - The default height in pixels to use for generated LQIPs.
+   */
   constructor(images: string[], width: number, height: number) {
     this.images = images;
     this.width = width;
     this.height = height;
   }
 
+  /**
+   * @public
+   * @async
+   * @description Generates a low-quality image placeholder (LQIP) for a single specified image.
+   * This method utilizes the `generateLazyImage` function with the `width` and `height`
+   * configured during the class instance creation.
+   *
+   * @param {string} image - The file path to the image for which to generate the LQIP.
+   *
+   * @returns {Promise<{ src: string; lqip: string }>} A promise that resolves to an object containing:
+   *   - `src`: The original image's base name (without path or extension).
+   *   - `lqip`: The base64-encoded data URL of the low-quality image placeholder.
+   *
+   * @throws {Error} If the image file cannot be read or processed by `sharp`.
+   *
+   * @example
+   * ```typescript
+   * // Create an instance for processing images with 20x15 pixel LQIPs.
+   * const imageProcessor = new ImageToB64(['path/to/img.webp'], 20, 15);
+   * // Generate an LQIP for a specific image using the instance's dimensions.
+   * const lqipData = await imageProcessor.generateLazyImage('path/to/another-img.webp');
+   * console.log(lqipData.lqip); // 'data:image/webp;base64,...'
+   * ```
+   * @see {@link generateLazyImage} for the core logic of LQIP generation.
+   */
   async generateLazyImage(image: string): Promise<{ src: string; lqip: string }> {
     return await generateLazyImage(image, this.width, this.height);
   }
 }
 
+// This block executes when the script is run directly from the command line.
+// JSDoc is not applied to this top-level script execution logic as it's not a reusable module component.
 if (require.main === module) {
   const [directory, dimensions] = process.argv.slice(2);
   const [width, height] = dimensions?.split('x').map(Number) ?? [0, 0];
 
   if (!width || !height) {
-    console.error('Usage: node script.js <directory> <width>x<height>');
+    console.error('Usage: bun script.ts <directory> <width>x<height>');
     process.exit(1);
   }
 
   if (!directory || !dimensions || isNaN(width) || isNaN(height)) {
-    console.error('Usage: node script.js <directory> <width>x<height>');
+    console.error('Usage: bun script.ts <directory> <width>x<height>');
     process.exit(1);
   }
 

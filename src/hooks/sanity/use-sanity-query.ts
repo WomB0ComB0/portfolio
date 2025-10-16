@@ -1,9 +1,9 @@
 /**
  * @fileoverview Standard React Query hooks for Sanity data
- * 
+ *
  * Traditional React Query hooks with loading/error states.
  * Uses Effect-based fetcher with schema validation.
- * 
+ *
  * @example
  * ```tsx
  * function ExperienceList() {
@@ -21,19 +21,19 @@ import { Effect, pipe } from 'effect';
 import { get } from '@/lib/http-clients';
 import type { Certification, Experience, Place, Project } from '@/lib/sanity/types';
 import {
+  createSanityQueryKey,
   SANITY_CACHE_CONFIG,
   SANITY_ENDPOINTS,
   SANITY_FETCHER_OPTIONS,
-  createSanityQueryKey,
 } from './config';
 import {
+  type CertificationSchema,
   CertificationsSchema,
+  type ExperienceSchema,
   ExperiencesSchema,
   PlacesSchema,
-  ProjectsSchema,
-  type CertificationSchema,
-  type ExperienceSchema,
   type ProjectSchema,
+  ProjectsSchema,
 } from './schemas';
 
 /**
@@ -104,8 +104,7 @@ export function useProjects() {
 export function useFeaturedProjects() {
   return useQuery({
     queryKey: createSanityQueryKey('featuredProjects'),
-    queryFn: () =>
-      fetchSanityData<Project[]>(SANITY_ENDPOINTS.featuredProjects, ProjectsSchema),
+    queryFn: () => fetchSanityData<Project[]>(SANITY_ENDPOINTS.featuredProjects, ProjectsSchema),
     staleTime: SANITY_CACHE_CONFIG.staleTime,
     gcTime: SANITY_CACHE_CONFIG.gcTime,
   });
@@ -118,10 +117,7 @@ export function useProject(id: string) {
   return useQuery({
     queryKey: createSanityQueryKey('projects', id),
     queryFn: async () => {
-      const projects = await fetchSanityData<Project[]>(
-        SANITY_ENDPOINTS.projects,
-        ProjectsSchema,
-      );
+      const projects = await fetchSanityData<Project[]>(SANITY_ENDPOINTS.projects, ProjectsSchema);
       const project = projects.find((proj) => proj._id === id);
       if (!project) {
         throw new Error(`Project with id ${id} not found`);
@@ -152,13 +148,12 @@ export function useCertifications() {
 export function usePlaces() {
   return useQuery({
     queryKey: createSanityQueryKey('places'),
-    queryFn: () =>
-      fetchSanityData<Place[]>(SANITY_ENDPOINTS.places, PlacesSchema),
+    queryFn: () => fetchSanityData<Place[]>(SANITY_ENDPOINTS.places, PlacesSchema),
     staleTime: SANITY_CACHE_CONFIG.staleTime,
     gcTime: SANITY_CACHE_CONFIG.gcTime,
   });
 }
 
 // Re-export schemas for convenience
-export { ExperienceSchema, ProjectSchema, CertificationSchema };
+export type { ExperienceSchema, ProjectSchema, CertificationSchema };
 export { ExperiencesSchema, ProjectsSchema, CertificationsSchema };

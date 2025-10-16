@@ -1,6 +1,6 @@
 /**
  * @fileoverview Throttle and debounce utilities for rate limiting
- * 
+ *
  * Provides functions to limit the rate at which functions can be called.
  * Useful for preventing excessive API calls and managing request frequency.
  */
@@ -17,12 +17,12 @@ export interface ThrottleOptions {
 
 /**
  * Throttle a function to only execute once per specified interval
- * 
+ *
  * @param func Function to throttle
  * @param wait Wait time in milliseconds
  * @param options Throttle options
  * @returns Throttled function
- * 
+ *
  * @example
  * ```ts
  * const fetchData = throttle(() => fetch('/api/data'), 1000);
@@ -35,7 +35,7 @@ export interface ThrottleOptions {
 export function throttle<T extends (...args: any[]) => any>(
   func: T,
   wait: number,
-  options: ThrottleOptions = {}
+  options: ThrottleOptions = {},
 ): (...args: Parameters<T>) => ReturnType<T> | undefined {
   let timeout: NodeJS.Timeout | null = null;
   let previous = 0;
@@ -43,7 +43,7 @@ export function throttle<T extends (...args: any[]) => any>(
 
   const { leading = true, trailing = true } = options;
 
-  const later = function (context: any, args: Parameters<T>) {
+  const later = (context: any, args: Parameters<T>) => {
     previous = leading === false ? 0 : Date.now();
     timeout = null;
     result = func.apply(context, args);
@@ -72,7 +72,7 @@ export function throttle<T extends (...args: any[]) => any>(
     return result;
   };
 
-  throttled.cancel = function () {
+  throttled.cancel = () => {
     if (timeout) {
       clearTimeout(timeout);
       timeout = null;
@@ -95,12 +95,12 @@ export interface DebounceOptions {
 
 /**
  * Debounce a function to only execute after it stops being called for specified time
- * 
+ *
  * @param func Function to debounce
  * @param wait Wait time in milliseconds
  * @param options Debounce options
  * @returns Debounced function
- * 
+ *
  * @example
  * ```ts
  * const search = debounce((query) => fetchSearchResults(query), 300);
@@ -112,7 +112,7 @@ export interface DebounceOptions {
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number,
-  options: DebounceOptions = {}
+  options: DebounceOptions = {},
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
   let lastCallTime = 0;
@@ -163,7 +163,7 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => timerExpired.call(this, args), wait);
   };
 
-  debounced.cancel = function () {
+  debounced.cancel = () => {
     if (timeout) {
       clearTimeout(timeout);
       timeout = null;
@@ -172,7 +172,7 @@ export function debounce<T extends (...args: any[]) => any>(
     lastInvokeTime = 0;
   };
 
-  debounced.flush = function () {
+  debounced.flush = () => {
     if (timeout) {
       clearTimeout(timeout);
       timeout = null;
@@ -316,11 +316,11 @@ export class KeyedDebounce<T extends (...args: any[]) => any> {
 
 /**
  * Rate limiter using token bucket algorithm
- * 
+ *
  * @example
  * ```ts
  * const limiter = new RateLimiter(5, 60000); // 5 requests per minute
- * 
+ *
  * async function fetchData() {
  *   await limiter.acquire();
  *   return fetch('/api/data');

@@ -368,7 +368,7 @@ export function fetcher<T = unknown>(
   };
 
   const queryString = buildQueryString(params);
-  
+
   // Build URL based on environment:
   // - Client-side: keep relative URLs for same-origin requests
   // - Server-side: convert to absolute URLs for SSR
@@ -485,7 +485,7 @@ export function fetcher<T = unknown>(
       );
 
     // Enhanced retry schedule:
-    // - Exponential backoff starting from retryDelay  
+    // - Exponential backoff starting from retryDelay
     // - Maximum number of retries
     // - Special handling for 429 rate limit errors
     const retrySchedule = pipe(
@@ -533,17 +533,12 @@ export function fetcher<T = unknown>(
         );
 
         // Enhanced error handling for 429 Rate Limit responses
-        const errorMessage = response.status === 429
-          ? `Rate limit exceeded (429). Please slow down requests to ${url}`
-          : `HTTP ${response.status}: ${response.text || 'Request failed'}`;
+        const errorMessage =
+          response.status === 429
+            ? `Rate limit exceeded (429). Please slow down requests to ${url}`
+            : `HTTP ${response.status}: ${response.text || 'Request failed'}`;
 
-        const error = new FetcherError(
-          errorMessage,
-          url,
-          response.status,
-          errorData,
-          attempt,
-        );
+        const error = new FetcherError(errorMessage, url, response.status, errorData, attempt);
 
         if (onError) onError(error);
         return yield* Effect.fail(error);

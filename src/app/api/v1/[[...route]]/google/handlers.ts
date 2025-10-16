@@ -1,4 +1,5 @@
 import { getAnalytics } from '@/lib';
+import { logger } from '@/utils';
 
 interface GoogleAnalyticsData {
   total_pageviews?: number;
@@ -9,7 +10,7 @@ let cache: { data: GoogleAnalyticsData; timestamp: number } | null = null;
 
 export async function getGoogleAnalytics(): Promise<GoogleAnalyticsData> {
   if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
-    console.log('[Google Handler] Returning cached data:', cache.data);
+    logger.info('[Google Handler] Returning cached data:', { cache: cache.data });
     return cache.data;
   }
 
@@ -18,16 +19,16 @@ export async function getGoogleAnalytics(): Promise<GoogleAnalyticsData> {
   };
 
   try {
-    console.log('[Google Handler] Fetching fresh analytics data...');
+    logger.info('[Google Handler] Fetching fresh analytics data...');
     const result = await getAnalytics();
     const analytics: GoogleAnalyticsData = result?.analytics || fallbackData;
 
-    console.log('[Google Handler] Received analytics:', analytics);
+    logger.info('[Google Handler] Received analytics:', { analytics });
     cache = { data: analytics, timestamp: Date.now() };
     return analytics;
   } catch (analyticsError) {
-    console.error('[Google Handler] Error fetching analytics:', analyticsError);
-    console.error('[Google Handler] Returning fallback data');
+    logger.error('[Google Handler] Error fetching analytics:', analyticsError);
+    logger.info('[Google Handler] Returning fallback data');
     return fallbackData;
   }
 }

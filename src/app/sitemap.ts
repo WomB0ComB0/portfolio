@@ -1,6 +1,34 @@
+
 import type { MetadataRoute } from 'next';
 import { headers } from 'next/headers';
 
+/**
+ * Generates the XML sitemap for the portfolio project.
+ *
+ * This asynchronous function dynamically constructs the sitemap entries based on the
+ * current request host, ensuring correct domain attribution for every listed route.
+ *
+ * The sitemap improves SEO and discoverability of the site's public pages, with frequency
+ * and priority hints for search engines.
+ *
+ * @function
+ * @async
+ * @public
+ * @web
+ * @author Mike Odnis (GitHub: WomB0ComB0)
+ * @see {@link https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap | Next.js Sitemap Documentation}
+ * @version 1.0.0
+ *
+ * @returns {Promise<MetadataRoute.Sitemap>} A promise resolving to a MetadataRoute.Sitemap array for all portfolio site routes.
+ *
+ * @throws {Error} Throws if request headers are unavailable or host information is missing.
+ *
+ * @example
+ * // In Next.js App Directory (app/sitemap.ts)
+ * export default async function sitemap() {
+ *   return await sitemap();
+ * }
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const headersList = await headers();
   const domain = headersList.get('host') as string;
@@ -49,5 +77,48 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.8,
     },
+    {
+      url: `${protocol}://${domain}/sponsor`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${protocol}://${domain}/cookies`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${protocol}://${domain}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${protocol}://${domain}/licenses`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${protocol}://${domain}/experience`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${protocol}://${domain}/projects`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${protocol}://${domain}/certifications`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    }
   ];
 }
+

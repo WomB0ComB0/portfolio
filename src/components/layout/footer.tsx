@@ -1,12 +1,16 @@
 import Link from 'next/link';
 
 export const Footer = () => {
-  const linkClasses = "dark:text-[#ba9bdd] text-[#ba9bdd] hover:text-[#ba9bdd] dark:hover:text-[#ba9bdd] duration-300 underline decoration-dotted underline-offset-4";
-  
+  const linkClasses =
+    'dark:text-[#ba9bdd] text-[#ba9bdd] hover:text-[#ba9bdd] dark:hover:text-[#ba9bdd] duration-300 underline decoration-dotted underline-offset-4';
+
   return (
     <footer className="w-full py-4 px-4 md:px-8 mt-auto">
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-2 w-full justify-between items-center mx-auto">
-        <p className="dark:text-[#ba9bdd] text-[#ba9bdd]-700 m-0 text-sm text-center sm:text-left pl-10" suppressHydrationWarning>
+        <p
+          className="dark:text-[#ba9bdd] text-[#ba9bdd]-700 m-0 text-sm text-center sm:text-left pl-10"
+          suppressHydrationWarning
+        >
           <Link
             className={linkClasses}
             href="https://opensource.org/licenses/MIT"
@@ -27,8 +31,11 @@ export const Footer = () => {
             Mike Odnis
           </Link>
         </p>
-        
-        <nav className="flex flex-wrap justify-center gap-2 sm:gap-3 text-xs" suppressHydrationWarning>
+
+        <nav
+          className="flex flex-wrap justify-center gap-2 sm:gap-3 text-xs"
+          suppressHydrationWarning
+        >
           <Link className={linkClasses} href="/licenses">
             Licenses
           </Link>

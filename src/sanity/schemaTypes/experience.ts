@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity'
+import { defineField, defineType } from 'sanity';
 
 export const experienceType = defineType({
   name: 'experience',
@@ -94,4 +94,4 @@ export const experienceType = defineType({
       media: 'logo',
     },
   },
-})
+});

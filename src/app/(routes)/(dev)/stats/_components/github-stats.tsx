@@ -1,17 +1,28 @@
+
 'use client';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import { FiGithub, FiStar, FiUsers } from 'react-icons/fi';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
 
-// Schema for GitHub Stats response
+/**
+ * @readonly
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @description
+ * Schema definition for the GitHub statistics API response for the portfolio project.
+ * Used for validating data shape received from `/api/v1/github-stats`.
+ *
+ * @see https://effect-ts.org/docs/schema
+ * @see https://github.com/WomB0ComB0/portfolio
+ */
 const GitHubStatsSchema = Schema.Struct({
   user: Schema.Struct({
     repos: Schema.Number,
@@ -33,7 +44,48 @@ const GitHubStatsSchema = Schema.Struct({
   ),
 });
 
+/**
+ * @function
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @description
+ * React memoized component which presents real-time GitHub statistics for the WomB0ComB0 portfolio, including
+ * repository count, star count, follower count, top repositories by stars, and most-used languages. Data
+ * is aggregated from both personal and ElysiumOSS organization repositories, fetched asynchronously from
+ * a typed API endpoint and validated with runtime schemas.
+ *
+ * @returns {JSX.Element | null}
+ * Renders complete GitHub statistics layout, loader skeletons, or null if no data is available.
+ *
+ * @throws {Error}
+ * May throw on network error, schema validation error, or other fetch issues during queryFn execution.
+ *
+ * @see https://tanstack.com/query/v4/docs/framework/react/guides/queries
+ * @see https://github.com/WomB0ComB0
+ * @see /api/v1/github-stats endpoint
+ *
+ * @example
+ * <GitHubStats />
+ */
 export default memo(function GitHubStats() {
+  /**
+   * @async
+   * @private
+   * @author Mike Odnis
+   * @description
+   * Uses TanStack Query and `effect/fetch` to asynchronously fetch and validate GitHub stats from API.
+   * Provides stale-while-revalidate caching for 1 hour.
+   *
+   * @returns {{data: any, isLoading: boolean}}
+   *     Object with `data` (parsed/validated) and `isLoading` loading state boolean.
+   *
+   * @throws {Error} If network error or schema mismatch occurs.
+   *
+   * @see https://tanstack.com/query/latest/docs/react/reference/useQuery
+   * @see https://github.com/WomB0ComB0/portfolio
+   */
   const { data: githubData, isLoading } = useQuery({
     queryKey: ['github-stats'],
     queryFn: async () => {
@@ -51,6 +103,13 @@ export default memo(function GitHubStats() {
   });
 
   if (isLoading) {
+    /**
+     * @description
+     * Renders loading skeleton placeholders while GitHub stats are being loaded via API.
+     *
+     * @returns {JSX.Element}
+     *      Skeleton cards matching the target UI grid.
+     */
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(3)].map((_, index) => (
@@ -75,9 +134,29 @@ export default memo(function GitHubStats() {
   }
 
   if (!githubData) {
+    /**
+     * @description
+     * Returns null if GitHub API data is not available after loading completes.
+     *
+     * @returns {null}
+     */
     return null;
   }
 
+  /**
+   * @readonly
+   * @type {Array<{
+   *   title: string,
+   *   value: number,
+   *   icon: JSX.Element,
+   *   description: string
+   * }>}
+   * @description
+   * Card display configuration for the top-level stats cards (total repos, total stars, followers)
+   * in the GitHub statistics dashboard.
+   *
+   * @author Mike Odnis
+   */
   const statsCards = [
     {
       title: 'Total Repositories',
@@ -101,6 +180,7 @@ export default memo(function GitHubStats() {
 
   return (
     <div className="space-y-6">
+      {/* Header section */}
       <div>
         <h2 className="text-2xl font-bold text-purple-300 mb-2">GitHub Statistics</h2>
         <p className="text-gray-400">
@@ -108,6 +188,7 @@ export default memo(function GitHubStats() {
         </p>
       </div>
 
+      {/* Stat Cards section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {statsCards.map((card, index) => (
           <motion.div
@@ -147,12 +228,7 @@ export default memo(function GitHubStats() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <a
-                href={repo.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block h-full"
-              >
+              <a href={repo.url} target="_blank" rel="noopener noreferrer" className="block h-full">
                 <Card className="h-full hover:border-purple-500 transition-all duration-300 bg-[#1E1E1E] border-gray-700">
                   <CardHeader>
                     <div className="flex items-start justify-between">

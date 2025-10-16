@@ -1,6 +1,6 @@
 /**
  * @fileoverview Configuration and utilities for Sanity data fetching
- * 
+ *
  * Centralized configuration for cache times, API endpoints, and
  * common options used across all Sanity data fetching hooks.
  */
@@ -14,7 +14,7 @@ export const SANITY_API_BASE = '/api/v1/sanity';
 
 /**
  * Default cache configuration for Sanity data
- * 
+ *
  * Updated to prevent rate limiting:
  * - Longer staleTime: data stays fresh for 15 minutes
  * - No auto-refetch: removes background polling that causes excessive requests

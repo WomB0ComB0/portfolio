@@ -1,9 +1,6 @@
+
 'use client';
 
-import Image from 'next/image';
-import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { FaInfoCircle } from 'react-icons/fa';
 import { GoogleMaps } from '@/app/(routes)/(main)/places/_components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -14,8 +11,24 @@ import { usePlaces } from '@/hooks/sanity/use-sanity-query';
 import { urlFor } from '@/lib/sanity/client';
 import type { SanityImage } from '@/lib/sanity/types';
 import type { PlaceItem } from '@/types/places';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { FaInfoCircle } from 'react-icons/fa';
 
-// Helper to convert Sanity Place to PlaceItem
+/**
+ * Helper function to convert a Sanity Place object to an internal {@link PlaceItem} type.
+ *
+ * @function
+ * @param {any} sanityPlace - The raw place data object retrieved from Sanity backend.
+ * @returns {PlaceItem} The normalized place object used within the UI.
+ * @example
+ * const internalPlace = convertSanityPlaceToPlaceItem(sanityData);
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @private
+ * @see https://www.sanity.io/docs
+ */
 function convertSanityPlaceToPlaceItem(sanityPlace: any): PlaceItem {
   return {
     id: sanityPlace._id,
@@ -31,30 +44,105 @@ function convertSanityPlaceToPlaceItem(sanityPlace: any): PlaceItem {
   };
 }
 
+/**
+ * Places page component for the portfolio project.
+ * Renders an interactive list and map of all locations pulled from Sanity,
+ * with category filtering and modals for viewing photos.
+ *
+ * @function
+ * @returns {JSX.Element} Rendered Places page view including list and map.
+ * @throws {Error} Renders an error message if fetching places fails.
+ * @web
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @see Places in the portfolio project for usage context.
+ */
 export const Places = () => {
+  /**
+   * Selected category filter for displaying places.
+   * @type {[string, (category: string) => void]}
+   * @readonly
+   * @private
+   */
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  /**
+   * Controls visibility of the photo modal.
+   * @type {[boolean, (open: boolean) => void]}
+   * @readonly
+   * @private
+   */
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  /**
+   * Holds the array of photos for the currently selected place.
+   * @type {[PlaceItem['photos'], (photos: PlaceItem['photos']) => void]}
+   * @readonly
+   * @private
+   */
   const [selectedPlacePhotos, setSelectedPlacePhotos] = useState<PlaceItem['photos']>([]);
+  /**
+   * Tracks which photo index is currently shown in the modal.
+   * @type {[number, (index: number) => void]}
+   * @readonly
+   * @private
+   */
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
+  /**
+   * Holds the name of the currently selected place for modal display.
+   * @type {[string, (name: string) => void]}
+   * @readonly
+   * @private
+   */
   const [selectedPlaceName, setSelectedPlaceName] = useState<string>('');
 
-  // Fetch places from Sanity
+  /**
+   * Fetches and caches the places data from Sanity CMS.
+   * @see usePlaces for additional implementation details.
+   */
   const { data: sanityPlaces, isLoading, error } = usePlaces();
 
-  // Convert Sanity places to PlaceItem format
+  /**
+   * Memoized computation for converting Sanity places into PlaceItem format.
+   *
+   * @type {PlaceItem[]}
+   * @readonly
+   * @private
+   */
   const places = useMemo(() => {
     if (!sanityPlaces) return [];
     return sanityPlaces.map(convertSanityPlaceToPlaceItem);
   }, [sanityPlaces]);
 
+  /**
+   * Memoized array of unique categories for filtering, including 'All'.
+   * @type {string[]}
+   * @readonly
+   * @private
+   */
   const categories = useMemo(() => ['All', ...new Set(places.map((p) => p.category))], [places]);
 
+  /**
+   * Returns the list of places filtered by currently selected category.
+   * @type {PlaceItem[]}
+   * @readonly
+   * @private
+   */
   const filteredPlaces = useMemo(() => {
     return places.filter(
       (place) => selectedCategory === 'All' || place.category === selectedCategory,
     );
   }, [places, selectedCategory]);
 
+  /**
+   * Handles opening the modal for viewing photos of a given place.
+   *
+   * @param {PlaceItem} place - The place to show photos for.
+   * @returns {void}
+   * @private
+   * @author Mike Odnis
+   * @example
+   * openModal(place)
+   */
   const openModal = (place: PlaceItem) => {
     if (place.photos && place.photos.length > 0) {
       setSelectedPlacePhotos(place.photos);
@@ -64,16 +152,34 @@ export const Places = () => {
     }
   };
 
+  /**
+   * Closes the photo modal, resetting related state.
+   * @returns {void}
+   * @private
+   * @author Mike Odnis
+   */
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedPlacePhotos([]);
     setSelectedPlaceName('');
   };
 
+  /**
+   * Advances to the next photo in the modal carousel.
+   * Loops to the beginning if at the end.
+   * @returns {void}
+   * @private
+   */
   const nextPhoto = () => {
     setCurrentPhotoIndex((prevIndex) => (prevIndex + 1) % selectedPlacePhotos.length);
   };
 
+  /**
+   * Moves to the previous photo in the modal carousel.
+   * Loops to the end if at the beginning.
+   * @returns {void}
+   * @private
+   */
   const prevPhoto = () => {
     setCurrentPhotoIndex(
       (prevIndex) => (prevIndex - 1 + selectedPlacePhotos.length) % selectedPlacePhotos.length,
@@ -279,3 +385,4 @@ export const Places = () => {
     </Layout>
   );
 };
+

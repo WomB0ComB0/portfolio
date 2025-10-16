@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { config } from '@/config';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import { logger } from '@/utils';
 
 const ActivitySchema = Schema.Struct({
   name: Schema.String,
@@ -37,7 +38,7 @@ const statusColors = {
   idle: 'bg-yellow-500',
   dnd: 'bg-red-500',
   offline: 'bg-gray-500',
-};
+} as const;
 
 const DiscordSkeleton = () => <Skeleton className="w-full h-[180px] rounded-lg" />;
 
@@ -63,11 +64,10 @@ export default function Discord() {
 
           const handleAddFriend = () => {
             const discordId = config.discord.id;
-            console.log(discordId);
             if (discordId) {
               window.open(`https://discord.com/users/${discordId}`, '_blank');
             } else {
-              console.error('Discord ID is not set in environment variables');
+              logger.error('Discord ID is not set in environment variables');
             }
           };
 
@@ -93,8 +93,9 @@ export default function Discord() {
                         </AvatarFallback>
                       </Avatar>
                       <div
-                        className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${statusColors[status]
-                          } border-2 border-purple-900`}
+                        className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
+                          statusColors[status]
+                        } border-2 border-purple-900`}
                       />
                     </div>
                     <div>

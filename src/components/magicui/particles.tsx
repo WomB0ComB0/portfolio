@@ -1,13 +1,37 @@
+
 'use client';
 
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+/**
+ * @interface MousePosition
+ * @readonly
+ * @description
+ * Represents the x and y coordinates of the mouse pointer.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 interface MousePosition {
+  /** X coordinate of the mouse pointer */
   x: number;
+  /** Y coordinate of the mouse pointer */
   y: number;
 }
 
+/**
+ * Tracks and provides the current mouse position in the viewport.
+ * @function
+ * @public
+ * @returns {MousePosition} Current mouse position as { x, y }.
+ * @example
+ *   const mouse = MousePosition();
+ *   console.log(mouse.x, mouse.y);
+ * @author Mike Odnis
+ * @web
+ * @version 1.0.0
+ * @see https://developer.mozilla.org/docs/Web/API/MouseEvent
+ */
 function MousePosition(): MousePosition {
   const [mousePosition, setMousePosition] = useState<MousePosition>({
     x: 0,
@@ -15,6 +39,10 @@ function MousePosition(): MousePosition {
   });
 
   useEffect(() => {
+    /**
+     * Handles mousemove events and updates position state.
+     * @param {MouseEvent} event - Mouse move event from the browser.
+     */
     const handleMouseMove = (event: MouseEvent) => {
       setMousePosition({ x: event.clientX, y: event.clientY });
     };
@@ -29,6 +57,24 @@ function MousePosition(): MousePosition {
   return mousePosition;
 }
 
+/**
+ * @interface ParticlesProps
+ * @public
+ * @readonly
+ * @description
+ * Props for the Particles component.
+ * @property {string} [className] - Additional container CSS classes.
+ * @property {number} [quantity] - Number of particles on the canvas.
+ * @property {number} [staticity] - Particle response to mouse movement.
+ * @property {number} [ease] - Easing factor of particle animation.
+ * @property {number} [size] - Base size of particles.
+ * @property {boolean} [refresh] - Triggers manual particle regeneration.
+ * @property {string} [color] - Fill color (HEX) for particles.
+ * @property {number} [vx] - X-axis velocity for all particles.
+ * @property {number} [vy] - Y-axis velocity for all particles.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 interface ParticlesProps {
   className?: string;
   quantity?: number;
@@ -40,6 +86,21 @@ interface ParticlesProps {
   vx?: number;
   vy?: number;
 }
+
+/**
+ * Converts a HEX color string to an RGB array.
+ * @function
+ * @private
+ * @param {string} hex - The HEX color string (supports 3 or 6 digits).
+ * @returns {number[]} Array with [red, green, blue] values.
+ * @throws {Error} If an invalid hex code is passed.
+ * @example
+ *   hexToRgb("#fff"); // [255, 255, 255]
+ *   hexToRgb("#abcdef"); // [171, 205, 239]
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://stackoverflow.com/a/5624139
+ */
 function hexToRgb(hex: string): number[] {
   hex = hex.replace('#', '');
 
@@ -57,6 +118,21 @@ function hexToRgb(hex: string): number[] {
   return [red, green, blue];
 }
 
+/**
+ * MagicUI animated particles React component.
+ * Renders an interactive canvas particle field that responds to mouse movement and configuration props.
+ *
+ * @function Particles
+ * @public
+ * @param {ParticlesProps} props - Particle system configuration and style.
+ * @returns {React.ReactElement} Particles canvas element.
+ * @author Mike Odnis
+ * @web
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @example
+ *   <Particles quantity={75} color="#560BAD" className="h-96 w-full" />
+ */
 const Particles: React.FC<ParticlesProps> = ({
   className = '',
   quantity = 100,
@@ -81,6 +157,10 @@ const Particles: React.FC<ParticlesProps> = ({
     if (canvasRef.current) {
       context.current = canvasRef.current.getContext('2d');
     }
+    /**
+     * Initializes canvas and draws particles. Called initially and on color change.
+     * @private
+     */
     initCanvas();
     animate();
     window.addEventListener('resize', initCanvas);
@@ -98,11 +178,25 @@ const Particles: React.FC<ParticlesProps> = ({
     initCanvas();
   }, [refresh]);
 
+  /**
+   * @function initCanvas
+   * @private
+   * @description
+   * Resizes the canvas and (re-)draws all particles.
+   * @author Mike Odnis
+   */
   const initCanvas = () => {
     resizeCanvas();
     drawParticles();
   };
 
+  /**
+   * @function onMouseMove
+   * @private
+   * @description
+   * Updates mouse position relative to the canvas for interactive particle behavior.
+   * @author Mike Odnis
+   */
   const onMouseMove = () => {
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -117,6 +211,22 @@ const Particles: React.FC<ParticlesProps> = ({
     }
   };
 
+  /**
+   * @typedef Circle
+   * @private
+   * @description
+   * Shape instance used for particle simulation.
+   * @property {number} x - X coordinate.
+   * @property {number} y - Y coordinate.
+   * @property {number} translateX - X translation for particle.
+   * @property {number} translateY - Y translation for particle.
+   * @property {number} size - Particle radius.
+   * @property {number} alpha - Current opacity.
+   * @property {number} targetAlpha - Target opacity.
+   * @property {number} dx - X velocity.
+   * @property {number} dy - Y velocity.
+   * @property {number} magnetism - Mouse magnetism factor.
+   */
   type Circle = {
     x: number;
     y: number;
@@ -130,6 +240,13 @@ const Particles: React.FC<ParticlesProps> = ({
     magnetism: number;
   };
 
+  /**
+   * Resizes the canvas to match its container and adjusts drawing context for device pixel ratio.
+   * @function
+   * @private
+   * @author Mike Odnis
+   * @see https://developer.mozilla.org/docs/Web/API/CanvasRenderingContext2D/scale
+   */
   const resizeCanvas = () => {
     if (canvasContainerRef.current && canvasRef.current && context.current) {
       circles.current.length = 0;
@@ -143,6 +260,13 @@ const Particles: React.FC<ParticlesProps> = ({
     }
   };
 
+  /**
+   * Randomly generates new circle (particle) parameters.
+   * @function
+   * @private
+   * @returns {Circle} New random particle instance.
+   * @author Mike Odnis
+   */
   const circleParams = (): Circle => {
     const x = Math.floor(Math.random() * canvasSize.current.w);
     const y = Math.floor(Math.random() * canvasSize.current.h);
@@ -170,6 +294,15 @@ const Particles: React.FC<ParticlesProps> = ({
 
   const rgb = hexToRgb(color);
 
+  /**
+   * Draws a single particle circle on the canvas.
+   * @function
+   * @private
+   * @param {Circle} circle Circle particle object.
+   * @param {boolean} [update=false] If true, skips pushing to array.
+   * @author Mike Odnis
+   * @throws {Error} If the canvas 2D rendering context is unavailable.
+   */
   const drawCircle = (circle: Circle, update = false) => {
     if (context.current) {
       const { x, y, translateX, translateY, size, alpha } = circle;
@@ -186,12 +319,24 @@ const Particles: React.FC<ParticlesProps> = ({
     }
   };
 
+  /**
+   * Clears the entire canvas drawing area.
+   * @function
+   * @private
+   * @author Mike Odnis
+   */
   const clearContext = () => {
     if (context.current) {
       context.current.clearRect(0, 0, canvasSize.current.w, canvasSize.current.h);
     }
   };
 
+  /**
+   * Draws all particles according to set quantity.
+   * @function
+   * @private
+   * @author Mike Odnis
+   */
   const drawParticles = () => {
     clearContext();
     const particleCount = quantity;
@@ -201,6 +346,20 @@ const Particles: React.FC<ParticlesProps> = ({
     }
   };
 
+  /**
+   * Remaps a value from one range to another.
+   * @function
+   * @private
+   * @param {number} value The value to remap.
+   * @param {number} start1 Source range start.
+   * @param {number} end1 Source range end.
+   * @param {number} start2 Destination range start.
+   * @param {number} end2 Destination range end.
+   * @returns {number} Remapped value, or 0 if result is negative.
+   * @author Mike Odnis
+   * @example
+   *   remapValue(0.5, 0, 1, 0, 10); // 5
+   */
   const remapValue = (
     value: number,
     start1: number,
@@ -212,15 +371,24 @@ const Particles: React.FC<ParticlesProps> = ({
     return remapped > 0 ? remapped : 0;
   };
 
+  /**
+   * Animation loop for all particle motion, alpha changes, edge detection, and user interaction.
+   * Uses requestAnimationFrame for smoothness.
+   * @function
+   * @private
+   * @web
+   * @author Mike Odnis
+   * @see https://developer.mozilla.org/docs/Web/API/window/requestAnimationFrame
+   */
   const animate = () => {
     clearContext();
     circles.current.forEach((circle: Circle, i: number) => {
-      // Handle the alpha value
+      // Edge distance computation
       const edge = [
-        circle.x + circle.translateX - circle.size, // distance from left edge
-        canvasSize.current.w - circle.x - circle.translateX - circle.size, // distance from right edge
-        circle.y + circle.translateY - circle.size, // distance from top edge
-        canvasSize.current.h - circle.y - circle.translateY - circle.size, // distance from bottom edge
+        circle.x + circle.translateX - circle.size, // left
+        canvasSize.current.w - circle.x - circle.translateX - circle.size, // right
+        circle.y + circle.translateY - circle.size, // top
+        canvasSize.current.h - circle.y - circle.translateY - circle.size, // bottom
       ];
       const closestEdge = edge.reduce((a, b) => Math.min(a, b));
       const remapClosestEdge = Number.parseFloat(remapValue(closestEdge, 0, 20, 0, 1).toFixed(2));
@@ -241,19 +409,16 @@ const Particles: React.FC<ParticlesProps> = ({
 
       drawCircle(circle, true);
 
-      // circle gets out of the canvas
+      // Remove and respawn if out of bounds
       if (
         circle.x < -circle.size ||
         circle.x > canvasSize.current.w + circle.size ||
         circle.y < -circle.size ||
         circle.y > canvasSize.current.h + circle.size
       ) {
-        // remove the circle from the array
         circles.current.splice(i, 1);
-        // create a new circle
         const newCircle = circleParams();
         drawCircle(newCircle);
-        // update the circle position
       }
     });
     window.requestAnimationFrame(animate);
@@ -267,3 +432,4 @@ const Particles: React.FC<ParticlesProps> = ({
 };
 
 export default Particles;
+

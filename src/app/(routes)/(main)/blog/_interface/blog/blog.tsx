@@ -1,6 +1,14 @@
 import { Blog } from '@/app/(routes)/(main)/blog/_components';
 import Layout from '@/components/layout/layout';
 
+/**
+ * Blog view component.
+ * Renders the blog page with the blog content inside a layout.
+ *
+ * @returns {JSX.Element} The blog view.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export const BlogView = () => {
   return (
     <Layout>

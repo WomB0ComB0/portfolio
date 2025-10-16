@@ -1,3 +1,4 @@
+
 import { Elysia } from 'elysia';
 import {
   handleDetailedHealthCheck,
@@ -8,17 +9,42 @@ import {
 import { healthSchemas } from './schema';
 
 /**
- * Health check routes
- * Provides endpoints for service health monitoring
+ * @class
+ * @classdesc
+ * Defines all service health monitoring HTTP endpoints for the portfolio project.
+ * Provides RESTful APIs for basic health, detailed health, readiness, and liveness checks.
+ * Endpoints documented below are compatible with common orchestration/monitoring systems.
  *
- * Endpoints:
- * - GET /health - Basic health check
- * - GET /health/detailed - Detailed health information
- * - GET /health/ready - Readiness probe (K8s compatible)
- * - GET /health/live - Liveness probe (K8s compatible)
+ * @readonly
+ * @public
+ * @web
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @see https://elysiajs.com/docs/
+ * @version 1.0.0
+ *
+ * @example
+ * import { healthRoute } from './health';
+ * app.use(healthRoute);
  */
 export const healthRoute = new Elysia({ prefix: '/health' })
   .model(healthSchemas)
+  /**
+   * Basic health check endpoint.
+   *
+   * @route GET /health
+   * @async
+   * @function
+   * @returns {Promise<import('./schema').healthCheckSchema>} Resolves with a basic health check response object on 200.
+   * @throws {Error} Throws error if the health check cannot be performed.
+   * @web
+   * @public
+   * @author Mike Odnis
+   * @see https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+   * @version 1.0.0
+   * @example
+   * // Returns:
+   * // { success: true, message: 'OK', data: { ... } }
+   */
   .get(
     '/',
     async () => {
@@ -49,6 +75,24 @@ export const healthRoute = new Elysia({ prefix: '/health' })
       },
     },
   )
+  /**
+   * Detailed health check endpoint.
+   *
+   * @route GET /health/detailed
+   * @async
+   * @function
+   * @returns {Promise<import('./schema').healthCheckSchema>} Resolves with a detailed health check response object on 200.
+   * @throws {Error} Throws if unable to perform a detailed health check.
+   * @web
+   * @public
+   * @author Mike Odnis
+   * @see https://github.com/WomB0ComB0/portfolio
+   * @version 1.0.0
+   * @example
+   * // GET /health/detailed
+   * // Returns:
+   * // { success: true, message: "All dependencies healthy", data: { ... } }
+   */
   .get(
     '/detailed',
     async () => {
@@ -79,6 +123,23 @@ export const healthRoute = new Elysia({ prefix: '/health' })
       },
     },
   )
+  /**
+   * Readiness probe endpoint for Kubernetes.
+   *
+   * @route GET /health/ready
+   * @async
+   * @function
+   * @returns {Promise<import('./schema').readinessCheckSchema>} Resolves to readiness response, describing if service is ready.
+   * @throws {Error} Throws if readiness check fails.
+   * @web
+   * @public
+   * @author Mike Odnis
+   * @see https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+   * @version 1.0.0
+   * @example
+   * // GET /health/ready
+   * // { success: true, data: { ready: true } }
+   */
   .get(
     '/ready',
     async () => {
@@ -109,6 +170,23 @@ export const healthRoute = new Elysia({ prefix: '/health' })
       },
     },
   )
+  /**
+   * Liveness probe endpoint for Kubernetes.
+   *
+   * @route GET /health/live
+   * @async
+   * @function
+   * @returns {Promise<import('./schema').livenessCheckSchema>} Resolves to liveness response, describing if service process is alive.
+   * @throws {Error} Throws if liveness check fails.
+   * @web
+   * @public
+   * @author Mike Odnis
+   * @see https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+   * @version 1.0.0
+   * @example
+   * // GET /health/live
+   * // { success: true, data: { alive: true } }
+   */
   .get(
     '/live',
     async () => {
@@ -139,3 +217,4 @@ export const healthRoute = new Elysia({ prefix: '/health' })
       },
     },
   );
+

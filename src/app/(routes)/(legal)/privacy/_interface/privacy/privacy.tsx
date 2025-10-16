@@ -1,6 +1,33 @@
+
 'use client';
 
-export const Privacy = () => {
+import type { JSX } from 'react';
+
+/**
+ * @function Privacy
+ * @description
+ *      Functional React component presenting the Privacy Policy for the portfolio site.
+ *      Displays detailed information about the handling, collection, and protection of user data.
+ *
+ * @returns {JSX.Element}
+ *      A React element containing the structured legal content for privacy practices on the website.
+ *
+ * @throws {never}
+ *      This component is pure and does not throw by design, but errors may surface from React internals if misused.
+ *
+ * @example
+ * // Usage in Privacy legal route:
+ * <Privacy />
+ *
+ * @web
+ * @readonly
+ * @public
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @see https://developer.mozilla.org/en-US/docs/Web/Security/Privacy
+ */
+export const Privacy = (): JSX.Element => {
   return (
     <section className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-6">Privacy Policy</h1>
@@ -19,6 +46,8 @@ export const Privacy = () => {
     </section>
   );
 };
+
 Privacy.displayName = 'Privacy';
 
 export default Privacy;
+

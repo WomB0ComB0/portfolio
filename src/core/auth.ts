@@ -1,5 +1,7 @@
+
 'use client';
 
+import { logger } from '@/utils';
 import type { FirebaseError } from 'firebase/app';
 import {
   GithubAuthProvider,
@@ -11,20 +13,55 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { loadable } from 'jotai/utils';
 import { atomEffect } from 'jotai-effect';
+import { loadable } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { app } from './firebase';
 
+/**
+ * @readonly
+ * @public
+ * @type {import('jotai').Atom<User | null | undefined>}
+ * @description Jotai atom holding the current Firebase user, or undefined if not loaded. Used for state sync with Firebase Auth state.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ */
 export const currentUserValue = atom<User | null | undefined>(undefined);
 
+/**
+ * @public
+ * @type {import('jotai-effect').AtomEffect}
+ * @description
+ * Registers a listener for Firebase Auth state changes and updates the `currentUserValue` atom whenever the user changes.
+ * Cleans up the listener on unmount.
+ * @author Mike Odnis
+ * @web
+ * @see https://firebase.google.com/docs/auth/web/start#set_an_authentication_state_observer_and_get_user_data
+ * @version 1.0.0
+ * @returns {void}
+ */
 export const currentUserListener = atomEffect((_get, set) => {
   return getAuth(app).onAuthStateChanged((user) => {
     set(currentUserValue, user);
   });
 });
 
+/**
+ * @readonly
+ * @public
+ * @description
+ * Jotai atom for accessing the current Firebase user asynchronously.
+ * Ensures the user's auth state is loaded before returning.
+ * @author Mike Odnis
+ * @async
+ * @web
+ * @see https://firebase.google.com/docs/reference/js/auth.auth#auth.currentuser
+ * @returns {Promise<User | null>} Resolves to the current Firebase user or null if not signed in.
+ * @version 1.0.0
+ */
 export const currentUserAsync = atom(async (get) => {
   get(currentUserListener);
   const user = get(currentUserValue);
@@ -37,16 +74,66 @@ export const currentUserAsync = atom(async (get) => {
   return user;
 });
 
+/**
+ * @readonly
+ * @public
+ * @description
+ * Loadable Jotai wrapping `currentUserAsync` for easier UI suspense and error handling.
+ * @author Mike Odnis
+ * @web
+ * @see https://github.com/jotai-labs/jotai-loadable
+ * @version 1.0.0
+ */
 export const currentUserLoadable = loadable(currentUserAsync);
 
+/**
+ * React hook for accessing the current Firebase user asynchronously.
+ * Triggers re-renders when the user state changes.
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @returns {User | null} Current Firebase user, or null if not signed in.
+ * @see https://github.com/jotai/jotai
+ * @example
+ * const user = useCurrentUser();
+ */
 export function useCurrentUser() {
   return useAtomValue(currentUserAsync);
 }
 
+/**
+ * React hook for accessing the loadable state of the current user atom.
+ * Returns a state machine: { state: 'hasData' | 'loading' | 'hasError', data?, error? }
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @returns {import('jotai').Loadable<User | null>} Loadable representation of the user loading state.
+ * @see https://github.com/jotai/jotai
+ * @example
+ * const userLoadable = useCurrentUserLoadable();
+ */
 export function useCurrentUserLoadable() {
   return useAtomValue(currentUserLoadable);
 }
 
+/**
+ * React hook providing a sign-in function for Firebase Auth using Google, GitHub, or an anonymous method.
+ * Returns a memoized signIn method and an inFlight boolean for progress UI feedback.
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @param {SignInMethod} signInMethod - Sign-in strategy: 'google.com', 'github.com', or 'anonymous'.
+ * @returns {[() => void, boolean]} A tuple: signIn callback and inFlight loading state.
+ * @throws {Error} Throws if an unsupported sign-in method is provided.
+ * @example
+ * const [signIn, inFlight] = useSignIn('google.com');
+ * <Button onClick={signIn}>Login with Google</Button>
+ * @see https://github.com/firebase/firebase-js-sdk
+ * @version 1.0.0
+ */
 export function useSignIn(
   signInMethod: SignInMethod,
 ): readonly [signIn: () => void, inFlight: boolean] {
@@ -90,7 +177,7 @@ export function useSignIn(
         window.location.reload();
       })
       .catch((error: FirebaseError) => {
-        console.error('Sign-in error:', error);
+        logger.error('Sign-in error:', error);
 
         const errorMessages: Record<string, string> = {
           'auth/network-request-failed':
@@ -112,6 +199,20 @@ export function useSignIn(
   return [signIn, inFlight] as const;
 }
 
+/**
+ * React hook providing a sign-out function for Firebase Auth users.
+ * Returns a memoized signOut function and an inFlight boolean for progress feedback in UI.
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @returns {[() => void, boolean]} Tuple: signOut callback and inFlight loading status.
+ * @example
+ * const [signOut, inFlight] = useSignOut();
+ * <Button onClick={signOut}>Sign out</Button>
+ * @see https://firebase.google.com/docs/auth/web/manage-users#sign_out_a_user
+ * @version 1.0.0
+ */
 export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] {
   const [inFlight, setInFlight] = useState(false);
 
@@ -125,7 +226,7 @@ export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] 
         window.location.reload();
       })
       .catch((error: FirebaseError) => {
-        console.error('Sign-out error:', error);
+        logger.error('Sign-out error:', error);
         toast.error('Failed to sign out. Please try again.');
       })
       .finally(() => setInFlight(false));
@@ -134,4 +235,17 @@ export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] 
   return [signOut, inFlight] as const;
 }
 
+/**
+ * @type {'google.com' | 'github.com' | 'anonymous'}
+ * @description
+ * Supported sign-in methods for authentication flows using useSignIn hook.
+ * - 'google.com': Google OAuth
+ * - 'github.com': GitHub OAuth
+ * - 'anonymous': Anonymous Firebase Auth
+ * @public
+ * @author Mike Odnis
+ * @see https://firebase.google.com/docs/auth
+ * @version 1.0.0
+ */
 export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';
+

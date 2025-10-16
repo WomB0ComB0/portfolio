@@ -1,5 +1,5 @@
 import { logger } from '@/utils';
-import { batchSpanProcessor, IS_VERCEL, createElysiaApp } from '../../_elysia';
+import { batchSpanProcessor, createElysiaApp, IS_VERCEL } from '../../_elysia';
 import { apiRoutes, utilityRoutes } from './elysia';
 
 const app = createElysiaApp({

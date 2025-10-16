@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Download, ExternalLink, FileText } from 'lucide-react';
@@ -8,18 +9,56 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { useSanityResume, type Resume as ResumeType } from '@/hooks';
+import { type Resume as ResumeType, useSanityResume } from '@/hooks';
 
+/**
+ * Renders the user's resume in PDF format with options to download and view the file.
+ * Handles loading states (with skeleton), error states (with error messaging), and main content.
+ * Serves as the principal resume interface for the portfolio project.
+ *
+ * @function
+ * @public
+ * @web
+ * @author Mike Odnis
+ * @see {@link https://github.com/WomB0ComB0/portfolio|Project Repository (portfolio)}
+ * @see ResumeType
+ * @version 1.0.0
+ * @returns {JSX.Element} The resume view, including skeleton, error and PDF embed states.
+ * @throws {Error} If resume data loading fails or no PDF URL is available.
+ * @example
+ * // Usage within a Next.js page
+ * <Resume />
+ */
 export function Resume() {
+  /**
+   * Resume data loading hook.
+   * @readonly
+   * @type {{ data: ResumeType | undefined, isLoading: boolean, error: unknown }}
+   */
   const { data: resume, isLoading, error } = useSanityResume();
 
-  // Type-safe access to resume data
+  /**
+   * Type-safe, optional access to resume data.
+   * @readonly
+   * @type {ResumeType|undefined}
+   */
   const typedResume = resume as ResumeType | undefined;
+  /**
+   * PDF URL for the resume (if available).
+   * @readonly
+   * @type {string|undefined}
+   */
   const pdfUrl = typedResume?.pdfFile?.url;
+  /**
+   * Last updated date, formatted for display.
+   * @readonly
+   * @type {string}
+   */
   const lastUpdated = typedResume?.lastUpdated
     ? new Date(typedResume.lastUpdated).toLocaleDateString()
     : 'N/A';
 
+  // Render loading state (skeleton UI)
   if (isLoading) {
     return (
       <Layout>
@@ -41,6 +80,7 @@ export function Resume() {
     );
   }
 
+  // Render error state
   if (error || !resume || !pdfUrl) {
     return (
       <Layout>
@@ -61,6 +101,7 @@ export function Resume() {
     );
   }
 
+  // Render main resume PDF content
   return (
     <Layout>
       <div className="relative container mx-auto px-4 py-8 min-h-screen">
@@ -80,6 +121,11 @@ export function Resume() {
                     <p className="text-gray-400 text-sm">Last updated: {lastUpdated}</p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {/**
+                     * Download Resume Button
+                     * @param {MouseEvent} e - The click event
+                     * @returns {void}
+                     */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -89,6 +135,11 @@ export function Resume() {
                       <Download className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       Download PDF
                     </Button>
+                    {/**
+                     * Open Resume Button
+                     * @param {MouseEvent} e - The click event
+                     * @returns {void}
+                     */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -102,6 +153,10 @@ export function Resume() {
                 </div>
 
                 <div className="relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-purple-800 overflow-hidden bg-gray-900">
+                  {/**
+                   * Embedded PDF iframe for resume.
+                   * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe}
+                   */}
                   <iframe
                     title="Resume PDF"
                     src={`${pdfUrl}#view=FitH`}
@@ -124,6 +179,11 @@ export function Resume() {
                     .
                   </p>
                   {typedResume?.pdfFile?.originalFilename && (
+                    /**
+                     * Render original PDF filename for download or verification.
+                     * @readonly
+                     * @type {string}
+                     */
                     <p className="text-gray-500 mt-2 text-[11px]">
                       Filename: {typedResume.pdfFile.originalFilename}
                     </p>
@@ -137,3 +197,4 @@ export function Resume() {
     </Layout>
   );
 }
+

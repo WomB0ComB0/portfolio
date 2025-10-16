@@ -1,7 +1,16 @@
+
+import { serviceAccount } from '@/core/firebase';
+import { logger } from '@/utils';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { z } from 'zod';
-import { serviceAccount } from '@/core/firebase';
 
+/**
+ * @readonly
+ * @description Zod schema describing the expected structure of a Google Analytics API response.
+ * @see https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/reports/run
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const GAResponseSchema = z.object({
   dimensionHeaders: z.array(
     z.object({
@@ -46,15 +55,42 @@ const GAResponseSchema = z.object({
   kind: z.literal('analyticsData#runReport'),
 });
 
+/**
+ * Type representing the shape of a Google Analytics API response.
+ * @see GAResponseSchema
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 export type GAResponse = z.infer<typeof GAResponseSchema>;
 
+/**
+ * Fetches Google Analytics pageview data for the last 30 days using a service account.
+ * Returns both the total pageviews and the raw GA API response for further use.
+ *
+ * - Will return mock/empty analytics if the `DISABLE_ANALYTICS` environment variable is set.
+ * - Designed for server-side execution in the portfolio project.
+ *
+ * @async
+ * @function
+ * @public
+ * @returns {Promise<{ analytics: { total_pageviews: number }, response: GAResponse }>}
+ * An object containing the total pageviews and the corresponding GA response.
+ * @throws {Error} Throws if credentials are missing or an API error occurs.
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see https://developers.google.com/analytics/devguides/reporting/data/v1/
+ * @example
+ * const { analytics, response } = await getAnalytics();
+ * console.log("Total pageviews:", analytics.total_pageviews);
+ */
 export async function getAnalytics(): Promise<{
   analytics: { total_pageviews: number };
   response: GAResponse;
 }> {
   // Skip Firebase emulator check - only skip if explicitly disabled via env var
   if (process.env.DISABLE_ANALYTICS === 'true') {
-    console.log('[Analytics] Analytics disabled via DISABLE_ANALYTICS env var');
+    logger.info('[Analytics] Analytics disabled via DISABLE_ANALYTICS env var');
     return {
       analytics: { total_pageviews: 0 },
       response: {
@@ -79,7 +115,7 @@ export async function getAnalytics(): Promise<{
     };
   }
 
-  console.log('[Analytics] Fetching Google Analytics data...');
+  logger.info('[Analytics] Fetching Google Analytics data...');
 
   const formattedPrivateKey = serviceAccount.private_key.replace(/\\n/g, '\n');
 
@@ -106,7 +142,9 @@ export async function getAnalytics(): Promise<{
         0,
       ) || 0;
 
-    console.log(`[Analytics] Successfully fetched ${total_pageviews} pageviews from ${gaResponse.rows?.length || 0} rows`);
+    logger.info(
+      `[Analytics] Successfully fetched ${total_pageviews} pageviews from ${gaResponse.rows?.length || 0} rows`,
+    );
 
     return {
       analytics: {
@@ -115,8 +153,8 @@ export async function getAnalytics(): Promise<{
       response: gaResponse,
     };
   } catch (error) {
-    console.error('[Analytics] Error fetching GA data:', error);
-    console.error('[Analytics] Error details:', {
+    logger.error('[Analytics] Error fetching GA data:', error);
+    logger.error('[Analytics] Error details:', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       credentials: {
@@ -129,6 +167,25 @@ export async function getAnalytics(): Promise<{
   }
 }
 
+/**
+ * Formats raw Google Analytics data into an array of daily aggregates by device category.
+ *
+ * Each element in the output array represents a date with pageview totals for "desktop" and "mobile" devices.
+ * The input must follow the shape of a valid {@link GAResponse}.
+ *
+ * @function
+ * @public
+ * @param {GAResponse} response - The raw GA API response data.
+ * @returns {Array<{ date: string, desktop: number, mobile: number }>} Array of formatted daily device totals.
+ * @example
+ * const formatted = formatGAData(response);
+ * console.log(formatted[0]); // { date: '20240510', desktop: 123, mobile: 456 }
+ * @throws {TypeError} If device category values differ from expected keys.
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see getAnalytics
+ */
 export const formatGAData = (response: GAResponse) => {
   const formattedData: { [key: string]: any } = {};
 
@@ -146,3 +203,4 @@ export const formatGAData = (response: GAResponse) => {
 
   return Object.values(formattedData);
 };
+

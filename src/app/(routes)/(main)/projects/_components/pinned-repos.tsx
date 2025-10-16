@@ -1,19 +1,55 @@
+
 'use client';
 
-import { Code2, GitFork, Star } from 'lucide-react';
 import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { PinnedRepo } from '@/lib/api-integrations';
+import { Code2, GitFork, Star } from 'lucide-react';
+import type { JSX } from 'react';
 
+/**
+ * Interface for the properties accepted by {@link PinnedRepos} component.
+ *
+ * @interface PinnedReposProps
+ * @property {PinnedRepo[]} pinnedRepos - Array of pinned repositories to display as cards.
+ * @property {boolean} [isLoading=false] - State indicating if repositories are loading.
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @readonly
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @version 1.0.0
+ * @public
+ */
 interface PinnedReposProps {
   pinnedRepos: PinnedRepo[];
   isLoading?: boolean;
 }
 
-export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedReposProps) {
+/**
+ * PinnedRepos React component for the <b>portfolio</b> project.
+ * Renders a responsive grid of featured/pinned GitHub repositories, displaying their metadata,
+ * loading skeletons when data is being fetched, and interactive tooltips for repository stats.
+ *
+ * @function
+ * @param {PinnedReposProps} props - The component properties.
+ * @param {PinnedRepo[]} props.pinnedRepos - Array of pinned repository objects to display.
+ * @param {boolean} [props.isLoading=false] - Whether to display loading skeletons or the repo grid.
+ * @returns {JSX.Element} A section element containing the titled grid of pinned repositories.
+ * @throws {Error} Throws if pinnedRepos is not a valid array (if misused).
+ * @example
+ * <PinnedRepos pinnedRepos={repos} isLoading={false} />
+ * @web
+ * @author Mike Odnis <https://github.com/WomB0ComB0>
+ * @version 1.0.0
+ * @see https://github.com/WomB0ComB0/portfolio
+ * @public
+ */
+export default function PinnedRepos({
+  pinnedRepos,
+  isLoading = false,
+}: PinnedReposProps): JSX.Element {
   return (
     <section className="w-full max-w-4xl mb-10 px-4 sm:px-6 lg:px-8">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-purple-300">Pinned Projects</h2>
@@ -106,3 +142,4 @@ export default function PinnedRepos({ pinnedRepos, isLoading = false }: PinnedRe
     </section>
   );
 }
+

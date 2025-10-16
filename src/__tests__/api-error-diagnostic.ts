@@ -1,13 +1,34 @@
 #!/usr/bin/env bun
 /**
- * API Error Diagnostic Tool
- * Run with: bun src/__tests__/api-error-diagnostic.ts
- *
- * This script fetches detailed error information from failing API endpoints
+ * @file API Error Diagnostic Tool
+ * @description This script provides a comprehensive diagnostic tool for API endpoints,
+ * fetching detailed error information, response headers, and body content to aid in debugging failing endpoints.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @see {@link https://www.example.com/docs/api-diagnostics|API Diagnostics Documentation} (placeholder)
+ * @example
+ * // To run the diagnostic tool:
+ * // bun src/__tests__/api-error-diagnostic.ts
+ * // Ensure the NEXT_PUBLIC_SITE_URL environment variable is set, or it will default to http://localhost:3000
  */
 
+/**
+ * @const BASE_URL
+ * @description The base URL for the API endpoints. Defaults to `http://localhost:3000` if `NEXT_PUBLIC_SITE_URL` is not set in environment variables.
+ * @readonly
+ * @web
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
+/**
+ * @const colors
+ * @description An object containing ANSI escape codes for console text coloring.
+ * @readonly
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -19,11 +40,38 @@ const colors = {
   cyan: '\x1b[36m',
 };
 
+/**
+ * @function log
+ * @description Logs a message to the console with optional ANSI color formatting.
+ * @param {string} message The message string to log.
+ * @param {keyof typeof colors} [color] Optional. The color key from the `colors` object to apply to the message.
+ * @returns {void}
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * log('This is a normal message.');
+ * log('This is an error message.', 'red');
+ * log('This is a success message.', 'green');
+ */
 function log(message: string, color?: keyof typeof colors) {
   const colorCode = color ? colors[color] : '';
   console.log(`${colorCode}${message}${colors.reset}`);
 }
 
+/**
+ * @function diagnoseEndpoint
+ * @description Fetches data from a specified API endpoint, logs its response details, headers, body, and provides error analysis and recommendations if the request fails.
+ * @async
+ * @web
+ * @param {string} endpoint The API endpoint path (e.g., '/api/v1/github-stats').
+ * @returns {Promise<void>} A promise that resolves when the diagnostic process for the endpoint is complete.
+ * @throws {Error} Throws an error if a network issue prevents the fetch operation (e.g., `ECONNREFUSED`).
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * // Diagnosing a specific endpoint
+ * await diagnoseEndpoint('/api/v1/wakatime');
+ */
 async function diagnoseEndpoint(endpoint: string) {
   const url = `${BASE_URL}${endpoint}`;
 
@@ -121,6 +169,19 @@ async function diagnoseEndpoint(endpoint: string) {
   }
 }
 
+/**
+ * @function main
+ * @description The main execution function for the API Error Diagnostic Tool.
+ * It initializes the diagnostic process, iterates through a predefined list of API endpoints,
+ * and calls `diagnoseEndpoint` for each, with a brief pause between checks.
+ * @async
+ * @returns {Promise<void>} A promise that resolves when all endpoints have been diagnosed.
+ * @author Mike Odnis
+ * @version 1.0.0
+ * @example
+ * // The main function is automatically called at the end of the script.
+ * // It orchestrates the diagnosis of all listed endpoints.
+ */
 async function main() {
   log('\n╔══════════════════════════════════════════════════════════╗', 'bright');
   log('║          API Error Diagnostic Tool                       ║', 'bright');

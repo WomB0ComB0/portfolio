@@ -1,9 +1,9 @@
 /**
  * @fileoverview Declarative DataLoader components for Sanity data
- * 
+ *
  * Provides render-props based components for loading Sanity data
  * with automatic Suspense boundaries and error handling.
- * 
+ *
  * @example
  * ```tsx
  * <SanityDataLoader.Experiences>
@@ -17,9 +17,9 @@
  * ```
  */
 
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import type { Certification, Experience, Project } from '@/lib/sanity/types';
-import { SANITY_ENDPOINTS, createDataLoaderOptions } from './config';
+import { DataLoader } from '@/providers/server/effect-data-loader';
+import { createDataLoaderOptions, SANITY_ENDPOINTS } from './config';
 import { CertificationsSchema, ExperiencesSchema, ProjectsSchema } from './schemas';
 
 /**
