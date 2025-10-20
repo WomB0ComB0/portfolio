@@ -1,22 +1,28 @@
+# bunfig.toml — project-level
+
 [install]
-
-# whether to install optionalDependencies
+# Which dependency types to install (defaults shown)
 optional = true
-
-# equivalent to `--concurrent-scripts` flag
-concurrentScripts = 16 # (cpu count or GOMAXPROCS) x2
-
-# whether to install devDependencies
 dev = true
-
-# whether to install peerDependencies
 peer = true
-
-# equivalent to `--production` flag
 production = false
 
-# equivalent to `--frozen-lockfile` flag
-frozenLockfile = false
+# Lockfile behavior
+# Write human-readable bun.lock instead of bun.lockb (optional)
+saveTextLockfile = false
 
-# equivalent to `--dry-run` flag
+# No-op installs for validation in CI (off by default)
 dryRun = false
+
+# Optional: pin exact versions on `bun add` (like npm's save-exact)
+# exact = true  # enable if you want to default to exact pins
+
+# Optional: unify on a registry and/or scope(s)
+# registry = "https://registry.npmjs.org"
+
+[install.scopes]
+# Route @my-org to GitHub Packages with token from env (recommended)
+"@my-org" = { url = "https://npm.pkg.github.com", token = "${GITHUB_PACKAGES_TOKEN}" }
+
+# Runtime logging / behavior (top-level settings)
+logLevel = "warn"  # "debug" | "warn" | "error"

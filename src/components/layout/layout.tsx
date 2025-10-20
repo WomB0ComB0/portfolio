@@ -1,12 +1,27 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 'use client';
 
 import { usePathname } from 'next/navigation';
-// import BlurryBlob from '@/components/animations/background/blurry-blob';
 import Palette from '@/components/cmd';
 import { LightRays } from '@/components/ui/light-rays';
-// import { DotPattern } from '@/components/magicui';
 import { LiveBlocksProvider } from '@/providers/core';
 import { Footer, MobileNavBar, NavBar } from '.';
+
 /**
  * @function Layout
  * @public
@@ -39,26 +54,6 @@ export default function Layout({
   return (
     <LiveBlocksProvider>
       <div className="relative min-h-screen bg-background font-clash">
-        {/* <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
-          
-          <DotPattern 
-            className="absolute inset-0 text-foreground/[0.02]" 
-            width={20} 
-            height={20} 
-            cr={0.6}
-          />
-          
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl opacity-20" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/10 rounded-full blur-3xl opacity-20" />
-          
-          <BlurryBlob
-            firstBlobColor="bg-primary"
-            secondBlobColor="bg-primary/50"
-            className="ml-[70%] mr-[30%] opacity-10"
-          />
-        </div> */}
-
         <main className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden selection:bg-primary/30">
           <Palette />
           <div className="flex w-full h-full lg:w-[60%] md:w-2/3">

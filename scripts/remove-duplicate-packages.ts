@@ -1,6 +1,21 @@
 #!/usr/bin/env bun
-
 // -*- typescript -*-
+
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 /**
  * @file This script is designed to clean up the 'dependencies' section of a 'package.json' file.
@@ -23,7 +38,7 @@ import { Stringify } from '@/utils';
 /**
  * The root directory of the project, determined by navigating up two levels from the current script's directory.
  */
-const rootDir = join(__dirname, '..', '..');
+const rootDir = join(__dirname, '..');
 
 /**
  * The absolute path to the project's `package.json` file.

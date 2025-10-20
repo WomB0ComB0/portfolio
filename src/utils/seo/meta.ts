@@ -1,3 +1,19 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import type { Metadata, Viewport } from 'next';
 import { app } from '@/constants';
 
@@ -39,6 +55,16 @@ export function constructMetadata({
   icons = '/assets/svgs/logo.svg',
   noIndex = false,
   url = app.url,
+
+  ogVideo = 'https://cdn.example.com/og/intro.mp4',
+  ogVideoType = 'video/mp4',
+  ogVideoWidth = 1_280,
+  ogVideoHeight = 720,
+
+  twitterPlayer = 'https://example.com/embed/player?src=intro', // must be an embeddable <iframe>
+  twitterPlayerWidth = 1_280,
+  twitterPlayerHeight = 720,
+  twitterPlayerStream = 'https://cdn.example.com/og/intro.mp4', // optional raw stream
 }: {
   title?: string;
   description?: string;
@@ -47,55 +73,73 @@ export function constructMetadata({
   icons?: string;
   noIndex?: boolean;
   url?: string;
+
+  ogVideo?: string;
+  ogVideoType?: string;
+  ogVideoWidth?: number;
+  ogVideoHeight?: number;
+  twitterPlayer?: string;
+  twitterPlayerWidth?: number;
+  twitterPlayerHeight?: number;
+  twitterPlayerStream?: string;
 } = {}): Metadata {
   return {
-    title: {
-      default: title,
-      template: `${title} - %s`,
-    },
-    description: description,
+    title: { default: title, template: `${title} - %s` },
+    description,
     openGraph: {
       title,
       description,
-      images: [
-        {
-          url: image,
-        },
-      ],
-      siteName: title,
       url,
+      siteName: title,
       type: 'website',
       locale: 'en_US',
+      images: [{ url: image }],
+      videos: [
+        {
+          url: ogVideo,              // -> <meta property="og:video" ...>
+          secureUrl: ogVideo,        // -> og:video:secure_url
+          type: ogVideoType,         // -> og:video:type
+          width: ogVideoWidth,       // -> og:video:width
+          height: ogVideoHeight,     // -> og:video:height
+        },
+      ],
     },
+    // ---- X / Twitter (switch to Player Card) ----
     twitter: {
-      card: 'summary_large_image',
+      card: 'player',
       title,
       description,
-      images: [twitter],
+      images: [twitter], // poster used where iframes aren’t supported
       creator: '@mike_odnis',
     },
-    icons: [
-      {
-        url: icons,
-        href: icons,
-      },
-    ],
+    // Player-specific tags (ensure they appear as <meta name="twitter:*">)
+    other: {
+      'twitter:player': twitterPlayer,
+      'twitter:player:width': String(twitterPlayerWidth),
+      'twitter:player:height': String(twitterPlayerHeight),
+      ...(twitterPlayerStream && {
+        'twitter:player:stream': twitterPlayerStream,
+      }),
+    },
+    icons: [{ url: icons, href: icons }],
     category: 'technology',
     manifest: '/manifest.webmanifest',
     metadataBase: new URL(app.url),
     keywords: [...app.keywords],
     other: {
+      ...(twitterPlayer && {
+        'twitter:player': twitterPlayer,
+        'twitter:player:width': String(twitterPlayerWidth),
+        'twitter:player:height': String(twitterPlayerHeight),
+      }),
+      ...(twitterPlayerStream && { 'twitter:player:stream': twitterPlayerStream }),
       currentYear: new Date().getFullYear(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
-    ...(noIndex && {
-      robots: {
-        index: false,
-        follow: false,
-      },
-    }),
+    ...(noIndex && { robots: { index: false, follow: false } }),
   };
 }
+
 
 /**
  * Constructs a viewport object containing responsive and accessibility-related viewport settings for web browsers.

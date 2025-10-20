@@ -7,8 +7,8 @@ on:
   pull_request_review:
     types: [submitted]
   check_suite:
-    types: [completed]
-  status: {}
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -567,32 +567,3 @@ jobs:
                     `The auto-merge workflow encountered an error. Please check the workflow logs and merge manually if appropriate.\n` +
                     `Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
             });
-
-  # Separate job for handling notifications and reporting
-  notify:
-    name: Send notifications
-    runs-on: ubuntu-latest
-    needs: auto-merge
-    if: always()
-
-    steps:
-      - name: Notify on Slack (optional)
-        if: needs.auto-merge.result == 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // Add your Slack notification logic here if needed
-            // This is just a placeholder
-            console.log('Auto-merge completed successfully');
-
-            // Example: You could send a webhook to Slack, Teams, etc.
-            // const webhook_url = '${{ secrets.SLACK_WEBHOOK_URL }}';
-            // if (webhook_url) {
-            //   await fetch(webhook_url, {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({
-            //       text: `✅ Auto-merged dependency update in ${context.repo.owner}/${context.repo.repo}`
-            //     })
-            //   });
-            // }

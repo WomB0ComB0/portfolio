@@ -1,3 +1,19 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 'use client';
 
 import Script from 'next/script';
@@ -74,42 +90,28 @@ export const Scripts = () => {
   }, []);
 
   /**
-   * Static organization schema (JSON-LD) for Schema.org (for SEO)
-   *
-   * @see https://schema.org/Organization
-   * @readonly
-   * @private
-   */
-  const schemaOrg = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: app.name,
-    url: app.url,
-    image: app.logo,
-    logo: app.logo,
-    sameAs: [
-      'https://mikeodnis.dev',
-      'https://news.mikeodnis.dev',
-      'https://blog.mikeodnis.dev',
-      'https://linkedin.com/in/mikeodnis',
-      'https://instagram.com/mikeodnis.dev',
-      'https://x.com/@mike_odnis',
-      'https://bsky.app/profile/mikeodnis.dev',
-    ],
-  } as const;
-
-  /**
    * The configuration object controlling rules for speculation (preloading/prefetching/exclusion).
    *
    * @type {PreloadConfig}
    * @readonly
    * @private
    */
-  const config: PreloadConfig = {
+  const config = {
     prerenderPaths: ['/'],
-    prefetchPaths: ['/legal/*'],
+    prefetchPaths: [
+      '/blog',
+      '/certifications',
+      '/experience',
+      '/guestbook',
+      '/places',
+      '/projects',
+      '/resume',
+      '/spotify',
+      '/stats',
+      '/sponsor',
+    ],
     excludePaths: ['/api/*'],
-  };
+  } as const satisfies PreloadConfig;
 
   /**
    * Reference to the IntersectionObserver used to observe visible links for speculation logic.
@@ -353,7 +355,7 @@ export const Scripts = () => {
       'https://x.com/@mike_odnis',
       'https://bsky.app/profile/mikeodnis.dev',
     ],
-  } as const);
+  });
 
   return (
     <>
@@ -395,24 +397,28 @@ export const Scripts = () => {
         }}
       />
       {/* Speculation Rules API for prerender/prefetch for navigation */}
-      <Script
-        id="speculation-rules"
-        strategy="beforeInteractive"
-        type="speculationrules"
-        dangerouslySetInnerHTML={{
-          __html: Stringify(baseSpeculationRules),
-        }}
-        onError={(event) => {
-          logger.error('Error loading speculation rules script:', event);
-        }}
-      />
+      {typeof window
+        ? 'SpeculationRules' in window && (
+            <Script
+              id="speculation-rules"
+              strategy="beforeInteractive"
+              type="speculationrules"
+              dangerouslySetInnerHTML={{
+                __html: Stringify(baseSpeculationRules),
+              }}
+              onError={(event) => {
+                logger.error('Error loading speculation rules script:', event);
+              }}
+            />
+          )
+        : null}
       {/* Schema.org Organization */}
       <Script
         type="application/ld+json"
         id="schema-org"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
-          __html: Stringify(schemaOrg),
+          __html: Stringify(organizationSchema),
         }}
         onError={(event) => {
           logger.error('Error loading Schema.org script:', event);

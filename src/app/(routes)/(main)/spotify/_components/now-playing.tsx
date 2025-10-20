@@ -1,10 +1,26 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 'use client';
 
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Suspense } from 'react';
+// import { Suspense } from 'react';
 import { SiSpotify } from 'react-icons/si';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -95,12 +111,12 @@ const NowPlayingError = () => (
  * @example
  * <NowPlaying />
  */
-export default function NowPlaying() {
+export const NowPlaying = () => {
   return (
     <Card className="bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end overflow-hidden">
       <CardContent className="p-0 bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end">
         <div className="bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end p-4 flex justify-between items-center gap-4">
-          <Suspense fallback={<NowPlayingSkeleton />}>
+          {/* <Suspense fallback={<NowPlayingSkeleton />}> */}
             <DataLoader
               url="/api/v1/now-playing"
               schema={NowPlayingSchema}
@@ -168,9 +184,11 @@ export default function NowPlaying() {
                 )
               }
             </DataLoader>
-          </Suspense>
+          {/* </Suspense> */}
         </div>
       </CardContent>
     </Card>
   );
 }
+NowPlaying.displayName = 'NowPlaying';
+export default NowPlaying;

@@ -1,3 +1,19 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 'use client';
 
 import { Code2, GitFork, Star } from 'lucide-react';
@@ -45,10 +61,10 @@ interface PinnedReposProps {
  * @see https://github.com/WomB0ComB0/portfolio
  * @public
  */
-export default function PinnedRepos({
+export const PinnedRepos = ({
   pinnedRepos,
   isLoading = false,
-}: PinnedReposProps): JSX.Element {
+}: PinnedReposProps): JSX.Element => {
   return (
     <section className="w-full max-w-4xl mb-10 px-4 sm:px-6 lg:px-8">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-primary">Pinned Projects</h2>
@@ -143,3 +159,5 @@ export default function PinnedRepos({
     </section>
   );
 }
+PinnedRepos.displayName = 'PinnedRepos';
+export default PinnedRepos;

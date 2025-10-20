@@ -1,9 +1,25 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 'use client';
 
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
-import { Suspense } from 'react';
+// import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 
@@ -93,14 +109,14 @@ const TopArtistsError = () => (
  * @example
  * <TopArtists />
  */
-export default function TopArtists() {
+export const TopArtists = () => {
   return (
     <div className="bg-gradient-to-br from-background to-card rounded-2xl shadow-2xl p-6 overflow-hidden">
       <h2 className="text-3xl font-bold text-foreground mb-2 text-center">Top Artists</h2>
       <p className="text-muted-foreground mb-6 text-center">
         My most played artists in the last 4 weeks.
       </p>
-      <Suspense fallback={<TopArtistsSkeleton />}>
+      {/* <Suspense fallback={<TopArtistsSkeleton />}> */}
         <DataLoader
           url="/api/v1/top-artists"
           schema={TopArtistsResponseSchema}
@@ -162,7 +178,9 @@ export default function TopArtists() {
             )
           }
         </DataLoader>
-      </Suspense>
+      {/* </Suspense> */}
     </div>
   );
 }
+TopArtists.displayName = 'TopArtists';
+export default TopArtists;

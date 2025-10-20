@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",           // sensible defaults
+    "schedule:weekly",              // run weekly by default
+    ":semanticCommits"              // chore(deps): ...
+  ],
+  "timezone": "America/New_York",
+  "osvVulnerabilityAlerts": true,
+  "prHourlyLimit": 6,
+  "rangeStrategy": "auto",          // keep ranges unless needed to pin
+  "labels": ["dependencies"],
+  "dependencyDashboard": true,
+  "enabledManagers": [
+    "npm", "bun", "github-actions", "dockerfile"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "matchManagers": ["npm","bun"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor","patch"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["npm","bun"],
+      "matchPackagePatterns": ["^@types/"],
+      "groupName": "types"
+    },
+    {
+      "matchManagers": ["npm","bun"],
+      "matchPackagePatterns": ["^eslint","^@eslint/","^prettier"],
+      "groupName": "linting"
+    },
+    {
+      "matchManagers": ["npm","bun"],
+      "matchDatasources": ["npm"],
+      "separateMajorMinor": true
+    }
+  ],
+  "lockFileMaintenance": { "enabled": true, "schedule": ["at any time"] }
+}
