@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type { JSX } from 'react';
 import { GuestbookComponent } from '@/app/(routes)/(main)/guestbook/_components';
 import Layout from '@/components/layout/layout';
 
@@ -25,7 +26,7 @@ import Layout from '@/components/layout/layout';
  * @author Mike Odnis
  * @version 1.0.0
  */
-export const Guestbook = () => {
+export const Guestbook = (): JSX.Element => {
   return (
     <Layout>
       <div className="w-full min-h-screen h-full p-8 flex flex-col items-center relative">

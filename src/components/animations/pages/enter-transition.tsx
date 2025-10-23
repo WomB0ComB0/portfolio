@@ -17,6 +17,7 @@
 'use client';
 import { motion } from 'motion/react';
 import type React from 'react';
+
 export const EnterAnimation: React.FC<
   Readonly<{
     children: React.ReactNode;
@@ -32,3 +33,5 @@ export const EnterAnimation: React.FC<
     </motion.div>
   );
 };
+EnterAnimation.displayName = 'EnterAnimation';
+export default EnterAnimation;

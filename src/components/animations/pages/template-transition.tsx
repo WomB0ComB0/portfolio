@@ -29,3 +29,5 @@ export const TemplateAnimation = ({ children }: { children: React.ReactNode }) =
     </motion.div>
   );
 };
+TemplateAnimation.displayName = 'TemplateAnimation';
+export default TemplateAnimation;

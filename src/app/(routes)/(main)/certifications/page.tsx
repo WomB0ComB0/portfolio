@@ -15,6 +15,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { constructMetadata } from '@/utils';
 
 const Certifications = dynamic(
@@ -32,7 +33,7 @@ export const metadata = constructMetadata({
   description: 'View my professional certifications and credentials',
 });
 
-export const CertificationsPage = () => {
+const CertificationsPage = (): JSX.Element => {
   return <Certifications />;
 };
 CertificationsPage.displayName = 'CertificationsPage';

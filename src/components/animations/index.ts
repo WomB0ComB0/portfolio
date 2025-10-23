@@ -14,6 +14,5 @@
  * limitations under the License.
  */
 
-export * from './background';
 export * from './pages';
 export * from './slide';

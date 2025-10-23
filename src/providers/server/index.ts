@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export * from './query-client';
 export * from './effect-data-loader';
+export * from './query-client';
 export * from './react';
-export * from './server'
+export * from './server';

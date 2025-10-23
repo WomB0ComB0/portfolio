@@ -22,6 +22,7 @@ import React, { memo, useState } from 'react';
 import { FiCommand } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { NavbarItems } from '@/constants/index';
+
 export const NavBar = memo(({ path }: { path: string }) => {
   const { query } = useKBar();
   const [tooltipVisibility, setTooltipVisibility] = useState(

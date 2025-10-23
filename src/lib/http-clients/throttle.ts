@@ -54,7 +54,7 @@ export function throttle<T extends (...args: any[]) => any>(
   options: ThrottleOptions = {},
 ): (...args: Parameters<T>) => ReturnType<T> | undefined {
   let timeout: NodeJS.Timeout | null = null;
-  let previous = 0;
+  let previous: number = 0;
   let result: ReturnType<T> | undefined;
 
   const { leading = true, trailing = true } = options;

@@ -143,6 +143,6 @@ export const Cursor = ({ color, x, y }: Props) => {
       </defs>
     </svg>
   );
-}
+};
 Cursor.displayName = 'Cursor';
-export default Cursor
+export default Cursor;

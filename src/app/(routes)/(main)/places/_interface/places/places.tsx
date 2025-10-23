@@ -14,20 +14,26 @@
  * limitations under the License.
  */
 
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useMemo } from 'react';
-import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
-import { GoogleMaps } from '@/app/(routes)/(main)/places/_components';
-import Layout from '@/components/layout/layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { usePlaces } from '@/hooks/sanity/use-sanity-query';
-import { urlFor } from '@/lib/sanity/client';
-import type { SanityImage } from '@/lib/sanity/types';
-import type { PlaceItem } from '@/types/places';
+import Link from "next/link";
+import { useMemo } from "react";
+import { FiExternalLink, FiImage, FiMapPin } from "react-icons/fi";
+import { GoogleMaps } from "@/app/(routes)/(main)/places/_components";
+import Layout from "@/components/layout/layout";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePlaces } from "@/hooks/sanity/use-sanity-query";
+import { urlFor } from "@/lib/sanity/client";
+import type { SanityImage } from "@/lib/sanity/types";
+import type { PlaceItem } from "@/types/places";
 
 /**
  * Helper function to convert Sanity Place to PlaceItem
@@ -39,13 +45,13 @@ const convertSanityPlaceToPlaceItem = (sanityPlace: any): PlaceItem => {
     description: sanityPlace.description,
     latitude: sanityPlace.latitude,
     longitude: sanityPlace.longitude,
-    category: sanityPlace.category || 'Uncategorized',
+    category: sanityPlace.category || "Uncategorized",
     photos: (sanityPlace.photos || []).map((photo: SanityImage) => ({
-      url: urlFor(photo).width(800).height(600).url() || '',
-      caption: (photo as any).caption || '',
+      url: urlFor(photo).width(800).height(600).url() || "",
+      caption: (photo as any).caption || "",
     })),
   };
-}
+};
 
 /**
  * Skeleton loader for place cards
@@ -87,7 +93,7 @@ const LoadingState = () => (
       <div className="w-full max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <PlaceCardSkeleton key={i} />
+            <PlaceCardSkeleton key={`${+i}`} />
           ))}
         </div>
       </div>
@@ -123,7 +129,10 @@ export const Places = () => {
                   Failed to fetch places data. Please try again later.
                 </CardDescription>
               </div>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
                 Try Again
               </Button>
             </CardContent>
@@ -148,7 +157,8 @@ export const Places = () => {
                   Places
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  {places.length} {places.length === 1 ? 'location' : 'locations'} found
+                  {places.length}{" "}
+                  {places.length === 1 ? "location" : "locations"} found
                 </p>
               </div>
             </div>
@@ -221,7 +231,9 @@ export const Places = () => {
                     <FiMapPin className="text-3xl text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-foreground font-medium">No places found</p>
+                    <p className="text-foreground font-medium">
+                      No places found
+                    </p>
                     <p className="text-muted-foreground text-sm">
                       There are currently no locations to display.
                     </p>
@@ -235,5 +247,5 @@ export const Places = () => {
     </Layout>
   );
 };
-Places.displayName = 'Places';
+Places.displayName = "Places";
 export default Places;

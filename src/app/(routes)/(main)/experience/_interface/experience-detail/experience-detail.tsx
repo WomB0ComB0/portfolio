@@ -90,7 +90,7 @@ const ExperienceDetailSkeleton = () => {
           </div>
           <ul className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <li key={i} className="flex items-start gap-3">
+              <li key={`${+i}`} className="flex items-start gap-3">
                 <div className="mt-2 h-1.5 w-1.5 rounded-full bg-muted animate-pulse flex-shrink-0" />
                 <div className="h-4 bg-muted animate-pulse rounded w-full" />
               </li>
@@ -106,7 +106,7 @@ const ExperienceDetailSkeleton = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-8 w-20 bg-muted animate-pulse rounded-full" />
+              <div key={`${+i}`} className="h-8 w-20 bg-muted animate-pulse rounded-full" />
             ))}
           </div>
         </div>

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-export * from './animations'
-export * from './client'
-export * from './custom'
-export * from './icons'
-export * from './layout'
-export * from './magicui'
+export * from './animations';
+export * from './client';
+export * from './custom';
+export * from './icons';
+export * from './layout';
+export * from './magicui';

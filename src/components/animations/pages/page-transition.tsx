@@ -49,3 +49,5 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
     </AnimatePresence>
   );
 };
+PageTransition.displayName = 'PageTransition';
+export default PageTransition;

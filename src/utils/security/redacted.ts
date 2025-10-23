@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 /**
  * A utility class representing a sensitive value that should be redacted when serialized, logged, or inspected.
  *

@@ -84,7 +84,7 @@ const kodchasanFont = localFont({
   preload: true,
 });
 
-export  const RootLayout = async ({ children }: { children: React.ReactNode }) => {
+export const RootLayout = async ({ children }: { children: React.ReactNode }) => {
   const headersList = await headers();
   const pathname = headersList.get('x-url') || '';
   return (
@@ -132,6 +132,6 @@ export  const RootLayout = async ({ children }: { children: React.ReactNode }) =
       </body>
     </html>
   );
-}
+};
 RootLayout.displayName = 'RootLayout';
 export default RootLayout;

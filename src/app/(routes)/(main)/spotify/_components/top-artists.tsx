@@ -117,70 +117,70 @@ export const TopArtists = () => {
         My most played artists in the last 4 weeks.
       </p>
       {/* <Suspense fallback={<TopArtistsSkeleton />}> */}
-        <DataLoader
-          url="/api/v1/top-artists"
-          schema={TopArtistsResponseSchema}
-          staleTime={1000 * 60 * 60}
-          refetchInterval={1000 * 60 * 60}
-          refetchOnWindowFocus={false}
-          ErrorComponent={TopArtistsError}
-          LoadingComponent={<TopArtistsSkeleton />}
-        >
-          {
-            /**
-             * @param {ArtistSchema[]} data - Array of top artist objects from the API response.
-             */
-            (data: Schema.Schema.Type<typeof TopArtistsResponseSchema>) => (
-              <>
-                {data.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {data.map(
-                      /**
-                       * Renders an individual artist card, clickable to open the artist's Spotify profile.
-                       * @param {ArtistSchema} artist - The artist object.
-                       * @param {number} index - The artist's index in the array for animation delay and key.
-                       * @returns {JSX.Element} The rendered artist card.
-                       */
-                      (artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
-                        <motion.div
-                          key={`${artist.name}-${index}`}
-                          className="flex flex-col items-center space-y-3 p-4 bg-card/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-primary/60 transition-all text-center"
-                          onClick={() => window.open(artist.url, '_blank')}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                        >
-                          <Image
-                            src={artist.imageUrl}
-                            alt={`Profile picture of ${artist.name}`}
-                            className="w-24 h-24 rounded-full shadow-lg border-2 border-primary object-cover"
-                            width={96}
-                            height={96}
-                            priority={false}
-                            placeholder="empty"
-                            sizes="96px"
-                          />
-                          <p className="text-foreground font-semibold truncate w-full">
-                            {artist.name}
-                          </p>
-                        </motion.div>
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground bg-card/30 p-4 rounded-lg text-center">
-                    No top artists data available at the moment.
-                  </p>
-                )}
-              </>
-            )
-          }
-        </DataLoader>
+      <DataLoader
+        url="/api/v1/top-artists"
+        schema={TopArtistsResponseSchema}
+        staleTime={1000 * 60 * 60}
+        refetchInterval={1000 * 60 * 60}
+        refetchOnWindowFocus={false}
+        ErrorComponent={TopArtistsError}
+        LoadingComponent={<TopArtistsSkeleton />}
+      >
+        {
+          /**
+           * @param {ArtistSchema[]} data - Array of top artist objects from the API response.
+           */
+          (data: Schema.Schema.Type<typeof TopArtistsResponseSchema>) => (
+            <>
+              {data.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                  {data.map(
+                    /**
+                     * Renders an individual artist card, clickable to open the artist's Spotify profile.
+                     * @param {ArtistSchema} artist - The artist object.
+                     * @param {number} index - The artist's index in the array for animation delay and key.
+                     * @returns {JSX.Element} The rendered artist card.
+                     */
+                    (artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
+                      <motion.div
+                        key={`${artist.name}-${index}`}
+                        className="flex flex-col items-center space-y-3 p-4 bg-card/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-primary/60 transition-all text-center"
+                        onClick={() => window.open(artist.url, '_blank')}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Image
+                          src={artist.imageUrl}
+                          alt={`Profile picture of ${artist.name}`}
+                          className="w-24 h-24 rounded-full shadow-lg border-2 border-primary object-cover"
+                          width={96}
+                          height={96}
+                          priority={false}
+                          placeholder="empty"
+                          sizes="96px"
+                        />
+                        <p className="text-foreground font-semibold truncate w-full">
+                          {artist.name}
+                        </p>
+                      </motion.div>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <p className="text-muted-foreground bg-card/30 p-4 rounded-lg text-center">
+                  No top artists data available at the moment.
+                </p>
+              )}
+            </>
+          )
+        }
+      </DataLoader>
       {/* </Suspense> */}
     </div>
   );
-}
+};
 TopArtists.displayName = 'TopArtists';
 export default TopArtists;

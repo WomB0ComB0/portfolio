@@ -14,17 +14,23 @@
  * limitations under the License.
  */
 
-'use client';
+"use client";
 
-import type { Marker } from '@googlemaps/markerclusterer';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
-import { AdvancedMarker, APIProvider, InfoWindow, Map, useMap } from '@vis.gl/react-google-maps';
-import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
-import { FaMapMarkerAlt } from 'react-icons/fa';
-import { MapStyles } from 'src/data/places';
-import { config } from '@/config';
-import type { PlaceItem } from '@/types/places';
+import type { Marker } from "@googlemaps/markerclusterer";
+import { MarkerClusterer } from "@googlemaps/markerclusterer";
+import {
+  AdvancedMarker,
+  APIProvider,
+  InfoWindow,
+  Map as VisGLMap,
+  useMap,
+} from "@vis.gl/react-google-maps";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { FaMapMarkerAlt } from "react-icons/fa";
+import { MapStyles } from "src/data/places";
+import { config } from "@/config";
+import type { PlaceItem } from "@/types/places";
 
 /**
  * Props for the GoogleMaps component.
@@ -63,7 +69,8 @@ export const GoogleMaps = ({ placesToDisplay }: GoogleMapsProps) => {
         <div className="p-4 text-center">
           <FaMapMarkerAlt className="mx-auto mb-2 h-12 w-12 text-muted-foreground" />
           <p className="text-muted-foreground">
-            Google Maps is not configured. Please add your API key to display the map.
+            Google Maps is not configured. Please add your API key to display
+            the map.
           </p>
         </div>
       </section>
@@ -73,20 +80,20 @@ export const GoogleMaps = ({ placesToDisplay }: GoogleMapsProps) => {
   return (
     <section className="relative h-[400px] w-full overflow-hidden rounded-lg md:h-[500px] lg:h-[600px]">
       <APIProvider apiKey={config.google.maps.apiKey}>
-        <Map
+        <VisGLMap
           defaultCenter={{ lat: 40.73061, lng: -73.935242 }}
           defaultZoom={4}
           mapId={config.google.maps.mapId}
-          gestureHandling={'greedy'}
+          gestureHandling={"greedy"}
           disableDefaultUI={true}
           styles={MapStyles}
         >
           <Markers placesToDisplay={placesToDisplay} />
-        </Map>
+        </VisGLMap>
       </APIProvider>
     </section>
   );
-}
+};
 
 /**
  * Props for the Markers component.
@@ -140,8 +147,8 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
               zIndex: 1000 + count,
             });
 
-            const clusterIcon = document.createElement('div');
-            clusterIcon.className = 'custom-cluster-icon';
+            const clusterIcon = document.createElement("div");
+            clusterIcon.className = "custom-cluster-icon";
             clusterIcon.style.cssText = `
               background-color: var(--primary);
               border: 2px solid var(--primary-foreground);
@@ -220,18 +227,27 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
       ))}
       {activeMarker &&
         (() => {
-          const activePlace = placesToDisplay.find((p) => p.id === activeMarker);
+          const activePlace = placesToDisplay.find(
+            (p) => p.id === activeMarker,
+          );
           if (!activePlace) return null;
 
           return (
             <InfoWindow
-              position={{ lat: activePlace.latitude, lng: activePlace.longitude }}
+              position={{
+                lat: activePlace.latitude,
+                lng: activePlace.longitude,
+              }}
               onCloseClick={() => setActiveMarker(null)}
               pixelOffset={[0, -30]}
             >
               <div className="max-w-xs rounded-lg border border-primary bg-card p-3 shadow-xl">
-                <h3 className="mb-1 text-md font-semibold text-primary">{activePlace.name}</h3>
-                <p className="mb-1 text-xs text-muted-foreground">{activePlace.category}</p>
+                <h3 className="mb-1 text-md font-semibold text-primary">
+                  {activePlace.name}
+                </h3>
+                <p className="mb-1 text-xs text-muted-foreground">
+                  {activePlace.category}
+                </p>
                 <p className="mb-2 line-clamp-3 text-sm text-foreground">
                   {activePlace.description}
                 </p>
@@ -250,7 +266,9 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
                     />
                   </div>
                 ) : (
-                  <p className="mt-1 text-xs text-muted-foreground">No photo available.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No photo available.
+                  </p>
                 )}
               </div>
             </InfoWindow>
@@ -259,7 +277,7 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
     </>
   );
 };
-Markers.displayName = 'Markers';
+Markers.displayName = "Markers";
 
-GoogleMaps.displayName = 'GoogleMaps';
+GoogleMaps.displayName = "GoogleMaps";
 export default GoogleMaps;

@@ -52,7 +52,7 @@ import { SiHashnode } from 'react-icons/si';
  * @example
  *   <Palette />
  */
-export default function Palette(): JSX.Element {
+export const Palette = (): JSX.Element => {
   return (
     <KBarPortal>
       <KBarPositioner className="z-50 select-none backdrop-blur bg-background/80 font-clash overflow-hidden">
@@ -66,7 +66,9 @@ export default function Palette(): JSX.Element {
       </KBarPositioner>
     </KBarPortal>
   );
-}
+};
+Palette.displayName = 'Palette';
+export default Palette;
 
 /**
  * @function RenderResults
@@ -119,7 +121,7 @@ function RenderResults(): JSX.Element {
  * @example
  *   <ResultItem action={action} active={isActive} currentRootActionId={rootId} ref={ref} />
  */
-const ResultItem = React.forwardRef(
+export const ResultItem = React.forwardRef(
   (
     {
       action,
@@ -219,5 +221,4 @@ const ResultItem = React.forwardRef(
     );
   },
 );
-
 ResultItem.displayName = 'ResultItem';

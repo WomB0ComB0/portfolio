@@ -14,23 +14,28 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
-import { constructMetadata } from '@/utils';
+import dynamic from "next/dynamic";
+import { constructMetadata } from "@/utils";
+import type { JSX } from "react";
 
 const Places = dynamic(
-  () => import('@/app/(routes)/(main)/places/_interface/places').then((mod) => mod.Places),
+  () =>
+    import("@/app/(routes)/(main)/places/_interface/places").then(
+      (mod) => mod.Places,
+    ),
   {
     ssr: true,
   },
 );
 
 export const metadata = constructMetadata({
-  title: 'Places',
-  description: 'Explore the locations I have visited, including hackathons, tech events, and more',
+  title: "Places",
+  description:
+    "Explore the locations I have visited, including hackathons, tech events, and more",
 });
 
-const PlacesPage = () => {
+const PlacesPage = (): JSX.Element => {
   return <Places />;
 };
-
+PlacesPage.displayName = "PlacesPage";
 export default PlacesPage;

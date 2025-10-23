@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 /**
  * @file Script to import resume certification data into Sanity CMS.
  * @description This script reads certification data from a local array and creates corresponding documents in a Sanity dataset.

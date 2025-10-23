@@ -158,7 +158,7 @@ const BlogSkeleton = (): JSX.Element => (
     <Skeleton className="w-64 h-10 mb-8 mx-auto" />
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {[...Array(6)].map((_, i) => (
-        <MagicCard key={i} className="h-full">
+        <MagicCard key={`blog-card-skeleton-${+i}`} className="h-full">
           <Card className="h-full">
             <CardHeader>
               <Skeleton className="h-6 w-11/12" />

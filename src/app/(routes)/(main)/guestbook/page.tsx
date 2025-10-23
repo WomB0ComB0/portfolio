@@ -15,6 +15,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { constructMetadata } from '@/utils';
 
 const Guestbook = dynamic(
@@ -37,7 +38,7 @@ export const metadata = constructMetadata({
  * @author Mike Odnis
  * @version 1.0.0
  */
-export const GuestbookPage = () => {
+const GuestbookPage = (): JSX.Element => {
   return <Guestbook />;
 };
 GuestbookPage.displayName = 'GuestbookPage';

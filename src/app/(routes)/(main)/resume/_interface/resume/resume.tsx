@@ -202,6 +202,6 @@ export const Resume = () => {
       </div>
     </Layout>
   );
-}
+};
 Resume.displayName = 'Resume';
 export default Resume;

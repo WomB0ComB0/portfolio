@@ -127,6 +127,6 @@ export const HomePage = () => {
       </div>
     </Layout>
   );
-}
+};
 HomePage.displayName = 'HomePage';
 export default HomePage;

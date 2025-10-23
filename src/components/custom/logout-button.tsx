@@ -19,7 +19,7 @@ import type { JSX } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSignOut } from '@/core/auth';
 
-export function LogoutButton(props: LogoutButtonProps): JSX.Element {
+export const LogoutButton = (props: LogoutButtonProps): JSX.Element => {
   const { ...other } = props;
   const [signOut, inFlight] = useSignOut();
   return (
@@ -35,5 +35,9 @@ export function LogoutButton(props: LogoutButtonProps): JSX.Element {
       </Button>
     </>
   );
-}
+};
+
+LogoutButton.displayName = 'LogoutButton';
+export default LogoutButton;
+
 export type LogoutButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'>;

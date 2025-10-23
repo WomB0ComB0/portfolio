@@ -92,7 +92,7 @@ interface BlurFadeProps {
  *   <h1>Animated Title Appears On Scroll</h1>
  * </BlurFade>
  */
-export default function BlurFade({
+export const BlurFade = ({
   children,
   className,
   variant,
@@ -102,7 +102,7 @@ export default function BlurFade({
   inView = false,
   inViewMargin = '-50px',
   blur = '6px',
-}: BlurFadeProps) {
+}: BlurFadeProps) => {
   const ref = useRef(null);
   const inViewResult = useInView(ref, { once: true, margin: inViewMargin });
   const isInView = !inView || inViewResult;
@@ -130,4 +130,7 @@ export default function BlurFade({
       </motion.div>
     </AnimatePresence>
   );
-}
+};
+BlurFade.displayName = 'BlurFade';
+
+export default BlurFade;

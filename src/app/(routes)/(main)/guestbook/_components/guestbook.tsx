@@ -355,6 +355,6 @@ export const GuestbookComponent = () => {
       </div>
     </section>
   );
-}
+};
 GuestbookComponent.displayName = 'GuestbookComponent';
 export default GuestbookComponent;

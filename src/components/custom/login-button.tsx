@@ -60,6 +60,8 @@ export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
     </Button>
   );
 };
+LoginButton.displayName = 'LoginButton';
+export default LoginButton;
 
 type LoginButtonProps = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {

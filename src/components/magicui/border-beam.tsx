@@ -115,3 +115,6 @@ export const BorderBeam = ({
     />
   );
 };
+BorderBeam.displayName = 'BorderBeam';
+
+export default BorderBeam;

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 /**
  * Script to import resume experience data into Sanity CMS.
  * This script connects to a Sanity project using an API token and creates new 'experience' documents.

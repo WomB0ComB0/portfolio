@@ -75,7 +75,7 @@ export const metadata = constructMetadata({
  * // Server component render:
  * <StatsPage />
  */
-export const StatsPage = (): JSX.Element => {
+const StatsPage = (): JSX.Element => {
   return <Stats />;
 };
 StatsPage.displayName = 'StatsPage';

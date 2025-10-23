@@ -117,78 +117,78 @@ export const NowPlaying = () => {
       <CardContent className="p-0 bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end">
         <div className="bg-gradient-to-br from-spotify-gradient-start to-spotify-gradient-end p-4 flex justify-between items-center gap-4">
           {/* <Suspense fallback={<NowPlayingSkeleton />}> */}
-            <DataLoader
-              url="/api/v1/now-playing"
-              schema={NowPlayingSchema}
-              staleTime={1000 * 60 * 60}
-              refetchInterval={1000 * 60 * 60}
-              refetchOnWindowFocus={false}
-              ErrorComponent={NowPlayingError}
-              LoadingComponent={<NowPlayingSkeleton />}
-            >
-              {
-                /**
-                 * The validated and fetched now playing data.
-                 * @param {NowPlayingSchemaType} data
-                 */
-                (data: Schema.Schema.Type<typeof NowPlayingSchema>) => (
-                  <>
-                    <div className="flex flex-col justify-between gap-2 flex-grow">
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className={`text-sm ${data.isPlaying ? 'text-success' : 'text-spotify-foreground'}`}
-                      >
-                        <SiSpotify className="inline-block mr-2 w-4 h-4" />
-                        {data.isPlaying ? 'Currently Playing' : 'Last Played'}
-                      </motion.p>
-                      <div className="flex flex-col gap-1">
-                        <Link
-                          href={data.songURL ?? '#'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-spotify-foreground hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
-                        >
-                          {data.songName ?? 'Unknown'}
-                        </Link>
-                        <Link
-                          href={data.songURL?.split('/').slice(0, 5).join('/') ?? '#'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-spotify-foreground/80 hover:text-spotify-foreground transition-colors duration-200 text-sm truncate"
-                        >
-                          {data.artistName ?? 'Unknown Artist'}
-                        </Link>
-                      </div>
-                    </div>
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="h-20 w-20 flex-shrink-0"
+          <DataLoader
+            url="/api/v1/now-playing"
+            schema={NowPlayingSchema}
+            staleTime={1000 * 60 * 60}
+            refetchInterval={1000 * 60 * 60}
+            refetchOnWindowFocus={false}
+            ErrorComponent={NowPlayingError}
+            LoadingComponent={<NowPlayingSkeleton />}
+          >
+            {
+              /**
+               * The validated and fetched now playing data.
+               * @param {NowPlayingSchemaType} data
+               */
+              (data: Schema.Schema.Type<typeof NowPlayingSchema>) => (
+                <>
+                  <div className="flex flex-col justify-between gap-2 flex-grow">
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className={`text-sm ${data.isPlaying ? 'text-success' : 'text-spotify-foreground'}`}
                     >
-                      {data.imageURL && (
-                        <Image
-                          className="rounded-lg object-cover shadow-lg"
-                          src={data.imageURL}
-                          alt={data.songName ?? 'Album cover'}
-                          width={80}
-                          height={80}
-                          priority={false}
-                          sizes="(max-width: 768px) 80px, 80px"
-                          placeholder="empty"
-                        />
-                      )}
-                    </motion.div>
-                  </>
-                )
-              }
-            </DataLoader>
+                      <SiSpotify className="inline-block mr-2 w-4 h-4" />
+                      {data.isPlaying ? 'Currently Playing' : 'Last Played'}
+                    </motion.p>
+                    <div className="flex flex-col gap-1">
+                      <Link
+                        href={data.songURL ?? '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-spotify-foreground hover:text-white transition-colors duration-200 text-lg font-semibold truncate"
+                      >
+                        {data.songName ?? 'Unknown'}
+                      </Link>
+                      <Link
+                        href={data.songURL?.split('/').slice(0, 5).join('/') ?? '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-spotify-foreground/80 hover:text-spotify-foreground transition-colors duration-200 text-sm truncate"
+                      >
+                        {data.artistName ?? 'Unknown Artist'}
+                      </Link>
+                    </div>
+                  </div>
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="h-20 w-20 flex-shrink-0"
+                  >
+                    {data.imageURL && (
+                      <Image
+                        className="rounded-lg object-cover shadow-lg"
+                        src={data.imageURL}
+                        alt={data.songName ?? 'Album cover'}
+                        width={80}
+                        height={80}
+                        priority={false}
+                        sizes="(max-width: 768px) 80px, 80px"
+                        placeholder="empty"
+                      />
+                    )}
+                  </motion.div>
+                </>
+              )
+            }
+          </DataLoader>
           {/* </Suspense> */}
         </div>
       </CardContent>
     </Card>
   );
-}
+};
 NowPlaying.displayName = 'NowPlaying';
 export default NowPlaying;

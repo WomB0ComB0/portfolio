@@ -73,15 +73,15 @@ export interface MagicCardProps extends React.HTMLAttributes<HTMLDivElement> {
  * @version 1.0.0
  * @public
  */
-export function MagicCard({
+export const MagicCard = ({
   children,
   className,
   gradientSize = 200,
   gradientColor = 'rgba(76, 29, 149, 0.15)',
   gradientOpacity = 0.8,
-}: MagicCardProps) {
+}: MagicCardProps) => {
   /**
-   * @readonly
+   * s@readonly
    * @type {import('motion').MotionValue<number>}
    * Reactive motion value for mouse X coordinate (relative to card)
    */
@@ -147,4 +147,7 @@ export function MagicCard({
       />
     </div>
   );
-}
+};
+MagicCard.displayName = 'MagicCard';
+
+export default MagicCard;

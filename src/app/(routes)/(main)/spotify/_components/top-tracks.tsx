@@ -114,67 +114,67 @@ export const TopTracks = () => {
         My most played tracks in the last 4 weeks.
       </p>
       {/* <Suspense fallback={<TopTracksSkeleton />}> */}
-        <DataLoader
-          url="/api/v1/top-tracks"
-          schema={TopTracksResponseSchema}
-          staleTime={1000 * 60 * 60}
-          refetchInterval={1000 * 60 * 60}
-          refetchOnWindowFocus={false}
-          ErrorComponent={TopTracksError}
-          LoadingComponent={<TopTracksSkeleton />}
-        >
-          {(data: Schema.Schema.Type<typeof TopTracksResponseSchema>) => (
-            <>
-              {data.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.map((track: Schema.Schema.Type<typeof TrackSchema>, index: number) => (
-                    /**
-                     * @private
-                     * @description Animates and displays an individual top track card.
-                     * @param {Schema.Schema.Type<typeof TrackSchema>} track - Top track info, including name, artist, url, and image.
-                     * @param {number} index - Index for animation transition delay.
-                     * @returns {JSX.Element}
-                     * @author Mike Odnis
-                     * @web
-                     */
-                    <motion.div
-                      key={index}
-                      className="flex items-center space-x-4 bg-card/60 rounded-lg p-3 cursor-pointer hover:bg-card/70 transition-all duration-300"
-                      onClick={() => window.open(track.url, '_blank')}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Image
-                        src={track.imageUrl}
-                        alt={`Album art for ${track.name} by ${track.artist}`}
-                        className="w-16 h-16 rounded-md shadow-md"
-                        width={64}
-                        height={64}
-                        priority={false}
-                        placeholder="empty"
-                        sizes="64px"
-                      />
-                      <div className="flex-grow overflow-hidden">
-                        <p className="text-foreground font-semibold truncate">{track.name}</p>
-                        <p className="text-muted-foreground text-sm truncate">{track.artist}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center">
-                  No top tracks data available at the moment.
-                </p>
-              )}
-            </>
-          )}
-        </DataLoader>
+      <DataLoader
+        url="/api/v1/top-tracks"
+        schema={TopTracksResponseSchema}
+        staleTime={1000 * 60 * 60}
+        refetchInterval={1000 * 60 * 60}
+        refetchOnWindowFocus={false}
+        ErrorComponent={TopTracksError}
+        LoadingComponent={<TopTracksSkeleton />}
+      >
+        {(data: Schema.Schema.Type<typeof TopTracksResponseSchema>) => (
+          <>
+            {data.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {data.map((track: Schema.Schema.Type<typeof TrackSchema>, index: number) => (
+                  /**
+                   * @private
+                   * @description Animates and displays an individual top track card.
+                   * @param {Schema.Schema.Type<typeof TrackSchema>} track - Top track info, including name, artist, url, and image.
+                   * @param {number} index - Index for animation transition delay.
+                   * @returns {JSX.Element}
+                   * @author Mike Odnis
+                   * @web
+                   */
+                  <motion.div
+                    key={index}
+                    className="flex items-center space-x-4 bg-card/60 rounded-lg p-3 cursor-pointer hover:bg-card/70 transition-all duration-300"
+                    onClick={() => window.open(track.url, '_blank')}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Image
+                      src={track.imageUrl}
+                      alt={`Album art for ${track.name} by ${track.artist}`}
+                      className="w-16 h-16 rounded-md shadow-md"
+                      width={64}
+                      height={64}
+                      priority={false}
+                      placeholder="empty"
+                      sizes="64px"
+                    />
+                    <div className="flex-grow overflow-hidden">
+                      <p className="text-foreground font-semibold truncate">{track.name}</p>
+                      <p className="text-muted-foreground text-sm truncate">{track.artist}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center">
+                No top tracks data available at the moment.
+              </p>
+            )}
+          </>
+        )}
+      </DataLoader>
       {/* </Suspense> */}
     </div>
   );
-}
+};
 TopTracks.displayName = 'TopTracks';
 export default TopTracks;

@@ -251,7 +251,10 @@ export const Sponsor = () => {
                 {isLoading ? (
                   <div className="grid grid-cols-1 gap-4 py-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     {[...Array(4)].map((_, i) => (
-                      <Card key={i} className="h-full w-full border-border bg-card">
+                      <Card
+                        key={`sponsor-card-skeleton-${+i}`}
+                        className="h-full w-full border-border bg-card"
+                      >
                         <CardContent className="p-4">
                           <div className="flex items-center gap-3">
                             <Skeleton className="h-12 w-12 rounded-full" />
@@ -338,7 +341,8 @@ export const Sponsor = () => {
                                       <div className="mt-1 flex items-center gap-2">
                                         <Heart className="h-3 w-3 text-accent" />
                                         <span className="text-xs text-accent">
-                                          ${sponsor.tier.monthlyPriceInDollars}/month
+                                          ${sponsor.tier.monthlyPriceInDollars}
+                                          /month
                                         </span>
                                       </div>
                                     )}

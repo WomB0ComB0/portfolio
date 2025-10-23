@@ -55,7 +55,7 @@ export const Loader: React.FC = () => {
         }
         .loader:before {
           position: absolute;
-          content: '';
+          content: "";
           width: calc(100% - 5px);
           height: calc(100% - 5px);
           background: #242424;
@@ -66,7 +66,7 @@ export const Loader: React.FC = () => {
         }
         .loader:after {
           position: absolute;
-          content: '';
+          content: "";
           z-index: -1;
           width: calc(100% + 10px);
           height: calc(100% + 10px);
@@ -107,3 +107,5 @@ export const Loader: React.FC = () => {
     </div>
   );
 };
+Loader.displayName = 'Loader';
+export default Loader;

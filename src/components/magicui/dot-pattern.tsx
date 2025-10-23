@@ -74,7 +74,7 @@ interface DotPatternProps {
  *   <DotPattern width={20} height={20} cr={1} className="text-gray-200/50" />
  * @version 1.0.0
  */
-export function DotPattern({
+export const DotPattern = ({
   width = 16,
   height = 16,
   x = 0,
@@ -83,7 +83,7 @@ export function DotPattern({
   cy = 1,
   cr = 0.5,
   className,
-}: DotPatternProps) {
+}: DotPatternProps) => {
   const id = useId();
   const [scrollPosition, setScrollPosition] = useState(0);
 
@@ -118,6 +118,7 @@ export function DotPattern({
       <rect width="100%" height="100%" fill={`url(#${id})`} />
     </svg>
   );
-}
+};
+DotPattern.displayName = 'DotPattern';
 
 export default DotPattern;

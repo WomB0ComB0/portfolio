@@ -15,6 +15,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { constructMetadata } from '@/utils';
 
 const BlogView = dynamic(
@@ -29,7 +30,7 @@ export const metadata = constructMetadata({
   description: 'Read my latest articles and thoughts on technology, software development, and more',
 });
 
-export const BlogPage = () => {
+const BlogPage = (): JSX.Element => {
   return <BlogView />;
 };
 BlogPage.displayName = 'BlogPage';

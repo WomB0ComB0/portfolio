@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-'use client';
+"use client";
 
-import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
-import Link from 'next/link';
-import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
-import Layout from '@/components/layout/layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { usePlaces } from '@/hooks/sanity/use-sanity-query';
-import { urlFor } from '@/lib/sanity/client';
-import type { SanityImage } from '@/lib/sanity/types';
-import { cn } from '@/lib/utils';
+import { AnimatePresence, motion, useMotionValue } from "framer-motion";
+import Link from "next/link";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from "react-icons/fi";
+import Layout from "@/components/layout/layout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePlaces } from "@/hooks/sanity/use-sanity-query";
+import { urlFor } from "@/lib/sanity/client";
+import type { SanityImage } from "@/lib/sanity/types";
+import { cn } from "@/lib/utils";
 
 interface PhotoModalProps {
   params: Promise<{
@@ -65,7 +65,7 @@ const variants = {
   },
 };
 
-export default function PlacePhotosPage({ params }: PhotoModalProps) {
+const PlacePhotosPage = ({ params }: PhotoModalProps) => {
   const { placeId } = use(params);
   const { data: sanityPlaces, isLoading } = usePlaces();
   const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
@@ -84,12 +84,15 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
     [sanityPlaces, placeId],
   );
 
-  const photos = useMemo(() => (place?.photos || []) as PhotoWithCaption[], [place]);
+  const photos = useMemo(
+    () => (place?.photos || []) as PhotoWithCaption[],
+    [place],
+  );
 
   const currentPhoto = photos[currentPhotoIndex];
   const imageUrl = currentPhoto?.asset
     ? urlFor(currentPhoto.asset).width(1600).height(1200).url()
-    : '';
+    : "";
 
   const paginate = useCallback(
     (newDirection: number) => {
@@ -120,8 +123,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
   const handleZoomIn = useCallback(() => {
@@ -196,7 +200,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
             <CardContent className="flex flex-col items-center gap-6 p-12 text-center">
               <div className="space-y-3">
                 <h2 className="text-2xl font-bold">No Photos Available</h2>
-                <p className="text-muted-foreground">This place doesn't have any photos yet.</p>
+                <p className="text-muted-foreground">
+                  This place doesn't have any photos yet.
+                </p>
               </div>
               <Link href="/places">
                 <Button variant="outline" size="lg">
@@ -223,9 +229,13 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
             <CardHeader className="space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 space-y-2">
-                  <h1 className="text-3xl md:text-4xl font-bold">{place.name}</h1>
+                  <h1 className="text-3xl md:text-4xl font-bold">
+                    {place.name}
+                  </h1>
                   {place.description && (
-                    <p className="text-muted-foreground leading-relaxed">{place.description}</p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {place.description}
+                    </p>
                   )}
                 </div>
                 <Link href="/places">
@@ -245,7 +255,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                   <span className="font-medium">
                     Photo {currentPhotoIndex + 1} of {photos.length}
                   </span>
-                  <span className="text-xs opacity-70">← Drag to navigate →</span>
+                  <span className="text-xs opacity-70">
+                    ← Drag to navigate →
+                  </span>
                 </div>
               )}
             </CardHeader>
@@ -254,8 +266,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
               <div
                 ref={fullscreenRef}
                 className={cn(
-                  'relative w-full aspect-[16/9] bg-muted rounded-lg overflow-hidden',
-                  isFullscreen && 'fixed inset-0 z-50 bg-black rounded-none aspect-auto',
+                  "relative w-full aspect-[16/9] bg-muted rounded-lg overflow-hidden",
+                  isFullscreen &&
+                    "fixed inset-0 z-50 bg-black rounded-none aspect-auto",
                 )}
               >
                 <AnimatePresence initial={false} custom={direction}>
@@ -267,10 +280,10 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                     animate="center"
                     exit="exit"
                     transition={{
-                      x: { type: 'spring', stiffness: 300, damping: 30 },
+                      x: { type: "spring", stiffness: 300, damping: 30 },
                       opacity: { duration: 0.2 },
                     }}
-                    drag={zoom === 1 && photos.length > 1 ? 'x' : false}
+                    drag={zoom === 1 && photos.length > 1 ? "x" : false}
                     dragConstraints={{ left: 0, right: 0 }}
                     dragElastic={1}
                     onDragEnd={(_e, { offset, velocity }) => {
@@ -290,9 +303,11 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                       <div
                         ref={containerRef}
                         className={cn(
-                          'w-full h-full select-none flex items-center justify-center',
-                          zoom > 1 && 'cursor-move',
-                          zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
+                          "w-full h-full select-none flex items-center justify-center",
+                          zoom > 1 && "cursor-move",
+                          zoom === 1 &&
+                            photos.length > 1 &&
+                            "cursor-grab active:cursor-grabbing",
                         )}
                         onPointerDown={handlePanStart}
                         onPointerUp={handlePanEnd}
@@ -302,7 +317,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                         <motion.img
                           ref={imageRef}
                           src={imageUrl}
-                          alt={currentPhoto?.caption || `Photo of ${place.name}`}
+                          alt={
+                            currentPhoto?.caption || `Photo of ${place.name}`
+                          }
                           className="object-contain max-w-full max-h-full"
                           style={{
                             scale: zoom,
@@ -314,7 +331,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                       </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <p className="text-muted-foreground">No image available</p>
+                        <p className="text-muted-foreground">
+                          No image available
+                        </p>
                       </div>
                     )}
                   </motion.div>
@@ -357,7 +376,9 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                         variant="secondary"
                         onClick={toggleFullscreen}
                         className="shadow-lg"
-                        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                        aria-label={
+                          isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
+                        }
                       >
                         {isFullscreen ? (
                           <FiX className="h-4 w-4" />
@@ -387,8 +408,8 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
               {photos.length > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-2">
                   {photos.map((_, index) => (
-                    <button
-                      key={index}
+                    <Button
+                      key={`${+index}`}
                       onClick={() => {
                         const newDirection = index > currentPhotoIndex ? 1 : -1;
                         setPage([index, newDirection]);
@@ -397,10 +418,10 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
                         zoomY.set(0);
                       }}
                       className={cn(
-                        'h-2 rounded-full transition-all',
+                        "h-2 rounded-full transition-all",
                         index === currentPhotoIndex
-                          ? 'w-8 bg-primary'
-                          : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                          ? "w-8 bg-primary"
+                          : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50",
                       )}
                       aria-label={`Go to photo ${index + 1}`}
                     />
@@ -413,4 +434,6 @@ export default function PlacePhotosPage({ params }: PhotoModalProps) {
       </motion.div>
     </Layout>
   );
-}
+};
+PlacePhotosPage.displayName = "PlacePhotosPage";
+export default PlacePhotosPage;

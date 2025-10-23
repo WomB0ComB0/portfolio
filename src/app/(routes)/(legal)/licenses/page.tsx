@@ -77,9 +77,9 @@ export const metadata = constructMetadata({
  *   return <Licenses />;
  * }
  */
-export const LicensesPage = (): JSX.Element => {
+const LicensesPage = (): JSX.Element => {
   return <Licenses />;
-}
+};
 
 LicensesPage.displayName = 'LicensesPage';
 export default LicensesPage;

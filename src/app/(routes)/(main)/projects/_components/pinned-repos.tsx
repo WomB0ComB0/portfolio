@@ -61,10 +61,7 @@ interface PinnedReposProps {
  * @see https://github.com/WomB0ComB0/portfolio
  * @public
  */
-export const PinnedRepos = ({
-  pinnedRepos,
-  isLoading = false,
-}: PinnedReposProps): JSX.Element => {
+export const PinnedRepos = ({ pinnedRepos, isLoading = false }: PinnedReposProps): JSX.Element => {
   return (
     <section className="w-full max-w-4xl mb-10 px-4 sm:px-6 lg:px-8">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-primary">Pinned Projects</h2>
@@ -158,6 +155,6 @@ export const PinnedRepos = ({
       </div>
     </section>
   );
-}
+};
 PinnedRepos.displayName = 'PinnedRepos';
 export default PinnedRepos;

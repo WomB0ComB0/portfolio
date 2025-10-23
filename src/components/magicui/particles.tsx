@@ -148,7 +148,7 @@ function hexToRgb(hex: string): number[] {
  * @example
  *   <Particles quantity={75} color="#560BAD" className="h-96 w-full" />
  */
-const Particles: React.FC<ParticlesProps> = ({
+export const Particles: React.FC<ParticlesProps> = ({
   className = '',
   quantity = 100,
   staticity = 50,
@@ -445,5 +445,6 @@ const Particles: React.FC<ParticlesProps> = ({
     </div>
   );
 };
+Particles.displayName = 'Particles';
 
 export default Particles;

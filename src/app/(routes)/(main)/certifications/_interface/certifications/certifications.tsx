@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import Layout from '@/components/layout/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import type { Certification } from '@/lib/sanity/types';
@@ -72,7 +73,10 @@ const CertificationCardSkeleton = () => {
           <div className="h-4 bg-muted animate-pulse rounded w-24 mb-2" />
           <div className="flex flex-wrap gap-2">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-6 w-16 bg-muted animate-pulse rounded-full" />
+              <div
+                key={`skill-skeleton-card-${+i}`}
+                className="h-6 w-16 bg-muted animate-pulse rounded-full"
+              />
             ))}
           </div>
         </div>
@@ -105,7 +109,7 @@ const CertificationsPageSkeleton = () => {
 
       {/* Section skeleton */}
       {[...Array(2)].map((_, sectionIdx) => (
-        <section key={sectionIdx} className="mb-12">
+        <section key={`skills-section-card-${+sectionIdx}`} className="mb-12">
           <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border">
             <div className="h-1 w-12 bg-muted animate-pulse rounded" />
             <div className="h-8 bg-muted animate-pulse rounded w-48" />
@@ -113,7 +117,7 @@ const CertificationsPageSkeleton = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(3)].map((_, i) => (
-              <CertificationCardSkeleton key={i} />
+              <CertificationCardSkeleton key={`skills-section-certification-card-${+i}`} />
             ))}
           </div>
         </section>

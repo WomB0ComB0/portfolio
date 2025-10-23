@@ -180,6 +180,6 @@ export const Discord = () => {
       </DataLoader>
     </Suspense>
   );
-}
+};
 Discord.displayName = 'Discord';
 export default Discord;

@@ -96,50 +96,41 @@ export function constructMetadata({
       images: [{ url: image }],
       videos: [
         {
-          url: ogVideo,              // -> <meta property="og:video" ...>
-          secureUrl: ogVideo,        // -> og:video:secure_url
-          type: ogVideoType,         // -> og:video:type
-          width: ogVideoWidth,       // -> og:video:width
-          height: ogVideoHeight,     // -> og:video:height
+          url: ogVideo, // -> <meta property="og:video" ...>
+          secureUrl: ogVideo, // -> og:video:secure_url
+          type: ogVideoType, // -> og:video:type
+          width: ogVideoWidth, // -> og:video:width
+          height: ogVideoHeight, // -> og:video:height
         },
       ],
     },
-    // ---- X / Twitter (switch to Player Card) ----
     twitter: {
       card: 'player',
       title,
       description,
-      images: [twitter], // poster used where iframes aren’t supported
+      images: [twitter],
       creator: '@mike_odnis',
     },
-    // Player-specific tags (ensure they appear as <meta name="twitter:*">)
-    other: {
-      'twitter:player': twitterPlayer,
-      'twitter:player:width': String(twitterPlayerWidth),
-      'twitter:player:height': String(twitterPlayerHeight),
-      ...(twitterPlayerStream && {
-        'twitter:player:stream': twitterPlayerStream,
-      }),
-    },
-    icons: [{ url: icons, href: icons }],
-    category: 'technology',
-    manifest: '/manifest.webmanifest',
-    metadataBase: new URL(app.url),
-    keywords: [...app.keywords],
     other: {
       ...(twitterPlayer && {
         'twitter:player': twitterPlayer,
         'twitter:player:width': String(twitterPlayerWidth),
         'twitter:player:height': String(twitterPlayerHeight),
       }),
-      ...(twitterPlayerStream && { 'twitter:player:stream': twitterPlayerStream }),
+      ...(twitterPlayerStream && {
+        'twitter:player:stream': twitterPlayerStream,
+      }),
       currentYear: new Date().getFullYear(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
+    icons: [{ url: icons, href: icons }],
+    category: 'technology',
+    manifest: '/manifest.webmanifest',
+    metadataBase: new URL(app.url),
+    keywords: [...app.keywords],
     ...(noIndex && { robots: { index: false, follow: false } }),
   };
 }
-
 
 /**
  * Constructs a viewport object containing responsive and accessibility-related viewport settings for web browsers.

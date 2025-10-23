@@ -60,3 +60,5 @@ export const TransitionAnimation = ({ children }: { children: React.ReactNode })
     </motion.div>
   );
 };
+TransitionAnimation.displayName = 'TransitionAnimation';
+export default TransitionAnimation;

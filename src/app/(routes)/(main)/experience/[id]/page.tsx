@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { getExperiences } from '@/lib/sanity/api';
 import { constructMetadata, logger } from '@/utils';
 
@@ -87,7 +89,11 @@ export async function generateStaticParams() {
  * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata
  * @version 1.0.0
  */
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
 
   try {
@@ -132,7 +138,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/page
  * @version 1.0.0
  */
-export const ExperienceDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+const ExperienceDetailPage = async ({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<JSX.Element> => {
   const resolvedParams = await params;
   return <ExperienceDetail params={resolvedParams} />;
 };

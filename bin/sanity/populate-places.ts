@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 /**
  * Script to import existing places data into Sanity CMS.
  * This script reads place information from a predefined dataset and creates corresponding documents in a Sanity.io project.

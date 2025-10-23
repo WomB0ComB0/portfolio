@@ -84,7 +84,7 @@ const GitHubStatsSchema = Schema.Struct({
  * @example
  * <GitHubStats />
  */
-export const GitHubStats =  memo(() => {
+export const GitHubStats = memo(() => {
   /**
    * @async
    * @private

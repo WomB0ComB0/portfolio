@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { useMarkAllInboxNotificationsAsRead } from '@liveblocks/react';
 import { cn } from '@/lib/utils';
 import {
   GitHubForkIcon as GitHubFork,
@@ -73,5 +74,4 @@ export const Icons: IconsProps = {
     ),
   },
 };
-
 export default Icons;

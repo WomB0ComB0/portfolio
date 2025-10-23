@@ -15,6 +15,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { constructMetadata } from '@/utils';
 
 /**
@@ -74,9 +75,9 @@ export const metadata = constructMetadata({
  *   return <Cookies />;
  * }
  */
-export const CookiesPage = () => {
+const CookiesPage = (): JSX.Element => {
   return <Cookies />;
-}
+};
 
 CookiesPage.displayName = 'CookiesPage';
 export default CookiesPage;

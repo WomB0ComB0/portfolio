@@ -63,5 +63,5 @@ export const metadata = constructMetadata({
 const SponsorPage = () => {
   return <Sponsor />;
 };
-
+SponsorPage.displayName = 'SponsorPage';
 export default SponsorPage;

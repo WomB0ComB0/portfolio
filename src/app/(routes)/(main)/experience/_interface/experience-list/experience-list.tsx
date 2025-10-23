@@ -81,7 +81,7 @@ const ExperienceListSkeleton = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {[...Array(4)].map((_, i) => (
-          <ExperienceCardSkeleton key={i} />
+          <ExperienceCardSkeleton key={`${+i}`} />
         ))}
       </div>
     </>

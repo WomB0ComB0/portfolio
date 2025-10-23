@@ -18,7 +18,7 @@
 
 import { usePathname } from 'next/navigation';
 import Palette from '@/components/cmd';
-import { LightRays } from '@/components/ui/light-rays';
+import { LightRays } from '@/components/magicui/light-rays';
 import { LiveBlocksProvider } from '@/providers/core';
 import { Footer, MobileNavBar, NavBar } from '.';
 
@@ -45,11 +45,11 @@ import { Footer, MobileNavBar, NavBar } from '.';
  * @web
  * @version 2.0.0
  */
-export default function Layout({
+export const Layout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>) => {
   const pathname = usePathname();
   return (
     <LiveBlocksProvider>
@@ -73,4 +73,6 @@ export default function Layout({
       </div>
     </LiveBlocksProvider>
   );
-}
+};
+Layout.displayName = 'Layout';
+export default Layout;

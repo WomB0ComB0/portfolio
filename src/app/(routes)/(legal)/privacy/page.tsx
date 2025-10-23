@@ -15,6 +15,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { constructMetadata } from '@/utils';
 
 /**
@@ -76,9 +77,9 @@ export const metadata = constructMetadata({
  *   return <Privacy />;
  * }
  */
-export const PrivacyPage = () => {
+const PrivacyPage = (): JSX.Element => {
   return <Privacy />;
-}
+};
 
 PrivacyPage.displayName = 'PrivacyPage';
 export default PrivacyPage;

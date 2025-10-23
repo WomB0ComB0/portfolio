@@ -15,6 +15,7 @@
  */
 
 import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
 import { constructMetadata } from '@/utils';
 
 const ExperienceList = dynamic(
@@ -32,7 +33,7 @@ export const metadata = constructMetadata({
   description: 'Explore my professional work experience and career journey',
 });
 
-export const ExperiencePage = () => {
+const ExperiencePage = (): JSX.Element => {
   return <ExperienceList />;
 };
 ExperiencePage.displayName = 'ExperiencePage';

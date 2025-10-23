@@ -21,7 +21,7 @@ import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
-export default function NumberTicker({
+export const NumberTicker = ({
   value,
   direction = 'up',
   delay = 0,
@@ -33,7 +33,7 @@ export default function NumberTicker({
   className?: string;
   delay?: number; // delay in s
   decimalPlaces?: number;
-}) {
+}) => {
   const ref = useRef<HTMLSpanElement>(null);
   const motionValue = useMotionValue(direction === 'down' ? value : 0);
   const springValue = useSpring(motionValue, {
@@ -71,4 +71,7 @@ export default function NumberTicker({
       ref={ref}
     />
   );
-}
+};
+NumberTicker.displayName = 'NumberTicker';
+
+export default NumberTicker;
