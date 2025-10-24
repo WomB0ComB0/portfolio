@@ -52,6 +52,7 @@ const convertSanityPlaceToPlaceItem = (sanityPlace: any): PlaceItem => {
     })),
   };
 };
+};
 
 /**
  * Skeleton loader for place cards
@@ -249,3 +250,4 @@ export const Places = () => {
 };
 Places.displayName = "Places";
 export default Places;
+

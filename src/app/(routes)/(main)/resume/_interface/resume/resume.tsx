@@ -30,7 +30,7 @@ import { type Resume as ResumeType, useSanityResume } from '@/hooks';
  * Handles loading states (with skeleton), error states (with error messaging), and main content.
  * Serves as the principal resume interface for the portfolio project.
  *
- * @function
+ * @functionhttps://cdn.builder.io/api/v1/image/assets%2F0b9e002c2ba04655a10a2d191e448df9%2Ffe61ae53697f4dc1a1ee15336f82cf29
  * @public
  * @web
  * @author Mike Odnis

@@ -84,7 +84,10 @@ export function constructMetadata({
   twitterPlayerStream?: string;
 } = {}): Metadata {
   return {
-    title: { default: title, template: `${title} - %s` },
+    title: {
+      default: title,
+      template: `${title} - %s`,
+    },
     description,
     openGraph: {
       title,
@@ -96,11 +99,11 @@ export function constructMetadata({
       images: [{ url: image }],
       videos: [
         {
-          url: ogVideo, // -> <meta property="og:video" ...>
-          secureUrl: ogVideo, // -> og:video:secure_url
-          type: ogVideoType, // -> og:video:type
-          width: ogVideoWidth, // -> og:video:width
-          height: ogVideoHeight, // -> og:video:height
+          url: ogVideo,
+          secureUrl: ogVideo,
+          type: ogVideoType,
+          width: ogVideoWidth,
+          height: ogVideoHeight,
         },
       ],
     },
@@ -108,6 +111,7 @@ export function constructMetadata({
       card: 'player',
       title,
       description,
+      images: [twitter],
       images: [twitter],
       creator: '@mike_odnis',
     },
@@ -117,9 +121,7 @@ export function constructMetadata({
         'twitter:player:width': String(twitterPlayerWidth),
         'twitter:player:height': String(twitterPlayerHeight),
       }),
-      ...(twitterPlayerStream && {
-        'twitter:player:stream': twitterPlayerStream,
-      }),
+      ...(twitterPlayerStream && { 'twitter:player:stream': twitterPlayerStream }),
       currentYear: new Date().getFullYear(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
