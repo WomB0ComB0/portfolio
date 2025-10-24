@@ -1,14 +1,9 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended", // sensible defaults
-    "schedule:weekly", // run weekly by default
-    ":semanticCommits" // chore(deps): ...
-  ],
+  "extends": ["config:recommended", ":semanticCommits"],
   "timezone": "America/New_York",
   "osvVulnerabilityAlerts": true,
   "prHourlyLimit": 6,
-  "rangeStrategy": "auto", // keep ranges unless needed to pin
+  "rangeStrategy": "auto",
   "labels": ["dependencies"],
   "dependencyDashboard": true,
   "enabledManagers": ["npm", "bun", "github-actions", "dockerfile"],
@@ -27,13 +22,13 @@
     },
     {
       "matchManagers": ["npm", "bun"],
-      "matchPackagePatterns": ["^@types/"],
-      "groupName": "types"
+      "groupName": "types",
+      "matchPackagePatterns": ["^@types/"]
     },
     {
       "matchManagers": ["npm", "bun"],
-      "matchPackagePatterns": ["^eslint", "^@eslint/", "^prettier"],
-      "groupName": "linting"
+      "groupName": "linting",
+      "matchPackagePatterns": ["^eslint", "^@eslint/", "^prettier"]
     },
     {
       "matchManagers": ["npm", "bun"],
