@@ -16,16 +16,17 @@
 
 'use client';
 
-import { ArrowLeft, ExternalLink, Github } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import type { JSX } from 'react';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDatePeriod, formatMonthYear } from '@/utils';
+import { ArrowLeft, ExternalLink, Github } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import type { JSX } from 'react';
+import { DraggableGallery } from "../../_components";
 
 interface ProjectDetailProps {
   params: { id: string };
@@ -229,25 +230,16 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
 
           {/* Gallery */}
           {project.images && project.images.length > 0 && (
-            <div className="mb-12">
-              <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-6">Gallery</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {project.images.map((img: any, index: number) => (
-                  <div
-                    key={index}
-                    className="relative aspect-video rounded-lg overflow-hidden bg-card"
-                  >
-                    <Image
-                      src={urlFor(img).width(1200).height(675).url() || '/placeholder.svg'}
-                      alt={img.alt || `${project.title} screenshot ${index + 1}`}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-4">
+            <h3 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+              <div className="h-1 w-8 bg-primary rounded" />
+              Gallery
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Hover over any image to view it in full screen. Drag to browse through the gallery.
+            </p>
+            <DraggableGallery images={project.images} className="mb-4" /> 
+          </div>
           )}
         </div>
       </div>

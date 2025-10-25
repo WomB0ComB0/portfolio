@@ -34,6 +34,7 @@
   display: none;
 }
 
+/*
 .flare {
   position: fixed;
   border: 2px solid #560bad;
@@ -47,7 +48,6 @@
   transition:
     width 0.2s ease-in-out,
     height 0.2s ease-in-out;
-  cursor: none !important;
 }
 
 @media screen and (width <= 768px) {
@@ -70,6 +70,7 @@
     height 0.2s ease-in-out,
     opacity 0.2s ease-in-out;
 }
+*/
 
 .loader {
   width: 400px;
@@ -148,15 +149,15 @@
 
 /* Updated to deep purple color scheme inspired by reference design */
 :root {
-  --background: oklch(27% 0 0deg);
-  --foreground: oklch(88% 0.09 285deg);
+  --background: oklch(20% 0 0deg);
+  --foreground: oklch(95% 0.05 285deg);
   --card: oklch(30% 0 0deg);
   --card-foreground: oklch(88% 0.09 285deg);
   --popover: oklch(30% 0 0deg);
   --popover-foreground: oklch(88% 0.09 285deg);
-  --primary: oklch(76% 0.12 285deg);
+  --primary: oklch(60% 0.15 285deg);
   --primary-foreground: oklch(27% 0 0deg);
-  --secondary: oklch(47.874% 0.18005 284.969deg);
+  --secondary: oklch(40% 0.2 285deg);
   --secondary-foreground: oklch(88% 0.09 285deg);
   --muted: oklch(48% 0.18 285deg);
   --muted-foreground: oklch(76% 0.12 285deg);
@@ -184,15 +185,15 @@
 }
 
 .dark {
-  --background: oklch(27% 0 0deg);
-  --foreground: oklch(88% 0.09 285deg);
+  --background: oklch(20% 0 0deg);
+  --foreground: oklch(95% 0.05 285deg);
   --card: oklch(30% 0 0deg);
   --card-foreground: oklch(88% 0.09 285deg);
   --popover: oklch(30% 0 0deg);
   --popover-foreground: oklch(88% 0.09 285deg);
-  --primary: oklch(76% 0.12 285deg);
+  --primary: oklch(60% 0.15 285deg);
   --primary-foreground: oklch(27% 0 0deg);
-  --secondary: oklch(48% 0.18 285deg);
+  --secondary: oklch(40% 0.2 285deg);
   --secondary-foreground: oklch(88% 0.09 285deg);
   --muted: oklch(48% 0.18 285deg);
   --muted-foreground: oklch(76% 0.12 285deg);

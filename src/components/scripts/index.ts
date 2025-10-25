@@ -14,22 +14,7 @@
  * limitations under the License.
  */
 
-'use client';
-
-import { useEffect } from 'react';
-
-/**
- * Hook to handle cursor initialization after hydration
- * This prevents hydration mismatches by deferring cursor logic to client-side
- */
-export function useCursorFix() {
-  useEffect(() => {
-    // Simply mark that hydration is complete
-    // The CustomAnimatedCursor component handles its own mounting logic
-    document.body.classList.add('cursor-initialized');
-
-    return () => {
-      document.body.classList.remove('cursor-initialized');
-    };
-  }, []);
-}
+export * from './analytics-scripts';
+export * from './speculation-rules';
+export * from './structured-data';
+export * from './view-transitions';

@@ -16,12 +16,12 @@
 
 'use client';
 
-import { Briefcase, Github, Home, Linkedin, Mail } from 'lucide-react';
-import Image from 'next/image';
-import { SiGooglescholar } from 'react-icons/si';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { app } from '@/constants';
+import { Briefcase, Github, Linkedin, Mail } from 'lucide-react';
+import Image from 'next/image';
+import { SiGooglescholar } from 'react-icons/si';
 
 export const HomePage = () => {
   return (
@@ -50,11 +50,11 @@ export const HomePage = () => {
                 Software Developer & Computer Science Student
               </p>
               <p className="text-base text-foreground leading-relaxed mb-8 max-w-2xl">
-                I am a passionate and driven undergraduate Computer Science student specializing in
-                full-stack web development. My journey in technology is fueled by a desire to build
-                beautiful, intuitive, and high-performance applications. As a first-generation
-                student, I continuously strive to learn and grow while seeking opportunities to
-                contribute to innovative projects.
+                I am a results-oriented Software Engineer and Computer Science student with a strong
+                passion for building robust, scalable, and user-centric applications. Specializing
+                in full-stack development, I leverage modern technologies to solve complex problems
+                and deliver high-quality solutions. I am driven by innovation and committed to
+                continuous learning and growth.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>

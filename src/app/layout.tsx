@@ -20,7 +20,12 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { GlobalProvider } from '@/app/_providers';
-import { Scripts } from '@/scripts';
+import {
+  AnalyticsScripts,
+  SpeculationRules,
+  StructuredData,
+  ViewTransitions,
+} from '@/components/scripts';
 import { constructMetadata, constructViewport } from '@/utils';
 
 export const metadata = constructMetadata();
@@ -86,6 +91,7 @@ const kodchasanFont = localFont({
 
 export const RootLayout = async ({ children }: { children: React.ReactNode }) => {
   const headersList = await headers();
+  const nonce = headersList.get('x-nonce') || undefined;
   const pathname = headersList.get('x-url') || '';
   return (
     <html
@@ -109,21 +115,12 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
         <meta name="geo.region" content="US" />
         <meta name="geo.placename" content="New York, NY" />
 
-        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://www.google-analytics.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://www.google.com" crossOrigin="anonymous" />
-
-        <Scripts />
+        <AnalyticsScripts nonce={nonce} />
+        <SpeculationRules nonce={nonce} />
+        <StructuredData nonce={nonce} />
+        <ViewTransitions />
       </head>
       <body suppressHydrationWarning>
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-NL4XDQ2B"
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-          ></iframe>
-        </noscript>
         <GlobalProvider>
           {children}
           <SpeedInsights />

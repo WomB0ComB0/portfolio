@@ -65,7 +65,7 @@ export const Layout = ({
             </div>
           </div>
           <Footer />
-          <LightRays />
+          <LightRays count={3} blur={10} />
         </main>
         <div className="fixed bottom-0 left-0 right-0 z-50 block lg:hidden md:hidden">
           <MobileNavBar path={pathname ?? ''} />

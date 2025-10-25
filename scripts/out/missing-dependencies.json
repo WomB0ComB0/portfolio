@@ -1,0 +1,62 @@
+{
+  "@opentelemetry/exporter-trace-otlp-proto": [
+    "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/constants/index.ts"
+  ],
+  "@opentelemetry/sdk-trace-base": [
+    "/home/wombocombo/github/prs/portfolio/src/instrumentation.ts"
+  ],
+  "@opentelemetry/sdk-trace-node": [
+    "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/constants/index.ts"
+  ],
+  "@opentelemetry/semantic-conventions": [
+    "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/constants/index.ts"
+  ],
+  "@total-typescript/ts-reset": [
+    "/home/wombocombo/github/prs/portfolio/reset.d.ts"
+  ],
+  "@upstash/redis": [
+    "/home/wombocombo/github/prs/portfolio/src/classes/redis.ts"
+  ],
+  "bun": [
+    "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/shared/config.ts",
+    "/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts",
+    "/home/wombocombo/github/prs/portfolio/scripts/cleanup.ts"
+  ],
+  "effect": [
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/now-playing/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/blog/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/messages/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/lanyard/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/top-tracks/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/wakatime/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/top-artists/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/api/v1/[[...route]]/github-stats/handlers.ts",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/blog/_components/blog.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/guestbook/_components/guestbook.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/spotify/_components/top-tracks.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/spotify/_components/now-playing.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/spotify/_components/top-artists.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(dev)/stats/_components/github-stats.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(dev)/stats/_components/stats.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(dev)/stats/_components/discord.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/classes/error.ts",
+    "/home/wombocombo/github/prs/portfolio/src/providers/server/effect-data-loader.tsx",
+    "/home/wombocombo/github/prs/portfolio/src/lib/api-integrations/github-sponsors.ts",
+    "/home/wombocombo/github/prs/portfolio/src/lib/api-integrations/blogs.ts",
+    "/home/wombocombo/github/prs/portfolio/src/lib/api-integrations/get-repos.ts",
+    "/home/wombocombo/github/prs/portfolio/src/lib/api-integrations/spotify.ts",
+    "/home/wombocombo/github/prs/portfolio/src/lib/http-clients/effect-fetcher.ts",
+    "/home/wombocombo/github/prs/portfolio/src/hooks/use-messages.ts",
+    "/home/wombocombo/github/prs/portfolio/src/hooks/use-github-sponsors.ts",
+    "/home/wombocombo/github/prs/portfolio/src/hooks/sanity/use-sanity-query.ts",
+    "/home/wombocombo/github/prs/portfolio/src/hooks/sanity/config.ts",
+    "/home/wombocombo/github/prs/portfolio/src/hooks/sanity/schemas.ts",
+    "/home/wombocombo/github/prs/portfolio/src/__tests__/type-check.ts"
+  ],
+  "sharp": [
+    "/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts"
+  ],
+  "src": [
+    "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/places/_components/map.tsx"
+  ]
+}

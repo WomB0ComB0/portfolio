@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
 import { MagicCard } from '@/components/magicui';
@@ -36,6 +37,7 @@ import { DataLoader } from '@/providers/server/effect-data-loader';
  * @property {string} slug - The unique slug identifier for the blog post.
  * @property {string} publishedAt - Date string indicating when the post was published.
  * @property {string} excerpt - Short excerpt or summary of the blog post.
+ * @property {string} [imageUrl] - Optional URL for the blog post's main image.
  * @author Mike Odnis
  * @see https://github.com/WomB0ComB0/portfolio
  * @version 1.0.0
@@ -47,6 +49,7 @@ const BlogPostSchema = Schema.Struct({
   slug: Schema.String,
   publishedAt: Schema.String,
   excerpt: Schema.String,
+  imageUrl: Schema.optional(Schema.String),
 });
 
 /**
@@ -114,6 +117,17 @@ export const Blog = (): JSX.Element => {
                       target="_blank"
                     >
                       <MagicCard className="h-full transition-shadow hover:shadow-lg">
+                        {blog.imageUrl && (
+                          <div className="relative w-full h-48 mb-4">
+                            <Image
+                              src={blog.imageUrl}
+                              alt={blog.title}
+                              fill
+                              className="object-cover rounded-t-lg"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            />
+                          </div>
+                        )}
                         <CardHeader>
                           <CardTitle className="line-clamp-2">{blog.title}</CardTitle>
                         </CardHeader>

@@ -19,7 +19,6 @@ import { Effect, pipe, Schema } from 'effect';
 import { config } from '@/config';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
-import 'server-only';
 
 /**
  * GraphQL query for fetching user blog posts from Hashnode.
@@ -37,6 +36,7 @@ const query = `
             slug
             publishedAt
             brief
+            coverImage { url }
           }
         }
       }
@@ -59,6 +59,7 @@ export const BlogSchema = Schema.Struct({
   slug: Schema.String,
   publishedAt: Schema.String,
   excerpt: Schema.String,
+  imageUrl: Schema.optional(Schema.String), // Corrected usage of Schema.optional
 });
 
 /**
@@ -129,6 +130,7 @@ export async function getBlogs(username: string, page = 1, pageSize = 10): Promi
         slug: post.slug,
         publishedAt: post.publishedAt,
         excerpt: post.brief,
+        imageUrl: post.coverImage?.url, // Extract imageUrl
       };
     });
   } catch (error) {

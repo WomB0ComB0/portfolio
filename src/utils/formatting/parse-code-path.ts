@@ -85,9 +85,9 @@ function extractEntityName<T>(entity: T): string {
     return entity.name || 'AnonymousFunction';
   }
   if (typeof entity === 'object' && entity !== null) {
-    const constructor = (entity as any).constructor;
-    if (typeof constructor === 'function' && constructor.name) {
-      return constructor.name;
+    const entityConstructor = (entity as any).constructor;
+    if (typeof entityConstructor === 'function' && entityConstructor.name) {
+      return entityConstructor.name;
     }
   }
   if (typeof entity === 'string') {

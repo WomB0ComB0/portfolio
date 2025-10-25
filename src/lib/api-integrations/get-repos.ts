@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import 'server-only';
-
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { cache } from 'react';

@@ -48,7 +48,7 @@ export const register = async (): Promise<void> => {
   const runtime = process.env.NEXT_RUNTIME;
 
   try {
-    if (process.env.NEXT_PUBLIC_VERCEL_ENV) {
+    if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'production') {
       registerOTel({
         serviceName: 'portfolio',
         instrumentations: runtime === 'edge' ? [] : undefined,
@@ -90,7 +90,7 @@ export const register = async (): Promise<void> => {
     // Use Sentry.captureException directly here since onRequestError is not yet available during initialization
     Sentry.captureException(error);
     throw Error.isError(error)
-      ? error
+      ? new Error(`Instrumentation initialization failed: ${String(error)}`)
       : new Error(`Instrumentation initialization failed: ${String(error)}`);
   }
 };

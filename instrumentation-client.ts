@@ -22,6 +22,7 @@ import {
   init,
   replayIntegration,
 } from '@sentry/nextjs';
+import * as Sentry from '@sentry/nextjs';
 import { config } from '@/config';
 
 if (!config.sentry.dsn) {
@@ -59,3 +60,5 @@ if (!config.sentry.dsn) {
 
   console.log('Sentry initialized successfully.');
 }
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

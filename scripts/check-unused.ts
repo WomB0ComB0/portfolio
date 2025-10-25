@@ -3,239 +3,226 @@
 
 /**
  * Copyright 2025 Mike Odnis
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Licensed under the Apache License, Version 2.0
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { $ } from 'bun';
 import depcheck from 'depcheck';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
 import type { PackageJson } from 'type-fest';
-import { Stringify } from '@/utils';
 
-/**
- * @file This script automates dependency checking for a TypeScript project using `depcheck`.
- * It identifies unused, missing, and potentially unused sub-dependencies,
- * and outputs the findings to JSON files in a specified output directory.
- * @author Mike Odnis
- * @since 1.0.0
- * @version 1.0.0
- * @see {@link https://github.com/depcheck/depcheck} for `depcheck` documentation.
- * @example
- * // To run this script from the project root:
- * // bun tsx ./scripts/check-dependencies.ts
- */
+// Optional Bun shell (used only if available)
+let bun$: ((strings: TemplateStringsArray, ...expr: any[]) => Promise<any>) | null = null;
+try {
+  const { $ } = await import('bun');
+  bun$ = $;
+} catch { /* running on Node/tsx; ignore */ }
 
-/**
- * @readonly
- * @description The root directory of the project. This is determined by navigating up one level from the current script's directory.
- * @type {string}
- */
-const rootDir = path.join(__dirname, '..'); // Go up one level to project root
+/* --------------------------- Path + FS utilities --------------------------- */
 
-/**
- * @readonly
- * @description The full path to the project's `package.json` file.
- * @type {string}
- */
-const packageJsonPath = path.join(rootDir, 'package.json');
-console.log('Checking:', packageJsonPath);
 
-/**
- * @description The parsed content of the project's `package.json` file.
- * @type {PackageJson}
- */
-const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as PackageJson;
+// project root = parent of scripts/ by default
+const rootDir = path.resolve(__dirname, '..');
+const pkgPath = path.join(rootDir, 'package.json');
 
-/**
- * @readonly
- * @description The output directory where generated dependency reports will be stored.
- * @type {string}
- */
-const OUTPUT_DIR = './bin/out';
+console.log('Project root:', rootDir);
+console.log('Checking:', pkgPath);
 
-/**
- * @description Configuration options for the `depcheck` utility.
- * @property {string[]} ignoreMatches - A list of dependency patterns to ignore, often common false positives like `@types/*` or build tools.
- * @property {string[]} ignorePatterns - A list of file or directory patterns to ignore during dependency analysis (e.g., build outputs, node_modules).
- * @property {boolean} skipMissing - If true, missing dependencies will be ignored. Set to false to report them.
- * @type {object}
- */
-const options = {
+if (!fs.existsSync(pkgPath)) {
+  console.error('package.json not found at', pkgPath);
+  process.exit(1);
+}
+
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')) as PackageJson;
+
+const OUT_DIR = path.join(rootDir, 'scripts', 'out');
+await fsp.mkdir(OUT_DIR, { recursive: true });
+
+/** Atomic write: write to tmp, then rename (reduces partial write risk). */
+async function writeJsonAtomic<T>(dest: string, data: T) {
+  const tmp = `${dest}.tmp-${Date.now()}`;
+  await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await fsp.rename(tmp, dest);
+}
+
+/* ------------------------------- depcheck run ------------------------------ */
+
+const options: depcheck.Options = {
+  // Good defaults; tweak as needed
   ignoreMatches: [
-    // Common false positives
     '@types/*',
     'typescript',
+    'eslint*',
+    'prettier*',
     'autoprefixer',
     'postcss',
     'tailwindcss',
-    'eslint*',
-    'prettier*',
   ],
   ignorePatterns: [
+    // build outputs & tooling dirs
     'dist',
     'build',
     '.next',
+    'out',
+    'coverage',
     'public',
     'node_modules',
-    'coverage',
     'bin',
-    'out',
-    '.next',
     '.vscode',
-    'prisma',
     '.idea',
     '.github',
+    'prisma',
   ],
   skipMissing: false,
+
+  // Parse TS/TSX properly
+  parsers: {
+    // These wildcards are what depcheck expects
+    '**/*.ts': depcheck.parser.typescript,
+    '**/*.tsx': depcheck.parser.typescript,
+    '**/*.js': depcheck.parser.es6,
+    '**/*.jsx': depcheck.parser.jsx,
+  },
+
+  // Detect usages across common patterns
+  detectors: [
+    depcheck.detector.importDeclaration,
+    depcheck.detector.requireCallExpression,
+    // depcheck.detector.dynamicImport,
+    depcheck.detector.exportDeclaration,
+    depcheck.detector.typescriptImportEqualsDeclaration,
+  ],
+
+  // Account for config-file-based usage
+  specials: [
+    depcheck.special.eslint,
+    depcheck.special.jest,
+    // depcheck.special.tsconfig,
+    depcheck.special.babel,
+    depcheck.special.webpack,
+    depcheck.special.bin,
+  ],
 };
 
-/**
- * @description Checks if 'depcheck' is installed in the local `node_modules` directory.
- * If not found, it attempts to install 'depcheck' using `npm install`.
- * This ensures the script has 'depcheck' available, preventing runtime errors.
- * @async
- * @throws {Error} If `npm install depcheck` command fails.
- * @see {@link https://bun.sh/docs/api/exec} for Bun's `$()` API documentation.
- */
-if (!fs.existsSync('./node_modules/depcheck')) {
-  $`npm install depcheck`;
+async function ensureDepcheckInstalled() {
+  // If depcheck isn't resolvable from local node_modules, install dev dep.
+  // Prefer Bun if present; otherwise fall back to npm.
+  try {
+    require.resolve('depcheck', { paths: [rootDir] });
+  } catch {
+    if (bun$) {
+      console.log('Installing depcheck via Bun…');
+      await bun$!`bun add -D depcheck`;
+    } else {
+      console.log('Installing depcheck via npm…');
+      // Using npx would not make it importable; install instead.
+      const { spawnSync } = await import('node:child_process');
+      const r = spawnSync('npm', ['i', '-D', 'depcheck'], { stdio: 'inherit', cwd: rootDir });
+      if (r.status !== 0) process.exit(r.status ?? 1);
+    }
+  }
 }
 
-/**
- * Runs `depcheck` on the project's root directory to identify unused and missing dependencies.
- * It then processes the results, writes them to JSON files, and performs an additional check
- * for potentially unused sub-dependencies by iterating through direct dependencies.
- *
- * @async
- * @param {string} rootDir - The root directory of the project to check.
- * @param {object} options - Configuration options for `depcheck`.
- * @returns {Promise<void>} A promise that resolves when all dependency checks are complete and reports are written, or rejects if an error occurs.
- * @throws {Error} If `depcheck` encounters an error during analysis or if file write operations fail.
- * @author Your Name
- * @since 1.0.0
- * @version 1.0.0
- * @example
- * // The entire script demonstrates an example of running depcheck and processing its output.
- * // This function is implicitly called when the script executes.
- */
-depcheck(rootDir, options)
-  .then(
-    (unused: {
-      dependencies: string[];
-      devDependencies: string[];
-      missing: { [key: string]: string[] };
-    }) => {
-      console.log('\nUnused Dependencies:');
-      /**
-       * @description Writes the list of unused direct dependencies found by `depcheck` to a JSON file.
-       * @param {string} filePath - The path to the output JSON file, e.g., `./bin/out/unused-dependencies.json`.
-       * @param {string} content - The JSON stringified array of unused direct dependency names.
-       */
-      fs.writeFileSync(`${OUTPUT_DIR}/unused-dependencies.json`, Stringify(unused.dependencies));
+await ensureDepcheckInstalled();
 
-      console.log('\nUnused DevDependencies:');
-      /**
-       * @description Writes the list of unused development dependencies found by `depcheck` to a JSON file.
-       * @param {string} filePath - The path to the output JSON file, e.g., `./bin/out/unused-dev-dependencies.json`.
-       * @param {string} content - The JSON stringified array of unused development dependency names.
-       */
-      fs.writeFileSync(
-        `${OUTPUT_DIR}/unused-dev-dependencies.json`,
-        Stringify(unused.devDependencies),
-      );
+type DepcheckResult = {
+  dependencies: string[];
+  devDependencies: string[];
+  missing: Record<string, string[]>;
+  using: Record<string, string[]>;
+  invalidFiles: Record<string, Error>;
+  invalidDirs: Record<string, Error>;
+};
 
-      console.log('\nMissing Dependencies:');
-      /**
-       * @description Writes the list of missing dependencies (dependencies used in code but not declared in `package.json`) to a JSON file.
-       * @param {string} filePath - The path to the output JSON file, e.g., `./bin/out/missing-dependencies.json`.
-       * @param {string} content - The JSON stringified object where keys are missing dependency names and values are arrays of files where they are used.
-       */
-      fs.writeFileSync(`${OUTPUT_DIR}/missing-dependencies.json`, Stringify(unused.missing));
+console.time('depcheck');
+const result = (await depcheck(rootDir, options)) as DepcheckResult;
+console.timeEnd('depcheck');
 
-      /**
-       * @description Combines all direct and development dependencies listed in the project's `package.json`.
-       * This array represents all top-level dependencies declared by the project.
-       * @type {string[]}
-       */
-      const allDependencies = Object.keys(packageJson.dependencies || {}).concat(
-        Object.keys(packageJson.devDependencies || {}),
-      );
+/* ----------------------------- Report building ----------------------------- */
 
-      /**
-       * @description Filters `allDependencies` to identify those that `depcheck` has determined are actually in use
-       * within the project's source code. This excludes dependencies marked as unused by `depcheck`.
-       * @type {string[]}
-       */
-      const usedDependencies = allDependencies.filter(
-        (dep) => !unused.dependencies.includes(dep) && !unused.devDependencies.includes(dep),
-      );
+const allTopLevel = [
+  ...Object.keys(pkg.dependencies ?? {}),
+  ...Object.keys(pkg.devDependencies ?? {}),
+];
 
-      console.log('\nChecking sub-dependencies...');
-      /**
-       * @description Iterates through each `usedDependency` to find potential unused sub-dependencies.
-       * For each used direct dependency, it reads its `package.json` to get its own direct dependencies.
-       * If a sub-dependency is not found in the project's `allDependencies` (top-level) and is not flagged
-       * as a `missing` dependency by `depcheck`, it's considered a potentially unused sub-dependency.
-       * These are then appended to `unused-sub-dependencies.json`.
-       */
-      usedDependencies.forEach((dep) => {
-        /**
-         * @description The file path to the `package.json` of the current direct dependency being examined.
-         * @type {string}
-         */
-        const depPackageJsonPath = path.join(rootDir, 'node_modules', dep, 'package.json');
-        if (fs.existsSync(depPackageJsonPath)) {
-          /**
-           * @description The parsed `package.json` content of the current direct dependency.
-           * @type {PackageJson}
-           */
-          const depPackageJson = JSON.parse(
-            fs.readFileSync(depPackageJsonPath, 'utf8'),
-          ) as PackageJson;
-          /**
-           * @description An array of direct dependencies declared by the current dependency.
-           * @type {string[]}
-           */
-          const subDependencies = Object.keys(depPackageJson.dependencies || {});
+const unusedDeps = result.dependencies ?? [];
+const unusedDevDeps = result.devDependencies ?? [];
+const missing = result.missing ?? {};
 
-          subDependencies.forEach((subDep) => {
-            /**
-             * @description Appends a potentially unused sub-dependency to the `unused-sub-dependencies.json` file.
-             * A sub-dependency is considered potentially unused if it is a dependency of a direct project dependency,
-             * but is not itself a direct (or dev) dependency of the main project, and is also not listed as a missing
-             * dependency by `depcheck` (which would imply it *is* used by the main project).
-             * @param {string} filePath - The path to the output JSON file, e.g., `./bin/out/unused-sub-dependencies.json`.
-             * @param {string} content - The sub-dependency name formatted as a JSON string item, followed by a newline.
-             */
-            if (!allDependencies.includes(subDep) && !unused.missing[subDep]) {
-              fs.appendFileSync(`${OUTPUT_DIR}/unused-sub-dependencies.json`, `"${subDep}",\n`);
-            }
-          });
-        }
-      });
-    },
-  )
-  .catch((error: Error) => {
-    /**
-     * @description Catches and handles any errors that occur during the `depcheck` promise chain.
-     * It logs the error message to the console and exits the process with a non-zero status code,
-     * indicating a failure in the script execution.
-     * @param {Error} error - The error object caught from the promise rejection.
-     * @returns {void}
-     * @throws {Error} This block handles and reports errors, but does not re-throw; it terminates the process.
-     */
-    console.error('Error running depcheck:', error);
-    process.exit(1);
-  });
+// “used” = top-level minus what depcheck flagged as unused
+const usedTopLevel = allTopLevel.filter(
+  d => !unusedDeps.includes(d) && !unusedDevDeps.includes(d),
+);
+
+// Potentially-unused *sub*-dependencies: dependency’s own deps that your app
+// never references directly (i.e., not top-level, and not reported missing).
+const maybeUnusedSubDeps = new Set<string>();
+
+for (const dep of usedTopLevel) {
+  const depPkgPath = path.join(rootDir, 'node_modules', dep, 'package.json');
+  if (!fs.existsSync(depPkgPath)) continue;
+
+  try {
+    const depPkg = JSON.parse(fs.readFileSync(depPkgPath, 'utf8')) as PackageJson;
+    const subs = Object.keys(depPkg.dependencies ?? {});
+    for (const sub of subs) {
+      if (!allTopLevel.includes(sub) && !missing[sub]) {
+        maybeUnusedSubDeps.add(sub);
+      }
+    }
+  } catch {
+    // ignore unreadable package.json for a sub-dependency
+  }
+}
+
+/* --------------------------------- Output ---------------------------------- */
+
+const outputs = {
+  unusedDependencies: Array.from(unusedDeps).sort(),
+  unusedDevDependencies: Array.from(unusedDevDeps).sort(),
+  missingDependencies: Object.fromEntries(
+    Object.entries(missing).sort(([a], [b]) => a.localeCompare(b)),
+  ),
+  // Note: “potential” — sub-deps are consumed by other deps; treat as advisory
+  potentialUnusedSubDependencies: Array.from(maybeUnusedSubDeps).sort(),
+  summary: {
+    totalTopLevel: allTopLevel.length,
+    unusedDependencies: unusedDeps.length,
+    unusedDevDependencies: unusedDevDeps.length,
+    missingDependencies: Object.keys(missing).length,
+    potentialUnusedSubDependencies: maybeUnusedSubDeps.size,
+  },
+};
+
+await writeJsonAtomic(path.join(OUT_DIR, 'dependencies-report.json'), outputs);
+
+// Also emit the individual files (overwritten if they exist)
+await writeJsonAtomic(
+  path.join(OUT_DIR, 'unused-dependencies.json'),
+  outputs.unusedDependencies,
+);
+await writeJsonAtomic(
+  path.join(OUT_DIR, 'unused-dev-dependencies.json'),
+  outputs.unusedDevDependencies,
+);
+await writeJsonAtomic(
+  path.join(OUT_DIR, 'missing-dependencies.json'),
+  outputs.missingDependencies,
+);
+await writeJsonAtomic(
+  path.join(OUT_DIR, 'unused-sub-dependencies.json'),
+  outputs.potentialUnusedSubDependencies,
+);
+
+console.log('\nDependency check complete. Reports written to:', OUT_DIR);
+console.log(outputs.summary);
+
+// Exit non-zero if issues are found (useful for CI)
+if (
+  outputs.unusedDependencies.length ||
+  outputs.unusedDevDependencies.length ||
+  Object.keys(outputs.missingDependencies).length
+) {
+  process.exitCode = 2;
+}

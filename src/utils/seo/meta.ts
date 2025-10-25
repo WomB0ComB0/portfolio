@@ -112,7 +112,6 @@ export function constructMetadata({
       title,
       description,
       images: [twitter],
-      images: [twitter],
       creator: '@mike_odnis',
     },
     other: {

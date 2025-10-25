@@ -14,59 +14,42 @@
  * limitations under the License.
  */
 
-'use client';
+"use client"
 
-import { useKBar } from 'kbar';
-import Link from 'next/link';
-import { memo } from 'react';
-import { FiCommand } from 'react-icons/fi';
-import { Button } from '@/components/ui/button';
-import { NavbarItems } from '@/constants/index';
+import { useKBar } from "kbar"
+import { memo, useState } from "react"
+import { FiMenu } from "react-icons/fi"
+import { Button } from "@/components/ui/button"
+import { MobileMenuOverlay } from "./mobile-menu-overlay"
 
 export const MobileNavBar = memo(({ path }: { path: string }) => {
-  const { query } = useKBar();
+  const { query } = useKBar()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-primary/30 px-2 py-2 z-40 safe-area-inset-bottom">
-      <div className="flex justify-between items-center max-w-screen-xl mx-auto gap-2">
-        <div className="flex space-x-1 overflow-x-auto scrollbar-hide flex-1">
-          {NavbarItems.map((item, index) => (
-            <Button
-              key={index}
-              asChild
-              variant="ghost"
-              size="sm"
-              className={`flex flex-col items-center justify-center min-w-[60px] h-auto py-1.5 px-2 rounded-lg transition-all duration-300 ${
-                path === item.slug
-                  ? 'bg-primary text-white hover:bg-primary/90'
-                  : 'text-muted-foreground hover:bg-primary/20 hover:text-foreground'
-              }`}
-              suppressHydrationWarning
-            >
-              <Link href={item.slug} className="flex flex-col items-center justify-center gap-0.5">
-                <item.icon size="1.1rem" />
-                <span className="text-[0.6rem] leading-tight whitespace-nowrap">{item.name}</span>
-              </Link>
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center">
-          <div className="w-px h-10 bg-primary/30 mx-1"></div>
+    <>
+      <nav
+        className="bg-card/90 backdrop-blur-xl border-t border-border/40 px-6 py-3 shadow-lg"
+        role="navigation"
+        aria-label="Mobile navigation"
+      >
+        <div className="flex justify-center items-center max-w-screen-xl mx-auto">
           <Button
-            variant="ghost"
-            size="sm"
-            className="flex flex-col items-center justify-center min-w-[50px] h-auto py-1.5 px-2 rounded-lg bg-primary/20 text-foreground hover:bg-primary/30 transition-all duration-300"
-            onClick={query.toggle}
-            aria-label="Open command palette"
-            suppressHydrationWarning
+            variant="default"
+            size="lg"
+            className="flex items-center justify-center gap-2.5 py-3 px-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg active:scale-[0.98] font-medium"
+            onClick={() => setIsMenuOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={isMenuOpen}
           >
-            <FiCommand size="1.1rem" />
-            <span className="text-[0.6rem] leading-tight mt-0.5">Cmd</span>
+            <FiMenu size="1.25rem" strokeWidth={2.5} />
+            <span className="text-sm">Menu</span>
           </Button>
         </div>
-      </div>
-    </nav>
-  );
-});
-MobileNavBar.displayName = 'MobileNavBar';
-export default MobileNavBar;
+      </nav>
+      <MobileMenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} query={query} pathname={path} />
+    </>
+  )
+})
+MobileNavBar.displayName = "MobileNavBar"
+export default MobileNavBar

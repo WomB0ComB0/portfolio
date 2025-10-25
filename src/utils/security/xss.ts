@@ -164,19 +164,15 @@ export const validateUserInput = (input: string, maxLength = 500, allowHtml = fa
 
   // Remove HTML tags if not allowed
   if (!allowHtml) {
-    let previous;
+    let previousSanitizedInput: string;
     do {
-      previous = sanitizedInput;
+      previousSanitizedInput = sanitizedInput;
       sanitizedInput = sanitizedInput.replace(/<[^>]*>/g, '');
-    } while (sanitizedInput !== previous);
+    } while (sanitizedInput !== previousSanitizedInput);
   }
 
   // Normalize whitespace
   sanitizedInput = sanitizedInput.replace(/\s+/g, ' ');
-
-  // Prevent null byte attacks
-  // eslint-disable-next-line no-control-regex
-  sanitizedInput = sanitizedInput.replace(/\u0000/g, '');
 
   // Prevent script injections in various forms
   sanitizedInput = sanitizedInput

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import { app } from "@/constants";
 import type { MetadataRoute } from 'next';
-import { app } from '@/constants';
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property
@@ -87,46 +87,11 @@ type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
     };
   };
 
-  shortcuts_menu_items?: Array<{
-    name: string;
-    url: string;
-    description?: string;
-    icons?: Array<{
-      src: string;
-      sizes: string;
-      type: string;
-    }>;
-  }>;
 
-  widgets?: {
-    [key: string]: {
-      name: string;
-      description: string;
-      tag: string;
-      ms_ac_template: string;
-      data: string;
-      type: string;
-      screenshots: Array<{
-        src: string;
-        sizes: string;
-        type: string;
-        platform?: string;
-      }>;
-      icons: Array<{
-        src: string;
-        sizes: string;
-        type: string;
-      }>;
-      auth?: boolean;
-      update?: number;
-    };
-  };
 
-  handle_links?: 'auto' | 'preferred' | 'not-preferred';
 
-  scope_extensions?: Array<{
-    origin: string;
-  }>;
+
+
 
   note_taking?: {
     new_note_url: string;
@@ -137,17 +102,8 @@ export default function manifest(): ExtendedManifest {
   return {
     name: 'Mike Odnis',
     short_name: 'MO',
-    description:
-      "Explore Mike Odnis' portfolio—an innovative 20-year-old Computer Science student at Farmingdale State College, passionate about software development and technology.",
-    categories: [
-      'portfolio',
-      'software development',
-      'technology',
-      'computer science',
-      'web development',
-      'personal website',
-      'student projects',
-    ],
+    description: app.description,
+    categories: [...app.keywords],
     lang: 'en-US',
     dir: 'ltr',
     id: '/',
@@ -168,33 +124,19 @@ export default function manifest(): ExtendedManifest {
         url: 'https://mikeodnis.dev',
       },
     },
-    handle_links: 'preferred',
+
     edge_side_panel: {
       preferred_width: 480,
     },
     protocol_handlers: [
       {
         protocol: 'web+mikeodnis',
-        url: `${app.url}?url=%s`,
+        url: '/?url=%s',
       },
     ],
     launch_handler: {
       client_mode: 'auto',
       navigate_existing_client: 'always',
-    },
-    // TODO: Add file_handlers when needed
-    tab_strip: {
-      '<name>': {
-        url: '/',
-        icons: [
-          {
-            src: '/assets/svgs/logo.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'maskable',
-          },
-        ],
-      },
     },
     icons: [
       {
@@ -1080,13 +1022,13 @@ export default function manifest(): ExtendedManifest {
         purpose: 'any',
       },
       {
-        src: '/pwa/windows11/Square44x44Logo.altform-lightunplated_targetsize-48.png',
+        src: '/pwa/windows11/Square44x44Logo.altform-unplated_targetsize-48.png',
         sizes: '48x48',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/pwa/windows11/Square44x44Logo.altform-lightunplated_targetsize-48.webp',
+        src: '/pwa/windows11/Square44x44Logo.altform-unplated_targetsize-48.webp',
         sizes: '48x48',
         type: 'image/webp',
         purpose: 'any',
@@ -1194,12 +1136,6 @@ export default function manifest(): ExtendedManifest {
         purpose: 'any',
       },
       {
-        src: '/pwa/android/android-launchericon-144-144.webp',
-        sizes: '144x144',
-        type: 'image/webp',
-        purpose: 'any',
-      },
-      {
         src: '/pwa/android/android-launchericon-96-96.png',
         sizes: '96x96',
         type: 'image/png',
@@ -1227,12 +1163,6 @@ export default function manifest(): ExtendedManifest {
         src: '/pwa/android/android-launchericon-48-48.png',
         sizes: '48x48',
         type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/pwa/android/android-launchericon-48-48.webp',
-        sizes: '48x48',
-        type: 'image/webp',
         purpose: 'any',
       },
       {
@@ -1278,12 +1208,6 @@ export default function manifest(): ExtendedManifest {
         purpose: 'any',
       },
       {
-        src: '/pwa/ios/32.webp',
-        sizes: '32x32',
-        type: 'image/webp',
-        purpose: 'any',
-      },
-      {
         src: '/pwa/ios/40.png',
         sizes: '40x40',
         type: 'image/png',
@@ -1323,12 +1247,6 @@ export default function manifest(): ExtendedManifest {
         src: '/pwa/ios/58.png',
         sizes: '58x58',
         type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/pwa/ios/58.webp',
-        sizes: '58x58',
-        type: 'image/webp',
         purpose: 'any',
       },
       {
@@ -1446,12 +1364,6 @@ export default function manifest(): ExtendedManifest {
         purpose: 'any',
       },
       {
-        src: '/pwa/ios/128.webp',
-        sizes: '128x128',
-        type: 'image/webp',
-        purpose: 'any',
-      },
-      {
         src: '/pwa/ios/152.png',
         sizes: '152x152',
         type: 'image/png',
@@ -1553,7 +1465,7 @@ export default function manifest(): ExtendedManifest {
       },
       {
         name: 'Stats Dashboard',
-        short_name: 'Dash',
+        short_name: 'Stats',
         url: '/stats',
         description: "View Mike's current projects, skills, and activity at a glance.",
         icons: [
@@ -1608,9 +1520,9 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: "Mike's Spotify",
-        short_name: 'MO',
-        url: '/dashboard',
+        name: "Spotify",
+        short_name: 'Spotify',
+        url: '/spotify',
         description: "Check out Mike's music preferences and current listening habits.",
         icons: [
           {
@@ -1622,7 +1534,7 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Blog',
+        name: 'Mike\'s Blogs',
         short_name: 'Blog',
         url: '/blog',
         description: "Read Mike's latest thoughts and updates on his blog.",
@@ -1636,8 +1548,8 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Hire Mike',
-        short_name: 'Hire',
+        name: 'Sponsor',
+        short_name: 'Sponsor',
         url: '/hire',
         description: 'Contact Mike to discuss your project or needs.',
         icons: [

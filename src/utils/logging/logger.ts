@@ -181,7 +181,11 @@ export class Logger {
     if (!Logger.instances.has(context)) {
       Logger.instances.set(context, new Logger(context, options));
     }
-    return Logger.instances.get(context)!;
+    const instance = Logger.instances.get(context);
+    if (!instance) {
+      throw new Error(`Logger instance for context '${context}' not found after creation.`);
+    }
+    return instance;
   }
 
   /**
@@ -286,13 +290,13 @@ export class Logger {
         }
 
         // Remove error from data to avoid duplication
-        const { error, ...restData } = data;
+        const { error: _error, ...restData } = data;
         if (Object.keys(restData).length > 0) {
           logParts.push('\nAdditional Data:');
           logParts.push(Stringify(restData));
         }
       } else {
-        logParts.push('\n' + Stringify(data));
+        logParts.push(`\n${Stringify(data)}`);
       }
     }
 
@@ -309,7 +313,7 @@ export class Logger {
     if (!this.shouldLog(LogLevel.INFO)) return;
     const formattedData = this.formatMessage('info', message, data);
     console.log(
-      this.colorize(this.levelColors.info!, this.formatLogLevel('info')) +
+      this.colorize(this.levelColors.info as ColorKey, this.formatLogLevel('info')) +
         ' ' +
         this.formatOutput(formattedData),
     );
@@ -335,7 +339,10 @@ export class Logger {
     });
 
     console.error(
-      this.colorize('bold', this.colorize(this.levelColors.error!, this.formatLogLevel('error'))) +
+      this.colorize(
+        'bold',
+        this.colorize(this.levelColors.error as ColorKey, this.formatLogLevel('error')),
+      ) +
         ' ' +
         this.formatOutput(formattedData),
     );
@@ -351,7 +358,7 @@ export class Logger {
     if (!this.shouldLog(LogLevel.WARN)) return;
     const formattedData = this.formatMessage('warn', message, data);
     console.warn(
-      this.colorize(this.levelColors.warn!, this.formatLogLevel('warn')) +
+      this.colorize(this.levelColors.warn as ColorKey, this.formatLogLevel('warn')) +
         ' ' +
         this.formatOutput(formattedData),
     );
@@ -367,7 +374,7 @@ export class Logger {
     if (!this.shouldLog(LogLevel.DEBUG)) return;
     const formattedData = this.formatMessage('debug', message, data);
     console.debug(
-      this.colorize(this.levelColors.debug!, this.formatLogLevel('debug')) +
+      this.colorize(this.levelColors.debug as ColorKey, this.formatLogLevel('debug')) +
         ' ' +
         this.formatOutput(formattedData),
     );
@@ -383,7 +390,7 @@ export class Logger {
     if (!this.shouldLog(LogLevel.TRACE)) return;
     const formattedData = this.formatMessage('trace', message, data);
     console.debug(
-      this.colorize(this.levelColors.trace!, this.formatLogLevel('trace')) +
+      this.colorize(this.levelColors.trace as ColorKey, this.formatLogLevel('trace')) +
         ' ' +
         this.formatOutput(formattedData),
     );
@@ -399,7 +406,7 @@ export class Logger {
     if (!this.shouldLog(LogLevel.INFO)) return;
     const formattedData = this.formatMessage('action', message, data);
     console.log(
-      this.colorize(this.levelColors.action!, this.formatLogLevel('action')) +
+      this.colorize(this.levelColors.action as ColorKey, this.formatLogLevel('action')) +
         ' ' +
         this.formatOutput(formattedData),
     );
@@ -415,7 +422,7 @@ export class Logger {
     if (!this.shouldLog(LogLevel.INFO)) return;
     const formattedData = this.formatMessage('success', message, data);
     console.log(
-      this.colorize(this.levelColors.success!, this.formatLogLevel('success')) +
+      this.colorize(this.levelColors.success as ColorKey, this.formatLogLevel('success')) +
         ' ' +
         this.formatOutput(formattedData),
     );

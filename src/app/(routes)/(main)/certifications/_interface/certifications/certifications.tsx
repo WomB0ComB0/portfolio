@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import Layout from '@/components/layout/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+// import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import type { Certification } from '@/lib/sanity/types';

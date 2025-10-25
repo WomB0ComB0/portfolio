@@ -14,5 +14,7 @@
  * limitations under the License.
  */
 
+export { default as DraggableGallery } from './draggable-gallery';
 export { default as PinnedRepos } from './pinned-repos';
 export { default as Repository } from './repository';
+

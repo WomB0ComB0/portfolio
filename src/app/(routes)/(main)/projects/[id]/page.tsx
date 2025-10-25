@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import dynamic from "next/dynamic";
-import { getProjects } from "@/lib/sanity/api";
-import { urlFor } from "@/lib/sanity/client";
-import { constructMetadata, logger } from "@/utils";
-import type { Metadata } from "next";
-import type { JSX } from "react";
-
+import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
+import { getProjects } from '@/lib/sanity/api';
+import { urlFor } from '@/lib/sanity/client';
+import { constructMetadata, logger } from '@/utils';
+import type { Metadata } from 'next';
 /**
  * ProjectDetail React component (dynamically imported).
  *
@@ -35,7 +34,7 @@ import type { JSX } from "react";
  */
 const ProjectDetail = dynamic(
   () =>
-    import("@/app/(routes)/(main)/projects/_interface/project-detail").then(
+    import('@/app/(routes)/(main)/projects/_interface/project-detail').then(
       (mod) => mod.ProjectDetail,
     ),
   {
@@ -68,7 +67,7 @@ export async function generateStaticParams() {
       id: project._id,
     }));
   } catch (error) {
-    logger.error("Error generating static params:", error);
+    logger.error('Error generating static params:', error);
     return [];
   }
 }
@@ -94,7 +93,7 @@ export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
-}): Promise<MetaData> {
+}): Promise<Metadata> {
   const { id } = await params;
 
   try {
@@ -103,14 +102,14 @@ export async function generateMetadata({
 
     if (!project) {
       return constructMetadata({
-        title: "Project Not Found",
-        description: "The requested project could not be found",
+        title: 'Project Not Found',
+        description: 'The requested project could not be found',
       });
     }
 
     const imageUrl = project.image
       ? urlFor(project.image).width(1200).height(630).url()
-      : "/opengraph-image.png";
+      : '/opengraph-image.png';
 
     return constructMetadata({
       title: project.title,
@@ -118,10 +117,10 @@ export async function generateMetadata({
       image: imageUrl,
     });
   } catch (error) {
-    logger.error("Error generating metadata:", error);
+    logger.error('Error generating metadata:', error);
     return constructMetadata({
-      title: "Project",
-      description: "View project details",
+      title: 'Project',
+      description: 'View project details',
     });
   }
 }
@@ -154,5 +153,5 @@ const ProjectDetailPage = async ({
   const resolvedParams = await params;
   return <ProjectDetail params={resolvedParams} />;
 };
-ProjectDetailPage.displayName = "ProjectDetailPage";
+ProjectDetailPage.displayName = 'ProjectDetailPage';
 export default ProjectDetailPage;

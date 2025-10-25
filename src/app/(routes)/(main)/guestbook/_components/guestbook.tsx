@@ -59,13 +59,6 @@ interface Message {
 }
 
 /**
- * Guestbook API response wrapper.
- */
-interface ApiResponse {
-  json: Message[];
-}
-
-/**
  * Effect schema for a single message
  */
 const MessageSchema = Schema.Struct({
@@ -79,25 +72,23 @@ const MessageSchema = Schema.Struct({
 /**
  * Effect schema for an array of guestbook messages
  */
-const MessagesResponseSchema = Schema.Struct({
-  json: Schema.Array(MessageSchema),
-});
+const MessagesResponseSchema = Schema.Array(MessageSchema);
 
 /**
  * Skeleton loader for individual message cards
  */
 const MessageSkeleton = () => {
   return (
-    <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-6">
-      <div className="space-y-4">
-        <Skeleton className="h-5 w-full bg-muted/50" />
-        <Skeleton className="h-5 w-4/5 bg-muted/50" />
-        <div className="flex justify-between items-center pt-4">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-4 w-4 rounded-full bg-muted/50" />
-            <Skeleton className="h-4 w-28 bg-muted/50" />
+    <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4 md:p-5">
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-full bg-muted/50" />
+        <Skeleton className="h-4 w-4/5 bg-muted/50" />
+        <div className="flex justify-between items-center pt-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-3 w-3 rounded-full bg-muted/50" />
+            <Skeleton className="h-3 w-24 bg-muted/50" />
           </div>
-          <Skeleton className="h-4 w-24 bg-muted/50" />
+          <Skeleton className="h-3 w-20 bg-muted/50" />
         </div>
       </div>
     </div>
@@ -109,7 +100,7 @@ const MessageSkeleton = () => {
  */
 function LoadingUI() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {[...Array(4)].map((_, index) => (
         <MessageSkeleton key={`loading-${index + 1}`} />
       ))}
@@ -122,15 +113,17 @@ function LoadingUI() {
  */
 function ErrorUI({ error }: { error: Error }) {
   return (
-    <div className="text-center py-16 space-y-6">
-      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-destructive/10">
-        <FiAlertCircle className="text-4xl text-destructive" />
+    <div className="text-center py-12 md:py-16 space-y-4">
+      <div className="inline-flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full bg-destructive/10">
+        <FiAlertCircle className="text-2xl md:text-3xl text-destructive" />
       </div>
       <div className="space-y-2">
-        <h3 className="text-xl font-semibold text-foreground">Unable to Load Messages</h3>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">{error.message}</p>
+        <h3 className="text-lg md:text-xl font-semibold text-foreground">
+          Unable to Load Messages
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto px-4">{error.message}</p>
       </div>
-      <Button variant="outline" onClick={() => window.location.reload()}>
+      <Button variant="outline" onClick={() => window.location.reload()} size="sm">
         Try Again
       </Button>
     </div>
@@ -148,7 +141,7 @@ export const GuestbookComponent = () => {
   /**
    * Fetches guestbook messages from the API
    */
-  const { data, error, isLoading } = useQuery<ApiResponse, Error>({
+  const { data, error, isLoading } = useQuery<Message[], Error>({
     queryKey: ['messages'],
     queryFn: async () => {
       const effect = pipe(
@@ -160,7 +153,7 @@ export const GuestbookComponent = () => {
         Effect.provide(FetchHttpClient.layer),
       );
       const result = await Effect.runPromise(effect);
-      return result as unknown as ApiResponse;
+      return result as Message[];
     },
     staleTime: 60000,
     refetchInterval: 300000,
@@ -170,7 +163,7 @@ export const GuestbookComponent = () => {
    * Memoized guestbook messages list
    */
   const messages = useMemo(() => {
-    return data?.json || [];
+    return data || [];
   }, [data]);
 
   /**
@@ -214,75 +207,79 @@ export const GuestbookComponent = () => {
   }, [message, postMessage, user]);
 
   return (
-    <section className="w-full min-h-full p-8 md:p-12 lg:p-16">
-      <div className="max-w-5xl mx-auto space-y-12">
-        {/* Header */}
-        <header className="text-center space-y-4 pb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <FiMessageSquare className="text-3xl text-primary" />
+    <section className="w-full min-h-full px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-12">
+      <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
+        {/* Header - More compact and responsive */}
+        <header className="text-center space-y-3 pb-4 md:pb-6">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <FiMessageSquare className="text-2xl md:text-3xl text-primary" />
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
+              Guestbook
+            </h1>
           </div>
-          <h1 className="text-5xl font-bold text-foreground tracking-tight">Guestbook</h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Share your thoughts and connect with visitors from around the world
+          <p className="text-muted-foreground text-sm md:text-base lg:text-lg max-w-2xl mx-auto px-4">
+            Share your thoughts and connect with visitors
           </p>
         </header>
 
         {/* Authentication & Message Form */}
         {user ? (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-xl">
-            <CardHeader className="pb-4">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl text-foreground">Share Your Thoughts</CardTitle>
-                  <p className="text-sm text-muted-foreground">
+          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
+            <CardHeader className="pb-3 md:pb-4 px-4 md:px-6">
+              <div className="flex justify-between items-start gap-4">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <CardTitle className="text-base md:text-lg text-foreground truncate">
+                    Share Your Thoughts
+                  </CardTitle>
+                  <p className="text-xs md:text-sm text-muted-foreground truncate">
                     Signed in as {user.displayName || 'Anonymous'}
                   </p>
                 </div>
                 <LogoutButton
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground flex-shrink-0"
                   aria-label="Sign out"
                 />
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-6">
+            <CardContent className="pt-0 px-4 md:px-6 pb-4 md:pb-6">
+              <div className="space-y-4">
                 <div className="relative">
                   <Textarea
-                    className="w-full min-h-36 p-5 rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 border-border/50 resize-none text-base"
+                    className="w-full min-h-28 md:min-h-32 p-3 md:p-4 rounded-lg bg-background/50 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 border-border/50 resize-none text-sm md:text-base"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="What's on your mind?"
                     maxLength={280}
                   />
-                  <div className="absolute bottom-4 right-4 text-xs text-muted-foreground font-medium">
+                  <div className="absolute bottom-3 right-3 text-xs text-muted-foreground font-medium">
                     {message.length} / 280
                   </div>
                 </div>
                 <Button
-                  className="w-full h-12 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-xl transition-all duration-200 group"
+                  className="w-full h-10 md:h-11 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-lg transition-all duration-200 group text-sm md:text-base"
                   onClick={handleSubmit}
                   disabled={postMessage.isPending || message.trim().length === 0}
                   aria-label="Send message"
                 >
-                  <FiSend className="mr-2 group-hover:translate-x-0.5 transition-transform" />
+                  <FiSend className="mr-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   {postMessage.isPending ? 'Sending...' : 'Send Message'}
                 </Button>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-xl">
-            <CardContent className="py-16 px-8 space-y-8 text-center">
-              <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-primary/10">
-                <FiUser className="text-4xl text-primary" />
+          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
+            <CardContent className="py-8 md:py-12 px-4 md:px-8 space-y-6 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10">
+                <FiUser className="text-2xl md:text-3xl text-primary" />
               </div>
-              <div className="space-y-3 max-w-md mx-auto">
-                <h3 className="text-2xl font-semibold text-foreground">Welcome!</h3>
-                <p className="text-muted-foreground text-base">
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="text-xl md:text-2xl font-semibold text-foreground">Welcome!</h3>
+                <p className="text-muted-foreground text-sm md:text-base">
                   Sign in to leave a message and be part of the conversation
                 </p>
               </div>
-              <div className="flex gap-4 justify-center flex-wrap pt-4">
+              <div className="flex gap-3 md:gap-4 justify-center flex-wrap pt-2">
                 <LoginButton signInMethod="google.com" />
                 <LoginButton signInMethod="github.com" />
                 <LoginButton signInMethod="anonymous" />
@@ -292,28 +289,30 @@ export const GuestbookComponent = () => {
         )}
 
         {/* Messages List */}
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-2xl font-semibold text-foreground">Recent Messages</h2>
-            <span className="text-sm text-muted-foreground font-medium">
+            <h2 className="text-xl md:text-2xl font-semibold text-foreground">Recent Messages</h2>
+            <span className="text-xs md:text-sm text-muted-foreground font-medium">
               {messages.length} {messages.length === 1 ? 'message' : 'messages'}
             </span>
           </div>
 
-          <ScrollArea className="h-[600px] w-full pr-4">
-            <div className="space-y-6">
+          <ScrollArea className="h-[500px] md:h-[600px] w-full pr-2 md:pr-4">
+            <div className="space-y-4 md:space-y-5">
               {isLoading ? (
                 <LoadingUI />
               ) : error ? (
                 <ErrorUI error={error} />
               ) : messages.length === 0 ? (
-                <div className="text-center py-20 space-y-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-muted/50">
-                    <FiMessageSquare className="text-3xl text-muted-foreground" />
+                <div className="text-center py-16 md:py-20 space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-muted/50">
+                    <FiMessageSquare className="text-2xl md:text-3xl text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-foreground font-medium">No messages yet</p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-foreground font-medium text-sm md:text-base">
+                      No messages yet
+                    </p>
+                    <p className="text-muted-foreground text-xs md:text-sm">
                       Be the first to leave a message!
                     </p>
                   </div>
@@ -329,18 +328,22 @@ export const GuestbookComponent = () => {
                       transition={{ duration: 0.4, ease: 'easeOut' }}
                     >
                       <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-                        <CardContent className="p-6 space-y-5">
-                          <p className="text-foreground text-base leading-relaxed">
+                        <CardContent className="p-4 md:p-5 space-y-4">
+                          <p className="text-foreground text-sm md:text-base leading-relaxed break-words">
                             {escapeHtml(msg.message)}
                           </p>
-                          <div className="flex justify-between items-center text-sm pt-3 border-t border-border/30">
-                            <div className="flex items-center gap-2.5 text-muted-foreground hover:text-primary transition-colors">
-                              <FiUser className="h-4 w-4" />
-                              <span className="font-medium">{escapeHtml(msg.authorName)}</span>
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 text-xs md:text-sm pt-3 border-t border-border/30">
+                            <div className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                              <FiUser className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                              <span className="font-medium truncate">
+                                {escapeHtml(msg.authorName)}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">
-                              <FiClock className="h-4 w-4" />
-                              <time className="text-sm">{formatDateTime(msg.createdAt)}</time>
+                              <FiClock className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                              <time className="text-xs md:text-sm">
+                                {formatDateTime(msg.createdAt)}
+                              </time>
                             </div>
                           </div>
                         </CardContent>

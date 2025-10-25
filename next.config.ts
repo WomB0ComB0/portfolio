@@ -135,11 +135,13 @@ const config: NextConfig = {
       { protocol: 'https', hostname: 'cdn.discordapp.com' },
       { protocol: 'https', hostname: 'cdn.sanity.io' },
     ],
+    imageSizes: [16, 20, 24, 32, 40],
+    minimumCacheTTL: 60 * 60 * 24,
     formats: ['image/avif', 'image/webp'], // Modern image formats
-    minimumCacheTTL: 60, // Cache images for 60 seconds minimum
     dangerouslyAllowSVG: false, // Prevent SVG XSS attacks
   },
-
+  
+  skipTrailingSlashRedirect: true,
   experimental: {
     optimizePackageImports: [
       ...(() => {
@@ -164,25 +166,9 @@ const config: NextConfig = {
     authInterrupts: true,
   },
   typedRoutes: false,
-  turbo: {
-    resolveAlias: {
-      '@/*': './src/*',
-    },
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-      '**/*.{ts,tsx}': ['typescript'],
-    },
-  },
   typescript: {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors in production
     tsconfigPath: './tsconfig.json',
-  },
-
-  eslint: {
-    ignoreDuringBuilds: false, // Don't ignore ESLint errors in production
   },
 
   async rewrites() {
@@ -238,7 +224,7 @@ const config: NextConfig = {
       },
       // All other pages get full security headers including X-Frame-Options
       {
-        source: '/((?!links|embed).*)',
+        source: '/((?!links|embed).*)/',
         headers: securityHeadersWithFrameProtection,
       },
       {
@@ -282,7 +268,7 @@ const config: NextConfig = {
         source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif)',
         headers: [
           {
-            key: 'Cache-Control',
+            key: 'Cache-control',
             value: 'public, max-age=31536000, immutable',
           },
         ],
@@ -319,10 +305,6 @@ const config: NextConfig = {
     }
 
     return config;
-  },
-
-  publicRuntimeConfig: {
-    basePath: '',
   },
 
   // Environment variable validation

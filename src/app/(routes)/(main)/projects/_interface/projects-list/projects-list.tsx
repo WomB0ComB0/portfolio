@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-'use client';
+"use client"
 
-import { Briefcase, ExternalLink, Github } from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { type JSX, Suspense } from 'react';
-import Layout from '@/components/layout/layout';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSanityProjects } from '@/hooks';
-import { urlFor } from '@/lib/sanity/client';
+import { Briefcase, ExternalLink, Github } from "lucide-react"
+import { motion } from "motion/react"
+import Image from "next/image"
+import Link from "next/link"
+import { type JSX, Suspense } from "react"
+import Layout from "@/components/layout/layout"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSanityProjects } from "@/hooks"
+import { urlFor } from "@/lib/sanity/client"
+// import { Skeleton } from "@/components/ui/skeleton"
 
-// Skeleton component for a single project card
 const ProjectCardSkeleton = (): JSX.Element => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     transition={{ duration: 0.6, delay: 0.2 }}
-    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+    className="grid grid-cols-1 lg:grid-cols-2 gap-10"
   >
     {[...Array(6)].map((_, index) => (
       <motion.div
@@ -43,63 +43,58 @@ const ProjectCardSkeleton = (): JSX.Element => (
         transition={{ duration: 0.5, delay: index * 0.1 }}
       >
         <Card className="group bg-card border-border rounded-xl overflow-hidden flex flex-col h-full animate-pulse">
-          <div className="relative w-full h-48 overflow-hidden bg-muted/20"></div>{' '}
-          {/* Image placeholder */}
-          <CardHeader className="p-6 pb-4">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="h-6 w-3/4 bg-muted/30 rounded-md"></div> {/* Title placeholder */}
-              <div className="h-5 w-5 bg-muted/30 rounded-md flex-shrink-0"></div>{' '}
-              {/* Github icon placeholder */}
+          <div className="relative w-full h-64 overflow-hidden bg-muted/20"></div>
+          <CardHeader className="p-8 pb-5">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="h-7 w-3/4 bg-muted/30 rounded-md"></div>
+              <div className="h-6 w-6 bg-muted/30 rounded-md flex-shrink-0"></div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="h-6 w-20 bg-muted/30 rounded-md"></div>{' '}
-              {/* Category badge placeholder */}
-              <div className="h-6 w-16 bg-muted/30 rounded-md"></div>{' '}
-              {/* Status badge placeholder */}
+              <div className="h-7 w-24 bg-muted/30 rounded-md"></div>
+              <div className="h-7 w-20 bg-muted/30 rounded-md"></div>
             </div>
           </CardHeader>
-          <CardContent className="p-6 pt-0 flex-grow flex flex-col">
-            <div className="space-y-2 flex-grow mb-4">
-              <div className="h-4 w-full bg-muted/30 rounded-md"></div> {/* Description line 1 */}
-              <div className="h-4 w-11/12 bg-muted/30 rounded-md"></div> {/* Description line 2 */}
-              <div className="h-4 w-5/6 bg-muted/30 rounded-md"></div> {/* Description line 3 */}
+          <CardContent className="p-8 pt-0 flex-grow flex flex-col">
+            <div className="space-y-3 flex-grow mb-6">
+              <div className="h-4 w-full bg-muted/30 rounded-md"></div>
+              <div className="h-4 w-11/12 bg-muted/30 rounded-md"></div>
+              <div className="h-4 w-full bg-muted/30 rounded-md"></div>
+              <div className="h-4 w-10/12 bg-muted/30 rounded-md"></div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <div className="h-6 w-20 bg-muted/30 rounded-md"></div> {/* Tech badge 1 */}
-              <div className="h-6 w-16 bg-muted/30 rounded-md"></div> {/* Tech badge 2 */}
-              <div className="h-6 w-24 bg-muted/30 rounded-md"></div> {/* Tech badge 3 */}
+            <div className="mt-auto flex flex-wrap gap-2.5">
+              <div className="h-7 w-20 bg-muted/30 rounded-md"></div>
+              <div className="h-7 w-16 bg-muted/30 rounded-md"></div>
+              <div className="h-7 w-24 bg-muted/30 rounded-md"></div>
             </div>
           </CardContent>
-          <div className="p-6 pt-3 border-t border-border/50 mt-auto">
-            <div className="flex items-center justify-between text-sm">
-              <div className="h-4 w-24 bg-muted/30 rounded-md"></div> {/* View Details text */}
-              <div className="h-4 w-4 bg-muted/30 rounded-md"></div> {/* External link icon */}
+          <div className="p-8 pt-4 border-t border-border/50 mt-auto">
+            <div className="flex items-center justify-between text-base">
+              <div className="h-5 w-28 bg-muted/30 rounded-md"></div>
+              <div className="h-5 w-5 bg-muted/30 rounded-md"></div>
             </div>
           </div>
         </Card>
       </motion.div>
     ))}
   </motion.div>
-);
+)
 
 const ProjectsListContent = (): JSX.Element => {
-  const { data: projects, isLoading, error } = useSanityProjects();
-  const projectsList = (projects as any[]) || [];
+  const { data: projects, isLoading, error } = useSanityProjects()
+  const projectsList = (projects as any[]) || []
 
   if (isLoading) {
-    return <ProjectCardSkeleton />;
+    return <ProjectCardSkeleton />
   }
 
   if (error) {
     return (
       <Card className="bg-destructive/10 border-destructive/50">
         <CardContent className="p-8 text-center">
-          <p className="text-destructive-foreground text-lg">
-            Failed to load projects. Please try again later.
-          </p>
+          <p className="text-destructive-foreground text-lg">Failed to load projects. Please try again later.</p>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -130,7 +125,7 @@ const ProjectsListContent = (): JSX.Element => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-10"
         >
           {projectsList.map((project: any, index: number) => (
             <motion.div
@@ -140,70 +135,62 @@ const ProjectsListContent = (): JSX.Element => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               <Link href={`/projects/${project._id}`} className="block h-full">
-                <Card className="group bg-card border-border hover:border-primary/50 rounded-xl overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
+                <Card className="group bg-card border-border hover:border-primary/40 rounded-2xl overflow-hidden flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1">
                   {project.image && (
-                    <div className="relative w-full h-48 overflow-hidden bg-muted/20">
+                    <div className="relative w-full h-64 overflow-hidden bg-muted/20">
                       <Image
-                        src={
-                          urlFor(project.image).width(400).height(192).url() || '/placeholder.svg'
-                        }
+                        src={urlFor(project.image).width(600).height(256).url() || "/placeholder.svg"}
                         alt={project.image.alt || project.title}
-                        width={400}
-                        height={192}
+                        width={600}
+                        height={256}
                         className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
                   )}
 
-                  <CardHeader className="p-6 pb-4">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <CardTitle className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                  <CardHeader className="p-8 pb-5">
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <CardTitle className="text-2xl font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">
                         {project.title}
                       </CardTitle>
                       {project.githubUrl && (
-                        <Github className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        <Github className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge
                         variant="secondary"
-                        className="bg-secondary/30 text-secondary-foreground text-xs border-0"
+                        className="bg-secondary/30 text-secondary-foreground text-sm px-3 py-1 border-0"
                       >
                         {project.category}
                       </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-xs border-border text-muted-foreground"
-                      >
+                      <Badge variant="outline" className="text-sm px-3 py-1 border-border text-muted-foreground">
                         {project.status}
                       </Badge>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-6 pt-0 flex-grow flex flex-col">
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3 flex-grow leading-relaxed">
+                  <CardContent className="p-8 pt-0 flex-grow flex flex-col">
+                    <p className="text-base text-muted-foreground mb-6 flex-grow leading-relaxed">
                       {project.description}
                     </p>
 
                     {project.technologies && project.technologies.length > 0 && (
-                      <div>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="mt-auto">
+                        <div className="flex flex-wrap gap-2.5">
                           {project.technologies.slice(0, 6).map((tech: any, idx: number) => {
-                            const techName =
-                              typeof tech === 'string'
-                                ? tech
-                                : tech?.name || tech?.title || 'Unknown';
+                            const techName = typeof tech === "string" ? tech : tech?.name || tech?.title || "Unknown"
                             return (
                               <span
                                 key={`${techName}-${idx}`}
-                                className="px-2.5 py-1 text-xs bg-muted/50 text-muted-foreground rounded-md border border-border/50"
+                                className="px-3 py-1.5 text-sm bg-muted/50 text-muted-foreground rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                               >
                                 {techName}
                               </span>
-                            );
+                            )
                           })}
                           {project.technologies.length > 6 && (
-                            <span className="px-2.5 py-1 text-xs text-muted-foreground flex items-center">
+                            <span className="px-3 py-1.5 text-sm text-muted-foreground flex items-center font-medium">
                               +{project.technologies.length - 6}
                             </span>
                           )}
@@ -212,12 +199,12 @@ const ProjectsListContent = (): JSX.Element => {
                     )}
                   </CardContent>
 
-                  <div className="p-6 pt-3 border-t border-border/50 mt-auto">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-primary group-hover:text-primary/80 transition-colors font-medium">
+                  <div className="p-8 pt-4 border-t border-border/50 mt-auto">
+                    <div className="flex items-center justify-between text-base">
+                      <span className="text-primary group-hover:text-primary/80 transition-colors font-semibold">
                         View Details
                       </span>
-                      <ExternalLink className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
+                      <ExternalLink className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </Card>
@@ -235,8 +222,8 @@ const ProjectsListContent = (): JSX.Element => {
         </motion.div>
       )}
     </>
-  );
-};
+  )
+}
 
 export const ProjectsList = (): JSX.Element => {
   return (
@@ -247,7 +234,7 @@ export const ProjectsList = (): JSX.Element => {
         </Suspense>
       </div>
     </Layout>
-  );
-};
-ProjectsList.displayName = 'ProjectsList';
-export default ProjectsList;
+  )
+}
+ProjectsList.displayName = "ProjectsList"
+export default ProjectsList

@@ -24,9 +24,9 @@ import type React from 'react';
 import { useEffect } from 'react';
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
-import { useCursorFix } from '@/hooks';
+
 import { actions } from '@/lib/navigation';
-import { CustomAnimatedCursor, Events, Providers, ThemeProvider } from '@/providers';
+import { Events, Providers, ThemeProvider } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
 import { createQueryClient } from '@/providers/server';
 import { logger } from '@/utils';
@@ -56,14 +56,6 @@ export const GlobalProvider: React.FC<
     children: React.ReactNode;
   }>
 > = ({ children }) => {
-  /**
-   * @private
-   * @web
-   * Calls a custom hook to fix potential hydration issues with the custom animated cursor.
-   * This ensures the cursor behaves correctly across server-side rendering and client-side hydration.
-   */
-  useCursorFix();
-
   /**
    * @private
    * @web
@@ -146,11 +138,6 @@ export const GlobalProvider: React.FC<
          * @description A development-only indicator to show the active Tailwind CSS breakpoint.
          */}
         <TailwindIndicator />
-        {/*
-         * @public
-         * @description Renders a custom animated cursor for enhanced UI aesthetics.
-         */}
-        <CustomAnimatedCursor />
         {/*
          * @public
          * @description TanStack Query Devtools for debugging and inspecting query states.

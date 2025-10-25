@@ -22,17 +22,19 @@ import {
   type PlaywrightTestOptions,
 } from '@playwright/test';
 
-export * from '@playwright/test';
+// Extend basic test by providing a "todoPage" fixture.
+// This fixture can be used in tests by calling test.use().
+// For example, test.use({ todoPage: new TodoPage(page) });
+
+// Declare the type of the fixtures.
 export { expect };
 
-type TestExtras = {};
+type TestExtras = PlaywrightTestArgs &
+  PlaywrightTestOptions & {
+    page: Page & TestExtras;
+  };
 
-export const test = base.extend<
-  PlaywrightTestArgs &
-    PlaywrightTestOptions & {
-      page: Page & TestExtras;
-    }
->({
+export const test = base.extend<TestExtras>({
   page: async ({ baseURL, page }, use, testInfo) => {
     const testFilePath = testInfo.titlePath[0] || '';
 

@@ -23,6 +23,7 @@ export const blogSchema = {
       slug: t.String(),
       publishedAt: t.String(),
       excerpt: t.String(),
+      imageUrl: t.Optional(t.String()), // Added optional imageUrl
     }),
   ),
   'blog.error': t.Object({

@@ -14,4 +14,21 @@
  * limitations under the License.
  */
 
-export * from './scripts';
+'use client';
+
+import { GoogleAnalytics } from '@next/third-parties/google';
+import { env } from '@/env';
+
+/**
+ * Injects Google Analytics 4 (GA4) script for analytics.
+ * Uses the official `@next/third-parties/google` component.
+ *
+ * @returns {JSX.Element | null} The GA4 script tag or null if Measurement ID is not configured.
+ */
+export function AnalyticsScripts({ nonce }: { nonce: string | undefined }) {
+  if (!env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
+    return null;
+  }
+
+  return <GoogleAnalytics gaId={env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID} nonce={nonce} />;
+}

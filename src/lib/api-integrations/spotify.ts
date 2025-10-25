@@ -19,7 +19,6 @@ import { Effect, pipe, Schema } from 'effect';
 import { env } from '@/env';
 import { get, post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
-import 'server-only';
 
 const client_id = env.SPOTIFY_CLIENT_ID;
 const client_secret = env.SPOTIFY_CLIENT_SECRET;

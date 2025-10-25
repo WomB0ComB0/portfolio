@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { type NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/classes/redis';
 import { env } from '@/env';
 import type { RateLimitHelper } from '@/lib';
 import { csrfToken, getRateLimitReset, rateLimiter } from '@/lib';
 import { getClientIP } from '@/lib/security/get-ip';
 import { Logger, Stringify } from '@/utils';
+import { type NextRequest, NextResponse } from 'next/server';
 
-const logger = Logger.getLogger('Middleware');
+const logger = Logger.getLogger('Proxy');
 
 /**
  * @readonly
@@ -84,7 +84,7 @@ const rateLimitExemptPaths = [...publicAssetPaths, '/_next', '/api/health'];
  * @see {@link ../lib/security/get-ip.ts getClientIP}
  * @see {@link ../lib/rate-limiter.ts rateLimiter}
  */
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   logger.debug('Processing middleware request', { path: request.nextUrl.pathname });
 
   // Early return for exempt paths
@@ -120,11 +120,40 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    const nonce = crypto.randomUUID().replace(/-/g, '');
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nonce', nonce);
+
     const response = NextResponse.next({
       request: {
-        headers: request.headers,
+        headers: requestHeaders,
       },
     });
+
+    // Apply security headers
+    const csp = [
+      `default-src 'self'`,
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'sha256-hO9ZT4cNK4lf3tCm9gejKqXi7lxNB3kKEhmGEQhx9/M='`,
+      `style-src 'self' 'unsafe-inline'`,
+      `img-src 'self' data: https:`,
+      `connect-src 'self' ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} *.sentry.io *.liveblocks.io https://accounts.spotify.com https://api.spotify.com https://api.github.com https://api.lanyard.rest https://api.hashnode.com https://mainnet.infura.io https://rpc.ankr.com wss://relay.walletconnect.com *.sanity.io *.cloudinary.com *.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com *.googleapis.com`,
+      `worker-src 'none'`,
+      `object-src 'none'`,
+      `base-uri 'none'`,
+      `frame-ancestors 'none'`,
+      `font-src 'self'`,
+      `upgrade-insecure-requests`,
+      `require-trusted-types-for 'script'`,
+      `trusted-types default dompurify nextjs#bundler`,
+    ].join('; ');
+
+    response.headers.set('Content-Security-Policy', csp);
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+    response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
 
     if (!request.cookies.get('csrfToken')) {
       logger.debug('Setting CSRF token cookie');
