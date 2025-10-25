@@ -415,7 +415,7 @@ type AllArguments<T> = T extends (...args: infer Args) => any ? Args : never;
  * isNotNull(5); // true
  * isNotNull(null); // false
  */
-declare const isNotNull = <Value>(value: Value): value is Exclude<Value, null> => {
+const isNotNull = <Value>(value: Value): value is Exclude<Value, null> => {
   return value !== null;
 };
 
@@ -429,7 +429,7 @@ declare const isNotNull = <Value>(value: Value): value is Exclude<Value, null> =
  * @example
  * await sleep(1000); // Waits for 1 second
  */
-declare const sleep = <A extends number, R extends void>(n: A): Promise<R> => {
+const sleep = <A extends number, R extends void>(n: A): Promise<R> => {
   return new Promise((resolve) => setTimeout(resolve, n));
 };
 
