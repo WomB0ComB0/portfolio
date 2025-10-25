@@ -16,16 +16,17 @@
 
 'use client';
 
+import { MagicCard } from '@/components';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import { FiGithub, FiStar, FiUsers } from 'react-icons/fi';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
 
 /**
  * @readonly
@@ -259,7 +260,7 @@ export const GitHubStats = memo(() => {
             transition={{ duration: 0.5, delay: index * 0.1 }}
             className="grid lg:grid-rows-[auto_1fr] lg:row-span-2"
           >
-            <Card className="grid lg:grid-rows-subgrid lg:row-span-2 overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-card text-card-foreground border-border">
+            <MagicCard className="grid lg:grid-rows-subgrid lg:row-span-2 overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-card text-card-foreground border-border">
               <CardHeader className="lg:row-start-1">
                 <CardTitle className="text-card-foreground text-lg">{card.title}</CardTitle>
                 <p className="text-xs text-muted-foreground">{card.description}</p>
@@ -274,7 +275,7 @@ export const GitHubStats = memo(() => {
                   />
                 </div>
               </CardContent>
-            </Card>
+            </MagicCard>
           </motion.div>
         ))}
       </div>
@@ -297,7 +298,7 @@ export const GitHubStats = memo(() => {
                 rel="noopener noreferrer"
                 className="h-full grid lg:grid-rows-[auto_1fr] lg:row-span-2"
               >
-                <Card className="grid lg:grid-rows-subgrid lg:row-span-2 h-full hover:border-primary transition-all duration-300 bg-card border-border">
+                <MagicCard className="grid lg:grid-rows-subgrid lg:row-span-2 h-full hover:border-primary transition-all duration-300 bg-card border-border">
                   <CardHeader className="lg:row-start-1">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -319,7 +320,7 @@ export const GitHubStats = memo(() => {
                       </span>
                     )}
                   </CardContent>
-                </Card>
+                </MagicCard>
               </a>
             </motion.div>
           ))}

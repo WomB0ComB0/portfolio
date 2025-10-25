@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
 import { constructMetadata } from '@/utils';
+import dynamic from 'next/dynamic';
 
 export const metadata = constructMetadata({ title: 'Forbidden' });
 

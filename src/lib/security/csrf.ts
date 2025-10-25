@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import * as _ from 'crypto';
-import { nextCsrf } from 'next-csrf';
 import { env } from '@/env';
+import { nextCsrf } from 'next-csrf';
+import * as _ from 'node:crypto';
 
 /**
  * Initializes CSRF protection utilities using `next-csrf`.

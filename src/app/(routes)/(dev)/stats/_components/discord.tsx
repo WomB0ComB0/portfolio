@@ -16,10 +16,7 @@
 
 'use client';
 
-import { Schema } from 'effect';
-import { motion } from 'motion/react';
-import { Suspense } from 'react';
-import { SiDiscord } from 'react-icons/si';
+import { MagicCard } from '@/components';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +25,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { config } from '@/config';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 import { logger } from '@/utils';
+import { Schema } from 'effect';
+import { motion } from 'motion/react';
+import { Suspense } from 'react';
+import { SiDiscord } from 'react-icons/si';
 
 const ActivitySchema = Schema.Struct({
   name: Schema.String,
@@ -49,9 +50,6 @@ const LanyardResponseSchema = Schema.Struct({
   activities: Schema.optional(Schema.Array(ActivitySchema)),
 });
 
-// Replaced explicit color numbers with semantic Tailwind variable classes.
-// Assumes 'success' and 'warning' are defined in the project's tailwind.config.ts
-// or globals.css, consistent with shadcn/ui styling conventions.
 const statusColors = {
   online: 'bg-success',
   idle: 'bg-warning',
@@ -62,7 +60,7 @@ const statusColors = {
 const DiscordSkeleton = () => (
   <Card className="overflow-hidden">
     <CardContent className="p-0">
-      <div className="bg-gradient-to-r from-primary to-primary/80 p-6">
+      <div className="bg-linear-to-r from-primary to-primary/80 p-6">
         <div className="flex items-center gap-4 mb-4">
           <div className="relative">
             <Skeleton className="h-16 w-16 rounded-full border-2 border-white" />
@@ -81,7 +79,6 @@ const DiscordSkeleton = () => (
 );
 
 const DiscordError = () => (
-  // Replaced explicit color numbers with semantic Tailwind variable classes
   <div className="text-destructive p-4 bg-destructive/10 rounded-lg">
     Failed to load Discord status
   </div>
@@ -113,14 +110,13 @@ export const Discord = () => {
           };
 
           return (
-            <Card className="overflow-hidden">
+            <MagicCard className="overflow-hidden">
               <CardContent className="p-0">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  // Replaced explicit color numbers with semantic Tailwind variable classes
-                  className="bg-gradient-to-r from-primary to-primary/80 p-6"
+                  className="bg-linear-to-r from-primary to-primary/80 p-6"
                 >
                   <div className="flex items-center gap-4 mb-4">
                     <div className="relative">
@@ -137,23 +133,20 @@ export const Discord = () => {
                       <div
                         className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
                           statusColors[status]
-                        } border-2 border-background`} // Replaced explicit color with semantic
+                        } border-2 border-background`}
                       />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <SiDiscord className="w-5 h-5 text-primary-foreground" />{' '}
-                        {/* Replaced text-white with semantic */}
                         <span className="text-xl font-semibold text-primary-foreground">
                           {' '}
-                          {/* Replaced text-white with semantic */}
                           {user.username}
                           {user.discriminator !== '0' ? `#${user.discriminator}` : ''}
                         </span>
                       </div>
                       <Badge
                         variant="secondary"
-                        // Replaced explicit color numbers with semantic Tailwind variable classes
                         className="mt-1 bg-primary/80 text-primary-foreground"
                       >
                         {status === 'online' ? 'Online' : 'Offline'}
@@ -162,19 +155,17 @@ export const Discord = () => {
                   </div>
                   <p className="text-sm text-primary-foreground/90 mb-4">
                     {' '}
-                    {/* Replaced text-purple-100 with semantic */}
                     {activity?.state || 'Coding, building, and growing'}
                   </p>
                   <Button
                     onClick={() => handleAddFriend()}
-                    // Replaced explicit color numbers with semantic Tailwind variable classes
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     Add Friend
                   </Button>
                 </motion.div>
               </CardContent>
-            </Card>
+            </MagicCard>
           );
         }}
       </DataLoader>

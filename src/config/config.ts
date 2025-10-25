@@ -110,16 +110,6 @@ export const config = {
   /**
    * @readonly
    * @public
-   * @description Liveblocks public API key for real-time collaboration services.
-   * @type {{ publicKey: string }}
-   * @see https://liveblocks.io/docs/rooms/authentication/public-key
-   */
-  liveblocks: {
-    publicKey: env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY,
-  },
-  /**
-   * @readonly
-   * @public
    * @description Sentry DSN for error tracking and monitoring.
    * @type {{ dsn: string }}
    * @see https://docs.sentry.io/product/sentry-basics/dsn-explainer/

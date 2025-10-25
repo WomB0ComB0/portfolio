@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import type { Context } from 'elysia';
 import { createCacheHeaders } from '@/app/api/_elysia/shared/middleware';
 import { logger } from '@/utils';
+import type { Context } from 'elysia';
 
 /**
  * Cache headers for Sanity responses

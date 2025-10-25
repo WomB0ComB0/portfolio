@@ -22,33 +22,107 @@ import type { NextConfig } from 'next';
 import './src/env';
 
 // Just in case you accidentally import these packages
-const EXEMPT_DEPS: Set<string> = new Set([
-  'lucide-react',
-  'date-fns',
-  'lodash-es',
-  'ramda',
-  'antd',
-  'react-bootstrap',
-  'ahooks',
-  '@ant-design/icons',
-  '@headlessui/react',
-  '@headlessui-float/react',
-  '@heroicons/react/20/solid',
-  '@heroicons/react/24/solid',
-  '@heroicons/react/24/outline',
-  '@visx/visx',
-  '@tremor/react',
-  'rxjs',
-  '@mui/material',
-  '@mui/icons-material',
-  'recharts',
-  'react-use',
-  '@material-ui/core',
-  '@material-ui/icons',
-  '@tabler/icons-react',
-  'mui-core',
-  'react-icons/*',
-]);
+// next.config.ts (top-level, before config)
+import fs from 'node:fs';
+import path from 'node:path';
+
+function safeReadJSON(p: string) {
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+function pkgJsonFor(name: string): any | undefined {
+  try {
+    // Resolve the package.json within node_modules
+    const resolved = require.resolve(path.join(name, 'package.json'), { paths: [process.cwd()] });
+    return safeReadJSON(resolved);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Heuristics:
+ *  - Exempt if package:
+ *    1) lacks usable subpath exports (no wildcard or only "." entry),
+ *    2) is CJS-only (no "module" and not "type":"module"),
+ *    3) declares side effects (true or array incl. *.css),
+ *    4) is a build/bundler/runtime plugin or types-only pkg,
+ *    5) is in a small known-bad set (community reports).
+ *
+ * This keeps optimizePackageImports focused on big, safe targets
+ * like icon/component libs intentionally exposing subpaths.
+ */
+function computeExemptDeps(): Set<string> {
+  const appPkg = safeReadJSON(path.join(process.cwd(), 'package.json')) ?? {};
+  const allDeps = new Set<string>([
+    ...Object.keys(appPkg.dependencies ?? {}),
+    ...Object.keys(appPkg.devDependencies ?? {}),
+    ...Object.keys(appPkg.optionalDependencies ?? {}),
+  ]);
+
+  const KNOWN_BAD = new Set<string>([
+    // Add or remove as you learn more:
+    '@mantine/modals',
+    // Example placeholders; prune if they work fine in your app:
+    // "@mantine/core",
+  ]);
+
+  const EXCLUDE_NAME_RE = new RegExp(
+    [
+      // tooling, bundlers, analyzers, type pkgs, CSS frameworks
+      '^(@types/|eslint|prettier|ts-node|tsup|rollup|vite|webpack|esbuild|babel|postcss|tailwind|stylelint)',
+      // server/adapters & next internals not meant for deep import rewrites
+      '^(next($|/)|react-dom$|@sentry/|prisma|playwright|jest|vitest|cypress)',
+    ].join('|'),
+  );
+
+  const results = new Set<string>();
+
+  for (const name of allDeps) {
+    if (EXCLUDE_NAME_RE.test(name) || KNOWN_BAD.has(name)) {
+      results.add(name);
+      continue;
+    }
+
+    const pj = pkgJsonFor(name);
+    if (!pj) {
+      results.add(name);
+      continue;
+    }
+
+    const isCJSOnly = !pj.module && pj.type !== 'module';
+    const side = pj.sideEffects;
+    const hasCssSideEffects =
+      side === true ||
+      (Array.isArray(side) && side.some((p: string) => p.endsWith('.css') || p.includes('*.css')));
+
+    // Detect usable subpaths: exports with "*" or multiple keys beyond "."
+    let hasUsableSubpaths = false;
+    if (typeof pj.exports === 'string') {
+      hasUsableSubpaths = false; // single entrypoint only
+    } else if (pj.exports && typeof pj.exports === 'object') {
+      const keys = Object.keys(pj.exports);
+      hasUsableSubpaths = keys.some((k) => k.includes('*')) || keys.some((k) => k !== '.');
+    }
+
+    // If package has neither subpaths nor wildcards, deep import rewriting is unlikely to help.
+    const noSubpaths = !hasUsableSubpaths;
+
+    // Exempt if any risk condition matches:
+    if (isCJSOnly || hasCssSideEffects || noSubpaths) {
+      results.add(name);
+    }
+  }
+
+  return results;
+}
+
+// Build the dynamic EXEMPT_DEPS set once at config load:
+const EXEMPT_DEPS: Set<string> = computeExemptDeps();
 
 const withPwa = pwa({
   dest: 'public', // Output directory for the service worker and other PWA files
@@ -140,7 +214,7 @@ const config: NextConfig = {
     formats: ['image/avif', 'image/webp'], // Modern image formats
     dangerouslyAllowSVG: false, // Prevent SVG XSS attacks
   },
-  
+
   skipTrailingSlashRedirect: true,
   experimental: {
     optimizePackageImports: [

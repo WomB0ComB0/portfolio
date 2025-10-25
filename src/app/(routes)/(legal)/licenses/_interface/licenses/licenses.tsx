@@ -14,39 +14,16 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
+import { MagicCard } from '@/components';
+import Layout from '@/components/layout/layout';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { obfuscateLink } from '@/utils/browser/html-entities';
 import { ExternalLink, FileCode, FileText, Image } from 'lucide-react';
 import Link from 'next/link';
 import type { JSX } from 'react';
-import Layout from '@/components/layout/layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { obfuscateLink } from '@/utils/browser/html-entities';
-
-/**
- * Props interface for the LicenseCard component.
- *
- * Represents the properties required to render a license information card.
- *
- * @interface
- * @readonly
- * @author Mike Odnis
- * @see [Lucide Icon Components](https://lucide.dev/)
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- */
-interface LicenseCardProps {
-  /** The heading displayed on the card. */
-  readonly title: string;
-  /** The descriptive text about what is licensed. */
-  readonly description: string;
-  /** The official name of the license. */
-  readonly licenseName: string;
-  /** The URL to the license text/details. */
-  readonly licenseUrl: string;
-  /** An icon representing the content type. */
-  readonly icon: React.ReactNode;
-}
+import type { LicenseCardProps } from './licenses.types';
 
 /**
  * Renders a card displaying license details for a specific content type.
@@ -75,7 +52,7 @@ const LicenseCard = ({
   licenseUrl,
   icon,
 }: LicenseCardProps): JSX.Element => (
-  <Card className="bg-card border-border hover:border-primary transition-colors">
+  <MagicCard className="bg-card border-border hover:border-primary transition-colors">
     <CardHeader>
       <div className="flex items-center gap-3 mb-2">
         <div className="text-primary">{icon}</div>
@@ -94,7 +71,7 @@ const LicenseCard = ({
         <ExternalLink className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
       </Link>
     </CardContent>
-  </Card>
+  </MagicCard>
 );
 
 /**
@@ -156,7 +133,7 @@ export const Licenses = (): JSX.Element => {
           />
         </div>
 
-        <Card className="mt-12 bg-card border-border">
+        <MagicCard className="mt-12 bg-card border-border">
           <CardHeader>
             <CardTitle className="text-xl text-foreground">Third-Party Licenses</CardTitle>
           </CardHeader>
@@ -175,7 +152,7 @@ export const Licenses = (): JSX.Element => {
               the project repository.
             </p>
           </CardContent>
-        </Card>
+        </MagicCard>
 
         <div className="mt-8 p-6 bg-muted rounded-lg border border-border">
           <h3 className="text-lg font-semibold text-foreground mb-2">Questions or Permissions</h3>

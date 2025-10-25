@@ -1,3 +1,5 @@
+import type { MagicCardProps } from './magic-card.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,34 +16,13 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
 import type React from 'react';
 import { useCallback, useEffect } from 'react';
 
 import { cn } from '@/lib/utils';
-
-/**
- * Props for the {@link MagicCard} component.
- *
- * @interface MagicCardProps
- * @extends React.HTMLAttributes<HTMLDivElement>
- * @property {number} [gradientSize] - The diameter of the radial gradient spotlight effect, in pixels.
- * @property {string} [gradientColor] - The CSS color string for the gradient. Defaults to a purple-tinted rgba.
- * @property {number} [gradientOpacity] - Opacity of the radial gradient overlay (0-1).
- *
- * @author Mike Odnis
- * @see {@link https://github.com/WomB0ComB0/portfolio}
- * @version 1.0.0
- * @public
- */
-export interface MagicCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  gradientSize?: number;
-  gradientColor?: string;
-  gradientOpacity?: number;
-}
-
 /**
  * MagicCard is a React component that adds a dynamic radial gradient "spotlight"
  * effect that follows the user's mouse position inside the card.

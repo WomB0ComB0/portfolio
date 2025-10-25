@@ -19,4 +19,3 @@ export * from './border-beam';
 export * from './dot-pattern';
 export * from './light-rays';
 export * from './magic-card';
-export * from './particles';

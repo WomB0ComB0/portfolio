@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { StatusMap } from 'elysia';
 import { Stringify } from '@/utils';
+import { StatusMap } from 'elysia';
 
 /**
  * Represents the structure of a successful API response.
@@ -55,18 +55,6 @@ export interface ApiErrorResponse {
 }
 
 /**
- * Union type of possible API responses — either successful or error.
- *
- * @template T
- * @public
- * @author Mike Odnis
- * @see ApiSuccessResponse
- * @see ApiErrorResponse
- * @version 1.0.0
- */
-export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
-
-/**
  * Options for customizing the API response creator functions.
  *
  * @property {keyof typeof StatusMap} [status] - Status as a key from StatusMap.
@@ -81,6 +69,18 @@ export interface ResponseOptions {
   status?: keyof typeof StatusMap;
   headers?: Record<string, string>;
 }
+
+/**
+ * Union type of possible API responses — either successful or error.
+ *
+ * @template T
+ * @public
+ * @author Mike Odnis
+ * @see ApiSuccessResponse
+ * @see ApiErrorResponse
+ * @version 1.0.0
+ */
+export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
  * Default JSON headers for response objects.

@@ -415,9 +415,7 @@ type AllArguments<T> = T extends (...args: infer Args) => any ? Args : never;
  * isNotNull(5); // true
  * isNotNull(null); // false
  */
-declare function isNotNull <Value>(value: Value): value is Exclude<Value, null> {
-  return value !== null;
-};
+declare function isNotNull <Value>(value: Value): value is Exclude<Value, null>  { return value !== null;}
 
 /**
  * Returns a promise that resolves after a specified number of milliseconds.
@@ -429,8 +427,8 @@ declare function isNotNull <Value>(value: Value): value is Exclude<Value, null> 
  * @example
  * await sleep(1000); // Waits for 1 second
  */
-declare function sleep <A extends number, R extends void>(n: A): Promise<R> {
-  return new Promise((resolve) => setTimeout(resolve, n));
+declare function sleep <A extends number, R extends undefined>(n: A): Promise<R> {
+  return new Promise((_resolve) => setTimeout(resolve, n));
 };
 
 /**
@@ -464,7 +462,7 @@ declare function sleep <A extends number, R extends void>(n: A): Promise<R> {
  * const value = 42;
  * const result = error(value); // result === 42
  */
-const error = <I, O>(e: I, fn?: (error: I, ...args: any[]) => O, ...opts: any[]): I | O => {
+const error = <I, O>(_e: I, _fn?: (error: I, ...args: any[]) => O, ..._opts: any[]): I | O => {
   const isError = Error.isError(e);
   return isError ? (fn ? fn(e, ...opts) : e) : e;
 };

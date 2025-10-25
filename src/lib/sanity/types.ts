@@ -15,6 +15,8 @@
  */
 
 import type { SanityImageSource } from '@sanity/image-url/lib/types/types';
+// Re-export for convenience
+export type { SanityImageSource };
 
 /**
  * Base Sanity document fields
@@ -68,14 +70,14 @@ export interface Experience extends SanityDocument {
   position: string;
   location: string;
   startDate: string;
-  endDate?: string; // Optional for current positions
+  endDate?: string;
   current: boolean;
   description: string;
   responsibilities: string[];
   technologies: string[];
   logo?: SanityImage;
   companyUrl?: string;
-  order: number; // For sorting
+  order: number;
 }
 
 /**
@@ -86,9 +88,9 @@ export interface Project extends SanityDocument {
   title: string;
   slug: SanitySlug;
   description: string;
-  longDescription?: string; // Rich text or markdown
+  longDescription?: string;
   image: SanityImage;
-  images?: SanityImage[]; // Gallery
+  images?: SanityImage[];
   technologies: string[];
   githubUrl?: string;
   liveUrl?: string;
@@ -96,7 +98,7 @@ export interface Project extends SanityDocument {
   category: 'web' | 'mobile' | 'design' | 'other';
   startDate: string;
   endDate?: string;
-  order: number; // For sorting
+  order: number;
   status: 'completed' | 'in-progress' | 'archived';
 }
 
@@ -108,13 +110,13 @@ export interface Certification extends SanityDocument {
   name: string;
   issuer: string;
   issueDate: string;
-  expiryDate?: string; // Optional for non-expiring certs
+  expiryDate?: string;
   credentialId?: string;
   credentialUrl?: string;
   logo?: SanityImage;
   description?: string;
   skills: string[];
-  order: number; // For sorting
+  order: number;
 }
 
 /**
@@ -124,7 +126,7 @@ export interface SkillCategory extends SanityDocument {
   _type: 'skillCategory';
   name: string;
   skills: string[];
-  icon?: string; // Icon name or emoji
+  icon?: string;
   order: number;
 }
 
@@ -138,10 +140,7 @@ export interface Place extends SanityDocument {
   category: 'Hackathon' | 'Conference' | 'Research' | 'Tech Office' | 'Mentorship' | 'Event';
   latitude: number;
   longitude: number;
-  photos?: SanityImage[]; // Photo gallery
-  order: number; // For sorting
+  photos?: SanityImage[];
+  order: number;
   featured: boolean;
 }
-
-// Re-export for convenience
-export type { SanityImageSource };

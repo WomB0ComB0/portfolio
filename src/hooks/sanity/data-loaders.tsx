@@ -39,21 +39,6 @@ import { createDataLoaderOptions, SANITY_ENDPOINTS } from './config';
 import { CertificationsSchema, ExperiencesSchema, ProjectsSchema } from './schemas';
 
 /**
- * Utility types for DataLoader components
- */
-type DataLoaderUtils = {
-  refetch: () => Promise<void>;
-  invalidate: () => Promise<void>;
-  isRefetching: boolean;
-};
-
-type DataLoaderProps<T> = {
-  children: (data: T, utils?: DataLoaderUtils) => React.ReactNode;
-  LoadingComponent?: React.ReactNode;
-  ErrorComponent?: React.ComponentType<{ error: Error; retry: () => void }>;
-};
-
-/**
  * Generic factory for creating DataLoader components
  */
 function createDataLoaderComponent<T>(url: string, schema: any) {
@@ -101,4 +86,18 @@ export const SanityDataLoader = {
     SANITY_ENDPOINTS.certifications,
     CertificationsSchema,
   ),
+};
+
+/**
+ * Utility types for DataLoader components
+ */
+export type DataLoaderUtils = {
+  refetch: () => Promise<void>;
+  invalidate: () => Promise<void>;
+  isRefetching: boolean;
+};
+export type DataLoaderProps<T> = {
+  children: (data: T, utils?: DataLoaderUtils) => React.ReactNode;
+  LoadingComponent?: React.ReactNode;
+  ErrorComponent?: React.ComponentType<{ error: Error; retry: () => void }>;
 };

@@ -18,21 +18,21 @@ import { Provider } from 'jotai/react';
 import type { ReactNode } from 'react';
 
 /**
- * Type definition for a React component that can accept children
- * @template P - The props type for the component
- */
-type ComponentWithChildren<P = {}> = React.ComponentType<P & { children?: ReactNode }>;
-
-/**
  * Props interface for the JotaiProvider component
  * @template T - Component type that extends ComponentWithChildren
  * @property {T} Component - The React component to be wrapped with the Jotai Provider
  * @property {T extends ComponentWithChildren<infer P> ? P : never} [componentProps] - Optional props to pass to the wrapped component
  */
-interface JotaiProviderProps<T extends ComponentWithChildren> {
+export interface JotaiProviderProps<T extends ComponentWithChildren> {
   Component: T;
   componentProps?: T extends ComponentWithChildren<infer P> ? P : never;
 }
+
+/**
+ * Type definition for a React component that can accept children
+ * @template P - The props type for the component
+ */
+export type ComponentWithChildren<P = {}> = React.ComponentType<P & { children?: ReactNode }>;
 
 /**
  * A higher-order component that wraps a given component with Jotai's Provider

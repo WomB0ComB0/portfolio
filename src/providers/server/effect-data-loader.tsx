@@ -16,26 +16,26 @@
 
 'use client';
 
-import { FetchHttpClient } from '@effect/platform';
-import type { QueryKey } from '@tanstack/react-query';
-import {
-  type UseSuspenseQueryOptions,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
-import React, { Suspense, useCallback, useMemo } from 'react';
 import { ClientError, Loader } from '@/components/client';
 import {
+  fetcher,
   FetcherError,
   type FetcherOptions,
-  fetcher,
   get,
   type QueryParams,
   requestQueue,
   ValidationError,
 } from '@/lib/http-clients';
 import { logger, parseCodePathDetailed } from '@/utils';
+import { FetchHttpClient } from '@effect/platform';
+import type { QueryKey } from '@tanstack/react-query';
+import {
+  useQueryClient,
+  useSuspenseQuery,
+  type UseSuspenseQueryOptions,
+} from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
+import React, { Suspense, useCallback, useMemo } from 'react';
 
 /**
  * @module effect-data-loader
@@ -56,10 +56,8 @@ import { logger, parseCodePathDetailed } from '@/utils';
  * - Optimistic updates
  * - Retry and timeout logic
  * - Render props and hook API
- *
  * @see DataLoader
  * @see useDataLoader
- *
  * @example
  * ```tsx
  * import { DataLoader } from './effect-data-loader';
@@ -82,7 +80,6 @@ import { logger, parseCodePathDetailed } from '@/utils';
  * }
  * ```
  */
-
 /**
  * Enhanced render props with additional query state and actions.
  *
@@ -104,7 +101,9 @@ export interface DataLoaderRenderProps<T> {
 /**
  * Base props for DataLoader without schema.
  */
-interface BaseDataLoaderProps<T> {
+export interface BaseDataLoaderProps<T> {
+  /** Additional props */
+  [key: string]: unknown;
   /** URL to fetch data from */
   url: string;
   /** Additional React Query options */
@@ -133,8 +132,6 @@ interface BaseDataLoaderProps<T> {
   refetchOnWindowFocus?: boolean;
   /** Whether to refetch on reconnect (default: true) */
   refetchOnReconnect?: boolean;
-  /** Additional props */
-  [key: string]: unknown;
 }
 
 /**

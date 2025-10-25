@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import type { TestResult } from './api-manual-test.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -36,34 +38,6 @@
  * @version 1.0.0
  */
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-/**
- * Represents the detailed result of an API endpoint test.
- * @interface TestResult
- * @property {string} endpoint - The path of the API endpoint tested (e.g., '/api/v1/now-playing').
- * @property {'GET' | 'POST'} method - The HTTP method used for the request (e.g., 'GET', 'POST').
- * @property {number} status - The HTTP status code of the response (e.g., 200, 404).
- * @property {string} statusText - The HTTP status text of the response (e.g., 'OK', 'Not Found').
- * @property {boolean} success - Indicates whether the request was successful (HTTP status 2xx).
- * @property {number} responseTime - The time taken for the request to complete in milliseconds.
- * @property {unknown} [data] - The parsed response body. Can be JSON object or raw text.
- * @property {string} [error] - An error message if the request failed at the network level or encountered an exception.
- * @property {Record<string, string>} [headers] - A dictionary of response headers.
- * @author Mike Odnis
- * @version 1.0.0
- */
-interface TestResult {
-  endpoint: string;
-  method: string;
-  status: number;
-  statusText: string;
-  success: boolean;
-  responseTime: number;
-  data?: unknown;
-  error?: string;
-  headers?: Record<string, string>;
-}
-
 /**
  * Defines ANSI escape codes for console text colors.
  * Used for stylized output in the console.

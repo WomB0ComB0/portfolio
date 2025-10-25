@@ -14,44 +14,56 @@
  * limitations under the License.
  */
 
-"use client"
+'use client';
 
-import { useKBar } from "kbar"
-import Link from "next/link"
-import { memo, useState } from "react"
-import { FiBriefcase, FiCode, FiCommand, FiHome } from "react-icons/fi"
-import { Button } from "@/components/ui/button"
-import { NavbarItems } from "@/constants/index"
-import { AnimatePresence, motion } from "motion/react"
-import { cn } from "@/lib/utils"
+import { Button } from '@/components/ui/button';
+import { NavbarItems } from '@/constants/index';
+import { cn } from '@/lib/utils';
+import { useKBar } from 'kbar';
+import { AnimatePresence, motion } from 'motion/react';
+import Link from 'next/link';
+import { memo, useState } from 'react';
+import { FaGavel } from 'react-icons/fa';
+import { FiBriefcase, FiCode, FiCommand, FiHome, FiUser } from 'react-icons/fi';
 
 export const groupNavItems = () => {
   // Define which routes belong to which persona
-  const professionalRoutes = ["/experience", "/certifications", "/resume", "/projects"]
-  const developerRoutes = ["/blog", "/places", "/guestbook"]
-  const homeRoute = "/"
+  const professionalRoutes = ['/experience', '/certifications', '/resume', '/projects'];
+  const developerRoutes = ['/sponsor', '/stats', '/blog'];
+  const legalRoutes = ['/privacy', '/licenses', '/cookies'];
+  const personalRoutes = ['/guestbook', '/places', '/spotify'];
 
-  const professional = NavbarItems.filter((item) => professionalRoutes.includes(item.slug))
+  const homeRoute = '/';
 
-  const developer = NavbarItems.filter((item) => developerRoutes.includes(item.slug))
+  const professional = NavbarItems.filter((item) => professionalRoutes.includes(item.slug));
 
-  const home = NavbarItems.find((item) => item.slug === homeRoute)
+  const developer = NavbarItems.filter((item) => developerRoutes.includes(item.slug));
 
-  return { professional, developer, home }
-}
+  const personal = NavbarItems.filter((item) => personalRoutes.includes(item.slug));
+
+  const legal = NavbarItems.filter((item) => legalRoutes.includes(item.slug));
+
+  const home = NavbarItems.find((item) => item.slug === homeRoute);
+
+  return { professional, developer, home, personal, legal };
+};
 
 export const NavBar = memo(({ path }: { path: string }) => {
-  const { query } = useKBar()
-  const [professionalOpen, setProfessionalOpen] = useState(false)
-  const [developerOpen, setDeveloperOpen] = useState(false)
-  const { professional, developer, home } = groupNavItems()
+  const { query } = useKBar();
+  const [professionalOpen, setProfessionalOpen] = useState(false);
+  const [developerOpen, setDeveloperOpen] = useState(false);
+  const [personalOpen, setPersonalOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
+  const { professional, developer, home, personal, legal } = groupNavItems();
 
-  const isProfessionalActive = professional.some((item) => path === item.slug)
-  const isDeveloperActive = developer.some((item) => path === item.slug)
+  const isProfessionalActive = professional.some((item) => path === item.slug);
+  const isDeveloperActive = developer.some((item) => path === item.slug);
+  const _isPersonalActive = personal.some((item) => path === item.slug);
+  const _isLegalActive = legal.some((item) => path === item.slug);
 
   return (
     <div className="w-16 h-full flex flex-col items-center py-6 gap-3 border-r border-border/30">
-      <nav className="flex flex-col items-center gap-2 w-full px-2" role="navigation" aria-label="Main navigation">
+      <nav className="flex flex-col items-center gap-2 w-full px-2" aria-label="Main navigation">
         {/* Home Link */}
         {home && (
           <Button
@@ -59,13 +71,13 @@ export const NavBar = memo(({ path }: { path: string }) => {
             variant="ghost"
             size="icon"
             className={cn(
-              "w-11 h-11 rounded-xl transition-all duration-200 relative group",
+              'w-11 h-11 rounded-xl transition-all duration-200 relative group',
               path === home.slug
-                ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
-                : "hover:bg-accent/70 text-muted-foreground hover:text-foreground",
+                ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90'
+                : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
             )}
             aria-label={home.name}
-            aria-current={path === home.slug ? "page" : undefined}
+            aria-current={path === home.slug ? 'page' : undefined}
           >
             <Link href={home.slug}>
               <FiHome size="1.25rem" strokeWidth={path === home.slug ? 2.5 : 2} />
@@ -80,10 +92,10 @@ export const NavBar = memo(({ path }: { path: string }) => {
             size="icon"
             onClick={() => setProfessionalOpen(!professionalOpen)}
             className={cn(
-              "w-11 h-11 rounded-xl transition-all duration-200 relative group",
+              'w-11 h-11 rounded-xl transition-all duration-200 relative group',
               isProfessionalActive || professionalOpen
-                ? "bg-accent text-foreground shadow-sm"
-                : "hover:bg-accent/70 text-muted-foreground hover:text-foreground",
+                ? 'bg-accent text-foreground shadow-sm'
+                : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
             )}
             aria-label="Professional section"
             aria-expanded={professionalOpen}
@@ -118,10 +130,10 @@ export const NavBar = memo(({ path }: { path: string }) => {
                         asChild
                         variant="ghost"
                         className={cn(
-                          "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                          'w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
                           path === item.slug
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "hover:bg-accent/50 text-foreground",
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'hover:bg-accent/50 text-foreground',
                         )}
                         onClick={() => setProfessionalOpen(false)}
                       >
@@ -145,10 +157,10 @@ export const NavBar = memo(({ path }: { path: string }) => {
             size="icon"
             onClick={() => setDeveloperOpen(!developerOpen)}
             className={cn(
-              "w-11 h-11 rounded-xl transition-all duration-200 relative group",
+              'w-11 h-11 rounded-xl transition-all duration-200 relative group',
               isDeveloperActive || developerOpen
-                ? "bg-accent text-foreground shadow-sm"
-                : "hover:bg-accent/70 text-muted-foreground hover:text-foreground",
+                ? 'bg-accent text-foreground shadow-sm'
+                : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
             )}
             aria-label="Developer section"
             aria-expanded={developerOpen}
@@ -183,16 +195,146 @@ export const NavBar = memo(({ path }: { path: string }) => {
                         asChild
                         variant="ghost"
                         className={cn(
-                          "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                          'w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
                           path === item.slug
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "hover:bg-accent/50 text-foreground",
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'hover:bg-accent/50 text-foreground',
                         )}
                         onClick={() => setDeveloperOpen(false)}
                       >
                         <Link href={item.slug} className="flex items-center gap-3">
                           <item.icon size="1.1rem" />
                           <span className="text-sm">{item.name}</span>
+                        </Link>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Personal Dropdown */}
+        <div className="relative w-full flex flex-col items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setPersonalOpen(!personalOpen)}
+            className={cn(
+              'w-11 h-11 rounded-xl transition-all duration-200 relative group',
+              _isPersonalActive || personalOpen
+                ? 'bg-accent text-foreground shadow-sm'
+                : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
+            )}
+            aria-label="Personal section"
+            aria-expanded={personalOpen}
+          >
+            <FiUser size="1.25rem" strokeWidth={_isPersonalActive ? 2.5 : 2} />
+            {_isPersonalActive && (
+              <span className="absolute -right-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full" />
+            )}
+          </Button>
+
+          <AnimatePresence>
+            {personalOpen && (
+              <motion.div
+                initial={{ opacity: 0, x: -10, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-full ml-3 top-0 z-50 min-w-[200px] bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden"
+              >
+                <div className="p-2 flex flex-col gap-1">
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Personal
+                  </div>
+                  {personal.map((item, index) => (
+                    <motion.div
+                      key={item.slug}
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                    >
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className={cn(
+                          'w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                          path === item.slug
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'hover:bg-accent/50 text-foreground',
+                        )}
+                        onClick={() => setPersonalOpen(false)}
+                      >
+                        <Link href={item.slug} className="flex items-center gap-3">
+                          <item.icon size="1.1rem" />
+                          <span className="text-sm">{item.name}</span>
+                        </Link>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Legal Dropdown */}
+        <div className="relative w-full flex flex-col items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLegalOpen(!legalOpen)}
+            className={cn(
+              'w-11 h-11 rounded-xl transition-all duration-200 relative group',
+              _isLegalActive || legalOpen
+                ? 'bg-accent text-foreground shadow-sm'
+                : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
+            )}
+            aria-label="Legal section"
+            aria-expanded={legalOpen}
+          >
+            <FaGavel size="1.25rem" strokeWidth={_isLegalActive ? 2.5 : 2} />
+            {_isLegalActive && (
+              <span className="absolute -right-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full" />
+            )}
+          </Button>
+
+          <AnimatePresence>
+            {legalOpen && (
+              <motion.div
+                initial={{ opacity: 0, x: -10, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-full ml-3 top-0 z-50 min-w-[200px] bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden"
+              >
+                <div className="p-2 flex flex-col gap-1">
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Legal
+                  </div>
+                  {legal.map((item, index) => (
+                    <motion.div
+                      key={item.slug}
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                    >
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className={cn(
+                          'w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                          path === item.slug
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'hover:bg-accent/50 text-foreground',
+                        )}
+                        onClick={() => setLegalOpen(false)}
+                      >
+                        <Link href={item.slug} className="flex items-center gap-3">
+                          <item.icon size="1.1rem" />
+                          <span>{item.name}</span>
                         </Link>
                       </Button>
                     </motion.div>
@@ -218,7 +360,7 @@ export const NavBar = memo(({ path }: { path: string }) => {
         </Button>
       </nav>
     </div>
-  )
-})
-NavBar.displayName = "NavBar"
-export default NavBar
+  );
+});
+NavBar.displayName = 'NavBar';
+export default NavBar;

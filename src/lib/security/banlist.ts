@@ -1,3 +1,5 @@
+import type { BanMetadata } from './banlist.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,10 +16,10 @@
  * limitations under the License.
  */
 
-import type { NextApiRequest } from 'next';
 import { redis } from '@/classes/redis';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
+import type { NextApiRequest } from 'next';
 import { getClientIP } from './get-ip';
 
 const log = Logger.getLogger('Banlist');
@@ -42,23 +44,6 @@ export const REDIS_KEYS = {
   SLOW_IPS: 'ban:slow',
   BAN_META: (ip: string) => `ban:meta:${ip}`,
 } as const;
-
-/**
- * @interface BanMetadata
- * @public
- * @version 1.0.0
- * @description Structure for storing metadata about a banned IP or identifier.
- *   - `reason`: Optional string describing the reason for the ban.
- *   - `ts`: Unix timestamp (ms) of when the ban was imposed.
- *   - `bannedBy`: Optional string for the user or system who issued the ban.
- * @author Mike Odnis
- * @see https://github.com/WomB0ComB0/portfolio
- */
-export interface BanMetadata {
-  reason?: string;
-  ts: number;
-  bannedBy?: string;
-}
 
 /**
  * Checks if a given request's origin IP is permanently banned.

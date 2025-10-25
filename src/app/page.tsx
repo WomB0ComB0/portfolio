@@ -30,7 +30,7 @@ export const HomePage = () => {
         {/* Hero Section */}
         <section className="mb-20">
           <div className="flex flex-col md:flex-row gap-12 items-start">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Image
                 src="https://avatars.githubusercontent.com/u/95197809?v=4"
                 alt="Mike Odnis's profile picture"
@@ -42,7 +42,7 @@ export const HomePage = () => {
                 placeholder="empty"
               />
             </div>
-            <div className="flex-grow">
+            <div className="grow">
               <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground text-balance">
                 Mike Odnis
               </h1>

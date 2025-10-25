@@ -16,8 +16,8 @@
 
 'use client';
 
-import { GoogleAnalytics } from '@next/third-parties/google';
 import { env } from '@/env';
+import Script from 'next/script';
 
 /**
  * Injects Google Analytics 4 (GA4) script for analytics.
@@ -30,5 +30,22 @@ export function AnalyticsScripts({ nonce }: { nonce: string | undefined }) {
     return null;
   }
 
-  return <GoogleAnalytics gaId={env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID} nonce={nonce} />;
+  return (
+    <>
+      <Script
+        id="ga-loader"
+        src={`https://www.googletagmanager.com/gtag/js?id=${env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}`}
+        strategy="afterInteractive"
+        nonce={nonce}
+      />
+      <Script id="ga-init" strategy="afterInteractive" nonce={nonce}>
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments)}
+          gtag('js', new Date());
+          gtag('config', '${env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}', { anonymize_ip: true });
+        `}
+      </Script>
+    </>
+  );
 }

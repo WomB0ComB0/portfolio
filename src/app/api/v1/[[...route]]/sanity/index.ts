@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Elysia } from 'elysia';
 import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
+import { Elysia, StatusMap } from 'elysia';
 import {
   getCertificationsHandler,
   getExperiencesHandler,
@@ -26,7 +26,6 @@ import {
 } from './handlers';
 import { sanityCacheHeaders, sanityMiddleware } from './middleware';
 
-// Create error handlers for each endpoint
 const handleExperiencesError = createErrorHandler({
   context: 'fetch experiences from Sanity',
   includeErrorDetails: false,
@@ -66,11 +65,19 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
   .onAfterHandle(({ set }) => {
     Object.assign(set.headers, sanityCacheHeaders());
   })
+  .get('/resume', async ({ set }) => {
+    try {
+      return await getResumeHandler();
+    } catch (error) {
+      set.status = StatusMap['Internal Server Error'];
+      return handleResumeError(error);
+    }
+  })
   .get('/experiences', async ({ set }) => {
     try {
       return await getExperiencesHandler();
     } catch (error) {
-      set.status = 500;
+      set.status = StatusMap['Internal Server Error'];
       return handleExperiencesError(error);
     }
   })
@@ -78,7 +85,7 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
     try {
       return await getProjectsHandler();
     } catch (error) {
-      set.status = 500;
+      set.status = StatusMap['Internal Server Error'];
       return handleProjectsError(error);
     }
   })
@@ -86,7 +93,7 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
     try {
       return await getFeaturedProjectsHandler();
     } catch (error) {
-      set.status = 500;
+      set.status = StatusMap['Internal Server Error'];
       return handleFeaturedProjectsError(error);
     }
   })
@@ -94,7 +101,7 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
     try {
       return await getCertificationsHandler();
     } catch (error) {
-      set.status = 500;
+      set.status = StatusMap['Internal Server Error'];
       return handleCertificationsError(error);
     }
   })
@@ -102,7 +109,7 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
     try {
       return await getPlacesHandler();
     } catch (error) {
-      set.status = 500;
+      set.status = StatusMap['Internal Server Error'];
       return handlePlacesError(error);
     }
   })
@@ -110,7 +117,7 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
     try {
       return await getResumeHandler();
     } catch (error) {
-      set.status = 500;
+      set.status = StatusMap['Internal Server Error'];
       return handleResumeError(error);
     }
   });

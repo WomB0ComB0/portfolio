@@ -1,39 +1,9 @@
 {
   "unusedDependencies": [
-    "@elysiajs/swagger",
-    "@hookform/resolvers",
-    "@js-temporal/polyfill",
-    "@liveblocks/node",
-    "@opentelemetry/exporter-jaeger",
-    "@radix-ui/react-accordion",
-    "@radix-ui/react-aspect-ratio",
-    "@radix-ui/react-select",
-    "@radix-ui/react-toggle-group",
-    "@sentry/types",
-    "@stripe/stripe-js",
-    "@svgr/webpack",
+    "@next/third-parties",
     "@tailwindcss/postcss",
-    "@trpc/client",
-    "@trpc/next",
-    "@trpc/react-query",
-    "@trpc/server",
-    "@vercel/og",
-    "axios",
-    "critters",
-    "firebase-admin",
-    "htmlparser2",
-    "jotai-tanstack-query",
-    "logixlysia",
-    "million",
-    "next-compose-plugins",
-    "next-firebase-auth-edge",
-    "next-pwa",
-    "nextjs-progressbar",
-    "react-day-picker",
-    "recharts",
     "server-only",
     "stylelint-config-standard-scss",
-    "swr",
     "tw-animate-css"
   ],
   "unusedDevDependencies": [
@@ -55,12 +25,8 @@
     "@opentelemetry/semantic-conventions": [
       "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/constants/index.ts"
     ],
-    "@total-typescript/ts-reset": [
-      "/home/wombocombo/github/prs/portfolio/reset.d.ts"
-    ],
-    "@upstash/redis": [
-      "/home/wombocombo/github/prs/portfolio/src/classes/redis.ts"
-    ],
+    "@total-typescript/ts-reset": ["/home/wombocombo/github/prs/portfolio/reset.d.ts"],
+    "@upstash/redis": ["/home/wombocombo/github/prs/portfolio/src/classes/redis.ts"],
     "bun": [
       "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/shared/config.ts",
       "/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts",
@@ -97,9 +63,7 @@
       "/home/wombocombo/github/prs/portfolio/src/hooks/sanity/schemas.ts",
       "/home/wombocombo/github/prs/portfolio/src/__tests__/type-check.ts"
     ],
-    "sharp": [
-      "/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts"
-    ],
+    "sharp": ["/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts"],
     "src": [
       "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(main)/places/_components/map.tsx"
     ]
@@ -465,7 +429,6 @@
     "tagged-tag",
     "tar-fs",
     "tar-stream",
-    "third-party-capital",
     "tiny-invariant",
     "tinybench",
     "tinyexec",
@@ -503,10 +466,10 @@
     "yargs"
   ],
   "summary": {
-    "totalTopLevel": 152,
-    "unusedDependencies": 35,
+    "totalTopLevel": 121,
+    "unusedDependencies": 5,
     "unusedDevDependencies": 4,
     "missingDependencies": 10,
-    "potentialUnusedSubDependencies": 396
+    "potentialUnusedSubDependencies": 395
   }
 }

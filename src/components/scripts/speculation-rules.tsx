@@ -1,3 +1,5 @@
+import type { PreloadConfig } from './speculation-rules.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,16 +16,11 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
+import { Stringify } from '@/utils';
 import Script from 'next/script';
 import { useCallback, useEffect, useRef } from 'react';
-import { Stringify } from '@/utils';
-
-type PreloadConfig = {
-  prerenderPaths: readonly string[];
-  prefetchPaths: readonly string[];
-};
 
 /**
  * Manages speculative preloading and prefetching using the Speculation Rules API.

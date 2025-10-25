@@ -14,28 +14,27 @@
  * limitations under the License.
  */
 
-import type { JSX } from 'react';
 import { cn } from '@/lib/utils';
+import type { JSX } from 'react';
 export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JSX.Element => {
   return (
-    <>
-      <svg
-        version="1.0"
-        xmlns="http://www.w3.org/2000/svg"
-        width="512.000000pt"
-        height="512.000000pt"
-        viewBox="0 0 512.000000 512.000000"
-        preserveAspectRatio="xMidYMid meet"
-        className={cn(`w-${size} h-${size}`, className)}
-        {...props}
+    <svg
+      version="1.0"
+      xmlns="http://www.w3.org/2000/svg"
+      width="512.000000pt"
+      height="512.000000pt"
+      viewBox="0 0 512.000000 512.000000"
+      preserveAspectRatio="xMidYMid meet"
+      className={cn(`w-${size} h-${size}`, className)}
+      {...props}
+    >
+      <g
+        transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)"
+        fill="#7209b7"
+        stroke="#d6b3f0"
       >
-        <g
-          transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)"
-          fill="#7209b7"
-          stroke="#d6b3f0"
-        >
-          <path
-            d="M945 5057 c-35 -17 -45 -55 -45 -167 0 -59 -4 -187 -10 -286 -5 -98
+        <path
+          d="M945 5057 c-35 -17 -45 -55 -45 -167 0 -59 -4 -187 -10 -286 -5 -98
               -15 -305 -21 -459 -6 -154 -14 -347 -18 -430 l-6 -150 -84 -48 c-46 -26 -109
               -62 -140 -79 -31 -17 -69 -39 -86 -48 -16 -9 -57 -32 -90 -50 -72 -40 -100
               -66 -108 -100 -7 -29 -12 -49 -67 -240 -23 -80 -45 -158 -50 -175 -5 -16 -27
@@ -83,20 +82,19 @@ export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JS
               -512 61 -143 13 -158 16 -152 27 2 5 44 130 91 278 48 149 92 282 98 297 8 21
               39 42 146 96 76 39 207 106 292 150 l155 80 3 600 2 599 25 25 c25 26 80 32
               93 11z"
-          />
-          <path
-            d="M1644 2782 c-22 -14 -36 -82 -29 -138 15 -121 106 -238 233 -297 54
+        />
+        <path
+          d="M1644 2782 c-22 -14 -36 -82 -29 -138 15 -121 106 -238 233 -297 54
               -25 83 -32 153 -35 93 -5 159 10 159 34 0 66 -197 299 -315 373 -87 55 -173
               82 -201 63z"
-          />
-          <path
-            d="M3380 2773 c-71 -25 -169 -94 -241 -169 -99 -104 -179 -219 -179
+        />
+        <path
+          d="M3380 2773 c-71 -25 -169 -94 -241 -169 -99 -104 -179 -219 -179
               -258 0 -35 148 -48 248 -22 117 31 234 131 271 231 32 85 30 205 -3 227 -16
               11 -46 8 -96 -9z"
-          />
-        </g>
-      </svg>
-    </>
+        />
+      </g>
+    </svg>
   );
 };
 LogoIcon.displayName = 'LogoIcon';

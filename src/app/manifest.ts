@@ -1,3 +1,5 @@
+import type { MetadataRoute } from 'next/types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,8 +16,7 @@
  * limitations under the License.
  */
 
-import { app } from "@/constants";
-import type { MetadataRoute } from 'next';
+import { app } from '@/constants';
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property
@@ -25,14 +26,13 @@ import type { MetadataRoute } from 'next';
  * @property {string} type - MIME type of the image (e.g. "image/png")
  * @property {'narrow' | 'wide'} [form_factor] - Optional form factor indicating if screenshot is for narrow/mobile or wide/desktop views
  */
-
 /**
  * Extended manifest type that overrides screenshots array with ExtendedScreenshot type
  * @typedef {Object} ExtendedManifest
  * @extends {Omit<MetadataRoute.Manifest, 'screenshots'>}
  * @property {ExtendedScreenshot[]} [screenshots] - Array of screenshots with optional form factor property
  */
-type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
+export type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
   screenshots?: Array<{
     src: string;
     sizes: string;
@@ -86,12 +86,6 @@ type ExtendedManifest = Omit<MetadataRoute.Manifest, 'screenshots'> & {
       }>;
     };
   };
-
-
-
-
-
-
 
   note_taking?: {
     new_note_url: string;
@@ -1520,7 +1514,7 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: "Spotify",
+        name: 'Spotify',
         short_name: 'Spotify',
         url: '/spotify',
         description: "Check out Mike's music preferences and current listening habits.",
@@ -1534,7 +1528,7 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: 'Mike\'s Blogs',
+        name: "Mike's Blogs",
         short_name: 'Blog',
         url: '/blog',
         description: "Read Mike's latest thoughts and updates on his blog.",

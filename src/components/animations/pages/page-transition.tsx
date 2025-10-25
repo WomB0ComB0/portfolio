@@ -1,3 +1,5 @@
+import type { PageTransitionProps } from './page-transition.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,15 +16,10 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
-
-type PageTransitionProps = {
-  children: ReactNode;
-};
 
 const variants = {
   hidden: { opacity: 0, y: 20 },

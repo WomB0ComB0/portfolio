@@ -1,3 +1,5 @@
+import type { LoginButtonProps } from './login-button.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,8 +16,8 @@
  * limitations under the License.
  */
 
+import { useSignIn } from '@/core/auth';
 import { FaGithub, FaGoogle, FaUserSecret } from 'react-icons/fa';
-import { type SignInMethod, useSignIn } from '@/core/auth';
 import { Button } from '../ui/button';
 
 export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
@@ -62,10 +64,3 @@ export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
 };
 LoginButton.displayName = 'LoginButton';
 export default LoginButton;
-
-type LoginButtonProps = Omit<
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    signInMethod: SignInMethod;
-  },
-  'children'
->;

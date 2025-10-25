@@ -14,40 +14,21 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
+import { MagicCard } from '@/components';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { age } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQueries } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { age } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
-
-/**
- * @interface StatCard
- * @version 1.0.0
- * @readonly
- * @description
- * Defines the structure and required fields for displaying a statistic card within the DevStats component.
- * Each card presents a specific metric, optionally linking to a relevant resource and referencing the backend query key.
- *
- * @property {string} title - The display title of the statistic.
- * @property {string} link - The associated URL for additional details or references, may be empty.
- * @property {string} query - The backend or local statistic identifier key.
- *
- * @author Mike Odnis
- * @see https://github.com/WomB0ComB0/portfolio
- */
-interface StatCard {
-  title: string;
-  link: string;
-  query: string;
-}
+import type { StatCard } from './stats.types';
 
 /**
  * @readonly
@@ -252,7 +233,7 @@ export const DevStats = memo(() => {
   const googleData = useMemo(() => {
     const data = queries[0].data ?? null;
     return data;
-  }, [queries[0].data, queries[0].error]);
+  }, [queries[0].data]);
 
   /**
    * Returns WakaTime data from the query cache, or null if not available or errored.
@@ -267,7 +248,7 @@ export const DevStats = memo(() => {
   const wakatimeData = useMemo(() => {
     const data = queries[1].data ?? null;
     return data;
-  }, [queries[1].data, queries[1].error]);
+  }, [queries[1].data]);
 
   /**
    * @readonly
@@ -357,7 +338,7 @@ export const DevStats = memo(() => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
           >
-            <Card className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-primary text-primary-foreground">
+            <MagicCard className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-primary text-primary-foreground">
               <CardHeader>
                 <CardTitle
                   className={`${card.title === 'Site Views' ? 'text-primary-foreground' : 'text-primary-foreground/80'}`}
@@ -379,7 +360,7 @@ export const DevStats = memo(() => {
                   </AnimatePresence>
                 </div>
               </CardContent>
-            </Card>
+            </MagicCard>
           </motion.div>
         );
       })}

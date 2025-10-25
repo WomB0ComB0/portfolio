@@ -1,4 +1,21 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #!/usr/bin/env node
+
 /**
  * Copyright (c) HashiCorp, Inc.
  * SPDX-License-Identifier: MPL-2.0
@@ -44,7 +61,7 @@ const BUILD_OUTPUT_DIRECTORY = getBuildOutputDirectory(options);
 const nextMetaRoot = path.join(process.cwd(), BUILD_OUTPUT_DIRECTORY);
 try {
   fs.accessSync(nextMetaRoot, fs.constants.R_OK);
-} catch (err) {
+} catch (_err) {
   console.error(
     `No build output found at "${nextMetaRoot}" - you may not have your working directory set correctly, or not have run "next build".`,
   );
@@ -82,16 +99,13 @@ const globalAppDirBundle = buildMeta.rootMainFiles || [];
 const globalAppDirBundleSizes = getScriptSizes(globalAppDirBundle);
 
 /** @type {PageSizes} */
-const allAppDirSizes = Object.entries(appDirMeta.pages).reduce(
-  (acc, [pagePath, scriptPaths]) => {
-    const scriptSizes = getScriptSizes(
-      scriptPaths.filter((scriptPath) => !globalAppDirBundle.includes(scriptPath)),
-    );
-    acc[pagePath] = scriptSizes;
-    return acc;
-  },
-  /** @type {PageSizes} */ ({}),
-);
+const allAppDirSizes = Object.entries(appDirMeta.pages).reduce((acc, [pagePath, scriptPaths]) => {
+  const scriptSizes = getScriptSizes(
+    scriptPaths.filter((scriptPath) => !globalAppDirBundle.includes(scriptPath)),
+  );
+  acc[pagePath] = scriptSizes;
+  return acc;
+}, /** @type {PageSizes} */ ({}));
 
 // format and write the output
 const rawData = JSON.stringify({

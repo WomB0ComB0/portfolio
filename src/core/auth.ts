@@ -1,3 +1,5 @@
+import type { SignInMethod } from './auth.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,8 +16,9 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
+import { logger } from '@/utils';
 import type { FirebaseError } from 'firebase/app';
 import {
   GithubAuthProvider,
@@ -27,11 +30,10 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { loadable } from 'jotai/utils';
 import { atomEffect } from 'jotai-effect';
+import { loadable } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { logger } from '@/utils';
 import { app } from './firebase';
 
 /**
@@ -249,17 +251,3 @@ export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] 
 
   return [signOut, inFlight] as const;
 }
-
-/**
- * @type {'google.com' | 'github.com' | 'anonymous'}
- * @description
- * Supported sign-in methods for authentication flows using useSignIn hook.
- * - 'google.com': Google OAuth
- * - 'github.com': GitHub OAuth
- * - 'anonymous': Anonymous Firebase Auth
- * @public
- * @author Mike Odnis
- * @see https://firebase.google.com/docs/auth
- * @version 1.0.0
- */
-export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';

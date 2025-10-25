@@ -1,3 +1,4 @@
+import type { CacheEntry, SWROptions } from './swr-cache.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -27,42 +28,6 @@
  */
 
 import { logger } from '@/utils';
-
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  isStale: boolean;
-}
-
-interface SWROptions<T = any> {
-  /**
-   * Time in ms before data is considered stale
-   * @default 3600000 (1 hour)
-   */
-  ttl?: number;
-
-  /**
-   * Time in ms before cache entry expires completely
-   * @default 86400000 (24 hours)
-   */
-  maxAge?: number;
-
-  /**
-   * Whether to serve stale data while revalidating
-   * @default true
-   */
-  serveStale?: boolean;
-
-  /**
-   * Called when fresh data is successfully fetched
-   */
-  onSuccess?: (data: T) => void;
-
-  /**
-   * Called when background revalidation fails
-   */
-  onError?: (error: Error) => void;
-}
 
 class SWRCache {
   private cache: Map<string, CacheEntry<any>> = new Map();

@@ -15,6 +15,5 @@
  */
 
 export * from './sanity';
-export * from './sanity';
 export * from './use-messages';
 export * from './use-mobile';

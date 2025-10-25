@@ -1,3 +1,5 @@
+import type { BlurFadeProps } from './blur-fade.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,55 +16,10 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
-import {
-  AnimatePresence,
-  motion,
-  type UseInViewOptions,
-  useInView,
-  type Variants,
-} from 'motion/react';
+import { AnimatePresence, motion, useInView, type Variants } from 'motion/react';
 import { useRef } from 'react';
-
-type MarginType = UseInViewOptions['margin'];
-
-/**
- * @interface BlurFadeProps
- * @public
- * @description
- * Props for the {@link BlurFade} component controlling animated blur and fade-in transitions for child content.
- * @property {React.ReactNode} children - Content to be wrapped with the blur-fade effect.
- * @property {string} [className] - Additional class names for styling the container.
- * @property {{ hidden: { y: number }, visible: { y: number } }} [variant] - Custom animation variants to override default blur/fade motion.
- * @property {number} [duration] - Duration of animation in seconds. Defaults to 0.4.
- * @property {number} [delay] - Animation delay in seconds. Defaults to 0.
- * @property {number} [yOffset] - Pixel offset (positive value) for vertical animation on entry/exit. Defaults to 6.
- * @property {boolean} [inView] - If true, triggers animation only once when element is in view. Defaults to false for always animate.
- * @property {MarginType} [inViewMargin] - "margin" root option for `useInView`. Defaults to '-50px'.
- * @property {string} [blur] - The initial blur amount to apply in pixels (e.g. '6px'). Defaults to '6px'.
- * @author Mike Odnis
- * @web
- * @see https://www.framer.com/motion/
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- * @readonly
- */
-interface BlurFadeProps {
-  children: React.ReactNode;
-  className?: string;
-  variant?: {
-    hidden: { y: number };
-    visible: { y: number };
-  };
-  duration?: number;
-  delay?: number;
-  yOffset?: number;
-  inView?: boolean;
-  inViewMargin?: MarginType;
-  blur?: string;
-}
-
 /**
  * BlurFade is a functional React component providing a blur-in and vertical fade-in animation
  * to its immediate children on mount, or as the content scrolls into view (intersection observed).

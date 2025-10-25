@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import type { Metadata, Viewport } from 'next';
 import { app } from '@/constants';
+import type { Metadata, Viewport } from 'next';
 
 /**
  * Constructs the metadata object for web pages, including OpenGraph, Twitter, and icon data.

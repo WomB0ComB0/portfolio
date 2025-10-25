@@ -70,7 +70,18 @@ export async function getGitHubSponsorsHandler() {
 export async function getActiveSponsorsHandler() {
   try {
     const { getActiveSponsors } = await import('@/lib/api-integrations/github-sponsors');
-    const data = await getActiveSponsors();
+    const activeSponsors = await getActiveSponsors();
+
+    // Calculate total monthly income from active sponsors
+    const totalMonthlyIncome = activeSponsors
+      .filter((s) => s.tier)
+      .reduce((sum, s) => sum + (s.tier?.monthlyPriceInDollars || 0), 0);
+
+    const data = {
+      sponsors: activeSponsors,
+      totalCount: activeSponsors.length,
+      totalMonthlyIncome,
+    };
 
     return new Response(JSON.stringify(data), {
       status: 200,

@@ -1,3 +1,7 @@
+import { motion, useAnimation, useInView } from 'motion/react';
+import { useEffect, useRef } from 'react';
+import type { props } from './slide.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,16 +18,7 @@
  * limitations under the License.
  */
 
-'use client';
-import { motion, useAnimation, useInView } from 'motion/react';
-import { useEffect, useRef } from 'react';
-
-type props = {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-};
-
+('use client');
 export const Slide = ({ children, className, delay }: props) => {
   const ref = useRef(null);
   const isInview = useInView(ref, { once: true });

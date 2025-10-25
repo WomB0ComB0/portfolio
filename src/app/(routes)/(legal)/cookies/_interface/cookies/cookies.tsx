@@ -16,8 +16,8 @@
 
 'use client';
 
-import type { JSX } from 'react';
 import Layout from '@/components/layout/layout';
+import type { JSX } from 'react';
 
 /**
  * @function Cookies

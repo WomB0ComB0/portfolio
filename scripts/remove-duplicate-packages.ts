@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 // -*- typescript -*-
 
 /**
@@ -30,10 +31,10 @@
  * @see {@link https://docs.npmjs.com/cli/v9/configuring-npm/package-json#devdependencies}
  */
 
+import { Stringify } from '@/utils';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PackageJson } from 'type-fest';
-import { Stringify } from '@/utils';
 
 /**
  * The root directory of the project, determined by navigating up two levels from the current script's directory.

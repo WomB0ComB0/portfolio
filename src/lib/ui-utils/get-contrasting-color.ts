@@ -1,3 +1,5 @@
+import type { RGB } from './get-contrasting-color.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -43,24 +45,6 @@ export function getContrastingColor(col: string) {
   const useBlack = getColor(hexToRgb(standardizeColor(col)));
   return useBlack ? '#000000' : '#ffffff';
 }
-
-/**
- * RGB color interface.
- * Used for representing color channels after hex parsing.
- *
- * @interface
- * @readonly
- * @property {number} r - Red channel (0-255)
- * @property {number} g - Green channel (0-255)
- * @property {number} b - Blue channel (0-255)
- * @author Mike Odnis (@WomB0ComB0)
- * @version 1.0.0
- */
-type RGB = {
-  r: number;
-  g: number;
-  b: number;
-} | null;
 
 /**
  * Determines if black or white text provides better contrast over a given RGB color,

@@ -16,9 +16,9 @@
 
 'use client';
 
-import Script from 'next/script';
 import { app } from '@/constants';
 import { generateSchema, Stringify } from '@/utils';
+import Script from 'next/script';
 
 /**
  * Generates and injects JSON-LD structured data for SEO.

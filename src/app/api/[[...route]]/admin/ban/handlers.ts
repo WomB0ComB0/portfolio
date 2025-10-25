@@ -35,14 +35,12 @@ const log = Logger.getLogger('BanAPI');
  * @description
  * Represents the structure of a request body for various IP and CIDR ban control operations in the API.
  * Used in administrative endpoints to specify the action and relevant attributes.
- *
- * @property {BanAction} action The banlist administrative action to perform. **@readonly**
+ * @property {BanAction} action The banlist administrative action to perform. **@readonly
  * @property {string} [ip] The target IP address for the ban operation.
  * @property {string} [cidr] The target CIDR range for CIDR-based ban operation.
  * @property {string} [reason] The descriptive reason for the ban (if applicable).
  * @property {number} [seconds] The ban duration in seconds, for temporary bans.
  * @property {string} [bannedBy] Name or identifier of the admin invoking the ban operation.
- *
  * @author Mike Odnis
  * @version 1.0.0
  * @public

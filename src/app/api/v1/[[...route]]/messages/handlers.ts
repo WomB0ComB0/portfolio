@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
-import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { BaseError } from '@/classes/error';
 import { firestore } from '@/core/firebase';
+import { Schema } from 'effect';
+import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 
 export const MessageDataSchema = Schema.Struct({
   authorName: Schema.String,

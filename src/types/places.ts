@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 export interface PhotoItem {
   url: string;
   caption?: string;
@@ -25,6 +24,6 @@ export interface PlaceItem {
   description: string;
   latitude: number;
   longitude: number;
-  category: string; // "Hackathon", "Tech Office", "Conference", "Scenic", "Event", "Other"
+  category: string;
   photos: PhotoItem[];
 }

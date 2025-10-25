@@ -41,6 +41,7 @@ export const COLORS = [
   '#6407A1',
 ];
 
+import { FaCookie, FaGavel } from 'react-icons/fa';
 import {
   FiAward,
   FiBarChart,
@@ -53,9 +54,7 @@ import {
   FiHome,
   FiMapPin,
 } from 'react-icons/fi';
-
 import { SiHashnode } from 'react-icons/si';
-
 /**
  * @readonly
  * @public
@@ -132,5 +131,20 @@ export const NavbarItems = [
     name: 'Sponsor',
     slug: '/sponsor',
     icon: FiHeart,
+  },
+  {
+    name: 'Cookies',
+    slug: '/cookies',
+    icon: FaCookie,
+  },
+  {
+    name: 'Privacy',
+    slug: '/privacy',
+    icon: FiHeart,
+  },
+  {
+    name: 'Licenses',
+    slug: '/licenses',
+    icon: FaGavel,
   },
 ];

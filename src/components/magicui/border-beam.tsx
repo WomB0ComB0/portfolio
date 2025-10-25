@@ -1,3 +1,4 @@
+import type { BorderBeamProps } from './border-beam.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -15,38 +16,6 @@
  */
 
 import { cn } from '@/lib/utils';
-
-/**
- * @interface BorderBeamProps
- * @readonly
- * @public
- * @description
- * Props for the {@link BorderBeam} component, controlling the animated border beam effect.
- * @property {string} [className] - Additional CSS class names to apply to the beam container.
- * @property {number} [size] - Diameter of the beam effect in pixels. Default is 200.
- * @property {number} [duration] - Duration in seconds for the animation loop. Default is 15.
- * @property {number} [borderWidth] - Width of the border in pixels. Default is 1.5.
- * @property {number} [anchor] - Anchor point (as a percentage) for the animation. Default is 90.
- * @property {string} [colorFrom] - CSS color string where the border beam starts. Default is '#ffaa40'.
- * @property {string} [colorTo] - CSS color string where the border beam ends. Default is '#9c40ff'.
- * @property {number} [delay] - Animation delay in seconds. Default is 0.
- *
- * @author Mike Odnis
- * @web
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- */
-interface BorderBeamProps {
-  className?: string;
-  size?: number;
-  duration?: number;
-  borderWidth?: number;
-  anchor?: number;
-  colorFrom?: string;
-  colorTo?: string;
-  delay?: number;
-}
-
 /**
  * BorderBeam renders an animated border highlight ("beam") around its container using CSS variables and pseudo-elements.
  *

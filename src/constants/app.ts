@@ -30,7 +30,7 @@
  *   console.log(age); // e.g., 20
  */
 export const age = Math.floor(
-  (new Date().getTime() - new Date('March 24, 2004').getTime()) / 1_000 / 60 / 60 / 24 / 365.25,
+  (Date.now() - new Date('March 24, 2004').getTime()) / 1_000 / 60 / 60 / 24 / 365.25,
 );
 
 /**

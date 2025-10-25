@@ -1,3 +1,5 @@
+import type { DotPatternProps } from './dot-pattern.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,41 +16,10 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
-import { useEffect, useId, useState } from 'react';
 import { cn } from '@/lib/utils';
-
-/**
- * @interface DotPatternProps
- * @readonly
- * @public
- * @description
- * Props for the {@link DotPattern} component controlling SVG pattern settings.
- * @property {number} [width] - Width of the SVG pattern tile in pixels. Default: 16.
- * @property {number} [height] - Height of the SVG pattern tile in pixels. Default: 16.
- * @property {number} [x] - Horizontal offset of the pattern. Default: 0.
- * @property {number} [y] - Vertical offset of the pattern. Default: 0.
- * @property {number} [cx] - X coordinate of the dot's center within the tile. Default: 1.
- * @property {number} [cy] - Y coordinate of the dot's center within the tile. Default: 1.
- * @property {number} [cr] - Radius of the dot. Default: 0.5.
- * @property {string} [className] - Additional class names for SVG styling.
- * @author Mike Odnis
- * @web
- * @see https://developer.mozilla.org/docs/Web/SVG/Element/pattern
- * @version 1.0.0
- */
-interface DotPatternProps {
-  width?: number;
-  height?: number;
-  x?: number;
-  y?: number;
-  cx?: number;
-  cy?: number;
-  cr?: number;
-  className?: string;
-}
-
+import { useEffect, useId, useState } from 'react';
 /**
  * DotPattern displays an animated SVG background of repeated dots, shifting vertically in response
  * to page scroll. It provides a utility pattern overlay for use in interactive or aesthetic backgrounds.

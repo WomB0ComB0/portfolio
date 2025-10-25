@@ -14,33 +14,12 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { config } from '@/config';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
-interface DiscordUser {
-  username: string;
-  discriminator: string;
-  avatar: string;
-  id: string;
-}
-
-interface Activity {
-  name: string;
-  type: number;
-  state?: string;
-  details?: string;
-}
-
-interface LanyardData {
-  discord_user: DiscordUser;
-  activities: Activity[];
-  discord_status: string;
-}
-
-// Schema for Lanyard API response
 const DiscordUserSchema = Schema.Struct({
   username: Schema.String,
   discriminator: Schema.String,
@@ -65,7 +44,11 @@ const LanyardResponseSchema = Schema.Struct({
   data: LanyardDataSchema,
 });
 
-const CACHE_DURATION = 60 * 1000;
+export type Activity = Schema.Schema.Type<typeof ActivitySchema>;
+export type DiscordUser = Schema.Schema.Type<typeof DiscordUserSchema>;
+export type LanyardData = Schema.Schema.Type<typeof LanyardDataSchema>;
+
+const CACHE_DURATION = 60 * 1_000;
 let cache: { data: LanyardData; timestamp: number } | null = null;
 
 export async function getLanyardData(): Promise<LanyardData> {

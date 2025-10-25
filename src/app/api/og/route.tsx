@@ -87,43 +87,45 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
       });
 
     return new ImageResponse(
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          padding: '80px',
-          backgroundColor: '#0a0a0a',
-          backgroundImage: 'linear-gradient(135deg, #234c8b 0%, #0a0a0a 100%)',
-        }}
-      >
+      (
         <div
           style={{
-            fontSize: 72,
-            fontWeight: 700,
-            color: '#ffffff',
-            marginBottom: 20,
-            fontFamily: 'Kodchasan',
-            lineHeight: 1.2,
+            height: '100%',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            padding: '80px',
+            backgroundColor: '#0a0a0a',
+            backgroundImage: 'linear-gradient(135deg, #234c8b 0%, #0a0a0a 100%)',
           }}
         >
-          {title}
+          <div
+            style={{
+              fontSize: 72,
+              fontWeight: 700,
+              color: '#ffffff',
+              marginBottom: 20,
+              fontFamily: 'Kodchasan',
+              lineHeight: 1.2,
+            }}
+          >
+            {title}
+          </div>
+          <div
+            style={{
+              fontSize: 32,
+              color: '#e5e5e5',
+              fontFamily: 'Kodchasan',
+              lineHeight: 1.4,
+              maxWidth: '80%',
+            }}
+          >
+            {description}
+          </div>
         </div>
-        <div
-          style={{
-            fontSize: 32,
-            color: '#e5e5e5',
-            fontFamily: 'Kodchasan',
-            lineHeight: 1.4,
-            maxWidth: '80%',
-          }}
-        >
-          {description}
-        </div>
-      </div>,
+      ),
       {
         width: 1200,
         height: 630,

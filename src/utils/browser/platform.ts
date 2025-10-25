@@ -158,7 +158,7 @@ export const getPlatform = (): string => {
 export const isTouchScreen = (): boolean => {
   return (
     (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
-    (window.matchMedia && window.matchMedia('(any-pointer:coarse)').matches)
+    window.matchMedia?.('(any-pointer:coarse)').matches
   );
 };
 

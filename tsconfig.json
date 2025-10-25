@@ -12,11 +12,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "checkJs": true,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "ESNext"
-    ],
+    "lib": ["dom", "dom.iterable", "ESNext"],
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -45,12 +41,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@testing": [
-        "./test-fixtures.ts"
-      ],
-      "@/*": [
-        "./src/*"
-      ]
+      "@testing": ["./test-fixtures.ts"],
+      "@/*": ["./src/*"]
     }
   },
   "include": [

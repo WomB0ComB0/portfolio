@@ -68,11 +68,6 @@ export const SANITY_ENDPOINTS = {
 } as const;
 
 /**
- * Type-safe endpoint keys
- */
-export type SanityEndpoint = keyof typeof SANITY_ENDPOINTS;
-
-/**
  * Get full URL for a Sanity endpoint
  */
 export function getSanityEndpoint(endpoint: SanityEndpoint): string {
@@ -100,3 +95,8 @@ export function createDataLoaderOptions<S extends Schema.Schema<any, any, never>
     refetchInterval: SANITY_CACHE_CONFIG.refetchInterval,
   };
 }
+
+/**
+ * Type-safe endpoint keys
+ */
+export type SanityEndpoint = keyof typeof SANITY_ENDPOINTS;

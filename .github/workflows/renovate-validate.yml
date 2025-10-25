@@ -2,11 +2,11 @@ name: Validate Renovate config
 on:
   pull_request:
     paths:
-      - '.github/renovate.json'
-      - '.github/renovate/**'
-      - 'renovate.json'
-      - 'renovate.json5'
-      - '.renovaterc*'
+      - ".github/renovate.json"
+      - ".github/renovate/**"
+      - "renovate.json"
+      - "renovate.json5"
+      - ".renovaterc*"
 
 jobs:
   validate:

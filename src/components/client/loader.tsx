@@ -16,86 +16,98 @@
 
 'use client';
 
-import Image from 'next/image';
 import type React from 'react';
-import Particles from '../magicui/particles';
+import { useEffect, useState } from 'react';
+import Icons from '../icons';
+
+new Promise<void>((resolve) => {
+  setTimeout(() => resolve(), 3000);
+});
 
 export const Loader: React.FC = () => {
+  const [, setDots] = useState('');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length >= 3 ? '' : `${prev}.`));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="relative flex items-center justify-center h-screen bg-[rgb(36,36,36)] text-white">
-      <Particles
-        className="absolute inset-0 z-0"
-        quantity={100}
-        ease={80}
-        color={'#ba9bdd'}
-        refresh={false}
-      />
-      <div className="relative z-10 flex flex-col items-center justify-center">
-        <div className="relative">
-          <div className="loader" />
-          <Image
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 select-none h-60 w-60 animate-pulse"
-            src="/assets/svgs/logo-client.svg"
-            alt="Loading..."
-            width={100}
-            height={100}
-          />
+    <div className="relative flex items-center justify-center h-screen bg-background overflow-hidden">
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
+
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-chart-1/20 rounded-full blur-[120px] animate-pulse delay-1000" />
+
+      <div className="relative z-10 flex flex-col items-center justify-center gap-8">
+        <div className="relative flex items-center justify-center">
+          {/* Outer rotating ring */}
+          <div className="absolute w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48">
+            <svg className="w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r="45"
+                fill="none"
+                stroke="hsl(var(--primary))"
+                strokeWidth="2"
+                strokeDasharray="70 200"
+                strokeLinecap="round"
+                opacity="0.3"
+              />
+            </svg>
+          </div>
+
+          {/* Inner counter-rotating ring */}
+          <div className="absolute w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40">
+            <svg className="w-full h-full animate-spin-reverse" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r="45"
+                fill="none"
+                stroke="hsl(var(--chart-1))"
+                strokeWidth="2"
+                strokeDasharray="50 200"
+                strokeLinecap="round"
+                opacity="0.5"
+              />
+            </svg>
+          </div>
+
+          {/* Logo with glow effect */}
+          <div className="relative">
+            <div className="absolute inset-0 blur-xl bg-primary/30 rounded-full animate-pulse" />
+            <Icons.logo
+              className="relative select-none h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 drop-shadow-2xl"
+              props={{
+                width: 96,
+                height: 96,
+                type: 'image/svg+xml',
+                'aria-label': 'Loading...',
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-2 text-muted-foreground font-mono text-sm">
+            <span className="text-primary">{'<'}</span>
+            <span className="animate-pulse">Loading</span>
+            <span className="text-primary">{'/>'}</span>
+          </div>
+          <div className="flex items-center gap-1 h-6">
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce delay-150" />
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce delay-300" />
+          </div>
         </div>
       </div>
+
       <style jsx>{`
-        .loader {
-          width: 400px;
-          height: 400px;
-          border-radius: 50%;
-          position: relative;
-          background: conic-gradient(#ba9bdd, purple);
-          animation: 2s rotate linear infinite;
-          border: 5px solid #242424;
-          transition: 0.5s;
-        }
-        .loader:before {
-          position: absolute;
-          content: "";
-          width: calc(100% - 5px);
-          height: calc(100% - 5px);
-          background: #242424;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          border-radius: 50%;
-        }
-        .loader:after {
-          position: absolute;
-          content: "";
-          z-index: -1;
-          width: calc(100% + 10px);
-          height: calc(100% + 10px);
-          background: inherit;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          filter: blur(25px);
-          border-radius: 50%;
-        }
-        @media only screen and (max-width: 600px) {
-          .loader {
-            width: 300px;
-            height: 300px;
-          }
-        }
-        @media only screen and (min-width: 600px) {
-          .loader {
-            width: 350px;
-            height: 350px;
-          }
-        }
-        @media only screen and (min-width: 768px) {
-          .loader {
-            width: 400px;
-            height: 400px;
-          }
-        }
-        @keyframes rotate {
+        @keyframes spin-slow {
           from {
             transform: rotate(0deg);
           }
@@ -103,9 +115,39 @@ export const Loader: React.FC = () => {
             transform: rotate(360deg);
           }
         }
+        @keyframes spin-reverse {
+          from {
+            transform: rotate(360deg);
+          }
+          to {
+            transform: rotate(0deg);
+          }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 3s linear infinite;
+        }
+        .animate-spin-reverse {
+          animation: spin-reverse 4s linear infinite;
+        }
+        .delay-150 {
+          animation-delay: 150ms;
+        }
+        .delay-300 {
+          animation-delay: 300ms;
+        }
+        .delay-1000 {
+          animation-delay: 1000ms;
+        }
+        .bg-grid-pattern {
+          background-image:
+            linear-gradient(hsl(var(--border)) 1px, transparent 1px),
+            linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px);
+          background-size: 50px 50px;
+        }
       `}</style>
     </div>
   );
 };
+
 Loader.displayName = 'Loader';
 export default Loader;

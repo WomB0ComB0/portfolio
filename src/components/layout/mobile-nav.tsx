@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-"use client"
+'use client';
 
-import { useKBar } from "kbar"
-import { memo, useState } from "react"
-import { FiMenu } from "react-icons/fi"
-import { Button } from "@/components/ui/button"
-import { MobileMenuOverlay } from "./mobile-menu-overlay"
+import { Button } from '@/components/ui/button';
+import { useKBar } from 'kbar';
+import { memo, useState } from 'react';
+import { FiMenu } from 'react-icons/fi';
+import { MobileMenuOverlay } from './mobile-menu-overlay';
 
 export const MobileNavBar = memo(({ path }: { path: string }) => {
-  const { query } = useKBar()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { query } = useKBar();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <>
       <nav
         className="bg-card/90 backdrop-blur-xl border-t border-border/40 px-6 py-3 shadow-lg"
-        role="navigation"
         aria-label="Mobile navigation"
       >
         <div className="flex justify-center items-center max-w-screen-xl mx-auto">
@@ -47,9 +46,14 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
           </Button>
         </div>
       </nav>
-      <MobileMenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} query={query} pathname={path} />
+      <MobileMenuOverlay
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        query={query}
+        pathname={path}
+      />
     </>
-  )
-})
-MobileNavBar.displayName = "MobileNavBar"
-export default MobileNavBar
+  );
+});
+MobileNavBar.displayName = 'MobileNavBar';
+export default MobileNavBar;

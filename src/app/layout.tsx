@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-import '@/styles/globals.css';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
-import localFont from 'next/font/local';
-import { headers } from 'next/headers';
 import { GlobalProvider } from '@/app/_providers';
 import {
   AnalyticsScripts,
@@ -26,10 +21,16 @@ import {
   StructuredData,
   ViewTransitions,
 } from '@/components/scripts';
+import '@/styles/globals.css';
 import { constructMetadata, constructViewport } from '@/utils';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import localFont from 'next/font/local';
+import { headers } from 'next/headers';
 
 export const metadata = constructMetadata();
 export const viewport = constructViewport();
+export const dynamic = 'force-dynamic';
 
 const kodchasanFont = localFont({
   src: [
@@ -100,6 +101,7 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
       data-a11y-animated-images="system"
       data-a11y-link-underlines="false"
       data-turbo-loaded
+      data-scroll-behavior="smooth"
       className={`${kodchasanFont.variable}`}
     >
       <head>

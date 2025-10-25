@@ -31,11 +31,11 @@
  * ```
  */
 
+import { get } from '@/lib/http-clients';
+import type { Certification, Experience, Place, Project } from '@/lib/sanity/types';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe } from 'effect';
-import { get } from '@/lib/http-clients';
-import type { Certification, Experience, Place, Project } from '@/lib/sanity/types';
 import {
   createSanityQueryKey,
   SANITY_CACHE_CONFIG,
@@ -171,5 +171,5 @@ export function usePlaces() {
 }
 
 // Re-export schemas for convenience
-export type { ExperienceSchema, ProjectSchema, CertificationSchema };
-export { ExperiencesSchema, ProjectsSchema, CertificationsSchema };
+export { CertificationsSchema, ExperiencesSchema, ProjectsSchema };
+export type { CertificationSchema, ExperienceSchema, ProjectSchema };

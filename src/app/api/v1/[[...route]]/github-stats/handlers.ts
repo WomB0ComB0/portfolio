@@ -31,43 +31,12 @@
  * 3. Add to .env.local: GITHUB_TOKEN=your_token_here
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
-interface GitHubRepo {
-  name: string;
-  description: string | null;
-  stargazers_count: number;
-  language: string | null;
-  fork: boolean;
-  html_url: string;
-}
-
-interface TopRepo {
-  name: string;
-  description: string | null;
-  stars: number;
-  language: string | null;
-  url: string;
-}
-
-interface GitHubStatsData {
-  user: {
-    repos: number;
-    followers: number;
-    avatar_url: string;
-  };
-  stats: {
-    totalStars: number;
-    topLanguages: string[];
-  };
-  topRepos: TopRepo[];
-}
-
-// Schemas for GitHub API responses
 const GitHubUserSchema = Schema.Struct({
   public_repos: Schema.Number,
   followers: Schema.Number,
@@ -85,6 +54,29 @@ const GitHubRepoSchema = Schema.Struct({
 
 const GitHubReposArraySchema = Schema.Array(GitHubRepoSchema);
 
+const TopRepoSchema = Schema.Struct({
+  name: Schema.String,
+  description: Schema.Union(Schema.String, Schema.Null),
+  stars: Schema.Number,
+});
+
+const GitHubStatsDataSchema = Schema.Struct({
+  user: Schema.Struct({
+    repos: Schema.Number,
+    followers: Schema.Number,
+    avatar_url: Schema.String,
+  }),
+  stats: Schema.Struct({
+    totalStars: Schema.Number,
+    topLanguages: Schema.Array(Schema.String),
+  }),
+  topRepos: Schema.Array(TopRepoSchema),
+});
+
+export type GitHubStatsData = Schema.Schema.Type<typeof GitHubStatsDataSchema>;
+export type TopRepo = Schema.Schema.Type<typeof TopRepoSchema>;
+export type GitHubRepo = Schema.Schema.Type<typeof GitHubRepoSchema>;
+
 const CACHE_DURATION = 60 * 60 * 1_000; // 1 hour
 let cache: { data: GitHubStatsData; timestamp: number } | null = null;
 
@@ -99,7 +91,7 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
   };
 
   if (env.GITHUB_TOKEN) {
-    headers['Authorization'] = `Bearer ${env.GITHUB_TOKEN}`;
+    headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
   }
 
   const userEffect = pipe(
@@ -144,10 +136,7 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
     ]);
 
     // Combine personal and organization repos
-    const allRepos = [
-      ...(personalReposJson as any as GitHubRepo[]),
-      ...(orgReposJson as any as GitHubRepo[]),
-    ];
+    const allRepos = [...personalReposJson, ...orgReposJson];
 
     // Filter out forks and sort by stars
     const topRepos = allRepos
@@ -165,7 +154,7 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
 
     const data: GitHubStatsData = {
       user: {
-        repos: meJson.public_repos + (orgReposJson as any as GitHubRepo[]).length, // Include org repos in count
+        repos: meJson.public_repos + orgReposJson.length, // Include org repos in count
         followers: meJson.followers,
         avatar_url: meJson.avatar_url,
       },

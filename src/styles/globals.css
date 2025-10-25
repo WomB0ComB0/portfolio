@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "./fonts.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './fonts.css';
 @custom-variant dark (&:is(.dark *));
 
 /* Mobile navigation safe area */
@@ -85,7 +85,7 @@
 
 .loader::before {
   position: absolute;
-  content: "";
+  content: '';
   width: calc(100% - 5px);
   height: calc(100% - 5px);
   background: #242424;
@@ -97,7 +97,7 @@
 
 .loader::after {
   position: absolute;
-  content: "";
+  content: '';
   z-index: -3;
   width: calc(100% + 10px);
   height: calc(100% + 10px);
@@ -223,7 +223,7 @@
   *,
   *::before,
   *::after {
-    @apply tabular-nums box-border;
+    @apply box-border tabular-nums;
 
     box-sizing: border-box;
   }
@@ -234,7 +234,7 @@
 
   :host,
   html {
-    @apply leading-7 text-base antialiased font-sans tabular-nums transition-all duration-300 list-none scroll-smooth;
+    @apply list-none font-sans text-base leading-7 tabular-nums antialiased transition-all duration-300;
 
     text-size-adjust: 100%;
     font-feature-settings: normal;
@@ -262,11 +262,11 @@
   h4,
   h5,
   h6 {
-    @apply font-sans font-bold leading-5 text-primary;
+    @apply font-sans leading-5 font-bold text-primary;
   }
 
   p {
-    @apply font-sans font-normal leading-7 text-primary;
+    @apply font-sans leading-7 font-normal text-primary;
   }
 
   a {
@@ -274,7 +274,7 @@
   }
 
   span {
-    @apply font-sans font-normal leading-7 text-primary;
+    @apply font-sans leading-7 font-normal text-primary;
   }
 }
 

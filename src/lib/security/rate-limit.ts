@@ -1,3 +1,5 @@
+import type { RateLimitHelper } from './rate-limit.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,27 +16,10 @@
  * limitations under the License.
  */
 
-import { Ratelimit } from '@upstash/ratelimit';
 import { redis } from '@/classes/redis';
 import { Logger } from '@/utils';
+import { Ratelimit } from '@upstash/ratelimit';
 import { isIdentifierBanned, isIdentifierSlowed } from './banlist';
-
-/**
- * Helper type describing the rate limiting parameters for an identifier.
- *
- * @typedef {object} RateLimitHelper
- * @property {'default'|'forcedSlowMode'|'auth'|'api'|'apiv1'|'ai'} [rateLimitingType] - The type of rate limit to use. Defaults to 'default'.
- * @property {string} identifier - A unique identifier for the limiting scope, typically a user ID or IP.
- * @readonly
- * @public
- * @version 1.0.0
- * @author Mike Odnis (@WomB0ComB0)
- * @see {@link https://github.com/WomB0ComB0/portfolio}
- */
-export type RateLimitHelper = {
-  rateLimitingType?: 'default' | 'forcedSlowMode' | 'auth' | 'api' | 'apiv1' | 'ai';
-  identifier: string;
-};
 
 /**
  * Map of rate limiters for various strategies, configured for different purposes (e.g., auth, API, AI).

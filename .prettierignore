@@ -1,0 +1,23 @@
+# Build artifacts
+.next/
+out/
+dist/
+build/
+coverage/
+.vite/
+.turbo/
+.vercel/
+.playwright/
+reports/
+
+# Dependencies & caches
+node_modules/
+bun.lockb
+.pnpm-store/
+.eslintcache
+.prettier-cache/
+
+# Generated content
+public/**/*.min.*
+public/**/*.map
+**/*.snap

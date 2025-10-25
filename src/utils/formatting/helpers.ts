@@ -1,3 +1,5 @@
+import type { ExtractAsyncArgs, Failure, Result, Success } from './helpers.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,8 +16,8 @@
  * limitations under the License.
  */
 
-import type { KebabCase } from 'type-fest';
 import { logger } from '@/utils';
+import type { KebabCase } from 'type-fest';
 
 /**
  * Converts any object into a well-formatted JSON string with a 2-space indent.
@@ -34,54 +36,6 @@ import { logger } from '@/utils';
 export const Stringify = (obj: object): string => {
   return JSON.stringify(obj, null, 2);
 };
-
-/**
- * @template T
- * @interface
- * @readonly
- * Represents a successful result in a Result union.
- *
- * @property {true} success Indicates if operation succeeded (always true).
- * @property {T} value The value returned as a result.
- *
- * @author Mike Odnis
- * @version 1.0.0
- */
-type Success<T> = {
-  readonly success: true;
-  readonly value: T;
-};
-
-/**
- * @template E
- * @interface
- * @readonly
- * Represents a failed result in a Result union.
- *
- * @property {false} success Indicates if operation succeeded (always false).
- * @property {E} error The error value associated with the failure.
- *
- * @author Mike Odnis
- * @version 1.0.0
- */
-type Failure<E> = {
-  readonly success: false;
-  readonly error: E;
-};
-
-/**
- * @template T, E
- * @type {object}
- * A discriminated union for representing either a successful or failed result.
- * Use with `success()` and `failure()` helpers.
- *
- * @see success
- * @see failure
- * @author Mike Odnis
- * @version 1.0.0
- */
-type Result<T, E> = Success<T> | Failure<E>;
-
 /**
  * Wraps the provided value in a successful Result object.
  *
@@ -111,11 +65,6 @@ export const success = <T>(value: T): Success<T> => Object.freeze({ success: tru
  * @version 1.0.0
  */
 export const failure = <E>(error: E): Failure<E> => Object.freeze({ success: false, error });
-
-type ExtractAsyncArgs<Args extends Array<any>> = Args extends Array<infer PotentialArgTypes>
-  ? [PotentialArgTypes]
-  : [];
-
 /**
  * Catches and handles errors for async functions, returning a Result for safe error handling.
  *

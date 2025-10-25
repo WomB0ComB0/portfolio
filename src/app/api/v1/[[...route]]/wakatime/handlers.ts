@@ -14,18 +14,11 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { get } from '@/lib/http-clients/effect-fetcher';
-
-interface WakaTimeData {
-  text: string;
-  digital: string;
-  decimal: string;
-  total_seconds: number;
-}
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
 // Schema for WakaTime API response
 const WakaTimeDataSchema = Schema.Struct({
@@ -38,6 +31,8 @@ const WakaTimeDataSchema = Schema.Struct({
 const WakaTimeResponseSchema = Schema.Struct({
   data: WakaTimeDataSchema,
 });
+
+export type WakaTimeData = Schema.Schema.Type<typeof WakaTimeDataSchema>;
 
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 let cache: { data: WakaTimeData; timestamp: number } | null = null;

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 // -*- typescript -*-
 
 /**
@@ -17,10 +18,11 @@ let bun$: ((strings: TemplateStringsArray, ...expr: any[]) => Promise<any>) | nu
 try {
   const { $ } = await import('bun');
   bun$ = $;
-} catch { /* running on Node/tsx; ignore */ }
+} catch {
+  /* running on Node/tsx; ignore */
+}
 
 /* --------------------------- Path + FS utilities --------------------------- */
-
 
 // project root = parent of scripts/ by default
 const rootDir = path.resolve(__dirname, '..');
@@ -152,7 +154,7 @@ const missing = result.missing ?? {};
 
 // “used” = top-level minus what depcheck flagged as unused
 const usedTopLevel = allTopLevel.filter(
-  d => !unusedDeps.includes(d) && !unusedDevDeps.includes(d),
+  (d) => !unusedDeps.includes(d) && !unusedDevDeps.includes(d),
 );
 
 // Potentially-unused *sub*-dependencies: dependency’s own deps that your app
@@ -198,18 +200,12 @@ const outputs = {
 await writeJsonAtomic(path.join(OUT_DIR, 'dependencies-report.json'), outputs);
 
 // Also emit the individual files (overwritten if they exist)
-await writeJsonAtomic(
-  path.join(OUT_DIR, 'unused-dependencies.json'),
-  outputs.unusedDependencies,
-);
+await writeJsonAtomic(path.join(OUT_DIR, 'unused-dependencies.json'), outputs.unusedDependencies);
 await writeJsonAtomic(
   path.join(OUT_DIR, 'unused-dev-dependencies.json'),
   outputs.unusedDevDependencies,
 );
-await writeJsonAtomic(
-  path.join(OUT_DIR, 'missing-dependencies.json'),
-  outputs.missingDependencies,
-);
+await writeJsonAtomic(path.join(OUT_DIR, 'missing-dependencies.json'), outputs.missingDependencies);
 await writeJsonAtomic(
   path.join(OUT_DIR, 'unused-sub-dependencies.json'),
   outputs.potentialUnusedSubDependencies,

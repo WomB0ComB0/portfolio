@@ -1,9 +1,11 @@
 [
+  "prettier",
   "@octokit/graphql-schema",
   "react-dom",
   "@google-analytics/data",
   "@million/lint",
   "@sanity/client",
+  "prettier-plugin-tailwindcss",
   "zod",
   "@radix-ui/react-icons",
   "jsdom",
@@ -13,7 +15,7 @@
   "styled-components",
   "stylelint",
   "@sentry/nextjs",
-  "@liveblocks/react",
+  "ts-morph",
   "vitest",
   "react-hook-form"
 ]

@@ -16,11 +16,11 @@
 
 'use server';
 
+import { env } from '@/env';
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
 import * as Sentry from '@sentry/nextjs';
 import type { Configuration } from '@vercel/otel';
 import { registerOTel } from '@vercel/otel';
-import { env } from '@/env';
 
 /**
  * Registers and configures instrumentation services for the application.

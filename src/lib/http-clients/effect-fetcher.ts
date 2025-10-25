@@ -17,6 +17,47 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
 
+/**
+ * Configuration options for the fetcher utility.
+ */
+export interface FetcherOptions<T = unknown> {
+  /** Number of times to retry the request on failure */
+  retries?: number;
+  /** Delay in milliseconds between retries */
+  retryDelay?: number;
+  /** Optional callback invoked on error */
+  onError?: (error: unknown) => void;
+  /** Timeout in milliseconds for the request */
+  timeout?: number;
+  /** Additional headers to include in the request */
+  headers?: Record<string, string>;
+  /** Effect/Schema for runtime validation of the response */
+  schema?: Schema.Schema<T, any, never>;
+  /** Abortsignal */
+  signal?: AbortSignal;
+  /** Body type - defaults to 'json', use 'text' for form-encoded data */
+  bodyType?: 'json' | 'text';
+}
+
+/**
+ * Represents all supported HTTP methods for the fetcher utility.
+ */
+export type HttpMethod = Schema.Schema.Type<typeof HttpMethod>;
+/**
+ * Represents a type-safe map of query parameters.
+ * Each value can be a string, number, boolean, null, undefined, or an array of those types.
+ */
+export type QueryParams = Schema.Schema.Type<typeof QueryParams>;
+/**
+ * Represents a type-safe request body for HTTP methods that support a body.
+ * Can be an object, array, string, number, boolean, or null.
+ */
+export type RequestBody = Schema.Schema.Type<typeof RequestBody>;
+/**
+ * Represents HTTP headers as key-value string pairs.
+ */
+export type Headers = Schema.Schema.Type<typeof Headers>;
+
 const EMPTY = '';
 
 /**
@@ -100,12 +141,6 @@ const getBaseURL = (): string => {
 
 // HTTP Method type definition
 const HttpMethod = Schema.Literal('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD');
-
-/**
- * Represents all supported HTTP methods for the fetcher utility.
- */
-type HttpMethod = Schema.Schema.Type<typeof HttpMethod>;
-
 // Query parameters type definition
 const QueryParams = Schema.Record({
   key: Schema.String,
@@ -118,13 +153,6 @@ const QueryParams = Schema.Record({
     Schema.Array(Schema.Union(Schema.String, Schema.Number, Schema.Boolean)),
   ),
 });
-
-/**
- * Represents a type-safe map of query parameters.
- * Each value can be a string, number, boolean, null, undefined, or an array of those types.
- */
-export type QueryParams = Schema.Schema.Type<typeof QueryParams>;
-
 // Request body type definition
 const RequestBody = Schema.Union(
   Schema.Record({ key: Schema.String, value: Schema.Unknown }),
@@ -134,44 +162,9 @@ const RequestBody = Schema.Union(
   Schema.Boolean,
   Schema.Null,
 );
-
-/**
- * Represents a type-safe request body for HTTP methods that support a body.
- * Can be an object, array, string, number, boolean, or null.
- */
-type RequestBody = Schema.Schema.Type<typeof RequestBody>;
-
 // Headers type definition
-// @ts-expect-error
+// TODO: flag
 const Headers = Schema.Record({ key: Schema.String, value: Schema.String });
-
-/**
- * Represents HTTP headers as key-value string pairs.
- */
-// @ts-expect-error
-type Headers = Schema.Schema.Type<typeof Headers>;
-
-/**
- * Configuration options for the fetcher utility.
- */
-export interface FetcherOptions<T = unknown> {
-  /** Number of times to retry the request on failure */
-  retries?: number;
-  /** Delay in milliseconds between retries */
-  retryDelay?: number;
-  /** Optional callback invoked on error */
-  onError?: (error: unknown) => void;
-  /** Timeout in milliseconds for the request */
-  timeout?: number;
-  /** Additional headers to include in the request */
-  headers?: Record<string, string>;
-  /** Effect/Schema for runtime validation of the response */
-  schema?: Schema.Schema<T, any, never>;
-  /** Abortsignal */
-  signal?: AbortSignal;
-  /** Body type - defaults to 'json', use 'text' for form-encoded data */
-  bodyType?: 'json' | 'text';
-}
 
 /**
  * Custom error class for validation-specific errors.

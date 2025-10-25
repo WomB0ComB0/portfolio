@@ -1,3 +1,4 @@
+import type { AggregateErrorOptions } from './error.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,24 +17,6 @@
 
 import type { ParseResult } from 'effect';
 import { Data } from 'effect';
-
-/**
- * Configuration options for BaseError instances.
- *
- * @interface BaseErrorOptions
- * @property {Error} cause - The original error that caused this error
- * @property {string} command - The command identifier that was being executed
- * @property {ParseResult.ParseError} [parseResult] - Optional Effect parsing error details
- * @property {Record<string, unknown>} [metadata] - Additional contextual information
- * @property {number} [timestamp] - When the error occurred (milliseconds since epoch)
- */
-export interface BaseErrorOptions {
-  cause: Error;
-  command: string;
-  parseResult?: ParseResult.ParseError;
-  metadata?: Record<string, unknown>;
-  timestamp?: number;
-}
 
 /**
  * Represents a base error class with enhanced error reporting capabilities.
@@ -577,21 +560,6 @@ export const fromParseError = (
   (error as any).parseResult = parseError;
   return error;
 };
-
-/**
- * Options for error aggregation.
- *
- * @interface AggregateErrorOptions
- * @property {string} command - The command identifier for the aggregate error
- * @property {string} [message] - Optional custom message (defaults to error count)
- * @property {Record<string, unknown>} [metadata] - Optional metadata
- */
-interface AggregateErrorOptions {
-  command: string;
-  message?: string;
-  metadata?: Record<string, unknown>;
-}
-
 /**
  * Aggregates multiple errors into a single BaseError.
  *

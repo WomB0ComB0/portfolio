@@ -16,9 +16,9 @@
 
 import { redis } from '@/classes/redis';
 import { env } from '@/env';
-import type { RateLimitHelper } from '@/lib';
 import { csrfToken, getRateLimitReset, rateLimiter } from '@/lib';
 import { getClientIP } from '@/lib/security/get-ip';
+import type { RateLimitHelper } from '@/lib/security/rate-limit.types';
 import { Logger, Stringify } from '@/utils';
 import { type NextRequest, NextResponse } from 'next/server';
 
@@ -130,24 +130,36 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    // Apply security headers
+    const ttDirectives =
+      process.env.NODE_ENV === 'production'
+        ? [`require-trusted-types-for 'script'`, `trusted-types default dompurify nextjs#bundler`]
+        : []; // disable in development to let Turbopack HMR work
+
     const csp = [
       `default-src 'self'`,
-      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'sha256-hO9ZT4cNK4lf3tCm9gejKqXi7lxNB3kKEhmGEQhx9/M='`,
-      `style-src 'self' 'unsafe-inline'`,
+
+      `script-src 'self' 'unsafe-eval' 'unsafe-inline' 'nonce-${nonce}' 'strict-dynamic'`,
+
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+
       `img-src 'self' data: https:`,
-      `connect-src 'self' ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} *.sentry.io *.liveblocks.io https://accounts.spotify.com https://api.spotify.com https://api.github.com https://api.lanyard.rest https://api.hashnode.com https://mainnet.infura.io https://rpc.ankr.com wss://relay.walletconnect.com *.sanity.io *.cloudinary.com *.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com *.googleapis.com`,
-      `worker-src 'none'`,
+
+      `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://*.gstatic.com data: https://*.sanity.io ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} *.sentry.io https://cdn.discordapp.com`,
+
+      `frame-src https://cdn.sanity.io/`,
+      `worker-src 'self' blob:`,
       `object-src 'none'`,
       `base-uri 'none'`,
       `frame-ancestors 'none'`,
-      `font-src 'self'`,
+
+      `font-src 'self' https://fonts.gstatic.com`,
+
       `upgrade-insecure-requests`,
-      `require-trusted-types-for 'script'`,
-      `trusted-types default dompurify nextjs#bundler`,
+      ...ttDirectives,
     ].join('; ');
 
     response.headers.set('Content-Security-Policy', csp);
+
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     response.headers.set('Referrer-Policy', 'no-referrer');
@@ -260,7 +272,6 @@ const isPublicAsset = (request: NextRequest): boolean =>
  * Uses Next.js middleware matcher patterns to include/exclude specific paths.
  *
  * @property {string[]} matcher - Array of path patterns to match against incoming requests.
- * @property {'nodejs'} runtime - Specifies the runtime environment for the middleware.
  *
  * @remarks
  * - Matches all paths by default.
@@ -291,5 +302,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|dashboard).*)',
   ],
-  runtime: 'nodejs',
 };

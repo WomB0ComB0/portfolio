@@ -14,22 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * @fileoverview Throttle and debounce utilities for rate limiting
- *
- * Provides functions to limit the rate at which functions can be called.
- * Useful for preventing excessive API calls and managing request frequency.
- */
-
-/**
- * Throttle options
- */
-export interface ThrottleOptions {
-  /** Whether to call the function on the leading edge */
-  leading?: boolean;
-  /** Whether to call the function on the trailing edge */
-  trailing?: boolean;
-}
+import type { DebounceOptions, ThrottleOptions } from './throttle.types';
 
 /**
  * Throttle a function to only execute once per specified interval
@@ -97,16 +82,6 @@ export function throttle<T extends (...args: any[]) => any>(
   };
 
   return throttled;
-}
-
-/**
- * Debounce options
- */
-export interface DebounceOptions {
-  /** Whether to call the function on the leading edge */
-  leading?: boolean;
-  /** Maximum time to wait before forcing execution */
-  maxWait?: number;
 }
 
 /**

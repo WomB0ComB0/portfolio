@@ -1,3 +1,5 @@
+import type { BenefitItem, SponsorPlatform } from './sponsor.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,27 +16,20 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
+import { MagicCard } from '@/components';
+import Layout from '@/components/layout/layout';
+import { Button } from '@/components/ui/button';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useActiveSponsors } from '@/hooks/use-github-sponsors';
+import type { Sponsor as SponsorType } from '@/hooks/use-github-sponsors.types';
+import { obfuscateLink } from '@/utils';
 import { Coffee, ExternalLink, Gift, Heart, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import { SiBuymeacoffee, SiGithubsponsors, SiKofi, SiOpencollective } from 'react-icons/si';
-import Layout from '@/components/layout/layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { type Sponsor as SponsorType, useActiveSponsors } from '@/hooks/use-github-sponsors';
-import { obfuscateLink } from '@/utils';
-
-interface SponsorPlatform {
-  name: string;
-  username: string;
-  url: string;
-  icon: React.ReactNode;
-  color: string;
-  description: string;
-}
 
 const sponsorPlatforms = [
   {
@@ -71,13 +66,6 @@ const sponsorPlatforms = [
     description: 'Fuel my work with coffee through quick and easy one-time donations.',
   },
 ] as const satisfies readonly SponsorPlatform[];
-
-interface BenefitItem {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
 const benefits = [
   {
     icon: <Heart className="h-6 w-6" />,
@@ -108,7 +96,7 @@ export const Sponsor = () => {
   return (
     <Layout>
       <div className="relative flex min-h-screen w-full flex-col items-center px-4 py-8 sm:px-6 lg:px-12">
-        <section className="w-full max-w-screen-xl">
+        <section className="w-full max-w-7xl">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -144,27 +132,26 @@ export const Sponsor = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.45, delay: 0.1 + index * 0.05 }}
                 >
-                  <Card className="h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
+                  <MagicCard className="h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
                     <CardHeader>
                       <div className="mb-2 flex items-center gap-3 min-w-0">
-                        <div className="text-primary flex-shrink-0">{benefit.icon}</div>
+                        <div className="text-primary shrink-0">{benefit.icon}</div>
                         <CardTitle className="text-base text-primary sm:text-lg truncate">
                           {benefit.title}
                         </CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground break-words">
+                      <p className="text-sm text-muted-foreground wrap-break-word">
                         {benefit.description}
                       </p>
                     </CardContent>
-                  </Card>
+                  </MagicCard>
                 </motion.div>
               ))}
             </div>
           </motion.div>
 
-          {/* Sponsor Platforms */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -182,11 +169,11 @@ export const Sponsor = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
                 >
-                  <Card className="group h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
+                  <MagicCard className="group h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
                     <CardHeader>
                       <div className="mb-3 flex items-center justify-between">
                         <div
-                          className={`${platform.color} flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg p-2`}
+                          className={`${platform.color} flex h-12 w-12 shrink-0 items-center justify-center rounded-lg p-2`}
                           aria-hidden
                         >
                           {platform.icon}
@@ -214,20 +201,19 @@ export const Sponsor = () => {
                         </a>
                       </Button>
                     </CardContent>
-                  </Card>
+                  </MagicCard>
                 </motion.div>
               ))}
             </div>
           </motion.div>
 
-          {/* Current Sponsors Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.35 }}
             className="mb-8"
           >
-            <Card className="border-border bg-gradient-to-br from-primary/10 to-secondary/10">
+            <MagicCard className="border-border bg-linear-to-b from-primary/10 to-secondary/10">
               <CardHeader>
                 <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
                   <div className="flex items-center gap-3">
@@ -251,7 +237,7 @@ export const Sponsor = () => {
                 {isLoading ? (
                   <div className="grid grid-cols-1 gap-4 py-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     {[...Array(4)].map((_, i) => (
-                      <Card
+                      <MagicCard
                         key={`sponsor-card-skeleton-${+i}`}
                         className="h-full w-full border-border bg-card"
                       >
@@ -266,7 +252,7 @@ export const Sponsor = () => {
                             <Skeleton className="h-4 w-4" />
                           </div>
                         </CardContent>
-                      </Card>
+                      </MagicCard>
                     ))}
                   </div>
                 ) : error ? (
@@ -317,10 +303,10 @@ export const Sponsor = () => {
                             rel="noopener noreferrer"
                             className="block"
                           >
-                            <Card className="group h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
+                            <MagicCard className="group h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
                               <CardContent className="p-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-border transition-all group-hover:ring-primary">
+                                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-border transition-all group-hover:ring-primary">
                                     <Image
                                       src={sponsor.avatarUrl}
                                       alt={`${sponsor.name || sponsor.login}'s avatar`}
@@ -347,10 +333,10 @@ export const Sponsor = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <ExternalLink className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                                  <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                                 </div>
                               </CardContent>
-                            </Card>
+                            </MagicCard>
                           </a>
                         </motion.div>
                       ))}
@@ -358,17 +344,16 @@ export const Sponsor = () => {
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </MagicCard>
           </motion.div>
 
-          {/* Additional Info */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.45 }}
             className="mt-4 text-center"
           >
-            <Card className="border-border bg-card">
+            <MagicCard className="border-border bg-card">
               <CardContent className="p-6">
                 <h3 className="mb-3 text-base font-semibold text-primary sm:text-lg">
                   Questions About Sponsorship?
@@ -397,7 +382,7 @@ export const Sponsor = () => {
                   </a>
                 </Button>
               </CardContent>
-            </Card>
+            </MagicCard>
           </motion.div>
         </section>
       </div>

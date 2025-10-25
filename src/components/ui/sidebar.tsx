@@ -16,10 +16,6 @@
 
 'use client';
 
-import { ViewVerticalIcon } from '@radix-ui/react-icons';
-import { Slot } from '@radix-ui/react-slot';
-import { cva, type VariantProps } from 'class-variance-authority';
-import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -34,6 +30,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { ViewVerticalIcon } from '@radix-ui/react-icons';
+import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import * as React from 'react';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -41,8 +41,9 @@ const SIDEBAR_WIDTH = '16rem';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
+const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
-type SidebarContextProps = {
+export type SidebarContextProps = {
   state: 'expanded' | 'collapsed';
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -51,8 +52,6 @@ type SidebarContextProps = {
   isMobile: boolean;
   toggleSidebar: () => void;
 };
-
-const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
 function useSidebar() {
   const context = React.useContext(SidebarContext);
@@ -108,7 +107,7 @@ const SidebarProvider = React.forwardRef<
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
       return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
-    }, [isMobile, setOpen, setOpenMobile]);
+    }, [isMobile, setOpen]);
 
     // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
@@ -137,7 +136,7 @@ const SidebarProvider = React.forwardRef<
         setOpenMobile,
         toggleSidebar,
       }),
-      [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+      [state, open, setOpen, isMobile, openMobile, toggleSidebar],
     );
 
     return (

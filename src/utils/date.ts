@@ -14,32 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * Utility functions for date formatting that prevent hydration mismatches.
- * These functions ensure consistent date formatting between server and client.
- *
- * @module utils/date
- * @author Mike Odnis
- * @version 1.0.0
- */
-
-/**
- * Format options for date display.
- *
- * @interface DateFormatOptions
- * @property {'short' | 'long' | 'numeric'} [month] - Month display format.
- * @property {'numeric' | '2-digit'} [year] - Year display format.
- * @property {'numeric' | '2-digit'} [day] - Day display format.
- * @property {'numeric' | '2-digit'} [hour] - Hour display format.
- * @property {'numeric' | '2-digit'} [minute] - Minute display format.
- */
-interface DateFormatOptions {
-  month?: 'short' | 'long' | 'numeric';
-  year?: 'numeric' | '2-digit';
-  day?: 'numeric' | '2-digit';
-  hour?: 'numeric' | '2-digit';
-  minute?: 'numeric' | '2-digit';
-}
+import type { DateFormatOptions } from './date.types';
 
 /**
  * Formats a date string to a consistent format to prevent hydration mismatches.

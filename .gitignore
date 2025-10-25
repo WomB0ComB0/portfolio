@@ -60,8 +60,8 @@ workbox-*.js.map
 sw.js
 sw.js.*
 fallback-*.js.map
-fallback-*.js 
-swe-worker-*.js.map 
+fallback-*.js
+swe-worker-*.js.map
 swe-worker-*.js
 
 /playwright-report
@@ -77,3 +77,4 @@ backups/
 docker-compose.override.yml
 .sanity
 dist
+dev.log

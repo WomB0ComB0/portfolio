@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
 import { currentlyPlayingSong } from '@/lib';
+import { Schema } from 'effect';
 
 const SpotifyArtistSchema = Schema.Struct({
   name: Schema.String,
@@ -53,8 +53,8 @@ const NowPlayingResponseSchema = Schema.Struct({
   imageURL: Schema.optional(Schema.String),
 });
 
-type SpotifyResponse = Schema.Schema.Type<typeof SpotifyResponseSchema>;
-type NowPlayingResponse = Schema.Schema.Type<typeof NowPlayingResponseSchema>;
+export type SpotifyResponse = Schema.Schema.Type<typeof SpotifyResponseSchema>;
+export type NowPlayingResponse = Schema.Schema.Type<typeof NowPlayingResponseSchema>;
 
 export async function getNowPlaying(): Promise<NowPlayingResponse> {
   const response = (await currentlyPlayingSong()) as SpotifyResponse | null;
@@ -66,7 +66,8 @@ export async function getNowPlaying(): Promise<NowPlayingResponse> {
   return {
     isPlaying: response.is_playing,
     songName: response.item?.name,
-    artistName: response.item?.artists?.map((artist) => artist.name).join(', '),
+    // TODO: flag
+    artistName: response.item?.artists?.map((artist: any) => artist.name).join(', '),
     songURL: response.item?.external_urls?.spotify,
     imageURL: response.item?.album?.images?.[0]?.url,
   };

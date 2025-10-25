@@ -16,25 +16,25 @@
 
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, ArrowRightIcon } from '@radix-ui/react-icons';
 import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react';
 import * as React from 'react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+
+const CarouselContext = React.createContext<CarouselContextProps | null>(null);
 
 type CarouselApi = UseEmblaCarouselType[1];
-type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
-type CarouselOptions = UseCarouselParameters[0];
-type CarouselPlugin = UseCarouselParameters[1];
-
-type CarouselProps = {
+export type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
+export type CarouselOptions = UseCarouselParameters[0];
+export type CarouselPlugin = UseCarouselParameters[1];
+export type CarouselProps = {
   opts?: CarouselOptions;
   plugins?: CarouselPlugin;
   orientation?: 'horizontal' | 'vertical';
   setApi?: (api: CarouselApi) => void;
 };
-
-type CarouselContextProps = {
+export type CarouselContextProps = {
   carouselRef: ReturnType<typeof useEmblaCarousel>[0];
   api: ReturnType<typeof useEmblaCarousel>[1];
   scrollPrev: () => void;
@@ -42,8 +42,6 @@ type CarouselContextProps = {
   canScrollPrev: boolean;
   canScrollNext: boolean;
 } & CarouselProps;
-
-const CarouselContext = React.createContext<CarouselContextProps | null>(null);
 
 function useCarousel() {
   const context = React.useContext(CarouselContext);
@@ -248,10 +246,10 @@ const CarouselNext = React.forwardRef<HTMLButtonElement, React.ComponentProps<ty
 CarouselNext.displayName = 'CarouselNext';
 
 export {
-  type CarouselApi,
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselPrevious,
   CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
 };

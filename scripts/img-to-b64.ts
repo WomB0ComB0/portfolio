@@ -71,7 +71,7 @@ const generateLazyImage = async (
   const lqip = `data:image/${format};base64,${lqipBuf.toString('base64')}`;
 
   return {
-    src: src.split('/').pop()!.split('.')[0]!,
+    src: src.split('/').pop()?.split('.')[0]!,
     lqip,
   };
 };
@@ -92,15 +92,6 @@ class ImageToB64 {
   /**
    * @private
    * @readonly
-   * @type {string[]}
-   * @description An array of file paths to the images that this instance is configured to process.
-   * Note: The `@ts-expect-error` is present in the original code, indicating an expected TypeScript issue.
-   */
-  // @ts-expect-error
-  private readonly images: string[];
-  /**
-   * @private
-   * @readonly
    * @type {number}
    * @description The default width in pixels to be used when generating LQIPs for images.
    */
@@ -112,6 +103,13 @@ class ImageToB64 {
    * @description The default height in pixels to be used when generating LQIPs for images.
    */
   private readonly height: number;
+
+  /**   * @private
+   * @readonly
+   * @type {string[]}
+   * @description An array of file paths to the images managed by this instance.
+   */
+  readonly images: string[];
 
   /**
    * @public
@@ -167,7 +165,7 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  if (!directory || !dimensions || isNaN(width) || isNaN(height)) {
+  if (!directory || !dimensions || Number.isNaN(width) || Number.isNaN(height)) {
     console.error('Usage: bun script.ts <directory> <width>x<height>');
     process.exit(1);
   }

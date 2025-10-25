@@ -1,3 +1,5 @@
+import type { ApiResponse, Message, MutationContext } from './use-messages.types';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,68 +16,12 @@
  * limitations under the License.
  */
 
-'use client';
+('use client');
 
+import { post } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import { post } from '@/lib/http-clients/effect-fetcher';
-
-/**
- * @interface Message
- * @description
- * Represents a single message entity used within the messaging system of the portfolio project.
- * Used as both payload and response structure for message-related operations.
- * @property {string} id - The unique identifier of the message.
- * @property {string} message - The textual content of the message.
- * @property {string} authorName - Name of the message's author.
- * @property {string} createdAt - Date string representing message creation.
- * @property {string | null | undefined} [email] - Optional author email address.
- * @author Mike Odnis
- * @version 1.0.0
- * @public
- * @readonly
- * @see https://github.com/WomB0ComB0/portfolio
- */
-interface Message {
-  id: string;
-  message: string;
-  authorName: string;
-  createdAt: string;
-  email?: string | null;
-}
-
-/**
- * @interface ApiResponse
- * @description
- * Defines the structure of the response payload for the messages query API.
- * Useful for caching and querying messages in the client state.
- * @property {{ json: Message[] }} json - Nested object containing an array of Message objects.
- * @author Mike Odnis
- * @version 1.0.0
- * @readonly
- * @public
- */
-interface ApiResponse {
-  json: {
-    json: Message[];
-  };
-}
-
-/**
- * @interface MutationContext
- * @description
- * Context structure passed between React Query mutation lifecycle events for message mutations.
- * Contains the previous cached messages, allowing for optimistic UI rollback.
- * @property {ApiResponse | undefined} previousMessages - The previously cached messages query data, or undefined.
- * @author Mike Odnis
- * @version 1.0.0
- * @readonly
- * @private
- */
-interface MutationContext {
-  previousMessages: ApiResponse | undefined;
-}
 
 /**
  * @readonly

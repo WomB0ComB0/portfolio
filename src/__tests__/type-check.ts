@@ -210,7 +210,7 @@ async function validateSchemaTypes(): Promise<{ passedTests: number; failedTests
     Schema.decodeUnknownSync(SpotifyTrackSchema)(invalidData);
     log('  ❌ Invalid data incorrectly passed validation', 'red');
     failedTests++;
-  } catch (error) {
+  } catch (_error) {
     log('  ✅ Invalid data correctly rejected', 'green');
     log('     Expected validation error caught', 'blue');
     passedTests++;
@@ -231,7 +231,7 @@ async function validateSchemaTypes(): Promise<{ passedTests: number; failedTests
     log('  ✅ Valid data passes schema validation', 'green');
     log(`     Data: ${JSON.stringify(decoded.data)}`, 'blue');
     passedTests++;
-  } catch (error) {
+  } catch (_error) {
     log('  ❌ Valid data failed schema validation', 'red');
     failedTests++;
   }
@@ -246,7 +246,7 @@ async function validateSchemaTypes(): Promise<{ passedTests: number; failedTests
     Schema.decodeUnknownSync(GitHubStatsSchema)(invalidData);
     log('  ❌ Invalid data incorrectly passed validation', 'red');
     failedTests++;
-  } catch (error) {
+  } catch (_error) {
     log('  ✅ Invalid data correctly rejected', 'green');
     passedTests++;
   }
@@ -263,7 +263,7 @@ async function validateSchemaTypes(): Promise<{ passedTests: number; failedTests
     log('  ✅ Valid data passes schema validation', 'green');
     log(`     Data: ${decoded.data}`, 'blue');
     passedTests++;
-  } catch (error) {
+  } catch (_error) {
     log('  ❌ Valid data failed schema validation', 'red');
     failedTests++;
   }
@@ -277,7 +277,7 @@ async function validateSchemaTypes(): Promise<{ passedTests: number; failedTests
     Schema.decodeUnknownSync(StringResponseSchema)(invalidData);
     log('  ❌ Invalid data incorrectly passed validation', 'red');
     failedTests++;
-  } catch (error) {
+  } catch (_error) {
     log('  ✅ Invalid data correctly rejected', 'green');
     passedTests++;
   }

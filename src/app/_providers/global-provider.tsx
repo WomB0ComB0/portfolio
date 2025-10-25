@@ -16,14 +16,14 @@
 
 'use client';
 
+import { WebVitals } from '@/app/_components';
+import { PageTransition } from '@/components/animations';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Analytics } from '@vercel/analytics/react';
 import { KBarProvider } from 'kbar';
 import type React from 'react';
 import { useEffect } from 'react';
-import { WebVitals } from '@/app/_components';
-import { PageTransition } from '@/components/animations';
 
 import { actions } from '@/lib/navigation';
 import { Events, Providers, ThemeProvider } from '@/providers';

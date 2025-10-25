@@ -132,7 +132,7 @@ function getFilePath(): string {
       }
     }
     return process?.cwd?.() || 'unknown-location';
-  } catch (error) {
+  } catch (_error) {
     return 'unknown-location';
   }
 }

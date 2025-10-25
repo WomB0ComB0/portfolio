@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
 import { topTracks as getTopTracks } from '@/lib/api-integrations/spotify';
+import { Schema } from 'effect';
 
 const SpotifyArtistSchema = Schema.Struct({
   name: Schema.String,
@@ -47,7 +47,7 @@ export const TopTrackSchema = Schema.Struct({
   imageUrl: Schema.String,
 });
 
-type SpotifyTrack = Schema.Schema.Type<typeof SpotifyTrackSchema>;
+export type SpotifyTrack = Schema.Schema.Type<typeof SpotifyTrackSchema>;
 export type TopTrack = Schema.Schema.Type<typeof TopTrackSchema>;
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours

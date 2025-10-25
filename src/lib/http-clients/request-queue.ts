@@ -1,3 +1,4 @@
+import type { PendingRequest, RateLimitConfig, RequestTiming } from './request-queue.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -23,40 +24,6 @@
  */
 
 import { logger } from '@/utils';
-
-/**
- * Represents a pending request in the queue
- */
-interface PendingRequest<T> {
-  /** Promise that resolves when the request completes */
-  promise: Promise<T>;
-  /** Timestamp when the request was queued */
-  timestamp: number;
-  /** Number of consumers waiting for this request */
-  refCount: number;
-}
-
-/**
- * Configuration for rate limiting per endpoint
- */
-interface RateLimitConfig {
-  /** Minimum time (ms) between requests to the same endpoint */
-  minInterval: number;
-  /** Maximum number of requests per time window */
-  maxRequests: number;
-  /** Time window (ms) for maxRequests */
-  windowMs: number;
-}
-
-/**
- * Tracks request timing for rate limiting
- */
-interface RequestTiming {
-  /** Last request timestamp */
-  lastRequest: number;
-  /** Request timestamps within current window */
-  requests: number[];
-}
 
 /**
  * Default rate limit configuration

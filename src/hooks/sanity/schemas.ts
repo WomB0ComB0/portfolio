@@ -156,12 +156,6 @@ export const ResumeSchema = Schema.Struct({
   lastUpdated: Schema.String,
   isActive: Schema.Boolean,
 });
-
-/**
- * TypeScript types derived from schemas
- */
-export type Resume = Schema.Schema.Type<typeof ResumeSchema>;
-
 /**
  * Array schemas for list endpoints
  */
@@ -169,3 +163,4 @@ export const ExperiencesSchema = Schema.Array(ExperienceSchema);
 export const ProjectsSchema = Schema.Array(ProjectSchema);
 export const CertificationsSchema = Schema.Array(CertificationSchema);
 export const PlacesSchema = Schema.Array(PlaceSchema);
+export type Resume = Schema.Schema.Type<typeof ResumeSchema>;

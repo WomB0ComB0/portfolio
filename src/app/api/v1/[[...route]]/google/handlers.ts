@@ -16,10 +16,12 @@
 
 import { getAnalytics } from '@/lib';
 import { logger } from '@/utils';
+import { Schema } from 'effect';
 
-interface GoogleAnalyticsData {
-  total_pageviews?: number;
-}
+export const GoogleAnalyticsSchema = Schema.Struct({
+  total_pageviews: Schema.Union(Schema.Number, Schema.Literal(0)),
+});
+export type GoogleAnalyticsData = Schema.Schema.Type<typeof GoogleAnalyticsSchema>;
 
 const CACHE_DURATION = 60 * 60 * 1000;
 let cache: { data: GoogleAnalyticsData; timestamp: number } | null = null;

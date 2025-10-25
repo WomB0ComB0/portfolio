@@ -1,3 +1,4 @@
+import type { ColorKey, LogData, LoggerOptions } from './logger.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -47,64 +48,6 @@ export enum LogLevel {
   TRACE = 5,
   /** All possible log messages */
   ALL = 6,
-}
-
-/**
- * Available color keys for log formatting
- * @typedef {'reset' | 'red' | 'yellow' | 'blue' | 'green' | 'gray' | 'bold' | 'magenta' | 'cyan' | 'white'} ColorKey
- */
-export type ColorKey =
-  | 'reset'
-  | 'red'
-  | 'yellow'
-  | 'blue'
-  | 'green'
-  | 'gray'
-  | 'bold'
-  | 'magenta'
-  | 'cyan'
-  | 'white';
-
-/**
- * Interface for structured data that can be attached to log messages
- * @interface
- */
-export interface LogData {
-  /**
-   * Any key-value pairs to include in the log
-   */
-  [key: string]: unknown;
-}
-
-/**
- * Configuration options for the Logger
- * @interface
- */
-export interface LoggerOptions {
-  /**
-   * The minimum level of messages to log
-   */
-  minLevel?: LogLevel;
-
-  /**
-   * Whether to include timestamps in log messages
-   */
-  includeTimestamp?: boolean;
-
-  /**
-   * Whether to colorize log output
-   */
-  colorize?: boolean;
-
-  /**
-   * Whether to write logs to a file (server-side only)
-   */
-  logToFile?: boolean;
-
-  /**
-   * Path to the log file if logToFile is enabled
-   */
-  filePath?: string;
 }
 
 /**

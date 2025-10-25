@@ -34,9 +34,9 @@ import { logger } from '@/utils';
  * @public
  * @interface
  * @property {string} [contentType] - The value for the Content-Type HTTP header.
- *   @default 'application/json'
+ * @default 'application/json'
  * @property {string} [cacheControl] - The value for the Cache-Control HTTP header.
- *   @default undefined (no cache control)
+ * @default undefined (no cache control)
  * @author Mike Odnis
  * @version 1.0.0
  * @see createCacheHeaders
@@ -55,7 +55,7 @@ export interface CacheConfig {
  * @property {string} context - Context name for logging (e.g., 'fetching blogs').
  * @property {(error: unknown) => string} [customMessage] - Custom error message generator.
  * @property {boolean} [includeErrorDetails] - Whether to include the error message in the response.
- *   @default false
+ * @default false
  * @author Mike Odnis
  * @version 1.0.0
  * @see createErrorHandler

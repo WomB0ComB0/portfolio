@@ -41,18 +41,6 @@ export const banActions = [
 ] as const;
 
 /**
- * Type representing all valid ban action string values.
- *
- * @public
- * @author Mike Odnis
- * @see {@link banActions}
- * @version 1.0.0
- * @example
- * function handleBanAction(action: BanAction) { ... }
- */
-export type BanAction = (typeof banActions)[number];
-
-/**
  * Schema definition for ban-related API requests.
  *
  * Useful for validating and typing administrative ban requests.
@@ -154,3 +142,15 @@ export const banSchemas = {
   ...banResponseSchemas,
   'ban.request': banRequestSchema,
 };
+
+/**
+ * Type representing all valid ban action string values.
+ *
+ * @public
+ * @author Mike Odnis
+ * @see {@link banActions}
+ * @version 1.0.0
+ * @example
+ * function handleBanAction(action: BanAction) { ... }
+ */
+export type BanAction = (typeof banActions)[number];

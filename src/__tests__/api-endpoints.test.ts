@@ -1,3 +1,4 @@
+import type { ApiTestResult } from './api-endpoints.test.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -27,53 +28,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-/**
- * @interface ApiTestResult
- * @description Represents the structured result of an API endpoint test,
- * including status, success, response data, and response time.
- * @author Mike Odnis
- * @since 1.0.0
- * @version 1.0.0
- */
-interface ApiTestResult {
-  /**
-   * @readonly
-   * @type {string}
-   * The API endpoint that was tested.
-   */
-  readonly endpoint: string;
-  /**
-   * @readonly
-   * @type {number}
-   * The HTTP status code of the response. Will be 0 if a network error occurred.
-   */
-  readonly status: number;
-  /**
-   * @readonly
-   * @type {boolean}
-   * Indicates if the request was successful (HTTP status 2xx).
-   */
-  readonly success: boolean;
-  /**
-   * @readonly
-   * @type {unknown}
-   * The parsed response data (JSON or text). Undefined if an error occurred before parsing.
-   */
-  readonly data?: unknown;
-  /**
-   * @readonly
-   * @type {string}
-   * An error message if the fetch operation failed (e.g., network error).
-   */
-  readonly error?: string;
-  /**
-   * @readonly
-   * @type {number}
-   * The time taken for the API call to complete in milliseconds.
-   */
-  readonly responseTime: number;
-}
 
 /**
  * @function testApiEndpoint

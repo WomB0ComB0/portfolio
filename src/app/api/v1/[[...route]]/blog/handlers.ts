@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
 import { BaseError } from '@/classes/error';
 import { getBlogs } from '@/lib';
+import { Schema } from 'effect';
 
 export const BlogSchema = Schema.Struct({
   title: Schema.String,
   slug: Schema.String,
   publishedAt: Schema.String,
   excerpt: Schema.String,
-  imageUrl: Schema.optional(Schema.String), // Corrected usage of Schema.optional
+  imageUrl: Schema.optional(Schema.String),
 });
 
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;
