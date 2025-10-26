@@ -65,6 +65,11 @@
       "maintained node versions"
     ]
   },
+  "overrides": {
+    "@opentelemetry/instrumentation": "0.207.0",
+    "import-in-the-middle": "2.0.0",
+    "require-in-the-middle": "8.0.1"
+  },
   "dependencies": {
     "@biomejs/biome": "2.3.0",
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -172,6 +177,9 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@babel/generator": "7.28.5",
+    "@babel/parser": "7.28.5",
+    "@babel/traverse": "7.28.5",
     "@graphql-codegen/cli": "6.0.1",
     "@graphql-codegen/typescript": "5.0.2",
     "@graphql-codegen/typescript-operations": "^5.0.2",
@@ -187,6 +195,7 @@
     "@types/react-dom": "^19.2.2",
     "cross-env": "^10.1.0",
     "jsdom": "^27.0.1",
+    "magic-string": "0.30.21",
     "postcss": "^8.5.6",
     "prettier": "3.6.2",
     "prettier-plugin-organize-imports": "4.3.0",

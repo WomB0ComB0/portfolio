@@ -1,3 +1,4 @@
+'use client';
 import type { BlurFadeProps } from './blur-fade.types';
 
 /**
@@ -15,8 +16,6 @@ import type { BlurFadeProps } from './blur-fade.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { AnimatePresence, motion, useInView, type Variants } from 'motion/react';
 import { useRef } from 'react';

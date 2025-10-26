@@ -1,3 +1,4 @@
+'use client';
 import type { BenefitItem, SponsorPlatform } from './sponsor.types';
 
 /**
@@ -15,8 +16,6 @@ import type { BenefitItem, SponsorPlatform } from './sponsor.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';

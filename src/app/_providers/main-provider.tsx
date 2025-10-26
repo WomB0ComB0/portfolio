@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -42,7 +43,6 @@
  * }
  * ```
  */
-'use client';
 
 import type React from 'react';
 

@@ -1,3 +1,4 @@
+'use client';
 import type { MagicCardProps } from './magic-card.types';
 
 /**
@@ -15,8 +16,6 @@ import type { MagicCardProps } from './magic-card.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
 import type React from 'react';

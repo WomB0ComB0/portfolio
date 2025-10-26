@@ -1,3 +1,4 @@
+'use client';
 import type { PreloadConfig } from './speculation-rules.types';
 
 /**
@@ -15,8 +16,6 @@ import type { PreloadConfig } from './speculation-rules.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { Stringify } from '@/utils';
 import Script from 'next/script';

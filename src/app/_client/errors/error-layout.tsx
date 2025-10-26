@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -67,7 +69,6 @@
  * }
  * ```
  */
-'use client';
 
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Home, RotateCw } from 'lucide-react';

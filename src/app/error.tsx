@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,7 +15,6 @@
  * limitations under the License.
  */
 
-'use client';
 import dynamic from 'next/dynamic';
 
 const InternalServerError = dynamic(

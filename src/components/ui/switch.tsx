@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -13,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-'use client';
 
 import * as SwitchPrimitives from '@radix-ui/react-switch';
 import * as React from 'react';

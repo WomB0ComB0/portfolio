@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -13,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { APIProvider, InfoWindow, useMap, Map as VisGLMap } from '@vis.gl/react-google-maps';

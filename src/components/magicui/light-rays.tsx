@@ -1,3 +1,4 @@
+'use client';
 import type { LightRay, LightRaysProps } from './light-rays.types';
 
 /**
@@ -15,8 +16,6 @@ import type { LightRay, LightRaysProps } from './light-rays.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { motion } from 'motion/react';
 import { type CSSProperties, useEffect, useState } from 'react';

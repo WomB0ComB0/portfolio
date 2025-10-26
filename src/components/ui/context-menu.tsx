@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -13,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-'use client';
 
 import { cn } from '@/lib/utils';
 import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';

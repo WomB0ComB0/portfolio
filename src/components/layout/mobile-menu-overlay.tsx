@@ -1,3 +1,4 @@
+'use client';
 import type { MobileMenuOverlayProps } from './mobile-menu-overlay.types';
 
 /**
@@ -15,8 +16,6 @@ import type { MobileMenuOverlayProps } from './mobile-menu-overlay.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

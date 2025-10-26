@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -25,7 +26,6 @@
  * @version 1.0.0
  * @see {@link ErrorLayout} for the underlying layout structure.
  */
-'use client';
 
 import React from 'react';
 import { ErrorLayout } from '.';

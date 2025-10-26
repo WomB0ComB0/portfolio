@@ -1,3 +1,5 @@
+'use server';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -13,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-'use server';
 
 import { env } from '@/env';
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';

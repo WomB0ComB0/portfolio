@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -13,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#!/usr/bin/env node
 
 /**
  * Copyright (c) HashiCorp, Inc.

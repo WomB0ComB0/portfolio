@@ -1,3 +1,4 @@
+'use client';
 import type { SignInMethod } from './auth.types';
 
 /**
@@ -15,8 +16,6 @@ import type { SignInMethod } from './auth.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { logger } from '@/utils';
 import type { FirebaseError } from 'firebase/app';

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,16 +16,13 @@
  * limitations under the License.
  */
 
-import type { DraggableGalleryProps } from './draggable-gallery.types';
-
-('use client');
-
 import { urlFor } from '@/lib';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import type { DraggableGalleryProps } from './draggable-gallery.types';
 
 export const DraggableGallery = ({ images, className }: DraggableGalleryProps) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);

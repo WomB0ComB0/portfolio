@@ -1,3 +1,4 @@
+'use client';
 import type { ApiResponse, Message, MutationContext } from './use-messages.types';
 
 /**
@@ -15,8 +16,6 @@ import type { ApiResponse, Message, MutationContext } from './use-messages.types
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';

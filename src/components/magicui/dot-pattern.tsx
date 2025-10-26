@@ -1,4 +1,4 @@
-import type { DotPatternProps } from './dot-pattern.types';
+'use client';
 
 /**
  * Copyright 2025 Mike Odnis
@@ -16,10 +16,10 @@ import type { DotPatternProps } from './dot-pattern.types';
  * limitations under the License.
  */
 
-('use client');
-
 import { cn } from '@/lib/utils';
 import { useEffect, useId, useState } from 'react';
+import type { DotPatternProps } from './dot-pattern.types';
+
 /**
  * DotPattern displays an animated SVG background of repeated dots, shifting vertically in response
  * to page scroll. It provides a utility pattern overlay for use in interactive or aesthetic backgrounds.

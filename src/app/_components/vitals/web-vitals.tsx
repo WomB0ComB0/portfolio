@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -30,7 +32,6 @@
  *
  * @returns {null} This component does not render any UI elements.
  */
-'use client';
 
 import { logger } from '@/utils';
 import type { NextWebVitalsMetric } from 'next/app';

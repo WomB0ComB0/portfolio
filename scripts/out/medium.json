@@ -12,6 +12,7 @@
   "@vercel/otel",
   "@types/node",
   "elysia",
+  "@babel/parser",
   "styled-components",
   "stylelint",
   "@sentry/nextjs",

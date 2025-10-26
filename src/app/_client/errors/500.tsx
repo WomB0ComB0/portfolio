@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -40,7 +41,6 @@
  * </ErrorBoundary>
  * ```
  */
-'use client';
 
 import React from 'react';
 import { ErrorLayout } from '.';

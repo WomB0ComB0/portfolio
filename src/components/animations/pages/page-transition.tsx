@@ -1,3 +1,4 @@
+'use client';
 import type { PageTransitionProps } from './page-transition.types';
 
 /**
@@ -15,8 +16,6 @@ import type { PageTransitionProps } from './page-transition.types';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-('use client');
 
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
