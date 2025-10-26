@@ -1,4 +1,5 @@
 'use client';
+
 import type { PreloadConfig } from './speculation-rules.types';
 
 /**

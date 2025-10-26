@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
-import type * as React from 'react';
+import * as React from 'react';
+
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 function ItemGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (

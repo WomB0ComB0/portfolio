@@ -1,5 +1,4 @@
 'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,9 +15,10 @@
  * limitations under the License.
  */
 
+import * as ResizablePrimitive from 'react-resizable-panels';
+
 import { cn } from '@/lib/utils';
 import { DragHandleDots2Icon } from '@radix-ui/react-icons';
-import * as ResizablePrimitive from 'react-resizable-panels';
 
 const ResizablePanelGroup = ({
   className,

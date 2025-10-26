@@ -1,4 +1,5 @@
 'use client';
+
 import { motion, useAnimation, useInView } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import type { props } from './slide.types';

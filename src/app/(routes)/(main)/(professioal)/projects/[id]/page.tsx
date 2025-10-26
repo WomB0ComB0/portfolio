@@ -18,8 +18,9 @@ import { getProjects } from '@/lib/sanity/api';
 import { urlFor } from '@/lib/sanity/client';
 import { constructMetadata, logger } from '@/utils';
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
+
+export const dynamic = 'force-static';
 
 /**
  * ProjectDetail React component (dynamically imported).
@@ -33,7 +34,7 @@ import type { JSX } from 'react';
  * @author Mike Odnis <https://github.com/WomB0ComB0>
  * @version 1.0.0
  */
-const ProjectDetail = dynamic(
+const ProjectDetail = (await import('next/dynamic')).default(
   () =>
     import('@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail').then(
       (mod) => mod.ProjectDetail,

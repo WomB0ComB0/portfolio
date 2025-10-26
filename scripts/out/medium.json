@@ -4,6 +4,7 @@
   "react-dom",
   "@google-analytics/data",
   "@million/lint",
+  "recharts",
   "@sanity/client",
   "prettier-plugin-tailwindcss",
   "zod",

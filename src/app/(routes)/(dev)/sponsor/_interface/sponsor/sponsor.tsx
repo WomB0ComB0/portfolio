@@ -1,4 +1,5 @@
 'use client';
+
 import type { BenefitItem, SponsorPlatform } from './sponsor.types';
 
 /**

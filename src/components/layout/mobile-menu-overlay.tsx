@@ -1,4 +1,5 @@
 'use client';
+
 import type { MobileMenuOverlayProps } from './mobile-menu-overlay.types';
 
 /**

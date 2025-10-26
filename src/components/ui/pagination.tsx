@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-import { type ButtonProps, buttonVariants } from '@/components/ui/button';
+import { ButtonProps, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ChevronLeftIcon, ChevronRightIcon, DotsHorizontalIcon } from '@radix-ui/react-icons';
 import * as React from 'react';
 
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
+    role="navigation"
     aria-label="pagination"
     className={cn('mx-auto flex w-full justify-center', className)}
     {...props}
   />
 );
 Pagination.displayName = 'Pagination';
-
-export type PaginationLinkProps = {
-  isActive?: boolean;
-} & Pick<ButtonProps, 'size'> &
-  React.ComponentProps<'a'>;
 
 const PaginationContent = React.forwardRef<HTMLUListElement, React.ComponentProps<'ul'>>(
   ({ className, ...props }, ref) => (
@@ -44,6 +40,12 @@ const PaginationItem = React.forwardRef<HTMLLIElement, React.ComponentProps<'li'
   ({ className, ...props }, ref) => <li ref={ref} className={cn('', className)} {...props} />,
 );
 PaginationItem.displayName = 'PaginationItem';
+
+type PaginationLinkProps = {
+  isActive?: boolean;
+} & Pick<ButtonProps, 'size'> &
+  React.ComponentProps<'a'>;
+
 const PaginationLink = ({ className, isActive, size = 'icon', ...props }: PaginationLinkProps) => (
   <a
     aria-current={isActive ? 'page' : undefined}

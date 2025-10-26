@@ -1,4 +1,5 @@
 'use client';
+
 import type { ApiResponse, Message, MutationContext } from './use-messages.types';
 
 /**

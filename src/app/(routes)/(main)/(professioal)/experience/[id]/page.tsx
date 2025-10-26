@@ -17,8 +17,9 @@
 import { getExperiences } from '@/lib/sanity/api';
 import { constructMetadata, logger } from '@/utils';
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
+
+export const dynamic = 'force-static';
 
 /**
  * Dynamically imports the ExperienceDetail component for SSR.
@@ -30,7 +31,7 @@ import type { JSX } from 'react';
  * @see https://nextjs.org/docs/pages/api-reference/functions/dynamic
  * @version 1.0.0
  */
-const ExperienceDetail = dynamic(
+const ExperienceDetail = (await import('next/dynamic')).default(
   () =>
     import('@/app/(routes)/(main)/(professioal)/experience/_interface/experience-detail').then(
       (mod) => mod.ExperienceDetail,

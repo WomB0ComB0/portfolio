@@ -1,4 +1,5 @@
 'use client';
+
 import type { LightRay, LightRaysProps } from './light-rays.types';
 
 /**

@@ -1,5 +1,4 @@
 'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,32 +15,31 @@
  * limitations under the License.
  */
 
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import type * as LabelPrimitive from '@radix-ui/react-label';
+import * as LabelPrimitive from '@radix-ui/react-label';
 import { Slot } from '@radix-ui/react-slot';
 import * as React from 'react';
 import {
   Controller,
+  FormProvider,
+  useFormContext,
   type ControllerProps,
   type FieldPath,
   type FieldValues,
-  FormProvider,
-  useFormContext,
 } from 'react-hook-form';
 
-export type FormFieldContextValue<
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
+const Form = FormProvider;
+
+type FormFieldContextValue<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > = {
   name: TName;
 };
-export type FormItemContextValue = {
-  id: string;
-};
 
-const Form = FormProvider;
-const FormFieldContext = React.createContext<FormFieldContextValue>({} as FormFieldContextValue);
+const FormFieldContext = React.createContext<FormFieldContextValue | null>(null);
 
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
@@ -61,11 +59,15 @@ const useFormField = () => {
   const itemContext = React.useContext(FormItemContext);
   const { getFieldState, formState } = useFormContext();
 
-  const fieldState = getFieldState(fieldContext.name, formState);
-
   if (!fieldContext) {
     throw new Error('useFormField should be used within <FormField>');
   }
+
+  if (!itemContext) {
+    throw new Error('useFormField should be used within <FormItem>');
+  }
+
+  const fieldState = getFieldState(fieldContext.name, formState);
 
   const { id } = itemContext;
 
@@ -78,7 +80,12 @@ const useFormField = () => {
     ...fieldState,
   };
 };
-const FormItemContext = React.createContext<FormItemContextValue>({} as FormItemContextValue);
+
+type FormItemContextValue = {
+  id: string;
+};
+
+const FormItemContext = React.createContext<FormItemContextValue | null>(null);
 
 const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => {

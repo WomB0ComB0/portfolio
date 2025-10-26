@@ -1,5 +1,4 @@
 'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,18 +15,8 @@
  * limitations under the License.
  */
 
-import { motion } from 'motion/react';
+import * as AspectRatioPrimitive from '@radix-ui/react-aspect-ratio';
 
-export const TemplateAnimation = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <motion.div
-      initial={{ y: 20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ ease: 'easeInOut', duration: 0.75 }}
-    >
-      {children}
-    </motion.div>
-  );
-};
-TemplateAnimation.displayName = 'TemplateAnimation';
-export default TemplateAnimation;
+const AspectRatio = AspectRatioPrimitive.Root;
+
+export { AspectRatio };
