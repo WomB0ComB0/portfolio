@@ -23,12 +23,12 @@
     {
       "matchManagers": ["npm", "bun"],
       "groupName": "types",
-      "matchPackagePatterns": ["^@types/"]
+      "matchPackageNames": ["/^@types//"]
     },
     {
       "matchManagers": ["npm", "bun"],
       "groupName": "linting",
-      "matchPackagePatterns": ["^eslint", "^@eslint/", "^prettier"]
+      "matchPackageNames": ["/^eslint/", "/^@eslint//", "/^prettier/"]
     },
     {
       "matchManagers": ["npm", "bun"],
@@ -36,5 +36,8 @@
       "separateMajorMinor": true
     }
   ],
-  "lockFileMaintenance": { "enabled": true, "schedule": ["at any time"] }
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["at any time"]
+  }
 }
