@@ -23,7 +23,7 @@
     {
       "matchManagers": ["npm", "bun"],
       "groupName": "types",
-      "matchPackageNames": ["/^@types//"]
+      "matchPackageNames": ["/^@types\\//"]
     },
     {
       "matchManagers": ["npm", "bun"],
