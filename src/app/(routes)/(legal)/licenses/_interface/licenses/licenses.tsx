@@ -19,11 +19,11 @@
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { obfuscateLink } from '@/utils/browser/html-entities';
 import { ExternalLink, FileCode, FileText, Image } from 'lucide-react';
 import Link from 'next/link';
 import type { JSX } from 'react';
 import type { LicenseCardProps } from './licenses.types';
+import { emailHref } from "@/constants";
 
 /**
  * Renders a card displaying license details for a specific content type.
@@ -160,12 +160,7 @@ export const Licenses = (): JSX.Element => {
             If you have questions about these licenses or need special permissions beyond what is
             granted, please feel free to{' '}
             <a
-              href={
-                obfuscateLink({
-                  scheme: 'mailto',
-                  address: 'mike@mikeodnis.dev',
-                }).href
-              }
+              href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:text-primary-foreground underline"

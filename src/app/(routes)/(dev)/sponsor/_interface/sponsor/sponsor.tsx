@@ -23,9 +23,9 @@ import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { emailHref } from "@/constants";
 import { useActiveSponsors } from '@/hooks/use-github-sponsors';
 import type { Sponsor as SponsorType } from '@/hooks/use-github-sponsors.types';
-import { obfuscateLink } from '@/utils';
 import { Coffee, ExternalLink, Gift, Heart, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
@@ -364,12 +364,7 @@ export const Sponsor = () => {
                   className="mx-auto block border-primary text-primary hover:bg-primary/10"
                 >
                   <a
-                    href={
-                      obfuscateLink({
-                        scheme: 'mailto',
-                        address: 'mike@mikeodnis.dev',
-                      }).href
-                    }
+                    href={emailHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2"
