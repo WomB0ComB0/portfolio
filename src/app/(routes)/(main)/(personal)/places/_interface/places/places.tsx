@@ -17,6 +17,7 @@
  */
 
 import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
+import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,6 @@ import type { PhotoItem, PlaceItem } from '@/types/places';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
-import { usePagination, PaginationControls } from '@/app/_components';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -120,7 +120,7 @@ export const Places = () => {
     loadMoreRef,
     loadMore,
     displayCount,
-    totalCount
+    totalCount,
   } = usePagination(places, { itemsPerPage: ITEMS_PER_PAGE });
 
   if (isLoading) return <LoadingState />;

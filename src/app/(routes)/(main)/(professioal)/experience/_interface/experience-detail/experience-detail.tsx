@@ -16,7 +16,7 @@
 
 'use client';
 
-import { MagicCard } from "@/components";
+import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

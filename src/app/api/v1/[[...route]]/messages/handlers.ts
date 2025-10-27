@@ -15,7 +15,7 @@
  */
 
 import { BaseError } from '@/classes/error';
-import { config } from "@/config";
+import { config } from '@/config';
 import { firestore } from '@/core/firebase';
 import { Schema } from 'effect';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';

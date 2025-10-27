@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,6 @@ import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
-import { usePagination, PaginationControls } from '@/app/_components';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -85,9 +85,9 @@ const ProjectsListSkeleton = (): JSX.Element => (
 
 const ProjectsListContent = (): JSX.Element => {
   const { data: projects, isLoading, error } = useSanityProjects();
-  
+
   const projectsList = projects || [];
-  
+
   const {
     displayedItems: displayedProjects,
     hasMore,
@@ -95,7 +95,7 @@ const ProjectsListContent = (): JSX.Element => {
     loadMoreRef,
     loadMore,
     displayCount,
-    totalCount
+    totalCount,
   } = usePagination(projectsList, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {

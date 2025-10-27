@@ -36,12 +36,12 @@ interface UsePaginationReturn<T> {
 
 /**
  * Custom hook for implementing infinite scroll pagination
- * 
+ *
  * @example
  * ```tsx
- * const { displayedItems, hasMore, isLoadingMore, loadMoreRef, loadMore } = 
+ * const { displayedItems, hasMore, isLoadingMore, loadMoreRef, loadMore } =
  *   usePagination(allItems, { itemsPerPage: 9 });
- * 
+ *
  * return (
  *   <>
  *     <div className="grid">
@@ -57,14 +57,10 @@ interface UsePaginationReturn<T> {
  * ```
  */
 export function usePagination<T>(
-  items: ReadonlyArray<T> | undefined,
-  options: UsePaginationOptions = {}
+  items: ReadonlyArray<T> | T[] | undefined,
+  options: UsePaginationOptions = {},
 ): UsePaginationReturn<T> {
-  const {
-    itemsPerPage = 10,
-    loadDelay = 500,
-    threshold = 0.1,
-  } = options;
+  const { itemsPerPage = 10, loadDelay = 500, threshold = 0.1 } = options;
 
   const [displayCount, setDisplayCount] = useState(itemsPerPage);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -103,7 +99,7 @@ export function usePagination<T>(
           }
         }
       },
-      { threshold }
+      { threshold },
     );
 
     observer.observe(loadMoreRef.current);

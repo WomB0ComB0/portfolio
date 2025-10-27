@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { type NextRequest, NextResponse } from 'next/server';
 import { env } from './env';
 import type { RateLimitHelper } from './lib/security/rate-limit.types';
-import { type NextRequest, NextResponse } from 'next/server';
 
 /**
  * @readonly

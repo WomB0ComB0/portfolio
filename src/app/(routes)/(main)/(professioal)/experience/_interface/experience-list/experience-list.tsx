@@ -18,6 +18,7 @@ import { MagicCard } from '@/components';
  * limitations under the License.
  */
 
+import { PaginationControls, usePagination } from '@/app/_components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,6 @@ import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { usePagination, PaginationControls } from '@/app/_components';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -144,7 +144,7 @@ const ExperienceListSkeleton = () => {
  */
 const ExperienceListContent = () => {
   const { data: experiences } = useSanityExperiences();
-  
+
   const {
     displayedItems: displayedExperiences,
     hasMore,
@@ -152,7 +152,7 @@ const ExperienceListContent = () => {
     loadMoreRef,
     loadMore,
     displayCount,
-    totalCount
+    totalCount,
   } = usePagination(experiences, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
@@ -241,12 +241,7 @@ const ExperienceListContent = () => {
                       variants={isLeft ? itemVariants : itemVariantsRight}
                       className={isLeft ? '' : 'opacity-0 pointer-events-none'}
                     >
-                      {isLeft && (
-                        <TimelineCard
-                          item={item}
-                          period={period}
-                        />
-                      )}
+                      {isLeft && <TimelineCard item={item} period={period} />}
                     </motion.div>
 
                     <motion.div
@@ -267,9 +262,7 @@ const ExperienceListContent = () => {
                       variants={isLeft ? itemVariantsRight : itemVariants}
                       className={!isLeft ? '' : 'opacity-0 pointer-events-none'}
                     >
-                      {!isLeft && (
-                        <TimelineCard item={item} period={period} />
-                      )}
+                      {!isLeft && <TimelineCard item={item} period={period} />}
                     </motion.div>
                   </div>
 

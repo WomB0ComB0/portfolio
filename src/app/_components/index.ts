@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-export * from './vitals';
 export * from './pagination';
+export * from './vitals';
