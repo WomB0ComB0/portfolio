@@ -368,7 +368,7 @@ export const Sponsor = () => {
                       obfuscateLink({
                         scheme: 'mailto',
                         address: 'mike@mikeodnis.dev',
-                      }).encodedHref
+                      }).href
                     }
                     target="_blank"
                     rel="noopener noreferrer"

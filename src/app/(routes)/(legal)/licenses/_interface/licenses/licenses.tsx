@@ -164,7 +164,7 @@ export const Licenses = (): JSX.Element => {
                 obfuscateLink({
                   scheme: 'mailto',
                   address: 'mike@mikeodnis.dev',
-                }).encodedHref
+                }).href
               }
               target="_blank"
               rel="noopener noreferrer"
