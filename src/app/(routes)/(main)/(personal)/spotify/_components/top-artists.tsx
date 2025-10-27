@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
+import { MagicCard } from '@/components';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
-// import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * Schema definition for a Spotify artist object.
@@ -111,12 +111,11 @@ const TopArtistsError = () => (
  */
 export const TopArtists = () => {
   return (
-    <div className="bg-linear-to-b from-background to-card rounded-2xl shadow-2xl p-6 overflow-hidden">
+    <MagicCard className=" rounded-2xl shadow-2xl p-6 overflow-hidden">
       <h2 className="text-3xl font-bold text-foreground mb-2 text-center">Top Artists</h2>
       <p className="text-muted-foreground mb-6 text-center">
         My most played artists in the last 4 weeks.
       </p>
-      {/* <Suspense fallback={<TopArtistsSkeleton />}> */}
       <DataLoader
         url="/api/v1/top-artists"
         schema={TopArtistsResponseSchema}
@@ -144,7 +143,7 @@ export const TopArtists = () => {
                     (artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
                       <motion.div
                         key={`${artist.name}-${index}`}
-                        className="flex flex-col items-center space-y-3 p-4 bg-card/50 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-primary/60 transition-all text-center"
+                        className="flex flex-col items-center space-y-3 p-4 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-primary/60 transition-all text-center"
                         onClick={() => window.open(artist.url, '_blank')}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -178,8 +177,7 @@ export const TopArtists = () => {
           )
         }
       </DataLoader>
-      {/* </Suspense> */}
-    </div>
+    </MagicCard>
   );
 };
 TopArtists.displayName = 'TopArtists';

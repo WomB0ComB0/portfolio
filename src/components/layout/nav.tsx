@@ -64,7 +64,6 @@ export const NavBar = memo(({ path }: { path: string }) => {
   return (
     <div className="w-16 h-full flex flex-col items-center py-6 gap-3 border-r border-border/30">
       <nav className="flex flex-col items-center gap-2 w-full px-2" aria-label="Main navigation">
-        {/* Home Link */}
         {home && (
           <Button
             asChild
@@ -85,7 +84,6 @@ export const NavBar = memo(({ path }: { path: string }) => {
           </Button>
         )}
 
-        {/* Professional Dropdown */}
         <div className="relative w-full flex flex-col items-center">
           <Button
             variant="ghost"
@@ -150,7 +148,6 @@ export const NavBar = memo(({ path }: { path: string }) => {
           </AnimatePresence>
         </div>
 
-        {/* Developer Dropdown */}
         <div className="relative w-full flex flex-col items-center">
           <Button
             variant="ghost"
@@ -215,7 +212,6 @@ export const NavBar = memo(({ path }: { path: string }) => {
           </AnimatePresence>
         </div>
 
-        {/* Personal Dropdown */}
         <div className="relative w-full flex flex-col items-center">
           <Button
             variant="ghost"
@@ -280,7 +276,6 @@ export const NavBar = memo(({ path }: { path: string }) => {
           </AnimatePresence>
         </div>
 
-        {/* Legal Dropdown */}
         <div className="relative w-full flex flex-col items-center">
           <Button
             variant="ghost"
@@ -345,10 +340,8 @@ export const NavBar = memo(({ path }: { path: string }) => {
           </AnimatePresence>
         </div>
 
-        {/* Divider */}
         <div className="w-8 h-px bg-border/50 my-1" />
 
-        {/* Command Menu Button */}
         <Button
           variant="ghost"
           size="icon"

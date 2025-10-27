@@ -35,35 +35,51 @@
  */
 
 import { useDataLoader } from '@/providers/server/effect-data-loader';
+import type { Schema } from 'effect';
 import { createDataLoaderOptions, SANITY_ENDPOINTS } from './config';
-import { CertificationsSchema, ExperiencesSchema, ProjectsSchema, ResumeSchema } from './schemas';
+import {
+  CertificationsSchema,
+  ExperiencesSchema,
+  PlacesSchema,
+  ProjectsSchema,
+  ResumeSchema,
+} from './schemas';
 
 /**
  * Hook to fetch experiences with Effect Schema validation and Suspense
  */
 export function useSanityExperiences() {
-  return useDataLoader(SANITY_ENDPOINTS.experiences, createDataLoaderOptions(ExperiencesSchema));
+  return useDataLoader<Schema.Schema.Type<typeof ExperiencesSchema>>(
+    SANITY_ENDPOINTS.experiences,
+    createDataLoaderOptions(ExperiencesSchema),
+  );
 }
 
 /**
  * Hook to fetch projects with Effect Schema validation and Suspense
  */
 export function useSanityProjects() {
-  return useDataLoader(SANITY_ENDPOINTS.projects, createDataLoaderOptions(ProjectsSchema));
+  return useDataLoader<Schema.Schema.Type<typeof ProjectsSchema>>(
+    SANITY_ENDPOINTS.projects,
+    createDataLoaderOptions(ProjectsSchema),
+  );
 }
 
 /**
  * Hook to fetch featured projects with Effect Schema validation and Suspense
  */
 export function useSanityFeaturedProjects() {
-  return useDataLoader(SANITY_ENDPOINTS.featuredProjects, createDataLoaderOptions(ProjectsSchema));
+  return useDataLoader<Schema.Schema.Type<typeof ProjectsSchema>>(
+    SANITY_ENDPOINTS.featuredProjects,
+    createDataLoaderOptions(ProjectsSchema),
+  );
 }
 
 /**
  * Hook to fetch certifications with Effect Schema validation and Suspense
  */
 export function useSanityCertifications() {
-  return useDataLoader(
+  return useDataLoader<Schema.Schema.Type<typeof CertificationsSchema>>(
     SANITY_ENDPOINTS.certifications,
     createDataLoaderOptions(CertificationsSchema),
   );
@@ -73,5 +89,18 @@ export function useSanityCertifications() {
  * Hook to fetch resume with Effect Schema validation and Suspense
  */
 export function useSanityResume() {
-  return useDataLoader(SANITY_ENDPOINTS.resume, createDataLoaderOptions(ResumeSchema));
+  return useDataLoader<Schema.Schema.Type<typeof ResumeSchema>>(
+    SANITY_ENDPOINTS.resume,
+    createDataLoaderOptions(ResumeSchema),
+  );
+}
+
+/**
+ * Hook to fetch places with Effect Schema validation and Suspense
+ */
+export function useSanityPlaces() {
+  return useDataLoader<Schema.Schema.Type<typeof PlacesSchema>>(
+    SANITY_ENDPOINTS.places,
+    createDataLoaderOptions(PlacesSchema),
+  );
 }

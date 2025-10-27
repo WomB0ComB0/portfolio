@@ -1,5 +1,7 @@
 'use client';
 
+import { MagicCard } from '@/components';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -22,7 +24,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import type { Experience } from '@/lib/sanity/types';
 import { formatDatePeriod } from '@/utils';
 import { ArrowRight, Briefcase, Calendar, MapPin, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -36,9 +37,7 @@ import { Suspense } from 'react';
 const TimelineCardSkeleton = ({ isLeft }: { isLeft: boolean }) => {
   return (
     <div className="relative mb-12 lg:mb-16">
-      {/* Desktop Layout */}
       <div className="hidden lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-8 lg:items-center">
-        {/* Left content or spacer */}
         <div className={isLeft ? '' : 'opacity-0'}>
           <Card className="bg-card/50 backdrop-blur-sm border-border/50 rounded-xl overflow-hidden">
             <div className="relative">
@@ -60,12 +59,10 @@ const TimelineCardSkeleton = ({ isLeft }: { isLeft: boolean }) => {
           </Card>
         </div>
 
-        {/* Timeline dot */}
         <div className="flex items-center justify-center">
           <div className="w-5 h-5 rounded-full bg-muted animate-pulse ring-4 ring-background" />
         </div>
 
-        {/* Right content or spacer */}
         <div className={!isLeft ? '' : 'opacity-0'}>
           <Card className="bg-card/50 backdrop-blur-sm border-border/50 rounded-xl overflow-hidden">
             <div className="relative">
@@ -88,7 +85,6 @@ const TimelineCardSkeleton = ({ isLeft }: { isLeft: boolean }) => {
         </div>
       </div>
 
-      {/* Mobile Layout */}
       <div className="lg:hidden relative pl-8">
         <div className="absolute left-0 top-8 w-5 h-5 rounded-full bg-muted animate-pulse ring-4 ring-background" />
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 rounded-xl overflow-hidden">
@@ -129,9 +125,7 @@ const ExperienceListSkeleton = () => {
       </header>
 
       <div className="relative max-w-6xl mx-auto">
-        {/* Desktop timeline line */}
         <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-muted/30 -translate-x-1/2 hidden lg:block" />
-        {/* Mobile timeline line */}
         <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-muted/30 lg:hidden" />
 
         {[...Array(4)].map((_, i) => (
@@ -147,7 +141,6 @@ const ExperienceListSkeleton = () => {
  */
 const ExperienceListContent = () => {
   const { data: experiences } = useSanityExperiences();
-  const experienceList = experiences as Experience[];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -207,11 +200,9 @@ const ExperienceListContent = () => {
         </p>
       </motion.header>
 
-      {experienceList && experienceList.length > 0 ? (
+      {experiences && experiences.length > 0 ? (
         <div className="relative max-w-6xl mx-auto">
-          {/* Desktop timeline line */}
           <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 -translate-x-1/2 hidden lg:block" />
-          {/* Mobile timeline line */}
           <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 lg:hidden" />
 
           <motion.div
@@ -220,16 +211,14 @@ const ExperienceListContent = () => {
             animate="show"
             className="space-y-12 lg:space-y-16"
           >
-            {experienceList.map((item, index) => {
+            {experiences.map((item, index) => {
               const period = formatDatePeriod(item.startDate, item.endDate, item.current);
               const isCurrent = item.current;
               const isLeft = index % 2 === 0;
 
               return (
                 <div key={item._id} className="relative">
-                  {/* Desktop Timeline Layout */}
                   <div className="hidden lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-8 lg:items-center">
-                    {/* Left side */}
                     <motion.div
                       variants={isLeft ? itemVariants : itemVariantsRight}
                       className={isLeft ? '' : 'opacity-0 pointer-events-none'}
@@ -244,7 +233,6 @@ const ExperienceListContent = () => {
                       )}
                     </motion.div>
 
-                    {/* Timeline dot */}
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -259,7 +247,6 @@ const ExperienceListContent = () => {
                       )}
                     </motion.div>
 
-                    {/* Right side */}
                     <motion.div
                       variants={isLeft ? itemVariantsRight : itemVariants}
                       className={!isLeft ? '' : 'opacity-0 pointer-events-none'}
@@ -270,7 +257,6 @@ const ExperienceListContent = () => {
                     </motion.div>
                   </div>
 
-                  {/* Mobile Layout */}
                   <motion.div variants={itemVariants} className="lg:hidden relative pl-8">
                     <div className="absolute left-0 top-8">
                       <div
@@ -314,7 +300,7 @@ const TimelineCard = ({
   alignRight = false,
   mobile = false,
 }: {
-  item: Experience;
+  item: ReturnType<typeof useSanityExperiences>['data'][number];
   period: string;
   isCurrent: boolean;
   alignRight?: boolean;
@@ -325,11 +311,7 @@ const TimelineCard = ({
       whileHover={{ scale: 1.02, y: -4 }}
       transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
     >
-      <Card className="relative bg-card/50 backdrop-blur-sm border-border/50 rounded-xl overflow-hidden group hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
-        {/* Accent gradient bar */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-primary/50 via-primary to-primary/50 group-hover:h-1.5 transition-all duration-300" />
-
-        {/* Current role badge */}
+      <MagicCard className="relative backdrop-blur-sm border-border/50 rounded-xl overflow-hidden group hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
         {isCurrent && (
           <div className={`absolute top-4 ${alignRight && !mobile ? 'left-4' : 'right-4'} z-10`}>
             <Badge className="bg-primary/20 text-primary border-primary/50 flex items-center gap-1 animate-pulse">
@@ -406,7 +388,7 @@ const TimelineCard = ({
             </Link>
           </Button>
         </CardContent>
-      </Card>
+      </MagicCard>
     </motion.div>
   );
 };

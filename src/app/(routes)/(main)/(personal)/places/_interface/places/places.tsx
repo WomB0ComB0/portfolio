@@ -22,29 +22,32 @@ import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { usePlaces } from '@/hooks/sanity/use-sanity-query';
+import type { Place } from '@/hooks/sanity/schemas';
+import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
-import type { SanityImage } from '@/lib/sanity/types';
-import type { PlaceItem } from '@/types/places';
+import type { PhotoItem, PlaceItem } from '@/types/places';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 
 /**
- * Helper function to convert Sanity Place to PlaceItem
+ * Converts a Sanity Place document to a PlaceItem for display
  */
-const convertSanityPlaceToPlaceItem = (sanityPlace: any): PlaceItem => {
+const convertSanityPlaceToPlaceItem = (sanityPlace: Place): PlaceItem => {
+  const photos: PhotoItem[] =
+    sanityPlace.photos?.map((photo) => ({
+      url: urlFor(photo).width(800).height(600).url(),
+      caption: photo.caption,
+    })) || [];
+
   return {
     id: sanityPlace._id,
     name: sanityPlace.name,
     description: sanityPlace.description,
     latitude: sanityPlace.latitude,
     longitude: sanityPlace.longitude,
-    category: sanityPlace.category || 'Uncategorized',
-    photos: (sanityPlace.photos || []).map((photo: SanityImage) => ({
-      url: urlFor(photo).width(800).height(600).url() || '',
-      caption: (photo as any).caption || '',
-    })),
+    category: sanityPlace.category,
+    photos,
   };
 };
 
@@ -100,9 +103,9 @@ const LoadingState = () => (
  * Places page component with interactive list and map
  */
 export const Places = () => {
-  const { data: sanityPlaces, isLoading, error } = usePlaces();
+  const { data: sanityPlaces, isLoading, error } = useSanityPlaces();
 
-  const places = useMemo(() => {
+  const places: PlaceItem[] = useMemo(() => {
     if (!sanityPlaces) return [];
     return sanityPlaces.map(convertSanityPlaceToPlaceItem);
   }, [sanityPlaces]);
@@ -137,7 +140,6 @@ export const Places = () => {
   return (
     <Layout>
       <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
-        {/* Header Section */}
         <div className="w-full max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -156,7 +158,6 @@ export const Places = () => {
           </div>
         </div>
 
-        {/* Map Section */}
         <div className="w-full max-w-7xl mx-auto">
           <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden shadow-xl rounded-2xl">
             <CardContent className="p-0">
@@ -167,14 +168,13 @@ export const Places = () => {
           </Card>
         </div>
 
-        {/* Cards Grid Section */}
         <div className="w-full max-w-7xl mx-auto">
           {places.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {places.map((place) => (
+              {places.map((place: PlaceItem) => (
                 <MagicCard
                   key={place.id}
-                  className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col"
+                  className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col"
                 >
                   <CardHeader className="pb-4 flex-1">
                     <Link
@@ -215,7 +215,7 @@ export const Places = () => {
               ))}
             </div>
           ) : (
-            <MagicCard className="bg-card/50 backdrop-blur-sm border-border/50">
+            <MagicCard className="backdrop-blur-sm border-border/50">
               <CardContent className="py-20">
                 <div className="text-center space-y-4">
                   <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-muted/50">

@@ -28,22 +28,25 @@ export const experienceSchema = t.Object({
   position: t.String(),
   location: t.String(),
   startDate: t.String(),
-  endDate: t.Optional(t.String()),
+  endDate: t.Optional(t.Union([t.String(), t.Null()])),
   current: t.Boolean(),
   description: t.String(),
   responsibilities: t.Array(t.String()),
   technologies: t.Array(t.String()),
   logo: t.Optional(
-    t.Object({
-      _type: t.String(),
-      asset: t.Object({
-        _ref: t.String(),
+    t.Union([
+      t.Object({
         _type: t.String(),
+        asset: t.Object({
+          _ref: t.String(),
+          _type: t.String(),
+        }),
+        alt: t.Optional(t.String()),
       }),
-      alt: t.Optional(t.String()),
-    }),
+      t.Null(),
+    ]),
   ),
-  companyUrl: t.Optional(t.String()),
+  companyUrl: t.Optional(t.Union([t.String(), t.Null()])),
   order: t.Number(),
 });
 
@@ -61,23 +64,28 @@ export const projectSchema = t.Object({
     current: t.String(),
   }),
   description: t.String(),
-  longDescription: t.Optional(t.String()),
-  image: t.Object({
-    _type: t.String(),
-    asset: t.Object({
-      _ref: t.String(),
-      _type: t.String(),
-    }),
-    alt: t.Optional(t.String()),
-  }),
-  images: t.Optional(t.Array(t.Any())),
+  longDescription: t.Optional(t.Union([t.String(), t.Null()])),
+  image: t.Optional(
+    t.Union([
+      t.Object({
+        _type: t.String(),
+        asset: t.Object({
+          _ref: t.String(),
+          _type: t.String(),
+        }),
+        alt: t.Optional(t.String()),
+      }),
+      t.Null(),
+    ]),
+  ),
+  images: t.Optional(t.Union([t.Array(t.Any()), t.Null()])),
   technologies: t.Array(t.String()),
-  githubUrl: t.Optional(t.String()),
-  liveUrl: t.Optional(t.String()),
+  githubUrl: t.Optional(t.Union([t.String(), t.Null()])),
+  liveUrl: t.Optional(t.Union([t.String(), t.Null()])),
   featured: t.Boolean(),
   category: t.String(),
-  startDate: t.String(),
-  endDate: t.Optional(t.String()),
+  startDate: t.Union([t.String(), t.Null()]),
+  endDate: t.Optional(t.Union([t.String(), t.Null()])),
   order: t.Number(),
   status: t.String(),
 });
@@ -93,20 +101,23 @@ export const certificationSchema = t.Object({
   name: t.String(),
   issuer: t.String(),
   issueDate: t.String(),
-  expiryDate: t.Optional(t.String()),
-  credentialId: t.Optional(t.String()),
-  credentialUrl: t.Optional(t.String()),
+  expiryDate: t.Optional(t.Union([t.String(), t.Null()])),
+  credentialId: t.Optional(t.Union([t.String(), t.Null()])),
+  credentialUrl: t.Optional(t.Union([t.String(), t.Null()])),
   logo: t.Optional(
-    t.Object({
-      _type: t.String(),
-      asset: t.Object({
-        _ref: t.String(),
+    t.Union([
+      t.Object({
         _type: t.String(),
+        asset: t.Object({
+          _ref: t.String(),
+          _type: t.String(),
+        }),
+        alt: t.Optional(t.String()),
       }),
-      alt: t.Optional(t.String()),
-    }),
+      t.Null(),
+    ]),
   ),
-  description: t.Optional(t.String()),
+  description: t.Optional(t.Union([t.String(), t.Null()])),
   skills: t.Array(t.String()),
   order: t.Number(),
 });

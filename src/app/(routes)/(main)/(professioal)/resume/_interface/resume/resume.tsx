@@ -26,6 +26,8 @@ import { ExternalLink, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 
+const BASE_CDN_URL = 'https://cdn.sanity.io/files/34jrnkds/production/';
+
 /**
  * Renders the user's resume in PDF format with options to download and view the file.
  * Handles loading states (with skeleton), error states (with error messaging), and main content.
@@ -63,7 +65,9 @@ export const Resume = () => {
    * @readonly
    * @type {string|undefined}
    */
-  const pdfUrl = typedResume?.pdfFile?.url;
+  const pdfUrl = typedResume?.pdfFile?.asset._ref
+    ? `${BASE_CDN_URL}${typedResume.pdfFile.asset._ref.split('-').slice(1, 2).join('-')}.pdf`
+    : undefined;
   /**
    * Last updated date, formatted for display.
    * @readonly
@@ -72,7 +76,6 @@ export const Resume = () => {
   const lastUpdated = typedResume?.lastUpdated
     ? new Date(typedResume.lastUpdated).toLocaleDateString()
     : 'N/A';
-
   // Render loading state (skeleton UI)
   if (isLoading) {
     return (
@@ -82,7 +85,6 @@ export const Resume = () => {
             <Card className="w-full max-w-4xl mx-auto bg-card border-primary rounded-xl overflow-hidden shadow-lg">
               <CardContent className="p-4 sm:p-6">
                 <div className="space-y-4">
-                  {/* Increased contrast for skeleton background */}
                   <Skeleton className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full bg-accent" />
                   <div className="flex justify-center">
                     <Skeleton className="h-3 sm:h-4 w-24 sm:w-32 bg-accent" />
@@ -108,7 +110,6 @@ export const Resume = () => {
                 <h2 className="text-2xl font-bold text-destructive-foreground mb-2">
                   Resume Not Available
                 </h2>
-                {/* Improved contrast for error message text */}
                 <p className="text-destructive-foreground/80">
                   Sorry, the resume is currently unavailable. Please check back later.
                 </p>
@@ -130,7 +131,7 @@ export const Resume = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <MagicCard className="w-full max-w-4xl mx-auto bg-card border-primary rounded-xl overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
+            <MagicCard className="w-full max-w-4xl mx-auto border-primary rounded-xl overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardContent className="p-4 sm:p-6">
                 <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
@@ -185,14 +186,14 @@ export const Resume = () => {
                     </a>
                     .
                   </p>
-                  {typedResume?.pdfFile?.originalFilename && (
+                  {typedResume?.pdfFile && (
                     /**
                      * Render original PDF filename for download or verification.
                      * @readonly
                      * @type {string}
                      */
                     <p className="text-muted-foreground mt-2 text-[11px]">
-                      Filename: {typedResume.pdfFile.originalFilename}
+                      Filename: {pdfUrl || 'resume.pdf'}
                     </p>
                   )}
                 </div>

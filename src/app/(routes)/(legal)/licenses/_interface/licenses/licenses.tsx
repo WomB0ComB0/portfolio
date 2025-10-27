@@ -52,7 +52,7 @@ const LicenseCard = ({
   licenseUrl,
   icon,
 }: LicenseCardProps): JSX.Element => (
-  <MagicCard className="bg-card border-border hover:border-primary transition-colors">
+  <MagicCard className="border-border hover:border-primary transition-colors">
     <CardHeader>
       <div className="flex items-center gap-3 mb-2">
         <div className="text-primary">{icon}</div>
@@ -133,7 +133,7 @@ export const Licenses = (): JSX.Element => {
           />
         </div>
 
-        <MagicCard className="mt-12 bg-card border-border">
+        <MagicCard className="mt-12 border-border">
           <CardHeader>
             <CardTitle className="text-xl text-foreground">Third-Party Licenses</CardTitle>
           </CardHeader>

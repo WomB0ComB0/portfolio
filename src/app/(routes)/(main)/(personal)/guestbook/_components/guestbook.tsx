@@ -20,12 +20,12 @@ import { MagicCard } from '@/components';
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/core/auth';
-import { usePostMessage } from '@/hooks';
+import { usePostMessage } from '@/hooks/use-messages';
 import { get } from '@/lib/http-clients/effect-fetcher';
 import { formatDateTime, logger } from '@/utils';
 import { escapeHtml, validateUserInput } from '@/utils/security/xss';
@@ -203,7 +203,6 @@ export const GuestbookComponent = () => {
   return (
     <section className="w-full min-h-full px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-12">
       <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
-        {/* Header - More compact and responsive */}
         <header className="text-center space-y-3 pb-4 md:pb-6">
           <div className="flex items-center justify-center gap-3 mb-2">
             <FiMessageSquare className="text-2xl md:text-3xl text-primary" />
@@ -215,10 +214,8 @@ export const GuestbookComponent = () => {
             Share your thoughts and connect with visitors
           </p>
         </header>
-
-        {/* Authentication & Message Form */}
         {user ? (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
+          <MagicCard className="backdrop-blur-sm border-border/50 shadow-lg">
             <CardHeader className="pb-3 md:pb-4 px-4 md:px-6">
               <div className="flex justify-between items-start gap-4">
                 <div className="space-y-1 min-w-0 flex-1">
@@ -260,9 +257,9 @@ export const GuestbookComponent = () => {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </MagicCard>
         ) : (
-          <MagicCard className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
+          <MagicCard className="backdrop-blur-sm border-border/50 shadow-lg">
             <CardContent className="py-8 md:py-12 px-4 md:px-8 space-y-6 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10">
                 <FiUser className="text-2xl md:text-3xl text-primary" />
@@ -282,7 +279,6 @@ export const GuestbookComponent = () => {
           </MagicCard>
         )}
 
-        {/* Messages List */}
         <div className="space-y-4 md:space-y-6">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xl md:text-2xl font-semibold text-foreground">Recent Messages</h2>
@@ -321,7 +317,7 @@ export const GuestbookComponent = () => {
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.4, ease: 'easeOut' }}
                     >
-                      <MagicCard className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+                      <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
                         <CardContent className="p-4 md:p-5 space-y-4">
                           <p className="text-foreground text-sm md:text-base leading-relaxed wrap-break-word">
                             {escapeHtml(msg.message)}

@@ -48,14 +48,3 @@ export {
   projectsQuery,
   skillCategoriesQuery,
 } from './queries';
-// Type exports
-export type {
-  Certification,
-  Experience,
-  Project,
-  SanityDocument,
-  SanityImage,
-  SanityImageSource,
-  SanitySlug,
-  SkillCategory,
-} from './types';

@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
+import { config } from '@/config';
+import type { PlaceItem } from '@/types/places';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { APIProvider, InfoWindow, useMap, Map as VisGLMap } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { FaMapMarkerAlt } from 'react-icons/fa';
-// import { MapStyles } from 'src/data/places';
-import { config } from '@/config';
-import type { PlaceItem } from '@/types/places';
 import type { GoogleMapsProps, MarkersComponentProps } from './map.types';
+
 /**
  * Renders an interactive Google Map displaying markers for places.
  * Handles API key validation, configures APIProvider and renders map styles
@@ -66,7 +66,6 @@ export const GoogleMaps = ({ placesToDisplay }: GoogleMapsProps) => {
           mapId={config.google.maps.mapId}
           gestureHandling={'greedy'}
           disableDefaultUI={true}
-          // styles={MapStyles}
         >
           <Markers placesToDisplay={placesToDisplay} />
         </VisGLMap>

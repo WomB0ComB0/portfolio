@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type { Certification, Experience, Place, Project } from '@/hooks/sanity/schemas';
 import { logger } from '@/utils';
 import { sanityFetch } from './client';
 import {
@@ -24,7 +25,6 @@ import {
   projectBySlugQuery,
   projectsQuery,
 } from './queries';
-import type { Certification, Experience, Place, Project } from './types';
 
 /**
  * Cache duration for Sanity data (in seconds)
@@ -122,6 +122,8 @@ export async function getPlaces(): Promise<Place[]> {
  */
 export async function getResume() {
   try {
+    // Return the asset reference (asset) rather than dereferencing it (asset->)
+    // so the API shape matches the client schema which expects { asset: { _ref: string, _type: 'reference' } }
     const resumeQuery = `*[_type == "resume" && isActive == true] | order(_updatedAt desc) [0] {
       _id,
       _type,
@@ -129,12 +131,9 @@ export async function getResume() {
       _updatedAt,
       _rev,
       title,
-      "pdfFile": pdfFile.asset->{
-        _id,
-        url,
-        originalFilename,
-        size,
-        mimeType
+      pdfFile {
+        _type,
+        asset
       },
       lastUpdated,
       isActive

@@ -17,23 +17,9 @@
  */
 
 import type React from 'react';
-import { useEffect, useState } from 'react';
 import Icons from '../icons';
 
-new Promise<void>((resolve) => {
-  setTimeout(() => resolve(), 3000);
-});
-
 export const Loader: React.FC = () => {
-  const [, setDots] = useState('');
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDots((prev) => (prev.length >= 3 ? '' : `${prev}.`));
-    }, 500);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div className="relative flex items-center justify-center h-screen bg-background overflow-hidden">
       <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
@@ -43,7 +29,6 @@ export const Loader: React.FC = () => {
 
       <div className="relative z-10 flex flex-col items-center justify-center gap-8">
         <div className="relative flex items-center justify-center">
-          {/* Outer rotating ring */}
           <div className="absolute w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48">
             <svg className="w-full h-full animate-spin-slow" viewBox="0 0 100 100">
               <circle
@@ -60,7 +45,6 @@ export const Loader: React.FC = () => {
             </svg>
           </div>
 
-          {/* Inner counter-rotating ring */}
           <div className="absolute w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40">
             <svg className="w-full h-full animate-spin-reverse" viewBox="0 0 100 100">
               <circle
@@ -77,7 +61,6 @@ export const Loader: React.FC = () => {
             </svg>
           </div>
 
-          {/* Logo with glow effect */}
           <div className="relative">
             <div className="absolute inset-0 blur-xl bg-primary/30 rounded-full animate-pulse" />
             <Icons.logo
@@ -89,19 +72,6 @@ export const Loader: React.FC = () => {
                 'aria-label': 'Loading...',
               }}
             />
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2 text-muted-foreground font-mono text-sm">
-            <span className="text-primary">{'<'}</span>
-            <span className="animate-pulse">Loading</span>
-            <span className="text-primary">{'/>'}</span>
-          </div>
-          <div className="flex items-center gap-1 h-6">
-            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
-            <div className="w-2 h-2 rounded-full bg-primary animate-bounce delay-150" />
-            <div className="w-2 h-2 rounded-full bg-primary animate-bounce delay-300" />
           </div>
         </div>
       </div>

@@ -17,15 +17,14 @@
  */
 
 import { MagicCard } from '@/components';
+import { CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { SiSpotify } from 'react-icons/si';
-// import { Suspense } from 'react';
-import { CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @typedef {Object} NowPlayingSchemaType
@@ -114,10 +113,9 @@ const NowPlayingError = () => (
  */
 export const NowPlaying = () => {
   return (
-    <MagicCard className="bg-linear-to-b from-spotify-gradient-start to-spotify-gradient-end overflow-hidden">
+    <MagicCard className="bg-linear-to-b from-gradient-start to-spotify-gradient-end overflow-hidden">
       <CardContent className="p-0 bg-linear-to-b from-spotify-gradient-start to-spotify-gradient-end">
         <div className="bg-linear-to-b from-spotify-gradient-start to-spotify-gradient-end p-4 flex justify-between items-center gap-4">
-          {/* <Suspense fallback={<NowPlayingSkeleton />}> */}
           <DataLoader
             url="/api/v1/now-playing"
             schema={NowPlayingSchema}
@@ -185,7 +183,6 @@ export const NowPlaying = () => {
               )
             }
           </DataLoader>
-          {/* </Suspense> */}
         </div>
       </CardContent>
     </MagicCard>

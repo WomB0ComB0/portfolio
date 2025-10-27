@@ -58,7 +58,7 @@ export const MagicCard = ({
   children,
   className,
   gradientSize = 200,
-  gradientColor = 'rgba(76, 29, 149, 0.15)',
+  gradientColor = 'rgba(70, 33, 172, 0.15)',
   gradientOpacity = 0.8,
 }: MagicCardProps) => {
   /**
@@ -116,7 +116,7 @@ export const MagicCard = ({
         className,
       )}
     >
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 w-full h-full">{children}</div>
       <motion.div
         className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         style={{

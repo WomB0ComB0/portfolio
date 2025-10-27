@@ -33,15 +33,15 @@
  * ```
  */
 
-import type { Certification, Experience, Project } from '@/lib/sanity/types';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import type { Schema } from 'effect';
 import { createDataLoaderOptions, SANITY_ENDPOINTS } from './config';
-import { CertificationsSchema, ExperiencesSchema, ProjectsSchema } from './schemas';
+import { CertificationsSchema, ExperiencesSchema, PlacesSchema, ProjectsSchema } from './schemas';
 
 /**
  * Generic factory for creating DataLoader components
  */
-function createDataLoaderComponent<T>(url: string, schema: any) {
+function createDataLoaderComponent<T>(url: string, schema: typeof Schema.Any) {
   return ({ children, LoadingComponent, ErrorComponent }: DataLoaderProps<T>) => (
     <DataLoader
       url={url}
@@ -49,7 +49,7 @@ function createDataLoaderComponent<T>(url: string, schema: any) {
       LoadingComponent={LoadingComponent}
       ErrorComponent={ErrorComponent}
     >
-      {children as any}
+      {children}
     </DataLoader>
   );
 }
@@ -61,7 +61,7 @@ export const SanityDataLoader = {
   /**
    * DataLoader component for experiences
    */
-  Experiences: createDataLoaderComponent<Experience[]>(
+  Experiences: createDataLoaderComponent<Schema.Schema.Type<typeof ExperiencesSchema>[]>(
     SANITY_ENDPOINTS.experiences,
     ExperiencesSchema,
   ),
@@ -69,12 +69,15 @@ export const SanityDataLoader = {
   /**
    * DataLoader component for projects
    */
-  Projects: createDataLoaderComponent<Project[]>(SANITY_ENDPOINTS.projects, ProjectsSchema),
+  Projects: createDataLoaderComponent<Schema.Schema.Type<typeof ProjectsSchema>[]>(
+    SANITY_ENDPOINTS.projects,
+    ProjectsSchema,
+  ),
 
   /**
    * DataLoader component for featured projects
    */
-  FeaturedProjects: createDataLoaderComponent<Project[]>(
+  FeaturedProjects: createDataLoaderComponent<Schema.Schema.Type<typeof ProjectsSchema>[]>(
     SANITY_ENDPOINTS.featuredProjects,
     ProjectsSchema,
   ),
@@ -82,9 +85,17 @@ export const SanityDataLoader = {
   /**
    * DataLoader component for certifications
    */
-  Certifications: createDataLoaderComponent<Certification[]>(
+  Certifications: createDataLoaderComponent<Schema.Schema.Type<typeof CertificationsSchema>[]>(
     SANITY_ENDPOINTS.certifications,
     CertificationsSchema,
+  ),
+
+  /**
+   * DataLoader component for places
+   */
+  Places: createDataLoaderComponent<Schema.Schema.Type<typeof PlacesSchema>[]>(
+    SANITY_ENDPOINTS.places,
+    PlacesSchema,
   ),
 };
 

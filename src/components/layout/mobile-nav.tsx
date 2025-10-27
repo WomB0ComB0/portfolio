@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,6 +14,8 @@
  * limitations under the License.
  */
 
+'use client';
+
 import { Button } from '@/components/ui/button';
 import { useKBar } from 'kbar';
 import { memo, useState } from 'react';
@@ -29,19 +29,20 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
   return (
     <>
       <nav
-        className="bg-card/90 backdrop-blur-xl border-t border-border/40 px-6 py-3 shadow-lg"
+        className="bg-card/95 backdrop-blur-2xl border-t border-border/50 px-4 py-3.5 shadow-xl"
+        role="navigation"
         aria-label="Mobile navigation"
       >
-        <div className="flex justify-center items-center max-w-screen-xl mx-auto">
+        <div className="flex justify-center items-center max-w-md mx-auto">
           <Button
             variant="default"
             size="lg"
-            className="flex items-center justify-center gap-2.5 py-3 px-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg active:scale-[0.98] font-medium"
+            className="flex items-center justify-center gap-2.5 py-3.5 px-10 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 font-semibold tracking-wide"
             onClick={() => setIsMenuOpen(true)}
             aria-label="Open navigation menu"
             aria-expanded={isMenuOpen}
           >
-            <FiMenu size="1.25rem" strokeWidth={2.5} />
+            <FiMenu size="1.3rem" strokeWidth={2.5} />
             <span className="text-sm">Menu</span>
           </Button>
         </div>

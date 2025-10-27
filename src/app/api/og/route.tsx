@@ -141,13 +141,13 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
         }),
       },
     );
-  } catch (e: any) {
+  } catch (e) {
     /**
      * Handles rendering or font loading errors.
      * Logs error and returns a 500 error response.
      * @private
      */
-    logger.error(`${e.message}`);
+    logger.error(`${e instanceof Error ? e.message : String(e)}`);
     return new Response('Failed to generate the image', {
       status: 500,
     });

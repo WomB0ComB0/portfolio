@@ -83,14 +83,6 @@ export {
   type Resume,
 } from './schemas';
 // Standard React Query hooks
-export {
-  useCertifications,
-  useExperience,
-  useExperiences,
-  useFeaturedProjects,
-  useProject,
-  useProjects,
-} from './use-sanity-query';
 // Suspense-based hooks
 export {
   useSanityCertifications,

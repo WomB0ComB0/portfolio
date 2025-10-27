@@ -1,5 +1,7 @@
 'use client';
 
+import { MagicCard } from '@/components';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -7,7 +9,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,77 +18,60 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Award, Calendar, ExternalLink, Hash } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { useSanityCertifications } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
+import { formatDateOnly } from '@/utils';
+import { Award, Building2, Calendar, Code2, ExternalLink, Hash } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
-// import { Skeleton } from '@/components/ui/skeleton';
-import { useSanityCertifications } from '@/hooks';
-import { urlFor } from '@/lib/sanity/client';
-import type { Certification } from '@/lib/sanity/types';
-import { formatDateOnly } from '@/utils';
 
 /**
  * Skeleton loader for individual certification cards
  */
 const CertificationCardSkeleton = () => {
   return (
-    <Card className="bg-card border-border rounded-xl overflow-hidden flex flex-col">
-      {/* Image skeleton */}
-      <div className="w-full h-48 relative bg-muted animate-pulse overflow-hidden" />
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
+      <div className="w-full h-48 relative bg-muted/50 animate-pulse overflow-hidden rounded-t-lg" />
 
-      <CardHeader className="p-6">
-        {/* Title skeleton */}
-        <div className="h-6 bg-muted animate-pulse rounded w-3/4 mb-2" />
-        {/* Issuer skeleton */}
-        <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
+      <CardHeader className="p-6 space-y-3">
+        <div className="h-6 bg-muted/50 animate-pulse rounded w-3/4" />
+        <div className="h-4 bg-muted/50 animate-pulse rounded w-1/2" />
       </CardHeader>
 
-      <CardContent className="p-6 pt-0 grow space-y-3">
-        {/* Date info skeleton */}
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4 shrink-0" />
-            <div className="h-4 bg-muted animate-pulse rounded w-2/3" />
+      <CardContent className="p-6 pt-0 space-y-4">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <div className="h-4 bg-muted/50 animate-pulse rounded w-2/3" />
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4 shrink-0" />
-            <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-          </div>
-          <div className="flex items-start gap-2 text-muted-foreground">
-            <Hash className="h-4 w-4 shrink-0 mt-0.5" />
-            <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            <div className="h-4 bg-muted/50 animate-pulse rounded w-3/4" />
           </div>
         </div>
 
-        {/* Description skeleton */}
-        <div className="space-y-2 mt-4 pt-2 border-t border-border">
-          <div className="h-3 bg-muted animate-pulse rounded w-full" />
-          <div className="h-3 bg-muted animate-pulse rounded w-full" />
-          <div className="h-3 bg-muted animate-pulse rounded w-2/3" />
+        <Separator />
+
+        <div className="space-y-2">
+          <div className="h-3 bg-muted/50 animate-pulse rounded w-full" />
+          <div className="h-3 bg-muted/50 animate-pulse rounded w-full" />
+          <div className="h-3 bg-muted/50 animate-pulse rounded w-2/3" />
         </div>
 
-        {/* Skills skeleton */}
-        <div className="pt-3">
-          <div className="h-4 bg-muted animate-pulse rounded w-24 mb-2" />
+        <div className="space-y-2">
+          <div className="h-4 bg-muted/50 animate-pulse rounded w-24" />
           <div className="flex flex-wrap gap-2">
             {[...Array(3)].map((_, i) => (
               <div
-                key={`skill-skeleton-card-${+i}`}
-                className="h-6 w-16 bg-muted animate-pulse rounded-full"
+                key={`skill-skeleton-${i}`}
+                className="h-6 w-16 bg-muted/50 animate-pulse rounded-full"
               />
             ))}
-          </div>
-        </div>
-
-        {/* Credential URL skeleton */}
-        <div className="pt-3 mt-auto">
-          <div className="inline-flex items-center gap-2 text-sm">
-            <ExternalLink className="h-4 w-4" />
-            <div className="h-4 bg-muted animate-pulse rounded w-28" />
           </div>
         </div>
       </CardContent>
@@ -102,23 +87,24 @@ const CertificationsPageSkeleton = () => {
     <>
       <header className="mb-12 text-center space-y-4">
         <div className="flex items-center justify-center gap-3 mb-4">
-          <Award className="h-10 w-10 text-muted-foreground" />
-          <div className="h-10 bg-muted animate-pulse rounded w-80" />
+          <Award className="h-10 w-10 text-primary" />
+          <div className="h-10 bg-muted/50 animate-pulse rounded w-80" />
         </div>
-        <div className="h-6 bg-muted animate-pulse rounded w-96 mx-auto" />
+        <div className="h-6 bg-muted/50 animate-pulse rounded w-96 mx-auto" />
       </header>
 
-      {/* Section skeleton */}
       {[...Array(2)].map((_, sectionIdx) => (
-        <section key={`skills-section-card-${+sectionIdx}`} className="mb-12">
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border">
-            <div className="h-1 w-12 bg-muted animate-pulse rounded" />
-            <div className="h-8 bg-muted animate-pulse rounded w-48" />
-            <div className="h-6 bg-muted animate-pulse rounded w-24" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...Array(3)].map((_, i) => (
-              <CertificationCardSkeleton key={`skills-section-certification-card-${+i}`} />
+        <section key={`section-skeleton-${sectionIdx}`} className="mb-12">
+          <Card className="bg-card/30 backdrop-blur-sm border-border/50 p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <Building2 className="h-6 w-6 text-primary" />
+              <div className="h-8 bg-muted/50 animate-pulse rounded w-48" />
+              <div className="h-6 bg-muted/50 animate-pulse rounded-full w-24" />
+            </div>
+          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(2)].map((_, i) => (
+              <CertificationCardSkeleton key={`cert-skeleton-${i}`} />
             ))}
           </div>
         </section>
@@ -132,14 +118,17 @@ const CertificationsPageSkeleton = () => {
  */
 const CertificationsContent = () => {
   const { data: certifications } = useSanityCertifications();
-  const certificationsList = certifications as any[];
+
+  // FIX: Safely infer the type of a single certification object from the array.
+  // This helps us create a mutable array type for the accumulator.
+  type CertificationItem = NonNullable<typeof certifications>[number];
 
   /**
    * Groups certifications by issuer/category
    */
   const groupedCertifications = useMemo(() => {
-    if (!certificationsList) return {};
-    return certificationsList.reduce(
+    if (!certifications) return {};
+    return certifications.reduce(
       (acc, cert) => {
         const category = cert.issuer || 'General';
         if (!acc[category]) {
@@ -148,147 +137,185 @@ const CertificationsContent = () => {
         acc[category].push(cert);
         return acc;
       },
-      {} as Record<string, Certification[]>,
+      {} as Record<string, CertificationItem[]>,
     );
-  }, [certificationsList]);
+  }, [certifications]);
 
   return (
     <>
       <header className="mb-12 text-center space-y-4">
-        <h1 className="text-4xl font-bold text-primary flex items-center justify-center gap-3">
-          <Award className="h-10 w-10" />
-          My Certifications
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <Award className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground">My Certifications</h1>
+        </div>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
           A collection of my professional certifications and credentials.
         </p>
       </header>
 
       {Object.entries(groupedCertifications).map(([issuer, certs]) => (
         <section key={issuer} className="mb-12">
-          <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border">
-            <div className="h-1 w-12 bg-primary rounded" />
-            <h2 className="text-2xl font-semibold text-foreground">{issuer}</h2>
-            <span className="text-sm text-muted-foreground">
-              ({(certs as any[]).length}{' '}
-              {(certs as any[]).length === 1 ? 'certification' : 'certifications'})
-            </span>
-          </div>
+          <MagicCard className="backdrop-blur-sm border-border/50 shadow-md p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                <Building2 className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="text-2xl font-semibold text-foreground">{issuer}</h2>
+              <Badge variant="secondary" className="ml-auto">
+                {certs.length} {certs.length === 1 ? 'certification' : 'certifications'}
+              </Badge>
+            </div>
+          </MagicCard>
 
-          {(certs as any[]).length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {(certs as any[]).map((cert: any) => (
-                <MagicCard
-                  key={cert._id}
-                  className="bg-card border-border rounded-xl overflow-hidden hover:shadow-2xl hover:shadow-primary/20 hover:border-primary/50 transition-all duration-300 group flex flex-col"
-                >
-                  {cert.logo && (
-                    <div className="w-full h-48 relative bg-muted overflow-hidden">
-                      <Image
-                        src={urlFor(cert.logo).width(512).height(288).url()}
-                        alt={`${cert.name} logo`}
-                        width={512}
-                        height={288}
-                        className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  )}
-
-                  <CardHeader className="p-6">
-                    <CardTitle className="text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors duration-300 leading-tight">
-                      {cert.name}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground font-medium">{cert.issuer}</p>
-                  </CardHeader>
-
-                  <CardContent className="p-6 pt-0 flex flex-col grow space-y-3">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-4 w-4 shrink-0" />
-                        <span>
-                          <strong className="text-foreground">Issued:</strong>{' '}
-                          {formatDateOnly(cert.issueDate)}
-                        </span>
+          {certs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {certs.map((cert) => {
+                if (!cert) return null;
+                return (
+                  <MagicCard
+                    key={cert._id}
+                    className="backdrop-blur-sm border-border/50 shadow-lg hover:shadow-xl hover:border-primary/30 transition-all duration-300 group overflow-hidden"
+                  >
+                    {cert.image && (
+                      <div className="w-full h-48 relative bg-linear-to-br from-muted/50 to-muted/30 overflow-hidden">
+                        <Image
+                          src={
+                            urlFor(cert.image.asset._ref).width(512).height(288).url() ||
+                            '/placeholder.svg'
+                          }
+                          alt={`${cert.image?.alt} logo`}
+                          width={512}
+                          height={288}
+                          className="w-full h-full object-contain p-6 group-hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
+                    )}
 
-                      {cert.expiryDate && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Calendar className="h-4 w-4 shrink-0" />
-                          <span>
-                            <strong className="text-foreground">Expires:</strong>{' '}
-                            {formatDateOnly(cert.expiryDate)}
-                          </span>
-                        </div>
-                      )}
-
-                      {cert.credentialId && (
-                        <div className="flex items-start gap-2 text-muted-foreground">
-                          <Hash className="h-4 w-4 shrink-0 mt-0.5" />
-                          <span className="text-xs break-all">
-                            <strong className="text-foreground">ID:</strong> {cert.credentialId}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {cert.description && (
-                      <p className="text-sm text-muted-foreground leading-relaxed pt-3 border-t border-border">
-                        {cert.description}
+                    <CardHeader className="p-6 space-y-2">
+                      <CardTitle className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors duration-300 leading-tight">
+                        {cert.title}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        {cert.issuer}
                       </p>
-                    )}
+                    </CardHeader>
 
-                    {cert.skills && cert.skills.length > 0 && (
-                      <div className="pt-3">
-                        <h4 className="text-xs text-foreground mb-2 font-semibold uppercase tracking-wider">
-                          Skills
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {cert.skills.map((skill: string) => (
-                            <span
-                              key={skill}
-                              className="px-3 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-full border border-border hover:border-primary hover:bg-secondary/80 transition-all duration-200"
-                            >
-                              {skill}
-                            </span>
-                          ))}
+                    <CardContent className="p-6 pt-0 space-y-4">
+                      <div className="space-y-3 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <div className="p-1.5 rounded-md bg-green-500/10 border border-green-500/20">
+                            <Calendar className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                          </div>
+                          <span>
+                            <strong className="text-foreground">Issued:</strong>{' '}
+                            {formatDateOnly(cert.issueDate)}
+                          </span>
                         </div>
-                      </div>
-                    )}
 
-                    {cert.credentialUrl && (
-                      <div className="pt-4 mt-auto">
-                        <Link
-                          href={cert.credentialUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors group/link"
-                        >
-                          <ExternalLink className="h-4 w-4 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform duration-200" />
-                          <span className="group-hover/link:underline">View Certificate</span>
-                        </Link>
+                        {cert.expiryDate && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="p-1.5 rounded-md bg-orange-500/10 border border-orange-500/20">
+                              <Calendar className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <span>
+                              <strong className="text-foreground">Expires:</strong>{' '}
+                              {formatDateOnly(cert.expiryDate)}
+                            </span>
+                          </div>
+                        )}
+
+                        {cert.credentialId && (
+                          <div className="flex items-start gap-2 text-muted-foreground">
+                            <div className="p-1.5 rounded-md bg-blue-500/10 border border-blue-500/20 shrink-0">
+                              <Hash className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <span className="text-xs break-all font-mono">
+                              <strong className="text-foreground font-sans">ID:</strong>{' '}
+                              {cert.credentialId}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </CardContent>
-                </MagicCard>
-              ))}
+
+                      {cert.description && (
+                        <>
+                          <Separator />
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {cert.description}
+                          </p>
+                        </>
+                      )}
+
+                      {cert.skills && cert.skills.length > 0 && (
+                        <>
+                          <Separator />
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-purple-500/10 border border-purple-500/20">
+                                <Code2 className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <h4 className="text-xs text-foreground font-semibold uppercase tracking-wider">
+                                Skills
+                              </h4>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {cert.skills.map((skill: string) => (
+                                <Badge
+                                  key={skill}
+                                  variant="secondary"
+                                  className="px-3 py-1 text-xs font-medium hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200"
+                                >
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {cert.credentialUrl && (
+                        <>
+                          <Separator />
+                          <Link
+                            href={cert.credentialUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors group/link font-medium"
+                          >
+                            <ExternalLink className="h-4 w-4 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform duration-200" />
+                            <span className="group-hover/link:underline">View Certificate</span>
+                          </Link>
+                        </>
+                      )}
+                    </CardContent>
+                  </MagicCard>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No certifications listed from this issuer yet.
-            </p>
+            <Card className="bg-card/30 backdrop-blur-sm border-border/50 p-8">
+              <p className="text-muted-foreground text-center">
+                No certifications listed from this issuer yet.
+              </p>
+            </Card>
           )}
         </section>
       ))}
 
       {Object.keys(groupedCertifications).length === 0 && (
-        <div className="text-center py-16">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-muted mb-8">
-            <Award className="h-12 w-12 text-muted-foreground" />
+        <Card className="bg-card/30 backdrop-blur-sm border-border/50 p-16">
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-muted/50 border-2 border-border">
+              <Award className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <p className="text-xl text-muted-foreground">
+              No certifications available at the moment.
+            </p>
           </div>
-          <p className="text-xl text-muted-foreground">
-            No certifications available at the moment.
-          </p>
-        </div>
+        </Card>
       )}
     </>
   );

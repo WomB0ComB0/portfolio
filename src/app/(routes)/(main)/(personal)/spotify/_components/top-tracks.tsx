@@ -22,6 +22,7 @@ import Image from 'next/image';
 // import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import { MagicCard } from "@/components";
 
 /**
  * @readonly
@@ -108,12 +109,11 @@ const TopTracksError = () => (
  */
 export const TopTracks = () => {
   return (
-    <div className="bg-linear-to-b from-background to-card rounded-2xl shadow-2xl p-6">
+    <MagicCard className="rounded-2xl shadow-2xl p-6">
       <h2 className="text-3xl font-bold text-foreground mb-2 text-center">Top Tracks</h2>
       <p className="text-muted-foreground mb-6 text-center">
         My most played tracks in the last 4 weeks.
       </p>
-      {/* <Suspense fallback={<TopTracksSkeleton />}> */}
       <DataLoader
         url="/api/v1/top-tracks"
         schema={TopTracksResponseSchema}
@@ -139,7 +139,7 @@ export const TopTracks = () => {
                    */
                   <motion.div
                     key={index}
-                    className="flex items-center space-x-4 bg-card/60 rounded-lg p-3 cursor-pointer hover:bg-card/70 transition-all duration-300"
+                    className="flex items-center space-x-4 bg-secondary rounded-lg p-3 cursor-pointer hover:bg-primary/70 transition-all duration-300"
                     onClick={() => window.open(track.url, '_blank')}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
@@ -172,8 +172,7 @@ export const TopTracks = () => {
           </>
         )}
       </DataLoader>
-      {/* </Suspense> */}
-    </div>
+    </MagicCard>
   );
 };
 TopTracks.displayName = 'TopTracks';

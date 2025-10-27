@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { urlFor } from '@/lib';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -48,7 +47,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
 
   return (
     <>
-      {/* Gallery Container */}
       <div
         ref={containerRef}
         className={cn(
@@ -74,14 +72,13 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
               transition={{ duration: 0.2 }}
             >
               <Image
-                src={image ? urlFor(image).width(1200).height(675).url() : '/assets/svgs/logo.svg'}
-                alt={image.alt}
+                src={image?.url || '/assets/svgs/logo.svg'}
+                alt={image?.alt || 'Gallery image'}
                 fill
                 className="object-cover pointer-events-none"
                 draggable={false}
               />
 
-              {/* Overlay hint */}
               <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="absolute bottom-4 left-4 right-4">
                   <p className="text-white text-sm font-medium line-clamp-2">{image.alt}</p>
@@ -91,7 +88,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
           ))}
         </motion.div>
 
-        {/* Drag hint */}
         {images.length > 2 && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-background/80 backdrop-blur-sm border border-border rounded-full text-xs text-muted-foreground pointer-events-none">
             Drag to explore
@@ -99,7 +95,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
         )}
       </div>
 
-      {/* Expanded Image Overlay */}
       <AnimatePresence>
         {hoveredIndex !== null && (
           <motion.div
@@ -110,7 +105,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
             className="fixed inset-0 z-50 flex items-center justify-center p-8"
             onMouseLeave={() => setHoveredIndex(null)}
           >
-            {/* Dark backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -119,7 +113,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
               onClick={() => setHoveredIndex(null)}
             />
 
-            {/* Expanded image */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -137,7 +130,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
                 />
               </div>
 
-              {/* Close button */}
               <button
                 onClick={() => setHoveredIndex(null)}
                 className="absolute -top-4 -right-4 w-10 h-10 rounded-full bg-background border-2 border-border hover:border-primary flex items-center justify-center transition-colors shadow-lg"
@@ -146,7 +138,6 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
                 <X className="h-5 w-5 text-foreground" />
               </button>
 
-              {/* Image caption */}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}

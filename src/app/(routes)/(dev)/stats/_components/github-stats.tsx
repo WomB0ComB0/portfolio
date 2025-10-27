@@ -128,13 +128,11 @@ export const GitHubStats = memo(() => {
      */
     return (
       <div className="space-y-6">
-        {/* Header section skeleton */}
         <div>
           <Skeleton className="h-7 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
 
-        {/* Stat Cards section skeleton */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(3)].map((_, index) => (
             <Card
@@ -154,8 +152,6 @@ export const GitHubStats = memo(() => {
             </Card>
           ))}
         </div>
-
-        {/* Top Repositories Section skeleton */}
         <div className="mt-8">
           <Skeleton className="h-6 w-72 mb-4" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -182,7 +178,6 @@ export const GitHubStats = memo(() => {
           </div>
         </div>
 
-        {/* Top Languages Section skeleton */}
         <div className="mt-8">
           <Skeleton className="h-6 w-48 mb-4" />
           <div className="flex flex-wrap gap-2">
@@ -242,15 +237,12 @@ export const GitHubStats = memo(() => {
 
   return (
     <div className="space-y-6">
-      {/* Header section */}
       <div>
         <h2 className="text-2xl font-bold text-primary mb-2">GitHub Statistics</h2>
         <p className="text-muted-foreground">
           Combined stats from personal repos and ElysiumOSS organization
         </p>
       </div>
-
-      {/* Stat Cards section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:grid-rows-[auto_1fr]">
         {statsCards.map((card, index) => (
           <motion.div
@@ -260,7 +252,7 @@ export const GitHubStats = memo(() => {
             transition={{ duration: 0.5, delay: index * 0.1 }}
             className="grid lg:grid-rows-[auto_1fr] lg:row-span-2"
           >
-            <MagicCard className="grid lg:grid-rows-subgrid lg:row-span-2 overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-card text-card-foreground border-border">
+            <MagicCard className="grid lg:grid-rows-subgrid lg:row-span-2 overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 text-card-foreground border-border">
               <CardHeader className="lg:row-start-1">
                 <CardTitle className="text-card-foreground text-lg">{card.title}</CardTitle>
                 <p className="text-xs text-muted-foreground">{card.description}</p>
@@ -280,7 +272,6 @@ export const GitHubStats = memo(() => {
         ))}
       </div>
 
-      {/* Top Repositories Section */}
       <div className="mt-8">
         <h3 className="text-xl font-semibold text-primary mb-4">Top Repositories by Stars</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:grid-rows-[auto_1fr]">
@@ -298,7 +289,7 @@ export const GitHubStats = memo(() => {
                 rel="noopener noreferrer"
                 className="h-full grid lg:grid-rows-[auto_1fr] lg:row-span-2"
               >
-                <MagicCard className="grid lg:grid-rows-subgrid lg:row-span-2 h-full hover:border-primary transition-all duration-300 bg-card border-border">
+                <MagicCard className="grid lg:grid-rows-subgrid lg:row-span-2 h-full hover:border-primary transition-all duration-300 border-border">
                   <CardHeader className="lg:row-start-1">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -326,8 +317,6 @@ export const GitHubStats = memo(() => {
           ))}
         </div>
       </div>
-
-      {/* Top Languages Section */}
       {githubData.stats.topLanguages.length > 0 && (
         <div className="mt-8">
           <h3 className="text-xl font-semibold text-primary mb-4">Top Languages</h3>

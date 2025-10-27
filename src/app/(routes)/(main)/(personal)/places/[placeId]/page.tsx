@@ -21,10 +21,11 @@ import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { usePlaces } from '@/hooks/sanity/use-sanity-query';
+import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion, useMotionValue } from 'motion/react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
@@ -56,9 +57,11 @@ const variants = {
   },
 };
 
+const MotionImage = motion.create(Image);
+
 const PlacePhotosPage = ({ params }: PhotoModalProps) => {
   const { placeId } = use(params);
-  const { data: sanityPlaces, isLoading } = usePlaces();
+  const { data: sanityPlaces, isLoading } = useSanityPlaces();
   const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -82,6 +85,9 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
     ? urlFor(currentPhoto.asset).width(1600).height(1200).url()
     : '';
 
+  const { width, height } = currentPhoto?.hotspot ?? {};
+  const containerStyle = width && height ? { aspectRatio: `${width} / ${height}` } : undefined;
+
   const paginate = useCallback(
     (newDirection: number) => {
       if (zoom > 1) return;
@@ -100,11 +106,17 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
     if (!document.fullscreenElement) {
       fullscreenRef.current?.requestFullscreen();
       setIsFullscreen(true);
+      setZoom(1);
+      zoomX.set(0);
+      zoomY.set(0);
     } else {
       document.exitFullscreen();
       setIsFullscreen(false);
+      setZoom(1);
+      zoomX.set(0);
+      zoomY.set(0);
     }
-  }, []);
+  }, [zoomX, zoomY]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -275,13 +287,15 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
                         }
                       }
                     }}
-                    className="absolute w-full h-full"
+                    className="absolute inset-0" // ensure it truly fills the wrapper
                   >
                     {imageUrl ? (
                       <div
                         ref={containerRef}
+                        style={!isFullscreen ? containerStyle : undefined}
                         className={cn(
-                          'w-full h-full select-none flex items-center justify-center',
+                          'relative select-none flex items-center justify-center w-full',
+                          isFullscreen ? 'h-full' : containerStyle ? '' : 'aspect-4/3',
                           zoom > 1 && 'cursor-move',
                           zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
                         )}
@@ -290,17 +304,21 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
                         onPointerLeave={handlePanEnd}
                         onPointerMove={handlePan}
                       >
-                        <motion.img
-                          ref={imageRef}
+                        <MotionImage
                           src={imageUrl}
                           alt={currentPhoto?.caption || `Photo of ${place.name}`}
-                          className="object-contain max-w-full max-h-full"
-                          style={{
-                            scale: zoom,
-                            x: zoomX,
-                            y: zoomY,
-                          }}
+                          ref={imageRef}
+                          fill
+                          className="object-contain"
+                          sizes={
+                            isFullscreen
+                              ? '100vw'
+                              : '(max-width:768px) 100vw, (max-width:1200px) 75vw, 50vw'
+                          }
                           draggable={false}
+                          style={{ scale: zoom, x: zoomX, y: zoomY }}
+                          loading="eager"
+                          priority={true} // optional
                         />
                       </div>
                     ) : (

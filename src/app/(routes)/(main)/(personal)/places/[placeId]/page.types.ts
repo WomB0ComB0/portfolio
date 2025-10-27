@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { SanityImage } from '@/lib/sanity';
+import type { SanityImage } from '@/hooks/sanity/schemas';
 
 export interface PhotoModalProps {
   params: Promise<{

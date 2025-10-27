@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -165,7 +166,7 @@ for (const file of files) {
 
   // Re-parse after removal to safely find the first import (for insertion point)
   const updated = s.toString();
-  // @ts-ignore
+  // @ts-expect-error
   let _ast2 = null;
   try {
     _ast2 = parse(updated, {

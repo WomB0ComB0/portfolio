@@ -52,7 +52,7 @@ export const PinnedRepos = ({ pinnedRepos, isLoading = false }: PinnedReposProps
           ? Array.from({ length: 6 }).map((_, index) => (
               <MagicCard
                 key={`skeleton-${index}`}
-                className="border border-primary hover:shadow-md transition-shadow duration-300 h-full bg-transparent border-none flex flex-col"
+                className="border border-primary hover:shadow-md transition-shadow duration-300 h-full border-none flex flex-col"
               >
                 <CardHeader className="grow">
                   <Skeleton className="h-6 w-3/4 bg-primary/20" />
@@ -73,7 +73,7 @@ export const PinnedRepos = ({ pinnedRepos, isLoading = false }: PinnedReposProps
           : pinnedRepos.map((repo, index) => (
               <MagicCard
                 key={`repo-${index + 1}`}
-                className="h-full border border-primary hover:shadow-md transition-shadow duration-300 bg-transparent border-none flex flex-col"
+                className="h-full border border-primary hover:shadow-md transition-shadow duration-300 border-none flex flex-col"
               >
                 <CardHeader className="grow">
                   <CardTitle className="text-base sm:text-lg font-semibold text-primary">

@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,101 +14,99 @@
  * limitations under the License.
  */
 
+'use client';
+
 import Layout from '@/components/layout/layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDatePeriod } from '@/utils';
-import { ArrowLeft, Calendar, Clipboard, ExternalLink, MapPin } from 'lucide-react';
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  Code2,
+  ExternalLink,
+  FileText,
+  MapPin,
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { type JSX, Suspense } from 'react';
-import type { ExperienceDetailProps } from './experience-detail.types';
+
+/**
+ * Interface representing the route parameters for the ExperienceDetail component.
+ */
+interface ExperienceDetailProps {
+  params: { id: string };
+}
 
 /**
  * Skeleton loader for experience detail page
  */
 const ExperienceDetailSkeleton = () => {
   return (
-    <section className="w-full max-w-4xl mx-auto bg-card border border-border rounded-xl overflow-hidden shadow-lg">
-      <article className="p-6 md:p-10 space-y-8">
-        {/* Header section skeleton */}
-        <div className="flex flex-col sm:flex-row items-start gap-6 pb-8 border-b border-border">
-          {/* Logo skeleton */}
-          <div className="shrink-0 w-24 h-24 bg-muted animate-pulse rounded-lg ring-2 ring-border p-2" />
-
-          <div className="grow space-y-3 w-full">
-            {/* Position title skeleton */}
-            <div className="h-8 bg-muted animate-pulse rounded w-3/4" />
-            {/* Company name skeleton */}
-            <div className="h-6 bg-muted animate-pulse rounded w-1/2" />
-
-            {/* Meta info skeleton */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 bg-muted animate-pulse rounded-full" />
-                <div className="h-4 bg-muted animate-pulse rounded w-2/5" />
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 bg-muted animate-pulse rounded-full" />
-                <div className="h-4 bg-muted animate-pulse rounded w-1/3" />
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 bg-muted animate-pulse rounded-full" />
-                <div className="h-4 bg-muted animate-pulse rounded w-2/5" />
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-xl">
+          <CardContent className="p-8 md:p-10">
+            <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
+              <div className="shrink-0 w-24 h-24 bg-muted animate-pulse rounded-lg ring-2 ring-border" />
+              <div className="grow space-y-3 w-full">
+                <div className="h-10 bg-muted animate-pulse rounded w-3/4" />
+                <div className="h-8 bg-muted animate-pulse rounded w-1/2" />
+                <div className="flex flex-col gap-2 mt-4">
+                  <div className="h-5 bg-muted animate-pulse rounded w-2/5" />
+                  <div className="h-5 bg-muted animate-pulse rounded w-1/3" />
+                  <div className="h-5 bg-muted animate-pulse rounded w-2/5" />
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Description skeleton */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-8 bg-muted animate-pulse rounded" />
-            <div className="h-6 bg-muted animate-pulse rounded w-1/4" />
-          </div>
-          <div className="space-y-2">
-            <div className="h-4 bg-muted animate-pulse rounded w-full" />
-            <div className="h-4 bg-muted animate-pulse rounded w-full" />
-            <div className="h-4 bg-muted animate-pulse rounded w-4/5" />
-          </div>
-        </div>
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm">
+          <CardContent className="p-8 md:p-10">
+            <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-6" />
+            <div className="space-y-3">
+              <div className="h-6 w-full bg-muted animate-pulse rounded-md" />
+              <div className="h-6 w-11/12 bg-muted animate-pulse rounded-md" />
+              <div className="h-6 w-full bg-muted animate-pulse rounded-md" />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Responsibilities skeleton */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-8 bg-muted animate-pulse rounded" />
-            <div className="h-6 bg-muted animate-pulse rounded w-1/3" />
-          </div>
-          <ul className="space-y-3">
-            {[...Array(4)].map((_, i) => (
-              <li key={`${+i}`} className="flex items-start gap-3">
-                <div className="mt-2 h-1.5 w-1.5 rounded-full bg-muted animate-pulse shrink-0" />
-                <div className="h-4 bg-muted animate-pulse rounded w-full" />
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm">
+          <CardContent className="p-8 md:p-10">
+            <div className="h-8 w-56 bg-muted animate-pulse rounded-md mb-6" />
+            <ul className="space-y-4">
+              {[...Array(4)].map((_, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <div className="mt-2 h-2 w-2 rounded-full bg-muted animate-pulse shrink-0" />
+                  <div className="h-5 bg-muted animate-pulse rounded w-full" />
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
 
-        {/* Technologies skeleton */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-8 bg-muted animate-pulse rounded" />
-            <div className="h-6 bg-muted animate-pulse rounded w-1/4" />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[...Array(6)].map((_, i) => (
-              <div key={`${+i}`} className="h-8 w-20 bg-muted animate-pulse rounded-full" />
-            ))}
-          </div>
-        </div>
-
-        {/* Back button skeleton */}
-        <div className="pt-8 border-t border-border">
-          <div className="h-10 bg-muted animate-pulse rounded w-48" />
-        </div>
-      </article>
-    </section>
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm">
+          <CardContent className="p-8 md:p-10">
+            <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-6" />
+            <div className="flex flex-wrap gap-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-10 w-24 bg-muted animate-pulse rounded-lg" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
@@ -119,29 +115,10 @@ const ExperienceDetailSkeleton = () => {
  */
 const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
   const { data: experiences } = useSanityExperiences();
-  const experienceItem = (experiences as any[]).find((exp: any) => exp._id === id);
+  const experienceItem = experiences.find((exp) => exp._id === id);
 
   if (!experienceItem) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center max-w-2xl">
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-muted mb-8">
-          <Clipboard className="h-12 w-12 text-muted-foreground" />
-        </div>
-        <h1 className="text-3xl font-bold text-foreground mb-4">Experience Not Found</h1>
-        <p className="text-muted-foreground text-lg mb-8">
-          The experience item you are looking for does not exist or has been removed.
-        </p>
-        <Button
-          asChild
-          variant="outline"
-          className="bg-secondary hover:bg-secondary/80 border-border hover:border-primary text-secondary-foreground"
-        >
-          <Link href="/experience">
-            <ArrowLeft className="mr-2 h-5 w-5" /> Back to Experience
-          </Link>
-        </Button>
-      </div>
-    );
+    notFound();
   }
 
   const period = formatDatePeriod(
@@ -151,122 +128,151 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
   );
 
   return (
-    <section className="w-full max-w-4xl mx-auto bg-card border border-border rounded-xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-primary/10 transition-shadow duration-300">
-      <article className="p-6 md:p-10 space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row items-start gap-6 pb-8 border-b border-border">
-          {experienceItem.logo && (
-            <div className="shrink-0 w-24 h-24 relative bg-background rounded-lg overflow-hidden ring-2 ring-border p-2">
-              <Image
-                src={urlFor(experienceItem.logo).width(96).height(96).url()}
-                alt={`${experienceItem.company} logo`}
-                width={96}
-                height={96}
-                className="rounded-md object-contain"
-              />
-            </div>
-          )}
-
-          <div className="grow space-y-3">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
-              {experienceItem.position}
-            </h1>
-            <h2 className="text-xl md:text-2xl font-semibold text-primary">
-              {experienceItem.company}
-            </h2>
-
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>{period}</span>
-              </div>
-
-              {experienceItem.location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{experienceItem.location}</span>
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-shadow duration-300">
+          <CardContent className="p-8 md:p-10">
+            <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
+              {experienceItem.logo && (
+                <div className="shrink-0 w-24 h-24 relative bg-background rounded-lg overflow-hidden ring-2 ring-border p-2 shadow-md">
+                  <Image
+                    src={
+                      urlFor(experienceItem.logo).width(96).height(96).url() || '/placeholder.svg'
+                    }
+                    alt={`${experienceItem.company} logo`}
+                    width={96}
+                    height={96}
+                    className="rounded-md object-contain"
+                  />
                 </div>
               )}
 
-              {experienceItem.companyUrl && (
-                <Link
-                  href={experienceItem.companyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors group w-fit"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="group-hover:underline">Visit Company Website</span>
-                </Link>
-              )}
+              <div className="grow space-y-3">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight text-balance">
+                  {experienceItem.position}
+                </h1>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl md:text-2xl font-semibold text-primary">
+                    {experienceItem.company}
+                  </h2>
+                </div>
+
+                <div className="flex flex-col gap-2 text-sm text-muted-foreground pt-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="font-medium">{period}</span>
+                  </div>
+
+                  {experienceItem.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>{experienceItem.location}</span>
+                    </div>
+                  )}
+
+                  {experienceItem.companyUrl && (
+                    <Link
+                      href={experienceItem.companyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors group w-fit"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="group-hover:underline font-medium">
+                        Visit Company Website
+                      </span>
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Description Section */}
-        <div className="space-y-4">
-          <h3 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-            <div className="h-1 w-8 bg-primary rounded" />
-            Description
-          </h3>
-          <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-base">
-            {experienceItem.description}
-          </p>
-        </div>
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardContent className="p-8 md:p-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">Description</h3>
+            </div>
+            <Separator className="mb-6" />
+            <p className="text-base text-foreground/90 leading-relaxed whitespace-pre-line">
+              {experienceItem.description}
+            </p>
+          </CardContent>
+        </Card>
 
-        {/* Key Responsibilities Section */}
         {experienceItem.responsibilities && experienceItem.responsibilities.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-              <div className="h-1 w-8 bg-primary rounded" />
-              Key Responsibilities
-            </h3>
-            <ul className="space-y-3">
-              {experienceItem.responsibilities.map((responsibility: string, index: number) => (
-                <li key={index} className="flex items-start gap-3 text-muted-foreground">
-                  <div className="mt-2 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                  <span className="leading-relaxed">{responsibility}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-8 md:p-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-lg bg-secondary/10">
+                  <CheckCircle2 className="h-5 w-5 text-secondary" />
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">
+                  Key Responsibilities
+                </h3>
+              </div>
+              <Separator className="mb-6" />
+              <ul className="space-y-4">
+                {experienceItem.responsibilities.map((responsibility: string, index: number) => (
+                  <li key={index} className="flex items-start gap-3 text-foreground/80">
+                    <div className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
+                    <span className="leading-relaxed text-base">{responsibility}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Technologies Section */}
         {experienceItem.technologies && experienceItem.technologies.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-              <div className="h-1 w-8 bg-primary rounded" />
-              Technologies Used
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {experienceItem.technologies.map((tech: string, index: number) => (
-                <span
-                  key={index}
-                  className="px-4 py-2 text-sm font-medium bg-secondary text-secondary-foreground rounded-full border border-border hover:border-primary hover:bg-secondary/80 transition-all duration-200"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
-          </div>
+          <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-8 md:p-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Code2 className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">
+                  Technologies Used
+                </h3>
+              </div>
+              <Separator className="mb-6" />
+              <div className="flex flex-wrap gap-3">
+                {experienceItem.technologies.map((tech: string, index: number) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="px-4 py-2.5 text-sm font-medium bg-muted/50 hover:bg-muted transition-colors duration-200 cursor-default"
+                  >
+                    {tech}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Back Button */}
-        <div className="pt-8 border-t border-border">
-          <Button
-            asChild
-            variant="outline"
-            className="bg-secondary hover:bg-secondary/80 border-border hover:border-primary text-secondary-foreground group"
-          >
-            <Link href="/experience">
-              <ArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200" />
-              Back to Experience
-            </Link>
-          </Button>
-        </div>
-      </article>
-    </section>
+        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg">
+          <CardContent className="p-6">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto bg-background/50 backdrop-blur-sm hover:bg-background border-border/50 hover:border-border shadow-md hover:shadow-lg transition-all duration-300 group"
+            >
+              <Link href="/experience">
+                <ArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200" />
+                Back to Experience
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 

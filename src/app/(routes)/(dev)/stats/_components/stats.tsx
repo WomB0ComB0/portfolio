@@ -99,7 +99,6 @@ function CodeStatsBadge() {
       className="inline-flex items-center mb-4 w-fit px-2 py-0.5 rounded-full text-xs font-semibold bg-[#23252b] text-white shadow hover:opacity-90 transition"
       style={{ gap: 4 }}
     >
-      {/* You can insert an icon here if you want, e.g., a code icon */}
       <svg
         width="16"
         height="16"
@@ -297,7 +296,6 @@ export const DevStats = memo(() => {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* CodeStats badge on top */}
         <div className="col-span-full flex justify-start">
           <CodeStatsBadge />
         </div>
@@ -307,7 +305,6 @@ export const DevStats = memo(() => {
             className="overflow-hidden h-full shadow-lg bg-card"
           >
             <CardHeader>
-              {/* Updated: Removed the extra icon skeleton from CardHeader */}
               <Skeleton className="h-4 w-24" />
             </CardHeader>
             <CardContent>
@@ -325,7 +322,6 @@ export const DevStats = memo(() => {
   // Render main animated statistics grid
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* CodeStats badge on top */}
       <div className="col-span-full flex justify-start">
         <CodeStatsBadge />
       </div>
@@ -343,7 +339,7 @@ export const DevStats = memo(() => {
                 <CardTitle
                   className={`${card.title === 'Site Views' ? 'text-primary-foreground' : 'text-primary-foreground/80'}`}
                 >
-                  {card.title}
+                  {card.title}``
                 </CardTitle>
               </CardHeader>
               <CardContent>

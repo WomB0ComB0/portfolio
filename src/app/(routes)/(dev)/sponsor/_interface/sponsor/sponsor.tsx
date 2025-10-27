@@ -97,7 +97,6 @@ export const Sponsor = () => {
     <Layout>
       <div className="relative flex min-h-screen w-full flex-col items-center px-4 py-8 sm:px-6 lg:px-12">
         <section className="w-full max-w-7xl">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -114,7 +113,6 @@ export const Sponsor = () => {
             </p>
           </motion.div>
 
-          {/* Why Sponsor Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -132,7 +130,7 @@ export const Sponsor = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.45, delay: 0.1 + index * 0.05 }}
                 >
-                  <MagicCard className="h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
+                  <MagicCard className="h-full w-full border-border transition-all duration-300 hover:border-primary">
                     <CardHeader>
                       <div className="mb-2 flex items-center gap-3 min-w-0">
                         <div className="text-primary shrink-0">{benefit.icon}</div>
@@ -169,7 +167,7 @@ export const Sponsor = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
                 >
-                  <MagicCard className="group h-full w-full border-border bg-card transition-all duration-300 hover:border-primary">
+                  <MagicCard className="group h-full w-full border-border transition-all duration-300 hover:border-primary">
                     <CardHeader>
                       <div className="mb-3 flex items-center justify-between">
                         <div
@@ -276,7 +274,6 @@ export const Sponsor = () => {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Sponsor Statistics */}
                     {sponsorsData.totalMonthlyIncome > 0 && (
                       <div className="flex items-center justify-center gap-8 rounded-lg border border-border bg-card p-4">
                         <div className="text-center">
@@ -288,7 +285,6 @@ export const Sponsor = () => {
                       </div>
                     )}
 
-                    {/* Sponsors Grid */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                       {sponsorsData.sponsors.map((sponsor: SponsorType) => (
                         <motion.div
@@ -353,7 +349,7 @@ export const Sponsor = () => {
             transition={{ duration: 0.5, delay: 0.45 }}
             className="mt-4 text-center"
           >
-            <MagicCard className="border-border bg-card">
+            <MagicCard className="border-border">
               <CardContent className="p-6">
                 <h3 className="mb-3 text-base font-semibold text-primary sm:text-lg">
                   Questions About Sponsorship?
