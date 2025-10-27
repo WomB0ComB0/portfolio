@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { env } from '@/env';
-import type { RateLimitHelper } from '@/lib/security/rate-limit.types';
+import { env } from './env';
+import type { RateLimitHelper } from './lib/security/rate-limit.types';
 import { type NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -113,9 +113,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     });
 
     if (isProd) {
-      const { redis } = await import('@/classes/redis');
-      const { csrfToken: prodCsrfToken, getRateLimitReset, rateLimiter } = await import('@/lib');
-      const { getClientIP } = await import('@/lib/security/get-ip');
+      const { redis } = await import('./classes/redis');
+      const { csrfToken: prodCsrfToken, getRateLimitReset, rateLimiter } = await import('./lib');
+      const { getClientIP } = await import('./lib/security/get-ip');
 
       csrfToken = prodCsrfToken;
 
