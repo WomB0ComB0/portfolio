@@ -28,7 +28,7 @@
     {
       "matchManagers": ["npm", "bun"],
       "groupName": "linting",
-      "matchPackageNames": ["/^eslint/", "/^@eslint//", "/^prettier/"]
+      "matchPackageNames": ["/^eslint/", "/^@eslint\\//", "/^prettier/"]
     },
     {
       "matchManagers": ["npm", "bun"],
