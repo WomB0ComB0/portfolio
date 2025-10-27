@@ -1,7 +1,5 @@
 'use client';
 
-import { MagicCard } from '@/components';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -18,6 +16,7 @@ import { MagicCard } from '@/components';
  * limitations under the License.
  */
 
+import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { SiGooglescholar, SiLinktree } from 'react-icons/si';
 
-export const HomePage = () => {
+const HomePage = () => {
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
