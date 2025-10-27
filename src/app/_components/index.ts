@@ -15,3 +15,4 @@
  */
 
 export * from './vitals';
+export * from './pagination';

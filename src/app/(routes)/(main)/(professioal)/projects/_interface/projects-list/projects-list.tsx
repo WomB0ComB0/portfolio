@@ -27,6 +27,9 @@ import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
+import { usePagination, PaginationControls } from '@/app/_components';
+
+const ITEMS_PER_PAGE = 9;
 
 const ProjectCardSkeleton = (): JSX.Element => (
   <Card className="bg-card/50 backdrop-blur-sm border-border/50 rounded-xl overflow-hidden">
@@ -82,7 +85,18 @@ const ProjectsListSkeleton = (): JSX.Element => (
 
 const ProjectsListContent = (): JSX.Element => {
   const { data: projects, isLoading, error } = useSanityProjects();
+  
   const projectsList = projects || [];
+  
+  const {
+    displayedItems: displayedProjects,
+    hasMore,
+    isLoadingMore,
+    loadMoreRef,
+    loadMore,
+    displayCount,
+    totalCount
+  } = usePagination(projectsList, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -153,112 +167,129 @@ const ProjectsListContent = (): JSX.Element => {
             className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1.5"
           >
             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            {projectsList.length} Projects
+            {totalCount} Projects
           </Badge>
+          {totalCount > ITEMS_PER_PAGE && (
+            <Badge variant="outline" className="text-muted-foreground border-border/50">
+              Showing {displayCount} of {totalCount}
+            </Badge>
+          )}
         </div>
       </motion.header>
 
-      {projectsList.length > 0 ? (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {projectsList.map((project) => (
-            <motion.div
-              key={project._id}
-              variants={itemVariants}
-              whileHover={{ y: -8 }}
-              transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
-            >
-              <Link href={`/projects/${project._id}`} className="block h-full">
-                <MagicCard className="relativ backdrop-blur-sm border-border/50 rounded-xl overflow-hidden h-full flex flex-col group hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
-                  {project.image && (
-                    <div className="relative w-full h-56 overflow-hidden bg-muted">
-                      <Image
-                        src={
-                          urlFor(project.image).width(600).height(224).url() ||
-                          '/assets/svgs/logo.svg'
-                        }
-                        alt={project.image.alt || project.title}
-                        width={600}
-                        height={224}
-                        className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      />
-                      <div className="absolute inset-0 bg-linear-to-t from-card/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                  )}
-
-                  <CardHeader className="p-6 pb-4">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight flex-1">
-                        {project.title}
-                      </CardTitle>
-                      {project.githubUrl && (
-                        <motion.div
-                          whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
-                          transition={{ duration: 0.5 }}
-                        >
-                          <Github className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                        </motion.div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge
-                        variant="secondary"
-                        className="bg-secondary/50 text-secondary-foreground text-xs border-border/50"
-                      >
-                        {project.category}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="text-xs border-border/50 text-muted-foreground"
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="px-6 pb-6 grow flex flex-col space-y-4">
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 grow">
-                      {project.description}
-                    </p>
-
-                    {project.technologies && project.technologies.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {project.technologies.slice(0, 4).map((tech, idx: number) => {
-                          const techName = typeof tech === 'string' ? tech : tech || 'Unknown';
-                          return (
-                            <span
-                              key={`${techName}-${idx}`}
-                              className="px-2.5 py-1 text-xs bg-muted/50 text-muted-foreground rounded-md border border-border/50 hover:border-primary/30 transition-colors"
-                            >
-                              {techName}
-                            </span>
-                          );
-                        })}
-                        {project.technologies.length > 4 && (
-                          <span className="px-2.5 py-1 text-xs text-muted-foreground font-medium">
-                            +{project.technologies.length - 4}
-                          </span>
-                        )}
+      {displayedProjects.length > 0 ? (
+        <>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {displayedProjects.map((project) => (
+              <motion.div
+                key={project._id}
+                variants={itemVariants}
+                whileHover={{ y: -8 }}
+                transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
+              >
+                <Link href={`/projects/${project._id}`} className="block h-full">
+                  <MagicCard className="relativ backdrop-blur-sm border-border/50 rounded-xl overflow-hidden h-full flex flex-col group hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
+                    {project.image && (
+                      <div className="relative w-full h-56 overflow-hidden bg-muted">
+                        <Image
+                          src={
+                            urlFor(project.image).width(600).height(224).url() ||
+                            '/assets/svgs/logo.svg'
+                          }
+                          alt={project.image.alt || project.title}
+                          width={600}
+                          height={224}
+                          className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                        <div className="absolute inset-0 bg-linear-to-t from-card/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-sm pt-2 border-t border-border/30 mt-auto">
-                      <span className="text-primary group-hover:text-primary/80 transition-colors font-medium">
-                        View Details
-                      </span>
-                      <ExternalLink className="h-4 w-4 text-primary group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />
-                    </div>
-                  </CardContent>
-                </MagicCard>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+                    <CardHeader className="p-6 pb-4">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight flex-1">
+                          {project.title}
+                        </CardTitle>
+                        {project.githubUrl && (
+                          <motion.div
+                            whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            <Github className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                          </motion.div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant="secondary"
+                          className="bg-secondary/50 text-secondary-foreground text-xs border-border/50"
+                        >
+                          {project.category}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-border/50 text-muted-foreground"
+                        >
+                          {project.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="px-6 pb-6 grow flex flex-col space-y-4">
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 grow">
+                        {project.description}
+                      </p>
+
+                      {project.technologies && project.technologies.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {project.technologies.slice(0, 4).map((tech, idx: number) => {
+                            const techName = typeof tech === 'string' ? tech : tech || 'Unknown';
+                            return (
+                              <span
+                                key={`${techName}-${idx}`}
+                                className="px-2.5 py-1 text-xs bg-muted/50 text-muted-foreground rounded-md border border-border/50 hover:border-primary/30 transition-colors"
+                              >
+                                {techName}
+                              </span>
+                            );
+                          })}
+                          {project.technologies.length > 4 && (
+                            <span className="px-2.5 py-1 text-xs text-muted-foreground font-medium">
+                              +{project.technologies.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-border/30 mt-auto">
+                        <span className="text-primary group-hover:text-primary/80 transition-colors font-medium">
+                          View Details
+                        </span>
+                        <ExternalLink className="h-4 w-4 text-primary group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" />
+                      </div>
+                    </CardContent>
+                  </MagicCard>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Infinite scroll trigger and load more button */}
+          <PaginationControls
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            loadMoreRef={loadMoreRef}
+            onLoadMore={loadMore}
+            loadingText="Loading more projects..."
+            buttonText="Load More Projects"
+          />
+        </>
       ) : (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}

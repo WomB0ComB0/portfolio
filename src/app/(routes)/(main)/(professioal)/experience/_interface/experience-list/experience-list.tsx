@@ -25,11 +25,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDatePeriod } from '@/utils';
-import { ArrowRight, Briefcase, Calendar, MapPin, TrendingUp } from 'lucide-react';
+import { ArrowRight, Briefcase, Calendar, MapPin } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { usePagination, PaginationControls } from '@/app/_components';
+
+const ITEMS_PER_PAGE = 6;
 
 /**
  * Skeleton loader for timeline cards
@@ -137,10 +140,20 @@ const ExperienceListSkeleton = () => {
 };
 
 /**
- * Timeline experience list with alternating layout
+ * Timeline experience list with alternating layout and pagination
  */
 const ExperienceListContent = () => {
   const { data: experiences } = useSanityExperiences();
+  
+  const {
+    displayedItems: displayedExperiences,
+    hasMore,
+    isLoadingMore,
+    loadMoreRef,
+    loadMore,
+    displayCount,
+    totalCount
+  } = usePagination(experiences, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -198,9 +211,14 @@ const ExperienceListContent = () => {
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
           A chronological journey through my professional career
         </p>
+        {totalCount > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Showing {displayCount} of {totalCount} experiences
+          </p>
+        )}
       </motion.header>
 
-      {experiences && experiences.length > 0 ? (
+      {displayedExperiences.length > 0 ? (
         <div className="relative max-w-6xl mx-auto">
           <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 -translate-x-1/2 hidden lg:block" />
           <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 lg:hidden" />
@@ -211,7 +229,7 @@ const ExperienceListContent = () => {
             animate="show"
             className="space-y-12 lg:space-y-16"
           >
-            {experiences.map((item, index) => {
+            {displayedExperiences.map((item, index) => {
               const period = formatDatePeriod(item.startDate, item.endDate, item.current);
               const isCurrent = item.current;
               const isLeft = index % 2 === 0;
@@ -227,8 +245,6 @@ const ExperienceListContent = () => {
                         <TimelineCard
                           item={item}
                           period={period}
-                          isCurrent={isCurrent}
-                          alignRight
                         />
                       )}
                     </motion.div>
@@ -252,7 +268,7 @@ const ExperienceListContent = () => {
                       className={!isLeft ? '' : 'opacity-0 pointer-events-none'}
                     >
                       {!isLeft && (
-                        <TimelineCard item={item} period={period} isCurrent={isCurrent} />
+                        <TimelineCard item={item} period={period} />
                       )}
                     </motion.div>
                   </div>
@@ -266,12 +282,22 @@ const ExperienceListContent = () => {
                         <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
                       )}
                     </div>
-                    <TimelineCard item={item} period={period} isCurrent={isCurrent} mobile />
+                    <TimelineCard item={item} period={period} />
                   </motion.div>
                 </div>
               );
             })}
           </motion.div>
+
+          {/* Infinite scroll trigger and load more button */}
+          <PaginationControls
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            loadMoreRef={loadMoreRef}
+            onLoadMore={loadMore}
+            loadingText="Loading more experiences..."
+            buttonText="Load More Experiences"
+          />
         </div>
       ) : (
         <motion.div
@@ -296,15 +322,9 @@ const ExperienceListContent = () => {
 const TimelineCard = ({
   item,
   period,
-  isCurrent,
-  alignRight = false,
-  mobile = false,
 }: {
   item: ReturnType<typeof useSanityExperiences>['data'][number];
   period: string;
-  isCurrent: boolean;
-  alignRight?: boolean;
-  mobile?: boolean;
 }) => {
   return (
     <motion.div
@@ -312,15 +332,6 @@ const TimelineCard = ({
       transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
     >
       <MagicCard className="relative backdrop-blur-sm border-border/50 rounded-xl overflow-hidden group hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
-        {isCurrent && (
-          <div className={`absolute top-4 ${alignRight && !mobile ? 'left-4' : 'right-4'} z-10`}>
-            <Badge className="bg-primary/20 text-primary border-primary/50 flex items-center gap-1 animate-pulse">
-              <TrendingUp className="h-3 w-3" />
-              Current
-            </Badge>
-          </div>
-        )}
-
         <CardHeader className="p-6 pt-8">
           <div className="flex items-start gap-4">
             {item.logo && (
@@ -394,7 +405,7 @@ const TimelineCard = ({
 };
 
 /**
- * Main experience list component with timeline layout
+ * Main experience list component with timeline layout and pagination
  */
 export const ExperienceList = () => {
   return (

@@ -29,6 +29,9 @@ import type { PhotoItem, PlaceItem } from '@/types/places';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
+import { usePagination, PaginationControls } from '@/app/_components';
+
+const ITEMS_PER_PAGE = 9;
 
 /**
  * Converts a Sanity Place document to a PlaceItem for display
@@ -110,6 +113,16 @@ export const Places = () => {
     return sanityPlaces.map(convertSanityPlaceToPlaceItem);
   }, [sanityPlaces]);
 
+  const {
+    displayedItems: displayedPlaces,
+    hasMore,
+    isLoadingMore,
+    loadMoreRef,
+    loadMore,
+    displayCount,
+    totalCount
+  } = usePagination(places, { itemsPerPage: ITEMS_PER_PAGE });
+
   if (isLoading) return <LoadingState />;
 
   if (error) {
@@ -151,7 +164,12 @@ export const Places = () => {
                   Places
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  {places.length} {places.length === 1 ? 'location' : 'locations'} visited
+                  {totalCount} {totalCount === 1 ? 'location' : 'locations'} visited
+                  {totalCount > ITEMS_PER_PAGE && (
+                    <span className="ml-2 text-xs">
+                      • Showing {displayCount} of {totalCount}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -169,51 +187,63 @@ export const Places = () => {
         </div>
 
         <div className="w-full max-w-7xl mx-auto">
-          {places.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {places.map((place: PlaceItem) => (
-                <MagicCard
-                  key={place.id}
-                  className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col"
-                >
-                  <CardHeader className="pb-4 flex-1">
-                    <Link
-                      href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
-                      target="_blank"
-                      className="w-full block group/link"
-                      rel="noopener noreferrer"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <CardTitle className="text-xl text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2.5">
-                          <FiMapPin className="h-5 w-5 shrink-0" />
-                          {place.name}
-                        </CardTitle>
-                        <FiExternalLink className="h-5 w-5 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
-                      </div>
-                      <CardDescription className="text-muted-foreground leading-relaxed mb-4">
-                        {place.description}
-                      </CardDescription>
-                      <div className="inline-block">
-                        <span className="text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
-                          {place.category}
-                        </span>
-                      </div>
-                    </Link>
-                  </CardHeader>
-                  {place.photos && place.photos.length > 0 && (
-                    <CardContent className="pt-0 pb-5 px-6">
+          {displayedPlaces.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayedPlaces.map((place: PlaceItem) => (
+                  <MagicCard
+                    key={place.id}
+                    className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col"
+                  >
+                    <CardHeader className="pb-4 flex-1">
                       <Link
-                        href={`/places/${place.id}`}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-all duration-300 flex items-center justify-center gap-2.5 text-sm font-medium"
+                        href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
+                        target="_blank"
+                        className="w-full block group/link"
+                        rel="noopener noreferrer"
                       >
-                        <FiImage className="h-4 w-4" />
-                        View Photos ({place.photos.length})
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <CardTitle className="text-xl text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2.5">
+                            <FiMapPin className="h-5 w-5 shrink-0" />
+                            {place.name}
+                          </CardTitle>
+                          <FiExternalLink className="h-5 w-5 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                        </div>
+                        <CardDescription className="text-muted-foreground leading-relaxed mb-4">
+                          {place.description}
+                        </CardDescription>
+                        <div className="inline-block">
+                          <span className="text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+                            {place.category}
+                          </span>
+                        </div>
                       </Link>
-                    </CardContent>
-                  )}
-                </MagicCard>
-              ))}
-            </div>
+                    </CardHeader>
+                    {place.photos && place.photos.length > 0 && (
+                      <CardContent className="pt-0 pb-5 px-6">
+                        <Link
+                          href={`/places/${place.id}`}
+                          className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-all duration-300 flex items-center justify-center gap-2.5 text-sm font-medium"
+                        >
+                          <FiImage className="h-4 w-4" />
+                          View Photos ({place.photos.length})
+                        </Link>
+                      </CardContent>
+                    )}
+                  </MagicCard>
+                ))}
+              </div>
+
+              {/* Infinite scroll trigger and load more button */}
+              <PaginationControls
+                hasMore={hasMore}
+                isLoadingMore={isLoadingMore}
+                loadMoreRef={loadMoreRef}
+                onLoadMore={loadMore}
+                loadingText="Loading more places..."
+                buttonText="Load More Places"
+              />
+            </>
           ) : (
             <MagicCard className="backdrop-blur-sm border-border/50">
               <CardContent className="py-20">

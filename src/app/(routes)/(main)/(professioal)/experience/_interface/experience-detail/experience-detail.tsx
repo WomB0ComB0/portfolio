@@ -16,6 +16,7 @@
 
 'use client';
 
+import { MagicCard } from "@/components";
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -130,7 +131,7 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-5xl mx-auto space-y-8">
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-shadow duration-300">
+        <MagicCard className="border-border/50 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-shadow duration-300">
           <CardContent className="p-8 md:p-10">
             <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
               {experienceItem.logo && (
@@ -188,9 +189,9 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </MagicCard>
 
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardContent className="p-8 md:p-10">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 rounded-lg bg-primary/10">
@@ -203,14 +204,14 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
               {experienceItem.description}
             </p>
           </CardContent>
-        </Card>
+        </MagicCard>
 
         {experienceItem.responsibilities && experienceItem.responsibilities.length > 0 && (
-          <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-8 md:p-10">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-secondary/10">
-                  <CheckCircle2 className="h-5 w-5 text-secondary" />
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">
                   Key Responsibilities
@@ -226,11 +227,11 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
                 ))}
               </ul>
             </CardContent>
-          </Card>
+          </MagicCard>
         )}
 
         {experienceItem.technologies && experienceItem.technologies.length > 0 && (
-          <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-8 md:p-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-primary/10">
@@ -253,10 +254,10 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </MagicCard>
         )}
 
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-lg">
+        <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg">
           <CardContent className="p-6">
             <Button
               asChild
@@ -270,7 +271,7 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
               </Link>
             </Button>
           </CardContent>
-        </Card>
+        </MagicCard>
       </div>
     </div>
   );
