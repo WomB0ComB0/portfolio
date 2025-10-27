@@ -90,7 +90,7 @@ const BlogResponseSchema = Schema.Array(BlogPostSchema);
 export const Blog = (): JSX.Element => {
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8 text-center">Latest Blog Posts</h1>
+      <h2 className="text-4xl font-bold mb-8 text-center">Latest Blog Posts</h2>
       <Suspense fallback={<BlogSkeleton />}>
         <DataLoader
           url="/api/v1/blog"

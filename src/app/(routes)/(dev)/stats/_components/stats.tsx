@@ -322,6 +322,7 @@ export const DevStats = memo(() => {
   // Render main animated statistics grid
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <h2 className="sr-only">Dev Stats</h2>
       <div className="col-span-full flex justify-start">
         <CodeStatsBadge />
       </div>

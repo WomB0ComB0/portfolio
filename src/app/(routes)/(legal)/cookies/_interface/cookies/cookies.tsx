@@ -13,6 +13,7 @@ import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { emailHref, encodedEmail } from '@/constants';
 import { Cookie, ExternalLink, Gauge, Palette, Shield } from 'lucide-react';
 import type { JSX } from 'react';
 
@@ -326,10 +327,12 @@ export const Cookies = (): JSX.Element => {
                 If you have any questions about our use of cookies or other technologies, please
                 email us at{' '}
                 <a
-                  href="mailto:mike@odnis.com"
+                  href={emailHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-primary hover:underline font-medium"
                 >
-                  mike@odnis.com
+                  <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
                 </a>
                 .
               </p>

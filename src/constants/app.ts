@@ -45,6 +45,7 @@ export const age = Math.floor(
  */
 const baseUrl = 'https://mikeodnis.dev';
 
+import { obfuscateLink } from '@/utils';
 import packageJson from '../../package.json';
 
 /**
@@ -75,7 +76,7 @@ export const app: Readonly<{
 }> = {
   name: 'Mike Odnis',
   url: baseUrl,
-  email: 'mikeodnis3242004@gmail.com',
+  email: 'mike@mikeodnis.dev',
   description: `Explore Mike Odnis' portfolio, an innovative, ${age} year-old Computer Science student at Farmingdale State College, passionate about software development and technology.`,
   version: packageJson.version,
   keywords: [
@@ -183,17 +184,8 @@ export const app: Readonly<{
   ],
   logo: new URL(`${baseUrl}/`),
 };
-/**
- * @readonly
- * @public
- * @type {Readonly<AppMetadata>}
- * @description
- * Main exported app metadata object. Contains branding, contact, version, logo, and SEO keyword information for Mike Odnis' web portfolio.
- * Safe to expose to web clients for rendering structured meta tags and UI branding.
- * @author Mike Odnis
- * @web
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- * @example
- *   <img src={app.logo.toString()} alt={`${app.name} logo`} />
- */
+
+export const { href: emailHref, encodedText: encodedEmail } = obfuscateLink({
+  scheme: 'mailto',
+  address: app.email,
+});

@@ -17,12 +17,12 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { AnimatePresence, motion } from 'framer-motion';
 import type { useKBar } from 'kbar';
+import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import type React from 'react';
 import { memo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiBriefcase, FiChevronDown, FiCode, FiCommand, FiHome, FiX } from 'react-icons/fi';
 import { groupNavItems } from './nav';
 
@@ -31,253 +31,344 @@ interface MobileMenuOverlayProps {
   onClose: () => void;
   pathname: string;
   query: ReturnType<typeof useKBar>['query'];
+  triggerRef?: React.RefObject<HTMLButtonElement>;
 }
 
 export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
-  ({ isOpen, onClose, pathname, query }) => {
+  ({ isOpen, onClose, pathname, query, triggerRef }) => {
     const [professionalOpen, setProfessionalOpen] = useState(false);
     const [developerOpen, setDeveloperOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const { professional, developer, home } = groupNavItems();
 
-    // Prevent body scroll when menu is open
+    useEffect(() => {
+      setMounted(true);
+    }, []);
+
     useEffect(() => {
       if (isOpen) {
         document.body.style.overflow = 'hidden';
       } else {
         document.body.style.overflow = '';
+        setProfessionalOpen(false);
+        setDeveloperOpen(false);
       }
       return () => {
         document.body.style.overflow = '';
       };
     }, [isOpen]);
 
-    return (
+    // Manage focus when the dialog opens/closes and trap focus while open
+    useEffect(() => {
+      if (!isOpen) return;
+
+      const dialog = document.getElementById('mobile-menu-dialog');
+      const focusableSelector = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(',');
+
+      const focusFirst = () => {
+        if (!dialog) return;
+        const first = dialog.querySelector<HTMLElement>(focusableSelector);
+        first?.focus();
+      };
+
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+          return;
+        }
+
+        if (e.key === 'Tab') {
+          if (!dialog) return;
+          const nodes = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+            Boolean,
+          );
+          if (nodes.length === 0) return;
+          const first = nodes[0]!;
+          const last = nodes[nodes.length - 1]!;
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      };
+
+      setTimeout(focusFirst, 0);
+      window.addEventListener('keydown', onKeyDown);
+
+      return () => {
+        window.removeEventListener('keydown', onKeyDown);
+        if (triggerRef && 'current' in triggerRef && triggerRef.current) {
+          triggerRef.current.focus();
+        }
+      };
+    }, [isOpen, onClose, triggerRef]);
+
+    useEffect(() => {
+      const handleResize = () => {
+        if (window.innerWidth >= 768 && isOpen) {
+          onClose();
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, [isOpen, onClose]);
+
+    if (!mounted || !isOpen) return null;
+
+    const content = (
       <AnimatePresence>
-        {isOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 bg-background/95"
-              onClick={onClose}
-              aria-hidden="true"
-            />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-9998 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.25, type: 'spring' as const, damping: 25, stiffness: 300 }}
+          className="fixed inset-x-0 bottom-0 z-9999 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-card shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-menu-title"
+          id="mobile-menu-dialog"
+        >
+          <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-border bg-linear-to-b from-card/80 to-card/60 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              {home && (
+                <Link href={home.slug} className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-linear-to-tr from-primary/20 to-primary/8 ring-1 ring-primary/8">
+                    <FiHome size="1rem" className="text-foreground" />
+                  </div>
+                  <span id="mobile-menu-title" className="font-semibold text-lg text-foreground">
+                    {home.name}
+                  </span>
+                </Link>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:inline">Menu</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-9 w-9"
+                onClick={onClose}
+                aria-label="Close menu"
+              >
+                <FiX size="1.25rem" />
+              </Button>
+            </div>
+          </div>
+
+          <nav className="p-4 pb-8 space-y-1.5">
+            {home && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 }}
+              >
+                <Button
+                  asChild
+                  variant="ghost"
+                  className={`w-full flex items-center justify-start gap-3 text-base py-3 px-4 rounded-lg transition-all ${
+                    pathname === home.slug ? 'bg-primary/95 text-foreground' : 'hover:bg-accent'
+                  }`}
+                  onClick={onClose}
+                >
+                  <Link href={home.slug} className="flex items-center gap-3 w-full">
+                    <div
+                      className={`w-9 h-9 flex items-center justify-center rounded-md ${
+                        pathname === home.slug ? 'bg-primary-foreground/20' : 'bg-primary/8'
+                      }`}
+                    >
+                      <FiHome size="1.05rem" />
+                    </div>
+                    <span className="font-medium text-foreground">{home.name}</span>
+                  </Link>
+                </Button>
+              </motion.div>
+            )}
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Mobile navigation menu"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
             >
-              <div className="w-full max-w-md bg-card border border-border shadow-2xl rounded-3xl flex flex-col max-h-[85vh] overflow-hidden">
-                <div className="flex justify-between items-center px-6 py-5 border-b border-border bg-muted/30">
-                  <h2 className="text-xl font-bold text-foreground tracking-tight">Navigation</h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-foreground hover:bg-accent rounded-xl h-10 w-10 transition-colors duration-200"
-                    onClick={onClose}
-                    aria-label="Close menu"
-                  >
-                    <FiX size="1.3rem" strokeWidth={2.5} />
-                  </Button>
+              <Button
+                onClick={() => {
+                  setProfessionalOpen(!professionalOpen);
+                  if (!professionalOpen) setDeveloperOpen(false);
+                }}
+                variant="ghost"
+                className="w-full flex items-center justify-between gap-3 text-base py-3 px-4 rounded-lg hover:bg-accent transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 flex items-center justify-center rounded-md bg-primary/8">
+                    <FiBriefcase size="1.05rem" className="text-foreground" />
+                  </div>
+                  <span className="font-medium text-foreground">Professional</span>
                 </div>
+                <motion.div
+                  animate={{ rotate: professionalOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-muted-foreground"
+                >
+                  <FiChevronDown size="1rem" />
+                </motion.div>
+              </Button>
 
-                <nav className="flex flex-col gap-2 overflow-y-auto flex-1 p-5" role="navigation">
-                  {home && (
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="lg"
-                      className={cn(
-                        'flex items-center justify-start gap-3.5 text-base py-4 px-5 rounded-2xl transition-all duration-200',
-                        pathname === home.slug
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md font-semibold'
-                          : 'hover:bg-accent text-foreground',
-                      )}
-                      onClick={onClose}
-                    >
-                      <Link href={home.slug} className="flex items-center gap-3.5 w-full">
-                        <div
-                          className={cn(
-                            'p-2 rounded-xl transition-colors duration-200',
-                            pathname === home.slug ? 'bg-primary-foreground/20' : 'bg-primary/10',
-                          )}
-                        >
-                          <FiHome
-                            className={`text-white`}
-                            size="1.25rem"
-                            strokeWidth={pathname === home.slug ? 2.5 : 2}
-                          />
-                        </div>
-                        <span className="font-medium text-white">{home.name}</span>
-                      </Link>
-                    </Button>
-                  )}
-
-                  <div className="flex flex-col gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="lg"
-                      onClick={() => setProfessionalOpen(!professionalOpen)}
-                      className="flex items-center justify-between gap-3.5 text-base py-4 px-5 rounded-2xl hover:bg-accent transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="p-2 rounded-xl bg-primary/10">
-                          <FiBriefcase size="1.25rem" className="text-white" strokeWidth={2.5} />
-                        </div>
-                        <span className="font-semibold text-white">Professional</span>
-                      </div>
+              <AnimatePresence>
+                {professionalOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden pl-3 mt-1"
+                  >
+                    {professional.map((item, index) => (
                       <motion.div
-                        animate={{ rotate: professionalOpen ? 180 : 0 }}
-                        transition={{ duration: 0.25 }}
+                        key={item.slug}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
                       >
-                        <FiChevronDown size="1.15rem" className="text-white" strokeWidth={2.5} />
-                      </motion.div>
-                    </Button>
-
-                    <AnimatePresence initial={false}>
-                      {professionalOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25, ease: 'easeInOut' }}
-                          className="overflow-hidden"
+                        <Button
+                          asChild
+                          variant="ghost"
+                          className={`w-full flex items-center justify-start gap-3 text-sm py-3 px-4 rounded-md mb-1 ${
+                            pathname === item.slug
+                              ? 'bg-primary/10 font-medium text-foreground'
+                              : 'hover:bg-accent/40 text-foreground'
+                          }`}
+                          onClick={onClose}
                         >
-                          <div className="flex flex-col gap-1.5 pl-3 pt-1.5">
-                            {professional.map((item, index) => (
-                              <motion.div
-                                key={item.slug}
-                                initial={{ x: -10, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: index * 0.05 }}
-                              >
-                                <Button
-                                  asChild
-                                  variant="ghost"
-                                  className={cn(
-                                    'flex items-center justify-start gap-3 text-sm py-3 px-4 rounded-xl transition-all duration-200',
-                                    pathname === item.slug
-                                      ? 'bg-primary/15 text-primary font-semibold shadow-sm'
-                                      : 'hover:bg-accent/70 text-white',
-                                  )}
-                                  onClick={onClose}
-                                >
-                                  <Link href={item.slug} className="flex items-center gap-3 w-full">
-                                    <item.icon
-                                      size="1.1rem"
-                                      strokeWidth={pathname === item.slug ? 2.5 : 2}
-                                    />
-                                    <span className={`text-white`}>{item.name}</span>
-                                  </Link>
-                                </Button>
-                              </motion.div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="lg"
-                      onClick={() => setDeveloperOpen(!developerOpen)}
-                      className="flex items-center justify-between gap-3.5 text-base py-4 px-5 rounded-2xl hover:bg-accent transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="p-2 rounded-xl bg-primary/10">
-                          <FiCode size="1.25rem" className="text-white" strokeWidth={2.5} />
-                        </div>
-                        <span className="font-semibold text-white">Developer</span>
-                      </div>
-                      <motion.div
-                        animate={{ rotate: developerOpen ? 180 : 0 }}
-                        transition={{ duration: 0.25 }}
-                      >
-                        <FiChevronDown size="1.15rem" className="text-white" strokeWidth={2.5} />
+                          <Link href={item.slug} className="flex items-center gap-3 w-full">
+                            <item.icon size="1rem" />
+                            <span className={`text-foreground`}>{item.name}</span>
+                          </Link>
+                        </Button>
                       </motion.div>
-                    </Button>
-
-                    <AnimatePresence initial={false}>
-                      {developerOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25, ease: 'easeInOut' }}
-                          className="overflow-hidden"
-                        >
-                          <div className="flex flex-col gap-1.5 pl-3 pt-1.5">
-                            {developer.map((item, index) => (
-                              <motion.div
-                                key={item.slug}
-                                initial={{ x: -10, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: index * 0.05 }}
-                              >
-                                <Button
-                                  asChild
-                                  variant="ghost"
-                                  className={cn(
-                                    'flex items-center justify-start gap-3 text-sm py-3 px-4 rounded-xl transition-all duration-200',
-                                    pathname === item.slug
-                                      ? 'bg-primary/15 text-primary font-semibold shadow-sm'
-                                      : 'hover:bg-accent/70 text-white',
-                                  )}
-                                  onClick={onClose}
-                                >
-                                  <Link href={item.slug} className="flex items-center gap-3 w-full">
-                                    <item.icon
-                                      size="1.1rem"
-                                      strokeWidth={pathname === item.slug ? 2.5 : 2}
-                                    />
-                                    <span className={`text-white`}>{item.name}</span>
-                                  </Link>
-                                </Button>
-                              </motion.div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <div className="mt-3 pt-4 border-t border-border/60">
-                    <Button
-                      variant="ghost"
-                      size="lg"
-                      className="flex items-center justify-start gap-3.5 text-base py-6 px-5 rounded-2xl hover:bg-accent transition-all duration-200 w-full"
-                      onClick={() => {
-                        query.toggle();
-                        onClose();
-                      }}
-                      aria-label="Open command menu"
-                    >
-                      <div className="p-2 rounded-xl bg-primary/10">
-                        <FiCommand size="1.25rem" className="text-white" strokeWidth={2.5} />
-                      </div>
-                      <div className="flex flex-col items-start">
-                        <span className="font-semibold text-white">Command Menu</span>
-                        <span className="text-xs text-white font-normal">Quick navigation</span>
-                      </div>
-                    </Button>
-                  </div>
-                </nav>
-              </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
-          </>
-        )}
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Button
+                onClick={() => {
+                  setDeveloperOpen(!developerOpen);
+                  if (!developerOpen) setProfessionalOpen(false);
+                }}
+                variant="ghost"
+                className="w-full flex items-center justify-between gap-3 text-base py-3 px-4 rounded-lg hover:bg-accent transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 flex items-center justify-center rounded-md bg-primary/8">
+                    <FiCode size="1.05rem" className="text-foreground" />
+                  </div>
+                  <span className="font-medium text-foreground">Developer</span>
+                </div>
+                <motion.div
+                  animate={{ rotate: developerOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-muted-foreground"
+                >
+                  <FiChevronDown size="1rem" />
+                </motion.div>
+              </Button>
+
+              <AnimatePresence>
+                {developerOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden pl-3 mt-1"
+                  >
+                    {developer.map((item, index) => (
+                      <motion.div
+                        key={item.slug}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Button
+                          asChild
+                          variant="ghost"
+                          className={`w-full flex items-center justify-start gap-3 text-sm py-3 px-4 rounded-md mb-1 ${
+                            pathname === item.slug
+                              ? 'bg-primary/10 font-medium text-foreground'
+                              : 'hover:bg-accent/40 text-foreground'
+                          }`}
+                          onClick={onClose}
+                        >
+                          <Link href={item.slug} className="flex items-center gap-3 w-full">
+                            <item.icon size="1rem" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </Button>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            <div className="py-2">
+              <div className="border-t border-border/60" />
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-start gap-3 text-base py-3 px-4 rounded-lg hover:bg-accent transition-all"
+                onClick={() => {
+                  query.toggle();
+                  onClose();
+                }}
+                aria-label="Open command menu"
+              >
+                <div className="w-9 h-9 flex items-center justify-center rounded-md bg-primary/8">
+                  <FiCommand size="1.05rem" className="text-foreground" />
+                </div>
+                <span className="font-medium text-foreground">Command Menu</span>
+              </Button>
+            </motion.div>
+          </nav>
+        </motion.div>
       </AnimatePresence>
     );
+
+    return createPortal(content, document.body);
   },
 );
 MobileMenuOverlay.displayName = 'MobileMenuOverlay';

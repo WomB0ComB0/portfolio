@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,16 +14,17 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
+'use client';
+
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
 import { Button } from '@/components/ui/button';
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/core/auth';
-import { usePostMessage } from '@/hooks/use-messages';
+import { usePostMessage } from '@/hooks';
 import { get } from '@/lib/http-clients/effect-fetcher';
 import { formatDateTime, logger } from '@/utils';
 import { escapeHtml, validateUserInput } from '@/utils/security/xss';
@@ -35,9 +34,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useMemo, useState } from 'react';
 import { FiAlertCircle, FiClock, FiMessageSquare, FiSend, FiUser } from 'react-icons/fi';
-import { toast } from 'sonner';
 import { z } from 'zod';
-import type { Message } from './guestbook.types';
 
 /**
  * Zod validation schema for input messages.
@@ -48,6 +45,7 @@ const inputSchema = z.object({
     .min(1, { message: 'Message cannot be empty.' })
     .max(280, { message: 'Message must be less than 280 characters.' }),
 });
+
 /**
  * Effect schema for a single message
  */
@@ -60,14 +58,15 @@ const MessageSchema = Schema.Struct({
 });
 
 /**
- * Effect schema for the API response structure
+ * Effect schema for the API response shape used by the messages endpoint.
+ * The server returns a nested shape: { json: { json: Message[] } }
  */
 const MessagesResponseSchema = Schema.Struct({
-  json: Schema.Struct({
-    json: Schema.Array(MessageSchema),
-  }),
+  json: Schema.Struct({ json: Schema.Array(MessageSchema) }),
 });
 
+type Message = Schema.Schema.Type<typeof MessageSchema>;
+type MessagesResponse = Schema.Schema.Type<typeof MessagesResponseSchema>;
 /**
  * Skeleton loader for individual message cards
  */
@@ -135,7 +134,7 @@ export const GuestbookComponent = () => {
   /**
    * Fetches guestbook messages from the API
    */
-  const { data, error, isLoading } = useQuery<Message[], Error>({
+  const { data, error, isLoading } = useQuery<MessagesResponse, Error>({
     queryKey: ['messages'],
     queryFn: async () => {
       const effect = pipe(
@@ -147,17 +146,17 @@ export const GuestbookComponent = () => {
         Effect.provide(FetchHttpClient.layer),
       );
       const result = await Effect.runPromise(effect);
-      return result.json.json as Message[];
+      return result;
     },
-    staleTime: 60000,
-    refetchInterval: 300000,
+    staleTime: 60_000,
+    refetchInterval: 300_000,
   });
 
   /**
    * Memoized guestbook messages list
    */
   const messages = useMemo(() => {
-    return data || [];
+    return data?.json?.json || [];
   }, [data]);
 
   /**
@@ -171,14 +170,14 @@ export const GuestbookComponent = () => {
   const handleSubmit = useCallback(async () => {
     const input = inputSchema.safeParse({ text: message.trim() });
     if (!input.success) {
-      toast.error(input.error.issues[0]?.message as string);
+      logger.error(input.error.issues[0]?.message || 'Invalid message input.');
       return;
     }
 
     const sanitizedMessage = validateUserInput(input.data.text, 280, false);
 
     if (!sanitizedMessage || sanitizedMessage.length === 0) {
-      toast.error('Message contains invalid content.');
+      logger.error('Message contains invalid content.');
       return;
     }
 
@@ -193,10 +192,10 @@ export const GuestbookComponent = () => {
     try {
       await postMessage.mutateAsync(newMessage);
       setMessage('');
-      toast.success('Message sent successfully!');
+      logger.success('Message sent successfully!');
     } catch (error) {
       logger.error('Error adding message:', error);
-      toast.error('Failed to send message. Please try again.');
+      logger.error('Failed to send message. Please try again.');
     }
   }, [message, postMessage, user]);
 
@@ -214,8 +213,9 @@ export const GuestbookComponent = () => {
             Share your thoughts and connect with visitors
           </p>
         </header>
+
         {user ? (
-          <MagicCard className="backdrop-blur-sm border-border/50 shadow-lg">
+          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
             <CardHeader className="pb-3 md:pb-4 px-4 md:px-6">
               <div className="flex justify-between items-start gap-4">
                 <div className="space-y-1 min-w-0 flex-1">
@@ -257,9 +257,9 @@ export const GuestbookComponent = () => {
                 </Button>
               </div>
             </CardContent>
-          </MagicCard>
+          </Card>
         ) : (
-          <MagicCard className="backdrop-blur-sm border-border/50 shadow-lg">
+          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
             <CardContent className="py-8 md:py-12 px-4 md:px-8 space-y-6 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10">
                 <FiUser className="text-2xl md:text-3xl text-primary" />
@@ -276,7 +276,7 @@ export const GuestbookComponent = () => {
                 <LoginButton signInMethod="anonymous" />
               </div>
             </CardContent>
-          </MagicCard>
+          </Card>
         )}
 
         <div className="space-y-4 md:space-y-6">
@@ -317,7 +317,7 @@ export const GuestbookComponent = () => {
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.4, ease: 'easeOut' }}
                     >
-                      <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+                      <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
                         <CardContent className="p-4 md:p-5 space-y-4">
                           <p className="text-foreground text-sm md:text-base leading-relaxed wrap-break-word">
                             {escapeHtml(msg.message)}
@@ -337,7 +337,7 @@ export const GuestbookComponent = () => {
                             </div>
                           </div>
                         </CardContent>
-                      </MagicCard>
+                      </Card>
                     </motion.div>
                   ))}
                 </AnimatePresence>

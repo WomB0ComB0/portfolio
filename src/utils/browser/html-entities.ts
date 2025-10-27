@@ -107,8 +107,8 @@ export const obfuscateLink = (opts: {
     uri += `?${qs}`;
   }
 
-  const encodedHref = toEntities(uri);
+  const href = uri;
   const encodedText = toEntities(text ?? address);
 
-  return { encodedHref, encodedText };
+  return { href, encodedText };
 };

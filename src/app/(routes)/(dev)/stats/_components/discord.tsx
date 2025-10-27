@@ -87,6 +87,7 @@ const DiscordError = () => (
 export const Discord = () => {
   return (
     <Suspense fallback={<DiscordSkeleton />}>
+      <h2 className="sr-only">Discord Status</h2>
       <DataLoader
         url="/api/v1/lanyard"
         schema={LanyardResponseSchema}

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 
-import { redis } from '@/classes/redis';
 import { env } from '@/env';
-import { csrfToken, getRateLimitReset, rateLimiter } from '@/lib';
-import { getClientIP } from '@/lib/security/get-ip';
 import type { RateLimitHelper } from '@/lib/security/rate-limit.types';
-import { Logger, Stringify } from '@/utils';
 import { type NextRequest, NextResponse } from 'next/server';
-
-const logger = Logger.getLogger('Proxy');
 
 /**
  * @readonly
@@ -56,6 +50,18 @@ const publicAssetPaths = new Set<string>([
  */
 const rateLimitExemptPaths = [...publicAssetPaths, '/_next', '/api/health'];
 
+// Helper for logging (replaces Logger)
+const safeLog = (
+  level: 'log' | 'warn' | 'error',
+  message: string,
+  data: Record<string, unknown> = {},
+) => {
+  if (env.NODE_ENV !== 'production' || level === 'error' || level === 'warn') {
+    // Only log essential info in prod, but always log warnings/errors.
+    console[level](`[Proxy Middleware] ${message}`, JSON.stringify(data));
+  }
+};
+
 /**
  * @async
  * @public
@@ -78,46 +84,22 @@ const rateLimitExemptPaths = [...publicAssetPaths, '/_next', '/api/health'];
  * const response = await middleware(request);
  * ```
  * @author Mike Odnis
- * @version 1.0.0
+ * @version 1.0.1 (Edge-Safe Refactor)
  * @see {@link https://nextjs.org/docs/app/building-your-application/routing/middleware Next.js Middleware}
- * @see {@link ../classes/redis.ts Redis Client}
- * @see {@link ../lib/security/get-ip.ts getClientIP}
- * @see {@link ../lib/rate-limiter.ts rateLimiter}
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  logger.debug('Processing middleware request', { path: request.nextUrl.pathname });
+  const isProd = env.NODE_ENV === 'production';
+  safeLog('log', 'Processing middleware request', { path: request.nextUrl.pathname });
 
-  // Early return for exempt paths
   if (rateLimitExemptPaths.some((path) => request.nextUrl.pathname.startsWith(path))) {
-    logger.debug('Skipping middleware for exempt path', { path: request.nextUrl.pathname });
+    safeLog('log', 'Skipping middleware for exempt path', { path: request.nextUrl.pathname });
     return NextResponse.next();
   }
 
   try {
-    // Check for banned IPs early (before rate limiting)
-    if (env.NODE_ENV === 'production') {
-      const clientIp = getClientIP(request);
-      if (clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
-        const isBanned = await redis.sismember('ban:ips', clientIp);
-        if (isBanned) {
-          logger.warn('Blocked banned IP at edge', {
-            ip: clientIp,
-            path: request.nextUrl.pathname,
-          });
-          return new NextResponse(
-            Stringify({
-              error: 'Forbidden',
-              message: 'Access denied',
-            }),
-            {
-              status: 403,
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            },
-          );
-        }
-      }
+    let csrfToken: string | undefined;
+    if (!isProd && !request.cookies.get('csrfToken')) {
+      csrfToken = crypto.randomUUID().replace(/-/g, '');
     }
 
     const nonce = crypto.randomUUID().replace(/-/g, '');
@@ -130,54 +112,36 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const ttDirectives =
-      process.env.NODE_ENV === 'production'
-        ? [`require-trusted-types-for 'script'`, `trusted-types default dompurify nextjs#bundler`]
-        : []; // disable in development to let Turbopack HMR work
+    if (isProd) {
+      const { redis } = await import('@/classes/redis');
+      const { csrfToken: prodCsrfToken, getRateLimitReset, rateLimiter } = await import('@/lib');
+      const { getClientIP } = await import('@/lib/security/get-ip');
 
-    const csp = [
-      `default-src 'self'`,
+      csrfToken = prodCsrfToken;
 
-      `script-src 'self' 'unsafe-eval' 'unsafe-inline' 'nonce-${nonce}' 'strict-dynamic'`,
+      const clientIp = getClientIP(request);
+      if (clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+        const isBanned = await redis.sismember('ban:ips', clientIp);
+        if (isBanned) {
+          safeLog('warn', 'Blocked banned IP at edge', {
+            ip: clientIp,
+            path: request.nextUrl.pathname,
+          });
+          return new NextResponse(
+            JSON.stringify({
+              error: 'Forbidden',
+              message: 'Access denied',
+            }),
+            {
+              status: 403,
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
+          );
+        }
+      }
 
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-
-      `img-src 'self' data: https:`,
-
-      `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://*.gstatic.com data: https://*.sanity.io ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} *.sentry.io https://cdn.discordapp.com`,
-
-      `frame-src https://cdn.sanity.io/`,
-      `worker-src 'self' blob:`,
-      `object-src 'none'`,
-      `base-uri 'none'`,
-      `frame-ancestors 'none'`,
-
-      `font-src 'self' https://fonts.gstatic.com`,
-
-      `upgrade-insecure-requests`,
-      ...ttDirectives,
-    ].join('; ');
-
-    response.headers.set('Content-Security-Policy', csp);
-
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-    response.headers.set('Referrer-Policy', 'no-referrer');
-    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-    response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
-    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
-
-    if (!request.cookies.get('csrfToken')) {
-      logger.debug('Setting CSRF token cookie');
-      response.cookies.set('csrfToken', csrfToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
-    }
-
-    response.headers.set('x-url', request.nextUrl.pathname);
-    if (env.NODE_ENV === 'production') {
       let rateLimitingType: RateLimitHelper['rateLimitingType'] = 'default';
       if (request.nextUrl.pathname.startsWith('/api/v1')) {
         rateLimitingType = 'apiv1';
@@ -185,7 +149,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         rateLimitingType = 'api';
       }
 
-      logger.debug('Applying rate limiting', {
+      safeLog('log', 'Applying rate limiting', {
         type: rateLimitingType,
         path: request.nextUrl.pathname,
       });
@@ -197,14 +161,14 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       response.headers.set('X-RateLimit-Reset', result.reset.toString());
 
       if (!result.success) {
-        logger.warn('Rate limit exceeded', {
+        safeLog('warn', 'Rate limit exceeded', {
           identifier,
           path: request.nextUrl.pathname,
           remaining: result.remaining,
           reset: result.reset,
         });
         return new NextResponse(
-          Stringify({
+          JSON.stringify({
             error: 'Too Many Requests',
             message: `Please try again later. Reset time: ${getRateLimitReset(result.reset)}`,
             retryAfter: getRateLimitReset(result.reset),
@@ -223,17 +187,62 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    const ttDirectives = isProd
+      ? [`require-trusted-types-for 'script'`, `trusted-types default dompurify nextjs#bundler`]
+      : [];
+
+    const scriptSrc = isProd
+      ? [`'self'`, `'nonce-${nonce}'`, `'strict-dynamic'`]
+      : [`'self'`, `'unsafe-eval'`, `'nonce-${nonce}'`, `'strict-dynamic'`];
+
+    const csp = [
+      `default-src 'self'`,
+      `script-src ${scriptSrc.join(' ')}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `img-src 'self' data: https:`,
+      `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.gstatic.com data: https://*.sanity.io ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} https://*.sentry.io https://cdn.discordapp.com`,
+      `frame-src https://cdn.sanity.io https://www.gstatic.com https://www.google.com`,
+      `worker-src 'self' blob:`,
+      `object-src 'none'`,
+      `base-uri 'none'`,
+      `frame-ancestors 'none'`,
+      `font-src 'self' https://fonts.gstatic.com`,
+      `upgrade-insecure-requests`,
+      ...ttDirectives,
+    ].join('; ');
+
+    response.headers.set('Content-Security-Policy', csp);
+
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+    response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+
+    if (!request.cookies.get('csrfToken') && csrfToken) {
+      safeLog('log', 'Setting CSRF token cookie');
+      response.cookies.set('csrfToken', csrfToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'strict',
+      });
+    }
+
+    response.headers.set('x-url', request.nextUrl.pathname);
+
     if (isPublicAsset(request)) {
-      logger.debug('Serving public asset', { path: request.nextUrl.pathname });
+      safeLog('log', 'Serving public asset', { path: request.nextUrl.pathname });
       return response;
     }
 
-    logger.debug('Middleware processing complete', { path: request.nextUrl.pathname });
+    safeLog('log', 'Middleware processing complete', { path: request.nextUrl.pathname });
     return response;
   } catch (error) {
-    logger.error('Middleware error', {
+    safeLog('error', 'Middleware error', {
       path: request.nextUrl.pathname,
       error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
     return NextResponse.next();
   }
@@ -256,8 +265,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
  * @example
  * ```ts
  * if (isPublicAsset(request)) {
- *   // Allow access without authentication
- *   return response;
+ * // Allow access without authentication
+ * return response;
  * }
  * ```
  * @author Mike Odnis
@@ -274,17 +283,16 @@ const isPublicAsset = (request: NextRequest): boolean =>
  * @property {string[]} matcher - Array of path patterns to match against incoming requests.
  *
  * @remarks
- * - Matches all paths by default.
+ * - **Simplified:** Only matches the root path and the '/api' paths.
  * - Excludes Next.js internal paths (_next/static, _next/image).
  * - Excludes favicon.ico requests.
  * - Pattern can be modified to include additional paths.
- * - Uses negative lookahead (?!) in regex for exclusions.
  *
  * @example
  * ```ts
  * // In middleware.ts
  * export const config = {
- *   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
+ * matcher: ['/', '/api/:path*']
  * };
  * ```
  * @author Mike Odnis
@@ -293,13 +301,8 @@ const isPublicAsset = (request: NextRequest): boolean =>
  */
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|dashboard).*)',
+    // Match API routes and the root path explicitly
+    '/',
+    '/api/:path*',
   ],
 };

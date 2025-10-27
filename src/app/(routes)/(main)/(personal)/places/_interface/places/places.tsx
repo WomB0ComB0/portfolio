@@ -151,7 +151,7 @@ export const Places = () => {
                   Places
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  {places.length} {places.length === 1 ? 'location' : 'locations'} found
+                  {places.length} {places.length === 1 ? 'location' : 'locations'} visited
                 </p>
               </div>
             </div>

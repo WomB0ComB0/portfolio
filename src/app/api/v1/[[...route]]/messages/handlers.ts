@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,9 +15,25 @@
  */
 
 import { BaseError } from '@/classes/error';
+import { config } from "@/config";
 import { firestore } from '@/core/firebase';
 import { Schema } from 'effect';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+
+// --- START: PATH CONSTRUCTION FOR FIREBASE SECURITY RULES ---
+
+// 1. Retrieve the mandatory application ID from the environment.
+// This ID is required to match the secure path pattern: /artifacts/{appId}/...
+const APP_ID = config.firebase.appId;
+
+// 2. Define the full, human-readable collection path using template literals.
+// Path structure required by security rules: artifacts/{APP_ID}/public/data/message
+const PUBLIC_MESSAGE_PATH = `artifacts/${APP_ID}/public/data/message`;
+
+// **FIX: Use the full, secured path for public messages to satisfy the read rule.**
+const messageCollection = collection(firestore, PUBLIC_MESSAGE_PATH);
+
+// --- END: PATH CONSTRUCTION FOR FIREBASE SECURITY RULES ---
 
 export const MessageDataSchema = Schema.Struct({
   authorName: Schema.String,
@@ -42,8 +58,6 @@ export type MessagesResponse = Schema.Schema.Type<typeof MessagesResponseSchema>
 
 const CACHE_DURATION = 60 * 1000; // 1 minute
 let cache: { data: MessagesResponse; timestamp: number } | null = null;
-
-const messageCollection = collection(firestore, 'message');
 
 export async function fetchMessages(): Promise<MessagesResponse> {
   const currentTime = Date.now();

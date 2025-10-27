@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { logger } from "@/utils";
 import { Elysia, StatusMap } from 'elysia';
 import { createMessage, fetchMessages } from './handlers';
 import { cacheHeaders, errorHandler } from './middleware';
@@ -40,6 +41,7 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
       } catch (error) {
         const errorResponse = errorHandler(error, 'fetch');
         set.status = StatusMap['Internal Server Error'];
+        logger.error('Error fetching messages:', error);
         return { error: errorResponse.error };
       }
     },

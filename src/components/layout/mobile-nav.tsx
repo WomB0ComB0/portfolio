@@ -18,13 +18,14 @@
 
 import { Button } from '@/components/ui/button';
 import { useKBar } from 'kbar';
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { FiMenu } from 'react-icons/fi';
 import { MobileMenuOverlay } from './mobile-menu-overlay';
 
 export const MobileNavBar = memo(({ path }: { path: string }) => {
   const { query } = useKBar();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   return (
     <>
@@ -37,13 +38,14 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
           <Button
             variant="default"
             size="lg"
-            className="flex items-center justify-center gap-2.5 py-3.5 px-10 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 font-semibold tracking-wide"
+            className="flex items-center gap-3 py-2 px-6 rounded-full bg-linear-to-br from-primary/95 to-primary transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 font-semibold text-sm w-full justify-between"
             onClick={() => setIsMenuOpen(true)}
             aria-label="Open navigation menu"
             aria-expanded={isMenuOpen}
+            ref={triggerRef}
           >
-            <FiMenu size="1.3rem" strokeWidth={2.5} />
-            <span className="text-sm">Menu</span>
+            <FiMenu size="1.2rem" strokeWidth={2.2} color="white" />
+            <span className="leading-none text-white">Menu</span>
           </Button>
         </div>
       </nav>

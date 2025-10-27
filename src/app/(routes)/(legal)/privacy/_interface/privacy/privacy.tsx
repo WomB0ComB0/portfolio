@@ -5,6 +5,7 @@ import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { emailHref, encodedEmail } from '@/constants';
 import {
   Baby,
   Database,
@@ -401,10 +402,13 @@ export const Privacy = (): JSX.Element => {
             </CardHeader>
             <CardContent>
               <a
-                href="mailto:mike@odnis.com"
+                href={emailHref}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-lg font-medium text-primary hover:underline"
               >
-                mike@odnis.com
+                <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
+
                 <ExternalLink className="w-4 h-4" />
               </a>
             </CardContent>

@@ -114,6 +114,7 @@ const NowPlayingError = () => (
 export const NowPlaying = () => {
   return (
     <MagicCard className="bg-linear-to-b from-gradient-start to-spotify-gradient-end overflow-hidden">
+      <h2 className="sr-only">Now Playing</h2>
       <CardContent className="p-0 bg-linear-to-b from-spotify-gradient-start to-spotify-gradient-end">
         <div className="bg-linear-to-b from-spotify-gradient-start to-spotify-gradient-end p-4 flex justify-between items-center gap-4">
           <DataLoader
