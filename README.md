@@ -156,31 +156,35 @@ This diagram illustrates the primary components and their interactions within th
 
 ```mermaid
 graph TD
-    A[Client Browser] -- Navigates/Interacts --> B(Next.js App)
-    B -- Renders Pages (SSR/SSG) --> A
-    B -- Calls API Routes --> C(Elysia.js API Gateway)
-    B -- Fetches CMS Content --> D(Sanity.io CDN)
-    C -- Authenticates/Stores Guestbook --> E(Firebase)
-    C -- Caches Data --> F(Redis)
-    C -- Fetches Real-time Data --> G(External APIs)
-    G{
-        GitHub
-        Spotify
-        Wakatime
-        Lanyard
-        Hashnode
-    }
+    A[Client Browser] -->|Navigates/Interacts| B[Next.js App]
+    B -->|Renders Pages (SSR/SSG)| A
+    B -->|Calls API Routes| C[Elysia.js API Gateway]
+    B -->|Fetches CMS Content| D[Sanity.io CDN]
+    C -->|Authenticates/Stores Guestbook| E[Firebase]
+    C -->|Caches Data| F[Redis]
+    C -->|Fetches Real-time Data| EXT
 
-    subgraph Serverless Functions (Vercel/Edge)
+    %% Group serverless bits
+    subgraph EDGE[Serverless Functions (Vercel/Edge)]
         B
         C
     end
 
-    subgraph Data Stores & External Services
+    %% External APIs as their own cluster
+    subgraph EXT[External APIs]
+        GH[GitHub]
+        SP[Spotify]
+        WK[Wakatime]
+        LY[Lanyard]
+        HN[Hashnode]
+    end
+
+    %% Optional: overall data/external services cluster
+    subgraph DATA[Data Stores & External Services]
         D
         E
         F
-        G
+        EXT
     end
 
     style B fill:#f9f,stroke:#333,stroke-width:2px
@@ -188,7 +192,7 @@ graph TD
     style D fill:#afa,stroke:#333,stroke-width:2px
     style E fill:#fcf,stroke:#333,stroke-width:2px
     style F fill:#ddf,stroke:#333,stroke-width:2px
-    style G fill:#ffc,stroke:#333,stroke-width:2px
+    style EXT fill:#ffc,stroke:#333,stroke-width:2px
 ```
 
 ### Core Components & Responsibilities
