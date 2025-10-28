@@ -18,9 +18,9 @@
 
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
+import { MagicCard } from '@/components/magicui';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/core/auth';
@@ -200,66 +200,64 @@ export const GuestbookComponent = () => {
   }, [message, postMessage, user]);
 
   return (
-    <section className="w-full min-h-full px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-12">
-      <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
-        <header className="text-center space-y-3 pb-4 md:pb-6">
+    <section className="w-full min-h-full px-4 py-6 md:px-0 md:py-8 lg:py-12">
+      <div className="w-full max-w-2xl mx-auto space-y-8">
+        <header className="text-center space-y-3 pb-4">
           <div className="flex items-center justify-center gap-3 mb-2">
             <FiMessageSquare className="text-2xl md:text-3xl text-primary" />
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
               Guestbook
             </h1>
           </div>
-          <p className="text-muted-foreground text-sm md:text-base lg:text-lg max-w-2xl mx-auto px-4">
+          <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
             Share your thoughts and connect with visitors
           </p>
         </header>
 
         {user ? (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
-            <CardHeader className="pb-3 md:pb-4 px-4 md:px-6">
-              <div className="flex justify-between items-start gap-4">
-                <div className="space-y-1 min-w-0 flex-1">
-                  <CardTitle className="text-base md:text-lg text-foreground truncate">
-                    Share Your Thoughts
-                  </CardTitle>
-                  <p className="text-xs md:text-sm text-muted-foreground truncate">
+          <MagicCard className=" border-white/10 shadow-lg">
+            <CardHeader className="pb-4 px-5">
+              <div className="flex justify-between items-center gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base text-white">Share Your Thoughts</CardTitle>
+                  <p className="text-xs text-neutral-400">
                     Signed in as {user.displayName || 'Anonymous'}
                   </p>
                 </div>
                 <LogoutButton
-                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  className="bg-neutral-800/60 border-white/10 text-neutral-300 hover:bg-neutral-700/80 text-xs px-3 py-1.5 h-auto"
                   aria-label="Sign out"
                 />
               </div>
             </CardHeader>
-            <CardContent className="pt-0 px-4 md:px-6 pb-4 md:pb-6">
+            <CardContent className="px-5 pb-5">
               <div className="space-y-4">
                 <div className="relative">
                   <Textarea
-                    className="w-full min-h-28 md:min-h-32 p-3 md:p-4 rounded-lg bg-background/50 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 border-border/50 resize-none text-sm md:text-base"
+                    className="w-full min-h-24 p-3 rounded-lg bg-neutral-950/70 text-neutral-200 placeholder:text-neutral-500 border-white/10 focus:ring-2 focus:ring-primary/50 resize-none text-sm"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="What's on your mind?"
                     maxLength={280}
                   />
-                  <div className="absolute bottom-3 right-3 text-xs text-muted-foreground font-medium">
+                  <div className="absolute bottom-2.5 right-3 text-xs text-neutral-500 font-medium">
                     {message.length} / 280
                   </div>
                 </div>
                 <Button
-                  className="w-full h-10 md:h-11 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-lg transition-all duration-200 group text-sm md:text-base"
+                  className="w-full h-10 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-lg transition-all duration-200 group text-sm"
                   onClick={handleSubmit}
                   disabled={postMessage.isPending || message.trim().length === 0}
                   aria-label="Send message"
                 >
-                  <FiSend className="mr-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  <FiSend className="mr-2 h-4 w-4" />
                   {postMessage.isPending ? 'Sending...' : 'Send Message'}
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </MagicCard>
         ) : (
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-lg">
+          <MagicCard className=" backdrop-blur-sm border-border/50 shadow-lg">
             <CardContent className="py-8 md:py-12 px-4 md:px-8 space-y-6 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10">
                 <FiUser className="text-2xl md:text-3xl text-primary" />
@@ -276,74 +274,66 @@ export const GuestbookComponent = () => {
                 <LoginButton signInMethod="anonymous" />
               </div>
             </CardContent>
-          </Card>
+          </MagicCard>
         )}
 
-        <div className="space-y-4 md:space-y-6">
+        <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xl md:text-2xl font-semibold text-foreground">Recent Messages</h2>
-            <span className="text-xs md:text-sm text-muted-foreground font-medium">
+            <h2 className="text-xl font-semibold text-white">Recent Messages</h2>
+            <span className="text-xs text-neutral-400 font-medium">
               {messages.length} {messages.length === 1 ? 'message' : 'messages'}
             </span>
           </div>
 
-          <ScrollArea className="h-[500px] md:h-[600px] w-full pr-2 md:pr-4">
-            <div className="space-y-4 md:space-y-5">
-              {isLoading ? (
-                <LoadingUI />
-              ) : error ? (
-                <ErrorUI error={error} />
-              ) : messages.length === 0 ? (
-                <div className="text-center py-16 md:py-20 space-y-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-muted/50">
-                    <FiMessageSquare className="text-2xl md:text-3xl text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-foreground font-medium text-sm md:text-base">
-                      No messages yet
-                    </p>
-                    <p className="text-muted-foreground text-xs md:text-sm">
-                      Be the first to leave a message!
-                    </p>
-                  </div>
+          <div className="space-y-4">
+            {isLoading ? (
+              <LoadingUI />
+            ) : error ? (
+              <ErrorUI error={error} />
+            ) : messages.length === 0 ? (
+              <div className="text-center py-16 md:py-20 space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-muted/50">
+                  <FiMessageSquare className="text-2xl md:text-3xl text-muted-foreground" />
                 </div>
-              ) : (
-                <AnimatePresence>
-                  {messages.map((msg: Message) => (
-                    <motion.div
-                      key={msg.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
-                    >
-                      <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-                        <CardContent className="p-4 md:p-5 space-y-4">
-                          <p className="text-foreground text-sm md:text-base leading-relaxed wrap-break-word">
-                            {escapeHtml(msg.message)}
-                          </p>
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 text-xs md:text-sm pt-3 border-t border-border/30">
-                            <div className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                              <FiUser className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                              <span className="font-medium truncate">
-                                {escapeHtml(msg.authorName)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <FiClock className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-                              <time className="text-xs md:text-sm">
-                                {formatDateTime(msg.createdAt)}
-                              </time>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-          </ScrollArea>
+                <div className="space-y-2">
+                  <p className="text-foreground font-medium text-sm md:text-base">
+                    No messages yet
+                  </p>
+                  <p className="text-muted-foreground text-xs md:text-sm">
+                    Be the first to leave a message!
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <AnimatePresence>
+                {messages.map((msg: Message) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                  >
+                    <MagicCard className="border border-white/10 rounded-lg p-4 space-y-3">
+                      <p className="text-neutral-200 text-sm leading-relaxed wrap-break-word">
+                        {escapeHtml(msg.message)}
+                      </p>
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-xs pt-3 border-t border-white/10">
+                        <div className="flex items-center gap-2 text-neutral-400">
+                          <FiUser className="h-3.5 w-3.5" />
+                          <span className="font-medium">{escapeHtml(msg.authorName)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-neutral-500">
+                          <FiClock className="h-3.5 w-3.5" />
+                          <time>{formatDateTime(msg.createdAt)}</time>
+                        </div>
+                      </div>
+                    </MagicCard>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
         </div>
       </div>
     </section>

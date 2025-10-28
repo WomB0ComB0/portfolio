@@ -1,0 +1,15 @@
+# See https://llmstxt.org/ for more information.
+
+User-agent: *
+
+# Disallow crawling of pages with user-generated content and personal data.
+Disallow: /guestbook
+Disallow: /sponsor
+Disallow: /places
+
+# Disallow crawling of all API endpoints.
+Disallow: /api/
+
+# Allow crawling of all other public-facing content like the homepage,
+# projects, blog, experience, resume, and legal pages.
+Allow: /

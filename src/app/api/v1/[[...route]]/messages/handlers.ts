@@ -16,24 +16,16 @@
 
 import { BaseError } from '@/classes/error';
 import { config } from '@/config';
-import { firestore } from '@/core/firebase';
+import { adminDb, firestore } from '@/core';
 import { Schema } from 'effect';
-import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 
-// --- START: PATH CONSTRUCTION FOR FIREBASE SECURITY RULES ---
-
-// 1. Retrieve the mandatory application ID from the environment.
-// This ID is required to match the secure path pattern: /artifacts/{appId}/...
 const APP_ID = config.firebase.appId;
+const MESSAGES_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/message`;
 
-// 2. Define the full, human-readable collection path using template literals.
-// Path structure required by security rules: artifacts/{APP_ID}/public/data/message
-const PUBLIC_MESSAGE_PATH = `artifacts/${APP_ID}/public/data/message`;
+const messageCollectionRefForReads = collection(firestore, MESSAGES_COLLECTION_PATH);
 
-// **FIX: Use the full, secured path for public messages to satisfy the read rule.**
-const messageCollection = collection(firestore, PUBLIC_MESSAGE_PATH);
-
-// --- END: PATH CONSTRUCTION FOR FIREBASE SECURITY RULES ---
+const messageCollectionRefForWrites = adminDb.collection(MESSAGES_COLLECTION_PATH);
 
 export const MessageDataSchema = Schema.Struct({
   authorName: Schema.String,
@@ -56,7 +48,7 @@ export type MessageData = Schema.Schema.Type<typeof MessageDataSchema>;
 export type Message = Schema.Schema.Type<typeof MessageSchema>;
 export type MessagesResponse = Schema.Schema.Type<typeof MessagesResponseSchema>;
 
-const CACHE_DURATION = 60 * 1000; // 1 minute
+const CACHE_DURATION = 60 * 1000;
 let cache: { data: MessagesResponse; timestamp: number } | null = null;
 
 export async function fetchMessages(): Promise<MessagesResponse> {
@@ -65,7 +57,11 @@ export async function fetchMessages(): Promise<MessagesResponse> {
     return cache.data;
   }
 
-  const messagesQuery = query(messageCollection, orderBy('createdAt', 'desc'), limit(50));
+  const messagesQuery = query(
+    messageCollectionRefForReads,
+    orderBy('createdAt', 'desc'),
+    limit(50),
+  );
   const snapshot = await getDocs(messagesQuery);
 
   const messages: Message[] = snapshot.docs.map((doc) => {
@@ -79,9 +75,7 @@ export async function fetchMessages(): Promise<MessagesResponse> {
   });
 
   const result: MessagesResponse = { json: messages };
-
   cache = { data: result, timestamp: Date.now() };
-
   return result;
 }
 
@@ -99,7 +93,8 @@ export async function createMessage(data: {
   }
 
   const newMessage = { authorName, message, createdAt: new Date().toISOString() };
-  const docRef = await addDoc(messageCollection, newMessage);
+
+  const docRef = await messageCollectionRefForWrites.add(newMessage);
 
   const addedMessage: Message = {
     id: docRef.id,

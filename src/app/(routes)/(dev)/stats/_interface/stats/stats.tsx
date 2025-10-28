@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { DevStats, Discord, GitHubStats } from '@/app/(routes)/(dev)/stats/_components';
+import {
+  DevStats,
+  Discord,
+  GitHubStats,
+  LeetCodeStats,
+} from '@/app/(routes)/(dev)/stats/_components';
 import Layout from '@/components/layout/layout';
 
 /**
@@ -56,6 +61,7 @@ export const Stats = () => {
           </div>
           <Discord />
           <DevStats />
+          <LeetCodeStats />
           <GitHubStats />
         </section>
       </div>

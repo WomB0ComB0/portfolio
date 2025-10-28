@@ -22,11 +22,12 @@ import { Button } from '@/components/ui/button';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { emailHref } from '@/constants';
-import { useActiveSponsors } from '@/hooks/use-github-sponsors';
+import { useGitHubSponsors } from '@/hooks/use-github-sponsors';
 import type { Sponsor as SponsorType } from '@/hooks/use-github-sponsors.types';
 import { Coffee, ExternalLink, Gift, Heart, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
+import { useMemo } from 'react';
 import { SiBuymeacoffee, SiGithubsponsors, SiKofi, SiOpencollective } from 'react-icons/si';
 import type { BenefitItem, SponsorPlatform } from './sponsor.types';
 
@@ -36,7 +37,7 @@ const sponsorPlatforms = [
     username: '@WomB0ComB0',
     url: 'https://github.com/sponsors/WomB0ComB0',
     icon: <SiGithubsponsors className="h-6 w-6" />,
-    color: 'from-gh-sponsors-start to-gh-sponsors-end',
+    color: 'from-purple-500 to-pink-500',
     description:
       'Sponsor me directly through GitHub with flexible monthly or one-time contributions.',
   },
@@ -45,7 +46,7 @@ const sponsorPlatforms = [
     username: '@mike-odnis',
     url: 'https://opencollective.com/mike-odnis',
     icon: <SiOpencollective className="h-6 w-6" />,
-    color: 'from-oc-start to-oc-end',
+    color: 'from-blue-500 to-blue-700',
     description: 'Support through Open Collective with transparent funding and expenses.',
   },
   {
@@ -53,7 +54,7 @@ const sponsorPlatforms = [
     username: '@Y8Y77AJEA',
     url: 'https://ko-fi.com/Y8Y77AJEA',
     icon: <SiKofi className="h-6 w-6" />,
-    color: 'from-kofi-start to-kofi-end',
+    color: 'from-amber-500 to-amber-700',
     description: 'Buy me a coffee and show your support with one-time donations.',
   },
   {
@@ -61,10 +62,11 @@ const sponsorPlatforms = [
     username: '@mikeodnis',
     url: 'https://www.buymeacoffee.com/mikeodnis',
     icon: <SiBuymeacoffee className="h-6 w-6" />,
-    color: 'from-bmc-start to-bmc-end',
+    color: 'from-yellow-500 to-yellow-700',
     description: 'Fuel my work with coffee through quick and easy one-time donations.',
   },
 ] as const satisfies readonly SponsorPlatform[];
+
 const benefits = [
   {
     icon: <Heart className="h-6 w-6" />,
@@ -90,7 +92,17 @@ const benefits = [
 ] as const satisfies readonly BenefitItem[];
 
 export const Sponsor = () => {
-  const { data: sponsorsData, isLoading, error } = useActiveSponsors();
+  const { data: sponsorsData, isLoading, error } = useGitHubSponsors();
+
+  const currentSponsors = useMemo(
+    () => sponsorsData?.sponsors.filter((s) => s.isActive) ?? [],
+    [sponsorsData],
+  );
+
+  const pastSponsors = useMemo(
+    () => sponsorsData?.sponsors.filter((s) => !s.isActive) ?? [],
+    [sponsorsData],
+  );
 
   return (
     <Layout>
@@ -219,10 +231,10 @@ export const Sponsor = () => {
                       Current Sponsors
                     </CardTitle>
                   </div>
-                  {sponsorsData && sponsorsData.totalCount > 0 && (
+                  {currentSponsors.length > 0 && (
                     <div className="font-semibold text-primary">
-                      {sponsorsData.totalCount}{' '}
-                      {sponsorsData.totalCount === 1 ? 'Sponsor' : 'Sponsors'}
+                      {currentSponsors.length}{' '}
+                      {currentSponsors.length === 1 ? 'Sponsor' : 'Sponsors'}
                     </div>
                   )}
                 </div>
@@ -257,7 +269,7 @@ export const Sponsor = () => {
                     <p className="mb-2 text-destructive">Unable to load sponsors</p>
                     <p className="text-sm text-muted-foreground">{error.message}</p>
                   </div>
-                ) : !sponsorsData || sponsorsData.totalCount === 0 ? (
+                ) : !sponsorsData || currentSponsors.length === 0 ? (
                   <div className="py-8 text-center">
                     <p className="mb-4 text-muted-foreground">
                       Be the first to sponsor and see your name here!
@@ -285,7 +297,7 @@ export const Sponsor = () => {
                     )}
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      {sponsorsData.sponsors.map((sponsor: SponsorType) => (
+                      {currentSponsors.map((sponsor: SponsorType) => (
                         <motion.div
                           key={sponsor.login}
                           initial={{ opacity: 0, scale: 0.95 }}
@@ -341,6 +353,54 @@ export const Sponsor = () => {
               </CardContent>
             </MagicCard>
           </motion.div>
+
+          {pastSponsors.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="mb-8"
+            >
+              <h2 className="mb-6 text-center text-xl font-bold text-primary sm:text-2xl">
+                Past Sponsors
+              </h2>
+              <p className="mb-6 text-center text-sm text-muted-foreground">
+                Grateful for the support from these wonderful people!
+              </p>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {pastSponsors.map((sponsor) => (
+                  <motion.div
+                    key={sponsor.login}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <a
+                      href={sponsor.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block"
+                    >
+                      <div className="flex flex-col items-center gap-2 text-center">
+                        <div className="relative h-16 w-16 overflow-hidden rounded-full">
+                          <Image
+                            src={sponsor.avatarUrl}
+                            alt={`${sponsor.name || sponsor.login}'s avatar`}
+                            fill
+                            className="object-cover grayscale opacity-70 transition-all duration-300 group-hover:grayscale-0 group-hover:opacity-100"
+                            sizes="64px"
+                          />
+                        </div>
+                        <p className="w-full truncate text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                          {sponsor.name || sponsor.login}
+                        </p>
+                      </div>
+                    </a>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

@@ -134,6 +134,7 @@ const withPwa = pwa({
   cacheStartUrl: true, // Cache the start URL
   reloadOnOnline: true, // Reload the app when it comes back online
   fallbacks: {
+    document: '/offline', // Fallback for document requests (pages)
     image: '/assets/images/logo.webp', // Fallback route for images
     font: '/assets/fonts/Kodchasan-Regular.ttf', // Fallback route for fonts
   },

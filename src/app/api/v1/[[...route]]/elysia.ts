@@ -20,6 +20,7 @@ import { githubSponsorsRoute } from './github-sponsors';
 import { githubStatsRoute } from './github-stats';
 import { googleRoute } from './google';
 import { lanyardRoute } from './lanyard';
+import { leetCodeStatsRoute } from './leetcode';
 import { messagesRoute } from './messages';
 import { nowPlayingRoute } from './now-playing';
 import { sanityRoutes } from './sanity';
@@ -54,6 +55,7 @@ export const apiRoutes = new Elysia()
   .use(topTracksRoute)
   .use(blogRoute)
   .use(messagesRoute)
-  .use(sanityRoutes);
+  .use(sanityRoutes)
+  .use(leetCodeStatsRoute);
 
 export { utilityRoutes } from './utility';

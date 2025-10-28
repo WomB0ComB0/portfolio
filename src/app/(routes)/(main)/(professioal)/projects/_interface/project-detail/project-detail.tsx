@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
+import { BorderBeam, MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,6 +34,7 @@ import {
   ImageIcon,
   Layers,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -111,37 +112,52 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
 
   return (
     <Layout>
-      <div className="relative w-full h-[70vh] min-h-[500px] max-h-[700px] bg-muted/20">
-        {project.image ? (
-          <Image
-            src={urlFor(project.image).width(1920).height(1080).url() || '/assets/svgs/logo.svg'}
-            alt={project.title}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 100vw"
-          />
-        ) : (
-          <div className="w-full h-full bg-linear-to-br from-primary/20 via-secondary/20 to-accent/20" />
+      <div className="relative w-full h-[60vh] min-h-[450px] max-h-[650px] flex items-center justify-center overflow-hidden">
+        {project.image && (
+          <>
+            <Image
+              src={urlFor(project.image).width(1200).height(675).blur(100).url()}
+              alt=""
+              fill
+              className="object-cover scale-110 rounded-lg opacity-30"
+              aria-hidden="true"
+            />
+            <div className="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent rounded-lg" />
+          </>
         )}
-        <div className="absolute inset-0 bg-linear-to-t from-background via-background/80 to-background/20" />
 
-        <div className="absolute top-8 left-8 z-20">
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="bg-background/90 backdrop-blur-md border-border/50 hover:bg-background hover:border-border shadow-lg transition-all duration-300 hover:shadow-xl"
-          >
-            <Link href="/projects">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Projects
-            </Link>
-          </Button>
-        </div>
+        <motion.div
+          className="relative w-[80%] max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        >
+          {project.image ? (
+            <Image
+              src={urlFor(project.image).width(1200).height(675).url()}
+              alt={project.title}
+              fill
+              className="object-cover"
+              priority
+              sizes="(max-width: 768px) 80vw, 1200px"
+            />
+          ) : (
+            <div className="w-full h-full bg-linear-to-br from-primary/20 via-secondary/20 to-accent/20 flex items-center justify-center">
+              <p className="text-muted-foreground">No Image Available</p>
+            </div>
+          )}
+          <BorderBeam
+            size={400}
+            duration={10}
+            delay={9}
+            colorFrom="#7209b7"
+            colorTo="#d6b3f0"
+            borderWidth={2}
+          />
+        </motion.div>
       </div>
 
-      <div className="container mx-auto px-4 -mt-40 relative z-10 pb-24">
+      <div className="container mx-auto px-4 -mt-24 relative z-10 pb-24">
         <div className="max-w-5xl mx-auto space-y-8">
           <MagicCard className="border-border/50 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-shadow duration-300">
             <CardContent className="p-8 md:p-10">
@@ -281,6 +297,20 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
               </CardContent>
             </MagicCard>
           )}
+
+          <div className="pt-8">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto mx-auto bg-background/80 backdrop-blur-md border-border/50 hover:bg-background hover:border-primary/50 shadow-lg transition-all duration-300 group"
+            >
+              <Link href="/projects" className="flex items-center justify-center">
+                <ArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200" />
+                Back to All Projects
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </Layout>

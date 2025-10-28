@@ -28,6 +28,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
 import { FiCalendar, FiClock, FiEye } from 'react-icons/fi';
+import { MonkeytypeStats } from './monkeytype-stats';
 import type { StatCard } from './stats.types';
 
 /**
@@ -321,46 +322,58 @@ export const DevStats = memo(() => {
 
   // Render main animated statistics grid
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <h2 className="sr-only">Dev Stats</h2>
-      <div className="col-span-full flex justify-start">
-        <CodeStatsBadge />
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <h2 className="sr-only">Dev Stats</h2>
+        <div className="col-span-full flex justify-start">
+          <CodeStatsBadge />
+        </div>
+        {statCards.map((card, index) => {
+          const value = getCardValue(card);
+          return (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <MagicCard className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 text-primary-background">
+                <CardHeader>
+                  <CardTitle
+                    className={`${card.title === 'Site Views' ? 'text-primary-background' : 'text-primary-background/80'}`}
+                  >
+                    {card.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    {(() => {
+                      switch (card.query) {
+                      case 'age':
+                        return <FiCalendar className="h-4 w-4" />;
+                      case 'google':
+                        return <FiEye className="h-4 w-4" />;
+                      case 'wakatime':
+                        return <FiClock className="h-4 w-4" />;
+                      default:
+                        return null;
+                      }
+                    })()}
+                    <AnimatePresence>
+                      <NumberTicker
+                        className="text-2xl font-bold text-primary-background"
+                        value={Number(value) ?? '-'}
+                        decimalPlaces={0}
+                      />
+                    </AnimatePresence>
+                  </div>
+                </CardContent>
+              </MagicCard>
+            </motion.div>
+          );
+        })}
       </div>
-      {statCards.map((card, index) => {
-        const value = getCardValue(card);
-        return (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: index * 0.1 }}
-          >
-            <MagicCard className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-primary text-primary-foreground">
-              <CardHeader>
-                <CardTitle
-                  className={`${card.title === 'Site Views' ? 'text-primary-foreground' : 'text-primary-foreground/80'}`}
-                >
-                  {card.title}``
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2">
-                  {card.query === 'age' && <FiCalendar className="h-4 w-4" />}
-                  {card.query === 'google' && <FiEye className="h-4 w-4" />}
-                  {card.query === 'wakatime' && <FiClock className="h-4 w-4" />}
-                  <AnimatePresence>
-                    <NumberTicker
-                      className="text-2xl font-bold text-primary-foreground"
-                      value={Number(value) ?? '-'}
-                      decimalPlaces={0}
-                    />
-                  </AnimatePresence>
-                </div>
-              </CardContent>
-            </MagicCard>
-          </motion.div>
-        );
-      })}
+      <MonkeytypeStats />
     </div>
   );
 });
