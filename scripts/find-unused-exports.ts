@@ -1,3 +1,4 @@
+#!/usr/bin/env tsx
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,7 +15,6 @@
  * limitations under the License.
  */
 
-#!/usr/bin/env tsx
 import fg from 'fast-glob';
 import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
