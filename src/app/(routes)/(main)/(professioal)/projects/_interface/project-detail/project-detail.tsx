@@ -228,8 +228,8 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
             <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardContent className="p-8 md:p-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-secondary/10">
-                    <FileText className="h-5 w-5 text-secondary" />
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileText className="h-5 w-5 text-primary" />
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-semibold text-foreground">
                     Project Overview
