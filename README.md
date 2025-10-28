@@ -155,14 +155,27 @@ The WomB0ComB0 Portfolio application follows a modern, distributed architecture 
 This diagram illustrates the primary components and their interactions within the application ecosystem.
 
 ```mermaid
-graph TD
-    A[Client Browser] -->|Navigates/Interacts| B[Next.js App]
+flowchart TD
+    A[Client Browser]
+    B[Next.js App]
+    C[Elysia.js API Gateway]
+    D[Sanity.io CDN]
+    E[Firebase]
+    F[Redis]
+
+    A -->|Navigates/Interacts| B
     B -->|Renders Pages (SSR/SSG)| A
-    B -->|Calls API Routes| C[Elysia.js API Gateway]
-    B -->|Fetches CMS Content| D[Sanity.io CDN]
-    C -->|Authenticates/Stores Guestbook| E[Firebase]
-    C -->|Caches Data| F[Redis]
-    C -->|Fetches Real-time Data| EXT
+    B -->|Calls API Routes| C
+    B -->|Fetches CMS Content| D
+    C -->|Authenticates/Stores Guestbook| E
+    C -->|Caches Data| F
+
+    %% External APIs are individual nodes; connect to them explicitly
+    C -->|Fetches Real-time Data| GH
+    C -->|Fetches Real-time Data| SP
+    C -->|Fetches Real-time Data| WK
+    C -->|Fetches Real-time Data| LY
+    C -->|Fetches Real-time Data| HN
 
     %% Group serverless bits
     subgraph EDGE[Serverless Functions (Vercel/Edge)]
@@ -170,29 +183,32 @@ graph TD
         C
     end
 
-    %% External APIs as their own cluster
-    subgraph EXT[External APIs]
-        GH[GitHub]
-        SP[Spotify]
-        WK[Wakatime]
-        LY[Lanyard]
-        HN[Hashnode]
-    end
-
-    %% Optional: overall data/external services cluster
+    %% Group data/external services
     subgraph DATA[Data Stores & External Services]
         D
         E
         F
-        EXT
+        subgraph EXT[External APIs]
+            GH[GitHub]
+            SP[Spotify]
+            WK[Wakatime]
+            LY[Lanyard]
+            HN[Hashnode]
+        end
     end
 
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style C fill:#ccf,stroke:#333,stroke-width:2px
-    style D fill:#afa,stroke:#333,stroke-width:2px
-    style E fill:#fcf,stroke:#333,stroke-width:2px
-    style F fill:#ddf,stroke:#333,stroke-width:2px
-    style EXT fill:#ffc,stroke:#333,stroke-width:2px
+    %% Styling (node-level styling is most portable)
+    classDef pink fill:#f9f,stroke:#333,stroke-width:2px
+    classDef blue fill:#ccf,stroke:#333,stroke-width:2px
+    classDef green fill:#afa,stroke:#333,stroke-width:2px
+    classDef purple fill:#fcf,stroke:#333,stroke-width:2px
+    classDef lightblue fill:#ddf,stroke:#333,stroke-width:2px
+
+    class B pink
+    class C blue
+    class D green
+    class E purple
+    class F lightblue
 ```
 
 ### Core Components & Responsibilities
