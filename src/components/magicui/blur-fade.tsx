@@ -1,5 +1,6 @@
 'use client';
 
+
 import type { BlurFadeProps } from './blur-fade.types';
 
 /**

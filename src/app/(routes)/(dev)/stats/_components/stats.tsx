@@ -1,5 +1,6 @@
 'use client';
 
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -59,7 +60,7 @@ const StatItem = ({
       <Skeleton className="h-10 w-20 mt-2" />
     ) : (
       <div className="flex items-baseline gap-1">
-        <NumberTicker className="text-3xl font-bold text-primary-background" value={value} />
+        <NumberTicker className="text-xl font-bold text-primary-background" value={value} />
         {unit && <span className="text-sm font-medium text-primary-background/70">{unit}</span>}
       </div>
     )}

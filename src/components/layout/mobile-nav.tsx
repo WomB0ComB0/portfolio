@@ -1,3 +1,4 @@
+'use client';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -14,7 +15,7 @@
  * limitations under the License.
  */
 
-'use client';
+
 
 import { Button } from '@/components/ui/button';
 import { useKBar } from 'kbar';

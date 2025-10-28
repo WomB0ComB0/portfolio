@@ -1,4 +1,21 @@
 'use client';
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 
 import NumberTicker from '@/components/ui/number-ticker';
 import { Separator } from '@/components/ui/separator';
@@ -100,10 +117,10 @@ export const LeetCodeStats = memo(() => {
       }
     >
       <div className="space-y-4">
-        <div className="text-center">
-          <span className="text-sm text-primary-background/70">Total Solved</span>
+        <div className="mx-auto w-full text-center space-x-2 flex flex-col justify-center items-baseline">
+          <span className="text-sm text-primary-background/70 w-full">Total Solved</span>
           <NumberTicker
-            className="text-5xl font-bold text-primary-background"
+            className="text-3xl font-bold text-primary-background w-full"
             value={totalSolved}
           />
         </div>
@@ -131,7 +148,7 @@ export const LeetCodeStats = memo(() => {
           <div>
             <span className="text-xs text-primary-background/70">Ranking</span>
             <p className="text-xl font-semibold text-primary-background">
-              Top {ranking.toFixed(2)}%
+              Top {ranking.toLocaleString()}
             </p>
           </div>
         </div>
