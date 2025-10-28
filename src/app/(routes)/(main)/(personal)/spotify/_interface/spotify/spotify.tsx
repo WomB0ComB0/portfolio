@@ -21,7 +21,9 @@ import {
   TopArtists,
   TopTracks,
 } from '@/app/(routes)/(main)/(personal)/spotify/_components';
+import { PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
+import { SiSpotify } from 'react-icons/si';
 
 /**
  * Spotify component.
@@ -36,7 +38,11 @@ export const Spotify = () => {
     <Layout>
       <div className="w-full min-h-screen p-4 md:p-8">
         <div className="max-w-6xl mx-auto mb-10">
-          <h1 className="text-4xl font-bold mb-8 text-center text-purple-300">My Spotify Stats</h1>
+          <PageHeader
+            title="My Spotify Stats"
+            description="A real-time look at my music taste and listening habits"
+            icon={<SiSpotify />}
+          />
           <div className="space-y-12">
             <section>
               <NowPlaying />

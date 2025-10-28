@@ -1,6 +1,6 @@
 'use client';
 
-import { MagicCard } from '@/components';
+import { MagicCard, PageHeader } from '@/components';
 
 /**
  * Copyright 2025 Mike Odnis
@@ -85,13 +85,11 @@ const CertificationCardSkeleton = () => {
 const CertificationsPageSkeleton = () => {
   return (
     <>
-      <header className="mb-12 text-center space-y-4">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <Award className="h-10 w-10 text-primary" />
-          <div className="h-10 bg-muted/50 animate-pulse rounded w-80" />
-        </div>
-        <div className="h-6 bg-muted/50 animate-pulse rounded w-96 mx-auto" />
-      </header>
+      <PageHeader
+        title="My Certifications"
+        description="A collection of my professional certifications and credentials."
+        icon={<Award />}
+      />
 
       {[...Array(2)].map((_, sectionIdx) => (
         <section key={`section-skeleton-${sectionIdx}`} className="mb-12">
@@ -143,17 +141,11 @@ const CertificationsContent = () => {
 
   return (
     <>
-      <header className="mb-12 text-center space-y-4">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-            <Award className="h-10 w-10 text-primary" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground">My Certifications</h1>
-        </div>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          A collection of my professional certifications and credentials.
-        </p>
-      </header>
+      <PageHeader
+        title="My Certifications"
+        description="A collection of my professional certifications and credentials."
+        icon={<Award />}
+      />
 
       {Object.entries(groupedCertifications).map(([issuer, certs]) => (
         <section key={issuer} className="mb-12">

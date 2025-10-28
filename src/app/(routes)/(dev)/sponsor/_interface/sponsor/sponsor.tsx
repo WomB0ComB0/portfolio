@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
+import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,21 +108,11 @@ export const Sponsor = () => {
     <Layout>
       <div className="relative flex min-h-screen w-full flex-col items-center px-4 py-8 sm:px-6 lg:px-12">
         <section className="w-full max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-8"
-          >
-            <div className="mb-4 flex items-center justify-center gap-3">
-              <Heart className="h-10 w-10 text-accent" />
-              <h1 className="text-3xl font-bold text-primary sm:text-4xl">Sponsor My Work</h1>
-            </div>
-            <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
-              Your sponsorship helps me continue building open-source projects, creating educational
-              content, and contributing to the developer community.
-            </p>
-          </motion.div>
+          <PageHeader
+            title="Sponsor My Work"
+            description="Your sponsorship helps me continue building open-source projects, creating educational content, and contributing to the developer community."
+            icon={<Heart />}
+          />
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

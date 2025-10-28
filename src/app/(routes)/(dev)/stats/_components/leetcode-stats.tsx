@@ -1,13 +1,13 @@
 'use client';
 
-import { MagicCard } from '@/components';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import NumberTicker from '@/components/ui/number-ticker';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { memo } from 'react';
-import { FiCode, FiPercent, FiTrendingUp } from 'react-icons/fi';
+import { SiLeetcode } from 'react-icons/si';
+import { StatCard } from './stat-card';
 
 interface LeetCodeStatsData {
   totalSolved: number;
@@ -18,19 +18,50 @@ interface LeetCodeStatsData {
   ranking: number;
 }
 
-const LeetCodeStatsSkeleton = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-    {[...Array(3)].map((_, i) => (
-      <Card key={`leetcode-stat-skeleton-${i}`} className="bg-card/50">
-        <CardHeader>
-          <Skeleton className="h-5 w-20 mb-2" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-8 w-16" />
-        </CardContent>
-      </Card>
-    ))}
-  </div>
+const ProgressBar = ({
+  value,
+  max,
+  colorClass,
+}: {
+  value: number;
+  max: number;
+  colorClass: string;
+}) => {
+  const percentage = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div className="w-full bg-primary-background/10 rounded-full h-2">
+      <motion.div
+        className={`h-2 rounded-full ${colorClass}`}
+        initial={{ width: 0 }}
+        animate={{ width: `${percentage}%` }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      />
+    </div>
+  );
+};
+
+const LeetCodeSkeleton = () => (
+  <StatCard title="LeetCode Stats" icon={<SiLeetcode />}>
+    <div className="space-y-4">
+      <div className="flex items-center justify-center">
+        <Skeleton className="h-12 w-24" />
+      </div>
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-2 w-full rounded-full" />
+            <Skeleton className="h-4 w-8" />
+          </div>
+        ))}
+      </div>
+      <Separator className="bg-primary-background/10" />
+      <div className="flex justify-around">
+        <Skeleton className="h-8 w-20" />
+        <Skeleton className="h-8 w-20" />
+      </div>
+    </div>
+  </StatCard>
 );
 
 export const LeetCodeStats = memo(() => {
@@ -41,55 +72,71 @@ export const LeetCodeStats = memo(() => {
   });
 
   if (isLoading) {
-    return <LeetCodeStatsSkeleton />;
+    return <LeetCodeSkeleton />;
   }
 
   if (!data) return null;
 
-  const stats = [
-    { title: 'Total Solved', value: data.totalSolved, icon: <FiCode /> },
-    { title: 'Acceptance Rate', value: data.acceptanceRate, icon: <FiPercent />, unit: '%' },
-    { title: 'Top Ranking', value: data.ranking, icon: <FiTrendingUp />, unit: '%' },
+  const { totalSolved, easySolved, mediumSolved, hardSolved, acceptanceRate, ranking } = data;
+  const breakdown = [
+    { label: 'Easy', value: easySolved, colorClass: 'bg-green-500' },
+    { label: 'Medium', value: mediumSolved, colorClass: 'bg-yellow-500' },
+    { label: 'Hard', value: hardSolved, colorClass: 'bg-red-500' },
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
+    <StatCard
+      title="LeetCode Stats"
+      icon={<SiLeetcode />}
+      footer={
+        <a
+          href="https://leetcode.com/WomB0ComB0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary-background/50 hover:underline text-center block"
+        >
+          View Profile
+        </a>
+      }
     >
-      <h3 className="text-xl font-semibold text-primary mb-4">LeetCode Stats</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {stats.map((stat, index) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: index * 0.1 }}
-          >
-            <MagicCard className="overflow-hidden h-full shadow-lg hover:shadow-xl transition-all duration-300 text-primary-background">
-              <CardHeader>
-                <CardTitle className="text-primary-background/80 text-sm font-medium">
-                  {stat.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2">
-                  {stat.icon}
-                  <NumberTicker
-                    className="text-2xl font-bold text-primary-background"
-                    value={stat.value}
-                    decimalPlaces={stat.unit === '%' ? 2 : 0}
-                  />
-                  {stat.unit && <span>{stat.unit}</span>}
-                </div>
-              </CardContent>
-            </MagicCard>
-          </motion.div>
-        ))}
+      <div className="space-y-4">
+        <div className="text-center">
+          <span className="text-sm text-primary-background/70">Total Solved</span>
+          <NumberTicker
+            className="text-5xl font-bold text-primary-background"
+            value={totalSolved}
+          />
+        </div>
+        <div className="space-y-2">
+          {breakdown.map((stat) => (
+            <div key={stat.label} className="grid grid-cols-5 items-center gap-2 text-sm">
+              <span className="col-span-1 text-primary-background/70 text-xs">{stat.label}</span>
+              <div className="col-span-3">
+                <ProgressBar value={stat.value} max={totalSolved} colorClass={stat.colorClass} />
+              </div>
+              <span className="col-span-1 text-right font-semibold text-primary-background text-xs">
+                {stat.value}
+              </span>
+            </div>
+          ))}
+        </div>
+        <Separator className="my-4 bg-primary-background/10" />
+        <div className="grid grid-cols-2 gap-4 text-center">
+          <div>
+            <span className="text-xs text-primary-background/70">Acceptance</span>
+            <p className="text-xl font-semibold text-primary-background">
+              {acceptanceRate.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <span className="text-xs text-primary-background/70">Ranking</span>
+            <p className="text-xl font-semibold text-primary-background">
+              Top {ranking.toFixed(2)}%
+            </p>
+          </div>
+        </div>
       </div>
-    </motion.div>
+    </StatCard>
   );
 });
-
 LeetCodeStats.displayName = 'LeetCodeStats';

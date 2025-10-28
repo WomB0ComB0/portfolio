@@ -1,6 +1,6 @@
 'use client';
 
-import { MagicCard } from '@/components';
+import { MagicCard, PageHeader } from '@/components';
 
 /**
  * Copyright 2025 Mike Odnis
@@ -119,13 +119,11 @@ const TimelineCardSkeleton = ({ isLeft }: { isLeft: boolean }) => {
 const ExperienceListSkeleton = () => {
   return (
     <div className="space-y-12">
-      <header className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-3">
-          <div className="w-12 h-12 bg-muted animate-pulse rounded-2xl" />
-          <div className="h-10 bg-muted animate-pulse rounded w-64" />
-        </div>
-        <div className="h-6 bg-muted animate-pulse rounded w-96 mx-auto" />
-      </header>
+      <PageHeader
+        title="Work Experience"
+        description="A chronological journey through my professional career"
+        icon={<Briefcase />}
+      />
 
       <div className="relative max-w-6xl mx-auto">
         <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-muted/30 -translate-x-1/2 hidden lg:block" />
@@ -152,7 +150,6 @@ const ExperienceListContent = () => {
     loadMoreRef,
     loadMore,
     displayCount,
-    totalCount,
   } = usePagination(experiences, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
@@ -193,30 +190,11 @@ const ExperienceListContent = () => {
 
   return (
     <div className="space-y-12">
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center space-y-4"
-      >
-        <div className="inline-flex items-center justify-center gap-4 mb-2">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-            <div className="relative w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-              <Briefcase className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground">Work Experience</h1>
-        </div>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          A chronological journey through my professional career
-        </p>
-        {totalCount > 0 && (
-          <p className="text-sm text-muted-foreground">
-            Showing {displayCount} of {totalCount} experiences
-          </p>
-        )}
-      </motion.header>
+      <PageHeader
+        title="Work Experience"
+        description="A chronological journey through my professional career"
+        icon={<Briefcase />}
+      />
 
       {displayedExperiences.length > 0 ? (
         <div className="relative max-w-6xl mx-auto">
@@ -224,6 +202,7 @@ const ExperienceListContent = () => {
           <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 lg:hidden" />
 
           <motion.div
+            key={displayCount}
             variants={containerVariants}
             initial="hidden"
             animate="show"

@@ -19,5 +19,6 @@
   "@sentry/nextjs",
   "ts-morph",
   "vitest",
+  "firebase-admin",
   "react-hook-form"
 ]

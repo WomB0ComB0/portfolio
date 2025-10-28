@@ -14,6 +14,22 @@
  * limitations under the License.
  */
 
-export * from './login-button';
-export * from './logout-button';
-export * from './page-header';
+.page-header {
+  @apply text-center space-y-3 pb-4;
+}
+
+.page-header-container {
+  @apply flex items-center justify-center gap-3 mb-2;
+}
+
+.page-header-icon {
+  @apply text-2xl md:text-3xl text-primary;
+}
+
+.page-header-title {
+  @apply text-3xl md:text-4xl font-bold text-foreground tracking-tight;
+}
+
+.page-header-description {
+  @apply text-muted-foreground text-sm md:text-base max-w-md mx-auto;
+}

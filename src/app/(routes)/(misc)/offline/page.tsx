@@ -20,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { WifiOff } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { JSX } from 'react';
+import type { JSX } from 'react';
 
 export const metadata: Metadata = {
   title: 'Offline',

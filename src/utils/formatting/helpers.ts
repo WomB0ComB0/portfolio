@@ -301,9 +301,13 @@ export const slugify = (str: string, forDisplayingInput?: boolean): KebabCase<st
  * @see https://lodash.com/docs/4.17.15#debounce
  * @version 1.0.0
  */
-export const debounce = (fn: Function, time = 300): Function => {
+export const debounce = <T extends (...args: any[]) => any>(
+  fn: T,
+  time = 300,
+): ((...args: Parameters<T>) => void) => {
   let timeoutId: ReturnType<typeof setTimeout>;
-  return function (this: any, ...args: any[]) {
+
+  return function (this: any, ...args: Parameters<T>) {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       fn.apply(this, args);

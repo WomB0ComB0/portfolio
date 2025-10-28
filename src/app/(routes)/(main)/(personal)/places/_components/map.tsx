@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { darkMapStyle } from '@/data/places';
 import type { PlaceItem } from '@/types/places';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
-import { APIProvider, InfoWindow, Map as VisGLMap, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, InfoWindow, useMap, Map as VisGLMap } from '@vis.gl/react-google-maps';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiMapPin } from 'react-icons/fi';

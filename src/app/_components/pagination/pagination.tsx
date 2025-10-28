@@ -60,7 +60,7 @@ export function usePagination<T>(
   items: ReadonlyArray<T> | T[] | undefined,
   options: UsePaginationOptions = {},
 ): UsePaginationReturn<T> {
-  const { itemsPerPage = 10, loadDelay = 500, threshold = 0.1 } = options;
+  const { itemsPerPage = 10, loadDelay = 0, threshold = 0.1 } = options;
 
   const [displayCount, setDisplayCount] = useState(itemsPerPage);
   const [isLoadingMore, setIsLoadingMore] = useState(false);

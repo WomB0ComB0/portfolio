@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { PageHeader } from '@/components/custom/page-header';
 import { MagicCard } from '@/components/magicui';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
+import { FiRss } from 'react-icons/fi';
 
 /**
  * @readonly
@@ -90,7 +92,7 @@ const BlogResponseSchema = Schema.Array(BlogPostSchema);
 export const Blog = (): JSX.Element => {
   return (
     <div className="container mx-auto px-4 py-8">
-      <h2 className="text-4xl font-bold mb-8 text-center">Latest Blog Posts</h2>
+      <PageHeader title="Latest Blog Posts" icon={<FiRss />} />
       <Suspense fallback={<BlogSkeleton />}>
         <DataLoader
           url="/api/v1/blog"

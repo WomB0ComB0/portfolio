@@ -16,25 +16,31 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { config } from '@/config';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 import { logger } from '@/utils';
 import { Schema } from 'effect';
-import { motion } from 'motion/react';
 import { Suspense } from 'react';
-import { SiDiscord } from 'react-icons/si';
+import { FiActivity, FiHeadphones, FiPlus } from 'react-icons/fi';
+import { SiDiscord, SiVscodium } from 'react-icons/si';
+import { StatCard } from './stat-card';
 
 const ActivitySchema = Schema.Struct({
   name: Schema.String,
   type: Schema.Number,
   state: Schema.optional(Schema.String),
   details: Schema.optional(Schema.String),
+  application_id: Schema.optional(Schema.String),
+  assets: Schema.optional(
+    Schema.Struct({
+      large_image: Schema.optional(Schema.String),
+      large_text: Schema.optional(Schema.String),
+    }),
+  ),
 });
 
 const DiscordUserSchema = Schema.Struct({
@@ -50,57 +56,74 @@ const LanyardResponseSchema = Schema.Struct({
   activities: Schema.optional(Schema.Array(ActivitySchema)),
 });
 
-const statusColors = {
-  online: 'bg-success',
-  idle: 'bg-warning',
-  dnd: 'bg-destructive',
-  offline: 'bg-muted',
-} as const;
+const statusInfo = {
+  online: { text: 'Online', color: 'bg-green-500', pulse: true },
+  idle: { text: 'Idle', color: 'bg-yellow-500', pulse: false },
+  dnd: { text: 'Do Not Disturb', color: 'bg-red-500', pulse: false },
+  offline: { text: 'Offline', color: 'bg-gray-500', pulse: false },
+};
 
 const DiscordSkeleton = () => (
-  <Card className="overflow-hidden">
-    <CardContent className="p-0">
-      <div className="bg-linear-to-r from-primary to-primary/80 p-6">
-        <div className="flex items-center gap-4 mb-4">
+  <StatCard title="Discord Status" icon={<SiDiscord />}>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <div className="relative">
-            <Skeleton className="h-16 w-16 rounded-full border-2 border-white" />
+            <Skeleton className="h-12 w-12 rounded-full" />
             <Skeleton className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-background" />
           </div>
-          <div className="flex-1">
-            <Skeleton className="h-6 w-3/4 mb-2" />
-            <Skeleton className="h-5 w-1/3" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-4 w-16" />
           </div>
         </div>
-        <Skeleton className="h-4 w-full mb-4" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-8 w-20 rounded-lg" />
       </div>
-    </CardContent>
-  </Card>
+      <Separator className="bg-border/30" />
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-lg" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    </div>
+  </StatCard>
 );
 
 const DiscordError = () => (
-  <div className="text-destructive p-4 bg-destructive/10 rounded-lg">
-    Failed to load Discord status
-  </div>
+  <StatCard title="Discord Status" icon={<SiDiscord />}>
+    <div className="text-destructive text-center py-4">
+      <p className="text-sm font-semibold">Failed to load Discord status.</p>
+    </div>
+  </StatCard>
 );
+
+const ActivityIcon = ({ name }: { name: string }) => {
+  if (name.toLowerCase().includes('spotify')) {
+    return <FiHeadphones className="h-5 w-5" />;
+  }
+  if (name.toLowerCase().includes('visual studio code')) {
+    return <SiVscodium className="h-5 w-5" />;
+  }
+  return <FiActivity className="h-5 w-5" />;
+};
 
 export const Discord = () => {
   return (
     <Suspense fallback={<DiscordSkeleton />}>
-      <h2 className="sr-only">Discord Status</h2>
       <DataLoader
         url="/api/v1/lanyard"
         schema={LanyardResponseSchema}
-        staleTime={1000 * 60 * 5}
-        refetchInterval={1000 * 60 * 5}
-        refetchOnWindowFocus={false}
+        staleTime={1000 * 30}
+        refetchInterval={1000 * 30}
+        refetchOnWindowFocus={true}
         ErrorComponent={DiscordError}
         LoadingComponent={<DiscordSkeleton />}
       >
         {(data: Schema.Schema.Type<typeof LanyardResponseSchema>) => {
           const { discord_status: status, discord_user: user, activities } = data;
-          const activity = activities?.[0];
-
+          const activity = activities?.find((a) => a.type === 0);
           const handleAddFriend = () => {
             const discordId = config.discord.id;
             if (discordId) {
@@ -111,19 +134,13 @@ export const Discord = () => {
           };
 
           return (
-            <MagicCard className="overflow-hidden">
-              <CardContent className="p-0">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-linear-to-r from-primary to-primary/80 p-6"
-                >
-                  <div className="flex items-center gap-4 mb-4">
+            <StatCard title="Discord Status" icon={<SiDiscord />}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     <div className="relative">
-                      <Avatar className="h-16 w-16 border-2 border-white">
+                      <Avatar className="h-12 w-12 border-2 border-border/50">
                         <AvatarImage
-                          className={'m-0 p-0'}
                           src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`}
                           alt={user.username || 'Discord User'}
                         />
@@ -133,40 +150,66 @@ export const Discord = () => {
                       </Avatar>
                       <div
                         className={`absolute bottom-0 right-0 w-4 h-4 rounded-full ${
-                          statusColors[status]
-                        } border-2 border-background`}
-                      />
+                          statusInfo[status].color
+                        } border-2 border-background flex items-center justify-center`}
+                      >
+                        {statusInfo[status].pulse && (
+                          <div
+                            className={`w-2 h-2 rounded-full ${statusInfo[status].color} animate-ping`}
+                          />
+                        )}
+                      </div>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <SiDiscord className="w-5 h-5 text-primary-foreground" />{' '}
-                        <span className="text-xl font-semibold text-primary-foreground">
-                          {' '}
-                          {user.username}
+                      <p className="font-semibold">
+                        {user.username}
+                        <span className="text-muted-foreground text-sm">
                           {user.discriminator !== '0' ? `#${user.discriminator}` : ''}
                         </span>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="mt-1 bg-primary/80 text-primary-foreground"
+                      </p>
+                      <span
+                        className={`text-sm font-medium ${
+                          status === 'offline' ? 'text-muted-foreground' : 'text-primary'
+                        }`}
                       >
-                        {status === 'online' ? 'Online' : 'Offline'}
-                      </Badge>
+                        {statusInfo[status].text}
+                      </span>
                     </div>
                   </div>
-                  <p className="text-sm text-primary-foreground/90 mb-4">
-                    {' '}
-                    {activity?.state || 'Coding, building, and growing'}
-                  </p>
-                  <Button
-                    onClick={() => handleAddFriend()}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    Add Friend
+                  <Button onClick={handleAddFriend} variant="ghost" size="icon" className="w-8 h-8">
+                    <FiPlus />
+                    <span className="sr-only">Add Friend</span>
                   </Button>
-                </motion.div>
-              </CardContent>
-            </MagicCard>
+                </div>
+
+                <Separator className="bg-border/30" />
+
+                <div className="min-h-16 flex items-center">
+                  {activity ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                        <ActivityIcon name={activity.name} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="font-semibold text-sm text-foreground">{activity.name}</p>
+                        {activity.details && (
+                          <p className="text-xs text-muted-foreground">{activity.details}</p>
+                        )}
+                        {activity.state && (
+                          <p className="text-xs text-muted-foreground/80">{activity.state}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center w-full">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Currently not in an activity.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </StatCard>
           );
         }}
       </DataLoader>

@@ -17,6 +17,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './fonts.css';
+@import './page-header.css';
 @custom-variant dark (&:is(.dark *));
 
 /* Mobile navigation safe area */

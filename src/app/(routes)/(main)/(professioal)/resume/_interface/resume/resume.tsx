@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
+import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -131,15 +131,14 @@ export const Resume = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
+            <PageHeader
+              title={typedResume?.title || 'Resume'}
+              description={`Last updated: ${lastUpdated}`}
+              icon={<FileText />}
+            />
             <MagicCard className="w-full max-w-4xl mx-auto border-primary rounded-xl overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardContent className="p-4 sm:p-6">
                 <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <h1 className="text-2xl font-bold text-muted-foreground mb-1">
-                      {typedResume?.title || 'Resume'}
-                    </h1>
-                    <p className="text-muted-foreground text-sm">Last updated: {lastUpdated}</p>
-                  </div>
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     {/**
                      * Open Resume Button

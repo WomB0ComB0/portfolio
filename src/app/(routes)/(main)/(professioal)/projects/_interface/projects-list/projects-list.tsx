@@ -17,7 +17,7 @@
  */
 
 import { PaginationControls, usePagination } from '@/app/_components';
-import { MagicCard } from '@/components';
+import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,13 +67,11 @@ const ProjectCardSkeleton = (): JSX.Element => (
 
 const ProjectsListSkeleton = (): JSX.Element => (
   <div className="space-y-12">
-    <header className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-muted animate-pulse rounded-2xl" />
-        <div className="h-10 bg-muted animate-pulse rounded w-48" />
-      </div>
-      <div className="h-6 bg-muted animate-pulse rounded w-96" />
-    </header>
+    <PageHeader
+      title="My Projects"
+      description="A showcase of my work spanning web development, mobile apps, and machine learning"
+      icon={<Code />}
+    />
 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {[...Array(6)].map((_, i) => (
@@ -95,7 +93,6 @@ const ProjectsListContent = (): JSX.Element => {
     loadMoreRef,
     loadMore,
     displayCount,
-    totalCount,
   } = usePagination(projectsList, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
@@ -143,43 +140,16 @@ const ProjectsListContent = (): JSX.Element => {
 
   return (
     <div className="space-y-12">
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="space-y-4"
-      >
-        <div className="inline-flex items-center justify-center gap-4 mb-2">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-            <div className="relative w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-              <Code className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground">Projects</h1>
-        </div>
-        <p className="text-lg text-muted-foreground max-w-2xl">
-          A showcase of my work spanning web development, mobile apps, and machine learning
-        </p>
-        <div className="flex items-center gap-3 text-sm">
-          <Badge
-            variant="outline"
-            className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1.5"
-          >
-            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            {totalCount} Projects
-          </Badge>
-          {totalCount > ITEMS_PER_PAGE && (
-            <Badge variant="outline" className="text-muted-foreground border-border/50">
-              Showing {displayCount} of {totalCount}
-            </Badge>
-          )}
-        </div>
-      </motion.header>
+      <PageHeader
+        title="My Projects"
+        description="A showcase of my work spanning web development, mobile apps, and machine learning"
+        icon={<Code />}
+      />
 
       {displayedProjects.length > 0 ? (
         <>
           <motion.div
+            key={displayCount}
             variants={containerVariants}
             initial="hidden"
             animate="show"

@@ -18,6 +18,7 @@
 
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
+import { PageHeader } from '@/components/custom/page-header';
 import { MagicCard } from '@/components/magicui';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -202,17 +203,11 @@ export const GuestbookComponent = () => {
   return (
     <section className="w-full min-h-full px-4 py-6 md:px-0 md:py-8 lg:py-12">
       <div className="w-full max-w-2xl mx-auto space-y-8">
-        <header className="text-center space-y-3 pb-4">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <FiMessageSquare className="text-2xl md:text-3xl text-primary" />
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-              Guestbook
-            </h1>
-          </div>
-          <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
-            Share your thoughts and connect with visitors
-          </p>
-        </header>
+        <PageHeader
+          title="Guestbook"
+          description="Share your thoughts and connect with visitors"
+          icon={<FiMessageSquare />}
+        />
 
         {user ? (
           <MagicCard className=" border-white/10 shadow-lg">
