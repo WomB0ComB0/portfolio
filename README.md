@@ -156,48 +156,47 @@ This diagram illustrates the primary components and their interactions within th
 
 ```mermaid
 flowchart TD
-    A[Client Browser]
-    B[Next.js App]
-    C[Elysia.js API Gateway]
-    D[Sanity.io CDN]
-    E[Firebase]
-    F[Redis]
+    A["Client Browser"]
+    B["Next.js App"]
+    C["Elysia.js API Gateway"]
+    D["Sanity.io CDN"]
+    E["Firebase"]
+    F["Redis"]
 
-    A -->|Navigates/Interacts| B
-    B -->|Renders Pages (SSR/SSG)| A
-    B -->|Calls API Routes| C
-    B -->|Fetches CMS Content| D
-    C -->|Authenticates/Stores Guestbook| E
-    C -->|Caches Data| F
+    A -->|"Navigates/Interacts"| B
+    B -->|"Renders Pages (SSR/SSG)"| A
+    B -->|"Calls API Routes"| C
+    B -->|"Fetches CMS Content"| D
+    C -->|"Authenticates/Stores Guestbook"| E
+    C -->|"Caches Data"| F
 
-    %% External APIs are individual nodes; connect to them explicitly
-    C -->|Fetches Real-time Data| GH
-    C -->|Fetches Real-time Data| SP
-    C -->|Fetches Real-time Data| WK
-    C -->|Fetches Real-time Data| LY
-    C -->|Fetches Real-time Data| HN
+    %% External APIs as explicit nodes
+    C -->|"Fetches Real-time Data"| GH
+    C -->|"Fetches Real-time Data"| SP
+    C -->|"Fetches Real-time Data"| WK
+    C -->|"Fetches Real-time Data"| LY
+    C -->|"Fetches Real-time Data"| HN
 
     %% Group serverless bits
-    subgraph EDGE[Serverless Functions (Vercel/Edge)]
+    subgraph EDGE["Serverless Functions (Vercel/Edge)"]
         B
         C
     end
 
     %% Group data/external services
-    subgraph DATA[Data Stores & External Services]
+    subgraph DATA["Data Stores & External Services"]
         D
         E
         F
-        subgraph EXT[External APIs]
-            GH[GitHub]
-            SP[Spotify]
-            WK[Wakatime]
-            LY[Lanyard]
-            HN[Hashnode]
+        subgraph EXT["External APIs"]
+            GH["GitHub"]
+            SP["Spotify"]
+            WK["Wakatime"]
+            LY["Lanyard"]
+            HN["Hashnode"]
         end
     end
 
-    %% Styling (node-level styling is most portable)
     classDef pink fill:#f9f,stroke:#333,stroke-width:2px
     classDef blue fill:#ccf,stroke:#333,stroke-width:2px
     classDef green fill:#afa,stroke:#333,stroke-width:2px
