@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-
-
 import NumberTicker from '@/components/ui/number-ticker';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';

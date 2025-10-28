@@ -32,7 +32,7 @@ import { isIdentifierBanned, isIdentifierSlowed } from './banlist';
 const limiter = {
   default: new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(20, '10 s'),
+    limiter: Ratelimit.slidingWindow(30, '10 s'),
     analytics: true,
     prefix: 'ratelimit:default',
   }),

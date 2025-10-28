@@ -1,6 +1,5 @@
 'use client';
 
-
 import type { MagicCardProps } from './magic-card.types';
 
 /**

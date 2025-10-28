@@ -1,6 +1,5 @@
 'use client';
 
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -23,19 +22,19 @@ import {
   GitHubStats,
   LeetCodeStats,
 } from '@/app/(routes)/(dev)/stats/_components';
-import { PageHeader } from "@/components";
+import { PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
-import { FiActivity } from "react-icons/fi";
+import { FiActivity } from 'react-icons/fi';
 
 export const Stats = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-      <PageHeader
-        title="Live Development Statistics"
-        description="A real-time look at my activity and project metrics"
-        icon={<FiActivity />}
-      />
+        <PageHeader
+          title="Live Development Statistics"
+          description="A real-time look at my activity and project metrics"
+          icon={<FiActivity />}
+        />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-2 space-y-8">
             <GitHubStats />

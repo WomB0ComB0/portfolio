@@ -147,6 +147,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         rateLimitingType = 'apiv1';
       } else if (request.nextUrl.pathname.startsWith('/api')) {
         rateLimitingType = 'api';
+      } else if (request.nextUrl.pathname.startsWith('/monitoring')) {
+        rateLimitingType = 'ai';
       }
 
       safeLog('log', 'Applying rate limiting', {

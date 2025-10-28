@@ -1,6 +1,5 @@
 'use client';
 
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -19,14 +18,14 @@
 
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { emailHref } from '@/constants';
 import { useGitHubSponsors } from '@/hooks/use-github-sponsors';
 import type { Sponsor as SponsorType } from '@/hooks/use-github-sponsors.types';
-import { Coffee, ExternalLink, Gift, Heart, Users, Mail, Sparkles } from 'lucide-react';
+import { Coffee, ExternalLink, Gift, Heart, Mail, Sparkles, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import { useMemo } from 'react';
@@ -190,7 +189,9 @@ export const Sponsor = () => {
                       <CardHeader className="pb-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-4">
-                            <div className={`bg-linear-to-br ${platform.color} p-3 rounded-xl shadow-lg`}>
+                            <div
+                              className={`bg-linear-to-br ${platform.color} p-3 rounded-xl shadow-lg`}
+                            >
                               <Icon className="h-6 w-6 text-white" />
                             </div>
                             <div>
@@ -201,10 +202,13 @@ export const Sponsor = () => {
                           <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </div>
                       </CardHeader>
-                      
+
                       <CardContent className="space-y-4">
                         <p className="text-sm text-muted-foreground">{platform.description}</p>
-                        <Button asChild className="w-full bg-primary hover:bg-primary/90 text-primary-foreground group/btn">
+                        <Button
+                          asChild
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground group/btn"
+                        >
                           <a
                             href={platform.url}
                             target="_blank"
@@ -240,14 +244,18 @@ export const Sponsor = () => {
                     </div>
                   </div>
                   {currentSponsors.length > 0 && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 px-4 py-1.5">
+                    <Badge
+                      variant="outline"
+                      className="bg-primary/10 text-primary border-primary/30 px-4 py-1.5"
+                    >
                       <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                      {currentSponsors.length} {currentSponsors.length === 1 ? 'Sponsor' : 'Sponsors'}
+                      {currentSponsors.length}{' '}
+                      {currentSponsors.length === 1 ? 'Sponsor' : 'Sponsors'}
                     </Badge>
                   )}
                 </div>
               </CardHeader>
-              
+
               <CardContent>
                 {isLoading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -399,7 +407,8 @@ export const Sponsor = () => {
                     Questions About Sponsorship?
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                    Reach out to discuss custom sponsorship opportunities or if you have any questions
+                    Reach out to discuss custom sponsorship opportunities or if you have any
+                    questions
                   </p>
                 </div>
                 <Button

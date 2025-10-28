@@ -50,8 +50,8 @@ import type { Metadata, Viewport } from 'next';
 export function constructMetadata({
   title = `${app.name}`,
   description = `${app.description}`,
-  image = '/opengraph-image.png',
-  twitter = '/twitter-image.png',
+  image = '/api/og',
+  twitter = '/api/og',
   icons = '/assets/svgs/logo.svg',
   noIndex = false,
   url = app.url,

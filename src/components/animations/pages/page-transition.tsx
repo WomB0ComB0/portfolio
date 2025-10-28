@@ -1,6 +1,5 @@
 'use client';
 
-
 import type { PageTransitionProps } from './page-transition.types';
 
 /**

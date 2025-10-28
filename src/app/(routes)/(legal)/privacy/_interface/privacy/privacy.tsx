@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-
-
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';

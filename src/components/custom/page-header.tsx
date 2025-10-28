@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { cn } from "@/lib";
-import type { JSX, ReactNode } from "react";
+import { cn } from '@/lib';
+import type { JSX, ReactNode } from 'react';
 
 interface PageHeaderProps {
   title: string;
@@ -31,7 +31,7 @@ export const PageHeader = ({
   className,
 }: PageHeaderProps): JSX.Element => {
   return (
-    <header className={cn("page-header", className)}>
+    <header className={cn('page-header', className)}>
       <div className="page-header-container">
         {icon && <div className="page-header-icon">{icon}</div>}
         <h1 className="page-header-title">{title}</h1>
@@ -41,4 +41,4 @@ export const PageHeader = ({
   );
 };
 
-PageHeader.displayName = "PageHeader";
+PageHeader.displayName = 'PageHeader';

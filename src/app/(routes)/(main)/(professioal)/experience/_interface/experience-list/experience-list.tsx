@@ -1,6 +1,5 @@
 'use client';
 
-
 import { MagicCard, PageHeader } from '@/components';
 
 /**

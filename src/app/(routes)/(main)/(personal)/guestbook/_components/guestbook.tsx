@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-
-
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
 import { PageHeader } from '@/components/custom/page-header';

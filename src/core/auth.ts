@@ -1,6 +1,5 @@
 'use client';
 
-
 import type { SignInMethod } from './auth.types';
 
 /**

@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-
-
 import { MagicCard } from '@/components';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
