@@ -13,11 +13,11 @@ jobs:
   renovate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # https://github.com/renovatebot/github-action
       - name: Renovate
-        uses: renovatebot/github-action@v40.1.12
+        uses: renovatebot/github-action@v43.0.19
         env:
           LOG_LEVEL: info
           RENOVATE_TOKEN: ${{ secrets.GH_TOKEN }}

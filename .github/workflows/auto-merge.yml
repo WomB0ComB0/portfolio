@@ -32,14 +32,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Get PR details
         id: pr-details
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data: pr } = await github.rest.pulls.get({
@@ -80,7 +80,7 @@ jobs:
       - name: Determine update type and risk level
         id: analyze-changes
         if: steps.check-bot.outputs.allowed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const title = `${{ fromJson(steps.pr-details.outputs.result).title }}`.toLowerCase();
@@ -246,7 +246,7 @@ jobs:
 
       - name: Enhanced merge decision
         if: steps.analyze-changes.outputs.result && fromJson(steps.analyze-changes.outputs.result).autoMergeAllowed
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const analysis = ${{ steps.analyze-changes.outputs.result }};
@@ -274,7 +274,7 @@ jobs:
       - name: Wait for status checks
         id: wait-for-checks
         if: steps.analyze-changes.outputs.result && fromJson(steps.analyze-changes.outputs.result).autoMergeAllowed
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const maxWaitTime = 10 * 60 * 1000; // 10 minutes
@@ -345,7 +345,7 @@ jobs:
       - name: Check for merge conflicts
         id: check-conflicts
         if: fromJson(steps.wait-for-checks.outputs.result).success
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
@@ -378,7 +378,7 @@ jobs:
 
       - name: Close conflicted PR
         if: fromJson(steps.check-conflicts.outputs.result).hasConflicts
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
@@ -415,7 +415,7 @@ jobs:
       - name: Check PR requirements
         id: check-requirements
         if: fromJson(steps.check-conflicts.outputs.result).hasConflicts == false
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
@@ -469,7 +469,7 @@ jobs:
 
       - name: Auto-approve PR
         if: fromJson(steps.check-conflicts.outputs.result).hasConflicts == false && fromJson(steps.check-requirements.outputs.result).canMerge
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
@@ -489,7 +489,7 @@ jobs:
 
       - name: Merge PR
         if: fromJson(steps.check-conflicts.outputs.result).hasConflicts == false && fromJson(steps.check-requirements.outputs.result).canMerge
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ fromJson(steps.pr-details.outputs.result).number }};
@@ -539,7 +539,7 @@ jobs:
 
       - name: Cleanup on failure
         if: failure() && steps.pr-details.outputs.result
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prDetails = ${{ steps.pr-details.outputs.result || '{}' }};
