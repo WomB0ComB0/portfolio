@@ -52,19 +52,19 @@ export const Layout = ({
   const pathname = usePathname();
   return (
     <div className="relative min-h-screen bg-background font-clash">
-      <main className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden selection:bg-primary/30">
+      <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden selection:bg-primary/30">
         <Palette />
         <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
           <div className="w-[6%] fixed left-0 h-full z-20 hidden lg:block md:block">
             <NavBar path={pathname ?? ''} />
           </div>
-          <div className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 md:pb-0">
+          <section className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 md:pb-0">
             {children}
-          </div>
+          </section>
         </div>
         <Footer />
         <LightRays count={3} blur={10} />
-      </main>
+      </div>
       <div className="fixed bottom-0 left-0 right-0 z-50 block lg:hidden md:hidden">
         <MobileNavBar path={pathname ?? ''} />
       </div>
