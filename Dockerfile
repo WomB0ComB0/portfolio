@@ -3,7 +3,7 @@ FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
 # Install dependencies for Next.js and sharp (image optimization)
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat=1.1.0-r4
 
 # ---- Dependencies Stage ----
 FROM base AS deps
