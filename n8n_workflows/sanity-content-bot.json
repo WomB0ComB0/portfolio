@@ -1,5 +1,5 @@
 {
-  "name": "Sanity AI Content Structurer (Gemini)",
+  "name": "Sanity AI Content Structurer (Enhanced)",
   "nodes": [
     {
       "parameters": {},
@@ -7,7 +7,7 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [240, 400]
     },
     {
       "parameters": {
@@ -16,24 +16,35 @@
             {
               "id": "content_type",
               "name": "contentType",
-              "value": "Experience",
+              "value": "Certification",
               "type": "string"
             },
             {
               "id": "raw_text",
               "name": "rawText",
-              "value": "Senior Software Engineer at Tech Corp, New York, NY. From Jan 2023 to present. Led a team to develop a new feature using React, TypeScript, and Node.js. Responsible for system design and mentoring junior developers. Key technologies included AWS, Docker, and PostgreSQL.",
+              "value": "[{\"title\":\"IBM Certification\",\"issuer\":\"IBM\",\"credentialUrl\":\"https://www.credly.com/badges/123\",\"issueDate\":\"2025-08-01\",\"order\":1}]",
               "type": "string"
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "includeOtherFields": false
       },
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Set Input Data",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [460, 300]
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\n// Try to parse rawText if it's a JSON string\nlet rawText = item.rawText;\nif (typeof rawText === 'string') {\n  try {\n    const parsed = JSON.parse(rawText);\n    if (typeof parsed === 'object') {\n      rawText = parsed;\n    }\n  } catch (e) {\n    // Keep as string if not valid JSON\n  }\n}\n\n// Check if rawText is already structured data (array or object)\nconst isStructured = typeof rawText === 'object' && rawText !== null;\nconst isArray = Array.isArray(rawText);\nconst isValidText = typeof rawText === 'string' && rawText.trim().length > 0;\n\n// Validation\nconst hasContentType = !!item.contentType;\nconst hasRawText = rawText !== undefined && rawText !== null;\nconst isValid = hasContentType && (isValidText || isStructured);\n\nlet errorMessage = '';\nif (!hasContentType) errorMessage = 'Missing contentType';\nelse if (!hasRawText) errorMessage = 'Missing rawText';\nelse if (!isValid) errorMessage = 'rawText must be a non-empty string or structured data';\n\nreturn {\n  json: {\n    contentType: item.contentType,\n    rawText: rawText,\n    isValid,\n    errorMessage,\n    isStructured,\n    isArray,\n    needsAIParsing: !isStructured\n  }\n};"
+      },
+      "id": "validation-node-id",
+      "name": "Validate & Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
     },
     {
       "parameters": {
@@ -45,26 +56,134 @@
           },
           "conditions": [
             {
+              "id": "is_valid",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validation-check-id",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs_parsing",
+              "leftValue": "={{ $json.needsAIParsing }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "needs-ai-parsing-id",
+      "name": "Needs AI Parsing?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle pre-structured data (skip AI parsing)\nconst item = $input.item.json;\n\n// Helper function to clean invalid Sanity references\nfunction cleanDocument(doc) {\n  const cleaned = { ...doc };\n  \n  // Check if image field exists and has invalid references\n  if (cleaned.image?.asset?._ref) {\n    const ref = cleaned.image.asset._ref;\n    // If ref is a URL (contains http/https), remove the image field\n    if (ref.startsWith('http://') || ref.startsWith('https://')) {\n      delete cleaned.image;\n    }\n  }\n  \n  // Remove _rev if it's 'draft' - let Sanity handle versioning\n  if (cleaned._rev === 'draft') {\n    delete cleaned._rev;\n  }\n  \n  return cleaned;\n}\n\nlet documents = [];\n\n// If rawText is already an array of objects\nif (Array.isArray(item.rawText)) {\n  documents = item.rawText.map((doc, index) => {\n    const baseDoc = {\n      ...doc,\n      _type: item.contentType.toLowerCase(),\n      _id: doc._id || `${item.contentType.toLowerCase()}-${Date.now()}-${index}`,\n      _createdAt: doc._createdAt || new Date().toISOString(),\n      _updatedAt: new Date().toISOString(),\n      order: doc.order !== undefined ? doc.order : index\n    };\n    return cleanDocument(baseDoc);\n  });\n} \n// If rawText is a single object\nelse if (typeof item.rawText === 'object' && item.rawText !== null) {\n  const baseDoc = {\n    ...item.rawText,\n    _type: item.contentType.toLowerCase(),\n    _id: item.rawText._id || `${item.contentType.toLowerCase()}-${Date.now()}`,\n    _createdAt: item.rawText._createdAt || new Date().toISOString(),\n    _updatedAt: new Date().toISOString()\n  };\n  documents = [cleanDocument(baseDoc)];\n}\n\n// Return a single item with all documents batched\nreturn {\n  json: {\n    allDocuments: documents,\n    contentType: item.contentType.toLowerCase(),\n    success: true,\n    skippedAI: true,\n    totalCount: documents.length\n  }\n};"
+      },
+      "id": "handle-structured-id",
+      "name": "Handle Pre-Structured Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
               "id": "experience",
-              "leftValue": "={{ $json.contentType }}",
+              "leftValue": "={{ $('Validate & Parse Input').item.json.contentType }}",
               "rightValue": "Experience",
               "operator": {
                 "type": "string",
                 "operation": "equals"
               }
-            },
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-experience-id",
+      "name": "Route: Experience",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 140]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
               "id": "project",
-              "leftValue": "={{ $json.contentType }}",
+              "leftValue": "={{ $('Validate & Parse Input').item.json.contentType }}",
               "rightValue": "Project",
               "operator": {
                 "type": "string",
                 "operation": "equals"
               }
-            },
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-project-id",
+      "name": "Route: Project",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
               "id": "certification",
-              "leftValue": "={{ $json.contentType }}",
+              "leftValue": "={{ $('Validate & Parse Input').item.json.contentType }}",
               "rightValue": "Certification",
               "operator": {
                 "type": "string",
@@ -72,94 +191,97 @@
               }
             }
           ],
-          "combinator": "or"
+          "combinator": "and"
         },
         "options": {}
       },
-      "id": "c3d4e5f6-g7h8-i9j0-klmn-op1234567890",
-      "name": "Route by Content Type",
+      "id": "route-certification-id",
+      "name": "Route: Certification",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [1340, 0]
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash-exp",
         "options": {
-          "temperature": 0
+          "temperature": 0.1,
+          "maxOutputTokens": 2048
         },
         "messages": {
           "values": [
             {
-              "content": "=You are an expert data structuring assistant for a Sanity CMS. Your task is to take the raw text provided and convert it into a valid JSON object that matches the required schema. Infer dates, technologies, and responsibilities from the text. If a value isn't present, omit the key.\n\nIMPORTANT FOR GEMINI: respond with ONLY valid JSON, no markdown fences, no extra text.\n\nThe required JSON schema is:\n{\n  \"position\": \"string\",\n  \"company\": \"string\",\n  \"companyUrl\": \"string (URL)\",\n  \"location\": \"string\",\n  \"startDate\": \"YYYY-MM-DD\",\n  \"endDate\": \"YYYY-MM-DD\",\n  \"current\": boolean,\n  \"description\": \"string\",\n  \"responsibilities\": [\"string\"],\n  \"technologies\": [\"string\"],\n  \"order\": 0\n}\n\nRules:\n- Set 'current' to true if the text mentions 'present', 'current', or similar.\n- If 'current' is true, omit 'endDate'.\n- Convert date strings to YYYY-MM-DD format.\n- Extract the main company URL if mentioned, otherwise omit.\n- Set 'order' to 0 by default.\n\nRaw Text:\n---\n{{ $json.rawText }}\n---",
+              "content": "=You are a data extraction specialist. Extract work experience information from the provided text and return ONLY a valid JSON object (no markdown, no extra text).\n\nSchema:\n{\n  \"_id\": \"experience-{{ Date.now() }}\",\n  \"_type\": \"experience\",\n  \"position\": \"string (required)\",\n  \"company\": \"string (required)\",\n  \"companyUrl\": \"string (optional, valid URL)\",\n  \"location\": \"string (optional)\",\n  \"startDate\": \"YYYY-MM-DD (required)\",\n  \"endDate\": \"YYYY-MM-DD (omit if current)\",\n  \"current\": boolean,\n  \"description\": \"string (1-2 sentence summary)\",\n  \"responsibilities\": [\"specific achievements or tasks\"],\n  \"technologies\": [\"technology names only\"],\n  \"order\": 0\n}\n\nRules:\n1. current=true if text mentions \"present\", \"current\", \"ongoing\"\n2. If current=true, omit endDate entirely\n3. Parse flexible date formats to YYYY-MM-DD (assume day 01 if not specified)\n4. Extract only mentioned technologies (no assumptions)\n5. Responsibilities should be specific achievements, not generic duties\n6. Generate unique _id using timestamp\n7. Return ONLY the JSON object, no wrapping text\n\nText:\n{{ $('Validate & Parse Input').item.json.rawText }}",
               "additionalFields": {}
             }
           ]
         }
       },
       "id": "d4e5f6g7-h8i9-j0k1-lmno-pq1234567890",
-      "name": "AI Prompt - Experience (Gemini)",
+      "name": "AI: Structure Experience",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [900, 200],
+      "position": [1560, 140],
       "credentials": {
         "googlePalmApi": {
           "id": "google_gemini_credentials",
-          "name": "Google Gemini(PaLM) Api account"
+          "name": "Google Gemini API"
         }
       }
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash-exp",
         "options": {
-          "temperature": 0
+          "temperature": 0.1,
+          "maxOutputTokens": 2048
         },
         "messages": {
           "values": [
             {
-              "content": "=You are an expert data structuring assistant for a Sanity CMS. Your task is to take the raw text provided and convert it into a valid JSON object that matches the required schema.\n\nIMPORTANT FOR GEMINI: respond with ONLY valid JSON, no markdown fences, no extra text.\n\nThe required JSON schema is:\n{\n  \"title\": \"string\",\n  \"slug\": { \"_type\": \"slug\", \"current\": \"kebab-case-title\" },\n  \"description\": \"string (max 200 chars)\",\n  \"longDescription\": \"string\",\n  \"category\": \"Web Development | Mobile App | Machine Learning | Data Science | DevOps | Other\",\n  \"technologies\": [\"string\"],\n  \"status\": \"In Progress | Completed | Archived\",\n  \"featured\": boolean,\n  \"liveUrl\": \"string (URL)\",\n  \"githubUrl\": \"string (URL)\",\n  \"startDate\": \"YYYY-MM-DD\",\n  \"endDate\": \"YYYY-MM-DD\",\n  \"order\": 0\n}\n\nRules:\n- Generate a slug from the title (lowercase, dashes, no special chars).\n- Keep description under 200 characters.\n- Infer category from the technologies mentioned.\n- Set 'featured' to false by default.\n- Set 'order' to 0 by default.\n\nRaw Text:\n---\n{{ $json.rawText }}\n---",
+              "content": "=You are a data extraction specialist. Extract project information from the provided text and return ONLY a valid JSON object (no markdown, no extra text).\n\nSchema:\n{\n  \"_id\": \"project-{{ Date.now() }}\",\n  \"_type\": \"project\",\n  \"title\": \"string (required)\",\n  \"slug\": { \"_type\": \"slug\", \"current\": \"kebab-case-string\" },\n  \"description\": \"string (max 200 chars, required)\",\n  \"longDescription\": \"string (2-3 paragraphs, optional)\",\n  \"category\": \"Web Development | Mobile App | Machine Learning | Data Science | DevOps | Cloud Infrastructure | Other\",\n  \"technologies\": [\"specific tech stack items\"],\n  \"status\": \"In Progress | Completed | Archived | Planned\",\n  \"featured\": boolean,\n  \"liveUrl\": \"string (valid URL, optional)\",\n  \"githubUrl\": \"string (valid URL, optional)\",\n  \"startDate\": \"YYYY-MM-DD (optional)\",\n  \"endDate\": \"YYYY-MM-DD (optional)\",\n  \"order\": 0\n}\n\nRules:\n1. Generate slug from title (lowercase, hyphens, alphanumeric only)\n2. description must be concise, under 200 chars\n3. Infer category from technologies and project type\n4. featured=false by default unless explicitly stated as important/showcase\n5. Parse dates to YYYY-MM-DD format\n6. Validate URLs if present\n7. Return ONLY the JSON object, no wrapping text\n\nText:\n{{ $('Validate & Parse Input').item.json.rawText }}",
               "additionalFields": {}
             }
           ]
         }
       },
       "id": "e5f6g7h8-i9j0-k1l2-mnop-qr1234567890",
-      "name": "AI Prompt - Project (Gemini)",
+      "name": "AI: Structure Project",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [900, 300],
+      "position": [1560, 280],
       "credentials": {
         "googlePalmApi": {
           "id": "google_gemini_credentials",
-          "name": "Google Gemini(PaLM) Api account"
+          "name": "Google Gemini API"
         }
       }
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash-exp",
         "options": {
-          "temperature": 0
+          "temperature": 0.1,
+          "maxOutputTokens": 2048
         },
         "messages": {
           "values": [
             {
-              "content": "=You are an expert data structuring assistant for a Sanity CMS. Your task is to take the raw text provided and convert it into a valid JSON object that matches the required schema.\n\nIMPORTANT FOR GEMINI: respond with ONLY valid JSON, no markdown fences, no extra text.\n\nThe required JSON schema is:\n{\n  \"title\": \"string\",\n  \"issuer\": \"string\",\n  \"description\": \"string\",\n  \"credentialId\": \"string\",\n  \"credentialUrl\": \"string (URL)\",\n  \"issueDate\": \"YYYY-MM-DD\",\n  \"expiryDate\": \"YYYY-MM-DD\",\n  \"skills\": [\"string\"],\n  \"order\": 0\n}\n\nRules:\n- Omit 'expiryDate' if the certification does not expire.\n- Extract credential ID and URL if mentioned.\n- Infer skills from the certification title and description.\n- Set 'order' to 0 by default.\n\nRaw Text:\n---\n{{ $json.rawText }}\n---",
+              "content": "=You are a data extraction specialist. Extract certification information from the provided text and return ONLY a valid JSON object (no markdown, no extra text).\n\nSchema:\n{\n  \"_id\": \"certification-{{ Date.now() }}\",\n  \"_type\": \"certification\",\n  \"title\": \"string (required)\",\n  \"issuer\": \"string (required)\",\n  \"description\": \"string (optional)\",\n  \"credentialId\": \"string (optional)\",\n  \"credentialUrl\": \"string (valid URL, optional)\",\n  \"issueDate\": \"YYYY-MM-DD (required)\",\n  \"expiryDate\": \"YYYY-MM-DD (omit if doesn't expire)\",\n  \"doesNotExpire\": boolean,\n  \"skills\": [\"specific skills validated by certification\"],\n  \"order\": 0\n}\n\nRules:\n1. Extract exact certification title and issuing organization\n2. doesNotExpire=true only if explicitly stated or known perpetual cert\n3. Omit expiryDate if doesNotExpire=true or no expiry mentioned\n4. Parse dates to YYYY-MM-DD format\n5. Infer relevant skills from certification name and description\n6. Validate credentialUrl if present\n7. Return ONLY the JSON object, no wrapping text\n\nText:\n{{ $('Validate & Parse Input').item.json.rawText }}",
               "additionalFields": {}
             }
           ]
         }
       },
       "id": "f6g7h8i9-j0k1-l2m3-nopq-rs1234567890",
-      "name": "AI Prompt - Certification (Gemini)",
+      "name": "AI: Structure Certification",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [900, 400],
+      "position": [1560, 0],
       "credentials": {
         "googlePalmApi": {
           "id": "google_gemini_credentials",
-          "name": "Google Gemini(PaLM) Api account"
+          "name": "Google Gemini API"
         }
       }
     },
@@ -170,185 +292,269 @@
         "options": {}
       },
       "id": "g7h8i9j0-k1l2-m3n4-opqr-st1234567890",
-      "name": "Merge AI Outputs",
+      "name": "Merge AI Routes",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1120, 300]
+      "position": [1780, 140]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean and parse AI response\nconst item = $input.item.json;\n\n// Get raw AI output (handle different response formats)\nlet rawOutput = item.text || item.content || item.message?.content || item.output || '';\n\n// Remove markdown code fences if present\nrawOutput = rawOutput.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\n// Remove any leading/trailing non-JSON text\nconst jsonMatch = rawOutput.match(/\\{[\\s\\S]*\\}/);\nif (!jsonMatch) {\n  throw new Error('No valid JSON found in AI response');\n}\n\nconst cleanJson = jsonMatch[0];\n\ntry {\n  const parsed = JSON.parse(cleanJson);\n  \n  // Add metadata\n  parsed._createdAt = new Date().toISOString();\n  parsed._updatedAt = new Date().toISOString();\n  \n  // Get content type from input\n  const contentType = $('Validate & Parse Input').item.json.contentType.toLowerCase();\n  \n  return {\n    json: {\n      parsedData: parsed,\n      contentType: contentType,\n      originalText: $('Validate & Parse Input').item.json.rawText,\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      success: false,\n      error: error.message,\n      rawOutput: cleanJson,\n      contentType: $('Validate & Parse Input').item.json.contentType\n    }\n  };\n}"
+      },
+      "id": "h8i9j0k1-l2m3-n4o5-pqrs-tu1234567890",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 140]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success_check",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "parse-success-check-id",
+      "name": "Parse Successful?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare batched mutations for Sanity\nconst item = $input.item.json;\n\n// Check if we have a single document or multiple\nlet documents = [];\n\nif (item.allDocuments) {\n  // Coming from batch processing (array of certifications)\n  documents = item.allDocuments;\n} else if (item.parsedData) {\n  // Coming from AI parsing (single document)\n  documents = [item.parsedData];\n}\n\n// Create mutations array - batch all documents in one request\nconst mutations = documents.map(doc => ({\n  createOrReplace: doc\n}));\n\nreturn {\n  json: {\n    mutations: mutations,\n    documentCount: documents.length,\n    contentType: item.contentType,\n    success: true\n  }\n};"
+      },
+      "id": "prepare-batch-mutations-id",
+      "name": "Prepare Batch Mutations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://' + $env.SANITY_PROJECT_ID + '.api.sanity.io/v2023-05-03/data/mutate/' + $env.SANITY_DATASET }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SANITY_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ mutations: $json.mutations }) }}",
+        "options": {
+          "timeout": 30000,
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 2000
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "i9j0k1l2-m3n4-o5p6-qrst-uv1234567890",
+      "name": "Create/Update Sanity Docs (Batched)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 180]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "parsed_data",
-              "name": "parsedData",
-              "value": "={{ JSON.parse($json.text || $json.content || $json.message?.content || '{}') }}",
-              "type": "object"
+              "id": "success_response",
+              "name": "message",
+              "value": "=Successfully created/updated {{ $('Prepare Batch Mutations').item.json.documentCount }} {{ $('Prepare Batch Mutations').item.json.contentType }} document(s) in Sanity",
+              "type": "string"
             },
             {
-              "id": "content_type_lower",
-              "name": "contentTypeLower",
-              "value": "={{ $('Set Input Data').item.json.contentType.toLowerCase() }}",
+              "id": "document_count",
+              "name": "documentCount",
+              "value": "={{ $('Prepare Batch Mutations').item.json.documentCount }}",
+              "type": "number"
+            },
+            {
+              "id": "sanity_response",
+              "name": "sanityResponse",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-response-id",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [2880, 180]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error_response",
+              "name": "error",
+              "value": "={{ $json.errorMessage || 'Validation failed' }}",
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "name": "status",
+              "value": "validation_error",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "h8i9j0k1-l2m3-n4o5-pqrs-tu1234567890",
-      "name": "Parse AI Response",
+      "id": "validation-error-id",
+      "name": "Validation Error",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [1340, 300]
+      "position": [1120, 520]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://{{ $env.SANITY_PROJECT_ID }}.api.sanity.io/v2021-06-07/data/mutate/{{ $env.SANITY_DATASET }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "sanityApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "assignments": {
+          "assignments": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.SANITY_API_TOKEN }}"
+              "id": "parse_error",
+              "name": "error",
+              "value": "={{ $json.error || 'Failed to parse AI response' }}",
+              "type": "string"
             },
             {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
+              "id": "status",
+              "name": "status",
+              "value": "parse_error",
+              "type": "string"
+            },
             {
-              "name": "mutations",
-              "value": "={{ JSON.stringify([{ createOrReplace: { _type: $json.contentTypeLower, ...$json.parsedData } }]) }}"
+              "id": "raw_output",
+              "name": "rawOutput",
+              "value": "={{ $json.rawOutput }}",
+              "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "i9j0k1l2-m3n4-o5p6-qrst-uv1234567890",
-      "name": "Create Sanity Document",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1560, 300]
+      "id": "parse-error-id",
+      "name": "Parse Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [2440, 380]
     }
   ],
   "connections": {
     "Manual Trigger": {
-      "main": [
-        [
-          {
-            "node": "Set Input Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Set Input Data", "type": "main", "index": 0 }]]
     },
     "Set Input Data": {
+      "main": [[{ "node": "Validate & Parse Input", "type": "main", "index": 0 }]]
+    },
+    "Validate & Parse Input": {
+      "main": [[{ "node": "Is Valid?", "type": "main", "index": 0 }]]
+    },
+    "Is Valid?": {
       "main": [
-        [
-          {
-            "node": "Route by Content Type",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Needs AI Parsing?", "type": "main", "index": 0 }],
+        [{ "node": "Validation Error", "type": "main", "index": 0 }]
       ]
     },
-    "Route by Content Type": {
+    "Needs AI Parsing?": {
       "main": [
         [
-          {
-            "node": "AI Prompt - Experience (Gemini)",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Route: Experience", "type": "main", "index": 0 },
+          { "node": "Route: Project", "type": "main", "index": 0 },
+          { "node": "Route: Certification", "type": "main", "index": 0 }
         ],
-        [
-          {
-            "node": "AI Prompt - Project (Gemini)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "AI Prompt - Certification (Gemini)",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Handle Pre-Structured Data", "type": "main", "index": 0 }]
       ]
     },
-    "AI Prompt - Experience (Gemini)": {
-      "main": [
-        [
-          {
-            "node": "Merge AI Outputs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Handle Pre-Structured Data": {
+      "main": [[{ "node": "Parse Successful?", "type": "main", "index": 0 }]]
     },
-    "AI Prompt - Project (Gemini)": {
-      "main": [
-        [
-          {
-            "node": "Merge AI Outputs",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
+    "Route: Experience": {
+      "main": [[{ "node": "AI: Structure Experience", "type": "main", "index": 0 }]]
     },
-    "AI Prompt - Certification (Gemini)": {
-      "main": [
-        [
-          {
-            "node": "Merge AI Outputs",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
+    "Route: Project": {
+      "main": [[{ "node": "AI: Structure Project", "type": "main", "index": 0 }]]
     },
-    "Merge AI Outputs": {
-      "main": [
-        [
-          {
-            "node": "Parse AI Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Route: Certification": {
+      "main": [[{ "node": "AI: Structure Certification", "type": "main", "index": 0 }]]
+    },
+    "AI: Structure Experience": {
+      "main": [[{ "node": "Merge AI Routes", "type": "main", "index": 0 }]]
+    },
+    "AI: Structure Project": {
+      "main": [[{ "node": "Merge AI Routes", "type": "main", "index": 1 }]]
+    },
+    "AI: Structure Certification": {
+      "main": [[{ "node": "Merge AI Routes", "type": "main", "index": 2 }]]
+    },
+    "Merge AI Routes": {
+      "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]]
     },
     "Parse AI Response": {
+      "main": [[{ "node": "Parse Successful?", "type": "main", "index": 0 }]]
+    },
+    "Parse Successful?": {
       "main": [
-        [
-          {
-            "node": "Create Sanity Document",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Prepare Batch Mutations", "type": "main", "index": 0 }],
+        [{ "node": "Parse Error", "type": "main", "index": 0 }]
       ]
+    },
+    "Prepare Batch Mutations": {
+      "main": [[{ "node": "Create/Update Sanity Docs (Batched)", "type": "main", "index": 0 }]]
+    },
+    "Create/Update Sanity Docs (Batched)": {
+      "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]]
     }
   },
   "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
   },
   "staticData": null,
   "tags": [],
   "triggerCount": 0,
   "updatedAt": "2025-10-30T04:23:39.000Z",
-  "versionId": "1"
+  "versionId": "3"
 }
