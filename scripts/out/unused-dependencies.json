@@ -1,7 +1,6 @@
 [
-  "@next/third-parties",
   "@tailwindcss/postcss",
-  "server-only",
   "stylelint-config-standard-scss",
+  "tsx",
   "tw-animate-css"
 ]

@@ -1,6 +1,6 @@
 [
+  "@babel/generator",
   "@graphql-codegen/cli",
   "@graphql-codegen/typescript",
-  "@graphql-codegen/typescript-operations",
-  "@testing-library/react"
+  "@graphql-codegen/typescript-operations"
 ]
