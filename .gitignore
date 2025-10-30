@@ -78,3 +78,7 @@ docker-compose.override.yml
 .sanity
 dist
 dev.log
+
+# n8n automation
+n8n_data/
+.n8n/

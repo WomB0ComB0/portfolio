@@ -115,10 +115,10 @@ export const LeetCodeStats = memo(() => {
       }
     >
       <div className="space-y-4">
-        <div className="mx-auto w-full text-center space-x-2 flex flex-col justify-center items-baseline">
+        <div className="mx-auto w-full text-center space-y-1">
           <span className="text-sm text-primary-background/70 w-full">Total Solved</span>
           <NumberTicker
-            className="text-3xl font-bold text-primary-background w-full"
+            className="text-3xl md:text-4xl font-bold text-primary-background w-full"
             value={totalSolved}
           />
         </div>
@@ -136,16 +136,16 @@ export const LeetCodeStats = memo(() => {
           ))}
         </div>
         <Separator className="my-4 bg-primary-background/10" />
-        <div className="grid grid-cols-2 gap-4 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
           <div>
             <span className="text-xs text-primary-background/70">Acceptance</span>
-            <p className="text-xl font-semibold text-primary-background">
+            <p className="text-lg sm:text-xl font-semibold text-primary-background">
               {acceptanceRate.toFixed(1)}%
             </p>
           </div>
           <div>
             <span className="text-xs text-primary-background/70">Ranking</span>
-            <p className="text-xl font-semibold text-primary-background">
+            <p className="text-lg sm:text-xl font-semibold text-primary-background">
               Top {ranking.toLocaleString()}
             </p>
           </div>

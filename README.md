@@ -8,7 +8,8 @@
 
 # 🚀 WomB0ComB0 Portfolio: Your Digital Canvas
 
-An interactive and high-performance developer portfolio showcasing projects, real-time insights, and a dynamic online presence.
+An interactive and high-performance developer portfolio showcasing projects, real-time insights, and
+a dynamic online presence.
 
 [![GitHub Workflow Status - Build](https://img.shields.io/github/actions/workflow/status/WomB0ComB0/portfolio/nextjs_bundle_analysis.yml?branch=main&label=build)](https://github.com/WomB0ComB0/portfolio/actions/workflows/nextjs_bundle_analysis.yml)
 [![GitHub Workflow Status - Lint](https://img.shields.io/github/actions/workflow/status/WomB0ComB0/portfolio/lint.yml?branch=main&label=lint)](https://github.com/WomB0ComB0/portfolio/actions/workflows/lint.yml)
@@ -79,23 +80,33 @@ An interactive and high-performance developer portfolio showcasing projects, rea
 
 ### What is this Application?
 
-This project is a sophisticated, interactive personal portfolio application built with Next.js (App Router), TypeScript, and a robust API backend powered by [Elysia.js](https://elysiajs.com/). It serves as a central hub for displaying a developer's profile, skills, resume, blog posts, projects, and various real-time statistics (e.g., Spotify activity, coding insights from Wakatime, GitHub stats, Discord presence via Lanyard). The application is designed to be highly dynamic, engaging, and performant.
+This project is a sophisticated, interactive personal portfolio application built with Next.js (App
+Router), TypeScript, and a robust API backend powered by [Elysia.js](https://elysiajs.com/). It
+serves as a central hub for displaying a developer's profile, skills, resume, blog posts, projects,
+and various real-time statistics (e.g., Spotify activity, coding insights from Wakatime, GitHub
+stats, Discord presence via Lanyard). The application is designed to be highly dynamic, engaging,
+and performant.
 
 ### Purpose & Goals
 
 The primary goals of this application are:
 
--   **Showcase Expertise:** Present a comprehensive and visually appealing overview of the developer's professional journey, skills, and projects.
--   **Dynamic Engagement:** Provide interactive elements such as a guestbook, real-time data visualizations, and an intuitive command palette to enhance user experience.
--   **Technical Proficiency:** Demonstrate advanced modern web development practices, including server-side rendering, API integrations, robust error handling, security measures, and PWA capabilities.
--   **Centralized Presence:** Consolidate disparate online activities (blog, social media, coding stats) into a single, cohesive platform.
+- **Showcase Expertise:** Present a comprehensive and visually appealing overview of the developer's
+  professional journey, skills, and projects.
+- **Dynamic Engagement:** Provide interactive elements such as a guestbook, real-time data
+  visualizations, and an intuitive command palette to enhance user experience.
+- **Technical Proficiency:** Demonstrate advanced modern web development practices, including
+  server-side rendering, API integrations, robust error handling, security measures, and PWA
+  capabilities.
+- **Centralized Presence:** Consolidate disparate online activities (blog, social media, coding
+  stats) into a single, cohesive platform.
 
 ### Target Audience
 
--   **Recruiters & Hiring Managers:** To quickly assess skills, experience, and project quality.
--   **Potential Collaborators:** To find synergy for joint projects or initiatives.
--   **Fellow Developers:** To inspire, share knowledge, and explore technical implementations.
--   **General Visitors:** Anyone interested in the developer's work, thoughts, or online presence.
+- **Recruiters & Hiring Managers:** To quickly assess skills, experience, and project quality.
+- **Potential Collaborators:** To find synergy for joint projects or initiatives.
+- **Fellow Developers:** To inspire, share knowledge, and explore technical implementations.
+- **General Visitors:** Anyone interested in the developer's work, thoughts, or online presence.
 
 ---
 
@@ -107,40 +118,61 @@ This portfolio is packed with features designed to provide a rich and informativ
 
 ### 🚀 Performance & UX
 
-*   **Blazing Fast Performance:** Leverages Next.js App Router for optimal server-side rendering (SSR), static site generation (SSG), and client-side navigation.
-*   **Modern & Responsive UI:** Built with [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/), and custom [MagicUI](https://magicui.design/) components for a beautiful, adaptive design across devices.
-*   **Progressive Web App (PWA):** Installable for a native app-like experience, offering offline capabilities and faster load times.
-*   **Command Palette (KBar):** A powerful `Cmd+K` (or `Ctrl+K`) interface for quick navigation and actions throughout the site.
+- **Blazing Fast Performance:** Leverages Next.js App Router for optimal server-side rendering
+  (SSR), static site generation (SSG), and client-side navigation.
+- **Modern & Responsive UI:** Built with [Tailwind CSS](https://tailwindcss.com/),
+  [shadcn/ui](https://ui.shadcn.com/), and custom [MagicUI](https://magicui.design/) components for
+  a beautiful, adaptive design across devices.
+- **Progressive Web App (PWA):** Installable for a native app-like experience, offering offline
+  capabilities and faster load times.
+- **Command Palette (KBar):** A powerful `Cmd+K` (or `Ctrl+K`) interface for quick navigation and
+  actions throughout the site.
 
 ### 📝 Content & Data Management
 
-*   **Sanity.io CMS Integration:** Effortlessly manage projects, experiences, certifications, and other static content via a headless CMS, ensuring content creators have full control without touching code.
-*   **Hashnode Blog Integration:** Fetches and displays blog posts directly from a Hashnode blog, centralizing content.
-*   **Interactive Guestbook:** Users can sign in (via Firebase Auth) to leave messages, fostering community engagement and providing social interaction.
-*   **Dynamic Image Optimization:** Images are optimized and served efficiently using Next.js Image component and Sanity's image CDN.
+- **Sanity.io CMS Integration:** Effortlessly manage projects, experiences, certifications, and
+  other static content via a headless CMS, ensuring content creators have full control without
+  touching code.
+- **Hashnode Blog Integration:** Fetches and displays blog posts directly from a Hashnode blog,
+  centralizing content.
+- **Interactive Guestbook:** Users can sign in (via Firebase Auth) to leave messages, fostering
+  community engagement and providing social interaction.
+- **Dynamic Image Optimization:** Images are optimized and served efficiently using Next.js Image
+  component and Sanity's image CDN.
 
 ### 📊 Real-time Data & Insights
 
-*   **Spotify Now Playing:** Displays current Spotify listening activity in real-time.
-*   **Top Artists/Tracks:** Showcases frequently listened-to music from Spotify.
-*   **GitHub Statistics:** Dynamically displays profile stats and pinned repositories from GitHub.
-*   **Wakatime Coding Stats:** Integrates with Wakatime to visualize coding activity, languages, and editors.
-*   **Discord Presence (Lanyard):** Shows current Discord status and activity, providing a live snapshot of online presence.
-*   **Google Analytics & Vitals:** Integrated for performance monitoring and user behavior tracking, with client-side Web Vitals reporting.
+- **Spotify Now Playing:** Displays current Spotify listening activity in real-time.
+- **Top Artists/Tracks:** Showcases frequently listened-to music from Spotify.
+- **GitHub Statistics:** Dynamically displays profile stats and pinned repositories from GitHub.
+- **Wakatime Coding Stats:** Integrates with Wakatime to visualize coding activity, languages, and
+  editors.
+- **Discord Presence (Lanyard):** Shows current Discord status and activity, providing a live
+  snapshot of online presence.
+- **Google Analytics & Vitals:** Integrated for performance monitoring and user behavior tracking,
+  with client-side Web Vitals reporting.
 
 ### 🔒 Security & Reliability
 
-*   **CSRF Protection:** Protects against cross-site request forgery attacks on API endpoints.
-*   **Rate Limiting:** Prevents abuse and ensures API stability by limiting request frequency.
-*   **IP Banlist:** Blocks malicious IP addresses from accessing sensitive API routes.
-*   **Edge-Optimized APIs:** A dedicated backend built with [Elysia.js](https://elysiajs.com/) (running on Edge functions) for high-performance, low-latency API routes, handling external integrations and guestbook submissions securely.
+- **CSRF Protection:** Protects against cross-site request forgery attacks on API endpoints.
+- **Rate Limiting:** Prevents abuse and ensures API stability by limiting request frequency.
+- **IP Banlist:** Blocks malicious IP addresses from accessing sensitive API routes.
+- **Edge-Optimized APIs:** A dedicated backend built with [Elysia.js](https://elysiajs.com/)
+  (running on Edge functions) for high-performance, low-latency API routes, handling external
+  integrations and guestbook submissions securely.
 
 ### ⚙️ Development & Maintenance
 
-*   **Comprehensive Tooling:** Integrates [Bun](https://bun.sh/) for fast dependency management and script execution, [Biome](https://biomejs.dev/) for linting/formatting, [Vitest](https://vitest.dev/) for unit testing, and [Playwright](https://playwright.dev/) for end-to-end testing.
-*   **Docker Support:** Ready-to-use `Dockerfile` and `docker-compose.yml` for easy containerized deployment.
-*   **SEO Ready:** Dynamic Sitemap & Robots.txt generation, structured data, and Open Graph (OG) image generation for optimal search engine indexing and social media sharing.
-*   **Strict Type Safety:** Fully built with TypeScript, ensuring robust code and fewer runtime errors.
+- **Comprehensive Tooling:** Integrates [Bun](https://bun.sh/) for fast dependency management and
+  script execution, [Biome](https://biomejs.dev/) for linting/formatting,
+  [Vitest](https://vitest.dev/) for unit testing, and [Playwright](https://playwright.dev/) for
+  end-to-end testing.
+- **Docker Support:** Ready-to-use `Dockerfile` and `docker-compose.yml` for easy containerized
+  deployment.
+- **SEO Ready:** Dynamic Sitemap & Robots.txt generation, structured data, and Open Graph (OG) image
+  generation for optimal search engine indexing and social media sharing.
+- **Strict Type Safety:** Fully built with TypeScript, ensuring robust code and fewer runtime
+  errors.
 
 ---
 
@@ -148,11 +180,14 @@ This portfolio is packed with features designed to provide a rich and informativ
 
 [[⬆️ Back to Top](#️-table-of-contents)]
 
-The WomB0ComB0 Portfolio application follows a modern, distributed architecture leveraging a hybrid approach of server-side rendering (SSR), static site generation (SSG), and API routes, orchestrated by Next.js and Elysia.js.
+The WomB0ComB0 Portfolio application follows a modern, distributed architecture leveraging a hybrid
+approach of server-side rendering (SSR), static site generation (SSG), and API routes, orchestrated
+by Next.js and Elysia.js.
 
 ### High-Level Component Diagram
 
-This diagram illustrates the primary components and their interactions within the application ecosystem.
+This diagram illustrates the primary components and their interactions within the application
+ecosystem.
 
 ```mermaid
 flowchart TD
@@ -213,55 +248,71 @@ flowchart TD
 ### Core Components & Responsibilities
 
 1.  **Next.js Application (`src/app/`, `src/components/`, `src/lib/`, `src/hooks/`)**
-    *   **Frontend Rendering:** Manages all client-side and server-side rendering using the App Router. Responsible for displaying the UI, handling navigation, and providing interactive elements.
-    *   **Data Fetching:** Initiates requests to the Elysia.js API or Sanity.io CDN for dynamic content. Utilizes React Server Components (RSC) and SWR caching for efficient data management.
-    *   **UI/UX:** Integrates Tailwind CSS, `shadcn/ui`, and custom MagicUI components for a polished, responsive, and animated user interface.
-    *   **PWA & SEO:** Handles manifest, service worker registration, sitemap, robots.txt, and Open Graph meta tags.
+    - **Frontend Rendering:** Manages all client-side and server-side rendering using the App
+      Router. Responsible for displaying the UI, handling navigation, and providing interactive
+      elements.
+    - **Data Fetching:** Initiates requests to the Elysia.js API or Sanity.io CDN for dynamic
+      content. Utilizes React Server Components (RSC) and SWR caching for efficient data management.
+    - **UI/UX:** Integrates Tailwind CSS, `shadcn/ui`, and custom MagicUI components for a polished,
+      responsive, and animated user interface.
+    - **PWA & SEO:** Handles manifest, service worker registration, sitemap, robots.txt, and Open
+      Graph meta tags.
 
-2.  **Elysia.js API Gateway (`src/app/api/[[...route]]/elysia.ts`, `src/app/api/v1/[[...route]]/elysia.ts`)**
-    *   **Centralized Backend:** A lightweight, high-performance API backend built with [Elysia.js](https://elysiajs.com/), designed to run efficiently on Edge functions.
-    *   **External Integrations:** Acts as a proxy and aggregator for various external APIs (Spotify, GitHub, Wakatime, Lanyard, Hashnode), abstracting their complexities and providing a unified interface.
-    *   **Guestbook Management:** Handles guestbook message submission, storage (Firebase), and retrieval.
-    *   **Security Layer:** Implements CSRF protection, rate limiting, and an IP banlist to secure API endpoints.
-    *   **Data Caching:** Leverages Redis for caching frequently accessed data from external APIs to reduce load and improve response times.
+2.  **Elysia.js API Gateway (`src/app/api/[[...route]]/elysia.ts`,
+    `src/app/api/v1/[[...route]]/elysia.ts`)**
+    - **Centralized Backend:** A lightweight, high-performance API backend built with
+      [Elysia.js](https://elysiajs.com/), designed to run efficiently on Edge functions.
+    - **External Integrations:** Acts as a proxy and aggregator for various external APIs (Spotify,
+      GitHub, Wakatime, Lanyard, Hashnode), abstracting their complexities and providing a unified
+      interface.
+    - **Guestbook Management:** Handles guestbook message submission, storage (Firebase), and
+      retrieval.
+    - **Security Layer:** Implements CSRF protection, rate limiting, and an IP banlist to secure API
+      endpoints.
+    - **Data Caching:** Leverages Redis for caching frequently accessed data from external APIs to
+      reduce load and improve response times.
 
 3.  **Sanity.io CMS (`sanity.config.ts`, `src/sanity/`)**
-    *   **Headless Content Management:** Provides a flexible content management system for structured data such as projects, experiences, certifications, and resume details.
-    *   **Content API:** Offers a GraphQL API (or GROQ query language) to fetch content, which Next.js consumes.
-    *   **Sanity Studio:** A customizable UI for content editors to manage and publish content.
+    - **Headless Content Management:** Provides a flexible content management system for structured
+      data such as projects, experiences, certifications, and resume details.
+    - **Content API:** Offers a GraphQL API (or GROQ query language) to fetch content, which Next.js
+      consumes.
+    - **Sanity Studio:** A customizable UI for content editors to manage and publish content.
 
 4.  **Firebase (`src/core/firebase.ts`, `src/core/firebase-admin.ts`)**
-    *   **Authentication:** Manages user authentication for interactive features like the guestbook.
-    *   **Firestore:** Used as a NoSQL database for storing dynamic user-generated content, specifically guestbook messages.
+    - **Authentication:** Manages user authentication for interactive features like the guestbook.
+    - **Firestore:** Used as a NoSQL database for storing dynamic user-generated content,
+      specifically guestbook messages.
 
 5.  **Redis (`src/classes/redis.ts`)**
-    *   **Distributed Cache:** Utilized by the Elysia.js API to cache responses from external services, minimizing repeated API calls and improving performance.
+    - **Distributed Cache:** Utilized by the Elysia.js API to cache responses from external
+      services, minimizing repeated API calls and improving performance.
 
 ### Technology Stack
 
-| Category            | Technology                 | Description                                                                                                                                              |
-| :------------------ | :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Frontend**        | Next.js (App Router)       | React framework for full-stack applications, enabling SSR, SSG, and API routes.                                                                          |
-|                     | React                      | JavaScript library for building user interfaces.                                                                                                         |
-|                     | TypeScript                 | Statically typed superset of JavaScript for enhanced code quality and maintainability.                                                                   |
-|                     | Tailwind CSS               | Utility-first CSS framework for rapid UI development.                                                                                                    |
-|                     | `shadcn/ui`                | Collection of re-usable components built with Radix UI and Tailwind CSS.                                                                                 |
-|                     | MagicUI                    | Custom animations and interactive UI components.                                                                                                         |
-|                     | Jotai                      | Primitive and flexible state management for React.                                                                                                       |
-| **Backend API**     | Elysia.js                  | Fast, lightweight, and type-safe web framework for building HTTP APIs, optimized for Bun and Edge environments.                                          |
-|                     | Redis                      | In-memory data store used for caching API responses.                                                                                                     |
-| **CMS**             | Sanity.io                  | Headless CMS for structured content management (projects, experiences, certifications, blog settings).                                                   |
-| **Database/Auth**   | Firebase (Auth, Firestore) | Google's platform for user authentication and real-time NoSQL database (for guestbook messages).                                                         |
-| **Runtime**         | Bun                        | All-in-one JavaScript runtime, bundler, transpiler, and package manager, used for development and build processes.                                     |
-| **Testing**         | Vitest                     | Fast unit and integration test framework.                                                                                                                |
-|                     | Playwright                 | End-to-end testing framework for robust browser automation.                                                                                              |
-| **Code Quality**    | Biome                      | All-in-one toolchain for web projects (formatter, linter).                                                                                               |
-|                     | ESLint                     | Pluggable linting utility for JavaScript and TypeScript.                                                                                                 |
-|                     | Prettier                   | Opinionated code formatter.                                                                                                                              |
-| **Deployment**      | Vercel                     | Platform for frontend frameworks, enabling seamless deployment of Next.js applications and Edge functions.                                               |
-|                     | Docker                     | Containerization platform for consistent development and deployment environments.                                                                        |
-| **CI/CD**           | GitHub Actions             | Automation workflows for continuous integration and deployment (linting, testing, building, Docker images).                                              |
-| **Misc. Integrations** | GitHub, Spotify, Wakatime, Lanyard, Hashnode | APIs for fetching dynamic profile information, music activity, coding statistics, Discord status, and blog posts. |
+| Category               | Technology                                   | Description                                                                                                        |
+| :--------------------- | :------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| **Frontend**           | Next.js (App Router)                         | React framework for full-stack applications, enabling SSR, SSG, and API routes.                                    |
+|                        | React                                        | JavaScript library for building user interfaces.                                                                   |
+|                        | TypeScript                                   | Statically typed superset of JavaScript for enhanced code quality and maintainability.                             |
+|                        | Tailwind CSS                                 | Utility-first CSS framework for rapid UI development.                                                              |
+|                        | `shadcn/ui`                                  | Collection of re-usable components built with Radix UI and Tailwind CSS.                                           |
+|                        | MagicUI                                      | Custom animations and interactive UI components.                                                                   |
+|                        | Jotai                                        | Primitive and flexible state management for React.                                                                 |
+| **Backend API**        | Elysia.js                                    | Fast, lightweight, and type-safe web framework for building HTTP APIs, optimized for Bun and Edge environments.    |
+|                        | Redis                                        | In-memory data store used for caching API responses.                                                               |
+| **CMS**                | Sanity.io                                    | Headless CMS for structured content management (projects, experiences, certifications, blog settings).             |
+| **Database/Auth**      | Firebase (Auth, Firestore)                   | Google's platform for user authentication and real-time NoSQL database (for guestbook messages).                   |
+| **Runtime**            | Bun                                          | All-in-one JavaScript runtime, bundler, transpiler, and package manager, used for development and build processes. |
+| **Testing**            | Vitest                                       | Fast unit and integration test framework.                                                                          |
+|                        | Playwright                                   | End-to-end testing framework for robust browser automation.                                                        |
+| **Code Quality**       | Biome                                        | All-in-one toolchain for web projects (formatter, linter).                                                         |
+|                        | ESLint                                       | Pluggable linting utility for JavaScript and TypeScript.                                                           |
+|                        | Prettier                                     | Opinionated code formatter.                                                                                        |
+| **Deployment**         | Vercel                                       | Platform for frontend frameworks, enabling seamless deployment of Next.js applications and Edge functions.         |
+|                        | Docker                                       | Containerization platform for consistent development and deployment environments.                                  |
+| **CI/CD**              | GitHub Actions                               | Automation workflows for continuous integration and deployment (linting, testing, building, Docker images).        |
+| **Misc. Integrations** | GitHub, Spotify, Wakatime, Lanyard, Hashnode | APIs for fetching dynamic profile information, music activity, coding statistics, Discord status, and blog posts.  |
 
 ---
 
@@ -275,16 +326,17 @@ Follow these steps to set up and run the WomB0ComB0 Portfolio application locall
 
 Before you begin, ensure you have the following installed:
 
-*   **Bun** (recommended): Version `^1.0.0` or higher.
-    *   Install via: `curl -fsSL https://bun.sh/install | bash`
-*   **Node.js**: Version `^18.0.0` or higher (if not using Bun).
-    *   Install via [nvm](https://github.com/nvm-sh/nvm) or your preferred method.
-*   **Git**: For cloning the repository.
-*   **Sanity CLI**: For managing your Sanity.io project.
-    *   Install via: `bun add --global @sanity/cli` (or `npm i -g @sanity/cli`)
-*   **Firebase CLI**: For managing your Firebase project.
-    *   Install via: `bun add --global firebase-tools` (or `npm i -g firebase-tools`)
-*   **Docker & Docker Compose**: (Optional) For running the application in a containerized environment.
+- **Bun** (recommended): Version `^1.0.0` or higher.
+  - Install via: `curl -fsSL https://bun.sh/install | bash`
+- **Node.js**: Version `^18.0.0` or higher (if not using Bun).
+  - Install via [nvm](https://github.com/nvm-sh/nvm) or your preferred method.
+- **Git**: For cloning the repository.
+- **Sanity CLI**: For managing your Sanity.io project.
+  - Install via: `bun add --global @sanity/cli` (or `npm i -g @sanity/cli`)
+- **Firebase CLI**: For managing your Firebase project.
+  - Install via: `bun add --global firebase-tools` (or `npm i -g firebase-tools`)
+- **Docker & Docker Compose**: (Optional) For running the application in a containerized
+  environment.
 
 ### Installation Steps
 
@@ -295,8 +347,7 @@ Before you begin, ensure you have the following installed:
     cd portfolio
     ```
 
-2.  **Install dependencies:**
-    Using Bun (recommended):
+2.  **Install dependencies:** Using Bun (recommended):
 
     ```bash
     bun install
@@ -316,7 +367,8 @@ Before you begin, ensure you have the following installed:
 
 ### Configuration
 
-The application requires several environment variables for API keys, service integrations, and authentication.
+The application requires several environment variables for API keys, service integrations, and
+authentication.
 
 #### Environment Variables (`.env.local`)
 
@@ -393,8 +445,7 @@ API_SECRET_KEY="a_long_random_string_for_api_signature" # Important for securing
 
 #### Sanity.io Setup
 
-1.  **Create a Sanity project:**
-    If you don't have one, navigate to the `sanity` directory and run:
+1.  **Create a Sanity project:** If you don't have one, navigate to the `sanity` directory and run:
 
     ```bash
     cd sanity
@@ -404,32 +455,32 @@ API_SECRET_KEY="a_long_random_string_for_api_signature" # Important for securing
     # Deploy your studio when prompted (this makes it accessible online).
     ```
 
-2.  **Deploy Sanity schemas:**
-    From the `sanity` directory:
+2.  **Deploy Sanity schemas:** From the `sanity` directory:
 
     ```bash
     sanity deploy
     # This ensures your studio has the correct schema definitions from src/sanity/schemaTypes
     ```
 
-3.  **Configure environment variables for Sanity:**
-    Update `NEXT_PUBLIC_SANITY_PROJECT_ID` and `NEXT_PUBLIC_SANITY_DATASET` in `.env.local` with the values from your Sanity project.
-    Create a "Read Token" in your Sanity project settings ([manage.sanity.io](https://manage.sanity.io/)), and set it as `SANITY_API_READ_TOKEN` in `.env.local`.
+3.  **Configure environment variables for Sanity:** Update `NEXT_PUBLIC_SANITY_PROJECT_ID` and
+    `NEXT_PUBLIC_SANITY_DATASET` in `.env.local` with the values from your Sanity project. Create a
+    "Read Token" in your Sanity project settings ([manage.sanity.io](https://manage.sanity.io/)),
+    and set it as `SANITY_API_READ_TOKEN` in `.env.local`.
 
-4.  **Import initial data:**
-    You'll need to populate your Sanity studio with content (projects, experiences, etc.) either manually or via a Sanity import script if you have existing data.
+4.  **Import initial data:** You'll need to populate your Sanity studio with content (projects,
+    experiences, etc.) either manually or via a Sanity import script if you have existing data.
 
 #### Firebase Setup
 
-1.  **Create a Firebase project:**
-    Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+1.  **Create a Firebase project:** Go to the
+    [Firebase Console](https://console.firebase.google.com/) and create a new project.
 
-2.  **Enable Authentication:**
-    In your Firebase project, navigate to "Authentication" and enable the desired sign-in methods (e.g., Google, Email/Password).
+2.  **Enable Authentication:** In your Firebase project, navigate to "Authentication" and enable the
+    desired sign-in methods (e.g., Google, Email/Password).
 
-3.  **Set up Firestore:**
-    In your Firebase project, navigate to "Firestore Database" and create a new database.
-    Set up security rules to allow authenticated users to read and write to a `messages` collection. A basic rule for testing might be:
+3.  **Set up Firestore:** In your Firebase project, navigate to "Firestore Database" and create a
+    new database. Set up security rules to allow authenticated users to read and write to a
+    `messages` collection. A basic rule for testing might be:
 
     ```
     rules_version = '2';
@@ -443,8 +494,14 @@ API_SECRET_KEY="a_long_random_string_for_api_signature" # Important for securing
     ```
 
 4.  **Configure Firebase environment variables:**
-    *   **Client-side (`NEXT_PUBLIC_FIREBASE_...`):** In your Firebase project settings, add a new web app and copy its configuration to your `.env.local` file.
-    *   **Server-side (`FIREBASE_...`):** For Firebase Admin SDK, go to "Project settings" -> "Service accounts" -> "Generate new private key." Download the JSON file. Extract the `private_key`, `private_key_id`, `client_email`, `client_id`, `auth_uri`, `token_uri`, `auth_provider_x509_cert_url`, `client_x509_cert_url`, and `universe_domain` into your `.env.local`. Ensure `FIREBASE_PRIVATE_KEY` has `\n` replaced with actual newlines if base64 encoded.
+    - **Client-side (`NEXT_PUBLIC_FIREBASE_...`):** In your Firebase project settings, add a new web
+      app and copy its configuration to your `.env.local` file.
+    - **Server-side (`FIREBASE_...`):** For Firebase Admin SDK, go to "Project settings" -> "Service
+      accounts" -> "Generate new private key." Download the JSON file. Extract the `private_key`,
+      `private_key_id`, `client_email`, `client_id`, `auth_uri`, `token_uri`,
+      `auth_provider_x509_cert_url`, `client_x509_cert_url`, and `universe_domain` into your
+      `.env.local`. Ensure `FIREBASE_PRIVATE_KEY` has `\n` replaced with actual newlines if base64
+      encoded.
 
 ### Running the Application
 
@@ -460,8 +517,8 @@ To run the Next.js application in development mode with hot-reloading:
 
     The application will be accessible at `http://localhost:3000`.
 
-2.  (Optional) Start the Sanity Studio if you need to manage content locally:
-    In a separate terminal, navigate to the `sanity` directory and run:
+2.  (Optional) Start the Sanity Studio if you need to manage content locally: In a separate
+    terminal, navigate to the `sanity` directory and run:
 
     ```bash
     cd sanity
@@ -504,17 +561,22 @@ The project includes Docker support for containerized deployment.
     docker compose up
     ```
 
-    The application will be available at `http://localhost:3000`. If you need to stop it, use `docker compose down`.
+    The application will be available at `http://localhost:3000`. If you need to stop it, use
+    `docker compose down`.
 
 <details>
 <summary>
   <strong>Using Docker for Sanity Studio & Redis (Advanced)</strong> (Click to expand)
 </summary>
 
-The `docker-compose.yml` also includes a Redis service for local caching and can be extended to include a Sanity Studio service if desired, though Sanity Studio is often run locally via CLI or deployed.
+The `docker-compose.yml` also includes a Redis service for local caching and can be extended to
+include a Sanity Studio service if desired, though Sanity Studio is often run locally via CLI or
+deployed.
 
 To include Redis in your local development environment:
-1. Ensure `REDIS_URL="redis://redis:6379"` is set in your `.env.local` if you're running the app in Docker, or `redis://localhost:6379` if running Next.js locally and Redis in Docker.
+
+1. Ensure `REDIS_URL="redis://redis:6379"` is set in your `.env.local` if you're running the app in
+   Docker, or `redis://localhost:6379` if running Next.js locally and Redis in Docker.
 2. Run `docker compose up -d redis` to start just the Redis service in the background.
 
 </details>
@@ -529,54 +591,63 @@ The WomB0ComB0 Portfolio is designed for intuitive navigation and interaction.
 
 ### Navigating the Portfolio
 
-*   **Main Navigation:** Use the header navigation links to jump between sections like `Home`, `Projects`, `Experience`, `Blog`, `Certifications`, `Guestbook`, `Spotify`, `Stats`, and `Resume`.
-*   **Mobile Menu:** On smaller screens, a hamburger icon (typically top-right) reveals the full navigation menu.
-*   **Dynamic Links:** Many sections feature dynamic links (e.g., clicking on a project card to see its detail page, or an experience entry).
-*   **Back to Top:** Every major section in this README has a `[[⬆️ Back to Top](#️-table-of-contents)]` link for quick navigation.
+- **Main Navigation:** Use the header navigation links to jump between sections like `Home`,
+  `Projects`, `Experience`, `Blog`, `Certifications`, `Guestbook`, `Spotify`, `Stats`, and `Resume`.
+- **Mobile Menu:** On smaller screens, a hamburger icon (typically top-right) reveals the full
+  navigation menu.
+- **Dynamic Links:** Many sections feature dynamic links (e.g., clicking on a project card to see
+  its detail page, or an experience entry).
+- **Back to Top:** Every major section in this README has a
+  `[[⬆️ Back to Top](#️-table-of-contents)]` link for quick navigation.
 
 ### Command Palette (KBar)
 
-*   **Activate:** Press `Cmd+K` (macOS) or `Ctrl+K` (Windows/Linux) anywhere on the site.
-*   **Search:** Start typing to filter available commands and navigation links.
-*   **Actions:** The palette allows you to quickly navigate to different pages, toggle themes, or perform other defined actions without extensive clicking.
+- **Activate:** Press `Cmd+K` (macOS) or `Ctrl+K` (Windows/Linux) anywhere on the site.
+- **Search:** Start typing to filter available commands and navigation links.
+- **Actions:** The palette allows you to quickly navigate to different pages, toggle themes, or
+  perform other defined actions without extensive clicking.
 
 ### Interacting with the Guestbook
 
 1.  **Navigate:** Go to the `/guestbook` page.
 2.  **Sign In:** Click the "Sign in with Google" or similar button to authenticate using Firebase.
-3.  **Leave a Message:** Once signed in, a text area will appear, allowing you to compose and submit your message.
+3.  **Leave a Message:** Once signed in, a text area will appear, allowing you to compose and submit
+    your message.
 4.  **View Messages:** All public messages left by users will be displayed on the page.
 
 ### Viewing Dynamic Content
 
-*   **Projects (`/projects`):** Browse a list of showcased projects. Each project card leads to a detailed page with descriptions, technologies, and images/videos, all managed via Sanity.io.
-*   **Experience (`/experience`):** See a timeline or list of professional experiences, including roles, responsibilities, and achievements, also sourced from Sanity.io.
-*   **Spotify (`/spotify`):** Observe real-time "Now Playing" status and discover the developer's top artists and tracks.
-*   **Stats (`/stats`):** A dashboard displaying various real-time statistics:
-    *   **GitHub:** Repository activity, stars, and contributions.
-    *   **Wakatime:** Coding activity breakdown by language, editor, and OS.
-    *   **Discord (Lanyard):** Current online status and gaming activity.
+- **Projects (`/projects`):** Browse a list of showcased projects. Each project card leads to a
+  detailed page with descriptions, technologies, and images/videos, all managed via Sanity.io.
+- **Experience (`/experience`):** See a timeline or list of professional experiences, including
+  roles, responsibilities, and achievements, also sourced from Sanity.io.
+- **Spotify (`/spotify`):** Observe real-time "Now Playing" status and discover the developer's top
+  artists and tracks.
+- **Stats (`/stats`):** A dashboard displaying various real-time statistics:
+  - **GitHub:** Repository activity, stars, and contributions.
+  - **Wakatime:** Coding activity breakdown by language, editor, and OS.
+  - **Discord (Lanyard):** Current online status and gaming activity.
 
 ### Common CLI Commands
 
 The `package.json` contains several useful scripts:
 
-*   **`bun dev`**: Starts the Next.js development server.
-*   **`bun build`**: Compiles the Next.js application for production.
-*   **`bun start`**: Starts the Next.js production server.
-*   **`bun lint`**: Runs linting checks using Biome and ESLint.
-*   **`bun lint:fix`**: Automatically fixes linting errors.
-*   **`bun format`**: Formats code using Biome and Prettier.
-*   **`bun format:check`**: Checks for formatting issues.
-*   **`bun test`**: Runs unit and integration tests with Vitest.
-*   **`bun test:e2e`**: Runs end-to-end tests with Playwright.
-*   **`bun sanity start`**: Starts the Sanity Studio development server.
-*   **`bun sanity deploy`**: Deploys Sanity schemas to your Sanity project.
-*   **`bun typecheck`**: Runs TypeScript type checking.
-*   **`bun codegen`**: Generates GitHub GraphQL schema types.
-*   **`bun cleanup`**: Removes temporary files and build artifacts.
-*   **`bun audit`**: Runs security audits on dependencies.
-*   **`bun package-cost`**: Analyzes the size of installed packages.
+- **`bun dev`**: Starts the Next.js development server.
+- **`bun build`**: Compiles the Next.js application for production.
+- **`bun start`**: Starts the Next.js production server.
+- **`bun lint`**: Runs linting checks using Biome and ESLint.
+- **`bun lint:fix`**: Automatically fixes linting errors.
+- **`bun format`**: Formats code using Biome and Prettier.
+- **`bun format:check`**: Checks for formatting issues.
+- **`bun test`**: Runs unit and integration tests with Vitest.
+- **`bun test:e2e`**: Runs end-to-end tests with Playwright.
+- **`bun sanity start`**: Starts the Sanity Studio development server.
+- **`bun sanity deploy`**: Deploys Sanity schemas to your Sanity project.
+- **`bun typecheck`**: Runs TypeScript type checking.
+- **`bun codegen`**: Generates GitHub GraphQL schema types.
+- **`bun cleanup`**: Removes temporary files and build artifacts.
+- **`bun audit`**: Runs security audits on dependencies.
+- **`bun package-cost`**: Analyzes the size of installed packages.
 
 ---
 
@@ -586,31 +657,49 @@ The `package.json` contains several useful scripts:
 
 ### Current Limitations
 
-*   **External API Rate Limits:** Reliance on free tiers of external APIs (Spotify, GitHub, Wakatime) may lead to occasional rate limiting, especially with high traffic. Caching is implemented to mitigate this, but persistent high load could still be an issue.
-*   **Sanity.io Dependency:** The core content of the portfolio (projects, experience, certifications) is entirely dependent on Sanity.io. Without a configured Sanity project, these sections will be empty.
-*   **Guestbook Authentication:** Currently, only Google authentication is readily configured for the guestbook. Extending to other providers (GitHub, Email/Password) would require additional Firebase setup.
-*   **Offline Functionality:** While PWA is enabled, complex dynamic content (real-time stats, guestbook interaction) naturally requires an internet connection. Static content will be cached.
+- **External API Rate Limits:** Reliance on free tiers of external APIs (Spotify, GitHub, Wakatime)
+  may lead to occasional rate limiting, especially with high traffic. Caching is implemented to
+  mitigate this, but persistent high load could still be an issue.
+- **Sanity.io Dependency:** The core content of the portfolio (projects, experience, certifications)
+  is entirely dependent on Sanity.io. Without a configured Sanity project, these sections will be
+  empty.
+- **Guestbook Authentication:** Currently, only Google authentication is readily configured for the
+  guestbook. Extending to other providers (GitHub, Email/Password) would require additional Firebase
+  setup.
+- **Offline Functionality:** While PWA is enabled, complex dynamic content (real-time stats,
+  guestbook interaction) naturally requires an internet connection. Static content will be cached.
 
 ### Known Issues
 
-*   **Initial Load Latency for Real-time Data:** On the first load, some external API calls might introduce a slight delay before data such as Spotify or Wakatime stats fully populate, as they hit cold caches. This is minimized with server-side caching and streaming.
-*   **Potential for Stale Data:** Although caching is implemented, in rare cases, extremely recent updates to external services (e.g., a Spotify song just changed) might not reflect immediately due to cache TTL (Time-To-Live).
+- **Initial Load Latency for Real-time Data:** On the first load, some external API calls might
+  introduce a slight delay before data such as Spotify or Wakatime stats fully populate, as they hit
+  cold caches. This is minimized with server-side caching and streaming.
+- **Potential for Stale Data:** Although caching is implemented, in rare cases, extremely recent
+  updates to external services (e.g., a Spotify song just changed) might not reflect immediately due
+  to cache TTL (Time-To-Live).
 
 ### Future Roadmap
 
 The following enhancements and features are planned or under consideration:
 
-*   **More API Integrations:** Explore integrating more developer-centric platforms like LeetCode, Codeforces, or Dev.to for additional profile insights.
-*   **Advanced Blog Features:** Implement full-text search for blog posts, categories, tags, and potentially an integrated commenting system.
-*   **AI-Powered Features:** Explore integrating AI for content generation suggestions within the Sanity Studio or for personalized content recommendations.
-*   **Enhanced Interactivity:**
-    *   Interactive globe for "Places I've visited."
-    *   More sophisticated animations and micro-interactions.
-*   **Admin Dashboard:** A basic admin panel to manage guestbook messages, IP bans, and cache invalidation without direct database access.
-*   **Improved Error Reporting:** Integrate with a service like Sentry or LogRocket for more granular error monitoring and session replays.
-*   **Performance Optimizations:** Continuous efforts to reduce bundle size, optimize image loading, and improve server response times.
-*   **Internationalization (i18n):** Support for multiple languages to broaden audience reach.
-*   **Webhooks for Sanity:** Implement webhooks to trigger automatic revalidation of Next.js pages when Sanity content is updated, ensuring faster content updates without manual redeployment.
+- **More API Integrations:** Explore integrating more developer-centric platforms like LeetCode,
+  Codeforces, or Dev.to for additional profile insights.
+- **Advanced Blog Features:** Implement full-text search for blog posts, categories, tags, and
+  potentially an integrated commenting system.
+- **AI-Powered Features:** Explore integrating AI for content generation suggestions within the
+  Sanity Studio or for personalized content recommendations.
+- **Enhanced Interactivity:**
+  - Interactive globe for "Places I've visited."
+  - More sophisticated animations and micro-interactions.
+- **Admin Dashboard:** A basic admin panel to manage guestbook messages, IP bans, and cache
+  invalidation without direct database access.
+- **Improved Error Reporting:** Integrate with a service like Sentry or LogRocket for more granular
+  error monitoring and session replays.
+- **Performance Optimizations:** Continuous efforts to reduce bundle size, optimize image loading,
+  and improve server response times.
+- **Internationalization (i18n):** Support for multiple languages to broaden audience reach.
+- **Webhooks for Sanity:** Implement webhooks to trigger automatic revalidation of Next.js pages
+  when Sanity content is updated, ensuring faster content updates without manual redeployment.
 
 ---
 
@@ -618,23 +707,28 @@ The following enhancements and features are planned or under consideration:
 
 [[⬆️ Back to Top](#️-table-of-contents)]
 
-Contributions are welcome! Whether it's reporting a bug, suggesting a new feature, or submitting a pull request, your help is appreciated.
+Contributions are welcome! Whether it's reporting a bug, suggesting a new feature, or submitting a
+pull request, your help is appreciated.
 
 ### How to Contribute
 
-1.  **Fork the repository:** Start by forking the `WomB0ComB0/portfolio` repository to your GitHub account.
+1.  **Fork the repository:** Start by forking the `WomB0ComB0/portfolio` repository to your GitHub
+    account.
 2.  **Clone your fork:**
     ```bash
     git clone https://github.com/YOUR_USERNAME/portfolio.git
     cd portfolio
     ```
-3.  **Create a new branch:** Choose a descriptive branch name (e.g., `feat/add-dark-mode`, `fix/guestbook-bug`).
+3.  **Create a new branch:** Choose a descriptive branch name (e.g., `feat/add-dark-mode`,
+    `fix/guestbook-bug`).
 
     ```bash
     git checkout -b your-feature-branch-name
     ```
+
 4.  **Make your changes:** Implement your feature or bug fix.
-5.  **Test your changes:** Run `bun test` and `bun test:e2e` to ensure your changes haven't introduced regressions.
+5.  **Test your changes:** Run `bun test` and `bun test:e2e` to ensure your changes haven't
+    introduced regressions.
 6.  **Run linters and formatters:**
     ```bash
     bun lint:fix
@@ -649,24 +743,29 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a new featur
     git push origin your-feature-branch-name
     ```
 9.  **Open a Pull Request (PR):**
-    *   Go to the original `WomB0ComB0/portfolio` repository on GitHub.
-    *   You should see a prompt to open a pull request from your recently pushed branch.
-    *   Provide a detailed description of your changes, including why they are necessary and how they were implemented.
-    *   Reference any relevant issues.
+    - Go to the original `WomB0ComB0/portfolio` repository on GitHub.
+    - You should see a prompt to open a pull request from your recently pushed branch.
+    - Provide a detailed description of your changes, including why they are necessary and how they
+      were implemented.
+    - Reference any relevant issues.
 
 ### Branching & Pull Request Guidelines
 
-*   **Branch Naming:** Use `feat/`, `fix/`, `docs/`, `refactor/`, `chore/` prefixes (e.g., `feat/implement-new-api`).
-*   **Commit Messages:** Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) guidelines.
-*   **Pull Request Description:** Clearly explain the purpose of the PR, the changes made, and any potential side effects. Include screenshots or GIFs for UI changes.
-*   **Code Review:** All PRs require at least one approval before merging. Be responsive to feedback.
+- **Branch Naming:** Use `feat/`, `fix/`, `docs/`, `refactor/`, `chore/` prefixes (e.g.,
+  `feat/implement-new-api`).
+- **Commit Messages:** Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+  guidelines.
+- **Pull Request Description:** Clearly explain the purpose of the PR, the changes made, and any
+  potential side effects. Include screenshots or GIFs for UI changes.
+- **Code Review:** All PRs require at least one approval before merging. Be responsive to feedback.
 
 ### Code Style & Linting
 
 We use a combination of Biome, ESLint, and Prettier to maintain a consistent code style.
-*   **Biome:** Used for overall project formatting and linting (`biome.json`).
-*   **ESLint:** Specific rules for React, Next.js, and TypeScript (`.eslintrc.json`).
-*   **Prettier:** For final code formatting (`.prettierrc.json`).
+
+- **Biome:** Used for overall project formatting and linting (`biome.json`).
+- **ESLint:** Specific rules for React, Next.js, and TypeScript (`.eslintrc.json`).
+- **Prettier:** For final code formatting (`.prettierrc.json`).
 
 Ensure your code adheres to these standards by running:
 
@@ -677,15 +776,17 @@ bun format
 
 ### Testing
 
-*   **Unit & Integration Tests:** Located in `src/__tests__/` and run using [Vitest](https://vitest.dev/).
-    ```bash
-    bun test
-    ```
-*   **End-to-End Tests:** Located in `src/e2e/` and run using [Playwright](https://playwright.dev/).
-    ```bash
-    bun test:e2e
-    ```
-    These tests require the application to be running (e.g., via `bun dev` or `bun start`) or a `bun build` before `bun test:e2e`.
+- **Unit & Integration Tests:** Located in `src/__tests__/` and run using
+  [Vitest](https://vitest.dev/).
+  ```bash
+  bun test
+  ```
+- **End-to-End Tests:** Located in `src/e2e/` and run using [Playwright](https://playwright.dev/).
+  ```bash
+  bun test:e2e
+  ```
+  These tests require the application to be running (e.g., via `bun dev` or `bun start`) or a
+  `bun build` before `bun test:e2e`.
 
 ### Development Setup
 
@@ -693,7 +794,8 @@ For a full local development setup, you'll want to run:
 
 1.  **Application:** `bun dev`
 2.  **Sanity Studio:** `cd sanity && bun sanity start` (in a separate terminal)
-3.  **Firebase Emulators:** (Optional, for advanced local Firebase development) `firebase emulators:start`
+3.  **Firebase Emulators:** (Optional, for advanced local Firebase development)
+    `firebase emulators:start`
 
 ---
 
@@ -703,25 +805,26 @@ For a full local development setup, you'll want to run:
 
 ### License
 
-This project is licensed under the **MIT License**. See the [LICENSE](https://github.com/WomB0ComB0/portfolio/blob/main/LICENSE) file for details.
+This project is licensed under the **MIT License**. See the
+[LICENSE](https://github.com/WomB0ComB0/portfolio/blob/main/LICENSE) file for details.
 
 ### Acknowledgments
 
-*   **Next.js:** The foundational framework for this portfolio.
-*   **Elysia.js:** For providing a powerful and efficient API gateway.
-*   **Sanity.io:** For enabling flexible content management.
-*   **Tailwind CSS & shadcn/ui:** For the beautiful and responsive UI components.
-*   **MagicUI:** For delightful animations and interactive elements.
-*   **Bun:** For super-fast development workflows.
-*   **Firebase:** For robust authentication and database services.
-*   **All open-source contributors and package maintainers** whose work made this project possible.
+- **Next.js:** The foundational framework for this portfolio.
+- **Elysia.js:** For providing a powerful and efficient API gateway.
+- **Sanity.io:** For enabling flexible content management.
+- **Tailwind CSS & shadcn/ui:** For the beautiful and responsive UI components.
+- **MagicUI:** For delightful animations and interactive elements.
+- **Bun:** For super-fast development workflows.
+- **Firebase:** For robust authentication and database services.
+- **All open-source contributors and package maintainers** whose work made this project possible.
 
 ### Contact
 
 Have questions or want to connect?
 
-*   **GitHub:** [@WomB0ComB0](https://github.com/WomB0ComB0)
-*   **Portfolio Website:** (Once deployed) Check `NEXT_PUBLIC_APP_URL` in `.env.local`
+- **GitHub:** [@WomB0ComB0](https://github.com/WomB0ComB0)
+- **Portfolio Website:** (Once deployed) Check `NEXT_PUBLIC_APP_URL` in `.env.local`
 
 ---
 
@@ -737,13 +840,14 @@ Have questions or want to connect?
 </summary>
 
 **v1.0.0 - (Date of Initial Release / This README Generation)**
-*   Initial comprehensive release of the WomB0ComB0 Portfolio.
-*   Core features: Next.js App Router, Elysia.js API, Sanity.io CMS.
-*   Integrations: Spotify, GitHub, Wakatime, Lanyard.
-*   Interactive elements: Guestbook, Command Palette.
-*   Robust security measures: CSRF, Rate Limiting, IP Banlist.
-*   Extensive testing: Vitest (unit/integration), Playwright (E2E).
-*   Deployment readiness: Docker support, Vercel configuration.
+
+- Initial comprehensive release of the WomB0ComB0 Portfolio.
+- Core features: Next.js App Router, Elysia.js API, Sanity.io CMS.
+- Integrations: Spotify, GitHub, Wakatime, Lanyard.
+- Interactive elements: Guestbook, Command Palette.
+- Robust security measures: CSRF, Rate Limiting, IP Banlist.
+- Extensive testing: Vitest (unit/integration), Playwright (E2E).
+- Deployment readiness: Docker support, Vercel configuration.
 
 </details>
 
@@ -793,19 +897,28 @@ A: If you're using Redis for caching, you can clear its data by restarting the R
   <strong>Common Issues & Solutions</strong> (Click to expand)
 </summary>
 
-*   **`Error: bun command not found`**: Ensure Bun is installed correctly and its binary is in your system's PATH. If not using Bun, switch to `npm` or `yarn` commands.
-*   **`Error: Environment variables missing`**: Review the [Configuration](#configuration) section and ensure all required variables in `.env.local` are set. Pay special attention to complex variables like `FIREBASE_PRIVATE_KEY`.
-*   **`Sanity Studio not loading/schemas outdated`**:
-    1.  Navigate to the `sanity` directory.
-    2.  Run `sanity deploy` to push your local schemas to your Sanity project.
-    3.  Ensure `NEXT_PUBLIC_SANITY_PROJECT_ID` and `NEXT_PUBLIC_SANITY_DATASET` in `.env.local` match your Sanity project settings.
-*   **`API routes returning 401/403 errors`**:
-    1.  Check the `API_SECRET_KEY` in `.env.local` for consistency between client and server/API.
-    2.  Verify Firebase authentication setup and rules for the guestbook.
-    3.  Ensure `SANITY_API_READ_TOKEN` is correctly set if you are querying private Sanity content on the server.
-    4.  Check the API gateway's logs for more specific error messages (e.g., rate limit exceeded, IP banned).
-*   **`Playwright tests failing on fresh install`**: Ensure you have run `bun install` to install Playwright browsers. If not, try `bun playwright install`. Also, ensure the application is running (`bun dev` or `bun start`) before running `bun test:e2e`.
-*   **Slow Development Server**: Try deleting the `.next` and `node_modules` (or `bun.lockb`) directories and reinstalling dependencies. `bun cleanup` helps.
+- **`Error: bun command not found`**: Ensure Bun is installed correctly and its binary is in your
+  system's PATH. If not using Bun, switch to `npm` or `yarn` commands.
+- **`Error: Environment variables missing`**: Review the [Configuration](#configuration) section and
+  ensure all required variables in `.env.local` are set. Pay special attention to complex variables
+  like `FIREBASE_PRIVATE_KEY`.
+- **`Sanity Studio not loading/schemas outdated`**:
+  1.  Navigate to the `sanity` directory.
+  2.  Run `sanity deploy` to push your local schemas to your Sanity project.
+  3.  Ensure `NEXT_PUBLIC_SANITY_PROJECT_ID` and `NEXT_PUBLIC_SANITY_DATASET` in `.env.local` match
+      your Sanity project settings.
+- **`API routes returning 401/403 errors`**:
+  1.  Check the `API_SECRET_KEY` in `.env.local` for consistency between client and server/API.
+  2.  Verify Firebase authentication setup and rules for the guestbook.
+  3.  Ensure `SANITY_API_READ_TOKEN` is correctly set if you are querying private Sanity content on
+      the server.
+  4.  Check the API gateway's logs for more specific error messages (e.g., rate limit exceeded, IP
+      banned).
+- **`Playwright tests failing on fresh install`**: Ensure you have run `bun install` to install
+  Playwright browsers. If not, try `bun playwright install`. Also, ensure the application is running
+  (`bun dev` or `bun start`) before running `bun test:e2e`.
+- **Slow Development Server**: Try deleting the `.next` and `node_modules` (or `bun.lockb`)
+directories and reinstalling dependencies. `bun cleanup` helps.
 </details>
 
 ### API Reference <a name="api-reference-1"></a>
@@ -814,7 +927,10 @@ The Elysia.js API endpoints are self-documented using Swagger/OpenAPI.
 
 To view the interactive API documentation:
 
-1.  Start the Next.js development server (which also runs the Elysia API via Next.js API routes): `bun dev`
-2.  Navigate your browser to `http://localhost:3000/api/swagger` (or `http://localhost:3000/api/v1/swagger` for v1 APIs).
+1.  Start the Next.js development server (which also runs the Elysia API via Next.js API routes):
+    `bun dev`
+2.  Navigate your browser to `http://localhost:3000/api/swagger` (or
+    `http://localhost:3000/api/v1/swagger` for v1 APIs).
 
-This will display the Swagger UI, allowing you to explore all available endpoints, their expected parameters, and response schemas.
+This will display the Swagger UI, allowing you to explore all available endpoints, their expected
+parameters, and response schemas.

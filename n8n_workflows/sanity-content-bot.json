@@ -1,0 +1,354 @@
+{
+  "name": "Sanity AI Content Structurer (Gemini)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b5d5e7f4-1d0c-4f3d-8d0c-4f3d8d0c4f3d",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content_type",
+              "name": "contentType",
+              "value": "Experience",
+              "type": "string"
+            },
+            {
+              "id": "raw_text",
+              "name": "rawText",
+              "value": "Senior Software Engineer at Tech Corp, New York, NY. From Jan 2023 to present. Led a team to develop a new feature using React, TypeScript, and Node.js. Responsible for system design and mentoring junior developers. Key technologies included AWS, Docker, and PostgreSQL.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Set Input Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "experience",
+              "leftValue": "={{ $json.contentType }}",
+              "rightValue": "Experience",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "project",
+              "leftValue": "={{ $json.contentType }}",
+              "rightValue": "Project",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "certification",
+              "leftValue": "={{ $json.contentType }}",
+              "rightValue": "Certification",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-g7h8-i9j0-klmn-op1234567890",
+      "name": "Route by Content Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert data structuring assistant for a Sanity CMS. Your task is to take the raw text provided and convert it into a valid JSON object that matches the required schema. Infer dates, technologies, and responsibilities from the text. If a value isn't present, omit the key.\n\nIMPORTANT FOR GEMINI: respond with ONLY valid JSON, no markdown fences, no extra text.\n\nThe required JSON schema is:\n{\n  \"position\": \"string\",\n  \"company\": \"string\",\n  \"companyUrl\": \"string (URL)\",\n  \"location\": \"string\",\n  \"startDate\": \"YYYY-MM-DD\",\n  \"endDate\": \"YYYY-MM-DD\",\n  \"current\": boolean,\n  \"description\": \"string\",\n  \"responsibilities\": [\"string\"],\n  \"technologies\": [\"string\"],\n  \"order\": 0\n}\n\nRules:\n- Set 'current' to true if the text mentions 'present', 'current', or similar.\n- If 'current' is true, omit 'endDate'.\n- Convert date strings to YYYY-MM-DD format.\n- Extract the main company URL if mentioned, otherwise omit.\n- Set 'order' to 0 by default.\n\nRaw Text:\n---\n{{ $json.rawText }}\n---",
+              "additionalFields": {}
+            }
+          ]
+        }
+      },
+      "id": "d4e5f6g7-h8i9-j0k1-lmno-pq1234567890",
+      "name": "AI Prompt - Experience (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google_gemini_credentials",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert data structuring assistant for a Sanity CMS. Your task is to take the raw text provided and convert it into a valid JSON object that matches the required schema.\n\nIMPORTANT FOR GEMINI: respond with ONLY valid JSON, no markdown fences, no extra text.\n\nThe required JSON schema is:\n{\n  \"title\": \"string\",\n  \"slug\": { \"_type\": \"slug\", \"current\": \"kebab-case-title\" },\n  \"description\": \"string (max 200 chars)\",\n  \"longDescription\": \"string\",\n  \"category\": \"Web Development | Mobile App | Machine Learning | Data Science | DevOps | Other\",\n  \"technologies\": [\"string\"],\n  \"status\": \"In Progress | Completed | Archived\",\n  \"featured\": boolean,\n  \"liveUrl\": \"string (URL)\",\n  \"githubUrl\": \"string (URL)\",\n  \"startDate\": \"YYYY-MM-DD\",\n  \"endDate\": \"YYYY-MM-DD\",\n  \"order\": 0\n}\n\nRules:\n- Generate a slug from the title (lowercase, dashes, no special chars).\n- Keep description under 200 characters.\n- Infer category from the technologies mentioned.\n- Set 'featured' to false by default.\n- Set 'order' to 0 by default.\n\nRaw Text:\n---\n{{ $json.rawText }}\n---",
+              "additionalFields": {}
+            }
+          ]
+        }
+      },
+      "id": "e5f6g7h8-i9j0-k1l2-mnop-qr1234567890",
+      "name": "AI Prompt - Project (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google_gemini_credentials",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert data structuring assistant for a Sanity CMS. Your task is to take the raw text provided and convert it into a valid JSON object that matches the required schema.\n\nIMPORTANT FOR GEMINI: respond with ONLY valid JSON, no markdown fences, no extra text.\n\nThe required JSON schema is:\n{\n  \"title\": \"string\",\n  \"issuer\": \"string\",\n  \"description\": \"string\",\n  \"credentialId\": \"string\",\n  \"credentialUrl\": \"string (URL)\",\n  \"issueDate\": \"YYYY-MM-DD\",\n  \"expiryDate\": \"YYYY-MM-DD\",\n  \"skills\": [\"string\"],\n  \"order\": 0\n}\n\nRules:\n- Omit 'expiryDate' if the certification does not expire.\n- Extract credential ID and URL if mentioned.\n- Infer skills from the certification title and description.\n- Set 'order' to 0 by default.\n\nRaw Text:\n---\n{{ $json.rawText }}\n---",
+              "additionalFields": {}
+            }
+          ]
+        }
+      },
+      "id": "f6g7h8i9-j0k1-l2m3-nopq-rs1234567890",
+      "name": "AI Prompt - Certification (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google_gemini_credentials",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "g7h8i9j0-k1l2-m3n4-opqr-st1234567890",
+      "name": "Merge AI Outputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "parsed_data",
+              "name": "parsedData",
+              "value": "={{ JSON.parse($json.text || $json.content || $json.message?.content || '{}') }}",
+              "type": "object"
+            },
+            {
+              "id": "content_type_lower",
+              "name": "contentTypeLower",
+              "value": "={{ $('Set Input Data').item.json.contentType.toLowerCase() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "h8i9j0k1-l2m3-n4o5-pqrs-tu1234567890",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.SANITY_PROJECT_ID }}.api.sanity.io/v2021-06-07/data/mutate/{{ $env.SANITY_DATASET }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sanityApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SANITY_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "mutations",
+              "value": "={{ JSON.stringify([{ createOrReplace: { _type: $json.contentTypeLower, ...$json.parsedData } }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "i9j0k1l2-m3n4-o5p6-qrst-uv1234567890",
+      "name": "Create Sanity Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Input Data": {
+      "main": [
+        [
+          {
+            "node": "Route by Content Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Content Type": {
+      "main": [
+        [
+          {
+            "node": "AI Prompt - Experience (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Prompt - Project (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Prompt - Certification (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Prompt - Experience (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Prompt - Project (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Outputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AI Prompt - Certification (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Outputs",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge AI Outputs": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Create Sanity Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-30T04:23:39.000Z",
+  "versionId": "1"
+}

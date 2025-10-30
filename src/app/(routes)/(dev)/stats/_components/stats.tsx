@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { PageHeader } from '@/components/custom/page-header';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { age } from '@/constants';
@@ -25,7 +24,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { useQueries } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { memo, useMemo } from 'react';
-import { FiActivity, FiCalendar, FiClock, FiCode, FiEye } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiCode, FiEye } from 'react-icons/fi';
 import { MonkeytypeStats } from './monkeytype-stats';
 import { StatCard } from './stat-card';
 
@@ -59,7 +58,10 @@ const StatItem = ({
       <Skeleton className="h-10 w-20 mt-2" />
     ) : (
       <div className="flex items-baseline gap-1">
-        <NumberTicker className="text-xl font-bold text-primary-background" value={value} />
+        <NumberTicker
+          className="text-xl md:text-2xl font-bold text-primary-background"
+          value={value}
+        />
         {unit && <span className="text-sm font-medium text-primary-background/70">{unit}</span>}
       </div>
     )}
@@ -120,11 +122,6 @@ export const DevStats = memo(() => {
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <PageHeader
-          title="Live Development Statistics"
-          description="A real-time look at my activity and project metrics"
-          icon={<FiActivity />}
-        />
         <DevStatsSkeleton />
         <MonkeytypeStats />
       </div>
@@ -135,15 +132,21 @@ export const DevStats = memo(() => {
     <div className="space-y-8">
       <StatCard title="Dev Stats" icon={<FiCode />}>
         <div className="grid grid-cols-3 gap-4">
-          <StatItem icon={<FiCalendar />} title="Age" value={age} unit="yrs" isLoading={false} />
           <StatItem
-            icon={<FiEye />}
+            icon={<FiCalendar size={20} />}
+            title="Age"
+            value={age}
+            unit="yrs"
+            isLoading={false}
+          />
+          <StatItem
+            icon={<FiEye size={20} />}
             title="Site Views"
             value={googleData?.total_pageviews ?? 0}
             isLoading={false}
           />
           <StatItem
-            icon={<FiClock />}
+            icon={<FiClock size={20} />}
             title="Hours Coded"
             value={wakatimeData?.total_seconds ? Math.round(wakatimeData.total_seconds / 3600) : 0}
             isLoading={false}

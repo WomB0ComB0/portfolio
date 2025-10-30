@@ -161,14 +161,14 @@ export const Discord = () => {
                       </div>
                     </div>
                     <div>
-                      <p className="font-semibold">
+                      <p className="font-semibold text-sm sm:text-base">
                         {user.username}
-                        <span className="text-muted-foreground text-sm">
+                        <span className="text-muted-foreground text-xs sm:text-sm">
                           {user.discriminator !== '0' ? `#${user.discriminator}` : ''}
                         </span>
                       </p>
                       <span
-                        className={`text-sm font-medium ${
+                        className={`text-xs sm:text-sm font-medium ${
                           status === 'offline' ? 'text-muted-foreground' : 'text-primary'
                         }`}
                       >

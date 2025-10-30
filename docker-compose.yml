@@ -85,6 +85,35 @@ services:
     networks:
       - observability
 
+  # n8n automation workflow
+  n8n:
+    image: n8nio/n8n
+    container_name: portfolio-n8n
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/New_York
+      # Pass through API keys for AI models
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Sanity credentials
+      - SANITY_PROJECT_ID=${NEXT_PUBLIC_SANITY_PROJECT_ID}
+      - SANITY_DATASET=${NEXT_PUBLIC_SANITY_DATASET:-production}
+      - SANITY_API_TOKEN=${SANITY_API_TOKEN}
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      - ./n8n_workflows:/home/node/workflows
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge

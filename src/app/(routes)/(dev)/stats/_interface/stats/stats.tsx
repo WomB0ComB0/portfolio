@@ -35,11 +35,11 @@ export const Stats = () => {
           description="A real-time look at my activity and project metrics"
           icon={<FiActivity />}
         />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-2 space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+          <div className="lg:col-span-3 space-y-8">
             <GitHubStats />
           </div>
-          <div className="space-y-8">
+          <div className="lg:col-span-2 space-y-8">
             <Discord />
             <DevStats />
             <LeetCodeStats />

@@ -61,7 +61,10 @@ const StatItem = ({
   <div className="flex items-center gap-3">
     <div className="text-primary-background/80">{icon}</div>
     <div>
-      <NumberTicker className="text-2xl font-bold text-primary-background" value={value} />
+      <NumberTicker
+        className="text-2xl md:text-3xl font-bold text-primary-background"
+        value={value}
+      />
       <p className="text-xs text-primary-background/60">{label}</p>
     </div>
   </div>
@@ -70,10 +73,10 @@ const StatItem = ({
 const GitHubStatsSkeleton = () => (
   <div className="space-y-8">
     <StatCard title="GitHub Stats" icon={<FiGithub />}>
-      <div className="grid grid-cols-3 gap-4">
-        <Skeleton className="h-12 w-24" />
-        <Skeleton className="h-12 w-24" />
-        <Skeleton className="h-12 w-24" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
       </div>
     </StatCard>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -119,10 +122,22 @@ export const GitHubStats = memo(() => {
   return (
     <div className="space-y-8">
       <StatCard title="GitHub Stats" icon={<FiGithub />}>
-        <div className="grid grid-cols-3 gap-4">
-          <StatItem icon={<FiGithub />} value={githubData.user.repos} label="Repositories" />
-          <StatItem icon={<FiStar />} value={githubData.stats.totalStars} label="Total Stars" />
-          <StatItem icon={<FiUsers />} value={githubData.user.followers} label="Followers" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center sm:text-left">
+          <StatItem
+            icon={<FiGithub size={24} />}
+            value={githubData.user.repos}
+            label="Repositories"
+          />
+          <StatItem
+            icon={<FiStar size={24} />}
+            value={githubData.stats.totalStars}
+            label="Total Stars"
+          />
+          <StatItem
+            icon={<FiUsers size={24} />}
+            value={githubData.user.followers}
+            label="Followers"
+          />
         </div>
       </StatCard>
 

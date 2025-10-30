@@ -17,6 +17,7 @@ import type { MetadataRoute } from 'next/types';
  */
 
 import { app } from '@/constants';
+import { getURL } from "@/utils";
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property
@@ -115,7 +116,7 @@ export default function manifest(): ExtendedManifest {
       params: {
         title: 'Check out this portfolio!',
         text: 'I found this portfolio really interesting.',
-        url: 'https://mikeodnis.dev',
+        url: getURL(),
       },
     },
 

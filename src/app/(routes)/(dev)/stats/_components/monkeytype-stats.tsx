@@ -69,7 +69,7 @@ const CircularProgress = ({ value, colorClass }: { value: number; colorClass: st
           transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-primary-background">
+      <div className="absolute inset-0 flex items-center justify-center text-base sm:text-lg font-bold text-primary-background">
         {value.toFixed(0)}%
       </div>
     </div>
@@ -132,7 +132,10 @@ export const MonkeytypeStats = memo(() => {
       <div className="grid grid-cols-3 gap-4 text-center items-center">
         <div className="flex flex-col items-center">
           <span className="text-xs text-primary-background/70">WPM</span>
-          <NumberTicker className="text-4xl font-bold text-primary-background" value={best60.wpm} />
+          <NumberTicker
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-background"
+            value={best60.wpm}
+          />
         </div>
         <div className="flex flex-col items-center">
           <span className="text-xs text-primary-background/70 mb-1">Accuracy</span>
@@ -141,7 +144,7 @@ export const MonkeytypeStats = memo(() => {
         <div className="flex flex-col items-center">
           <span className="text-xs text-primary-background/70">Tests</span>
           <NumberTicker
-            className="text-4xl font-bold text-primary-background"
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-background"
             value={monkeytypeData.typingStats.completedTests}
           />
         </div>
