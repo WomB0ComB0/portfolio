@@ -137,7 +137,7 @@
     "date-fns": "4.1.0",
     "depcheck": "^1.4.7",
     "dompurify": "^3.3.0",
-    "elysia": "1.4.15",
+    "elysia": "^1.4.15",
     "elysia-ip": "^1.0.10",
     "elysia-rate-limit": "^4.4.2",
     "elysiajs-helmet": "^1.0.2",
