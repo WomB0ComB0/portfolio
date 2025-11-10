@@ -212,11 +212,12 @@ export function createElysiaApp(config: ElysiaApiConfig) {
   } as Required<ElysiaApiConfig>;
 
   const api = new Elysia({ prefix: mergedConfig.prefix })
-    .onParse(({ request, contentType }) => {
-      if (contentType === 'multipart/form-data') {
+    .onParse(({ request }) => {
+      const contentType = request.headers.get('content-type');
+      if (contentType?.includes('multipart/form-data')) {
         return request.formData();
       }
-      if (contentType === 'application/json') {
+      if (contentType?.includes('application/json')) {
         return request.json();
       }
       return null;
