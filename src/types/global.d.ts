@@ -463,7 +463,7 @@ declare function sleep <A extends number, R extends undefined>(n: A): Promise<R>
  * const result = error(value); // result === 42
  */
 const error = <I, O>(_e: I, _fn?: (error: I, ...args: any[]) => O, ..._opts: any[]): I | O => {
-  const isError = Error.isError(e);
-  return isError ? (fn ? fn(e, ...opts) : e) : e;
+  const isError = Error.isError(_e);
+  return isError ? (_fn ? _fn(_e, ..._opts) : _e) : _e;
 };
 //#endregion

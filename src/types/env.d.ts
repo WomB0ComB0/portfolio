@@ -51,8 +51,6 @@ declare global {
       NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: string;
       CSRF_SECRET: string;
       ADMIN_API_TOKEN: string;
-      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: string;
-      CLOUDINARY_URL: string;
       NEXT_PUBLIC_SANITY_PROJECT_ID: string;
       NEXT_PUBLIC_SANITY_DATASET: string;
       NEXT_PUBLIC_SANITY_API_VERSION: string;

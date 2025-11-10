@@ -17,5 +17,6 @@
 import Elysia from 'elysia';
 import { adminRoutes } from './admin';
 import { healthRoute } from './health';
+import { statusRoute } from './status';
 
-export const apiRoutes = new Elysia().use(adminRoutes).use(healthRoute);
+export const apiRoutes = new Elysia().use(adminRoutes).use(healthRoute).use(statusRoute);

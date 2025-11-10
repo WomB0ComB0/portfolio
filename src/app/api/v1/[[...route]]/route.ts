@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { logAPIRequest, logError } from '@/lib/better-stack';
 import { logger } from '@/utils';
 import { batchSpanProcessor, createElysiaApp, IS_VERCEL } from '../../_elysia';
 import { apiRoutes, utilityRoutes } from './elysia';
@@ -29,6 +30,14 @@ const app = createElysiaApp({
       url: request.url,
       path: new URL(request.url).pathname,
     });
+
+    // Log to Better Stack
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      method: request.method,
+      path: new URL(request.url).pathname,
+      statusCode: code === 'NOT_FOUND' ? 404 : 500,
+    });
+
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error',
@@ -44,18 +53,57 @@ const app = createElysiaApp({
   });
 
 const wrapHandler = (handler: typeof app.handle) => async (request: Request) => {
+  const startTime = Date.now();
+  const path = new URL(request.url).pathname;
+  const method = request.method;
+
   try {
     const response = await handler(request);
     if (!response) {
       logger.warn('Handler returned null/undefined, creating fallback response');
+
+      // Log failed request to Better Stack
+      logAPIRequest({
+        method,
+        path,
+        statusCode: 500,
+        duration: Date.now() - startTime,
+        ip: request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? undefined,
+        userAgent: request.headers.get('user-agent') ?? undefined,
+        error: new Error('Handler returned null/undefined'),
+      });
+
       return new Response(JSON.stringify({ error: 'No response from handler' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    // Log successful request to Better Stack
+    logAPIRequest({
+      method,
+      path,
+      statusCode: response.status,
+      duration: Date.now() - startTime,
+      ip: request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? undefined,
+      userAgent: request.headers.get('user-agent') ?? undefined,
+    });
+
     return response;
   } catch (error) {
     logger.error('Handler error', error);
+
+    // Log error to Better Stack
+    logAPIRequest({
+      method,
+      path,
+      statusCode: 500,
+      duration: Date.now() - startTime,
+      ip: request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? undefined,
+      userAgent: request.headers.get('user-agent') ?? undefined,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error',
@@ -84,6 +132,10 @@ const shutdown = async (signal: string): Promise<void> => {
       await batchSpanProcessor.forceFlush();
     }
   }
+
+  // Flush Better Stack logs on shutdown
+  const { flushLogs } = await import('@/lib/better-stack');
+  await flushLogs();
 };
 
 if (!IS_VERCEL) {

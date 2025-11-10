@@ -17,7 +17,7 @@ import type { MetadataRoute } from 'next/types';
  */
 
 import { app } from '@/constants';
-import { getURL } from "@/utils";
+import { getURL } from '@/utils';
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property

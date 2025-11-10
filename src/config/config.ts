@@ -24,7 +24,7 @@ import { env } from '@/env';
  * @type {object}
  * @description
  * Central configuration object for the portfolio client application (only client-safe variables included).
- * Includes environment-specific keys for Firebase, Google APIs, GCP, Sentry, Discord, Hashnode, Upstash, Cloudinary, and Sanity.
+ * Includes environment-specific keys for Firebase, Google APIs, GCP, Sentry, Discord, Hashnode, Upstash, and Sanity.
  * This config should be the singular source of truth for environment and runtime client-side settings across the app.
  *
  * @author Mike Odnis
@@ -149,16 +149,6 @@ export const config = {
       restUrl: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
       restToken: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
     },
-  },
-  /**
-   * @readonly
-   * @public
-   * @description Cloudinary cloud name for image/media management.
-   * @type {{ cloudName: string }}
-   * @see https://cloudinary.com/documentation/cloudinary_end_to_end_image_management
-   */
-  cloudinary: {
-    cloudName: env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
   },
   /**
    * @readonly

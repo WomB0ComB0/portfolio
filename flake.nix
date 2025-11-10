@@ -23,7 +23,6 @@
             postgresql
             git
           ];
-          
           shellHook = ''
             echo "Node.js: $(node --version)"
             echo "pnpm: $(pnpm --version)"

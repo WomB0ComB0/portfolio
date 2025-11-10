@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { StatusBadge } from '@/components/custom/StatusBadge';
 import Link from 'next/link';
 import { memo } from 'react';
 
@@ -46,19 +47,25 @@ export const Footer = memo(() => {
           </a>
         </p>
 
-        <nav className="flex flex-wrap justify-center gap-2 sm:gap-3 text-xs text-muted-foreground">
-          <Link className={linkClasses} href="/licenses">
-            Licenses
-          </Link>
-          <span className="hidden sm:inline mx-1">•</span>
-          <Link className={linkClasses} href="/privacy">
-            Privacy Policy
-          </Link>
-          <span className="hidden sm:inline mx-1">•</span>
-          <Link className={linkClasses} href="/cookies">
-            Cookie Policy
-          </Link>
-        </nav>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <nav className="flex flex-wrap justify-center gap-2 sm:gap-3 text-xs text-muted-foreground">
+            <Link className={linkClasses} href="/licenses">
+              Licenses
+            </Link>
+            <span className="hidden sm:inline mx-1">•</span>
+            <Link className={linkClasses} href="/privacy">
+              Privacy Policy
+            </Link>
+            <span className="hidden sm:inline mx-1">•</span>
+            <Link className={linkClasses} href="/cookies">
+              Cookie Policy
+            </Link>
+          </nav>
+
+          <span className="hidden sm:inline mx-1 text-muted-foreground">•</span>
+
+          <StatusBadge />
+        </div>
       </div>
     </footer>
   );

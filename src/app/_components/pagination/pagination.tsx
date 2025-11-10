@@ -126,7 +126,7 @@ export function usePagination<T>(
   // Reset pagination when items array changes (e.g., after filtering)
   useEffect(() => {
     reset();
-  }, [items?.length, reset]);
+  }, [reset]);
 
   return {
     displayedItems,
@@ -172,6 +172,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             fill="none"
             viewBox="0 0 24 24"
           >
+            <title>Loading spinner</title>
             <circle
               className="opacity-25"
               cx="12"
@@ -190,6 +191,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
         </div>
       ) : (
         <button
+          type="button"
           onClick={onLoadMore}
           className="px-6 py-3 text-sm font-medium rounded-lg bg-secondary/50 hover:bg-primary border border-border/50 hover:border-primary text-secondary-foreground hover:text-primary-foreground transition-all duration-300"
         >

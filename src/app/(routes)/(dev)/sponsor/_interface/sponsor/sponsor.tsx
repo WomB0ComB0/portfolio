@@ -260,7 +260,7 @@ export const Sponsor = () => {
                 {isLoading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[...Array(6)].map((_, i) => (
-                      <MagicCard key={i} className="border-border">
+                      <MagicCard key={+i} className="border-border">
                         <CardContent className="p-4 flex items-center gap-3">
                           <Skeleton className="h-12 w-12 rounded-full shrink-0" />
                           <div className="flex-1 space-y-2">
