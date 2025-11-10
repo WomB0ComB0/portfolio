@@ -1,4 +1,5 @@
 'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -30,7 +31,6 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
     <>
       <nav
         className="bg-card/95 backdrop-blur-2xl border-t border-border/50 px-4 py-3.5 shadow-xl"
-        role="navigation"
         aria-label="Mobile navigation"
       >
         <div className="flex justify-center items-center max-w-md mx-auto">

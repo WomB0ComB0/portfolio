@@ -16,3 +16,4 @@
 
 export * from './client-error';
 export * from './loader';
+export * from './shader-background';

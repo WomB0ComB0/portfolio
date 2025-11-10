@@ -20,32 +20,40 @@ import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 
-const BetterStackIncidentAttributesSchema = Schema.Struct({
-  name: Schema.String,
+// Schema for Better Stack Monitor attributes
+const BetterStackMonitorAttributesSchema = Schema.Struct({
+  url: Schema.String,
+  pronounceable_name: Schema.String,
+  monitor_type: Schema.String,
   status: Schema.Union(
-    Schema.Literal('investigating'),
-    Schema.Literal('identified'),
-    Schema.Literal('monitoring'),
-    Schema.Literal('resolved'),
-    Schema.Literal('ongoing'),
+    Schema.Literal('up'),
+    Schema.Literal('down'),
+    Schema.Literal('paused'),
+    Schema.Literal('validating'),
+    Schema.Literal('maintenance'),
   ),
-  started_at: Schema.String,
-  resolved_at: Schema.NullOr(Schema.String),
-  cause: Schema.NullOr(Schema.String),
+  paused: Schema.Boolean,
+  last_checked_at: Schema.NullOr(Schema.String),
+  created_at: Schema.String,
+  updated_at: Schema.String,
 });
 
-const BetterStackIncidentSchema = Schema.Struct({
+// Schema for Better Stack Monitor
+const BetterStackMonitorSchema = Schema.Struct({
   id: Schema.String,
-  type: Schema.String,
-  attributes: BetterStackIncidentAttributesSchema,
+  type: Schema.Literal('monitor'),
+  attributes: BetterStackMonitorAttributesSchema,
 });
 
-const BetterStackResponseSchema = Schema.Struct({
-  data: Schema.Array(BetterStackIncidentSchema),
+// Schema for Better Stack Monitors API response
+const BetterStackMonitorsResponseSchema = Schema.Struct({
+  data: Schema.Array(BetterStackMonitorSchema),
 });
 
-export type BetterStackIncident = Schema.Schema.Type<typeof BetterStackIncidentSchema>;
-export type BetterStackResponse = Schema.Schema.Type<typeof BetterStackResponseSchema>;
+export type BetterStackMonitor = Schema.Schema.Type<typeof BetterStackMonitorSchema>;
+export type BetterStackMonitorsResponse = Schema.Schema.Type<
+  typeof BetterStackMonitorsResponseSchema
+>;
 
 type ServiceState = 'operational' | 'degraded' | 'down' | 'unknown';
 
@@ -53,7 +61,7 @@ const CACHE_DURATION = 60 * 1_000; // 60 seconds
 let cache: { data: { state: ServiceState; lastUpdated: string }; timestamp: number } | null = null;
 
 /**
- * Handles the status check by fetching from Better Stack status page
+ * Handles the status check by fetching from Better Stack monitors API
  * @async
  * @function
  * @returns {Promise<{ state: ServiceState; lastUpdated: string; message?: string }>}
@@ -72,19 +80,9 @@ export async function handleStatusCheck(): Promise<{
   }
 
   try {
-    const statusPageId = env.BETTERSTACK_STATUS_PAGE_ID;
-
-    if (!statusPageId) {
-      return {
-        state: 'unknown',
-        message: 'Status page not configured',
-        lastUpdated: new Date().toISOString(),
-      };
-    }
-
     const effect = pipe(
-      get(`https://uptime.betterstack.com/api/v2/status-pages/${statusPageId}/resources`, {
-        schema: BetterStackResponseSchema,
+      get('https://uptime.betterstack.com/api/v2/monitors', {
+        schema: BetterStackMonitorsResponseSchema,
         retries: 2,
         timeout: 10_000,
         headers: {
@@ -96,25 +94,36 @@ export async function handleStatusCheck(): Promise<{
 
     const response = await Effect.runPromise(effect);
 
-    // Determine overall state based on incidents
+    // Determine overall state based on monitor statuses
     let state: ServiceState = 'operational';
 
     if (response?.data && Array.isArray(response.data)) {
-      const ongoingIncidents = response.data.filter(
-        (incident) =>
-          incident.attributes.status === 'investigating' ||
-          incident.attributes.status === 'identified' ||
-          incident.attributes.status === 'monitoring' ||
-          incident.attributes.status === 'ongoing',
-      );
+      const activeMonitors = response.data.filter((monitor) => !monitor.attributes.paused);
 
-      if (ongoingIncidents.length > 0) {
-        // Check severity of incidents
-        const hasDownIncident = ongoingIncidents.some((incident) =>
-          incident.attributes.name.toLowerCase().includes('down'),
+      if (activeMonitors.length === 0) {
+        // No active monitors - assume operational
+        state = 'operational';
+      } else {
+        // Count monitors by status
+        const downMonitors = activeMonitors.filter((m) => m.attributes.status === 'down');
+        const maintenanceMonitors = activeMonitors.filter(
+          (m) => m.attributes.status === 'maintenance',
         );
+        const upMonitors = activeMonitors.filter((m) => m.attributes.status === 'up');
 
-        state = hasDownIncident ? 'down' : 'degraded';
+        if (downMonitors.length > 0) {
+          // Any monitor down = system down
+          state = 'down';
+        } else if (maintenanceMonitors.length > 0) {
+          // Monitors in maintenance = degraded
+          state = 'degraded';
+        } else if (upMonitors.length === activeMonitors.length) {
+          // All monitors up = operational
+          state = 'operational';
+        } else {
+          // Mixed state or validating = degraded
+          state = 'degraded';
+        }
       }
     }
 
@@ -128,9 +137,28 @@ export async function handleStatusCheck(): Promise<{
 
     return result;
   } catch (error) {
+    // If we have cached data, return it even if expired rather than failing completely
+    if (cache) {
+      return {
+        ...cache.data,
+        message: 'Using cached status data due to API error',
+      };
+    }
+
+    // If no cache available, return a degraded state instead of throwing
+    const fallbackResult = {
+      state: 'unknown' as ServiceState,
+      message: 'Unable to fetch current status - please try again later',
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Cache the fallback for a shorter duration to retry sooner
+    cache = { data: fallbackResult, timestamp: Date.now() - CACHE_DURATION + 10_000 }; // Expire in 10s
+
     throw ensureBaseError(error, 'status:fetch', {
-      statusPageId: env.BETTERSTACK_STATUS_PAGE_ID,
+      apiEndpoint: 'monitors',
       cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
+      fallbackProvided: true,
     });
   }
 }

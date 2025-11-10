@@ -206,34 +206,34 @@ export const Places = () => {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
                 {displayedPlaces.map((place: PlaceItem) => (
-                  <motion.div key={place.id} variants={itemVariants}>
-                    <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col">
-                      <CardHeader className="pb-4 flex-1">
+                  <motion.div key={place.id} variants={itemVariants} className="h-full">
+                    <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group h-full flex flex-col">
+                      <CardHeader className="pb-4 grow">
                         <Link
                           href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
                           target="_blank"
                           className="w-full block group/link"
                           rel="noopener noreferrer"
                         >
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <CardTitle className="text-xl text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2.5">
-                              <FiMapPin className="h-5 w-5 shrink-0" />
-                              {place.name}
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <CardTitle className="text-lg text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2">
+                              <FiMapPin className="h-4 w-4 shrink-0" />
+                              <span className="line-clamp-1">{place.name}</span>
                             </CardTitle>
-                            <FiExternalLink className="h-5 w-5 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                            <FiExternalLink className="h-4 w-4 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
                           </div>
-                          <CardDescription className="text-muted-foreground leading-relaxed mb-4">
+                          <CardDescription className="text-sm text-muted-foreground leading-snug mb-3 line-clamp-2">
                             {place.description}
                           </CardDescription>
                           <div className="inline-block">
-                            <span className="text-xs font-semibold px-3 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+                            <span className="text-xs font-semibold px-2.5 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">
                               {place.category}
                             </span>
                           </div>
                         </Link>
                       </CardHeader>
-                      {place.photos && place.photos.length > 0 && (
-                        <CardContent className="pt-0 pb-5 px-6">
+                      <CardContent className="pt-0 pb-5 px-6 mt-auto">
+                        {place.photos && place.photos.length > 0 ? (
                           <Link
                             href={`/places/${place.id}`}
                             className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-all duration-300 flex items-center justify-center gap-2.5 text-sm font-medium"
@@ -241,8 +241,10 @@ export const Places = () => {
                             <FiImage className="h-4 w-4" />
                             View Photos ({place.photos.length})
                           </Link>
-                        </CardContent>
-                      )}
+                        ) : (
+                          <div className="h-[42px]" />
+                        )}
+                      </CardContent>
                     </MagicCard>
                   </motion.div>
                 ))}

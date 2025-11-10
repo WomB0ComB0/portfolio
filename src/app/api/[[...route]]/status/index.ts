@@ -67,12 +67,22 @@ export const statusRoute = new Elysia({ prefix: '/status' })
           data: result,
         };
       } catch (error) {
-        const errorResponse = errorHandler(error);
-        set.status = StatusMap['Internal Server Error'];
+        // Log the error but don't fail completely
+        errorHandler(error);
+
+        // If we have a fallback state, return 200 with degraded info
+        // This prevents breaking the UI when Better Stack is down
+        set.headers = cacheHeaders();
+        set.status = StatusMap.OK;
+
         return {
-          success: false as const,
-          error: errorResponse.error,
-          message: 'Failed to retrieve status',
+          success: true as const,
+          message: 'Status retrieved with fallback',
+          data: {
+            state: 'unknown' as const,
+            lastUpdated: new Date().toISOString(),
+            message: 'Status monitoring temporarily unavailable',
+          },
         };
       }
     },

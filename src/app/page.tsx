@@ -17,7 +17,7 @@
  */
 
 import Layout from '@/components/layout/layout';
-import { BlurFade, DotPattern, MagicCard } from '@/components/magicui';
+import { DotPattern, MagicCard } from '@/components/magicui';
 import { Button } from '@/components/ui/button';
 import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
 import { app } from '@/constants';
@@ -58,33 +58,31 @@ const DashboardCard = ({
   className?: string;
   children?: React.ReactNode;
 }) => (
-  <BlurFade inView className="h-full">
-    <Link href={href || '#'} className={cn('block h-full', !href && 'pointer-events-none')}>
-      <MagicCard
-        className={cn(
-          'group h-full rounded-xl border border-white/10 p-6 transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/10',
-          className,
-        )}
-      >
-        {children || (
-          <div className="flex flex-col justify-between h-full">
-            <div>
-              <div className="mb-4 h-10 w-10 rounded-lg bg-white/5 flex items-center justify-center text-primary">
-                {icon}
-              </div>
-              <h3 className="text-lg font-bold text-white">{title}</h3>
-              <p className="text-sm text-neutral-400 mt-1">{description}</p>
+  <Link href={href || '#'} className={cn('block h-full', !href && 'pointer-events-none')}>
+    <MagicCard
+      className={cn(
+        'group h-full rounded-xl border border-white/10 p-6 transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/10',
+        className,
+      )}
+    >
+      {children || (
+        <div className="flex flex-col justify-between h-full">
+          <div>
+            <div className="mb-4 h-10 w-10 rounded-lg bg-white/5 flex items-center justify-center text-primary">
+              {icon}
             </div>
-            {href && (
-              <div className="mt-4 flex items-center text-sm font-medium text-neutral-400 transition-colors duration-300 group-hover:text-primary">
-                Read More <ArrowRight className="ml-2 h-4 w-4" />
-              </div>
-            )}
+            <h3 className="text-lg font-bold text-white">{title}</h3>
+            <p className="text-sm text-neutral-400 mt-1">{description}</p>
           </div>
-        )}
-      </MagicCard>
-    </Link>
-  </BlurFade>
+          {href && (
+            <div className="mt-4 flex items-center text-sm font-medium text-neutral-400 transition-colors duration-300 group-hover:text-primary">
+              Read More <ArrowRight className="ml-2 h-4 w-4" />
+            </div>
+          )}
+        </div>
+      )}
+    </MagicCard>
+  </Link>
 );
 
 // NowPlaying card adapted to the new design
@@ -148,69 +146,73 @@ const HomePage = () => {
 
         <div className="container mx-auto max-w-5xl px-4 py-16 md:py-24 space-y-24">
           <section className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 items-center">
-            <BlurFade delay={0.1} inView>
-              <div className="relative mx-auto w-40 h-40 md:w-48 md:h-48">
-                <Image
-                  src="https://avatars.githubusercontent.com/u/95197809?v=4"
-                  alt="Mike Odnis's profile picture"
-                  width={192}
-                  height={192}
-                  className="rounded-full object-cover w-full h-full border-2 border-primary/50 shadow-2xl"
-                  priority
-                  sizes="(max-width: 768px) 160px, 192px"
-                />
-              </div>
-            </BlurFade>
+            <div className="relative mx-auto w-40 h-40 md:w-48 md:h-48">
+              <Image
+                src="https://avatars.githubusercontent.com/u/95197809?v=4"
+                alt="Mike Odnis's profile picture"
+                width={192}
+                height={192}
+                className="rounded-full object-cover w-full h-full border-2 border-primary/50 shadow-2xl"
+                priority
+                sizes="(max-width: 768px) 160px, 192px"
+              />
+            </div>
 
             <div className="md:col-span-2 text-center md:text-left space-y-6">
-              <BlurFade delay={0.2} inView className="flex flex-col items-center md:items-start">
-                <LayoutTextFlip
-                  text="Mike Odnis"
-                  words={['Mobile', 'Fullstack', 'Cybersecurity', 'Cloud', 'AI', 'DevOps']}
-                  className="flex-col md:flex-row items-center gap-y-2"
-                />
-                <p className="text-lg text-neutral-400 mt-2">Engineer</p>
-              </BlurFade>
-              <BlurFade delay={0.3} inView>
-                <p className="text-neutral-300 leading-relaxed max-w-lg mx-auto md:mx-0">
-                  I build robust, scalable, and user-centric applications. With a foundation in
-                  computer science and a passion for modern technology, I turn complex problems into
-                  elegant software solutions.
-                </p>
-              </BlurFade>
-              <BlurFade
-                delay={0.4}
-                inView
-                className="flex justify-center md:justify-start flex-wrap gap-3"
-              >
-                <Button asChild className="bg-primary/90 text-white hover:bg-primary rounded-lg">
-                  <a href={`mailto:${app.email}`}>
-                    <Mail className="mr-2 h-4 w-4" /> Get in Touch
-                  </a>
-                </Button>
+              <LayoutTextFlip
+                text="Mike Odnis"
+                words={['Mobile', 'Fullstack', 'Cybersecurity', 'Cloud', 'AI', 'DevOps']}
+                className="flex-col md:flex-row items-center gap-y-2"
+              />
+              <p className="text-lg text-neutral-400 mt-2">Engineer</p>
+              <p className="text-neutral-300 leading-relaxed max-w-lg mx-auto md:mx-0">
+                I build robust, scalable, and user-centric applications. With a foundation in
+                computer science and a passion for modern technology, I turn complex problems into
+                elegant software solutions.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 items-center sm:items-start justify-center md:justify-start w-full">
                 <Button
+                  variant={'outline'}
                   asChild
-                  variant="outline"
-                  className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg"
+                  className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg w-full sm:w-auto"
                 >
-                  <a href="https://github.com/WomB0ComB0" target="_blank" rel="noopener noreferrer">
-                    <Github className="mr-2 h-4 w-4" /> GitHub
+                  <a
+                    href={`mailto:${app.email}`}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
+                  >
+                    <Mail className="h-4 w-4 text-primary" /> <span>Get in Touch</span>
                   </a>
                 </Button>
                 <Button
                   asChild
                   variant="outline"
-                  className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg"
+                  className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg w-full sm:w-auto"
+                >
+                  <a
+                    href="https://github.com/WomB0ComB0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
+                  >
+                    <Github className="h-4 w-4" /> <span>GitHub</span>
+                  </a>
+                </Button>
+
+                <Button
+                  asChild
+                  variant="outline"
+                  className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg w-full sm:w-auto"
                 >
                   <a
                     href="https://linkedin.com/in/mikeodnis"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
                   >
-                    <Linkedin className="mr-2 h-4 w-4" /> LinkedIn
+                    <Linkedin className="h-4 w-4" /> <span>LinkedIn</span>
                   </a>
                 </Button>
-              </BlurFade>
+              </div>
             </div>
           </section>
 

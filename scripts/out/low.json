@@ -26,6 +26,7 @@
   "@types/react",
   "@upstash/ratelimit",
   "motion",
+  "@paper-design/shaders-react",
   "arktype",
   "@radix-ui/react-select",
   "@vercel/speed-insights",

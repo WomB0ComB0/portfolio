@@ -328,7 +328,7 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
                         >
                           <Link href={item.slug} className="flex items-center gap-3 w-full">
                             <item.icon size="1rem" />
-                            <span>{item.name}</span>
+                            <span className={`text-foreground`}>{item.name}</span>
                           </Link>
                         </Button>
                       </motion.div>

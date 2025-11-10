@@ -19,7 +19,7 @@ import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared
 export const cacheHeaders = createCacheHeaders('Short');
 
 export const errorHandler = createErrorHandler({
-  context: 'fetching system status',
+  context: 'fetch system status',
 });
 
 import { logAPIRequest } from '@/lib/better-stack';

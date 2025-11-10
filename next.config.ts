@@ -65,10 +65,17 @@ function computeExemptDeps(): Set<string> {
   ]);
 
   const KNOWN_BAD = new Set<string>([
-    // Add or remove as you learn more:
     '@mantine/modals',
-    // Example placeholders; prune if they work fine in your app:
-    // "@mantine/core",
+    'react-icons',
+    'react-icons/si',
+    'lodash',
+    'date-fns',
+    'classnames',
+    'axios',
+    'zustand',
+    'motion',
+    'tailwindcss',
+    'autoprefixer',
   ]);
 
   const EXCLUDE_NAME_RE = new RegExp(

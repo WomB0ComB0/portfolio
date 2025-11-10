@@ -57,7 +57,7 @@ const ProjectCardSkeleton = (): JSX.Element => (
         </div>
         <div className="flex flex-wrap gap-2">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-7 w-16 bg-muted animate-pulse rounded-lg" />
+            <div key={+i} className="h-7 w-16 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
       </CardContent>
@@ -75,7 +75,7 @@ const ProjectsListSkeleton = (): JSX.Element => (
 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {[...Array(6)].map((_, i) => (
-        <ProjectCardSkeleton key={i} />
+        <ProjectCardSkeleton key={+i} />
       ))}
     </div>
   </div>
@@ -153,7 +153,7 @@ const ProjectsListContent = (): JSX.Element => {
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             {displayedProjects.map((project) => (
               <motion.div
@@ -222,7 +222,7 @@ const ProjectsListContent = (): JSX.Element => {
                             const techName = typeof tech === 'string' ? tech : tech || 'Unknown';
                             return (
                               <span
-                                key={`${techName}-${idx}`}
+                                key={`${techName}-${+idx}`}
                                 className="px-2.5 py-1 text-xs bg-muted/50 text-muted-foreground rounded-md border border-border/50 hover:border-primary/30 transition-colors"
                               >
                                 {techName}

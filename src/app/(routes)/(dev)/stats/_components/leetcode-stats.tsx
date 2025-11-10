@@ -118,7 +118,7 @@ export const LeetCodeStats = memo(() => {
         <div className="mx-auto w-full text-center space-y-1">
           <span className="text-sm text-primary-background/70 w-full">Total Solved</span>
           <NumberTicker
-            className="text-3xl md:text-4xl font-bold text-primary-background w-full"
+            className="text-lg md:text-xl font-bold text-primary-background w-full"
             value={totalSolved}
           />
         </div>

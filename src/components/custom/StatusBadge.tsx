@@ -56,7 +56,6 @@ function getStatusColor(state: ServiceState): string {
       return 'bg-amber-500';
     case 'down':
       return 'bg-red-500';
-    case 'unknown':
     default:
       return 'bg-zinc-400';
   }
@@ -73,7 +72,6 @@ function getStatusLabel(state: ServiceState): string {
       return 'Degraded Performance';
     case 'down':
       return 'Service Outage';
-    case 'unknown':
     default:
       return 'Status Unknown';
   }

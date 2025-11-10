@@ -1,5 +1,7 @@
 'use client';
 
+import { LightRays } from '@/components';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -153,6 +155,7 @@ const ErrorLayout: React.FC<{
           </div>
           {error?.digest && <p className="mt-8 text-sm text-white/60">Error ID: {error.digest}</p>}
         </motion.div>
+        <LightRays count={5} blur={20} />
       </div>
     );
   },

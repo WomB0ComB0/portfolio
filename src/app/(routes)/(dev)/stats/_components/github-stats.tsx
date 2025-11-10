@@ -25,7 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
 import { memo } from 'react';
-import { FiArrowUpRight, FiCode, FiGithub, FiStar, FiUsers } from 'react-icons/fi';
+import { FiArrowUpRight, FiGithub, FiStar, FiUsers } from 'react-icons/fi';
 import { StatCard } from './stat-card';
 
 const GitHubStatsSchema = Schema.Struct({
@@ -62,7 +62,7 @@ const StatItem = ({
     <div className="text-primary-background/80">{icon}</div>
     <div>
       <NumberTicker
-        className="text-2xl md:text-3xl font-bold text-primary-background"
+        className="text-lg md:text-xl font-bold text-primary-background"
         value={value}
       />
       <p className="text-xs text-primary-background/60">{label}</p>
@@ -142,7 +142,7 @@ export const GitHubStats = memo(() => {
       </StatCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-3 space-y-4">
           <h3 className="text-xl font-semibold text-primary">Top Repositories</h3>
           <div className="space-y-2">
             {githubData.topRepos.map((repo, index) => (
@@ -184,26 +184,6 @@ export const GitHubStats = memo(() => {
               </motion.a>
             ))}
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-primary">Top Languages</h3>
-          <StatCard title="" icon={<></>}>
-            <div className="space-y-2">
-              {githubData.stats.topLanguages.map((language, index) => (
-                <motion.div
-                  key={language}
-                  className="flex items-center gap-3 text-sm p-2 rounded-md hover:bg-card/50"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                >
-                  <FiCode className="h-4 w-4 text-primary" />
-                  <span className="font-medium text-foreground">{language}</span>
-                </motion.div>
-              ))}
-            </div>
-          </StatCard>
         </div>
       </div>
     </div>

@@ -133,7 +133,7 @@ export const MonkeytypeStats = memo(() => {
         <div className="flex flex-col items-center">
           <span className="text-xs text-primary-background/70">WPM</span>
           <NumberTicker
-            className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-background"
+            className="text-md md:text-lg font-bold text-primary-background"
             value={best60.wpm}
           />
         </div>
@@ -144,7 +144,7 @@ export const MonkeytypeStats = memo(() => {
         <div className="flex flex-col items-center">
           <span className="text-xs text-primary-background/70">Tests</span>
           <NumberTicker
-            className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-background"
+            className="text-md md:text-lg font-bold text-primary-background"
             value={monkeytypeData.typingStats.completedTests}
           />
         </div>

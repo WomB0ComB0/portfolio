@@ -52,7 +52,8 @@ export const Layout = ({
   const pathname = usePathname();
   return (
     <div className="relative min-h-screen bg-background font-clash">
-      <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden selection:bg-primary/30">
+      {/* <ShaderBackground> */}
+      <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden overflow-y-hidden selection:bg-primary/30">
         <Palette />
         <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
           <div className="w-[6%] fixed left-0 h-full z-20 hidden lg:block md:block">
@@ -63,7 +64,7 @@ export const Layout = ({
           </section>
         </div>
         <Footer />
-        <LightRays count={3} blur={10} />
+        <LightRays count={5} blur={20} />
       </div>
       <div className="fixed bottom-0 left-0 right-0 z-50 block lg:hidden md:hidden">
         <MobileNavBar path={pathname ?? ''} />

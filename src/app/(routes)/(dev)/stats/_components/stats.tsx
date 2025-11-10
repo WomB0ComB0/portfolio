@@ -59,7 +59,7 @@ const StatItem = ({
     ) : (
       <div className="flex items-baseline gap-1">
         <NumberTicker
-          className="text-xl md:text-2xl font-bold text-primary-background"
+          className="text-md md:text-xl font-bold text-primary-background"
           value={value}
         />
         {unit && <span className="text-sm font-medium text-primary-background/70">{unit}</span>}

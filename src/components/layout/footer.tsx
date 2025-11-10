@@ -62,8 +62,7 @@ export const Footer = memo(() => {
             </Link>
           </nav>
 
-          <span className="hidden sm:inline mx-1 text-muted-foreground">•</span>
-
+          <span className="hidden sm:inline mx-1">•</span>
           <StatusBadge />
         </div>
       </div>
