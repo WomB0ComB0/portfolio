@@ -50,8 +50,8 @@ import type { Metadata, Viewport } from 'next';
 export function constructMetadata({
   title = `${app.name}`,
   description = `${app.description}`,
-  image = '/api/og',
-  twitter = '/api/og',
+  image,
+  twitter,
   icons = '/assets/svgs/logo.svg',
   noIndex = false,
   url = app.url,
@@ -83,6 +83,12 @@ export function constructMetadata({
   twitterPlayerHeight?: number;
   twitterPlayerStream?: string;
 } = {}): Metadata {
+  // Construct dynamic OG image URL with title and description
+  const ogImageUrl =
+    image ??
+    `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`;
+  const twitterImageUrl = twitter ?? ogImageUrl;
+
   return {
     title: {
       default: title,
@@ -96,7 +102,7 @@ export function constructMetadata({
       siteName: title,
       type: 'website',
       locale: 'en_US',
-      images: [{ url: image }],
+      images: [{ url: ogImageUrl }],
       videos: [
         {
           url: ogVideo,
@@ -111,7 +117,7 @@ export function constructMetadata({
       card: 'player',
       title,
       description,
-      images: [twitter],
+      images: [twitterImageUrl],
       creator: '@mike_odnis',
     },
     other: {
