@@ -81,7 +81,7 @@ export const sanityClientWithToken: SanityClient = config.token
       ...sanityConfig,
       token: config.token,
       useCdn: false,
-      perspective: 'previewDrafts' as const,
+      perspective: 'published' as const, // Use 'published' instead of 'previewDrafts'
     })
   : sanityClient; // Fallback to regular client on client-side
 
