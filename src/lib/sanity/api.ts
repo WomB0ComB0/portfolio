@@ -16,7 +16,7 @@
 
 import type { Certification, Experience, Place, Project } from '@/hooks/sanity/schemas';
 import { logger } from '@/utils';
-import { sanityFetch } from './client';
+import { sanityFetchWithToken } from './client';
 import {
   certificationsQuery,
   experiencesQuery,
@@ -37,7 +37,7 @@ const CACHE_DURATION = 60 * 5; // 5 minutes
  */
 export async function getExperiences(): Promise<Experience[]> {
   try {
-    const experiences = await sanityFetch<Experience[]>(experiencesQuery);
+    const experiences = await sanityFetchWithToken<Experience[]>(experiencesQuery);
     return experiences;
   } catch (error) {
     logger.error('Error fetching experiences from Sanity:', error);
@@ -51,7 +51,7 @@ export async function getExperiences(): Promise<Experience[]> {
  */
 export async function getProjects(): Promise<Project[]> {
   try {
-    const projects = await sanityFetch<Project[]>(projectsQuery);
+    const projects = await sanityFetchWithToken<Project[]>(projectsQuery);
     return projects;
   } catch (error) {
     logger.error('Error fetching projects from Sanity:', error);
@@ -65,7 +65,7 @@ export async function getProjects(): Promise<Project[]> {
  */
 export async function getFeaturedProjects(): Promise<Project[]> {
   try {
-    const projects = await sanityFetch<Project[]>(featuredProjectsQuery);
+    const projects = await sanityFetchWithToken<Project[]>(featuredProjectsQuery);
     return projects;
   } catch (error) {
     logger.error('Error fetching featured projects from Sanity:', error);
@@ -80,7 +80,7 @@ export async function getFeaturedProjects(): Promise<Project[]> {
  */
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   try {
-    const project = await sanityFetch<Project | null>(projectBySlugQuery, { slug });
+    const project = await sanityFetchWithToken<Project | null>(projectBySlugQuery, { slug });
     return project;
   } catch (error) {
     logger.error(`Error fetching project with slug "${slug}":`, error);
@@ -94,7 +94,7 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
  */
 export async function getCertifications(): Promise<Certification[]> {
   try {
-    const certifications = await sanityFetch<Certification[]>(certificationsQuery);
+    const certifications = await sanityFetchWithToken<Certification[]>(certificationsQuery);
     return certifications;
   } catch (error) {
     logger.error('Error fetching certifications from Sanity:', error);
@@ -108,7 +108,7 @@ export async function getCertifications(): Promise<Certification[]> {
  */
 export async function getPlaces(): Promise<Place[]> {
   try {
-    const places = await sanityFetch<Place[]>(placesQuery);
+    const places = await sanityFetchWithToken<Place[]>(placesQuery);
     return places;
   } catch (error) {
     logger.error('Error fetching places from Sanity:', error);
@@ -139,7 +139,7 @@ export async function getResume() {
       isActive
     }`;
 
-    const resume = await sanityFetch(resumeQuery);
+    const resume = await sanityFetchWithToken(resumeQuery);
     return resume;
   } catch (error) {
     logger.error('Error fetching resume from Sanity:', error);
