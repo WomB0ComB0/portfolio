@@ -89,16 +89,7 @@ export const projectType = defineType({
       name: 'category',
       title: 'Category',
       type: 'string',
-      options: {
-        list: [
-          { title: 'Web Development', value: 'Web Development' },
-          { title: 'Mobile App', value: 'Mobile App' },
-          { title: 'Machine Learning', value: 'Machine Learning' },
-          { title: 'Data Science', value: 'Data Science' },
-          { title: 'DevOps', value: 'DevOps' },
-          { title: 'Other', value: 'Other' },
-        ],
-      },
+      description: 'Project category - can be a single category or combined (e.g., "AI/ML / Full-Stack")',
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -112,13 +103,7 @@ export const projectType = defineType({
       name: 'status',
       title: 'Status',
       type: 'string',
-      options: {
-        list: [
-          { title: 'In Progress', value: 'In Progress' },
-          { title: 'Completed', value: 'Completed' },
-          { title: 'Archived', value: 'Archived' },
-        ],
-      },
+      description: 'Project status - can be combined (e.g., "Completed / Active Maintenance")',
       validation: (Rule) => Rule.required(),
     }),
     defineField({

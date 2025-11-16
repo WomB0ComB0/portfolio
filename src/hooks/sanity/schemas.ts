@@ -125,16 +125,9 @@ export const ProjectSchema = Schema.Struct({
   longDescription: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   image: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
   images: Schema.optional(Schema.Union(Schema.Array(SanityImageSchema), Schema.Null)),
-  category: Schema.Literal(
-    'Web Development',
-    'Mobile App',
-    'Machine Learning',
-    'Data Science',
-    'DevOps',
-    'Other',
-  ),
+  category: Schema.String, // Allow any string for flexible categorization
   technologies: Schema.Array(Schema.String),
-  status: Schema.Literal('In Progress', 'Completed', 'Archived'),
+  status: Schema.String, // Allow any string for flexible status combinations
   featured: Schema.Boolean,
   liveUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   githubUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
