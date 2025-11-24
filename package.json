@@ -182,7 +182,7 @@
     "type-fest": "^5.1.0",
     "vaul": "1.1.2",
     "vitest": "^4.0.3",
-    "zod": "4.1.12"
+    "zod": "4.1.13"
   },
   "devDependencies": {
     "@babel/generator": "7.28.5",
