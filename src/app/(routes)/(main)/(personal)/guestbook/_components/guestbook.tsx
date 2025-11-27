@@ -16,13 +16,6 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
-import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useMemo, useState } from 'react';
-import { FiAlertCircle, FiClock, FiMessageSquare, FiSend, FiUser } from 'react-icons/fi';
-import { z } from 'zod';
 import { LoginButton } from '@/components/custom/login-button';
 import { LogoutButton } from '@/components/custom/logout-button';
 import { PageHeader } from '@/components/custom/page-header';
@@ -36,6 +29,13 @@ import { usePostMessage } from '@/hooks';
 import { get } from '@/lib/http-clients/effect-fetcher';
 import { formatDateTime, logger } from '@/utils';
 import { escapeHtml, validateUserInput } from '@/utils/security/xss';
+import { FetchHttpClient } from '@effect/platform';
+import { useQuery } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
+import { AnimatePresence, motion } from 'motion/react';
+import { useCallback, useMemo, useState } from 'react';
+import { FiAlertCircle, FiClock, FiMessageSquare, FiSend, FiUser } from 'react-icons/fi';
+import { z } from 'zod';
 
 /**
  * Zod validation schema for input messages.

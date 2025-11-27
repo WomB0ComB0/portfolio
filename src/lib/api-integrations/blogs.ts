@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { config } from '@/config';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
 /**
  * GraphQL query for fetching user blog posts from Hashnode.

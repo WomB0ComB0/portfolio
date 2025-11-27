@@ -60,13 +60,13 @@
 
 // Configuration utilities
 export {
-  createDataLoaderOptions,
-  createSanityQueryKey,
-  getSanityEndpoint,
   SANITY_API_BASE,
   SANITY_CACHE_CONFIG,
   SANITY_ENDPOINTS,
   SANITY_FETCHER_OPTIONS,
+  createDataLoaderOptions,
+  createSanityQueryKey,
+  getSanityEndpoint,
   type SanityEndpoint,
 } from './config';
 // Declarative DataLoader components
@@ -79,8 +79,8 @@ export {
   ExperiencesSchema,
   ProjectSchema,
   ProjectsSchema,
-  type Resume,
   ResumeSchema,
+  type Resume,
 } from './schemas';
 // Standard React Query hooks
 // Suspense-based hooks

@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-import { ExternalLink, FileText } from 'lucide-react';
-import { motion } from 'motion/react';
-import Link from 'next/link';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type Resume as ResumeType, useSanityResume } from '@/hooks';
+import { ExternalLink, FileText } from 'lucide-react';
+import { motion } from 'motion/react';
+import Link from 'next/link';
 
 const BASE_CDN_URL = 'https://cdn.sanity.io/files/34jrnkds/production/';
 

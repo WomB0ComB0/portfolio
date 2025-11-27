@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
 // Schema for WakaTime API response
 const WakaTimeDataSchema = Schema.Struct({

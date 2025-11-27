@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
+import { Button } from '@/components/ui/button';
+import { NavbarItems } from '@/constants/index';
+import { cn } from '@/lib/utils';
 import { useKBar } from 'kbar';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import { memo, useState } from 'react';
 import { FaGavel } from 'react-icons/fa';
 import { FiBriefcase, FiCode, FiCommand, FiHome, FiUser } from 'react-icons/fi';
-import { Button } from '@/components/ui/button';
-import { NavbarItems } from '@/constants/index';
-import { cn } from '@/lib/utils';
 
 export const groupNavItems = () => {
   // Define which routes belong to which persona

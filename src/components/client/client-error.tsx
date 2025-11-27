@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import { AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 /**
  * ClientError component for displaying client-side error messages in a styled alert.

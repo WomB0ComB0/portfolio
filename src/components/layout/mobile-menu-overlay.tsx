@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { Button } from '@/components/ui/button';
 import type { useKBar } from 'kbar';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
@@ -23,7 +24,6 @@ import type React from 'react';
 import { memo, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiBriefcase, FiChevronDown, FiCode, FiCommand, FiHome, FiX } from 'react-icons/fi';
-import { Button } from '@/components/ui/button';
 import { groupNavItems } from './nav';
 
 interface MobileMenuOverlayProps {

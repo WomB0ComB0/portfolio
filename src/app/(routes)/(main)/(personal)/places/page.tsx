@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
-import { constructMetadata } from '@/utils';
 
 const Places = dynamic(
   () =>

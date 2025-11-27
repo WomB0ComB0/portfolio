@@ -18,10 +18,10 @@ import type { ApiResponse, Message, MutationContext } from './use-messages.types
  * limitations under the License.
  */
 
+import { post } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import { post } from '@/lib/http-clients/effect-fetcher';
 
 /**
  * @readonly

@@ -34,8 +34,8 @@
  * ```
  */
 
-import type { Schema } from 'effect';
 import { useDataLoader } from '@/providers/server/effect-data-loader';
+import type { Schema } from 'effect';
 import { createDataLoaderOptions, SANITY_ENDPOINTS } from './config';
 import {
   CertificationsSchema,

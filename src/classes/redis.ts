@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Redis } from '@upstash/redis';
 import { env } from '@/env';
+import { Redis } from '@upstash/redis';
 
 /**
  * A singleton instance of the Upstash Redis client, configured for use with Upstash REST API.

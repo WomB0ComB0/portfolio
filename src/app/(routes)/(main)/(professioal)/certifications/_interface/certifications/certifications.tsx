@@ -18,10 +18,6 @@ import { MagicCard, PageHeader } from '@/components';
  * limitations under the License.
  */
 
-import { Award, Building2, Calendar, Code2, ExternalLink, Hash } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +25,10 @@ import { Separator } from '@/components/ui/separator';
 import { useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDateOnly } from '@/utils';
+import { Award, Building2, Calendar, Code2, ExternalLink, Hash } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense, useMemo } from 'react';
 
 /**
  * Skeleton loader for individual certification cards

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from 'firebase/app';
-import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
 import { config } from '@/config';
 import { onRequestError } from '@/instrumentation';
 import { logger } from '@/utils';
+import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from 'firebase/app';
+import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
 
 /**
  * @readonly

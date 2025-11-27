@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { ImageResponse } from 'next/og';
 import { app } from '@/constants';
 import { constructMetadata, logger } from '@/utils';
+import { ImageResponse } from 'next/og';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 export const runtime = 'nodejs'; // explicit, since you use fs.readFile
 
@@ -124,181 +124,183 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
     const [kodchasanBoldData, kodchasanRegularData] = await fontDataPromise;
 
     return new ImageResponse(
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0a0118 0%, #1a0b2e 50%, #160b28 100%)',
-          fontFamily: '"Kodchasan"',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Enhanced gradient orbs */}
+      (
         <div
           style={{
-            position: 'absolute',
-            width: '600px',
-            height: '600px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%)',
-            top: '-200px',
-            left: '-100px',
-            filter: 'blur(80px)',
-            zIndex: 0,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            width: '500px',
-            height: '500px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%)',
-            bottom: '-150px',
-            right: '-100px',
-            filter: 'blur(80px)',
-            zIndex: 0,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            width: '400px',
-            height: '400px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            filter: 'blur(100px)',
-            zIndex: 0,
-          }}
-        />
-
-        {/* Logo with glow effect */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 60,
-            left: 60,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            zIndex: 10,
-            filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.5))',
-          }}
-        >
-          <Logo />
-        </div>
-
-        {/* Decorative corner accent */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: '300px',
-            height: '300px',
-            background: 'linear-gradient(225deg, rgba(168, 85, 247, 0.1) 0%, transparent 70%)',
-            zIndex: 1,
-          }}
-        />
-
-        {/* Main content container */}
-        <div
-          style={{
+            height: '100%',
+            width: '100%',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             justifyContent: 'center',
-            width: '100%',
-            padding: '0 80px',
-            zIndex: 10,
-            marginTop: 40,
+            background: 'linear-gradient(135deg, #0a0118 0%, #1a0b2e 50%, #160b28 100%)',
+            fontFamily: '"Kodchasan"',
             position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          {/* Accent bar */}
+          {/* Enhanced gradient orbs */}
           <div
             style={{
-              width: '80px',
-              height: '6px',
-              background: 'linear-gradient(90deg, #8b5cf6 0%, #a855f7 100%)',
-              borderRadius: '3px',
-              marginBottom: 32,
-              boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)',
+              position: 'absolute',
+              width: '600px',
+              height: '600px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%)',
+              top: '-200px',
+              left: '-100px',
+              filter: 'blur(80px)',
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '500px',
+              height: '500px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%)',
+              bottom: '-150px',
+              right: '-100px',
+              filter: 'blur(80px)',
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '400px',
+              height: '400px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              filter: 'blur(100px)',
+              zIndex: 0,
             }}
           />
 
-          {/* Title with gradient */}
+          {/* Logo with glow effect */}
           <div
             style={{
-              fontSize: 76,
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #ffffff 0%, #e9d5ff 100%)',
-              backgroundClip: 'text',
-              color: 'transparent',
-              lineHeight: 1.05,
-              marginBottom: 28,
-              letterSpacing: '-0.03em',
-              maxWidth: '90%',
+              position: 'absolute',
+              top: 60,
+              left: 60,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              zIndex: 10,
+              filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.5))',
             }}
           >
-            {title}
+            <Logo />
           </div>
 
-          {/* Description with better contrast */}
+          {/* Decorative corner accent */}
           <div
             style={{
-              fontSize: 32,
-              fontWeight: 400,
-              color: '#d8b4fe',
-              lineHeight: 1.6,
-              maxWidth: '80%',
-              opacity: 0.95,
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '300px',
+              height: '300px',
+              background: 'linear-gradient(225deg, rgba(168, 85, 247, 0.1) 0%, transparent 70%)',
+              zIndex: 1,
+            }}
+          />
+
+          {/* Main content container */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              width: '100%',
+              padding: '0 80px',
+              zIndex: 10,
+              marginTop: 40,
+              position: 'relative',
             }}
           >
-            {description}
+            {/* Accent bar */}
+            <div
+              style={{
+                width: '80px',
+                height: '6px',
+                background: 'linear-gradient(90deg, #8b5cf6 0%, #a855f7 100%)',
+                borderRadius: '3px',
+                marginBottom: 32,
+                boxShadow: '0 0 20px rgba(168, 85, 247, 0.6)',
+              }}
+            />
+
+            {/* Title with gradient */}
+            <div
+              style={{
+                fontSize: 76,
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #ffffff 0%, #e9d5ff 100%)',
+                backgroundClip: 'text',
+                color: 'transparent',
+                lineHeight: 1.05,
+                marginBottom: 28,
+                letterSpacing: '-0.03em',
+                maxWidth: '90%',
+              }}
+            >
+              {title}
+            </div>
+
+            {/* Description with better contrast */}
+            <div
+              style={{
+                fontSize: 32,
+                fontWeight: 400,
+                color: '#d8b4fe',
+                lineHeight: 1.6,
+                maxWidth: '80%',
+                opacity: 0.95,
+              }}
+            >
+              {description}
+            </div>
+          </div>
+
+          {/* Enhanced footer with badge style */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 60,
+              left: 80,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '20px',
+              fontSize: 22,
+              fontWeight: 500,
+              zIndex: 10,
+              background: 'rgba(168, 85, 247, 0.1)',
+              padding: '12px 24px',
+              borderRadius: '12px',
+              border: '1px solid rgba(168, 85, 247, 0.2)',
+            }}
+          >
+            <span
+              style={{
+                color: '#e9d5ff',
+                fontWeight: 600,
+              }}
+            >
+              {app.name}
+            </span>
+            <span style={{ color: '#8b5cf6', opacity: 0.6 }}>•</span>
+            <span style={{ color: '#c4b5fd', opacity: 0.9 }}>
+              {app.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+            </span>
           </div>
         </div>
-
-        {/* Enhanced footer with badge style */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 60,
-            left: 80,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '20px',
-            fontSize: 22,
-            fontWeight: 500,
-            zIndex: 10,
-            background: 'rgba(168, 85, 247, 0.1)',
-            padding: '12px 24px',
-            borderRadius: '12px',
-            border: '1px solid rgba(168, 85, 247, 0.2)',
-          }}
-        >
-          <span
-            style={{
-              color: '#e9d5ff',
-              fontWeight: 600,
-            }}
-          >
-            {app.name}
-          </span>
-          <span style={{ color: '#8b5cf6', opacity: 0.6 }}>•</span>
-          <span style={{ color: '#c4b5fd', opacity: 0.9 }}>
-            {app.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-          </span>
-        </div>
-      </div>,
+      ),
       {
         width: 1200,
         height: 630,

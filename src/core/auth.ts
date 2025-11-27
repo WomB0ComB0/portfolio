@@ -18,6 +18,7 @@ import type { SignInMethod } from './auth.types';
  * limitations under the License.
  */
 
+import { logger } from '@/utils';
 import type { FirebaseError } from 'firebase/app';
 import {
   GithubAuthProvider,
@@ -29,11 +30,10 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { loadable } from 'jotai/utils';
 import { atomEffect } from 'jotai-effect';
+import { loadable } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { logger } from '@/utils';
 import { app } from './firebase';
 
 /**
