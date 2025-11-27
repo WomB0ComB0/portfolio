@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Stringify } from '@/utils';
 import { StatusMap } from 'elysia';
+import { Stringify } from '@/utils';
 
 /**
  * Represents the structure of a successful API response.

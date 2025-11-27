@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { ensureBaseError } from '@/classes/error';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { ensureBaseError } from '@/classes/error';
+import { get } from '@/lib/http-clients/effect-fetcher';
 
 // NOTE: This uses a popular unofficial LeetCode API.
 const LEETCODE_API_URL = 'https://leetcode-stats-api.herokuapp.com/WomB0ComB0';

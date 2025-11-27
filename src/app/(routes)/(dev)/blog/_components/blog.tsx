@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 
-import { PageHeader } from '@/components/custom/page-header';
-import { MagicCard } from '@/components/magicui';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { format } from 'date-fns';
 import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
@@ -29,6 +24,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
 import { FiRss } from 'react-icons/fi';
+import { PageHeader } from '@/components/custom/page-header';
+import { MagicCard } from '@/components/magicui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @readonly

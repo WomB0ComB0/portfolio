@@ -16,7 +16,6 @@
 
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import { config } from '@/config';
 import * as Sentry from '@sentry/nextjs';
 import {
   browserTracingIntegration,
@@ -24,6 +23,7 @@ import {
   init,
   replayIntegration,
 } from '@sentry/nextjs';
+import { config } from '@/config';
 
 if (!config.sentry.dsn) {
   console.warn(

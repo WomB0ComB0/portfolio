@@ -1,6 +1,1 @@
-[
-  "@tailwindcss/postcss",
-  "stylelint-config-standard-scss",
-  "tsx",
-  "tw-animate-css"
-]
+["@tailwindcss/postcss", "stylelint-config-standard-scss", "tsx", "tw-animate-css"]

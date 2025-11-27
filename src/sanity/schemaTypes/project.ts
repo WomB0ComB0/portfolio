@@ -89,7 +89,8 @@ export const projectType = defineType({
       name: 'category',
       title: 'Category',
       type: 'string',
-      description: 'Project category - can be a single category or combined (e.g., "AI/ML / Full-Stack")',
+      description:
+        'Project category - can be a single category or combined (e.g., "AI/ML / Full-Stack")',
       validation: (Rule) => Rule.required(),
     }),
     defineField({

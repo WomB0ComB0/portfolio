@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import './fonts.css';
-@import './page-header.css';
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./fonts.css";
+@import "./page-header.css";
 @custom-variant dark (&:is(.dark *));
 
 /* Mobile navigation safe area */
@@ -112,7 +112,7 @@
 
 .loader::before {
   position: absolute;
-  content: '';
+  content: "";
   width: calc(100% - 5px);
   height: calc(100% - 5px);
   background: #242424;
@@ -124,7 +124,7 @@
 
 .loader::after {
   position: absolute;
-  content: '';
+  content: "";
   z-index: -3;
   width: calc(100% + 10px);
   height: calc(100% + 10px);

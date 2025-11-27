@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { serviceAccount } from '@/core/firebase';
-import { logger } from '@/utils';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { z } from 'zod';
+import { serviceAccount } from '@/core/firebase';
+import { logger } from '@/utils';
 
 /**
  * @readonly

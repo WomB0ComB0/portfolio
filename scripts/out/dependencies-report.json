@@ -24,12 +24,8 @@
     "@opentelemetry/semantic-conventions": [
       "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/constants/index.ts"
     ],
-    "@total-typescript/ts-reset": [
-      "/home/wombocombo/github/prs/portfolio/reset.d.ts"
-    ],
-    "@upstash/redis": [
-      "/home/wombocombo/github/prs/portfolio/src/classes/redis.ts"
-    ],
+    "@total-typescript/ts-reset": ["/home/wombocombo/github/prs/portfolio/reset.d.ts"],
+    "@upstash/redis": ["/home/wombocombo/github/prs/portfolio/src/classes/redis.ts"],
     "bun": [
       "/home/wombocombo/github/prs/portfolio/src/app/api/_elysia/shared/config.ts",
       "/home/wombocombo/github/prs/portfolio/scripts/cleanup.ts",
@@ -71,9 +67,7 @@
       "/home/wombocombo/github/prs/portfolio/src/app/(routes)/(dev)/stats/_components/stats.tsx",
       "/home/wombocombo/github/prs/portfolio/src/__tests__/type-check.ts"
     ],
-    "sharp": [
-      "/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts"
-    ]
+    "sharp": ["/home/wombocombo/github/prs/portfolio/scripts/img-to-b64.ts"]
   },
   "potentialUnusedSubDependencies": [
     "@alloc/quick-lru",

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { cn } from '@/lib/utils';
 import { ChevronDownIcon } from '@radix-ui/react-icons';
 import * as NavigationMenuPrimitive from '@radix-ui/react-navigation-menu';
 import { cva } from 'class-variance-authority';
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 const NavigationMenu = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Root>,

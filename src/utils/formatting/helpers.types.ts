@@ -53,5 +53,6 @@ export type Failure<E> = {
  * @version 1.0.0
  */
 export type Result<T, E> = Success<T> | Failure<E>;
-export type ExtractAsyncArgs<Args extends Array<any>> =
-  Args extends Array<infer PotentialArgTypes> ? [PotentialArgTypes] : [];
+export type ExtractAsyncArgs<Args extends Array<any>> = Args extends Array<infer PotentialArgTypes>
+  ? [PotentialArgTypes]
+  : [];

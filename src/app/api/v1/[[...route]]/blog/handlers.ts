@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { Schema } from 'effect';
 import { BaseError } from '@/classes/error';
 import { getBlogs } from '@/lib';
-import { Schema } from 'effect';
 
 export const BlogSchema = Schema.Struct({
   title: Schema.String,

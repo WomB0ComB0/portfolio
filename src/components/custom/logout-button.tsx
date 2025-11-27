@@ -16,9 +16,9 @@ import type { LogoutButtonProps } from './logout-button.types';
  * limitations under the License.
  */
 
+import type { JSX } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSignOut } from '@/core/auth';
-import type { JSX } from 'react';
 
 export const LogoutButton = (props: LogoutButtonProps): JSX.Element => {
   const { ...other } = props;

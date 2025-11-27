@@ -18,6 +18,11 @@ import { MagicCard, PageHeader } from '@/components';
  * limitations under the License.
  */
 
+import { ArrowRight, Briefcase, Calendar, MapPin } from 'lucide-react';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense } from 'react';
 import { PaginationControls, usePagination } from '@/app/_components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
@@ -26,11 +31,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDatePeriod } from '@/utils';
-import { ArrowRight, Briefcase, Calendar, MapPin } from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense } from 'react';
 
 const ITEMS_PER_PAGE = 6;
 

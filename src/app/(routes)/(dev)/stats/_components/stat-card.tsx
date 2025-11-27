@@ -1,4 +1,5 @@
 'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -15,11 +16,11 @@
  * limitations under the License.
  */
 
+import { motion } from 'motion/react';
+import type { ReactNode } from 'react';
 import { MagicCard } from '@/components';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
-import type { ReactNode } from 'react';
 
 interface StatCardProps {
   icon: ReactNode;

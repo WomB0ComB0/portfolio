@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-import { get } from '@/lib/http-clients/effect-fetcher';
-import { cn } from '@/lib/utils';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import Link from 'next/link';
 import { memo } from 'react';
+import { get } from '@/lib/http-clients/effect-fetcher';
+import { cn } from '@/lib/utils';
 
 const StatusResponseSchema = Schema.Struct({
   success: Schema.Literal(true),

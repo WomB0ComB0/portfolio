@@ -14,11 +14,19 @@
  * limitations under the License.
  */
 
-import { app } from '@/constants';
-import { constructMetadata, logger } from '@/utils';
-import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { ImageResponse } from 'next/og';
+import { app } from '@/constants';
+import { constructMetadata, logger } from '@/utils';
+
+export const runtime = 'nodejs'; // explicit, since you use fs.readFile
+
+// Cache the font loading across invocations in the same container
+const fontDataPromise = Promise.all([
+  readFile(join(process.cwd(), 'public', 'assets', 'fonts', 'Kodchasan-Bold.ttf')),
+  readFile(join(process.cwd(), 'public', 'assets', 'fonts', 'Kodchasan-Regular.ttf')),
+]);
 
 const Logo = () => (
   <svg
@@ -113,10 +121,7 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
   const description = descriptionParam || String(metadata.description);
 
   try {
-    const [kodchasanBoldData, kodchasanRegularData] = await Promise.all([
-      readFile(join(process.cwd(), 'public', 'assets', 'fonts', 'Kodchasan-Bold.ttf')),
-      readFile(join(process.cwd(), 'public', 'assets', 'fonts', 'Kodchasan-Regular.ttf')),
-    ]);
+    const [kodchasanBoldData, kodchasanRegularData] = await fontDataPromise;
 
     return new ImageResponse(
       <div
