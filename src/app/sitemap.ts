@@ -207,7 +207,7 @@ const Sitemap = async (): Promise<MetadataRoute.Sitemap> => {
     '/licenses',
     '/privacy',
     '/sponsor',
-    '/blog',
+    '/media',
     '/projects',
     '/certifications',
     '/resume',

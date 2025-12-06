@@ -25,8 +25,8 @@ import {
   FiHeart,
   FiHome,
   FiMapPin,
+  FiVideo,
 } from 'react-icons/fi';
-import { SiHashnode } from 'react-icons/si';
 
 /**
  * @typedef {Object} NavigationAction
@@ -149,20 +149,20 @@ export const actions = [
     icon: FiFileText({ size: '1rem' }),
   },
   {
-    id: 'blog',
-    name: 'Blog',
-    shortcut: ['b'],
-    keywords: 'blog writing articles posts',
+    id: 'media',
+    name: 'Media',
+    shortcut: ['m'],
+    keywords: 'media blog writing articles posts presentations talks videos',
     /**
-     * Navigates to the blog page ('/blog').
+     * Navigates to the media page ('/media').
      * @function
      * @public
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/blog'),
+    perform: () => (window.location.pathname = '/media'),
     section: 'Navigation',
-    icon: SiHashnode({ size: '1rem' }),
+    icon: FiVideo({ size: '1rem' }),
   },
   {
     id: 'places',

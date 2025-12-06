@@ -53,8 +53,8 @@ import {
   FiHeart,
   FiHome,
   FiMapPin,
+  FiVideo,
 } from 'react-icons/fi';
-import { SiHashnode } from 'react-icons/si';
 /**
  * @readonly
  * @public
@@ -103,9 +103,9 @@ export const NavbarItems = [
     icon: FiFileText,
   },
   {
-    name: 'Blog',
-    slug: '/blog',
-    icon: SiHashnode,
+    name: 'Media',
+    slug: '/media',
+    icon: FiVideo,
   },
   {
     name: 'Places',

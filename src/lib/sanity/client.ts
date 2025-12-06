@@ -23,8 +23,8 @@
 
 import type { SanityClient } from '@sanity/client';
 import { createClient } from '@sanity/client';
-import { createImageUrlBuilder } from '@sanity/image-url';
 import type { ImageUrlBuilder, SanityImageSource } from '@sanity/image-url';
+import { createImageUrlBuilder } from '@sanity/image-url';
 
 // Check if we're in a browser context
 const isBrowser = typeof window !== 'undefined';

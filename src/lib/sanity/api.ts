@@ -148,6 +148,66 @@ export async function getResume() {
 }
 
 /**
+ * Fetch all presentations from Sanity
+ * @returns Promise with array of presentations
+ */
+export async function getPresentations(): Promise<any[]> {
+  try {
+    const { presentationsQuery } = await import('./queries');
+    const presentations = await sanityFetchWithToken<any[]>(presentationsQuery);
+    return presentations;
+  } catch (error) {
+    logger.error('Error fetching presentations from Sanity:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch all talks from Sanity
+ * @returns Promise with array of talks
+ */
+export async function getTalks(): Promise<any[]> {
+  try {
+    const { talksQuery } = await import('./queries');
+    const talks = await sanityFetchWithToken<any[]>(talksQuery);
+    return talks;
+  } catch (error) {
+    logger.error('Error fetching talks from Sanity:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch all articles from Sanity
+ * @returns Promise with array of articles
+ */
+export async function getArticles(): Promise<any[]> {
+  try {
+    const { articlesQuery } = await import('./queries');
+    const articles = await sanityFetchWithToken<any[]>(articlesQuery);
+    return articles;
+  } catch (error) {
+    logger.error('Error fetching articles from Sanity:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch all YouTube videos from Sanity
+ * @returns Promise with array of YouTube videos
+ */
+export async function getYoutubeVideos(): Promise<any[]> {
+  try {
+    const { youtubeVideosQuery } = await import('./queries');
+    const videos = await sanityFetchWithToken<any[]>(youtubeVideosQuery);
+    return videos;
+  } catch (error) {
+    logger.error('Error fetching YouTube videos from Sanity:', error);
+    return [];
+  }
+}
+
+/**
  * Revalidation tags for Next.js ISR
  */
 export const revalidateTags = {
@@ -157,6 +217,10 @@ export const revalidateTags = {
   skills: 'skills',
   places: 'places',
   resume: 'resume',
+  presentations: 'presentations',
+  talks: 'talks',
+  articles: 'articles',
+  youtubeVideos: 'youtubeVideos',
 } as const;
 
 /**

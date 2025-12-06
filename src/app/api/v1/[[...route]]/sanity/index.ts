@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 import { Elysia, StatusMap } from 'elysia';
+import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 import {
+  getArticlesHandler,
   getCertificationsHandler,
   getExperiencesHandler,
   getFeaturedProjectsHandler,
   getPlacesHandler,
+  getPresentationsHandler,
   getProjectsHandler,
   getResumeHandler,
+  getTalksHandler,
+  getYoutubeVideosHandler,
 } from './handlers';
 import { sanityCacheHeaders, sanityMiddleware } from './middleware';
 
@@ -53,6 +57,26 @@ const handlePlacesError = createErrorHandler({
 
 const handleResumeError = createErrorHandler({
   context: 'fetch resume from Sanity',
+  includeErrorDetails: false,
+});
+
+const handlePresentationsError = createErrorHandler({
+  context: 'fetch presentations from Sanity',
+  includeErrorDetails: false,
+});
+
+const handleTalksError = createErrorHandler({
+  context: 'fetch talks from Sanity',
+  includeErrorDetails: false,
+});
+
+const handleArticlesError = createErrorHandler({
+  context: 'fetch articles from Sanity',
+  includeErrorDetails: false,
+});
+
+const handleYoutubeVideosError = createErrorHandler({
+  context: 'fetch YouTube videos from Sanity',
   includeErrorDetails: false,
 });
 
@@ -113,11 +137,35 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
       return handlePlacesError(error);
     }
   })
-  .get('/resume', async ({ set }) => {
+  .get('/presentations', async ({ set }) => {
     try {
-      return await getResumeHandler();
+      return await getPresentationsHandler();
     } catch (error) {
       set.status = StatusMap['Internal Server Error'];
-      return handleResumeError(error);
+      return handlePresentationsError(error);
+    }
+  })
+  .get('/talks', async ({ set }) => {
+    try {
+      return await getTalksHandler();
+    } catch (error) {
+      set.status = StatusMap['Internal Server Error'];
+      return handleTalksError(error);
+    }
+  })
+  .get('/articles', async ({ set }) => {
+    try {
+      return await getArticlesHandler();
+    } catch (error) {
+      set.status = StatusMap['Internal Server Error'];
+      return handleArticlesError(error);
+    }
+  })
+  .get('/videos', async ({ set }) => {
+    try {
+      return await getYoutubeVideosHandler();
+    } catch (error) {
+      set.status = StatusMap['Internal Server Error'];
+      return handleYoutubeVideosError(error);
     }
   });

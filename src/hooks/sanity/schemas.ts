@@ -214,6 +214,88 @@ export const ResolvedResumeSchema = Schema.Struct({
 });
 
 /**
+ * Sanity Presentation Schema with Effect Schema validation
+ */
+export const PresentationSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('presentation'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  eventName: Schema.String,
+  eventUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  date: Schema.String,
+  slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
+  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  location: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  order: Schema.Number,
+});
+
+/**
+ * Sanity Talk Schema with Effect Schema validation
+ */
+export const TalkSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('talk'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  venue: Schema.String,
+  date: Schema.String,
+  videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
+  duration: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  order: Schema.Number,
+});
+
+/**
+ * Sanity Article Schema with Effect Schema validation
+ */
+export const ArticleSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('article'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  excerpt: Schema.String,
+  publication: Schema.String,
+  publicationUrl: Schema.String,
+  publishedDate: Schema.String,
+  coverImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
+  coAuthors: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  order: Schema.Number,
+});
+
+/**
+ * Sanity YouTube Video Schema with Effect Schema validation
+ */
+export const YoutubeVideoSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('youtubeVideo'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  videoId: Schema.String,
+  publishedDate: Schema.String,
+  thumbnail: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
+  duration: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  order: Schema.Number,
+});
+
+/**
  * Array schemas for list endpoints
  */
 export const ExperiencesSchema = Schema.Array(ExperienceSchema);
@@ -221,6 +303,10 @@ export const ProjectsSchema = Schema.Array(ProjectSchema);
 export const CertificationsSchema = Schema.Array(CertificationSchema);
 export const PlacesSchema = Schema.Array(PlaceSchema);
 export const ResumesSchema = Schema.Array(ResumeSchema);
+export const PresentationsSchema = Schema.Array(PresentationSchema);
+export const TalksSchema = Schema.Array(TalkSchema);
+export const ArticlesSchema = Schema.Array(ArticleSchema);
+export const YoutubeVideosSchema = Schema.Array(YoutubeVideoSchema);
 
 /**
  * TypeScript types derived from schemas
@@ -236,9 +322,17 @@ export type Certification = Schema.Schema.Type<typeof CertificationSchema>;
 export type Place = Schema.Schema.Type<typeof PlaceSchema>;
 export type Resume = Schema.Schema.Type<typeof ResumeSchema>;
 export type ResolvedResume = Schema.Schema.Type<typeof ResolvedResumeSchema>;
+export type Presentation = Schema.Schema.Type<typeof PresentationSchema>;
+export type Talk = Schema.Schema.Type<typeof TalkSchema>;
+export type Article = Schema.Schema.Type<typeof ArticleSchema>;
+export type YoutubeVideo = Schema.Schema.Type<typeof YoutubeVideoSchema>;
 
 export type Experiences = Schema.Schema.Type<typeof ExperiencesSchema>;
 export type Projects = Schema.Schema.Type<typeof ProjectsSchema>;
 export type Certifications = Schema.Schema.Type<typeof CertificationsSchema>;
 export type Places = Schema.Schema.Type<typeof PlacesSchema>;
 export type Resumes = Schema.Schema.Type<typeof ResumesSchema>;
+export type Presentations = Schema.Schema.Type<typeof PresentationsSchema>;
+export type Talks = Schema.Schema.Type<typeof TalksSchema>;
+export type Articles = Schema.Schema.Type<typeof ArticlesSchema>;
+export type YoutubeVideos = Schema.Schema.Type<typeof YoutubeVideosSchema>;
