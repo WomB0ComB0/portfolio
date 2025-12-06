@@ -23,7 +23,7 @@ import { presentationType } from './presentation';
 import { projectType } from './project';
 import { resumeType } from './resume';
 import { talkType } from './talk';
-import { youtubeVideoType } from './youtubeVideo';
+import { youtubeVideoType } from './youtube-video';
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
