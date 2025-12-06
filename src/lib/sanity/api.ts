@@ -14,7 +14,17 @@
  * limitations under the License.
  */
 
-import type { Certification, Experience, Place, Project } from '@/hooks/sanity/schemas';
+import type {
+  Article,
+  Certification,
+  Experience,
+  Place,
+  Presentation,
+  Project,
+  Resume,
+  Talk,
+  YoutubeVideo,
+} from '@/hooks/sanity/schemas';
 import { logger } from '@/utils';
 import { sanityFetchWithToken } from './client';
 import {
@@ -120,7 +130,7 @@ export async function getPlaces(): Promise<Place[]> {
  * Fetch active resume from Sanity
  * @returns Promise with resume data or null
  */
-export async function getResume() {
+export async function getResume(): Promise<Resume | null> {
   try {
     // Return the asset reference (asset) rather than dereferencing it (asset->)
     // so the API shape matches the client schema which expects { asset: { _ref: string, _type: 'reference' } }
@@ -139,7 +149,7 @@ export async function getResume() {
       isActive
     }`;
 
-    const resume = await sanityFetchWithToken(resumeQuery);
+    const resume = await sanityFetchWithToken<Resume | null>(resumeQuery);
     return resume;
   } catch (error) {
     logger.error('Error fetching resume from Sanity:', error);
@@ -151,10 +161,10 @@ export async function getResume() {
  * Fetch all presentations from Sanity
  * @returns Promise with array of presentations
  */
-export async function getPresentations(): Promise<any[]> {
+export async function getPresentations(): Promise<Presentation[]> {
   try {
     const { presentationsQuery } = await import('./queries');
-    const presentations = await sanityFetchWithToken<any[]>(presentationsQuery);
+    const presentations = await sanityFetchWithToken<Presentation[]>(presentationsQuery);
     return presentations;
   } catch (error) {
     logger.error('Error fetching presentations from Sanity:', error);
@@ -166,10 +176,10 @@ export async function getPresentations(): Promise<any[]> {
  * Fetch all talks from Sanity
  * @returns Promise with array of talks
  */
-export async function getTalks(): Promise<any[]> {
+export async function getTalks(): Promise<Talk[]> {
   try {
     const { talksQuery } = await import('./queries');
-    const talks = await sanityFetchWithToken<any[]>(talksQuery);
+    const talks = await sanityFetchWithToken<Talk[]>(talksQuery);
     return talks;
   } catch (error) {
     logger.error('Error fetching talks from Sanity:', error);
@@ -181,10 +191,10 @@ export async function getTalks(): Promise<any[]> {
  * Fetch all articles from Sanity
  * @returns Promise with array of articles
  */
-export async function getArticles(): Promise<any[]> {
+export async function getArticles(): Promise<Article[]> {
   try {
     const { articlesQuery } = await import('./queries');
-    const articles = await sanityFetchWithToken<any[]>(articlesQuery);
+    const articles = await sanityFetchWithToken<Article[]>(articlesQuery);
     return articles;
   } catch (error) {
     logger.error('Error fetching articles from Sanity:', error);
@@ -196,10 +206,10 @@ export async function getArticles(): Promise<any[]> {
  * Fetch all YouTube videos from Sanity
  * @returns Promise with array of YouTube videos
  */
-export async function getYoutubeVideos(): Promise<any[]> {
+export async function getYoutubeVideos(): Promise<YoutubeVideo[]> {
   try {
     const { youtubeVideosQuery } = await import('./queries');
-    const videos = await sanityFetchWithToken<any[]>(youtubeVideosQuery);
+    const videos = await sanityFetchWithToken<YoutubeVideo[]>(youtubeVideosQuery);
     return videos;
   } catch (error) {
     logger.error('Error fetching YouTube videos from Sanity:', error);
