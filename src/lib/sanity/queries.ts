@@ -266,6 +266,204 @@ export const contentCountsQuery = `
     "projects": count(*[_type == "project"]),
     "certifications": count(*[_type == "certification"]),
     "skills": count(*[_type == "skillCategory"]),
-    "places": count(*[_type == "place"])
+    "places": count(*[_type == "place"]),
+    "presentations": count(*[_type == "presentation"]),
+    "talks": count(*[_type == "talk"]),
+    "articles": count(*[_type == "article"]),
+    "youtubeVideos": count(*[_type == "youtubeVideo"])
+  }
+`;
+
+/**
+ * Fetch all presentations ordered by date (most recent first)
+ */
+export const presentationsQuery = `
+  *[_type == "presentation"] | order(order asc, date desc) {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    description,
+    eventName,
+    eventUrl,
+    date,
+    slidesFormat,
+    "slidesPdfUrl": slidesPdf.asset->url,
+    slidesPdf,
+    slidesUrl,
+    videoUrl,
+    thumbnailImage,
+    tags,
+    location,
+    order
+  }
+`;
+
+/**
+ * Fetch a single presentation by ID
+ */
+export const presentationByIdQuery = `
+  *[_type == "presentation" && _id == $id][0] {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    description,
+    eventName,
+    eventUrl,
+    date,
+    slidesFormat,
+    "slidesPdfUrl": slidesPdf.asset->url,
+    slidesPdf,
+    slidesUrl,
+    videoUrl,
+    thumbnailImage,
+    tags,
+    location,
+    order
+  }
+`;
+
+/**
+ * Fetch all talks ordered by date (most recent first)
+ */
+export const talksQuery = `
+  *[_type == "talk"] | order(order asc, date desc) {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    description,
+    venue,
+    date,
+    videoFormat,
+    videoUrl,
+    slidesFormat,
+    "slidesPdfUrl": slidesPdf.asset->url,
+    slidesPdf,
+    slidesUrl,
+    thumbnailImage,
+    duration,
+    tags,
+    order
+  }
+`;
+
+/**
+ * Fetch a single talk by ID
+ */
+export const talkByIdQuery = `
+  *[_type == "talk" && _id == $id][0] {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    description,
+    venue,
+    date,
+    videoFormat,
+    videoUrl,
+    slidesFormat,
+    "slidesPdfUrl": slidesPdf.asset->url,
+    slidesPdf,
+    slidesUrl,
+    thumbnailImage,
+    duration,
+    tags,
+    order
+  }
+`;
+
+/**
+ * Fetch all articles ordered by published date (most recent first)
+ */
+export const articlesQuery = `
+  *[_type == "article"] | order(order asc, publishedDate desc) {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    excerpt,
+    publication,
+    publicationUrl,
+    publishedDate,
+    coverImage,
+    coAuthors,
+    tags,
+    order
+  }
+`;
+
+/**
+ * Fetch a single article by ID
+ */
+export const articleByIdQuery = `
+  *[_type == "article" && _id == $id][0] {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    excerpt,
+    publication,
+    publicationUrl,
+    publishedDate,
+    coverImage,
+    coAuthors,
+    tags,
+    order
+  }
+`;
+
+/**
+ * Fetch all YouTube videos ordered by published date (most recent first)
+ */
+export const youtubeVideosQuery = `
+  *[_type == "youtubeVideo"] | order(order asc, publishedDate desc) {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    description,
+    videoId,
+    publishedDate,
+    thumbnail,
+    duration,
+    tags,
+    order
+  }
+`;
+
+/**
+ * Fetch a single YouTube video by ID
+ */
+export const youtubeVideoByIdQuery = `
+  *[_type == "youtubeVideo" && _id == $id][0] {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    description,
+    videoId,
+    publishedDate,
+    thumbnail,
+    duration,
+    tags,
+    order
   }
 `;

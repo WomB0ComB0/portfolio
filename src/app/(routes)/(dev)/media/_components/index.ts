@@ -14,21 +14,9 @@
  * limitations under the License.
  */
 
-import { t } from 'elysia';
-
-export const blogSchema = {
-  'blog.response': t.Array(
-    t.Object({
-      title: t.String(),
-      slug: t.String(),
-      publishedAt: t.String(),
-      excerpt: t.String(),
-      imageUrl: t.Optional(t.String()),
-      source: t.Optional(t.Union([t.Literal('hashnode'), t.Literal('devto')])),
-      url: t.Optional(t.String()),
-    }),
-  ),
-  'blog.error': t.Object({
-    error: t.String(),
-  }),
-};
+export { ArticlesSection } from './articles-section';
+export { BlogSection } from './blog-section';
+export { MediaTabs } from './media-tabs';
+export { PresentationsSection } from './presentations-section';
+export { TalksSection } from './talks-section';
+export { VideosSection } from './videos-section';

@@ -152,3 +152,83 @@ export async function getResumeHandler() {
     throw new Error('Failed to fetch resume');
   }
 }
+
+/**
+ * Get all presentations from Sanity
+ */
+export async function getPresentationsHandler() {
+  const cached = getCached('presentations');
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const { getPresentations } = await import('@/lib/sanity/api');
+    const presentations = await getPresentations();
+    setCache('presentations', presentations);
+    return presentations;
+  } catch (error) {
+    logger.error('Error in getPresentationsHandler:', error);
+    throw new Error('Failed to fetch presentations');
+  }
+}
+
+/**
+ * Get all talks from Sanity
+ */
+export async function getTalksHandler() {
+  const cached = getCached('talks');
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const { getTalks } = await import('@/lib/sanity/api');
+    const talks = await getTalks();
+    setCache('talks', talks);
+    return talks;
+  } catch (error) {
+    logger.error('Error in getTalksHandler:', error);
+    throw new Error('Failed to fetch talks');
+  }
+}
+
+/**
+ * Get all articles from Sanity
+ */
+export async function getArticlesHandler() {
+  const cached = getCached('articles');
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const { getArticles } = await import('@/lib/sanity/api');
+    const articles = await getArticles();
+    setCache('articles', articles);
+    return articles;
+  } catch (error) {
+    logger.error('Error in getArticlesHandler:', error);
+    throw new Error('Failed to fetch articles');
+  }
+}
+
+/**
+ * Get all YouTube videos from Sanity
+ */
+export async function getYoutubeVideosHandler() {
+  const cached = getCached('youtubeVideos');
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const { getYoutubeVideos } = await import('@/lib/sanity/api');
+    const videos = await getYoutubeVideos();
+    setCache('youtubeVideos', videos);
+    return videos;
+  } catch (error) {
+    logger.error('Error in getYoutubeVideosHandler:', error);
+    throw new Error('Failed to fetch YouTube videos');
+  }
+}

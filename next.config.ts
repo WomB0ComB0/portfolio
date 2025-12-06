@@ -216,6 +216,10 @@ const config: NextConfig = {
       { protocol: 'https', hostname: 'i.scdn.co' },
       { protocol: 'https', hostname: 'cdn.discordapp.com' },
       { protocol: 'https', hostname: 'cdn.sanity.io' },
+      { protocol: 'https', hostname: 'img.youtube.com' },
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'dev-to-uploads.s3.amazonaws.com' },
+      { protocol: 'https', hostname: 'media.dev.to' },
     ],
     imageSizes: [16, 20, 24, 32, 40],
     minimumCacheTTL: 60 * 60 * 24,
@@ -251,6 +255,21 @@ const config: NextConfig = {
   typescript: {
     ignoreBuildErrors: false, // Don't ignore TypeScript errors in production
     tsconfigPath: './tsconfig.json',
+  },
+
+  async redirects() {
+    return [
+      {
+        source: '/blog',
+        destination: '/media',
+        permanent: true,
+      },
+      {
+        source: '/blog/:slug*',
+        destination: '/media/:slug*',
+        permanent: true,
+      },
+    ];
   },
 
   async rewrites() {

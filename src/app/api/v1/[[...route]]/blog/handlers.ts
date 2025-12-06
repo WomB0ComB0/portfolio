@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { BaseError } from '@/classes/error';
-import { getBlogs } from '@/lib';
 import { Schema } from 'effect';
+import { BaseError } from '@/classes/error';
+import { getBlogs, getDevToBlogs } from '@/lib';
+import { logger } from '@/utils';
 
 export const BlogSchema = Schema.Struct({
   title: Schema.String,
@@ -24,18 +25,59 @@ export const BlogSchema = Schema.Struct({
   publishedAt: Schema.String,
   excerpt: Schema.String,
   imageUrl: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.Union(Schema.Literal('hashnode'), Schema.Literal('devto'))),
+  url: Schema.optional(Schema.String),
 });
 
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;
 
+/**
+ * Fetches blogs from both Hashnode and DevTo, combining and sorting by date.
+ * @returns {Promise<Blog[]>} Combined and sorted array of blogs from all sources.
+ */
 export async function fetchBlogs(): Promise<Blog[]> {
-  const blogs: Blog[] = await getBlogs('WomB0ComB0');
+  const username = 'WomB0ComB0';
+  const devToUsername = 'mikeodnis';
 
-  if (!blogs || !Array.isArray(blogs)) {
-    throw new BaseError(new Error('Failed to fetch blogs'), 'blog:fetch', {
-      username: 'WomB0ComB0',
+  // Fetch from both sources concurrently
+  const [hashnodeResult, devtoResult] = await Promise.allSettled([
+    getBlogs(username),
+    getDevToBlogs(devToUsername),
+  ]);
+
+  const blogs: Blog[] = [];
+
+  // Blog URL configuration
+  const HASHNODE_BLOG_BASE_URL = 'https://blog.mikeodnis.dev';
+
+  // Process Hashnode results
+  if (hashnodeResult.status === 'fulfilled' && Array.isArray(hashnodeResult.value)) {
+    const hashnodeBlogs = hashnodeResult.value.map((blog) => ({
+      ...blog,
+      source: 'hashnode' as const,
+      url: `${HASHNODE_BLOG_BASE_URL}/${blog.slug}`,
+    }));
+    blogs.push(...hashnodeBlogs);
+  } else if (hashnodeResult.status === 'rejected') {
+    logger.error('Failed to fetch Hashnode blogs:', hashnodeResult.reason);
+  }
+
+  // Process DevTo results
+  if (devtoResult.status === 'fulfilled' && Array.isArray(devtoResult.value)) {
+    blogs.push(...devtoResult.value);
+  } else if (devtoResult.status === 'rejected') {
+    logger.error('Failed to fetch DevTo blogs:', devtoResult.reason);
+  }
+
+  // If no blogs from any source, throw an error
+  if (blogs.length === 0) {
+    throw new BaseError(new Error('Failed to fetch blogs from any source'), 'blog:fetch', {
+      username,
     });
   }
+
+  // Sort all blogs by published date (newest first)
+  blogs.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
   return blogs;
 }
