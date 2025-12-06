@@ -18,10 +18,11 @@
  * API Integrations
  *
  * This module exports all third-party API integrations for the portfolio.
- * Including: Hashnode (Blog), Google Analytics, GitHub, Spotify
+ * Including: Hashnode (Blog), DevTo (Blog), Google Analytics, GitHub, Spotify
  */
 
 export * from './blogs';
+export * from './devto';
 export * from './get-repos';
 export * from './github-sponsors';
 export * from './google';

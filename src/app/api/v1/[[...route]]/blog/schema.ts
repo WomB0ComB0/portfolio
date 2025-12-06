@@ -23,7 +23,9 @@ export const blogSchema = {
       slug: t.String(),
       publishedAt: t.String(),
       excerpt: t.String(),
-      imageUrl: t.Optional(t.String()), // Added optional imageUrl
+      imageUrl: t.Optional(t.String()),
+      source: t.Optional(t.Union([t.Literal('hashnode'), t.Literal('devto')])),
+      url: t.Optional(t.String()),
     }),
   ),
   'blog.error': t.Object({

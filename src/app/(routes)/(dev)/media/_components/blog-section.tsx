@@ -23,7 +23,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
+import { SiDevdotto, SiHashnode } from 'react-icons/si';
 import { MagicCard } from '@/components/magicui';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataLoader } from '@/providers/server/effect-data-loader';
@@ -37,14 +39,36 @@ const BlogPostSchema = Schema.Struct({
   publishedAt: Schema.String,
   excerpt: Schema.String,
   imageUrl: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.Union(Schema.Literal('hashnode'), Schema.Literal('devto'))),
+  url: Schema.optional(Schema.String),
 });
 
 const BlogResponseSchema = Schema.Array(BlogPostSchema);
 
 /**
+ * Get the blog URL based on source
+ */
+function getBlogUrl(blog: Schema.Schema.Type<typeof BlogPostSchema>): string {
+  if (blog.url) return blog.url;
+  if (blog.source === 'devto') return `https://dev.to/womb0comb0/${blog.slug}`;
+  return `https://blog.mikeodnis.dev/${blog.slug}`;
+}
+
+/**
+ * Get source icon component
+ */
+function SourceIcon({ source }: { source?: 'hashnode' | 'devto' }) {
+  if (source === 'devto') {
+    return <SiDevdotto className="w-3 h-3" />;
+  }
+  return <SiHashnode className="w-3 h-3" />;
+}
+
+/**
  * @function BlogSection
  * @description
  *   Renders the blog posts section for the media page.
+ *   Displays blogs from both Hashnode and DevTo.
  * @returns {JSX.Element} The blog section component.
  * @web
  * @public
@@ -67,17 +91,13 @@ export const BlogSection = (): JSX.Element => {
             <AnimatePresence>
               {data.map((blog: Schema.Schema.Type<typeof BlogPostSchema>, index: number) => (
                 <motion.div
-                  key={blog.slug}
+                  key={`${blog.source || 'hashnode'}-${blog.slug}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <Link
-                    href={`https://blog.mikeodnis.dev/${blog.slug}`}
-                    className="block h-full"
-                    target="_blank"
-                  >
+                  <Link href={getBlogUrl(blog)} className="block h-full" target="_blank">
                     <MagicCard className="h-full transition-shadow hover:shadow-lg">
                       {blog.imageUrl && (
                         <div className="relative w-full h-48 mb-4">
@@ -91,6 +111,12 @@ export const BlogSection = (): JSX.Element => {
                         </div>
                       )}
                       <CardHeader>
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                            <SourceIcon source={blog.source} />
+                            {blog.source === 'devto' ? 'DEV.to' : 'Hashnode'}
+                          </Badge>
+                        </div>
                         <CardTitle className="line-clamp-2">{blog.title}</CardTitle>
                       </CardHeader>
                       <CardContent>
