@@ -37,7 +37,7 @@ export type Blog = Schema.Schema.Type<typeof BlogSchema>;
  */
 export async function fetchBlogs(): Promise<Blog[]> {
   const username = 'WomB0ComB0';
-  const devToUsername = 'womb0comb0';
+  const devToUsername = 'mikeodnis';
 
   // Fetch from both sources concurrently
   const [hashnodeResult, devtoResult] = await Promise.allSettled([

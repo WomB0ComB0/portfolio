@@ -66,7 +66,7 @@ export type DevToBlog = Schema.Schema.Type<typeof DevToBlogSchema>;
  * @version 1.0.0
  * @see https://developers.forem.com/api
  * @example
- * const articles = await getDevToBlogs('womb0comb0', 10);
+ * const articles = await getDevToBlogs('mikeodnis', 10);
  * articles.forEach(article => console.log(article.title, article.slug, article.excerpt));
  */
 export async function getDevToBlogs(username: string, perPage = 30): Promise<DevToBlog[]> {
