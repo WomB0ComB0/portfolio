@@ -16,6 +16,13 @@
 
 import { defineField, defineType } from 'sanity';
 
+/**
+ * Presentation schema with support for multiple media formats.
+ * Presentations can be provided as:
+ * - PDF file upload
+ * - External URL (Google Slides, Canva, Speaker Deck, etc.)
+ * - Video recording link
+ */
 export const presentationType = defineType({
   name: 'presentation',
   title: 'Presentation',
@@ -52,14 +59,47 @@ export const presentationType = defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({
+      name: 'slidesFormat',
+      title: 'Slides Format',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'PDF File', value: 'pdf' },
+          { title: 'Google Slides', value: 'google_slides' },
+          { title: 'Speaker Deck', value: 'speakerdeck' },
+          { title: 'SlideShare', value: 'slideshare' },
+          { title: 'Canva', value: 'canva' },
+          { title: 'Other URL', value: 'other_url' },
+          { title: 'None', value: 'none' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'none',
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
+      name: 'slidesPdf',
+      title: 'Slides PDF',
+      type: 'file',
+      options: {
+        accept: '.pdf',
+      },
+      description: 'Upload a PDF of your slides',
+      hidden: ({ parent }) => parent?.slidesFormat !== 'pdf',
+    }),
+    defineField({
       name: 'slidesUrl',
       title: 'Slides URL',
       type: 'url',
+      description: 'Link to external slides (Google Slides, Speaker Deck, etc.)',
+      hidden: ({ parent }) =>
+        !parent?.slidesFormat || parent?.slidesFormat === 'pdf' || parent?.slidesFormat === 'none',
     }),
     defineField({
       name: 'videoUrl',
-      title: 'Video URL',
+      title: 'Video Recording URL',
       type: 'url',
+      description: 'Link to video recording (YouTube, Vimeo, etc.)',
     }),
     defineField({
       name: 'thumbnailImage',

@@ -16,6 +16,12 @@
 
 import { defineField, defineType } from 'sanity';
 
+/**
+ * Talk schema with support for multiple media formats.
+ * Talks can have:
+ * - Video recording link (YouTube, Vimeo, etc.)
+ * - Slides in PDF or external URL format
+ */
 export const talkType = defineType({
   name: 'talk',
   title: 'Talk',
@@ -47,14 +53,59 @@ export const talkType = defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({
+      name: 'videoFormat',
+      title: 'Video Format',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'YouTube', value: 'youtube' },
+          { title: 'Vimeo', value: 'vimeo' },
+          { title: 'Other Video URL', value: 'other' },
+          { title: 'None', value: 'none' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'none',
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
       name: 'videoUrl',
       title: 'Video URL',
       type: 'url',
+      description: 'Link to video recording',
+      hidden: ({ parent }) => parent?.videoFormat === 'none',
+    }),
+    defineField({
+      name: 'slidesFormat',
+      title: 'Slides Format',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'PDF File', value: 'pdf' },
+          { title: 'External URL', value: 'url' },
+          { title: 'None', value: 'none' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'none',
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
+      name: 'slidesPdf',
+      title: 'Slides PDF',
+      type: 'file',
+      options: {
+        accept: '.pdf',
+      },
+      description: 'Upload a PDF of your slides',
+      hidden: ({ parent }) => parent?.slidesFormat !== 'pdf',
     }),
     defineField({
       name: 'slidesUrl',
       title: 'Slides URL',
       type: 'url',
+      description: 'Link to external slides',
+      hidden: ({ parent }) => parent?.slidesFormat !== 'url',
     }),
     defineField({
       name: 'thumbnailImage',

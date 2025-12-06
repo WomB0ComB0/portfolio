@@ -18,10 +18,11 @@
 
 import { format } from 'date-fns';
 import type { Schema } from 'effect';
-import { CalendarIcon, ClockIcon, PlayCircleIcon } from 'lucide-react';
+import { CalendarIcon, ClockIcon, ExternalLinkIcon, PlayCircleIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import { type JSX, Suspense } from 'react';
+import { SiYoutube } from 'react-icons/si';
 import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,6 +34,7 @@ import { DataLoader } from '@/providers/server/effect-data-loader';
  * @function VideosSection
  * @description
  *   Renders the YouTube videos section for the media page.
+ *   All videos open in new tabs on YouTube - no iframe embeds.
  * @returns {JSX.Element} The videos section component.
  * @web
  * @public
@@ -64,54 +66,68 @@ export const VideosSection = (): JSX.Element => {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <a
-                      href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block h-full"
-                    >
-                      <MagicCard className="h-full transition-shadow hover:shadow-lg">
-                        <div className="relative w-full aspect-video mb-4 overflow-hidden rounded-t-lg">
-                          <Image
-                            src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
-                            alt={video.title}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity">
-                            <PlayCircleIcon className="w-16 h-16 text-white" />
-                          </div>
+                    <MagicCard className="h-full transition-shadow hover:shadow-lg">
+                      <div className="relative w-full aspect-video mb-4 overflow-hidden rounded-t-lg group">
+                        <Image
+                          src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
+                          alt={video.title}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <PlayCircleIcon className="w-16 h-16 text-white" />
                         </div>
-                        <CardHeader>
-                          <CardTitle className="line-clamp-2">{video.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-muted-foreground mb-4 line-clamp-3">
-                            {video.description}
-                          </p>
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {video.tags?.map((tag: string) => (
-                              <Badge key={tag} variant="secondary">
-                                {tag}
-                              </Badge>
-                            ))}
+                        {/* YouTube Badge */}
+                        <div className="absolute top-2 left-2">
+                          <Badge
+                            variant="secondary"
+                            className="bg-red-600 text-white border-none flex items-center gap-1"
+                          >
+                            <SiYoutube className="w-3 h-3" />
+                            YouTube
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardHeader>
+                        <CardTitle className="line-clamp-2">{video.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-muted-foreground mb-4 line-clamp-3">
+                          {video.description}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {video.tags?.map((tag: string) => (
+                            <Badge key={tag} variant="secondary">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center">
+                            <CalendarIcon className="w-4 h-4 mr-2" />
+                            <span>{format(new Date(video.publishedDate), 'MMM d, yyyy')}</span>
                           </div>
-                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                          {video.duration && (
                             <div className="flex items-center">
-                              <CalendarIcon className="w-4 h-4 mr-2" />
-                              <span>{format(new Date(video.publishedDate), 'MMM d, yyyy')}</span>
+                              <ClockIcon className="w-4 h-4 mr-2" />
+                              <span>{video.duration}</span>
                             </div>
-                            {video.duration && (
-                              <div className="flex items-center">
-                                <ClockIcon className="w-4 h-4 mr-2" />
-                                <span>{video.duration}</span>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </MagicCard>
-                    </a>
+                          )}
+                        </div>
+                        <div className="mt-4">
+                          <a
+                            href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            <ExternalLinkIcon className="w-4 h-4" />
+                            Watch on YouTube
+                          </a>
+                        </div>
+                      </CardContent>
+                    </MagicCard>
                   </motion.div>
                 ))}
               </AnimatePresence>

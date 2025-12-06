@@ -214,7 +214,31 @@ export const ResolvedResumeSchema = Schema.Struct({
 });
 
 /**
+ * Slides format type for type-safe format handling
+ */
+export const SlidesFormatSchema = Schema.Union(
+  Schema.Literal('pdf'),
+  Schema.Literal('google_slides'),
+  Schema.Literal('speakerdeck'),
+  Schema.Literal('slideshare'),
+  Schema.Literal('canva'),
+  Schema.Literal('other_url'),
+  Schema.Literal('none'),
+);
+
+/**
+ * Video format type for type-safe format handling
+ */
+export const VideoFormatSchema = Schema.Union(
+  Schema.Literal('youtube'),
+  Schema.Literal('vimeo'),
+  Schema.Literal('other'),
+  Schema.Literal('none'),
+);
+
+/**
  * Sanity Presentation Schema with Effect Schema validation
+ * Supports multiple media formats: PDF, external URL, video
  */
 export const PresentationSchema = Schema.Struct({
   _id: Schema.String,
@@ -227,6 +251,8 @@ export const PresentationSchema = Schema.Struct({
   eventName: Schema.String,
   eventUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   date: Schema.String,
+  slidesFormat: Schema.optional(Schema.Union(SlidesFormatSchema, Schema.Null)),
+  slidesPdf: Schema.optional(Schema.Union(SanityFileSchema, Schema.Null)),
   slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
@@ -237,6 +263,7 @@ export const PresentationSchema = Schema.Struct({
 
 /**
  * Sanity Talk Schema with Effect Schema validation
+ * Supports multiple media formats: video and slides (PDF or URL)
  */
 export const TalkSchema = Schema.Struct({
   _id: Schema.String,
@@ -248,7 +275,12 @@ export const TalkSchema = Schema.Struct({
   description: Schema.String,
   venue: Schema.String,
   date: Schema.String,
+  videoFormat: Schema.optional(Schema.Union(VideoFormatSchema, Schema.Null)),
   videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  slidesFormat: Schema.optional(
+    Schema.Union(Schema.Literal('pdf'), Schema.Literal('url'), Schema.Literal('none'), Schema.Null),
+  ),
+  slidesPdf: Schema.optional(Schema.Union(SanityFileSchema, Schema.Null)),
   slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
   duration: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
