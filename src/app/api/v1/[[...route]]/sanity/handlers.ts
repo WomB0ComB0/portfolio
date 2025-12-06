@@ -154,6 +154,51 @@ export async function getResumeHandler() {
 }
 
 /**
+ * Dummy data for presentations (shown when no real data exists)
+ */
+const DUMMY_PRESENTATIONS = [
+  {
+    _id: 'dummy-presentation-1',
+    title: 'Building Scalable Web Applications with Next.js',
+    description:
+      'An in-depth look at best practices for building scalable, performant web applications using Next.js App Router, server components, and modern React patterns.',
+    eventName: 'React NYC Meetup',
+    eventUrl: 'https://www.meetup.com/ReactNYC/',
+    date: '2025-03-15T18:00:00Z',
+    slidesFormat: 'google_slides',
+    slidesUrl: 'https://docs.google.com/presentation/d/example',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    location: 'New York, NY',
+    tags: ['Next.js', 'React', 'Performance', 'Web Development'],
+  },
+  {
+    _id: 'dummy-presentation-2',
+    title: 'TypeScript Best Practices for Enterprise Applications',
+    description:
+      'Learn how to leverage TypeScript effectively in large-scale applications, including advanced type patterns, generics, and integration with modern tooling.',
+    eventName: 'TypeScript Conference 2025',
+    eventUrl: 'https://typescriptconf.com',
+    date: '2025-02-20T09:00:00Z',
+    slidesFormat: 'pdf',
+    slidesPdfUrl: 'https://example.com/slides.pdf',
+    location: 'San Francisco, CA',
+    tags: ['TypeScript', 'Enterprise', 'Best Practices'],
+  },
+  {
+    _id: 'dummy-presentation-3',
+    title: 'From Zero to Production: CI/CD with GitHub Actions',
+    description:
+      'A comprehensive guide to setting up continuous integration and deployment pipelines using GitHub Actions, including testing, building, and deploying to various cloud platforms.',
+    eventName: 'DevOps Days NYC',
+    date: '2025-01-10T14:00:00Z',
+    slidesFormat: 'speakerdeck',
+    slidesUrl: 'https://speakerdeck.com/example',
+    location: 'Brooklyn, NY',
+    tags: ['DevOps', 'CI/CD', 'GitHub Actions', 'Automation'],
+  },
+];
+
+/**
  * Get all presentations from Sanity
  */
 export async function getPresentationsHandler() {
@@ -165,13 +210,62 @@ export async function getPresentationsHandler() {
   try {
     const { getPresentations } = await import('@/lib/sanity/api');
     const presentations = await getPresentations();
-    setCache('presentations', presentations);
-    return presentations;
+    // Return dummy data if no real data exists
+    const result = presentations.length > 0 ? presentations : DUMMY_PRESENTATIONS;
+    setCache('presentations', result);
+    return result;
   } catch (error) {
     logger.error('Error in getPresentationsHandler:', error);
-    throw new Error('Failed to fetch presentations');
+    // Return dummy data on error for preview purposes
+    return DUMMY_PRESENTATIONS;
   }
 }
+
+/**
+ * Dummy data for talks (shown when no real data exists)
+ */
+const DUMMY_TALKS = [
+  {
+    _id: 'dummy-talk-1',
+    title: 'The Future of AI in Web Development',
+    description:
+      'Exploring how artificial intelligence is transforming the way we build and deploy web applications, from code generation to automated testing and deployment.',
+    venue: 'AI Summit 2025',
+    date: '2025-04-05T10:00:00Z',
+    videoFormat: 'youtube',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    slidesFormat: 'pdf',
+    slidesPdfUrl: 'https://example.com/ai-talk-slides.pdf',
+    duration: '45 min',
+    tags: ['AI', 'Machine Learning', 'Web Development', 'Future Tech'],
+  },
+  {
+    _id: 'dummy-talk-2',
+    title: 'Mastering React Server Components',
+    description:
+      'Deep dive into React Server Components, understanding when to use them, performance implications, and how they change the way we think about React applications.',
+    venue: 'React Summit Remote',
+    date: '2025-03-01T15:00:00Z',
+    videoFormat: 'vimeo',
+    videoUrl: 'https://vimeo.com/example',
+    slidesFormat: 'url',
+    slidesUrl: 'https://slides.com/example',
+    duration: '30 min',
+    tags: ['React', 'Server Components', 'Performance'],
+  },
+  {
+    _id: 'dummy-talk-3',
+    title: 'Building Accessible Web Applications',
+    description:
+      'A practical guide to making your web applications accessible to everyone, covering WCAG guidelines, testing tools, and common accessibility patterns.',
+    venue: 'Accessibility Conference 2025',
+    date: '2025-02-15T11:00:00Z',
+    videoFormat: 'youtube',
+    videoUrl: 'https://www.youtube.com/watch?v=example',
+    duration: '40 min',
+    tags: ['Accessibility', 'A11y', 'UX', 'Web Standards'],
+  },
+];
 
 /**
  * Get all talks from Sanity
@@ -185,13 +279,53 @@ export async function getTalksHandler() {
   try {
     const { getTalks } = await import('@/lib/sanity/api');
     const talks = await getTalks();
-    setCache('talks', talks);
-    return talks;
+    // Return dummy data if no real data exists
+    const result = talks.length > 0 ? talks : DUMMY_TALKS;
+    setCache('talks', result);
+    return result;
   } catch (error) {
     logger.error('Error in getTalksHandler:', error);
-    throw new Error('Failed to fetch talks');
+    // Return dummy data on error for preview purposes
+    return DUMMY_TALKS;
   }
 }
+
+/**
+ * Dummy data for articles (shown when no real data exists)
+ */
+const DUMMY_ARTICLES = [
+  {
+    _id: 'dummy-article-1',
+    title: 'The Complete Guide to Modern State Management in React',
+    excerpt:
+      'An exploration of state management solutions in 2025, comparing Redux Toolkit, Zustand, Jotai, and the built-in React Context API for different use cases.',
+    publication: 'Smashing Magazine',
+    publicationUrl: 'https://www.smashingmagazine.com/article/example',
+    publishedDate: '2025-03-20T00:00:00Z',
+    tags: ['React', 'State Management', 'JavaScript', 'Frontend'],
+    coAuthors: ['Jane Developer'],
+  },
+  {
+    _id: 'dummy-article-2',
+    title: 'Optimizing Node.js Applications for Production',
+    excerpt:
+      'Best practices for deploying Node.js applications to production, including performance monitoring, memory management, and scaling strategies.',
+    publication: 'LogRocket Blog',
+    publicationUrl: 'https://blog.logrocket.com/article/example',
+    publishedDate: '2025-02-28T00:00:00Z',
+    tags: ['Node.js', 'Performance', 'Backend', 'DevOps'],
+  },
+  {
+    _id: 'dummy-article-3',
+    title: 'Introduction to Edge Computing for Web Developers',
+    excerpt:
+      'Understanding edge computing and how to leverage edge functions for faster, more responsive web applications using Vercel Edge Functions and Cloudflare Workers.',
+    publication: 'CSS-Tricks',
+    publicationUrl: 'https://css-tricks.com/article/example',
+    publishedDate: '2025-01-15T00:00:00Z',
+    tags: ['Edge Computing', 'Vercel', 'Cloudflare', 'Performance'],
+  },
+];
 
 /**
  * Get all articles from Sanity
@@ -205,13 +339,52 @@ export async function getArticlesHandler() {
   try {
     const { getArticles } = await import('@/lib/sanity/api');
     const articles = await getArticles();
-    setCache('articles', articles);
-    return articles;
+    // Return dummy data if no real data exists
+    const result = articles.length > 0 ? articles : DUMMY_ARTICLES;
+    setCache('articles', result);
+    return result;
   } catch (error) {
     logger.error('Error in getArticlesHandler:', error);
-    throw new Error('Failed to fetch articles');
+    // Return dummy data on error for preview purposes
+    return DUMMY_ARTICLES;
   }
 }
+
+/**
+ * Dummy data for YouTube videos (shown when no real data exists)
+ */
+const DUMMY_YOUTUBE_VIDEOS = [
+  {
+    _id: 'dummy-video-1',
+    title: 'Building a Full-Stack App with Next.js 14 - Complete Tutorial',
+    description:
+      'In this comprehensive tutorial, we build a complete full-stack application using Next.js 14, covering everything from project setup to deployment.',
+    videoId: 'dQw4w9WgXcQ',
+    publishedDate: '2025-03-10T00:00:00Z',
+    duration: '2:15:30',
+    tags: ['Next.js', 'Tutorial', 'Full Stack', 'React'],
+  },
+  {
+    _id: 'dummy-video-2',
+    title: 'TypeScript Tips and Tricks Every Developer Should Know',
+    description:
+      'A collection of advanced TypeScript techniques that will make your code more type-safe, maintainable, and easier to understand.',
+    videoId: 'example123',
+    publishedDate: '2025-02-25T00:00:00Z',
+    duration: '45:20',
+    tags: ['TypeScript', 'Tips', 'Programming'],
+  },
+  {
+    _id: 'dummy-video-3',
+    title: 'Live Coding: Building a Real-Time Chat Application',
+    description:
+      'Watch as we build a real-time chat application from scratch using WebSockets, React, and Node.js in this live coding session.',
+    videoId: 'example456',
+    publishedDate: '2025-01-30T00:00:00Z',
+    duration: '1:30:00',
+    tags: ['Live Coding', 'WebSockets', 'React', 'Node.js'],
+  },
+];
 
 /**
  * Get all YouTube videos from Sanity
@@ -225,10 +398,13 @@ export async function getYoutubeVideosHandler() {
   try {
     const { getYoutubeVideos } = await import('@/lib/sanity/api');
     const videos = await getYoutubeVideos();
-    setCache('youtubeVideos', videos);
-    return videos;
+    // Return dummy data if no real data exists
+    const result = videos.length > 0 ? videos : DUMMY_YOUTUBE_VIDEOS;
+    setCache('youtubeVideos', result);
+    return result;
   } catch (error) {
     logger.error('Error in getYoutubeVideosHandler:', error);
-    throw new Error('Failed to fetch YouTube videos');
+    // Return dummy data on error for preview purposes
+    return DUMMY_YOUTUBE_VIDEOS;
   }
 }

@@ -46,46 +46,61 @@ export const MediaTabs = (): JSX.Element => {
         icon={<FiFileText />}
       />
       <Tabs defaultValue="blog" className="w-full mt-8">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-2 h-auto p-2">
-          <TabsTrigger value="blog" className="flex items-center gap-2 py-2">
+        <TabsList className="w-full flex flex-wrap justify-start gap-1 sm:gap-2 h-auto p-2 bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
+          <TabsTrigger
+            value="blog"
+            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
+          >
             <FiRss className="w-4 h-4" />
-            <span className="hidden sm:inline">Blog</span>
+            <span>Blog</span>
           </TabsTrigger>
-          <TabsTrigger value="presentations" className="flex items-center gap-2 py-2">
+          <TabsTrigger
+            value="presentations"
+            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
+          >
             <FiMonitor className="w-4 h-4" />
-            <span className="hidden sm:inline">Presentations</span>
+            <span>Presentations</span>
           </TabsTrigger>
-          <TabsTrigger value="talks" className="flex items-center gap-2 py-2">
+          <TabsTrigger
+            value="talks"
+            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
+          >
             <FiMic className="w-4 h-4" />
-            <span className="hidden sm:inline">Talks</span>
+            <span>Talks</span>
           </TabsTrigger>
-          <TabsTrigger value="videos" className="flex items-center gap-2 py-2">
+          <TabsTrigger
+            value="videos"
+            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
+          >
             <FiVideo className="w-4 h-4" />
-            <span className="hidden sm:inline">Videos</span>
+            <span>Videos</span>
           </TabsTrigger>
-          <TabsTrigger value="articles" className="flex items-center gap-2 py-2">
+          <TabsTrigger
+            value="articles"
+            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
+          >
             <FiFileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Articles</span>
+            <span>Articles</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="blog" className="mt-6">
+        <TabsContent value="blog" className="mt-8">
           <BlogSection />
         </TabsContent>
 
-        <TabsContent value="presentations" className="mt-6">
+        <TabsContent value="presentations" className="mt-8">
           <PresentationsSection />
         </TabsContent>
 
-        <TabsContent value="talks" className="mt-6">
+        <TabsContent value="talks" className="mt-8">
           <TalksSection />
         </TabsContent>
 
-        <TabsContent value="videos" className="mt-6">
+        <TabsContent value="videos" className="mt-8">
           <VideosSection />
         </TabsContent>
 
-        <TabsContent value="articles" className="mt-6">
+        <TabsContent value="articles" className="mt-8">
           <ArticlesSection />
         </TabsContent>
       </Tabs>
