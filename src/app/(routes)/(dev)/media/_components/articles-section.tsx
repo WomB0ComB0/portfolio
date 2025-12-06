@@ -122,7 +122,7 @@ export const ArticlesSection = (): JSX.Element => {
 const ArticlesSkeleton = (): JSX.Element => (
   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
     {[...Array(3)].map((_, i) => (
-      <MagicCard key={`article-skeleton-${+i}`} className="h-full">
+      <MagicCard key={`article-skeleton-${i}`} className="h-full">
         <Card className="h-full">
           <CardHeader>
             <Skeleton className="h-6 w-11/12" />

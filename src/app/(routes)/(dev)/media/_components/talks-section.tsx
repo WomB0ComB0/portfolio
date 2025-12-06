@@ -134,7 +134,7 @@ export const TalksSection = (): JSX.Element => {
 const TalksSkeleton = (): JSX.Element => (
   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
     {[...Array(3)].map((_, i) => (
-      <MagicCard key={`talk-skeleton-${+i}`} className="h-full">
+      <MagicCard key={`talk-skeleton-${i}`} className="h-full">
         <Card className="h-full">
           <CardHeader>
             <Skeleton className="h-6 w-11/12" />

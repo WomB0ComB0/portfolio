@@ -129,7 +129,7 @@ export const VideosSection = (): JSX.Element => {
 const VideosSkeleton = (): JSX.Element => (
   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
     {[...Array(3)].map((_, i) => (
-      <MagicCard key={`video-skeleton-${+i}`} className="h-full">
+      <MagicCard key={`video-skeleton-${i}`} className="h-full">
         <Card className="h-full">
           <Skeleton className="w-full aspect-video rounded-t-lg" />
           <CardHeader>
