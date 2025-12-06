@@ -66,9 +66,9 @@ function getSlidesLink(
 ): { url: string; label: string; icon: 'pdf' | 'external' } | null {
   const format = talk.slidesFormat;
 
-  // PDF file uploaded to Sanity
-  if (format === 'pdf' && talk.slidesPdf?.asset) {
-    return { url: talk.slidesUrl || '', label: 'View PDF', icon: 'pdf' };
+  // PDF file uploaded to Sanity - use the resolved URL
+  if (format === 'pdf' && talk.slidesPdfUrl) {
+    return { url: talk.slidesPdfUrl, label: 'View PDF', icon: 'pdf' };
   }
 
   // External URL

@@ -252,6 +252,7 @@ export const PresentationSchema = Schema.Struct({
   eventUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   date: Schema.String,
   slidesFormat: Schema.optional(Schema.Union(SlidesFormatSchema, Schema.Null)),
+  slidesPdfUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   slidesPdf: Schema.optional(Schema.Union(SanityFileSchema, Schema.Null)),
   slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
@@ -260,6 +261,15 @@ export const PresentationSchema = Schema.Struct({
   location: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   order: Schema.Number,
 });
+
+/**
+ * Talk slides format - simplified version with only PDF and URL options
+ */
+export const TalkSlidesFormatSchema = Schema.Union(
+  Schema.Literal('pdf'),
+  Schema.Literal('url'),
+  Schema.Literal('none'),
+);
 
 /**
  * Sanity Talk Schema with Effect Schema validation
@@ -277,9 +287,8 @@ export const TalkSchema = Schema.Struct({
   date: Schema.String,
   videoFormat: Schema.optional(Schema.Union(VideoFormatSchema, Schema.Null)),
   videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  slidesFormat: Schema.optional(
-    Schema.Union(Schema.Literal('pdf'), Schema.Literal('url'), Schema.Literal('none'), Schema.Null),
-  ),
+  slidesFormat: Schema.optional(Schema.Union(TalkSlidesFormatSchema, Schema.Null)),
+  slidesPdfUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   slidesPdf: Schema.optional(Schema.Union(SanityFileSchema, Schema.Null)),
   slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),

@@ -42,10 +42,9 @@ function getSlidesLink(
 ): { url: string; label: string; icon: 'pdf' | 'external' } | null {
   const format = presentation.slidesFormat;
 
-  // PDF file uploaded to Sanity
-  if (format === 'pdf' && presentation.slidesPdf?.asset) {
-    // Sanity file URLs are resolved in the API layer
-    return { url: presentation.slidesUrl || '', label: 'View PDF', icon: 'pdf' };
+  // PDF file uploaded to Sanity - use the resolved URL
+  if (format === 'pdf' && presentation.slidesPdfUrl) {
+    return { url: presentation.slidesPdfUrl, label: 'View PDF', icon: 'pdf' };
   }
 
   // External URL formats
