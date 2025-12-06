@@ -97,7 +97,7 @@ export async function getDevToBlogs(username: string, perPage = 30): Promise<Dev
     return data.map((article: any) => ({
       title: article.title,
       slug: article.slug,
-      publishedAt: article.published_at || article.published_timestamp,
+      publishedAt: article.published_at,
       excerpt: article.description || '',
       imageUrl: article.cover_image || article.social_image,
       source: 'devto' as const,

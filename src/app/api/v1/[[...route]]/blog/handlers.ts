@@ -47,12 +47,15 @@ export async function fetchBlogs(): Promise<Blog[]> {
 
   const blogs: Blog[] = [];
 
+  // Blog URL configuration
+  const HASHNODE_BLOG_BASE_URL = 'https://blog.mikeodnis.dev';
+
   // Process Hashnode results
   if (hashnodeResult.status === 'fulfilled' && Array.isArray(hashnodeResult.value)) {
     const hashnodeBlogs = hashnodeResult.value.map((blog) => ({
       ...blog,
       source: 'hashnode' as const,
-      url: `https://blog.mikeodnis.dev/${blog.slug}`,
+      url: `${HASHNODE_BLOG_BASE_URL}/${blog.slug}`,
     }));
     blogs.push(...hashnodeBlogs);
   } else if (hashnodeResult.status === 'rejected') {
