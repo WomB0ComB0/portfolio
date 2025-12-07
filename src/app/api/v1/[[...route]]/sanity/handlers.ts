@@ -159,42 +159,57 @@ export async function getResumeHandler() {
 const DUMMY_PRESENTATIONS = [
   {
     _id: 'dummy-presentation-1',
+    _type: 'presentation' as const,
+    _createdAt: '2025-03-15T18:00:00Z',
+    _updatedAt: '2025-03-15T18:00:00Z',
+    _rev: 'dummy-rev-1',
     title: 'Building Scalable Web Applications with Next.js',
     description:
       'An in-depth look at best practices for building scalable, performant web applications using Next.js App Router, server components, and modern React patterns.',
     eventName: 'React NYC Meetup',
     eventUrl: 'https://www.meetup.com/ReactNYC/',
     date: '2025-03-15T18:00:00Z',
-    slidesFormat: 'google_slides',
+    slidesFormat: 'google_slides' as const,
     slidesUrl: 'https://docs.google.com/presentation/d/example',
     videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     location: 'New York, NY',
     tags: ['Next.js', 'React', 'Performance', 'Web Development'],
+    order: 1,
   },
   {
     _id: 'dummy-presentation-2',
+    _type: 'presentation' as const,
+    _createdAt: '2025-02-20T09:00:00Z',
+    _updatedAt: '2025-02-20T09:00:00Z',
+    _rev: 'dummy-rev-2',
     title: 'TypeScript Best Practices for Enterprise Applications',
     description:
       'Learn how to leverage TypeScript effectively in large-scale applications, including advanced type patterns, generics, and integration with modern tooling.',
     eventName: 'TypeScript Conference 2025',
     eventUrl: 'https://typescriptconf.com',
     date: '2025-02-20T09:00:00Z',
-    slidesFormat: 'pdf',
+    slidesFormat: 'pdf' as const,
     slidesPdfUrl: 'https://example.com/slides.pdf',
     location: 'San Francisco, CA',
     tags: ['TypeScript', 'Enterprise', 'Best Practices'],
+    order: 2,
   },
   {
     _id: 'dummy-presentation-3',
+    _type: 'presentation' as const,
+    _createdAt: '2025-01-10T14:00:00Z',
+    _updatedAt: '2025-01-10T14:00:00Z',
+    _rev: 'dummy-rev-3',
     title: 'From Zero to Production: CI/CD with GitHub Actions',
     description:
       'A comprehensive guide to setting up continuous integration and deployment pipelines using GitHub Actions, including testing, building, and deploying to various cloud platforms.',
     eventName: 'DevOps Days NYC',
     date: '2025-01-10T14:00:00Z',
-    slidesFormat: 'speakerdeck',
+    slidesFormat: 'speakerdeck' as const,
     slidesUrl: 'https://speakerdeck.com/example',
     location: 'Brooklyn, NY',
     tags: ['DevOps', 'CI/CD', 'GitHub Actions', 'Automation'],
+    order: 3,
   },
 ];
 
@@ -227,43 +242,58 @@ export async function getPresentationsHandler() {
 const DUMMY_TALKS = [
   {
     _id: 'dummy-talk-1',
+    _type: 'talk' as const,
+    _createdAt: '2025-04-05T10:00:00Z',
+    _updatedAt: '2025-04-05T10:00:00Z',
+    _rev: 'dummy-rev-1',
     title: 'The Future of AI in Web Development',
     description:
       'Exploring how artificial intelligence is transforming the way we build and deploy web applications, from code generation to automated testing and deployment.',
     venue: 'AI Summit 2025',
     date: '2025-04-05T10:00:00Z',
-    videoFormat: 'youtube',
+    videoFormat: 'youtube' as const,
     videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    slidesFormat: 'pdf',
+    slidesFormat: 'pdf' as const,
     slidesPdfUrl: 'https://example.com/ai-talk-slides.pdf',
     duration: '45 min',
     tags: ['AI', 'Machine Learning', 'Web Development', 'Future Tech'],
+    order: 1,
   },
   {
     _id: 'dummy-talk-2',
+    _type: 'talk' as const,
+    _createdAt: '2025-03-01T15:00:00Z',
+    _updatedAt: '2025-03-01T15:00:00Z',
+    _rev: 'dummy-rev-2',
     title: 'Mastering React Server Components',
     description:
       'Deep dive into React Server Components, understanding when to use them, performance implications, and how they change the way we think about React applications.',
     venue: 'React Summit Remote',
     date: '2025-03-01T15:00:00Z',
-    videoFormat: 'vimeo',
+    videoFormat: 'vimeo' as const,
     videoUrl: 'https://vimeo.com/example',
-    slidesFormat: 'url',
+    slidesFormat: 'url' as const,
     slidesUrl: 'https://slides.com/example',
     duration: '30 min',
     tags: ['React', 'Server Components', 'Performance'],
+    order: 2,
   },
   {
     _id: 'dummy-talk-3',
+    _type: 'talk' as const,
+    _createdAt: '2025-02-15T11:00:00Z',
+    _updatedAt: '2025-02-15T11:00:00Z',
+    _rev: 'dummy-rev-3',
     title: 'Building Accessible Web Applications',
     description:
       'A practical guide to making your web applications accessible to everyone, covering WCAG guidelines, testing tools, and common accessibility patterns.',
     venue: 'Accessibility Conference 2025',
     date: '2025-02-15T11:00:00Z',
-    videoFormat: 'youtube',
+    videoFormat: 'youtube' as const,
     videoUrl: 'https://www.youtube.com/watch?v=example',
     duration: '40 min',
     tags: ['Accessibility', 'A11y', 'UX', 'Web Standards'],
+    order: 3,
   },
 ];
 
@@ -296,6 +326,10 @@ export async function getTalksHandler() {
 const DUMMY_ARTICLES = [
   {
     _id: 'dummy-article-1',
+    _type: 'article' as const,
+    _createdAt: '2025-03-20T00:00:00Z',
+    _updatedAt: '2025-03-20T00:00:00Z',
+    _rev: 'dummy-rev-1',
     title: 'The Complete Guide to Modern State Management in React',
     excerpt:
       'An exploration of state management solutions in 2025, comparing Redux Toolkit, Zustand, Jotai, and the built-in React Context API for different use cases.',
@@ -304,9 +338,14 @@ const DUMMY_ARTICLES = [
     publishedDate: '2025-03-20T00:00:00Z',
     tags: ['React', 'State Management', 'JavaScript', 'Frontend'],
     coAuthors: ['Jane Developer'],
+    order: 1,
   },
   {
     _id: 'dummy-article-2',
+    _type: 'article' as const,
+    _createdAt: '2025-02-28T00:00:00Z',
+    _updatedAt: '2025-02-28T00:00:00Z',
+    _rev: 'dummy-rev-2',
     title: 'Optimizing Node.js Applications for Production',
     excerpt:
       'Best practices for deploying Node.js applications to production, including performance monitoring, memory management, and scaling strategies.',
@@ -314,9 +353,14 @@ const DUMMY_ARTICLES = [
     publicationUrl: 'https://blog.logrocket.com/article/example',
     publishedDate: '2025-02-28T00:00:00Z',
     tags: ['Node.js', 'Performance', 'Backend', 'DevOps'],
+    order: 2,
   },
   {
     _id: 'dummy-article-3',
+    _type: 'article' as const,
+    _createdAt: '2025-01-15T00:00:00Z',
+    _updatedAt: '2025-01-15T00:00:00Z',
+    _rev: 'dummy-rev-3',
     title: 'Introduction to Edge Computing for Web Developers',
     excerpt:
       'Understanding edge computing and how to leverage edge functions for faster, more responsive web applications using Vercel Edge Functions and Cloudflare Workers.',
@@ -324,6 +368,7 @@ const DUMMY_ARTICLES = [
     publicationUrl: 'https://css-tricks.com/article/example',
     publishedDate: '2025-01-15T00:00:00Z',
     tags: ['Edge Computing', 'Vercel', 'Cloudflare', 'Performance'],
+    order: 3,
   },
 ];
 
@@ -356,6 +401,10 @@ export async function getArticlesHandler() {
 const DUMMY_YOUTUBE_VIDEOS = [
   {
     _id: 'dummy-video-1',
+    _type: 'youtubeVideo' as const,
+    _createdAt: '2025-03-10T00:00:00Z',
+    _updatedAt: '2025-03-10T00:00:00Z',
+    _rev: 'dummy-rev-1',
     title: 'Building a Full-Stack App with Next.js 14 - Complete Tutorial',
     description:
       'In this comprehensive tutorial, we build a complete full-stack application using Next.js 14, covering everything from project setup to deployment.',
@@ -363,9 +412,14 @@ const DUMMY_YOUTUBE_VIDEOS = [
     publishedDate: '2025-03-10T00:00:00Z',
     duration: '2:15:30',
     tags: ['Next.js', 'Tutorial', 'Full Stack', 'React'],
+    order: 1,
   },
   {
     _id: 'dummy-video-2',
+    _type: 'youtubeVideo' as const,
+    _createdAt: '2025-02-25T00:00:00Z',
+    _updatedAt: '2025-02-25T00:00:00Z',
+    _rev: 'dummy-rev-2',
     title: 'TypeScript Tips and Tricks Every Developer Should Know',
     description:
       'A collection of advanced TypeScript techniques that will make your code more type-safe, maintainable, and easier to understand.',
@@ -373,9 +427,14 @@ const DUMMY_YOUTUBE_VIDEOS = [
     publishedDate: '2025-02-25T00:00:00Z',
     duration: '45:20',
     tags: ['TypeScript', 'Tips', 'Programming'],
+    order: 2,
   },
   {
     _id: 'dummy-video-3',
+    _type: 'youtubeVideo' as const,
+    _createdAt: '2025-01-30T00:00:00Z',
+    _updatedAt: '2025-01-30T00:00:00Z',
+    _rev: 'dummy-rev-3',
     title: 'Live Coding: Building a Real-Time Chat Application',
     description:
       'Watch as we build a real-time chat application from scratch using WebSockets, React, and Node.js in this live coding session.',
@@ -383,6 +442,7 @@ const DUMMY_YOUTUBE_VIDEOS = [
     publishedDate: '2025-01-30T00:00:00Z',
     duration: '1:30:00',
     tags: ['Live Coding', 'WebSockets', 'React', 'Node.js'],
+    order: 3,
   },
 ];
 
