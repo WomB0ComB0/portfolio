@@ -25,7 +25,7 @@ test('navigation links', async ({ page }) => {
     { name: 'About', path: '/about' },
     { name: 'Stats', path: '/stats' },
     { name: 'Projects', path: '/projects' },
-    { name: 'Blog', path: '/blog' },
+    { name: 'Media', path: '/media' },
     { name: 'Guestbook', path: '/guestbook' },
     { name: 'Resume', path: '/resume' },
   ];

@@ -15,12 +15,26 @@
  */
 
 import type { SchemaTypeDefinition } from 'sanity';
+import { articleType } from './article';
 import { certificationType } from './certification';
 import { experienceType } from './experience';
 import { placeType } from './place';
+import { presentationType } from './presentation';
 import { projectType } from './project';
 import { resumeType } from './resume';
+import { talkType } from './talk';
+import { youtubeVideoType } from './youtube-video';
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [projectType, experienceType, certificationType, placeType, resumeType],
+  types: [
+    projectType,
+    experienceType,
+    certificationType,
+    placeType,
+    resumeType,
+    presentationType,
+    talkType,
+    articleType,
+    youtubeVideoType,
+  ],
 };
