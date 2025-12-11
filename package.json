@@ -157,7 +157,7 @@
     "lucide-react": "0.555.0",
     "marked": "^17.0.0",
     "mkdirp": "^3.0.1",
-    "motion": "12.23.25",
+    "motion": "12.23.26",
     "next": "^16.0.0",
     "next-csrf": "^0.2.1",
     "next-sanity": "^11.6.2",
