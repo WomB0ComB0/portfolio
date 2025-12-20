@@ -239,6 +239,7 @@ export async function getPresentationsHandler() {
 
 /**
  * Dummy data for talks (shown when no real data exists)
+ * Note: duration field is intentionally undefined to allow YouTube API enrichment
  */
 const DUMMY_TALKS = [
   {
@@ -253,10 +254,10 @@ const DUMMY_TALKS = [
     venue: 'AI Summit 2025',
     date: '2025-04-05T10:00:00Z',
     videoFormat: 'youtube' as const,
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Real YouTube video - duration will be fetched dynamically
     slidesFormat: 'pdf' as const,
     slidesPdfUrl: 'https://example.com/ai-talk-slides.pdf',
-    duration: '45 min',
+    duration: undefined, // Will be enriched by YouTube API
     tags: ['AI', 'Machine Learning', 'Web Development', 'Future Tech'],
     order: 1,
   },
@@ -275,7 +276,7 @@ const DUMMY_TALKS = [
     videoUrl: 'https://vimeo.com/example',
     slidesFormat: 'url' as const,
     slidesUrl: 'https://slides.com/example',
-    duration: '30 min',
+    duration: '30 min', // Vimeo video - won't be enriched by YouTube API
     tags: ['React', 'Server Components', 'Performance'],
     order: 2,
   },
@@ -291,8 +292,8 @@ const DUMMY_TALKS = [
     venue: 'Accessibility Conference 2025',
     date: '2025-02-15T11:00:00Z',
     videoFormat: 'youtube' as const,
-    videoUrl: 'https://www.youtube.com/watch?v=example',
-    duration: '40 min',
+    videoUrl: 'https://www.youtube.com/watch?v=jjMbPt_H3RQ', // Real YouTube video - duration will be fetched dynamically
+    duration: undefined, // Will be enriched by YouTube API
     tags: ['Accessibility', 'A11y', 'UX', 'Web Standards'],
     order: 3,
   },
@@ -451,6 +452,7 @@ export async function getArticlesHandler() {
 
 /**
  * Dummy data for YouTube videos (shown when no real data exists)
+ * Note: duration field is intentionally undefined to allow YouTube API enrichment
  */
 const DUMMY_YOUTUBE_VIDEOS = [
   {
@@ -462,9 +464,9 @@ const DUMMY_YOUTUBE_VIDEOS = [
     title: 'Building a Full-Stack App with Next.js 14 - Complete Tutorial',
     description:
       'In this comprehensive tutorial, we build a complete full-stack application using Next.js 14, covering everything from project setup to deployment.',
-    videoId: 'dQw4w9WgXcQ',
+    videoId: 'dQw4w9WgXcQ', // Real YouTube video ID - duration will be fetched dynamically
     publishedDate: '2025-03-10T00:00:00Z',
-    duration: '2:15:30',
+    duration: undefined, // Will be enriched by YouTube API
     tags: ['Next.js', 'Tutorial', 'Full Stack', 'React'],
     order: 1,
   },
@@ -477,9 +479,9 @@ const DUMMY_YOUTUBE_VIDEOS = [
     title: 'TypeScript Tips and Tricks Every Developer Should Know',
     description:
       'A collection of advanced TypeScript techniques that will make your code more type-safe, maintainable, and easier to understand.',
-    videoId: 'example123',
+    videoId: 'jjMbPt_H3RQ', // Real YouTube video ID - duration will be fetched dynamically
     publishedDate: '2025-02-25T00:00:00Z',
-    duration: '45:20',
+    duration: undefined, // Will be enriched by YouTube API
     tags: ['TypeScript', 'Tips', 'Programming'],
     order: 2,
   },
@@ -492,9 +494,9 @@ const DUMMY_YOUTUBE_VIDEOS = [
     title: 'Live Coding: Building a Real-Time Chat Application',
     description:
       'Watch as we build a real-time chat application from scratch using WebSockets, React, and Node.js in this live coding session.',
-    videoId: 'example456',
+    videoId: '8xKq2wastFg', // Real YouTube video ID - duration will be fetched dynamically
     publishedDate: '2025-01-30T00:00:00Z',
-    duration: '1:30:00',
+    duration: undefined, // Will be enriched by YouTube API
     tags: ['Live Coding', 'WebSockets', 'React', 'Node.js'],
     order: 3,
   },
@@ -520,15 +522,27 @@ export async function getYoutubeVideosHandler() {
 
     // Enrich videos with dynamic duration from YouTube API if API key is available
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    logger.info('YouTube API enrichment:', { 
+      hasApiKey: !!apiKey, 
+      videosCount: videos.length,
+      videoIds: videos.map(v => v.videoId).join(', ')
+    });
+    
     if (apiKey && videos.length > 0) {
       try {
         const videoIds = videos.map((v) => v.videoId);
         const metadataMap = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
         
+        logger.info('YouTube API response:', {
+          fetchedCount: metadataMap.size,
+          videoIds: Array.from(metadataMap.keys()).join(', ')
+        });
+        
         // Enrich videos with fetched duration
         const enrichedVideos = videos.map((video) => {
           const metadata = metadataMap.get(video.videoId);
           if (metadata && metadata.duration) {
+            logger.info(`Enriched video ${video.videoId} with duration: ${metadata.duration}`);
             return {
               ...video,
               duration: metadata.duration, // Override with dynamic duration
