@@ -357,8 +357,10 @@ export async function getTalksHandler() {
           setCache('talks', enrichedTalks);
           return enrichedTalks;
         }
-      } catch (ytError) {
-        logger.warn('Failed to fetch YouTube metadata for talks, using fallback durations:', { error: ytError });
+      } catch (ytError: unknown) {
+        logger.warn('Failed to fetch YouTube metadata for talks, using fallback durations:', { 
+          error: ytError instanceof Error ? ytError.message : String(ytError) 
+        });
         // Fall through to return talks without enrichment
       }
     }
@@ -537,8 +539,10 @@ export async function getYoutubeVideosHandler() {
         
         setCache('youtubeVideos', enrichedVideos);
         return enrichedVideos;
-      } catch (ytError) {
-        logger.warn('Failed to fetch YouTube metadata, using fallback durations:', { error: ytError });
+      } catch (ytError: unknown) {
+        logger.warn('Failed to fetch YouTube metadata, using fallback durations:', { 
+          error: ytError instanceof Error ? ytError.message : String(ytError) 
+        });
         // Fall through to return videos without enrichment
       }
     }
