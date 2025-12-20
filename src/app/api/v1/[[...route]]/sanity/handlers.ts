@@ -518,7 +518,7 @@ const DUMMY_YOUTUBE_VIDEOS = [
     title: 'Live Coding: Building a Real-Time Chat Application',
     description:
       'Watch as we build a real-time chat application from scratch using WebSockets, React, and Node.js in this live coding session.',
-    videoId: '8xKq2wastFg', // Real YouTube video ID - duration will be fetched dynamically
+    videoId: 'jNQXAC9IVRw', // Real YouTube video ID - "Me at the zoo" - duration will be fetched dynamically
     publishedDate: '2025-01-30T00:00:00Z',
     duration: undefined, // Will be enriched by YouTube API
     tags: ['Live Coding', 'WebSockets', 'React', 'Node.js'],

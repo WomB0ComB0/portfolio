@@ -17,7 +17,7 @@
  */
 
 import type { Schema } from 'effect';
-import { CalendarIcon, ClockIcon, ExternalLinkIcon, PlayCircleIcon } from 'lucide-react';
+import { CalendarIcon, ClockIcon, ExternalLinkIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import { type JSX, Suspense } from 'react';
@@ -67,7 +67,7 @@ export const VideosSection = (): JSX.Element => {
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
                     <MagicCard className="h-full transition-shadow hover:shadow-lg">
-                      <div className="relative w-full aspect-video mb-4 overflow-hidden rounded-t-lg group">
+                      <div className="relative w-full aspect-video mb-4 overflow-hidden rounded-t-lg">
                         <Image
                           src={`https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
                           alt={video.title}
@@ -75,9 +75,6 @@ export const VideosSection = (): JSX.Element => {
                           className="object-cover"
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <PlayCircleIcon className="w-16 h-16 text-white" />
-                        </div>
                         {/* YouTube Badge */}
                         <div className="absolute top-2 left-2">
                           <Badge
