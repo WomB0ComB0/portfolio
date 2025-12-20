@@ -27,3 +27,4 @@ export * from './get-repos';
 export * from './github-sponsors';
 export * from './google';
 export * from './spotify';
+export * from './youtube';

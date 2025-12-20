@@ -22,6 +22,7 @@ import {
   getProjects,
   getResume,
 } from '@/lib/sanity/api';
+import { fetchYouTubeVideoMetadataBatch } from '@/lib/api-integrations/youtube';
 import { logger } from '@/utils';
 
 const CACHE_DURATION = 60 * 5 * 1000; // 5 minutes
@@ -298,7 +299,7 @@ const DUMMY_TALKS = [
 ];
 
 /**
- * Get all talks from Sanity
+ * Get all talks from Sanity, enriched with dynamic duration from YouTube API where applicable
  */
 export async function getTalksHandler() {
   const cached = getCached('talks');
@@ -308,11 +309,62 @@ export async function getTalksHandler() {
 
   try {
     const { getTalks } = await import('@/lib/sanity/api');
-    const talks = await getTalks();
-    // Return dummy data if no real data exists
-    const result = talks.length > 0 ? talks : DUMMY_TALKS;
-    setCache('talks', result);
-    return result;
+    let talks = await getTalks();
+    
+    // Use dummy data if no real data exists
+    if (talks.length === 0) {
+      talks = DUMMY_TALKS;
+    }
+
+    // Enrich talks with dynamic duration from YouTube API if API key is available
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (apiKey && talks.length > 0) {
+      try {
+        // Extract YouTube video IDs from talks
+        const youtubeVideoIds = talks
+          .filter((talk) => talk.videoFormat === 'youtube' && talk.videoUrl)
+          .map((talk) => {
+            // Extract video ID from YouTube URL
+            const url = talk.videoUrl!;
+            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+            return match ? match[1] : null;
+          })
+          .filter((id): id is string => id !== null);
+
+        if (youtubeVideoIds.length > 0) {
+          const metadataMap = await fetchYouTubeVideoMetadataBatch(youtubeVideoIds, apiKey);
+          
+          // Enrich talks with fetched duration
+          const enrichedTalks = talks.map((talk) => {
+            if (talk.videoFormat === 'youtube' && talk.videoUrl) {
+              const url = talk.videoUrl;
+              const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+              const videoId = match ? match[1] : null;
+              
+              if (videoId) {
+                const metadata = metadataMap.get(videoId);
+                if (metadata && metadata.duration) {
+                  return {
+                    ...talk,
+                    duration: metadata.duration, // Override with dynamic duration
+                  };
+                }
+              }
+            }
+            return talk;
+          });
+          
+          setCache('talks', enrichedTalks);
+          return enrichedTalks;
+        }
+      } catch (ytError) {
+        logger.warn('Failed to fetch YouTube metadata for talks, using fallback durations:', ytError);
+        // Fall through to return talks without enrichment
+      }
+    }
+
+    setCache('talks', talks);
+    return talks;
   } catch (error) {
     logger.error('Error in getTalksHandler:', error);
     // Return dummy data on error for preview purposes
@@ -447,7 +499,7 @@ const DUMMY_YOUTUBE_VIDEOS = [
 ];
 
 /**
- * Get all YouTube videos from Sanity
+ * Get all YouTube videos from Sanity, enriched with dynamic duration from YouTube API
  */
 export async function getYoutubeVideosHandler() {
   const cached = getCached('youtubeVideos');
@@ -457,11 +509,42 @@ export async function getYoutubeVideosHandler() {
 
   try {
     const { getYoutubeVideos } = await import('@/lib/sanity/api');
-    const videos = await getYoutubeVideos();
-    // Return dummy data if no real data exists
-    const result = videos.length > 0 ? videos : DUMMY_YOUTUBE_VIDEOS;
-    setCache('youtubeVideos', result);
-    return result;
+    let videos = await getYoutubeVideos();
+    
+    // Use dummy data if no real data exists
+    if (videos.length === 0) {
+      videos = DUMMY_YOUTUBE_VIDEOS;
+    }
+
+    // Enrich videos with dynamic duration from YouTube API if API key is available
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (apiKey && videos.length > 0) {
+      try {
+        const videoIds = videos.map((v) => v.videoId);
+        const metadataMap = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
+        
+        // Enrich videos with fetched duration
+        const enrichedVideos = videos.map((video) => {
+          const metadata = metadataMap.get(video.videoId);
+          if (metadata && metadata.duration) {
+            return {
+              ...video,
+              duration: metadata.duration, // Override with dynamic duration
+            };
+          }
+          return video;
+        });
+        
+        setCache('youtubeVideos', enrichedVideos);
+        return enrichedVideos;
+      } catch (ytError) {
+        logger.warn('Failed to fetch YouTube metadata, using fallback durations:', ytError);
+        // Fall through to return videos without enrichment
+      }
+    }
+
+    setCache('youtubeVideos', videos);
+    return videos;
   } catch (error) {
     logger.error('Error in getYoutubeVideosHandler:', error);
     // Return dummy data on error for preview purposes
