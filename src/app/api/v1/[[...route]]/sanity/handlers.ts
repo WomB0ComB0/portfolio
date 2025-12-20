@@ -543,8 +543,11 @@ export async function getYoutubeVideosHandler() {
 
     // Enrich videos with dynamic duration from YouTube API if API key is available
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    
     logger.info('YouTube API enrichment:', { 
-      hasApiKey: !!apiKey, 
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length || 0,
+      env: Object.keys(process.env).filter(k => k.includes('GOOGLE')),
       videosCount: videos.length,
       videoIds: videos.map(v => v.videoId).join(', ')
     });
