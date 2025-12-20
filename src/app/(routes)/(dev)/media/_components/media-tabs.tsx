@@ -20,6 +20,7 @@ import type { JSX } from 'react';
 import { FiFileText, FiMic, FiMonitor, FiRss, FiVideo } from 'react-icons/fi';
 import { PageHeader } from '@/components/custom/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQueryState } from 'nuqs';
 import { ArticlesSection } from './articles-section';
 import { BlogSection } from './blog-section';
 import { PresentationsSection } from './presentations-section';
@@ -31,6 +32,7 @@ import { VideosSection } from './videos-section';
  * @description
  *   Main media page component with tabbed interface for different media types.
  *   Includes sections for Blog, Presentations, Talks, Videos, and Articles.
+ *   Tab state is persisted in URL query parameters for shareable links.
  * @returns {JSX.Element} The React JSX element containing the media tabs.
  * @web
  * @public
@@ -38,6 +40,11 @@ import { VideosSection } from './videos-section';
  * @version 1.0.0
  */
 export const MediaTabs = (): JSX.Element => {
+  const [activeTab, setActiveTab] = useQueryState('tab', {
+    defaultValue: 'blog',
+    shallow: true,
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader
@@ -45,7 +52,7 @@ export const MediaTabs = (): JSX.Element => {
         description="Explore my blog posts, presentations, talks, videos, and articles"
         icon={<FiFileText />}
       />
-      <Tabs defaultValue="blog" className="w-full mt-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
         <TabsList className="w-full flex flex-wrap justify-center gap-1 sm:gap-2 h-auto p-2 bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
           <TabsTrigger
             value="blog"
