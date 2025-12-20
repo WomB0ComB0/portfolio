@@ -152,6 +152,9 @@ export async function fetchYouTubeVideoMetadata(
   }
 
   const video = data.items[0];
+  if (!video) {
+    throw new Error(`YouTube video not found: ${videoId}`);
+  }
   const duration = formatDuration(video.contentDetails.duration);
 
   return {
