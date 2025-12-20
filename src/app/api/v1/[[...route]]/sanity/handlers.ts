@@ -319,6 +319,11 @@ export async function getTalksHandler() {
 
     // Enrich talks with dynamic duration from YouTube API if API key is available
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    logger.info('YouTube API enrichment for talks:', { 
+      hasApiKey: !!apiKey,
+      talksCount: talks.length 
+    });
+    
     if (apiKey && talks.length > 0) {
       try {
         // Extract YouTube video IDs from talks
@@ -332,8 +337,17 @@ export async function getTalksHandler() {
           })
           .filter((id): id is string => id !== null);
 
+        logger.info('Extracted YouTube video IDs from talks:', { 
+          videoIdsCount: youtubeVideoIds.length,
+          videoIds: youtubeVideoIds 
+        });
+
         if (youtubeVideoIds.length > 0) {
           const metadataMap = await fetchYouTubeVideoMetadataBatch(youtubeVideoIds, apiKey);
+          logger.info('Fetched YouTube metadata for talks:', { 
+            metadataCount: metadataMap.size,
+            videoIds: Array.from(metadataMap.keys())
+          });
           
           // Enrich talks with fetched duration
           const enrichedTalks = talks.map((talk) => {
@@ -345,6 +359,11 @@ export async function getTalksHandler() {
               if (videoId) {
                 const metadata = metadataMap.get(videoId);
                 if (metadata && metadata.duration) {
+                  logger.info('Enriching talk with YouTube duration:', {
+                    talkId: talk._id,
+                    videoId,
+                    duration: metadata.duration
+                  });
                   return {
                     ...talk,
                     duration: metadata.duration, // Override with dynamic duration
@@ -353,6 +372,11 @@ export async function getTalksHandler() {
               }
             }
             return talk;
+          });
+          
+          logger.info('Enriched talks result:', {
+            totalTalks: enrichedTalks.length,
+            enrichedCount: enrichedTalks.filter(t => t.duration).length
           });
           
           setCache('talks', enrichedTalks);
