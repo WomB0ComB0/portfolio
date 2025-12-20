@@ -485,13 +485,12 @@ const DUMMY_YOUTUBE_VIDEOS = [
     _createdAt: '2025-03-10T00:00:00Z',
     _updatedAt: '2025-03-10T00:00:00Z',
     _rev: 'dummy-rev-1',
-    title: 'Building a Full-Stack App with Next.js 14 - Complete Tutorial',
-    description:
-      'In this comprehensive tutorial, we build a complete full-stack application using Next.js 14, covering everything from project setup to deployment.',
-    videoId: 'dQw4w9WgXcQ', // Real YouTube video ID - duration will be fetched dynamically
+    title: 'Placeholder - Will be fetched from YouTube', // Will be replaced by YouTube API
+    description: 'Placeholder description - Will be fetched from YouTube API', // Will be replaced by YouTube API
+    videoId: 'dQw4w9WgXcQ', // Real YouTube video ID - all metadata will be fetched dynamically
     publishedDate: '2025-03-10T00:00:00Z',
     duration: undefined, // Will be enriched by YouTube API
-    tags: ['Next.js', 'Tutorial', 'Full Stack', 'React'],
+    tags: ['YouTube', 'Video'],
     order: 1,
   },
   {
@@ -500,13 +499,12 @@ const DUMMY_YOUTUBE_VIDEOS = [
     _createdAt: '2025-02-25T00:00:00Z',
     _updatedAt: '2025-02-25T00:00:00Z',
     _rev: 'dummy-rev-2',
-    title: 'TypeScript Tips and Tricks Every Developer Should Know',
-    description:
-      'A collection of advanced TypeScript techniques that will make your code more type-safe, maintainable, and easier to understand.',
-    videoId: 'jjMbPt_H3RQ', // Real YouTube video ID - duration will be fetched dynamically
+    title: 'Placeholder - Will be fetched from YouTube', // Will be replaced by YouTube API
+    description: 'Placeholder description - Will be fetched from YouTube API', // Will be replaced by YouTube API
+    videoId: 'jjMbPt_H3RQ', // Real YouTube video ID - all metadata will be fetched dynamically
     publishedDate: '2025-02-25T00:00:00Z',
     duration: undefined, // Will be enriched by YouTube API
-    tags: ['TypeScript', 'Tips', 'Programming'],
+    tags: ['YouTube', 'Video'],
     order: 2,
   },
   {
@@ -515,13 +513,12 @@ const DUMMY_YOUTUBE_VIDEOS = [
     _createdAt: '2025-01-30T00:00:00Z',
     _updatedAt: '2025-01-30T00:00:00Z',
     _rev: 'dummy-rev-3',
-    title: 'Live Coding: Building a Real-Time Chat Application',
-    description:
-      'Watch as we build a real-time chat application from scratch using WebSockets, React, and Node.js in this live coding session.',
-    videoId: 'jNQXAC9IVRw', // Real YouTube video ID - "Me at the zoo" - duration will be fetched dynamically
+    title: 'Placeholder - Will be fetched from YouTube', // Will be replaced by YouTube API
+    description: 'Placeholder description - Will be fetched from YouTube API', // Will be replaced by YouTube API
+    videoId: 'jNQXAC9IVRw', // Real YouTube video ID - "Me at the zoo" - all metadata will be fetched dynamically
     publishedDate: '2025-01-30T00:00:00Z',
     duration: undefined, // Will be enriched by YouTube API
-    tags: ['Live Coding', 'WebSockets', 'React', 'Node.js'],
+    tags: ['YouTube', 'Video'],
     order: 3,
   },
 ];
@@ -562,13 +559,15 @@ export async function getYoutubeVideosHandler() {
           videoIds: Array.from(metadataMap.keys()).join(', ')
         });
         
-        // Enrich videos with fetched duration
+        // Enrich videos with fetched metadata (title, description, duration)
         const enrichedVideos = videos.map((video) => {
           const metadata = metadataMap.get(video.videoId);
-          if (metadata && metadata.duration) {
-            logger.info(`Enriched video ${video.videoId} with duration: ${metadata.duration}`);
+          if (metadata) {
+            logger.info(`Enriched video ${video.videoId} with duration: ${metadata.duration}, title: ${metadata.title}`);
             return {
               ...video,
+              title: metadata.title, // Override with dynamic title from YouTube
+              description: metadata.description, // Override with dynamic description from YouTube
               duration: metadata.duration, // Override with dynamic duration
             };
           }
