@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { format } from 'date-fns';
 import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -29,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 
 /**
  * Blog post schema for Effect validation
@@ -87,7 +87,7 @@ export const BlogSection = (): JSX.Element => {
         ErrorComponent={BlogErrorMessage}
       >
         {(data: Schema.Schema.Type<typeof BlogResponseSchema>) => (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence>
               {data.map((blog: Schema.Schema.Type<typeof BlogPostSchema>, index: number) => (
                 <motion.div
@@ -124,7 +124,7 @@ export const BlogSection = (): JSX.Element => {
                         <div className="flex justify-between items-center text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <CalendarIcon className="w-4 h-4 mr-1" />
-                            <span>{format(new Date(blog.publishedAt), 'MMM d, yyyy')}</span>
+                            <span>{formatDate(blog.publishedAt, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -144,7 +144,7 @@ export const BlogSection = (): JSX.Element => {
  * Skeleton loader for blog section
  */
 const BlogSkeleton = (): JSX.Element => (
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
     {[...Array(6)].map((_, i) => (
       <MagicCard key={`blog-skeleton-${i}`} className="h-full">
         <Card className="h-full">

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { format } from 'date-fns';
 import type { Schema } from 'effect';
 import {
   CalendarIcon,
@@ -32,6 +31,7 @@ import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate } from '@/utils/date';
 import { type TalkSchema, TalksSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 
@@ -110,7 +110,7 @@ export const TalksSection = (): JSX.Element => {
           data.length === 0 ? (
             <EmptyState message="No talks available yet." />
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence>
                 {data.map((talk: Schema.Schema.Type<typeof TalkSchema>, index: number) => {
                   const videoLink = getVideoLink(talk);
@@ -166,7 +166,7 @@ export const TalksSection = (): JSX.Element => {
                           <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                             <div className="flex items-center">
                               <CalendarIcon className="w-4 h-4 mr-2" />
-                              <span>{format(new Date(talk.date), 'MMM d, yyyy')}</span>
+                              <span>{formatDate(talk.date, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
                             {talk.duration && (
                               <div className="flex items-center">
@@ -227,7 +227,7 @@ export const TalksSection = (): JSX.Element => {
  * Skeleton loader for talks section
  */
 const TalksSkeleton = (): JSX.Element => (
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
     {[...Array(3)].map((_, i) => (
       <MagicCard key={`talk-skeleton-${i}`} className="h-full">
         <Card className="h-full">

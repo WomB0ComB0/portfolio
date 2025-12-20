@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { format } from 'date-fns';
 import type { Schema } from 'effect';
 import {
   CalendarIcon,
@@ -31,6 +30,7 @@ import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate } from '@/utils/date';
 import { type PresentationSchema, PresentationsSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 
@@ -97,7 +97,7 @@ export const PresentationsSection = (): JSX.Element => {
           data.length === 0 ? (
             <EmptyState message="No presentations available yet." />
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence>
                 {data.map(
                   (presentation: Schema.Schema.Type<typeof PresentationSchema>, index: number) => {
@@ -142,7 +142,7 @@ export const PresentationsSection = (): JSX.Element => {
                             <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                               <div className="flex items-center">
                                 <CalendarIcon className="w-4 h-4 mr-2" />
-                                <span>{format(new Date(presentation.date), 'MMM d, yyyy')}</span>
+                                <span>{formatDate(presentation.date, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                               </div>
                               {presentation.location && (
                                 <div className="flex items-center">
@@ -209,7 +209,7 @@ export const PresentationsSection = (): JSX.Element => {
  * Skeleton loader for presentations section
  */
 const PresentationsSkeleton = (): JSX.Element => (
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
     {[...Array(3)].map((_, i) => (
       <MagicCard key={`presentation-skeleton-${i}`} className="h-full">
         <Card className="h-full">

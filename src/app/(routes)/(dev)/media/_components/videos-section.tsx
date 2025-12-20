@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { format } from 'date-fns';
 import type { Schema } from 'effect';
 import { CalendarIcon, ClockIcon, ExternalLinkIcon, PlayCircleIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -27,6 +26,7 @@ import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate } from '@/utils/date';
 import { type YoutubeVideoSchema, YoutubeVideosSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 
@@ -56,7 +56,7 @@ export const VideosSection = (): JSX.Element => {
           data.length === 0 ? (
             <EmptyState message="No videos available yet." />
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence>
                 {data.map((video: Schema.Schema.Type<typeof YoutubeVideoSchema>, index: number) => (
                   <motion.div
@@ -106,7 +106,7 @@ export const VideosSection = (): JSX.Element => {
                         <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <CalendarIcon className="w-4 h-4 mr-2" />
-                            <span>{format(new Date(video.publishedDate), 'MMM d, yyyy')}</span>
+                            <span>{formatDate(video.publishedDate, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           </div>
                           {video.duration && (
                             <div className="flex items-center">
@@ -143,7 +143,7 @@ export const VideosSection = (): JSX.Element => {
  * Skeleton loader for videos section
  */
 const VideosSkeleton = (): JSX.Element => (
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
     {[...Array(3)].map((_, i) => (
       <MagicCard key={`video-skeleton-${i}`} className="h-full">
         <Card className="h-full">

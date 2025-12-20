@@ -46,7 +46,7 @@ export const MediaTabs = (): JSX.Element => {
         icon={<FiFileText />}
       />
       <Tabs defaultValue="blog" className="w-full mt-8">
-        <TabsList className="w-full flex flex-wrap justify-start gap-1 sm:gap-2 h-auto p-2 bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
+        <TabsList className="w-full flex flex-wrap justify-center gap-1 sm:gap-2 h-auto p-2 bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
           <TabsTrigger
             value="blog"
             className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
