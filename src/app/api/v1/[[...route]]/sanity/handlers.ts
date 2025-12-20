@@ -24,6 +24,7 @@ import {
 } from '@/lib/sanity/api';
 import { fetchYouTubeVideoMetadataBatch } from '@/lib/api-integrations/youtube';
 import { logger } from '@/utils';
+import { env } from '@/env';
 
 const CACHE_DURATION = 60 * 5 * 1000; // 5 minutes
 const caches = new Map<string, { data: any; timestamp: number }>();
@@ -318,9 +319,10 @@ export async function getTalksHandler() {
     }
 
     // Enrich talks with dynamic duration from YouTube API if API key is available
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const apiKey = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     logger.info('YouTube API enrichment for talks:', { 
       hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length,
       talksCount: talks.length 
     });
     
@@ -542,12 +544,11 @@ export async function getYoutubeVideosHandler() {
     }
 
     // Enrich videos with dynamic duration from YouTube API if API key is available
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const apiKey = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     
     logger.info('YouTube API enrichment:', { 
       hasApiKey: !!apiKey,
       apiKeyLength: apiKey?.length || 0,
-      env: Object.keys(process.env).filter(k => k.includes('GOOGLE')),
       videosCount: videos.length,
       videoIds: videos.map(v => v.videoId).join(', ')
     });
