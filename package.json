@@ -74,7 +74,7 @@
   "dependencies": {
     "@biomejs/biome": "2.3.10",
     "@ducanh2912/next-pwa": "^10.2.9",
-    "@effect/platform": "^0.93.0",
+    "@effect/platform": "^0.94.0",
     "@elysiajs/bearer": "^1.4.1",
     "@elysiajs/cors": "^1.4.0",
     "@elysiajs/eden": "^1.4.4",
