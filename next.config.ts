@@ -416,20 +416,22 @@ const sentryConfig = {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: process.env.NODE_ENV !== 'development',
 
-  release: {
-    name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
-    create: true,
-    setCommits: {
-      auto: true,
-      ignoreMissing: true,
-      ignoreEmpty: true,
+  sentry: {
+    release: {
+      name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
+      create: true,
+      setCommits: {
+        auto: true,
+        ignoreMissing: true,
+        ignoreEmpty: true,
+      },
     },
-  },
 
-  sourcemaps: {
-    assets: ['.next/**/*.js', '.next/**/*.map'],
-    ignore: ['node_modules/**/*', '.next/cache/**/*'],
-    deleteSourcemapsAfterUpload: true,
+    sourcemaps: {
+      assets: ['.next/**/*.js', '.next/**/*.map'],
+      ignore: ['node_modules/**/*', '.next/cache/**/*'],
+      deleteSourcemapsAfterUpload: true,
+    },
   },
 
   widenClientFileUpload: true,

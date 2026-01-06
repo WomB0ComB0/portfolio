@@ -23,8 +23,7 @@
  * @readonly
  * @public
  * @version 1.0.0
- * @author Mike Odnis (
- * @WomB0ComB0 )
+ * @author Mike Odnis (WomB0ComB0)
  * @see {@link https://github.com/WomB0ComB0/portfolio}
  */
 export type RateLimitHelper = {

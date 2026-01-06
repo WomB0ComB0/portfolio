@@ -95,6 +95,7 @@ function RenderResults(): JSX.Element {
             key={item.id}
             action={item}
             active={active}
+            // 🚩
             currentRootActionId={rootActionId!}
           />
         )

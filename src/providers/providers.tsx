@@ -23,9 +23,6 @@ import type { JSX, JSXElementConstructor, ReactNode } from 'react';
  *
  * @template T - A React component constructor.
  * @readonly
- * @author Mike Odnis
- * @see https://react.dev/reference/react/Component
- * @version 1.0.0
  */
 type InferProps<T> = T extends JSXElementConstructor<infer P> ? P : never;
 
@@ -34,9 +31,6 @@ type InferProps<T> = T extends JSXElementConstructor<infer P> ? P : never;
  *
  * @template T - A React component constructor.
  * @readonly
- * @author Mike Odnis
- * @see https://react.dev/reference/react/Component
- * @version 1.0.0
  */
 type ProviderWithProps<T extends JSXElementConstructor<unknown>> = [
   T,
@@ -48,9 +42,7 @@ type ProviderWithProps<T extends JSXElementConstructor<unknown>> = [
  *
  * @template T - An array of React component constructors.
  * @readonly
- * @author Mike Odnis
  * @see ProviderWithProps
- * @version 1.0.0
  */
 type InferProviderArray<T extends ReadonlyArray<JSXElementConstructor<unknown>>> = {
   [K in keyof T]: ProviderWithProps<T[K]>;
@@ -60,15 +52,12 @@ type InferProviderArray<T extends ReadonlyArray<JSXElementConstructor<unknown>>>
  * Props for provider stack or provider wrapper components, used for composing multiple context providers.
  *
  * @template T - Array of provider constructors.
- * @property {ReactNode} children - The React children to be rendered in the innermost provider.
+ * @property {ReactNode} node - The React children to be rendered in the innermost provider.
  * @property {InferProviderArray<T>} providers - An array of provider components and their props.
  * @readonly
- * @author Mike Odnis
- * @see https://react.dev/reference/react/Component
- * @version 1.0.0
  */
 type ProvidersProps<T extends JSXElementConstructor<unknown>[]> = {
-  children: ReactNode;
+  node: ReactNode;
   providers: InferProviderArray<T>;
 };
 
@@ -80,21 +69,22 @@ type ProvidersProps<T extends JSXElementConstructor<unknown>[]> = {
  * @returns {JSX.Element} A React element with the composed providers and children.
  * @throws {TypeError} If `providers` is not an array or contains invalid provider types.
  * @example
- * * <ProviderStack providers={[[SomeProvider, {value: 1}]]}>Content</ProviderStack>
+ * ```tsx
+ * <ProviderStack providers={[[SomeProvider, {value: 1}]]}>Content</ProviderStack>
  * ```
- * @author Mike Odnis <WomB0ComB0>
- * @see https://react.dev
- * @version 1.0.0
- * @public
- * @web
  */
 function ProviderStack<T extends JSXElementConstructor<any>[]>({
   providers,
-  children,
+  node,
 }: ProvidersProps<T>): JSX.Element {
   return providers.reduceRight(
-    (node, [Provider, props]) => <Provider {...props}>{node}</Provider>,
-    <>{children}</>,
+    (node, [Provider, props]) => (
+      <Provider key={Provider.name} {...props}>
+        {node}
+      </Provider>
+    ),
+    // biome-ignore lint/complexity/noUselessFragments: <explanation> </explanation>
+    <>{node}</>,
   );
 }
 
@@ -112,16 +102,10 @@ function ProviderStack<T extends JSXElementConstructor<any>[]>({
  *   <App />
  * </Providers>
  * ```
- * @author Mike Odnis <WomB0ComB0>
- * @see ProviderStack
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- * @public
- * @web
  */
 export function Providers<T extends JSXElementConstructor<any>[]>({
-  children,
+  node,
   providers,
 }: ProvidersProps<T>): JSX.Element {
-  return <ProviderStack providers={providers} children={children} />;
+  return <ProviderStack providers={providers} node={node} />;
 }

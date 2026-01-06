@@ -16,8 +16,8 @@
   "styled-components",
   "stylelint",
   "@sentry/nextjs",
-  "ts-morph",
   "vitest",
+  "ts-morph",
   "firebase-admin",
   "react-hook-form"
 ]

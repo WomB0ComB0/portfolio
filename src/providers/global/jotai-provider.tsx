@@ -32,7 +32,7 @@ export interface JotaiProviderProps<T extends ComponentWithChildren> {
  * Type definition for a React component that can accept children
  * @template P - The props type for the component
  */
-export type ComponentWithChildren<P = {}> = React.ComponentType<P & { children?: ReactNode }>;
+export type ComponentWithChildren<P = object> = React.ComponentType<P & { children?: ReactNode }>;
 
 /**
  * A higher-order component that wraps a given component with Jotai's Provider
