@@ -18,7 +18,6 @@ import type { SignInMethod } from './auth.types';
  * limitations under the License.
  */
 
-import { logger } from '@/utils';
 import type { FirebaseError } from 'firebase/app';
 import {
   GithubAuthProvider,
@@ -30,10 +29,11 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { atomEffect } from 'jotai-effect';
 import { loadable } from 'jotai/utils';
+import { atomEffect } from 'jotai-effect';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
+import { logger } from '@/utils';
 import { app } from './firebase';
 
 /**
@@ -191,7 +191,7 @@ export function useSignIn(
     authPromise
       .then(() => {
         toast.success('Logged in successfully! 🎉');
-        window.location.reload();
+        globalThis.location.reload();
       })
       .catch((error: FirebaseError) => {
         logger.error('Sign-in error:', error);
@@ -240,7 +240,7 @@ export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] 
       .signOut()
       .then(() => {
         toast.success('Signed out successfully! 🎉');
-        window.location.reload();
+        globalThis.location.reload();
       })
       .catch((error: FirebaseError) => {
         logger.error('Sign-out error:', error);

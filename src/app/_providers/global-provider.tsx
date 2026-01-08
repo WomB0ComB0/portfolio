@@ -60,6 +60,14 @@ export const GlobalProvider: React.FC<
    * @private
    * @web
    * @description
+   * Creates a memoized QueryClient instance for TanStack Query.
+   */
+  const queryClient = createQueryClient()();
+
+  /**
+   * @private
+   * @web
+   * @description
    * Sets up an event listener for the browser's 'offline' event.
    * If the user goes offline, it redirects them to a dedicated '/offline' page.
    * The event listener is cleaned up when the component unmounts.
@@ -75,12 +83,12 @@ export const GlobalProvider: React.FC<
     const handleOffline = () => {
       if (!navigator.onLine) {
         logger.info('Offline');
-        window.location.href = '/offline';
+        globalThis.location.href = '/offline';
       }
     };
 
-    window.addEventListener('offline', handleOffline);
-    return () => window.removeEventListener('offline', handleOffline);
+    globalThis.addEventListener('offline', handleOffline);
+    return () => globalThis.removeEventListener('offline', handleOffline);
   }, []);
 
   return (
@@ -93,6 +101,36 @@ export const GlobalProvider: React.FC<
        * to the components nested within it.
        */}
       <Providers
+        node={
+          <>
+            {/*
+             * @public
+             * @description Wraps the main content with a page transition animation component.
+             */}
+            <PageTransition>{children}</PageTransition>
+            {/*
+             * @public
+             * @description Component for reporting Web Vitals metrics.
+             */}
+            <WebVitals />
+            {/*
+             * @public
+             * @description Vercel Analytics component for tracking website usage.
+             */}
+            <Analytics />
+            {/*
+             * @public
+             * @description A development-only indicator to show the active Tailwind CSS breakpoint.
+             */}
+            <TailwindIndicator />
+            {/*
+             * @public
+             * @description TanStack Query Devtools for debugging and inspecting query states.
+             * @param {boolean} initialIsOpen - Controls whether the devtools panel is initially open.
+             */}
+            <ReactQueryDevtools initialIsOpen={false} />
+          </>
+        }
         providers={[
           /**
            * @public
@@ -115,36 +153,9 @@ export const GlobalProvider: React.FC<
            * @description Provides the TanStack Query client context for efficient data fetching, caching, and state management.
            * @param {QueryClient} client - The TanStack Query client instance created by `createQueryClient()`.
            */
-          [QueryClientProvider, { client: createQueryClient() }],
+          [QueryClientProvider, { client: queryClient }],
         ]}
-      >
-        {/*
-         * @public
-         * @description Wraps the main content with a page transition animation component.
-         */}
-        <PageTransition>{children}</PageTransition>
-        {/*
-         * @public
-         * @description Component for reporting Web Vitals metrics.
-         */}
-        <WebVitals />
-        {/*
-         * @public
-         * @description Vercel Analytics component for tracking website usage.
-         */}
-        <Analytics />
-        {/*
-         * @public
-         * @description A development-only indicator to show the active Tailwind CSS breakpoint.
-         */}
-        <TailwindIndicator />
-        {/*
-         * @public
-         * @description TanStack Query Devtools for debugging and inspecting query states.
-         * @param {boolean} initialIsOpen - Controls whether the devtools panel is initially open.
-         */}
-        <ReactQueryDevtools initialIsOpen={false} />
-      </Providers>
+      />
     </>
   );
 };

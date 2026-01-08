@@ -7,10 +7,10 @@
  * Licensed under the Apache License, Version 2.0
  */
 
-import depcheck from 'depcheck';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import depcheck from 'depcheck';
 import type { PackageJson } from 'type-fest';
 
 // Optional Bun shell (used only if available)

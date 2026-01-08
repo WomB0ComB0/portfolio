@@ -378,7 +378,9 @@ Metadata: ${JSON.stringify(this.metadata, null, 2)}`
     if (!this.metadata) {
       (this as any).metadata = {};
     }
-    this.metadata![key] = value;
+    if (this.metadata) {
+      this.metadata[key] = value;
+    }
     return this;
   }
 

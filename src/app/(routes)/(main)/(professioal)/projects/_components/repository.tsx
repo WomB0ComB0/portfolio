@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import type { Repository as RepositoryType } from '@/generated/graphql';
 import { GitFork, StarIcon } from 'lucide-react';
 import Link from 'next/link';
+import type { Repository as RepositoryType } from '@/generated/graphql';
 
 /**
  * @function Repository

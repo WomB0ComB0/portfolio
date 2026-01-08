@@ -19,7 +19,7 @@
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface DraggableGalleryProps {
@@ -40,27 +40,27 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
     setMounted(true);
   }, []);
 
-  const updateConstraints = () => {
+  const updateConstraints = useCallback(() => {
     if (containerRef.current && contentRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
       const contentWidth = contentRef.current.scrollWidth;
       const maxDrag = Math.min(0, containerWidth - contentWidth);
       setDragConstraints({ left: maxDrag, right: 0 });
     }
-  };
+  }, []);
 
   useEffect(() => {
     updateConstraints();
     window.addEventListener('resize', updateConstraints);
     return () => window.removeEventListener('resize', updateConstraints);
-  }, [images]);
+  }, [updateConstraints]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (selectedIndex !== null) {
-      document.body.style.overflow = 'hidden';
-    } else {
+    if (selectedIndex === null) {
       document.body.style.overflow = '';
+    } else {
+      document.body.style.overflow = 'hidden';
     }
     return () => {
       document.body.style.overflow = '';
@@ -157,7 +157,7 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
         >
           {images.map((image, index) => (
             <motion.div
-              key={index}
+              key={`image-${+index}`}
               className="relative shrink-0 w-80 h-56 rounded-xl overflow-hidden bg-muted border border-border group cursor-pointer"
               onClick={() => {
                 if (!hasDragged) {
@@ -193,7 +193,7 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
       </div>
 
       {/* Render modal in portal to escape parent constraints */}
-      {mounted && typeof window !== 'undefined' && createPortal(modalContent, document.body)}
+      {mounted && globalThis.window !== undefined && createPortal(modalContent, document.body)}
     </>
   );
 };

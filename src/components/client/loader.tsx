@@ -42,7 +42,6 @@ export const Loader = () => {
             <svg
               className="w-full h-full"
               viewBox="0 0 100 100"
-              role="img"
               aria-labelledby="loader-ring-title"
             >
               <title id="loader-ring-title">Loading ring animation</title>
@@ -101,7 +100,6 @@ export const Loader = () => {
           >
             <svg
               className="w-full h-full"
-              role="img"
               aria-labelledby="hexagon-title"
               viewBox="0 0 100 100"
             >

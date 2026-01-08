@@ -25,7 +25,9 @@ import { Elysia } from 'elysia';
  */
 export const timingMiddleware = new Elysia()
   .state({ start: 0 })
-  .onBeforeHandle(({ store }) => (store.start = Date.now()))
+  .onBeforeHandle(({ store }) => {
+    store.start = Date.now();
+  })
   .onAfterHandle(({ path, store: { start } }) => {
     const duration = Date.now() - start;
     logger.info(`[Elysia] ${path} took ${duration}ms to execute`, { path, duration });

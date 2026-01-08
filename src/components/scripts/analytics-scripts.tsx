@@ -25,7 +25,7 @@ import Script from 'next/script';
  *
  * @returns {JSX.Element | null} The GA4 script tag or null if Measurement ID is not configured.
  */
-export function AnalyticsScripts({ nonce }: { nonce: string | undefined }) {
+export function AnalyticsScripts({ nonce }: Readonly<{ nonce: string | undefined }>) {
   if (!env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
     return null;
   }

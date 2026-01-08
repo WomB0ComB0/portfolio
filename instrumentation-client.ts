@@ -16,7 +16,6 @@
 
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import { config } from '@/config';
 import * as Sentry from '@sentry/nextjs';
 import {
   browserTracingIntegration,
@@ -24,6 +23,7 @@ import {
   init,
   replayIntegration,
 } from '@sentry/nextjs';
+import { config } from '@/config';
 
 if (!config.sentry.dsn) {
   console.warn(
@@ -43,13 +43,13 @@ if (!config.sentry.dsn) {
     // Enable logs to be sent to Sentry
     enableLogs: true,
     // Adjust the sample rate for traces in production
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0, // 10% in production, 100% in development
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1, // 10% in production, 100% in development
 
     // Adjust the sample rate for session replays
     replaysSessionSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 0.1, // 1% in production, 10% in development
 
     // Capture 100% of replay events when an error occurs
-    replaysOnErrorSampleRate: 1.0,
+    replaysOnErrorSampleRate: 1,
 
     // Enable debug mode only in development
 

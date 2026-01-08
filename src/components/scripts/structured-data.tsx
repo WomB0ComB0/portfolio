@@ -26,7 +26,7 @@ import Script from 'next/script';
  *
  * @returns {JSX.Element} A script tag containing the JSON-LD data.
  */
-export function StructuredData({ nonce }: { nonce: string | undefined }) {
+export function StructuredData({ nonce }: Readonly<{ nonce: string | undefined }>) {
   const structuredData = generateSchema({
     type: 'Organization',
     name: app.name,
@@ -45,11 +45,8 @@ export function StructuredData({ nonce }: { nonce: string | undefined }) {
   });
 
   return (
-    <Script
-      id="structured-data"
-      type="application/ld+json"
-      nonce={nonce}
-      dangerouslySetInnerHTML={{ __html: Stringify(structuredData) }}
-    />
+    <Script id="structured-data" type="application/ld+json" nonce={nonce}>
+      {Stringify(structuredData)}
+    </Script>
   );
 }

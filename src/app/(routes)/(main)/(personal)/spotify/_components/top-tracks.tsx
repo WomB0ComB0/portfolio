@@ -17,12 +17,11 @@
  */
 
 import { MagicCard } from '@/components';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
-// import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @readonly
@@ -63,8 +62,11 @@ const TopTracksResponseSchema = Schema.Array(TrackSchema);
  */
 const TopTracksSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {[...Array(12)].map((_, index) => (
-      <div key={index} className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+    {new Array(12).fill(null).map((_, index) => (
+      <div
+        key={`skeleton-${+index}`}
+        className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg"
+      >
         <Skeleton className="w-16 h-16 rounded-md bg-secondary/50" />
         <div className="grow space-y-2">
           <Skeleton className="h-5 w-3/4 bg-secondary/50" />
@@ -138,7 +140,7 @@ export const TopTracks = () => {
                    * @web
                    */
                   <motion.div
-                    key={index}
+                    key={`top-track-${track.name}-${index}`}
                     className="flex items-center space-x-4 bg-secondary rounded-lg p-3 cursor-pointer hover:bg-primary/70 transition-all duration-300"
                     onClick={() => window.open(track.url, '_blank')}
                     whileHover={{ scale: 1.03 }}

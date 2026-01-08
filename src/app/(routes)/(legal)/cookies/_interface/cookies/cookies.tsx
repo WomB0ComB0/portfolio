@@ -255,7 +255,7 @@ export const Cookies = (): JSX.Element => {
                   www.allaboutcookies.org
                   <ExternalLink className="w-3 h-3" />
                 </a>
-                .
+                {'.'}
               </p>
               <div className="space-y-3 pt-2">
                 <p className="font-semibold text-foreground">
@@ -334,7 +334,7 @@ export const Cookies = (): JSX.Element => {
                 >
                   <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
                 </a>
-                .
+                {'.'}
               </p>
             </CardContent>
           </MagicCard>

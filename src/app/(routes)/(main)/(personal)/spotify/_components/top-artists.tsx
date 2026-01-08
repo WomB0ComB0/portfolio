@@ -66,8 +66,8 @@ const TopArtistsResponseSchema = Schema.Array(ArtistSchema);
  */
 const TopArtistsSkeleton = () => (
   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-    {[...Array(10)].map((_, index) => (
-      <div key={index} className="flex flex-col items-center space-y-2">
+    {new Array(10).fill(null).map((_, index) => (
+      <div key={`skeleton-${Number(index)}`} className="flex flex-col items-center space-y-2">
         <Skeleton className="h-24 w-24 rounded-full bg-muted" />
         <Skeleton className="h-4 w-3/4 bg-muted" />
       </div>

@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-import NumberTicker from '@/components/ui/number-ticker';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import { SiLeetcode } from 'react-icons/si';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from './stat-card';
 
 interface LeetCodeStatsData {
@@ -63,8 +63,8 @@ const LeetCodeSkeleton = () => (
         <Skeleton className="h-12 w-24" />
       </div>
       <div className="space-y-3">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center gap-2">
+        {new Array(3).fill(null).map((_, i) => (
+          <div key={`skeleton-${Number(i)}`} className="flex items-center gap-2">
             <Skeleton className="h-4 w-12" />
             <Skeleton className="h-2 w-full rounded-full" />
             <Skeleton className="h-4 w-8" />

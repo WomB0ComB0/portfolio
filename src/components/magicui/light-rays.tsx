@@ -51,7 +51,7 @@ const createRays = (count: number, cycle: number): LightRay[] => {
 const Ray = ({ left, rotate, width, swing, delay, duration, intensity }: LightRay) => {
   return (
     <motion.div
-      className="pointer-events-none absolute -top-[12%] left-[var(--ray-left)] h-[var(--light-rays-length)] w-[var(--ray-width)] origin-top -translate-x-1/2 rounded-full bg-linear-to-b from-[color-mix(in_srgb,var(--light-rays-color)_70%,transparent)] to-transparent opacity-0 mix-blend-screen blur-[var(--light-rays-blur)]"
+      className="pointer-events-none absolute -top-[12%] left-(--ray-left) h-(--light-rays-length) w-(--ray-width) origin-top -translate-x-1/2 rounded-full bg-linear-to-b from-[color-mix(in_srgb,var(--light-rays-color)_70%,transparent)] to-transparent opacity-0 mix-blend-screen blur-(--light-rays-blur)"
       style={
         {
           '--ray-left': `${left}%`,
@@ -78,14 +78,13 @@ export function LightRays({
   className,
   style,
   count = 7,
-  // rgb(88, 68, 188);
   color = 'rgba(88, 68, 188, 0.2)',
   blur = 36,
   speed = 14,
   length = '70vh',
   ref,
   ...props
-}: LightRaysProps) {
+}: Readonly<LightRaysProps>) {
   const [rays, setRays] = useState<LightRay[]>([]);
   const cycleDuration = Math.max(speed, 0.1);
 

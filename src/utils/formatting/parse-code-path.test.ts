@@ -17,9 +17,10 @@
 import { describe, expect, it } from 'vitest';
 import { parseCodePath, parseCodePathDetailed } from './parse-code-path';
 
+const myFunction = () => {};
+
 describe('parseCodePath', () => {
   it('should format the code path correctly for a function', () => {
-    function myFunction() {}
     const result = parseCodePath('test context', myFunction);
     expect(result).toContain('@myFunction: test context');
   });
@@ -38,7 +39,6 @@ describe('parseCodePath', () => {
 
 describe('parseCodePathDetailed', () => {
   it('should format the code path with detailed options', () => {
-    function myFunction() {}
     const result = parseCodePathDetailed('test context', myFunction, {
       includeLineNumber: true,
       includeTimestamp: true,

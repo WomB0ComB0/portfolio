@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 
-import { PageHeader } from '@/components/custom/page-header';
-import { MagicCard } from '@/components/magicui';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { format } from 'date-fns';
 import { Schema } from 'effect';
 import { CalendarIcon } from 'lucide-react';
@@ -29,6 +24,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
 import { FiRss } from 'react-icons/fi';
+import { PageHeader } from '@/components/custom/page-header';
+import { MagicCard } from '@/components/magicui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @readonly
@@ -173,8 +173,8 @@ const BlogSkeleton = (): JSX.Element => (
   <div className="container mx-auto px-4 py-8">
     <Skeleton className="w-64 h-10 mb-8 mx-auto" />
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {[...Array(6)].map((_, i) => (
-        <MagicCard key={`blog-card-skeleton-${+i}`} className="h-full">
+      {new Array(6).fill(null).map((_, i) => (
+        <MagicCard key={`blog-card-skeleton-${Number(i)}`} className="h-full">
           <Card className="h-full">
             <CardHeader>
               <Skeleton className="h-6 w-11/12" />

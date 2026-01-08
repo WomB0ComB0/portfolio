@@ -23,12 +23,14 @@
 
 import type { SanityClient } from '@sanity/client';
 import { createClient } from '@sanity/client';
-import imageUrlBuilder from '@sanity/image-url';
-import type { ImageUrlBuilder } from '@sanity/image-url/lib/types/builder';
-import type { SanityImageSource } from '@sanity/image-url/lib/types/types';
+import {
+  createImageUrlBuilder,
+  type ImageUrlBuilder,
+  type SanityImageSource,
+} from '@sanity/image-url';
 
 // Check if we're in a browser context
-const isBrowser = typeof window !== 'undefined';
+const isBrowser = globalThis.window !== undefined;
 
 // Import appropriate config based on context
 const getConfig = () => {
@@ -89,7 +91,7 @@ export const sanityClientWithToken: SanityClient = config.token
  * Image URL builder instance
  * Safe to use in both server and client components
  */
-const builder: ImageUrlBuilder = imageUrlBuilder(sanityClient);
+const builder: ImageUrlBuilder = createImageUrlBuilder(sanityClient);
 
 /**
  * Helper function to generate optimized image URLs from Sanity

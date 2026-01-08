@@ -23,6 +23,59 @@ import type { Configuration } from '@vercel/otel';
 import { registerOTel } from '@vercel/otel';
 
 /**
+ * Initializes OpenTelemetry instrumentation for production environments.
+ *
+ * @param runtime - The current runtime environment ('edge' or undefined for Node.js)
+ */
+const initializeOpenTelemetry = (runtime: string | undefined): void => {
+  if (process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production') {
+    return;
+  }
+
+  registerOTel({
+    serviceName: 'portfolio',
+    instrumentations: runtime === 'edge' ? [] : undefined,
+    instrumentationConfig: {
+      fetch: {
+        ignoreUrls: [/health/, /metrics/, /api\.mikeodnis\.dev/],
+        propagateContextUrls: [
+          /api\.mikeodnis\.dev/, // API domain for Mike Odnis
+          /vercel\.app/,
+        ],
+        resourceNameTemplate: '{http.host}{http.target}',
+      },
+    },
+    traceSampler: runtime === 'edge' ? undefined : new TraceIdRatioBasedSampler(0.1), // Sample 10% of requests
+  } satisfies Configuration);
+};
+
+/**
+ * Loads the appropriate Sentry configuration based on runtime environment.
+ *
+ * @param runtime - The current runtime environment ('edge' or undefined for Node.js)
+ */
+const loadSentryConfig = async (runtime: string | undefined): Promise<void> => {
+  if (!env.NEXT_PUBLIC_SENTRY_DSN) {
+    return;
+  }
+
+  try {
+    if (runtime === 'edge') {
+      await import('../instrumentation-edge').catch(() => {
+        throw new Error('Could not load Sentry edge config');
+      });
+    } else {
+      await import('../instrumentation-server').catch(() => {
+        throw new Error('Could not load Sentry server config');
+      });
+    }
+  } catch (e) {
+    console.warn('Could not load Sentry config:', e);
+    // Optionally continue without Sentry rather than crashing
+  }
+};
+
+/**
  * Registers and configures instrumentation services for the application.
  * This includes OpenTelemetry for observability and Sentry for error tracking.
  *
@@ -48,40 +101,8 @@ export const register = async (): Promise<void> => {
   const runtime = process.env.NEXT_RUNTIME;
 
   try {
-    if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'production') {
-      registerOTel({
-        serviceName: 'portfolio',
-        instrumentations: runtime === 'edge' ? [] : undefined,
-        instrumentationConfig: {
-          fetch: {
-            ignoreUrls: [/health/, /metrics/, /api\.mikeodnis\.dev/],
-            propagateContextUrls: [
-              /api\.mikeodnis\.dev/, // API domain for Mike Odnis
-              /vercel\.app/,
-            ],
-            resourceNameTemplate: '{http.host}{http.target}',
-          },
-        },
-        traceSampler: runtime === 'edge' ? undefined : new TraceIdRatioBasedSampler(0.1), // Sample 10% of requests
-      } satisfies Configuration);
-    }
-
-    if (env.NEXT_PUBLIC_SENTRY_DSN) {
-      try {
-        if (runtime === 'edge') {
-          (await import('../instrumentation-edge').catch(() => {
-            throw new Error('Could not load Sentry edge config');
-          })) satisfies typeof import('../instrumentation-edge');
-        } else {
-          (await import('../instrumentation-server').catch(() => {
-            throw new Error('Could not load Sentry server config');
-          })) satisfies typeof import('../instrumentation-server');
-        }
-      } catch (e) {
-        console.warn('Could not load Sentry config:', e);
-        // Optionally continue without Sentry rather than crashing
-      }
-    }
+    initializeOpenTelemetry(runtime);
+    await loadSentryConfig(runtime);
   } catch (error) {
     console.error(
       `[Instrumentation:${runtime || 'unknown'}]`,
@@ -90,7 +111,7 @@ export const register = async (): Promise<void> => {
     // Use Sentry.captureException directly here since onRequestError is not yet available during initialization
     Sentry.captureException(error);
     throw Error.isError(error)
-      ? new Error(`Instrumentation initialization failed: ${String(error)}`)
+      ? new Error(`Instrumentation initialization failed: ${error.message}`, { cause: error })
       : new Error(`Instrumentation initialization failed: ${String(error)}`);
   }
 };

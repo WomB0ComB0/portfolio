@@ -25,7 +25,7 @@ const { project_id: projectId, client_email: clientEmail, private_key: privateKe
 const serviceAccount: ServiceAccount = {
   projectId,
   clientEmail,
-  privateKey: privateKeyEscaped.replace(/\\n/g, '\n'),
+  privateKey: privateKeyEscaped.replaceAll(/\\n/g, '\n'),
 };
 
 const app = getApps().length ? getApp() : initializeApp({ credential: cert(serviceAccount) });

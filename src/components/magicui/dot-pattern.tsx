@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import { cn } from '@/lib/utils';
 import { useEffect, useId, useState } from 'react';
+import { cn } from '@/lib/utils';
 import type { DotPatternProps } from './dot-pattern.types';
 
 /**

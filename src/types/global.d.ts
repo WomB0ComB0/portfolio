@@ -330,18 +330,18 @@ type DeepPick<T, Paths extends string> = Prettify<{
  * @template U - The second type.
  * @typedef {boolean} IsEqual
  */
-type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U ? 1 : 2
-  ? true
-  : false;
+type IsEqual<T, U> =
+  (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U ? 1 : 2 ? true : false;
 
 /**
  * Converts a union type to a tuple type.
  * @template T - The union type.
  * @typedef {any[]} UnionToTuple
  */
-type UnionToTuple<T> = UnionToIntersection<T extends any ? () => T : never> extends () => infer A
-  ? [...UnionToTuple<Exclude<T, A>>, A]
-  : [];
+type UnionToTuple<T> =
+  UnionToIntersection<T extends any ? () => T : never> extends () => infer A
+    ? [...UnionToTuple<Exclude<T, A>>, A]
+    : [];
 
 /**
  * Decrements a numeric type by one, up to 19.

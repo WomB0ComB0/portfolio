@@ -16,10 +16,10 @@ import type { BanMetadata } from './banlist.types';
  * limitations under the License.
  */
 
+import type { NextApiRequest } from 'next';
 import { redis } from '@/classes/redis';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
-import type { NextApiRequest } from 'next';
 import { getClientIP } from './get-ip';
 
 const log = Logger.getLogger('Banlist');
@@ -363,7 +363,7 @@ export async function getBannedIps(): Promise<string[]> {
 export async function getSlowedIps(): Promise<string[]> {
   try {
     const ips = await redis.smembers(REDIS_KEYS.SLOW_IPS);
-    return ips as string[];
+    return ips;
   } catch (error) {
     log.error('Error fetching slowed IPs', { error });
     onRequestError(error);

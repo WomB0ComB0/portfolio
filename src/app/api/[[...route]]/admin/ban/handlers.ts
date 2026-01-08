@@ -87,8 +87,10 @@ export async function handleBan(body: BanRequestBody) {
   await banIp(ip, reason, seconds, bannedBy);
   log.info('IP banned via API', { ip, reason, seconds, bannedBy });
 
+  const duration = seconds ? ` for ${seconds} seconds` : ' permanently';
+
   return {
-    message: `IP ${ip} has been banned${seconds ? ` for ${seconds} seconds` : ' permanently'}`,
+    message: `IP ${ip} has been banned${duration}`,
     data: { ip, reason, seconds, bannedBy },
   };
 }

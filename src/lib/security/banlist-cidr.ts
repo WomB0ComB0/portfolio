@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { Address4, Address6 } from 'ip-address';
 import { redis } from '@/classes/redis';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
-import { Address4, Address6 } from 'ip-address';
 
 const log = Logger.getLogger('BanlistCIDR');
 
@@ -217,7 +217,7 @@ export async function unbanCidr(cidr: string): Promise<void> {
 export async function getBannedCidrs(): Promise<string[]> {
   try {
     const cidrs = await redis.smembers(CIDR_KEY);
-    return cidrs as string[];
+    return cidrs;
   } catch (error) {
     log.error('Error fetching banned CIDR ranges', { error });
     onRequestError(error);

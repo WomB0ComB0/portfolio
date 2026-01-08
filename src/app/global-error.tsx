@@ -20,19 +20,13 @@ import { onRequestError } from '@/core';
 import NextError from 'next/error';
 import { useEffect } from 'react';
 
-export const GlobalError = ({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) => {
+export const GlobalError = ({ error }: { error: Error & { digest?: string } }) => {
   useEffect(() => {
     onRequestError(error);
   }, [error]);
 
   return (
-    <html>
+    <html lang="en">
       <body>
         <NextError statusCode={0} />
       </body>

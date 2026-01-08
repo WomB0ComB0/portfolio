@@ -82,8 +82,11 @@ const ProjectDetailSkeleton = (): JSX.Element => (
           <CardContent className="p-8">
             <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-6" />
             <div className="flex flex-wrap gap-2">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-10 w-24 bg-muted animate-pulse rounded-lg" />
+              {new Array(6).fill(null).map((_, i) => (
+                <div
+                  key={`skeleton-${+i}`}
+                  className="h-10 w-24 bg-muted animate-pulse rounded-lg"
+                />
               ))}
             </div>
           </CardContent>
@@ -106,9 +109,14 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
     notFound();
   }
 
-  const dateRange = project.endDate
-    ? formatDatePeriod(project.startDate!, project.endDate)
-    : `Started ${formatMonthYear(project.startDate!)}`;
+  let dateRange: string;
+  if (project.endDate && project.startDate) {
+    dateRange = formatDatePeriod(project.startDate, project.endDate);
+  } else if (project.startDate) {
+    dateRange = `Started ${formatMonthYear(project.startDate)}`;
+  } else {
+    dateRange = 'Date not available';
+  }
 
   return (
     <Layout>

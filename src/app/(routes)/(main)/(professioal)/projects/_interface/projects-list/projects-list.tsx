@@ -56,8 +56,8 @@ const ProjectCardSkeleton = (): JSX.Element => (
           <div className="h-4 bg-muted animate-pulse rounded w-5/6" />
         </div>
         <div className="flex flex-wrap gap-2">
-          {[...Array(4)].map((_, i) => (
-            <div key={+i} className="h-7 w-16 bg-muted animate-pulse rounded-lg" />
+          {new Array(4).fill(null).map((_, i) => (
+            <div key={`skeleton-${+i}`} className="h-7 w-16 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
       </CardContent>
@@ -74,8 +74,8 @@ const ProjectsListSkeleton = (): JSX.Element => (
     />
 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[...Array(6)].map((_, i) => (
-        <ProjectCardSkeleton key={+i} />
+      {new Array(6).fill(null).map((_, i) => (
+        <ProjectCardSkeleton key={`skeleton-${+i}`} />
       ))}
     </div>
   </div>

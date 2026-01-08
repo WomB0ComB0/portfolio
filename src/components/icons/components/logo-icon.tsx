@@ -28,6 +28,7 @@ export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JS
       className={cn(`w-${size} h-${size}`, className)}
       {...props}
     >
+      <title>Logo Icon</title>
       <g
         transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)"
         fill="#7209b7"

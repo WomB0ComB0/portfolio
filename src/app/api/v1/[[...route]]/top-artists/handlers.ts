@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { topArtists as getTopArtists } from '@/lib/api-integrations/spotify';
 import { Schema } from 'effect';
+import { topArtists as getTopArtists } from '@/lib/api-integrations/spotify';
 
 const SpotifyImageSchema = Schema.Struct({
   url: Schema.String,

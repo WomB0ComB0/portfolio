@@ -110,7 +110,7 @@ function computeExemptDeps(): Set<string> {
     // Detect usable subpaths: exports with "*" or multiple keys beyond "."
     let hasUsableSubpaths = false;
     if (typeof pj.exports === 'string') {
-      hasUsableSubpaths = false; // single entrypoint only
+      // single entrypoint only - hasUsableSubpaths remains false
     } else if (pj.exports && typeof pj.exports === 'object') {
       const keys = Object.keys(pj.exports);
       hasUsableSubpaths = keys.some((k) => k.includes('*')) || keys.some((k) => k !== '.');
@@ -416,22 +416,20 @@ const sentryConfig = {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: process.env.NODE_ENV !== 'development',
 
-  sentry: {
-    release: {
-      name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
-      create: true,
-      setCommits: {
-        auto: true,
-        ignoreMissing: true,
-        ignoreEmpty: true,
-      },
+  release: {
+    name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
+    create: true,
+    setCommits: {
+      auto: true,
+      ignoreMissing: true,
+      ignoreEmpty: true,
     },
+  },
 
-    sourcemaps: {
-      assets: ['.next/**/*.js', '.next/**/*.map'],
-      ignore: ['node_modules/**/*', '.next/cache/**/*'],
-      deleteSourcemapsAfterUpload: true,
-    },
+  sourcemaps: {
+    assets: ['.next/**/*.js', '.next/**/*.map'],
+    ignore: ['node_modules/**/*', '.next/cache/**/*'],
+    deleteSourcemapsAfterUpload: true,
   },
 
   widenClientFileUpload: true,

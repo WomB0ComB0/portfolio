@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { constructMetadata } from '@/utils';
 import dynamic from 'next/dynamic';
+import { constructMetadata } from '@/utils';
 
 /**
  * Dynamically imported React component for displaying sponsor information.

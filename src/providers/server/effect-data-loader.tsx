@@ -151,8 +151,9 @@ export interface DataLoaderProps<T> extends BaseDataLoaderProps<T> {
 /**
  * Props for DataLoader with Effect Schema (automatic type inference).
  */
-export interface DataLoaderPropsWithSchema<S extends Schema.Schema<any, any, never>>
-  extends BaseDataLoaderProps<Schema.Schema.Type<S>> {
+export interface DataLoaderPropsWithSchema<
+  S extends Schema.Schema<any, any, never>,
+> extends BaseDataLoaderProps<Schema.Schema.Type<S>> {
   /**
    * Render prop that receives validated data and optional utilities.
    */
@@ -249,7 +250,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
         // Call user-provided error handler
         if (onError && err instanceof Error) onError(err);
       },
-      ...(options || {}),
+      ...(options || null),
     };
 
     if (schema) return { ...baseOptions, schema };
@@ -281,7 +282,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
       const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
 
       // Call success callback
-      if (onSuccess) onSuccess(finalResult as any);
+      if (onSuccess) onSuccess(finalResult);
 
       return finalResult;
     } catch (error) {
@@ -303,7 +304,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
   // Enhanced query options
   const queryOptionsWithDefaults = useMemo(() => {
     const baseOptions: UseSuspenseQueryOptions<any, Error, any, QueryKey> = {
-      queryKey: finalQueryKey as QueryKey,
+      queryKey: finalQueryKey,
       queryFn,
       staleTime,
       refetchInterval,
@@ -453,7 +454,7 @@ export function useDataLoader(url: string, options: any = {}) {
           onError(err);
         }
       },
-      ...(fetcherOptions || {}),
+      ...(fetcherOptions || null),
     };
 
     if (schema) {

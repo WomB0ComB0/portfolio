@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { getExperiences } from '@/lib/sanity/api';
-import { constructMetadata, logger } from '@/utils';
 import type { Metadata } from 'next';
 import type { JSX } from 'react';
+import { getExperiences } from '@/lib/sanity/api';
+import { constructMetadata, logger } from '@/utils';
 
 export const dynamic = 'force-static';
 

@@ -63,6 +63,150 @@ const safeLog = (
 };
 
 /**
+ * @private
+ * @description Checks if an IP is banned and returns a 403 response if banned.
+ */
+async function checkBannedIP(request: NextRequest): Promise<NextResponse | null> {
+  const { redis } = await import('./classes/redis');
+  const { getClientIP } = await import('./lib/security/get-ip');
+
+  const clientIp = getClientIP(request);
+  if (!clientIp || clientIp === '127.0.0.1' || clientIp === '::1') {
+    return null;
+  }
+
+  const isBanned = await redis.sismember('ban:ips', clientIp);
+  if (isBanned) {
+    safeLog('warn', 'Blocked banned IP at edge', {
+      ip: clientIp,
+      path: request.nextUrl.pathname,
+    });
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Forbidden',
+        message: 'Access denied',
+      }),
+      {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  return null;
+}
+
+/**
+ * @private
+ * @description Determines the rate limiting type based on the request path.
+ */
+function getRateLimitingType(pathname: string): RateLimitHelper['rateLimitingType'] {
+  if (pathname.startsWith('/api/v1')) {
+    return 'apiv1';
+  }
+  if (pathname.startsWith('/api')) {
+    return 'api';
+  }
+  if (pathname.startsWith('/monitoring')) {
+    return 'ai';
+  }
+  return 'default';
+}
+
+/**
+ * @private
+ * @description Applies rate limiting and returns a 429 response if limit is exceeded.
+ */
+async function applyRateLimit(
+  request: NextRequest,
+  response: NextResponse,
+): Promise<NextResponse | null> {
+  const { getRateLimitReset, rateLimiter } = await import('./lib');
+
+  const rateLimitingType = getRateLimitingType(request.nextUrl.pathname);
+
+  safeLog('log', 'Applying rate limiting', {
+    type: rateLimitingType,
+    path: request.nextUrl.pathname,
+  });
+
+  const identifier = request.headers.get('x-forwarded-for') || 'anonymous';
+  const result = await rateLimiter(rateLimitingType)({ identifier });
+
+  response.headers.set('X-RateLimit-Limit', result.limit.toString());
+  response.headers.set('X-RateLimit-Remaining', result.remaining.toString());
+  response.headers.set('X-RateLimit-Reset', result.reset.toString());
+
+  if (!result.success) {
+    safeLog('warn', 'Rate limit exceeded', {
+      identifier,
+      path: request.nextUrl.pathname,
+      remaining: result.remaining,
+      reset: result.reset,
+    });
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Too Many Requests',
+        message: `Please try again later. Reset time: ${getRateLimitReset(result.reset)}`,
+        retryAfter: getRateLimitReset(result.reset),
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': getRateLimitReset(result.reset),
+          'X-RateLimit-Limit': result.limit.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': getRateLimitReset(result.reset),
+        },
+      },
+    );
+  }
+
+  return null;
+}
+
+/**
+ * @private
+ * @description Applies security headers to the response.
+ */
+function applySecurityHeaders(response: NextResponse, nonce: string, isProd: boolean): void {
+  const ttDirectives = isProd
+    ? [`require-trusted-types-for 'script'`, `trusted-types default dompurify nextjs#bundler`]
+    : [];
+
+  const scriptSrc = isProd
+    ? [`'self'`, `'nonce-${nonce}'`, `'strict-dynamic'`]
+    : [`'self'`, `'unsafe-eval'`, `'nonce-${nonce}'`, `'strict-dynamic'`];
+
+  const csp = [
+    `default-src 'self'`,
+    `script-src ${scriptSrc.join(' ')}`,
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    `img-src 'self' data: https:`,
+    `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.gstatic.com data: https://*.sanity.io ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} https://*.sentry.io https://cdn.discordapp.com`,
+    `frame-src https://cdn.sanity.io https://www.gstatic.com https://www.google.com`,
+    `worker-src 'self' blob:`,
+    `object-src 'none'`,
+    `base-uri 'none'`,
+    `frame-ancestors 'none'`,
+    `font-src 'self' https://fonts.gstatic.com`,
+    `upgrade-insecure-requests`,
+    ...ttDirectives,
+  ].join('; ');
+
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  response.headers.set('Referrer-Policy', 'no-referrer');
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+  response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+}
+
+/**
  * @async
  * @public
  * @description Middleware function to handle security concerns like IP banning, CSRF token management, and rate limiting for incoming requests.
@@ -84,7 +228,7 @@ const safeLog = (
  * const response = await middleware(request);
  * ```
  * @author Mike Odnis
- * @version 1.0.1 (Edge-Safe Refactor)
+ * @version 1.0.2 (Reduced Cognitive Complexity)
  * @see {@link https://nextjs.org/docs/app/building-your-application/routing/middleware Next.js Middleware}
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
@@ -99,10 +243,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   try {
     let csrfToken: string | undefined;
     if (!isProd && !request.cookies.get('csrfToken')) {
-      csrfToken = crypto.randomUUID().replace(/-/g, '');
+      csrfToken = crypto.randomUUID().replaceAll('-', '');
     }
 
-    const nonce = crypto.randomUUID().replace(/-/g, '');
+    const nonce = crypto.randomUUID().replaceAll('-', '');
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-nonce', nonce);
 
@@ -113,114 +257,21 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     });
 
     if (isProd) {
-      const { redis } = await import('./classes/redis');
-      const { csrfToken: prodCsrfToken, getRateLimitReset, rateLimiter } = await import('./lib');
-      const { getClientIP } = await import('./lib/security/get-ip');
-
+      const { csrfToken: prodCsrfToken } = await import('./lib');
       csrfToken = prodCsrfToken;
 
-      const clientIp = getClientIP(request);
-      if (clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
-        const isBanned = await redis.sismember('ban:ips', clientIp);
-        if (isBanned) {
-          safeLog('warn', 'Blocked banned IP at edge', {
-            ip: clientIp,
-            path: request.nextUrl.pathname,
-          });
-          return new NextResponse(
-            JSON.stringify({
-              error: 'Forbidden',
-              message: 'Access denied',
-            }),
-            {
-              status: 403,
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            },
-          );
-        }
+      const bannedResponse = await checkBannedIP(request);
+      if (bannedResponse) {
+        return bannedResponse;
       }
 
-      let rateLimitingType: RateLimitHelper['rateLimitingType'] = 'default';
-      if (request.nextUrl.pathname.startsWith('/api/v1')) {
-        rateLimitingType = 'apiv1';
-      } else if (request.nextUrl.pathname.startsWith('/api')) {
-        rateLimitingType = 'api';
-      } else if (request.nextUrl.pathname.startsWith('/monitoring')) {
-        rateLimitingType = 'ai';
-      }
-
-      safeLog('log', 'Applying rate limiting', {
-        type: rateLimitingType,
-        path: request.nextUrl.pathname,
-      });
-      const identifier = request.headers.get('x-forwarded-for') || 'anonymous';
-      const result = await rateLimiter(rateLimitingType)({ identifier });
-
-      response.headers.set('X-RateLimit-Limit', result.limit.toString());
-      response.headers.set('X-RateLimit-Remaining', result.remaining.toString());
-      response.headers.set('X-RateLimit-Reset', result.reset.toString());
-
-      if (!result.success) {
-        safeLog('warn', 'Rate limit exceeded', {
-          identifier,
-          path: request.nextUrl.pathname,
-          remaining: result.remaining,
-          reset: result.reset,
-        });
-        return new NextResponse(
-          JSON.stringify({
-            error: 'Too Many Requests',
-            message: `Please try again later. Reset time: ${getRateLimitReset(result.reset)}`,
-            retryAfter: getRateLimitReset(result.reset),
-          }),
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json',
-              'Retry-After': getRateLimitReset(result.reset),
-              'X-RateLimit-Limit': result.limit.toString(),
-              'X-RateLimit-Remaining': '0',
-              'X-RateLimit-Reset': getRateLimitReset(result.reset),
-            },
-          },
-        );
+      const rateLimitResponse = await applyRateLimit(request, response);
+      if (rateLimitResponse) {
+        return rateLimitResponse;
       }
     }
 
-    const ttDirectives = isProd
-      ? [`require-trusted-types-for 'script'`, `trusted-types default dompurify nextjs#bundler`]
-      : [];
-
-    const scriptSrc = isProd
-      ? [`'self'`, `'nonce-${nonce}'`, `'strict-dynamic'`]
-      : [`'self'`, `'unsafe-eval'`, `'nonce-${nonce}'`, `'strict-dynamic'`];
-
-    const csp = [
-      `default-src 'self'`,
-      `script-src ${scriptSrc.join(' ')}`,
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-      `img-src 'self' data: https:`,
-      `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.gstatic.com data: https://*.sanity.io ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} https://*.sentry.io https://cdn.discordapp.com`,
-      `frame-src https://cdn.sanity.io https://www.gstatic.com https://www.google.com`,
-      `worker-src 'self' blob:`,
-      `object-src 'none'`,
-      `base-uri 'none'`,
-      `frame-ancestors 'none'`,
-      `font-src 'self' https://fonts.gstatic.com`,
-      `upgrade-insecure-requests`,
-      ...ttDirectives,
-    ].join('; ');
-
-    response.headers.set('Content-Security-Policy', csp);
-
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-    response.headers.set('Referrer-Policy', 'no-referrer');
-    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-    response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
-    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    applySecurityHeaders(response, nonce, isProd);
 
     if (!request.cookies.get('csrfToken') && csrfToken) {
       safeLog('log', 'Setting CSRF token cookie');
