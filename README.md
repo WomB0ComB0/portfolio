@@ -77,12 +77,6 @@ The system splits responsibilities between UI rendering (Next.js) and data orche
 ### System Architecture
 ```mermaid
 graph TD
-    User((User Browser)) --> NextJS[Next.js 15 App Router]
-    NextJS --> Elysia[Elysia.js API Engine]
-
-    subgraph "External Providers"
-        Spotify[(Spotify API)]
-        GitHub[(GitHub GraphQL)]
     subgraph "Client Layer"
         Browser[User Browser]
         PWA[Service Worker / Cache]
@@ -95,7 +89,7 @@ graph TD
     end
 
     subgraph "API Orchestration (Elysia.js)"
-        V1[/api/v1/*]
+        V1[/api/v1/*/]
         Auth[Auth Middleware]
         RateLimit[Rate Limiter]
     end
@@ -105,15 +99,6 @@ graph TD
         Sanity[(Sanity CMS)]
         Firebase[(Firebase DB)]
     end
-
-    subgraph "Internal Logic"
-        Redis[(Redis Cache)]
-        Security[Security Middleware]
-        SanityClient[Sanity Live Content]
-    end
-
-    Elysia --> Security
-    Security --> Redis
 
     subgraph "External Providers"
         Spotify{{Spotify API}}
