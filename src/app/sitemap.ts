@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import type { MetadataRoute } from 'next';
 import { app } from '@/constants/app';
+import type { MetadataRoute } from 'next';
 
 const Sitemap = async (): Promise<MetadataRoute.Sitemap> => {
   const routes = [

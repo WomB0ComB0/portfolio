@@ -15,5 +15,6 @@
  */
 
 /* eslint-disable */
-const { schema } = require('@octokit/graphql-schema');
-module.exports = schema.json;
+import { schema } from '@octokit/graphql-schema';
+
+export default schema.json;

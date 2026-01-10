@@ -332,7 +332,7 @@ export const Cookies = (): JSX.Element => {
                   rel="noopener noreferrer"
                   className="text-primary hover:underline font-medium"
                 >
-                  <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
+                  {encodedEmail.replaceAll(/&#(\d+);/g, (_match, dec) => String.fromCodePoint(dec))}
                 </a>
                 {'.'}
               </p>

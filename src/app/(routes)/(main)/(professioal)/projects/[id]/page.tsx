@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import type { Metadata } from 'next';
-import type { JSX } from 'react';
 import { getProjects } from '@/lib/sanity/api';
 import { urlFor } from '@/lib/sanity/client';
 import { constructMetadata, logger } from '@/utils';
+import type { Metadata } from 'next';
+import type { JSX } from 'react';
 
 export const dynamic = 'force-static';
 

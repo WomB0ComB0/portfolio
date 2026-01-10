@@ -59,11 +59,15 @@
  * // $ echo $?
  * // 1
  */
-export default (Array.from(
-  (await Bun.$`bun run audit`.text()).split('\n').filter(Boolean).filter(isNotNull),
-)
-  .slice(-1)[0]
-  ?.includes('Passed') ?? false)
-  ? // <...expression(s)> |echo ?$
-    (console.log('0'), process.exit(0))
-  : (console.log('1'), process.exit(1));
+if (
+  Array.from((await Bun.$`bun run audit`.text()).split('\n').filter(Boolean).filter(isNotNull))
+    .at(-1)?.[0]
+    ?.includes('Passed') ??
+  false
+) {
+  console.log('0');
+  process.exit(0);
+} else {
+  console.log('1');
+  process.exit(1);
+}

@@ -28,12 +28,12 @@
  * @web
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 
 // Schema for GitHub Sponsors response
 const SponsorEntitySchema = Schema.Struct({
@@ -305,8 +305,8 @@ export async function getGitHubSponsors(
         createdAt: node.createdAt,
         isActive: node.isActive,
         type: (node.sponsorEntity.__typename === 'Organization' ? 'Organization' : 'User') as
-          | 'User'
-          | 'Organization',
+          | 'Organization'
+          | 'User',
       }));
 
       allSponsors.push(...sponsors);

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Elysia, StatusMap } from 'elysia';
 import { logger } from '@/utils';
+import { Elysia, StatusMap } from 'elysia';
 import { createMessage, fetchMessages } from './handlers';
 import { cacheHeaders, errorHandler } from './middleware';
 import { messagesSchema } from './schema';

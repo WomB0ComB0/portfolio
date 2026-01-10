@@ -433,15 +433,19 @@ const sentryConfig = {
   },
 
   widenClientFileUpload: true,
-  autoInstrumentServerFunctions: true,
-  autoInstrumentMiddleware: true,
-  autoInstrumentAppDirectory: true,
   tunnelRoute: '/monitoring',
-  disableLogger: true,
-  automaticVercelMonitors: true,
 
-  reactComponentAnnotation: {
-    enabled: true,
+  webpack: {
+    autoInstrumentServerFunctions: true,
+    autoInstrumentMiddleware: true,
+    autoInstrumentAppDirectory: true,
+    automaticVercelMonitors: true,
+    reactComponentAnnotation: {
+      enabled: true,
+    },
+    treeshake: {
+      removeDebugLogging: true,
+    },
   },
 
   bundleSizeOptimizations: {

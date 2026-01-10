@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import { app } from '@/constants';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
-import { app } from '@/constants';
 
 /**
  * Check if running on Vercel
