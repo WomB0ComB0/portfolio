@@ -32,19 +32,19 @@
  *   bun scripts/fix-directives.ts --include=src/<glob>/*.{ts,tsx,js,jsx}
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import fg from 'fast-glob';
 import MagicString from 'magic-string';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 type Mode = 'auto' | 'client' | 'server';
 
 const argv = new Map<string, string | boolean>();
 for (const a of process.argv.slice(2)) {
   const m = /^--([^=]+)(?:=(.*))?$/.exec(a);
-  if (m) argv.set(m[1]!, m[2] ?? true);
+  if (m?.[1]) argv.set(m[1], m[2] ?? true);
 }
 
 const WRITE = argv.get('write') === true;
@@ -79,11 +79,11 @@ for (const file of files) {
   const s = new MagicString(code);
 
   // capture shebang and leading comments (kept as-is)
-  const shebangMatch = code.match(/^#!.*\n/);
+  const shebangMatch = /^#!.*\n/.exec(code);
   const shebangEnd = shebangMatch ? shebangMatch[0].length : 0;
 
   // Parse once
-  let ast;
+  let ast: ReturnType<typeof parse> | null;
   try {
     ast = parse(code, {
       sourceType: 'module',
@@ -92,7 +92,7 @@ for (const file of files) {
       startLine: 1,
       plugins: [...parserPlugins],
     });
-  } catch (_err) {
+  } catch {
     // If parsing fails, skip (don’t corrupt file)
     continue;
   }
@@ -148,14 +148,16 @@ for (const file of files) {
     continue;
   }
 
-  const target: 'use client' | 'use server' =
-    MODE === 'client'
-      ? 'use client'
-      : MODE === 'server'
-        ? 'use server'
-        : found.has('client')
-          ? 'use client'
-          : 'use server';
+  let target: 'use client' | 'use server';
+  if (MODE === 'client') {
+    target = 'use client';
+  } else if (MODE === 'server') {
+    target = 'use server';
+  } else if (found.has('client')) {
+    target = 'use client';
+  } else {
+    target = 'use server';
+  }
 
   // Remove all existing directive statements we found
   for (const n of toRemove) {
@@ -166,10 +168,8 @@ for (const file of files) {
 
   // Re-parse after removal to safely find the first import (for insertion point)
   const updated = s.toString();
-  // @ts-expect-error
-  let _ast2 = null;
   try {
-    _ast2 = parse(updated, {
+    parse(updated, {
       sourceType: 'module',
       allowReturnOutsideFunction: true,
       allowImportExportEverywhere: true,
@@ -187,7 +187,7 @@ for (const file of files) {
   // Preserve leading block/line comments
   // Find first non-whitespace after shebang
   const leading = updated.slice(shebangEnd);
-  const m = leading.match(/^\s*/);
+  const m = /^\s*/.exec(leading);
   if (m) insertAt = shebangEnd + m[0].length;
 
   // However, if the first *code* is an import or any statement, we still insert at (shebang + comments) start.
@@ -217,20 +217,20 @@ for (const file of files) {
   }
 }
 
-if (!WRITE) {
-  console.log(
-    `\nDone (dry-run). Files to change: ${changedCount}${
-      skippedBothDirectives
-        ? `, skipped (both client/server present): ${skippedBothDirectives}`
-        : ''
-    }`,
-  );
-} else {
+if (WRITE) {
   console.log(
     `\nWrote fixes to ${changedCount} file(s)${
       skippedBothDirectives
         ? `, skipped (both client/server present): ${skippedBothDirectives}`
         : ''
     }.`,
+  );
+} else {
+  console.log(
+    `\nDone (dry-run). Files to change: ${changedCount}${
+      skippedBothDirectives
+        ? `, skipped (both client/server present): ${skippedBothDirectives}`
+        : ''
+    }`,
   );
 }

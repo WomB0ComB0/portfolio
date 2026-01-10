@@ -16,9 +16,9 @@ import type { RateLimitHelper } from './rate-limit.types';
  * limitations under the License.
  */
 
-import { Ratelimit } from '@upstash/ratelimit';
 import { redis } from '@/classes/redis';
 import { Logger } from '@/utils';
+import { Ratelimit } from '@upstash/ratelimit';
 import { isIdentifierBanned, isIdentifierSlowed } from './banlist';
 
 /**

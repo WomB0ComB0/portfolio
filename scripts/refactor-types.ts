@@ -52,10 +52,11 @@ type Opts = {
 
 const args = process.argv.slice(2);
 const getFlag = (name: string, def = ''): string => {
-  const idx = args.findIndex((a) => a === `--${name}`);
+  const idx = args.indexOf(`--${name}`);
   if (idx === -1) return def;
-  if (args[idx + 1] && !args[idx + 1]!.startsWith('--')) {
-    return args[idx + 1]!;
+  const nextArg = args[idx + 1];
+  if (nextArg && !nextArg.startsWith('--')) {
+    return nextArg;
   }
   return def;
 };
@@ -96,6 +97,151 @@ function isTopLevel(d: InterfaceDeclaration | TypeAliasDeclaration): boolean {
   return d.getParent().getKind() === SyntaxKind.SourceFile;
 }
 
+function createProject(files: string[]): Project {
+  const tsConfigPath = join(options.root, 'tsconfig.json');
+  const project = new Project({
+    tsConfigFilePath: existsSync(tsConfigPath) ? tsConfigPath : undefined,
+    skipAddingFilesFromTsConfig: false,
+    manipulationSettings: {
+      useTrailingCommas: true,
+      quoteKind: QuoteKind.Single,
+    },
+  });
+
+  project.addSourceFilesAtPaths(files);
+  return project;
+}
+
+function getOrCreateTypesFile(project: Project, typesPath: string): SourceFile {
+  const typesFileExists = project.getSourceFile(typesPath) || existsSync(typesPath);
+
+  if (typesFileExists && !options.overwriteTypes) {
+    return project.addSourceFileAtPath(typesPath);
+  }
+  return project.createSourceFile(typesPath, '', { overwrite: true });
+}
+
+function moveInterfaces(
+  interfaces: InterfaceDeclaration[],
+  typesFile: SourceFile,
+): string[] {
+  const movedNames: string[] = [];
+
+  for (const intf of interfaces) {
+    const struct = intf.getStructure();
+    struct.isExported = true;
+    typesFile.addInterface(struct);
+    if (!options.dryRun) intf.remove();
+    if (struct.name) movedNames.push(struct.name);
+  }
+
+  return movedNames;
+}
+
+function moveTypeAliases(
+  typeAliases: TypeAliasDeclaration[],
+  typesFile: SourceFile,
+): string[] {
+  const movedNames: string[] = [];
+
+  for (const ta of typeAliases) {
+    const struct = ta.getStructure();
+    struct.isExported = true;
+    typesFile.addTypeAlias(struct);
+    if (!options.dryRun) ta.remove();
+    if (struct.name) movedNames.push(struct.name);
+  }
+
+  return movedNames;
+}
+
+function addTypeImport(sourceFile: SourceFile, typesPath: string, movedNames: string[]): void {
+  const importRel = './' + basename(typesPath).replace(/\.ts$/, '');
+  const existingImport = sourceFile
+    .getImportDeclarations()
+    .find((d) => d.isTypeOnly() && d.getModuleSpecifierValue() === importRel);
+
+  if (existingImport) {
+    updateExistingImport(existingImport, movedNames);
+  } else {
+    insertNewImport(sourceFile, importRel, movedNames);
+  }
+}
+
+function updateExistingImport(existingImport: any, movedNames: string[]): void {
+  const existingNames = new Set(existingImport.getNamedImports().map((n: any) => n.getName()));
+  for (const name of movedNames) {
+    if (!existingNames.has(name)) {
+      existingImport.addNamedImport(name);
+    }
+  }
+}
+
+function insertNewImport(sourceFile: SourceFile, importRel: string, movedNames: string[]): void {
+  const importString = `import type { ${movedNames.join(', ')} } from '${importRel}';\n`;
+  const fullText = sourceFile.getFullText();
+  const hasShebang = fullText.startsWith('#!');
+
+  if (hasShebang) {
+    const firstNewlinePos = fullText.indexOf('\n');
+    const insertPos = firstNewlinePos >= 0 ? firstNewlinePos + 1 : fullText.length;
+    sourceFile.insertText(insertPos, importString);
+  } else {
+    sourceFile.insertImportDeclaration(0, {
+      isTypeOnly: true,
+      moduleSpecifier: importRel,
+      namedImports: movedNames,
+    });
+  }
+}
+
+function processSourceFile(
+  sourceFile: SourceFile,
+  project: Project,
+  files: string[],
+): { movedCount: number; modified: boolean } {
+  const filePath = sourceFile.getFilePath();
+  if (files.every((f) => f !== filePath)) {
+    return { movedCount: 0, modified: false };
+  }
+
+  const interfaces = sourceFile.getInterfaces().filter(isTopLevel);
+  const typeAliases = sourceFile.getTypeAliases().filter(isTopLevel);
+
+  if (interfaces.length === 0 && typeAliases.length === 0) {
+    return { movedCount: 0, modified: false };
+  }
+
+  const typesPath = typesCompanionPath(filePath);
+  const typesFile = getOrCreateTypesFile(project, typesPath);
+
+  const movedNames = [
+    ...moveInterfaces(interfaces, typesFile),
+    ...moveTypeAliases(typeAliases, typesFile),
+  ];
+
+  if (movedNames.length > 0) {
+    addTypeImport(sourceFile, typesPath, movedNames);
+
+    if (!options.dryRun) {
+      typesFile.organizeImports();
+      sourceFile.organizeImports();
+      typesFile.formatText();
+      sourceFile.formatText();
+    }
+
+    const rel = relative(options.root, filePath);
+    console.log(
+      `  Moved ${movedNames.length.toString().padStart(2)} symbol(s) from ${rel} -> ${relative(
+        options.root,
+        typesPath,
+      )}`,
+    );
+  }
+
+  return { movedCount: movedNames.length, modified: movedNames.length > 0 };
+}
+
 async function main() {
   console.log('Starting type refactor...');
   if (options.dryRun) {
@@ -111,117 +257,16 @@ async function main() {
     return;
   }
 
-  const tsConfigPath = join(options.root, 'tsconfig.json');
-  const project = new Project({
-    tsConfigFilePath: existsSync(tsConfigPath) ? tsConfigPath : undefined,
-    skipAddingFilesFromTsConfig: false,
-    manipulationSettings: {
-      useTrailingCommas: true,
-      quoteKind: QuoteKind.Single,
-    },
-  });
-
-  project.addSourceFilesAtPaths(files);
-
+  const project = createProject(files);
   console.log(`Scanning ${project.getSourceFiles().length} files...`);
 
   let movedCount = 0;
   let filesModified = 0;
 
   for (const sourceFile of project.getSourceFiles()) {
-    const filePath = sourceFile.getFilePath();
-    if (files.every((f) => f !== filePath)) {
-      continue;
-    }
-
-    const interfaces = sourceFile.getInterfaces().filter(isTopLevel);
-    const typeAliases = sourceFile.getTypeAliases().filter(isTopLevel);
-    const nodesToMove = [...interfaces, ...typeAliases];
-
-    if (nodesToMove.length === 0) continue;
-
-    const typesPath = typesCompanionPath(filePath);
-    const rel = relative(options.root, filePath);
-
-    let typesFile: SourceFile;
-    const typesFileExists = project.getSourceFile(typesPath) || existsSync(typesPath);
-
-    if (typesFileExists && !options.overwriteTypes) {
-      typesFile = project.addSourceFileAtPath(typesPath);
-    } else {
-      typesFile = project.createSourceFile(typesPath, '', {
-        overwrite: true,
-      });
-    }
-
-    const movedNames: string[] = [];
-
-    for (const intf of interfaces) {
-      const struct = intf.getStructure();
-      struct.isExported = true;
-      typesFile.addInterface(struct);
-      if (!options.dryRun) intf.remove();
-      if (struct.name) movedNames.push(struct.name);
-    }
-
-    for (const ta of typeAliases) {
-      const struct = ta.getStructure();
-      struct.isExported = true;
-      typesFile.addTypeAlias(struct);
-      if (!options.dryRun) ta.remove();
-      if (struct.name) movedNames.push(struct.name);
-    }
-
-    if (movedNames.length > 0) {
-      filesModified++;
-      const importRel = './' + basename(typesPath).replace(/\.ts$/, '');
-      const existingImport = sourceFile
-        .getImportDeclarations()
-        .find((d) => d.isTypeOnly() && d.getModuleSpecifierValue() === importRel);
-
-      if (!existingImport) {
-        const importString = `import type { ${movedNames.join(', ')} } from '${importRel}';\n`;
-
-        const fullText = sourceFile.getFullText();
-        const hasShebang = fullText.startsWith('#!');
-
-        if (hasShebang) {
-          const firstNewlinePos = fullText.indexOf('\n');
-          const insertPos = firstNewlinePos >= 0 ? firstNewlinePos + 1 : fullText.length;
-
-          sourceFile.insertText(insertPos, importString);
-        } else {
-          sourceFile.insertImportDeclaration(0, {
-            isTypeOnly: true,
-            moduleSpecifier: importRel,
-            namedImports: movedNames,
-          });
-        }
-      } else {
-        const existingNames = new Set(existingImport.getNamedImports().map((n) => n.getName()));
-        for (const name of movedNames) {
-          if (!existingNames.has(name)) {
-            existingImport.addNamedImport(name);
-          }
-        }
-      }
-    }
-
-    movedCount += movedNames.length;
-
-    if (!options.dryRun) {
-      typesFile.organizeImports();
-      sourceFile.organizeImports();
-      typesFile.formatText();
-      sourceFile.formatText();
-    }
-
-    console.log(
-      `  Moved ${movedNames.length.toString().padStart(2)} symbol(s) from ${rel} -> ${relative(
-        options.root,
-        typesPath,
-      )}`,
-    );
+    const result = processSourceFile(sourceFile, project, files);
+    movedCount += result.movedCount;
+    if (result.modified) filesModified++;
   }
 
   if (!options.dryRun) {
@@ -236,7 +281,9 @@ async function main() {
   );
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(err);
   process.exit(1);
-});
+}

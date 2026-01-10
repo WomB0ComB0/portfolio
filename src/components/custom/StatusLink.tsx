@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 /**
  * Simple status link component with animated dot

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { BaseError } from '@/classes/error';
 import { config } from '@/config';
 import { adminDb, firestore } from '@/core';
+import { Schema } from 'effect';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 
 const APP_ID = config.firebase.appId;
 const MESSAGES_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/message`;

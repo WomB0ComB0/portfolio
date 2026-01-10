@@ -41,7 +41,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@testing": ["./test-fixtures.ts"],
+      "@testing": ["./e2e/fixtures/base.ts"],
+      "@tests/*": ["./tests/*"],
       "@/*": ["./src/*"]
     }
   },

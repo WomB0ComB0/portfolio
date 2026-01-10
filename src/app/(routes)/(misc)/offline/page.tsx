@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+import { Layout } from '@/components/layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { WifiOff } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { JSX } from 'react';
-import { Layout } from '@/components/layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const metadata: Metadata = {
   title: 'Offline',

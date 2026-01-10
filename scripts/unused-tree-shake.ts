@@ -62,22 +62,21 @@
  * @since 1.0.0
  * @version 1.0.0
  */
-export default (async () =>
-  console.log(
-    (await import('node:child_process'))
-      .execSync(
-        [
-          'bunx tsr',
-          '--write',
-          '--recursive',
-          // pass entrypoints that represent roots of your graphs
-          // (e.g. app/pages, feature entry files, etc.)
-          "'^src/(main|index)\\.ts$'",
-          "'^src/app/.*\\.(ts|tsx)$'",
-          // no --exclude (tsr does not support it)
-          // use tsconfig to scope files instead
-        ].join(' '),
-        { encoding: 'utf-8', shell: '/bin/bash' },
-      )
-      .toString(),
-  ))();
+const { execSync } = await import('node:child_process');
+
+const output = execSync(
+  [
+    'bunx tsr',
+    '--write',
+    '--recursive',
+    // pass entrypoints that represent roots of your graphs
+    // (e.g. app/pages, feature entry files, etc.)
+    String.raw`^src/(main|index)\\.ts$`,
+    String.raw`^src/app/.*\\.(ts|tsx)$`,
+    // no --exclude (tsr does not support it)
+    // use tsconfig to scope files instead
+  ].join(' '),
+  { encoding: 'utf-8', shell: '/bin/bash' },
+).toString();
+
+console.log(output);

@@ -29,7 +29,7 @@ import {
   isSafari,
   isTouchScreen,
   isWindows,
-} from './platform';
+} from '../../../src/utils/browser/platform';
 
 const setUserAgent = (userAgent: string) => {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);

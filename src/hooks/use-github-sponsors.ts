@@ -16,10 +16,10 @@ import type { GitHubSponsorsData } from './use-github-sponsors.types';
  * limitations under the License.
  */
 
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import { get } from '@/lib/http-clients/effect-fetcher';
 
 /**
  * @readonly

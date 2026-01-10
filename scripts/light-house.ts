@@ -37,34 +37,32 @@
  * // To execute this script, simply run it with Bun:
  * // bun script.ts
  */
-export default (async () => {
-  const { chromium } = await import('playwright');
-  const { execFileSync } = await import('node:child_process');
-  execFileSync('bunx', ['playwright', 'install', 'chromium'], { stdio: 'inherit' });
-  const chromiumPath = chromium.executablePath();
-  const stringEnv: Record<string, string> = {};
-  for (const k in process.env) {
-    const v = process.env[k];
-    stringEnv[k] = v === undefined ? '' : String(v);
-  }
-  stringEnv.BROWSER = chromiumPath;
-  console.log(
-    execFileSync(
-      'bunx',
-      [
-        'unlighthouse',
-        '--site',
-        `${(await import('@/constants')).app.url}`,
-        '--debug',
-        '--no-cache',
-        '--throttle',
-        '--samples',
-        '5',
-        // '--desktop',
-        '--output-path',
-        '../.unlighthouse',
-      ],
-      { stdio: 'inherit', env: stringEnv as any },
-    ).toString(),
-  );
-})();
+const { chromium } = await import('playwright');
+const { execFileSync } = await import('node:child_process');
+execFileSync('bunx', ['playwright', 'install', 'chromium'], { stdio: 'inherit' });
+const chromiumPath = chromium.executablePath();
+const stringEnv: Record<string, string> = {};
+for (const k in process.env) {
+  const v = process.env[k];
+  stringEnv[k] = v === undefined ? '' : String(v);
+}
+stringEnv.BROWSER = chromiumPath;
+console.log(
+  execFileSync(
+    'bunx',
+    [
+      'unlighthouse',
+      '--site',
+      `${(await import('@/constants')).app.url}`,
+      '--debug',
+      '--no-cache',
+      '--throttle',
+      '--samples',
+      '5',
+      // '--desktop',
+      '--output-path',
+      '../.unlighthouse',
+    ],
+    { stdio: 'inherit', env: stringEnv as any },
+  ).toString(),
+);

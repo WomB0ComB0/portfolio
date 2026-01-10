@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { Logger } from '@/utils';
 import { bearer } from '@elysiajs/bearer';
 import { Elysia, StatusMap } from 'elysia';
-import { Logger } from '@/utils';
 import { actionHandlers, type BanRequestBody } from './handlers';
 import { adminGuard } from './middleware';
 import { banActions, banSchemas } from './schema';

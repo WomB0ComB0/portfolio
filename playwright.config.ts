@@ -17,72 +17,111 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * See https://playwright.dev/docs/test-configuration.
+ * Check if running in CI environment
  */
-export default defineConfig({
-  testDir: './src/e2e',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://127.0.0.1:3000',
+const isCI = !!process.env.CI;
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-  },
-
-  /* Configure projects for major browsers */
-  projects: [
+/**
+ * Get browser projects based on environment.
+ * CI runs all browsers; local development defaults to Chromium-based browsers only
+ * (Firefox/WebKit often require additional system dependencies on Linux).
+ */
+function getBrowserProjects() {
+  // Core Chromium-based browsers (work reliably across environments)
+  const chromiumProjects = [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
-
-    /* Test against branded browsers. */
-    {
-      name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
     },
     {
       name: 'Google Chrome',
       use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
-  ],
+    {
+      name: 'Microsoft Edge',
+      use: { ...devices['Desktop Edge'], channel: 'msedge' },
+    },
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+  ];
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'bun run dev',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120 * 1000,
-  // },
+  // Additional browsers for CI (requires system dependencies)
+  const additionalBrowsers = [
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'Mobile Safari',
+      use: { ...devices['iPhone 12'] },
+    },
+  ];
+
+  // In CI, run all browsers; locally, skip webkit/firefox unless explicitly requested
+  const runAllBrowsers = isCI || process.env.PLAYWRIGHT_ALL_BROWSERS === 'true';
+
+  return [...chromiumProjects, ...(runAllBrowsers ? additionalBrowsers : [])];
+}
+
+/**
+ * Playwright E2E Test Configuration
+ * @see https://playwright.dev/docs/test-configuration
+ */
+export default defineConfig({
+  // Use new e2e/ directory structure
+  testDir: './e2e',
+  // Ignore setup files (auth is optional, tests work without it)
+  testIgnore: ['**/fixtures/**'],
+  // Run tests in files in parallel
+  fullyParallel: true,
+  // Fail the build on CI if you accidentally left test.only in the source code
+  forbidOnly: !!process.env.CI,
+  // Retry on CI only
+  retries: process.env.CI ? 2 : 0,
+  // Limit workers: CI uses 1 worker for stability, local uses 4 to prevent server overload
+  workers: process.env.CI ? 1 : 4,
+  // Default timeout (generous for local dev)
+  timeout: isCI ? 30_000 : 60_000,
+  // Expect timeout
+  expect: {
+    timeout: isCI ? 5_000 : 15_000,
+  },
+  // Reporter configuration
+  reporter: [['html', { outputFolder: 'playwright/reports' }], ['list']],
+  // Output directory for screenshots and traces
+  outputDir: 'playwright/results',
+  // Shared settings for all projects
+  use: {
+    // Base URL for local dev server
+    baseURL: 'http://127.0.0.1:3000',
+    // Navigation timeout (generous for dev server cold starts)
+    navigationTimeout: isCI ? 30_000 : 60_000,
+    // Action timeout
+    actionTimeout: isCI ? 10_000 : 30_000,
+    // Collect trace when retrying failed tests
+    trace: 'on-first-retry',
+    // Screenshot on failure
+    screenshot: 'only-on-failure',
+    // Video on failure
+    video: 'retain-on-failure',
+    // Run headless by default (use --headed flag for headed mode)
+    headless: true,
+  },
+
+  // Configure projects for major browsers (environment-aware)
+  projects: getBrowserProjects(),
+
+  // Run local dev server before starting tests
+  webServer: {
+    command: 'bun run dev',
+    url: 'http://127.0.0.1:3000',
+    reuseExistingServer: !isCI,
+    timeout: 120 * 1000,
+  },
 });
