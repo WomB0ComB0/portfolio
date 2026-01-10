@@ -75,7 +75,9 @@
     ]
   },
   "overrides": {
+    "@opentelemetry/api-logs": "0.209.0",
     "@opentelemetry/instrumentation": "0.209.0",
+    "@opentelemetry/sdk-logs": "0.209.0",
     "import-in-the-middle": "2.0.1",
     "require-in-the-middle": "8.0.1"
   },
