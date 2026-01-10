@@ -21,5 +21,6 @@
   "ts-morph",
   "firebase-admin",
   "react-hook-form",
-  "react-day-picker"
+  "react-day-picker",
+  "@vitest/ui"
 ]
