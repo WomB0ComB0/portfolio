@@ -141,9 +141,7 @@ export const Sponsor = () => {
           </div>
           <div>
             <p className="text-foreground font-medium mb-2">Be the first sponsor!</p>
-            <p className="text-sm text-muted-foreground">
-              Your support would mean the world
-            </p>
+            <p className="text-sm text-muted-foreground">Your support would mean the world</p>
           </div>
         </div>
       );
@@ -190,9 +188,7 @@ export const Sponsor = () => {
                       <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                         {sponsor.name || sponsor.login}
                       </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        @{sponsor.login}
-                      </p>
+                      <p className="text-sm text-muted-foreground truncate">@{sponsor.login}</p>
                       {sponsor.tier && (
                         <div className="flex items-center gap-1.5 mt-1">
                           <Heart className="h-3 w-3 text-primary" />
@@ -288,7 +284,9 @@ export const Sponsor = () => {
                   <MagicCard className="border-border group hover:border-primary/50 transition-all duration-300 h-full">
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
-                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-linear-to-br ${platform.color} shrink-0`}>
+                        <div
+                          className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-linear-to-br ${platform.color} shrink-0`}
+                        >
                           <platform.icon className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -299,7 +297,9 @@ export const Sponsor = () => {
                             <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">{platform.username}</p>
-                          <p className="text-sm text-muted-foreground mt-2">{platform.description}</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {platform.description}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -327,9 +327,7 @@ export const Sponsor = () => {
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
-                {sponsorsContent}
-              </CardContent>
+              <CardContent>{sponsorsContent}</CardContent>
             </MagicCard>
           </motion.section>
 

@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
+import { Badge } from '@/components/ui/badge';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import { FiArrowUpRight, FiGithub, FiStar, FiUsers } from 'react-icons/fi';
-import { Badge } from '@/components/ui/badge';
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { StatCard } from './stat-card';
 
 const GitHubStatsSchema = Schema.Struct({

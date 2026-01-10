@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { FiActivity } from 'react-icons/fi';
 import {
   DevStats,
   Discord,
@@ -25,6 +24,7 @@ import {
 } from '@/app/(routes)/(dev)/stats/_components';
 import { PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
+import { FiActivity } from 'react-icons/fi';
 
 export const Stats = () => {
   return (

@@ -44,6 +44,7 @@ live-preview capabilities, while a dedicated **Elysia.js** API engine manages hi
 external data (GitHub, Discord, Spotify) via an intelligent **Redis** caching layer.
 
 **Who is this for?**
+
 - **Engineers** wanting a high-end boilerplate featuring the latest Next.js 15 patterns.
 - **Hiring Managers** looking for verifiable, real-time evidence of a candidate's activity.
 - **Open Source Contributors** interested in Type-safe API orchestration with Bun and Elysia.
@@ -51,6 +52,7 @@ external data (GitHub, Discord, Spotify) via an intelligent **Redis** caching la
 ## 4. Features
 
 ### 🎨 Frontend & Experience
+
 - ✨ **Next.js 15 App Router:** Leveraging React Server Components (RSC) for zero-bundle-size logic.
 - ⚡ **Command Palette (KBar):** Global navigation and quick actions via `Cmd+K`.
 - 🌈 **Visual Mastery:** Integrated **MagicUI** components (BlurFade, BorderBeam) and custom
@@ -59,12 +61,14 @@ external data (GitHub, Discord, Spotify) via an intelligent **Redis** caching la
 - 🌓 **Adaptive Theming:** Deeply integrated dark/light modes with `next-themes`.
 
 ### ⚙️ Backend & API
+
 - 🚀 **Elysia.js Engine:** Blazing fast API routes running alongside Next.js using Bun.
 - 🧠 **Smart Caching:** Custom SWR (Stale-While-Revalidate) logic backed by Redis.
 - 🛡️ **Security First:** Built-in rate limiting, CIDR-based banlists, and CSRF protection.
 - 🤖 **n8n Automation:** Pre-configured workflows for content synchronization bots.
 
 ### 📊 Integrations
+
 - 🎵 **Spotify:** Real-time "Now Playing" status and top track aggregation.
 - 💬 **Lanyard:** Live Discord presence, activities, and status tracking.
 - 🐙 **GitHub:** Dynamic repository pinning and contribution graphing via GraphQL.
@@ -75,6 +79,7 @@ external data (GitHub, Discord, Spotify) via an intelligent **Redis** caching la
 The system splits responsibilities between UI rendering (Next.js) and data orchestration (Elysia).
 
 ### System Architecture
+
 ```mermaid
 graph TD
     subgraph "Client Layer"
@@ -119,6 +124,7 @@ graph TD
 ```
 
 ### Data Flow (External API Aggregation)
+
 ```mermaid
 flowchart LR
     Request[/"Client Request"/] --> Cache{Check Redis}
@@ -138,18 +144,20 @@ flowchart LR
 ```
 
 ### Tech Stack Table
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Runtime** | Bun | High-speed execution and package management. |
-| **Framework** | Next.js 15 | UI, SSR, and React Server Components. |
-| **API** | Elysia.js | Type-safe, high-performance API endpoints. |
-| **CMS** | Sanity.io | Headless content management for projects/resume. |
-| **Cache** | Redis | Stale-while-revalidate storage for external APIs. |
-| **State** | Jotai | Atomic client-side state management. |
+
+| Layer         | Technology | Purpose                                           |
+| :------------ | :--------- | :------------------------------------------------ |
+| **Runtime**   | Bun        | High-speed execution and package management.      |
+| **Framework** | Next.js 15 | UI, SSR, and React Server Components.             |
+| **API**       | Elysia.js  | Type-safe, high-performance API endpoints.        |
+| **CMS**       | Sanity.io  | Headless content management for projects/resume.  |
+| **Cache**     | Redis      | Stale-while-revalidate storage for external APIs. |
+| **State**     | Jotai      | Atomic client-side state management.              |
 
 ## 6. Quick Start
 
 ### Prerequisites
+
 - **Bun:** ^1.1.0
 - **Node.js:** ^20.0.0 (as fallback)
 - **Docker:** (Optional, for Redis/Containerization)
@@ -157,6 +165,7 @@ flowchart LR
 ### Installation
 
 1. **Clone & Install**
+
    ```bash
    git clone https://github.com/WomB0ComB0/portfolio.git
    cd portfolio
@@ -164,10 +173,12 @@ flowchart LR
    ```
 
 2. **Environment Configuration**
+
    ```bash
    cp .env.example .env.local
    ```
-   *Edit `.env.local` and add your Sanity, GitHub, and Spotify credentials.*
+
+   _Edit `.env.local` and add your Sanity, GitHub, and Spotify credentials._
 
 3. **Development Server**
    ```bash
@@ -175,6 +186,7 @@ flowchart LR
    ```
 
 **Expected Output:**
+
 - Frontend: `http://localhost:3000`
 - API (Elysia): `http://localhost:3000/api/v1`
 - Sanity Studio: `http://localhost:3000/studio` (if configured)
@@ -182,23 +194,25 @@ flowchart LR
 ## 7. Usage & Examples
 
 ### Managing Content (Sanity)
-Content like **Experience**, **Projects**, and **Certifications** is managed via the Sanity
-Studio. This allows for live updates without triggering a redeploy.
+
+Content like **Experience**, **Projects**, and **Certifications** is managed via the Sanity Studio.
+This allows for live updates without triggering a redeploy.
 
 ```typescript
 // Example: Fetching Projects with Sanity Live Content
-import { sanityFetch } from "@/lib/sanity/live";
-import { PROJECTS_QUERY } from "@/lib/sanity/queries";
+import { sanityFetch } from '@/lib/sanity/live';
+import { PROJECTS_QUERY } from '@/lib/sanity/queries';
 
 const projects = await sanityFetch({ query: PROJECTS_QUERY });
 ```
 
 ### Real-time Status (Spotify)
+
 The portfolio uses a custom hook to fetch the current track, which leverages the Elysia API
 internally.
 
 ```tsx
-import { useNowPlaying } from "@/hooks/use-spotify";
+import { useNowPlaying } from '@/hooks/use-spotify';
 
 export function MusicStatus() {
   const { data, isLoading } = useNowPlaying();
@@ -217,6 +231,7 @@ export function MusicStatus() {
 <summary><b>Advanced: Adding a New Elysia Route</b></summary>
 
 Routes are defined in `src/app/api/[[...route]]`. To add a new endpoint:
+
 1. Create a directory under `v1/`.
 2. Define a handler and a schema using `elysia`.
 3. Export the module and register it in `elysia.ts`.
@@ -226,15 +241,17 @@ Routes are defined in `src/app/api/[[...route]]`. To add a new endpoint:
 ## 8. Configuration
 
 ### Environment Variables
-| Variable | Required | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `NEXT_PUBLIC_SANITY_PROJECT_ID` | Yes | - | Your Sanity.io project identifier. |
-| `GITHUB_TOKEN` | Yes | - | Personal Access Token for GitHub GraphQL API. |
-| `REDIS_URL` | No | - | Redis connection string (for caching). |
-| `SPOTIFY_CLIENT_ID` | No | - | Spotify Developer Application ID. |
-| `WAKATIME_API_KEY` | No | - | Key to fetch coding activity stats. |
+
+| Variable                        | Required | Default | Description                                   |
+| :------------------------------ | :------- | :------ | :-------------------------------------------- |
+| `NEXT_PUBLIC_SANITY_PROJECT_ID` | Yes      | -       | Your Sanity.io project identifier.            |
+| `GITHUB_TOKEN`                  | Yes      | -       | Personal Access Token for GitHub GraphQL API. |
+| `REDIS_URL`                     | No       | -       | Redis connection string (for caching).        |
+| `SPOTIFY_CLIENT_ID`             | No       | -       | Spotify Developer Application ID.             |
+| `WAKATIME_API_KEY`              | No       | -       | Key to fetch coding activity stats.           |
 
 ### Configuration Files
+
 - `next.config.ts`: Next.js optimization and header settings.
 - `sanity.config.ts`: Schema definitions and Studio plugins.
 - `biome.json`: Linting and formatting rules (replaces ESLint/Prettier).
@@ -245,15 +262,16 @@ All endpoints are prefixed with `/api/v1/`.
 
 ### Endpoints
 
-| Method | Path | Description | Params |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/status/health` | Check API health and uptime. | None |
-| `GET` | `/v1/now-playing` | Get real-time Spotify status. | None |
-| `GET` | `/v1/github-stats` | Aggregated GitHub contributions. | `username` |
-| `POST` | `/v1/messages` | Submit a Guestbook entry. | `message`, `user` |
-| `GET` | `/v1/lanyard` | Fetch Discord presence info. | `id` |
+| Method | Path               | Description                      | Params            |
+| :----- | :----------------- | :------------------------------- | :---------------- |
+| `GET`  | `/status/health`   | Check API health and uptime.     | None              |
+| `GET`  | `/v1/now-playing`  | Get real-time Spotify status.    | None              |
+| `GET`  | `/v1/github-stats` | Aggregated GitHub contributions. | `username`        |
+| `POST` | `/v1/messages`     | Submit a Guestbook entry.        | `message`, `user` |
+| `GET`  | `/v1/lanyard`      | Fetch Discord presence info.     | `id`              |
 
 **Example Response (`GET /v1/now-playing`):**
+
 ```json
 {
   "isPlaying": true,
@@ -267,6 +285,7 @@ All endpoints are prefixed with `/api/v1/`.
 ## 10. Development
 
 ### Project Structure
+
 ```text
 src/
 ├── app/             # Next.js App Router (Pages & API)
@@ -279,6 +298,7 @@ src/
 ```
 
 ### Tooling Commands
+
 - **Linting:** `bun run lint`
 - **Testing:** `bun run test` (Vitest)
 - **E2E Testing:** `bun run test:e2e` (Playwright)
@@ -297,14 +317,16 @@ Please ensure your code follows the `biome.json` configuration and passes all te
 ## 12. Roadmap & Known Issues
 
 ### Planned Features
+
 - [ ] **Blog Engine:** Fully integrated MDX/Sanity-based blog.
 - [ ] **Sponsorship Page:** Direct integration with GitHub Sponsors.
 - [ ] **Interactive 3D Stats:** Using Three.js/React Three Fiber for data visualization.
 - [ ] **Internationalization:** Multi-language support (i18n).
 
 ### Known Limitations
-- ⚠️ **Rate Limits:** Without a `REDIS_URL`, external API calls are made on every request, which
-  may lead to 429 errors from GitHub/Spotify.
+
+- ⚠️ **Rate Limits:** Without a `REDIS_URL`, external API calls are made on every request, which may
+  lead to 429 errors from GitHub/Spotify.
 - ⚠️ **Cold Starts:** First-time Sanity fetches may experience slight latency in development
   environments.
 
@@ -315,5 +337,4 @@ Please ensure your code follows the `biome.json` configuration and passes all te
 - **Special Thanks:**
   - [Next.js](https://nextjs.org/) for the incredible framework.
   - [Elysia.js](https://elysiajs.com/) for the high-performance API.
-  - [Magic UI](https://magicui.design/) for the stunning components.
-<ctrl63>
+  - [Magic UI](https://magicui.design/) for the stunning components. <ctrl63>

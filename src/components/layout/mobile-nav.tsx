@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
+import { Button } from '@/components/ui/button';
 import { useKBar } from 'kbar';
 import { memo, useRef, useState } from 'react';
 import { FiMenu } from 'react-icons/fi';
-import { Button } from '@/components/ui/button';
 import { MobileMenuOverlay } from './mobile-menu-overlay';
 
 export const MobileNavBar = memo(({ path }: { path: string }) => {

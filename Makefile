@@ -1,19 +1,35 @@
-.PHONY: help build dev prod up down logs clean restart shell health test
+.PHONY: help build dev prod up down logs clean restart shell health test lint format typecheck
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make build       - Build the Docker image"
-	@echo "  make dev         - Run development server locally (no Docker)"
-	@echo "  make prod        - Build and run production container"
-	@echo "  make up          - Start all services with Docker Compose"
-	@echo "  make down        - Stop all services"
-	@echo "  make logs        - View logs from all services"
-	@echo "  make clean       - Remove containers, images, and volumes"
-	@echo "  make restart     - Restart all services"
-	@echo "  make shell       - Open shell in running container"
-	@echo "  make health      - Check container health status"
-	@echo "  make test        - Run tests in container"
+	@echo ""
+	@echo "  Development:"
+	@echo "    make dev         - Run development server locally (no Docker)"
+	@echo "    make lint        - Run linters (Biome + Stylelint)"
+	@echo "    make format      - Format code with Prettier"
+	@echo "    make typecheck   - Run TypeScript type checking"
+	@echo ""
+	@echo "  Testing:"
+	@echo "    make test        - Run unit tests"
+	@echo "    make test-e2e    - Run E2E tests in container"
+	@echo "    make test-watch  - Run tests in watch mode"
+	@echo ""
+	@echo "  Docker:"
+	@echo "    make build       - Build the Docker image"
+	@echo "    make prod        - Build and run production container"
+	@echo "    make up          - Start all services with Docker Compose"
+	@echo "    make down        - Stop all services"
+	@echo "    make logs        - View logs from all services"
+	@echo "    make clean       - Remove containers, images, and volumes"
+	@echo "    make restart     - Restart all services"
+	@echo "    make shell       - Open shell in running container"
+	@echo "    make health      - Check container health status"
+	@echo ""
+	@echo "  Utilities:"
+	@echo "    make analyze     - Analyze bundle size"
+	@echo "    make audit       - Run security audit"
+	@echo "    make gen         - Generate GraphQL types"
 
 # Build Docker image
 build:
@@ -29,6 +45,56 @@ build-no-cache:
 dev:
 	@echo "Starting development server..."
 	bun run dev
+
+# Linting
+lint:
+	@echo "Running linters..."
+	bun run lint
+
+# Format code
+format:
+	@echo "Formatting code..."
+	bun run format
+
+# TypeScript type checking
+typecheck:
+	@echo "Running type check..."
+	bun run typecheck
+
+# Run unit tests locally
+test-local:
+	@echo "Running tests..."
+	bun run test
+
+# Run tests in watch mode
+test-watch:
+	@echo "Running tests in watch mode..."
+	bun run test:watch
+
+# Run tests with UI
+test-ui:
+	@echo "Opening Vitest UI..."
+	bun run test:ui
+
+# Run E2E tests locally
+e2e:
+	@echo "Running E2E tests..."
+	bun run e2e:headless
+
+# Analyze bundle
+analyze:
+	@echo "Analyzing bundle..."
+	bun run analyze
+
+# Security audit
+audit:
+	@echo "Running security audit..."
+	bun run security:audit
+
+# Generate GraphQL types
+gen:
+	@echo "Generating GraphQL types..."
+	bun run gen
 
 # Production container
 prod:

@@ -95,4 +95,4 @@ async function cleanup(): Promise<void> {
   console.log('   3. Test APIs: bun src/__tests__/api-manual-test.ts\n');
 }
 
-cleanup().catch(console.error);
+await cleanup();

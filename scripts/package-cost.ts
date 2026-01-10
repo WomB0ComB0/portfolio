@@ -28,11 +28,11 @@
  * @see {@link https://docs.npmjs.com/cli/v9/commands/npm-view|npm view documentation}
  */
 
+import { Stringify } from '@/utils';
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PackageJson } from 'type-fest';
-import { Stringify } from '@/utils';
 
 const packageJsonPath = join(process.cwd(), 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as PackageJson;
@@ -107,7 +107,7 @@ const packageSizes = allDependencies
   .filter(Boolean)
   .filter(isNotNull);
 
-const sortedPackageSizes = packageSizes.sort((a, b) => b.size - a.size);
+const sortedPackageSizes = packageSizes.toSorted((a, b) => b.size - a.size);
 
 /**
  * @readonly

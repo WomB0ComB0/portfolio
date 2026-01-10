@@ -15,7 +15,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Logger, LogLevel } from './logger';
+import { Logger, LogLevel } from '../../../src/utils/logging/logger';
 
 describe('Logger', () => {
   beforeEach(() => {
@@ -28,6 +28,7 @@ describe('Logger', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
 
   it('should create a logger instance', () => {

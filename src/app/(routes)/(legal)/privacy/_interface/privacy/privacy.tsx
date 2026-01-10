@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+import { MagicCard } from '@/components';
+import Layout from '@/components/layout/layout';
+import { Badge } from '@/components/ui/badge';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { emailHref, encodedEmail } from '@/constants';
 import {
   Baby,
   Database,
@@ -28,12 +34,6 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { JSX } from 'react';
-import { MagicCard } from '@/components';
-import Layout from '@/components/layout/layout';
-import { Badge } from '@/components/ui/badge';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { emailHref, encodedEmail } from '@/constants';
 
 export const Privacy = (): JSX.Element => {
   return (
@@ -422,9 +422,11 @@ export const Privacy = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-lg font-medium text-primary hover:underline"
+                aria-label="Send email"
               >
-                <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
-
+                <span>
+                  {encodedEmail.replaceAll(/&#(\d+);/g, (_match, dec) => String.fromCodePoint(dec))}
+                </span>
                 <ExternalLink className="w-4 h-4" />
               </a>
             </CardContent>

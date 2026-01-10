@@ -60,7 +60,7 @@ const BUILD_OUTPUT_DIRECTORY = getBuildOutputDirectory(options);
 const nextMetaRoot = path.join(process.cwd(), BUILD_OUTPUT_DIRECTORY);
 try {
   fs.accessSync(nextMetaRoot, fs.constants.R_OK);
-} catch (_err) {
+} catch {
   console.error(
     `No build output found at "${nextMetaRoot}" - you may not have your working directory set correctly, or not have run "next build".`,
   );

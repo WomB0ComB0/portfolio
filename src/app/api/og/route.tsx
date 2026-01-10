@@ -29,7 +29,7 @@ const fontDataPromise = Promise.all([
 ]);
 
 const Logo = () => (
-  <div aria-hidden="true" style={{ marginLeft: '20px', width: 60, height: 60 }}>
+  <div aria-hidden="true" style={{ display: 'flex', marginLeft: '20px', width: 60, height: 60 }}>
     <svg
       width="60"
       height="60"
@@ -39,7 +39,6 @@ const Logo = () => (
       aria-hidden="true"
       style={{ marginLeft: '20px', width: 60, height: 60 }}
     >
-      <title>Mike Odnis logo</title>
       <g
         transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)"
         fill="#8b5cf6"
@@ -84,6 +83,7 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
         <div
           style={{
             position: 'absolute',
+            display: 'flex',
             width: '600px',
             height: '600px',
             borderRadius: '50%',
@@ -91,12 +91,12 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             top: '-200px',
             left: '-100px',
             filter: 'blur(80px)',
-            zIndex: 0,
           }}
         />
         <div
           style={{
             position: 'absolute',
+            display: 'flex',
             width: '500px',
             height: '500px',
             borderRadius: '50%',
@@ -104,12 +104,12 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             bottom: '-150px',
             right: '-100px',
             filter: 'blur(80px)',
-            zIndex: 0,
           }}
         />
         <div
           style={{
             position: 'absolute',
+            display: 'flex',
             width: '400px',
             height: '400px',
             borderRadius: '50%',
@@ -118,7 +118,6 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             filter: 'blur(100px)',
-            zIndex: 0,
           }}
         />
 
@@ -131,7 +130,6 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
-            zIndex: 10,
             filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.5))',
           }}
         >
@@ -144,10 +142,10 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             position: 'absolute',
             top: 0,
             right: 0,
+            display: 'flex',
             width: '300px',
             height: '300px',
             background: 'linear-gradient(225deg, rgba(168, 85, 247, 0.1) 0%, transparent 70%)',
-            zIndex: 1,
           }}
         />
 
@@ -160,7 +158,6 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             justifyContent: 'center',
             width: '100%',
             padding: '0 80px',
-            zIndex: 10,
             marginTop: 40,
             position: 'relative',
           }}
@@ -168,6 +165,7 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
           {/* Accent bar */}
           <div
             style={{
+              display: 'flex',
               width: '80px',
               height: '6px',
               background: 'linear-gradient(90deg, #8b5cf6 0%, #a855f7 100%)',
@@ -180,6 +178,7 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
           {/* Title with gradient */}
           <div
             style={{
+              display: 'flex',
               fontSize: 76,
               fontWeight: 700,
               background: 'linear-gradient(135deg, #ffffff 0%, #e9d5ff 100%)',
@@ -197,6 +196,7 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
           {/* Description with better contrast */}
           <div
             style={{
+              display: 'flex',
               fontSize: 32,
               fontWeight: 400,
               color: '#d8b4fe',
@@ -220,25 +220,25 @@ export async function GET(request: Request): Promise<ImageResponse | Response> {
             gap: '20px',
             fontSize: 22,
             fontWeight: 500,
-            zIndex: 10,
             background: 'rgba(168, 85, 247, 0.1)',
             padding: '12px 24px',
             borderRadius: '12px',
             border: '1px solid rgba(168, 85, 247, 0.2)',
           }}
         >
-          <span
+          <div
             style={{
+              display: 'flex',
               color: '#e9d5ff',
               fontWeight: 600,
             }}
           >
             {app.name}
-          </span>
-          <span style={{ color: '#8b5cf6', opacity: 0.6 }}>•</span>
-          <span style={{ color: '#c4b5fd', opacity: 0.9 }}>
+          </div>
+          <div style={{ display: 'flex', color: '#8b5cf6', opacity: 0.6 }}>•</div>
+          <div style={{ display: 'flex', color: '#c4b5fd', opacity: 0.9 }}>
             {app.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-          </span>
+          </div>
         </div>
       </div>,
       {

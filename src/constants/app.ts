@@ -46,7 +46,7 @@ export const age = Math.floor(
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 import { obfuscateLink } from '@/utils';
-import packageJson from '../../package.json';
+import packageJson from '../../package.json' with { type: 'json' };
 
 /**
  * @interface AppMetadata

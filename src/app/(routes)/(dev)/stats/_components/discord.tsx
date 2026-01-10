@@ -16,10 +16,6 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
-import { Suspense } from 'react';
-import { FiActivity, FiHeadphones, FiPlus } from 'react-icons/fi';
-import { SiDiscord, SiVscodium } from 'react-icons/si';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -27,6 +23,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { config } from '@/config';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 import { logger } from '@/utils';
+import { Schema } from 'effect';
+import { Suspense } from 'react';
+import { FiActivity, FiHeadphones, FiPlus } from 'react-icons/fi';
+import { SiDiscord, SiVscodium } from 'react-icons/si';
 import { StatCard } from './stat-card';
 
 const ActivitySchema = Schema.Struct({
