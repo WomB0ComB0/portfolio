@@ -67,6 +67,7 @@
     "public/**/*.js",
     "dist/**/*",
     ".sanity/**/*",
-    "**/.sanity/**/*"
+    "**/.sanity/**/*",
+    "playwright/**/*"
   ]
 }
