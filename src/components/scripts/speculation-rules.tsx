@@ -33,7 +33,7 @@ export function SpeculationRules({ nonce }: Readonly<{ nonce: string | undefined
 
   const config: PreloadConfig = {
     prerenderPaths: ['/', '/projects', '/experience', '/'],
-    prefetchPaths: ['/blog', '/guestbook', '/legal/*'],
+    prefetchPaths: ['/media', '/guestbook', '/legal/*'],
   };
 
   const createSpeculationScript = useCallback(

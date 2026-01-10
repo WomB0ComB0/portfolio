@@ -14,17 +14,27 @@
  * limitations under the License.
  */
 
-/**
- * API Integrations
- *
- * This module exports all third-party API integrations for the portfolio.
- * Including: Hashnode (Blog), DevTo (Blog), Google Analytics, GitHub, Spotify
- */
+import { MediaTabs } from '@/app/(routes)/(dev)/media/_components';
+import Layout from '@/components/layout/layout';
 
-export * from './blogs';
-export * from './devto';
-export * from './get-repos';
-export * from './github-sponsors';
-export * from './google';
-export * from './spotify';
-export * from './youtube';
+/**
+ * Media view component.
+ * Renders the media page with tabbed content for different media types.
+ *
+ * @returns {JSX.Element} The media view.
+ * @author Mike Odnis
+ * @version 1.0.0
+ */
+export const MediaView = () => {
+  return (
+    <Layout>
+      <div className="w-full min-h-screen p-4 md:p-8">
+        <div className="max-w-6xl mx-auto mb-10">
+          <MediaTabs />
+        </div>
+      </div>
+    </Layout>
+  );
+};
+MediaView.displayName = 'MediaView';
+export default MediaView;

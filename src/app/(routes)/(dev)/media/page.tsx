@@ -14,21 +14,25 @@
  * limitations under the License.
  */
 
-import { t } from 'elysia';
+import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
+import { constructMetadata } from '@/utils';
 
-export const blogSchema = {
-  'blog.response': t.Array(
-    t.Object({
-      title: t.String(),
-      slug: t.String(),
-      publishedAt: t.String(),
-      excerpt: t.String(),
-      imageUrl: t.Optional(t.String()),
-      source: t.Optional(t.Union([t.Literal('hashnode'), t.Literal('devto')])),
-      url: t.Optional(t.String()),
-    }),
-  ),
-  'blog.error': t.Object({
-    error: t.String(),
-  }),
+const MediaView = dynamic(
+  () => import('@/app/(routes)/(dev)/media/_interface/media').then((mod) => mod.MediaView),
+  {
+    ssr: true,
+  },
+);
+
+export const metadata = constructMetadata({
+  title: 'Media',
+  description:
+    'Explore my blog posts, presentations, talks, videos, and articles on technology, software development, and more',
+});
+
+const MediaPage = (): JSX.Element => {
+  return <MediaView />;
 };
+MediaPage.displayName = 'MediaPage';
+export default MediaPage;

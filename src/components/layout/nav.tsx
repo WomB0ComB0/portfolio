@@ -29,7 +29,7 @@ import { FiBriefcase, FiCode, FiCommand, FiHome, FiUser } from 'react-icons/fi';
 export const groupNavItems = () => {
   // Define which routes belong to which persona
   const professionalRoutes = new Set(['/experience', '/certifications', '/resume', '/projects']);
-  const developerRoutes = new Set(['/sponsor', '/stats', '/blog']);
+  const developerRoutes = new Set(['/sponsor', '/stats', '/media']);
   const legalRoutes = new Set(['/privacy', '/licenses', '/cookies']);
   const personalRoutes = new Set(['/guestbook', '/places', '/spotify']);
 

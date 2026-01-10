@@ -1529,10 +1529,10 @@ export default function manifest(): ExtendedManifest {
         ],
       },
       {
-        name: "Mike's Blogs",
-        short_name: 'Blog',
-        url: '/blog',
-        description: "Read Mike's latest thoughts and updates on his blog.",
+        name: "Mike's Media",
+        short_name: 'Media',
+        url: '/media',
+        description: "Read Mike's latest blog posts, watch talks, and view presentations.",
         icons: [
           {
             src: '/assets/svgs/logo-small.svg',
