@@ -77,7 +77,9 @@ export const actions = [
      * @example
      * actions.find(a => a.id === 'home')?.perform()
      */
-    perform: () => (window.location.pathname = '/'),
+    perform: () => {
+      globalThis.location.pathname = '/';
+    },
     section: 'Navigation',
     icon: FiHome({ size: '1rem' }),
   },
@@ -94,7 +96,9 @@ export const actions = [
      * @web
      * @throws {Error} May throw if window navigation fails.
      */
-    perform: () => (window.location.pathname = '/projects'),
+    perform: () => {
+      globalThis.location.pathname = '/projects';
+    },
     section: 'Navigation',
     icon: FiBriefcase({ size: '1rem' }),
   },
@@ -111,7 +115,9 @@ export const actions = [
      * @web
      * @throws {Error} May throw if window navigation fails.
      */
-    perform: () => (window.location.pathname = '/experience'),
+    perform: () => {
+      globalThis.location.pathname = '/experience';
+    },
     section: 'Navigation',
     icon: FiClipboard({ size: '1rem' }),
   },
@@ -128,7 +134,9 @@ export const actions = [
      * @web
      * @throws {Error}
      */
-    perform: () => (window.location.pathname = '/certifications'),
+    perform: () => {
+      globalThis.location.pathname = '/certifications';
+    },
     section: 'Navigation',
     icon: FiAward({ size: '1rem' }),
   },
@@ -144,7 +152,9 @@ export const actions = [
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/resume'),
+    perform: () => {
+      globalThis.location.pathname = '/resume';
+    },
     section: 'Navigation',
     icon: FiFileText({ size: '1rem' }),
   },
@@ -160,7 +170,9 @@ export const actions = [
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/media'),
+    perform: () => {
+      globalThis.location.pathname = '/media';
+    },
     section: 'Navigation',
     icon: FiVideo({ size: '1rem' }),
   },
@@ -176,7 +188,9 @@ export const actions = [
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/places'),
+    perform: () => {
+      globalThis.location.pathname = '/places';
+    },
     section: 'Navigation',
     icon: FiMapPin({ size: '1rem' }),
   },
@@ -192,7 +206,9 @@ export const actions = [
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/spotify'),
+    perform: () => {
+      globalThis.location.pathname = '/spotify';
+    },
     section: 'Navigation',
     icon: FiHeadphones({ size: '1rem' }),
   },
@@ -201,14 +217,16 @@ export const actions = [
     name: 'Guestbook',
     shortcut: ['g'],
     keywords: 'guestbook messages comments',
-    /**
+    /**s
      * Navigates to the guestbook page ('/guestbook').
      * @function
      * @public
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/guestbook'),
+    perform: () => {
+      globalThis.location.pathname = '/guestbook';
+    },
     section: 'Navigation',
     icon: FiBookOpen({ size: '1rem' }),
   },
@@ -224,7 +242,9 @@ export const actions = [
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/stats'),
+    perform: () => {
+      globalThis.location.pathname = '/stats';
+    },
     section: 'Navigation',
     icon: FiBarChart({ size: '1rem' }),
   },
@@ -240,7 +260,9 @@ export const actions = [
      * @returns {void}
      * @web
      */
-    perform: () => (window.location.pathname = '/sponsor'),
+    perform: () => {
+      globalThis.location.pathname = '/sponsor';
+    },
     section: 'Navigation',
     icon: FiHeart({ size: '1rem' }),
   },

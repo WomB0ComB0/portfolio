@@ -422,9 +422,11 @@ export const Privacy = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-lg font-medium text-primary hover:underline"
+                aria-label="Send email"
               >
-                <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
-
+                <span>
+                  {encodedEmail.replaceAll(/&#(\d+);/g, (_match, dec) => String.fromCodePoint(dec))}
+                </span>
                 <ExternalLink className="w-4 h-4" />
               </a>
             </CardContent>

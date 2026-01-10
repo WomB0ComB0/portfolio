@@ -26,7 +26,7 @@
  * if (isIOS()) { console.log('Running on iOS'); }
  */
 export const isIOS = (): boolean =>
-  /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  /iPad|iPhone|iPod/.test(navigator.userAgent) && !(globalThis.window as any).MSStream;
 
 /**
  * Detects if the current user agent is an Android device.
@@ -97,21 +97,28 @@ export const isChromeOS = (): boolean => /CrOS/gi.test(navigator.userAgent);
 export const getBrowser = (): string => {
   const { userAgent } = navigator;
 
-  return userAgent.match(/edg/i)
-    ? 'edge'
-    : userAgent.match(/chrome|chromium|crios/i)
-      ? 'chrome'
-      : userAgent.match(/firefox|fxios/i)
-        ? 'firefox'
-        : userAgent.match(/safari/i)
-          ? 'safari'
-          : userAgent.match(/opr\//i)
-            ? 'opera'
-            : userAgent.match(/android/i)
-              ? 'android'
-              : userAgent.match(/iphone/i)
-                ? 'iphone'
-                : 'unknown';
+  if (/edg/i.test(userAgent)) {
+    return 'edge';
+  }
+  if (/chrome|chromium|crios/i.test(userAgent)) {
+    return 'chrome';
+  }
+  if (/firefox|fxios/i.test(userAgent)) {
+    return 'firefox';
+  }
+  if (/safari/i.test(userAgent)) {
+    return 'safari';
+  }
+  if (/opr\//i.test(userAgent)) {
+    return 'opera';
+  }
+  if (/android/i.test(userAgent)) {
+    return 'android';
+  }
+  if (/iphone/i.test(userAgent)) {
+    return 'iphone';
+  }
+  return 'unknown';
 };
 
 /**
@@ -130,17 +137,22 @@ export const getBrowser = (): string => {
  * const platform = getPlatform(); // 'android', 'ios', etc.
  */
 export const getPlatform = (): string => {
-  return isIOS()
-    ? 'ios'
-    : isAndroid()
-      ? 'android'
-      : isMacOS()
-        ? 'macos'
-        : isChromeOS()
-          ? 'chromeos'
-          : isWindows()
-            ? 'windows'
-            : 'unknown';
+  if (isIOS()) {
+    return 'ios';
+  }
+  if (isAndroid()) {
+    return 'android';
+  }
+  if (isMacOS()) {
+    return 'macos';
+  }
+  if (isChromeOS()) {
+    return 'chromeos';
+  }
+  if (isWindows()) {
+    return 'windows';
+  }
+  return 'unknown';
 };
 
 /**
@@ -158,7 +170,7 @@ export const getPlatform = (): string => {
 export const isTouchScreen = (): boolean => {
   return (
     (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
-    window.matchMedia?.('(any-pointer:coarse)').matches
+    globalThis.window.matchMedia?.('(any-pointer:coarse)').matches
   );
 };
 

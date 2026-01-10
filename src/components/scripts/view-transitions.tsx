@@ -26,25 +26,28 @@ import { flushSync } from 'react-dom';
  *
  * @returns {null} This component does not render anything.
  */
+/**
+ * Handles the view transition for navigation.
+ */
+const handleViewTransition = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  const anchor = target.closest('a[href^="/"]');
+
+  if (!anchor) return;
+
+  if (!document.startViewTransition) return;
+
+  e.preventDefault();
+  document.startViewTransition(() => {
+    flushSync(() => {
+      // The navigation will happen here, but we let Next.js handle it.
+      // This just wraps the state update that follows the click.
+    });
+  });
+};
+
 export function ViewTransitions() {
   useEffect(() => {
-    const handleViewTransition = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const anchor = target.closest('a[href^="/"]');
-
-      if (!anchor) return;
-
-      if (!document.startViewTransition) return;
-
-      e.preventDefault();
-      document.startViewTransition(() => {
-        flushSync(() => {
-          // The navigation will happen here, but we let Next.js handle it.
-          // This just wraps the state update that follows the click.
-        });
-      });
-    };
-
     document.addEventListener('click', handleViewTransition);
 
     return () => {

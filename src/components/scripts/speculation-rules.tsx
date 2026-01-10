@@ -28,7 +28,7 @@ import { useCallback, useEffect, useRef } from 'react';
  *
  * @returns {JSX.Element | null} The main speculation rules script tag or null if not supported.
  */
-export function SpeculationRules({ nonce }: { nonce: string | undefined }) {
+export function SpeculationRules({ nonce }: Readonly<{ nonce: string | undefined }>) {
   const speculationScriptsRef = useRef<Set<string>>(new Set());
 
   const config: PreloadConfig = {
@@ -94,7 +94,7 @@ export function SpeculationRules({ nonce }: { nonce: string | undefined }) {
     };
   }, [handleIntersection]);
 
-  if (typeof window === 'undefined' || !('speculationRules' in document)) {
+  if (globalThis.window === undefined || !('speculationRules' in document)) {
     return null;
   }
 
@@ -104,11 +104,8 @@ export function SpeculationRules({ nonce }: { nonce: string | undefined }) {
   };
 
   return (
-    <Script
-      id="speculation-rules"
-      type="speculationrules"
-      nonce={nonce}
-      dangerouslySetInnerHTML={{ __html: Stringify(baseSpeculationRules) }}
-    />
+    <Script id="speculation-rules" type="speculationrules" nonce={nonce}>
+      {Stringify(baseSpeculationRules)}
+    </Script>
   );
 }

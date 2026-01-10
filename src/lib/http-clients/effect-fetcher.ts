@@ -367,7 +367,9 @@ export function fetcher<T = unknown>(
       if (Array.isArray(value)) {
         value
           .filter((item): item is string | number | boolean => item != null)
-          .forEach((item) => urlParams.append(key, String(item)));
+          .forEach((item) => {
+            urlParams.append(key, String(item));
+          });
       } else {
         urlParams.append(key, String(value));
       }

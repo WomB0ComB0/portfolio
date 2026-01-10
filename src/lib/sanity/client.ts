@@ -23,11 +23,14 @@
 
 import type { SanityClient } from '@sanity/client';
 import { createClient } from '@sanity/client';
-import type { ImageUrlBuilder, SanityImageSource } from '@sanity/image-url';
-import { createImageUrlBuilder } from '@sanity/image-url';
+import {
+  createImageUrlBuilder,
+  type ImageUrlBuilder,
+  type SanityImageSource,
+} from '@sanity/image-url';
 
 // Check if we're in a browser context
-const isBrowser = typeof window !== 'undefined';
+const isBrowser = globalThis.window !== undefined;
 
 // Import appropriate config based on context
 const getConfig = () => {

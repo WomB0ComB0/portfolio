@@ -33,10 +33,10 @@ import type { DateFormatOptions } from './date.types';
  */
 export function formatDate(
   date: string | Date,
-  options: DateFormatOptions = {
+  options = {
     month: 'short',
     year: 'numeric',
-  },
+  } as DateFormatOptions,
 ): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;

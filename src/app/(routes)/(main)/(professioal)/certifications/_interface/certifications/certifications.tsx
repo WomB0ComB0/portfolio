@@ -66,9 +66,9 @@ const CertificationCardSkeleton = () => {
         <div className="space-y-2">
           <div className="h-4 bg-muted/50 animate-pulse rounded w-24" />
           <div className="flex flex-wrap gap-2">
-            {[...Array(3)].map((_, i) => (
+            {new Array(3).fill(null).map((_, i) => (
               <div
-                key={`skill-skeleton-${i}`}
+                key={`skill-skeleton-${+i}`}
                 className="h-6 w-16 bg-muted/50 animate-pulse rounded-full"
               />
             ))}
@@ -91,8 +91,8 @@ const CertificationsPageSkeleton = () => {
         icon={<Award />}
       />
 
-      {[...Array(2)].map((_, sectionIdx) => (
-        <section key={`section-skeleton-${sectionIdx}`} className="mb-12">
+      {new Array(2).fill(null).map((_, sectionIdx) => (
+        <section key={`section-skeleton-${+sectionIdx}`} className="mb-12">
           <Card className="bg-card/30 backdrop-blur-sm border-border/50 p-6 mb-6">
             <div className="flex items-center gap-3">
               <Building2 className="h-6 w-6 text-primary" />
@@ -101,8 +101,8 @@ const CertificationsPageSkeleton = () => {
             </div>
           </Card>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(2)].map((_, i) => (
-              <CertificationCardSkeleton key={`cert-skeleton-${i}`} />
+            {new Array(2).fill(null).map((_, i) => (
+              <CertificationCardSkeleton key={`cert-skeleton-${+i}`} />
             ))}
           </div>
         </section>

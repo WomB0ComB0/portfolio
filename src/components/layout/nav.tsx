@@ -28,20 +28,20 @@ import { FiBriefcase, FiCode, FiCommand, FiHome, FiUser } from 'react-icons/fi';
 
 export const groupNavItems = () => {
   // Define which routes belong to which persona
-  const professionalRoutes = ['/experience', '/certifications', '/resume', '/projects'];
-  const developerRoutes = ['/sponsor', '/stats', '/media'];
-  const legalRoutes = ['/privacy', '/licenses', '/cookies'];
-  const personalRoutes = ['/guestbook', '/places', '/spotify'];
+  const professionalRoutes = new Set(['/experience', '/certifications', '/resume', '/projects']);
+  const developerRoutes = new Set(['/sponsor', '/stats', '/media']);
+  const legalRoutes = new Set(['/privacy', '/licenses', '/cookies']);
+  const personalRoutes = new Set(['/guestbook', '/places', '/spotify']);
 
   const homeRoute = '/';
 
-  const professional = NavbarItems.filter((item) => professionalRoutes.includes(item.slug));
+  const professional = NavbarItems.filter((item) => professionalRoutes.has(item.slug));
 
-  const developer = NavbarItems.filter((item) => developerRoutes.includes(item.slug));
+  const developer = NavbarItems.filter((item) => developerRoutes.has(item.slug));
 
-  const personal = NavbarItems.filter((item) => personalRoutes.includes(item.slug));
+  const personal = NavbarItems.filter((item) => personalRoutes.has(item.slug));
 
-  const legal = NavbarItems.filter((item) => legalRoutes.includes(item.slug));
+  const legal = NavbarItems.filter((item) => legalRoutes.has(item.slug));
 
   const home = NavbarItems.find((item) => item.slug === homeRoute);
 

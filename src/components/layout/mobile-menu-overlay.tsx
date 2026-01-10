@@ -91,8 +91,9 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
             Boolean,
           );
           if (nodes.length === 0) return;
-          const first = nodes[0]!;
-          const last = nodes[nodes.length - 1]!;
+          const first = nodes.at(0);
+          const last = nodes.at(-1);
+          if (!first || !last) return;
           if (e.shiftKey && document.activeElement === first) {
             e.preventDefault();
             last.focus();
@@ -104,10 +105,10 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
       };
 
       setTimeout(focusFirst, 0);
-      window.addEventListener('keydown', onKeyDown);
+      globalThis.window.addEventListener('keydown', onKeyDown);
 
       return () => {
-        window.removeEventListener('keydown', onKeyDown);
+        globalThis.window.removeEventListener('keydown', onKeyDown);
         if (triggerRef && 'current' in triggerRef && triggerRef.current) {
           triggerRef.current.focus();
         }

@@ -18,9 +18,7 @@ let bun$: ((strings: TemplateStringsArray, ...expr: any[]) => Promise<any>) | nu
 try {
   const { $ } = await import('bun');
   bun$ = $;
-} catch {
-  /* running on Node/tsx; ignore */
-}
+} catch {}
 
 /* --------------------------- Path + FS utilities --------------------------- */
 
@@ -115,7 +113,7 @@ async function ensureDepcheckInstalled() {
   } catch {
     if (bun$) {
       console.log('Installing depcheck via Bun…');
-      await bun$!`bun add -D depcheck`;
+      await bun$`bun add -D depcheck`;
     } else {
       console.log('Installing depcheck via npm…');
       // Using npx would not make it importable; install instead.
@@ -181,13 +179,13 @@ for (const dep of usedTopLevel) {
 /* --------------------------------- Output ---------------------------------- */
 
 const outputs = {
-  unusedDependencies: Array.from(unusedDeps).sort(),
-  unusedDevDependencies: Array.from(unusedDevDeps).sort(),
+  unusedDependencies: Array.from(unusedDeps).sort((a, b) => a.localeCompare(b)),
+  unusedDevDependencies: Array.from(unusedDevDeps).sort((a, b) => a.localeCompare(b)),
   missingDependencies: Object.fromEntries(
     Object.entries(missing).sort(([a], [b]) => a.localeCompare(b)),
   ),
   // Note: “potential” — sub-deps are consumed by other deps; treat as advisory
-  potentialUnusedSubDependencies: Array.from(maybeUnusedSubDeps).sort(),
+  potentialUnusedSubDependencies: Array.from(maybeUnusedSubDeps).sort((a, b) => a.localeCompare(b)),
   summary: {
     totalTopLevel: allTopLevel.length,
     unusedDependencies: unusedDeps.length,

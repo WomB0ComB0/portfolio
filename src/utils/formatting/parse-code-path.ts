@@ -120,7 +120,7 @@ function getFilePath(): string {
     if (typeof __filename !== 'undefined') {
       return __filename;
     }
-    const stack = new Error().stack;
+    const stack = new Error('Stack trace for file path extraction').stack;
     if (stack) {
       const stackLine = stack.split('\n')[2]; // Get caller's line
       const match =
@@ -132,7 +132,7 @@ function getFilePath(): string {
       }
     }
     return process?.cwd?.() || 'unknown-location';
-  } catch (_error) {
+  } catch {
     return 'unknown-location';
   }
 }
@@ -180,7 +180,7 @@ export const parseCodePathDetailed = <C, T>(
 
   if (options.includeLineNumber) {
     try {
-      const stack = new Error().stack;
+      const stack = new Error('Stack trace for line number extraction').stack;
       const callerLine = stack?.split('\n')[2];
       const lineMatch = callerLine?.match(/:(\d+):\d+/);
       if (lineMatch) {

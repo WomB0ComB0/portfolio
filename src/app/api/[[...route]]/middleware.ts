@@ -23,4 +23,5 @@
  * - Error handling
  */
 
-export {};
+const adminMiddleware = () => {};
+export { adminMiddleware };

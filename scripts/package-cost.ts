@@ -107,7 +107,7 @@ const packageSizes = allDependencies
   .filter(Boolean)
   .filter(isNotNull);
 
-const sortedPackageSizes = packageSizes.sort((a, b) => b.size - a.size);
+const sortedPackageSizes = packageSizes.toSorted((a, b) => b.size - a.size);
 
 /**
  * @readonly

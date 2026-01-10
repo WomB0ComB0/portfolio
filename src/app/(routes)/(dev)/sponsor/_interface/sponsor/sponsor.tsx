@@ -102,6 +102,113 @@ export const Sponsor = () => {
     [sponsorsData],
   );
 
+  const sponsorsContent = useMemo(() => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {new Array(6).fill(null).map((_, i) => (
+            <MagicCard key={`skeleton-${Number(i)}`} className="border-border">
+              <CardContent className="p-4 flex items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </CardContent>
+            </MagicCard>
+          ))}
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-12 space-y-3">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10">
+            <Users className="h-8 w-8 text-destructive" />
+          </div>
+          <p className="text-destructive font-medium">Unable to load sponsors</p>
+          <p className="text-sm text-muted-foreground">{error.message}</p>
+        </div>
+      );
+    }
+
+    if (!sponsorsData || currentSponsors.length === 0) {
+      return (
+        <div className="text-center py-16 space-y-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50">
+            <Heart className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-foreground font-medium mb-2">Be the first sponsor!</p>
+            <p className="text-sm text-muted-foreground">Your support would mean the world</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {sponsorsData.totalMonthlyIncome > 0 && (
+          <div className="flex items-center justify-center">
+            <MagicCard className="bg-primary/5 border-primary/20">
+              <CardContent className="p-6 text-center">
+                <p className="text-sm text-muted-foreground mb-2">Monthly Support</p>
+                <p className="text-3xl font-bold text-primary">
+                  ${sponsorsData.totalMonthlyIncome}
+                </p>
+              </CardContent>
+            </MagicCard>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentSponsors.map((sponsor: SponsorType) => (
+            <motion.a
+              key={sponsor.login}
+              href={sponsor.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
+            >
+              <MagicCard className="border-border group hover:border-primary/50 transition-all duration-300 h-full">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-12 w-12 shrink-0 rounded-full ring-2 ring-border group-hover:ring-primary/50 transition-all overflow-hidden">
+                      <Image
+                        src={sponsor.avatarUrl}
+                        alt={`${sponsor.name || sponsor.login}'s avatar`}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                        {sponsor.name || sponsor.login}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">@{sponsor.login}</p>
+                      {sponsor.tier && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Heart className="h-3 w-3 text-primary" />
+                          <span className="text-xs text-primary font-medium">
+                            ${sponsor.tier.monthlyPriceInDollars}/mo
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                  </div>
+                </CardContent>
+              </MagicCard>
+            </motion.a>
+          ))}
+        </div>
+      </div>
+    );
+  }, [isLoading, error, sponsorsData, currentSponsors]);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -146,103 +253,68 @@ export const Sponsor = () => {
           {/* Benefits Section */}
           <motion.section variants={itemVariants}>
             <h2 className="text-2xl font-semibold text-foreground mb-6">Why Sponsor?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {benefits.map((benefit) => (
-                <motion.div
-                  key={benefit.title}
-                  whileHover={{ y: -4 }}
-                  transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
-                >
-                  <MagicCard className="border-border h-full hover:border-primary/50 transition-all duration-300">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <benefit.icon className="h-5 w-5 text-primary" />
-                        </div>
-                        <CardTitle className="text-base">{benefit.title}</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {benefit.description}
-                      </p>
-                    </CardContent>
-                  </MagicCard>
-                </motion.div>
+                <MagicCard key={benefit.title} className="border-border">
+                  <CardContent className="p-6 text-center space-y-3">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10">
+                      <benefit.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="font-semibold text-foreground">{benefit.title}</h3>
+                    <p className="text-sm text-muted-foreground">{benefit.description}</p>
+                  </CardContent>
+                </MagicCard>
               ))}
             </div>
           </motion.section>
 
-          {/* Sponsor Platforms */}
+          {/* Sponsor Platforms Section */}
           <motion.section variants={itemVariants}>
-            <h2 className="text-2xl font-semibold text-foreground mb-6">Choose Your Platform</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sponsorPlatforms.map((platform) => {
-                const Icon = platform.icon;
-                return (
-                  <motion.div
-                    key={platform.name}
-                    whileHover={{ scale: 1.02, y: -4 }}
-                    transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
-                  >
-                    <MagicCard className="border-border h-full group hover:border-primary/50 transition-all duration-300">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div
-                              className={`bg-linear-to-br ${platform.color} p-3 rounded-xl shadow-lg`}
-                            >
-                              <Icon className="h-6 w-6 text-white" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-lg mb-1">{platform.name}</CardTitle>
-                              <p className="text-sm text-muted-foreground">{platform.username}</p>
-                            </div>
-                          </div>
-                          <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">{platform.description}</p>
-                        <Button
-                          asChild
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground group/btn"
+            <h2 className="text-2xl font-semibold text-foreground mb-6">Ways to Sponsor</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {sponsorPlatforms.map((platform) => (
+                <motion.a
+                  key={platform.name}
+                  href={platform.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
+                >
+                  <MagicCard className="border-border group hover:border-primary/50 transition-all duration-300 h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-linear-to-br ${platform.color} shrink-0`}
                         >
-                          <a
-                            href={platform.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2"
-                          >
-                            Sponsor Now
-                            <ExternalLink className="h-4 w-4 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-                          </a>
-                        </Button>
-                      </CardContent>
-                    </MagicCard>
-                  </motion.div>
-                );
-              })}
+                          <platform.icon className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {platform.name}
+                            </h3>
+                            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{platform.username}</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {platform.description}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </MagicCard>
+                </motion.a>
+              ))}
             </div>
           </motion.section>
 
-          {/* Current Sponsors */}
+          {/* Current Sponsors Section */}
           <motion.section variants={itemVariants}>
             <MagicCard className="border-border">
               <CardHeader>
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Users className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-2xl">Current Sponsors</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Amazing people who support my work
-                      </p>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Current Sponsors</CardTitle>
                   {currentSponsors.length > 0 && (
                     <Badge
                       variant="outline"
@@ -255,109 +327,11 @@ export const Sponsor = () => {
                   )}
                 </div>
               </CardHeader>
-
-              <CardContent>
-                {isLoading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[...Array(6)].map((_, i) => (
-                      <MagicCard key={+i} className="border-border">
-                        <CardContent className="p-4 flex items-center gap-3">
-                          <Skeleton className="h-12 w-12 rounded-full shrink-0" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-3/4" />
-                            <Skeleton className="h-3 w-1/2" />
-                          </div>
-                        </CardContent>
-                      </MagicCard>
-                    ))}
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-12 space-y-3">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10">
-                      <Users className="h-8 w-8 text-destructive" />
-                    </div>
-                    <p className="text-destructive font-medium">Unable to load sponsors</p>
-                    <p className="text-sm text-muted-foreground">{error.message}</p>
-                  </div>
-                ) : !sponsorsData || currentSponsors.length === 0 ? (
-                  <div className="text-center py-16 space-y-4">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50">
-                      <Heart className="h-10 w-10 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-foreground font-medium mb-2">Be the first sponsor!</p>
-                      <p className="text-sm text-muted-foreground">
-                        Your support would mean the world
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {sponsorsData.totalMonthlyIncome > 0 && (
-                      <div className="flex items-center justify-center">
-                        <MagicCard className="bg-primary/5 border-primary/20">
-                          <CardContent className="p-6 text-center">
-                            <p className="text-sm text-muted-foreground mb-2">Monthly Support</p>
-                            <p className="text-3xl font-bold text-primary">
-                              ${sponsorsData.totalMonthlyIncome}
-                            </p>
-                          </CardContent>
-                        </MagicCard>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {currentSponsors.map((sponsor: SponsorType) => (
-                        <motion.a
-                          key={sponsor.login}
-                          href={sponsor.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          whileHover={{ scale: 1.02 }}
-                          transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
-                        >
-                          <MagicCard className="border-border group hover:border-primary/50 transition-all duration-300 h-full">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-3">
-                                <div className="relative h-12 w-12 shrink-0 rounded-full ring-2 ring-border group-hover:ring-primary/50 transition-all overflow-hidden">
-                                  <Image
-                                    src={sponsor.avatarUrl}
-                                    alt={`${sponsor.name || sponsor.login}'s avatar`}
-                                    fill
-                                    className="object-cover"
-                                    sizes="48px"
-                                  />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                                    {sponsor.name || sponsor.login}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    @{sponsor.login}
-                                  </p>
-                                  {sponsor.tier && (
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                      <Heart className="h-3 w-3 text-primary" />
-                                      <span className="text-xs text-primary font-medium">
-                                        ${sponsor.tier.monthlyPriceInDollars}/mo
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                              </div>
-                            </CardContent>
-                          </MagicCard>
-                        </motion.a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
+              <CardContent>{sponsorsContent}</CardContent>
             </MagicCard>
           </motion.section>
 
-          {/* Past Sponsors */}
+          {/* Past Sponsors Section */}
           {pastSponsors.length > 0 && (
             <motion.section variants={itemVariants}>
               <h2 className="text-2xl font-semibold text-foreground mb-6">Past Sponsors</h2>
@@ -395,7 +369,7 @@ export const Sponsor = () => {
             </motion.section>
           )}
 
-          {/* Contact CTA */}
+          {/* Contact Section */}
           <motion.section variants={itemVariants}>
             <MagicCard className="bg-linear-to-br from-primary/5 to-secondary/5 border-border">
               <CardContent className="p-8 text-center space-y-4">

@@ -33,7 +33,7 @@ export const ShaderBackground = ({ children }: ShaderBackgroundProps) => {
   // Get CSS variable colors - convert oklch to hex approximations
   const getThemeColors = () => {
     // SSR fallback
-    if (typeof window === 'undefined') {
+    if (globalThis.window === undefined) {
       return {
         bg: '#121018', // softer than #0a0a0a
         colors: ['#0f0b17', '#201428', '#3f2a66', '#271a3b', '#54358d'],

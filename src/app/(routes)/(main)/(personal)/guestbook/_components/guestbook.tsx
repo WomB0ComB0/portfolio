@@ -95,7 +95,7 @@ const MessageSkeleton = () => {
 function LoadingUI() {
   return (
     <div className="space-y-4">
-      {[...Array(4)].map((_, index) => (
+      {new Array(4).fill(null).map((_, index) => (
         <MessageSkeleton key={`loading-${index + 1}`} />
       ))}
     </div>
@@ -117,7 +117,7 @@ function ErrorUI({ error }: { error: Error }) {
         </h3>
         <p className="text-sm text-muted-foreground max-w-md mx-auto px-4">{error.message}</p>
       </div>
-      <Button variant="outline" onClick={() => window.location.reload()} size="sm">
+      <Button variant="outline" onClick={() => globalThis.location.reload()} size="sm">
         Try Again
       </Button>
     </div>
@@ -281,53 +281,63 @@ export const GuestbookComponent = () => {
           </div>
 
           <div className="space-y-4">
-            {isLoading ? (
-              <LoadingUI />
-            ) : error ? (
-              <ErrorUI error={error} />
-            ) : messages.length === 0 ? (
-              <div className="text-center py-16 md:py-20 space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-muted/50">
-                  <FiMessageSquare className="text-2xl md:text-3xl text-muted-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-foreground font-medium text-sm md:text-base">
-                    No messages yet
-                  </p>
-                  <p className="text-muted-foreground text-xs md:text-sm">
-                    Be the first to leave a message!
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <AnimatePresence>
-                {messages.map((msg: Message) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.4, ease: 'easeOut' }}
-                  >
-                    <MagicCard className="border border-white/10 rounded-lg p-4 space-y-3">
-                      <p className="text-neutral-200 text-sm leading-relaxed wrap-break-word">
-                        {escapeHtml(msg.message)}
+            {(() => {
+              if (isLoading) {
+                return <LoadingUI />;
+              }
+
+              if (error) {
+                return <ErrorUI error={error} />;
+              }
+
+              if (messages.length === 0) {
+                return (
+                  <div className="text-center py-16 md:py-20 space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-muted/50">
+                      <FiMessageSquare className="text-2xl md:text-3xl text-muted-foreground" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-foreground font-medium text-sm md:text-base">
+                        No messages yet
                       </p>
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-xs pt-3 border-t border-white/10">
-                        <div className="flex items-center gap-2 text-neutral-400">
-                          <FiUser className="h-3.5 w-3.5" />
-                          <span className="font-medium">{escapeHtml(msg.authorName)}</span>
+                      <p className="text-muted-foreground text-xs md:text-sm">
+                        Be the first to leave a message!
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <AnimatePresence>
+                  {messages.map((msg: Message) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                    >
+                      <MagicCard className="border border-white/10 rounded-lg p-4 space-y-3">
+                        <p className="text-neutral-200 text-sm leading-relaxed wrap-break-word">
+                          {escapeHtml(msg.message)}
+                        </p>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-xs pt-3 border-t border-white/10">
+                          <div className="flex items-center gap-2 text-neutral-400">
+                            <FiUser className="h-3.5 w-3.5" />
+                            <span className="font-medium">{escapeHtml(msg.authorName)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-neutral-500">
+                            <FiClock className="h-3.5 w-3.5" />
+                            <time>{formatDateTime(msg.createdAt)}</time>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-neutral-500">
-                          <FiClock className="h-3.5 w-3.5" />
-                          <time>{formatDateTime(msg.createdAt)}</time>
-                        </div>
-                      </div>
-                    </MagicCard>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
+                      </MagicCard>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              );
+            })()}
           </div>
         </div>
       </div>

@@ -66,7 +66,7 @@ const TimelineCardSkeleton = ({ isLeft }: { isLeft: boolean }) => {
           <div className="w-5 h-5 rounded-full bg-muted animate-pulse ring-4 ring-background" />
         </div>
 
-        <div className={!isLeft ? '' : 'opacity-0'}>
+        <div className={isLeft ? 'opacity-0' : ''}>
           <Card className="bg-card/50 backdrop-blur-sm border-border/50 rounded-xl overflow-hidden">
             <div className="relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-muted animate-pulse" />
@@ -129,8 +129,8 @@ const ExperienceListSkeleton = () => {
         <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-muted/30 -translate-x-1/2 hidden lg:block" />
         <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-muted/30 lg:hidden" />
 
-        {[...Array(4)].map((_, i) => (
-          <TimelineCardSkeleton key={i} isLeft={i % 2 === 0} />
+        {new Array(4).fill(null).map((_, i) => (
+          <TimelineCardSkeleton key={`timeline-skeleton-${+i}`} isLeft={i % 2 === 0} />
         ))}
       </div>
     </div>
@@ -239,7 +239,7 @@ const ExperienceListContent = () => {
 
                     <motion.div
                       variants={isLeft ? itemVariantsRight : itemVariants}
-                      className={!isLeft ? '' : 'opacity-0 pointer-events-none'}
+                      className={isLeft ? 'opacity-0 pointer-events-none' : ''}
                     >
                       {!isLeft && <TimelineCard item={item} period={period} />}
                     </motion.div>

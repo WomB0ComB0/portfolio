@@ -4,6 +4,7 @@
   "react-dom",
   "@google-analytics/data",
   "@million/lint",
+  "recharts",
   "@sanity/client",
   "prettier-plugin-tailwindcss",
   "zod",
@@ -13,11 +14,13 @@
   "@types/node",
   "elysia",
   "@babel/parser",
-  "styled-components",
-  "stylelint",
   "@sentry/nextjs",
-  "ts-morph",
+  "stylelint",
+  "styled-components",
   "vitest",
+  "ts-morph",
   "firebase-admin",
-  "react-hook-form"
+  "react-hook-form",
+  "react-day-picker",
+  "@vitest/ui"
 ]

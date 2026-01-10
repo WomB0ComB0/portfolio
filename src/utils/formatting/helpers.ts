@@ -202,12 +202,18 @@ export const tap =
  * @version 1.0.0
  */
 export const getURL = (path = ''): string => {
-  let url =
-    process?.env?.NEXT_PUBLIC_SITE_URL && process.env.NEXT_PUBLIC_SITE_URL.trim() !== ''
-      ? process.env.NEXT_PUBLIC_SITE_URL
-      : process?.env?.NEXT_PUBLIC_VERCEL_URL && process.env.NEXT_PUBLIC_VERCEL_URL.trim() !== ''
-        ? process.env.NEXT_PUBLIC_VERCEL_URL
-        : 'http://localhost:3000/';
+  let url: string;
+
+  if (process?.env?.NEXT_PUBLIC_SITE_URL && process.env.NEXT_PUBLIC_SITE_URL.trim() !== '') {
+    url = process.env.NEXT_PUBLIC_SITE_URL;
+  } else if (
+    process?.env?.NEXT_PUBLIC_VERCEL_URL &&
+    process.env.NEXT_PUBLIC_VERCEL_URL.trim() !== ''
+  ) {
+    url = process.env.NEXT_PUBLIC_VERCEL_URL;
+  } else {
+    url = 'http://localhost:3000/';
+  }
 
   url = url.replace(/\/+$/, '');
   url = url.includes('http') ? url : `https://${url}`;
@@ -269,18 +275,18 @@ export const slugify = (str: string, forDisplayingInput?: boolean): KebabCase<st
     .toLowerCase() // Convert to lowercase
     .trim() // Remove whitespace from both sides
     .normalize('NFD') // Normalize to decomposed form for handling accents
-    .replace(/\p{Diacritic}/gu, '') // Remove any diacritics (accents) from characters
-    .replace(/[^.\p{L}\p{N}\p{Zs}\p{Emoji}]+/gu, '-') // Replace any non-alphanumeric characters (including Unicode and except "." period) with a dash
-    .replace(/[\s_#]+/g, '-') // Replace whitespace, # and underscores with a single dash
-    .replace(/^-+/, '') // Remove dashes from start
-    .replace(/\.{2,}/g, '.') // Replace consecutive periods with a single period
-    .replace(/^\.+/, '') // Remove periods from the start
-    .replace(
+    .replaceAll(/\p{Diacritic}/gu, '') // Remove any diacritics (accents) from characters
+    .replaceAll(/[^.\p{L}\p{N}\p{Zs}\p{Emoji}]+/gu, '-') // Replace any non-alphanumeric characters (including Unicode and except "." period) with a dash
+    .replaceAll(/[\s_#]+/g, '-') // Replace whitespace, # and underscores with a single dash
+    .replaceAll(/^-+/, '') // Remove dashes from start
+    .replaceAll(/\.{2,}/g, '.') // Replace consecutive periods with a single period
+    .replaceAll(/^\.+/, '') // Remove periods from the start
+    .replaceAll(
       /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g,
       '',
     ) // Removes emojis
-    .replace(/\s+/g, ' ')
-    .replace(/-+/g, '-'); // Replace consecutive dashes with a single dash
+    .replaceAll(/\s+/g, ' ')
+    .replaceAll(/-+/g, '-'); // Replace consecutive dashes with a single dash
 
   return forDisplayingInput ? s : s.replace(/-+$/, '').replace(/\.*$/, ''); // Remove dashes and period from end
 };

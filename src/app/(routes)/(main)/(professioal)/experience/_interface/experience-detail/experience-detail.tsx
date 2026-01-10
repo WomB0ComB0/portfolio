@@ -86,8 +86,8 @@ const ExperienceDetailSkeleton = () => {
           <CardContent className="p-8 md:p-10">
             <div className="h-8 w-56 bg-muted animate-pulse rounded-md mb-6" />
             <ul className="space-y-4">
-              {[...Array(4)].map((_, i) => (
-                <li key={i} className="flex items-start gap-3">
+              {new Array(4).fill(null).map((_, i) => (
+                <li key={`item-${+i}`} className="flex items-start gap-3">
                   <div className="mt-2 h-2 w-2 rounded-full bg-muted animate-pulse shrink-0" />
                   <div className="h-5 bg-muted animate-pulse rounded w-full" />
                 </li>
@@ -100,8 +100,11 @@ const ExperienceDetailSkeleton = () => {
           <CardContent className="p-8 md:p-10">
             <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-6" />
             <div className="flex flex-wrap gap-3">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-10 w-24 bg-muted animate-pulse rounded-lg" />
+              {new Array(6).fill(null).map((_, i) => (
+                <div
+                  key={`skill-skeleton-${+i}`}
+                  className="h-10 w-24 bg-muted animate-pulse rounded-lg"
+                />
               ))}
             </div>
           </CardContent>
@@ -220,7 +223,10 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
               <Separator className="mb-6" />
               <ul className="space-y-4">
                 {experienceItem.responsibilities.map((responsibility: string, index: number) => (
-                  <li key={index} className="flex items-start gap-3 text-foreground/80">
+                  <li
+                    key={`responsibility-${+index}`}
+                    className="flex items-start gap-3 text-foreground/80"
+                  >
                     <div className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
                     <span className="leading-relaxed text-base">{responsibility}</span>
                   </li>
@@ -245,7 +251,7 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
               <div className="flex flex-wrap gap-3">
                 {experienceItem.technologies.map((tech: string, index: number) => (
                   <Badge
-                    key={index}
+                    key={`tech-${+index}`}
                     variant="secondary"
                     className="px-4 py-2.5 text-sm font-medium bg-muted/50 hover:bg-muted transition-colors duration-200 cursor-default"
                   >

@@ -30,8 +30,8 @@ import type { CacheEntry, SWROptions } from './swr-cache.types';
 import { logger } from '@/utils';
 
 class SWRCache {
-  private cache: Map<string, CacheEntry<any>> = new Map();
-  private pendingRequests: Map<string, Promise<any>> = new Map();
+  private readonly cache: Map<string, CacheEntry<any>> = new Map();
+  private readonly pendingRequests: Map<string, Promise<any>> = new Map();
 
   /**
    * Fetch data with stale-while-revalidate strategy

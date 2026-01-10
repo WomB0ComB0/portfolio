@@ -109,6 +109,7 @@ export const MagicCard = ({
 
   return (
     <div
+      role="group"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className={cn(

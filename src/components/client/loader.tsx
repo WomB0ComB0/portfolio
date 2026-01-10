@@ -42,7 +42,6 @@ export const Loader = () => {
             <svg
               className="w-full h-full"
               viewBox="0 0 100 100"
-              role="img"
               aria-labelledby="loader-ring-title"
             >
               <title id="loader-ring-title">Loading ring animation</title>
@@ -99,12 +98,7 @@ export const Loader = () => {
             animate={{ rotate: -360 }}
             transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
           >
-            <svg
-              className="w-full h-full"
-              role="img"
-              aria-labelledby="hexagon-title"
-              viewBox="0 0 100 100"
-            >
+            <svg className="w-full h-full" aria-labelledby="hexagon-title" viewBox="0 0 100 100">
               <title id="hexagon-title">Rotating hexagon decorative graphic</title>
               <defs>
                 <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">

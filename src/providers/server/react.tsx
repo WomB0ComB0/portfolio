@@ -46,7 +46,7 @@ import { createQueryClient } from '.';
  * ```
  */
 export const elysia_api = edenFetch<API>(
-  typeof window === 'undefined' ? getURL() : window.location.origin,
+  globalThis.window === undefined ? getURL() : globalThis.window.location.origin,
 );
 
 /**
@@ -69,7 +69,7 @@ export const elysia_api = edenFetch<API>(
  * ```
  */
 export const elysia_apiv1 = edenFetch<API_V1>(
-  typeof window === 'undefined' ? getURL() : window.location.origin,
+  globalThis.window === undefined ? getURL() : globalThis.window.location.origin,
 );
 
 /**
@@ -104,11 +104,12 @@ let clientQueryClientSingleton: QueryClient | undefined;
  * const queryClient = getQueryClient();
  * ```
  */
-const getQueryClient = (): QueryClient => {
-  if (typeof window === 'undefined') {
-    return createQueryClient();
+const getQueryClient = () => {
+  if (globalThis.window === undefined) {
+    return createQueryClient()();
   }
-  return (clientQueryClientSingleton ??= createQueryClient());
+  clientQueryClientSingleton ??= createQueryClient()();
+  return clientQueryClientSingleton;
 };
 
 /**

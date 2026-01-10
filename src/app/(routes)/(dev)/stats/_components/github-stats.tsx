@@ -82,8 +82,8 @@ const GitHubStatsSkeleton = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-4">
         <Skeleton className="h-6 w-40" />
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full" />
+        {new Array(3).fill(null).map((_, i) => (
+          <Skeleton key={`skeleton-${Number(i)}`} className="h-16 w-full" />
         ))}
       </div>
       <div className="space-y-4">

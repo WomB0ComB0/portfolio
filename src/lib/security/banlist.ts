@@ -363,7 +363,7 @@ export async function getBannedIps(): Promise<string[]> {
 export async function getSlowedIps(): Promise<string[]> {
   try {
     const ips = await redis.smembers(REDIS_KEYS.SLOW_IPS);
-    return ips as string[];
+    return ips;
   } catch (error) {
     log.error('Error fetching slowed IPs', { error });
     onRequestError(error);

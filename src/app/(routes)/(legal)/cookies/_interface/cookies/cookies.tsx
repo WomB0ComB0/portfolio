@@ -255,7 +255,7 @@ export const Cookies = (): JSX.Element => {
                   www.allaboutcookies.org
                   <ExternalLink className="w-3 h-3" />
                 </a>
-                .
+                {'.'}
               </p>
               <div className="space-y-3 pt-2">
                 <p className="font-semibold text-foreground">
@@ -332,9 +332,9 @@ export const Cookies = (): JSX.Element => {
                   rel="noopener noreferrer"
                   className="text-primary hover:underline font-medium"
                 >
-                  <span aria-label="email" dangerouslySetInnerHTML={{ __html: encodedEmail }} />
+                  {encodedEmail.replaceAll(/&#(\d+);/g, (_match, dec) => String.fromCodePoint(dec))}
                 </a>
-                .
+                {'.'}
               </p>
             </CardContent>
           </MagicCard>

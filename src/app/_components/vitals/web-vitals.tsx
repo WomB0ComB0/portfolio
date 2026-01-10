@@ -79,8 +79,8 @@ export const WebVitals = memo(() => {
       }
     }
 
-    if (typeof window.gtag === 'function') {
-      window.gtag('event', metric.name, {
+    if (typeof globalThis.window.gtag === 'function') {
+      globalThis.window.gtag('event', metric.name, {
         value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
         event_label: metric.id,
         non_interaction: true,

@@ -66,6 +66,10 @@ swe-worker-*.js
 
 /playwright-report
 /test-results
+/playwright/results
+/playwright/reports
+/playwright/.auth
+/playwright/screenshots
 
 bun.lock
 yarn.lock

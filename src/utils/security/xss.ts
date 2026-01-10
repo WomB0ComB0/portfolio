@@ -167,18 +167,18 @@ export const validateUserInput = (input: string, maxLength = 500, allowHtml = fa
     let previousSanitizedInput: string;
     do {
       previousSanitizedInput = sanitizedInput;
-      sanitizedInput = sanitizedInput.replace(/<[^>]*>/g, '');
+      sanitizedInput = sanitizedInput.replaceAll(/<[^>]*>/g, '');
     } while (sanitizedInput !== previousSanitizedInput);
   }
 
   // Normalize whitespace
-  sanitizedInput = sanitizedInput.replace(/\s+/g, ' ');
+  sanitizedInput = sanitizedInput.replaceAll(/\s+/g, ' ');
 
   // Prevent script injections in various forms
   sanitizedInput = sanitizedInput
-    .replace(/javascript:/gi, '')
-    .replace(/data:/gi, '')
-    .replace(/vbscript:/gi, '');
+    .replaceAll(/javascript:/gi, '')
+    .replaceAll(/data:/gi, '')
+    .replaceAll(/vbscript:/gi, '');
 
   return sanitizedInput.slice(0, maxLength);
 };
@@ -203,11 +203,11 @@ export const escapeHtml = (text: string): string => {
   }
 
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 };
 
 /**
@@ -235,9 +235,9 @@ export const sanitizeJson = <T>(jsonString: string): T | null => {
   try {
     // Remove potential executable code patterns
     const sanitized = jsonString
-      .replace(/\)\s*\{/g, ') {}') // Prevent function execution patterns
-      .replace(/\]\s*\{/g, '] {}')
-      .replace(/\}\s*\{/g, '} {}');
+      .replaceAll(/\)\s*\{/g, ') {}') // Prevent function execution patterns
+      .replaceAll(/\]\s*\{/g, '] {}')
+      .replaceAll(/\}\s*\{/g, '} {}');
 
     return JSON.parse(sanitized) as T;
   } catch (error) {

@@ -1,23 +1,8 @@
-/**
- * Copyright 2025 Mike Odnis
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+import { Slot } from '@radix-ui/react-slot';
+import { ChevronRight, MoreHorizontal } from 'lucide-react';
+import * as React from 'react';
 
 import { cn } from '@/lib/utils';
-import { ChevronRightIcon, DotsHorizontalIcon } from '@radix-ui/react-icons';
-import { Slot } from '@radix-ui/react-slot';
-import * as React from 'react';
 
 const Breadcrumb = React.forwardRef<
   HTMLElement,
@@ -32,7 +17,7 @@ const BreadcrumbList = React.forwardRef<HTMLOListElement, React.ComponentPropsWi
     <ol
       ref={ref}
       className={cn(
-        'flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5',
+        'flex flex-wrap items-center gap-1.5 wrap-break-word text-sm text-muted-foreground sm:gap-2.5',
         className,
       )}
       {...props}
@@ -70,7 +55,6 @@ const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.ComponentPropsWit
   ({ className, ...props }, ref) => (
     <span
       ref={ref}
-      role="link"
       aria-disabled="true"
       aria-current="page"
       className={cn('font-normal text-foreground', className)}
@@ -81,25 +65,19 @@ const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.ComponentPropsWit
 BreadcrumbPage.displayName = 'BreadcrumbPage';
 
 const BreadcrumbSeparator = ({ children, className, ...props }: React.ComponentProps<'li'>) => (
-  <li
-    role="presentation"
-    aria-hidden="true"
-    className={cn('[&>svg]:w-3.5 [&>svg]:h-3.5', className)}
-    {...props}
-  >
-    {children ?? <ChevronRightIcon />}
+  <li aria-hidden="true" className={cn('[&>svg]:w-3.5 [&>svg]:h-3.5', className)} {...props}>
+    {children ?? <ChevronRight />}
   </li>
 );
 BreadcrumbSeparator.displayName = 'BreadcrumbSeparator';
 
 const BreadcrumbEllipsis = ({ className, ...props }: React.ComponentProps<'span'>) => (
   <span
-    role="presentation"
     aria-hidden="true"
     className={cn('flex h-9 w-9 items-center justify-center', className)}
     {...props}
   >
-    <DotsHorizontalIcon className="h-4 w-4" />
+    <MoreHorizontal className="h-4 w-4" />
     <span className="sr-only">More</span>
   </span>
 );

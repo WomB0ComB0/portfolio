@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** biome-ignore-all lint/correctness/noUnusedVariables: <explanation> </explanation> */
 
 //#region Custom
 /**
@@ -329,18 +330,18 @@ type DeepPick<T, Paths extends string> = Prettify<{
  * @template U - The second type.
  * @typedef {boolean} IsEqual
  */
-type IsEqual<T, U> = (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U ? 1 : 2
-  ? true
-  : false;
+type IsEqual<T, U> =
+  (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U ? 1 : 2 ? true : false;
 
 /**
  * Converts a union type to a tuple type.
  * @template T - The union type.
  * @typedef {any[]} UnionToTuple
  */
-type UnionToTuple<T> = UnionToIntersection<T extends any ? () => T : never> extends () => infer A
-  ? [...UnionToTuple<Exclude<T, A>>, A]
-  : [];
+type UnionToTuple<T> =
+  UnionToIntersection<T extends any ? () => T : never> extends () => infer A
+    ? [...UnionToTuple<Exclude<T, A>>, A]
+    : [];
 
 /**
  * Decrements a numeric type by one, up to 19.
@@ -415,7 +416,8 @@ type AllArguments<T> = T extends (...args: infer Args) => any ? Args : never;
  * isNotNull(5); // true
  * isNotNull(null); // false
  */
-declare function isNotNull <Value>(value: Value): value is Exclude<Value, null>  { return value !== null;}
+declare const isNotNull: <Value>(value: Value) => value is Exclude<Value, null> = (value) =>
+  value !== null;
 
 /**
  * Returns a promise that resolves after a specified number of milliseconds.
@@ -427,7 +429,7 @@ declare function isNotNull <Value>(value: Value): value is Exclude<Value, null> 
  * @example
  * await sleep(1000); // Waits for 1 second
  */
-declare function sleep <A extends number, R extends undefined>(n: A): Promise<R> {
+declare const sleep: <A extends number, R extends undefined>(n: A) => Promise<R> = (n) => {
   return new Promise((_resolve) => setTimeout(resolve, n));
 };
 

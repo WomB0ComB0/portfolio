@@ -38,7 +38,7 @@ const InternalServerError = dynamic(
  * @example
  * ```tsx
  * <ErrorBoundary fallback={
- *   <Error
+ *   <ErrorBoundary
  *     error={new Error("Something went wrong")}
  *     reset={() => window.location.reload()}
  *   />
@@ -47,12 +47,12 @@ const InternalServerError = dynamic(
  * </ErrorBoundary>
  * ```
  */
-export default function Error({
+export default function ErrorBoundary({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}>) {
   return <InternalServerError error={error} reset={reset} />;
 }

@@ -51,7 +51,7 @@
 const toEntities = (str: string): string =>
   str
     .split('')
-    .map((c) => `&#${c.charCodeAt(0)};`)
+    .map((c) => `&#${c.codePointAt(0)};`)
     .join('');
 
 /**
@@ -91,7 +91,7 @@ const toEntities = (str: string): string =>
  * });
  */
 export const obfuscateLink = (opts: {
-  scheme: 'mailto' | 'tel' | string;
+  scheme: 'mailto' | 'tel';
   address: string;
   params?: Record<string, string>;
   text?: string;

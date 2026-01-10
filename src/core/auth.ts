@@ -191,7 +191,7 @@ export function useSignIn(
     authPromise
       .then(() => {
         toast.success('Logged in successfully! 🎉');
-        window.location.reload();
+        globalThis.location.reload();
       })
       .catch((error: FirebaseError) => {
         logger.error('Sign-in error:', error);
@@ -240,7 +240,7 @@ export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] 
       .signOut()
       .then(() => {
         toast.success('Signed out successfully! 🎉');
-        window.location.reload();
+        globalThis.location.reload();
       })
       .catch((error: FirebaseError) => {
         logger.error('Sign-out error:', error);

@@ -139,7 +139,7 @@ const ErrorLayout: React.FC<{
               <Link
                 href="."
                 role="button"
-                onClick={() => (reset ? reset() : window.location.reload())}
+                onClick={() => (reset ? reset() : globalThis.location.reload())}
                 className="flex items-center justify-center text-white"
               >
                 <RotateCw className="w-4 h-4 mr-2" />

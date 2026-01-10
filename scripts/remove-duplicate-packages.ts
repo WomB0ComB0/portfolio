@@ -105,39 +105,26 @@ const picked = {
 
 /**
  * Main execution block:
- * This block runs only when the script is executed directly (not imported as a module).
- * It attempts to update the `dependencies` in `package.json` with the `picked` filtered list
+ * Updates the `dependencies` in `package.json` with the `picked` filtered list
  * and then writes the modified `package.json` back to the file system.
+ * Uses top-level await for async operations.
  */
-if (require.main === module) {
+try {
   /**
-   * Asynchronously updates the `package.json` with the filtered dependencies and saves it.
-   * Handles potential errors during file write operations.
-   * @async
+   * Updates the 'dependencies' property of the loaded `packageJson` object
+   * with the filtered list of dependencies (`picked`).
    */
-  (async () => {
-    try {
-      /**
-       * Updates the 'dependencies' property of the loaded `packageJson` object
-       * with the filtered list of dependencies (`picked`).
-       */
-      packageJson.dependencies = picked;
-      /**
-       * Writes the modified `packageJson` object back to the `package.json` file.
-       * The `Stringify` utility is used for pretty-printing the JSON output.
-       */
-      writeFileSync(packageJsonPath, Stringify(packageJson));
-    } catch (error) {
-      /**
-       * Catches and logs any errors that occur during the file write process.
-       * Displays the error message to the console.
-       */
-      console.error(`${error instanceof Error ? error.message : error}`);
-    } finally {
-      /**
-       * Ensures the process exits cleanly regardless of success or failure.
-       */
-      process.exit(0);
-    }
-  })();
+  packageJson.dependencies = picked;
+  /**
+   * Writes the modified `packageJson` object back to the `package.json` file.
+   * The `Stringify` utility is used for pretty-printing the JSON output.
+   */
+  writeFileSync(packageJsonPath, Stringify(packageJson));
+} catch (error) {
+  /**
+   * Catches and logs any errors that occur during the file write process.
+   * Displays the error message to the console.
+   */
+  console.error(`${error instanceof Error ? error.message : error}`);
+  process.exit(1);
 }

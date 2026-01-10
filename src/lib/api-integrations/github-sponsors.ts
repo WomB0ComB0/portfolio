@@ -305,8 +305,8 @@ export async function getGitHubSponsors(
         createdAt: node.createdAt,
         isActive: node.isActive,
         type: (node.sponsorEntity.__typename === 'Organization' ? 'Organization' : 'User') as
-          | 'User'
-          | 'Organization',
+          | 'Organization'
+          | 'User',
       }));
 
       allSponsors.push(...sponsors);

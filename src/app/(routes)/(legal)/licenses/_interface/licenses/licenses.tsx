@@ -167,7 +167,7 @@ export const Licenses = (): JSX.Element => {
             >
               contact me
             </a>
-            .
+            {'.'}
           </p>
         </div>
       </section>

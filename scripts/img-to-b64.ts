@@ -71,7 +71,7 @@ const generateLazyImage = async (
   const lqip = `data:image/${format};base64,${lqipBuf.toString('base64')}`;
 
   return {
-    src: src.split('/').pop()?.split('.')[0]!,
+    src: src.split('/').pop()?.split('.')[0] ?? 'unknown',
     lqip,
   };
 };
@@ -173,15 +173,19 @@ if (require.main === module) {
   const images = (await $`find public/assets/images/${directory} -name '*.webp'`.text())
     .split('\n')
     .filter(Boolean);
+
+  if (images.length === 0) {
+    console.error('No images found in the directory');
+    process.exit(1);
+  }
+
   for (const image of images) {
     const imageToB64 = new ImageToB64([image], width, height);
-    if (images.length === 0) {
-      console.error('No images found in the directory');
-      process.exit(1);
+    try {
+      const lqip = await imageToB64.generateLazyImage(image);
+      console.log(lqip);
+    } catch (error) {
+      console.error(error);
     }
-    imageToB64
-      .generateLazyImage(image)
-      .then((lqip) => console.log(lqip))
-      .catch(console.error);
   }
 }

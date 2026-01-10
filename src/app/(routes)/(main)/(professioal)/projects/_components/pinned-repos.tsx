@@ -51,7 +51,7 @@ export const PinnedRepos = ({ pinnedRepos, isLoading = false }: PinnedReposProps
         {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
               <MagicCard
-                key={`skeleton-${index}`}
+                key={`skeleton-${+index}`}
                 className="border border-primary hover:shadow-md transition-shadow duration-300 h-full border-none flex flex-col"
               >
                 <CardHeader className="grow">

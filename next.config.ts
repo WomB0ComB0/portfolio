@@ -110,7 +110,7 @@ function computeExemptDeps(): Set<string> {
     // Detect usable subpaths: exports with "*" or multiple keys beyond "."
     let hasUsableSubpaths = false;
     if (typeof pj.exports === 'string') {
-      hasUsableSubpaths = false; // single entrypoint only
+      // single entrypoint only - hasUsableSubpaths remains false
     } else if (pj.exports && typeof pj.exports === 'object') {
       const keys = Object.keys(pj.exports);
       hasUsableSubpaths = keys.some((k) => k.includes('*')) || keys.some((k) => k !== '.');
@@ -453,15 +453,19 @@ const sentryConfig = {
   },
 
   widenClientFileUpload: true,
-  autoInstrumentServerFunctions: true,
-  autoInstrumentMiddleware: true,
-  autoInstrumentAppDirectory: true,
   tunnelRoute: '/monitoring',
-  disableLogger: true,
-  automaticVercelMonitors: true,
 
-  reactComponentAnnotation: {
-    enabled: true,
+  webpack: {
+    autoInstrumentServerFunctions: true,
+    autoInstrumentMiddleware: true,
+    autoInstrumentAppDirectory: true,
+    automaticVercelMonitors: true,
+    reactComponentAnnotation: {
+      enabled: true,
+    },
+    treeshake: {
+      removeDebugLogging: true,
+    },
   },
 
   bundleSizeOptimizations: {

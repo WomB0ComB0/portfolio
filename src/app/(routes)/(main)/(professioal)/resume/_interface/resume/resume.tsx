@@ -183,7 +183,7 @@ export const Resume = () => {
                     >
                       click here to open in a new tab
                     </a>
-                    .
+                    {'.'}
                   </p>
                   {typedResume?.pdfFile && (
                     /**

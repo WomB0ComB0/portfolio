@@ -70,6 +70,7 @@ const SpotifyArtistSchema = Schema.Struct({
 export const getAccessToken = async (): Promise<{ access_token: string }> => {
   const formData = new URLSearchParams({
     grant_type: 'refresh_token',
+    // 🚩
     refresh_token: refresh_token!,
   }).toString();
 

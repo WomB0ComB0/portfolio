@@ -26,7 +26,7 @@ import { Stringify } from '..';
 /**
  * Determines if the code is running in a server environment
  */
-const isServer = typeof window === 'undefined';
+const isServer = globalThis.window === undefined;
 
 /**
  * Enum representing different logging levels with their priority values.
@@ -56,25 +56,25 @@ export enum LogLevel {
  */
 export class Logger {
   /** The context/category name for this logger instance */
-  private context: string;
+  private readonly context: string;
 
   /** Whether this logger is running in a server environment */
-  private isServerContext: boolean;
+  private readonly isServerContext: boolean;
 
   /** The minimum log level that will be output */
   private minLevel: LogLevel;
 
   /** Whether to include ISO timestamps in log messages */
-  private includeTimestamp: boolean;
+  private readonly includeTimestamp: boolean;
 
   /** Whether to apply ANSI color codes to the output */
-  private shouldColorize: boolean;
+  private readonly shouldColorize: boolean;
 
   /** Registry of logger instances to implement the singleton pattern */
-  private static instances: Map<string, Logger> = new Map();
+  private static readonly instances: Map<string, Logger> = new Map();
 
   /** ANSI color codes for terminal output */
-  private colors: Record<ColorKey, string> = {
+  private readonly colors: Record<ColorKey, string> = {
     reset: '\x1b[0m',
     red: '\x1b[31m',
     green: '\x1b[32m',
@@ -88,7 +88,7 @@ export class Logger {
   };
 
   /** Mapping of log levels to their display colors */
-  private levelColors: Record<string, ColorKey> = {
+  private readonly levelColors: Record<string, ColorKey> = {
     error: 'red',
     warn: 'yellow',
     info: 'blue',
@@ -223,20 +223,23 @@ export class Logger {
     const logParts = [prefix, message];
 
     if (data) {
-      // Handle special cases like Error objects better
       if (data.error instanceof Error) {
-        logParts.push('\nError Details:');
-        logParts.push(`  Name: ${data.error.name}`);
-        logParts.push(`  Message: ${data.error.message}`);
+        const errorDetails = [
+          '\nError Details:',
+          `  Name: ${data.error.name}`,
+          `  Message: ${data.error.message}`,
+        ];
+
         if (data.error.stack) {
-          logParts.push(`  Stack: ${data.error.stack}`);
+          errorDetails.push(`  Stack: ${data.error.stack}`);
         }
+
+        logParts.push(...errorDetails);
 
         // Remove error from data to avoid duplication
         const { error: _error, ...restData } = data;
         if (Object.keys(restData).length > 0) {
-          logParts.push('\nAdditional Data:');
-          logParts.push(Stringify(restData));
+          logParts.push('\nAdditional Data:', Stringify(restData));
         }
       } else {
         logParts.push(`\n${Stringify(data)}`);
@@ -266,10 +269,10 @@ export class Logger {
    * Log an error message
    *
    * @param {string} message - The error message
-   * @param {Error|unknown} [error] - Optional Error object or unknown error
+   * @param {unknown} [error] - Optional Error object or unknown error
    * @param {LogData} [data] - Optional additional data
    */
-  error(message: string, error?: Error | unknown, data?: LogData): void {
+  error(message: string, error?: unknown, data?: LogData): void {
     if (!this.shouldLog(LogLevel.ERROR)) return;
     const errorData =
       error instanceof Error
@@ -418,32 +421,3 @@ export const logger = new Logger('[LOGGER]', {
   includeTimestamp: true,
   colorize: true,
 });
-
-// Usage examples:
-/*
-// Basic usage
-const logger = new Logger("UserService");
-logger.info("User logged in", { userId: "123" });
-
-// With options
-const detailedLogger = new Logger("AuthService", { 
-  minLevel: LogLevel.DEBUG,
-  includeTimestamp: true,
-  colorize: true
-});
-
-// Singleton pattern
-const logger1 = Logger.getLogger("ApiClient");
-const logger2 = Logger.getLogger("ApiClient"); // Returns the same instance
-
-// Set global log level
-Logger.setGlobalLogLevel(LogLevel.WARN); // Only show warnings and errors
-
-// Time operations
-async function fetchData() {
-  return await logger.time("API Request", async () => {
-    const response = await fetch("https://api.example.com/data");
-    return response.json();
-  });
-}
-*/

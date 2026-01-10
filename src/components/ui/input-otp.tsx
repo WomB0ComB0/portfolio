@@ -1,28 +1,13 @@
 'use client';
 
-/**
- * Copyright 2025 Mike Odnis
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-import { cn } from '@/lib/utils';
-import { MinusIcon } from '@radix-ui/react-icons';
 import { OTPInput, OTPInputContext } from 'input-otp';
+import { Minus } from 'lucide-react';
 import * as React from 'react';
 
+import { cn } from '@/lib/utils';
+
 const InputOTP = React.forwardRef<
-  React.ElementRef<typeof OTPInput>,
+  React.ComponentRef<typeof OTPInput>,
   React.ComponentPropsWithoutRef<typeof OTPInput>
 >(({ className, containerClassName, ...props }, ref) => (
   <OTPInput
@@ -38,7 +23,7 @@ const InputOTP = React.forwardRef<
 InputOTP.displayName = 'InputOTP';
 
 const InputOTPGroup = React.forwardRef<
-  React.ElementRef<'div'>,
+  React.ComponentRef<'div'>,
   React.ComponentPropsWithoutRef<'div'>
 >(({ className, ...props }, ref) => (
   <div ref={ref} className={cn('flex items-center', className)} {...props} />
@@ -46,11 +31,17 @@ const InputOTPGroup = React.forwardRef<
 InputOTPGroup.displayName = 'InputOTPGroup';
 
 const InputOTPSlot = React.forwardRef<
-  React.ElementRef<'div'>,
+  React.ComponentRef<'div'>,
   React.ComponentPropsWithoutRef<'div'> & { index: number }
 >(({ index, className, ...props }, ref) => {
   const inputOTPContext = React.useContext(OTPInputContext);
-  const { char, hasFakeCaret, isActive } = inputOTPContext.slots[index]!;
+  const slot = inputOTPContext.slots[index];
+
+  if (!slot) {
+    return null;
+  }
+
+  const { char, hasFakeCaret, isActive } = slot;
 
   return (
     <div
@@ -74,11 +65,11 @@ const InputOTPSlot = React.forwardRef<
 InputOTPSlot.displayName = 'InputOTPSlot';
 
 const InputOTPSeparator = React.forwardRef<
-  React.ElementRef<'div'>,
+  React.ComponentRef<'div'>,
   React.ComponentPropsWithoutRef<'div'>
 >(({ ...props }, ref) => (
-  <div ref={ref} role="separator" {...props}>
-    <MinusIcon />
+  <div ref={ref} aria-hidden="true" {...props}>
+    <Minus />
   </div>
 ));
 InputOTPSeparator.displayName = 'InputOTPSeparator';
