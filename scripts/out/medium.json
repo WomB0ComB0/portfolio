@@ -4,7 +4,6 @@
   "react-dom",
   "@google-analytics/data",
   "@million/lint",
-  "recharts",
   "@sanity/client",
   "prettier-plugin-tailwindcss",
   "zod",
@@ -21,6 +20,5 @@
   "ts-morph",
   "firebase-admin",
   "react-hook-form",
-  "react-day-picker",
-  "@vitest/ui"
+  "react-day-picker"
 ]

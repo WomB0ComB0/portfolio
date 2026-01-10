@@ -18,16 +18,16 @@
 
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
+import { actions } from '@/lib/navigation/actions';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Analytics } from '@vercel/analytics/react';
 import { KBarProvider } from 'kbar';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
 import { useEffect } from 'react';
-import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
-import { actions } from '@/lib/navigation';
-import { Events, Providers, ThemeProvider } from '@/providers';
+import { Providers } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
 import { createQueryClient } from '@/providers/server';
 import { logger } from '@/utils';
@@ -133,6 +133,12 @@ export const GlobalProvider: React.FC<
             </>
           }
           providers={[
+            /**
+             * @public
+             * @description Provides the KBar context for the command palette, enabling quick navigation and actions via Cmd+K.
+             * @param {Action[]} actions - The list of actions available in the command palette.
+             */
+            [KBarProvider, { actions }],
             /**
              * @public
              * @description Provides the TanStack Query client context for efficient data fetching, caching, and state management.

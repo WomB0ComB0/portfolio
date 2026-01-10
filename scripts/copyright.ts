@@ -21,7 +21,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { parseArgs } from 'node:util';
 // --- Imports ---
-import { glob } from 'glob';
+import fg from 'fast-glob';
 import kleur from 'kleur';
 import { minimatch } from 'minimatch';
 
@@ -313,17 +313,12 @@ async function findFilesUsingGlob(
 ): Promise<string[]> {
   if (verbose) console.log(kleur.gray(`  Searching with user-provided glob patterns...`));
   const ignore = [...FALLBACK_EXCLUDES, ...excludePatterns];
-  
-  // glob expects a single pattern string, so we need to handle multiple patterns
-  const allResults: string[] = [];
-  for (const pattern of patterns) {
-    const results = await glob(pattern, { nodir: true, dot: true, ignore });
-    const filesArray = Array.isArray(results) ? results : Array.from(results);
-    allResults.push(...filesArray);
-  }
-  
+
+  // fast-glob supports multiple patterns directly
+  const results = await fg(patterns, { onlyFiles: true, dot: true, ignore });
+
   // Remove duplicates
-  return [...new Set(allResults)];
+  return [...new Set(results)];
 }
 
 async function findFilesUsingGit(excludePatterns: string[], verbose: boolean): Promise<string[]> {
@@ -344,7 +339,7 @@ async function findFilesUsingGit(excludePatterns: string[], verbose: boolean): P
       kleur.gray(`  Scanning all files with ${ignore.length} default ignore patterns...`),
     );
   }
-  return await glob('**/*', { nodir: true, dot: true, ignore });
+  return await fg('**/*', { onlyFiles: true, dot: true, ignore });
 }
 
 async function findFilesToProcess(args: Args): Promise<string[]> {
