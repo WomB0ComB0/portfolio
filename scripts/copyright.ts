@@ -313,8 +313,17 @@ async function findFilesUsingGlob(
 ): Promise<string[]> {
   if (verbose) console.log(kleur.gray(`  Searching with user-provided glob patterns...`));
   const ignore = [...FALLBACK_EXCLUDES, ...excludePatterns];
-  const results = await glob(patterns, { nodir: true, dot: true, ignore });
-  return Array.isArray(results) ? results : Array.from(results);
+  
+  // glob expects a single pattern string, so we need to handle multiple patterns
+  const allResults: string[] = [];
+  for (const pattern of patterns) {
+    const results = await glob(pattern, { nodir: true, dot: true, ignore });
+    const filesArray = Array.isArray(results) ? results : Array.from(results);
+    allResults.push(...filesArray);
+  }
+  
+  // Remove duplicates
+  return [...new Set(allResults)];
 }
 
 async function findFilesUsingGit(excludePatterns: string[], verbose: boolean): Promise<string[]> {
