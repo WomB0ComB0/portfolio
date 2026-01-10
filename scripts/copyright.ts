@@ -313,7 +313,8 @@ async function findFilesUsingGlob(
 ): Promise<string[]> {
   if (verbose) console.log(kleur.gray(`  Searching with user-provided glob patterns...`));
   const ignore = [...FALLBACK_EXCLUDES, ...excludePatterns];
-  return await glob(patterns, { nodir: true, dot: true, ignore });
+  const results = await glob(patterns, { nodir: true, dot: true, ignore });
+  return Array.isArray(results) ? results : Array.from(results);
 }
 
 async function findFilesUsingGit(excludePatterns: string[], verbose: boolean): Promise<string[]> {
