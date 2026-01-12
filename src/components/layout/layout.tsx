@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
+import { usePathname } from 'next/navigation';
 import Palette from '@/components/cmd';
 import { LightRays } from '@/components/magicui/light-rays';
-import { usePathname } from 'next/navigation';
 import { Footer, MobileNavBar, NavBar } from '.';
 
 /**

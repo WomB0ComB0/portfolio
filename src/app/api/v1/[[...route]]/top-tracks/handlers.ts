@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { topTracks as getTopTracks } from '@/lib/api-integrations/spotify';
 import { Schema } from 'effect';
+import { topTracks as getTopTracks } from '@/lib/api-integrations/spotify';
 
 const SpotifyArtistSchema = Schema.Struct({
   name: Schema.String,

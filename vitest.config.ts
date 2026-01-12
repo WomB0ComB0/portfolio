@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   test: {
+    globals: true,
     environment: 'jsdom',
-    // Include tests from both src/__tests__ (legacy) and tests/ (new structure)
     include: ['src/__tests__/**/*.test.ts', 'tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     exclude: ['src/e2e/**', 'e2e/**', 'node_modules'],
     setupFiles: ['./tests/setup/vitest.setup.ts'],
@@ -32,12 +32,10 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules', 'tests/setup/**', 'e2e/**', 'src/e2e/**'],
     },
-    // Timeouts
-    testTimeout: 10000,
-    hookTimeout: 10000,
-    // UI configuration
+    testTimeout: 10_000,
+    hookTimeout: 10_000,
     ui: true,
-    open: false, // Don't auto-open browser, let user decide
+    open: false,
   },
   resolve: {
     alias: {

@@ -17,8 +17,8 @@
  */
 
 import { Schema } from 'effect';
+import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
@@ -87,7 +87,7 @@ export const BlogSection = (): JSX.Element => {
         ErrorComponent={BlogErrorMessage}
       >
         {(data: Schema.Schema.Type<typeof BlogResponseSchema>) => (
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence>
               {data.map((blog: Schema.Schema.Type<typeof BlogPostSchema>, index: number) => (
                 <motion.div
@@ -97,34 +97,47 @@ export const BlogSection = (): JSX.Element => {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <Link href={getBlogUrl(blog)} className="block h-full" target="_blank">
-                    <MagicCard className="h-full transition-shadow hover:shadow-lg">
+                  <Link href={getBlogUrl(blog)} className="block h-full group" target="_blank">
+                    <MagicCard className="h-full transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border border-border/50 hover:border-primary/30 overflow-hidden">
                       {blog.imageUrl && (
-                        <div className="relative w-full h-48 mb-4">
+                        <div className="relative w-full h-52 overflow-hidden bg-muted">
                           <Image
-                            src={blog.imageUrl}
+                            src={blog.imageUrl || '/placeholder.svg'}
                             alt={blog.title}
                             fill
-                            className="object-cover rounded-t-lg"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
                         </div>
                       )}
-                      <CardHeader>
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <Badge
+                            variant="secondary"
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5"
+                          >
                             <SourceIcon source={blog.source} />
                             {blog.source === 'devto' ? 'DEV.to' : 'Hashnode'}
                           </Badge>
                         </div>
-                        <CardTitle className="line-clamp-2">{blog.title}</CardTitle>
+                        <CardTitle className="line-clamp-2 text-xl leading-snug group-hover:text-primary transition-colors">
+                          {blog.title}
+                        </CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4 line-clamp-3">{blog.excerpt}</p>
-                        <div className="flex justify-between items-center text-sm text-muted-foreground">
-                          <div className="flex items-center">
-                            <CalendarIcon className="w-4 h-4 mr-1" />
-                            <span>{formatDate(blog.publishedAt, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <CardContent className="pt-0">
+                        <p className="text-muted-foreground mb-6 line-clamp-3 leading-relaxed">
+                          {blog.excerpt}
+                        </p>
+                        <div className="flex justify-between items-center text-sm text-muted-foreground border-t border-border/30 pt-5">
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon className="w-4 h-4 shrink-0" />
+                            <span className="font-medium">
+                              {formatDate(blog.publishedAt, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -144,21 +157,21 @@ export const BlogSection = (): JSX.Element => {
  * Skeleton loader for blog section
  */
 const BlogSkeleton = (): JSX.Element => (
-  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-    {[...Array(6)].map((_, i) => (
-      <MagicCard key={`blog-skeleton-${i}`} className="h-full">
+  <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    {new Array(6).fill(null).map((_, i) => (
+      <MagicCard key={`blog-skeleton-${Number(i)}`} className="h-full">
         <Card className="h-full">
           <CardHeader>
-            <Skeleton className="h-6 w-11/12" />
-            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-7 w-11/12 rounded-lg" />
+            <Skeleton className="h-6 w-3/4 rounded-lg" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-5/6 mb-4" />
+            <Skeleton className="h-4 w-full mb-2 rounded-lg" />
+            <Skeleton className="h-4 w-full mb-2 rounded-lg" />
+            <Skeleton className="h-4 w-5/6 mb-6 rounded-lg" />
             <div className="flex items-center text-sm text-muted-foreground">
-              <Skeleton className="w-4 h-4 mr-1 rounded-full" />
-              <Skeleton className="h-4 w-24" />
+              <Skeleton className="w-4 h-4 mr-2 rounded-full" />
+              <Skeleton className="h-4 w-28 rounded-lg" />
             </div>
           </CardContent>
         </Card>
@@ -171,9 +184,9 @@ const BlogSkeleton = (): JSX.Element => (
  * Error message component for blog section
  */
 const BlogErrorMessage = (): JSX.Element => (
-  <Card className="border-destructive/30 bg-destructive/10">
-    <CardContent className="flex items-center justify-center p-6">
-      <p className="font-semibold text-destructive">
+  <Card className="border-destructive/40 bg-destructive/5">
+    <CardContent className="flex items-center justify-center p-8">
+      <p className="font-semibold text-destructive text-center">
         Failed to load blog posts. Please try again later.
       </p>
     </CardContent>

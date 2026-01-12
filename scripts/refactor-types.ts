@@ -121,10 +121,7 @@ function getOrCreateTypesFile(project: Project, typesPath: string): SourceFile {
   return project.createSourceFile(typesPath, '', { overwrite: true });
 }
 
-function moveInterfaces(
-  interfaces: InterfaceDeclaration[],
-  typesFile: SourceFile,
-): string[] {
+function moveInterfaces(interfaces: InterfaceDeclaration[], typesFile: SourceFile): string[] {
   const movedNames: string[] = [];
 
   for (const intf of interfaces) {
@@ -138,10 +135,7 @@ function moveInterfaces(
   return movedNames;
 }
 
-function moveTypeAliases(
-  typeAliases: TypeAliasDeclaration[],
-  typesFile: SourceFile,
-): string[] {
+function moveTypeAliases(typeAliases: TypeAliasDeclaration[], typesFile: SourceFile): string[] {
   const movedNames: string[] = [];
 
   for (const ta of typeAliases) {

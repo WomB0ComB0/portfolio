@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { app } from '@/constants/app';
 import type { MetadataRoute } from 'next';
+import { app } from '@/constants/app';
 
 const Sitemap = async (): Promise<MetadataRoute.Sitemap> => {
   const routes = [
@@ -30,8 +30,6 @@ const Sitemap = async (): Promise<MetadataRoute.Sitemap> => {
     '/resume',
     '/spotify',
     '/experience',
-    '/experience',
-    '/projects',
     '/guestbook',
     '/places',
   ].map((route) => ({

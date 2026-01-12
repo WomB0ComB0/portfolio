@@ -35,7 +35,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
       <motion.main
         key={pathname}
         variants={variants}
-        initial="hidden"
+        initial={false}
         animate="enter"
         exit="exit"
         transition={{ duration: 0.2, ease: 'easeInOut' }}

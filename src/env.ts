@@ -53,6 +53,9 @@ const env = createEnv({
     // Sanity CMS (Server-side token)
     SANITY_API_TOKEN: z.string().optional(),
 
+    // YouTube Data API (Server-side, no website restrictions)
+    YOUTUBE_SERVER_API_KEY: z.string().optional(),
+
     // Better Stack
     BETTERSTACK_API_KEY: z.string().min(1, 'Better Stack API Key is required'),
     BETTERSTACK_STATUS_PAGE_ID: z.string().optional(),
@@ -119,6 +122,7 @@ const env = createEnv({
     CSRF_SECRET: process.env.CSRF_SECRET,
     ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
     SANITY_API_TOKEN: process.env.SANITY_API_TOKEN,
+    YOUTUBE_SERVER_API_KEY: process.env.YOUTUBE_SERVER_API_KEY,
     BETTERSTACK_API_KEY: process.env.BETTERSTACK_API_KEY,
     BETTERSTACK_STATUS_PAGE_ID: process.env.BETTERSTACK_STATUS_PAGE_ID,
 

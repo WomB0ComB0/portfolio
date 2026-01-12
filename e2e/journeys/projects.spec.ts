@@ -110,7 +110,9 @@ test.describe('Projects Page', () => {
         // Check if URL changed or modal appeared
         const urlChanged = page.url() !== initialUrl;
         const modalVisible =
-          (await page.locator('[role="dialog"], [data-modal], .modal, [data-state="open"]').count()) > 0;
+          (await page
+            .locator('[role="dialog"], [data-modal], .modal, [data-state="open"]')
+            .count()) > 0;
 
         // Either URL changed, modal opened, or external link (GitHub) - all acceptable
         expect(urlChanged || modalVisible || true).toBeTruthy();

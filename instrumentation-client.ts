@@ -16,7 +16,6 @@
 
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import { config } from '@/config';
 import * as Sentry from '@sentry/nextjs';
 import {
   browserTracingIntegration,
@@ -24,12 +23,9 @@ import {
   init,
   replayIntegration,
 } from '@sentry/nextjs';
+import { config } from '@/config';
 
-if (!config.sentry.dsn) {
-  console.warn(
-    'Sentry DSN is missing. Please set the NEXT_PUBLIC_SENTRY_DSN environment variable.',
-  );
-} else {
+if (config.sentry.dsn) {
   // Initialize Sentry
   init({
     dsn: config.sentry.dsn,
@@ -59,6 +55,10 @@ if (!config.sentry.dsn) {
   });
 
   console.log('Sentry initialized successfully.');
+} else {
+  console.warn(
+    'Sentry DSN is missing. Please set the NEXT_PUBLIC_SENTRY_DSN environment variable.',
+  );
 }
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

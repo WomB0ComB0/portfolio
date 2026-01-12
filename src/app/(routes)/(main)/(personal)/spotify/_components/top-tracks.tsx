@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { Schema } from 'effect';
 import { motion } from 'motion/react';
 import Image from 'next/image';
+import { MagicCard } from '@/components';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
 
 /**
  * @readonly

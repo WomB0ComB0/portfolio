@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+import { AnimatePresence, motion, useMotionValue } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -24,11 +29,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import { cn } from '@/lib/utils';
-import { AnimatePresence, motion, useMotionValue } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import type { PhotoModalProps, PhotoWithCaption } from './page.types';
 
 const swipeConfidenceThreshold = 10000;

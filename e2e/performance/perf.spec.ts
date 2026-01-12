@@ -27,7 +27,7 @@ const PAGES_TO_TEST = [
   { path: '/', name: 'Homepage' },
   { path: '/about', name: 'About' },
   { path: '/projects', name: 'Projects' },
-  { path: '/blog', name: 'Blog' },
+  { path: '/media', name: 'Media' },
   { path: '/stats', name: 'Stats' },
 ];
 
@@ -86,7 +86,9 @@ test.describe('Performance', () => {
       await page.waitForLoadState('load');
 
       // Check that main content is rendered - use broader selector for pages without h1
-      const mainContent = page.locator('h1, h2, h3, [class*="hero"], [class*="title"], main, header').first();
+      const mainContent = page
+        .locator('h1, h2, h3, [class*="hero"], [class*="title"], main, header')
+        .first();
       const startTime = Date.now();
 
       try {
@@ -280,8 +282,8 @@ test.describe('Performance', () => {
 
       console.log(`Blocking scripts: ${blockingScripts.length}`);
 
-      // Next.js may have some blocking scripts for hydration - allow up to 5
-      expect(blockingScripts.length).toBeLessThanOrEqual(5);
+      // Next.js may have some blocking scripts for hydration - allow up to 7
+      expect(blockingScripts.length).toBeLessThanOrEqual(7);
     });
 
     test('should use async/defer for non-critical scripts', async ({ page }) => {

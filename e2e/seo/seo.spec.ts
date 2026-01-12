@@ -28,7 +28,7 @@ const PAGES_TO_TEST = [
   { path: '/about', name: 'About' },
   { path: '/projects', name: 'Projects' },
   { path: '/experience', name: 'Experience' },
-  { path: '/blog', name: 'Blog' },
+  { path: '/media', name: 'Media' },
   { path: '/stats', name: 'Stats' },
   { path: '/guestbook', name: 'Guestbook' },
   { path: '/resume', name: 'Resume' },

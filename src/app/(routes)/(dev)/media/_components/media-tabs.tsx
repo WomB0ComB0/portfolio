@@ -16,16 +16,54 @@
  * limitations under the License.
  */
 
-import type { JSX } from 'react';
+import { useQueryState } from 'nuqs';
+import type { ComponentType, JSX } from 'react';
+import type { IconBaseProps } from 'react-icons';
 import { FiFileText, FiMic, FiMonitor, FiRss, FiVideo } from 'react-icons/fi';
 import { PageHeader } from '@/components/custom/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useQueryState } from 'nuqs';
 import { ArticlesSection } from './articles-section';
 import { BlogSection } from './blog-section';
 import { PresentationsSection } from './presentations-section';
 import { TalksSection } from './talks-section';
 import { VideosSection } from './videos-section';
+
+interface TabConfig {
+  value: string;
+  label: string;
+  ariaLabel: string;
+  icon: ComponentType<IconBaseProps>;
+  content: ComponentType;
+}
+
+const TABS_CONFIG: TabConfig[] = [
+  { value: 'blog', label: 'Blog', ariaLabel: 'Blog posts', icon: FiRss, content: BlogSection },
+  {
+    value: 'presentations',
+    label: 'Presentations',
+    ariaLabel: 'Presentations',
+    icon: FiMonitor,
+    content: PresentationsSection,
+  },
+  { value: 'talks', label: 'Talks', ariaLabel: 'Talks', icon: FiMic, content: TalksSection },
+  { value: 'videos', label: 'Videos', ariaLabel: 'Videos', icon: FiVideo, content: VideosSection },
+  {
+    value: 'articles',
+    label: 'Articles',
+    ariaLabel: 'Articles',
+    icon: FiFileText,
+    content: ArticlesSection,
+  },
+];
+
+const TAB_TRIGGER_CLASSES = [
+  'flex-1 min-w-[110px] sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all duration-300',
+  'text-muted-foreground',
+  'data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-xl data-[state=active]:scale-105',
+  '[&[data-state=active]>*]:text-primary-foreground',
+  'hover:bg-accent/50 hover:text-foreground hover:scale-102',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:bg-accent/80 focus-visible:text-foreground',
+].join(' ');
 
 /**
  * @function MediaTabs
@@ -46,70 +84,36 @@ export const MediaTabs = (): JSX.Element => {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 lg:py-12">
       <PageHeader
         title="Media"
         description="Explore my blog posts, presentations, talks, videos, and articles"
         icon={<FiFileText />}
       />
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
-        <TabsList className="w-full flex flex-wrap justify-center gap-1 sm:gap-2 h-auto p-2 bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
-          <TabsTrigger
-            value="blog"
-            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
-          >
-            <FiRss className="w-4 h-4" />
-            <span>Blog</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="presentations"
-            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
-          >
-            <FiMonitor className="w-4 h-4" />
-            <span>Presentations</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="talks"
-            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
-          >
-            <FiMic className="w-4 h-4" />
-            <span>Talks</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="videos"
-            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
-          >
-            <FiVideo className="w-4 h-4" />
-            <span>Videos</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="articles"
-            className="flex-1 min-w-[100px] sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted-foreground/10"
-          >
-            <FiFileText className="w-4 h-4" />
-            <span>Articles</span>
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-10">
+        <TabsList
+          className="w-full flex flex-wrap justify-center gap-2 h-auto p-3 bg-muted/30 backdrop-blur-md rounded-2xl border border-border/40 shadow-lg"
+          role="tablist"
+          aria-label="Media categories"
+        >
+          {TABS_CONFIG.map(({ value, label, ariaLabel, icon: Icon }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className={TAB_TRIGGER_CLASSES}
+              aria-label={ariaLabel}
+            >
+              <Icon className="w-4 h-4" aria-hidden="true" />
+              <span>{label}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="blog" className="mt-8">
-          <BlogSection />
-        </TabsContent>
-
-        <TabsContent value="presentations" className="mt-8">
-          <PresentationsSection />
-        </TabsContent>
-
-        <TabsContent value="talks" className="mt-8">
-          <TalksSection />
-        </TabsContent>
-
-        <TabsContent value="videos" className="mt-8">
-          <VideosSection />
-        </TabsContent>
-
-        <TabsContent value="articles" className="mt-8">
-          <ArticlesSection />
-        </TabsContent>
+        {TABS_CONFIG.map(({ value, content: Content }) => (
+          <TabsContent key={value} value={value} className="mt-10">
+            <Content />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

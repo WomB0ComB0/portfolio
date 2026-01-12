@@ -72,12 +72,12 @@ import { LightRays } from '@/components';
  * ```
  */
 
-import { Button } from '@/components/ui/button';
 import { AlertTriangle, Home, RotateCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import type React from 'react';
 import { memo } from 'react';
+import { Button } from '@/components/ui/button';
 
 const ErrorLayout: React.FC<{
   title: string;

@@ -30,9 +30,9 @@ import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate } from '@/utils/date';
 import { type PresentationSchema, PresentationsSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 
 /**
  * Helper to get the slides link based on format
@@ -97,7 +97,7 @@ export const PresentationsSection = (): JSX.Element => {
           data.length === 0 ? (
             <EmptyState message="No presentations available yet." />
           ) : (
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence>
                 {data.map(
                   (presentation: Schema.Schema.Type<typeof PresentationSchema>, index: number) => {
@@ -111,53 +111,64 @@ export const PresentationsSection = (): JSX.Element => {
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.5, delay: index * 0.1 }}
                       >
-                        <MagicCard className="h-full transition-shadow hover:shadow-lg">
-                          <CardHeader>
-                            <div className="flex items-center gap-2 mb-2">
+                        <MagicCard className="h-full transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border border-border/50 hover:border-primary/30">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-2 mb-3">
                               {presentation.slidesFormat &&
                                 presentation.slidesFormat !== 'none' && (
-                                  <Badge variant="outline" className="text-xs capitalize">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs font-semibold capitalize px-3 py-1"
+                                  >
                                     {presentation.slidesFormat === 'pdf'
                                       ? 'PDF'
                                       : presentation.slidesFormat.replace('_', ' ')}
                                   </Badge>
                                 )}
                             </div>
-                            <CardTitle className="line-clamp-2">{presentation.title}</CardTitle>
-                            <p className="text-sm text-muted-foreground">
+                            <CardTitle className="line-clamp-2 text-xl leading-snug">
+                              {presentation.title}
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground font-medium mt-2">
                               {presentation.eventName}
                             </p>
                           </CardHeader>
-                          <CardContent>
-                            <p className="text-muted-foreground mb-4 line-clamp-3">
+                          <CardContent className="pt-0">
+                            <p className="text-muted-foreground mb-6 line-clamp-3 leading-relaxed">
                               {presentation.description}
                             </p>
-                            <div className="flex flex-wrap gap-2 mb-4">
+                            <div className="flex flex-wrap gap-2 mb-6">
                               {presentation.tags?.map((tag: string) => (
-                                <Badge key={tag} variant="secondary">
+                                <Badge key={tag} variant="secondary" className="font-medium">
                                   {tag}
                                 </Badge>
                               ))}
                             </div>
-                            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                              <div className="flex items-center">
-                                <CalendarIcon className="w-4 h-4 mr-2" />
-                                <span>{formatDate(presentation.date, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <div className="flex flex-col gap-3 text-sm text-muted-foreground mb-6">
+                              <div className="flex items-center gap-2">
+                                <CalendarIcon className="w-4 h-4 shrink-0" />
+                                <span className="font-medium">
+                                  {formatDate(presentation.date, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
+                                </span>
                               </div>
                               {presentation.location && (
-                                <div className="flex items-center">
-                                  <MapPinIcon className="w-4 h-4 mr-2" />
-                                  <span>{presentation.location}</span>
+                                <div className="flex items-center gap-2">
+                                  <MapPinIcon className="w-4 h-4 shrink-0" />
+                                  <span className="font-medium">{presentation.location}</span>
                                 </div>
                               )}
                             </div>
-                            <div className="flex gap-3 mt-4 flex-wrap">
+                            <div className="flex gap-4 flex-wrap border-t border-border/30 pt-5">
                               {slidesLink && (
                                 <a
                                   href={slidesLink.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-1 text-sm text-primary hover:underline"
+                                  className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 hover:underline underline-offset-4 transition-all"
                                 >
                                   {slidesLink.icon === 'pdf' ? (
                                     <FileTextIcon className="w-4 h-4" />
@@ -172,7 +183,7 @@ export const PresentationsSection = (): JSX.Element => {
                                   href={presentation.videoUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-1 text-sm text-primary hover:underline"
+                                  className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 hover:underline underline-offset-4 transition-all"
                                 >
                                   <PlayCircleIcon className="w-4 h-4" />
                                   Watch Video
@@ -183,7 +194,7 @@ export const PresentationsSection = (): JSX.Element => {
                                   href={presentation.eventUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary hover:underline"
+                                  className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary hover:underline underline-offset-4 transition-all"
                                 >
                                   <ExternalLinkIcon className="w-4 h-4" />
                                   Event Page
@@ -209,24 +220,24 @@ export const PresentationsSection = (): JSX.Element => {
  * Skeleton loader for presentations section
  */
 const PresentationsSkeleton = (): JSX.Element => (
-  <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-    {[...Array(3)].map((_, i) => (
-      <MagicCard key={`presentation-skeleton-${i}`} className="h-full">
+  <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    {new Array(3).fill(null).map((_, i) => (
+      <MagicCard key={`presentation-skeleton-${Number(i)}`} className="h-full">
         <Card className="h-full">
           <CardHeader>
-            <Skeleton className="h-5 w-16 mb-2" />
-            <Skeleton className="h-6 w-11/12" />
-            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-6 w-20 mb-3 rounded-lg" />
+            <Skeleton className="h-7 w-11/12 rounded-lg" />
+            <Skeleton className="h-5 w-1/2 mt-2 rounded-lg" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-5/6 mb-4" />
-            <div className="flex gap-2 mb-4">
-              <Skeleton className="h-6 w-16 rounded-full" />
-              <Skeleton className="h-6 w-16 rounded-full" />
+            <Skeleton className="h-4 w-full mb-2 rounded-lg" />
+            <Skeleton className="h-4 w-full mb-2 rounded-lg" />
+            <Skeleton className="h-4 w-5/6 mb-6 rounded-lg" />
+            <div className="flex gap-2 mb-6">
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
             </div>
-            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-5 w-36 rounded-lg" />
           </CardContent>
         </Card>
       </MagicCard>
@@ -238,9 +249,9 @@ const PresentationsSkeleton = (): JSX.Element => (
  * Error message component for presentations section
  */
 const PresentationsErrorMessage = (): JSX.Element => (
-  <Card className="border-destructive/30 bg-destructive/10">
-    <CardContent className="flex items-center justify-center p-6">
-      <p className="font-semibold text-destructive">
+  <Card className="border-destructive/40 bg-destructive/5">
+    <CardContent className="flex items-center justify-center p-8">
+      <p className="font-semibold text-destructive text-center">
         Failed to load presentations. Please try again later.
       </p>
     </CardContent>
@@ -252,8 +263,8 @@ const PresentationsErrorMessage = (): JSX.Element => (
  */
 const EmptyState = ({ message }: { message: string }): JSX.Element => (
   <Card className="border-muted">
-    <CardContent className="flex items-center justify-center p-12">
-      <p className="text-muted-foreground">{message}</p>
+    <CardContent className="flex items-center justify-center p-16">
+      <p className="text-muted-foreground text-center text-lg">{message}</p>
     </CardContent>
   </Card>
 );

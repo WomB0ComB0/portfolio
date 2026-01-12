@@ -24,9 +24,9 @@ import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate } from '@/utils/date';
 import { type ArticleSchema, ArticlesSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 
 /**
  * @function ArticlesSection
@@ -91,7 +91,13 @@ export const ArticlesSection = (): JSX.Element => {
                           <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                             <div className="flex items-center">
                               <CalendarIcon className="w-4 h-4 mr-2" />
-                              <span>{formatDate(article.publishedDate, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              <span>
+                                {formatDate(article.publishedDate, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
                             </div>
                             {article.coAuthors && article.coAuthors.length > 0 && (
                               <div className="flex items-center">
@@ -121,8 +127,8 @@ export const ArticlesSection = (): JSX.Element => {
  */
 const ArticlesSkeleton = (): JSX.Element => (
   <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-    {[...Array(3)].map((_, i) => (
-      <MagicCard key={`article-skeleton-${i}`} className="h-full">
+    {new Array(3).fill(null).map((_, i) => (
+      <MagicCard key={`article-skeleton-${Number(i)}`} className="h-full">
         <Card className="h-full">
           <CardHeader>
             <Skeleton className="h-6 w-11/12" />

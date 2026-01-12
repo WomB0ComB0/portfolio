@@ -50,7 +50,14 @@ interface PresentationData {
   eventName: string;
   eventUrl?: string;
   date: string;
-  slidesFormat: 'pdf' | 'google_slides' | 'speakerdeck' | 'slideshare' | 'canva' | 'other_url' | 'none';
+  slidesFormat:
+    | 'pdf'
+    | 'google_slides'
+    | 'speakerdeck'
+    | 'slideshare'
+    | 'canva'
+    | 'other_url'
+    | 'none';
   slidesUrl?: string;
   videoUrl?: string;
   location?: string;
@@ -107,7 +114,8 @@ const presentations: PresentationData[] = [
   {
     _type: 'presentation',
     title: 'Building Scalable Web Applications with Next.js',
-    description: 'An in-depth look at best practices for building scalable, performant web applications using Next.js App Router, server components, and modern React patterns.',
+    description:
+      'An in-depth look at best practices for building scalable, performant web applications using Next.js App Router, server components, and modern React patterns.',
     eventName: 'React NYC Meetup',
     eventUrl: 'https://www.meetup.com/ReactNYC/',
     date: '2025-03-15T18:00:00Z',
@@ -128,7 +136,8 @@ const talks: TalkData[] = [
   {
     _type: 'talk',
     title: 'The Future of AI in Web Development',
-    description: 'Exploring how artificial intelligence is transforming the way we build and deploy web applications.',
+    description:
+      'Exploring how artificial intelligence is transforming the way we build and deploy web applications.',
     venue: 'AI Summit 2025',
     date: '2025-04-05T10:00:00Z',
     videoFormat: 'youtube',
@@ -148,7 +157,8 @@ const articles: ArticleData[] = [
   {
     _type: 'article',
     title: 'The Complete Guide to Modern State Management in React',
-    excerpt: 'An exploration of state management solutions in 2025, comparing Redux Toolkit, Zustand, Jotai, and the built-in React Context API.',
+    excerpt:
+      'An exploration of state management solutions in 2025, comparing Redux Toolkit, Zustand, Jotai, and the built-in React Context API.',
     publication: 'Smashing Magazine',
     publicationUrl: 'https://www.smashingmagazine.com/article/example',
     publishedDate: '2025-03-20T00:00:00Z',
@@ -266,7 +276,9 @@ if (!process.env.SANITY_API_TOKEN) {
 
 const args = process.argv.slice(2);
 const shouldClear = args.includes('--clear');
-const importType = args.find(arg => ['presentations', 'talks', 'articles', 'videos', 'all'].includes(arg)) || 'all';
+const importType =
+  args.find((arg) => ['presentations', 'talks', 'articles', 'videos', 'all'].includes(arg)) ||
+  'all';
 
 console.log(`📋 Import type: ${importType}`);
 console.log(`🗑️  Clear existing: ${shouldClear}\n`);

@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
 
 interface DraggableGalleryProps {
   images: Array<{ url: string; alt: string }>;
@@ -88,17 +88,19 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 10 }}
           transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-          className="relative max-w-6xl max-h-[85vh] z-10"
+          className="relative z-10 w-[95vw] h-[90vh] flex items-center justify-center"
           onClick={(e) => e.stopPropagation()}
         >
-          <Image
-            src={images[selectedIndex]?.url || '/assets/svgs/logo.svg'}
-            alt={images[selectedIndex]?.alt || 'Expanded Image'}
-            width={1200}
-            height={800}
-            className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-2xl shadow-2xl ring-2 ring-white/20"
-            priority
-          />
+          <div className="relative w-full h-full rounded-2xl shadow-2xl ring-2 ring-white/20 overflow-hidden bg-black/80">
+            <Image
+              src={images[selectedIndex]?.url || '/assets/svgs/logo.svg'}
+              alt={images[selectedIndex]?.alt || 'Expanded Image'}
+              fill
+              className="object-contain p-2"
+              priority
+              sizes="95vw"
+            />
+          </div>
 
           {images[selectedIndex]?.alt && (
             <motion.div
@@ -158,7 +160,7 @@ export const DraggableGallery = ({ images, className }: DraggableGalleryProps) =
           {images.map((image, index) => (
             <motion.div
               key={`image-${+index}`}
-              className="relative shrink-0 w-80 h-56 rounded-xl overflow-hidden bg-muted border border-border group cursor-pointer"
+              className="relative shrink-0 w-80 h-56 md:w-96 md:h-64 lg:w-[480px] lg:h-80 xl:w-[560px] xl:h-96 rounded-xl overflow-hidden bg-muted border border-border group cursor-pointer"
               onClick={() => {
                 if (!hasDragged) {
                   setSelectedIndex(index);

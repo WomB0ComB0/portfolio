@@ -19,7 +19,7 @@
  * @description Global setup for all Vitest tests. Runs once before all tests.
  */
 
-import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom';
 
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';

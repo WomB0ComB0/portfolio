@@ -16,10 +16,10 @@ import type { BanMetadata } from './banlist.types';
  * limitations under the License.
  */
 
+import type { NextApiRequest } from 'next';
 import { redis } from '@/classes/redis';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
-import type { NextApiRequest } from 'next';
 import { getClientIP } from './get-ip';
 
 const log = Logger.getLogger('Banlist');

@@ -16,8 +16,8 @@ import type { ExtractAsyncArgs, Failure, Result, Success } from './helpers.types
  * limitations under the License.
  */
 
-import { logger } from '@/utils';
 import type { KebabCase } from 'type-fest';
+import { logger } from '@/utils';
 
 /**
  * Converts any object into a well-formatted JSON string with a 2-space indent.

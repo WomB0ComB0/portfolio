@@ -113,7 +113,9 @@ test.describe('Experience Page', () => {
         // Should open modal or navigate - check for any response
         const urlChanged = page.url() !== initialUrl;
         const modalVisible =
-          (await page.locator('[role="dialog"], [data-modal], .modal, [data-state="open"]').count()) > 0;
+          (await page
+            .locator('[role="dialog"], [data-modal], .modal, [data-state="open"]')
+            .count()) > 0;
 
         // Either URL changed, modal opened, or content is displayed inline - all acceptable
         expect(urlChanged || modalVisible || true).toBeTruthy();

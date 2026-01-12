@@ -16,12 +16,6 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
-import Layout from '@/components/layout/layout';
-import { Badge } from '@/components/ui/badge';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { emailHref, encodedEmail } from '@/constants';
 import {
   Baby,
   Database,
@@ -34,6 +28,12 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { JSX } from 'react';
+import { MagicCard } from '@/components';
+import Layout from '@/components/layout/layout';
+import { Badge } from '@/components/ui/badge';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { emailHref, encodedEmail } from '@/constants';
 
 export const Privacy = (): JSX.Element => {
   return (

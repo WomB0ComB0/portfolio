@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { env } from '@/env';
+import { fetchYouTubeVideoMetadataBatch } from '@/lib/api-integrations/youtube';
 import {
   getCertifications,
   getExperiences,
@@ -22,9 +24,7 @@ import {
   getProjects,
   getResume,
 } from '@/lib/sanity/api';
-import { fetchYouTubeVideoMetadataBatch } from '@/lib/api-integrations/youtube';
 import { logger } from '@/utils';
-import { env } from '@/env';
 
 const CACHE_DURATION = 60 * 5 * 1000; // 5 minutes
 const caches = new Map<string, { data: any; timestamp: number }>();
@@ -312,20 +312,20 @@ export async function getTalksHandler() {
   try {
     const { getTalks } = await import('@/lib/sanity/api');
     let talks = await getTalks();
-    
+
     // Use dummy data if no real data exists
     if (talks.length === 0) {
       talks = DUMMY_TALKS;
     }
 
     // Enrich talks with dynamic duration from YouTube API if API key is available
-    const apiKey = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    logger.info('YouTube API enrichment for talks:', { 
+    const apiKey = env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    logger.info('YouTube API enrichment for talks:', {
       hasApiKey: !!apiKey,
       apiKeyLength: apiKey?.length,
-      talksCount: talks.length 
+      talksCount: talks.length,
     });
-    
+
     if (apiKey && talks.length > 0) {
       try {
         // Extract YouTube video IDs from talks
@@ -339,32 +339,32 @@ export async function getTalksHandler() {
           })
           .filter((id): id is string => id !== null);
 
-        logger.info('Extracted YouTube video IDs from talks:', { 
+        logger.info('Extracted YouTube video IDs from talks:', {
           videoIdsCount: youtubeVideoIds.length,
-          videoIds: youtubeVideoIds 
+          videoIds: youtubeVideoIds,
         });
 
         if (youtubeVideoIds.length > 0) {
           const metadataMap = await fetchYouTubeVideoMetadataBatch(youtubeVideoIds, apiKey);
-          logger.info('Fetched YouTube metadata for talks:', { 
+          logger.info('Fetched YouTube metadata for talks:', {
             metadataCount: metadataMap.size,
-            videoIds: Array.from(metadataMap.keys())
+            videoIds: Array.from(metadataMap.keys()),
           });
-          
+
           // Enrich talks with fetched duration
           const enrichedTalks = talks.map((talk) => {
             if (talk.videoFormat === 'youtube' && talk.videoUrl) {
               const url = talk.videoUrl;
               const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
               const videoId = match ? match[1] : null;
-              
+
               if (videoId) {
                 const metadata = metadataMap.get(videoId);
-                if (metadata && metadata.duration) {
+                if (metadata?.duration) {
                   logger.info('Enriching talk with YouTube duration:', {
                     talkId: talk._id,
                     videoId,
-                    duration: metadata.duration
+                    duration: metadata.duration,
                   });
                   return {
                     ...talk,
@@ -375,18 +375,18 @@ export async function getTalksHandler() {
             }
             return talk;
           });
-          
+
           logger.info('Enriched talks result:', {
             totalTalks: enrichedTalks.length,
-            enrichedCount: enrichedTalks.filter(t => t.duration).length
+            enrichedCount: enrichedTalks.filter((t) => t.duration).length,
           });
-          
+
           setCache('talks', enrichedTalks);
           return enrichedTalks;
         }
       } catch (ytError: unknown) {
-        logger.warn('Failed to fetch YouTube metadata for talks, using fallback durations:', { 
-          error: ytError instanceof Error ? ytError.message : String(ytError) 
+        logger.warn('Failed to fetch YouTube metadata for talks, using fallback durations:', {
+          error: ytError instanceof Error ? ytError.message : String(ytError),
         });
         // Fall through to return talks without enrichment
       }
@@ -526,7 +526,8 @@ const DUMMY_YOUTUBE_VIDEOS = [
 ];
 
 /**
- * Get all YouTube videos from Sanity, enriched with dynamic duration from YouTube API
+ * Get all YouTube videos from Sanity, enriched with dynamic duration from YouTube API,
+ * plus videos fetched directly from the @mikeodnis YouTube channel
  */
 export async function getYoutubeVideosHandler() {
   const cached = getCached('youtubeVideos');
@@ -536,60 +537,130 @@ export async function getYoutubeVideosHandler() {
 
   try {
     const { getYoutubeVideos } = await import('@/lib/sanity/api');
-    let videos = await getYoutubeVideos();
-    
-    // Use dummy data if no real data exists
-    if (videos.length === 0) {
-      videos = DUMMY_YOUTUBE_VIDEOS;
+    const { fetchChannelVideos } = await import('@/lib/api-integrations/youtube');
+
+    let sanityVideos = await getYoutubeVideos();
+
+    // Use dummy data if no real data exists in Sanity
+    if (sanityVideos.length === 0) {
+      sanityVideos = DUMMY_YOUTUBE_VIDEOS;
     }
 
-    // Enrich videos with dynamic duration from YouTube API if API key is available
-    const apiKey = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    
-    logger.info('YouTube API enrichment:', { 
+    const apiKey = env.YOUTUBE_SERVER_API_KEY;
+
+    logger.info('YouTube video fetching:', {
       hasApiKey: !!apiKey,
-      apiKeyLength: apiKey?.length || 0,
-      videosCount: videos.length,
-      videoIds: videos.map(v => v.videoId).join(', ')
+      sanityVideosCount: sanityVideos.length,
     });
-    
-    if (apiKey && videos.length > 0) {
-      try {
-        const videoIds = videos.map((v) => v.videoId);
-        const metadataMap = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
-        
-        logger.info('YouTube API response:', {
-          fetchedCount: metadataMap.size,
-          videoIds: Array.from(metadataMap.keys()).join(', ')
-        });
-        
-        // Enrich videos with fetched metadata (title, description, duration)
-        const enrichedVideos = videos.map((video) => {
-          const metadata = metadataMap.get(video.videoId);
-          if (metadata) {
-            logger.info(`Enriched video ${video.videoId} with duration: ${metadata.duration}, title: ${metadata.title}`);
-            return {
-              ...video,
-              title: metadata.title, // Override with dynamic title from YouTube
-              description: metadata.description, // Override with dynamic description from YouTube
-              duration: metadata.duration, // Override with dynamic duration
-            };
-          }
-          return video;
-        });
-        
-        setCache('youtubeVideos', enrichedVideos);
-        return enrichedVideos;
-      } catch (ytError: unknown) {
-        logger.warn('Failed to fetch YouTube metadata, using fallback durations:', { 
-          error: ytError instanceof Error ? ytError.message : String(ytError) 
-        });
-        // Fall through to return videos without enrichment
-      }
+
+    if (!apiKey) {
+      // No API key - return Sanity videos without enrichment
+      setCache('youtubeVideos', sanityVideos);
+      return sanityVideos;
     }
 
-    setCache('youtubeVideos', videos);
-    return videos;
+    // Fetch videos from the @mikeodnis YouTube channel
+    let channelVideos: Array<{
+      _id: string;
+      _type: 'youtubeVideo';
+      _createdAt: string;
+      _updatedAt: string;
+      _rev: string;
+      videoId: string;
+      title: string;
+      description: string;
+      publishedDate: string;
+      duration: string;
+      tags: string[];
+      order: number;
+      source: 'youtube-api';
+    }> = [];
+
+    try {
+      const rawChannelVideos = await fetchChannelVideos('@mikeodnis', apiKey, { maxResults: 50 });
+
+      logger.info('Fetched channel videos:', {
+        count: rawChannelVideos.length,
+      });
+
+      // Transform YouTube API response to match Sanity schema
+      channelVideos = rawChannelVideos.map((video, index) => ({
+        _id: `yt-channel-${video.videoId}`,
+        _type: 'youtubeVideo' as const,
+        _createdAt: video.publishedAt,
+        _updatedAt: video.publishedAt,
+        _rev: `yt-${video.videoId}`,
+        videoId: video.videoId,
+        title: video.title,
+        description: video.description,
+        publishedDate: video.publishedAt,
+        duration: video.duration,
+        tags: ['YouTube'] as string[],
+        order: index + 100, // Lower priority than Sanity videos
+        source: 'youtube-api' as const,
+      }));
+    } catch (channelError) {
+      logger.warn('Failed to fetch YouTube channel videos:', {
+        error: channelError instanceof Error ? channelError.message : String(channelError),
+      });
+      // Continue with just Sanity videos
+    }
+
+    // Enrich Sanity videos with metadata from YouTube API
+    let enrichedSanityVideos = sanityVideos;
+
+    try {
+      const videoIds = sanityVideos.map((v) => v.videoId);
+      const metadataMap = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
+
+      logger.info('YouTube API metadata response:', {
+        fetchedCount: metadataMap.size,
+      });
+
+      // Enrich videos with fetched metadata (title, description, duration)
+      enrichedSanityVideos = sanityVideos.map((video) => {
+        const metadata = metadataMap.get(video.videoId);
+        if (metadata) {
+          return {
+            ...video,
+            title: metadata.title,
+            description: metadata.description,
+            duration: metadata.duration,
+          };
+        }
+        return video;
+      });
+    } catch (ytError) {
+      logger.warn('Failed to enrich Sanity videos with YouTube metadata:', {
+        error: ytError instanceof Error ? ytError.message : String(ytError),
+      });
+    }
+
+    // Create a Set of Sanity video IDs the user has explicitly added
+    const sanityVideoIds = new Set(sanityVideos.map((v) => v.videoId));
+
+    // Filter out channel videos that already exist in Sanity (Sanity data takes precedence)
+    const uniqueChannelVideos = channelVideos.filter((video) => !sanityVideoIds.has(video.videoId));
+
+    // Merge: Sanity videos first (higher priority), then channel videos
+    const allVideos = [
+      ...enrichedSanityVideos.map((v) => ({ ...v, source: 'sanity' as const })),
+      ...uniqueChannelVideos,
+    ];
+
+    // Sort by publish date (newest first)
+    allVideos.sort(
+      (a, b) => new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
+    );
+
+    logger.info('Final video list:', {
+      sanityCount: enrichedSanityVideos.length,
+      channelCount: uniqueChannelVideos.length,
+      totalCount: allVideos.length,
+    });
+
+    setCache('youtubeVideos', allVideos);
+    return allVideos;
   } catch (error) {
     logger.error('Error in getYoutubeVideosHandler:', error);
     // Return dummy data on error for preview purposes

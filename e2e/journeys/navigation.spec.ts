@@ -27,7 +27,7 @@ const MAIN_NAV_LINKS = [
   { name: 'About', path: '/about', heading: /about/i },
   { name: 'Stats', path: '/stats', heading: /stats/i },
   { name: 'Projects', path: '/projects', heading: /projects/i },
-  { name: 'Blog', path: '/blog', heading: /blog/i },
+  { name: 'Media', path: '/media', heading: /media/i },
   { name: 'Guestbook', path: '/guestbook', heading: /guestbook/i },
   { name: 'Resume', path: '/resume', heading: /resume/i },
 ] as const;

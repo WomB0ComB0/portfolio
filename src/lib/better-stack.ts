@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { env } from '@/env';
 import { Logtail } from '@logtail/node';
+import { env } from '@/env';
 
 /**
  * Better Stack (Logtail) logger instance

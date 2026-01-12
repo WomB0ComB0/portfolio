@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+import { Code, ExternalLink, FolderGit2, Github } from 'lucide-react';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { type JSX, Suspense } from 'react';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
@@ -23,11 +28,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import { Code, ExternalLink, FolderGit2, Github } from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { type JSX, Suspense } from 'react';
 
 const ITEMS_PER_PAGE = 9;
 

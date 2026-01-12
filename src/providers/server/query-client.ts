@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { logger } from '@/utils';
 import {
   defaultShouldDehydrateQuery,
   MutationCache,
@@ -23,6 +22,7 @@ import {
 } from '@tanstack/react-query';
 import { cache } from 'react';
 import SuperJSON from 'superjson';
+import { logger } from '@/utils';
 
 /**
  * Instantiates (and memoizes per invocation context) a configured TanStack QueryClient instance

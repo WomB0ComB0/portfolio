@@ -298,8 +298,9 @@ test.describe('Stats Page', () => {
       await page.goto(`${targetUrl}/stats`);
       await page.waitForLoadState('domcontentloaded');
 
-      // Should have h1
+      // Wait for dynamically loaded h1 to appear (Stats component uses next/dynamic)
       const h1 = page.locator('h1');
+      await expect(h1).toBeVisible({ timeout: 10000 });
       const h1Count = await h1.count();
       expect(h1Count).toBe(1);
     });
