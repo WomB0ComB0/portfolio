@@ -24,10 +24,10 @@ import type { SocketAddress } from 'bun';
 import { Elysia } from 'elysia';
 import { ip } from 'elysia-ip';
 import {
-  DefaultContext,
-  rateLimit,
-  type Generator,
-  type Options as RateLimitOptions,
+    DefaultContext,
+    rateLimit,
+    type Generator,
+    type Options as RateLimitOptions,
 } from 'elysia-rate-limit';
 import { elysiaHelmet } from 'elysiajs-helmet';
 import { batchSpanProcessor, otelResource, permission } from '../constants';
@@ -100,7 +100,7 @@ export interface ElysiaApiConfig {
    * ```
    * @throws Error
    */
-  errorHandler?: (context: { code: string; error: Error | unknown; set: any }) => any;
+  errorHandler?: (context: { code: string | number; error: Error; set: any }) => any;
 }
 
 /**
@@ -161,7 +161,7 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
   enableTelemetry: true,
   errorHandler: ({ code, error, set }) => {
     logger.error('API error handler', error, { code });
-    set.status = code === 'NOT_FOUND' ? 404 : 500;
+    set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
     return Stringify({
       error: error instanceof Error ? Stringify({ error }) : Stringify({ error }),
       status: set.status,
@@ -329,9 +329,9 @@ export function createElysiaApp(config: ElysiaApiConfig) {
  */
 export const defaultErrorHandler =
   DEFAULT_CONFIG.errorHandler ??
-  (({ code, error, set }) => {
+  (({ code, error, set }: { code: string | number; error: Error; set: any }) => {
     logger.error('API error handler', error, { code });
-    set.status = code === 'NOT_FOUND' ? 404 : 500;
+    set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
     return Stringify({
       error: error instanceof Error ? Stringify({ error }) : Stringify({ error }),
       status: set.status,
