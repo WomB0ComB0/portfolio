@@ -209,7 +209,7 @@
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^11.0.0",
-    "@vitest/ui": "4.0.16",
+    "@vitest/ui": "4.0.17",
     "cross-env": "^10.1.0",
     "jsdom": "^27.4.0",
     "magic-string": "0.30.21",
