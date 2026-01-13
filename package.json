@@ -189,9 +189,9 @@
     "zod": "4.3.5"
   },
   "devDependencies": {
-    "@babel/generator": "7.28.5",
-    "@babel/parser": "7.28.5",
-    "@babel/traverse": "7.28.5",
+    "@babel/generator": "7.28.6",
+    "@babel/parser": "7.28.6",
+    "@babel/traverse": "7.28.6",
     "@graphql-codegen/cli": "6.1.1",
     "@graphql-codegen/typescript": "5.0.7",
     "@graphql-codegen/typescript-operations": "^5.0.7",
