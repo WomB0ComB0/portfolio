@@ -100,7 +100,8 @@ export interface ElysiaApiConfig {
    * ```
    * @throws Error
    */
-  errorHandler?: (context: { code: string | number; error: Error; set: any }) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  errorHandler?: (context: any) => any;
 }
 
 /**
@@ -159,7 +160,15 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
     total: true,
   },
   enableTelemetry: true,
-  errorHandler: ({ code, error, set }) => {
+  errorHandler: ({
+    code,
+    error,
+    set,
+  }: {
+    code: unknown;
+    error: unknown;
+    set: { status: number };
+  }) => {
     logger.error('API error handler', error, { code });
     set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
     return Stringify({
@@ -329,7 +338,7 @@ export function createElysiaApp(config: ElysiaApiConfig) {
  */
 export const defaultErrorHandler =
   DEFAULT_CONFIG.errorHandler ??
-  (({ code, error, set }: { code: string | number; error: Error; set: any }) => {
+  (({ code, error, set }: { code: unknown; error: unknown; set: { status: number } }) => {
     logger.error('API error handler', error, { code });
     set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
     return Stringify({
