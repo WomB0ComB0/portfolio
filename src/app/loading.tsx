@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import { Loader } from '@/components/client/loader';
+import React from 'react';
 
 const Loading = React.memo(() => {
   return <Loader />;

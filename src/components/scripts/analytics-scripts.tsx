@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import Script from 'next/script';
 import { env } from '@/env';
+import Script from 'next/script';
 
 /**
  * Injects Google Analytics 4 (GA4) script for analytics.

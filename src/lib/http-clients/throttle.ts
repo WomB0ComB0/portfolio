@@ -178,7 +178,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * Useful for throttling per-endpoint or per-user
  */
 export class KeyedThrottle<T extends (...args: any[]) => any> {
-  private throttles = new Map<string, ReturnType<typeof throttle<T>>>();
+  private readonly throttles = new Map<string, ReturnType<typeof throttle<T>>>();
   private readonly func: T;
   private readonly wait: number;
   private readonly options: ThrottleOptions;
@@ -239,7 +239,7 @@ export class KeyedThrottle<T extends (...args: any[]) => any> {
  * Useful for debouncing per-endpoint or per-user
  */
 export class KeyedDebounce<T extends (...args: any[]) => any> {
-  private debounces = new Map<string, ReturnType<typeof debounce<T>>>();
+  private readonly debounces = new Map<string, ReturnType<typeof debounce<T>>>();
   private readonly func: T;
   private readonly wait: number;
   private readonly options: DebounceOptions;

@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
+import { onRequestError } from '@/core';
 import NextError from 'next/error';
 import { useEffect } from 'react';
-import { onRequestError } from '@/core';
 
 export const GlobalError = ({ error }: { error: Error & { digest?: string } }) => {
   useEffect(() => {

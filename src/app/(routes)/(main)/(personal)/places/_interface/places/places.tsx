@@ -16,21 +16,25 @@
  * limitations under the License.
  */
 
-import { motion } from 'motion/react';
-import Link from 'next/link';
-import { useMemo } from 'react';
-import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
-import { PaginationControls, usePagination } from '@/app/_components';
 import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
+import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FilterBar } from '@/components/ui/filter-bar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDebounce } from '@/hooks';
 import type { Place } from '@/hooks/sanity/schemas';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import type { PhotoItem, PlaceItem } from '@/types/places';
+import { validateUserInput } from '@/utils';
+import { Building2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -114,15 +118,44 @@ export const Places = () => {
     return sanityPlaces.map(convertSanityPlaceToPlaceItem);
   }, [sanityPlaces]);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(places.map((place) => place.category));
+    return Array.from(categories).sort();
+  }, [places]);
+
+  const filteredPlaces = useMemo(() => {
+    return places.filter((place) => {
+      const matchesCategory = selectedCategory === 'all' || place.category === selectedCategory;
+
+      const sanitizedQuery = validateUserInput(debouncedSearchQuery, 100).toLowerCase();
+      const matchesSearch =
+        sanitizedQuery === '' ||
+        place.name.toLowerCase().includes(sanitizedQuery) ||
+        place.description.toLowerCase().includes(sanitizedQuery);
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [places, selectedCategory, debouncedSearchQuery]);
+
+  const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'all';
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+  };
+
   const {
     displayedItems: displayedPlaces,
     hasMore,
     isLoadingMore,
     loadMoreRef,
     loadMore,
-    displayCount,
     totalCount,
-  } = usePagination(places, { itemsPerPage: ITEMS_PER_PAGE });
+  } = usePagination(filteredPlaces, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -186,10 +219,32 @@ export const Places = () => {
         </div>
 
         <div className="w-full max-w-7xl mx-auto">
+          <FilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search places..."
+            filters={[
+              {
+                value: selectedCategory,
+                onChange: setSelectedCategory,
+                options: uniqueCategories,
+                placeholder: 'All Categories',
+                icon: <Building2 className="h-4 w-4" />,
+              },
+            ]}
+            onClear={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+            resultsCount={filteredPlaces.length}
+            totalCount={places.length}
+            entityName="places"
+          />
+        </div>
+
+        <div className="w-full max-w-7xl mx-auto">
           <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden shadow-xl rounded-2xl">
             <CardContent className="p-0">
               <div className="w-full h-[400px] md:h-[500px] relative">
-                <GoogleMaps placesToDisplay={places} />
+                <GoogleMaps placesToDisplay={filteredPlaces} />
               </div>
             </CardContent>
           </Card>
@@ -199,52 +254,53 @@ export const Places = () => {
           {displayedPlaces.length > 0 ? (
             <>
               <motion.div
-                key={displayCount}
                 variants={containerVariants}
-                initial="hidden"
+                initial={false}
                 animate="show"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                className="grid gap-6 justify-center grid-cols-[repeat(auto-fit,minmax(220px,280px))]"
               >
                 {displayedPlaces.map((place: PlaceItem) => (
-                  <motion.div key={place.id} variants={itemVariants} className="h-full">
-                    <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group h-full flex flex-col">
-                      <CardHeader className="pb-4 grow">
-                        <Link
-                          href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
-                          target="_blank"
-                          className="w-full block group/link"
-                          rel="noopener noreferrer"
-                        >
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <CardTitle className="text-lg text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2">
-                              <FiMapPin className="h-4 w-4 shrink-0" />
-                              <span className="line-clamp-1">{place.name}</span>
-                            </CardTitle>
-                            <FiExternalLink className="h-4 w-4 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
-                          </div>
-                          <CardDescription className="text-sm text-muted-foreground leading-snug mb-3 line-clamp-2">
-                            {place.description}
-                          </CardDescription>
-                          <div className="inline-block">
-                            <span className="text-xs font-semibold px-2.5 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">
-                              {place.category}
-                            </span>
-                          </div>
-                        </Link>
-                      </CardHeader>
-                      <CardContent className="pt-0 pb-5 px-6 mt-auto">
-                        {place.photos && place.photos.length > 0 ? (
+                  <motion.div key={place.id} variants={itemVariants} className="h-full w-full">
+                    <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group h-full">
+                      <div className="flex flex-col h-full">
+                        <CardHeader className="pb-4 grow">
                           <Link
-                            href={`/places/${place.id}`}
-                            className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-all duration-300 flex items-center justify-center gap-2.5 text-sm font-medium"
+                            href={`https://maps.google.com/?q=${place.latitude},${place.longitude}`}
+                            target="_blank"
+                            className="w-full block group/link"
+                            rel="noopener noreferrer"
                           >
-                            <FiImage className="h-4 w-4" />
-                            View Photos ({place.photos.length})
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <CardTitle className="text-lg text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2">
+                                <FiMapPin className="h-4 w-4 shrink-0" />
+                                <span className="line-clamp-1">{place.name}</span>
+                              </CardTitle>
+                              <FiExternalLink className="h-4 w-4 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                            </div>
+                            <CardDescription className="text-sm text-muted-foreground leading-snug mb-3 line-clamp-2">
+                              {place.description}
+                            </CardDescription>
+                            <div className="inline-block">
+                              <span className="text-xs font-semibold px-2.5 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">
+                                {place.category}
+                              </span>
+                            </div>
                           </Link>
-                        ) : (
-                          <div className="h-[42px]" />
-                        )}
-                      </CardContent>
+                        </CardHeader>
+                        <CardContent className="pt-0 pb-5 px-6 mt-auto">
+                          {place.photos && place.photos.length > 0 ? (
+                            <Link
+                              href={`/places/${place.id}`}
+                              className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-all duration-300 flex items-center justify-center gap-2.5 text-sm font-medium"
+                            >
+                              <FiImage className="h-4 w-4" />
+                              View Photos ({place.photos.length})
+                            </Link>
+                          ) : (
+                            <div className="h-[42px]" />
+                          )}
+                        </CardContent>
+                      </div>
                     </MagicCard>
                   </motion.div>
                 ))}

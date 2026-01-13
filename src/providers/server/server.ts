@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { edenTreaty } from '@elysiajs/eden';
 import type { API } from '@/app/api/[[...route]]/route';
 import type { API_V1 } from '@/app/api/v1';
 import { getURL } from '@/utils';
+import { edenTreaty } from '@elysiajs/eden';
 
 /**
  * Instantiates a type-safe, server-only API client for v1 endpoints using the Eden treaty pattern.

@@ -20,6 +20,7 @@ import type { PageTransitionProps } from './page-transition.types';
 
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const variants = {
   hidden: { opacity: 0, y: 20 },
@@ -29,13 +30,22 @@ const variants = {
 
 export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return <>{children}</>;
+  }
 
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.main
         key={pathname}
         variants={variants}
-        initial={false}
+        initial="hidden"
         animate="enter"
         exit="exit"
         transition={{ duration: 0.2, ease: 'easeInOut' }}

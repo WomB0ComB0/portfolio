@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+import { MagicCard } from '@/components/magicui';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 import { Schema } from 'effect';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarIcon } from 'lucide-react';
@@ -23,12 +29,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
 import { SiDevdotto, SiHashnode } from 'react-icons/si';
-import { MagicCard } from '@/components/magicui';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
-import { formatDate } from '@/utils/date';
 
 /**
  * Blog post schema for Effect validation
@@ -87,7 +87,7 @@ export const BlogSection = (): JSX.Element => {
         ErrorComponent={BlogErrorMessage}
       >
         {(data: Schema.Schema.Type<typeof BlogResponseSchema>) => (
-          <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:gap-8 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] justify-center">
             <AnimatePresence>
               {data.map((blog: Schema.Schema.Type<typeof BlogPostSchema>, index: number) => (
                 <motion.div
@@ -96,51 +96,54 @@ export const BlogSection = (): JSX.Element => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="h-full w-full"
                 >
                   <Link href={getBlogUrl(blog)} className="block h-full group" target="_blank">
                     <MagicCard className="h-full transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border border-border/50 hover:border-primary/30 overflow-hidden">
-                      {blog.imageUrl && (
-                        <div className="relative w-full h-52 overflow-hidden bg-muted">
-                          <Image
-                            src={blog.imageUrl || '/placeholder.svg'}
-                            alt={blog.title}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          />
-                        </div>
-                      )}
-                      <CardHeader className="pb-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <Badge
-                            variant="secondary"
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5"
-                          >
-                            <SourceIcon source={blog.source} />
-                            {blog.source === 'devto' ? 'DEV.to' : 'Hashnode'}
-                          </Badge>
-                        </div>
-                        <CardTitle className="line-clamp-2 text-xl leading-snug group-hover:text-primary transition-colors">
-                          {blog.title}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <p className="text-muted-foreground mb-6 line-clamp-3 leading-relaxed">
-                          {blog.excerpt}
-                        </p>
-                        <div className="flex justify-between items-center text-sm text-muted-foreground border-t border-border/30 pt-5">
-                          <div className="flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4 shrink-0" />
-                            <span className="font-medium">
-                              {formatDate(blog.publishedAt, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </span>
+                      <div className="flex flex-col h-full">
+                        {blog.imageUrl && (
+                          <div className="relative w-full h-52 overflow-hidden bg-muted shrink-0">
+                            <Image
+                              src={blog.imageUrl || '/placeholder.svg'}
+                              alt={blog.title}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            />
                           </div>
-                        </div>
-                      </CardContent>
+                        )}
+                        <CardHeader className="pb-4 grow">
+                          <div className="flex items-center justify-between mb-3">
+                            <Badge
+                              variant="secondary"
+                              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5"
+                            >
+                              <SourceIcon source={blog.source} />
+                              {blog.source === 'devto' ? 'DEV.to' : 'Hashnode'}
+                            </Badge>
+                          </div>
+                          <CardTitle className="line-clamp-2 text-xl leading-snug group-hover:text-primary transition-colors">
+                            {blog.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 mt-auto">
+                          <p className="text-muted-foreground mb-6 line-clamp-3 leading-relaxed">
+                            {blog.excerpt}
+                          </p>
+                          <div className="flex justify-between items-center text-sm text-muted-foreground border-t border-border/30 pt-5">
+                            <div className="flex items-center gap-2">
+                              <CalendarIcon className="w-4 h-4 shrink-0" />
+                              <span className="font-medium">
+                                {formatDate(blog.publishedAt, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </div>
                     </MagicCard>
                   </Link>
                 </motion.div>

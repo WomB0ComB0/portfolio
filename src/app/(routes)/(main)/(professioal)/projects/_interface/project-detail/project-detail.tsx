@@ -16,6 +16,15 @@
  * limitations under the License.
  */
 
+import Layout from '@/components/layout/layout';
+import { BorderBeam, MagicCard } from '@/components/magicui';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { useSanityProjects } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
+import { formatDatePeriod, formatMonthYear } from '@/utils';
 import {
   ArrowLeft,
   Calendar,
@@ -30,15 +39,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
-import Layout from '@/components/layout/layout';
-import { BorderBeam, MagicCard } from '@/components/magicui';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { useSanityProjects } from '@/hooks';
-import { urlFor } from '@/lib/sanity/client';
-import { formatDatePeriod, formatMonthYear } from '@/utils';
 import { DraggableGallery } from '../../_components';
 import type { ProjectDetailProps } from './project-detail.types';
 

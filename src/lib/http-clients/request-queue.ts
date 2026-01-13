@@ -23,7 +23,7 @@ import type { PendingRequest, RateLimitConfig, RequestTiming } from './request-q
  * endpoint is in flight at a time.
  */
 
-import { logger } from '@/utils';
+import { LogClass, logger } from '@/utils';
 
 /**
  * Default rate limit configuration
@@ -44,6 +44,7 @@ const DEFAULT_RATE_LIMIT: RateLimitConfig = {
  * - Exponential backoff on 429 responses
  * - Automatic cleanup of stale requests
  */
+@LogClass({ exclude: ['sleep', 'getCacheKey', 'is429Error'], timing: true })
 class RequestQueueManager {
   /** Map of endpoint URLs to pending requests */
   private pendingRequests = new Map<string, PendingRequest<any>>();

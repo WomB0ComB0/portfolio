@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-import { Code2, GitFork, Star } from 'lucide-react';
-import type { JSX } from 'react';
 import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Code2, GitFork, Star } from 'lucide-react';
+import type { JSX } from 'react';
 import type { PinnedReposProps } from './pinned-repos.types';
 /**
  * PinnedRepos React component for the <b>portfolio</b> project.

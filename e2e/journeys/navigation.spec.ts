@@ -142,18 +142,18 @@ test.describe('Navigation', () => {
     test('should have keyboard-navigable menu', async ({ page }) => {
       const targetUrl = getTargetUrl();
       await page.goto(targetUrl, { timeout: TIMEOUTS.navigation });
+      await page.waitForLoadState('domcontentloaded');
 
       // Tab through navigation
-      const navLinks = page.locator('nav a, nav button');
-      const count = await navLinks.count();
-
-      for (let i = 0; i < Math.min(count, 5); i++) {
+      for (let i = 0; i < 5; i++) {
         await page.keyboard.press('Tab');
       }
 
-      // Something should be focused
-      const focusedElement = page.locator(':focus');
-      expect(await focusedElement.count()).toBeGreaterThan(0);
+      // Check if something is focused using activeElement
+      const focusedTagName = await page.evaluate(() => document.activeElement?.tagName);
+      // Should have focused something (not body)
+      expect(focusedTagName).toBeTruthy();
+      expect(focusedTagName).not.toBe('BODY');
     });
   });
 

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import type { JSX } from 'react';
 import { GuestbookComponent } from '@/app/(routes)/(main)/(personal)/guestbook/_components';
 import Layout from '@/components/layout/layout';
+import type { JSX } from 'react';
 
 /**
  * Guestbook component.
@@ -31,7 +31,7 @@ export const Guestbook = (): JSX.Element => {
     <Layout>
       <div className="w-full min-h-screen h-full p-8 flex flex-col items-center relative">
         <section className="flex flex-col w-full justify-between mt-16 lg:mt-0 md:mt-0 prose mb-10">
-          <h1 className="dark:text-zinc-200 text-[#ba9bdd] leading-none mb-3 sr-only">Guestbook</h1>
+          <h1 className="dark:text-zinc-200 text-[#ba9bdd] leading-none mb-3">Guestbook</h1>
           <GuestbookComponent />
         </section>
       </div>

@@ -16,10 +16,6 @@
  * limitations under the License.
  */
 
-import type { Schema } from 'effect';
-import { CalendarIcon, ExternalLinkIcon, UsersIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import { type JSX, Suspense } from 'react';
 import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +23,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { type ArticleSchema, ArticlesSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 import { formatDate } from '@/utils/date';
+import type { Schema } from 'effect';
+import { CalendarIcon, ExternalLinkIcon, UsersIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { type JSX, Suspense } from 'react';
 
 /**
  * @function ArticlesSection
@@ -53,7 +53,7 @@ export const ArticlesSection = (): JSX.Element => {
           data.length === 0 ? (
             <EmptyState message="No articles available yet." />
           ) : (
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] justify-center">
               <AnimatePresence>
                 {data.map((article: Schema.Schema.Type<typeof ArticleSchema>, index: number) => (
                   <motion.div
@@ -62,6 +62,7 @@ export const ArticlesSection = (): JSX.Element => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="h-full w-full"
                   >
                     <a
                       href={article.publicationUrl}
@@ -70,45 +71,47 @@ export const ArticlesSection = (): JSX.Element => {
                       className="block h-full"
                     >
                       <MagicCard className="h-full transition-shadow hover:shadow-lg">
-                        <CardHeader>
-                          <CardTitle className="line-clamp-2">{article.title}</CardTitle>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <ExternalLinkIcon className="w-3 h-3" />
-                            {article.publication}
-                          </p>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-muted-foreground mb-4 line-clamp-3">
-                            {article.excerpt}
-                          </p>
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {article.tags?.map((tag: string) => (
-                              <Badge key={tag} variant="secondary">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                            <div className="flex items-center">
-                              <CalendarIcon className="w-4 h-4 mr-2" />
-                              <span>
-                                {formatDate(article.publishedDate, {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </span>
+                        <div className="flex flex-col h-full">
+                          <CardHeader className="grow">
+                            <CardTitle className="line-clamp-2">{article.title}</CardTitle>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <ExternalLinkIcon className="w-3 h-3" />
+                              {article.publication}
+                            </p>
+                          </CardHeader>
+                          <CardContent className="mt-auto">
+                            <p className="text-muted-foreground mb-4 line-clamp-3">
+                              {article.excerpt}
+                            </p>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {article.tags?.map((tag: string) => (
+                                <Badge key={tag} variant="secondary">
+                                  {tag}
+                                </Badge>
+                              ))}
                             </div>
-                            {article.coAuthors && article.coAuthors.length > 0 && (
+                            <div className="flex flex-col gap-2 text-sm text-muted-foreground mt-auto">
                               <div className="flex items-center">
-                                <UsersIcon className="w-4 h-4 mr-2" />
-                                <span className="line-clamp-1">
-                                  Co-authors: {article.coAuthors.join(', ')}
+                                <CalendarIcon className="w-4 h-4 mr-2" />
+                                <span>
+                                  {formatDate(article.publishedDate, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
                                 </span>
                               </div>
-                            )}
-                          </div>
-                        </CardContent>
+                              {article.coAuthors && article.coAuthors.length > 0 && (
+                                <div className="flex items-center">
+                                  <UsersIcon className="w-4 h-4 mr-2" />
+                                  <span className="line-clamp-1">
+                                    Co-authors: {article.coAuthors.join(', ')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </div>
                       </MagicCard>
                     </a>
                   </motion.div>

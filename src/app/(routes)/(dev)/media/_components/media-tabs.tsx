@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
+import { PageHeader } from '@/components/custom/page-header';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQueryState } from 'nuqs';
 import type { ComponentType, JSX } from 'react';
 import type { IconBaseProps } from 'react-icons';
 import { FiFileText, FiMic, FiMonitor, FiRss, FiVideo } from 'react-icons/fi';
-import { PageHeader } from '@/components/custom/page-header';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArticlesSection } from './articles-section';
 import { BlogSection } from './blog-section';
 import { PresentationsSection } from './presentations-section';

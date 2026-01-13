@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
+import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { cn } from '@/lib/utils';
 
 interface DraggableGalleryProps {
   images: Array<{ url: string; alt: string }>;

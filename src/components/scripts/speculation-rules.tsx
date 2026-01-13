@@ -18,9 +18,9 @@ import type { PreloadConfig } from './speculation-rules.types';
  * limitations under the License.
  */
 
+import { Stringify } from '@/utils';
 import Script from 'next/script';
 import { useCallback, useEffect, useRef } from 'react';
-import { Stringify } from '@/utils';
 
 /**
  * Manages speculative preloading and prefetching using the Speculation Rules API.

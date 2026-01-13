@@ -1,4 +1,11 @@
-import type { ColorKey, LogData, LoggerOptions } from './logger.types';
+import type {
+  ColorKey,
+  LogData,
+  LogEntry,
+  LoggerOptions,
+  LogLevelString,
+  LogTransport,
+} from './logger.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -70,6 +77,9 @@ export class Logger {
   /** Whether to apply ANSI color codes to the output */
   private readonly shouldColorize: boolean;
 
+  /** Custom log transports */
+  private static transports: LogTransport[] = [];
+
   /** Registry of logger instances to implement the singleton pattern */
   private static readonly instances: Map<string, Logger> = new Map();
 
@@ -139,6 +149,49 @@ export class Logger {
   public static setGlobalLogLevel(level: LogLevel): void {
     Logger.instances.forEach((logger) => {
       logger.minLevel = level;
+    });
+  }
+
+  /**
+   * Set the minimum log level for this logger instance
+   *
+   * @param {LogLevel} level - The minimum level to log
+   */
+  public setMinLevel(level: LogLevel): void {
+    this.minLevel = level;
+  }
+
+  /**
+   * Add a custom log transport
+   *
+   * @param {LogTransport} transport - The transport to add
+   */
+  public static addTransport(transport: LogTransport): void {
+    Logger.transports.push(transport);
+  }
+
+  /**
+   * Remove a log transport by name
+   *
+   * @param {string} name - The name of the transport to remove
+   */
+  public static removeTransport(name: string): void {
+    Logger.transports = Logger.transports.filter((t) => t.name !== name);
+  }
+
+  /**
+   * Create a child logger with additional context
+   *
+   * @param {string} childContext - Additional context to append
+   * @param {LoggerOptions} [options] - Optional override options
+   * @returns {Logger} A new child logger instance
+   */
+  public child(childContext: string, options?: LoggerOptions): Logger {
+    const combinedContext = `${this.context}:${childContext}`;
+    return new Logger(combinedContext, {
+      minLevel: options?.minLevel ?? this.minLevel,
+      includeTimestamp: options?.includeTimestamp ?? this.includeTimestamp,
+      colorize: options?.colorize ?? this.shouldColorize,
     });
   }
 
@@ -250,19 +303,64 @@ export class Logger {
   }
 
   /**
+   * Internal log method to reduce code duplication
+   *
+   * @param {LogLevelString} level - The log level
+   * @param {LogLevel} levelEnum - The log level enum value
+   * @param {string} message - The message to log
+   * @param {LogData} [data] - Optional data to include
+   * @param {Function} consoleMethod - The console method to use
+   * @param {boolean} [bold=false] - Whether to bold the level indicator
+   * @private
+   */
+  private log(
+    level: LogLevelString,
+    levelEnum: LogLevel,
+    message: string,
+    data: LogData | undefined,
+    consoleMethod: (...args: unknown[]) => void,
+    bold = false,
+  ): void {
+    if (!this.shouldLog(levelEnum)) return;
+
+    const formattedData = this.formatMessage(level, message, data);
+    const levelIndicator = this.colorize(
+      this.levelColors[level] as ColorKey,
+      this.formatLogLevel(level),
+    );
+    const output = bold
+      ? this.colorize('bold', levelIndicator) + ' ' + this.formatOutput(formattedData)
+      : levelIndicator + ' ' + this.formatOutput(formattedData);
+
+    consoleMethod(output);
+
+    // Send to transports
+    const entry: LogEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      context: this.context,
+      message,
+      data,
+      environment: this.isServerContext ? 'server' : 'client',
+    };
+
+    for (const transport of Logger.transports) {
+      try {
+        transport.write(entry);
+      } catch {
+        // Silently ignore transport errors to prevent log loops
+      }
+    }
+  }
+
+  /**
    * Log an informational message
    *
    * @param {string} message - The message to log
    * @param {LogData} [data] - Optional data to include
    */
   info(message: string, data?: LogData): void {
-    if (!this.shouldLog(LogLevel.INFO)) return;
-    const formattedData = this.formatMessage('info', message, data);
-    console.log(
-      this.colorize(this.levelColors.info as ColorKey, this.formatLogLevel('info')) +
-        ' ' +
-        this.formatOutput(formattedData),
-    );
+    this.log('info', LogLevel.INFO, message, data, console.log);
   }
 
   /**
@@ -301,13 +399,7 @@ export class Logger {
    * @param {LogData} [data] - Optional data to include
    */
   warn(message: string, data?: LogData): void {
-    if (!this.shouldLog(LogLevel.WARN)) return;
-    const formattedData = this.formatMessage('warn', message, data);
-    console.warn(
-      this.colorize(this.levelColors.warn as ColorKey, this.formatLogLevel('warn')) +
-        ' ' +
-        this.formatOutput(formattedData),
-    );
+    this.log('warn', LogLevel.WARN, message, data, console.warn);
   }
 
   /**
@@ -317,13 +409,7 @@ export class Logger {
    * @param {LogData} [data] - Optional data to include
    */
   debug(message: string, data?: LogData): void {
-    if (!this.shouldLog(LogLevel.DEBUG)) return;
-    const formattedData = this.formatMessage('debug', message, data);
-    console.debug(
-      this.colorize(this.levelColors.debug as ColorKey, this.formatLogLevel('debug')) +
-        ' ' +
-        this.formatOutput(formattedData),
-    );
+    this.log('debug', LogLevel.DEBUG, message, data, console.debug);
   }
 
   /**
@@ -333,13 +419,7 @@ export class Logger {
    * @param {LogData} [data] - Optional data to include
    */
   trace(message: string, data?: LogData): void {
-    if (!this.shouldLog(LogLevel.TRACE)) return;
-    const formattedData = this.formatMessage('trace', message, data);
-    console.debug(
-      this.colorize(this.levelColors.trace as ColorKey, this.formatLogLevel('trace')) +
-        ' ' +
-        this.formatOutput(formattedData),
-    );
+    this.log('trace', LogLevel.TRACE, message, data, console.debug);
   }
 
   /**
@@ -349,13 +429,7 @@ export class Logger {
    * @param {LogData} [data] - Optional data to include
    */
   action(message: string, data?: LogData): void {
-    if (!this.shouldLog(LogLevel.INFO)) return;
-    const formattedData = this.formatMessage('action', message, data);
-    console.log(
-      this.colorize(this.levelColors.action as ColorKey, this.formatLogLevel('action')) +
-        ' ' +
-        this.formatOutput(formattedData),
-    );
+    this.log('action', LogLevel.INFO, message, data, console.log);
   }
 
   /**
@@ -365,13 +439,7 @@ export class Logger {
    * @param {LogData} [data] - Optional data to include
    */
   success(message: string, data?: LogData): void {
-    if (!this.shouldLog(LogLevel.INFO)) return;
-    const formattedData = this.formatMessage('success', message, data);
-    console.log(
-      this.colorize(this.levelColors.success as ColorKey, this.formatLogLevel('success')) +
-        ' ' +
-        this.formatOutput(formattedData),
-    );
+    this.log('success', LogLevel.INFO, message, data, console.log);
   }
 
   /**

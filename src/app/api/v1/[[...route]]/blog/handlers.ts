@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
 import { BaseError } from '@/classes/error';
 import { getBlogs, getDevToBlogs } from '@/lib';
 import { logger } from '@/utils';
+import { Schema } from 'effect';
 
 export const BlogSchema = Schema.Struct({
   title: Schema.String,

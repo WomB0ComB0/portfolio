@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import { usePathname } from 'next/navigation';
 import Palette from '@/components/cmd';
 import { LightRays } from '@/components/magicui/light-rays';
+import { usePathname } from 'next/navigation';
 import { Footer, MobileNavBar, NavBar } from '.';
 
 /**
@@ -56,9 +56,9 @@ export const Layout = ({
       <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden overflow-y-hidden selection:bg-primary/30">
         <Palette />
         <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
-          <div className="w-[6%] fixed left-0 h-full z-20 hidden lg:block md:block">
+          <header className="w-[6%] fixed left-0 h-full z-20 lg:block md:block max-lg:sr-only max-md:sr-only">
             <NavBar path={pathname ?? ''} />
-          </div>
+          </header>
           <section className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 md:pb-0">
             {children}
           </section>

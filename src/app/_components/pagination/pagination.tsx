@@ -74,9 +74,9 @@ interface UsePaginationReturn<T> {
  */
 export function usePagination<T>(
   items: ReadonlyArray<T> | T[] | undefined,
-  options: UsePaginationOptions = {},
+  options: UsePaginationOptions & { rootMargin?: string } = {},
 ): UsePaginationReturn<T> {
-  const { itemsPerPage = 10, loadDelay = 0, threshold = 0.1 } = options;
+  const { itemsPerPage = 10, loadDelay = 0, threshold = 0.1, rootMargin = '200px' } = options;
 
   const [displayCount, setDisplayCount] = useState(itemsPerPage);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -115,13 +115,13 @@ export function usePagination<T>(
           }
         }
       },
-      { threshold },
+      { threshold, rootMargin },
     );
 
     observer.observe(loadMoreRef.current);
 
     return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, loadMore, threshold]);
+  }, [hasMore, isLoadingMore, loadMore, threshold, rootMargin]);
 
   // Reset pagination when items array changes (e.g., after filtering)
   useEffect(() => {

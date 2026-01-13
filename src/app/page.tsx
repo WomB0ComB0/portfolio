@@ -16,6 +16,13 @@
  * limitations under the License.
  */
 
+import Layout from '@/components/layout/layout';
+import { DotPattern, MagicCard } from '@/components/magicui';
+import { Button } from '@/components/ui/button';
+import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
+import { app } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
+import { cn } from '@/lib/utils';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
@@ -34,13 +41,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { JSX } from 'react';
 import { SiSpotify } from 'react-icons/si';
-import Layout from '@/components/layout/layout';
-import { DotPattern, MagicCard } from '@/components/magicui';
-import { Button } from '@/components/ui/button';
-import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
-import { app } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
-import { cn } from '@/lib/utils';
 
 // A new, styled DashboardCard to match your design
 const DashboardCard = ({

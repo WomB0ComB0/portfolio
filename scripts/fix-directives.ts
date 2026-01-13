@@ -32,12 +32,12 @@
  *   bun scripts/fix-directives.ts --include=src/<glob>/*.{ts,tsx,js,jsx}
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import fg from 'fast-glob';
 import MagicString from 'magic-string';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 type Mode = 'auto' | 'client' | 'server';
 

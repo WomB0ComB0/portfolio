@@ -16,6 +16,7 @@ import type { Links } from './links.types';
  * limitations under the License.
  */
 
+import { config } from '@/config';
 import { FaBitbucket, FaFreeCodeCamp, FaGithubAlt, FaMicrosoft } from 'react-icons/fa';
 import {
   SiBuymeacoffee,
@@ -36,7 +37,6 @@ import {
   SiX,
 } from 'react-icons/si';
 import { SlGraph } from 'react-icons/sl';
-import { config } from '@/config';
 /**
  * @constant
  * @readonly

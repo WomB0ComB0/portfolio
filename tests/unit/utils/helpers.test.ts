@@ -28,8 +28,8 @@ import {
   map,
   railway,
   recover,
-  Stringify,
   slugify,
+  Stringify,
   success,
   tap,
 } from '../../../src/utils/formatting/helpers';

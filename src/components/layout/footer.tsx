@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
+import { StatusBadge } from '@/components/custom/status-badge';
 import Link from 'next/link';
 import { memo } from 'react';
-import { StatusBadge } from '@/components/custom/status-badge';
 
 export const Footer = memo(() => {
   const linkClasses =

@@ -15,6 +15,7 @@
  */
 
 export * from './sanity';
+export * from './use-debounce';
 export * from './use-github-sponsors';
 export * from './use-messages';
 export * from './use-mobile';

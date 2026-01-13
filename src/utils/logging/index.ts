@@ -21,3 +21,5 @@
  */
 
 export * from './logger';
+export * from './logger.decorators';
+export * from './logger.types';

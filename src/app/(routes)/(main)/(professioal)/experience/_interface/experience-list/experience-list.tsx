@@ -18,11 +18,6 @@ import { MagicCard, PageHeader } from '@/components';
  * limitations under the License.
  */
 
-import { ArrowRight, Briefcase, Calendar, MapPin } from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense } from 'react';
 import { PaginationControls, usePagination } from '@/app/_components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +26,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDatePeriod } from '@/utils';
+import { ArrowRight, Briefcase, Calendar, MapPin } from 'lucide-react';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense } from 'react';
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 10;
 
 /**
  * Skeleton loader for timeline cards
@@ -149,7 +149,6 @@ const ExperienceListContent = () => {
     isLoadingMore,
     loadMoreRef,
     loadMore,
-    displayCount,
   } = usePagination(experiences, { itemsPerPage: ITEMS_PER_PAGE });
 
   const containerVariants = {
@@ -202,9 +201,8 @@ const ExperienceListContent = () => {
           <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 lg:hidden" />
 
           <motion.div
-            key={displayCount}
             variants={containerVariants}
-            initial="hidden"
+            initial={false}
             animate="show"
             className="space-y-12 lg:space-y-16"
           >
@@ -361,10 +359,10 @@ const TimelineCard = ({
             asChild
             variant="outline"
             size="sm"
-            className="w-full bg-secondary/50 hover:bg-primary border-border/50 hover:border-primary text-secondary-foreground hover:text-primary-foreground transition-all duration-300 group/btn"
+            className="w-full bg-transparent border-border/50 hover:border-primary text-secondary-foreground hover:text-white transition-all duration-300 group/btn"
           >
             <Link href={`/experience/${item._id}`}>
-              <span className="flex items-center justify-center gap-2">
+              <span className="flex items-center justify-center gap-2 text-white">
                 View Details
                 <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform duration-300" />
               </span>

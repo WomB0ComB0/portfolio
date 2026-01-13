@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Elysia, StatusMap } from 'elysia';
 import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
+import { Elysia, StatusMap } from 'elysia';
 import {
   getArticlesHandler,
   getCertificationsHandler,

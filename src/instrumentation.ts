@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
+import { env } from '@/env';
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
 import * as Sentry from '@sentry/nextjs';
 import type { Configuration } from '@vercel/otel';
 import { registerOTel } from '@vercel/otel';
-import { env } from '@/env';
 
 /**
  * Initializes OpenTelemetry instrumentation for production environments.

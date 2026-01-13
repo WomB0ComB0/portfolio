@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { ImageResponse } from 'next/og';
 import { app } from '@/constants';
 import { constructMetadata, logger } from '@/utils';
+import { ImageResponse } from 'next/og';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 export const runtime = 'nodejs'; // explicit, since you use fs.readFile
 

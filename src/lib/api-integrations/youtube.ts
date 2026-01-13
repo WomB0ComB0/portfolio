@@ -19,9 +19,9 @@
  * @module lib/api-integrations/youtube
  */
 
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
-import { get } from '@/lib/http-clients/effect-fetcher';
 
 // ============================================================================
 // Effect Schemas for YouTube API v3 Responses
