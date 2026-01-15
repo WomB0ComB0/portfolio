@@ -37,6 +37,7 @@ import {
   FiHome,
   FiMapPin,
   FiUser,
+  FiVideo,
 } from 'react-icons/fi';
 import { SiHashnode } from 'react-icons/si';
 
@@ -96,7 +97,7 @@ function RenderResults(): JSX.Element {
             action={item}
             active={active}
             // 🚩
-            currentRootActionId={rootActionId!}
+            currentRootActionId={rootActionId}
           />
         )
       }
@@ -131,7 +132,7 @@ export const ResultItem = React.forwardRef(
     }: {
       action: ActionImpl;
       active: boolean;
-      currentRootActionId: ActionId;
+      currentRootActionId?: ActionId | null;
     },
     ref: React.Ref<HTMLDivElement>,
   ): JSX.Element => {
@@ -179,6 +180,8 @@ export const ResultItem = React.forwardRef(
           return <FiHeart size={18} />;
         case 'about':
           return <FiUser size={18} />;
+        case 'media':
+          return <FiVideo size={18} />;
         default:
           return null;
       }

@@ -20,7 +20,7 @@ import type { MagicCardProps } from './magic-card.types';
 
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
 import type React from 'react';
-import { useCallback, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 /**
@@ -82,36 +82,39 @@ export const MagicCard = ({
    * @returns {void}
    * @private
    */
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const { left, top } = e.currentTarget.getBoundingClientRect();
-      mouseX.set(e.clientX - left);
-      mouseY.set(e.clientY - top);
-    },
-    [mouseX, mouseY],
-  );
-
-  /**
-   * Handler for mouse leaving the card. Hides the gradient.
-   *
-   * @returns {void}
-   * @private
-   */
-  const handleMouseLeave = useCallback(() => {
-    mouseX.set(-gradientSize);
-    mouseY.set(-gradientSize);
-  }, [mouseX, mouseY, gradientSize]);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const { left, top } = card.getBoundingClientRect();
+      mouseX.set(e.clientX - left);
+      mouseY.set(e.clientY - top);
+    };
+
+    const handleMouseLeave = () => {
+      mouseX.set(-gradientSize);
+      mouseY.set(-gradientSize);
+    };
+
+    card.addEventListener('mousemove', handleMouseMove);
+    card.addEventListener('mouseleave', handleMouseLeave);
+
+    // Initialize/Reset
     mouseX.set(-gradientSize);
     mouseY.set(-gradientSize);
+
+    return () => {
+      card.removeEventListener('mousemove', handleMouseMove);
+      card.removeEventListener('mouseleave', handleMouseLeave);
+    };
   }, [mouseX, mouseY, gradientSize]);
 
   return (
     <div
-      role="group"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      ref={cardRef}
       className={cn(
         'group relative flex size-full overflow-hidden rounded-xl bg-primary/5 dark:bg-primary border border-primary dark:border-primary/70 text-primary dark:text-primary',
         className,
