@@ -59,12 +59,15 @@
  * // $ echo $?
  * // 1
  */
-if (
-  Array.from((await Bun.$`bun run audit`.text()).split('\n').filter(Boolean).filter(isNotNull))
-    .at(-1)?.[0]
-    ?.includes('Passed') ??
-  false
-) {
+const isNotNull = <Value>(value: Value): value is Exclude<Value, null> => {
+  return value !== null;
+};
+
+const output = await Bun.$`bun run audit`.text();
+const lines = output.split('\n').filter(Boolean).filter(isNotNull);
+const lastLine = lines.at(-1) || '';
+
+if (lastLine.includes('Passed')) {
   console.log('0');
   process.exit(0);
 } else {
