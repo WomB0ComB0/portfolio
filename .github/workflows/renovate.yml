@@ -37,7 +37,7 @@ jobs:
 
       # https://github.com/renovatebot/github-action
       - name: Renovate
-        uses: renovatebot/github-action@v44.2.3
+        uses: renovatebot/github-action@v44.2.6
         env:
           LOG_LEVEL: info
           RENOVATE_TOKEN: ${{ secrets.GH_TOKEN }}
