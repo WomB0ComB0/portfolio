@@ -40,6 +40,7 @@ const env = createEnv({
 
     // Vercel
     VERCEL_GIT_COMMIT_SHA: z.string().optional(),
+    VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
 
     // Development
     REACT_EDITOR: z.string().optional(),
@@ -118,6 +119,7 @@ const env = createEnv({
     LIVEBLOCKS_API_KEY_PROD: process.env.LIVEBLOCKS_API_KEY_PROD,
     LIVEBLOCKS_API_KEY_DEV: process.env.LIVEBLOCKS_API_KEY_DEV,
     VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
+    VERCEL_AUTOMATION_BYPASS_SECRET: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     REACT_EDITOR: process.env.REACT_EDITOR,
     CSRF_SECRET: process.env.CSRF_SECRET,
     ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,

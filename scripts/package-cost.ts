@@ -19,20 +19,21 @@
  */
 
 /**
- * @file This script analyzes the installed dependencies of a project, fetches their unpacked sizes from the npm registry,
- *       and categorizes them into high, medium, and low size tiers based on predefined thresholds.
- *       The results, organized by category, are then saved as individual JSON files in a specified output directory.
- * @author Your Name <your.email@example.com>
+ * @file This script analyzes the installed dependencies of a project, fetches their unpacked sizes from the npm registry
+ *       in parallel batches for performance, and categorizes them into high, medium, and low size tiers.
+ *       The results are saved as individual JSON files in a specified output directory.
  * @since 1.0.0
- * @version 1.0.0
- * @see {@link https://docs.npmjs.com/cli/v9/commands/npm-view|npm view documentation}
+ * @version 1.1.0
  */
 
 import { Stringify } from '@/utils';
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import type { PackageJson } from 'type-fest';
+
+const execPromise = promisify(exec);
 
 const packageJsonPath = join(process.cwd(), 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as PackageJson;
@@ -40,41 +41,18 @@ const dependencies = Object.keys(packageJson.dependencies || {});
 const devDependencies = Object.keys(packageJson.devDependencies || {});
 const allDependencies = [...dependencies, ...devDependencies];
 
-/**
- * @readonly
- * @description The absolute path to the output directory where the categorized package size JSON files will be saved.
- */
 const OUTPUT_DIR = `${process.cwd()}/scripts/out`;
 
 /**
  * Fetches the unpacked size of a given package from the npm registry.
- *
- * This function executes `npm view` to query the `dist.unpackedSize` property of a package.
- * The size is returned in bytes. If the package cannot be found, `npm view` fails, or
- * the result cannot be parsed, an error is logged to `console.error` and `null` is returned.
- *
- * @author Your Name
- * @since 1.0.0
- * @param {string} packageName - The name of the package to query (e.g., 'react', 'lodash').
- * @returns {{ name: string; size: number } | null} An object containing the package name and its unpacked size in bytes, or `null` if the size could not be retrieved.
- * @throws {Error} Although errors from `execSync` are caught and logged, the underlying `execSync` call can throw an error if the command fails to execute.
- * @example
- * // Successfully retrieves package size:
- * // getPackageSize('express'); // Returns { name: 'express', size: 220000 }
- * @example
- * // Fails to retrieve package size for a non-existent package:
- * // getPackageSize('non-existent-package-xyz'); // Returns null and logs an error to console.
- * @see {@link https://docs.npmjs.com/cli/v9/commands/npm-view|npm view documentation}
  */
-const getPackageSize = (packageName: string): { name: string; size: number } | null => {
+const getPackageSize = async (packageName: string): Promise<{ name: string; size: number } | null> => {
   try {
-    const result = execSync(`npm view ${packageName} dist.unpackedSize --json`, {
-      encoding: 'utf-8',
-    });
-    const size = JSON.parse(result) as number;
+    const { stdout } = await execPromise(`npm view ${packageName} dist.unpackedSize --json`);
+    const size = JSON.parse(stdout) as number;
     return {
       name: packageName,
-      size: size,
+      size: size || 0,
     };
   } catch (error) {
     console.error(
@@ -85,41 +63,26 @@ const getPackageSize = (packageName: string): { name: string; size: number } | n
   }
 };
 
-/**
- * A type guard function that asserts a value is not `null`.
- * This is useful for filtering arrays and narrowing down TypeScript types.
- *
- * @template Value The type of the value being checked.
- * @since 1.0.0
- * @param {Value} value - The value to check.
- * @returns {value is Exclude<Value, null>} `true` if the value is not `null`, `false` otherwise.
- * @example
- * // Using with Array.prototype.filter:
- * // const items: (string | null)[] = ['apple', null, 'banana'];
- * // const nonNullItems: string[] = items.filter(isNotNull); // nonNullItems is ['apple', 'banana']
- */
 const isNotNull = <Value>(value: Value): value is Exclude<Value, null> => {
   return value !== null;
 };
 
-const packageSizes = allDependencies
-  .map((packageName) => getPackageSize(packageName))
-  .filter(Boolean)
-  .filter(isNotNull);
+// Batch processing to avoid overwhelming the system and registry
+const BATCH_SIZE = 10;
+const results: { name: string; size: number }[] = [];
 
-const sortedPackageSizes = packageSizes.toSorted((a, b) => b.size - a.size);
+console.log(`🚀 Starting package cost analysis for ${allDependencies.length} packages...`);
 
-/**
- * @readonly
- * @description The threshold (in bytes) for categorizing packages as 'low' size. Packages up to this size are considered low. (1 MB)
- * @type {number}
- */
+for (let i = 0; i < allDependencies.length; i += BATCH_SIZE) {
+  const batch = allDependencies.slice(i, i + BATCH_SIZE);
+  console.log(`   Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allDependencies.length / BATCH_SIZE)}...`);
+  const batchResults = await Promise.all(batch.map(getPackageSize));
+  results.push(...batchResults.filter(isNotNull));
+}
+
+const sortedPackageSizes = results.toSorted((a, b) => b.size - a.size);
+
 const LOW_THRESHOLD = 1_000_000; // 1 MB
-/**
- * @readonly
- * @description The threshold (in bytes) for categorizing packages as 'medium' size. Packages between `LOW_THRESHOLD` and this size are considered medium. (10 MB)
- * @type {number}
- */
 const MEDIUM_THRESHOLD = 10_000_000; // 10 MB
 
 const categorizedPackages = {
@@ -130,58 +93,24 @@ const categorizedPackages = {
   low: sortedPackageSizes.filter((pkg) => pkg.size <= LOW_THRESHOLD),
 };
 
-// Ensure the output directory exists, creating it if necessary.
+// Ensure the output directory exists
 mkdirSync(OUTPUT_DIR, { recursive: true });
 
-/**
- * Writes the list of package names categorized as 'high' size to a JSON file.
- * The file is saved in the {@link OUTPUT_DIR} as `high.json`.
- *
- * @example
- * // To import this file in another module:
- * // import highPackages from './out/high.json' assert { type: 'json' };
- * @see {@link OUTPUT_DIR}
- */
+// Write results
 writeFileSync(
   `${OUTPUT_DIR}/high.json`,
   Stringify([...categorizedPackages.high].map((e) => e.name)),
-  {
-    flag: 'w',
-  },
+  { flag: 'w' }
 );
-
-/**
- * Writes the list of package names categorized as 'medium' size to a JSON file.
- * The file is saved in the {@link OUTPUT_DIR} as `medium.json`.
- *
- * @example
- * // To import this file in another module:
- * // import mediumPackages from './out/medium.json' assert { type: 'json' };
- * @see {@link OUTPUT_DIR}
- */
 writeFileSync(
   `${OUTPUT_DIR}/medium.json`,
   Stringify([...categorizedPackages.medium].map((e) => e.name)),
-  {
-    flag: 'w',
-  },
+  { flag: 'w' }
 );
-
-/**
- * Writes the list of package names categorized as 'low' size to a JSON file.
- * The file is saved in the {@link OUTPUT_DIR} as `low.json`.
- *
- * @example
- * // To import this file in another module:
- * // import lowPackages from './out/low.json' assert { type: 'json' };
- * @see {@link OUTPUT_DIR}
- */
 writeFileSync(
   `${OUTPUT_DIR}/low.json`,
   Stringify([...categorizedPackages.low].map((e) => e.name)),
-  {
-    flag: 'w',
-  },
+  { flag: 'w' }
 );
 
 console.log('\n📦 Package Size Summary:');
@@ -191,4 +120,4 @@ console.log(`   🟢 Low (< 1 MB): ${categorizedPackages.low.length} packages`);
 console.log(
   `\n📊 Total size: ${(sortedPackageSizes.reduce((sum, pkg) => sum + pkg.size, 0) / 1_000_000).toFixed(2)} MB`,
 );
-console.log(`\n📄 Results saved to ${OUTPUT_DIR}/package-sizes.json`);
+console.log(`\n📄 Results saved to ${OUTPUT_DIR}/`);
