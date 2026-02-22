@@ -19,7 +19,6 @@ import type { MagicCardProps } from './magic-card.types';
  */
 
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
-import type React from 'react';
 import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
