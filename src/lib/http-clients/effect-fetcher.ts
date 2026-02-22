@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { env } from '@/env';
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
 
@@ -67,7 +68,7 @@ const EMPTY = '';
  */
 const getBaseURL = (): string => {
   // Client-side: use relative URLs
-  if (typeof window !== 'undefined') {
+  if (globalThis.window !== undefined) {
     return '';
   }
 
@@ -478,7 +479,15 @@ export function fetcher<T = unknown>(
     }
 
     // Set headers AFTER body to ensure Content-Type can be overridden
-    req = HttpClientRequest.setHeaders(headers)(req);
+    const finalHeaders = { ...headers };
+
+    // If we're on the server and calling our own API, add the Vercel bypass header if available
+    const baseURL = getBaseURL();
+    if (baseURL && env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+      finalHeaders['x-vercel-protection-bypass'] = env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    }
+
+    req = HttpClientRequest.setHeaders(finalHeaders)(req);
 
     /**
      * Wraps an Effect with a timeout, converting timeout errors to FetcherError.
@@ -543,11 +552,16 @@ export function fetcher<T = unknown>(
           Effect.catchAll(() => Effect.succeed(undefined)),
         );
 
+        const responseText = yield* pipe(
+          response.text,
+          Effect.catchAll(() => Effect.succeed('Request failed')),
+        );
+
         // Enhanced error handling for 429 Rate Limit responses
         const errorMessage =
           response.status === 429
             ? `Rate limit exceeded (429). Please slow down requests to ${url}`
-            : `HTTP ${response.status}: ${response.text || 'Request failed'}`;
+            : `HTTP ${response.status}: ${responseText}`;
 
         const error = new FetcherError(errorMessage, url, response.status, errorData, attempt);
 
