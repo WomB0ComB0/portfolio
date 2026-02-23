@@ -217,7 +217,7 @@
     "prettier-plugin-organize-imports": "4.3.0",
     "prettier-plugin-packagejson": "3.0.0",
     "prettier-plugin-tailwindcss": "0.7.2",
-    "recharts": "3.6.0",
+    "recharts": "3.7.0",
     "tailwindcss": "^4.1.18",
     "typescript": "5.9.3"
   },
