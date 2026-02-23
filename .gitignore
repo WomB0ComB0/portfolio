@@ -106,3 +106,5 @@ dev.log
 # n8n automation
 n8n_data/
 .n8n/
+*.key
+*.csr
