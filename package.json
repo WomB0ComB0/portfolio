@@ -67,12 +67,11 @@
     ]
   },
   "overrides": {
-    "@opentelemetry/instrumentation": "0.212.0",
+    "@opentelemetry/instrumentation": "^0.212.0",
     "import-in-the-middle": "3.0.0",
     "require-in-the-middle": "8.0.1"
   },
   "dependencies": {
-    "@biomejs/biome": "2.4.4",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@effect/platform": "^0.94.1",
     "@elysiajs/bearer": "^1.4.2",
@@ -188,6 +187,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.4",
     "@babel/generator": "7.29.1",
     "@babel/parser": "7.29.0",
     "@babel/traverse": "7.29.0",

@@ -17,7 +17,7 @@ import type { Links } from './links.types';
  */
 
 import { config } from '@/config';
-import { FaBitbucket, FaFreeCodeCamp, FaGithubAlt, FaMicrosoft } from 'react-icons/fa';
+import { FaBitbucket, FaFreeCodeCamp, FaGithubAlt, FaLinkedin, FaMicrosoft } from 'react-icons/fa';
 import {
   SiBuymeacoffee,
   SiCodepen,
@@ -30,7 +30,6 @@ import {
   SiHashnode,
   SiInstagram,
   SiLeetcode,
-  SiLinkedin,
   SiMedium,
   SiSololearn,
   SiSpotify,
@@ -101,7 +100,7 @@ export const links: Links = [
     name: 'LinkedIn',
     url: 'https://linkedin.com/in/mikeodnis',
     value: '@mikeodnis',
-    icon: SiLinkedin,
+    icon: FaLinkedin,
   },
   {
     name: 'CodersRank',
