@@ -32,6 +32,16 @@
     },
     {
       "matchManagers": ["npm", "bun"],
+      "groupName": "logtail",
+      "matchPackageNames": ["/^@logtail\\//"]
+    },
+    {
+      "matchManagers": ["npm", "bun"],
+      "groupName": "opentelemetry-js",
+      "matchPackageNames": ["/^@opentelemetry\\//"]
+    },
+    {
+      "matchManagers": ["npm", "bun"],
       "matchDatasources": ["npm"],
       "separateMajorMinor": true
     }

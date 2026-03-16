@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Get PR details
         id: pr-details
@@ -65,7 +65,7 @@ jobs:
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.payload.pull_request?.number || context.payload.pull_request?.number
+              pull_number: context.payload.pull_request?.number || context.payload.check_suite?.pull_requests?.[0]?.number
             });
 
             return {
@@ -101,11 +101,15 @@ jobs:
         id: analyze-changes
         if: steps.check-bot.outputs.allowed == 'true'
         uses: actions/github-script@v8
+        env:
+          PR_TITLE: ${{ fromJson(steps.pr-details.outputs.result).title }}
+          PR_BODY: ${{ fromJson(steps.pr-details.outputs.result).body }}
+          BOT_TYPE: ${{ steps.check-bot.outputs.bot_type }}
         with:
           script: |
-            const title = `${{ fromJson(steps.pr-details.outputs.result).title }}`.toLowerCase();
-            const body = `${{ fromJson(steps.pr-details.outputs.result).body }}` || '';
-            const botType = `${{ steps.check-bot.outputs.bot_type }}`;
+            const title = (process.env.PR_TITLE || '').toLowerCase();
+            const body = process.env.PR_BODY || '';
+            const botType = process.env.BOT_TYPE || '';
 
             let updateType = 'unknown';
             let riskLevel = 'high';
