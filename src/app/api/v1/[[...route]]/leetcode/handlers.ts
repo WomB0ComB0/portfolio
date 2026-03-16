@@ -15,12 +15,10 @@
  */
 
 import { ensureBaseError } from '@/classes/error';
-import { get } from '@/lib/http-clients/effect-fetcher';
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
+import { Schema } from 'effect';
 
-// NOTE: This uses a popular unofficial LeetCode API.
-const LEETCODE_API_URL = 'https://leetcode-stats-api.herokuapp.com/WomB0ComB0';
+const LEETCODE_GRAPHQL_URL = 'https://leetcode.com/graphql';
+const LEETCODE_USERNAME = 'WomB0ComB0';
 
 const LeetCodeStatsSchema = Schema.Struct({
   totalSolved: Schema.Number,
@@ -36,25 +34,84 @@ export type LeetCodeStats = Schema.Schema.Type<typeof LeetCodeStatsSchema>;
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 let cache: { data: LeetCodeStats; timestamp: number } | null = null;
 
+/**
+ * Fetches LeetCode stats via the official GraphQL API.
+ */
+async function fetchFromGraphQL(): Promise<LeetCodeStats> {
+  const query = `
+    query getUserProfile($username: String!) {
+      matchedUser(username: $username) {
+        submitStatsGlobal {
+          acSubmissionNum {
+            difficulty
+            count
+          }
+        }
+        profile {
+          ranking
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(LEETCODE_GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Referer': 'https://leetcode.com',
+    },
+    body: JSON.stringify({
+      query,
+      variables: { username: LEETCODE_USERNAME },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`LeetCode GraphQL returned ${response.status}`);
+  }
+
+  const json = await response.json();
+  const user = json?.data?.matchedUser;
+
+  if (!user) {
+    throw new Error('LeetCode user not found');
+  }
+
+  const submissions: { difficulty: string; count: number }[] =
+    user.submitStatsGlobal.acSubmissionNum;
+  const getCount = (diff: string) =>
+    submissions.find((s) => s.difficulty === diff)?.count ?? 0;
+
+  const totalSolved = getCount('All');
+  const easySolved = getCount('Easy');
+  const mediumSolved = getCount('Medium');
+  const hardSolved = getCount('Hard');
+  const totalSubmissions = totalSolved > 0 ? totalSolved : 1;
+
+  return {
+    totalSolved,
+    easySolved,
+    mediumSolved,
+    hardSolved,
+    acceptanceRate: Math.round((totalSolved / totalSubmissions) * 100 * 100) / 100,
+    ranking: user.profile.ranking ?? 0,
+  };
+}
+
 export async function getLeetCodeStats(): Promise<LeetCodeStats> {
   if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
     return cache.data;
   }
 
-  const effect = pipe(
-    get(LEETCODE_API_URL, {
-      schema: LeetCodeStatsSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
-  );
-
   try {
-    const data = await Effect.runPromise(effect);
+    const data = await fetchFromGraphQL();
     cache = { data, timestamp: Date.now() };
     return data;
   } catch (error) {
+    // Return stale cache if available rather than propagating a 503
+    if (cache) {
+      return cache.data;
+    }
     throw ensureBaseError(error, 'leetcode:fetch');
   }
 }
