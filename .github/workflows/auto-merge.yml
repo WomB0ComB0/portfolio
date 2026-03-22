@@ -26,7 +26,7 @@ on:
     types: [opened, synchronize, reopened]
   pull_request_review:
     types: [submitted]
-  check_suite:
+  check_run:
     types:
       - completed
 
@@ -82,8 +82,9 @@ jobs:
 
       - name: Check if PR is from allowed bot
         id: check-bot
+        env:
+          BOT_USER: ${{ fromJson(steps.pr-details.outputs.result).user }}
         run: |
-          BOT_USER="${{ fromJson(steps.pr-details.outputs.result).user }}"
           echo "Bot user: $BOT_USER"
 
           case "$BOT_USER" in

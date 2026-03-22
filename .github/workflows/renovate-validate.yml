@@ -28,12 +28,13 @@ on:
       - "renovate.json5"
       - ".renovaterc*"
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Install renovate
-        run: npm i -g renovate
       - name: Validate config (strict)
-        run: renovate-config-validator .github/renovate.json --strict
+        run: npx --yes renovate-config-validator@latest .github/renovate.json --strict
