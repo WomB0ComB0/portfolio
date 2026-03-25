@@ -19,6 +19,7 @@
 import { config } from '@/config';
 import * as Sentry from '@sentry/nextjs';
 import {
+  browserSessionIntegration,
   browserTracingIntegration,
   consoleLoggingIntegration,
   init,
@@ -34,6 +35,7 @@ if (config.sentry.dsn) {
     integrations: [
       replayIntegration(),
       browserTracingIntegration(),
+      browserSessionIntegration({ lifecycle: 'page' }),
       consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
     ],
     // Enable logs to be sent to Sentry
