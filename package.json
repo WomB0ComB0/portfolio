@@ -14,6 +14,10 @@
   "contributors": [
     "WomB0ComB0"
   ],
+  "engines": {
+    "node": ">=20.0.0",
+    "bun": ">=1.0.0"
+  },
   "sideEffects": false,
   "type": "module",
   "scripts": {
@@ -146,7 +150,7 @@
     "embla-carousel-react": "8.6.0",
     "fast-glob": "3.3.3",
     "firebase": "^12.7.0",
-    "firebase-admin": "13.6.1",
+    "firebase-admin": "13.7.0",
     "gzip-size": "^7.0.0",
     "input-otp": "1.4.2",
     "ip-address": "^10.1.0",
