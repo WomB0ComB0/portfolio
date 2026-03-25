@@ -47,6 +47,8 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn(
         'bg-background group/calendar p-3 [--cell-size:2rem] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent',
+        'rtl:**:[.calendar-next>svg]:rotate-180',
+        'rtl:**:[.calendar-prev>svg]:rotate-180',
         className,
       )}
       captionLayout={captionLayout}
@@ -64,12 +66,12 @@ function Calendar({
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          'h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50 rtl:[&>svg]:rotate-180',
+          'calendar-prev h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50',
           defaultClassNames.button_previous,
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          'h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50 rtl:[&>svg]:rotate-180',
+          'calendar-next h-[--cell-size] w-[--cell-size] select-none p-0 aria-disabled:opacity-50',
           defaultClassNames.button_next,
         ),
         month_caption: cn(
