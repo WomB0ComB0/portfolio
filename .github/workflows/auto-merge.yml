@@ -119,7 +119,7 @@ jobs:
             let safetyFactors = [];
 
             // Extract package information dynamically
-            const packageMatch = title.match(/(?:bump|update|upgrade)\s+([^\s]+)/);
+            const packageMatch = title.match(/(?:bump|update|upgrade)\s+(?:dependency\s+)?([^\s]+)/i);
             const packageName = packageMatch ? packageMatch[1] : '';
 
             // Dynamic risk assessment based on multiple factors
