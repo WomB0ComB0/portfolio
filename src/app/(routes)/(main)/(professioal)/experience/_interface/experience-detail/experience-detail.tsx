@@ -16,15 +16,6 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components';
-import Layout from '@/components/layout/layout';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { useSanityExperiences } from '@/hooks';
-import { urlFor } from '@/lib/sanity/client';
-import { formatDatePeriod } from '@/utils';
 import {
   ArrowLeft,
   Building2,
@@ -39,6 +30,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { type JSX, Suspense } from 'react';
+import { MagicCard } from '@/components';
+import Layout from '@/components/layout/layout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { useSanityExperiences } from '@/hooks';
+import { urlFor } from '@/lib/sanity/client';
+import { formatDatePeriod } from '@/utils';
 
 /**
  * Interface representing the route parameters for the ExperienceDetail component.

@@ -449,7 +449,7 @@ const sentryConfig = {
   sourcemaps: {
     assets: ['.next/**/*.js', '.next/**/*.map'],
     ignore: ['node_modules/**/*', '.next/cache/**/*'],
-    filesToDeleteAfterUpload: '.next/**/*.map',
+    deleteSourcemapsAfterUpload: true,
   },
 
   widenClientFileUpload: true,

@@ -55,4 +55,5 @@ const InternalServerError = React.memo(
 );
 
 InternalServerError.displayName = 'InternalServerError';
+
 export { InternalServerError };
