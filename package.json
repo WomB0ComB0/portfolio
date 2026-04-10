@@ -15,7 +15,7 @@
     "WomB0ComB0"
   ],
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.13.0",
     "bun": ">=1.0.0"
   },
   "sideEffects": false,
