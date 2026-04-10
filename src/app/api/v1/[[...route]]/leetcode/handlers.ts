@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ensureBaseError } from '@/classes/error';
 import { Schema } from 'effect';
+import { ensureBaseError } from '@/classes/error';
 
 const LEETCODE_GRAPHQL_URL = 'https://leetcode.com/graphql';
 const LEETCODE_USERNAME = 'WomB0ComB0';
@@ -58,7 +58,7 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Referer': 'https://leetcode.com',
+      Referer: 'https://leetcode.com',
     },
     body: JSON.stringify({
       query,
@@ -79,8 +79,7 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
 
   const submissions: { difficulty: string; count: number }[] =
     user.submitStatsGlobal.acSubmissionNum;
-  const getCount = (diff: string) =>
-    submissions.find((s) => s.difficulty === diff)?.count ?? 0;
+  const getCount = (diff: string) => submissions.find((s) => s.difficulty === diff)?.count ?? 0;
 
   const totalSolved = getCount('All');
   const easySolved = getCount('Easy');

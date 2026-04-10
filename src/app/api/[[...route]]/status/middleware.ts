@@ -22,8 +22,8 @@ export const errorHandler = createErrorHandler({
   context: 'fetch system status',
 });
 
-import { logAPIRequest } from '@/lib/better-stack';
 import { Elysia } from 'elysia';
+import { logAPIRequest } from '@/lib/better-stack';
 
 /**
  * Status endpoint middleware

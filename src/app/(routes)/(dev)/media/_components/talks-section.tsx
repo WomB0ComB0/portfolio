@@ -16,13 +16,6 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components/magicui';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { type TalkSchema, TalksSchema } from '@/hooks/sanity/schemas';
-import { DataLoader } from '@/providers/server/effect-data-loader';
-import { formatDate } from '@/utils/date';
 import type { Schema } from 'effect';
 import {
   CalendarIcon,
@@ -34,6 +27,13 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { type JSX, Suspense } from 'react';
 import { SiVimeo, SiYoutube } from 'react-icons/si';
+import { MagicCard } from '@/components/magicui';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { type TalkSchema, TalksSchema } from '@/hooks/sanity/schemas';
+import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 
 /**
  * Helper to get the video link with appropriate icon based on format

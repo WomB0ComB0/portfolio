@@ -16,8 +16,13 @@
  * limitations under the License.
  */
 
-import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
+import { Building2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 import { PaginationControls, usePagination } from '@/app/_components';
+import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -30,11 +35,6 @@ import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import type { PhotoItem, PlaceItem } from '@/types/places';
 import { validateUserInput } from '@/utils';
-import { Building2 } from 'lucide-react';
-import { motion } from 'motion/react';
-import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 
 const ITEMS_PER_PAGE = 9;
 

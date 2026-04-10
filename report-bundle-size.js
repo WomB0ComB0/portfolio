@@ -98,13 +98,16 @@ const globalAppDirBundle = buildMeta.rootMainFiles || [];
 const globalAppDirBundleSizes = getScriptSizes(globalAppDirBundle);
 
 /** @type {PageSizes} */
-const allAppDirSizes = Object.entries(appDirMeta.pages).reduce((acc, [pagePath, scriptPaths]) => {
-  const scriptSizes = getScriptSizes(
-    scriptPaths.filter((scriptPath) => !globalAppDirBundle.includes(scriptPath)),
-  );
-  acc[pagePath] = scriptSizes;
-  return acc;
-}, /** @type {PageSizes} */ ({}));
+const allAppDirSizes = Object.entries(appDirMeta.pages).reduce(
+  (acc, [pagePath, scriptPaths]) => {
+    const scriptSizes = getScriptSizes(
+      scriptPaths.filter((scriptPath) => !globalAppDirBundle.includes(scriptPath)),
+    );
+    acc[pagePath] = scriptSizes;
+    return acc;
+  },
+  /** @type {PageSizes} */ ({}),
+);
 
 // format and write the output
 const rawData = JSON.stringify({

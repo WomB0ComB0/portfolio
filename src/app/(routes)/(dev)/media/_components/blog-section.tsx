@@ -16,12 +16,6 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components/magicui';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
-import { formatDate } from '@/utils/date';
 import { Schema } from 'effect';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarIcon } from 'lucide-react';
@@ -29,6 +23,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense } from 'react';
 import { SiDevdotto, SiHashnode } from 'react-icons/si';
+import { MagicCard } from '@/components/magicui';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 
 /**
  * Blog post schema for Effect validation
