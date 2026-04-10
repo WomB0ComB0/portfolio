@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { SiSpotify } from 'react-icons/si';
 import {
   NowPlaying,
   TopArtists,
@@ -23,7 +24,6 @@ import {
 } from '@/app/(routes)/(main)/(personal)/spotify/_components';
 import { PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
-import { SiSpotify } from 'react-icons/si';
 
 /**
  * Spotify component.

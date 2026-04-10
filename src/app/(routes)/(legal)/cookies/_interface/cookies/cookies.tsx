@@ -8,14 +8,14 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
+import { Cookie, ExternalLink, Gauge, Palette, Shield } from 'lucide-react';
+import type { JSX } from 'react';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { emailHref, encodedEmail } from '@/constants';
-import { Cookie, ExternalLink, Gauge, Palette, Shield } from 'lucide-react';
-import type { JSX } from 'react';
 
 export const Cookies = (): JSX.Element => {
   return (

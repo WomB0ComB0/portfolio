@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { Sponsor, default } from './sponsor';
+export { default, Sponsor } from './sponsor';

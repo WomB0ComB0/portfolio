@@ -19,6 +19,11 @@ import { FilterBar } from '@/components/ui/filter-bar';
  * limitations under the License.
  */
 
+import { motion } from 'framer-motion';
+import { Award, Building2, Calendar, Code2, ExternalLink, Hash, Search, X } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense, useMemo, useState } from 'react';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,11 +32,6 @@ import { Separator } from '@/components/ui/separator';
 import { useDebounce, useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDateOnly, validateUserInput } from '@/utils';
-import { motion } from 'framer-motion';
-import { Award, Building2, Calendar, Code2, ExternalLink, Hash, Search, X } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense, useMemo, useState } from 'react';
 
 type Certifications = ReturnType<typeof useSanityCertifications>['data'];
 type CertificationItem = NonNullable<Certifications>[number];
