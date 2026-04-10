@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { age } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQueries } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { memo, useMemo } from 'react';
 import { FiCalendar, FiClock, FiCode, FiEye } from 'react-icons/fi';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { age } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { MonkeytypeStats } from './monkeytype-stats';
 import { StatCard } from './stat-card';
 

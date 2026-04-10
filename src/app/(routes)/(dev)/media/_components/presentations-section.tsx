@@ -16,13 +16,6 @@
  * limitations under the License.
  */
 
-import { MagicCard } from '@/components/magicui';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { type PresentationSchema, PresentationsSchema } from '@/hooks/sanity/schemas';
-import { DataLoader } from '@/providers/server/effect-data-loader';
-import { formatDate } from '@/utils/date';
 import type { Schema } from 'effect';
 import {
   CalendarIcon,
@@ -33,6 +26,13 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { type JSX, Suspense } from 'react';
+import { MagicCard } from '@/components/magicui';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { type PresentationSchema, PresentationsSchema } from '@/hooks/sanity/schemas';
+import { DataLoader } from '@/providers/server/effect-data-loader';
+import { formatDate } from '@/utils/date';
 
 /**
  * Helper to get the slides link based on format

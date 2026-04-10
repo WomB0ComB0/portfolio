@@ -16,13 +16,6 @@
  * limitations under the License.
  */
 
-import Layout from '@/components/layout/layout';
-import { DotPattern, MagicCard } from '@/components/magicui';
-import { Button } from '@/components/ui/button';
-import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
-import { app } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
-import { cn } from '@/lib/utils';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
@@ -31,16 +24,22 @@ import {
   Briefcase,
   Code,
   FileText,
-  Github,
-  Linkedin,
   Mail,
   Music,
   User,
 } from 'lucide-react';
+import { FaGithub, FaLinkedin } from 'react-icons/fa';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { JSX } from 'react';
 import { SiSpotify } from 'react-icons/si';
+import Layout from '@/components/layout/layout';
+import { DotPattern, MagicCard } from '@/components/magicui';
+import { Button } from '@/components/ui/button';
+import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
+import { app } from '@/constants';
+import { get } from '@/lib/http-clients/effect-fetcher';
+import { cn } from '@/lib/utils';
 
 // A new, styled DashboardCard to match your design
 const DashboardCard = ({
@@ -194,7 +193,7 @@ const HomePage = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
                   >
-                    <Github className="h-4 w-4" /> <span>GitHub</span>
+                    <FaGithub className="h-4 w-4" /> <span>GitHub</span>
                   </a>
                 </Button>
 
@@ -209,7 +208,7 @@ const HomePage = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
                   >
-                    <Linkedin className="h-4 w-4" /> <span>LinkedIn</span>
+                    <FaLinkedin className="h-4 w-4" /> <span>LinkedIn</span>
                   </a>
                 </Button>
               </div>

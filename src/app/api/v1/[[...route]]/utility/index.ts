@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Stringify } from '@/utils';
 import { record } from '@elysiajs/opentelemetry';
 import Elysia from 'elysia';
+import { Stringify } from '@/utils';
 import { IS_VERCEL, version } from '../../../_elysia/constants';
 import { timingMiddleware } from '../middleware';
 

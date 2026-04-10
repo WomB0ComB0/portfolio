@@ -33,4 +33,5 @@ const ForbiddenError: React.FC = React.memo(() => {
 });
 
 ForbiddenError.displayName = 'ForbiddenError';
+
 export { ForbiddenError };

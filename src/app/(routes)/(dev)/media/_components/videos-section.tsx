@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+import type { Schema } from 'effect';
+import { CalendarIcon, ClockIcon, ExternalLinkIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import Image from 'next/image';
+import { type JSX, Suspense } from 'react';
+import { SiYoutube } from 'react-icons/si';
 import { MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,12 +29,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { type YoutubeVideoSchema, YoutubeVideosSchema } from '@/hooks/sanity/schemas';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 import { formatDate } from '@/utils/date';
-import type { Schema } from 'effect';
-import { CalendarIcon, ClockIcon, ExternalLinkIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import Image from 'next/image';
-import { type JSX, Suspense } from 'react';
-import { SiYoutube } from 'react-icons/si';
 
 /**
  * @function VideosSection

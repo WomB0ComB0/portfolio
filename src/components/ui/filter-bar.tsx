@@ -22,6 +22,9 @@
 
 'use client';
 
+import { AnimatePresence, motion } from 'framer-motion';
+import { Filter, Search, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -32,9 +35,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Filter, Search, X } from 'lucide-react';
-import type { ReactNode } from 'react';
 
 export interface FilterOption {
   value: string;

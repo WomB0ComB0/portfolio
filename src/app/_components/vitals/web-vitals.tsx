@@ -33,10 +33,10 @@
  * @returns {null} This component does not render any UI elements.
  */
 
-import { logger } from '@/utils';
 import type { NextWebVitalsMetric } from 'next/app';
 import { useReportWebVitals } from 'next/web-vitals';
 import { memo } from 'react';
+import { logger } from '@/utils';
 
 export const WebVitals = memo(() => {
   /**
