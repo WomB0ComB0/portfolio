@@ -228,6 +228,7 @@ const config: NextConfig = {
     dangerouslyAllowSVG: false, // Prevent SVG XSS attacks
   },
 
+  transpilePackages: ['elysiajs-helmet'],
   skipTrailingSlashRedirect: true,
   experimental: {
     optimizePackageImports: [
