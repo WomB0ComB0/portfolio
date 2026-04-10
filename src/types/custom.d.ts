@@ -330,9 +330,8 @@ declare global {
 }
 
 declare module 'react' {
-  interface ScriptHTMLAttributes<
-    T extends HTMLScriptElement,
-  > extends React.ScriptHTMLAttributes<T> {
+  interface ScriptHTMLAttributes<T extends HTMLScriptElement>
+    extends React.ScriptHTMLAttributes<T> {
     strategy?: 'beforeInteractive' | 'afterInteractive';
   }
 }

@@ -16,6 +16,20 @@
  * limitations under the License.
  */
 
+import {
+  ArrowLeft,
+  Calendar,
+  ExternalLink,
+  FileText,
+  ImageIcon,
+  Layers,
+} from 'lucide-react';
+import { FaGithub } from 'react-icons/fa';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import type { JSX } from 'react';
 import Layout from '@/components/layout/layout';
 import { BorderBeam, MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
@@ -25,20 +39,6 @@ import { Separator } from '@/components/ui/separator';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { formatDatePeriod, formatMonthYear } from '@/utils';
-import {
-  ArrowLeft,
-  Calendar,
-  ExternalLink,
-  FileText,
-  Github,
-  ImageIcon,
-  Layers,
-} from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import type { JSX } from 'react';
 import { DraggableGallery } from '../../_components';
 import type { ProjectDetailProps } from './project-detail.types';
 
@@ -211,7 +211,7 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
                     className="gap-2 bg-background/50 backdrop-blur-sm hover:bg-background border-border/50 hover:border-border shadow-md hover:shadow-lg transition-all duration-300"
                   >
                     <Link href={project.githubUrl} target="_blank" rel="noopener noreferrer">
-                      <Github className="h-4 w-4" />
+                      <FaGithub className="h-4 w-4" />
                       View Source Code
                     </Link>
                   </Button>
