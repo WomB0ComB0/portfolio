@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import type { JSX } from 'react';
 import { GuestbookComponent } from '@/app/(routes)/(main)/(personal)/guestbook/_components';
 import Layout from '@/components/layout/layout';
-import type { JSX } from 'react';
 
 /**
  * Guestbook component.

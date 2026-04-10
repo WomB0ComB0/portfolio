@@ -26,12 +26,12 @@
  * @version 1.1.0
  */
 
-import { Stringify } from '@/utils';
 import { exec } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { PackageJson } from 'type-fest';
+import { Stringify } from '@/utils';
 
 const execPromise = promisify(exec);
 
@@ -46,7 +46,9 @@ const OUTPUT_DIR = `${process.cwd()}/scripts/out`;
 /**
  * Fetches the unpacked size of a given package from the npm registry.
  */
-const getPackageSize = async (packageName: string): Promise<{ name: string; size: number } | null> => {
+const getPackageSize = async (
+  packageName: string,
+): Promise<{ name: string; size: number } | null> => {
   try {
     const { stdout } = await execPromise(`npm view ${packageName} dist.unpackedSize --json`);
     const size = JSON.parse(stdout) as number;
@@ -75,7 +77,9 @@ console.log(`🚀 Starting package cost analysis for ${allDependencies.length} p
 
 for (let i = 0; i < allDependencies.length; i += BATCH_SIZE) {
   const batch = allDependencies.slice(i, i + BATCH_SIZE);
-  console.log(`   Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allDependencies.length / BATCH_SIZE)}...`);
+  console.log(
+    `   Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allDependencies.length / BATCH_SIZE)}...`,
+  );
   const batchResults = await Promise.all(batch.map(getPackageSize));
   results.push(...batchResults.filter(isNotNull));
 }
@@ -100,17 +104,17 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 writeFileSync(
   `${OUTPUT_DIR}/high.json`,
   Stringify([...categorizedPackages.high].map((e) => e.name)),
-  { flag: 'w' }
+  { flag: 'w' },
 );
 writeFileSync(
   `${OUTPUT_DIR}/medium.json`,
   Stringify([...categorizedPackages.medium].map((e) => e.name)),
-  { flag: 'w' }
+  { flag: 'w' },
 );
 writeFileSync(
   `${OUTPUT_DIR}/low.json`,
   Stringify([...categorizedPackages.low].map((e) => e.name)),
-  { flag: 'w' }
+  { flag: 'w' },
 );
 
 console.log('\n📦 Package Size Summary:');

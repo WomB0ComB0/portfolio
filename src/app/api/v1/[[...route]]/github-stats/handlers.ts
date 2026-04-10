@@ -31,11 +31,11 @@
  * 3. Add to .env.local: GITHUB_TOKEN=your_token_here
  */
 
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { get } from '@/lib/http-clients/effect-fetcher';
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
 
 const GitHubUserSchema = Schema.Struct({
   public_repos: Schema.Number,

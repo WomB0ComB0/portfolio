@@ -22,11 +22,11 @@ import {
   ViewTransitions,
 } from '@/components/scripts';
 import '@/styles/globals.css';
-import { constructMetadata, constructViewport } from '@/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
+import { constructMetadata, constructViewport } from '@/utils';
 
 export const metadata = constructMetadata();
 export const viewport = constructViewport();
