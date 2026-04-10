@@ -77,7 +77,7 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
-    "@effect/platform": "^0.94.1",
+    "@effect/platform": "^0.96.0",
     "@elysiajs/bearer": "^1.4.2",
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/eden": "^1.4.6",
