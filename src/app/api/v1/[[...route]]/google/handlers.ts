@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { Schema } from 'effect';
 import { getAnalytics } from '@/lib';
 import { logger } from '@/utils';
-import { Schema } from 'effect';
 
 export const GoogleAnalyticsSchema = Schema.Struct({
   total_pageviews: Schema.Union(Schema.Number, Schema.Literal(0)),

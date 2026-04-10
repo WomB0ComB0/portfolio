@@ -15,5 +15,5 @@
   "directory": "./",
   "extra-args": [],
   "pass-enoaudit": false,
-  "registry": "undefined",
+  "registry": "undefined"
 }
