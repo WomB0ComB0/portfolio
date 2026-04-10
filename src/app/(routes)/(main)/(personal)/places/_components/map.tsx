@@ -1,5 +1,7 @@
 'use client';
 
+/// <reference types="@types/google.maps" />
+
 /**
  * Copyright 2025 Mike Odnis
  *
