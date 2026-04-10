@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-import NumberTicker from '@/components/ui/number-ticker';
-import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import { FaKeyboard } from 'react-icons/fa';
+import NumberTicker from '@/components/ui/number-ticker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { get } from '@/lib/http-clients/effect-fetcher';
 import { StatCard } from './stat-card';
 
 const MonkeytypeDataSchema = Schema.Struct({

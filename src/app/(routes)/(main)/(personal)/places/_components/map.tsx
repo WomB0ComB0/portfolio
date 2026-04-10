@@ -1,5 +1,7 @@
 'use client';
 
+/// <reference types="@types/google.maps" />
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,14 +18,14 @@
  * limitations under the License.
  */
 
-import { Button } from '@/components/ui/button';
-import { darkMapStyle } from '@/data/places';
-import type { PlaceItem } from '@/types/places';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { APIProvider, InfoWindow, useMap, Map as VisGLMap } from '@vis.gl/react-google-maps';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiMapPin } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
+import { darkMapStyle } from '@/data/places';
+import type { PlaceItem } from '@/types/places';
 import type { GoogleMapsProps, MarkersComponentProps } from './map.types';
 
 export const GoogleMaps = ({ placesToDisplay }: GoogleMapsProps) => {

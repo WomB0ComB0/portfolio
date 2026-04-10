@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+import { Coffee, ExternalLink, Gift, Heart, Mail, Sparkles, Users } from 'lucide-react';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import { useMemo } from 'react';
+import { SiBuymeacoffee, SiGithubsponsors, SiKofi, SiOpencollective } from 'react-icons/si';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
@@ -25,11 +30,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { emailHref } from '@/constants';
 import { useGitHubSponsors } from '@/hooks/use-github-sponsors';
 import type { Sponsor as SponsorType } from '@/hooks/use-github-sponsors.types';
-import { Coffee, ExternalLink, Gift, Heart, Mail, Sparkles, Users } from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import { useMemo } from 'react';
-import { SiBuymeacoffee, SiGithubsponsors, SiKofi, SiOpencollective } from 'react-icons/si';
 
 const sponsorPlatforms = [
   {

@@ -17,6 +17,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
     "plugins": [
       {
         "name": "next"
@@ -60,10 +61,6 @@
   ],
   "exclude": [
     "node_modules",
-    "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "**/*.test.ts",
-    "**/*.test.tsx",
     "public/**/*.js",
     "dist/**/*",
     ".sanity/**/*",
