@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { env } from '@/env';
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
+import { env } from '@/env';
 
 /**
  * Configuration options for the fetcher utility.

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { logger } from '@/utils';
 import { Elysia } from 'elysia';
+import { logger } from '@/utils';
 
 /**
  * Middleware for timing and logging the duration of each request.

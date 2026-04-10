@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { currentlyPlayingSong } from '@/lib';
 import { Schema } from 'effect';
+import { currentlyPlayingSong } from '@/lib';
 
 const SpotifyArtistSchema = Schema.Struct({
   name: Schema.String,

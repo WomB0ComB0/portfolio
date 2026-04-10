@@ -249,7 +249,7 @@ test.describe('Accessibility', () => {
 
       const headingLevels = await page.evaluate(() => {
         const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-        return Array.from(headings).map((h) => Number.parseInt(h.tagName[1], 10));
+        return Array.from(headings).map((h) => Number.parseInt(h.tagName.charAt(1), 10));
       });
 
       // Check for major skipped levels (more than 3 levels is a severe issue)

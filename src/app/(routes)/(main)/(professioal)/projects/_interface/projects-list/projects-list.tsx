@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+import { ArrowUpRight, Code, Code2, FolderGit2, Search } from 'lucide-react';
+import { FaGithub } from 'react-icons/fa';
+import { motion } from 'motion/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { type JSX, Suspense, useMemo, useState } from 'react';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
@@ -26,11 +32,6 @@ import { FilterBar } from '@/components/ui/filter-bar';
 import { useDebounce, useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
 import { validateUserInput } from '@/utils';
-import { ArrowUpRight, Code, Code2, FolderGit2, Github, Search } from 'lucide-react';
-import { motion } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { type JSX, Suspense, useMemo, useState } from 'react';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -256,7 +257,7 @@ const ProjectsListContent = (): JSX.Element => {
                         {project.githubUrl && (
                           <div className="absolute top-4 right-4 translate-x-10 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300 delay-100">
                             <div className="p-2 bg-background/80 backdrop-blur-md rounded-full text-foreground hover:text-primary shadow-lg cursor-pointer">
-                              <Github className="h-5 w-5" />
+                              <FaGithub className="h-5 w-5" />
                             </div>
                           </div>
                         )}

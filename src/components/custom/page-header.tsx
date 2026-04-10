@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { cn } from '@/lib';
 import type { JSX, ReactNode } from 'react';
+import { cn } from '@/lib';
 
 interface PageHeaderProps {
   title: string;
