@@ -158,7 +158,7 @@
     "jotai-effect": "^2.2.3",
     "kbar": "0.1.0-beta.48",
     "lucide-react": "1.8.0",
-    "marked": "^17.0.1",
+    "marked": "^18.0.0",
     "mkdirp": "^3.0.1",
     "motion": "12.38.0",
     "next": "^16.1.1",
