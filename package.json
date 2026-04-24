@@ -218,10 +218,10 @@
     "jsdom": "^29.0.0",
     "magic-string": "0.30.21",
     "postcss": "^8.5.6",
-    "prettier": "3.8.1",
+    "prettier": "3.8.3",
     "prettier-plugin-organize-imports": "4.3.0",
     "prettier-plugin-packagejson": "3.0.2",
-    "prettier-plugin-tailwindcss": "0.7.2",
+    "prettier-plugin-tailwindcss": "0.7.3",
     "tailwindcss": "^4.1.18",
     "typescript": "6.0.2"
   },
