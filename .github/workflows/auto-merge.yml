@@ -48,7 +48,8 @@ jobs:
       github.event.pull_request.user.login == 'renovate[bot]' ||
       github.actor == 'dependabot[bot]' ||
       github.actor == 'snyk-bot' ||
-      github.actor == 'renovate[bot]'
+      github.actor == 'renovate[bot]' ||
+      startsWith(github.event.pull_request.head.ref, 'renovate/')
 
     steps:
       - name: Checkout code
@@ -77,6 +78,7 @@ jobs:
               mergeable: pr.mergeable,
               mergeable_state: pr.mergeable_state,
               head_sha: pr.head.sha,
+              head_ref: pr.head.ref,
               base_ref: pr.base.ref
             };
 
@@ -84,8 +86,9 @@ jobs:
         id: check-bot
         env:
           BOT_USER: ${{ fromJson(steps.pr-details.outputs.result).user }}
+          HEAD_REF: ${{ fromJson(steps.pr-details.outputs.result).head_ref }}
         run: |
-          echo "Bot user: $BOT_USER"
+          echo "Bot user: $BOT_USER, head ref: $HEAD_REF"
 
           case "$BOT_USER" in
             "dependabot[bot]"|"snyk-bot"|"renovate[bot]")
@@ -93,8 +96,19 @@ jobs:
               echo "bot_type=$BOT_USER" >> $GITHUB_OUTPUT
               ;;
             *)
-              echo "allowed=false" >> $GITHUB_OUTPUT
-              echo "Bot $BOT_USER is not in the allowed list"
+              # Self-hosted Renovate authors PRs as the token owner, not renovate[bot].
+              # Recognize it by the renovate/* branch prefix instead of author identity.
+              case "$HEAD_REF" in
+                renovate/*)
+                  echo "allowed=true" >> $GITHUB_OUTPUT
+                  echo "bot_type=renovate[bot]" >> $GITHUB_OUTPUT
+                  echo "Self-hosted Renovate PR detected via branch prefix ($HEAD_REF)"
+                  ;;
+                *)
+                  echo "allowed=false" >> $GITHUB_OUTPUT
+                  echo "PR by $BOT_USER (branch $HEAD_REF) is not in the allowed list"
+                  ;;
+              esac
               ;;
           esac
 
