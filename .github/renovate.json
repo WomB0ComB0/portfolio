@@ -2,6 +2,7 @@
   "extends": ["config:recommended", ":semanticCommits"],
   "timezone": "America/New_York",
   "osvVulnerabilityAlerts": true,
+  "platformAutomerge": true,
   "prHourlyLimit": 6,
   "rangeStrategy": "auto",
   "labels": ["dependencies"],
@@ -11,6 +12,7 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "automergeType": "pr"
     },
