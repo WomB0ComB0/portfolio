@@ -91,7 +91,8 @@ swe-worker-*.js
 /playwright/.auth
 /playwright/screenshots
 
-bun.lock
+# bun.lock (text lockfile) is committed for reproducible CI installs — do NOT ignore it.
+# bun.lockb (binary) and yarn.lock remain ignored; this project uses the text bun.lock.
 yarn.lock
 
 # Docker
