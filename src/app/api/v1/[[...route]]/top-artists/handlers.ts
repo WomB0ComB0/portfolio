@@ -51,15 +51,20 @@ export async function fetchTopArtists(): Promise<TopArtist[]> {
     return cache.data;
   }
 
-  const resp = (await getTopArtists()) as unknown as SpotifyArtist[];
+  try {
+    const resp = (await getTopArtists()) as unknown as SpotifyArtist[];
 
-  const topArtists: TopArtist[] = resp.map((artist) => ({
-    name: artist.name,
-    url: artist.external_urls.spotify,
-    imageUrl: artist.images[0]?.url ?? '',
-  }));
+    const topArtists: TopArtist[] = Array.isArray(resp)
+      ? resp.map((artist) => ({
+          name: artist?.name ?? 'Unknown Artist',
+          url: artist?.external_urls?.spotify ?? '',
+          imageUrl: artist?.images?.[0]?.url ?? '',
+        }))
+      : [];
 
-  cache = { data: topArtists, timestamp: now };
-
-  return topArtists;
+    cache = { data: topArtists, timestamp: now };
+    return topArtists;
+  } catch (_error) {
+    return cache ? cache.data : [];
+  }
 }

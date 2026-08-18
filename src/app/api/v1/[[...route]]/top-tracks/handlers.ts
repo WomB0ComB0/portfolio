@@ -61,16 +61,21 @@ export async function fetchTopTracks(): Promise<TopTrack[]> {
     return cache.data;
   }
 
-  const resp = (await getTopTracks()) as unknown as SpotifyTrack[];
+  try {
+    const resp = (await getTopTracks()) as unknown as SpotifyTrack[];
 
-  const topTracks: TopTrack[] = resp.map((track) => ({
-    name: track.name,
-    artist: track.artists?.[0]?.name ?? 'Unknown Artist',
-    url: track.external_urls?.spotify ?? '',
-    imageUrl: track.album.images?.[0]?.url ?? '',
-  }));
+    const topTracks: TopTrack[] = Array.isArray(resp)
+      ? resp.map((track) => ({
+          name: track?.name ?? 'Unknown Track',
+          artist: track?.artists?.[0]?.name ?? 'Unknown Artist',
+          url: track?.external_urls?.spotify ?? '',
+          imageUrl: track?.album?.images?.[0]?.url ?? '',
+        }))
+      : [];
 
-  cache = { data: topTracks, timestamp: now };
-
-  return topTracks;
+    cache = { data: topTracks, timestamp: now };
+    return topTracks;
+  } catch (_error) {
+    return cache ? cache.data : [];
+  }
 }
