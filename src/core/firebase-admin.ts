@@ -15,18 +15,38 @@
  */
 
 import { cert, getApp, getApps, initializeApp, type ServiceAccount } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { type Firestore, getFirestore } from 'firebase-admin/firestore';
 import { serviceAccount as baseServiceAccount } from './firebase';
 
-const raw = baseServiceAccount;
+let cachedDb: Firestore | null = null;
 
-const { project_id: projectId, client_email: clientEmail, private_key: privateKeyEscaped } = raw;
+export function getAdminFirestore(): Firestore {
+  if (cachedDb) return cachedDb;
 
-const serviceAccount: ServiceAccount = {
-  projectId,
-  clientEmail,
-  privateKey: privateKeyEscaped.replaceAll(/\\n/g, '\n'),
-};
+  const raw = baseServiceAccount;
+  const { project_id: projectId, client_email: clientEmail, private_key: privateKeyEscaped } = raw;
 
-const app = getApps().length ? getApp() : initializeApp({ credential: cert(serviceAccount) });
-export const adminDb = getFirestore(app);
+  const formattedKey = privateKeyEscaped?.replaceAll(/\\n/g, '\n') ?? '';
+
+  const serviceAccount: ServiceAccount = {
+    projectId,
+    clientEmail,
+    privateKey: formattedKey,
+  };
+
+  const app = getApps().length ? getApp() : initializeApp({ credential: cert(serviceAccount) });
+
+  cachedDb = getFirestore(app);
+  return cachedDb;
+}
+
+export const adminDb: Firestore = new Proxy({} as Firestore, {
+  get(_target, prop, receiver) {
+    const instance = getAdminFirestore();
+    const value = Reflect.get(instance, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  },
+});

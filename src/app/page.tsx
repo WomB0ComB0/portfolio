@@ -19,19 +19,11 @@
 import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import {
-  ArrowRight,
-  Briefcase,
-  Code,
-  FileText,
-  Mail,
-  Music,
-  User,
-} from 'lucide-react';
-import { FaGithub, FaLinkedin } from 'react-icons/fa';
+import { ArrowRight, Award, Briefcase, Code, FileText, Mail, Music } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { JSX } from 'react';
+import { FaGithub, FaLinkedin } from 'react-icons/fa';
 import { SiSpotify } from 'react-icons/si';
 import Layout from '@/components/layout/layout';
 import { DotPattern, MagicCard } from '@/components/magicui';
@@ -231,9 +223,10 @@ const HomePage = () => {
                 description="A timeline of my professional journey and career milestones."
               />
               <DashboardCard
-                icon={<User className="h-6 w-6" />}
-                title="About Me"
-                description="Driven by a passion for continuous learning and building impactful technology."
+                href="/certifications"
+                icon={<Award className="h-6 w-6" />}
+                title="Certifications"
+                description="Explore my verified credentials, licenses, and technical certifications."
               />
               <div className="sm:col-span-2 flex flex-col gap-6">
                 <NowPlayingCard />

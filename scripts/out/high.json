@@ -2,10 +2,9 @@
   "next",
   "next-csrf",
   "react-icons",
-  "lucide-react",
   "firebase",
-  "typescript",
-  "date-fns",
+  "lucide-react",
   "sanity",
-  "@effect/platform"
+  "@effect/platform",
+  "date-fns"
 ]

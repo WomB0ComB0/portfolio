@@ -16,20 +16,13 @@
  * limitations under the License.
  */
 
-import {
-  ArrowLeft,
-  Calendar,
-  ExternalLink,
-  FileText,
-  ImageIcon,
-  Layers,
-} from 'lucide-react';
-import { FaGithub } from 'react-icons/fa';
+import { ArrowLeft, Calendar, ExternalLink, FileText, ImageIcon, Layers } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
+import { FaGithub } from 'react-icons/fa';
 import Layout from '@/components/layout/layout';
 import { BorderBeam, MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';

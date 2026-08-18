@@ -17,11 +17,11 @@
  */
 
 import { ArrowUpRight, Code, Code2, FolderGit2, Search } from 'lucide-react';
-import { FaGithub } from 'react-icons/fa';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type JSX, Suspense, useMemo, useState } from 'react';
+import { FaGithub } from 'react-icons/fa';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
