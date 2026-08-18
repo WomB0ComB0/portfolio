@@ -35,13 +35,13 @@ const Drawer = ({
 );
 Drawer.displayName = 'Drawer';
 
-const DrawerTrigger = DrawerPrimitive.Trigger;
+const DrawerTrigger: typeof DrawerPrimitive.Trigger = DrawerPrimitive.Trigger;
 
-const DrawerPortal = DrawerPrimitive.Portal;
+const DrawerPortal: typeof DrawerPrimitive.Portal = DrawerPrimitive.Portal;
 
-const DrawerClose = DrawerPrimitive.Close;
+const DrawerClose: typeof DrawerPrimitive.Close = DrawerPrimitive.Close;
 
-const DrawerOverlay = React.forwardRef<
+const DrawerOverlay: typeof DrawerPrimitive.Overlay = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
@@ -53,7 +53,7 @@ const DrawerOverlay = React.forwardRef<
 ));
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
-const DrawerContent = React.forwardRef<
+const DrawerContent: typeof DrawerPrimitive.Content = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
@@ -84,7 +84,7 @@ const DrawerFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 );
 DrawerFooter.displayName = 'DrawerFooter';
 
-const DrawerTitle = React.forwardRef<
+const DrawerTitle: typeof DrawerPrimitive.Title = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
 >(({ className, ...props }, ref) => (
@@ -96,7 +96,7 @@ const DrawerTitle = React.forwardRef<
 ));
 DrawerTitle.displayName = DrawerPrimitive.Title.displayName;
 
-const DrawerDescription = React.forwardRef<
+const DrawerDescription: typeof DrawerPrimitive.Description = React.forwardRef<
   React.ComponentRef<typeof DrawerPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
 >(({ className, ...props }, ref) => (
