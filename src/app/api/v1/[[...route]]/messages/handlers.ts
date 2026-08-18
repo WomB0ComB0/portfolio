@@ -25,7 +25,7 @@ const MESSAGES_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/message`;
 
 const messageCollectionRefForReads = collection(firestore, MESSAGES_COLLECTION_PATH);
 
-const messageCollectionRefForWrites = adminDb.collection(MESSAGES_COLLECTION_PATH);
+const getMessageCollectionRefForWrites = () => adminDb.collection(MESSAGES_COLLECTION_PATH);
 
 export const MessageDataSchema = Schema.Struct({
   authorName: Schema.String,
@@ -94,7 +94,7 @@ export async function createMessage(data: {
 
   const newMessage = { authorName, message, createdAt: new Date().toISOString() };
 
-  const docRef = await messageCollectionRefForWrites.add(newMessage);
+  const docRef = await getMessageCollectionRefForWrites().add(newMessage);
 
   const addedMessage: Message = {
     id: docRef.id,

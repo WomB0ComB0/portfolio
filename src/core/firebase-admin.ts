@@ -23,18 +23,31 @@ let cachedDb: Firestore | null = null;
 export function getAdminFirestore(): Firestore {
   if (cachedDb) return cachedDb;
 
+  if (getApps().length > 0) {
+    cachedDb = getFirestore(getApp());
+    return cachedDb;
+  }
+
   const raw = baseServiceAccount;
   const { project_id: projectId, client_email: clientEmail, private_key: privateKeyEscaped } = raw;
 
   const formattedKey = privateKeyEscaped?.replaceAll(/\\n/g, '\n') ?? '';
 
-  const serviceAccount: ServiceAccount = {
-    projectId,
-    clientEmail,
-    privateKey: formattedKey,
-  };
+  const isValidPrivateKey =
+    formattedKey.includes('-----BEGIN PRIVATE KEY-----') ||
+    formattedKey.includes('-----BEGIN RSA PRIVATE KEY-----');
 
-  const app = getApps().length ? getApp() : initializeApp({ credential: cert(serviceAccount) });
+  let app;
+  if (isValidPrivateKey) {
+    const serviceAccount: ServiceAccount = {
+      projectId,
+      clientEmail,
+      privateKey: formattedKey,
+    };
+    app = initializeApp({ credential: cert(serviceAccount), projectId });
+  } else {
+    app = initializeApp({ projectId });
+  }
 
   cachedDb = getFirestore(app);
   return cachedDb;
