@@ -188,7 +188,7 @@
     "uuid": "^13.0.0",
     "vaul": "1.1.2",
     "vitest": "^4.0.16",
-    "zod": "4.3.6"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.9",
