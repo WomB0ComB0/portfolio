@@ -48,7 +48,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Disable Sentry during build if no auth token
+# hadolint ignore=DL3064
 ARG SENTRY_AUTH_TOKEN
+# hadolint ignore=DL3064
 ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 
 # Generate any required files (e.g., GraphQL types)
@@ -79,7 +81,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Switch to non-root user
-USER nextjs
+USER 1001:1001
 
 # Expose the application port
 EXPOSE 3000
@@ -89,6 +91,7 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Health check
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD bun --version > /dev/null || exit 1
 

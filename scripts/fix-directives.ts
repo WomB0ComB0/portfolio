@@ -103,7 +103,7 @@ for (const file of files) {
 
   const toRemove: NodeWithRange[] = [];
 
-  traverse(ast, {
+  traverse(ast as any, {
     Program(p) {
       // 1) Proper directives in Program.directives
       for (const d of p.node.directives) {
