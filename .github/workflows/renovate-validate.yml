@@ -35,6 +35,6 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate config (strict)
         run: RENOVATE_CONFIG_FILE=.github/renovate.json npx --yes --package renovate -- renovate-config-validator --strict
