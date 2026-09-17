@@ -64,7 +64,7 @@ const parserPlugins = [
   'classProperties',
   'classPrivateProperties',
   'decorators-legacy',
-] as const;
+] as any;
 
 let changedCount = 0;
 let skippedBothDirectives = 0;
