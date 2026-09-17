@@ -208,7 +208,7 @@
     "@types/bun": "1.4.2",
     "@types/glob": "^9.0.0",
     "@types/google.maps": "^3.58.1",
-    "@types/node": "^25.0.6",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^11.0.0",
