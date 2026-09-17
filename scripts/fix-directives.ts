@@ -90,7 +90,7 @@ for (const file of files) {
       allowReturnOutsideFunction: true,
       allowImportExportEverywhere: true,
       startLine: 1,
-      plugins: [...parserPlugins],
+      plugins: [...parserPlugins] as any,
     });
   } catch {
     // If parsing fails, skip (don’t corrupt file)
