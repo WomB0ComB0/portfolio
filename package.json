@@ -83,7 +83,7 @@
     "@elysiajs/eden": "^1.4.6",
     "@elysiajs/opentelemetry": "^1.4.10",
     "@elysiajs/server-timing": "^1.4.0",
-    "@google-analytics/data": "^5.2.1",
+    "@google-analytics/data": "^7.0.0",
     "@googlemaps/markerclusterer": "^2.6.2",
     "@logtail/node": "0.5.8",
     "@logtail/types": "0.5.8",
