@@ -216,7 +216,7 @@
     "@vitest/ui": "4.1.11",
     "cross-env": "^10.1.0",
     "jsdom": "^30.0.0",
-    "magic-string": "0.30.21",
+    "magic-string": "1.4.2",
     "postcss": "^8.5.6",
     "prettier": "3.9.8",
     "prettier-plugin-organize-imports": "4.3.0",
