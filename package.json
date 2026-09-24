@@ -120,7 +120,7 @@
     "@radix-ui/react-toggle": "1.1.18",
     "@radix-ui/react-toggle-group": "1.1.19",
     "@radix-ui/react-tooltip": "1.2.16",
-    "@sanity/client": "^7.14.0",
+    "@sanity/client": "^8.0.0",
     "@sanity/image-url": "^2.0.2",
     "@sanity/vision": "^5.2.0",
     "@sentry/nextjs": "10.74.0",
