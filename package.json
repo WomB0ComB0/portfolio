@@ -191,7 +191,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.5.15",
     "@babel/generator": "8.0.6",
     "@babel/parser": "8.0.6",
     "@babel/traverse": "8.0.6",
