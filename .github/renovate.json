@@ -44,6 +44,11 @@
     },
     {
       "matchManagers": ["npm", "bun"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7.0.0"
+    },
+    {
+      "matchManagers": ["npm", "bun"],
       "matchDatasources": ["npm"],
       "separateMajorMinor": true
     }
