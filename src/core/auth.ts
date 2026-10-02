@@ -29,7 +29,7 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { atom, useAtomValue } from 'jotai';
-import { loadable } from 'jotai/utils';
+import { unwrap } from 'jotai/utils';
 import { atomEffect } from 'jotai-effect';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
@@ -101,7 +101,17 @@ export const currentUserAsync = atom(async (get) => {
  * @see https://github.com/jotai-labs/jotai-loadable
  * @version 1.0.0
  */
-export const currentUserLoadable = loadable(currentUserAsync);
+export const currentUserLoadable = unwrap(
+  atom(async (get) => {
+    try {
+      const data = await get(currentUserAsync);
+      return { state: 'hasData' as const, data };
+    } catch (error) {
+      return { state: 'hasError' as const, error };
+    }
+  }),
+  () => ({ state: 'loading' as const }),
+);
 
 /**
  * React hook for accessing the current Firebase user asynchronously.
