@@ -154,7 +154,7 @@
     "gzip-size": "^7.0.0",
     "input-otp": "1.5.0",
     "ip-address": "^10.1.0",
-    "jotai": "^2.16.1",
+    "jotai": "^3.0.0",
     "jotai-effect": "^2.2.3",
     "kbar": "0.1.0-beta.48",
     "lucide-react": "1.49.0",
