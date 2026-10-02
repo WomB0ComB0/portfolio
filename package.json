@@ -72,7 +72,7 @@
   },
   "overrides": {
     "@opentelemetry/instrumentation": "^0.222.0",
-    "import-in-the-middle": "3.5.1",
+    "import-in-the-middle": "3.5.2",
     "require-in-the-middle": "8.0.1"
   },
   "dependencies": {
