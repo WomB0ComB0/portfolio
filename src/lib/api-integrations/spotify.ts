@@ -96,6 +96,57 @@ export const getAccessToken = async (): Promise<{ access_token: string }> => {
   }
 };
 
+const fetchSpotifyPage = async (
+  endpoint: 'tracks' | 'artists',
+  access_token: string,
+  limit: number,
+  offset: number,
+  retries = 1,
+): Promise<any[]> => {
+  const schema = endpoint === 'tracks' ? SpotifyTrackSchema : SpotifyArtistSchema;
+  const effect = pipe(
+    get(
+      `https://api.spotify.com/v1/me/top/${endpoint}?limit=${limit}&offset=${offset}&time_range=short_term`,
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+        schema,
+        retries,
+        timeout: 10_000,
+      },
+    ),
+    Effect.provide(FetchHttpClient.layer),
+  );
+  const result = await Effect.runPromise(effect);
+  return result.items as any[];
+};
+
+const fetchTopItemsResilient = async (
+  endpoint: 'tracks' | 'artists',
+  access_token: string,
+  limit = 20,
+  offset = 0,
+): Promise<any[]> => {
+  try {
+    return await fetchSpotifyPage(endpoint, access_token, limit, offset, 0);
+  } catch (error) {
+    // If a single corrupted item on Spotify's backend causes a 502, skip that specific item
+    if (limit <= 1) {
+      logger.warn(`Skipping corrupted Spotify ${endpoint} item at offset ${offset}:`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
+    const mid = Math.floor(limit / 2);
+    const [left, right] = await Promise.all([
+      fetchTopItemsResilient(endpoint, access_token, mid, offset),
+      fetchTopItemsResilient(endpoint, access_token, limit - mid, offset + mid),
+    ]);
+    return [...left, ...right];
+  }
+};
+
 /**
  * Fetches the user's top 20 Spotify tracks for the short-term range.
  *
@@ -116,21 +167,12 @@ export const topTracks = async (): Promise<any[]> => {
   // Obtain an access token
   const { access_token } = await getAccessToken();
 
-  const effect = pipe(
-    get('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=short_term', {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-      schema: SpotifyTrackSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
-  );
-
   try {
-    const result = await Effect.runPromise(effect);
-    return result.items as any[];
+    const items = await fetchTopItemsResilient('tracks', access_token, 20, 0);
+    if (items.length === 0) {
+      throw new Error('Failed to fetch any top tracks from Spotify API');
+    }
+    return items;
   } catch (error) {
     logger.error('Error fetching top tracks:', error);
     throw error;
