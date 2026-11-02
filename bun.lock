@@ -147,9 +147,9 @@
         "jsdom": "^30.0.0",
         "magic-string": "1.4.5",
         "postcss": "^8.5.6",
-        "prettier": "3.9.9",
+        "prettier": "3.9.10",
         "prettier-plugin-organize-imports": "4.3.0",
-        "prettier-plugin-packagejson": "3.0.2",
+        "prettier-plugin-packagejson": "3.1.0",
         "prettier-plugin-tailwindcss": "0.8.1",
         "tailwindcss": "^4.1.18",
         "typescript": "6.0.3",
@@ -3226,11 +3226,11 @@
 
     "powershell-utils": ["powershell-utils@0.1.0", "", {}, "sha512-dM0jVuXJPsDN6DvRpea484tCUaMiXWjuCn++HGTqUWzGDjv5tZkEZldAJ/UMlqRYGFrD/etByo4/xOuC/snX2A=="],
 
-    "prettier": ["prettier@3.9.9", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-Z/CJHIkdujO/OtN7nXUii0Rf3VT5SRuhjBA82Xvu2XhBUgX3nhP67T0LHceBdQLex7OOFGTox+Q5Yg8Jk2Qivg=="],
+    "prettier": ["prettier@3.9.10", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA=="],
 
     "prettier-plugin-organize-imports": ["prettier-plugin-organize-imports@4.3.0", "", { "peerDependencies": { "prettier": ">=2.0", "typescript": ">=2.9", "vue-tsc": "^2.1.0 || 3" }, "optionalPeers": ["vue-tsc"] }, "sha512-FxFz0qFhyBsGdIsb697f/EkvHzi5SZOhWAjxcx2dLt+Q532bAlhswcXGYB1yzjZ69kW8UoadFBw7TyNwlq96Iw=="],
 
-    "prettier-plugin-packagejson": ["prettier-plugin-packagejson@3.0.2", "", { "dependencies": { "sort-package-json": "^3.6.0" }, "peerDependencies": { "prettier": "^3" }, "optionalPeers": ["prettier"] }, "sha512-kmoj3hEynXwoHDo8ZhmWAIjRBoQWCDUVackiWfSDWdgD0rS3LGB61T9zoVbume/cotYdCoadUh4sqViAmXvpBQ=="],
+    "prettier-plugin-packagejson": ["prettier-plugin-packagejson@3.1.0", "", { "dependencies": { "sort-package-json": "^4.0.0" }, "peerDependencies": { "prettier": "^3" }, "optionalPeers": ["prettier"] }, "sha512-KxH8E68UGYVW4IDxZk7lLXKxVd8uY6g8ctfu+fNwA+bAKgCN66ZoRIcPtOHXDa1kDj/nLBZIgH8srP/1Yaz9iA=="],
 
     "prettier-plugin-tailwindcss": ["prettier-plugin-tailwindcss@0.8.1", "", { "peerDependencies": { "@ianvs/prettier-plugin-sort-imports": "*", "@prettier/plugin-hermes": "*", "@prettier/plugin-oxc": "*", "@prettier/plugin-pug": "*", "@shopify/prettier-plugin-liquid": "*", "@trivago/prettier-plugin-sort-imports": "*", "@zackad/prettier-plugin-twig": "*", "prettier": "^3.0", "prettier-plugin-astro": "*", "prettier-plugin-css-order": "*", "prettier-plugin-jsdoc": "*", "prettier-plugin-marko": "*", "prettier-plugin-multiline-arrays": "*", "prettier-plugin-organize-attributes": "*", "prettier-plugin-organize-imports": "*", "prettier-plugin-sort-imports": "*", "prettier-plugin-svelte": "*" }, "optionalPeers": ["@ianvs/prettier-plugin-sort-imports", "@prettier/plugin-hermes", "@prettier/plugin-oxc", "@prettier/plugin-pug", "@shopify/prettier-plugin-liquid", "@trivago/prettier-plugin-sort-imports", "@zackad/prettier-plugin-twig", "prettier-plugin-astro", "prettier-plugin-css-order", "prettier-plugin-jsdoc", "prettier-plugin-marko", "prettier-plugin-multiline-arrays", "prettier-plugin-organize-attributes", "prettier-plugin-organize-imports", "prettier-plugin-sort-imports", "prettier-plugin-svelte"] }, "sha512-iaFMYqDsE4ffdDkn5qup0j5f2aCEBFZrdrZnvu9QKTlWx/iGPeQ4HHu7b7fCPMxeo9nwQBiOAh2nSypdFYWJkw=="],
 
@@ -3522,7 +3522,7 @@
 
     "sort-object-keys": ["sort-object-keys@2.1.0", "", {}, "sha512-SOiEnthkJKPv2L6ec6HMwhUcN0/lppkeYuN1x63PbyPRrgSPIuBJCiYxYyvWRTtjMlOi14vQUCGUJqS6PLVm8g=="],
 
-    "sort-package-json": ["sort-package-json@3.7.1", "", { "dependencies": { "detect-indent": "^7.0.2", "detect-newline": "^4.0.1", "git-hooks-list": "^4.1.1", "is-plain-obj": "^4.1.0", "semver": "^7.7.3", "sort-object-keys": "^2.0.1", "tinyglobby": "^0.2.15" }, "bin": { "sort-package-json": "cli.js" } }, "sha512-ssk1HG7whF8N/T1IsNAQrtHG5Cbdi0rAgRJZXYBr9hF5xaHnBNzUx/W6LcthEW7FhOwvZssbESZuO+GxssqAyA=="],
+    "sort-package-json": ["sort-package-json@4.1.0", "", { "dependencies": { "detect-indent": "^7.0.2", "detect-newline": "^4.0.1", "git-hooks-list": "^4.1.1", "is-plain-obj": "^4.1.0", "semver": "^7.7.3", "sort-object-keys": "^2.0.1", "tinyglobby": "^0.2.15" }, "bin": { "sort-package-json": "cli.js" } }, "sha512-CI7HgkV5rCE5dbYYJMuXkxgiSLc3uJczff9ic3kHuY5QRYKUbfsDSKN4DjTpvqejdJEkKLusQ64ykTte5ypr1A=="],
 
     "source-list-map": ["source-list-map@2.0.1", "", {}, "sha512-qnQ7gVMxGNxsiL4lEuJwe/To8UnK7fAnmbGEEH8RpLouuKbeEm0lhbQVFIrNSuB+G7tVrAlVsZgETT5nljf+Iw=="],
 
