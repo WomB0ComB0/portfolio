@@ -123,20 +123,32 @@ export const topTracks = async (): Promise<any[]> => {
       return [];
     }
 
-    const effect = pipe(
-      get('https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=short_term', {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-        schema: SpotifyTrackSchema,
-        retries: 2,
-        timeout: 10_000,
-      }),
-      Effect.provide(FetchHttpClient.layer),
-    );
+    for (const timeRange of ['short_term', 'medium_term', 'long_term'] as const) {
+      try {
+        const effect = pipe(
+          get(`https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=${timeRange}`, {
+            headers: {
+              Authorization: `Bearer ${tokenData.access_token}`,
+            },
+            schema: SpotifyTrackSchema,
+            retries: 1,
+            timeout: 10_000,
+          }),
+          Effect.provide(FetchHttpClient.layer),
+        );
 
-    const result = await Effect.runPromise(effect);
-    return (result.items as any[]) ?? [];
+        const result = await Effect.runPromise(effect);
+        if (Array.isArray(result.items) && result.items.length > 0) {
+          return result.items as any[];
+        }
+      } catch (err) {
+        logger.warn(`Spotify top tracks (${timeRange}) failed, trying fallback range:`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return [];
   } catch (error) {
     logger.error('Error fetching top tracks:', error);
     return [];
@@ -166,20 +178,32 @@ export const topArtists = async (): Promise<any[]> => {
       return [];
     }
 
-    const effect = pipe(
-      get('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=short_term', {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-        schema: SpotifyArtistSchema,
-        retries: 2,
-        timeout: 10_000,
-      }),
-      Effect.provide(FetchHttpClient.layer),
-    );
+    for (const timeRange of ['short_term', 'medium_term', 'long_term'] as const) {
+      try {
+        const effect = pipe(
+          get(`https://api.spotify.com/v1/me/top/artists?limit=20&time_range=${timeRange}`, {
+            headers: {
+              Authorization: `Bearer ${tokenData.access_token}`,
+            },
+            schema: SpotifyArtistSchema,
+            retries: 1,
+            timeout: 10_000,
+          }),
+          Effect.provide(FetchHttpClient.layer),
+        );
 
-    const result = await Effect.runPromise(effect);
-    return (result.items as any[]) ?? [];
+        const result = await Effect.runPromise(effect);
+        if (Array.isArray(result.items) && result.items.length > 0) {
+          return result.items as any[];
+        }
+      } catch (err) {
+        logger.warn(`Spotify top artists (${timeRange}) failed, trying fallback range:`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return [];
   } catch (error) {
     logger.error('Error fetching top artists:', error);
     return [];
