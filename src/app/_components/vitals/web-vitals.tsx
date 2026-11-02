@@ -65,10 +65,6 @@ export const WebVitals = memo(() => {
         logger.info('LCP:', { value: metric.value });
         break;
       }
-      case 'FID': {
-        logger.info('FID:', { value: metric.value });
-        break;
-      }
       case 'CLS': {
         logger.info('CLS:', { value: metric.value });
         break;

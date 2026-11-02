@@ -250,7 +250,7 @@ const config: NextConfig = {
       allowedOrigins: ['localhost:3000', process.env.NEXT_PUBLIC_APP_URL || ''],
       bodySizeLimit: '2mb',
     },
-    webVitalsAttribution: ['CLS', 'LCP', 'TTFB', 'FCP', 'FID'],
+    webVitalsAttribution: ['CLS', 'LCP', 'TTFB', 'FCP', 'INP'],
     authInterrupts: true,
   },
   typedRoutes: false,
