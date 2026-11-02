@@ -49,6 +49,11 @@
     },
     {
       "matchManagers": ["npm", "bun"],
+      "matchPackageNames": ["elysia-rate-limit"],
+      "allowedVersions": "<5.0.0"
+    },
+    {
+      "matchManagers": ["npm", "bun"],
       "matchDatasources": ["npm"],
       "separateMajorMinor": true
     }
