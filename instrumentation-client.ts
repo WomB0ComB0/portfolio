@@ -38,8 +38,16 @@ if (config.sentry.dsn) {
       browserSessionIntegration({ lifecycle: 'page' }),
       consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
     ],
-    // Enable logs to be sent to Sentry
-    enableLogs: true,
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpBodies: [],
+      databaseQueryData: false,
+      genAI: {
+        inputs: false,
+        outputs: false,
+      },
+    },
     // Adjust the sample rate for traces in production
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1, // 10% in production, 100% in development
 

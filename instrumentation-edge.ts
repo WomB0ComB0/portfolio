@@ -25,6 +25,17 @@ import { env } from '@/env';
 init({
   dsn: env.NEXT_PUBLIC_SENTRY_DSN,
 
+  dataCollection: {
+    userInfo: false,
+    cookies: false,
+    httpBodies: [],
+    databaseQueryData: false,
+    genAI: {
+      inputs: false,
+      outputs: false,
+    },
+  },
+
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 

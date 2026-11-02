@@ -17,7 +17,7 @@
 import pwa, { type PluginOptions } from '@ducanh2912/next-pwa';
 import MillionLint from '@million/lint';
 import withBundleAnalyzer from '@next/bundle-analyzer';
-import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs';
+import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next';
 import './src/env';
 
