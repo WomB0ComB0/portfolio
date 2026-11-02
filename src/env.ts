@@ -62,6 +62,14 @@ const env = createEnv({
     BETTERSTACK_STATUS_PAGE_ID: z.string().optional(),
     BETTERSTACK_SOURCE_TOKEN: z.string().optional(),
     BETTERSTACK_INGESTING_HOST: z.string().optional(),
+
+    // GCP Service Account (Server-only)
+    GCP_PROJECT_ID: z.string().min(1, 'GCP Project ID is required'),
+    GCP_PRIVATE_KEY_ID: z.string().min(1, 'GCP Private Key ID is required'),
+    GCP_PRIVATE_KEY: z.string().min(1, 'GCP Private Key is required'),
+    GCP_CLIENT_EMAIL: z.string().min(1, 'GCP Client Email is required'),
+    GCP_CLIENT_ID: z.string().min(1, 'GCP Client ID is required'),
+    GCP_CLIENT_X509_CERT_URL: z.string().min(1, 'GCP Client X.509 Cert URL is required'),
   },
   client: {
     // Firebase Configuration
@@ -78,16 +86,6 @@ const env = createEnv({
     // Google Maps (optional in development, required in production)
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional().or(z.literal('')),
     NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: z.string().optional().or(z.literal('')),
-
-    // GCP Service Account
-    NEXT_PUBLIC_GCP_PROJECT_ID: z.string().min(1, 'GCP Project ID is required'),
-    NEXT_PUBLIC_GCP_PRIVATE_KEY_ID: z.string().min(1, 'GCP Private Key ID is required'),
-    NEXT_PUBLIC_GCP_PRIVATE_KEY: z.string().min(1, 'GCP Private Key is required'),
-    NEXT_PUBLIC_GCP_CLIENT_EMAIL: z.string().min(1, 'GCP Client Email is required'),
-    NEXT_PUBLIC_GCP_CLIENT_ID: z.string().min(1, 'GCP Client ID is required'),
-    NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL: z
-      .string()
-      .min(1, 'GCP Client X.509 Cert URL is required'),
 
     // Hashnode
     NEXT_PUBLIC_HASHNODE_TOKEN: z.string().min(1, 'Hashnode Token is required'),
@@ -131,6 +129,12 @@ const env = createEnv({
     BETTERSTACK_STATUS_PAGE_ID: process.env.BETTERSTACK_STATUS_PAGE_ID,
     BETTERSTACK_SOURCE_TOKEN: process.env.BETTERSTACK_SOURCE_TOKEN,
     BETTERSTACK_INGESTING_HOST: process.env.BETTERSTACK_INGESTING_HOST,
+    GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
+    GCP_PRIVATE_KEY_ID: process.env.GCP_PRIVATE_KEY_ID,
+    GCP_PRIVATE_KEY: process.env.GCP_PRIVATE_KEY,
+    GCP_CLIENT_EMAIL: process.env.GCP_CLIENT_EMAIL,
+    GCP_CLIENT_ID: process.env.GCP_CLIENT_ID,
+    GCP_CLIENT_X509_CERT_URL: process.env.GCP_CLIENT_X509_CERT_URL,
 
     // Client variables
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -142,12 +146,6 @@ const env = createEnv({
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID,
-    NEXT_PUBLIC_GCP_PROJECT_ID: process.env.NEXT_PUBLIC_GCP_PROJECT_ID,
-    NEXT_PUBLIC_GCP_PRIVATE_KEY_ID: process.env.NEXT_PUBLIC_GCP_PRIVATE_KEY_ID,
-    NEXT_PUBLIC_GCP_PRIVATE_KEY: process.env.NEXT_PUBLIC_GCP_PRIVATE_KEY,
-    NEXT_PUBLIC_GCP_CLIENT_EMAIL: process.env.NEXT_PUBLIC_GCP_CLIENT_EMAIL,
-    NEXT_PUBLIC_GCP_CLIENT_ID: process.env.NEXT_PUBLIC_GCP_CLIENT_ID,
-    NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL: process.env.NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL,
     NEXT_PUBLIC_HASHNODE_TOKEN: process.env.NEXT_PUBLIC_HASHNODE_TOKEN,
     NEXT_PUBLIC_DISCORD_ID: process.env.NEXT_PUBLIC_DISCORD_ID,
     NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY,

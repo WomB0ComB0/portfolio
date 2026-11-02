@@ -16,7 +16,23 @@
 
 import { cert, getApp, getApps, initializeApp, type ServiceAccount } from 'firebase-admin/app';
 import { type Firestore, getFirestore } from 'firebase-admin/firestore';
-import { serviceAccount as baseServiceAccount } from './firebase';
+import { env } from '@/env';
+
+export function getServiceAccount() {
+  return {
+    type: 'service_account',
+    project_id: env.GCP_PROJECT_ID,
+    private_key_id: env.GCP_PRIVATE_KEY_ID,
+    private_key: env.GCP_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    client_email: env.GCP_CLIENT_EMAIL,
+    client_id: env.GCP_CLIENT_ID,
+    auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+    token_uri: 'https://oauth2.googleapis.com/token',
+    auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+    client_x509_cert_url: env.GCP_CLIENT_X509_CERT_URL,
+    universe_domain: 'googleapis.com',
+  } as const;
+}
 
 let cachedDb: Firestore | null = null;
 
@@ -28,7 +44,7 @@ export function getAdminFirestore(): Firestore {
     return cachedDb;
   }
 
-  const raw = baseServiceAccount;
+  const raw = getServiceAccount();
   const { project_id: projectId, client_email: clientEmail, private_key: privateKeyEscaped } = raw;
 
   const formattedKey = privateKeyEscaped?.replaceAll(/\\n/g, '\n') ?? '';

@@ -39,12 +39,12 @@ declare global {
       SPOTIFY_REFRESH_TOKEN: string;
       NEXT_PUBLIC_SENTRY_DSN: string;
       SENTRY_AUTH_TOKEN: string;
-      NEXT_PUBLIC_GCP_PROJECT_ID: string;
-      NEXT_PUBLIC_GCP_PRIVATE_KEY_ID: string;
-      NEXT_PUBLIC_GCP_PRIVATE_KEY: string;
-      NEXT_PUBLIC_GCP_CLIENT_EMAIL: string;
-      NEXT_PUBLIC_GCP_CLIENT_ID: string;
-      NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL: string;
+      GCP_PROJECT_ID: string;
+      GCP_PRIVATE_KEY_ID: string;
+      GCP_PRIVATE_KEY: string;
+      GCP_CLIENT_EMAIL: string;
+      GCP_CLIENT_ID: string;
+      GCP_CLIENT_X509_CERT_URL: string;
       NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: string;
       VERCEL_GIT_COMMIT_SHA?: string;
       NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: string;

@@ -16,7 +16,7 @@
 
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { z } from 'zod';
-import { serviceAccount } from '@/core/firebase';
+import { getServiceAccount } from '@/core/firebase-admin';
 import { logger } from '@/utils';
 
 /**
@@ -132,6 +132,7 @@ export async function getAnalytics(): Promise<{
 
   logger.info('[Analytics] Fetching Google Analytics data...');
 
+  const serviceAccount = getServiceAccount();
   const formattedPrivateKey = serviceAccount.private_key.replace(/\\n/g, '\n');
 
   const client = new BetaAnalyticsDataClient({

@@ -88,28 +88,6 @@ export const config = {
   /**
    * @readonly
    * @public
-   * @description Google Cloud Platform service account credentials (client-exposed subset, do not use for server-side secrets).
-   * @type {{
-   *   projectId: string,
-   *   privateKeyId: string,
-   *   privateKey: string,
-   *   clientEmail: string,
-   *   clientId: string,
-   *   clientX509CertUrl: string
-   * }}
-   * @see https://cloud.google.com/iam/docs/creating-managing-service-account-keys
-   */
-  gcp: {
-    projectId: env.NEXT_PUBLIC_GCP_PROJECT_ID,
-    privateKeyId: env.NEXT_PUBLIC_GCP_PRIVATE_KEY_ID,
-    privateKey: env.NEXT_PUBLIC_GCP_PRIVATE_KEY,
-    clientEmail: env.NEXT_PUBLIC_GCP_CLIENT_EMAIL,
-    clientId: env.NEXT_PUBLIC_GCP_CLIENT_ID,
-    clientX509CertUrl: env.NEXT_PUBLIC_GCP_CLIENT_X509_CERT_URL,
-  },
-  /**
-   * @readonly
-   * @public
    * @description Sentry DSN for error tracking and monitoring.
    * @type {{ dsn: string }}
    * @see https://docs.sentry.io/product/sentry-basics/dsn-explainer/

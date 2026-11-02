@@ -43,32 +43,6 @@ const firebaseConfig = {
 } as const satisfies FirebaseOptions;
 
 /**
- * @readonly
- * @const
- * @type {object}
- * @description
- * Google Cloud service account credentials required for server-side Firebase admin APIs.
- * Secrets are injected from environment configurations and not committed to the repo.
- * @author Mike Odnis
- * @see https://cloud.google.com/iam/docs/service-accounts
- * @private
- * @version 1.0.0
- */
-const serviceAccount = {
-  type: 'service_account',
-  project_id: config.gcp.projectId,
-  private_key_id: config.gcp.privateKeyId,
-  private_key: config.gcp.privateKey.replace(/\\n/g, '\n'),
-  client_email: config.gcp.clientEmail,
-  client_id: config.gcp.clientId,
-  auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-  token_uri: 'https://oauth2.googleapis.com/token',
-  auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-  client_x509_cert_url: config.gcp.clientX509CertUrl,
-  universe_domain: 'googleapis.com',
-};
-
-/**
  * Initializes and configures Firebase App, Auth, and Firestore services.
  * In development, optionally connects to Firebase emulators for local testing.
  * Ensures singleton pattern so initialization happens only once per runtime.
@@ -128,4 +102,4 @@ function initializeFirebase(): { app: FirebaseApp; auth: Auth; firestore: Firest
  */
 const { app, auth, firestore } = initializeFirebase();
 
-export { app, auth, firestore, serviceAccount };
+export { app, auth, firestore };
