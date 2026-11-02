@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { bearer } from '@elysiajs/bearer';
 import { Elysia, StatusMap } from 'elysia';
 import { Logger } from '@/utils';
 import { actionHandlers, type BanRequestBody } from './handlers';
@@ -61,7 +60,12 @@ const log = Logger.getLogger('BanAPI');
  * ```
  */
 export const banRoute = new Elysia({ prefix: '/api/admin/ban' })
-  .use(bearer())
+  .derive(({ headers }) => {
+    const auth = headers.authorization ?? headers.Authorization;
+    return {
+      bearer: auth?.startsWith('Bearer ') ? auth.slice(7) : undefined,
+    };
+  })
   .model(banSchemas)
   .post(
     '/',
