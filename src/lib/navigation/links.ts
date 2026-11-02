@@ -16,10 +16,16 @@ import type { Links } from './links.types';
  * limitations under the License.
  */
 
-import { FaBitbucket, FaFreeCodeCamp, FaGithubAlt, FaLinkedin, FaMicrosoft } from 'react-icons/fa';
+import {
+  FaBitbucket,
+  FaCodepen,
+  FaFreeCodeCamp,
+  FaGithubAlt,
+  FaLinkedin,
+  FaMicrosoft,
+} from 'react-icons/fa';
 import {
   SiBuymeacoffee,
-  SiCodepen,
   SiDevdotto,
   SiDiscord,
   SiDribbble,
@@ -112,7 +118,7 @@ export const links: Links = [
     name: 'Codepen',
     url: 'https://codepen.io/womb0comb0',
     value: '@womb0comb0',
-    icon: SiCodepen,
+    icon: FaCodepen,
   },
   {
     name: 'Leetcode',
