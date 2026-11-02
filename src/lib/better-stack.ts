@@ -17,16 +17,26 @@
 import { Logtail } from '@logtail/node';
 import { env } from '@/env';
 
+const sourceToken = env.BETTERSTACK_SOURCE_TOKEN?.trim();
+const ingestingEndpoint = env.BETTERSTACK_INGESTING_HOST?.trim()
+  ? `https://${env.BETTERSTACK_INGESTING_HOST.trim().replace(/^https?:\/\//, '')}`
+  : undefined;
+
 /**
  * Better Stack (Logtail) logger instance
- * Used for structured logging and error tracking
+ * Used for structured logging and error tracking.
+ * Only ships logs to Better Stack Telemetry when BETTERSTACK_SOURCE_TOKEN is configured
+ * (BETTERSTACK_API_KEY is an Uptime API token and cannot authenticate against Logtail ingestion).
  */
-export const logger = new Logtail(env.BETTERSTACK_API_KEY, {
+export const logger = new Logtail(sourceToken || env.BETTERSTACK_API_KEY, {
+  ...(ingestingEndpoint ? { endpoint: ingestingEndpoint } : {}),
   // Send logs in batches for better performance
   batchSize: 100,
   batchInterval: 1000,
   // Include context automatically
   sendLogsToConsoleOutput: env.NODE_ENV === 'development',
+  sendLogsToBetterStack: Boolean(sourceToken),
+  ignoreExceptions: true,
 });
 
 /**

@@ -60,6 +60,8 @@ const env = createEnv({
     // Better Stack
     BETTERSTACK_API_KEY: z.string().min(1, 'Better Stack API Key is required'),
     BETTERSTACK_STATUS_PAGE_ID: z.string().optional(),
+    BETTERSTACK_SOURCE_TOKEN: z.string().optional(),
+    BETTERSTACK_INGESTING_HOST: z.string().optional(),
   },
   client: {
     // Firebase Configuration
@@ -127,6 +129,8 @@ const env = createEnv({
     YOUTUBE_SERVER_API_KEY: process.env.YOUTUBE_SERVER_API_KEY,
     BETTERSTACK_API_KEY: process.env.BETTERSTACK_API_KEY,
     BETTERSTACK_STATUS_PAGE_ID: process.env.BETTERSTACK_STATUS_PAGE_ID,
+    BETTERSTACK_SOURCE_TOKEN: process.env.BETTERSTACK_SOURCE_TOKEN,
+    BETTERSTACK_INGESTING_HOST: process.env.BETTERSTACK_INGESTING_HOST,
 
     // Client variables
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
