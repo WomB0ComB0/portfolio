@@ -17,16 +17,14 @@
  */
 
 import { FetchHttpClient } from '@effect/platform';
+import type { QueryKey } from '@tanstack/react-query';
 import {
-  type QueryKey,
-  type UseQueryOptions,
   type UseSuspenseQueryOptions,
-  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import React, { useCallback, useMemo } from 'react';
+import React, { Suspense, useCallback, useMemo } from 'react';
 import { ClientError, Loader } from '@/components/client';
 import {
   FetcherError,
@@ -109,7 +107,7 @@ export interface BaseDataLoaderProps<T> {
   /** URL to fetch data from */
   url: string;
   /** Additional React Query options */
-  queryOptions?: Partial<UseQueryOptions<T, Error, T>>;
+  queryOptions?: Partial<UseSuspenseQueryOptions<T, Error, T, QueryKey>>;
   /** Custom loading component */
   LoadingComponent?: React.ReactNode;
   /** Custom error component */
@@ -304,7 +302,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
 
   // Enhanced query options
   const queryOptionsWithDefaults = useMemo(() => {
-    const baseOptions: UseQueryOptions<any, Error, any, QueryKey> = {
+    const baseOptions: UseSuspenseQueryOptions<any, Error, any, QueryKey> = {
       queryKey: finalQueryKey,
       queryFn,
       staleTime,
@@ -339,7 +337,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
     queryOptions,
   ]);
 
-  const { data, error, isLoading, isError, refetch, isRefetching } = useQuery(queryOptionsWithDefaults);
+  const { data, error, refetch, isRefetching } = useSuspenseQuery(queryOptionsWithDefaults);
 
   // Enhanced render props
   const renderProps = useMemo(() => {
@@ -361,10 +359,10 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
 
   // Enhanced error component with retry capability and validation error support
   const renderError = useCallback(
-    (err: Error) => {
+    (error: Error) => {
       if (React.isValidElement(ErrorComponent)) {
         return React.cloneElement(ErrorComponent as React.ReactElement<any>, {
-          error: err,
+          error,
           retry: () => refetch(),
         });
       }
@@ -373,7 +371,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
         error: Error;
         retry: () => void;
       }>;
-      return <Component error={err} retry={() => refetch()} />;
+      return <Component error={error} retry={() => refetch()} />;
     },
     [ErrorComponent, refetch],
   );
@@ -381,26 +379,22 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
   // Determine how to call children function
   const renderChildren = useCallback(() => {
     if (typeof children === 'function') {
+      // Check if it's a function that accepts 2 parameters (data + utils)
       try {
         const result =
           children.length > 1 ? (children as any)(data, renderProps) : (children as any)(data);
         return result;
       } catch {
+        // Fallback to simple call if inspection fails
         return (children as any)(data);
       }
     }
     return null;
   }, [children, data, renderProps]);
 
-  if (isLoading) {
-    return <>{LoadingComponent}</>;
-  }
-
-  if (isError || error) {
-    return <>{renderError(error as Error)}</>;
-  }
-
-  return <>{renderChildren()}</>;
+  return (
+    <Suspense fallback={LoadingComponent}>{error ? renderError(error) : renderChildren()}</Suspense>
+  );
 }
 
 DataLoader.displayName = 'DataLoader';
