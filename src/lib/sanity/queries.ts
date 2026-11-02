@@ -19,10 +19,10 @@
  */
 
 /**
- * Fetch all experiences ordered by start date (most recent first)
+ * Fetch all experiences ordered by explicit order then start date (most recent first)
  */
 export const experiencesQuery = `
-  *[_type == "experience"] | order(startDate desc) {
+  *[_type == "experience"] | order(order asc, startDate desc) {
     _id,
     _type,
     _createdAt,
