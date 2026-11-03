@@ -157,6 +157,32 @@ export const CertificationSchema = Schema.Struct({
   order: Schema.Number,
 });
 
+const SANITY_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True for a real calendar day in Sanity `date` format (YYYY-MM-DD); rejects e.g. 2026-02-30. */
+const isSanityDate = (value: string): boolean =>
+  SANITY_DATE_PATTERN.test(value) && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
+
+const SanityDateSchema = Schema.String.pipe(
+  Schema.filter(isSanityDate, { message: () => 'Expected a YYYY-MM-DD calendar date' }),
+);
+
+/**
+ * Optional Sanity `date` value. Malformed strings decode to null (treated as undated) rather
+ * than failing: the places list is decoded as one array, so a hard failure on a single
+ * document's date would blank the whole page. Non-ISO strings must not reach date formatting,
+ * where `new Date()` would read them in local time and shift the day.
+ */
+const LenientSanityDateSchema = Schema.transform(
+  Schema.NullOr(Schema.String),
+  Schema.NullOr(SanityDateSchema),
+  {
+    strict: true,
+    decode: (value) => (value !== null && isSanityDate(value) ? value : null),
+    encode: (value) => value,
+  },
+);
+
 /**
  * Sanity Place Schema with Effect Schema validation
  */
@@ -178,8 +204,8 @@ export const PlaceSchema = Schema.Struct({
   ),
   latitude: Schema.Number,
   longitude: Schema.Number,
-  startDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  endDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  startDate: Schema.optional(LenientSanityDateSchema),
+  endDate: Schema.optional(LenientSanityDateSchema),
   photos: Schema.optional(Schema.Union(Schema.Array(SanityImageSchema), Schema.Null)),
   order: Schema.Number,
   featured: Schema.Boolean,
