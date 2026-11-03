@@ -25,5 +25,7 @@ export interface PlaceItem {
   latitude: number;
   longitude: number;
   category: string;
+  startDate?: string | null;
+  endDate?: string | null;
   photos: PhotoItem[];
 }

@@ -29,7 +29,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/utils';
 import type { PhotoModalProps, PhotoWithCaption } from './page.types';
+
+const formatPlaceDateRange = (startDate?: string | null, endDate?: string | null): string => {
+  if (!startDate) return '';
+  const start = formatDate(startDate, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (endDate && endDate !== startDate) {
+    const end = formatDate(endDate, { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${start} – ${end}`;
+  }
+  return start;
+};
 
 const swipeConfidenceThreshold = 10000;
 const swipePower = (offset: number, velocity: number) => {
@@ -227,6 +238,11 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 space-y-2">
                   <h1 className="text-3xl md:text-4xl font-bold">{place.name}</h1>
+                  {place.startDate && (
+                    <p className="text-sm text-muted-foreground">
+                      {formatPlaceDateRange(place.startDate, place.endDate)}
+                    </p>
+                  )}
                   {place.description && (
                     <p className="text-muted-foreground leading-relaxed">{place.description}</p>
                   )}

@@ -216,10 +216,10 @@ export const skillCategoriesQuery = `
 `;
 
 /**
- * Fetch all places ordered by order field
+ * Fetch all places ordered by startDate descending, then order field
  */
 export const placesQuery = `
-  *[_type == "place"] | order(order asc) {
+  *[_type == "place"] | order(startDate desc, order asc) {
     _id,
     _type,
     _createdAt,
@@ -230,6 +230,8 @@ export const placesQuery = `
     category,
     latitude,
     longitude,
+    startDate,
+    endDate,
     photos,
     order,
     featured
@@ -251,6 +253,8 @@ export const placeByIdQuery = `
     category,
     latitude,
     longitude,
+    startDate,
+    endDate,
     photos,
     order,
     featured

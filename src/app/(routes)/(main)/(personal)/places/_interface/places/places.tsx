@@ -34,9 +34,19 @@ import type { Place } from '@/hooks/sanity/schemas';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import type { PhotoItem, PlaceItem } from '@/types/places';
-import { validateUserInput } from '@/utils';
+import { formatDate, validateUserInput } from '@/utils';
 
 const ITEMS_PER_PAGE = 9;
+
+const formatPlaceDateRange = (startDate?: string | null, endDate?: string | null): string => {
+  if (!startDate) return '';
+  const start = formatDate(startDate, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (endDate && endDate !== startDate) {
+    const end = formatDate(endDate, { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${start} – ${end}`;
+  }
+  return start;
+};
 
 /**
  * Converts a Sanity Place document to a PlaceItem for display
@@ -55,6 +65,8 @@ const convertSanityPlaceToPlaceItem = (sanityPlace: Place): PlaceItem => {
     latitude: sanityPlace.latitude,
     longitude: sanityPlace.longitude,
     category: sanityPlace.category,
+    startDate: sanityPlace.startDate,
+    endDate: sanityPlace.endDate,
     photos,
   };
 };
@@ -115,7 +127,19 @@ export const Places = () => {
 
   const places: PlaceItem[] = useMemo(() => {
     if (!sanityPlaces) return [];
-    return sanityPlaces.map(convertSanityPlaceToPlaceItem);
+    return [...sanityPlaces]
+      .sort((a, b) => {
+        if (a.startDate && b.startDate) {
+          const cmp = b.startDate.localeCompare(a.startDate);
+          if (cmp !== 0) return cmp;
+        } else if (a.startDate) {
+          return -1;
+        } else if (b.startDate) {
+          return 1;
+        }
+        return (a.order ?? 0) - (b.order ?? 0);
+      })
+      .map(convertSanityPlaceToPlaceItem);
   }, [sanityPlaces]);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -280,10 +304,15 @@ export const Places = () => {
                             <CardDescription className="text-sm text-muted-foreground leading-snug mb-3 line-clamp-2">
                               {place.description}
                             </CardDescription>
-                            <div className="inline-block">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs font-semibold px-2.5 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">
                                 {place.category}
                               </span>
+                              {place.startDate && (
+                                <span className="text-xs text-muted-foreground">
+                                  {formatPlaceDateRange(place.startDate, place.endDate)}
+                                </span>
+                              )}
                             </div>
                           </Link>
                         </CardHeader>

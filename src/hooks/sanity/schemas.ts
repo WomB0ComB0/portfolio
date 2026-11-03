@@ -178,6 +178,8 @@ export const PlaceSchema = Schema.Struct({
   ),
   latitude: Schema.Number,
   longitude: Schema.Number,
+  startDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  endDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   photos: Schema.optional(Schema.Union(Schema.Array(SanityImageSchema), Schema.Null)),
   order: Schema.Number,
   featured: Schema.Boolean,

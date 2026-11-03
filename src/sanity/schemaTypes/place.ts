@@ -63,6 +63,16 @@ export const placeType = defineType({
       validation: (Rule) => Rule.required().min(-180).max(180),
     }),
     defineField({
+      name: 'startDate',
+      title: 'Start Date',
+      type: 'date',
+    }),
+    defineField({
+      name: 'endDate',
+      title: 'End Date',
+      type: 'date',
+    }),
+    defineField({
       name: 'photos',
       title: 'Photos',
       type: 'array',
