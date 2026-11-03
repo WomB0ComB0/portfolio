@@ -96,17 +96,19 @@ export function proxy(request: NextRequest): NextResponse {
 
 /**
  * Runs on page documents and RSC navigations only. Skipped: API routes (Elysia sets their
- * headers), Next and Vercel internals, the Sentry tunnel (/monitoring), OG image routes, static
- * files by extension, and router prefetches. Static files are matched by extension rather than by
- * "contains a dot": dynamic pages such as /places/[placeId] also render for dotted URLs, and those
- * HTML documents must still get the CSP. Speculation-rules prerenders are full documents, so they
- * get a CSP too.
+ * headers), Next and Vercel internals, the Sentry tunnel (/monitoring), OG image routes, the
+ * actual static files (public/assets, public/pwa and the named root files), and router prefetches.
+ *
+ * Static files are excluded by name, not by "contains a dot" or by extension: dynamic pages such
+ * as /places/[placeId] also render HTML for URLs like /places/a.b or /places/x.png, and those
+ * documents must still get the CSP. Keep this list in sync with public/ and the metadata routes.
+ * Speculation-rules prerenders are full documents, so they get a CSP too.
  */
 export const config = {
   matcher: [
     {
       source:
-        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|opengraph-image|twitter-image|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|webmanifest|js|mjs|css|map|woff2?|ttf|otf|pdf|mp4|webm)$).*)',
+        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
       missing: [{ type: 'header', key: 'next-router-prefetch' }],
     },
   ],

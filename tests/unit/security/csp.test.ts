@@ -151,6 +151,8 @@ describe('sentryCspReportEndpoint', () => {
     expect(sentryCspReportEndpoint('not a url')).toBeUndefined();
     expect(sentryCspReportEndpoint('https://o42.ingest.sentry.io/7')).toBeUndefined();
     expect(sentryCspReportEndpoint('https://abc@o42.ingest.sentry.io/')).toBeUndefined();
+    // Browsers only deliver reports over HTTP(S).
+    expect(sentryCspReportEndpoint('ftp://abc@example.com/7')).toBeUndefined();
   });
 });
 

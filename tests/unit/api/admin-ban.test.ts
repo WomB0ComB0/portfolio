@@ -59,6 +59,7 @@ vi.mock('@/lib/security/banlist-cidr', () => ({
   getBannedCidrs: vi.fn(),
 }));
 
+import { defaultErrorHandler } from '@/app/api/_elysia/shared/config';
 import { POST } from '@/app/api/[[...route]]/route';
 import * as banlist from '@/lib/security/banlist';
 import * as banlistCidr from '@/lib/security/banlist-cidr';
@@ -103,7 +104,10 @@ describe('POST /api/admin/ban', () => {
     vi.mocked(banlist.getSlowedIps).mockResolvedValue([]);
     const res = await call({ action: 'list' });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ success: true });
+    expect(await res.json()).toMatchObject({
+      success: true,
+      data: { banned: ['203.0.113.7'], slowed: [], counts: { banned: 1, slowed: 0 } },
+    });
   });
 
   it('returns 503 when the ban store is unreachable instead of an empty success', async () => {
@@ -162,5 +166,34 @@ describe('POST /api/admin/ban', () => {
 
     expect((await call({ action: 'ban-cidr', cidr: '203.0.113.0/24' })).status).toBe(200);
     expect(banlistCidr.banCidr).toHaveBeenCalledWith('203.0.113.0/24', undefined);
+  });
+});
+
+describe('defaultErrorHandler', () => {
+  const handle = (code: string, error: unknown) => {
+    const set = { status: 200 };
+    const body = defaultErrorHandler({ code, error, set });
+    return { status: set.status, body: String(body) };
+  };
+
+  it('answers 400 for request validation and parse errors, without the schema', () => {
+    for (const [code, error] of [
+      ['VALIDATION', { type: 'body', validator: { schema: { anyOf: [] } } }],
+      ['VALIDATION', { type: 'query' }],
+      ['PARSE', new Error('Unexpected token')],
+    ] as const) {
+      const { status, body } = handle(code, error);
+      expect(status, `${code} ${JSON.stringify(error)}`).toBe(400);
+      expect(body).not.toMatch(/anyOf|"schema"/);
+    }
+  });
+
+  it("keeps 500 when a handler's own response breaks its schema (a server bug)", () => {
+    expect(handle('VALIDATION', { type: 'response' }).status).toBe(500);
+  });
+
+  it('keeps 404 for unknown routes and 500 for other errors', () => {
+    expect(handle('NOT_FOUND', new Error('nope')).status).toBe(404);
+    expect(handle('UNKNOWN', new Error('boom')).status).toBe(500);
   });
 });

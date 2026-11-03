@@ -171,7 +171,11 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
   }) => {
     // Bad input is the client's mistake: answer 400 without echoing the validator schema back
     // (it used to be a 500 whose body serialised the whole TypeBox schema and the input).
-    if (code === 'VALIDATION' || code === 'PARSE') {
+    // A handler returning data that breaks its own response schema is also a VALIDATION error,
+    // but that one is our bug, so it keeps the 500 path below.
+    const isResponseValidation =
+      code === 'VALIDATION' && (error as { type?: unknown } | null)?.type === 'response';
+    if ((code === 'VALIDATION' && !isResponseValidation) || code === 'PARSE') {
       logger.warn('API request rejected', { code });
       set.status = 400;
       return Stringify({

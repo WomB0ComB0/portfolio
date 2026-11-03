@@ -128,11 +128,14 @@ describe('proxy matcher', () => {
       '/places/85e15937-eb9a-4fbb-99b9-c5425fe38ab5',
       '/stats',
       '/resume',
-      // Dynamic pages render HTML for dotted URLs too, so a dot alone must not skip the CSP.
+      // Dynamic pages render HTML for dotted URLs too, including ones that end in a file
+      // extension, so neither a dot nor an extension may skip the CSP.
       '/places/a.b',
-      '/projects/x.y',
+      '/places/item.png',
+      '/projects/x.json',
       '/experience/1.2',
       '/apiary',
+      '/assetsx',
     ]) {
       expect(runsOn(path), path).toBe(true);
     }
@@ -152,11 +155,13 @@ describe('proxy matcher', () => {
       '/sitemap.xml',
       '/manifest.webmanifest',
       '/assets/fonts/x.ttf',
-      '/images/photo.webp',
+      '/pwa/icon-192.png',
       '/sw.js',
       '/llms.txt',
       '/opengraph-image',
+      '/opengraph-image.png',
       '/twitter-image',
+      '/twitter-image.png',
     ]) {
       expect(runsOn(path), path).toBe(false);
     }

@@ -157,6 +157,8 @@ export function sentryCspReportEndpoint(
   if (!dsn) return undefined;
   try {
     const url = new URL(dsn);
+    // Browsers only deliver reports to HTTP(S) endpoints.
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
     const projectId = url.pathname.split('/').filter(Boolean).pop();
     if (!url.username || !projectId) return undefined;
     const endpoint = new URL(`${url.protocol}//${url.host}/api/${projectId}/security/`);
