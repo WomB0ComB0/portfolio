@@ -430,6 +430,11 @@ const withMillion = MillionLint.next({
 
 const combinedConfig = withMillion(withBundleAnalyzerConfig(withPwa(config)));
 
+// Only Vercel builds (or a build given an explicit SENTRY_RELEASE) create Sentry releases and
+// upload source maps. Otherwise every local `next build` with the real env files would add a
+// `local-<timestamp>` release to the project.
+const publishToSentry = process.env.VERCEL === '1' || Boolean(process.env.SENTRY_RELEASE);
+
 /** @type {import('@sentry/nextjs').SentryBuildOptions} */
 const sentryConfig = {
   org: process.env.SENTRY_ORG || 'womb0comb0',
@@ -439,7 +444,7 @@ const sentryConfig = {
 
   release: {
     name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
-    create: true,
+    create: publishToSentry,
     setCommits: {
       auto: true,
       ignoreMissing: true,
@@ -448,6 +453,7 @@ const sentryConfig = {
   },
 
   sourcemaps: {
+    disable: publishToSentry ? false : 'disable-upload',
     assets: ['.next/**/*.js', '.next/**/*.map'],
     ignore: ['node_modules/**/*', '.next/cache/**/*'],
     deleteSourcemapsAfterUpload: true,

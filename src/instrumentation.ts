@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+// @vercel/otel 2.x bundles OpenTelemetry SDK 2.3 and loads only @opentelemetry/api and
+// @opentelemetry/api-logs at runtime, so its SDK 2.x peer ranges only affect types here.
+// This SDK 3.x sampler is handed to that bundled tracer provider as-is, which works because
+// Sampler.shouldSample and the SamplingDecision values (0, 1, 2) did not change in SDK 3.
+// Pass no other SDK 3.x objects to registerOTel until @vercel/otel 3.x (vercel/otel#223).
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace';
 import * as Sentry from '@sentry/nextjs';
 import type { Configuration } from '@vercel/otel';
