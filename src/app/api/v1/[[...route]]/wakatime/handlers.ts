@@ -19,6 +19,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { wakaTimeAuthorization } from './auth';
 
 // Schema for WakaTime API response
 const WakaTimeDataSchema = Schema.Struct({
@@ -42,10 +43,12 @@ export async function getWakaTimeData(): Promise<WakaTimeData> {
     return cache.data;
   }
 
+  const authorization = wakaTimeAuthorization(env.WAKA_TIME_API_KEY);
+
   const effect = pipe(
     get('https://wakatime.com/api/v1/users/current/all_time_since_today', {
       headers: {
-        Authorization: `Basic ${btoa(env.WAKA_TIME_API_KEY as string)}`,
+        Authorization: authorization,
       },
       schema: WakaTimeResponseSchema,
       retries: 2,
