@@ -126,7 +126,7 @@ export const Licenses = (): JSX.Element => {
 
           <LicenseCard
             title="Photography & Images"
-            description="All photographs and original images are licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. You may share and adapt the photos for non-commercial purposes with proper attribution."
+            description="All photographs are licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. You may share and adapt the photos for non-commercial purposes with proper attribution. Applies only to photos I took. Doesn't grant rights to people's likeness or third-party logos."
             licenseName="CC BY-NC-SA 4.0"
             licenseUrl="https://creativecommons.org/licenses/by-nc-sa/4.0/"
             icon={<Image className="h-6 w-6" />}

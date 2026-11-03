@@ -8,7 +8,7 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-import { Cookie, ExternalLink, Gauge, Palette, Shield } from 'lucide-react';
+import { Cookie, ExternalLink, Gauge, Shield } from 'lucide-react';
 import type { JSX } from 'react';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
@@ -29,13 +29,13 @@ export const Cookies = (): JSX.Element => {
             <h1 className="text-4xl font-bold tracking-tight">Cookies Policy</h1>
           </div>
           <p className="text-muted-foreground text-lg">
-            <strong>Last Updated:</strong> October 25, 2025
+            <strong>Last Updated:</strong> November 3, 2026
           </p>
           <p className="text-foreground/80 leading-relaxed">
             This Cookie Policy explains how Mike Odnis ("we", "us", and "our") uses cookies and
-            similar technologies to recognize you when you visit our website at
-            wombo-comb0-portfolio.vercel.app. It explains what these technologies are and why we use
-            them, as well as your rights to control our use of them.
+            similar technologies to recognize you when you visit our website at mikeodnis.dev. It
+            explains what these technologies are and why we use them, as well as your rights to
+            control our use of them.
           </p>
         </div>
 
@@ -62,10 +62,8 @@ export const Cookies = (): JSX.Element => {
               <p className="text-foreground/80 leading-relaxed">
                 We use first-party and third-party cookies for several reasons. Some cookies are
                 required for technical reasons in order for our Website to operate, and we refer to
-                these as "essential" or "strictly necessary" cookies. Other cookies also enable us
-                to track and target the interests of our users to enhance the experience on our
-                Website. Third parties serve cookies through our Website for analytics and other
-                purposes.
+                these as "essential" or "strictly necessary" cookies. Third parties serve cookies
+                through our Website for analytics and other purposes.
               </p>
             </CardContent>
           </MagicCard>
@@ -104,9 +102,9 @@ export const Cookies = (): JSX.Element => {
                     Firebase Authentication
                   </h4>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    We use Firebase to authenticate users for the Guestbook feature. Firebase sets
-                    cookies to manage your login session securely. Without these, you would not be
-                    able to sign in.
+                    We use Firebase to authenticate users for the Guestbook feature. Firebase keeps
+                    your login session in your browser's storage (IndexedDB), not in cookies.
+                    Without it, you would not stay signed in.
                   </p>
                 </div>
                 <Separator />
@@ -129,41 +127,6 @@ export const Cookies = (): JSX.Element => {
             <MagicCard className="border-border/50 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 mt-1">
-                    <Palette className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-xl">Functionality Cookies</CardTitle>
-                      <Badge variant="secondary" className="text-xs">
-                        Optional
-                      </Badge>
-                    </div>
-                    <CardDescription className="text-base">
-                      These cookies are used to enhance the performance and functionality of our
-                      Website but are non-essential to their use. However, without these cookies,
-                      certain functionality may become unavailable.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    Theme Preference
-                  </h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    We use a cookie (typically named{' '}
-                    <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">theme</code>)
-                    to remember your preferred theme (light or dark mode) across visits.
-                  </p>
-                </div>
-              </CardContent>
-            </MagicCard>
-
-            <MagicCard className="border-border/50 shadow-sm">
-              <CardHeader>
-                <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 mt-1">
                     <Gauge className="w-5 h-5 text-green-500" />
                   </div>
@@ -176,8 +139,8 @@ export const Cookies = (): JSX.Element => {
                     </div>
                     <CardDescription className="text-base">
                       These cookies collect information that is used either in aggregate form to
-                      help us understand how our Website is being used or how effective our
-                      marketing campaigns are, or to help us customize our Website for you.
+                      help us understand how our Website is being used, or to help us customize our
+                      Website for you.
                     </CardDescription>
                   </div>
                 </div>

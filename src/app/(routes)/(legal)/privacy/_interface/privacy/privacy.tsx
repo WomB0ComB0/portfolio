@@ -47,7 +47,7 @@ export const Privacy = (): JSX.Element => {
             <div>
               <h1 className="text-4xl font-bold tracking-tight">Privacy Policy</h1>
               <p className="text-muted-foreground mt-1">
-                Last Updated: <span className="font-medium">October 25, 2025</span>
+                Last Updated: <span className="font-medium">November 3, 2026</span>
               </p>
             </div>
           </div>
@@ -82,10 +82,10 @@ export const Privacy = (): JSX.Element => {
                   <li className="flex gap-3">
                     <span className="text-primary mt-1">•</span>
                     <div>
-                      <span className="font-semibold">Guestbook:</span> When you sign our guestbook,
-                      we collect your name and email address from your authentication provider
-                      (Google or GitHub), along with your message. Anonymous sign-ins use a unique
-                      anonymous ID.
+                      <span className="font-semibold">Guestbook:</span> You can sign in with Google,
+                      GitHub, or anonymously. The guestbook stores your display name, your message,
+                      and the time you posted it. Firebase Authentication keeps the email address
+                      from your sign-in.
                     </div>
                   </li>
                   <li className="flex gap-3">
@@ -120,6 +120,16 @@ export const Privacy = (): JSX.Element => {
                       <span className="font-semibold">Analytics Data:</span> We use Google Analytics
                       and Vercel Analytics to understand visitor engagement, including device,
                       location, and browsing behavior data.
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="text-primary mt-1">•</span>
+                    <div>
+                      <span className="font-semibold">Error Monitoring and Session Replay:</span>{' '}
+                      Sentry records errors, and for about 1% of sessions plus any session where an
+                      error occurs, a replay of how the page was used (clicks, scrolling, and
+                      navigation). In these replays all page text and everything you type into
+                      inputs is masked, and images and other media are blocked.
                     </div>
                   </li>
                   <li className="flex gap-3">
@@ -171,7 +181,7 @@ export const Privacy = (): JSX.Element => {
                 </li>
                 <li className="flex gap-3">
                   <span className="text-primary mt-1">•</span>
-                  <span>Enable interactive features like Guestbook and real-time cursors</span>
+                  <span>Enable interactive features like the Guestbook</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-primary mt-1">•</span>
@@ -211,7 +221,8 @@ export const Privacy = (): JSX.Element => {
                     <span className="font-semibold">With Third-Party Service Providers:</span> We
                     share data with vendors performing services for us, including Vercel (hosting),
                     Firebase (authentication), Firestore (database), Google and Vercel (analytics),
-                    Sentry (error monitoring), and Upstash (rate limiting)
+                    Google (maps), Sanity (content and images), Sentry (error monitoring and session
+                    replay), and Upstash (rate limiting)
                   </div>
                 </li>
                 <li className="flex gap-3">
@@ -251,8 +262,13 @@ export const Privacy = (): JSX.Element => {
                 {[
                   {
                     name: 'Google',
-                    purpose: 'Firebase and Analytics',
+                    purpose: 'Firebase, Analytics, and Maps on /places',
                     url: 'https://policies.google.com/privacy',
+                  },
+                  {
+                    name: 'Sanity',
+                    purpose: 'Content and image CDN',
+                    url: 'https://www.sanity.io/legal/privacy',
                   },
                   {
                     name: 'Vercel',
@@ -261,7 +277,7 @@ export const Privacy = (): JSX.Element => {
                   },
                   {
                     name: 'Sentry',
-                    purpose: 'Error Monitoring',
+                    purpose: 'Error Monitoring and Session Replay',
                     url: 'https://sentry.io/privacy/',
                   },
                   {
