@@ -82,7 +82,7 @@
     "@opentelemetry/sdk-node": "^0.222.0",
     "adm-zip": ">=0.6.1",
     "cookie": ">=0.7.2",
-    "deepmerge": "4.1.2",
+    "deepmerge": "4.3.1",
     "esbuild": ">=0.27.2",
     "glob": ">=14.0.2",
     "import-in-the-middle": "3.5.3",
