@@ -39,14 +39,15 @@ const prod = buildContentSecurityPolicy({
 });
 
 describe('buildContentSecurityPolicy', () => {
-  it('trusts scripts by nonce with strict-dynamic, without eval in production', () => {
+  it('trusts scripts by nonce with strict-dynamic, without JavaScript eval in production', () => {
     expect(directive(prod, 'script-src')).toEqual([
       "'self'",
       "'nonce-abc123=='",
       "'strict-dynamic'",
       'https:',
+      "'wasm-unsafe-eval'",
     ]);
-    expect(prod).not.toContain('unsafe-eval');
+    expect(directive(prod, 'script-src')).not.toContain("'unsafe-eval'");
   });
 
   it('allows eval and websockets only in development', () => {
@@ -90,6 +91,11 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(prod, 'style-src')).toContain('https://fonts.googleapis.com');
     expect(directive(prod, 'font-src')).toEqual(["'self'", 'https://fonts.gstatic.com']);
     expect(directive(prod, 'connect-src')).toEqual(expect.arrayContaining(['data:', 'blob:']));
+  });
+
+  it('covers the vector map: its style set (blank map without it) and its WebAssembly (no labels without it)', () => {
+    expect(directive(prod, 'connect-src')).toContain('https://www.gstatic.com');
+    expect(directive(prod, 'script-src')).toContain("'wasm-unsafe-eval'");
   });
 
   it('locks down plugins, base URLs, form targets and framing', () => {
