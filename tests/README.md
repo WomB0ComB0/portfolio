@@ -109,7 +109,7 @@ bun run e2e:ui
 ## Key Principles
 
 1. **Vitest for fast feedback** - Unit and integration tests run in jsdom/node
-2. **Vitest UI for debugging** - Interactive dashboard at http://localhost:51204/**vitest**/
+2. **Vitest UI for debugging** - Interactive dashboard at `http://localhost:51204/__vitest__/`
 3. **Playwright for real browsers** - E2E tests run in Chromium, Firefox, and WebKit
 4. **Guest mode for auth** - E2E tests use "Continue as Guest" flow
 5. **No Cypress** - We don't need two E2E frameworks; Playwright covers our cross-browser and SSO

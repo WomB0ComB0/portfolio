@@ -38,9 +38,10 @@
       "matchPackageNames": ["/^@logtail\\//"]
     },
     {
+      "description": "@vercel/otel declares peers on the OpenTelemetry SDK it targets, so it moves in the same PR as @opentelemetry/*",
       "matchManagers": ["npm", "bun"],
       "groupName": "opentelemetry-js",
-      "matchPackageNames": ["/^@opentelemetry\\//"]
+      "matchPackageNames": ["/^@opentelemetry\\//", "@vercel/otel"]
     },
     {
       "matchManagers": ["npm", "bun"],
@@ -57,6 +58,12 @@
       "matchManagers": ["npm", "bun"],
       "matchPackageNames": ["deepmerge"],
       "allowedVersions": "<4.2.0"
+    },
+    {
+      "description": "@pierre/diffs 1.6.3 was published with unresolved catalog:/workspace: specifiers and cannot be installed; skip it so the override moves straight to the next good release",
+      "matchManagers": ["npm", "bun"],
+      "matchPackageNames": ["@pierre/diffs"],
+      "allowedVersions": "!/^1\\.6\\.3$/"
     },
     {
       "matchManagers": ["npm", "bun"],

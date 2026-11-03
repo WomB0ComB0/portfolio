@@ -18,7 +18,7 @@
           packages = with pkgs; [
             corepack
             bun
-            nodejs_22
+            nodejs_24
             nodePackages.pnpm
             postgresql
             git

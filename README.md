@@ -47,9 +47,9 @@ The application runs as a single Next.js 16 deployment on Vercel, splitting UI r
 1. **Presentation Layer (`src/app/(routes)`)**: React 19 Server and Client Components styled with Tailwind CSS v4 and Radix UI primitives. Client data fetching uses a custom [`DataLoader`](src/providers/server/effect-data-loader.tsx) built on `@effect/platform`, `effect/Schema`, and `@tanstack/react-query` (`useSuspenseQuery`).
 2. **API Layer (`src/app/api`)**: Two Elysia.js routers mounted inside Next.js App Router catch-all handlers (`/api/[[...route]]` and `/api/v1/[[...route]]`). Routes enforce IP-based rate limiting via Upstash Redis, CIDR/IP ban checks, security headers, and runtime schema validation.
 3. **Content & Persistence**:
-   - **Sanity CMS v5**: Structured content for projects, work experience, certifications, places, talks, presentations, articles, and resume metadata.
+   - **Sanity CMS v6**: Structured content for projects, work experience, certifications, places, talks, presentations, articles, and resume metadata.
    - **Upstash Redis**: Stale-while-revalidate caching, rate limiting, and IP ban lists.
-   - **Firebase v12**: Authentication and real-time storage for the `/guestbook` route.
+   - **Firebase v13**: Authentication and real-time storage for the `/guestbook` route.
 4. **Observability**: OpenTelemetry instrumentation (`src/instrumentation.ts`), Sentry error tracking, and Better Stack uptime monitoring and log ingestion.
 
 ```mermaid
@@ -67,7 +67,7 @@ graph TD
 
     subgraph "State & Storage"
         Upstash[("Upstash Redis")]
-        Sanity[("Sanity CMS v5")]
+        Sanity[("Sanity CMS v6")]
         Firebase[("Firebase Auth & DB")]
     end
 
@@ -102,15 +102,15 @@ graph TD
 
 | Category | Technology | Usage |
 | :--- | :--- | :--- |
-| **Runtime & Package Manager** | Bun (`>=1.0.0`), Node.js (`>=22.13.0`) | Dependency management, script execution, and local dev runtime |
+| **Runtime & Package Manager** | Bun (`>=1.0.0`), Node.js (`>=24.15.0`) | Dependency management, script execution, and local dev runtime |
 | **Framework** | Next.js 16, React 19 | App Router, Server Components, dynamic code splitting, and PWA support |
 | **API Engine** | Elysia.js 1.4, `@elysiajs/eden` | Type-safe REST handlers, OpenTelemetry spans, Server-Timing headers, and CORS |
 | **Data Pipeline & Validation** | Effect (`@effect/platform`, `effect/Schema`), Zod 4, ArkType | Typed HTTP client pipelines, retry policies, and strict schema decoding |
 | **State & Caching** | TanStack React Query v5, Jotai 3, Upstash Redis | Suspense query caching, atomic client state, and server-side rate limiting |
-| **Styling & Motion** | Tailwind CSS v4, Radix UI, Motion 12, Paper Shaders | Component primitives, animations, and WebGL background shaders |
-| **CMS & Database** | Sanity v5 (`next-sanity`), Firebase v12 (`firebase-admin`) | Portfolio content management and authenticated guestbook entries |
+| **Styling & Motion** | Tailwind CSS v4, Radix UI, Motion 14, Paper Shaders | Component primitives, animations, and WebGL background shaders |
+| **CMS & Database** | Sanity v6 (`next-sanity`), Firebase v13 (`firebase`, `firebase-admin` 14) | Portfolio content management and authenticated guestbook entries |
 | **Observability** | Sentry 11, OpenTelemetry, Better Stack (`@logtail/node`) | Distributed tracing, error reporting, and `/api/status` uptime aggregation |
-| **Code Quality & Testing** | Biome 2, TypeScript 6, Vitest 4, Playwright | Formatting, linting, static type checking, unit tests, and Chromium E2E tests |
+| **Code Quality & Testing** | Biome 2, TypeScript 6, Vitest 5, Playwright | Formatting, linting, static type checking, unit tests, and Chromium E2E tests |
 
 ---
 
@@ -167,7 +167,7 @@ graph TD
 ### Prerequisites
 
 - **Bun** `>= 1.0.0`
-- **Node.js** `>= 22.13.0`
+- **Node.js** `>= 24.15.0`
 
 ### Setup
 
@@ -238,7 +238,7 @@ bun start                      # Start production server
 bun run lint                   # Run Biome check/fix and Stylelint on SCSS/CSS
 bun run format                 # Format files with Prettier
 bun run type                   # Run TypeScript compiler check (tsc --noEmit)
-bun test                       # Run unit and integration tests via Vitest
+bun run test                   # Run unit tests via Vitest (vitest run)
 bun run e2e:ci                 # Run Playwright E2E test suite on Chromium
 
 # Bundle & Repository Maintenance

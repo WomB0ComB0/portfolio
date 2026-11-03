@@ -167,7 +167,6 @@
     "@opentelemetry/core": "^3.0.0",
     "@opentelemetry/exporter-prometheus": "^0.300.0",
     "@opentelemetry/instrumentation": "^0.300.0",
-    "@opentelemetry/propagator-jaeger": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.300.0",
     "@pierre/diffs": "1.6.2",
     "adm-zip": ">=0.6.1",
