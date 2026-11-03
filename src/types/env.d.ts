@@ -31,7 +31,6 @@ declare global {
       LIVEBLOCKS_API_KEY_DEV: string;
       NEXT_PUBLIC_DISCORD_ID: string;
       REACT_EDITOR: string;
-      NEXT_PUBLIC_HASHNODE_TOKEN: string;
       GITHUB_TOKEN: string;
       WAKA_TIME_API_KEY: string;
       SPOTIFY_CLIENT_ID: string;
@@ -47,8 +46,8 @@ declare global {
       GCP_CLIENT_X509_CERT_URL: string;
       NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: string;
       VERCEL_GIT_COMMIT_SHA?: string;
-      NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: string;
-      NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: string;
+      UPSTASH_REDIS_REST_URL: string;
+      UPSTASH_REDIS_REST_TOKEN: string;
       CSRF_SECRET: string;
       ADMIN_API_TOKEN: string;
       NEXT_PUBLIC_SANITY_PROJECT_ID: string;

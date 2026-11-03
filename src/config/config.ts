@@ -24,7 +24,8 @@ import { env } from '@/env';
  * @type {object}
  * @description
  * Central configuration object for the portfolio client application (only client-safe variables included).
- * Includes environment-specific keys for Firebase, Google APIs, GCP, Sentry, Discord, Hashnode, Upstash, and Sanity.
+ * Includes environment-specific keys for Firebase, Google Maps, Sentry, Discord, and Sanity.
+ * This module is imported by client components, so it must only read `NEXT_PUBLIC_` (public) values.
  * This config should be the singular source of truth for environment and runtime client-side settings across the app.
  *
  * @author Mike Odnis
@@ -104,29 +105,6 @@ export const config = {
    */
   discord: {
     id: env.NEXT_PUBLIC_DISCORD_ID,
-  },
-  /**
-   * @readonly
-   * @public
-   * @description Hashnode API token for accessing blog resources.
-   * @type {{ token: string }}
-   * @see https://hashnode.com
-   */
-  hashnode: {
-    token: env.NEXT_PUBLIC_HASHNODE_TOKEN,
-  },
-  /**
-   * @readonly
-   * @public
-   * @description Upstash REST API credentials for managed Redis.
-   * @type {{ redis: { restUrl: string, restToken: string } }}
-   * @see https://docs.upstash.com/redis/
-   */
-  upstash: {
-    redis: {
-      restUrl: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
-      restToken: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
-    },
   },
   /**
    * @readonly

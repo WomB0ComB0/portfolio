@@ -204,9 +204,8 @@ Validation is enforced at build and startup via [`src/env.ts`](src/env.ts) (`@t3
 | `NEXT_PUBLIC_SANITY_PROJECT_ID` | Client | Sanity CMS project ID (`NEXT_PUBLIC_SANITY_DATASET` defaults to `production`) |
 | `NEXT_PUBLIC_FIREBASE_*` | Client | Firebase client config (`API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID`, `STORAGE_BUCKET`, `MESSAGING_SENDER_ID`, `APP_ID`, `MEASUREMENT_ID`) |
 | `GCP_*` | Server | GCP service account credentials (`GCP_PROJECT_ID`, `GCP_PRIVATE_KEY_ID`, `GCP_PRIVATE_KEY`, `GCP_CLIENT_EMAIL`, `GCP_CLIENT_ID`, `GCP_CLIENT_X509_CERT_URL`) |
-| `NEXT_PUBLIC_UPSTASH_REDIS_REST_URL` | Client | Upstash Redis REST endpoint |
-| `NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN` | Client | Upstash Redis REST token |
-| `NEXT_PUBLIC_HASHNODE_TOKEN` | Client | Hashnode Personal Access Token |
+| `UPSTASH_REDIS_REST_URL` | Server | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | Server | Upstash Redis REST token (read/write; never expose it as `NEXT_PUBLIC_`) |
 | `NEXT_PUBLIC_DISCORD_ID` | Client | Discord user ID for Lanyard presence |
 | `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | Client | Liveblocks public key |
 | `NEXT_PUBLIC_SENTRY_DSN` | Client | Sentry DSN for client/server error reporting |

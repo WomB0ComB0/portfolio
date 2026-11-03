@@ -14,127 +14,163 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
-import { config } from '@/config';
-import { post } from '@/lib/http-clients/effect-fetcher';
+import { FetchHttpClient, HttpClient, type HttpClientError } from '@effect/platform';
+import { type Cause, Duration, Effect, Either, Schedule, Schema } from 'effect';
+import { XMLParser } from 'fast-xml-parser';
 import { logger } from '@/utils';
 
 /**
- * GraphQL query for fetching user blog posts from Hashnode.
- * @readonly
- * @private
- * @see https://hashnode.com/graphql
+ * The Hashnode publication that hosts the blog.
+ *
+ * Posts are read from the publication's public RSS feed. Hashnode retired free GraphQL API
+ * access: every query now needs a paid Pro plan, and `gql.hashnode.com` 301-redirects other
+ * callers to an HTML announcement page, which is what broke the old GraphQL integration.
+ * @see https://hashnode.com/announcements/graphql-api
  */
-const query = `
-  query UserPosts($username: String!, $page: Int!, $pageSize: Int!) {
-    user(username: $username) {
-      posts(page: $page, pageSize: $pageSize) {
-        edges {
-          node {
-            title
-            slug
-            publishedAt
-            brief
-            coverImage { url }
-          }
-        }
-      }
-    }
-  }
-`;
+export const HASHNODE_BLOG_URL = 'https://blog.mikeodnis.dev';
+
+const HASHNODE_FEED_URL = `${HASHNODE_BLOG_URL}/rss.xml`;
+const FEED_TIMEOUT = Duration.seconds(10);
+const FEED_RETRIES = 2;
+const FEED_RETRY_BASE_DELAY = Duration.millis(500);
+const DEFAULT_LIMIT = 10;
 
 /**
  * @readonly
  * @description
- * Schema definition for a blog object returned from Hashnode via GraphQL.
- * Used for type validation and transformation of post data.
- * @author Mike Odnis
- * @version 1.0.0
+ * Schema definition for a blog post from the Hashnode publication.
  * @public
- * @see https://hashnode.com/graphql
  */
 export const BlogSchema = Schema.Struct({
   title: Schema.String,
   slug: Schema.String,
   publishedAt: Schema.String,
   excerpt: Schema.String,
-  imageUrl: Schema.optional(Schema.String), // Corrected usage of Schema.optional
+  imageUrl: Schema.optional(Schema.String),
 });
 
 /**
- * TypeScript type representing a blog/article fetched from Hashnode.
+ * TypeScript type representing a blog post from the Hashnode publication.
  * @see BlogSchema
  * @public
- * @author Mike Odnis
- * @version 1.0.0
  */
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;
 
-/**
- * Fetches blog posts for a given Hashnode username.
- *
- * This function retrieves paginated blog posts written by a user on Hashnode
- * using the Hashnode GraphQL API. Includes customizable page and pageSize for pagination.
- *
- * @async
- * @function
- * @public
- * @param {string} username - Hashnode username to retrieve posts for.
- * @param {number} [page=1] - The page of posts to fetch (for pagination).
- * @param {number} [pageSize=10] - Number of posts to fetch per page.
- * @returns {Promise<Blog[]>} Resolves to an array of {@link Blog} objects containing blog metadata.
- * @throws {Error} Throws if API request fails or if the Hashnode API returns an error response.
- * @web
- * @author Mike Odnis
- * @version 1.0.0
- * @see https://hashnode.com/graphql
- * @example
- * const blogs = await getBlogs('WomB0ComB0', 1, 5);
- * blogs.forEach(blog => console.log(blog.title, blog.slug, blog.excerpt));
- */
-export async function getBlogs(username: string, page = 1, pageSize = 10): Promise<Blog[]> {
-  const token = config.hashnode.token;
+/** The fields read from each RSS `<item>`; everything else in the feed is ignored. */
+const FeedItemSchema = Schema.Struct({
+  title: Schema.String,
+  link: Schema.String,
+  pubDate: Schema.String,
+  description: Schema.optional(Schema.String),
+});
 
-  const effect = pipe(
-    post(
-      'https://gql.hashnode.com/',
-      {
-        query,
-        variables: { username, page, pageSize },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        retries: 2,
-        timeout: 10_000,
-      },
-    ),
-    Effect.provide(FetchHttpClient.layer),
-  );
+type FeedItem = Schema.Schema.Type<typeof FeedItemSchema>;
 
+const decodeFeedItem = Schema.decodeUnknownEither(FeedItemSchema);
+
+const feedParser = new XMLParser({
+  ignoreAttributes: true,
+  // Keep every value a string: a title such as "2024" must not become a number.
+  parseTagValue: false,
+  trimValues: true,
+  // `<item>` only occurs at rss.channel.item; force an array even when the feed has one post.
+  isArray: (tagName) => tagName === 'item',
+});
+
+/** Maps a feed item to a blog entry, or `null` when it has no title, usable link or valid date. */
+function toBlog(item: FeedItem): Blog | null {
+  const title = item.title.trim();
+  const published = new Date(item.pubDate);
+  let slug: string;
   try {
-    const data: any = await Effect.runPromise(effect);
-
-    if (data.errors) {
-      throw new Error(data.errors.map((e: any) => e.message).join(', '));
-    }
-
-    const posts = data.data?.user?.posts?.edges || [];
-    return posts.map((edge: any) => {
-      const post = edge.node;
-      return {
-        title: post.title,
-        slug: post.slug,
-        publishedAt: post.publishedAt,
-        excerpt: post.brief,
-        imageUrl: post.coverImage?.url, // Extract imageUrl
-      };
-    });
-  } catch (error) {
-    logger.error('Error fetching blogs:', error);
-    throw error;
+    slug = new URL(item.link).pathname.replace(/^\/+|\/+$/g, '');
+  } catch {
+    return null;
   }
+  if (!title || !slug || Number.isNaN(published.getTime())) return null;
+  return {
+    title,
+    slug,
+    publishedAt: published.toISOString(),
+    excerpt: item.description?.trim() ?? '',
+  };
+}
+
+/**
+ * Parses a Hashnode RSS feed into blog entries, newest first.
+ *
+ * Items without a title, a valid link or a parseable `pubDate` are skipped, and the number
+ * skipped is logged as a warning.
+ *
+ * @param xml - The RSS document.
+ * @param limit - Maximum number of entries to return.
+ * @returns Blog entries sorted by `publishedAt`, newest first. `imageUrl` is never set: the feed
+ *   carries no cover images.
+ * @throws {Error} If the document is not an RSS feed, for example an HTML error or redirect page.
+ * @public
+ */
+export function parseHashnodeRss(xml: string, limit = DEFAULT_LIMIT): Blog[] {
+  const doc: unknown = feedParser.parse(xml);
+  const channel = (doc as { rss?: { channel?: unknown } } | null | undefined)?.rss?.channel;
+  if (!channel || typeof channel !== 'object') {
+    throw new Error(`Hashnode feed is not RSS (starts with ${JSON.stringify(xml.slice(0, 80))})`);
+  }
+
+  const rawItems = (channel as { item?: unknown }).item;
+  const items: unknown[] = Array.isArray(rawItems) ? rawItems : [];
+  const blogs = items.flatMap((raw) => {
+    const decoded = decodeFeedItem(raw);
+    const blog = Either.isRight(decoded) ? toBlog(decoded.right) : null;
+    return blog ? [blog] : [];
+  });
+
+  const skipped = items.length - blogs.length;
+  if (skipped > 0) {
+    logger.warn(`Skipped ${skipped} malformed Hashnode feed item(s)`);
+  }
+
+  // ISO-8601 UTC strings sort chronologically as plain strings.
+  return [...blogs].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, limit);
+}
+
+/** Retry timeouts, transport errors, unreadable bodies, 429 and 5xx; other 4xx won't fix themselves. */
+function isRetryable(error: HttpClientError.HttpClientError | Cause.TimeoutException): boolean {
+  if (error._tag === 'ResponseError' && error.reason === 'StatusCode') {
+    const { status } = error.response;
+    return status === 429 || status >= 500;
+  }
+  return true;
+}
+
+const fetchFeedXml = Effect.gen(function* () {
+  const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient);
+  const response = yield* client.get(HASHNODE_FEED_URL, {
+    headers: { accept: 'application/rss+xml, application/xml;q=0.9, */*;q=0.1' },
+  });
+  return yield* response.text;
+}).pipe(
+  Effect.timeout(FEED_TIMEOUT),
+  Effect.retry({
+    times: FEED_RETRIES,
+    schedule: Schedule.exponential(FEED_RETRY_BASE_DELAY),
+    while: isRetryable,
+  }),
+  Effect.provide(FetchHttpClient.layer),
+);
+
+/**
+ * Fetches the newest posts from the Hashnode blog's public RSS feed.
+ *
+ * @param limit - Maximum number of posts to return (default 10).
+ * @returns Posts newest first, without `imageUrl` (the feed has no cover images).
+ * @throws If the feed can't be fetched or isn't RSS. The blog route logs the failure and still
+ *   serves the other sources.
+ * @public
+ * @example
+ * const posts = await getBlogs(5);
+ * posts.forEach((post) => console.log(post.title, post.slug));
+ */
+export async function getBlogs(limit = DEFAULT_LIMIT): Promise<Blog[]> {
+  const xml = await Effect.runPromise(fetchFeedXml);
+  return parseHashnodeRss(xml, limit);
 }

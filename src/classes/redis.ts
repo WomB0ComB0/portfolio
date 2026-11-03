@@ -40,8 +40,9 @@ import { env } from '@/env';
  * const value = await redis.get('my-key');
  */
 export const redis = new Redis({
-  url: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
-  token: env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
+  // Server-only variables: never import this module from client code.
+  url: env.UPSTASH_REDIS_REST_URL,
+  token: env.UPSTASH_REDIS_REST_TOKEN,
   keepAlive: true,
   readYourWrites: true,
 });

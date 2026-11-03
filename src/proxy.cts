@@ -186,7 +186,7 @@ function applySecurityHeaders(response: NextResponse, nonce: string, isProd: boo
     `script-src ${scriptSrc.join(' ')}`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src 'self' data: https:`,
-    `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.gstatic.com data: https://*.sanity.io ${env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL} https://*.sentry.io https://cdn.discordapp.com`,
+    `connect-src 'self' https://*.google-analytics.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.gstatic.com data: https://*.sanity.io https://*.sentry.io https://cdn.discordapp.com`,
     `frame-src https://cdn.sanity.io https://www.gstatic.com https://www.google.com`,
     `worker-src 'self' blob:`,
     `object-src 'none'`,

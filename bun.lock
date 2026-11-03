@@ -79,6 +79,7 @@
         "elysiajs-helmet": "^1.0.5",
         "embla-carousel-react": "8.6.0",
         "fast-glob": "3.3.3",
+        "fast-xml-parser": "5.9.2",
         "firebase": "^13.0.0",
         "firebase-admin": "14.5.0",
         "gzip-size": "^7.0.0",
