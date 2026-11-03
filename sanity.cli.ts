@@ -31,4 +31,11 @@ export default defineCliConfig({
   deployment: {
     appId: 'tdcijr9jf7gyz3zllo3eis3k',
   },
+  // Keep the Studio's Vite build away from the Next.js app's postcss.config.mjs.
+  // Since sanity v6 the Studio bundles plain CSS (@portabletext/plugin-table), and
+  // Vite rejects that config's Next.js-only string plugin form. An inline config
+  // stops Vite from searching for one; the Studio needs no PostCSS plugins.
+  vite: {
+    css: { postcss: { plugins: [] } },
+  },
 });

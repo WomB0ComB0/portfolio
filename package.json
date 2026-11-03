@@ -80,6 +80,7 @@
     "@opentelemetry/instrumentation": "^0.222.0",
     "@opentelemetry/propagator-jaeger": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.222.0",
+    "@pierre/diffs": "1.6.2",
     "adm-zip": ">=0.6.1",
     "cookie": ">=0.7.2",
     "deepmerge": "4.1.2",
