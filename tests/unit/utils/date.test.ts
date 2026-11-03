@@ -25,6 +25,8 @@ import {
   formatDate,
   formatDateOnly,
   formatDatePeriod,
+  formatDateRange,
+  formatDateRangeParts,
   formatDateTime,
   formatMonthYear,
 } from '../../../src/utils/date';
@@ -89,6 +91,91 @@ describe('Date Utilities', () => {
       const end = new Date('2023-08-20T00:00:00Z');
       const result = formatDatePeriod(start, end);
       expect(result).toBe('Jun 2022 - Aug 2023');
+    });
+  });
+
+  describe('formatDateRange', () => {
+    it('returns an empty string without a start date', () => {
+      expect(formatDateRange(undefined)).toBe('');
+      expect(formatDateRange(null, '2026-05-20')).toBe('');
+    });
+
+    it('formats a single Sanity date without shifting the day', () => {
+      expect(formatDateRange('2026-05-12')).toBe('May 12, 2026');
+    });
+
+    it('collapses a same-day range to one date', () => {
+      expect(formatDateRange('2026-05-19', '2026-05-19')).toBe('May 19, 2026');
+    });
+
+    it('collapses month and year within the same month', () => {
+      expect(formatDateRange('2026-05-19', '2026-05-20')).toBe('May 19 – 20, 2026');
+    });
+
+    it('collapses only the year across months', () => {
+      expect(formatDateRange('2026-07-29', '2026-09-15')).toBe('Jul 29 – Sep 15, 2026');
+    });
+
+    it('spells out both dates across years', () => {
+      expect(formatDateRange('2025-12-30', '2026-01-02')).toBe('Dec 30, 2025 – Jan 2, 2026');
+    });
+
+    it('ignores an end date that is before the start date', () => {
+      expect(formatDateRange('2026-05-20', '2026-05-19')).toBe('May 20, 2026');
+    });
+
+    it('ignores an invalid end date', () => {
+      expect(formatDateRange('2026-05-19', 'not-a-date')).toBe('May 19, 2026');
+    });
+
+    it('reports an invalid start date', () => {
+      expect(formatDateRange('not-a-date', '2026-05-20')).toBe('Invalid date');
+    });
+
+    it('handles Date objects', () => {
+      const start = new Date('2026-06-01T00:00:00Z');
+      const end = new Date('2026-06-05T00:00:00Z');
+      expect(formatDateRange(start, end)).toBe('Jun 1 – 5, 2026');
+    });
+
+    it('treats different times on the same UTC day as one day', () => {
+      expect(formatDateRange('2026-05-19T10:00:00Z', '2026-05-19T18:00:00Z')).toBe('May 19, 2026');
+      expect(formatDateRange('2026-05-19', '2026-05-19T23:59:59Z')).toBe('May 19, 2026');
+    });
+
+    it('compares days, not instants, for timed Date objects', () => {
+      const start = new Date('2026-06-01T09:00:00Z');
+      const end = new Date('2026-06-05T17:00:00Z');
+      expect(formatDateRange(start, end)).toBe('Jun 1 – 5, 2026');
+    });
+  });
+
+  describe('formatDateRangeParts', () => {
+    it('returns null for a missing or invalid start date', () => {
+      expect(formatDateRangeParts(null)).toBeNull();
+      expect(formatDateRangeParts('not-a-date', '2026-05-20')).toBeNull();
+    });
+
+    it('returns only a start label for a single day', () => {
+      expect(formatDateRangeParts('2026-05-12')).toEqual({ start: 'May 12, 2026' });
+    });
+
+    it('collapses the shared month and year into the end label', () => {
+      expect(formatDateRangeParts('2026-05-19', '2026-05-20')).toEqual({
+        start: 'May 19',
+        end: '20, 2026',
+      });
+      expect(formatDateRangeParts('2026-07-29', '2026-09-15')).toEqual({
+        start: 'Jul 29',
+        end: 'Sep 15, 2026',
+      });
+    });
+
+    it('keeps full labels across years', () => {
+      expect(formatDateRangeParts('2025-12-30', '2026-01-02')).toEqual({
+        start: 'Dec 30, 2025',
+        end: 'Jan 2, 2026',
+      });
     });
   });
 

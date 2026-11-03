@@ -21,6 +21,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
+import { PlaceDateRange } from '@/app/(routes)/(main)/(personal)/places/_components/place-date-range';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -29,18 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/utils';
 import type { PhotoModalProps, PhotoWithCaption } from './page.types';
-
-const formatPlaceDateRange = (startDate?: string | null, endDate?: string | null): string => {
-  if (!startDate) return '';
-  const start = formatDate(startDate, { month: 'short', day: 'numeric', year: 'numeric' });
-  if (endDate && endDate !== startDate) {
-    const end = formatDate(endDate, { month: 'short', day: 'numeric', year: 'numeric' });
-    return `${start} – ${end}`;
-  }
-  return start;
-};
 
 const swipeConfidenceThreshold = 10000;
 const swipePower = (offset: number, velocity: number) => {
@@ -240,7 +230,7 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
                   <h1 className="text-3xl md:text-4xl font-bold">{place.name}</h1>
                   {place.startDate && (
                     <p className="text-sm text-muted-foreground">
-                      {formatPlaceDateRange(place.startDate, place.endDate)}
+                      <PlaceDateRange startDate={place.startDate} endDate={place.endDate} />
                     </p>
                   )}
                   {place.description && (

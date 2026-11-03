@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react';
 import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
+import { PlaceDateRange } from '@/app/(routes)/(main)/(personal)/places/_components/place-date-range';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -34,19 +35,9 @@ import type { Place } from '@/hooks/sanity/schemas';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import type { PhotoItem, PlaceItem } from '@/types/places';
-import { formatDate, validateUserInput } from '@/utils';
+import { validateUserInput } from '@/utils';
 
 const ITEMS_PER_PAGE = 9;
-
-const formatPlaceDateRange = (startDate?: string | null, endDate?: string | null): string => {
-  if (!startDate) return '';
-  const start = formatDate(startDate, { month: 'short', day: 'numeric', year: 'numeric' });
-  if (endDate && endDate !== startDate) {
-    const end = formatDate(endDate, { month: 'short', day: 'numeric', year: 'numeric' });
-    return `${start} – ${end}`;
-  }
-  return start;
-};
 
 /**
  * Converts a Sanity Place document to a PlaceItem for display
@@ -125,22 +116,11 @@ const LoadingState = () => (
 export const Places = () => {
   const { data: sanityPlaces, isLoading, error } = useSanityPlaces();
 
-  const places: PlaceItem[] = useMemo(() => {
-    if (!sanityPlaces) return [];
-    return [...sanityPlaces]
-      .sort((a, b) => {
-        if (a.startDate && b.startDate) {
-          const cmp = b.startDate.localeCompare(a.startDate);
-          if (cmp !== 0) return cmp;
-        } else if (a.startDate) {
-          return -1;
-        } else if (b.startDate) {
-          return 1;
-        }
-        return (a.order ?? 0) - (b.order ?? 0);
-      })
-      .map(convertSanityPlaceToPlaceItem);
-  }, [sanityPlaces]);
+  // placesQuery already orders dated places newest-first, then undated by `order`.
+  const places: PlaceItem[] = useMemo(
+    () => (sanityPlaces ? sanityPlaces.map(convertSanityPlaceToPlaceItem) : []),
+    [sanityPlaces],
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -308,11 +288,11 @@ export const Places = () => {
                               <span className="text-xs font-semibold px-2.5 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">
                                 {place.category}
                               </span>
-                              {place.startDate && (
-                                <span className="text-xs text-muted-foreground">
-                                  {formatPlaceDateRange(place.startDate, place.endDate)}
-                                </span>
-                              )}
+                              <PlaceDateRange
+                                startDate={place.startDate}
+                                endDate={place.endDate}
+                                className="text-xs text-muted-foreground"
+                              />
                             </div>
                           </Link>
                         </CardHeader>

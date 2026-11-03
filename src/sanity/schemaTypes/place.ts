@@ -66,11 +66,20 @@ export const placeType = defineType({
       name: 'startDate',
       title: 'Start Date',
       type: 'date',
+      description: 'Day of the visit (or first day). Places are listed newest first by this date.',
     }),
     defineField({
       name: 'endDate',
       title: 'End Date',
       type: 'date',
+      description: 'Optional last day for multi-day events. Leave empty for single-day visits.',
+      validation: (Rule) =>
+        Rule.custom<string>((endDate, context) => {
+          if (!endDate) return true;
+          const startDate = context.document?.startDate as string | undefined;
+          if (!startDate) return 'Set a start date before adding an end date';
+          return endDate >= startDate || 'End date must be on or after the start date';
+        }),
     }),
     defineField({
       name: 'photos',
@@ -101,7 +110,8 @@ export const placeType = defineType({
       name: 'order',
       title: 'Display Order',
       type: 'number',
-      description: 'Used to order places in lists (lower numbers appear first)',
+      description:
+        'Tiebreaker: orders places that share a start date or have none (lower numbers first). Dated places are listed newest first.',
       validation: (Rule) => Rule.required(),
       initialValue: 0,
     }),
