@@ -51,8 +51,16 @@ describe('wakaTimeAuthorization', () => {
     }
   });
 
-  it('accepts every character a Bearer token can hold', () => {
-    expect(wakaTimeAuthorization('waka_tok_aZ09-._~+/==')).toBe('Bearer waka_tok_aZ09-._~+/==');
+  it.each(['Example', '2026', '-', '.', '_', '~', '+', '/'])(
+    'accepts %s, which a Bearer token can hold',
+    (part) => {
+      const token = `waka_tok_example${part}example`;
+      expect(wakaTimeAuthorization(token)).toBe(`Bearer ${token}`);
+    },
+  );
+
+  it('accepts trailing = padding', () => {
+    expect(wakaTimeAuthorization('waka_tok_example==')).toBe('Bearer waka_tok_example==');
   });
 
   it('rejects a missing or blank credential', () => {
