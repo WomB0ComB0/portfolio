@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react';
 import { FiExternalLink, FiImage, FiMapPin } from 'react-icons/fi';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
+import { PlaceDateRange } from '@/app/(routes)/(main)/(personal)/places/_components/place-date-range';
 import { MagicCard, PageHeader } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,8 @@ const convertSanityPlaceToPlaceItem = (sanityPlace: Place): PlaceItem => {
     latitude: sanityPlace.latitude,
     longitude: sanityPlace.longitude,
     category: sanityPlace.category,
+    startDate: sanityPlace.startDate,
+    endDate: sanityPlace.endDate,
     photos,
   };
 };
@@ -113,10 +116,11 @@ const LoadingState = () => (
 export const Places = () => {
   const { data: sanityPlaces, isLoading, error } = useSanityPlaces();
 
-  const places: PlaceItem[] = useMemo(() => {
-    if (!sanityPlaces) return [];
-    return sanityPlaces.map(convertSanityPlaceToPlaceItem);
-  }, [sanityPlaces]);
+  // placesQuery already orders dated places newest-first, then undated by `order`.
+  const places: PlaceItem[] = useMemo(
+    () => (sanityPlaces ? sanityPlaces.map(convertSanityPlaceToPlaceItem) : []),
+    [sanityPlaces],
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -280,10 +284,15 @@ export const Places = () => {
                             <CardDescription className="text-sm text-muted-foreground leading-snug mb-3 line-clamp-2">
                               {place.description}
                             </CardDescription>
-                            <div className="inline-block">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs font-semibold px-2.5 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">
                                 {place.category}
                               </span>
+                              <PlaceDateRange
+                                startDate={place.startDate}
+                                endDate={place.endDate}
+                                className="text-xs text-muted-foreground"
+                              />
                             </div>
                           </Link>
                         </CardHeader>

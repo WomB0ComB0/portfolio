@@ -95,6 +95,80 @@ export function formatDatePeriod(
   return `${formattedStart} - Present`;
 }
 
+const RANGE_SEPARATOR = ' – ';
+const MONTH_DAY: DateFormatOptions = { month: 'short', day: 'numeric' };
+const MONTH_DAY_YEAR: DateFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+
+const toValidDate = (value: string | Date): Date | null => {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/** Midnight UTC of the date's UTC calendar day, so times within one day compare equal. */
+const utcDay = (date: Date): number =>
+  Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+
+/** Display labels for each end of a date range; `end` is absent for a single day. */
+export interface DateRangeParts {
+  start: string;
+  end?: string;
+}
+
+/**
+ * Splits a calendar-day range into compact start/end labels, collapsing the shared month
+ * and year (e.g. `{ start: 'May 19', end: '20, 2026' }`), so each end can sit in its own
+ * `<time>` element. Days are compared in UTC; the start shows alone when the end is
+ * missing, invalid, or not on a later day.
+ *
+ * Built from {@link formatDate} (en-US, UTC) rather than `Intl.DateTimeFormat#formatRange`,
+ * whose separator varies across ICU versions and would risk hydration mismatches.
+ *
+ * @param {string | Date | null} [startDate] - First day (e.g. Sanity `date` value "2026-05-19").
+ * @param {string | Date | null} [endDate] - Optional last day.
+ * @returns {DateRangeParts | null} The labels, or null when the start is missing or invalid.
+ * @public
+ */
+export function formatDateRangeParts(
+  startDate?: string | Date | null,
+  endDate?: string | Date | null,
+): DateRangeParts | null {
+  const start = startDate ? toValidDate(startDate) : null;
+  if (!start) return null;
+
+  const end = endDate ? toValidDate(endDate) : null;
+  if (!end || utcDay(end) <= utcDay(start)) return { start: formatDate(start, MONTH_DAY_YEAR) };
+
+  if (start.getUTCFullYear() !== end.getUTCFullYear()) {
+    return { start: formatDate(start, MONTH_DAY_YEAR), end: formatDate(end, MONTH_DAY_YEAR) };
+  }
+
+  const sameMonth = start.getUTCMonth() === end.getUTCMonth();
+  const endDay = sameMonth ? String(end.getUTCDate()) : formatDate(end, MONTH_DAY);
+  return { start: formatDate(start, MONTH_DAY), end: `${endDay}, ${start.getUTCFullYear()}` };
+}
+
+/**
+ * Formats a calendar-day range compactly as one string. See {@link formatDateRangeParts}.
+ *
+ * @param {string | Date | null} [startDate] - First day (e.g. Sanity `date` value "2026-05-19").
+ * @param {string | Date | null} [endDate] - Optional last day.
+ * @returns {string} The formatted range, '' when there is no start date, or 'Invalid date'.
+ * @public
+ * @example
+ * formatDateRange('2026-05-19', '2026-05-20') // "May 19 – 20, 2026"
+ * formatDateRange('2026-07-29', '2026-09-15') // "Jul 29 – Sep 15, 2026"
+ * formatDateRange('2025-12-30', '2026-01-02') // "Dec 30, 2025 – Jan 2, 2026"
+ */
+export function formatDateRange(
+  startDate?: string | Date | null,
+  endDate?: string | Date | null,
+): string {
+  if (!startDate) return '';
+  const parts = formatDateRangeParts(startDate, endDate);
+  if (!parts) return 'Invalid date';
+  return parts.end ? `${parts.start}${RANGE_SEPARATOR}${parts.end}` : parts.start;
+}
+
 /**
  * Formats a full date with time for display.
  * Uses consistent formatting to prevent hydration mismatches.

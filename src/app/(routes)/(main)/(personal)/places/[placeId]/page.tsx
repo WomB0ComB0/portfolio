@@ -21,6 +21,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
+import { PlaceDateRange } from '@/app/(routes)/(main)/(personal)/places/_components/place-date-range';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
@@ -227,6 +228,11 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 space-y-2">
                   <h1 className="text-3xl md:text-4xl font-bold">{place.name}</h1>
+                  {place.startDate && (
+                    <p className="text-sm text-muted-foreground">
+                      <PlaceDateRange startDate={place.startDate} endDate={place.endDate} />
+                    </p>
+                  )}
                   {place.description && (
                     <p className="text-muted-foreground leading-relaxed">{place.description}</p>
                   )}

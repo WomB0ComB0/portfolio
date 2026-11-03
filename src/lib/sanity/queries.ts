@@ -216,10 +216,11 @@ export const skillCategoriesQuery = `
 `;
 
 /**
- * Fetch all places ordered by order field
+ * Fetch all places: dated places newest first, then undated places, each tie broken by `order`.
+ * `defined(startDate) desc` is required because GROQ sorts nulls first under `desc`.
  */
 export const placesQuery = `
-  *[_type == "place"] | order(order asc) {
+  *[_type == "place"] | order(defined(startDate) desc, startDate desc, order asc) {
     _id,
     _type,
     _createdAt,
@@ -230,6 +231,8 @@ export const placesQuery = `
     category,
     latitude,
     longitude,
+    startDate,
+    endDate,
     photos,
     order,
     featured
@@ -251,6 +254,8 @@ export const placeByIdQuery = `
     category,
     latitude,
     longitude,
+    startDate,
+    endDate,
     photos,
     order,
     featured
