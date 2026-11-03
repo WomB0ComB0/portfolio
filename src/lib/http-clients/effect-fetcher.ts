@@ -61,6 +61,9 @@ export type Headers = Schema.Schema.Type<typeof Headers>;
 
 const EMPTY = '';
 
+/** Upper bound on the response body kept in a parse error's data, so HTML pages can't flood logs. */
+const MAX_ERROR_BODY_CHARS = 2_000;
+
 /**
  * Get the base URL for API requests.
  * - Client-side: returns empty string (uses relative URLs)
@@ -85,6 +88,16 @@ const getBaseURL = (): string => {
 
   // Local development
   return 'http://localhost:3000';
+};
+
+/** True when `url` is absolute and shares an origin (scheme, host and port) with `baseURL`. */
+const isOwnOrigin = (url: string, baseURL: string): boolean => {
+  if (!baseURL) return false;
+  try {
+    return new URL(url).origin === new URL(baseURL).origin;
+  } catch {
+    return false;
+  }
 };
 
 /**
@@ -481,9 +494,11 @@ export function fetcher<T = unknown>(
     // Set headers AFTER body to ensure Content-Type can be overridden
     const finalHeaders = { ...headers };
 
-    // If we're on the server and calling our own API, add the Vercel bypass header if available
-    const baseURL = getBaseURL();
-    if (baseURL && env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+    // On the server, requests to this deployment may need the Vercel protection bypass secret.
+    // Only ever send it to our own origin: external APIs get absolute URLs passed through as-is.
+    // The origin check runs first so the browser (where getBaseURL() is '') never reads
+    // server-only env, which t3-env rejects on the client.
+    if (isOwnOrigin(url, getBaseURL()) && env.VERCEL_AUTOMATION_BYPASS_SECRET) {
       finalHeaders['x-vercel-protection-bypass'] = env.VERCEL_AUTOMATION_BYPASS_SECRET;
     }
 
@@ -569,27 +584,16 @@ export function fetcher<T = unknown>(
         return yield* Effect.fail(error);
       }
 
-      // Parse response data as JSON, with fallback to text and detailed error reporting
+      // Parse response data as JSON. @effect/platform caches the body text, so when JSON parsing
+      // fails the text can be re-read to report what actually came back. Only a failure to read
+      // the body at all falls back to the generic message; it must not swallow the detailed one.
       const rawData = yield* pipe(
         response.json,
-        Effect.catchAll((error) => {
-          // Try to get response text for better debugging
-          return pipe(
+        Effect.catchAll((error) =>
+          pipe(
             response.text,
-            Effect.flatMap((text) => {
-              const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${response.headers['Content-Type'] || 'unknown'}, Body: ${text.slice(0, 200)}${text.length > 200 ? '...' : ''}`;
-              return Effect.fail(
-                new FetcherError(
-                  errorMessage,
-                  url,
-                  response.status,
-                  { originalError: error, responseText: text },
-                  attempt,
-                ),
-              );
-            }),
-            Effect.catchAll(() =>
-              Effect.fail(
+            Effect.mapError(
+              () =>
                 new FetcherError(
                   `Failed to parse response: ${error instanceof Error ? error.message : String(error)}`,
                   url,
@@ -597,10 +601,24 @@ export function fetcher<T = unknown>(
                   undefined,
                   attempt,
                 ),
-              ),
             ),
-          );
-        }),
+            Effect.flatMap((text) => {
+              // Effect normalises header names to lower case.
+              const contentType = response.headers['content-type'] || 'unknown';
+              const snippet = `${text.slice(0, 200)}${text.length > 200 ? '...' : ''}`;
+              const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${contentType}, Body: ${snippet}`;
+              return Effect.fail(
+                new FetcherError(
+                  errorMessage,
+                  url,
+                  response.status,
+                  { originalError: error, responseText: text.slice(0, MAX_ERROR_BODY_CHARS) },
+                  attempt,
+                ),
+              );
+            }),
+          ),
+        ),
       );
 
       // Validate the response data using Effect Schema if provided

@@ -51,6 +51,11 @@ const env = createEnv({
     // Admin
     ADMIN_API_TOKEN: z.string().min(1, 'Admin API Token is required'),
 
+    // Upstash Redis (server-only: the REST token grants read/write access to the database,
+    // so it must never be NEXT_PUBLIC_ — client bundles inline every NEXT_PUBLIC_ value)
+    UPSTASH_REDIS_REST_URL: z.url('Upstash Redis REST URL must be a URL'),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'Upstash Redis REST Token is required'),
+
     // Sanity CMS (Server-side token)
     SANITY_API_TOKEN: z.string().optional(),
 
@@ -87,9 +92,6 @@ const env = createEnv({
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional().or(z.literal('')),
     NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: z.string().optional().or(z.literal('')),
 
-    // Hashnode
-    NEXT_PUBLIC_HASHNODE_TOKEN: z.string().min(1, 'Hashnode Token is required'),
-
     // Discord
     NEXT_PUBLIC_DISCORD_ID: z.string().min(1, 'Discord ID is required'),
 
@@ -99,9 +101,6 @@ const env = createEnv({
     // Sentry
     NEXT_PUBLIC_SENTRY_DSN: z.string().min(1, 'Sentry DSN is required'),
 
-    // Upstash (Redis)
-    NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: z.string().min(1, 'Upstash Redis REST URL is required'),
-    NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'Upstash Redis REST Token is required'),
     // Sanity CMS (Public config)
     NEXT_PUBLIC_SANITY_PROJECT_ID: z.string().min(1, 'Sanity Project ID is required'),
     NEXT_PUBLIC_SANITY_DATASET: z.string().default('production'),
@@ -123,6 +122,8 @@ const env = createEnv({
     REACT_EDITOR: process.env.REACT_EDITOR,
     CSRF_SECRET: process.env.CSRF_SECRET,
     ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     SANITY_API_TOKEN: process.env.SANITY_API_TOKEN,
     YOUTUBE_SERVER_API_KEY: process.env.YOUTUBE_SERVER_API_KEY,
     BETTERSTACK_API_KEY: process.env.BETTERSTACK_API_KEY,
@@ -146,12 +147,9 @@ const env = createEnv({
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID,
-    NEXT_PUBLIC_HASHNODE_TOKEN: process.env.NEXT_PUBLIC_HASHNODE_TOKEN,
     NEXT_PUBLIC_DISCORD_ID: process.env.NEXT_PUBLIC_DISCORD_ID,
     NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
-    NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN,
     NEXT_PUBLIC_SANITY_PROJECT_ID: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
     NEXT_PUBLIC_SANITY_DATASET: process.env.NEXT_PUBLIC_SANITY_DATASET,
     NEXT_PUBLIC_SANITY_API_VERSION: process.env.NEXT_PUBLIC_SANITY_API_VERSION,

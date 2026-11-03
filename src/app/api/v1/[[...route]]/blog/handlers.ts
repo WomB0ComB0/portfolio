@@ -16,7 +16,7 @@
 
 import { Schema } from 'effect';
 import { BaseError } from '@/classes/error';
-import { getBlogs, getDevToBlogs } from '@/lib';
+import { getBlogs, getDevToBlogs, HASHNODE_BLOG_URL } from '@/lib';
 import { logger } from '@/utils';
 
 export const BlogSchema = Schema.Struct({
@@ -36,26 +36,22 @@ export type Blog = Schema.Schema.Type<typeof BlogSchema>;
  * @returns {Promise<Blog[]>} Combined and sorted array of blogs from all sources.
  */
 export async function fetchBlogs(): Promise<Blog[]> {
-  const username = 'WomB0ComB0';
   const devToUsername = 'mikeodnis';
 
-  // Fetch from both sources concurrently
+  // Fetch from both sources concurrently (Hashnode via its public RSS feed)
   const [hashnodeResult, devtoResult] = await Promise.allSettled([
-    getBlogs(username),
+    getBlogs(),
     getDevToBlogs(devToUsername),
   ]);
 
   const blogs: Blog[] = [];
-
-  // Blog URL configuration
-  const HASHNODE_BLOG_BASE_URL = 'https://blog.mikeodnis.dev';
 
   // Process Hashnode results
   if (hashnodeResult.status === 'fulfilled' && Array.isArray(hashnodeResult.value)) {
     const hashnodeBlogs = hashnodeResult.value.map((blog) => ({
       ...blog,
       source: 'hashnode' as const,
-      url: `${HASHNODE_BLOG_BASE_URL}/${blog.slug}`,
+      url: `${HASHNODE_BLOG_URL}/${blog.slug}`,
     }));
     blogs.push(...hashnodeBlogs);
   } else if (hashnodeResult.status === 'rejected') {
@@ -72,7 +68,8 @@ export async function fetchBlogs(): Promise<Blog[]> {
   // If no blogs from any source, throw an error
   if (blogs.length === 0) {
     throw new BaseError(new Error('Failed to fetch blogs from any source'), 'blog:fetch', {
-      username,
+      hashnodeBlog: HASHNODE_BLOG_URL,
+      devToUsername,
     });
   }
 
