@@ -25,9 +25,10 @@
  * Deliberately absent:
  * - Trusted Types: Next/Turbopack's chunk loader, next/script, Vercel Analytics, Speculation Rules
  *   and Google Maps all write to TT sinks without a policy, so enforcing it blanks the site.
- * - 'unsafe-eval' in production: the site's own code doesn't need it (Zod's eval probe is turned
- *   off with z.config({ jitless: true })). Google's Maps CSP guide lists it for some Maps features;
- *   the report-only phase shows whether /places hits one before the policy is enforced.
+ * - 'unsafe-eval' in production: nothing needs it. Zod's eval probe is turned off with
+ *   z.config({ jitless: true }), and Google Maps only needs WebAssembly compilation, which
+ *   'wasm-unsafe-eval' allows without allowing JavaScript eval (checked in Chromium on /places with
+ *   the vector map, 2026-11-03).
  */
 
 export type CspMode = 'report-only' | 'enforce';
@@ -84,6 +85,9 @@ export function buildContentSecurityPolicy(options: CspOptions): string {
         `'nonce-${nonce}'`,
         "'strict-dynamic'",
         'https:',
+        // Google Maps' vector renderer compiles WebAssembly (label placement, on the page and in its
+        // blob: worker). Without this the map has no labels. It does not allow JavaScript eval.
+        "'wasm-unsafe-eval'",
         ...(isDev ? ["'unsafe-eval'"] : []),
       ],
     ],
@@ -110,6 +114,9 @@ export function buildContentSecurityPolicy(options: CspOptions): string {
         'https://www.google.com', // GA collect beacons (Google Signals)
         'https://api.monkeytype.com', // /stats
         ...GOOGLE_MAPS,
+        // Maps' vector renderer fetches its style set from www.gstatic.com/maps/res/; without it the
+        // vector map renders blank.
+        'https://www.gstatic.com',
         'data:', // Maps (per Google's Maps CSP guide)
         'blob:',
         ...FIREBASE_AUTH_APIS,
