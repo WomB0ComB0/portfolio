@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { isIP } from 'node:net';
+import { Address4, Address6 } from 'ip-address';
 import { BaseError } from '@/classes/error';
 import {
   banIp,
@@ -29,6 +31,11 @@ import { Logger } from '@/utils';
 import type { BanAction } from './schema';
 
 const log = Logger.getLogger('BanAPI');
+
+/** True for an IPv4 or IPv6 network in CIDR notation, e.g. 203.0.113.0/24 or 2001:db8::/32. */
+function isValidCidr(value: string): boolean {
+  return value.includes('/') && (Address4.isValid(value) || Address6.isValid(value));
+}
 
 /**
  * @interface BanRequestBody
@@ -74,8 +81,8 @@ export interface BanRequestBody {
 export async function handleBan(body: BanRequestBody) {
   const { ip, reason, seconds, bannedBy } = body;
 
-  if (!ip) {
-    throw new BaseError(new Error('IP address is required for ban action'), 'admin:ban', {
+  if (!ip || isIP(ip) === 0) {
+    throw new BaseError(new Error('A valid IP address is required for ban action'), 'admin:ban', {
       action: 'ban',
       providedIp: ip,
       reason,
@@ -114,11 +121,15 @@ export async function handleBan(body: BanRequestBody) {
 export async function handleUnban(body: BanRequestBody) {
   const { ip } = body;
 
-  if (!ip) {
-    throw new BaseError(new Error('IP address is required for unban action'), 'admin:unban', {
-      action: 'unban',
-      providedIp: ip,
-    });
+  if (!ip || isIP(ip) === 0) {
+    throw new BaseError(
+      new Error('A valid IP address is required for unban action'),
+      'admin:unban',
+      {
+        action: 'unban',
+        providedIp: ip,
+      },
+    );
   }
 
   await unbanIp(ip);
@@ -149,8 +160,8 @@ export async function handleUnban(body: BanRequestBody) {
 export async function handleSlow(body: BanRequestBody) {
   const { ip, reason } = body;
 
-  if (!ip) {
-    throw new BaseError(new Error('IP address is required for slow action'), 'admin:slow', {
+  if (!ip || isIP(ip) === 0) {
+    throw new BaseError(new Error('A valid IP address is required for slow action'), 'admin:slow', {
       action: 'slow',
       providedIp: ip,
       reason,
@@ -185,11 +196,15 @@ export async function handleSlow(body: BanRequestBody) {
 export async function handleUnslow(body: BanRequestBody) {
   const { ip } = body;
 
-  if (!ip) {
-    throw new BaseError(new Error('IP address is required for unslow action'), 'admin:unslow', {
-      action: 'unslow',
-      providedIp: ip,
-    });
+  if (!ip || isIP(ip) === 0) {
+    throw new BaseError(
+      new Error('A valid IP address is required for unslow action'),
+      'admin:unslow',
+      {
+        action: 'unslow',
+        providedIp: ip,
+      },
+    );
   }
 
   await unslowIp(ip);
@@ -220,13 +235,17 @@ export async function handleUnslow(body: BanRequestBody) {
 export async function handleBanCidr(body: BanRequestBody) {
   const { cidr, reason, bannedBy } = body;
 
-  if (!cidr) {
-    throw new BaseError(new Error('CIDR is required for ban-cidr action'), 'admin:ban-cidr', {
-      action: 'ban-cidr',
-      providedCidr: cidr,
-      reason,
-      bannedBy,
-    });
+  if (!cidr || !isValidCidr(cidr)) {
+    throw new BaseError(
+      new Error('A valid CIDR range is required for ban-cidr action'),
+      'admin:ban-cidr',
+      {
+        action: 'ban-cidr',
+        providedCidr: cidr,
+        reason,
+        bannedBy,
+      },
+    );
   }
 
   await banCidr(cidr, reason);
@@ -257,11 +276,15 @@ export async function handleBanCidr(body: BanRequestBody) {
 export async function handleUnbanCidr(body: BanRequestBody) {
   const { cidr } = body;
 
-  if (!cidr) {
-    throw new BaseError(new Error('CIDR is required for unban-cidr action'), 'admin:unban-cidr', {
-      action: 'unban-cidr',
-      providedCidr: cidr,
-    });
+  if (!cidr || !isValidCidr(cidr)) {
+    throw new BaseError(
+      new Error('A valid CIDR range is required for unban-cidr action'),
+      'admin:unban-cidr',
+      {
+        action: 'unban-cidr',
+        providedCidr: cidr,
+      },
+    );
   }
 
   await unbanCidr(cidr);
@@ -362,11 +385,15 @@ export async function handleList() {
 export async function handleGetMeta(body: BanRequestBody) {
   const { ip } = body;
 
-  if (!ip) {
-    throw new BaseError(new Error('IP address is required for get-meta action'), 'admin:get-meta', {
-      action: 'get-meta',
-      providedIp: ip,
-    });
+  if (!ip || isIP(ip) === 0) {
+    throw new BaseError(
+      new Error('A valid IP address is required for get-meta action'),
+      'admin:get-meta',
+      {
+        action: 'get-meta',
+        providedIp: ip,
+      },
+    );
   }
 
   const metadata = await getBanMetadata(ip);

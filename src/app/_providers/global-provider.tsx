@@ -23,6 +23,7 @@ import { KBarProvider } from 'kbar';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
 import { useEffect } from 'react';
+import { z } from 'zod';
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
 import { actions } from '@/lib/navigation/actions';
@@ -31,6 +32,11 @@ import { Providers } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
 import { createQueryClient } from '@/providers/server';
 import { logger } from '@/utils';
+
+// Zod 4 probes for eval support with `new Function('')`. The probe is caught, but under the site's
+// CSP (no 'unsafe-eval') every probe still files a violation report. jitless skips it; Zod then
+// uses its interpreted path, which is fast enough at this scale.
+z.config({ jitless: true });
 
 /**
  * @public

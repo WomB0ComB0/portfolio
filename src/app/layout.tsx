@@ -109,8 +109,8 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#4B0082" />
-        <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
-        <meta name="referrer" content="no-referrer" />
+        {/* Referrer-Policy and X-XSS-Protection come from the headers in src/config/security-headers.ts;
+            a meta referrer tag here would override the header. */}
 
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL}${pathname}`} />
         <meta name="language" content="English" />

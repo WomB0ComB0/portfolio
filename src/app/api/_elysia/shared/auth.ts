@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { type HTTPHeaders, StatusMap } from 'elysia';
 import { Logger } from '@/utils';
 
@@ -115,7 +116,10 @@ export function validateBearerToken(
     return false;
   }
 
-  return token === expectedToken;
+  // Constant-time comparison so response timing doesn't leak how much of the token matched.
+  // Hashing first gives equal-length buffers, which timingSafeEqual requires.
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  return timingSafeEqual(digest(token), digest(expectedToken));
 }
 
 /**
@@ -153,7 +157,7 @@ export function createBearerGuard(config: AuthConfig) {
 
       // Set WWW-Authenticate header per RFC 6750
       context.set.headers['WWW-Authenticate'] = `Bearer realm='${realm}', error="invalid_token"`;
-      context.set.status = StatusMap['Unauthorized'];
+      context.set.status = StatusMap.Unauthorized;
 
       return {
         success: false,

@@ -1,0 +1,113 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Next.js proxy (formerly "middleware"). Next 16 only detects `src/proxy.ts` / `src/proxy.tsx`
+ * here; as `proxy.cts` this file was silently ignored from 2025-10-27 until this rename.
+ *
+ * It sets the per-request, nonce-based Content-Security-Policy. Static security headers (HSTS,
+ * X-Frame-Options, nosniff, Referrer-Policy, ...) come from next.config.ts so they also cover API
+ * routes and static files, and still apply if this proxy fails.
+ *
+ * Redis-backed IP bans and rate limiting used to live here but are off for now: as written they
+ * cost 8-9 Upstash commands per request, added seconds of latency and dropped every header when
+ * Redis failed, and trusted a client-settable IP header. They come back in their own change with a
+ * latency budget. Elysia still rate-limits the API in-process.
+ */
+
+import { type NextRequest, NextResponse } from 'next/server';
+import { env } from './env';
+import {
+  buildContentSecurityPolicy,
+  CSP_MODE,
+  CSP_REPORT_SAMPLE_RATE,
+  createNonce,
+  cspHeaderName,
+  sentryCspReportEndpoint,
+} from './lib/security/csp';
+
+/** Canonical path for the layout's <link rel="canonical">: no trailing slash except the root. */
+function canonicalPath(pathname: string): string {
+  const trimmed = pathname.replace(/\/+$/, '');
+  return trimmed === '' ? '/' : trimmed;
+}
+
+/**
+ * Builds the CSP and forwards it on the REQUEST as well as the response: App Router reads the
+ * nonce for its own scripts only from the request's Content-Security-Policy(-Report-Only) header.
+ * (`next start` copies response headers into the request and hides a response-only setup; Vercel
+ * does not, so a response-only CSP would leave every framework script without a nonce.)
+ */
+export function proxy(request: NextRequest): NextResponse {
+  try {
+    const nonce = createNonce();
+    const isProd = env.NODE_ENV === 'production';
+    const reportUri =
+      isProd && Math.random() < CSP_REPORT_SAMPLE_RATE
+        ? sentryCspReportEndpoint(
+            env.NEXT_PUBLIC_SENTRY_DSN,
+            process.env.VERCEL_ENV ?? env.NODE_ENV,
+          )
+        : undefined;
+
+    const csp = buildContentSecurityPolicy({
+      nonce,
+      isDev: !isProd,
+      mode: CSP_MODE,
+      firebaseAuthDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      reportUri,
+    });
+    const cspHeader = cspHeaderName(CSP_MODE);
+
+    const requestHeaders = new Headers(request.headers);
+    // Next takes the nonce from the first CSP request header it finds, so drop any the client sent.
+    requestHeaders.delete('content-security-policy');
+    requestHeaders.delete('content-security-policy-report-only');
+    requestHeaders.set(cspHeader, csp);
+    // Our own next/script tags in layout.tsx read this; Next itself uses the CSP header above.
+    requestHeaders.set('x-nonce', nonce);
+    requestHeaders.set('x-url', canonicalPath(request.nextUrl.pathname));
+
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set(cspHeader, csp);
+    if (reportUri) {
+      response.headers.set('Reporting-Endpoints', `csp-endpoint="${reportUri}"`);
+    }
+    return response;
+  } catch (error) {
+    // Never fail the page because of the CSP. The static headers from next.config.ts still apply.
+    console.error('[proxy] could not build the Content-Security-Policy', error);
+    return NextResponse.next();
+  }
+}
+
+/**
+ * Runs on page documents and RSC navigations only. Skipped: API routes (Elysia sets their
+ * headers), Next and Vercel internals, the Sentry tunnel (/monitoring), OG image routes, static
+ * files by extension, and router prefetches. Static files are matched by extension rather than by
+ * "contains a dot": dynamic pages such as /places/[placeId] also render for dotted URLs, and those
+ * HTML documents must still get the CSP. Speculation-rules prerenders are full documents, so they
+ * get a CSP too.
+ */
+export const config = {
+  matcher: [
+    {
+      source:
+        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|opengraph-image|twitter-image|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|webmanifest|js|mjs|css|map|woff2?|ttf|otf|pdf|mp4|webm)$).*)',
+      missing: [{ type: 'header', key: 'next-router-prefetch' }],
+    },
+  ],
+};

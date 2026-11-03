@@ -35,10 +35,14 @@ const first = (value: string | string[] | null | undefined): string | undefined 
 };
 
 /**
- * Retrieves the originating client IP address from a request, supporting various cloud and proxy headers.
- * Priority order: CF-Connecting-IP → X-Real-IP → X-Forwarded-For → fallback to 127.0.0.1.
+ * Retrieves the originating client IP address from a request.
+ * Priority order: X-Real-IP → X-Vercel-Forwarded-For → first X-Forwarded-For entry → 127.0.0.1.
  *
- * Handles requests originating from Cloudflare, Vercel, or other reverse proxies by parsing the corresponding HTTP headers.
+ * Only headers set by the hosting layer are trusted: Vercel (and the repo's nginx config) set
+ * X-Real-IP to the connecting client and overwrite X-Forwarded-For. CF-Connecting-IP is ignored on
+ * purpose: the site is not behind Cloudflare, so any client could send it to pose as another IP
+ * (for example 127.0.0.1, which the ban checks skip). If Cloudflare is ever put in front of the
+ * site, X-Real-IP becomes Cloudflare's egress IP and this needs revisiting.
  *
  * @function
  * @public
@@ -50,7 +54,6 @@ const first = (value: string | string[] | null | undefined): string | undefined 
  * @throws {Error} May throw if header parsing fails unexpectedly.
  * @example
  * getClientIP(req); // "203.0.113.42"
- * @see https://developers.cloudflare.com/fundamentals/reference/http-headers/
  * @see https://vercel.com/docs/edge-network/headers
  * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For
  * @see https://github.com/WomB0ComB0/portfolio
@@ -59,13 +62,13 @@ export function getClientIP(req: Request | NextApiRequest): string {
   const headers =
     req instanceof Request ? Object.fromEntries(req.headers) : (req.headers as Record<string, any>);
 
-  // Cloudflare sets this when traffic passes through CF (preferred)
-  const cf = first(headers['cf-connecting-ip'] || headers['CF-Connecting-IP']);
-  if (cf) return cf;
-
-  // Common reverse proxy header
+  // Set by Vercel and the nginx config to the connecting client
   const xr = first(headers['x-real-ip'] || headers['X-Real-IP']);
   if (xr) return xr;
+
+  // Vercel-only, robust even behind another proxy
+  const xv = first(headers['x-vercel-forwarded-for'] || headers['X-Vercel-Forwarded-For']);
+  if (xv) return xv;
 
   // Standard proxy chain header (get first IP in chain)
   const xff = first(headers['x-forwarded-for'] || headers['X-Forwarded-For']);

@@ -15,6 +15,7 @@
  */
 
 import { Elysia, StatusMap } from 'elysia';
+import { BaseError } from '@/classes/error';
 import { Logger } from '@/utils';
 import { actionHandlers, type BanRequestBody } from './handlers';
 import { adminGuard } from './middleware';
@@ -59,7 +60,8 @@ const log = Logger.getLogger('BanAPI');
  *   -d '{"action":"list"}'
  * ```
  */
-export const banRoute = new Elysia({ prefix: '/api/admin/ban' })
+// The parent app already adds '/api', so this route lives at /api/admin/ban.
+export const banRoute = new Elysia({ prefix: '/admin/ban' })
   .derive(({ headers }) => {
     const auth = headers.authorization ?? headers.Authorization;
     return {
@@ -98,19 +100,21 @@ export const banRoute = new Elysia({ prefix: '/api/admin/ban' })
           error: error instanceof Error ? error.message : String(error),
         });
 
-        // Check if it's a validation error (from handlers)
-        if (error instanceof Error && error.message.includes('required')) {
+        // Handlers throw BaseError only for invalid input. BaseError keeps its text on `cause`
+        // (its own message is empty), so the old `message.includes('required')` check never fired.
+        if (error instanceof BaseError) {
           set.status = StatusMap['Bad Request'];
           return {
             success: false,
-            error: error.message,
+            error: error.cause.message,
           };
         }
 
-        set.status = StatusMap['Internal Server Error'];
+        // Everything else comes from the Redis-backed ban store.
+        set.status = StatusMap['Service Unavailable'];
         return {
           success: false,
-          error: 'Failed to process ban operation',
+          error: 'Ban store unavailable',
         };
       }
     },
@@ -122,6 +126,7 @@ export const banRoute = new Elysia({ prefix: '/api/admin/ban' })
         400: 'ban.error',
         401: 'ban.error',
         500: 'ban.error',
+        503: 'ban.error',
       },
     },
   );
