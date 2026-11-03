@@ -41,6 +41,20 @@ describe('wakaTimeAuthorization', () => {
     );
   });
 
+  it('rejects a token with whitespace or other characters a Bearer token cannot hold', () => {
+    for (const value of [
+      'waka_tok_example\nBearer other',
+      'waka_tok_ex ample',
+      'waka_tok_ex"ample',
+    ]) {
+      expect(() => wakaTimeAuthorization(value)).toThrow(/characters a Bearer token can't contain/);
+    }
+  });
+
+  it('accepts every character a Bearer token can hold', () => {
+    expect(wakaTimeAuthorization('waka_tok_aZ09-._~+/==')).toBe('Bearer waka_tok_aZ09-._~+/==');
+  });
+
   it('rejects a missing or blank credential', () => {
     expect(() => wakaTimeAuthorization(undefined)).toThrow(/is not set/);
     expect(() => wakaTimeAuthorization('   ')).toThrow(/is not set/);

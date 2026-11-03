@@ -16,6 +16,9 @@
 
 const OAUTH_TOKEN_PREFIX = 'waka_tok_';
 
+/** RFC 6750 `b64token`: the only characters a Bearer token can hold (no whitespace or line breaks). */
+const BEARER_TOKEN_PATTERN = /^[A-Za-z0-9\-._~+/]+=*$/;
+
 const TOKEN_HELP =
   'Create a personal OAuth token with the read_stats scope at https://wakatime.com/oauth and set it as WAKA_TIME_API_KEY.';
 
@@ -28,7 +31,8 @@ const TOKEN_HELP =
  *
  * @param {string | undefined} credential - Value of WAKA_TIME_API_KEY.
  * @returns {string} The `Authorization` header value.
- * @throws {Error} When the credential is missing or is a legacy API key.
+ * @throws {Error} When the credential is missing, is a legacy API key, or has characters a Bearer
+ *   token can't contain.
  */
 export function wakaTimeAuthorization(credential: string | undefined): string {
   const token = (credential ?? '').trim().replace(/^Bearer\s+/i, '');
@@ -38,6 +42,11 @@ export function wakaTimeAuthorization(credential: string | undefined): string {
   if (!token.startsWith(OAUTH_TOKEN_PREFIX)) {
     throw new Error(
       `WAKA_TIME_API_KEY is not a WakaTime OAuth token; API keys only work for editor plugins. ${TOKEN_HELP}`,
+    );
+  }
+  if (!BEARER_TOKEN_PATTERN.test(token)) {
+    throw new Error(
+      `WAKA_TIME_API_KEY has characters a Bearer token can't contain (such as spaces or line breaks). Copy the token again. ${TOKEN_HELP}`,
     );
   }
   return `Bearer ${token}`;
