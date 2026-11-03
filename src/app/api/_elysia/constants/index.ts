@@ -16,7 +16,7 @@
 
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { resourceFromAttributes } from '@opentelemetry/resources';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { app } from '@/constants';
 
@@ -67,7 +67,8 @@ export const otlpExporter = !IS_VERCEL
  * @type {BatchSpanProcessor | undefined}
  */
 export const batchSpanProcessor = otlpExporter
-  ? new BatchSpanProcessor(otlpExporter, {
+  ? new BatchSpanProcessor({
+      exporter: otlpExporter,
       maxExportBatchSize: 512,
       scheduledDelayMillis: 5_000,
       exportTimeoutMillis: 30_000,
