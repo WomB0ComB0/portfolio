@@ -53,6 +53,12 @@
       "allowedVersions": "<5.0.0"
     },
     {
+      "description": "deepmerge 4.2.0 through 4.3.1 are affected by GHSA-gcqx-w48m-w2h4 and no fixed release exists yet, so the security override stays on 4.1.2",
+      "matchManagers": ["npm", "bun"],
+      "matchPackageNames": ["deepmerge"],
+      "allowedVersions": "<4.2.0"
+    },
+    {
       "matchManagers": ["npm", "bun"],
       "matchDatasources": ["npm"],
       "separateMajorMinor": true
