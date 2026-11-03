@@ -141,7 +141,7 @@ graph TD
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Liveness check with uptime and timestamp |
 | `GET` | `/api/status` | Service health aggregated from Better Stack Uptime monitors or status pages |
-| `GET`, `POST`, `DELETE` | `/api/admin/ban` | Bearer-authenticated IP and CIDR ban management (`ADMIN_API_TOKEN`) |
+| `POST` | `/api/admin/ban` | Bearer-authenticated IP and CIDR ban management (`ADMIN_API_TOKEN`); the JSON body's `action` picks ban, unban, slow, list, etc. |
 
 ### v1 Endpoints (`/api/v1/*`)
 

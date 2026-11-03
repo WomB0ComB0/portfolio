@@ -71,11 +71,12 @@ export const banRequestSchema = t.Object({
     t.Literal('list-cidr'),
     t.Literal('get-meta'),
   ]),
-  ip: t.Optional(t.String()),
-  cidr: t.Optional(t.String()),
-  reason: t.Optional(t.String()),
-  seconds: t.Optional(t.Number()),
-  bannedBy: t.Optional(t.String()),
+  ip: t.Optional(t.String({ maxLength: 45 })),
+  cidr: t.Optional(t.String({ maxLength: 49 })),
+  reason: t.Optional(t.String({ maxLength: 500 })),
+  // Redis SET EX needs a positive integer; cap temporary bans at one year.
+  seconds: t.Optional(t.Integer({ minimum: 1, maximum: 31_536_000 })),
+  bannedBy: t.Optional(t.String({ maxLength: 100 })),
 });
 
 /**

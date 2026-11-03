@@ -330,7 +330,7 @@ export async function unslowIp(ip: string): Promise<void> {
  * @author Mike Odnis
  * @version 1.1.0
  * @returns {Promise<string[]>} Array of IP addresses
- * @throws {Error} Logs and emits in case of Redis error, returns empty array on failure.
+ * @throws {Error} Logs, reports and rethrows Redis errors (an empty array means nobody is banned).
  * @example
  *   const bannedIps = await getBannedIps();
  * @see https://github.com/WomB0ComB0/portfolio
@@ -342,7 +342,8 @@ export async function getBannedIps(): Promise<string[]> {
   } catch (error) {
     log.error('Error fetching banned IPs', { error });
     onRequestError(error);
-    return [];
+    // Rethrow: an empty list would be indistinguishable from "nobody is banned".
+    throw error;
   }
 }
 
@@ -355,7 +356,7 @@ export async function getBannedIps(): Promise<string[]> {
  * @author Mike Odnis
  * @version 1.1.0
  * @returns {Promise<string[]>} Array of IP addresses
- * @throws {Error} Logs and emits in case of Redis error, returns empty array on failure.
+ * @throws {Error} Logs, reports and rethrows Redis errors.
  * @example
  *   const slowedIps = await getSlowedIps();
  * @see https://github.com/WomB0ComB0/portfolio
@@ -367,7 +368,7 @@ export async function getSlowedIps(): Promise<string[]> {
   } catch (error) {
     log.error('Error fetching slowed IPs', { error });
     onRequestError(error);
-    return [];
+    throw error;
   }
 }
 
@@ -381,7 +382,7 @@ export async function getSlowedIps(): Promise<string[]> {
  * @version 1.1.0
  * @param {string} ip - IP address to query
  * @returns {Promise<BanMetadata | null>} Metadata object or null if not set or expired.
- * @throws {Error} Logs and emits in case of error, returns null on failure.
+ * @throws {Error} Logs, reports and rethrows Redis errors (null means no metadata).
  * @example
  *   const meta = await getBanMetadata('203.0.113.55');
  * @see https://github.com/WomB0ComB0/portfolio
@@ -393,7 +394,8 @@ export async function getBanMetadata(ip: string): Promise<BanMetadata | null> {
   } catch (error) {
     log.error('Error fetching ban metadata', { ip, error });
     onRequestError(error);
-    return null;
+    // Rethrow: null already means "no metadata for this IP".
+    throw error;
   }
 }
 

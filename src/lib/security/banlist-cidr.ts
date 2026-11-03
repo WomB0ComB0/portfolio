@@ -221,6 +221,7 @@ export async function getBannedCidrs(): Promise<string[]> {
   } catch (error) {
     log.error('Error fetching banned CIDR ranges', { error });
     onRequestError(error);
-    return [];
+    // Rethrow: an empty list would be indistinguishable from "no CIDR bans".
+    throw error;
   }
 }

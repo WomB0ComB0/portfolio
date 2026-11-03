@@ -19,7 +19,6 @@ import type { ElysiaOpenTelemetryOptions } from '@elysiajs/opentelemetry';
 import { opentelemetry } from '@elysiajs/opentelemetry';
 import type { ServerTimingOptions } from '@elysiajs/server-timing';
 import { serverTiming } from '@elysiajs/server-timing';
-import type { SocketAddress } from 'bun';
 import { Elysia } from 'elysia';
 import { ip } from 'elysia-ip';
 import {
@@ -29,6 +28,7 @@ import {
   rateLimit,
 } from 'elysia-rate-limit';
 import { elysiaHelmet } from 'elysiajs-helmet';
+import { getClientIP } from '@/lib/security/get-ip';
 import { getURL, logger, Stringify } from '@/utils';
 import { batchSpanProcessor, otelResource, permission } from '../constants';
 
@@ -169,6 +169,20 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
     error: unknown;
     set: { status: number };
   }) => {
+    // Bad input is the client's mistake: answer 400 without echoing the validator schema back
+    // (it used to be a 500 whose body serialised the whole TypeBox schema and the input).
+    // A handler returning data that breaks its own response schema is also a VALIDATION error,
+    // but that one is our bug, so it keeps the 500 path below.
+    const isResponseValidation =
+      code === 'VALIDATION' && (error as { type?: unknown } | null)?.type === 'response';
+    if ((code === 'VALIDATION' && !isResponseValidation) || code === 'PARSE') {
+      logger.warn('API request rejected', { code });
+      set.status = 400;
+      return Stringify({
+        error: code === 'PARSE' ? 'Malformed request body' : 'Invalid request',
+        status: 400,
+      });
+    }
     logger.error('API error handler', error, { code });
     set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
     return Stringify({
@@ -179,18 +193,15 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
 };
 
 /**
- * Generates a unique identifier for rate limiting using the request's IP address.
+ * Rate-limit key: the client IP from the hosting layer's headers (see getClientIP).
+ *
+ * It used to read `ip.address` from elysia-ip's derived context, but that value is a plain string,
+ * so every client was keyed as 'unknown' and all visitors shared one bucket per instance.
  * @function
- * @author Mike Odnis
- * @param {any} _r - The request object (unused in context).
- * @param {any} _s - The response object (unused in context).
- * @param {{ ip: SocketAddress }} param2 - The Elysia context containing the client IP.
- * @returns {string} The client's IP address or 'unknown' if not available.
- * @see https://github.com/WomB0ComB0/portfolio
- * @example
- * const id = ipGenerator(req, res, { ip: { address: '127.0.0.1' } });
+ * @param {Request} request - The incoming request.
+ * @returns {string} The client's IP address.
  */
-const ipGenerator: Generator<{ ip: SocketAddress }> = (_r, _s, { ip }) => ip?.address ?? 'unknown';
+const ipGenerator: Generator = (request) => getClientIP(request);
 
 /**
  * Creates a configured Elysia application instance with all standard middleware.

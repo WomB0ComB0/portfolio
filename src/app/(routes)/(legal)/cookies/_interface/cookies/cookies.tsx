@@ -107,20 +107,6 @@ export const Cookies = (): JSX.Element => {
                     Without it, you would not stay signed in.
                   </p>
                 </div>
-                <Separator />
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    CSRF Token
-                  </h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    We use a{' '}
-                    <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">
-                      csrfToken
-                    </code>{' '}
-                    cookie as part of our security measures to protect against Cross-Site Request
-                    Forgery (CSRF) attacks when you submit forms, like signing the guestbook.
-                  </p>
-                </div>
               </CardContent>
             </MagicCard>
 

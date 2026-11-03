@@ -25,6 +25,7 @@ import './src/env';
 // next.config.ts (top-level, before config)
 import fs from 'node:fs';
 import path from 'node:path';
+import { SECURITY_HEADERS, SECURITY_HEADERS_SOURCE } from './src/config/security-headers';
 
 function safeReadJSON(p: string) {
   try {
@@ -284,51 +285,13 @@ const config: NextConfig = {
   },
 
   async headers() {
-    const securityHeaders = [
-      {
-        key: 'X-DNS-Prefetch-Control',
-        value: 'on',
-      },
-      {
-        key: 'Strict-Transport-Security',
-        value: 'max-age=63072000; includeSubDomains; preload',
-      },
-      {
-        key: 'X-Content-Type-Options',
-        value: 'nosniff',
-      },
-      {
-        key: 'X-XSS-Protection',
-        value: '1; mode=block',
-      },
-      {
-        key: 'Referrer-Policy',
-        value: 'strict-origin-when-cross-origin',
-      },
-      {
-        key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=()',
-      },
-    ];
-
-    const securityHeadersWithFrameProtection = [
-      ...securityHeaders,
-      {
-        key: 'X-Frame-Options',
-        value: 'SAMEORIGIN',
-      },
-    ];
-
     return [
-      // Pages that need to embed external iframes (no X-Frame-Options)
+      // Static security headers on every path. (The old page rule's source ended in '/', so it only
+      // matched URLs with a trailing slash and normal pages never got these headers.) The
+      // per-request CSP comes from src/proxy.ts.
       {
-        source: '/embed/:path*',
-        headers: securityHeaders, // No X-Frame-Options on embed pages
-      },
-      // All other pages get full security headers including X-Frame-Options
-      {
-        source: '/((?!links|embed).*)/',
-        headers: securityHeadersWithFrameProtection,
+        source: SECURITY_HEADERS_SOURCE,
+        headers: [...SECURITY_HEADERS],
       },
       {
         source: '/api/:path*',
