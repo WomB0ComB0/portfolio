@@ -27,14 +27,3 @@
 .places-map .gm-style .gm-style-iw-t:has(.places-card) .gm-style-iw-tc::after {
   background: var(--places-infowindow-bg);
 }
-
-/*
- * globals.css styles every <span> in its base layer (purple, 28px line height). Inside the map
- * that reaches Google's own UI, e.g. the "Map Data ©2026 Google" attribution, which then overflows
- * its 14px row and is clipped. This unlayered rule beats the base layer; :where() keeps it at
- * element specificity, so Google's own class-based rules still win.
- */
-:where(.places-map .gm-style) span {
-  font: inherit;
-  color: inherit;
-}

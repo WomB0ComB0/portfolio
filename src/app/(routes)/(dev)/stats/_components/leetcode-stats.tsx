@@ -109,7 +109,7 @@ export const LeetCodeStats = memo(() => {
           href="https://leetcode.com/WomB0ComB0/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-primary-background/50 hover:underline text-center block"
+          className="text-xs text-muted-foreground hover:underline text-center block"
         >
           View Profile
         </a>
@@ -117,20 +117,20 @@ export const LeetCodeStats = memo(() => {
     >
       <div className="space-y-4">
         <div className="mx-auto w-full text-center space-y-1">
-          <span className="text-sm text-primary-background/70 w-full">Total Solved</span>
+          <span className="text-sm text-muted-foreground w-full">Total Solved</span>
           <NumberTicker
-            className="text-lg md:text-xl font-bold text-primary-background w-full"
+            className="text-lg md:text-xl font-bold text-card-foreground w-full"
             value={totalSolved}
           />
         </div>
         <div className="space-y-2">
           {breakdown.map((stat) => (
             <div key={stat.label} className="grid grid-cols-5 items-center gap-2 text-sm">
-              <span className="col-span-1 text-primary-background/70 text-xs">{stat.label}</span>
+              <span className="col-span-1 text-muted-foreground text-xs">{stat.label}</span>
               <div className="col-span-3">
                 <ProgressBar value={stat.value} max={totalSolved} colorClass={stat.colorClass} />
               </div>
-              <span className="col-span-1 text-right font-semibold text-primary-background text-xs">
+              <span className="col-span-1 text-right font-semibold text-card-foreground text-xs">
                 {stat.value}
               </span>
             </div>
@@ -139,14 +139,14 @@ export const LeetCodeStats = memo(() => {
         <Separator className="my-4 bg-primary-background/10" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
           <div>
-            <span className="text-xs text-primary-background/70">Acceptance</span>
-            <p className="text-lg sm:text-xl font-semibold text-primary-background">
+            <span className="text-xs text-muted-foreground">Acceptance</span>
+            <p className="text-lg sm:text-xl font-semibold text-card-foreground">
               {acceptanceRate.toFixed(1)}%
             </p>
           </div>
           <div>
-            <span className="text-xs text-primary-background/70">Ranking</span>
-            <p className="text-lg sm:text-xl font-semibold text-primary-background">
+            <span className="text-xs text-muted-foreground">Ranking</span>
+            <p className="text-lg sm:text-xl font-semibold text-card-foreground">
               Top {ranking.toLocaleString()}
             </p>
           </div>

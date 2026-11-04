@@ -190,7 +190,11 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
                   asChild
                   variant="ghost"
                   className={`w-full flex items-center justify-start gap-3 text-base py-3 px-4 rounded-lg transition-all ${
-                    pathname === home.slug ? 'bg-primary/95 text-foreground' : 'hover:bg-accent'
+                    pathname === home.slug
+                      ? // Override the ghost variant's hover:bg-accent, which would put the dark
+                        // primary-foreground label on the accent surface (about 2:1).
+                        'bg-primary/95 text-primary-foreground hover:bg-primary/95 hover:text-primary-foreground'
+                      : 'hover:bg-accent'
                   }`}
                   onClick={onClose}
                 >
@@ -202,7 +206,13 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
                     >
                       <FiHome size="1.05rem" />
                     </div>
-                    <span className="font-medium text-foreground">{home.name}</span>
+                    <span
+                      className={`font-medium ${
+                        pathname === home.slug ? 'text-primary-foreground' : 'text-foreground'
+                      }`}
+                    >
+                      {home.name}
+                    </span>
                   </Link>
                 </Button>
               </motion.div>

@@ -43,8 +43,8 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
             aria-expanded={isMenuOpen}
             ref={triggerRef}
           >
-            <FiMenu size="1.2rem" strokeWidth={2.2} color="white" />
-            <span className="leading-none text-white">Menu</span>
+            <FiMenu size="1.2rem" strokeWidth={2.2} />
+            <span className="leading-none text-primary-foreground">Menu</span>
           </Button>
         </div>
       </nav>

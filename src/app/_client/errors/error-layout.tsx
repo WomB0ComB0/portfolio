@@ -146,8 +146,11 @@ const ErrorLayout: React.FC<{
                 Try again
               </Link>
             </Button>
-            <Button className="w-full bg-primary text-white hover:bg-primary/90" asChild>
-              <Link href="/" className="flex items-center text-white">
+            <Button
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              asChild
+            >
+              <Link href="/" className="flex items-center text-primary-foreground">
                 <Home className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
                 Go back home
               </Link>

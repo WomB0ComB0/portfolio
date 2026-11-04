@@ -250,7 +250,7 @@ export const GuestbookComponent = () => {
                     placeholder="What's on your mind?"
                     maxLength={280}
                   />
-                  <div className="absolute bottom-2.5 right-3 text-xs text-neutral-500 font-medium">
+                  <div className="absolute bottom-2.5 right-3 text-xs text-neutral-400 font-medium">
                     {message.length} / 280
                   </div>
                 </div>
@@ -342,7 +342,7 @@ export const GuestbookComponent = () => {
                             <FiUser className="h-3.5 w-3.5" />
                             <span className="font-medium">{escapeHtml(msg.authorName)}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-neutral-500">
+                          <div className="flex items-center gap-2 text-neutral-400">
                             <FiClock className="h-3.5 w-3.5" />
                             <time>{formatDateTime(msg.createdAt)}</time>
                           </div>

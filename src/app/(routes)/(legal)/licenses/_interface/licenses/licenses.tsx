@@ -65,7 +65,7 @@ const LicenseCard = ({
         href={licenseUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 text-primary hover:text-primary-foreground transition-colors group"
+        className="inline-flex items-center gap-2 text-primary hover:text-foreground transition-colors group"
       >
         <span className="font-semibold">{licenseName}</span>
         <ExternalLink className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -163,7 +163,7 @@ export const Licenses = (): JSX.Element => {
               href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:text-primary-foreground underline"
+              className="text-primary hover:text-foreground underline"
             >
               contact me
             </a>

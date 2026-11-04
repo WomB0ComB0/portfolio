@@ -283,7 +283,7 @@ const ProjectsListContent = (): JSX.Element => {
                                 return (
                                   <span
                                     key={`${techName}-${+idx}`}
-                                    className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold bg-primary/5 text-primary/80 rounded-md border border-primary/10"
+                                    className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold bg-primary/5 text-primary rounded-md border border-primary/10"
                                   >
                                     {techName}
                                   </span>

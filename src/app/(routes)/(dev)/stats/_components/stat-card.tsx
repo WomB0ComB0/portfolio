@@ -53,8 +53,8 @@ export const StatCard = ({
         )}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-primary-background/80">{title}</CardTitle>
-          <div className="text-primary-background/80">{icon}</div>
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className="text-muted-foreground">{icon}</div>
         </CardHeader>
         <CardContent className="grow">{children}</CardContent>
         {footer && <div className="p-6 pt-0">{footer}</div>}

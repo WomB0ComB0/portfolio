@@ -44,9 +44,9 @@ const CircularProgress = ({ value, colorClass }: { value: number; colorClass: st
   const offset = circumference - (value / 100) * circumference;
   return (
     <div className="relative w-20 h-20">
-      <svg className="w-full h-full" viewBox="0 0 80 80">
+      <svg className="w-full h-full" viewBox="0 0 80 80" aria-hidden="true">
         <circle
-          className="text-primary-background/10"
+          className="text-card-foreground/10"
           strokeWidth="6"
           stroke="currentColor"
           fill="transparent"
@@ -69,7 +69,7 @@ const CircularProgress = ({ value, colorClass }: { value: number; colorClass: st
           transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center text-base sm:text-lg font-bold text-primary-background">
+      <div className="absolute inset-0 flex items-center justify-center text-base sm:text-lg font-bold text-card-foreground">
         {value.toFixed(0)}%
       </div>
     </div>
@@ -131,20 +131,20 @@ export const MonkeytypeStats = memo(() => {
     <StatCard title="Monkeytype Stats" icon={<FaKeyboard />}>
       <div className="grid grid-cols-3 gap-4 text-center items-center">
         <div className="flex flex-col items-center">
-          <span className="text-xs text-primary-background/70">WPM</span>
+          <span className="text-xs text-muted-foreground">WPM</span>
           <NumberTicker
-            className="text-md md:text-lg font-bold text-primary-background"
+            className="text-md md:text-lg font-bold text-card-foreground"
             value={best60.wpm}
           />
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-xs text-primary-background/70 mb-1">Accuracy</span>
+          <span className="text-xs text-muted-foreground mb-1">Accuracy</span>
           <CircularProgress value={best60.acc} colorClass="text-green-400" />
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-xs text-primary-background/70">Tests</span>
+          <span className="text-xs text-muted-foreground">Tests</span>
           <NumberTicker
-            className="text-md md:text-lg font-bold text-primary-background"
+            className="text-md md:text-lg font-bold text-card-foreground"
             value={monkeytypeData.typingStats.completedTests}
           />
         </div>
