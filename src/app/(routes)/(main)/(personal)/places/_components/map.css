@@ -1,0 +1,40 @@
+/*
+ * Google's InfoWindow wraps the place card in its own panel: a white, padded box (.gm-style-iw-c),
+ * a scroll wrapper (.gm-style-iw-d) and a white tail (.gm-style-iw-tc::after). For the place card
+ * (.places-card, map.tsx) the card is the panel, so the box turns transparent, the wrapper stops
+ * scrolling and the tail takes the card's color. Google's shadow and 8px radius stay; they match
+ * the card's rounded-lg. :has() limits this to our card, so Google's own point-of-interest info
+ * windows on the same map keep their normal look.
+ *
+ * These class names are not a public Maps API. Recheck this file after a Maps JS major version.
+ */
+.places-map {
+  /* The card and the tail share this color. */
+  --places-infowindow-bg: color-mix(in oklab, var(--color-neutral-900, #171717) 92%, transparent);
+}
+
+.places-map .gm-style .gm-style-iw-c:has(.places-card) {
+  /* biome-ignore lint/complexity/noImportantStyles: Maps sets padding-top inline on this element. */
+  padding: 0 !important;
+  background-color: transparent;
+}
+
+.places-map .gm-style .gm-style-iw-d:has(.places-card) {
+  /* biome-ignore lint/complexity/noImportantStyles: Maps sets overflow: scroll inline on this element. */
+  overflow: visible !important;
+}
+
+.places-map .gm-style .gm-style-iw-t:has(.places-card) .gm-style-iw-tc::after {
+  background: var(--places-infowindow-bg);
+}
+
+/*
+ * globals.css styles every <span> in its base layer (purple, 28px line height). Inside the map
+ * that reaches Google's own UI, e.g. the "Map Data ©2026 Google" attribution, which then overflows
+ * its 14px row and is clipped. This unlayered rule beats the base layer; :where() keeps it at
+ * element specificity, so Google's own class-based rules still win.
+ */
+:where(.places-map .gm-style) span {
+  font: inherit;
+  color: inherit;
+}
