@@ -96,9 +96,10 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 /**
- * Runs on page documents and RSC navigations only. Skipped: API routes (Elysia sets their
- * headers), Next and Vercel internals, the Sentry tunnel (/monitoring), OG image routes, the
- * actual static files (public/assets, public/pwa and the named root files), and router prefetches.
+ * Runs on page documents and RSC navigations only. Skipped: API routes (next.config.ts sets their
+ * headers, see API_SECURITY_HEADERS), Next and Vercel internals, the Sentry tunnel (/monitoring),
+ * OG image routes, the actual static files (public/assets, public/pwa and the named root files),
+ * and router prefetches.
  *
  * Static files are excluded by name, not by "contains a dot" or by extension: dynamic pages such
  * as /places/[placeId] also render HTML for URLs like /places/a.b or /places/x.png, and those

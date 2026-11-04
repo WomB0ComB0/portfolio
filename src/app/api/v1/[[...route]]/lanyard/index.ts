@@ -25,7 +25,7 @@ export const lanyardRoute = new Elysia({ prefix: '/lanyard' }).model(lanyardSche
     try {
       // Since the data shape is dynamic, we cast to any here and let schema validation handle it later (I was lazy)
       const data = (await getLanyardData()) as any;
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       // Return raw data for validation, superjson will be applied in transform
       return data;
     } catch (error) {

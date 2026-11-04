@@ -168,7 +168,6 @@
     "elysia": "^1.4.30",
     "elysia-ip": "^2.0.0",
     "elysia-rate-limit": "4.6.3",
-    "elysiajs-helmet": "^1.0.5",
     "embla-carousel-react": "8.6.0",
     "fast-glob": "3.3.3",
     "fast-xml-parser": "5.12.0",

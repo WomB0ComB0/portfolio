@@ -39,8 +39,8 @@
   `/pages/api`).
 - **API Layer**: All server-side logic and third-party integrations are in `src/app/api/v1/`. The
   catch-all route (`src/app/api/v1/[[...route]]/route.ts`) is an **Elysia.js** server instance,
-  handling rate limiting, security headers (Helmet), CORS, and OpenTelemetry tracing for internal
-  API calls.
+  handling rate limiting, CORS, and OpenTelemetry tracing for internal API calls. Security headers
+  for `/api` come from `next.config.ts` (`src/config/security-headers.ts`), not from Elysia.
 - **Parallel Routes/Modals**: Uses Next.js Parallel Routes (`@modal`) to display detailed views
   (e.g., `/experience/[id]`, `/projects/[id]`) as modals that overlay the current page.
 - **Providers**: `src/providers/Providers.tsx` composes all React context providers (theme, query,

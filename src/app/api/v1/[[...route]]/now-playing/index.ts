@@ -24,7 +24,7 @@ export const nowPlayingRoute = new Elysia({ prefix: '/now-playing' }).model(nowP
   async ({ set }) => {
     try {
       const data = await getNowPlaying();
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       return data;
     } catch (error) {
       const errorResponse = errorHandler(error);

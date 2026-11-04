@@ -26,20 +26,6 @@ import { app } from '@/constants';
 export const IS_VERCEL = !!process.env.VERCEL;
 
 /**
- * Content Security Policy permissions for Helmet.
- * Used to configure allowed sources for various content types.
- * @type {object}
- */
-export const permission = {
-  SELF: "'self'",
-  UNSAFE_INLINE: "'unsafe-inline'",
-  HTTPS: 'https:',
-  DATA: 'data:',
-  NONE: "'none'",
-  BLOB: 'blob:',
-} as const;
-
-/**
  * OpenTelemetry resource for Jaeger tracing.
  * Sets the service name for trace identification.
  * @type {import('@opentelemetry/resources').Resource}

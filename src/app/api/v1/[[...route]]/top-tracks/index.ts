@@ -24,7 +24,7 @@ export const topTracksRoute = new Elysia({ prefix: '/top-tracks' }).model(topTra
   async ({ set }) => {
     try {
       const data = await fetchTopTracks();
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       return data;
     } catch (error) {
       const errorResponse = errorHandler(error);
