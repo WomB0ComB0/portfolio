@@ -67,6 +67,25 @@ h.places = [
     order: 1,
     featured: false,
   },
+  {
+    _id: 'p2',
+    _type: 'place',
+    _createdAt: '2026-01-01T00:00:00Z',
+    _updatedAt: '2026-01-01T00:00:00Z',
+    _rev: 'r2',
+    name: 'Photographed Place',
+    description: FULL_DESCRIPTION,
+    category: 'Hackathon',
+    latitude: 40.75,
+    longitude: -73.99,
+    startDate: '2026-05-12',
+    photos: [
+      { _type: 'image', _key: 'a', asset: { _ref: 'image-a-1600x1200-jpg', _type: 'reference' } },
+      { _type: 'image', _key: 'b', asset: { _ref: 'image-b-1600x1200-jpg', _type: 'reference' } },
+    ],
+    order: 2,
+    featured: false,
+  },
 ];
 
 /** The page suspends on `use(params)`; React only resumes it inside an awaited act(). */
@@ -95,6 +114,22 @@ describe('place page', () => {
       'https://maps.google.com/?q=40.75,-73.99',
     );
     expect(screen.getByRole('link', { name: 'Back to Places' })).toHaveAttribute('href', '/places');
+  });
+
+  it('shows the photo viewer, under the same header, for a place with photos', async () => {
+    await renderPage('p2');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Photographed Place' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Hackathon')).toBeInTheDocument();
+    // The position text only renders in the viewer branch.
+    expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Close photo viewer' })).toHaveAttribute(
+      'href',
+      '/places',
+    );
+    expect(screen.queryByRole('heading', { name: 'No photos yet' })).not.toBeInTheDocument();
   });
 
   it('says so when the place does not exist', async () => {
