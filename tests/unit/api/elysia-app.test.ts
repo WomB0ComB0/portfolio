@@ -87,9 +87,11 @@ describe('createElysiaApp', () => {
     }
   });
 
-  it('still adds its own rate-limit headers', async () => {
+  it("leaves the in-process backstop limiter's headers off (its counts are per instance)", async () => {
     const res = await get('/api/ping');
-    expect(res.headers.get('ratelimit-limit')).toBe('100');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('ratelimit-limit')).toBeNull();
+    expect(res.headers.get('ratelimit-remaining')).toBeNull();
   });
 
   it('answers an unknown route with a single-encoded 404 body', async () => {

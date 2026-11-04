@@ -165,7 +165,48 @@ describe('POST /api/admin/ban', () => {
     expect(banlistCidr.banCidr).not.toHaveBeenCalled();
 
     expect((await call({ action: 'ban-cidr', cidr: '203.0.113.0/24' })).status).toBe(200);
-    expect(banlistCidr.banCidr).toHaveBeenCalledWith('203.0.113.0/24', undefined);
+    expect(banlistCidr.banCidr).toHaveBeenCalledWith(
+      '203.0.113.0/24',
+      undefined,
+      undefined,
+      undefined,
+    );
+  });
+
+  it('forwards the lifetime and author of a CIDR ban, with host bits cleared', async () => {
+    const res = await call({
+      action: 'ban-cidr',
+      cidr: '203.0.113.77/24',
+      reason: 'scanner',
+      seconds: 3600,
+      bannedBy: 'ops',
+    });
+    expect(res.status).toBe(200);
+    expect(banlistCidr.banCidr).toHaveBeenCalledWith('203.0.113.0/24', 'scanner', 3600, 'ops');
+    expect(await res.json()).toMatchObject({
+      success: true,
+      message: 'CIDR 203.0.113.0/24 has been banned for 3600 seconds',
+      data: { cidr: '203.0.113.0/24', reason: 'scanner', seconds: 3600, bannedBy: 'ops' },
+    });
+  });
+
+  it('unbans a CIDR range by its normalized form', async () => {
+    expect((await call({ action: 'unban-cidr', cidr: '2001:DB8:0::77/32' })).status).toBe(200);
+    expect(banlistCidr.unbanCidr).toHaveBeenCalledWith('2001:db8::/32');
+  });
+
+  it('forwards the lifetime of a slow-mode entry', async () => {
+    const res = await call({ action: 'slow', ip: '198.51.100.10', reason: 'abuse', seconds: 600 });
+    expect(res.status).toBe(200);
+    expect(banlist.slowIp).toHaveBeenCalledWith('198.51.100.10', 'abuse', 600, undefined);
+    expect((await res.json()).message).toBe(
+      'IP 198.51.100.10 has been added to slow mode for 600 seconds',
+    );
+  });
+
+  it('normalizes IPv6 addresses before storing them', async () => {
+    expect((await call({ action: 'ban', ip: '2001:DB8:0::1' })).status).toBe(200);
+    expect(banlist.banIp).toHaveBeenCalledWith('2001:db8::1', undefined, undefined, undefined);
   });
 });
 

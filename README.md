@@ -45,10 +45,10 @@ Personal portfolio, telemetry dashboard, and API hub for **Mike Odnis** ([WomB0C
 The application runs as a single Next.js 16 deployment on Vercel, splitting UI rendering from external API orchestration:
 
 1. **Presentation Layer (`src/app/(routes)`)**: React 19 Server and Client Components styled with Tailwind CSS v4 and Radix UI primitives. Client data fetching uses a custom [`DataLoader`](src/providers/server/effect-data-loader.tsx) built on `@effect/platform`, `effect/Schema`, and `@tanstack/react-query` (`useSuspenseQuery`).
-2. **API Layer (`src/app/api`)**: Two Elysia.js routers mounted inside Next.js App Router catch-all handlers (`/api/[[...route]]` and `/api/v1/[[...route]]`). Routes enforce IP-based rate limiting via Upstash Redis, CIDR/IP ban checks, security headers, and runtime schema validation.
+2. **API Layer (`src/app/api`)**: Two Elysia.js routers mounted inside Next.js App Router catch-all handlers (`/api/[[...route]]` and `/api/v1/[[...route]]`). Before routing, each request passes a guard that checks the client IP against the IP/CIDR ban list and per-route rate limits kept in Upstash Redis (see [Rate Limits & Bans](#rate-limits--bans)); routes also set security headers and validate input at runtime.
 3. **Content & Persistence**:
    - **Sanity CMS v6**: Structured content for projects, work experience, certifications, places, talks, presentations, articles, and resume metadata.
-   - **Upstash Redis**: Stale-while-revalidate caching, rate limiting, and IP ban lists.
+   - **Upstash Redis**: API rate-limit counters and the IP/CIDR ban list, keyed by client IP address, for abuse prevention.
    - **Firebase v13**: Authentication and real-time storage for the `/guestbook` route.
 4. **Observability**: OpenTelemetry instrumentation (`src/instrumentation.ts`), Sentry error tracking, and Better Stack uptime monitoring and log ingestion.
 
@@ -106,7 +106,7 @@ graph TD
 | **Framework** | Next.js 16, React 19 | App Router, Server Components, dynamic code splitting, and PWA support |
 | **API Engine** | Elysia.js 1.4, `@elysiajs/eden` | Type-safe REST handlers, OpenTelemetry spans, Server-Timing headers, and CORS |
 | **Data Pipeline & Validation** | Effect (`@effect/platform`, `effect/Schema`), Zod 4, ArkType | Typed HTTP client pipelines, retry policies, and strict schema decoding |
-| **State & Caching** | TanStack React Query v5, Jotai 3, Upstash Redis | Suspense query caching, atomic client state, and server-side rate limiting |
+| **State & Caching** | TanStack React Query v5, Jotai 3, Upstash Redis | Suspense query caching, atomic client state, and server-side API rate limits and ban list |
 | **Styling & Motion** | Tailwind CSS v4, Radix UI, Motion 14, Paper Shaders | Component primitives, animations, and WebGL background shaders |
 | **CMS & Database** | Sanity v6 (`next-sanity`), Firebase v13 (`firebase`, `firebase-admin` 14) | Portfolio content management and authenticated guestbook entries |
 | **Observability** | Sentry 11, OpenTelemetry, Better Stack (`@logtail/node`) | Distributed tracing, error reporting, and `/api/status` uptime aggregation |
@@ -141,7 +141,7 @@ graph TD
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Liveness check with uptime and timestamp |
 | `GET` | `/api/status` | Service health aggregated from Better Stack Uptime monitors or status pages |
-| `POST` | `/api/admin/ban` | Bearer-authenticated IP and CIDR ban management (`ADMIN_API_TOKEN`); the JSON body's `action` picks ban, unban, slow, list, etc. |
+| `POST` | `/api/admin/ban` | Bearer-authenticated IP and CIDR ban management (`ADMIN_API_TOKEN`); the JSON body's `action` picks ban, unban, slow, list, etc., and an optional `seconds` makes a ban, slow-mode or CIDR entry temporary |
 
 ### v1 Endpoints (`/api/v1/*`)
 
@@ -159,6 +159,21 @@ graph TD
 | `GET` | `/api/v1/google` | Google Analytics / YouTube | Site pageviews and YouTube channel videos |
 | `GET`, `POST` | `/api/v1/messages` | Firebase Admin | Fetch and post guestbook messages |
 | `GET` | `/api/v1/sanity/*` | Sanity CMS | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
+
+### Rate Limits & Bans
+
+Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib/security/api-guard.ts`](src/lib/security/api-guard.ts)) before routing. `/api/health`, CORS preflights and the separate `/api/og` image route are not guarded. Limits are sliding windows per client IP (IPv6 clients per /64 network):
+
+| Route class | Limit | Ban list applies |
+| :--- | :--- | :--- |
+| `/api/v1/*` | 60 requests per 60 s | Yes |
+| `/api/admin/*` | 5 requests per 10 s | No |
+| Other `/api/*` | 30 requests per 60 s | Yes |
+| IPs in slow mode | 1 request per 30 s | Yes |
+
+- Banned IPs and IPs inside a banned CIDR range receive `403`; clients over a limit receive `429` with `Retry-After` and `RateLimit-*` headers. Both responses are sent with `Cache-Control: no-store`.
+- Ban-list entries are sorted sets in Upstash Redis scored by their expiry time; permanent entries use a far-future score. Expired entries are ignored by the guard and deleted from every list whenever the ban API adds, removes or lists entries.
+- The ban-list read and the rate-limit counter run as one parallel Upstash round trip with a 300 ms budget. An in-process limit of 100 requests per minute per instance also applies.
 
 ---
 
