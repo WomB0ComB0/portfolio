@@ -22,7 +22,6 @@ import { Analytics } from '@vercel/analytics/react';
 import { KBarProvider } from 'kbar';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
-import { useEffect } from 'react';
 import { z } from 'zod';
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
@@ -32,7 +31,6 @@ import { actions } from '@/lib/navigation/actions';
 import { Providers } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
 import { createQueryClient } from '@/providers/server';
-import { logger } from '@/utils';
 
 // Zod 4 probes for eval support with `new Function('')`. The probe is caught, but under the site's
 // CSP (no 'unsafe-eval') every probe still files a violation report. jitless skips it; Zod then
@@ -53,8 +51,6 @@ z.config({ jitless: true });
  * and global functionalities for the application. It ensures that all child components have access
  * to themes, query clients, event systems, command palette, and other essential services.
  *
- * It also handles global side effects like cursor hydration fixes and offline detection.
- *
  * @param {Readonly<{ children: React.ReactNode }>} props - The properties for the GlobalProvider component.
  * @param {React.ReactNode} props.children - The child components to be rendered within the providers.
  * @returns {React.JSX.Element} The rendered application wrapped with all global providers and components.
@@ -71,33 +67,6 @@ export const GlobalProvider: React.FC<
    * Creates a memoized QueryClient instance for TanStack Query.
    */
   const queryClient = createQueryClient()();
-
-  /**
-   * @private
-   * @web
-   * @description
-   * Sets up an event listener for the browser's 'offline' event.
-   * If the user goes offline, it redirects them to a dedicated '/offline' page.
-   * The event listener is cleaned up when the component unmounts.
-   */
-  useEffect(() => {
-    /**
-     * @private
-     * @web
-     * @description
-     * Handles the 'offline' event, redirecting the user to the '/offline' page
-     * if the browser detects a loss of network connection.
-     */
-    const handleOffline = () => {
-      if (!navigator.onLine) {
-        logger.info('Offline');
-        globalThis.location.href = '/offline';
-      }
-    };
-
-    globalThis.addEventListener('offline', handleOffline);
-    return () => globalThis.removeEventListener('offline', handleOffline);
-  }, []);
 
   return (
     <>
