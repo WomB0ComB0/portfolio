@@ -21,6 +21,7 @@ import {
   CSP_MODE,
   createNonce,
   cspHeaderName,
+  effectiveCspMode,
   sentryCspReportEndpoint,
 } from '@/lib/security/csp';
 
@@ -143,8 +144,16 @@ describe('cspHeaderName', () => {
     expect(cspHeaderName('report-only')).toBe('Content-Security-Policy-Report-Only');
   });
 
-  it('starts in report-only mode', () => {
-    expect(CSP_MODE).toBe('report-only');
+  it('enforces the policy (set CSP_MODE back to report-only to stop blocking)', () => {
+    expect(CSP_MODE).toBe('enforce');
+  });
+});
+
+describe('effectiveCspMode', () => {
+  it('keeps preview deployments report-only and follows CSP_MODE elsewhere', () => {
+    expect(effectiveCspMode('preview')).toBe('report-only');
+    expect(effectiveCspMode('production')).toBe(CSP_MODE);
+    expect(effectiveCspMode(undefined)).toBe(CSP_MODE);
   });
 });
 

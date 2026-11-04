@@ -32,10 +32,10 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { env } from './env';
 import {
   buildContentSecurityPolicy,
-  CSP_MODE,
   CSP_REPORT_SAMPLE_RATE,
   createNonce,
   cspHeaderName,
+  effectiveCspMode,
   sentryCspReportEndpoint,
 } from './lib/security/csp';
 
@@ -63,14 +63,15 @@ export function proxy(request: NextRequest): NextResponse {
           )
         : undefined;
 
+    const mode = effectiveCspMode(process.env.VERCEL_ENV);
     const csp = buildContentSecurityPolicy({
       nonce,
       isDev: !isProd,
-      mode: CSP_MODE,
+      mode,
       firebaseAuthDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
       reportUri,
     });
-    const cspHeader = cspHeaderName(CSP_MODE);
+    const cspHeader = cspHeaderName(mode);
 
     const requestHeaders = new Headers(request.headers);
     // Next takes the nonce from the first CSP request header it finds, so drop any the client sent.

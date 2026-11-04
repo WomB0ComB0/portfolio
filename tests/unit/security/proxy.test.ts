@@ -44,12 +44,14 @@ vi.mock('@/env', () => {
 
 import { config, proxy } from '@/proxy';
 
-const CSP = 'content-security-policy-report-only';
+const CSP = 'content-security-policy';
+const REPORT_ONLY = 'content-security-policy-report-only';
 /** NextResponse.next({ request: { headers } }) forwards request headers with this prefix. */
 const forwarded = (res: Response, name: string) => res.headers.get(`x-middleware-request-${name}`);
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe('proxy', () => {
@@ -61,7 +63,23 @@ describe('proxy', () => {
     expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
     expect(res.headers.get(CSP)).toContain(`'nonce-${nonce}'`);
     expect(forwarded(res, CSP)).toBe(res.headers.get(CSP));
-    expect(res.headers.get('content-security-policy')).toBeNull();
+    // Enforced: no report-only copy alongside it.
+    expect(res.headers.get(REPORT_ONLY)).toBeNull();
+    expect(forwarded(res, REPORT_ONLY)).toBeNull();
+  });
+
+  it('enforces, with upgrade-insecure-requests', () => {
+    const csp = proxy(new NextRequest('https://mikeodnis.dev/')).headers.get(CSP) ?? '';
+    expect(csp).toContain('upgrade-insecure-requests');
+    expect(csp).toContain("'strict-dynamic'");
+  });
+
+  it('keeps preview deployments report-only', () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    const res = proxy(new NextRequest('https://mikeodnis.dev/'));
+    expect(res.headers.get(CSP)).toBeNull();
+    expect(res.headers.get(REPORT_ONLY)).toContain(`'nonce-${forwarded(res, 'x-nonce')}'`);
+    expect(res.headers.get(REPORT_ONLY)).not.toContain('upgrade-insecure-requests');
   });
 
   it('uses a fresh nonce per request', () => {
@@ -110,7 +128,7 @@ describe('proxy', () => {
         },
       }),
     );
-    expect(forwarded(res, 'content-security-policy')).toBeNull();
+    expect(forwarded(res, REPORT_ONLY)).toBeNull();
     expect(forwarded(res, CSP)).not.toContain('ATTACKER');
     expect(forwarded(res, CSP)).toContain(`'nonce-${forwarded(res, 'x-nonce')}'`);
   });
