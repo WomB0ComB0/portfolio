@@ -28,9 +28,29 @@ import { describe, expect, it } from 'vitest';
 const ROOT = process.cwd();
 const SOURCE_FILE = /\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/;
 
-/** A file-level directive: the first statement, after any leading comments. */
-const fileDirective = (source: string): string | undefined =>
-  source.match(/^(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*['"](use (?:server|client))['"]/)?.[1];
+/**
+ * A file-level directive: the first statement, after any leading whitespace and comments.
+ * A linear scan rather than one regex, which would backtrack on long runs of comments.
+ */
+function fileDirective(source: string): string | undefined {
+  let index = 0;
+  while (index < source.length) {
+    if (/\s/.test(source.charAt(index))) {
+      index += 1;
+    } else if (source.startsWith('//', index)) {
+      const end = source.indexOf('\n', index);
+      if (end === -1) return undefined;
+      index = end + 1;
+    } else if (source.startsWith('/*', index)) {
+      const end = source.indexOf('*/', index + 2);
+      if (end === -1) return undefined;
+      index = end + 2;
+    } else {
+      break;
+    }
+  }
+  return /^['"](use (?:server|client))['"]/.exec(source.slice(index))?.[1];
+}
 
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8');
 
