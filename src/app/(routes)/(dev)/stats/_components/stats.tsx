@@ -53,19 +53,16 @@ const StatItem = ({
   isLoading: boolean;
 }) => (
   <div className="flex flex-col items-center text-center">
-    <div className="text-primary-background/80">{icon}</div>
+    <div className="text-muted-foreground">{icon}</div>
     {isLoading ? (
       <Skeleton className="h-10 w-20 mt-2" />
     ) : (
       <div className="flex items-baseline gap-1">
-        <NumberTicker
-          className="text-md md:text-xl font-bold text-primary-background"
-          value={value}
-        />
-        {unit && <span className="text-sm font-medium text-primary-background/70">{unit}</span>}
+        <NumberTicker className="text-md md:text-xl font-bold text-card-foreground" value={value} />
+        {unit && <span className="text-sm font-medium text-muted-foreground">{unit}</span>}
       </div>
     )}
-    <p className="text-xs text-primary-background/60 mt-1">{title}</p>
+    <p className="text-xs text-muted-foreground mt-1">{title}</p>
   </div>
 );
 

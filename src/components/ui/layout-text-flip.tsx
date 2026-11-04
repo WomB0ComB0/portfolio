@@ -45,7 +45,7 @@ export const LayoutTextFlip = ({
     <div className={cn('flex items-center gap-x-2', className)}>
       <motion.span
         layoutId="subtext"
-        className="text-2xl font-bold tracking-tight drop-shadow-lg md:text-4xl"
+        className="text-2xl font-bold tracking-tight text-primary drop-shadow-lg md:text-4xl"
       >
         {text}
       </motion.span>
@@ -53,7 +53,7 @@ export const LayoutTextFlip = ({
       {/* === MODIFICATION IS ON THIS ELEMENT'S CLASSNAME === */}
       <motion.div
         layout
-        className="relative w-fit overflow-hidden rounded-md border border-white/10  backdrop-blur-sm px-4 py-2 font-sans text-2xl font-bold tracking-tight text-black shadow-sm ring shadow-black/10 ring-black/10 drop-shadow-lg md:text-4xl dark:bg-neutral-900/50 dark:text-white dark:shadow-sm dark:ring-1 dark:shadow-white/10 dark:ring-white/10"
+        className="relative w-fit overflow-hidden rounded-md border border-white/10  backdrop-blur-sm px-4 py-2 font-sans text-2xl font-bold tracking-tight text-primary shadow-sm ring shadow-black/10 ring-black/10 drop-shadow-lg md:text-4xl dark:bg-neutral-900/50 dark:shadow-sm dark:ring-1 dark:shadow-white/10 dark:ring-white/10"
       >
         <AnimatePresence mode="popLayout">
           <motion.span

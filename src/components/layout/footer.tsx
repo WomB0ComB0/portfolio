@@ -23,6 +23,7 @@ import { StatusBadge } from '@/components/custom/status-badge';
 export const Footer = memo(() => {
   const linkClasses =
     'text-primary hover:text-primary/90 dark:hover:text-primary/90 underline decoration-dotted underline-offset-4 transition duration-300';
+  const separatorClasses = 'hidden sm:inline mx-1 text-muted-foreground';
 
   return (
     <footer className="w-full py-4 px-4 md:px-8 mt-auto">
@@ -52,17 +53,23 @@ export const Footer = memo(() => {
             <Link className={linkClasses} href="/licenses">
               Licenses
             </Link>
-            <span className="hidden sm:inline mx-1">•</span>
+            <span aria-hidden="true" className={separatorClasses}>
+              •
+            </span>
             <Link className={linkClasses} href="/privacy">
               Privacy Policy
             </Link>
-            <span className="hidden sm:inline mx-1">•</span>
+            <span aria-hidden="true" className={separatorClasses}>
+              •
+            </span>
             <Link className={linkClasses} href="/cookies">
               Cookie Policy
             </Link>
           </nav>
 
-          <span className="hidden sm:inline mx-1">•</span>
+          <span aria-hidden="true" className={separatorClasses}>
+            •
+          </span>
           <StatusBadge />
         </div>
       </div>

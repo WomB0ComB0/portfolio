@@ -141,7 +141,7 @@ export const TopTracks = () => {
                    */
                   <motion.div
                     key={`top-track-${track.name}-${index}`}
-                    className="flex items-center space-x-4 bg-secondary rounded-lg p-3 cursor-pointer hover:bg-primary/70 transition-all duration-300"
+                    className="flex items-center space-x-4 bg-secondary rounded-lg p-3 cursor-pointer hover:bg-primary/25 transition-all duration-300"
                     onClick={() => window.open(track.url, '_blank')}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}

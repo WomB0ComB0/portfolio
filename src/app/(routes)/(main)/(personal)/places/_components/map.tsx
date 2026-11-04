@@ -188,7 +188,6 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
               <FiX className="h-4 w-4" aria-hidden="true" />
             </button>
             <h3 className="mb-1 pr-6 text-base font-bold text-primary">{activeMarker.name}</h3>
-            {/* Explicit leading: globals.css gives every <p> a 28px line height. */}
             <p className="mb-2 text-xs leading-normal text-neutral-400">{activeMarker.category}</p>
             <p className="line-clamp-3 mb-4 text-sm leading-snug text-neutral-300">
               {activeMarker.description}

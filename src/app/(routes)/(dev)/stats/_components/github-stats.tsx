@@ -59,13 +59,10 @@ const StatItem = ({
   label: string;
 }) => (
   <div className="flex items-center gap-3">
-    <div className="text-primary-background/80">{icon}</div>
+    <div className="text-muted-foreground">{icon}</div>
     <div>
-      <NumberTicker
-        className="text-lg md:text-xl font-bold text-primary-background"
-        value={value}
-      />
-      <p className="text-xs text-primary-background/60">{label}</p>
+      <NumberTicker className="text-lg md:text-xl font-bold text-card-foreground" value={value} />
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   </div>
 );

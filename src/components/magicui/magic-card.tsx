@@ -115,7 +115,7 @@ export const MagicCard = ({
     <div
       ref={cardRef}
       className={cn(
-        'group relative flex size-full overflow-hidden rounded-xl bg-primary/5 dark:bg-primary border border-primary dark:border-primary/70 text-primary dark:text-primary',
+        'group relative flex size-full overflow-hidden rounded-xl bg-primary/5 dark:bg-primary border border-primary dark:border-primary/70 text-card-foreground',
         className,
       )}
     >

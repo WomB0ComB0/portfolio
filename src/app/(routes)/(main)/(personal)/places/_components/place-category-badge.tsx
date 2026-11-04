@@ -26,7 +26,6 @@ export function PlaceCategoryBadge({ category, className }: PlaceCategoryBadgePr
   return (
     <span
       className={cn(
-        // leading-4: the global span rule would otherwise give 12px text a 28px line.
         'rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs leading-4 font-semibold text-primary',
         className,
       )}

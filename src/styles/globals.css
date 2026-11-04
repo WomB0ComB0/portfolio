@@ -188,9 +188,9 @@
   --popover: oklch(20% 0.01 285deg);
   --popover-foreground: oklch(92% 0.035 285deg);
 
-  /* Brand */
-  --primary: oklch(52% 0.12 285deg);
-  --primary-foreground: oklch(22% 0 285deg);
+  /* Brand. Text pairs are checked by tests/unit/styles/token-contrast.test.ts (WCAG AA). */
+  --primary: oklch(65% 0.12 285deg);
+  --primary-foreground: oklch(18% 0 285deg);
   --secondary: oklch(32% 0.1 285deg);
   --secondary-foreground: oklch(92% 0.035 285deg);
   --accent: oklch(40% 0.12 285deg);
@@ -297,25 +297,29 @@
     @apply bg-background;
   }
 
+  /*
+   * Plain line-height values, not leading-*: leading-* sets --tw-leading, which every text-*
+   * size utility reads before its own line height, so it would override them all.
+   */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply font-sans leading-5 font-bold text-primary;
+    @apply font-sans font-bold text-primary;
+
+    line-height: 1.2;
   }
 
   p {
-    @apply font-sans leading-7 font-normal text-primary;
+    @apply font-sans font-normal;
+
+    line-height: 1.75;
   }
 
   a {
     @apply text-primary no-underline transition-colors duration-200 ease-in;
-  }
-
-  span {
-    @apply font-sans leading-7 font-normal text-primary;
   }
 }
 
