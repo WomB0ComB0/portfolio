@@ -33,7 +33,6 @@ import nextConfig from '../../../next.config';
 
 // next.config.ts is loaded for its headers() only: stub the env validation and the build wrappers.
 vi.mock('@/env', () => ({ env: {} }));
-vi.mock('@ducanh2912/next-pwa', () => ({ default: () => (config: unknown) => config }));
 vi.mock('@million/lint', () => ({ default: { next: () => (config: unknown) => config } }));
 vi.mock('@next/bundle-analyzer', () => ({ default: () => (config: unknown) => config }));
 vi.mock('@sentry/nextjs/config', () => ({ withSentryConfig: (config: unknown) => config }));

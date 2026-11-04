@@ -81,6 +81,8 @@ workbox-*.js
 workbox-*.js.map
 sw.js
 sw.js.*
+# Hand-written: retires the worker older builds registered at /sw.js. Must be committed.
+!/public/sw.js
 fallback-*.js.map
 fallback-*.js
 swe-worker-*.js.map
