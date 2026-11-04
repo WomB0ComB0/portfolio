@@ -81,7 +81,7 @@
     "@opentelemetry/exporter-prometheus": "^0.300.0",
     "@opentelemetry/instrumentation": "^0.300.0",
     "@opentelemetry/sdk-node": "^0.300.0",
-    "@pierre/diffs": "1.6.2",
+    "@pierre/diffs": "1.6.4",
     "adm-zip": ">=0.6.1",
     "cookie": ">=0.7.2",
     "deepmerge": "4.1.2",
