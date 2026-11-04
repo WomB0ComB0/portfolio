@@ -117,6 +117,8 @@ export function buildContentSecurityPolicy(options: CspOptions): string {
         // Maps' vector renderer fetches its style set from www.gstatic.com/maps/res/; without it the
         // vector map renders blank.
         'https://www.gstatic.com',
+        // Clicking a point-of-interest icon makes Maps fetch the place's details (Places API).
+        'https://places.googleapis.com',
         'data:', // Maps (per Google's Maps CSP guide)
         'blob:',
         ...FIREBASE_AUTH_APIS,
