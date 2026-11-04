@@ -37,16 +37,12 @@ vi.mock('@/hooks/sanity/use-sanity-suspense', () => ({
 vi.mock('@/components/layout/layout', () => ({
   default: ({ children }: { children?: ReactNode }) => children,
 }));
-vi.mock('@/lib/sanity/client', () => ({
-  urlFor: () => {
-    const builder = {
-      width: () => builder,
-      height: () => builder,
-      url: () => 'https://cdn.sanity.io/images/test.jpg',
-    };
-    return builder;
-  },
-}));
+// The real URL builder, so the viewer test sees the URL the page actually requests.
+vi.mock('@/lib/sanity/client', async () => {
+  const { createImageUrlBuilder } = await import('@sanity/image-url');
+  const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
+  return { urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source) };
+});
 
 import PlaceDetailsPage from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
 
@@ -80,7 +76,8 @@ h.places = [
     longitude: -73.99,
     startDate: '2026-05-12',
     photos: [
-      { _type: 'image', _key: 'a', asset: { _ref: 'image-a-1600x1200-jpg', _type: 'reference' } },
+      // A portrait first: the viewer must not crop it to the frame's shape.
+      { _type: 'image', _key: 'a', asset: { _ref: 'image-a-3000x4000-jpg', _type: 'reference' } },
       { _type: 'image', _key: 'b', asset: { _ref: 'image-b-1600x1200-jpg', _type: 'reference' } },
     ],
     order: 2,
@@ -125,6 +122,12 @@ describe('place page', () => {
     expect(screen.getByText('Hackathon')).toBeInTheDocument();
     // The position text only renders in the viewer branch.
     expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
+    // The portrait is requested whole: sized by height, with no aspect-ratio crop (`rect=`).
+    const src = decodeURIComponent(
+      screen.getByRole('img', { name: 'Photo of Photographed Place' }).getAttribute('src') ?? '',
+    );
+    expect(src).toContain('h=1200');
+    expect(src).not.toContain('rect=');
     expect(screen.getByRole('link', { name: 'Close photo viewer' })).toHaveAttribute(
       'href',
       '/places',

@@ -27,10 +27,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
-import { urlFor } from '@/lib/sanity/client';
 import { cn } from '@/lib/utils';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
+import { viewerPhotoUrl } from './_components/viewer-photo-url';
 import type { PhotoModalProps, PhotoWithCaption } from './page.types';
 
 const swipeConfidenceThreshold = 10000;
@@ -83,12 +83,7 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
   const photos = useMemo(() => (place?.photos || []) as PhotoWithCaption[], [place]);
 
   const currentPhoto = photos[currentPhotoIndex];
-  const imageUrl = currentPhoto?.asset
-    ? urlFor(currentPhoto.asset).width(1600).height(1200).url()
-    : '';
-
-  const { width, height } = currentPhoto?.hotspot ?? {};
-  const containerStyle = width && height ? { aspectRatio: `${width} / ${height}` } : undefined;
+  const imageUrl = currentPhoto?.asset ? viewerPhotoUrl(currentPhoto.asset, 1600, 1200) : '';
 
   const paginate = useCallback(
     (newDirection: number) => {
@@ -157,10 +152,22 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
   const handlePan = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isPanningZoom && imageRef.current && containerRef.current) {
-        const imageWidth = imageRef.current.offsetWidth * zoom;
-        const imageHeight = imageRef.current.offsetHeight * zoom;
+        const image = imageRef.current;
         const containerWidth = containerRef.current.offsetWidth;
         const containerHeight = containerRef.current.offsetHeight;
+        // The <img> fills its box, and object-contain letterboxes the photo inside it. Clamp to the
+        // photo as drawn, so a zoomed portrait can't be dragged out of view.
+        const drawnScale =
+          image.naturalWidth && image.naturalHeight
+            ? Math.min(
+                image.offsetWidth / image.naturalWidth,
+                image.offsetHeight / image.naturalHeight,
+              )
+            : 1;
+        const imageWidth =
+          (image.naturalWidth ? image.naturalWidth * drawnScale : image.offsetWidth) * zoom;
+        const imageHeight =
+          (image.naturalHeight ? image.naturalHeight * drawnScale : image.offsetHeight) * zoom;
 
         const maxX = Math.max(0, (imageWidth - containerWidth) / 2);
         const maxY = Math.max(0, (imageHeight - containerHeight) / 2);
@@ -316,10 +323,10 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
                     {imageUrl ? (
                       <div
                         ref={containerRef}
-                        style={!isFullscreen ? containerStyle : undefined}
+                        // Fill the frame so object-contain shows every photo whole and centred. A
+                        // fixed 4:3 box overflowed the 16:9 frame and clipped the bottom quarter.
                         className={cn(
-                          'relative select-none flex items-center justify-center w-full',
-                          isFullscreen ? 'h-full' : containerStyle ? '' : 'aspect-4/3',
+                          'relative select-none flex items-center justify-center w-full h-full',
                           zoom > 1 && 'cursor-move',
                           zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
                         )}
