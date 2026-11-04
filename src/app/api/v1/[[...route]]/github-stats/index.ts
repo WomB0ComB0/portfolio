@@ -27,7 +27,7 @@ export const githubStatsRoute = new Elysia({ prefix: '/github-stats' })
       try {
         // Since the data shape is dynamic, we cast to any here and let schema validation handle it later (I was lazy)
         const data = (await getGitHubStats()) as any;
-        set.headers = cacheHeaders();
+        Object.assign(set.headers, cacheHeaders());
         return data;
       } catch (error) {
         const errorResponse = errorHandler(error);

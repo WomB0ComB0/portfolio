@@ -21,11 +21,25 @@
  */
 
 import { buildCustomRoute } from 'next/dist/lib/build-custom-route';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { SECURITY_HEADERS, SECURITY_HEADERS_SOURCE } from '@/config/security-headers';
+import {
+  API_SECURITY_HEADERS,
+  API_SECURITY_HEADERS_SOURCE,
+  SECURITY_HEADERS,
+  SECURITY_HEADERS_SOURCE,
+} from '@/config/security-headers';
+import nextConfig from '../../../next.config';
+
+// next.config.ts is loaded for its headers() only: stub the env validation and the build wrappers.
+vi.mock('@/env', () => ({ env: {} }));
+vi.mock('@ducanh2912/next-pwa', () => ({ default: () => (config: unknown) => config }));
+vi.mock('@million/lint', () => ({ default: { next: () => (config: unknown) => config } }));
+vi.mock('@next/bundle-analyzer', () => ({ default: () => (config: unknown) => config }));
+vi.mock('@sentry/nextjs/config', () => ({ withSentryConfig: (config: unknown) => config }));
 
 const header = (key: string) => SECURITY_HEADERS.find((h) => h.key === key)?.value;
+const apiHeader = (key: string) => API_SECURITY_HEADERS.find((h) => h.key === key)?.value;
 
 describe('static security headers', () => {
   const route = buildCustomRoute('header', {
@@ -71,5 +85,96 @@ describe('static security headers', () => {
     expect(keys).not.toContain('content-security-policy-report-only');
     // COEP require-corp blocks the Places map and the résumé PDF; nothing needs isolation.
     expect(keys).not.toContain('cross-origin-embedder-policy');
+  });
+});
+
+describe('API security headers', () => {
+  const route = buildCustomRoute('header', {
+    source: API_SECURITY_HEADERS_SOURCE,
+    headers: [...API_SECURITY_HEADERS],
+  });
+  const matches = (path: string) => new RegExp(route.regex).test(path);
+
+  it('applies to /api and everything under it', () => {
+    for (const path of [
+      '/api',
+      '/api/',
+      '/api/health',
+      '/api/status',
+      '/api/does-not-exist',
+      '/api/admin/ban',
+      '/api/v1/sanity/places',
+      '/api/og',
+    ]) {
+      expect(matches(path), path).toBe(true);
+    }
+  });
+
+  it('does not apply to pages whose path only starts with "api"', () => {
+    for (const path of ['/', '/apiary', '/places', '/projects/api']) {
+      expect(matches(path), path).toBe(false);
+    }
+  });
+
+  it('allows no subresources, no framing and same-origin embedding only', () => {
+    expect(apiHeader('Content-Security-Policy')).toBe("default-src 'none'; frame-ancestors 'none'");
+    expect(apiHeader('Cross-Origin-Resource-Policy')).toBe('same-origin');
+    expect(API_SECURITY_HEADERS).toHaveLength(2);
+  });
+
+  it('shares no header with the global rule, so the two rules never compete', () => {
+    const globalKeys = new Set(SECURITY_HEADERS.map((h) => h.key.toLowerCase()));
+    for (const { key } of API_SECURITY_HEADERS) {
+      expect(globalKeys.has(key.toLowerCase()), key).toBe(false);
+    }
+  });
+});
+
+describe('next.config.ts headers()', () => {
+  /** The headers Next would send for a path: every matching rule, later rules winning per key. */
+  const headersFor = async (path: string) => {
+    const rules = (await nextConfig.headers?.()) ?? [];
+    const out = new Map<string, string>();
+    for (const rule of rules) {
+      if (!new RegExp(buildCustomRoute('header', rule).regex).test(path)) continue;
+      for (const { key, value } of rule.headers) out.set(key.toLowerCase(), value);
+    }
+    return out;
+  };
+
+  it('sends the API headers next to the CORS and no-store headers on /api', async () => {
+    for (const path of ['/api/health', '/api/v1/sanity/places', '/api/does-not-exist']) {
+      const headers = await headersFor(path);
+      for (const { key, value } of [...SECURITY_HEADERS, ...API_SECURITY_HEADERS]) {
+        expect(headers.get(key.toLowerCase()), `${path} ${key}`).toBe(value);
+      }
+      expect(headers.get('access-control-allow-credentials'), path).toBe('true');
+      expect(headers.get('access-control-allow-origin'), path).toBeTruthy();
+      expect(headers.get('cache-control'), path).toContain('no-store');
+    }
+  });
+
+  it('lets other sites embed the link-preview images, and nothing else under /api', async () => {
+    for (const path of ['/api/og', '/api/og/']) {
+      const headers = await headersFor(path);
+      expect(headers.get('cross-origin-resource-policy'), path).toBe('cross-origin');
+      expect(headers.get('content-security-policy'), path).toBe(
+        "default-src 'none'; frame-ancestors 'none'",
+      );
+    }
+    for (const path of ['/api/health', '/api/v1/og', '/api/ogx']) {
+      expect((await headersFor(path)).get('cross-origin-resource-policy'), path).toBe(
+        'same-origin',
+      );
+    }
+  });
+
+  it('keeps the API-only headers off pages', async () => {
+    for (const path of ['/', '/places', '/apiary']) {
+      const headers = await headersFor(path);
+      expect(headers.get('strict-transport-security'), path).toBeTruthy();
+      expect(headers.has('content-security-policy'), path).toBe(false);
+      expect(headers.has('cross-origin-resource-policy'), path).toBe(false);
+    }
   });
 });

@@ -24,7 +24,7 @@ export const googleRoute = new Elysia({ prefix: '/google' }).model(googleSchema)
   async ({ set }) => {
     try {
       const data = await getGoogleAnalytics();
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       return data;
     } catch (error) {
       const errorResponse = errorHandler(error);

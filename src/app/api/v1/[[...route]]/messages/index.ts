@@ -27,7 +27,7 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
     async ({ set }) => {
       try {
         const data = await fetchMessages();
-        set.headers = cacheHeaders();
+        Object.assign(set.headers, cacheHeaders());
         return {
           json: {
             json: data.json.map((item) => ({
@@ -58,7 +58,7 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
       try {
         const newMessage = await createMessage(body);
         set.status = StatusMap.Created;
-        set.headers = cacheHeaders();
+        Object.assign(set.headers, cacheHeaders());
         return newMessage;
       } catch (error) {
         const errorResponse = errorHandler(error, 'add');

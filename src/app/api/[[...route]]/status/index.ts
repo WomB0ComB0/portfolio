@@ -60,7 +60,7 @@ export const statusRoute = new Elysia({ prefix: '/status' })
     async ({ set }) => {
       try {
         const result = await handleStatusCheck();
-        set.headers = cacheHeaders();
+        Object.assign(set.headers, cacheHeaders());
         return {
           success: true as const,
           message: 'Status retrieved',
@@ -72,7 +72,7 @@ export const statusRoute = new Elysia({ prefix: '/status' })
 
         // If we have a fallback state, return 200 with degraded info
         // This prevents breaking the UI when Better Stack is down
-        set.headers = cacheHeaders();
+        Object.assign(set.headers, cacheHeaders());
         set.status = StatusMap.OK;
 
         return {

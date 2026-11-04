@@ -27,10 +27,9 @@ import {
   type Options as RateLimitOptions,
   rateLimit,
 } from 'elysia-rate-limit';
-import { elysiaHelmet } from 'elysiajs-helmet';
 import { getClientIP } from '@/lib/security/get-ip';
 import { getURL, logger, Stringify } from '@/utils';
-import { batchSpanProcessor, otelResource, permission } from '../constants';
+import { batchSpanProcessor, otelResource } from '../constants';
 
 /**
  * @interface ElysiaApiConfig
@@ -62,13 +61,6 @@ export interface ElysiaApiConfig {
    * @see https://github.com/elysiajs/elysia-rate-limit
    */
   rateLimit?: Partial<RateLimitOptions>;
-
-  /**
-   * Security headers configuration.
-   * Uses the same parameters as the elysiajs-helmet plugin.
-   * @see https://github.com/EverlastingBugstopper/elysiajs-helmet
-   */
-  security?: Parameters<typeof elysiaHelmet>[0];
 
   /**
    * Server timing trace configuration.
@@ -105,6 +97,45 @@ export interface ElysiaApiConfig {
 }
 
 /**
+ * The default error handler: a 400, 404 or 500 with a fixed JSON body.
+ *
+ * Bad input is the client's mistake: answer 400 without echoing the validator schema back.
+ * A handler returning data that breaks its own response schema is also a VALIDATION error, but
+ * that one is a server bug, so it takes the 500 path. The 404 and 500 bodies are fixed strings;
+ * the error itself only goes to the log.
+ * @function
+ * @param {{ code: unknown, error: unknown, set: { status: number } }} context - Error context.
+ * @returns {string} The JSON response body.
+ */
+function handleApiError({
+  code,
+  error,
+  set,
+}: {
+  code: unknown;
+  error: unknown;
+  set: { status: number };
+}): string {
+  const isResponseValidation =
+    code === 'VALIDATION' && (error as { type?: unknown } | null)?.type === 'response';
+  if ((code === 'VALIDATION' && !isResponseValidation) || code === 'PARSE') {
+    logger.warn('API request rejected', { code });
+    set.status = 400;
+    return Stringify({
+      error: code === 'PARSE' ? 'Malformed request body' : 'Invalid request',
+      status: 400,
+    });
+  }
+  logger.error('API error handler', error, { code });
+  const isNotFound = code === 'NOT_FOUND' || code === 404;
+  set.status = isNotFound ? 404 : 500;
+  return Stringify({
+    error: isNotFound ? 'Not found' : 'Internal server error',
+    status: set.status,
+  });
+}
+
+/**
  * @const DEFAULT_CONFIG
  * @type {Partial<ElysiaApiConfig>}
  * @readonly
@@ -128,26 +159,6 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
     scoping: 'scoped',
     countFailedRequest: true,
   },
-  security: {
-    csp: {
-      defaultSrc: [permission.SELF],
-      scriptSrc: [permission.SELF, permission.UNSAFE_INLINE],
-      styleSrc: [permission.SELF, permission.UNSAFE_INLINE],
-      imgSrc: [permission.SELF, permission.DATA, permission.HTTPS],
-      useNonce: true,
-    },
-    hsts: {
-      maxAge: 31_536_000,
-      includeSubDomains: true,
-      preload: true,
-    },
-    frameOptions: 'DENY',
-    referrerPolicy: 'strict-origin-when-cross-origin',
-    permissionsPolicy: {
-      camera: [permission.NONE],
-      microphone: [permission.NONE],
-    },
-  },
   serverTiming: {
     request: true,
     parse: true,
@@ -160,36 +171,7 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
     total: true,
   },
   enableTelemetry: true,
-  errorHandler: ({
-    code,
-    error,
-    set,
-  }: {
-    code: unknown;
-    error: unknown;
-    set: { status: number };
-  }) => {
-    // Bad input is the client's mistake: answer 400 without echoing the validator schema back
-    // (it used to be a 500 whose body serialised the whole TypeBox schema and the input).
-    // A handler returning data that breaks its own response schema is also a VALIDATION error,
-    // but that one is our bug, so it keeps the 500 path below.
-    const isResponseValidation =
-      code === 'VALIDATION' && (error as { type?: unknown } | null)?.type === 'response';
-    if ((code === 'VALIDATION' && !isResponseValidation) || code === 'PARSE') {
-      logger.warn('API request rejected', { code });
-      set.status = 400;
-      return Stringify({
-        error: code === 'PARSE' ? 'Malformed request body' : 'Invalid request',
-        status: 400,
-      });
-    }
-    logger.error('API error handler', error, { code });
-    set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
-    return Stringify({
-      error: error instanceof Error ? Stringify({ error }) : Stringify({ error }),
-      status: set.status,
-    });
-  },
+  errorHandler: handleApiError,
 };
 
 /**
@@ -227,7 +209,6 @@ export function createElysiaApp(config: ElysiaApiConfig) {
     ...config,
     cors: { ...DEFAULT_CONFIG.cors, ...config.cors },
     rateLimit: { ...DEFAULT_CONFIG.rateLimit, ...config.rateLimit },
-    security: { ...DEFAULT_CONFIG.security, ...config.security },
     serverTiming: { ...DEFAULT_CONFIG.serverTiming, ...config.serverTiming },
   } as Required<ElysiaApiConfig>;
 
@@ -276,7 +257,9 @@ export function createElysiaApp(config: ElysiaApiConfig) {
         });
       },
     )
-    .use(elysiaHelmet(mergedConfig.security))
+    // Security headers (HSTS, CSP, COOP, CORP, Permissions-Policy, ...) come from next.config.ts
+    // headers(), see src/config/security-headers.ts. A header set here would replace that value
+    // for the same key, so this app does not set any of them.
     .use(ip())
     .use(
       // Only use OpenTelemetry in local development
@@ -339,21 +322,12 @@ export function createElysiaApp(config: ElysiaApiConfig) {
  * @see https://github.com/WomB0ComB0/portfolio
  * @description
  * Can be imported and used by individual API routes for consistent error formatting and logging.
- * @param {{ code: string, error: Error | unknown, set: any }} context - Error handling context.
- * @returns {any} JSON serialization of the error payload.
- * @throws Error If context.error is thrown further.
+ * @param {{ code: unknown, error: unknown, set: { status: number } }} context - Error context.
+ * @returns {string} The JSON response body.
+ * @see handleApiError
  * @example
  * ```ts
  * app.onError(defaultErrorHandler);
  * ```
  */
-export const defaultErrorHandler =
-  DEFAULT_CONFIG.errorHandler ??
-  (({ code, error, set }: { code: unknown; error: unknown; set: { status: number } }) => {
-    logger.error('API error handler', error, { code });
-    set.status = code === 'NOT_FOUND' || code === 404 ? 404 : 500;
-    return Stringify({
-      error: error instanceof Error ? Stringify({ error }) : Stringify({ error }),
-      status: set.status,
-    });
-  });
+export const defaultErrorHandler = handleApiError;

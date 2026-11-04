@@ -19,8 +19,12 @@
  * through next.config.ts `headers()`. They don't depend on the request, so they also survive any
  * error in the proxy.
  *
- * The Content-Security-Policy is NOT here: it carries a per-request nonce, so src/proxy.ts sets
- * it. Keep the two sets of keys disjoint so neither layer overrides the other.
+ * The page Content-Security-Policy is NOT here: it carries a per-request nonce, so src/proxy.ts
+ * sets it. Keep the two sets of keys disjoint so neither layer overrides the other. The proxy
+ * skips /api, so API responses get their CSP from API_SECURITY_HEADERS below instead.
+ *
+ * The Elysia API sets none of these headers itself: on Vercel a header set by the function
+ * replaces the next.config.ts value for the same key.
  *
  * Kept free of imports so next.config.ts and the tests can load it directly.
  */
@@ -45,4 +49,32 @@ export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   // The legacy XSS auditor is gone from browsers and could itself be abused; 0 disables it.
   { key: 'X-XSS-Protection', value: '0' },
+];
+
+/** Path pattern for the API rule: `/api` and every path under it. */
+export const API_SECURITY_HEADERS_SOURCE = '/api/:path*';
+
+/**
+ * Extra headers for API responses, on top of SECURITY_HEADERS. The Elysia routes return JSON and
+ * /api/og returns a PNG: none of them loads subresources or is meant to be framed, so the CSP
+ * allows nothing. CORP same-origin stops other sites from loading these responses as no-cors
+ * subresources (img/script tags). It does not affect CORS fetches, or link-preview crawlers, which
+ * fetch server-side.
+ * Keep the keys disjoint from SECURITY_HEADERS so the two next.config.ts rules never compete.
+ */
+export const API_SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
+  { key: 'Content-Security-Policy', value: "default-src 'none'; frame-ancestors 'none'" },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+];
+
+/** Path pattern for the link-preview image route (`/api/og` and anything under it). */
+export const OG_IMAGE_HEADERS_SOURCE = '/api/og/:path*';
+
+/**
+ * The link-preview images are meant to be embedded by other sites, including ones that render
+ * previews in the browser, so they relax the API's same-origin CORP. next.config.ts lists this
+ * rule after the API rule: for a key set by two matching rules, the later rule wins.
+ */
+export const OG_IMAGE_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
+  { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
 ];
