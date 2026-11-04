@@ -50,7 +50,7 @@ const BlogResponseSchema = Schema.Array(BlogPostSchema);
  */
 function getBlogUrl(blog: Schema.Schema.Type<typeof BlogPostSchema>): string {
   if (blog.url) return blog.url;
-  if (blog.source === 'devto') return `https://dev.to/womb0comb0/${blog.slug}`;
+  if (blog.source === 'devto') return `https://dev.to/mikeodnis/${blog.slug}`;
   return `https://blog.mikeodnis.dev/${blog.slug}`;
 }
 
@@ -102,7 +102,7 @@ export const BlogSection = (): JSX.Element => {
                     <MagicCard className="h-full transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border border-border/50 hover:border-primary/30 overflow-hidden">
                       <div className="flex flex-col h-full">
                         {blog.imageUrl && (
-                          <div className="relative w-full h-52 overflow-hidden bg-muted shrink-0">
+                          <div className="relative w-full aspect-[1200/630] overflow-hidden bg-muted shrink-0">
                             <Image
                               src={blog.imageUrl || '/placeholder.svg'}
                               alt={blog.title}

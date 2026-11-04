@@ -21,10 +21,12 @@
  * Including: Hashnode (Blog), DevTo (Blog), Google Analytics, GitHub, Spotify
  */
 
+export * from './blog-merge';
 export * from './blogs';
 export * from './devto';
 export * from './get-repos';
 export * from './github-sponsors';
 export * from './google';
+export * from './hashnode-covers';
 export * from './spotify';
 export * from './youtube';

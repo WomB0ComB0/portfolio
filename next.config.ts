@@ -25,6 +25,7 @@ import './src/env';
 // next.config.ts (top-level, before config)
 import fs from 'node:fs';
 import path from 'node:path';
+import { HASHNODE_COVER_PATTERNS } from './src/config/blog-images';
 import {
   API_SECURITY_HEADERS,
   API_SECURITY_HEADERS_SOURCE,
@@ -229,6 +230,8 @@ const config: NextConfig = {
       { protocol: 'https', hostname: 'dev-to-uploads.s3.amazonaws.com' },
       { protocol: 'https', hostname: 'media.dev.to' },
       { protocol: 'https', hostname: 'media2.dev.to' },
+      // Hashnode post covers (cdn.hashnode.com and the blog's generated /api/og/** title cards).
+      ...HASHNODE_COVER_PATTERNS,
     ],
     imageSizes: [16, 20, 24, 32, 40],
     minimumCacheTTL: 60 * 60 * 24,

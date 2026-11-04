@@ -16,7 +16,13 @@
 
 import { Schema } from 'effect';
 import { BaseError } from '@/classes/error';
-import { getBlogs, getDevToBlogs, HASHNODE_BLOG_URL } from '@/lib';
+import {
+  addHashnodeCovers,
+  getBlogs,
+  getDevToBlogs,
+  HASHNODE_BLOG_URL,
+  mergeBlogSources,
+} from '@/lib';
 import { logger } from '@/utils';
 
 export const BlogSchema = Schema.Struct({
@@ -32,38 +38,35 @@ export const BlogSchema = Schema.Struct({
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;
 
 /**
- * Fetches blogs from both Hashnode and DevTo, combining and sorting by date.
- * @returns {Promise<Blog[]>} Combined and sorted array of blogs from all sources.
+ * Fetches blogs from Hashnode and DevTo and merges them, newest first.
+ *
+ * Hashnode posts get their covers from each post page's `og:image`. A dev.to cross-post of a
+ * Hashnode post is dropped in favour of the Hashnode entry, which takes the dev.to image when it
+ * has none (see `mergeBlogSources`). If one source fails, the other is still served.
+ *
+ * @returns {Promise<Blog[]>} One entry per article, newest first.
+ * @throws {BaseError} When neither source returns any posts.
  */
 export async function fetchBlogs(): Promise<Blog[]> {
   const devToUsername = 'mikeodnis';
 
   // Fetch from both sources concurrently (Hashnode via its public RSS feed)
   const [hashnodeResult, devtoResult] = await Promise.allSettled([
-    getBlogs(),
+    getBlogs().then((posts) => addHashnodeCovers(posts)),
     getDevToBlogs(devToUsername),
   ]);
 
-  const blogs: Blog[] = [];
-
-  // Process Hashnode results
-  if (hashnodeResult.status === 'fulfilled' && Array.isArray(hashnodeResult.value)) {
-    const hashnodeBlogs = hashnodeResult.value.map((blog) => ({
-      ...blog,
-      source: 'hashnode' as const,
-      url: `${HASHNODE_BLOG_URL}/${blog.slug}`,
-    }));
-    blogs.push(...hashnodeBlogs);
-  } else if (hashnodeResult.status === 'rejected') {
+  if (hashnodeResult.status === 'rejected') {
     logger.error('Failed to fetch Hashnode blogs:', hashnodeResult.reason);
   }
-
-  // Process DevTo results
-  if (devtoResult.status === 'fulfilled' && Array.isArray(devtoResult.value)) {
-    blogs.push(...devtoResult.value);
-  } else if (devtoResult.status === 'rejected') {
+  if (devtoResult.status === 'rejected') {
     logger.error('Failed to fetch DevTo blogs:', devtoResult.reason);
   }
+
+  const blogs = mergeBlogSources(
+    hashnodeResult.status === 'fulfilled' ? hashnodeResult.value : [],
+    devtoResult.status === 'fulfilled' ? devtoResult.value : [],
+  );
 
   // If no blogs from any source, throw an error
   if (blogs.length === 0) {
@@ -72,9 +75,6 @@ export async function fetchBlogs(): Promise<Blog[]> {
       devToUsername,
     });
   }
-
-  // Sort all blogs by published date (newest first)
-  blogs.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
   return blogs;
 }
