@@ -37,6 +37,8 @@ export const DevToBlogSchema = Schema.Struct({
   imageUrl: Schema.optional(Schema.String),
   source: Schema.Literal('devto'),
   url: Schema.String,
+  /** The article's `canonical_url`. dev.to sets it to the article itself unless the author overrides it. */
+  canonicalUrl: Schema.optional(Schema.String),
 });
 
 /**
@@ -99,9 +101,10 @@ export async function getDevToBlogs(username: string, perPage = 30): Promise<Dev
       slug: article.slug,
       publishedAt: article.published_at,
       excerpt: article.description || '',
-      imageUrl: article.cover_image || article.social_image,
+      imageUrl: article.cover_image || article.social_image || undefined,
       source: 'devto' as const,
       url: article.url,
+      ...(typeof article.canonical_url === 'string' ? { canonicalUrl: article.canonical_url } : {}),
     }));
   } catch (error) {
     logger.error('Error fetching DevTo articles:', error);

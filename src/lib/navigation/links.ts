@@ -98,8 +98,8 @@ export const links: Links = [
   },
   {
     name: 'Dev.to',
-    url: 'https://dev.to/womb0comb0',
-    value: '@womb0comb0',
+    url: 'https://dev.to/mikeodnis',
+    value: '@mikeodnis',
     icon: SiDevdotto,
   },
   {
@@ -182,7 +182,7 @@ export const links: Links = [
   },
   {
     name: 'Hashnode',
-    url: 'https://blog.mikeodnis.com',
+    url: 'https://blog.mikeodnis.dev',
     value: '@mikeodnis',
     icon: SiHashnode,
   },

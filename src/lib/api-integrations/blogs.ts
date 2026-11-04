@@ -105,7 +105,7 @@ function toBlog(item: FeedItem): Blog | null {
  * @param xml - The RSS document.
  * @param limit - Maximum number of entries to return.
  * @returns Blog entries sorted by `publishedAt`, newest first. `imageUrl` is never set: the feed
- *   carries no cover images.
+ *   carries no cover images (`addHashnodeCovers` reads them from each post page).
  * @throws {Error} If the document is not an RSS feed, for example an HTML error or redirect page.
  * @public
  */
@@ -162,7 +162,8 @@ const fetchFeedXml = Effect.gen(function* () {
  * Fetches the newest posts from the Hashnode blog's public RSS feed.
  *
  * @param limit - Maximum number of posts to return (default 10).
- * @returns Posts newest first, without `imageUrl` (the feed has no cover images).
+ * @returns Posts newest first, without `imageUrl` (the feed has no cover images; pass them to
+ *   `addHashnodeCovers` to read each post's cover from its page).
  * @throws If the feed can't be fetched or isn't RSS. The blog route logs the failure and still
  *   serves the other sources.
  * @public
