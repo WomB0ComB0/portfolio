@@ -20,6 +20,8 @@ export const cacheHeaders = createCacheHeaders('Short');
 
 export const errorHandler = createErrorHandler({
   context: 'fetch system status',
+  // The route still answers 200 with an 'unknown' state, so an outage is a warning.
+  reportLevel: 'warning',
 });
 
 import { Elysia } from 'elysia';

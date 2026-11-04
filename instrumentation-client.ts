@@ -15,60 +15,35 @@
  */
 
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
+// Options live in src/lib/observability/sentry-options.ts. The release (commit SHA) and, on
+// Vercel, the environment come from the SDK's build-time defaults.
 
 import * as Sentry from '@sentry/nextjs';
-import {
-  browserSessionIntegration,
-  browserTracingIntegration,
-  consoleLoggingIntegration,
-  init,
-  replayIntegration,
-} from '@sentry/nextjs';
 import { config } from '@/config';
+import { buildClientOptions, SENTRY_APPLICATION_KEY } from '@/lib/observability/sentry-options';
 
-if (config.sentry.dsn) {
-  // Initialize Sentry
-  init({
-    dsn: config.sentry.dsn,
-
-    // Add optional integrations for additional features
-    integrations: [
-      replayIntegration(),
-      browserTracingIntegration(),
-      browserSessionIntegration({ lifecycle: 'page' }),
-      consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
-    ],
-    dataCollection: {
-      userInfo: false,
-      cookies: false,
-      httpBodies: [],
-      databaseQueryData: false,
-      genAI: {
-        inputs: false,
-        outputs: false,
-      },
-    },
-    // Adjust the sample rate for traces in production
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1, // 10% in production, 100% in development
-
-    // Adjust the sample rate for session replays
-    replaysSessionSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 0.1, // 1% in production, 10% in development
-
-    // Capture 100% of replay events when an error occurs
-    replaysOnErrorSampleRate: 1,
-
-    // Enable debug mode only in development
-
-    // Additional Sentry configuration options
-    environment: process.env.NODE_ENV || 'development', // Set the environment
-    release: config.app.version, // Link errors to a specific release
-  });
-
-  console.log('Sentry initialized successfully.');
-} else {
-  console.warn(
-    'Sentry DSN is missing. Please set the NEXT_PUBLIC_SENTRY_DSN environment variable.',
-  );
-}
+Sentry.init({
+  dsn: config.sentry.dsn,
+  // Literal process.env reads, so Next inlines them into the browser bundle.
+  ...buildClientOptions({
+    vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV,
+    optIn: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
+    nodeEnv: process.env.NODE_ENV,
+  }),
+  integrations: [
+    // These are the SDK defaults, spelled out because the privacy policy promises them.
+    Sentry.replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true }),
+    Sentry.browserTracingIntegration(),
+    Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
+    // Tags errors whose stack has no frame from our bundles (extensions, injected scripts).
+    // Once the tag looks right in Sentry, 'drop-error-if-exclusively-contains-third-party-frames'
+    // stops them from using quota.
+    Sentry.thirdPartyErrorFilterIntegration({
+      filterKeys: [SENTRY_APPLICATION_KEY],
+      behaviour: 'apply-tag-if-exclusively-contains-third-party-frames',
+      ignoreSentryInternalFrames: true,
+    }),
+  ],
+});
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

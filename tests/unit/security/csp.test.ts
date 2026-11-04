@@ -19,8 +19,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildContentSecurityPolicy,
   CSP_MODE,
+  CSP_REPORT_SAMPLE_RATE,
   createNonce,
   cspHeaderName,
+  cspReportSampleRate,
   effectiveCspMode,
   sentryCspReportEndpoint,
 } from '@/lib/security/csp';
@@ -157,11 +159,44 @@ describe('effectiveCspMode', () => {
   });
 });
 
+describe('cspReportSampleRate', () => {
+  it('samples reports on Vercel production only', () => {
+    expect(cspReportSampleRate('production')).toBe(CSP_REPORT_SAMPLE_RATE);
+    // Previews are report-only and the Vercel toolbar always violates the policy there.
+    expect(cspReportSampleRate('preview')).toBe(0);
+    expect(cspReportSampleRate('development')).toBe(0);
+    // Local `next dev` and `next start` have no VERCEL_ENV.
+    expect(cspReportSampleRate(undefined)).toBe(0);
+  });
+});
+
 describe('sentryCspReportEndpoint', () => {
+  const dsn = 'https://abc123@o42.ingest.us.sentry.io/7';
+
   it('derives the security endpoint from a DSN', () => {
-    expect(sentryCspReportEndpoint('https://abc123@o42.ingest.us.sentry.io/7', 'production')).toBe(
-      'https://o42.ingest.us.sentry.io/api/7/security/?sentry_key=abc123&sentry_environment=production',
+    expect(sentryCspReportEndpoint(dsn)).toBe(
+      'https://o42.ingest.us.sentry.io/api/7/security/?sentry_key=abc123',
     );
+  });
+
+  it('tags reports with the environment and the release (commit SHA)', () => {
+    const endpoint = new URL(
+      sentryCspReportEndpoint(dsn, { environment: 'production', release: 'a1b2c3d' }) ?? '',
+    );
+    expect(endpoint.origin + endpoint.pathname).toBe(
+      'https://o42.ingest.us.sentry.io/api/7/security/',
+    );
+    expect(Object.fromEntries(endpoint.searchParams)).toEqual({
+      sentry_key: 'abc123',
+      sentry_environment: 'production',
+      sentry_release: 'a1b2c3d',
+    });
+  });
+
+  it('leaves out tags that are not set', () => {
+    const endpoint = new URL(sentryCspReportEndpoint(dsn, { environment: 'production' }) ?? '');
+    expect(endpoint.searchParams.has('sentry_release')).toBe(false);
+    expect(endpoint.searchParams.get('sentry_environment')).toBe('production');
   });
 
   it('returns undefined for missing or malformed DSNs', () => {

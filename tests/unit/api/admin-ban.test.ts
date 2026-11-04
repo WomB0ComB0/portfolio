@@ -40,8 +40,8 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-// '@/core' initialises Firebase on import; the route chain only needs onRequestError from it.
-vi.mock('@/core', () => ({ onRequestError: vi.fn() }));
+// '@/core' initialises Firebase on import; the messages handlers in the route chain import it.
+vi.mock('@/core', () => ({}));
 // The /api app also mounts the status route, which talks to Better Stack.
 vi.mock('@/lib/better-stack', () => ({}));
 vi.mock('@/lib/security/banlist', () => ({

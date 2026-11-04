@@ -14,30 +14,20 @@
  * limitations under the License.
  */
 
-// This file configures the initialization of Sentry on the server.
-// The config you add here will be used whenever the server handles a request.
+// Sentry for the Node.js server runtime, loaded by src/instrumentation.ts.
+// Options live in src/lib/observability/sentry-options.ts.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import { init } from '@sentry/nextjs';
 import { env } from '@/env';
+import { buildServerOptions } from '@/lib/observability/sentry-options';
 
 init({
   dsn: env.NEXT_PUBLIC_SENTRY_DSN,
-
-  dataCollection: {
-    userInfo: false,
-    cookies: false,
-    httpBodies: [],
-    databaseQueryData: false,
-    genAI: {
-      inputs: false,
-      outputs: false,
-    },
-  },
-
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
-
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  ...buildServerOptions({
+    vercelEnv: process.env.VERCEL_ENV,
+    vercelTargetEnv: process.env.VERCEL_TARGET_ENV,
+    optIn: process.env.SENTRY_ENABLED,
+    nodeEnv: process.env.NODE_ENV,
+  }),
 });

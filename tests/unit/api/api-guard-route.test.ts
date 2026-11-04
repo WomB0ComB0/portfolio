@@ -36,7 +36,8 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-vi.mock('@/core', () => ({ onRequestError: vi.fn() }));
+// '@/core' initialises Firebase on import; the messages handlers in the route chain import it.
+vi.mock('@/core', () => ({}));
 vi.mock('@/lib/better-stack', () => ({}));
 vi.mock('@/lib/security/banlist', () => ({
   banIp: vi.fn(),

@@ -21,7 +21,7 @@
  */
 
 import { BaseError } from '@/classes/error';
-import { onRequestError } from '@/core';
+import { reportError } from '@/lib/observability/report';
 import { Logger } from '@/utils';
 import { MAX_ACTIVE_CIDRS } from './ban-keys';
 import { addBanEntry, listActiveBanEntries, removeBanEntry } from './ban-store';
@@ -45,7 +45,7 @@ function reportStoreError(message: string, cidr: string | undefined, error: unkn
     ...(cidr ? { cidr } : {}),
     error: error instanceof Error ? error.message : String(error),
   });
-  onRequestError(error);
+  reportError(error);
 }
 
 /**

@@ -31,9 +31,9 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { env } from './env';
 import {
   buildContentSecurityPolicy,
-  CSP_REPORT_SAMPLE_RATE,
   createNonce,
   cspHeaderName,
+  cspReportSampleRate,
   effectiveCspMode,
   sentryCspReportEndpoint,
 } from './lib/security/csp';
@@ -54,15 +54,18 @@ export function proxy(request: NextRequest): NextResponse {
   try {
     const nonce = createNonce();
     const isProd = env.NODE_ENV === 'production';
+    const vercelEnv = process.env.VERCEL_ENV;
+    // Sampled on Vercel production only (0 elsewhere), tagged like the SDK's own events. The dev
+    // server never asks for reports, even with a VERCEL_ENV pulled into a local env file.
     const reportUri =
-      isProd && Math.random() < CSP_REPORT_SAMPLE_RATE
-        ? sentryCspReportEndpoint(
-            env.NEXT_PUBLIC_SENTRY_DSN,
-            process.env.VERCEL_ENV ?? env.NODE_ENV,
-          )
+      isProd && Math.random() < cspReportSampleRate(vercelEnv)
+        ? sentryCspReportEndpoint(env.NEXT_PUBLIC_SENTRY_DSN, {
+            environment: vercelEnv,
+            release: process.env.VERCEL_GIT_COMMIT_SHA,
+          })
         : undefined;
 
-    const mode = effectiveCspMode(process.env.VERCEL_ENV);
+    const mode = effectiveCspMode(vercelEnv);
     const csp = buildContentSecurityPolicy({
       nonce,
       isDev: !isProd,

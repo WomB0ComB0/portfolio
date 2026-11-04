@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
+import * as Sentry from '@sentry/nextjs';
 import dynamic from 'next/dynamic';
+import { useEffect } from 'react';
 
 const InternalServerError = dynamic(
   () => import('@/app/_client').then((mod) => mod.InternalServerError),
@@ -54,5 +56,11 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }>) {
+  // Error boundaries swallow what they catch, so Sentry's global handler never sees it. Errors
+  // with a digest come from server rendering and were already reported by onRequestError.
+  useEffect(() => {
+    if (!error.digest) Sentry.captureException(error);
+  }, [error]);
+
   return <InternalServerError error={error} reset={reset} />;
 }

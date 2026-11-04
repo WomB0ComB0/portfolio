@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { isServerSideApiError, reportApiServerError } from '@/lib/observability/report';
 import { logger } from '@/utils';
 import { batchSpanProcessor, createElysiaApp, IS_VERCEL } from '../_elysia';
 import { apiRoutes } from './elysia';
@@ -22,12 +23,15 @@ const app = createElysiaApp({
   prefix: '/api',
 })
   .use(apiRoutes)
+  // createElysiaApp's default handler (shared/config.ts) normally answers and reports first; this
+  // one only runs if that handler is replaced. Reporting is de-duplicated either way.
   .onError(({ code, error, request }) => {
     logger.error('Elysia error', error, {
       code,
       url: request.url,
       path: new URL(request.url).pathname,
     });
+    if (isServerSideApiError(code, error)) reportApiServerError(error, { code, request });
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error',
@@ -55,6 +59,7 @@ const wrapHandler = (handler: typeof app.handle) => async (request: Request) => 
     return response;
   } catch (error) {
     logger.error('Handler error', error);
+    reportApiServerError(error, { request });
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error',

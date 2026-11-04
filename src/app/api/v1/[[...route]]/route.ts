@@ -15,6 +15,7 @@
  */
 
 import { logAPIRequest, logError } from '@/lib/better-stack';
+import { isServerSideApiError, reportApiServerError } from '@/lib/observability/report';
 import { logger } from '@/utils';
 import { batchSpanProcessor, createElysiaApp, IS_VERCEL } from '../../_elysia';
 import { apiRoutes, utilityRoutes } from './elysia';
@@ -24,12 +25,15 @@ const app = createElysiaApp({
 })
   .use(utilityRoutes)
   .use(apiRoutes)
+  // createElysiaApp's default handler (shared/config.ts) normally answers and reports first; this
+  // one only runs if that handler is replaced. Reporting is de-duplicated either way.
   .onError(({ code, error, request }) => {
     logger.error('Elysia error', error, {
       code,
       url: request.url,
       path: new URL(request.url).pathname,
     });
+    if (isServerSideApiError(code, error)) reportApiServerError(error, { code, request });
 
     // Log to Better Stack
     logError(error instanceof Error ? error : new Error(String(error)), {
@@ -92,6 +96,7 @@ const wrapHandler = (handler: typeof app.handle) => async (request: Request) => 
     return response;
   } catch (error) {
     logger.error('Handler error', error);
+    reportApiServerError(error, { request });
 
     // Log error to Better Stack
     logAPIRequest({

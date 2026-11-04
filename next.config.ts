@@ -16,7 +16,7 @@
 
 import MillionLint from '@million/lint';
 import withBundleAnalyzer from '@next/bundle-analyzer';
-import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs/config';
+import { withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next';
 import './src/env';
 
@@ -37,6 +37,7 @@ import {
   SECURITY_HEADERS,
   SECURITY_HEADERS_SOURCE,
 } from './src/config/security-headers';
+import { buildSentryBuildOptions, shouldApplySentryConfig } from './src/config/sentry-build';
 
 function safeReadJSON(p: string) {
   try {
@@ -328,11 +329,6 @@ const config: NextConfig = {
       },
     });
 
-    // Security: Disable source maps in production
-    if (process.env.NODE_ENV === 'production') {
-      config.devtool = false;
-    }
-
     return config;
   },
 
@@ -356,49 +352,11 @@ const withMillion = MillionLint.next({
 
 const combinedConfig = withMillion(withBundleAnalyzerConfig(config));
 
-// Only Vercel builds (or a build given an explicit SENTRY_RELEASE) create Sentry releases and
-// upload source maps. Otherwise every local `next build` with the real env files would add a
-// `local-<timestamp>` release to the project.
-const publishToSentry = process.env.VERCEL === '1' || Boolean(process.env.SENTRY_RELEASE);
-
-/** @type {import('@sentry/nextjs').SentryBuildOptions} */
-const sentryConfig = {
-  org: process.env.SENTRY_ORG || 'womb0comb0',
-  project: process.env.SENTRY_PROJECT || 'portfolio',
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: process.env.NODE_ENV !== 'development',
-
-  release: {
-    name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE || `local-${Date.now()}`,
-    create: publishToSentry,
-    setCommits: {
-      auto: true,
-      ignoreMissing: true,
-      ignoreEmpty: true,
-    },
-  },
-
-  sourcemaps: {
-    disable: publishToSentry ? false : 'disable-upload',
-    assets: ['.next/**/*.js', '.next/**/*.map'],
-    ignore: ['node_modules/**/*', '.next/cache/**/*'],
-    deleteSourcemapsAfterUpload: true,
-  },
-
-  widenClientFileUpload: true,
-  tunnelRoute: '/monitoring',
-
-  bundleSizeOptimizations: {
-    excludeDebugStatements: true,
-    excludeReplayShadowDom: true,
-    excludeReplayIframe: true,
-    excludeReplayWorker: true,
-  },
-} satisfies SentryBuildOptions;
-
-const withSentry =
-  process.env.NODE_ENV === 'production' && process.env.SENTRY_AUTH_TOKEN
-    ? (config: any) => withSentryConfig(config, sentryConfig)
-    : (config: any) => config;
+// Every production build is wrapped (tunnel, release and debug-ID injection); uploads and
+// release creation additionally need the auth token. See src/config/sentry-build.ts.
+const withSentry = (nextConfig: NextConfig): NextConfig =>
+  shouldApplySentryConfig(process.env)
+    ? withSentryConfig(nextConfig, buildSentryBuildOptions(process.env))
+    : nextConfig;
 
 export default withSentry(combinedConfig);

@@ -37,8 +37,12 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-// '@/core' initialises Firebase on import.
-vi.mock('@/core', () => ({ onRequestError: vi.fn() }));
+vi.mock('@/lib/observability/report', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/observability/report')>()),
+  nameApiTransaction: vi.fn(),
+  reportApiFailure: vi.fn(),
+  reportApiServerError: vi.fn(),
+}));
 // The status middleware logs to Better Stack.
 vi.mock('@/lib/better-stack', () => ({ logAPIRequest: vi.fn() }));
 vi.mock('@/app/api/[[...route]]/status/handlers', () => ({ handleStatusCheck: vi.fn() }));
