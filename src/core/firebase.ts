@@ -18,7 +18,7 @@ import { type FirebaseApp, type FirebaseOptions, getApps, initializeApp } from '
 import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
 import { connectFirestoreEmulator, type Firestore, getFirestore } from 'firebase/firestore';
 import { config } from '@/config';
-import { onRequestError } from '@/instrumentation';
+import { reportError } from '@/lib/observability/report';
 import { logger } from '@/utils';
 
 /**
@@ -84,7 +84,7 @@ function initializeFirebase(): { app: FirebaseApp; auth: Auth; firestore: Firest
     } catch (error) {
       // Emulators already connected or not available
       console.warn('Firebase emulators connection warning:', error);
-      onRequestError(error);
+      reportError(error);
       /**
        * @throws {Error} If unable to connect to Firebase emulators, logs and emits error but does not halt execution.
        */

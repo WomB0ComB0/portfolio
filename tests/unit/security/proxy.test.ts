@@ -33,14 +33,12 @@ const { getMiddlewareMatchers } = pageStaticInfo as unknown as {
   ) => Array<{ regexp: string; missing?: unknown[] }>;
 };
 
-vi.mock('@/env', () => {
-  const env = {
-    NODE_ENV: 'production',
-    NEXT_PUBLIC_SENTRY_DSN: 'https://abc123@o42.ingest.us.sentry.io/7',
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'example-app.firebaseapp.com',
-  };
-  return { env, default: env };
-});
+const mockEnv = vi.hoisted(() => ({
+  NODE_ENV: 'production',
+  NEXT_PUBLIC_SENTRY_DSN: 'https://abc123@o42.ingest.us.sentry.io/7',
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'example-app.firebaseapp.com',
+}));
+vi.mock('@/env', () => ({ env: mockEnv, default: mockEnv }));
 
 import { config, proxy } from '@/proxy';
 
@@ -98,11 +96,14 @@ describe('proxy', () => {
     );
   });
 
-  it('asks for violation reports on a sampled share of responses', () => {
+  it('asks for violation reports on a sampled share of production responses', () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'a1b2c3d');
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const sampled = proxy(new NextRequest('https://mikeodnis.dev/'));
     expect(sampled.headers.get(CSP)).toContain(
-      'report-uri https://o42.ingest.us.sentry.io/api/7/security/?sentry_key=abc123',
+      'report-uri https://o42.ingest.us.sentry.io/api/7/security/?sentry_key=abc123' +
+        '&sentry_environment=production&sentry_release=a1b2c3d',
     );
     expect(sampled.headers.get('reporting-endpoints')).toMatch(
       /^csp-endpoint="https:\/\/o42\.ingest/,
@@ -112,6 +113,33 @@ describe('proxy', () => {
     const unsampled = proxy(new NextRequest('https://mikeodnis.dev/'));
     expect(unsampled.headers.get(CSP)).not.toContain('report-uri');
     expect(unsampled.headers.get('reporting-endpoints')).toBeNull();
+  });
+
+  it('never asks for reports from previews or local runs', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    for (const vercelEnv of ['preview', 'development', undefined]) {
+      vi.stubEnv('VERCEL_ENV', vercelEnv);
+      const res = proxy(new NextRequest('https://mikeodnis.dev/'));
+      const policy = res.headers.get(CSP) ?? res.headers.get(REPORT_ONLY) ?? '';
+      expect(policy, String(vercelEnv)).toContain("'strict-dynamic'");
+      expect(policy, String(vercelEnv)).not.toContain('report-uri');
+      expect(res.headers.get('reporting-endpoints'), String(vercelEnv)).toBeNull();
+    }
+  });
+
+  it('never asks for reports from the dev server, even with VERCEL_ENV=production', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.stubEnv('VERCEL_ENV', 'production');
+    mockEnv.NODE_ENV = 'development';
+    try {
+      const res = proxy(new NextRequest('https://mikeodnis.dev/'));
+      const policy = res.headers.get(CSP) ?? res.headers.get(REPORT_ONLY) ?? '';
+      expect(policy).toContain("'strict-dynamic'");
+      expect(policy).not.toContain('report-uri');
+      expect(res.headers.get('reporting-endpoints')).toBeNull();
+    } finally {
+      mockEnv.NODE_ENV = 'production';
+    }
   });
 
   it('frames only the Firebase auth domain and Sanity', () => {

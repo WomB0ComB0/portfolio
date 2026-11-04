@@ -225,7 +225,12 @@ export function createApiGuard({
   cooldownMs = GUARD_COOLDOWN_MS,
   failureThreshold = GUARD_FAILURE_THRESHOLD,
   report = (error) => {
-    Sentry.captureException(error);
+    // Requests are still served (without Redis checks), so this is a warning with its own issue.
+    Sentry.captureException(error, {
+      level: 'warning',
+      tags: { component: 'api-guard' },
+      fingerprint: ['api-guard-redis-open'],
+    });
   },
 }: ApiGuardOptions): ApiGuard {
   /** Until this time (ms), the guard allows without calling Redis. */

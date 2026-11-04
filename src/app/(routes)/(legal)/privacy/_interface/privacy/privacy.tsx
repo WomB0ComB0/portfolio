@@ -126,10 +126,11 @@ export const Privacy = (): JSX.Element => {
                     <span className="text-primary mt-1">•</span>
                     <div>
                       <span className="font-semibold">Error Monitoring and Session Replay:</span>{' '}
-                      Sentry records errors, and for about 1% of sessions plus any session where an
-                      error occurs, a replay of how the page was used (clicks, scrolling, and
-                      navigation). In these replays all page text and everything you type into
-                      inputs is masked, and images and other media are blocked.
+                      Sentry records errors and, for some of the sessions where an error occurs, a
+                      replay of how the page was used (clicks, scrolling, and navigation). Sessions
+                      without an error are not recorded. In these replays all page text and
+                      everything you type into inputs is masked, and images and other media are
+                      blocked.
                     </div>
                   </li>
                   <li className="flex gap-3">

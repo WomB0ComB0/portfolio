@@ -25,7 +25,7 @@
  */
 
 import { ensureBaseError, isBaseError } from '@/classes/error';
-import { onRequestError } from '@/core';
+import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils';
 
 /**
@@ -64,6 +64,11 @@ export interface ErrorHandlerConfig {
   context: string;
   customMessage?: (error: unknown) => string;
   includeErrorDetails?: boolean;
+  /**
+   * Sentry level for these failures. Defaults to 'error', or 'warning' for
+   * createErrorHandlerWithDefault; use 'warning' when the route still serves fallback data.
+   */
+  reportLevel?: 'error' | 'warning';
 }
 
 /**
@@ -164,8 +169,8 @@ export function createErrorHandler(config: ErrorHandlerConfig) {
 
     logger.error(`Error ${config.context}:`, baseError.toString());
 
-    // Capture error to Sentry for monitoring
-    onRequestError(baseError);
+    // Grouped and throttled per context during upstream outages (see reportApiFailure).
+    reportApiFailure(baseError, { context: config.context, level: config.reportLevel ?? 'error' });
 
     let errorMessage: string;
 
@@ -219,8 +224,11 @@ export function createErrorHandlerWithDefault<T extends Record<string, unknown>>
 
     logger.error(`Error ${config.context}:`, baseError.toString());
 
-    // Capture error to Sentry for monitoring
-    onRequestError(baseError);
+    // The route answers with default data, so this is a warning unless configured otherwise.
+    reportApiFailure(baseError, {
+      context: config.context,
+      level: config.reportLevel ?? 'warning',
+    });
 
     const errorMessage = baseError.cause.message;
 

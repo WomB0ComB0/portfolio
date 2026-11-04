@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
+import * as Sentry from '@sentry/nextjs';
 import NextError from 'next/error';
 import { useEffect } from 'react';
-import { onRequestError } from '@/core';
 
 export const GlobalError = ({ error }: { error: Error & { digest?: string } }) => {
   useEffect(() => {
-    onRequestError(error);
+    // An error with a digest was thrown while rendering on the server, where onRequestError
+    // already reported it; the browser only gets a redacted copy.
+    if (!error.digest) Sentry.captureException(error);
   }, [error]);
 
   return (

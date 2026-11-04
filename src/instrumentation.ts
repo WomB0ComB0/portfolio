@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,132 +14,34 @@
  * limitations under the License.
  */
 
-// @vercel/otel 2.x bundles OpenTelemetry SDK 2.3 and loads only @opentelemetry/api and
-// @opentelemetry/api-logs at runtime, so its SDK 2.x peer ranges only affect types here.
-// This SDK 3.x sampler is handed to that bundled tracer provider as-is, which works because
-// Sampler.shouldSample and the SamplingDecision values (0, 1, 2) did not change in SDK 3.
-// Pass no other SDK 3.x objects to registerOTel until @vercel/otel 3.x (vercel/otel#223).
-import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace';
+// Sentry owns the global OpenTelemetry tracer provider. @vercel/otel used to register one first
+// in production, and Sentry then skips its own, so Next.js server spans never reached Sentry.
+// This repo configures no exporter for @vercel/otel (no OTEL_EXPORTER_OTLP_* variables).
+// Keep this module free of directives: Next.js only needs the two plain exports below.
+
 import * as Sentry from '@sentry/nextjs';
-import type { Configuration } from '@vercel/otel';
-import { registerOTel } from '@vercel/otel';
-import { env } from '@/env';
 
 /**
- * Initializes OpenTelemetry instrumentation for production environments.
- *
- * @param runtime - The current runtime environment ('edge' or undefined for Node.js)
+ * Loads the Sentry SDK for the current runtime. Called once by Next.js per server instance.
+ * Whether events are sent is decided in the SDK options (src/lib/observability/sentry-options.ts).
  */
-const initializeOpenTelemetry = (runtime: string | undefined): void => {
-  if (process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production') {
-    return;
-  }
-
-  registerOTel({
-    serviceName: 'portfolio',
-    instrumentations: runtime === 'edge' ? [] : undefined,
-    instrumentationConfig: {
-      fetch: {
-        ignoreUrls: [/health/, /metrics/, /api\.mikeodnis\.dev/],
-        propagateContextUrls: [
-          /api\.mikeodnis\.dev/, // API domain for Mike Odnis
-          /vercel\.app/,
-        ],
-        resourceNameTemplate: '{http.host}{http.target}',
-      },
-    },
-    traceSampler: runtime === 'edge' ? undefined : new TraceIdRatioBasedSampler(0.1), // Sample 10% of requests
-  } satisfies Configuration);
-};
-
-/**
- * Loads the appropriate Sentry configuration based on runtime environment.
- *
- * @param runtime - The current runtime environment ('edge' or undefined for Node.js)
- */
-const loadSentryConfig = async (runtime: string | undefined): Promise<void> => {
-  if (!env.NEXT_PUBLIC_SENTRY_DSN) {
-    return;
-  }
-
+export async function register(): Promise<void> {
+  const runtime = process.env.NEXT_RUNTIME;
   try {
     if (runtime === 'edge') {
-      await import('../instrumentation-edge').catch(() => {
-        throw new Error('Could not load Sentry edge config');
-      });
+      await import('../instrumentation-edge');
     } else {
-      await import('../instrumentation-server').catch(() => {
-        throw new Error('Could not load Sentry server config');
-      });
+      await import('../instrumentation-server');
     }
-  } catch (e) {
-    console.warn('Could not load Sentry config:', e);
-    // Optionally continue without Sentry rather than crashing
-  }
-};
-
-/**
- * Registers and configures instrumentation services for the application.
- * This includes OpenTelemetry for observability and Sentry for error tracking.
- *
- * @async
- * @const register
- * @returns {Promise<void>} A promise that resolves when all instrumentation is configured
- *
- * @example
- * ```ts
- * // This is typically called automatically by Next.js
- * await register();
- * ```
- *
- * @remarks
- * - Initializes OpenTelemetry with the service name 'portfolio'
- * - Conditionally imports Sentry configs based on runtime environment
- * - Handles both Node.js and Edge runtime environments
- * - Should be called before the application starts handling requests
- *
- * @throws {Error} May throw if Sentry config imports fail or if OTel registration fails
- */
-export const register = async (): Promise<void> => {
-  const runtime = process.env.NEXT_RUNTIME;
-
-  try {
-    initializeOpenTelemetry(runtime);
-    await loadSentryConfig(runtime);
   } catch (error) {
-    console.error(
-      `[Instrumentation:${runtime || 'unknown'}]`,
-      Error.isError(error) ? error : `Error: ${String(error)}`,
-    );
-    // Use Sentry.captureException directly here since onRequestError is not yet available during initialization
-    Sentry.captureException(error);
-    throw Error.isError(error)
-      ? new Error(`Instrumentation initialization failed: ${error.message}`, { cause: error })
-      : new Error(`Instrumentation initialization failed: ${String(error)}`);
+    // Keep serving without Sentry rather than failing every request.
+    console.error(`[instrumentation:${runtime ?? 'nodejs'}] could not initialise Sentry`, error);
   }
-};
+}
 
 /**
- * Error handler function that captures and reports request errors to Sentry.
- * Direct export of Sentry's captureRequestError function for use in error boundaries
- * or request handlers.
- *
- * @const onRequestError
- * @type {typeof Sentry.captureRequestError}
- *
- * @example
- * ```ts
- * try {
- *   await handleRequest(req);
- * } catch (error) {
- *   onRequestError(error);
- * }
- * ```
- *
- * @remarks
- * - Automatically captures request context and error details
- * - Integrates with Sentry's error tracking system
- * - Preserves error stack traces and metadata
- * - Should be used for handling request-specific errors
+ * Next.js calls this for errors thrown while rendering, in route handlers, server actions and
+ * the proxy. captureRequestError adds the request, route and router context and flushes before
+ * the function is frozen.
  */
-export const onRequestError = Sentry.captureException;
+export const onRequestError = Sentry.captureRequestError;

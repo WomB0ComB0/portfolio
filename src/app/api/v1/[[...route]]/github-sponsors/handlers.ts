@@ -47,7 +47,8 @@ export async function getGitHubSponsorsHandler() {
     return new Response(
       JSON.stringify({
         error: 'Failed to fetch sponsors',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        // Details go to the log only (a BaseError message names the internal command).
+        message: 'Unknown error',
       }),
       {
         status: 500,
@@ -96,7 +97,8 @@ export async function getActiveSponsorsHandler() {
     return new Response(
       JSON.stringify({
         error: 'Failed to fetch active sponsors',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        // Details go to the log only (a BaseError message names the internal command).
+        message: 'Unknown error',
       }),
       {
         status: 500,

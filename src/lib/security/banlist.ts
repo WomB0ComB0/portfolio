@@ -22,7 +22,7 @@
  */
 
 import { BaseError } from '@/classes/error';
-import { onRequestError } from '@/core';
+import { reportError } from '@/lib/observability/report';
 import { Logger } from '@/utils';
 import type { BanKind } from './ban-keys';
 import {
@@ -57,7 +57,7 @@ async function withStoreErrors<T>(
     return await operation();
   } catch (error) {
     log.error(message, { ...context, error });
-    onRequestError(error);
+    reportError(error);
     throw error;
   }
 }

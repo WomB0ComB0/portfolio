@@ -27,6 +27,11 @@ import {
   type Options as RateLimitOptions,
   rateLimit,
 } from 'elysia-rate-limit';
+import {
+  isServerSideApiError,
+  nameApiTransaction,
+  reportApiServerError,
+} from '@/lib/observability/report';
 import { getClientIP } from '@/lib/security/get-ip';
 import { getURL, logger, Stringify } from '@/utils';
 import { batchSpanProcessor, otelResource } from '../constants';
@@ -103,19 +108,24 @@ export interface ElysiaApiConfig {
  * Bad input is the client's mistake: answer 400 without echoing the validator schema back.
  * A handler returning data that breaks its own response schema is also a VALIDATION error, but
  * that one is a server bug, so it takes the 500 path. The 404 and 500 bodies are fixed strings;
- * the error itself only goes to the log.
+ * the error itself only goes to the log and, for a 500, to Sentry.
+ *
+ * Elysia runs onError hooks in order until one returns, and this one always returns, so it is
+ * the handler that answers (and reports) every API error, before any onError a route file adds.
  * @function
- * @param {{ code: unknown, error: unknown, set: { status: number } }} context - Error context.
+ * @param {{ code: unknown, error: unknown, set: { status: number }, request?: Request }} context - Error context.
  * @returns {string} The JSON response body.
  */
 function handleApiError({
   code,
   error,
   set,
+  request,
 }: {
   code: unknown;
   error: unknown;
   set: { status: number };
+  request?: Request;
 }): string {
   const isResponseValidation =
     code === 'VALIDATION' && (error as { type?: unknown } | null)?.type === 'response';
@@ -129,6 +139,9 @@ function handleApiError({
   }
   logger.error('API error handler', error, { code });
   const isNotFound = code === 'NOT_FOUND' || code === 404;
+  // A handled 500 never reaches Next's onRequestError, so it is reported here. Errors a route
+  // already reported (createErrorHandler) are skipped.
+  if (isServerSideApiError(code, error)) reportApiServerError(error, { code, request });
   set.status = isNotFound ? 404 : 500;
   return Stringify({
     error: isNotFound ? 'Not found' : 'Internal server error',
@@ -216,6 +229,10 @@ export function createElysiaApp(config: ElysiaApiConfig) {
   } as Required<ElysiaApiConfig>;
 
   const api = new Elysia({ prefix: mergedConfig.prefix })
+    // Sentry events from this request carry its real path, not the catch-all route file.
+    .onRequest(({ request }) => {
+      nameApiTransaction(request);
+    })
     .onParse(({ request }) => {
       const contentType = request.headers.get('content-type');
       if (contentType?.includes('multipart/form-data')) {

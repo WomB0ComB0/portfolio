@@ -100,8 +100,8 @@ export const banRoute = new Elysia({ prefix: '/admin/ban' })
           error: error instanceof Error ? error.message : String(error),
         });
 
-        // Handlers throw BaseError only for invalid input. BaseError keeps its text on `cause`
-        // (its own message is empty), so the old `message.includes('required')` check never fired.
+        // Handlers throw BaseError only for invalid input. The client gets the cause's text,
+        // without the command prefix that BaseError's own message carries.
         if (error instanceof BaseError) {
           set.status = StatusMap['Bad Request'];
           return {

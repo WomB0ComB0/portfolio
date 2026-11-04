@@ -68,6 +68,8 @@ import { Data } from 'effect';
  * }
  */
 export class BaseError extends Data.TaggedError<'BaseError'>('BaseError')<{
+  /** `<command>: <cause message>`, so logs and Sentry issue titles say what failed. */
+  message: string;
   cause: Error;
   command: string;
   parseResult?: ParseResult.ParseError;
@@ -99,6 +101,7 @@ export class BaseError extends Data.TaggedError<'BaseError'>('BaseError')<{
    */
   constructor(cause: Error, command: string, metadata: Record<string, unknown> = {}) {
     super({
+      message: cause.message ? `${command}: ${cause.message}` : command,
       cause,
       command,
       metadata,

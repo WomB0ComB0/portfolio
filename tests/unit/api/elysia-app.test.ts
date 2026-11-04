@@ -36,8 +36,11 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-// '@/core' initialises Firebase on import.
-vi.mock('@/core', () => ({ onRequestError: vi.fn() }));
+vi.mock('@/lib/observability/report', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/observability/report')>()),
+  nameApiTransaction: vi.fn(),
+  reportApiServerError: vi.fn(),
+}));
 
 import { createElysiaApp, defaultErrorHandler } from '@/app/api/_elysia/shared/config';
 

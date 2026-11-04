@@ -51,6 +51,14 @@ export function effectiveCspMode(vercelEnv: string | undefined): CspMode {
 /** Share of responses that ask the browser to send violation reports, to bound Sentry volume. */
 export const CSP_REPORT_SAMPLE_RATE = 0.1;
 
+/**
+ * The report sampling rate for one deployment: production only. Previews are report-only and
+ * Vercel's toolbar there always violates the policy, and local runs must not reach Sentry.
+ */
+export function cspReportSampleRate(vercelEnv: string | undefined): number {
+  return vercelEnv === 'production' ? CSP_REPORT_SAMPLE_RATE : 0;
+}
+
 export interface CspOptions {
   /** Base64 nonce, unique per request. */
   nonce: string;
@@ -162,14 +170,23 @@ export function cspHeaderName(
   return mode === 'enforce' ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only';
 }
 
+/** Tags for CSP reports, so each violation is tied to the deploy that served the policy. */
+export interface CspReportTags {
+  /** Sentry environment, e.g. VERCEL_ENV. */
+  environment?: string;
+  /** Sentry release: the commit SHA (VERCEL_GIT_COMMIT_SHA), as for the SDK's own events. */
+  release?: string;
+}
+
 /**
  * Sentry's CSP report endpoint for a DSN such as https://<key>@o123.ingest.us.sentry.io/456:
- * https://o123.ingest.us.sentry.io/api/456/security/?sentry_key=<key>. The DSN is public (it ships
- * to browsers), so using it here exposes nothing new. Returns undefined for a missing or malformed DSN.
+ * https://o123.ingest.us.sentry.io/api/456/security/?sentry_key=<key>, plus sentry_environment
+ * and sentry_release when given. The DSN is public (it ships to browsers), so using it here
+ * exposes nothing new. Returns undefined for a missing or malformed DSN.
  */
 export function sentryCspReportEndpoint(
   dsn: string | undefined,
-  environment?: string,
+  { environment, release }: CspReportTags = {},
 ): string | undefined {
   if (!dsn) return undefined;
   try {
@@ -181,6 +198,7 @@ export function sentryCspReportEndpoint(
     const endpoint = new URL(`${url.protocol}//${url.host}/api/${projectId}/security/`);
     endpoint.searchParams.set('sentry_key', url.username);
     if (environment) endpoint.searchParams.set('sentry_environment', environment);
+    if (release) endpoint.searchParams.set('sentry_release', release);
     return endpoint.toString();
   } catch {
     return undefined;

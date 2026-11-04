@@ -32,8 +32,7 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-// '@/core' initialises Firebase on import; the store only needs onRequestError from it.
-vi.mock('@/core', () => ({ onRequestError: vi.fn() }));
+vi.mock('@/lib/observability/report', () => ({ reportError: vi.fn() }));
 vi.mock('@/classes/redis', async () => {
   const { FakeRedis } = await import('@tests/fixtures/fake-redis');
   return { redis: new FakeRedis() };
@@ -41,7 +40,7 @@ vi.mock('@/classes/redis', async () => {
 
 import { BaseError } from '@/classes/error';
 import { redis as mockedRedis } from '@/classes/redis';
-import { onRequestError } from '@/core';
+import { reportError } from '@/lib/observability/report';
 import { createApiGuard, redisBanLookup } from '@/lib/security/api-guard';
 import { BAN_KEYS, MAX_ACTIVE_CIDRS, PERMANENT_BAN_SCORE } from '@/lib/security/ban-keys';
 import {
@@ -256,7 +255,7 @@ describe('Redis failures', () => {
     async (_name, run) => {
       redis.failWith = failure;
       await expect(run()).rejects.toBe(failure);
-      expect(onRequestError).toHaveBeenCalledWith(failure);
+      expect(reportError).toHaveBeenCalledWith(failure);
     },
   );
 });

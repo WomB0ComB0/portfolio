@@ -29,8 +29,7 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-// '@/core' initialises Firebase on import; the error handler only needs onRequestError from it.
-vi.mock('@/core', () => ({ onRequestError: vi.fn() }));
+vi.mock('@/lib/observability/report', () => ({ reportApiFailure: vi.fn() }));
 // The full '@/lib' barrel pulls in Sanity and decorator-based clients; the route needs only these.
 vi.mock('@/lib', async () => ({
   ...(await import('@/lib/api-integrations/blogs')),
