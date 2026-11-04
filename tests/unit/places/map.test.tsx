@@ -156,6 +156,27 @@ describe('places map', () => {
     expect(screen.queryByRole('heading', { name: 'First Place' })).not.toBeInTheDocument();
   });
 
+  it('links the card to the place page, with or without photos', () => {
+    const photoPlace = {
+      ...place('p3', 'Photo Place'),
+      photos: [{ url: 'https://cdn.sanity.io/images/a.jpg' }],
+    };
+    render(<GoogleMaps placesToDisplay={[...PLACES, photoPlace]} />);
+
+    clickMarker(0);
+    expect(screen.getByRole('link', { name: 'View Details' })).toHaveAttribute(
+      'href',
+      '/places/p1',
+    );
+    expect(screen.queryByText('No photos available.')).not.toBeInTheDocument();
+
+    clickMarker(2);
+    expect(screen.getByRole('link', { name: 'View Photos (1)' })).toHaveAttribute(
+      'href',
+      '/places/p3',
+    );
+  });
+
   it('closes the info window from its own close button', () => {
     render(<GoogleMaps placesToDisplay={PLACES} />);
     clickMarker(0);

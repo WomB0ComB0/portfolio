@@ -34,7 +34,10 @@ export const PlaceDateRange = ({ startDate, endDate, className }: PlaceDateRange
       <time dateTime={startDate}>{parts.start}</time>
       {parts.end && endDate && (
         <>
-          <span aria-hidden="true"> – </span>
+          {/* text-inherit: the global span rule would otherwise colour the dash primary. */}
+          <span aria-hidden="true" className="text-inherit">
+            {' – '}
+          </span>
           <span className="sr-only"> to </span>
           <time dateTime={endDate}>{parts.end}</time>
         </>

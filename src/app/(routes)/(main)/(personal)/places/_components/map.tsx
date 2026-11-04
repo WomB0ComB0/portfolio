@@ -22,7 +22,7 @@ import { MarkerClusterer, type onClusterClickHandler } from '@googlemaps/markerc
 import { APIProvider, InfoWindow, useMap, Map as VisGLMap } from '@vis.gl/react-google-maps';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { FiCamera, FiMapPin, FiX } from 'react-icons/fi';
+import { FiCamera, FiInfo, FiMapPin, FiX } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import type { PlaceItem } from '@/types/places';
 import type { GoogleMapsProps, MarkersComponentProps } from './map.types';
@@ -177,7 +177,8 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
           headerDisabled
           onClose={() => setActiveMarker(null)}
         >
-          <div className="places-card relative w-64 rounded-lg border border-primary/50 bg-(--places-infowindow-bg) p-4 text-white backdrop-blur-md">
+          {/* font-sans: the card sits inside Google's .gm-style, which sets Roboto. */}
+          <div className="places-card relative w-64 rounded-lg border border-primary/50 bg-(--places-infowindow-bg) p-4 font-sans text-white backdrop-blur-md">
             <button
               type="button"
               aria-label="Close"
@@ -187,19 +188,28 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
               <FiX className="h-4 w-4" aria-hidden="true" />
             </button>
             <h3 className="mb-1 pr-6 text-base font-bold text-primary">{activeMarker.name}</h3>
-            <p className="mb-2 text-xs text-neutral-400">{activeMarker.category}</p>
-            <p className="line-clamp-3 mb-4 text-sm text-neutral-300">{activeMarker.description}</p>
+            {/* Explicit leading: globals.css gives every <p> a 28px line height. */}
+            <p className="mb-2 text-xs leading-normal text-neutral-400">{activeMarker.category}</p>
+            <p className="line-clamp-3 mb-4 text-sm leading-snug text-neutral-300">
+              {activeMarker.description}
+            </p>
 
-            {activeMarker.photos && activeMarker.photos.length > 0 ? (
-              <Button asChild size="sm" className="w-full">
-                <Link href={`/places/${activeMarker.id}`}>
-                  <FiCamera className="mr-2 h-4 w-4" />
-                  View Photos ({activeMarker.photos.length})
-                </Link>
-              </Button>
-            ) : (
-              <p className="text-center text-xs text-neutral-500">No photos available.</p>
-            )}
+            {/* With or without photos, the place page has the full description. */}
+            <Button asChild size="sm" className="w-full">
+              <Link href={`/places/${activeMarker.id}`}>
+                {activeMarker.photos && activeMarker.photos.length > 0 ? (
+                  <>
+                    <FiCamera className="h-4 w-4" aria-hidden="true" />
+                    View Photos ({activeMarker.photos.length})
+                  </>
+                ) : (
+                  <>
+                    <FiInfo className="h-4 w-4" aria-hidden="true" />
+                    View Details
+                  </>
+                )}
+              </Link>
+            </Button>
           </div>
         </InfoWindow>
       )}
