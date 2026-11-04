@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import pwa, { type PluginOptions } from '@ducanh2912/next-pwa';
 import MillionLint from '@million/lint';
 import withBundleAnalyzer from '@next/bundle-analyzer';
 import { type SentryBuildOptions, withSentryConfig } from '@sentry/nextjs/config';
@@ -25,6 +24,10 @@ import './src/env';
 // next.config.ts (top-level, before config)
 import fs from 'node:fs';
 import path from 'node:path';
+import {
+  RETIRED_SERVICE_WORKER_HEADERS,
+  RETIRED_SERVICE_WORKER_SOURCE,
+} from './src/config/retired-service-worker';
 import { SECURITY_HEADERS, SECURITY_HEADERS_SOURCE } from './src/config/security-headers';
 
 function safeReadJSON(p: string) {
@@ -131,69 +134,6 @@ function computeExemptDeps(): Set<string> {
 
 // Build the dynamic EXEMPT_DEPS set once at config load:
 const EXEMPT_DEPS: Set<string> = computeExemptDeps();
-
-const withPwa = pwa({
-  dest: 'public', // Output directory for the service worker and other PWA files
-  disable: process.env.NODE_ENV === 'development', // Disable PWA in development mode
-  register: true, // Automatically register the service worker
-  dynamicStartUrl: true, // Enable dynamic start URL caching
-  cacheOnFrontEndNav: true, // Enable caching for front-end navigation
-  aggressiveFrontEndNavCaching: true, // Cache every `<link rel="stylesheet" />` and `<script />` on frontend navigation
-  cacheStartUrl: true, // Cache the start URL
-  reloadOnOnline: true, // Reload the app when it comes back online
-  fallbacks: {
-    document: '/offline', // Fallback for document requests (pages)
-    image: '/assets/images/logo.webp', // Fallback route for images
-    font: '/assets/fonts/Kodchasan-Regular.ttf', // Fallback route for fonts
-  },
-  workboxOptions: {
-    exclude: [/\/_next\/static\/.*(?<!\.p)\.woff2/, /\.map$/, /^manifest.*\.js$/, /\.pdf$/], // Exclude specific files from precaching
-    ignoreURLParametersMatching: [/^utm_/, /^fbclid$/], // Ignore specific URL parameters
-    runtimeCaching: [
-      {
-        urlPattern: /\.(?:png|jpg|jpeg|svg|webp)$/,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'images',
-          expiration: {
-            maxEntries: 100,
-            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-          },
-        },
-      },
-      {
-        urlPattern: /\.(?:js|css)$/,
-        handler: 'StaleWhileRevalidate',
-        options: {
-          cacheName: 'static-resources',
-        },
-      },
-      {
-        urlPattern: /\.(?:woff|woff2|eot|ttf|otf|pdf)$/,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'fonts',
-          expiration: {
-            maxEntries: 50,
-            maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
-          },
-        },
-      },
-      {
-        urlPattern: /api\/.*/,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'api-responses',
-          networkTimeoutSeconds: 10, // Fallback to cache if the network takes longer than 10 seconds
-          expiration: {
-            maxEntries: 50,
-            maxAgeSeconds: 24 * 60 * 60, // 1 day
-          },
-        },
-      },
-    ],
-  },
-} satisfies PluginOptions);
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -343,6 +283,12 @@ const config: NextConfig = {
         source: '/(.*).png',
         headers: [{ key: 'Content-Type', value: 'image/png' }],
       },
+      // The script that retires the service worker older builds registered (public/sw.js). Kept
+      // last so nothing above can override its Cache-Control.
+      {
+        source: RETIRED_SERVICE_WORKER_SOURCE,
+        headers: [...RETIRED_SERVICE_WORKER_HEADERS],
+      },
     ];
   },
 
@@ -391,7 +337,7 @@ const withMillion = MillionLint.next({
   },
 });
 
-const combinedConfig = withMillion(withBundleAnalyzerConfig(withPwa(config)));
+const combinedConfig = withMillion(withBundleAnalyzerConfig(config));
 
 // Only Vercel builds (or a build given an explicit SENTRY_RELEASE) create Sentry releases and
 // upload source maps. Otherwise every local `next build` with the real env files would add a

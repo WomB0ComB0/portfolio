@@ -98,7 +98,6 @@
     "uuid": "^14.0.3"
   },
   "dependencies": {
-    "@ducanh2912/next-pwa": "^10.2.9",
     "@effect/platform": "^0.97.3",
     "@elysiajs/bearer": "^1.4.4",
     "@elysiajs/cors": "^1.4.2",

@@ -30,8 +30,8 @@
   Lanyard (Discord), and WakaTime APIs.
 - **Observability:** Integrates **Sentry** and **Vercel OpenTelemetry** for tracing and error
   tracking (`src/instrumentation.ts`).
-- **PWA:** Configured as a Progressive Web App (PWA) using `@ducanh2912/next-pwa`
-  (`next.config.mjs`).
+- **Service worker:** none. `public/sw.js` only retires the worker that older builds registered
+  at `/sw.js`; keep it published and don't add a fetch handler to it.
 
 ## Key Architectural Patterns
 

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { onlineManager } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -76,5 +77,31 @@ describe('GlobalProvider toasts', () => {
     expect(toaster).toHaveAttribute('data-sonner-theme', 'dark');
     expect(toaster).toHaveAttribute('data-y-position', 'top');
     expect(toaster).toHaveAttribute('data-x-position', 'center');
+  });
+});
+
+describe('GlobalProvider offline handling', () => {
+  it('keeps the current page when the connection drops (no redirect to /offline)', () => {
+    // With no service worker, a navigation while offline can't load, so leaving the page would
+    // only swap it for the browser's error page.
+    // TanStack Query's onlineManager adds its own 'online'/'offline' listeners when a client
+    // mounts; keep those out so the spy only sees listeners from the provider itself.
+    const queryListeners = vi
+      .spyOn(onlineManager, 'setEventListener')
+      .mockImplementation(() => undefined);
+    const addListener = vi.spyOn(globalThis, 'addEventListener');
+
+    try {
+      render(
+        <GlobalProvider>
+          <p>page</p>
+        </GlobalProvider>,
+      );
+
+      expect(addListener.mock.calls.map(([type]) => type)).not.toContain('offline');
+    } finally {
+      addListener.mockRestore();
+      queryListeners.mockRestore();
+    }
   });
 });
