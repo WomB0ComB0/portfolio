@@ -21,15 +21,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
-import { PlaceDateRange } from '@/app/(routes)/(main)/(personal)/places/_components/place-date-range';
-import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
+import { MagicCard } from '@/components/magicui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
 import { cn } from '@/lib/utils';
+import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
+import { PlaceSummary } from './_components/place-summary';
 import type { PhotoModalProps, PhotoWithCaption } from './page.types';
 
 const swipeConfidenceThreshold = 10000;
@@ -192,24 +193,56 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
     );
   }
 
-  if (!place || photos.length === 0) {
+  if (!place) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
           <MagicCard className="max-w-md">
             <CardContent className="flex flex-col items-center gap-6 p-12 text-center">
               <div className="space-y-3">
-                <h2 className="text-2xl font-bold">No Photos Available</h2>
-                <p className="text-muted-foreground">This place doesn't have any photos yet.</p>
+                <h1 className="text-2xl font-bold leading-tight">Place not found</h1>
+                <p className="text-muted-foreground leading-relaxed">
+                  This place may have been removed, or the link is incomplete.
+                </p>
               </div>
-              <Link href="/places">
-                <Button variant="outline" size="lg">
-                  Back to Places
-                </Button>
-              </Link>
+              <Button asChild variant="outline" size="lg" className="text-foreground">
+                <Link href="/places">Back to Places</Link>
+              </Button>
             </CardContent>
           </MagicCard>
         </div>
+      </Layout>
+    );
+  }
+
+  // No photos (yet, or ever): still show the place in full, since the list card cuts it short.
+  if (photos.length === 0) {
+    return (
+      <Layout>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="min-h-screen p-4 md:p-8"
+        >
+          <div className="w-full max-w-7xl mx-auto">
+            <MagicCard>
+              <CardHeader>
+                <PlaceSummary
+                  name={place.name}
+                  category={place.category}
+                  description={place.description}
+                  startDate={place.startDate}
+                  endDate={place.endDate}
+                  closeLabel="Close"
+                />
+              </CardHeader>
+              <CardContent>
+                <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
+              </CardContent>
+            </MagicCard>
+          </div>
+        </motion.div>
       </Layout>
     );
   }
@@ -225,29 +258,14 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
         <div className="w-full max-w-7xl mx-auto">
           <MagicCard>
             <CardHeader className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-2">
-                  <h1 className="text-3xl md:text-4xl font-bold">{place.name}</h1>
-                  {place.startDate && (
-                    <p className="text-sm text-muted-foreground">
-                      <PlaceDateRange startDate={place.startDate} endDate={place.endDate} />
-                    </p>
-                  )}
-                  {place.description && (
-                    <p className="text-muted-foreground leading-relaxed">{place.description}</p>
-                  )}
-                </div>
-                <Link href="/places">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0"
-                    aria-label="Close photo viewer"
-                  >
-                    <FiX className="h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
+              <PlaceSummary
+                name={place.name}
+                category={place.category}
+                description={place.description}
+                startDate={place.startDate}
+                endDate={place.endDate}
+                closeLabel="Close photo viewer"
+              />
 
               {photos.length > 1 && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
