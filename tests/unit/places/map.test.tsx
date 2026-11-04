@@ -25,6 +25,7 @@ const h = vi.hoisted(() => ({
   mapProps: null as Record<string, unknown> | null,
   infoWindowProps: null as Record<string, unknown> | null,
   clustererOptions: null as Record<string, unknown> | null,
+  clusteredMarkers: [] as unknown[],
   fakeMap: {
     fitBounds: vi.fn(),
     getDiv: () => document.querySelector('[data-testid="map"]') as HTMLElement,
@@ -56,7 +57,9 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map.css', () => ({}
 
 vi.mock('@googlemaps/markerclusterer', () => ({
   MarkerClusterer: class {
-    addMarkers = vi.fn();
+    addMarkers = vi.fn((markers: unknown[]) => {
+      h.clusteredMarkers.push(...markers);
+    });
     clearMarkers = vi.fn();
     constructor(options: Record<string, unknown>) {
       h.clustererOptions = options;
@@ -109,6 +112,7 @@ describe('places map', () => {
     h.mapProps = null;
     h.infoWindowProps = null;
     h.clustererOptions = null;
+    h.clusteredMarkers.length = 0;
     h.markers.length = 0;
     h.fakeMap.fitBounds.mockClear();
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY', 'test-key');
@@ -132,6 +136,7 @@ describe('places map', () => {
     render(<GoogleMaps placesToDisplay={PLACES} />);
 
     expect(h.markers).toHaveLength(2);
+    expect(h.clusteredMarkers).toEqual(h.markers);
     for (const marker of h.markers) {
       expect(marker.options).toMatchObject({ gmpClickable: true });
       expect(marker.listened).toEqual(['gmp-click']);

@@ -105,4 +105,16 @@ describe('guestbook feedback', () => {
     );
     expect(h.mutateAsync).not.toHaveBeenCalled();
   });
+
+  it('tells the visitor when the message is too long, without posting', async () => {
+    renderGuestbook();
+
+    // The textarea's maxLength stops typing past 280; the schema still guards the value.
+    send('a'.repeat(281));
+
+    await waitFor(() =>
+      expect(h.toast.error).toHaveBeenCalledWith('Message must be less than 280 characters.'),
+    );
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+  });
 });

@@ -60,7 +60,7 @@ describe('GlobalProvider toasts', () => {
     expect(await screen.findByText('Sign-in cancelled.')).toBeInTheDocument();
   });
 
-  it('renders toasts in the dark theme the site uses', async () => {
+  it('renders toasts dark, at the top center of the page', async () => {
     const { container } = render(
       <GlobalProvider>
         <p>page</p>
@@ -72,9 +72,9 @@ describe('GlobalProvider toasts', () => {
     });
     await screen.findByText('Message sent successfully!');
 
-    expect(container.ownerDocument.querySelector('[data-sonner-toaster]')).toHaveAttribute(
-      'data-sonner-theme',
-      'dark',
-    );
+    const toaster = container.ownerDocument.querySelector('[data-sonner-toaster]');
+    expect(toaster).toHaveAttribute('data-sonner-theme', 'dark');
+    expect(toaster).toHaveAttribute('data-y-position', 'top');
+    expect(toaster).toHaveAttribute('data-x-position', 'center');
   });
 });
