@@ -25,7 +25,14 @@ import './src/env';
 // next.config.ts (top-level, before config)
 import fs from 'node:fs';
 import path from 'node:path';
-import { SECURITY_HEADERS, SECURITY_HEADERS_SOURCE } from './src/config/security-headers';
+import {
+  API_SECURITY_HEADERS,
+  API_SECURITY_HEADERS_SOURCE,
+  OG_IMAGE_HEADERS,
+  OG_IMAGE_HEADERS_SOURCE,
+  SECURITY_HEADERS,
+  SECURITY_HEADERS_SOURCE,
+} from './src/config/security-headers';
 
 function safeReadJSON(p: string) {
   try {
@@ -229,7 +236,6 @@ const config: NextConfig = {
     dangerouslyAllowSVG: false, // Prevent SVG XSS attacks
   },
 
-  transpilePackages: ['elysiajs-helmet'],
   skipTrailingSlashRedirect: true,
   experimental: {
     optimizePackageImports: [
@@ -293,9 +299,12 @@ const config: NextConfig = {
         source: SECURITY_HEADERS_SOURCE,
         headers: [...SECURITY_HEADERS],
       },
+      // API responses: the CSP and CORP for JSON, then CORS and no-store. Elysia does not set
+      // security headers, so these and the global rule above are the only source for /api.
       {
-        source: '/api/:path*',
+        source: API_SECURITY_HEADERS_SOURCE,
         headers: [
+          ...API_SECURITY_HEADERS,
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
           {
             key: 'Access-Control-Allow-Origin',
@@ -320,6 +329,11 @@ const config: NextConfig = {
             value: '0',
           },
         ],
+      },
+      // After the API rule, so it wins for /api/og: link-preview images are embedded cross-origin.
+      {
+        source: OG_IMAGE_HEADERS_SOURCE,
+        headers: [...OG_IMAGE_HEADERS],
       },
       {
         source: '/static/:path*',

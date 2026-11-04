@@ -24,7 +24,7 @@ export const wakatimeRoute = new Elysia({ prefix: '/wakatime' }).model(wakatimeS
   async ({ set }) => {
     try {
       const data = await getWakaTimeData();
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       return data;
     } catch (error) {
       const errorResponse = errorHandler(error);

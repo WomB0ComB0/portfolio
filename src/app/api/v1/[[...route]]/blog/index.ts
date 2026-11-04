@@ -24,7 +24,7 @@ export const blogRoute = new Elysia({ prefix: '/blog' }).model(blogSchema).get(
   async ({ set }) => {
     try {
       const data = await fetchBlogs();
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       return data;
     } catch (error) {
       const errorResponse = errorHandler(error);

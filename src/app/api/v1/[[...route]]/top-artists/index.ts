@@ -24,7 +24,7 @@ export const topArtistsRoute = new Elysia({ prefix: '/top-artists' }).model(topA
   async ({ set }) => {
     try {
       const data = await fetchTopArtists();
-      set.headers = cacheHeaders();
+      Object.assign(set.headers, cacheHeaders());
       return data;
     } catch (error) {
       const errorResponse = errorHandler(error);
