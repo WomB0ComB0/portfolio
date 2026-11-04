@@ -30,6 +30,7 @@ import {
 import { getClientIP } from '@/lib/security/get-ip';
 import { getURL, logger, Stringify } from '@/utils';
 import { batchSpanProcessor, otelResource } from '../constants';
+import { apiGuardHook } from './guard';
 
 /**
  * @interface ElysiaApiConfig
@@ -152,10 +153,12 @@ const DEFAULT_CONFIG: Partial<ElysiaApiConfig> = {
     credentials: true,
     maxAge: 86_400,
   },
+  // In-process backstop for when the Redis-backed guard (./guard.ts) is skipping Redis. Its
+  // counts are per instance, so it sends no RateLimit-* headers that would contradict the guard's.
   rateLimit: {
     duration: 60_000,
     max: 100,
-    headers: true,
+    headers: false,
     scoping: 'scoped',
     countFailedRequest: true,
   },
@@ -284,6 +287,9 @@ export function createElysiaApp(config: ElysiaApiConfig) {
         maxAge: mergedConfig.cors.maxAge,
       }),
     )
+    // Redis-backed bans and rate limits. Registered after cors so preflights are answered first
+    // and 403/429 responses carry the CORS headers; onRequest runs before routing and parsing.
+    .onRequest(apiGuardHook)
     .use(
       rateLimit({
         duration: mergedConfig.rateLimit.duration,

@@ -47,7 +47,7 @@ export const Privacy = (): JSX.Element => {
             <div>
               <h1 className="text-4xl font-bold tracking-tight">Privacy Policy</h1>
               <p className="text-muted-foreground mt-1">
-                Last Updated: <span className="font-medium">November 3, 2026</span>
+                Last Updated: <span className="font-medium">November 4, 2026</span>
               </p>
             </div>
           </div>
@@ -222,7 +222,8 @@ export const Privacy = (): JSX.Element => {
                     share data with vendors performing services for us, including Vercel (hosting),
                     Firebase (authentication), Firestore (database), Google and Vercel (analytics),
                     Google (maps), Sanity (content and images), Sentry (error monitoring and session
-                    replay), and Upstash (rate limiting)
+                    replay), and Upstash (API rate-limit counters and the list of blocked IP
+                    addresses, used to prevent abuse)
                   </div>
                 </li>
                 <li className="flex gap-3">
@@ -282,7 +283,7 @@ export const Privacy = (): JSX.Element => {
                   },
                   {
                     name: 'Upstash',
-                    purpose: 'Rate Limiting',
+                    purpose: 'API Rate Limits and IP Ban List',
                     url: 'https://upstash.com/privacy',
                   },
                 ].map((service) => (
@@ -329,6 +330,13 @@ export const Privacy = (): JSX.Element => {
                 We retain your information only for as long as necessary for the purposes set out in
                 this policy. For example, guestbook messages are stored indefinitely unless a
                 deletion is requested.
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                To prevent abuse of the site's API, request counters keyed by IP address (by network
+                prefix for IPv6) are kept in Upstash Redis and expire automatically within about two
+                minutes. IP addresses and address ranges that are blocked or slowed down for abuse
+                are kept there until the block is lifted; a temporary block stops applying when it
+                expires, and its entry is deleted the next time the block list is changed or viewed.
               </p>
             </CardContent>
           </MagicCard>

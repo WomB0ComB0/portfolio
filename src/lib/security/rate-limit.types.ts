@@ -15,18 +15,26 @@
  */
 
 /**
- * Helper type describing the rate limiting parameters for an identifier.
- *
- * @typedef {object} RateLimitHelper
- * @property {'default'|'forcedSlowMode'|'auth'|'api'|'apiv1'|'ai'} [rateLimitingType] - The type of rate limit to use. Defaults to 'default'.
- * @property {string} identifier - A unique identifier for the limiting scope, typically a user ID or IP.
- * @readonly
- * @public
- * @version 1.0.0
- * @author Mike Odnis (WomB0ComB0)
- * @see {@link https://github.com/WomB0ComB0/portfolio}
+ * Route classes the API guard limits separately:
+ * - `api`: /api/* (30 requests per 60 s)
+ * - `apiv1`: /api/v1/* (60 requests per 60 s)
+ * - `auth`: /api/admin/* (5 requests per 10 s)
+ * - `slow`: any route, for IPs on the slow list (1 request per 30 s)
  */
-export type RateLimitHelper = {
-  rateLimitingType?: 'default' | 'forcedSlowMode' | 'auth' | 'api' | 'apiv1' | 'ai';
-  identifier: string;
-};
+export type LimiterKind = 'api' | 'apiv1' | 'auth' | 'slow';
+
+/** The part of a rate-limit result the guard uses. `reset` is a Unix time in milliseconds. */
+export interface RateLimitResult {
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+/** Anything that can count one request against an identifier (an Upstash Ratelimit, or a fake). */
+export interface RateLimiter {
+  limit(identifier: string): Promise<RateLimitResult>;
+}
+
+/** One limiter per route class. */
+export type Limiters = Readonly<Record<LimiterKind, RateLimiter>>;

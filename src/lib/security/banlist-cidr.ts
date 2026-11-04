@@ -14,214 +14,115 @@
  * limitations under the License.
  */
 
-import { Address4, Address6 } from 'ip-address';
-import { redis } from '@/classes/redis';
+/**
+ * @file Admin store for CIDR range bans, used by POST /api/admin/ban. Ranges live in the
+ * `bans:cidr` sorted set (see ./ban-keys.ts) in normalized form and are matched per request by
+ * the API guard (./api-guard.ts). Redis errors are logged and rethrown.
+ */
+
+import { BaseError } from '@/classes/error';
 import { onRequestError } from '@/core';
 import { Logger } from '@/utils';
+import { MAX_ACTIVE_CIDRS } from './ban-keys';
+import { addBanEntry, listActiveBanEntries, removeBanEntry } from './ban-store';
+import { normalizeCidr } from './ip';
 
 const log = Logger.getLogger('BanlistCIDR');
 
-/**
- * @constant
- * @readonly
- * @public
- * @description Redis key for storing banned IP CIDR ranges.
- * @type {string}
- * @version 1.0.0
- * @author Mike Odnis
- * @see https://github.com/WomB0ComB0/portfolio
- */
-export const CIDR_KEY = 'ban:cidrs';
-
-/**
- * Checks if an IP address matches any banned CIDR range from Redis.
- * Supports both IPv4 and IPv6. Iterates through all banned subnets and checks for membership.
- *
- * @async
- * @function
- * @public
- * @web
- * @version 1.0.0
- * @author Mike Odnis (@WomB0ComB0)
- * @param {string} ip - IP address to check (e.g., "203.0.113.42" or "2001:db8::1").
- * @returns {Promise<boolean>} Returns `true` if IP matches any banned CIDR range, otherwise `false`.
- * @throws {Error} May throw if Redis communication fails or address parsing throws unexpectedly.
- * @example
- * // Add CIDR range first: await redis.sadd('ban:cidrs', '203.0.113.0/24');
- * const isBanned = await isIpInAnyCidr('203.0.113.42'); // true
- * const isNotBanned = await isIpInAnyCidr('198.51.100.1'); // false
- * @see https://github.com/WomB0ComB0/portfolio
- */
-export async function isIpInAnyCidr(ip: string): Promise<boolean> {
-  if (!ip || ip === '127.0.0.1' || ip === '::1') {
-    return false;
-  }
-
-  try {
-    const cidrs = await redis.smembers(CIDR_KEY);
-    if (!cidrs || cidrs.length === 0) {
-      return false;
-    }
-
-    let inputAddress: Address4 | Address6;
-    try {
-      inputAddress = new Address4(ip);
-    } catch {
-      try {
-        inputAddress = new Address6(ip);
-      } catch {
-        log.warn('Invalid IP address format', { ip });
-        return false;
-      }
-    }
-
-    for (const cidr of cidrs) {
-      try {
-        const cidrStr = String(cidr);
-
-        let networkAddress: Address4 | Address6;
-        try {
-          networkAddress = new Address4(cidrStr);
-        } catch {
-          try {
-            networkAddress = new Address6(cidrStr);
-          } catch {
-            log.warn('Invalid CIDR format in ban list', { cidr: cidrStr });
-            continue;
-          }
-        }
-
-        if (
-          (inputAddress instanceof Address4 && networkAddress instanceof Address4) ||
-          (inputAddress instanceof Address6 && networkAddress instanceof Address6)
-        ) {
-          if (inputAddress.isInSubnet(networkAddress)) {
-            log.info('IP matched banned CIDR range', { ip, cidr: cidrStr });
-            return true;
-          }
-        }
-      } catch (error) {
-        log.error('Error checking CIDR match', {
-          ip,
-          cidr,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        onRequestError(error);
-      }
-    }
-
-    return false;
-  } catch (error) {
-    log.error('Error checking IP against CIDR ban list', {
-      ip,
-      error: error instanceof Error ? error.message : String(error),
+/** Normalized form of `cidr`, or a BaseError (answered as 400 by the admin route). */
+function requireCidr(cidr: string, action: string): string {
+  const normalized = normalizeCidr(cidr);
+  if (!normalized) {
+    throw new BaseError(new Error('A valid CIDR range is required'), `banlist-cidr:${action}`, {
+      providedCidr: cidr,
     });
-    onRequestError(error);
-    return false;
   }
+  return normalized;
+}
+
+function reportStoreError(message: string, cidr: string | undefined, error: unknown): void {
+  log.error(message, {
+    ...(cidr ? { cidr } : {}),
+    error: error instanceof Error ? error.message : String(error),
+  });
+  onRequestError(error);
 }
 
 /**
- * Adds a CIDR range to the ban list in Redis with optional metadata.
+ * Bans a CIDR range, permanently or for `seconds`. The range is stored with its host bits
+ * cleared, so 203.0.113.77/24 is stored (and later unbanned) as 203.0.113.0/24.
  *
- * @async
- * @function
- * @public
- * @web
- * @version 1.0.0
- * @author Mike Odnis (@WomB0ComB0)
- * @param {string} cidr - CIDR notation to ban (e.g., "203.0.113.0/24" or "2001:db8::/32").
- * @param {string} [reason] - Optional reason for banning this range.
- * @returns {Promise<void>} Resolves when operation is complete.
- * @throws {Error} Throws if the CIDR format is invalid or Redis fails.
- * @example
- * await banCidr('203.0.113.0/24', 'Malicious bot network');
- * await banCidr('2001:db8::/32', 'IPv6 spam source');
- * @see https://github.com/WomB0ComB0/portfolio
+ * @param {string} cidr - Range in CIDR notation, e.g. "203.0.113.0/24" or "2001:db8::/32".
+ * @param {string} [reason] - Why the range is banned.
+ * @param {number} [seconds] - Lifetime of the ban; omitted means permanent.
+ * @param {string} [bannedBy] - Who issued the ban.
+ * @returns {Promise<void>}
+ * @throws {BaseError} If `cidr` is not a valid range.
+ * @throws {Error} Rethrows Redis errors after logging them.
+ * @example await banCidr('203.0.113.0/24', 'Malicious bot network', 86400, 'admin');
  */
-export async function banCidr(cidr: string, reason?: string): Promise<void> {
+export async function banCidr(
+  cidr: string,
+  reason?: string,
+  seconds?: number,
+  bannedBy?: string,
+): Promise<void> {
+  const normalized = requireCidr(cidr, 'ban-cidr');
   try {
-    try {
-      new Address4(cidr);
-    } catch {
-      try {
-        new Address6(cidr);
-      } catch {
-        throw new Error(`Invalid CIDR format: ${cidr}`);
-      }
+    // The API guard reads at most MAX_ACTIVE_CIDRS active ranges, so refuse one it would not enforce.
+    const active = await listActiveBanEntries('cidr');
+    if (active.length >= MAX_ACTIVE_CIDRS && !active.includes(normalized)) {
+      throw new BaseError(
+        new Error(`The CIDR ban list is full (${MAX_ACTIVE_CIDRS} active ranges); lift one first`),
+        'banlist-cidr:ban-cidr',
+        { cidr: normalized },
+      );
     }
-
-    await redis.sadd(CIDR_KEY, cidr);
-
-    if (reason) {
-      await redis.set(`cidr:meta:${cidr}`, { reason, ts: Date.now() });
-    }
-
-    log.info('CIDR range banned', { cidr, reason });
-  } catch (error) {
-    log.error('Error banning CIDR range', {
-      cidr,
-      error: error instanceof Error ? error.message : String(error),
+    const metadata = await addBanEntry('cidr', normalized, { reason, seconds, bannedBy });
+    log.info('CIDR range banned', {
+      cidr: normalized,
+      reason,
+      bannedBy,
+      expiresAt: metadata.expiresAt,
     });
-    onRequestError(error);
+  } catch (error) {
+    if (error instanceof BaseError) throw error;
+    reportStoreError('Error banning CIDR range', normalized, error);
     throw error;
   }
 }
 
 /**
- * Removes a CIDR range from the ban list and deletes any associated metadata.
+ * Lifts a ban on a CIDR range (given in any form that normalizes to the stored range).
  *
- * @async
- * @function
- * @public
- * @web
- * @version 1.0.0
- * @author Mike Odnis (@WomB0ComB0)
- * @param {string} cidr - CIDR notation to unban (e.g., "203.0.113.0/24").
- * @returns {Promise<void>} Resolves on successful unban.
- * @throws {Error} Throws if unable to remove from Redis.
- * @example
- * await unbanCidr('203.0.113.0/24');
- * @see https://github.com/WomB0ComB0/portfolio
+ * @param {string} cidr - Range in CIDR notation.
+ * @returns {Promise<void>}
+ * @throws {BaseError} If `cidr` is not a valid range.
+ * @throws {Error} Rethrows Redis errors after logging them.
  */
 export async function unbanCidr(cidr: string): Promise<void> {
+  const normalized = requireCidr(cidr, 'unban-cidr');
   try {
-    await Promise.all([redis.srem(CIDR_KEY, cidr), redis.del(`cidr:meta:${cidr}`)]);
-    log.info('CIDR range unbanned', { cidr });
+    await removeBanEntry('cidr', normalized);
+    log.info('CIDR range unbanned', { cidr: normalized });
   } catch (error) {
-    log.error('Error unbanning CIDR range', {
-      cidr,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    onRequestError(error);
+    reportStoreError('Error unbanning CIDR range', normalized, error);
     throw error;
   }
 }
 
 /**
- * Retrieves all currently banned CIDR ranges from Redis.
+ * Currently banned CIDR ranges (expired bans are pruned and not returned).
  *
- * @async
- * @function
- * @public
- * @readonly
- * @web
- * @version 1.0.0
- * @author Mike Odnis (@WomB0ComB0)
- * @returns {Promise<string[]>} Array of CIDR strings (e.g., ["203.0.113.0/24", "2001:db8::/32"]).
- * @throws {Error} May throw if Redis request fails.
- * @example
- * const ranges = await getBannedCidrs(); // ['203.0.113.0/24', ...]
- * @see https://github.com/WomB0ComB0/portfolio
+ * @returns {Promise<string[]>} Ranges, e.g. ["203.0.113.0/24", "2001:db8::/32"].
+ * @throws {Error} Rethrows Redis errors: an empty list would be indistinguishable from "no CIDR
+ * bans".
  */
 export async function getBannedCidrs(): Promise<string[]> {
   try {
-    const cidrs = await redis.smembers(CIDR_KEY);
-    return cidrs;
+    return await listActiveBanEntries('cidr');
   } catch (error) {
-    log.error('Error fetching banned CIDR ranges', { error });
-    onRequestError(error);
-    // Rethrow: an empty list would be indistinguishable from "no CIDR bans".
+    reportStoreError('Error fetching banned CIDR ranges', undefined, error);
     throw error;
   }
 }

@@ -17,16 +17,27 @@
 /**
  * @interface BanMetadata
  * @public
- * @version 1.0.0
- * @description Structure for storing metadata about a banned IP or identifier.
+ * @version 1.1.0
+ * @description Structure for storing metadata about a ban-list entry (an IP, a slowed IP or a
+ * CIDR range).
  *   - `reason`: Optional string describing the reason for the ban.
  *   - `ts`: Unix timestamp (ms) of when the ban was imposed.
  *   - `bannedBy`: Optional string for the user or system who issued the ban.
+ *   - `expiresAt`: Unix timestamp (ms) when the entry lapses, or null for a permanent entry.
  * @author Mike Odnis
  * @see https://github.com/WomB0ComB0/portfolio
  */
 export interface BanMetadata {
   reason?: string;
   ts: number;
+  bannedBy?: string;
+  expiresAt?: number | null;
+}
+
+/** Optional details recorded with a new ban-list entry. */
+export interface BanEntryOptions {
+  reason?: string;
+  /** Lifetime in seconds; omitted means permanent. */
+  seconds?: number;
   bannedBy?: string;
 }

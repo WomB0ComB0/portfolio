@@ -71,11 +71,10 @@ describe('GET /api/status headers', () => {
     expect(res.headers.get('content-type')).toContain('application/json');
     // Set by the shared app before the handler runs.
     expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN);
-    expect(res.headers.get('ratelimit-limit')).toBe('100');
-    expect(res.headers.get('ratelimit-remaining')).not.toBeNull();
+    expect(res.headers.get('access-control-allow-credentials')).toBe('true');
   };
 
-  it('keeps the CORS and rate-limit headers next to the cache headers', async () => {
+  it('keeps the CORS headers next to the cache headers', async () => {
     vi.mocked(handleStatusCheck).mockResolvedValue({
       state: 'operational',
       lastUpdated: '2026-11-04T00:00:00.000Z',

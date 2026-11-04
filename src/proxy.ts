@@ -22,10 +22,9 @@
  * X-Frame-Options, nosniff, Referrer-Policy, ...) come from next.config.ts so they also cover API
  * routes and static files, and still apply if this proxy fails.
  *
- * Redis-backed IP bans and rate limiting used to live here but are off for now: as written they
- * cost 8-9 Upstash commands per request, added seconds of latency and dropped every header when
- * Redis failed, and trusted a client-settable IP header. They come back in their own change with a
- * latency budget. Elysia still rate-limits the API in-process.
+ * IP bans and rate limits are not applied here. They run in the Elysia API's onRequest hook
+ * (src/app/api/_elysia/shared/guard.ts) for /api and /api/v1, with a fixed latency budget, so
+ * page requests make no Redis calls.
  */
 
 import { type NextRequest, NextResponse } from 'next/server';

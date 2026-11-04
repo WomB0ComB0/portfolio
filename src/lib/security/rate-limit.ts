@@ -1,5 +1,3 @@
-import type { RateLimitHelper } from './rate-limit.types';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -17,131 +15,54 @@ import type { RateLimitHelper } from './rate-limit.types';
  */
 
 import { Ratelimit } from '@upstash/ratelimit';
-import { redis } from '@/classes/redis';
-import { Logger } from '@/utils';
-import { isIdentifierBanned, isIdentifierSlowed } from './banlist';
+import type { Redis } from '@upstash/redis';
+import type { LimiterKind, Limiters } from './rate-limit.types';
+
+/** Sliding-window size and Redis key prefix for each route class. */
+export const RATE_LIMITS = {
+  api: { tokens: 30, window: '60 s', prefix: 'ratelimit:api' },
+  apiv1: { tokens: 60, window: '60 s', prefix: 'ratelimit:apiv1' },
+  auth: { tokens: 5, window: '10 s', prefix: 'ratelimit:auth' },
+  slow: { tokens: 1, window: '30 s', prefix: 'ratelimit:slowmode' },
+} as const satisfies Record<
+  LimiterKind,
+  { tokens: number; window: `${number} s`; prefix: `ratelimit:${string}` }
+>;
+
+const cache = new WeakMap<Redis, Limiters>();
+
+function createLimiter(redis: Redis, kind: LimiterKind): Ratelimit {
+  const { tokens, window, prefix } = RATE_LIMITS[kind];
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(tokens, window),
+    prefix,
+    // No analytics writes: they would add Redis commands to every request.
+    analytics: false,
+    // The guard races the whole lookup against its own budget, so the limiter's internal
+    // timeout (which resolves success:true after 5 s by default) is disabled.
+    timeout: 0,
+  });
+}
 
 /**
- * Map of rate limiters for various strategies, configured for different purposes (e.g., auth, API, AI).
+ * Sliding-window limiters for the API guard, built once per Redis client. Each keeps the
+ * library's default in-memory cache of identifiers that are currently blocked, so repeated
+ * requests from a blocked identifier are answered without a Redis call until the window resets.
  *
- * @readonly
- * @private
- * @type {Record<string, Ratelimit>}
- * @author Mike Odnis (@WomB0ComB0)
+ * @param {Redis} redis - The client the limiters run their scripts on.
+ * @returns {Limiters} One limiter per route class.
  */
-const limiter = {
-  default: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(30, '10 s'),
-    analytics: true,
-    prefix: 'ratelimit:default',
-  }),
-  forcedSlowMode: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(1, '30 s'),
-    analytics: true,
-    prefix: 'ratelimit:slowmode',
-  }),
-  auth: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(5, '10 s'),
-    analytics: true,
-    prefix: 'ratelimit:auth',
-  }),
-  api: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(30, '60 s'),
-    analytics: true,
-    prefix: 'ratelimit:api',
-  }),
-  apiv1: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(60, '60 s'),
-    analytics: true,
-    prefix: 'ratelimit.apiv1',
-  }),
-  ai: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(20, '24 h'),
-    analytics: true,
-    prefix: 'ratelimit:ai',
-  }),
-} as const satisfies Record<string, Ratelimit>;
+export function getLimiters(redis: Redis): Limiters {
+  const existing = cache.get(redis);
+  if (existing) return existing;
 
-/**
- * Returns a rate limiting function for a given type, allowing enforcement of
- * different limiting policies based on the identifier and configuration.
- *
- * The returned function handles internal checks for permanent bans or slow-modes,
- * and logs actions taken. If an identifier is banned, it returns a response with
- * zero remaining credits. If slowed, applies more aggressive limits.
- *
- * @function
- * @public
- * @web
- * @author Mike Odnis (@WomB0ComB0)
- * @version 1.1.0
- * @param {'default'|'forcedSlowMode'|'auth'|'api'|'apiv1'|'ai'} [rateLimitingType='default'] - Indicates the type of rate limiting to use. Defaults to 'default'.
- * @returns {(params: RateLimitHelper) => Promise<any>} An async rate limiting function tailored to the type selected.
- * @throws {Error} Throws if underlying Upstash or banlist operations throw.
- * @example
- * // Basic usage for the default limiter:
- * const limiter = rateLimiter();
- * const res = await limiter({ identifier: 'user-ip-or-id' });
- * if (!res.success) { throw new Error('Rate limited!'); }
- * @see {@link https://github.com/upstash/ratelimit}
- * @see RateLimitHelper
- * @async
- */
-export const rateLimiter = (rateLimitingType: RateLimitHelper['rateLimitingType'] = 'default') => {
-  const log = Logger.getLogger(`RateLimit:${rateLimitingType}`);
-
-  /**
-   * Checks the rate limit status for a given identifier and applies ban or slow rules.
-   *
-   * @param {RateLimitHelper} params - The parameters containing the identifier and (optional) rate limiting type.
-   * @returns {Promise<any>} The Upstash Ratelimit response object or a custom rejected response for banned users.
-   * @throws {Error} On internal limiter or database errors.
-   * @async
-   * @protected
-   */
-  return async function rateLimit({ identifier }: RateLimitHelper) {
-    // Check if identifier is permanently banned (returns 403-equivalent)
-    if (await isIdentifierBanned(identifier)) {
-      log.info('Hard-banned identifier blocked', { identifier });
-      // Return a rate limit response that will be rejected
-      return {
-        success: false,
-        remaining: 0,
-        limit: 0,
-        reset: Math.floor(Date.now() / 1_000),
-        pending: Promise.resolve(),
-      };
-    }
-
-    // Check if identifier should be rate-limited more aggressively
-    if (await isIdentifierSlowed(identifier)) {
-      log.info('Slow-mode identifier detected', { identifier });
-      return limiter.forcedSlowMode.limit(identifier);
-    }
-
-    log.info('Rate limiting', { identifier });
-    return limiter[rateLimitingType].limit(identifier);
+  const limiters: Limiters = {
+    api: createLimiter(redis, 'api'),
+    apiv1: createLimiter(redis, 'apiv1'),
+    auth: createLimiter(redis, 'auth'),
+    slow: createLimiter(redis, 'slow'),
   };
-};
-
-/**
- * Utility to convert a rate limit reset timestamp (in seconds) to a formatted locale string for display.
- *
- * @function
- * @public
- * @web
- * @author Mike Odnis (@WomB0ComB0)
- * @version 1.0.0
- * @param {number} result - The reset value in seconds since UNIX epoch.
- * @returns {string} The formatted date/time string.
- * @example
- * getRateLimitReset(1717991018); // → "6/10/2024, 10:43:38 AM"
- * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString}
- */
-export const getRateLimitReset = (result: number) => new Date(result * 1000).toLocaleString();
+  cache.set(redis, limiters);
+  return limiters;
+}

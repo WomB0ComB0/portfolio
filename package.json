@@ -153,6 +153,7 @@
     "@tanstack/react-query-devtools": "^5.105.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.41.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/otel": "^2.2.1",
     "@vercel/speed-insights": "^2.0.0",
