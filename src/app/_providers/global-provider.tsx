@@ -26,6 +26,7 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { WebVitals } from '@/app/_components';
 import { PageTransition } from '@/components/animations';
+import { Toaster } from '@/components/ui/sonner';
 import { actions } from '@/lib/navigation/actions';
 
 import { Providers } from '@/providers';
@@ -115,6 +116,12 @@ export const GlobalProvider: React.FC<
                * @description Wraps the main content with a page transition animation component.
                */}
               <PageTransition>{children}</PageTransition>
+              {/*
+               * @public
+               * @description Renders toast() calls (sign-in, sign-out, guestbook feedback). Dark,
+               * like the rest of the site; without it every toast is silently dropped.
+               */}
+              <Toaster theme="dark" position="top-center" duration={5000} richColors />
               {/*
                * @public
                * @description Component for reporting Web Vitals metrics.

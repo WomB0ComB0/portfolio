@@ -22,6 +22,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useMemo, useState } from 'react';
 import { FiAlertCircle, FiClock, FiMessageSquare, FiSend, FiUser } from 'react-icons/fi';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { LoginButton } from '@/components/custom/login-button';
@@ -182,15 +183,16 @@ export const GuestbookComponent = () => {
    */
   const handleSubmit = useCallback(async () => {
     const input = inputSchema.safeParse({ text: message.trim() });
+    // User-facing feedback goes through toast(); the client logger is silent in production.
     if (!input.success) {
-      logger.error(input.error.issues[0]?.message || 'Invalid message input.');
+      toast.error(input.error.issues[0]?.message || 'Invalid message input.');
       return;
     }
 
     const sanitizedMessage = validateUserInput(input.data.text, 280, false);
 
     if (!sanitizedMessage || sanitizedMessage.length === 0) {
-      logger.error('Message contains invalid content.');
+      toast.error('Message contains invalid content.');
       return;
     }
 
@@ -205,10 +207,11 @@ export const GuestbookComponent = () => {
     try {
       await postMessage.mutateAsync(newMessage);
       setMessage('');
-      logger.success('Message sent successfully!');
+      toast.success('Message sent successfully!');
     } catch (error) {
+      // usePostMessage has already rolled back its optimistic entry; say so, and keep the text.
       logger.error('Error adding message:', error);
-      logger.error('Failed to send message. Please try again.');
+      toast.error('Failed to send message. Please try again.');
     }
   }, [message, postMessage, user]);
 

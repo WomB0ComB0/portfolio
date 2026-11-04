@@ -98,6 +98,10 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(prod, 'script-src')).toContain("'wasm-unsafe-eval'");
   });
 
+  it("lets Google's point-of-interest windows load their details from the Places API", () => {
+    expect(directive(prod, 'connect-src')).toContain('https://places.googleapis.com');
+  });
+
   it('locks down plugins, base URLs, form targets and framing', () => {
     expect(directive(prod, 'object-src')).toEqual(["'none'"]);
     expect(directive(prod, 'base-uri')).toEqual(["'none'"]);
