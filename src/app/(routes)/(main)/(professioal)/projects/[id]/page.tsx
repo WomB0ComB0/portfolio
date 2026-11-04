@@ -20,8 +20,6 @@ import { getProjects } from '@/lib/sanity/api';
 import { urlFor } from '@/lib/sanity/client';
 import { constructMetadata, logger } from '@/utils';
 
-export const dynamic = 'force-static';
-
 /**
  * ProjectDetail React component (dynamically imported).
  *

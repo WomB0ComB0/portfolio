@@ -34,11 +34,19 @@
 export type CspMode = 'report-only' | 'enforce';
 
 /**
- * Report-only while the policy proves itself on real traffic (sign-in, map tiles, videos); switch
- * to 'enforce' once Sentry shows no unexpected violations. This is the kill switch: revert it to
- * 'report-only' to stop blocking.
+ * Enforced since 2026-11-04, after report-only from 2026-11-03 (#571, #572, #573) and an enforced
+ * crawl of every route with no violations. This is the kill switch: set it back to 'report-only'
+ * to stop blocking. Sampled violation reports reach Sentry in both modes.
  */
-export const CSP_MODE: CspMode = 'report-only';
+export const CSP_MODE: CspMode = 'enforce';
+
+/**
+ * The mode for one deployment. Preview deployments stay report-only: Vercel's preview toolbar
+ * injects a script without our nonce, which an enforced policy would block.
+ */
+export function effectiveCspMode(vercelEnv: string | undefined): CspMode {
+  return vercelEnv === 'preview' ? 'report-only' : CSP_MODE;
+}
 
 /** Share of responses that ask the browser to send violation reports, to bound Sentry volume. */
 export const CSP_REPORT_SAMPLE_RATE = 0.1;

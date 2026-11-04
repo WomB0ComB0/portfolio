@@ -19,8 +19,6 @@ import type { JSX } from 'react';
 import { getExperiences } from '@/lib/sanity/api';
 import { constructMetadata, logger } from '@/utils';
 
-export const dynamic = 'force-static';
-
 /**
  * Dynamically imports the ExperienceDetail component for SSR.
  *
