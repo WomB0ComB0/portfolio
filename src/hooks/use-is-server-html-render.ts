@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Mike Odnis
+ * Copyright 2026 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,19 @@
  * limitations under the License.
  */
 
-export type PreloadConfig = {
-  prerenderPaths: readonly string[];
-  prefetchPaths: readonly string[];
-};
+import { useSyncExternalStore } from 'react';
+
+const subscribeToNothing = () => () => {};
+
+/**
+ * True while React renders on the server or hydrates server HTML; false for a client render.
+ *
+ * It reads false again on the first render after hydration, so a component that must remember how
+ * it first mounted captures the value once (e.g. in useState's initialiser).
+ */
+export const useIsServerHtmlRender = (): boolean =>
+  useSyncExternalStore(
+    subscribeToNothing,
+    () => false,
+    () => true,
+  );

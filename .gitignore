@@ -113,3 +113,7 @@ n8n_data/
 .n8n/
 *.key
 *.csr
+
+# Local agent worktrees and Claude Code's per-machine settings
+.claude/worktrees/
+.claude/settings.local.json

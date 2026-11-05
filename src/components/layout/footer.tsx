@@ -20,6 +20,9 @@ import Link from 'next/link';
 import { memo } from 'react';
 import { StatusBadge } from '@/components/custom/status-badge';
 
+/** The SPDX id in package.json and LICENSE; /licenses explains what it covers. */
+const SITE_LICENSE = 'Apache-2.0';
+
 export const Footer = memo(() => {
   const linkClasses =
     'text-primary hover:text-primary/90 dark:hover:text-primary/90 underline decoration-dotted underline-offset-4 transition duration-300';
@@ -28,15 +31,11 @@ export const Footer = memo(() => {
   return (
     <footer className="w-full py-4 px-4 md:px-8 mt-auto">
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-2 w-full justify-between items-center mx-auto">
-        <p className="m-0 text-sm text-center sm:text-left pl-10 text-muted-foreground">
-          <a
-            className={linkClasses}
-            href="https://opensource.org/licenses/MIT"
-            target="_blank"
-            rel="noreferrer"
-          >
-            MIT
-          </a>{' '}
+        {/* lg:pl-10 clears the fixed 64 px desktop rail; below lg there is no rail to clear. */}
+        <p className="m-0 text-sm text-center sm:text-left lg:pl-10 text-muted-foreground">
+          <Link className={linkClasses} href="/licenses">
+            {SITE_LICENSE}
+          </Link>{' '}
           2024-present &#169;{' '}
           <a
             className={linkClasses}

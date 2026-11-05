@@ -97,7 +97,8 @@ const ErrorLayout: React.FC<{
     reset?: () => void;
   }): React.JSX.Element => {
     return (
-      <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden p-4 gap-3">
+      // The page's one <main>: error pages render outside the page Layout, which owns it elsewhere.
+      <main className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden p-4 gap-3">
         <motion.div
           style={{
             zIndex: 10,
@@ -159,7 +160,7 @@ const ErrorLayout: React.FC<{
           {error?.digest && <p className="mt-8 text-sm text-white/60">Error ID: {error.digest}</p>}
         </motion.div>
         <LightRays count={5} blur={20} />
-      </div>
+      </main>
     );
   },
 );

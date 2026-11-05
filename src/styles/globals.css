@@ -179,7 +179,10 @@
 
 /* Updated to deep purple color scheme inspired by reference design */
 :root {
-  /* Lifted base */
+  /* The site is dark-only: the UA draws dark form controls, scrollbars and canvas. */
+  color-scheme: dark;
+
+  /* Lifted base. THEME_COLOR in src/utils/seo/meta.ts is this colour as hex (#0d0d0d). */
   --background: oklch(16% 0 285deg);
   --foreground: oklch(94% 0.03 285deg);
 
@@ -285,9 +288,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  ::-webkit-scrollbar {
-    width: 0;
-    background: transparent;
+  /*
+   * A thin page scrollbar in the theme colours; the thumb is about 3.4:1 against the background.
+   * scrollbar-color is inherited, so the command palette, menus and other scrolling boxes match.
+   * The gutter stays reserved when the page is short or a scroll lock hides overflow, so classic
+   * scrollbars (Windows, Linux) don't shift the layout sideways as they come and go.
+   */
+  html {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    scrollbar-color: color-mix(in oklch, var(--primary) 70%, transparent) transparent;
   }
 
   body {
@@ -420,10 +430,4 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
 }

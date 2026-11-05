@@ -185,8 +185,8 @@ Add an **HTTP Request** node before input to fetch LinkedIn/GitHub pages automat
 
 ---
 
-**Time saved per entry**: ~5 minutes  
-**Accuracy**: ~95% (minor tweaks needed)  
+**Time saved per entry**: ~5 minutes\
+**Accuracy**: ~95% (minor tweaks needed)\
 **Best use case**: Bulk importing work history, projects, certifications
 
 🤖 **Happy automating!**

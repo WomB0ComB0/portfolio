@@ -15,6 +15,4 @@
  */
 
 export * from './analytics-scripts';
-export * from './speculation-rules';
 export * from './structured-data';
-export * from './view-transitions';

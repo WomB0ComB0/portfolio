@@ -17,6 +17,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAIN_CONTENT_ID } from '@/components/animations/pages/page-transition';
 import type { PlaceItem } from '@/types/places';
 
 type Props = Record<string, unknown> & { children?: ReactNode };
@@ -232,6 +233,41 @@ describe('places map', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
     document.removeEventListener('keydown', consume, { capture: true });
     expect(screen.getByTestId('info-window')).toBeInTheDocument();
+  });
+
+  describe("inside the page's <main>", () => {
+    // The page's <main> has tabindex=-1 so the skip link can focus it, which also lets a click on
+    // page content focus it. An Escape pressed after that click targets <main>, not the body.
+    const renderInPage = () =>
+      render(
+        <main id={MAIN_CONTENT_ID} tabIndex={-1}>
+          <h1>Places</h1>
+          <GoogleMaps placesToDisplay={PLACES} />
+        </main>,
+      );
+
+    it('closes the card on Escape after a click on page content has focused <main>', () => {
+      renderInPage();
+      clickMarker(0);
+      const main = screen.getByRole('main');
+      main.focus();
+      expect(main).toHaveFocus();
+
+      fireEvent.keyDown(main, { key: 'Escape' });
+
+      expect(screen.queryByTestId('info-window')).not.toBeInTheDocument();
+    });
+
+    it('still leaves the card open for an Escape aimed at a control inside <main>', () => {
+      renderInPage();
+      clickMarker(0);
+      const filter = document.createElement('input');
+      screen.getByRole('main').append(filter);
+
+      fireEvent.keyDown(filter, { key: 'Escape' });
+
+      expect(screen.getByTestId('info-window')).toBeInTheDocument();
+    });
   });
 
   it("zooms into a clicked cluster without the clusterer's deprecated addListener wiring", () => {

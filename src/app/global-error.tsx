@@ -30,7 +30,10 @@ export const GlobalError = ({ error }: { error: Error & { digest?: string } }) =
   return (
     <html lang="en">
       <body>
-        <NextError statusCode={0} />
+        {/* It replaces the root layout, so the page Layout's <main> is not there. */}
+        <main>
+          <NextError statusCode={0} />
+        </main>
       </body>
     </html>
   );

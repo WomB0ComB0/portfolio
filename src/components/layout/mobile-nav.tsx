@@ -17,15 +17,17 @@
  */
 
 import { useKBar } from 'kbar';
-import { memo, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { FiMenu } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
-import { MobileMenuOverlay } from './mobile-menu-overlay';
+import { MOBILE_MENU_DIALOG_ID, MobileMenuOverlay } from './mobile-menu-overlay';
 
 export const MobileNavBar = memo(({ path }: { path: string }) => {
   const { query } = useKBar();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const openMenu = useCallback(() => setIsMenuOpen(true), []);
+  const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
   return (
     <>
@@ -38,21 +40,24 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
             variant="default"
             size="lg"
             className="flex items-center gap-3 py-2 px-6 rounded-full bg-linear-to-br from-primary/95 to-primary transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 font-semibold text-sm w-full justify-between"
-            onClick={() => setIsMenuOpen(true)}
+            onClick={openMenu}
             aria-label="Open navigation menu"
+            aria-haspopup="dialog"
             aria-expanded={isMenuOpen}
+            aria-controls={MOBILE_MENU_DIALOG_ID}
             ref={triggerRef}
           >
-            <FiMenu size="1.2rem" strokeWidth={2.2} />
+            <FiMenu size="1.2rem" strokeWidth={2.2} aria-hidden />
             <span className="leading-none text-primary-foreground">Menu</span>
           </Button>
         </div>
       </nav>
       <MobileMenuOverlay
         isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
+        onClose={closeMenu}
         query={query}
         pathname={path}
+        triggerRef={triggerRef}
       />
     </>
   );

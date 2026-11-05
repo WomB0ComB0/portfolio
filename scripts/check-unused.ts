@@ -12,6 +12,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import depcheck from 'depcheck';
 import type { PackageJson } from 'type-fest';
+import { formatWithBiome } from './format-with-biome';
 
 // Optional Bun shell (used only if available)
 let bun$: ((strings: TemplateStringsArray, ...expr: any[]) => Promise<any>) | null = null;
@@ -195,18 +196,23 @@ const outputs = {
   },
 };
 
-await writeJsonAtomic(path.join(OUT_DIR, 'dependencies-report.json'), outputs);
+// The full report, then the individual files (overwritten if they exist)
+const reports: ReadonlyArray<readonly [file: string, data: unknown]> = [
+  [path.join(OUT_DIR, 'dependencies-report.json'), outputs],
+  [path.join(OUT_DIR, 'unused-dependencies.json'), outputs.unusedDependencies],
+  [path.join(OUT_DIR, 'unused-dev-dependencies.json'), outputs.unusedDevDependencies],
+  [path.join(OUT_DIR, 'missing-dependencies.json'), outputs.missingDependencies],
+  [path.join(OUT_DIR, 'unused-sub-dependencies.json'), outputs.potentialUnusedSubDependencies],
+];
+for (const [file, data] of reports) {
+  await writeJsonAtomic(file, data);
+}
 
-// Also emit the individual files (overwritten if they exist)
-await writeJsonAtomic(path.join(OUT_DIR, 'unused-dependencies.json'), outputs.unusedDependencies);
-await writeJsonAtomic(
-  path.join(OUT_DIR, 'unused-dev-dependencies.json'),
-  outputs.unusedDevDependencies,
-);
-await writeJsonAtomic(path.join(OUT_DIR, 'missing-dependencies.json'), outputs.missingDependencies);
-await writeJsonAtomic(
-  path.join(OUT_DIR, 'unused-sub-dependencies.json'),
-  outputs.potentialUnusedSubDependencies,
+// `bun run lint` checks these tracked files with `biome ci`, which joins short arrays onto one line
+// and wants a trailing newline; JSON.stringify does neither.
+formatWithBiome(
+  reports.map(([file]) => file),
+  rootDir,
 );
 
 console.log('\nDependency check complete. Reports written to:', OUT_DIR);

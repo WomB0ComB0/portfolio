@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { cert, getApp, getApps, initializeApp, type ServiceAccount } from 'firebase-admin/app';
+import {
+  type App,
+  cert,
+  getApp,
+  getApps,
+  initializeApp,
+  type ServiceAccount,
+} from 'firebase-admin/app';
 import { type Firestore, getFirestore } from 'firebase-admin/firestore';
 import { env } from '@/env';
 
@@ -53,17 +60,10 @@ export function getAdminFirestore(): Firestore {
     formattedKey.includes('-----BEGIN PRIVATE KEY-----') ||
     formattedKey.includes('-----BEGIN RSA PRIVATE KEY-----');
 
-  let app;
-  if (isValidPrivateKey) {
-    const serviceAccount: ServiceAccount = {
-      projectId,
-      clientEmail,
-      privateKey: formattedKey,
-    };
-    app = initializeApp({ credential: cert(serviceAccount), projectId });
-  } else {
-    app = initializeApp({ projectId });
-  }
+  const serviceAccount: ServiceAccount = { projectId, clientEmail, privateKey: formattedKey };
+  const app: App = isValidPrivateKey
+    ? initializeApp({ credential: cert(serviceAccount), projectId })
+    : initializeApp({ projectId });
 
   cachedDb = getFirestore(app);
   return cachedDb;

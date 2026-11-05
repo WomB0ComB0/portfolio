@@ -137,12 +137,12 @@ export const TopArtists = () => {
                     /**
                      * Renders an individual artist card, clickable to open the artist's Spotify profile.
                      * @param {ArtistSchema} artist - The artist object.
-                     * @param {number} index - The artist's index in the array for animation delay and key.
+                     * @param {number} index - The artist's index in the array, for the animation delay.
                      * @returns {JSX.Element} The rendered artist card.
                      */
                     (artist: Schema.Schema.Type<typeof ArtistSchema>, index: number) => (
                       <motion.div
-                        key={`${artist.name}-${index}`}
+                        key={artist.url}
                         className="flex flex-col items-center space-y-3 p-4 backdrop-blur-sm rounded-lg cursor-pointer hover:bg-primary/60 transition-all text-center"
                         onClick={() => window.open(artist.url, '_blank')}
                         whileHover={{ scale: 1.05 }}
