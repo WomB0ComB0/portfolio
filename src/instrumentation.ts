@@ -16,7 +16,7 @@
 
 // Sentry owns the global OpenTelemetry tracer provider. @vercel/otel used to register one first
 // in production, and Sentry then skips its own, so Next.js server spans never reached Sentry.
-// This repo configures no exporter for @vercel/otel (no OTEL_EXPORTER_OTLP_* variables).
+// The package has since been removed; don't register another provider here.
 // Keep this module free of directives: Next.js only needs the two plain exports below.
 
 import * as Sentry from '@sentry/nextjs';

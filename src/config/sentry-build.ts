@@ -80,9 +80,14 @@ export function buildSentryBuildOptions(
     silent: !env.CI,
     // Marks first-party browser bundles for thirdPartyErrorFilterIntegration.
     applicationKey: SENTRY_APPLICATION_KEY,
+    // The plugin otherwise reports usage data from every build to Sentry's own project.
+    telemetry: false,
 
     release: {
-      name: env.VERCEL_GIT_COMMIT_SHA || env.SENTRY_RELEASE || `local-${now}`,
+      // SENTRY_RELEASE first, as in the SDK's own default (getSentryRelease). withSentryConfig
+      // injects this name into every runtime, so events carry the release the build creates;
+      // src/proxy.ts tags CSP reports in the same order.
+      name: env.SENTRY_RELEASE || env.VERCEL_GIT_COMMIT_SHA || `local-${now}`,
       create: publish,
       // Without publishing, the release stays untouched: no finalize, no commits.
       ...(publish ? {} : { finalize: false }),

@@ -97,8 +97,10 @@ describe('proxy', () => {
   });
 
   it('asks for violation reports on a sampled share of production responses', () => {
+    vi.stubEnv('VERCEL', '1');
     vi.stubEnv('VERCEL_ENV', 'production');
     vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'a1b2c3d');
+    vi.stubEnv('SENTRY_RELEASE', undefined);
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const sampled = proxy(new NextRequest('https://mikeodnis.dev/'));
     expect(sampled.headers.get(CSP)).toContain(
@@ -115,8 +117,20 @@ describe('proxy', () => {
     expect(unsampled.headers.get('reporting-endpoints')).toBeNull();
   });
 
+  it('tags reports with SENTRY_RELEASE when set, like the release the build creates', () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'a1b2c3d');
+    vi.stubEnv('SENTRY_RELEASE', 'v4.2.0');
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const csp = proxy(new NextRequest('https://mikeodnis.dev/')).headers.get(CSP) ?? '';
+    expect(csp).toContain('&sentry_release=v4.2.0');
+    expect(csp).not.toContain('a1b2c3d');
+  });
+
   it('never asks for reports from previews or local runs', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.stubEnv('VERCEL', '1');
     for (const vercelEnv of ['preview', 'development', undefined]) {
       vi.stubEnv('VERCEL_ENV', vercelEnv);
       const res = proxy(new NextRequest('https://mikeodnis.dev/'));
@@ -127,8 +141,21 @@ describe('proxy', () => {
     }
   });
 
+  it('never asks for reports outside a Vercel deployment, even with VERCEL_ENV=production', () => {
+    // A local `next build && next start` with a VERCEL_ENV in a local env file.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.stubEnv('VERCEL', '');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    const res = proxy(new NextRequest('https://mikeodnis.dev/'));
+    const policy = res.headers.get(CSP) ?? res.headers.get(REPORT_ONLY) ?? '';
+    expect(policy).toContain("'strict-dynamic'");
+    expect(policy).not.toContain('report-uri');
+    expect(res.headers.get('reporting-endpoints')).toBeNull();
+  });
+
   it('never asks for reports from the dev server, even with VERCEL_ENV=production', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.stubEnv('VERCEL', '1');
     vi.stubEnv('VERCEL_ENV', 'production');
     mockEnv.NODE_ENV = 'development';
     try {

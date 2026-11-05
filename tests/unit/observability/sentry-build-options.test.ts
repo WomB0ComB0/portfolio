@@ -37,7 +37,15 @@ const sentryConfig = vi.hoisted(() => ({
 
 vi.mock('@sentry/nextjs/config', () => sentryConfig);
 vi.mock('../../../src/env', () => ({ env: {}, default: {} }));
-vi.mock('@million/lint', () => ({ default: { next: () => (config: unknown) => config } }));
+// Like @million/lint 1.0.14: under Turbopack it adds its loader rules at experimental.turbo.
+vi.mock('@million/lint', () => ({
+  default: {
+    next: () => (config: { experimental?: Record<string, unknown> }) =>
+      process.env.TURBOPACK
+        ? { ...config, experimental: { ...config.experimental, turbo: { rules: {} } } }
+        : config,
+  },
+}));
 vi.mock('@next/bundle-analyzer', () => ({ default: () => (config: unknown) => config }));
 
 const VERCEL_PRODUCTION = {
@@ -80,6 +88,23 @@ describe('buildSentryBuildOptions', () => {
     expect(options.sourcemaps?.disable).toBe(false);
     expect(options.release?.create).toBe(true);
     expect(options.release?.name).toBe('a1b2c3d4');
+  });
+
+  it("names the release in the SDK's default order: SENTRY_RELEASE, then the commit SHA", () => {
+    // The build injects this name into every runtime, so events and the release agree.
+    expect(
+      buildSentryBuildOptions({ ...VERCEL_PRODUCTION, SENTRY_RELEASE: 'v4.2.0' }).release?.name,
+    ).toBe('v4.2.0');
+    expect(buildSentryBuildOptions({ SENTRY_RELEASE: 'v4.2.0' }).release?.name).toBe('v4.2.0');
+    expect(
+      buildSentryBuildOptions({ ...VERCEL_PRODUCTION, SENTRY_RELEASE: '' }).release?.name,
+    ).toBe('a1b2c3d4');
+    expect(buildSentryBuildOptions(LOCAL_BUILD, 42).release?.name).toBe('local-42');
+  });
+
+  it("sends no build telemetry to Sentry's own project", () => {
+    expect(buildSentryBuildOptions(VERCEL_PRODUCTION).telemetry).toBe(false);
+    expect(buildSentryBuildOptions(LOCAL_BUILD).telemetry).toBe(false);
   });
 
   it('keeps the tunnel but skips uploads and release changes without a token', () => {
@@ -168,5 +193,12 @@ describe('next.config.ts', () => {
       { isServer: true },
     );
     expect(result.devtool).toBe('hidden-source-map');
+  });
+
+  it('drops the experimental.turbo key Million Lint adds, which Next 16 rejects', async () => {
+    const config = await loadConfig({ NODE_ENV: 'production', TURBOPACK: '1' });
+    const experimental = config.experimental as Record<string, unknown>;
+    expect(experimental).not.toHaveProperty('turbo');
+    expect(experimental).toMatchObject({ optimizeCss: true, authInterrupts: true });
   });
 });

@@ -39,35 +39,9 @@ const ExperienceDetail = (await import('next/dynamic')).default(
   },
 );
 
-/**
- * Generates the static parameters for dynamic routing in the Experience detail page.
- *
- * Fetches all experience entries from the Sanity backend and constructs id params for static generation.
- *
- * @function
- * @async
- * @public
- * @returns {Promise<{id: string}[]>} Array of params objects containing experience IDs.
- * @throws {Error} Throws error if fetching experiences fails.
- * @example
- * const params = await generateStaticParams();
- * // params: [{ id: 'abc123' }, { id: 'def456' }]
- * @web
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @see https://nextjs.org/docs/app/api-reference/functions/generate-static-params
- * @version 1.0.0
- */
-export async function generateStaticParams() {
-  try {
-    const experiences = await getExperiences();
-    return experiences.map((exp) => ({
-      id: exp._id,
-    }));
-  } catch (error) {
-    logger.error('Error generating static params:', error);
-    return [];
-  }
-}
+// No generateStaticParams: the root layout is force-dynamic (the CSP nonce is per request), so
+// every id renders on request anyway, and a build-time id list only made `next build` try and
+// fail to prerender each one. Unknown ids still 404 through notFound() in ExperienceDetail.
 
 /**
  * Generates metadata for the Experience detail page for SEO and meta tags.

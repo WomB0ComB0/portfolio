@@ -155,7 +155,6 @@
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.41.0",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/otel": "^2.2.1",
     "@vercel/speed-insights": "^2.0.0",
     "@vis.gl/react-google-maps": "^1.10.2",
     "arktype": "^2.2.9",

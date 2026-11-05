@@ -9,7 +9,6 @@
   "@google-analytics/data",
   "@radix-ui/react-icons",
   "prettier-plugin-tailwindcss",
-  "@vercel/otel",
   "@sanity/client",
   "@types/node",
   "typescript",

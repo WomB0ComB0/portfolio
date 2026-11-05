@@ -126,11 +126,12 @@ export const Privacy = (): JSX.Element => {
                     <span className="text-primary mt-1">•</span>
                     <div>
                       <span className="font-semibold">Error Monitoring and Session Replay:</span>{' '}
-                      Sentry records errors and, for some of the sessions where an error occurs, a
-                      replay of how the page was used (clicks, scrolling, and navigation). Sessions
-                      without an error are not recorded. In these replays all page text and
-                      everything you type into inputs is masked, and images and other media are
-                      blocked.
+                      Sentry records errors. Your browser also keeps the last minute or so of how
+                      the page was used (clicks, scrolling, and navigation) in memory. For some
+                      errors, this recording is sent to Sentry with the error, and the rest of the
+                      visit is then recorded too. Otherwise it is discarded and never leaves your
+                      browser. In these replays all page text and everything you type into inputs is
+                      masked, and images and other media are blocked.
                     </div>
                   </li>
                   <li className="flex gap-3">

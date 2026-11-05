@@ -42,35 +42,9 @@ const ProjectDetail = (await import('next/dynamic')).default(
   },
 );
 
-/**
- * Generates static route parameters for project detail pages.
- *
- * Used by Next.js for static generation of project ID routes.
- *
- * @async
- * @function generateStaticParams
- * @returns {Promise<Array<{ id: string }>>} List of project id params for static generation.
- * @throws {Error} Throws on failure to fetch projects.
- * @example
- * const params = await generateStaticParams();
- * // [{ id: 'abc123' }, ...]
- * @web
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @see https://nextjs.org/docs/app/api-reference/functions/generate-static-params
- * @version 1.0.0
- */
-export async function generateStaticParams() {
-  try {
-    const projects = await getProjects();
-    return projects.map((project) => ({
-      id: project._id,
-    }));
-  } catch (error) {
-    logger.error('Error generating static params:', error);
-    return [];
-  }
-}
+// No generateStaticParams: the root layout is force-dynamic (the CSP nonce is per request), so
+// every id renders on request anyway, and a build-time id list only made `next build` try and
+// fail to prerender each one. Unknown ids still 404 through notFound() in ProjectDetail.
 
 /**
  * Generates Open Graph and SEO metadata for a specific project detail page.

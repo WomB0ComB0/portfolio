@@ -17,7 +17,9 @@
 
 /**
  * @file The three Sentry entry points pass the right environment variables to the option
- * builders: each is enabled on Vercel deployments and disabled for local runs.
+ * builders: each is enabled on Vercel deployments and disabled for local runs, including a local
+ * production build with VERCEL_ENV in an env file (it lacks the deployment marker) and one with
+ * a pulled development env file (VERCEL="1", VERCEL_ENV="development").
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,8 +64,13 @@ async function initOptionsFor(
   return sentry.init.mock.calls[0]?.[0] as Record<string, unknown>;
 }
 
+/** The browser's deployment marker: Vercel inlines the deployment's hostname at build time. */
+const DEPLOYMENT_URL = 'portfolio-abc123-example.vercel.app';
+
 const LOCAL = {
+  VERCEL: undefined,
   VERCEL_ENV: undefined,
+  NEXT_PUBLIC_VERCEL_URL: undefined,
   VERCEL_TARGET_ENV: undefined,
   NEXT_PUBLIC_VERCEL_ENV: undefined,
   SENTRY_ENABLED: undefined,
@@ -88,20 +95,42 @@ describe.each(['server', 'edge'] as const)('instrumentation-%s', (entry) => {
   it('ignores the browser-only variables', async () => {
     const options = await initOptionsFor(entry, {
       NEXT_PUBLIC_VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
       NEXT_PUBLIC_SENTRY_ENABLED: '1',
     });
     expect(options.enabled).toBe(false);
   });
 
   it('reports from Vercel production as "production"', async () => {
-    const options = await initOptionsFor(entry, { VERCEL_ENV: 'production' });
+    const options = await initOptionsFor(entry, { VERCEL: '1', VERCEL_ENV: 'production' });
     expect(options).toMatchObject({ enabled: true, environment: 'production' });
     expect(options).not.toHaveProperty('release');
   });
 
   it('reports from previews as "preview"', async () => {
-    const options = await initOptionsFor(entry, { VERCEL_ENV: 'preview' });
+    const options = await initOptionsFor(entry, { VERCEL: '1', VERCEL_ENV: 'preview' });
     expect(options).toMatchObject({ enabled: true, environment: 'preview' });
+  });
+
+  it('stays off for a local production build with VERCEL_ENV in an env file', async () => {
+    for (const vercel of [undefined, '']) {
+      const options = await initOptionsFor(entry, {
+        NODE_ENV: 'production',
+        VERCEL: vercel,
+        VERCEL_ENV: 'production',
+      });
+      expect(options.enabled, String(vercel)).toBe(false);
+    }
+  });
+
+  it('stays off with a `vercel env pull` file, which sets VERCEL="1" for development', async () => {
+    const options = await initOptionsFor(entry, {
+      NODE_ENV: 'production',
+      VERCEL: '1',
+      VERCEL_ENV: 'development',
+      VERCEL_TARGET_ENV: 'development',
+    });
+    expect(options.enabled).toBe(false);
   });
 
   it('can be enabled locally with SENTRY_ENABLED=1', async () => {
@@ -109,16 +138,17 @@ describe.each(['server', 'edge'] as const)('instrumentation-%s', (entry) => {
     expect(options).toMatchObject({ enabled: true, environment: 'local' });
   });
 
-  it('stays off under next dev, even with VERCEL_ENV pulled into a local env file', async () => {
+  it('stays off under next dev, even with the deployment variables set', async () => {
     const options = await initOptionsFor(entry, {
       NODE_ENV: 'development',
+      VERCEL: '1',
       VERCEL_ENV: 'production',
     });
     expect(options.enabled).toBe(false);
   });
 
   it('strips visitor IP headers before sending', async () => {
-    const options = await initOptionsFor(entry, { VERCEL_ENV: 'production' });
+    const options = await initOptionsFor(entry, { VERCEL: '1', VERCEL_ENV: 'production' });
     const beforeSend = options.beforeSend as (event: unknown, hint: unknown) => unknown;
     expect(
       beforeSend({ request: { headers: { 'x-real-ip': '203.0.113.7', accept: '*/*' } } }, {}),
@@ -129,6 +159,7 @@ describe.each(['server', 'edge'] as const)('instrumentation-%s', (entry) => {
 describe('instrumentation-client', () => {
   it('is disabled for local runs, even when the server-side variables are set', async () => {
     const options = await initOptionsFor('client', {
+      VERCEL: '1',
       VERCEL_ENV: 'production',
       SENTRY_ENABLED: '1',
     });
@@ -137,7 +168,10 @@ describe('instrumentation-client', () => {
 
   it('reports from Vercel deployments and leaves environment and release to the SDK', async () => {
     for (const vercelEnv of ['production', 'preview']) {
-      const options = await initOptionsFor('client', { NEXT_PUBLIC_VERCEL_ENV: vercelEnv });
+      const options = await initOptionsFor('client', {
+        NEXT_PUBLIC_VERCEL_ENV: vercelEnv,
+        NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
+      });
       expect(options.enabled, vercelEnv).toBe(true);
       expect(options, vercelEnv).not.toHaveProperty('environment');
       expect(options, vercelEnv).not.toHaveProperty('release');
@@ -149,16 +183,31 @@ describe('instrumentation-client', () => {
     expect(options).toMatchObject({ enabled: true, environment: 'local' });
   });
 
-  it('stays off under next dev, even with NEXT_PUBLIC_VERCEL_ENV in a local env file', async () => {
+  it('stays off without the deployment marker, even with NEXT_PUBLIC_VERCEL_ENV set', async () => {
+    for (const url of [undefined, '']) {
+      const options = await initOptionsFor('client', {
+        NODE_ENV: 'production',
+        NEXT_PUBLIC_VERCEL_ENV: 'production',
+        NEXT_PUBLIC_VERCEL_URL: url,
+      });
+      expect(options.enabled, String(url)).toBe(false);
+    }
+  });
+
+  it('stays off under next dev, even with the deployment variables set', async () => {
     const options = await initOptionsFor('client', {
       NODE_ENV: 'development',
       NEXT_PUBLIC_VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
     });
     expect(options.enabled).toBe(false);
   });
 
   it('sends only warnings and errors to Logs, masks replays and tags third-party errors', async () => {
-    await initOptionsFor('client', { NEXT_PUBLIC_VERCEL_ENV: 'production' });
+    await initOptionsFor('client', {
+      NEXT_PUBLIC_VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
+    });
     expect(sentry.consoleLoggingIntegration).toHaveBeenLastCalledWith({
       levels: ['warn', 'error'],
     });

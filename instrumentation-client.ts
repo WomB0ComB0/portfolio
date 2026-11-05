@@ -15,8 +15,8 @@
  */
 
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
-// Options live in src/lib/observability/sentry-options.ts. The release (commit SHA) and, on
-// Vercel, the environment come from the SDK's build-time defaults.
+// Options live in src/lib/observability/sentry-options.ts. The release (SENTRY_RELEASE or the
+// commit SHA) and, on Vercel, the environment come from the SDK's build-time defaults.
 
 import * as Sentry from '@sentry/nextjs';
 import { config } from '@/config';
@@ -24,8 +24,11 @@ import { buildClientOptions, SENTRY_APPLICATION_KEY } from '@/lib/observability/
 
 Sentry.init({
   dsn: config.sentry.dsn,
-  // Literal process.env reads, so Next inlines them into the browser bundle.
+  // Literal process.env reads, so Next inlines them into the browser bundle. Vercel inlines
+  // NEXT_PUBLIC_VERCEL_URL (the deployment's hostname) into deployment builds only: the browser
+  // cannot read VERCEL, and `vercel env pull` writes no NEXT_PUBLIC_VERCEL_* variables.
   ...buildClientOptions({
+    onVercel: Boolean(process.env.NEXT_PUBLIC_VERCEL_URL),
     vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV,
     optIn: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
     nodeEnv: process.env.NODE_ENV,
