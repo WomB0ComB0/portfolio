@@ -18,6 +18,12 @@ import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared
 
 export const cacheHeaders = createCacheHeaders('NoCache');
 
+/** A failure must never be cached as an answer, by the browser or a CDN. */
+export const errorCacheHeaders = createCacheHeaders({
+  contentType: 'application/json',
+  cacheControl: 'no-store',
+});
+
 export const errorHandler = createErrorHandler({
   context: 'now-playing API route',
   customMessage: () => 'Internal Server Error',

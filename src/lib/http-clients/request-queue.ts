@@ -1,4 +1,3 @@
-import type { PendingRequest, RateLimitConfig, RequestTiming } from './request-queue.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,357 +15,139 @@ import type { PendingRequest, RateLimitConfig, RequestTiming } from './request-q
  */
 
 /**
- * @fileoverview Request queue manager for preventing concurrent API requests
+ * @fileoverview In-flight request sharing for browser fetches.
  *
- * Implements request deduplication, queuing, and throttling to prevent
- * rate limiting from external APIs. Ensures only one request per unique
- * endpoint is in flight at a time.
+ * In the browser, concurrent identical calls (same method, URL, JSON body, Authorization,
+ * Content-Type and result key) share one request until it settles. Nothing is kept after that:
+ * TanStack Query stays the only response cache. A call whose body isn't plain JSON runs on its own.
+ *
+ * On the server the queue steps aside and runs every request directly. One server instance
+ * renders pages for many visitors at once, so any state here would make one visitor wait on, or
+ * receive, another visitor's request. (It did: a per-instance cap of 5 /api/v1/sanity calls a
+ * minute held SSR streams open for up to a minute after a small burst of traffic.)
+ *
+ * There is no rate limit in the browser either. The old per-minute caps counted per tab and per
+ * URL, so they protected nothing upstream: Sanity, GitHub and Spotify are called by our API,
+ * which has its own guard and CDN caching. All they did was stall a visitor who returned to a
+ * page within a minute behind the full-screen loader, for up to a minute. A 429 from our API
+ * still reaches the caller as an error.
  */
 
-import { LogClass, logger } from '@/utils';
+import { logger } from '@/utils';
+import type { EnqueueOptions, PendingRequest } from './request-queue.types';
 
-/**
- * Default rate limit configuration
- */
-const DEFAULT_RATE_LIMIT: RateLimitConfig = {
-  minInterval: 100, // 100ms between same endpoint requests
-  maxRequests: 10, // Max 10 requests per window
-  windowMs: 60_000, // 1 minute window
+/** A shared request older than this is treated as hung, and new callers get a fresh one. */
+export const REQUEST_QUEUE_STALE_MS = 5 * 60_000;
+
+/** Headers whose value changes the response, so calls that differ in them are never shared. */
+const RESPONSE_HEADERS = ['authorization', 'content-type'] as const;
+
+/** True during SSR and in route handlers, where `window` is undefined. */
+const isServer = (): boolean => globalThis.window === undefined;
+
+/** The value of header `name` (lower case), matched case-insensitively. */
+const headerValue = (
+  headers: EnqueueOptions['headers'],
+  name: (typeof RESPONSE_HEADERS)[number],
+): string | undefined => {
+  if (!headers) return undefined;
+  const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
+  return key === undefined ? undefined : headers[key];
 };
 
 /**
- * Singleton request queue manager
- *
- * Features:
- * - Automatic request deduplication
- * - Request queuing with timing control
- * - Per-endpoint rate limiting
- * - Exponential backoff on 429 responses
- * - Automatic cleanup of stale requests
+ * Whether JSON.stringify writes `value` out in full, so two bodies with the same JSON are the same
+ * body. FormData, a Blob or URLSearchParams would all come out as `{}`, and a cycle would throw.
  */
-@LogClass({ exclude: ['sleep', 'getCacheKey', 'is429Error'], timing: true })
+const isJsonValue = (value: unknown, ancestors: ReadonlySet<object> = new Set()): boolean => {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string' || typeof value === 'boolean') return true;
+  // NaN and Infinity come out as null.
+  if (typeof value === 'number') return Number.isFinite(value);
+  return typeof value === 'object' && isJsonContainer(value, ancestors);
+};
+
+/** A plain object or array, not inside itself, whose values are all JSON. */
+const isJsonContainer = (value: object, ancestors: ReadonlySet<object>): boolean => {
+  if (ancestors.has(value)) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  const isPlain = Array.isArray(value) || prototype === Object.prototype || prototype === null;
+  if (!isPlain) return false;
+  const path = new Set(ancestors).add(value);
+  return Object.values(value).every((item) => isJsonValue(item, path));
+};
+
+/** Identifies calls that may share one request. Only for a body isJsonValue accepts. */
+const requestKey = (url: string, method: string, options?: EnqueueOptions): string =>
+  JSON.stringify([
+    method.toUpperCase(),
+    url,
+    options?.resultKey ?? null,
+    options?.body ?? null,
+    ...RESPONSE_HEADERS.map((name) => headerValue(options?.headers, name) ?? null),
+  ]);
+
+/** Runs `executor`, turning a synchronous throw into a rejected promise. */
+const start = <T>(executor: () => Promise<T>): Promise<T> =>
+  new Promise<T>((resolve) => {
+    resolve(executor());
+  });
+
 class RequestQueueManager {
-  /** Map of endpoint URLs to pending requests */
-  private pendingRequests = new Map<string, PendingRequest<any>>();
-
-  /** Map of endpoint URLs to request timing data */
-  private requestTimings = new Map<string, RequestTiming>();
-
-  /** Map of endpoint patterns to rate limit configs */
-  private rateLimits = new Map<string | RegExp, RateLimitConfig>();
-
-  /** Global rate limit applied to all requests */
-  private globalRateLimit: RateLimitConfig = DEFAULT_RATE_LIMIT;
-
-  /** Cleanup interval ID */
-  private cleanupInterval: NodeJS.Timeout | null = null;
-
-  constructor() {
-    // Start cleanup job to remove stale requests every 30 seconds
-    this.startCleanupJob();
-  }
+  /** Requests in flight in this browser tab, by request key. Always empty on the server. */
+  private readonly inFlight = new Map<string, PendingRequest<unknown>>();
 
   /**
-   * Configure rate limit for a specific endpoint or pattern
+   * Runs `executor`, or, in the browser, joins an identical call already in flight.
+   *
+   * @param url Request URL; part of the sharing key.
+   * @param method HTTP method; part of the sharing key.
+   * @param executor Performs the request. Called at most once per shared request.
+   * @param options Body, headers and result key for the key, or `bypassDeduplication` to always
+   * run alone.
    */
-  public setRateLimit(pattern: string | RegExp, config: Partial<RateLimitConfig>): void {
-    this.rateLimits.set(pattern, {
-      ...DEFAULT_RATE_LIMIT,
-      ...config,
-    });
-  }
-
-  /**
-   * Configure global rate limit
-   */
-  public setGlobalRateLimit(config: Partial<RateLimitConfig>): void {
-    this.globalRateLimit = {
-      ...this.globalRateLimit,
-      ...config,
-    };
-  }
-
-  /**
-   * Get rate limit config for a specific endpoint
-   */
-  private getRateLimitConfig(url: string): RateLimitConfig {
-    // Check for matching pattern
-    for (const [pattern, config] of this.rateLimits.entries()) {
-      if (pattern instanceof RegExp) {
-        if (pattern.test(url)) return config;
-      } else if (url.includes(pattern)) {
-        return config;
-      }
-    }
-
-    return this.globalRateLimit;
-  }
-
-  /**
-   * Check if a request can be made based on rate limits
-   */
-  private canMakeRequest(url: string): { allowed: boolean; waitTime?: number } {
-    const config = this.getRateLimitConfig(url);
-    const timing = this.requestTimings.get(url);
-    const now = Date.now();
-
-    if (!timing) {
-      return { allowed: true };
-    }
-
-    // Check minimum interval between requests
-    const timeSinceLastRequest = now - timing.lastRequest;
-    if (timeSinceLastRequest < config.minInterval) {
-      return {
-        allowed: false,
-        waitTime: config.minInterval - timeSinceLastRequest,
-      };
-    }
-
-    // Check max requests per window
-    const recentRequests = timing.requests.filter((timestamp) => now - timestamp < config.windowMs);
-
-    if (recentRequests.length >= config.maxRequests) {
-      const oldestRequest = Math.min(...recentRequests);
-      const waitTime = config.windowMs - (now - oldestRequest);
-      return {
-        allowed: false,
-        waitTime: Math.max(waitTime, 0),
-      };
-    }
-
-    return { allowed: true };
-  }
-
-  /**
-   * Record a request for rate limiting tracking
-   */
-  private recordRequest(url: string): void {
-    const now = Date.now();
-    const config = this.getRateLimitConfig(url);
-
-    const timing = this.requestTimings.get(url) || {
-      lastRequest: 0,
-      requests: [],
-    };
-
-    // Add current request
-    timing.lastRequest = now;
-    timing.requests.push(now);
-
-    // Clean up old requests outside the window
-    timing.requests = timing.requests.filter((timestamp) => now - timestamp < config.windowMs);
-
-    this.requestTimings.set(url, timing);
-  }
-
-  /**
-   * Generate a cache key for request deduplication
-   */
-  private getCacheKey(
-    url: string,
-    method: string,
-    body?: unknown,
-    headers?: Record<string, string>,
-  ): string {
-    const parts = [method, url];
-
-    if (body) {
-      parts.push(JSON.stringify(body));
-    }
-
-    // Include relevant headers that affect response (e.g., Authorization)
-    if (headers) {
-      const relevantHeaders = ['authorization', 'content-type'];
-      for (const key of relevantHeaders) {
-        const value = headers[key.toLowerCase()];
-        if (value) parts.push(`${key}:${value}`);
-      }
-    }
-
-    return parts.join('|');
-  }
-
-  /**
-   * Execute a request with deduplication, queueing, and rate limiting
-   */
-  public async enqueue<T>(
+  public enqueue<T>(
     url: string,
     method: string,
     executor: () => Promise<T>,
-    options?: {
-      body?: unknown;
-      headers?: Record<string, string>;
-      bypassDeduplication?: boolean;
-    },
+    options?: EnqueueOptions,
   ): Promise<T> {
-    const cacheKey = this.getCacheKey(url, method, options?.body, options?.headers);
+    if (isServer()) return start(executor);
+    this.dropStale();
+    if (options?.bypassDeduplication || !isJsonValue(options?.body)) return start(executor);
 
-    // Check if there's already a pending request for this exact call
-    if (!options?.bypassDeduplication) {
-      const pending = this.pendingRequests.get(cacheKey);
-      if (pending) {
-        pending.refCount++;
-        logger.info(
-          `[RequestQueue] Deduplicating request to ${url} (${pending.refCount} consumers)`,
-        );
-        return pending.promise as Promise<T>;
-      }
+    const key = requestKey(url, method, options);
+    const shared = this.inFlight.get(key);
+    if (shared) {
+      logger.debug(`[RequestQueue] Sharing the in-flight request to ${url}`);
+      return shared.promise as Promise<T>;
     }
+    return this.track(key, url, start(executor));
+  }
 
-    // Check rate limits
-    const rateCheck = this.canMakeRequest(url);
-    if (!rateCheck.allowed && rateCheck.waitTime) {
-      logger.info(`[RequestQueue] Rate limit reached for ${url}, waiting ${rateCheck.waitTime}ms`);
-      await this.sleep(rateCheck.waitTime);
+  /**
+   * Stops sharing every request in flight for REQUEST_QUEUE_STALE_MS or longer. Run on each call,
+   * so hung requests to URLs nobody asks for again don't pile up for the life of the tab.
+   */
+  private dropStale(): void {
+    const now = Date.now();
+    for (const [key, pending] of this.inFlight) {
+      if (now - pending.startedAt < REQUEST_QUEUE_STALE_MS) continue;
+      this.inFlight.delete(key);
+      logger.warn(`[RequestQueue] Stopped sharing a request that never settled: ${pending.url}`);
     }
+  }
 
-    // Record the request
-    this.recordRequest(url);
-
-    // Create and store the pending request
-    const promise = executor()
-      .then((result) => {
-        this.pendingRequests.delete(cacheKey);
-        return result;
-      })
-      .catch((error) => {
-        this.pendingRequests.delete(cacheKey);
-
-        // Handle 429 rate limit responses
-        if (this.is429Error(error)) {
-          logger.warn(`[RequestQueue] 429 Rate Limit hit for ${url}`);
-          // Increase minimum interval for this endpoint
-          const currentConfig = this.getRateLimitConfig(url);
-          this.setRateLimit(url, {
-            minInterval: Math.min(currentConfig.minInterval * 2, 5000),
-          });
-        }
-
-        throw error;
-      });
-
-    this.pendingRequests.set(cacheKey, {
-      promise,
-      timestamp: Date.now(),
-      refCount: 1,
+  /** Shares `request` under `key` until it settles. */
+  private track<T>(key: string, url: string, request: Promise<T>): Promise<T> {
+    const promise = request.finally(() => {
+      // A stale request settling late must not remove the fresh one that replaced it.
+      if (this.inFlight.get(key)?.promise === promise) this.inFlight.delete(key);
     });
-
-    logger.info(`[RequestQueue] Executing request to ${url}`);
+    this.inFlight.set(key, { promise, startedAt: Date.now(), url });
     return promise;
-  }
-
-  /**
-   * Check if an error is a 429 rate limit error
-   */
-  private is429Error(error: any): boolean {
-    return (
-      error?.status === 429 ||
-      error?.response?.status === 429 ||
-      error?.message?.includes('429') ||
-      error?.message?.toLowerCase().includes('rate limit')
-    );
-  }
-
-  /**
-   * Sleep for a specified number of milliseconds
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Start cleanup job to remove stale requests
-   */
-  private startCleanupJob(): void {
-    if (this.cleanupInterval) return;
-
-    this.cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      const staleThreshold = 5 * 60 * 1000; // 5 minutes
-
-      // Clean up stale pending requests
-      for (const [key, pending] of this.pendingRequests.entries()) {
-        if (now - pending.timestamp > staleThreshold) {
-          this.pendingRequests.delete(key);
-          logger.warn(`[RequestQueue] Cleaned up stale request: ${key}`);
-        }
-      }
-
-      // Clean up old timing data
-      for (const [url, timing] of this.requestTimings.entries()) {
-        if (now - timing.lastRequest > staleThreshold) {
-          this.requestTimings.delete(url);
-        }
-      }
-    }, 30_000); // Run every 30 seconds
-  }
-
-  /**
-   * Stop cleanup job (for testing or shutdown)
-   */
-  public stopCleanupJob(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
-  }
-
-  /**
-   * Clear all pending requests (for testing)
-   */
-  public clear(): void {
-    this.pendingRequests.clear();
-    this.requestTimings.clear();
-  }
-
-  /**
-   * Get statistics about current queue state
-   */
-  public getStats(): {
-    pendingRequests: number;
-    trackedEndpoints: number;
-    rateLimitConfigs: number;
-  } {
-    return {
-      pendingRequests: this.pendingRequests.size,
-      trackedEndpoints: this.requestTimings.size,
-      rateLimitConfigs: this.rateLimits.size,
-    };
   }
 }
 
-// Export singleton instance
+/** The page-wide queue. Use `enqueue`; it runs every request directly on the server. */
 export const requestQueue = new RequestQueueManager();
-
-// Configure rate limits for known endpoints
-requestQueue.setRateLimit('/api/v1/sanity', {
-  minInterval: 200, // 200ms between Sanity requests
-  maxRequests: 5, // Max 5 Sanity requests per minute
-  windowMs: 60_000,
-});
-
-requestQueue.setRateLimit('/api/v1/github', {
-  minInterval: 500, // 500ms between GitHub requests
-  maxRequests: 3, // Max 3 GitHub requests per minute
-  windowMs: 60_000,
-});
-
-requestQueue.setRateLimit('/api/v1/spotify', {
-  minInterval: 300, // 300ms between Spotify requests
-  maxRequests: 5, // Max 5 Spotify requests per minute
-  windowMs: 60_000,
-});
-
-requestQueue.setRateLimit(/\/api\/v1\/(now-playing|top-artists|top-tracks)/, {
-  minInterval: 300,
-  maxRequests: 5,
-  windowMs: 60_000,
-});
-
-// Global default for all other endpoints
-requestQueue.setGlobalRateLimit({
-  minInterval: 100,
-  maxRequests: 10,
-  windowMs: 60_000,
-});

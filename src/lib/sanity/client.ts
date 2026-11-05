@@ -28,6 +28,7 @@ import {
   type ImageUrlBuilder,
   type SanityImageSource,
 } from '@sanity/image-url';
+import { sanityRequestLimits } from './server-timeouts';
 
 // Check if we're in a browser context
 const isBrowser = globalThis.window !== undefined;
@@ -69,10 +70,17 @@ export const sanityConfig = {
 } as const;
 
 /**
+ * Timeout and retry limits. On the server every client gets them, so a hanging Sanity fails fast
+ * enough for the API's stale-or-503 path even where SANITY_API_TOKEN is unset; the browser's
+ * client keeps @sanity/client's defaults.
+ */
+const requestLimits = sanityRequestLimits(isBrowser);
+
+/**
  * Sanity client instance
  * Safe to use in both server and client components
  */
-export const sanityClient: SanityClient = createClient(sanityConfig);
+export const sanityClient: SanityClient = createClient({ ...sanityConfig, ...requestLimits });
 
 /**
  * Sanity client with token for authenticated requests
@@ -84,8 +92,9 @@ export const sanityClientWithToken: SanityClient = config.token
       token: config.token,
       useCdn: false,
       perspective: 'published' as const, // Use 'published' instead of 'previewDrafts'
+      ...requestLimits,
     })
-  : sanityClient; // Fallback to regular client on client-side
+  : sanityClient; // No token (the browser, or a server without one): the plain client, limits included
 
 /**
  * Image URL builder instance

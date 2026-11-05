@@ -16,8 +16,12 @@
 
 import type { Metadata } from 'next';
 import type { JSX } from 'react';
+import { reportApiFailure } from '@/lib/observability/report';
 import { getExperiences } from '@/lib/sanity/api';
 import { constructMetadata, logger } from '@/utils';
+
+/** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
+const METADATA_REPORT_CONTEXT = 'build experience page metadata';
 
 /**
  * Dynamically imports the ExperienceDetail component for SSR.
@@ -88,7 +92,10 @@ export async function generateMetadata({
       path,
     });
   } catch (error) {
-    logger.error('Error generating metadata:', error);
+    // Sanity failed, so whether the id exists is unknown: keep the page's defaults (and its
+    // og:url) rather than claiming "Not Found". The page body shows its own error state.
+    logger.warn('Experience metadata fell back to the defaults', { error });
+    reportApiFailure(error, { context: METADATA_REPORT_CONTEXT, level: 'warning' });
     return constructMetadata({
       title: 'Experience',
       description: 'View professional experience details',

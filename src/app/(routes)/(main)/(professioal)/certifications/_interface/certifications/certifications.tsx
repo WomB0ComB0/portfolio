@@ -29,8 +29,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useDebounce, useSanityCertifications } from '@/hooks';
+import { SANITY_ENDPOINTS, useDebounce, useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { formatDateOnly, validateUserInput } from '@/utils';
 
 type Certifications = ReturnType<typeof useSanityCertifications>['data'];
@@ -92,17 +93,11 @@ const CertificationCardSkeleton = () => {
 };
 
 /**
- * Full loading skeleton for certifications page
+ * Loading skeleton for the certifications (the page header stays above it)
  */
 const CertificationsPageSkeleton = () => {
   return (
     <output className="block space-y-16" aria-label="Loading certifications">
-      <PageHeader
-        title="My Certifications"
-        description="A collection of my professional certifications and credentials."
-        icon={<Award />}
-      />
-
       {/* Filter Bar Skeleton */}
       <div className="h-16 bg-card/40 backdrop-blur-md border border-white/5 rounded-2xl animate-pulse" />
 
@@ -410,12 +405,6 @@ const CertificationsContent = () => {
 
   return (
     <div className="space-y-16">
-      <PageHeader
-        title="My Certifications"
-        description="A collection of my professional certifications and credentials."
-        icon={<Award />}
-      />
-
       {/* Filter Bar */}
       <FilterBar
         searchQuery={searchQuery}
@@ -531,15 +520,26 @@ const CertificationsContent = () => {
 };
 
 /**
- * Renders the entire certifications page wrapped within the application's main layout.
+ * Renders the entire certifications page wrapped within the application's main layout. A failed
+ * load stays below the page header, with a retry.
  */
 export const Certifications = () => {
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12 max-w-7xl">
-        <Suspense fallback={<CertificationsPageSkeleton />}>
-          <CertificationsContent />
-        </Suspense>
+      <div className="container mx-auto px-4 py-12 max-w-7xl space-y-16">
+        <PageHeader
+          title="My Certifications"
+          description="A collection of my professional certifications and credentials."
+          icon={<Award />}
+        />
+        <QueryErrorBoundary
+          section="certifications"
+          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.certifications)]}
+        >
+          <Suspense fallback={<CertificationsPageSkeleton />}>
+            <CertificationsContent />
+          </Suspense>
+        </QueryErrorBoundary>
       </div>
     </Layout>
   );

@@ -16,15 +16,25 @@
 
 import { t } from 'elysia';
 
+/**
+ * `isPlaying: false` means Spotify reported nothing playing. A failure is never reported that
+ * way: the route answers 500 with `now-playing.error` instead.
+ */
 export const nowPlayingSchema = {
   'now-playing.response': t.Object({
     isPlaying: t.Boolean(),
     songName: t.Optional(t.String()),
+    /** Every artist on the track, comma separated. */
     artistName: t.Optional(t.String()),
+    /** The track's open.spotify.com page. */
     songURL: t.Optional(t.String()),
+    /** The first artist's open.spotify.com page. */
+    artistURL: t.Optional(t.String()),
     imageURL: t.Optional(t.String()),
   }),
   'now-playing.error': t.Object({
     error: t.String(),
   }),
 };
+
+export type NowPlayingResponse = (typeof nowPlayingSchema)['now-playing.response']['static'];

@@ -16,9 +16,14 @@
 
 import { Elysia, StatusMap } from 'elysia';
 import { getNowPlaying } from './handlers';
-import { cacheHeaders, errorHandler } from './middleware';
+import { cacheHeaders, errorCacheHeaders, errorHandler } from './middleware';
 import { nowPlayingSchema } from './schema';
 
+/**
+ * GET /now-playing: 200 with the track, or `{ isPlaying: false }` when nothing plays. A Spotify
+ * or token failure answers 500 with `no-store`, logged and reported by the shared error handler,
+ * so the cards can show an error instead of a false "not listening".
+ */
 export const nowPlayingRoute = new Elysia({ prefix: '/now-playing' }).model(nowPlayingSchema).get(
   '/',
   async ({ set }) => {
@@ -29,6 +34,7 @@ export const nowPlayingRoute = new Elysia({ prefix: '/now-playing' }).model(nowP
     } catch (error) {
       const errorResponse = errorHandler(error);
       set.status = StatusMap['Internal Server Error'];
+      Object.assign(set.headers, errorCacheHeaders());
       return { error: errorResponse.error };
     }
   },

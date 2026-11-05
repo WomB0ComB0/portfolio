@@ -14,6 +14,18 @@
  * limitations under the License.
  */
 
+/**
+ * @file Server-side Sanity getters.
+ *
+ * A failed query throws a BaseError (command `sanity:<name>`, the client's error as its `cause`)
+ * instead of answering an empty value, so callers can tell an outage from real content:
+ * - a list getter's [] means Sanity has no such documents;
+ * - a single-document getter's null means that document does not exist.
+ * Callers decide what an outage looks like: the API routes serve their last good answer or a
+ * 503, and page metadata falls back to its defaults.
+ */
+
+import { ensureBaseError } from '@/classes/error';
 import type {
   Article,
   Certification,
@@ -25,15 +37,18 @@ import type {
   Talk,
   YoutubeVideo,
 } from '@/hooks/sanity/schemas';
-import { logger } from '@/utils';
 import { sanityFetchWithToken } from './client';
 import {
+  articlesQuery,
   certificationsQuery,
   experiencesQuery,
   featuredProjectsQuery,
   placesQuery,
+  presentationsQuery,
   projectBySlugQuery,
   projectsQuery,
+  talksQuery,
+  youtubeVideosQuery,
 } from './queries';
 
 /**
@@ -42,179 +57,111 @@ import {
 const CACHE_DURATION = 60 * 5; // 5 minutes
 
 /**
- * Fetch all experiences from Sanity
- * @returns Promise with array of experiences
+ * The active resume. It returns the asset reference (`asset`) rather than dereferencing it
+ * (`asset->`), so the API shape matches the client schema's `{ asset: { _ref, _type } }`.
  */
-export async function getExperiences(): Promise<Experience[]> {
+const activeResumeQuery = `*[_type == "resume" && isActive == true] | order(_updatedAt desc) [0] {
+  _id,
+  _type,
+  _createdAt,
+  _updatedAt,
+  _rev,
+  title,
+  pdfFile {
+    _type,
+    asset
+  },
+  lastUpdated,
+  isActive
+}`;
+
+type QueryParams = Readonly<Record<string, string>>;
+
+/** Runs a query; a failure becomes a BaseError named after the getter. */
+async function runQuery(command: string, query: string, params?: QueryParams): Promise<unknown> {
   try {
-    const experiences = await sanityFetchWithToken<Experience[]>(experiencesQuery);
-    return experiences;
+    return await sanityFetchWithToken<unknown>(query, params);
   } catch (error) {
-    logger.error('Error fetching experiences from Sanity:', error);
-    return [];
+    throw ensureBaseError(error, command, params ? { params } : undefined);
   }
 }
 
 /**
- * Fetch all projects from Sanity
- * @returns Promise with array of projects
+ * Fetches a list. A list query always answers an array, so anything else is a failure rather
+ * than an empty list.
  */
-export async function getProjects(): Promise<Project[]> {
-  try {
-    const projects = await sanityFetchWithToken<Project[]>(projectsQuery);
-    return projects;
-  } catch (error) {
-    logger.error('Error fetching projects from Sanity:', error);
-    return [];
+async function fetchList<T>(name: string, query: string): Promise<T[]> {
+  const command = `sanity:${name}`;
+  const result = await runQuery(command, query);
+  if (!Array.isArray(result)) {
+    throw ensureBaseError(new Error(`expected a list, got ${typeof result}`), command);
   }
+  return result as T[];
 }
 
-/**
- * Fetch featured projects only
- * @returns Promise with array of featured projects
- */
-export async function getFeaturedProjects(): Promise<Project[]> {
-  try {
-    const projects = await sanityFetchWithToken<Project[]>(featuredProjectsQuery);
-    return projects;
-  } catch (error) {
-    logger.error('Error fetching featured projects from Sanity:', error);
-    return [];
-  }
+/** Fetches one document: null when it does not exist, a thrown BaseError when the query fails. */
+async function fetchDocument<T>(
+  name: string,
+  query: string,
+  params?: QueryParams,
+): Promise<T | null> {
+  const result = await runQuery(`sanity:${name}`, query, params);
+  return (result ?? null) as T | null;
 }
 
-/**
- * Fetch a single project by slug
- * @param slug - Project slug
- * @returns Promise with project or null
- */
-export async function getProjectBySlug(slug: string): Promise<Project | null> {
-  try {
-    const project = await sanityFetchWithToken<Project | null>(projectBySlugQuery, { slug });
-    return project;
-  } catch (error) {
-    logger.error(`Error fetching project with slug "${slug}":`, error);
-    return null;
-  }
+/** All experiences. Throws when Sanity fails. */
+export function getExperiences(): Promise<Experience[]> {
+  return fetchList<Experience>('experiences', experiencesQuery);
 }
 
-/**
- * Fetch all certifications from Sanity
- * @returns Promise with array of certifications
- */
-export async function getCertifications(): Promise<Certification[]> {
-  try {
-    const certifications = await sanityFetchWithToken<Certification[]>(certificationsQuery);
-    return certifications;
-  } catch (error) {
-    logger.error('Error fetching certifications from Sanity:', error);
-    return [];
-  }
+/** All projects. Throws when Sanity fails. */
+export function getProjects(): Promise<Project[]> {
+  return fetchList<Project>('projects', projectsQuery);
 }
 
-/**
- * Fetch all places from Sanity
- * @returns Promise with array of places
- */
-export async function getPlaces(): Promise<Place[]> {
-  try {
-    const places = await sanityFetchWithToken<Place[]>(placesQuery);
-    return places;
-  } catch (error) {
-    logger.error('Error fetching places from Sanity:', error);
-    return [];
-  }
+/** Featured projects only. Throws when Sanity fails. */
+export function getFeaturedProjects(): Promise<Project[]> {
+  return fetchList<Project>('featured-projects', featuredProjectsQuery);
 }
 
-/**
- * Fetch active resume from Sanity
- * @returns Promise with resume data or null
- */
-export async function getResume(): Promise<Resume | null> {
-  try {
-    // Return the asset reference (asset) rather than dereferencing it (asset->)
-    // so the API shape matches the client schema which expects { asset: { _ref: string, _type: 'reference' } }
-    const resumeQuery = `*[_type == "resume" && isActive == true] | order(_updatedAt desc) [0] {
-      _id,
-      _type,
-      _createdAt,
-      _updatedAt,
-      _rev,
-      title,
-      pdfFile {
-        _type,
-        asset
-      },
-      lastUpdated,
-      isActive
-    }`;
-
-    const resume = await sanityFetchWithToken<Resume | null>(resumeQuery);
-    return resume;
-  } catch (error) {
-    logger.error('Error fetching resume from Sanity:', error);
-    return null;
-  }
+/** One project by slug: null when no project has that slug. Throws when Sanity fails. */
+export function getProjectBySlug(slug: string): Promise<Project | null> {
+  return fetchDocument<Project>('project-by-slug', projectBySlugQuery, { slug });
 }
 
-/**
- * Fetch all presentations from Sanity
- * @returns Promise with array of presentations
- */
-export async function getPresentations(): Promise<Presentation[]> {
-  try {
-    const { presentationsQuery } = await import('./queries');
-    const presentations = await sanityFetchWithToken<Presentation[]>(presentationsQuery);
-    return presentations;
-  } catch (error) {
-    logger.error('Error fetching presentations from Sanity:', error);
-    return [];
-  }
+/** All certifications. Throws when Sanity fails. */
+export function getCertifications(): Promise<Certification[]> {
+  return fetchList<Certification>('certifications', certificationsQuery);
 }
 
-/**
- * Fetch all talks from Sanity
- * @returns Promise with array of talks
- */
-export async function getTalks(): Promise<Talk[]> {
-  try {
-    const { talksQuery } = await import('./queries');
-    const talks = await sanityFetchWithToken<Talk[]>(talksQuery);
-    return talks;
-  } catch (error) {
-    logger.error('Error fetching talks from Sanity:', error);
-    return [];
-  }
+/** All places. Throws when Sanity fails. */
+export function getPlaces(): Promise<Place[]> {
+  return fetchList<Place>('places', placesQuery);
 }
 
-/**
- * Fetch all articles from Sanity
- * @returns Promise with array of articles
- */
-export async function getArticles(): Promise<Article[]> {
-  try {
-    const { articlesQuery } = await import('./queries');
-    const articles = await sanityFetchWithToken<Article[]>(articlesQuery);
-    return articles;
-  } catch (error) {
-    logger.error('Error fetching articles from Sanity:', error);
-    return [];
-  }
+/** The active resume: null when none is active. Throws when Sanity fails. */
+export function getResume(): Promise<Resume | null> {
+  return fetchDocument<Resume>('resume', activeResumeQuery);
 }
 
-/**
- * Fetch all YouTube videos from Sanity
- * @returns Promise with array of YouTube videos
- */
-export async function getYoutubeVideos(): Promise<YoutubeVideo[]> {
-  try {
-    const { youtubeVideosQuery } = await import('./queries');
-    const videos = await sanityFetchWithToken<YoutubeVideo[]>(youtubeVideosQuery);
-    return videos;
-  } catch (error) {
-    logger.error('Error fetching YouTube videos from Sanity:', error);
-    return [];
-  }
+/** All presentations. Throws when Sanity fails. */
+export function getPresentations(): Promise<Presentation[]> {
+  return fetchList<Presentation>('presentations', presentationsQuery);
+}
+
+/** All talks. Throws when Sanity fails. */
+export function getTalks(): Promise<Talk[]> {
+  return fetchList<Talk>('talks', talksQuery);
+}
+
+/** All articles. Throws when Sanity fails. */
+export function getArticles(): Promise<Article[]> {
+  return fetchList<Article>('articles', articlesQuery);
+}
+
+/** All YouTube videos stored in Sanity. Throws when Sanity fails. */
+export function getYoutubeVideos(): Promise<YoutubeVideo[]> {
+  return fetchList<YoutubeVideo>('youtube-videos', youtubeVideosQuery);
 }
 
 /**

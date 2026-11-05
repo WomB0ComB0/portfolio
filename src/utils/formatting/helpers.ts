@@ -186,9 +186,71 @@ export const tap =
     return result;
   };
 
+/** Port that `next dev` and `next start` listen on when PORT is unset. */
+const DEFAULT_LOCAL_PORT = '3000';
+
+/** The environment variables the site's base URL is chosen from. */
+interface BaseURLEnv {
+  /** NEXT_PUBLIC_SITE_URL: an explicit origin, which always wins. */
+  readonly siteUrl?: string;
+  /** VERCEL_ENV: 'production', 'preview' or 'development'. Server only. */
+  readonly vercelEnv?: string;
+  /** VERCEL_PROJECT_PRODUCTION_URL: the production domain, without a scheme. Server only. */
+  readonly productionHost?: string;
+  /** VERCEL_URL: this deployment's own host, without a scheme. Server only. */
+  readonly deploymentHost?: string;
+  /** NEXT_PUBLIC_VERCEL_URL: the same host as VERCEL_URL, inlined into browser bundles too. */
+  readonly publicDeploymentHost?: string;
+  /** PORT: the local server's port. */
+  readonly port?: string;
+}
+
 /**
- * Constructs a fully qualified URL based on environment variables and optional path.
- * Prefers NEXT_PUBLIC_SITE_URL, then NEXT_PUBLIC_VERCEL_URL, or defaults to localhost.
+ * Reads each variable as a literal `process.env.NAME`, the only form Next.js inlines, so the
+ * NEXT_PUBLIC_ ones still reach browser bundles. The others are undefined in the browser.
+ */
+const readBaseURLEnv = (): BaseURLEnv => ({
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+  vercelEnv: process.env.VERCEL_ENV,
+  productionHost: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  deploymentHost: process.env.VERCEL_URL,
+  publicDeploymentHost: process.env.NEXT_PUBLIC_VERCEL_URL,
+  port: process.env.PORT,
+});
+
+/** `value` trimmed, or undefined when missing or blank (`vercel env pull` writes blank values). */
+const nonBlank = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+/** The site's origin, without a trailing slash. */
+const resolveBaseURL = (env: BaseURLEnv): string => {
+  const productionHost = env.vercelEnv === 'production' ? nonBlank(env.productionHost) : undefined;
+  const host =
+    nonBlank(env.siteUrl) ??
+    productionHost ??
+    nonBlank(env.deploymentHost) ??
+    nonBlank(env.publicDeploymentHost);
+
+  if (!host) return `http://localhost:${nonBlank(env.port) ?? DEFAULT_LOCAL_PORT}`;
+
+  const origin = host.replace(/\/+$/, '');
+  return /^https?:\/\//.test(origin) ? origin : `https://${origin}`;
+};
+
+/**
+ * Constructs a fully qualified URL on this site, for server-side self-fetches and absolute links.
+ *
+ * The origin is the first of:
+ * 1. NEXT_PUBLIC_SITE_URL, when set.
+ * 2. On production (VERCEL_ENV 'production'), https://VERCEL_PROJECT_PRODUCTION_URL: the
+ *    production domain, which goes through the CDN. The per-deployment URL does not.
+ * 3. https://VERCEL_URL, this deployment's own URL (previews).
+ * 4. https://NEXT_PUBLIC_VERCEL_URL, the same host, for the browser, which can't read VERCEL_URL.
+ * 5. http://localhost:PORT, with PORT defaulting to 3000.
+ *
+ * The VERCEL_* variables are Vercel system variables, set at runtime on the server.
  *
  * @web
  * @public
@@ -196,30 +258,15 @@ export const tap =
  * @param {string} [path=''] The path or endpoint to append to base URL.
  * @returns {string} Fully composed absolute URL including protocol.
  * @example
- *   const api = getURL("api/users"); // https://example.com/api/users
- * @throws {TypeError} On invalid environmental configuration.
- * @see https://vercel.com/docs/concepts/projects/environment-variables
- * @version 1.0.0
+ *   const api = getURL("api/users"); // https://mikeodnis.dev/api/users
+ * @see https://vercel.com/docs/environment-variables/system-environment-variables
+ * @version 1.1.0
  */
 export const getURL = (path = ''): string => {
-  let url: string;
+  const origin = resolveBaseURL(readBaseURLEnv());
+  const relativePath = path.replace(/^\/+/, '');
 
-  if (process?.env?.NEXT_PUBLIC_SITE_URL && process.env.NEXT_PUBLIC_SITE_URL.trim() !== '') {
-    url = process.env.NEXT_PUBLIC_SITE_URL;
-  } else if (
-    process?.env?.NEXT_PUBLIC_VERCEL_URL &&
-    process.env.NEXT_PUBLIC_VERCEL_URL.trim() !== ''
-  ) {
-    url = process.env.NEXT_PUBLIC_VERCEL_URL;
-  } else {
-    url = 'http://localhost:3000/';
-  }
-
-  url = url.replace(/\/+$/, '');
-  url = url.includes('http') ? url : `https://${url}`;
-  path = path.replace(/^\/+/, '');
-
-  return path ? `${url}/${path}` : url;
+  return relativePath ? `${origin}/${relativePath}` : origin;
 };
 
 /**

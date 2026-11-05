@@ -17,8 +17,11 @@
 /**
  * @file The homepage's now-playing card asks effect-fetcher for a single attempt: TanStack
  * Query's shared default (shouldRetryQuery) is the one retry layer, so a fetcher retry on top
- * would double the requests a failing /api/v1/now-playing gets. The real fetcher runs against a
- * stubbed fetch; only the site shell is stubbed, since it needs the router and the command menu.
+ * would double the requests a failing /api/v1/now-playing gets. The tile only says what is known:
+ * a failed request (the API answers 500 now, not `isPlaying: false`) reads "Spotify unavailable"
+ * and is not a link, and nothing claims "Not Currently Listening" before the first answer. The
+ * real fetcher runs against a stubbed fetch; only the site shell is stubbed, since it needs the
+ * router and the command menu.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -46,21 +49,30 @@ import { get } from '@/lib/http-clients/effect-fetcher';
 
 const NOW_PLAYING_PATH = '/api/v1/now-playing';
 
-const stubNowPlaying = (body: unknown) => {
+/** The homepage tile's query key, for seeding an answer from an earlier poll. */
+const NOW_PLAYING_QUERY_KEY = ['now-playing-homepage'];
+/** Older than the tile's 30 s staleTime, so mounting refetches it. */
+const EARLIER_POLL_AGE_MS = 60_000;
+
+const jsonResponse = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+const stubNowPlaying = (body: unknown, status = 200) => {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost');
     if (url.pathname !== NOW_PLAYING_PATH) throw new Error(`unexpected request: ${url.pathname}`);
-    return new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
+    return jsonResponse(body, status);
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 };
 
-const renderHomePage = () => {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const stubNowPlayingFailure = () => stubNowPlaying({ error: 'Internal Server Error' }, 500);
+
+const createTestQueryClient = () =>
+  new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+const renderHomePage = (queryClient = createTestQueryClient()) => {
   render(
     <QueryClientProvider client={queryClient}>
       <HomePage />
@@ -113,5 +125,51 @@ describe('homepage now-playing card', () => {
     renderHomePage();
 
     expect(await screen.findByText('Listening on Spotify')).toBeInTheDocument();
+  });
+
+  it('is a quiet, non-link "Spotify unavailable" tile when now-playing fails', async () => {
+    stubNowPlayingFailure();
+
+    renderHomePage();
+
+    const status = await screen.findByText('Spotify unavailable');
+    expect(status.closest('a')).toBeNull();
+    expect(screen.queryByText('Not Currently Listening')).toBeNull();
+  });
+
+  it("shows the failure rather than an earlier poll's track", async () => {
+    stubNowPlayingFailure();
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      NOW_PLAYING_QUERY_KEY,
+      { isPlaying: true, songName: 'Earlier Song', songURL: 'https://open.spotify.com/track/x' },
+      { updatedAt: Date.now() - EARLIER_POLL_AGE_MS },
+    );
+
+    renderHomePage(queryClient);
+
+    const status = await screen.findByText('Spotify unavailable');
+    expect(status.closest('a')).toBeNull();
+    expect(screen.queryByText('Earlier Song')).toBeNull();
+  });
+
+  it('does not claim nothing is playing before the first answer arrives', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHomePage();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByText('Checking Spotify…')).toBeInTheDocument();
+    expect(screen.queryByText('Not Currently Listening')).toBeNull();
+
+    answer(jsonResponse({ isPlaying: false }, 200));
+    expect(await screen.findByText('Not Currently Listening')).toBeInTheDocument();
   });
 });

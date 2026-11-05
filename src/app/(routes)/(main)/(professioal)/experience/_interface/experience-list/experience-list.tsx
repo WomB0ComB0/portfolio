@@ -28,8 +28,9 @@ import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSanityExperiences } from '@/hooks';
+import { SANITY_ENDPOINTS, useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { formatDatePeriod } from '@/utils';
 
 const ITEMS_PER_PAGE = 10;
@@ -114,17 +115,11 @@ const TimelineCardSkeleton = ({ isLeft }: { isLeft: boolean }) => {
 };
 
 /**
- * Loading state with timeline skeletons
+ * Loading state with timeline skeletons (the page header stays above it)
  */
 const ExperienceListSkeleton = () => {
   return (
     <div className="space-y-12">
-      <PageHeader
-        title="Work Experience"
-        description="A chronological journey through my professional career"
-        icon={<Briefcase />}
-      />
-
       <div className="relative max-w-6xl mx-auto">
         <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-muted/30 -translate-x-1/2 hidden lg:block" />
         <div className="absolute left-2.5 top-0 bottom-0 w-0.5 bg-muted/30 lg:hidden" />
@@ -189,12 +184,6 @@ const ExperienceListContent = () => {
 
   return (
     <div className="space-y-12">
-      <PageHeader
-        title="Work Experience"
-        description="A chronological journey through my professional career"
-        icon={<Briefcase />}
-      />
-
       {displayedExperiences.length > 0 ? (
         <div className="relative max-w-6xl mx-auto">
           <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-linear-to-b from-primary/50 via-primary to-primary/20 -translate-x-1/2 hidden lg:block" />
@@ -375,15 +364,26 @@ const TimelineCard = ({
 };
 
 /**
- * Main experience list component with timeline layout and pagination
+ * Main experience list component with timeline layout and pagination. A failed load stays in the
+ * timeline's place, under the page header, with a retry.
  */
 export const ExperienceList = () => {
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12 max-w-7xl">
-        <Suspense fallback={<ExperienceListSkeleton />}>
-          <ExperienceListContent />
-        </Suspense>
+      <div className="container mx-auto px-4 py-12 max-w-7xl space-y-12">
+        <PageHeader
+          title="Work Experience"
+          description="A chronological journey through my professional career"
+          icon={<Briefcase />}
+        />
+        <QueryErrorBoundary
+          section="work experience"
+          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
+        >
+          <Suspense fallback={<ExperienceListSkeleton />}>
+            <ExperienceListContent />
+          </Suspense>
+        </QueryErrorBoundary>
       </div>
     </Layout>
   );

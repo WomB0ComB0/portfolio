@@ -14,70 +14,72 @@
  * limitations under the License.
  */
 
-import { Elysia, StatusMap } from 'elysia';
-import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
+import { Elysia } from 'elysia';
 import {
-  getArticlesHandler,
-  getCertificationsHandler,
-  getExperiencesHandler,
-  getFeaturedProjectsHandler,
-  getPlacesHandler,
-  getPresentationsHandler,
-  getProjectsHandler,
-  getResumeHandler,
-  getTalksHandler,
-  getYoutubeVideosHandler,
-} from './handlers';
-import { sanityCacheHeaders, sanityMiddleware } from './middleware';
+  getArticles,
+  getCertifications,
+  getExperiences,
+  getFeaturedProjects,
+  getPlaces,
+  getPresentations,
+  getProjects,
+  getResume,
+} from '@/lib/sanity/api';
+import { loadTalks, loadYoutubeVideos } from './handlers';
+import { sanityMiddleware } from './middleware';
+import { sanityRoute } from './serve';
 
-const handleExperiencesError = createErrorHandler({
-  context: 'fetch experiences from Sanity',
-  includeErrorDetails: false,
-});
-
-const handleProjectsError = createErrorHandler({
-  context: 'fetch projects from Sanity',
-  includeErrorDetails: false,
-});
-
-const handleFeaturedProjectsError = createErrorHandler({
-  context: 'fetch featured projects from Sanity',
-  includeErrorDetails: false,
-});
-
-const handleCertificationsError = createErrorHandler({
-  context: 'fetch certifications from Sanity',
-  includeErrorDetails: false,
-});
-
-const handlePlacesError = createErrorHandler({
-  context: 'fetch places from Sanity',
-  includeErrorDetails: false,
-});
-
-const handleResumeError = createErrorHandler({
+// Each route sets its own headers (serve.ts): only real answers get a public cache header.
+const resume = sanityRoute({
+  key: 'resume',
   context: 'fetch resume from Sanity',
-  includeErrorDetails: false,
+  load: getResume,
+  notFoundMessage: 'No active resume',
 });
-
-const handlePresentationsError = createErrorHandler({
+const experiences = sanityRoute({
+  key: 'experiences',
+  context: 'fetch experiences from Sanity',
+  load: getExperiences,
+});
+const projects = sanityRoute({
+  key: 'projects',
+  context: 'fetch projects from Sanity',
+  load: getProjects,
+});
+const featuredProjects = sanityRoute({
+  key: 'featured-projects',
+  context: 'fetch featured projects from Sanity',
+  load: getFeaturedProjects,
+});
+const certifications = sanityRoute({
+  key: 'certifications',
+  context: 'fetch certifications from Sanity',
+  load: getCertifications,
+});
+const places = sanityRoute({
+  key: 'places',
+  context: 'fetch places from Sanity',
+  load: getPlaces,
+});
+const presentations = sanityRoute({
+  key: 'presentations',
   context: 'fetch presentations from Sanity',
-  includeErrorDetails: false,
+  load: getPresentations,
 });
-
-const handleTalksError = createErrorHandler({
+const talks = sanityRoute({
+  key: 'talks',
   context: 'fetch talks from Sanity',
-  includeErrorDetails: false,
+  load: loadTalks,
 });
-
-const handleArticlesError = createErrorHandler({
+const articles = sanityRoute({
+  key: 'articles',
   context: 'fetch articles from Sanity',
-  includeErrorDetails: false,
+  load: getArticles,
 });
-
-const handleYoutubeVideosError = createErrorHandler({
+const videos = sanityRoute({
+  key: 'videos',
   context: 'fetch YouTube videos from Sanity',
-  includeErrorDetails: false,
+  load: loadYoutubeVideos,
 });
 
 /**
@@ -86,86 +88,13 @@ const handleYoutubeVideosError = createErrorHandler({
  */
 export const sanityRoutes = new Elysia({ prefix: '/sanity' })
   .onBeforeHandle(sanityMiddleware)
-  .onAfterHandle(({ set }) => {
-    Object.assign(set.headers, sanityCacheHeaders());
-  })
-  .get('/resume', async ({ set }) => {
-    try {
-      return await getResumeHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleResumeError(error);
-    }
-  })
-  .get('/experiences', async ({ set }) => {
-    try {
-      return await getExperiencesHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleExperiencesError(error);
-    }
-  })
-  .get('/projects', async ({ set }) => {
-    try {
-      return await getProjectsHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleProjectsError(error);
-    }
-  })
-  .get('/projects/featured', async ({ set }) => {
-    try {
-      return await getFeaturedProjectsHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleFeaturedProjectsError(error);
-    }
-  })
-  .get('/certifications', async ({ set }) => {
-    try {
-      return await getCertificationsHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleCertificationsError(error);
-    }
-  })
-  .get('/places', async ({ set }) => {
-    try {
-      return await getPlacesHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handlePlacesError(error);
-    }
-  })
-  .get('/presentations', async ({ set }) => {
-    try {
-      return await getPresentationsHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handlePresentationsError(error);
-    }
-  })
-  .get('/talks', async ({ set }) => {
-    try {
-      return await getTalksHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleTalksError(error);
-    }
-  })
-  .get('/articles', async ({ set }) => {
-    try {
-      return await getArticlesHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleArticlesError(error);
-    }
-  })
-  .get('/videos', async ({ set }) => {
-    try {
-      return await getYoutubeVideosHandler();
-    } catch (error) {
-      set.status = StatusMap['Internal Server Error'];
-      return handleYoutubeVideosError(error);
-    }
-  });
+  .get('/resume', ({ set }) => resume(set))
+  .get('/experiences', ({ set }) => experiences(set))
+  .get('/projects', ({ set }) => projects(set))
+  .get('/projects/featured', ({ set }) => featuredProjects(set))
+  .get('/certifications', ({ set }) => certifications(set))
+  .get('/places', ({ set }) => places(set))
+  .get('/presentations', ({ set }) => presentations(set))
+  .get('/talks', ({ set }) => talks(set))
+  .get('/articles', ({ set }) => articles(set))
+  .get('/videos', ({ set }) => videos(set));

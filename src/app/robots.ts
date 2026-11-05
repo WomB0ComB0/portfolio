@@ -16,36 +16,44 @@
 
 import type { MetadataRoute } from 'next';
 
+const SITEMAP_URL = 'https://mikeodnis.dev/sitemap.xml';
+
 /**
- * Generates robots.txt configuration for the website
+ * Interim: pages still load their content in the browser from /api/v1/*, so a crawler kept out of
+ * /api/ renders them empty. Until pages render their data on the server, crawlers may read the
+ * content API and the OG image route. Narrow this back to `/api/og` once they do.
+ */
+const ALLOW = ['/', '/api/v1/', '/api/og'];
+
+/**
+ * The rest of /api/ (admin, status, health) stays closed, as do the /api/v1 service endpoints,
+ * which carry no page content. Crawlers use the longest matching rule, so these beat `/api/v1/`.
+ */
+const DISALLOW = ['/api/', '/api/v1/health', '/api/v1/info', '/api/v1/status', '/api/v1/version'];
+
+/** The rules every user-agent group shares; each group gets its own copy. */
+const crawlRules = (): { allow: string[]; disallow: string[] } => ({
+  allow: [...ALLOW],
+  disallow: [...DISALLOW],
+});
+
+/**
+ * Generates robots.txt.
  *
- * @returns {MetadataRoute.Robots} Robot rules configuration object containing crawler rules and sitemap location
- *
- * @example
- * // Returns robot rules allowing Googlebot, Applebot and Bingbot access to /api/og/*
- * // while blocking /api/ and /legal paths
- * robots();
+ * @returns {MetadataRoute.Robots} Crawler rules and the sitemap location.
  *
  * @remarks
- * - Allows access to /api/og/* for preview image generation
- * - Blocks access to general API routes and legal pages
- * - Configures rules separately for Googlebot vs Applebot/Bingbot
- * - Points to sitemap.xml for complete site structure
+ * - Googlebot, Applebot and Bingbot keep their own groups, and every other crawler gets the `*`
+ *   group. All of them share one set of rules.
+ * - Pages and the read-only content API are allowed; admin and service endpoints are not.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      {
-        userAgent: 'Googlebot',
-        allow: ['/'],
-        disallow: ['/api/', '/legal'],
-      },
-      {
-        userAgent: ['Applebot', 'Bingbot'],
-        allow: ['/'],
-        disallow: ['/api/', '/legal'],
-      },
+      { userAgent: 'Googlebot', ...crawlRules() },
+      { userAgent: ['Applebot', 'Bingbot'], ...crawlRules() },
+      { userAgent: '*', ...crawlRules() },
     ],
-    sitemap: 'https://mikeodnis.dev/sitemap.xml',
+    sitemap: SITEMAP_URL,
   };
 }

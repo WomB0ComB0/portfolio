@@ -15,35 +15,35 @@
  */
 
 /**
- * Represents a pending request in the queue
+ * A request in flight that concurrent identical calls share.
  */
 export interface PendingRequest<T> {
-  /** Promise that resolves when the request completes */
-  promise: Promise<T>;
-  /** Timestamp when the request was queued */
-  timestamp: number;
-  /** Number of consumers waiting for this request */
-  refCount: number;
+  /** Settles when the request does; every sharing caller gets this same promise. */
+  readonly promise: Promise<T>;
+  /** When the request started (ms since epoch), to stop sharing one that never settles. */
+  readonly startedAt: number;
+  /** The request's URL, for the warning logged when a hung request is dropped. */
+  readonly url: string;
 }
 
 /**
- * Configuration for rate limiting per endpoint
+ * Options for `requestQueue.enqueue`.
  */
-export interface RateLimitConfig {
-  /** Minimum time (ms) between requests to the same endpoint */
-  minInterval: number;
-  /** Maximum number of requests per time window */
-  maxRequests: number;
-  /** Time window (ms) for maxRequests */
-  windowMs: number;
-}
-
-/**
- * Tracks request timing for rate limiting
- */
-export interface RequestTiming {
-  /** Last request timestamp */
-  lastRequest: number;
-  /** Request timestamps within current window */
-  requests: number[];
+export interface EnqueueOptions {
+  /**
+   * Request body. Calls share only when their bodies are the same JSON value (or both absent).
+   * Any other body (FormData, a Blob, URLSearchParams, a stream, a class instance) can't be
+   * compared that way, so the call runs on its own.
+   */
+  readonly body?: unknown;
+  /** Request headers; calls whose Authorization or Content-Type differ are never shared. */
+  readonly headers?: Readonly<Record<string, string>>;
+  /**
+   * Names what the executor makes of the response, such as the schema it decodes it with. Calls
+   * with different result keys never share a request, so no caller receives a result decoded for
+   * another. Set one whenever callers of the same URL decode it differently.
+   */
+  readonly resultKey?: string;
+  /** Always run this call on its own, even when an identical one is in flight. */
+  readonly bypassDeduplication?: boolean;
 }
