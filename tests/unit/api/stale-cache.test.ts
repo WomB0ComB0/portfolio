@@ -24,10 +24,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createStaleCache,
-  STALE_RETRY_BACKOFF_MS,
-} from '@/app/api/v1/[[...route]]/shared/stale-cache';
+import { createStaleCache, STALE_RETRY_BACKOFF_MS } from '@/lib/cache/stale-cache';
 
 const TTL_MS = 1_000;
 

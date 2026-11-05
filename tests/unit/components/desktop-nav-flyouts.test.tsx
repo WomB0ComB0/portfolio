@@ -36,17 +36,18 @@ vi.mock('@/env', () => {
 });
 
 /** The rail beside some page content and a page field. */
-const renderRail = (path = '/') =>
-  render(
-    <KBarProvider>
-      <p>Page content</p>
-      <NavBar path={path} />
-      <label>
-        Message
-        <input />
-      </label>
-    </KBarProvider>,
-  );
+const rail = (path: string) => (
+  <KBarProvider>
+    <p>Page content</p>
+    <NavBar path={path} />
+    <label>
+      Message
+      <input />
+    </label>
+  </KBarProvider>
+);
+
+const renderRail = (path = '/') => render(rail(path));
 
 const trigger = (label: string) => screen.getByRole('button', { name: `${label} section` });
 
@@ -132,6 +133,16 @@ describe('NavBar flyouts', () => {
     fireEvent.pointerDown(screen.getByText('Page content'));
 
     await expectClosed('Legal');
+  });
+
+  it('closes when the route changes some other way, such as Back, since the shell stays mounted', async () => {
+    const { rerender } = renderRail('/projects');
+    fireEvent.click(trigger('Personal'));
+    expect(expanded('Personal')).toBe('true');
+
+    rerender(rail('/places'));
+
+    await expectClosed('Personal');
   });
 
   it('stays open for a click inside its own panel', () => {

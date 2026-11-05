@@ -24,7 +24,6 @@ import { PaginationControls, usePagination } from '@/app/_components';
 import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
 import { PlaceCard } from '@/app/(routes)/(main)/(personal)/places/_components/place-card';
 import { MagicCard, PageHeader } from '@/components';
-import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FilterBar } from '@/components/ui/filter-bar';
@@ -298,16 +297,14 @@ const PlacesContent = () => {
  * layout, with a retry.
  */
 export const Places = () => (
-  <Layout>
-    <QueryErrorBoundary
-      queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.places)]}
-      fallback={(_error, retry) => <PlacesLoadError retry={retry} />}
-    >
-      <Suspense fallback={<LoadingState />}>
-        <PlacesContent />
-      </Suspense>
-    </QueryErrorBoundary>
-  </Layout>
+  <QueryErrorBoundary
+    queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.places)]}
+    fallback={(_error, retry) => <PlacesLoadError retry={retry} />}
+  >
+    <Suspense fallback={<LoadingState />}>
+      <PlacesContent />
+    </Suspense>
+  </QueryErrorBoundary>
 );
 Places.displayName = 'Places';
 export default Places;

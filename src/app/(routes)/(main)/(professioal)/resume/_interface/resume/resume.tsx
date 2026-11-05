@@ -21,7 +21,6 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { MagicCard, PageHeader } from '@/components';
-import Layout from '@/components/layout/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -197,18 +196,16 @@ const ResumeContent = () => {
  * <Resume />
  */
 export const Resume = () => (
-  <Layout>
-    <QueryErrorBoundary
-      queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.resume)]}
-      fallback={(error, retry) => (
-        <ResumeUnavailable retry={isNoActiveResume(error) ? undefined : retry} />
-      )}
-    >
-      <Suspense fallback={<ResumeSkeleton />}>
-        <ResumeContent />
-      </Suspense>
-    </QueryErrorBoundary>
-  </Layout>
+  <QueryErrorBoundary
+    queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.resume)]}
+    fallback={(error, retry) => (
+      <ResumeUnavailable retry={isNoActiveResume(error) ? undefined : retry} />
+    )}
+  >
+    <Suspense fallback={<ResumeSkeleton />}>
+      <ResumeContent />
+    </Suspense>
+  </QueryErrorBoundary>
 );
 Resume.displayName = 'Resume';
 export default Resume;

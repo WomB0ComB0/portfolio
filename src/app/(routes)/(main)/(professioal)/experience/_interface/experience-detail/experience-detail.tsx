@@ -31,7 +31,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { type JSX, Suspense } from 'react';
 import { MagicCard } from '@/components';
-import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -290,18 +289,16 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
  */
 export const ExperienceDetail = ({ params }: ExperienceDetailProps): JSX.Element => {
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <QueryErrorBoundary
-          section="this experience"
-          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
-        >
-          <Suspense fallback={<ExperienceDetailSkeleton />}>
-            <ExperienceDetailContent id={params.id} />
-          </Suspense>
-        </QueryErrorBoundary>
-      </div>
-    </Layout>
+    <div className="container mx-auto px-4 py-12">
+      <QueryErrorBoundary
+        section="this experience"
+        queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
+      >
+        <Suspense fallback={<ExperienceDetailSkeleton />}>
+          <ExperienceDetailContent id={params.id} />
+        </Suspense>
+      </QueryErrorBoundary>
+    </div>
   );
 };
 ExperienceDetail.displayName = 'ExperienceDetail';

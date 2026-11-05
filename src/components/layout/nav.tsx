@@ -300,6 +300,13 @@ export const NavBar = memo(({ path }: { path: string }) => {
     isPaletteShown: state.visualState !== VisualState.hidden,
   }));
   const [openGroupId, setOpenGroupId] = useState<NavGroupId | null>(null);
+  // The shell stays mounted across navigations, so a route change the rail didn't make itself
+  // (Back, Forward) must close the open flyout here, or it stays open over the new page.
+  const [groupsPath, setGroupsPath] = useState(path);
+  if (groupsPath !== path) {
+    setGroupsPath(path);
+    setOpenGroupId(null);
+  }
 
   const toggleGroup = useCallback(
     (id: NavGroupId) => setOpenGroupId((current) => (current === id ? null : id)),

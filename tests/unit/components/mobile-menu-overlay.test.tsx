@@ -51,12 +51,13 @@ const renderOverlay = (pathname: string) =>
     />,
   );
 
-const renderBar = (path = '/') =>
-  render(
-    <KBarProvider>
-      <MobileNavBar path={path} />
-    </KBarProvider>,
-  );
+const bar = (path: string) => (
+  <KBarProvider>
+    <MobileNavBar path={path} />
+  </KBarProvider>
+);
+
+const renderBar = (path = '/') => render(bar(path));
 
 const menuButton = () => screen.getByRole('button', { name: 'Open navigation menu' });
 
@@ -180,6 +181,17 @@ describe('MobileNavBar menu button', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(menuButton()).toHaveFocus();
+  });
+
+  it('closes when the route changes some other way, such as Back, since the shell stays mounted', async () => {
+    const { rerender } = renderBar('/projects');
+    openMenu();
+    await flushFocus();
+
+    rerender(bar('/experience'));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('leaves focus in the palette search when its Command Menu item opens the palette', async () => {

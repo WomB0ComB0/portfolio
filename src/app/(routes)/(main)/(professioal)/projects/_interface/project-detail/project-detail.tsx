@@ -23,7 +23,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { type JSX, Suspense } from 'react';
 import { FaGithub } from 'react-icons/fa';
-import Layout from '@/components/layout/layout';
 import { BorderBeam, MagicCard } from '@/components/magicui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -330,16 +329,14 @@ const ProjectLoadError = ({ retry }: { retry: () => void }): JSX.Element => (
 
 /** The project page. A failed load keeps the site's layout and offers a retry. */
 export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => (
-  <Layout>
-    <QueryErrorBoundary
-      queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.projects)]}
-      fallback={(_error, retry) => <ProjectLoadError retry={retry} />}
-    >
-      <Suspense fallback={<ProjectDetailSkeleton />}>
-        <ProjectDetailContent params={params} />
-      </Suspense>
-    </QueryErrorBoundary>
-  </Layout>
+  <QueryErrorBoundary
+    queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.projects)]}
+    fallback={(_error, retry) => <ProjectLoadError retry={retry} />}
+  >
+    <Suspense fallback={<ProjectDetailSkeleton />}>
+      <ProjectDetailContent params={params} />
+    </Suspense>
+  </QueryErrorBoundary>
 );
 ProjectDetail.displayName = 'ProjectDetail';
 export default ProjectDetail;

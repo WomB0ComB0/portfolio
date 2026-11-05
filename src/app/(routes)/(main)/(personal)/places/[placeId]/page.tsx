@@ -21,7 +21,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
-import Layout from '@/components/layout/layout';
 import { MagicCard } from '@/components/magicui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -466,20 +465,18 @@ const PlacePhotosContent = ({ params }: PhotoModalProps) => {
  * suspending up to src/app/loading.tsx, whose full-screen loader would replace it.
  */
 const PlacePhotosPage = ({ params }: PhotoModalProps) => (
-  <Layout>
-    <QueryErrorBoundary
-      queryKeys={PLACES_QUERY_KEYS}
-      fallback={(_error, retry) => (
-        <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-          <SectionLoadError section="this place" retry={retry} />
-        </div>
-      )}
-    >
-      <Suspense fallback={<PlacePhotosSkeleton />}>
-        <PlacePhotosContent params={params} />
-      </Suspense>
-    </QueryErrorBoundary>
-  </Layout>
+  <QueryErrorBoundary
+    queryKeys={PLACES_QUERY_KEYS}
+    fallback={(_error, retry) => (
+      <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+        <SectionLoadError section="this place" retry={retry} />
+      </div>
+    )}
+  >
+    <Suspense fallback={<PlacePhotosSkeleton />}>
+      <PlacePhotosContent params={params} />
+    </Suspense>
+  </QueryErrorBoundary>
 );
 PlacePhotosPage.displayName = 'PlacePhotosPage';
 export default PlacePhotosPage;

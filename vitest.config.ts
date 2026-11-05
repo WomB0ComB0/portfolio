@@ -41,6 +41,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@tests': path.resolve(__dirname, './tests'),
+      // The real package throws outside the react-server condition, which Vitest does not set.
+      // Next resolves it itself for server components and route handlers.
+      'server-only': path.resolve(__dirname, './tests/setup/server-only.ts'),
     },
   },
 });

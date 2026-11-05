@@ -15,31 +15,28 @@
  */
 
 /**
- * @fileoverview 404 Not Found page component and metadata configuration
- * @module NotFoundPage
+ * @fileoverview The 404 page for unmatched URLs.
+ *
+ * Next renders this root file for any URL no route matches, inside the root layout but outside
+ * route-group layouts, so the (routes) shell is not around it. It wraps the shell itself: a typo
+ * URL still gets the nav, the skip link, the command palette and the footer. notFound() thrown by
+ * a page under (routes) renders src/app/(routes)/not-found.tsx instead, inside that shell.
  */
 
-import { NotFound } from '@/app/_client';
+import type { JSX } from 'react';
+import { NotFoundView } from '@/app/_components/errors';
+import { Layout } from '@/components/layout/layout';
 import { constructMetadata } from '@/utils';
 
-/**
- * Metadata configuration for 404 page using constructMetadata utility
- * @type {Object} Metadata object containing title and description
- * @property {string} title - Page title set to '404'
- * @property {string} description - Page description indicating page does not exist
- */
 export const metadata = constructMetadata({
   title: '404',
   description: 'This page does not exist',
 });
 
-/**
- * NotFoundPage component that renders the 404 error page
- * @function NotFoundPage
- * @returns {React.JSX.Element} Rendered NotFound component
- */
-export const NotFoundPage = () => {
-  return <NotFound />;
-};
-NotFoundPage.displayName = 'NotFoundPage';
-export default NotFoundPage;
+export default function NotFoundPage(): JSX.Element {
+  return (
+    <Layout>
+      <NotFoundView />
+    </Layout>
+  );
+}

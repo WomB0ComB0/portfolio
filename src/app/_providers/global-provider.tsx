@@ -22,6 +22,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { KBarProvider } from 'kbar';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import { WebVitals } from '@/app/_components';
 import { Toaster } from '@/components/ui/sonner';
@@ -62,9 +63,11 @@ export const GlobalProvider: React.FC<
    * @private
    * @web
    * @description
-   * Creates a memoized QueryClient instance for TanStack Query.
+   * The QueryClient for this mount, created once. createQueryClient's React cache() memoizes
+   * nothing in a client component, so calling it during render would build a new client (and an
+   * empty query cache) on every re-render of this provider.
    */
-  const queryClient = createQueryClient()();
+  const [queryClient] = useState(() => createQueryClient()());
 
   return (
     <>
@@ -80,8 +83,9 @@ export const GlobalProvider: React.FC<
             <>
               {/*
                * @public
-               * @description The page. Each page's Layout renders its <main> landmark (PageMain),
-               * which also plays the entrance animation on client-side navigations.
+               * @description The page. The (routes) layout wraps it in the site shell, whose
+               * <main> landmark persists across client-side navigations while PageEnter fades
+               * each new page in.
                */}
               {children}
               {/*
