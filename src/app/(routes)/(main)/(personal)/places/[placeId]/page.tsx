@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { cn } from '@/lib/utils';
+import { QueryErrorBoundary, SectionLoadError } from '@/providers/server/effect-data-loader';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
 import { viewerPhotoUrl } from './_components/viewer-photo-url';
@@ -61,7 +62,11 @@ const variants = {
 
 const MotionImage = motion.create(Image);
 
-const PlacePhotosPage = ({ params }: PhotoModalProps) => {
+/**
+ * The place's details and photo viewer. useSanityPlaces suspends while loading and throws a failed
+ * load to the QueryErrorBoundary in PlacePhotosPage.
+ */
+const PlacePhotosContent = ({ params }: PhotoModalProps) => {
   const { placeId } = use(params);
   const { data: sanityPlaces, isLoading } = useSanityPlaces();
   const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
@@ -184,78 +189,43 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
 
   if (isLoading) {
     return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-          <Card className="w-full max-w-7xl">
-            <CardHeader className="space-y-4">
-              <Skeleton className="h-8 w-64" />
-              <Skeleton className="h-4 w-full max-w-md" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="w-full aspect-video rounded-lg" />
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
+      <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+        <Card className="w-full max-w-7xl">
+          <CardHeader className="space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-full max-w-md" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="w-full aspect-video rounded-lg" />
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (!place) {
     return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-          <MagicCard className="max-w-md">
-            <CardContent className="flex flex-col items-center gap-6 p-12 text-center">
-              <div className="space-y-3">
-                <h1 className="text-2xl font-bold leading-tight">Place not found</h1>
-                <p className="text-muted-foreground leading-relaxed">
-                  This place may have been removed, or the link is incomplete.
-                </p>
-              </div>
-              <Button asChild variant="outline" size="lg" className="text-foreground">
-                <Link href="/places">Back to Places</Link>
-              </Button>
-            </CardContent>
-          </MagicCard>
-        </div>
-      </Layout>
+      <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+        <MagicCard className="max-w-md">
+          <CardContent className="flex flex-col items-center gap-6 p-12 text-center">
+            <div className="space-y-3">
+              <h1 className="text-2xl font-bold leading-tight">Place not found</h1>
+              <p className="text-muted-foreground leading-relaxed">
+                This place may have been removed, or the link is incomplete.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="lg" className="text-foreground">
+              <Link href="/places">Back to Places</Link>
+            </Button>
+          </CardContent>
+        </MagicCard>
+      </div>
     );
   }
 
   // No photos (yet, or ever): still show the place in full, since the list card cuts it short.
   if (photos.length === 0) {
     return (
-      <Layout>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="min-h-screen p-4 md:p-8"
-        >
-          <div className="w-full max-w-7xl mx-auto">
-            <MagicCard>
-              <CardHeader>
-                <PlaceSummary
-                  name={place.name}
-                  category={place.category}
-                  description={place.description}
-                  startDate={place.startDate}
-                  endDate={place.endDate}
-                  closeLabel="Close"
-                />
-              </CardHeader>
-              <CardContent>
-                <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
-              </CardContent>
-            </MagicCard>
-          </div>
-        </motion.div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -264,195 +234,240 @@ const PlacePhotosPage = ({ params }: PhotoModalProps) => {
       >
         <div className="w-full max-w-7xl mx-auto">
           <MagicCard>
-            <CardHeader className="space-y-4">
+            <CardHeader>
               <PlaceSummary
                 name={place.name}
                 category={place.category}
                 description={place.description}
                 startDate={place.startDate}
                 endDate={place.endDate}
-                closeLabel="Close photo viewer"
+                closeLabel="Close"
               />
-
-              {photos.length > 1 && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-medium">
-                    Photo {currentPhotoIndex + 1} of {photos.length}
-                  </span>
-                  <span className="text-xs opacity-70">← Drag to navigate →</span>
-                </div>
-              )}
             </CardHeader>
-
-            <CardContent className="space-y-6">
-              <div
-                ref={fullscreenRef}
-                className={cn(
-                  'relative w-full aspect-video bg-muted rounded-lg overflow-hidden',
-                  isFullscreen && 'fixed inset-0 z-50 bg-black rounded-none aspect-auto',
-                )}
-              >
-                <AnimatePresence initial={false} custom={direction}>
-                  <motion.div
-                    key={currentPhotoIndex}
-                    custom={direction}
-                    variants={variants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{
-                      x: { type: 'spring', stiffness: 300, damping: 30 },
-                      opacity: { duration: 0.2 },
-                    }}
-                    drag={zoom === 1 && photos.length > 1 ? 'x' : false}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={1}
-                    onDragEnd={(_e, { offset, velocity }) => {
-                      if (zoom === 1) {
-                        const swipe = swipePower(offset.x, velocity.x);
-
-                        if (swipe < -swipeConfidenceThreshold) {
-                          paginate(1);
-                        } else if (swipe > swipeConfidenceThreshold) {
-                          paginate(-1);
-                        }
-                      }
-                    }}
-                    className="absolute inset-0" // ensure it truly fills the wrapper
-                  >
-                    {imageUrl ? (
-                      <div
-                        ref={containerRef}
-                        // Fill the frame so object-contain shows every photo whole and centred. A
-                        // fixed 4:3 box overflowed the 16:9 frame and clipped the bottom quarter.
-                        className={cn(
-                          'relative select-none flex items-center justify-center w-full h-full',
-                          zoom > 1 && 'cursor-move',
-                          zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
-                        )}
-                        onPointerDown={handlePanStart}
-                        onPointerUp={handlePanEnd}
-                        onPointerLeave={handlePanEnd}
-                        onPointerMove={handlePan}
-                      >
-                        <MotionImage
-                          src={imageUrl}
-                          alt={currentPhoto?.caption || `Photo of ${place.name}`}
-                          ref={imageRef}
-                          fill
-                          className="object-contain"
-                          sizes={
-                            isFullscreen
-                              ? '100vw'
-                              : '(max-width:768px) 100vw, (max-width:1200px) 75vw, 50vw'
-                          }
-                          draggable={false}
-                          style={{ scale: zoom, x: zoomX, y: zoomY }}
-                          loading="eager"
-                          priority={true} // optional
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <p className="text-muted-foreground">No image available</p>
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-
-                <AnimatePresence>
-                  {imageUrl && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto z-10"
-                    >
-                      <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-lg">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={handleZoomIn}
-                          disabled={zoom >= 3}
-                          aria-label="Zoom in"
-                        >
-                          <FiZoomIn className="h-4 w-4" />
-                        </Button>
-                        <span className="px-2 text-sm font-medium min-win-12 text-center">
-                          {Math.round(zoom * 100)}%
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={handleZoomOut}
-                          disabled={zoom === 1}
-                          aria-label="Zoom out"
-                        >
-                          <FiZoomOut className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        onClick={toggleFullscreen}
-                        className="shadow-lg"
-                        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                      >
-                        {isFullscreen ? (
-                          <FiX className="h-4 w-4" />
-                        ) : (
-                          <FiMaximize className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {currentPhoto?.caption && (
-                <motion.div
-                  key={`caption-${currentPhotoIndex}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-muted/50 rounded-lg p-6"
-                >
-                  <p className="text-sm text-muted-foreground leading-relaxed italic text-center">
-                    {currentPhoto.caption}
-                  </p>
-                </motion.div>
-              )}
-
-              {photos.length > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-2">
-                  {photos.map((_, index) => (
-                    <Button
-                      key={`${+index}`}
-                      onClick={() => {
-                        const newDirection = index > currentPhotoIndex ? 1 : -1;
-                        setPage([index, newDirection]);
-                        setZoom(1);
-                        zoomX.set(0);
-                        zoomY.set(0);
-                      }}
-                      className={cn(
-                        'h-2 rounded-full transition-all',
-                        index === currentPhotoIndex
-                          ? 'w-8 bg-primary'
-                          : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
-                      )}
-                      aria-label={`Go to photo ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
+            <CardContent>
+              <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
             </CardContent>
           </MagicCard>
         </div>
       </motion.div>
-    </Layout>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen p-4 md:p-8"
+    >
+      <div className="w-full max-w-7xl mx-auto">
+        <MagicCard>
+          <CardHeader className="space-y-4">
+            <PlaceSummary
+              name={place.name}
+              category={place.category}
+              description={place.description}
+              startDate={place.startDate}
+              endDate={place.endDate}
+              closeLabel="Close photo viewer"
+            />
+
+            {photos.length > 1 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="font-medium">
+                  Photo {currentPhotoIndex + 1} of {photos.length}
+                </span>
+                <span className="text-xs opacity-70">← Drag to navigate →</span>
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div
+              ref={fullscreenRef}
+              className={cn(
+                'relative w-full aspect-video bg-muted rounded-lg overflow-hidden',
+                isFullscreen && 'fixed inset-0 z-50 bg-black rounded-none aspect-auto',
+              )}
+            >
+              <AnimatePresence initial={false} custom={direction}>
+                <motion.div
+                  key={currentPhotoIndex}
+                  custom={direction}
+                  variants={variants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: 'spring', stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 },
+                  }}
+                  drag={zoom === 1 && photos.length > 1 ? 'x' : false}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={1}
+                  onDragEnd={(_e, { offset, velocity }) => {
+                    if (zoom === 1) {
+                      const swipe = swipePower(offset.x, velocity.x);
+
+                      if (swipe < -swipeConfidenceThreshold) {
+                        paginate(1);
+                      } else if (swipe > swipeConfidenceThreshold) {
+                        paginate(-1);
+                      }
+                    }
+                  }}
+                  className="absolute inset-0" // ensure it truly fills the wrapper
+                >
+                  {imageUrl ? (
+                    <div
+                      ref={containerRef}
+                      // Fill the frame so object-contain shows every photo whole and centred. A
+                      // fixed 4:3 box overflowed the 16:9 frame and clipped the bottom quarter.
+                      className={cn(
+                        'relative select-none flex items-center justify-center w-full h-full',
+                        zoom > 1 && 'cursor-move',
+                        zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
+                      )}
+                      onPointerDown={handlePanStart}
+                      onPointerUp={handlePanEnd}
+                      onPointerLeave={handlePanEnd}
+                      onPointerMove={handlePan}
+                    >
+                      <MotionImage
+                        src={imageUrl}
+                        alt={currentPhoto?.caption || `Photo of ${place.name}`}
+                        ref={imageRef}
+                        fill
+                        className="object-contain"
+                        sizes={
+                          isFullscreen
+                            ? '100vw'
+                            : '(max-width:768px) 100vw, (max-width:1200px) 75vw, 50vw'
+                        }
+                        draggable={false}
+                        style={{ scale: zoom, x: zoomX, y: zoomY }}
+                        loading="eager"
+                        priority={true} // optional
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <p className="text-muted-foreground">No image available</p>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {imageUrl && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto z-10"
+                  >
+                    <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-lg">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleZoomIn}
+                        disabled={zoom >= 3}
+                        aria-label="Zoom in"
+                      >
+                        <FiZoomIn className="h-4 w-4" />
+                      </Button>
+                      <span className="px-2 text-sm font-medium min-win-12 text-center">
+                        {Math.round(zoom * 100)}%
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleZoomOut}
+                        disabled={zoom === 1}
+                        aria-label="Zoom out"
+                      >
+                        <FiZoomOut className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={toggleFullscreen}
+                      className="shadow-lg"
+                      aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                    >
+                      {isFullscreen ? (
+                        <FiX className="h-4 w-4" />
+                      ) : (
+                        <FiMaximize className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {currentPhoto?.caption && (
+              <motion.div
+                key={`caption-${currentPhotoIndex}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-muted/50 rounded-lg p-6"
+              >
+                <p className="text-sm text-muted-foreground leading-relaxed italic text-center">
+                  {currentPhoto.caption}
+                </p>
+              </motion.div>
+            )}
+
+            {photos.length > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                {photos.map((_, index) => (
+                  <Button
+                    key={`${+index}`}
+                    onClick={() => {
+                      const newDirection = index > currentPhotoIndex ? 1 : -1;
+                      setPage([index, newDirection]);
+                      setZoom(1);
+                      zoomX.set(0);
+                      zoomY.set(0);
+                    }}
+                    className={cn(
+                      'h-2 rounded-full transition-all',
+                      index === currentPhotoIndex
+                        ? 'w-8 bg-primary'
+                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                    )}
+                    aria-label={`Go to photo ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </MagicCard>
+      </div>
+    </motion.div>
   );
 };
+
+/**
+ * The place page. A failed load of the places stays inside the site's layout, with a retry; an
+ * unknown id still shows "Place not found".
+ */
+const PlacePhotosPage = ({ params }: PhotoModalProps) => (
+  <Layout>
+    <QueryErrorBoundary
+      fallback={(_error, retry) => (
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+          <SectionLoadError section="this place" retry={retry} />
+        </div>
+      )}
+    >
+      <PlacePhotosContent params={params} />
+    </QueryErrorBoundary>
+  </Layout>
+);
 PlacePhotosPage.displayName = 'PlacePhotosPage';
 export default PlacePhotosPage;

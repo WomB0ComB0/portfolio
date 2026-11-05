@@ -38,6 +38,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { formatDatePeriod } from '@/utils';
 
 /**
@@ -284,15 +285,18 @@ const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
 };
 
 /**
- * Renders the ExperienceDetail page, including suspense state and layout.
+ * Renders the ExperienceDetail page, including suspense state and layout. A failed load stays
+ * inside the layout, with a retry; an unknown id still reaches Next's 404 through notFound().
  */
 export const ExperienceDetail = ({ params }: ExperienceDetailProps): JSX.Element => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
-        <Suspense fallback={<ExperienceDetailSkeleton />}>
-          <ExperienceDetailContent id={params.id} />
-        </Suspense>
+        <QueryErrorBoundary section="this experience">
+          <Suspense fallback={<ExperienceDetailSkeleton />}>
+            <ExperienceDetailContent id={params.id} />
+          </Suspense>
+        </QueryErrorBoundary>
       </div>
     </Layout>
   );

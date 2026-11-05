@@ -14,470 +14,153 @@
  * limitations under the License.
  */
 
+/**
+ * @file Loaders for the Sanity routes that add YouTube data to what Sanity stores. Caching, and
+ * what a failure answers, is up to the route (see serve.ts). A Sanity failure always throws.
+ */
+
+import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
-import { fetchYouTubeVideoMetadataBatch } from '@/lib/api-integrations/youtube';
+import type { Talk, YoutubeVideo } from '@/hooks/sanity/schemas';
 import {
-  getCertifications,
-  getExperiences,
-  getFeaturedProjects,
-  getPlaces,
-  getProjects,
-  getResume,
-} from '@/lib/sanity/api';
+  fetchChannelVideos,
+  fetchYouTubeVideoMetadataBatch,
+  type YouTubeVideoMetadata,
+} from '@/lib/api-integrations/youtube';
+import { getTalks, getYoutubeVideos } from '@/lib/sanity/api';
 import { logger } from '@/utils';
 
-const CACHE_DURATION = 60 * 5 * 1000; // 5 minutes
-const caches = new Map<string, { data: any; timestamp: number }>();
+/** The channel whose uploads are listed next to the videos stored in Sanity. */
+const YOUTUBE_CHANNEL_HANDLE = '@mikeodnis';
+/** The most uploads one YouTube API page answers. */
+const CHANNEL_VIDEO_LIMIT = 50;
+/** Channel videos sort after Sanity's own in `order`. */
+const CHANNEL_ORDER_OFFSET = 100;
+const YOUTUBE_VIDEO_ID = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/;
 
-function getCached<T>(key: string): T | null {
-  const cached = caches.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.data;
-  }
-  return null;
-}
+/** A video in the /videos answer, tagged with where it came from. */
+export type ListedVideo = YoutubeVideo & { readonly source: 'sanity' | 'youtube-api' };
 
-function setCache(key: string, data: any): void {
-  caches.set(key, { data, timestamp: Date.now() });
-}
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
-/**
- * Get all experiences from Sanity
- */
-export async function getExperiencesHandler() {
-  const cached = getCached('experiences');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const experiences = await getExperiences();
-    setCache('experiences', experiences);
-    return experiences;
-  } catch (error) {
-    logger.error('Error in getExperiencesHandler:', error);
-    throw new Error('Failed to fetch experiences');
-  }
-}
+const youtubeIdOfTalk = (talk: Talk): string | null =>
+  talk.videoFormat === 'youtube' ? (talk.videoUrl?.match(YOUTUBE_VIDEO_ID)?.[1] ?? null) : null;
 
 /**
- * Get all projects from Sanity
+ * Replaces stored durations with YouTube's. Durations are optional, so a YouTube failure keeps
+ * the stored ones instead of failing the route.
  */
-export async function getProjectsHandler() {
-  const cached = getCached('projects');
-  if (cached) {
-    return cached;
-  }
+async function withYoutubeDurations(talks: Talk[], apiKey: string): Promise<Talk[]> {
+  const videoIds = talks.map(youtubeIdOfTalk).filter((id): id is string => id !== null);
+  if (videoIds.length === 0) return talks;
 
   try {
-    const projects = await getProjects();
-    setCache('projects', projects);
-    return projects;
-  } catch (error) {
-    logger.error('Error in getProjectsHandler:', error);
-    throw new Error('Failed to fetch projects');
-  }
-}
-
-/**
- * Get featured projects from Sanity
- */
-export async function getFeaturedProjectsHandler() {
-  const cached = getCached('featuredProjects');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const projects = await getFeaturedProjects();
-    setCache('featuredProjects', projects);
-    return projects;
-  } catch (error) {
-    logger.error('Error in getFeaturedProjectsHandler:', error);
-    throw new Error('Failed to fetch featured projects');
-  }
-}
-
-/**
- * Get all certifications from Sanity
- */
-export async function getCertificationsHandler() {
-  const cached = getCached('certifications');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const certifications = await getCertifications();
-    setCache('certifications', certifications);
-    return certifications;
-  } catch (error) {
-    logger.error('Error in getCertificationsHandler:', error);
-    throw new Error('Failed to fetch certifications');
-  }
-}
-
-/**
- * Get all places from Sanity
- */
-export async function getPlacesHandler() {
-  const cached = getCached('places');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const places = await getPlaces();
-    setCache('places', places);
-    return places;
-  } catch (error) {
-    logger.error('Error in getPlacesHandler:', error);
-    throw new Error('Failed to fetch places');
-  }
-}
-
-/**
- * Get active resume from Sanity
- */
-export async function getResumeHandler() {
-  const cached = getCached('resume');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const resume = await getResume();
-    setCache('resume', resume);
-    return resume;
-  } catch (error) {
-    logger.error('Error in getResumeHandler:', error);
-    throw new Error('Failed to fetch resume');
-  }
-}
-
-/**
- * Get all presentations from Sanity
- */
-export async function getPresentationsHandler() {
-  const cached = getCached('presentations');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const { getPresentations } = await import('@/lib/sanity/api');
-    const presentations = await getPresentations();
-    setCache('presentations', presentations);
-    return presentations;
-  } catch (error) {
-    logger.error('Error in getPresentationsHandler:', error);
-    return [];
-  }
-}
-
-/**
- * Get all talks from Sanity, enriched with dynamic duration from YouTube API where applicable
- */
-export async function getTalksHandler() {
-  const cached = getCached('talks');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const { getTalks } = await import('@/lib/sanity/api');
-    const talks = await getTalks();
-
-    // Enrich talks with dynamic duration from YouTube API if API key is available
-    const apiKey = env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    logger.info('YouTube API enrichment for talks:', {
-      hasApiKey: !!apiKey,
-      apiKeyLength: apiKey?.length,
-      talksCount: talks.length,
+    const metadata = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
+    return talks.map((talk) => {
+      const duration = metadata.get(youtubeIdOfTalk(talk) ?? '')?.duration;
+      return duration ? { ...talk, duration } : talk;
     });
-
-    if (apiKey && talks.length > 0) {
-      try {
-        // Extract YouTube video IDs from talks
-        const youtubeVideoIds = talks
-          .filter((talk) => talk.videoFormat === 'youtube' && talk.videoUrl)
-          .map((talk) => {
-            // Extract video ID from YouTube URL
-            const url = talk.videoUrl!;
-            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
-            return match ? match[1] : null;
-          })
-          .filter((id): id is string => id !== null);
-
-        logger.info('Extracted YouTube video IDs from talks:', {
-          videoIdsCount: youtubeVideoIds.length,
-          videoIds: youtubeVideoIds,
-        });
-
-        if (youtubeVideoIds.length > 0) {
-          const metadataMap = await fetchYouTubeVideoMetadataBatch(youtubeVideoIds, apiKey);
-          logger.info('Fetched YouTube metadata for talks:', {
-            metadataCount: metadataMap.size,
-            videoIds: Array.from(metadataMap.keys()),
-          });
-
-          // Enrich talks with fetched duration
-          const enrichedTalks = talks.map((talk) => {
-            if (talk.videoFormat === 'youtube' && talk.videoUrl) {
-              const url = talk.videoUrl;
-              const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
-              const videoId = match ? match[1] : null;
-
-              if (videoId) {
-                const metadata = metadataMap.get(videoId);
-                if (metadata?.duration) {
-                  logger.info('Enriching talk with YouTube duration:', {
-                    talkId: talk._id,
-                    videoId,
-                    duration: metadata.duration,
-                  });
-                  return {
-                    ...talk,
-                    duration: metadata.duration, // Override with dynamic duration
-                  };
-                }
-              }
-            }
-            return talk;
-          });
-
-          logger.info('Enriched talks result:', {
-            totalTalks: enrichedTalks.length,
-            enrichedCount: enrichedTalks.filter((t) => t.duration).length,
-          });
-
-          setCache('talks', enrichedTalks);
-          return enrichedTalks;
-        }
-      } catch (ytError: unknown) {
-        logger.warn('Failed to fetch YouTube metadata for talks, using fallback durations:', {
-          error: ytError instanceof Error ? ytError.message : String(ytError),
-        });
-        // Fall through to return talks without enrichment
-      }
-    }
-
-    setCache('talks', talks);
+  } catch (error) {
+    logger.warn('Failed to fetch YouTube durations for talks, keeping the stored ones', {
+      error: messageOf(error),
+    });
     return talks;
-  } catch (error) {
-    logger.error('Error in getTalksHandler:', error);
-    return [];
   }
 }
 
-/**
- * Get all articles from Sanity
- */
-export async function getArticlesHandler() {
-  const cached = getCached('articles');
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const { getArticles } = await import('@/lib/sanity/api');
-    const articles = await getArticles();
-    setCache('articles', articles);
-    return articles;
-  } catch (error) {
-    logger.error('Error in getArticlesHandler:', error);
-    return [];
-  }
+/** All talks, with YouTube durations where a key is set. Throws when Sanity fails. */
+export async function loadTalks(): Promise<Talk[]> {
+  const talks = await getTalks();
+  const apiKey = env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  return apiKey ? withYoutubeDurations(talks, apiKey) : talks;
 }
 
-/**
- * Dummy data for YouTube videos (shown when no real data exists)
- * Note: duration field is intentionally undefined to allow YouTube API enrichment
- */
-const DUMMY_YOUTUBE_VIDEOS = [
-  {
-    _id: 'dummy-video-1',
-    _type: 'youtubeVideo' as const,
-    _createdAt: '2025-03-10T00:00:00Z',
-    _updatedAt: '2025-03-10T00:00:00Z',
-    _rev: 'dummy-rev-1',
-    title: 'Placeholder - Will be fetched from YouTube', // Will be replaced by YouTube API
-    description: 'Placeholder description - Will be fetched from YouTube API', // Will be replaced by YouTube API
-    videoId: 'dQw4w9WgXcQ', // Real YouTube video ID - all metadata will be fetched dynamically
-    publishedDate: '2025-03-10T00:00:00Z',
-    duration: undefined, // Will be enriched by YouTube API
-    tags: ['YouTube', 'Video'],
-    order: 1,
-  },
-  {
-    _id: 'dummy-video-2',
-    _type: 'youtubeVideo' as const,
-    _createdAt: '2025-02-25T00:00:00Z',
-    _updatedAt: '2025-02-25T00:00:00Z',
-    _rev: 'dummy-rev-2',
-    title: 'Placeholder - Will be fetched from YouTube', // Will be replaced by YouTube API
-    description: 'Placeholder description - Will be fetched from YouTube API', // Will be replaced by YouTube API
-    videoId: 'jjMbPt_H3RQ', // Real YouTube video ID - all metadata will be fetched dynamically
-    publishedDate: '2025-02-25T00:00:00Z',
-    duration: undefined, // Will be enriched by YouTube API
-    tags: ['YouTube', 'Video'],
-    order: 2,
-  },
-  {
-    _id: 'dummy-video-3',
-    _type: 'youtubeVideo' as const,
-    _createdAt: '2025-01-30T00:00:00Z',
-    _updatedAt: '2025-01-30T00:00:00Z',
-    _rev: 'dummy-rev-3',
-    title: 'Placeholder - Will be fetched from YouTube', // Will be replaced by YouTube API
-    description: 'Placeholder description - Will be fetched from YouTube API', // Will be replaced by YouTube API
-    videoId: 'jNQXAC9IVRw', // Real YouTube video ID - "Me at the zoo" - all metadata will be fetched dynamically
-    publishedDate: '2025-01-30T00:00:00Z',
-    duration: undefined, // Will be enriched by YouTube API
-    tags: ['YouTube', 'Video'],
-    order: 3,
-  },
-];
+const toChannelVideo = (video: YouTubeVideoMetadata, index: number): ListedVideo => ({
+  _id: `yt-channel-${video.videoId}`,
+  _type: 'youtubeVideo',
+  _createdAt: video.publishedAt,
+  _updatedAt: video.publishedAt,
+  _rev: `yt-${video.videoId}`,
+  videoId: video.videoId,
+  title: video.title,
+  description: video.description,
+  publishedDate: video.publishedAt,
+  duration: video.duration,
+  tags: ['YouTube'],
+  order: index + CHANNEL_ORDER_OFFSET,
+  source: 'youtube-api',
+});
 
 /**
- * Get all YouTube videos from Sanity, enriched with dynamic duration from YouTube API,
- * plus videos fetched directly from the @mikeodnis YouTube channel
+ * The channel's uploads. They are most of the list, so a failure fails the route (which then
+ * serves its last good list) rather than answering a list that silently lost them.
  */
-export async function getYoutubeVideosHandler() {
-  const cached = getCached('youtubeVideos');
-  if (cached) {
-    return cached;
-  }
-
+async function loadChannelVideos(apiKey: string): Promise<ListedVideo[]> {
   try {
-    const { getYoutubeVideos } = await import('@/lib/sanity/api');
-    const { fetchChannelVideos } = await import('@/lib/api-integrations/youtube');
-
-    let sanityVideos = await getYoutubeVideos();
-
-    // Use dummy data if no real data exists in Sanity
-    if (sanityVideos.length === 0) {
-      sanityVideos = DUMMY_YOUTUBE_VIDEOS;
-    }
-
-    const apiKey = env.YOUTUBE_SERVER_API_KEY;
-
-    logger.info('YouTube video fetching:', {
-      hasApiKey: !!apiKey,
-      sanityVideosCount: sanityVideos.length,
+    const videos = await fetchChannelVideos(YOUTUBE_CHANNEL_HANDLE, apiKey, {
+      maxResults: CHANNEL_VIDEO_LIMIT,
     });
+    return videos.map(toChannelVideo);
+  } catch (error) {
+    throw ensureBaseError(error, 'youtube:channel-videos', { channel: YOUTUBE_CHANNEL_HANDLE });
+  }
+}
 
-    if (!apiKey) {
-      // No API key - return Sanity videos without enrichment
-      setCache('youtubeVideos', sanityVideos);
-      return sanityVideos;
-    }
+/**
+ * Replaces stored titles, descriptions and durations with YouTube's. The stored ones are real
+ * too, so a YouTube failure keeps them instead of failing the route.
+ */
+async function withYoutubeMetadata(
+  videos: YoutubeVideo[],
+  apiKey: string,
+): Promise<YoutubeVideo[]> {
+  if (videos.length === 0) return videos;
 
-    // Fetch videos from the @mikeodnis YouTube channel
-    let channelVideos: Array<{
-      _id: string;
-      _type: 'youtubeVideo';
-      _createdAt: string;
-      _updatedAt: string;
-      _rev: string;
-      videoId: string;
-      title: string;
-      description: string;
-      publishedDate: string;
-      duration: string;
-      tags: string[];
-      order: number;
-      source: 'youtube-api';
-    }> = [];
-
-    try {
-      const rawChannelVideos = await fetchChannelVideos('@mikeodnis', apiKey, { maxResults: 50 });
-
-      logger.info('Fetched channel videos:', {
-        count: rawChannelVideos.length,
-      });
-
-      // Transform YouTube API response to match Sanity schema
-      channelVideos = rawChannelVideos.map((video, index) => ({
-        _id: `yt-channel-${video.videoId}`,
-        _type: 'youtubeVideo' as const,
-        _createdAt: video.publishedAt,
-        _updatedAt: video.publishedAt,
-        _rev: `yt-${video.videoId}`,
-        videoId: video.videoId,
-        title: video.title,
-        description: video.description,
-        publishedDate: video.publishedAt,
-        duration: video.duration,
-        tags: ['YouTube'] as string[],
-        order: index + 100, // Lower priority than Sanity videos
-        source: 'youtube-api' as const,
-      }));
-    } catch (channelError) {
-      logger.warn('Failed to fetch YouTube channel videos:', {
-        error: channelError instanceof Error ? channelError.message : String(channelError),
-      });
-      // Continue with just Sanity videos
-    }
-
-    // Enrich Sanity videos with metadata from YouTube API
-    let enrichedSanityVideos = sanityVideos;
-
-    try {
-      const videoIds = sanityVideos.map((v) => v.videoId);
-      const metadataMap = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
-
-      logger.info('YouTube API metadata response:', {
-        fetchedCount: metadataMap.size,
-      });
-
-      // Enrich videos with fetched metadata (title, description, duration)
-      enrichedSanityVideos = sanityVideos.map((video) => {
-        const metadata = metadataMap.get(video.videoId);
-        if (metadata) {
-          return {
-            ...video,
-            title: metadata.title,
-            description: metadata.description,
-            duration: metadata.duration,
-          };
-        }
-        return video;
-      });
-    } catch (ytError) {
-      logger.warn('Failed to enrich Sanity videos with YouTube metadata:', {
-        error: ytError instanceof Error ? ytError.message : String(ytError),
-      });
-    }
-
-    // Create a Set of Sanity video IDs the user has explicitly added
-    const sanityVideoIds = new Set(sanityVideos.map((v) => v.videoId));
-
-    // Filter out channel videos that already exist in Sanity (Sanity data takes precedence)
-    const uniqueChannelVideos = channelVideos.filter((video) => !sanityVideoIds.has(video.videoId));
-
-    // Merge: Sanity videos first (higher priority), then channel videos
-    const allVideos = [
-      ...enrichedSanityVideos.map((v) => ({ ...v, source: 'sanity' as const })),
-      ...uniqueChannelVideos,
-    ];
-
-    // Sort by publish date (newest first)
-    allVideos.sort(
-      (a, b) => new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
+  try {
+    const metadata = await fetchYouTubeVideoMetadataBatch(
+      videos.map((video) => video.videoId),
+      apiKey,
     );
-
-    logger.info('Final video list:', {
-      sanityCount: enrichedSanityVideos.length,
-      channelCount: uniqueChannelVideos.length,
-      totalCount: allVideos.length,
+    return videos.map((video) => {
+      const live = metadata.get(video.videoId);
+      return live
+        ? { ...video, title: live.title, description: live.description, duration: live.duration }
+        : video;
     });
-
-    setCache('youtubeVideos', allVideos);
-    return allVideos;
   } catch (error) {
-    logger.error('Error in getYoutubeVideosHandler:', error);
-    // Return dummy data on error for preview purposes
-    return DUMMY_YOUTUBE_VIDEOS;
+    logger.warn('Failed to fetch YouTube metadata for Sanity videos, keeping the stored ones', {
+      error: messageOf(error),
+    });
+    return videos;
   }
+}
+
+const byNewest = (a: ListedVideo, b: ListedVideo): number =>
+  new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime();
+
+/** Sanity's videos win over the same video from the channel; newest first. */
+function mergeVideos(sanityVideos: YoutubeVideo[], channelVideos: ListedVideo[]): ListedVideo[] {
+  const sanityIds = new Set(sanityVideos.map((video) => video.videoId));
+  return [
+    ...sanityVideos.map((video): ListedVideo => ({ ...video, source: 'sanity' })),
+    ...channelVideos.filter((video) => !sanityIds.has(video.videoId)),
+  ].sort(byNewest);
+}
+
+/**
+ * The videos stored in Sanity plus the channel's uploads. With no Sanity videos that is the
+ * channel alone, and with no YouTube key it is Sanity's list alone (possibly empty). Throws when
+ * Sanity or the channel listing fails.
+ */
+export async function loadYoutubeVideos(): Promise<YoutubeVideo[]> {
+  const sanityVideos = await getYoutubeVideos();
+  const apiKey = env.YOUTUBE_SERVER_API_KEY;
+  if (!apiKey) return sanityVideos;
+
+  const [channelVideos, enrichedVideos] = await Promise.all([
+    loadChannelVideos(apiKey),
+    withYoutubeMetadata(sanityVideos, apiKey),
+  ]);
+  return mergeVideos(enrichedVideos, channelVideos);
 }

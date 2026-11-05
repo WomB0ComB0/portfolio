@@ -25,8 +25,11 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
+import { AlertTriangle } from 'lucide-react';
+import { unstable_rethrow } from 'next/navigation';
 import React, { Suspense, useCallback, useMemo } from 'react';
 import { ClientError, Loader } from '@/components/client';
+import { Button } from '@/components/ui/button';
 import {
   FetcherError,
   type FetcherOptions,
@@ -206,10 +209,13 @@ function renderErrorComponent(
  */
 const isReportedElsewhere = (error: unknown): boolean => error instanceof FetcherError;
 
+/** Renders a failed load in place of the children, with a retry that loads again. */
+export type LoadFailureFallback = (error: Error, retry: () => void) => React.ReactNode;
+
 interface LoadFailureBoundaryProps {
   children: React.ReactNode;
   /** Renders the failure in place of the children. */
-  fallback: (error: Error, retry: () => void) => React.ReactNode;
+  fallback: LoadFailureFallback;
   /** Runs before the children render again: QueryErrorResetBoundary's `reset`. */
   onRetry: () => void;
 }
@@ -221,6 +227,11 @@ interface LoadFailureBoundaryState {
 /**
  * Keeps a failed first load inside its DataLoader. useSuspenseQuery throws when it has no data to
  * show; without this boundary the error reaches src/app/error.tsx, which replaces the whole page.
+ *
+ * A query that awaits Effect.runPromise directly rejects with Effect's FiberFailure (DataLoader and
+ * useDataLoader unwrap it already), so the boundary unwraps it too: the fallback gets the
+ * fetcher's own error (a FetcherError keeps its `status`), and the reporting rule sees it too.
+ * Next's notFound() and redirect() pass through to Next's own boundaries.
  */
 class LoadFailureBoundary extends React.Component<
   LoadFailureBoundaryProps,
@@ -229,11 +240,14 @@ class LoadFailureBoundary extends React.Component<
   state: LoadFailureBoundaryState = { error: null };
 
   static getDerivedStateFromError(error: unknown): LoadFailureBoundaryState {
-    return { error: error instanceof Error ? error : new Error(String(error)) };
+    unstable_rethrow(error);
+    const failure = unwrapEffectError(error);
+    return { error: failure instanceof Error ? failure : new Error(String(failure)) };
   }
 
   componentDidCatch(error: unknown): void {
-    if (!isReportedElsewhere(error)) reportError(error);
+    const failure = unwrapEffectError(error);
+    if (!isReportedElsewhere(failure)) reportError(failure);
   }
 
   /** Lets the query fetch again on remount (TanStack keeps a thrown error otherwise), then remounts. */
@@ -246,6 +260,67 @@ class LoadFailureBoundary extends React.Component<
     const { error } = this.state;
     return error ? this.props.fallback(error, this.retry) : this.props.children;
   }
+}
+
+/** What {@link SectionLoadError} shows: which section failed, and how to load it again. */
+export interface SectionLoadErrorProps {
+  /** Completes "Couldn't load … right now.", e.g. 'certifications' or 'this project'. */
+  section: string;
+  /** Loads the section again. */
+  retry: () => void;
+}
+
+/** The default section fallback: a short notice and a Try again button. */
+export function SectionLoadError({ section, retry }: SectionLoadErrorProps): React.ReactElement {
+  return (
+    <div
+      role="alert"
+      className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border/50 bg-card/40 px-6 py-12 text-center backdrop-blur-sm"
+    >
+      <AlertTriangle className="h-8 w-8 text-destructive" aria-hidden="true" />
+      <p className="text-foreground">Couldn't load {section} right now.</p>
+      <Button type="button" variant="outline" onClick={retry}>
+        Try again
+      </Button>
+    </div>
+  );
+}
+
+/** Either a section name for the default notice, or the page's own error UI. */
+export type QueryErrorBoundaryProps = { children: React.ReactNode } & (
+  | { section: string; fallback?: never }
+  | { fallback: LoadFailureFallback; section?: never }
+);
+
+/**
+ * Keeps a failed first load of a suspense query (useDataLoader, the useSanity* hooks) inside one
+ * section of a page, as DataLoader does for its children: the page's shell and other sections
+ * stay, and the fallback's retry loads the query again. Reporting is DataLoader's: a failed fetch
+ * is not reported again (the API route reports its upstream failure), while an answer the schema
+ * rejects or a render bug is reported once.
+ *
+ * @example
+ * <QueryErrorBoundary section="certifications">
+ *   <Suspense fallback={<Skeleton />}><Certifications /></Suspense>
+ * </QueryErrorBoundary>
+ */
+export function QueryErrorBoundary(props: QueryErrorBoundaryProps): React.ReactElement {
+  const { children } = props;
+  const renderFailure: LoadFailureFallback =
+    props.fallback === undefined
+      ? (_error, retry) => <SectionLoadError section={props.section} retry={retry} />
+      : props.fallback;
+
+  // Each boundary gets its own reset scope, so retrying one section does not refetch the others.
+  return (
+    <QueryErrorResetBoundary>
+      {({ reset }) => (
+        <LoadFailureBoundary onRetry={reset} fallback={renderFailure}>
+          {children}
+        </LoadFailureBoundary>
+      )}
+    </QueryErrorResetBoundary>
+  );
 }
 
 type DataLoaderImplProps<T, S extends Schema.Schema<any, any, never>> = (
@@ -338,6 +413,8 @@ function DataLoaderContent<T = unknown, S extends Schema.Schema<any, any, never>
             return await Effect.runPromise(effect);
           },
           {
+            // The query string is built from params, so calls that differ in it never share.
+            body: params,
             headers: fetcherOptions?.headers,
             bypassDeduplication: false,
           },
@@ -468,16 +545,11 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
 
   // Each DataLoader gets its own reset scope, so retrying one card does not refetch the others.
   return (
-    <QueryErrorResetBoundary>
-      {({ reset }) => (
-        <LoadFailureBoundary
-          onRetry={reset}
-          fallback={(error, retry) => renderErrorComponent(ErrorComponent, error, retry)}
-        >
-          <DataLoaderContent {...props} />
-        </LoadFailureBoundary>
-      )}
-    </QueryErrorResetBoundary>
+    <QueryErrorBoundary
+      fallback={(error, retry) => renderErrorComponent(ErrorComponent, error, retry)}
+    >
+      <DataLoaderContent {...props} />
+    </QueryErrorBoundary>
   );
 }
 
@@ -550,21 +622,30 @@ export function useDataLoader(url: string, options: any = {}) {
 
   const queryFn = useCallback(async () => {
     // Wrap the Effect execution in the request queue for automatic deduplication
-    const result = await requestQueue.enqueue(
-      url,
-      'GET',
-      async () => {
-        const effect = pipe(
-          get(url, enhancedFetcherOptions, params as QueryParams),
-          Effect.provide(FetchHttpClient.layer),
-        );
-        return await Effect.runPromise(effect);
-      },
-      {
-        headers: enhancedFetcherOptions?.headers,
-        bypassDeduplication: false,
-      },
-    );
+    const result = await requestQueue
+      .enqueue(
+        url,
+        'GET',
+        async () => {
+          const effect = pipe(
+            get(url, enhancedFetcherOptions, params as QueryParams),
+            Effect.provide(FetchHttpClient.layer),
+          );
+          return await Effect.runPromise(effect);
+        },
+        {
+          // The query string is built from params, so calls that differ in it never share.
+          body: params,
+          headers: enhancedFetcherOptions?.headers,
+          bypassDeduplication: false,
+        },
+      )
+      .catch((error: unknown) => {
+        // Effect.runPromise rejects with a FiberFailure; reject with the fetcher's own error
+        // instead (a FetcherError keeps its status), as DataLoaderContent does, so the query's
+        // error, the QueryCache log and QueryErrorBoundary all see the same thing.
+        throw unwrapEffectError(error);
+      });
 
     const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
 

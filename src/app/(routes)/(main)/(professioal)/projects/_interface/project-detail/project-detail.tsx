@@ -21,7 +21,7 @@ import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import type { JSX } from 'react';
+import { type JSX, Suspense } from 'react';
 import { FaGithub } from 'react-icons/fa';
 import Layout from '@/components/layout/layout';
 import { BorderBeam, MagicCard } from '@/components/magicui';
@@ -31,12 +31,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { QueryErrorBoundary, SectionLoadError } from '@/providers/server/effect-data-loader';
 import { formatDatePeriod, formatMonthYear } from '@/utils';
 import { DraggableGallery } from '../../_components';
 import type { ProjectDetailProps } from './project-detail.types';
 
 const ProjectDetailSkeleton = (): JSX.Element => (
-  <Layout>
+  <>
     <div className="relative w-full h-[70vh] min-h-[500px] max-h-[700px] bg-muted/50 animate-pulse">
       <div className="absolute top-8 left-8 z-20">
         <div className="h-10 w-32 bg-muted/80 backdrop-blur-sm animate-pulse rounded-lg" />
@@ -86,15 +87,13 @@ const ProjectDetailSkeleton = (): JSX.Element => (
         </Card>
       </div>
     </div>
-  </Layout>
+  </>
 );
 
-export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
-  const { data: projects, isLoading } = useSanityProjects();
-
-  if (isLoading) {
-    return <ProjectDetailSkeleton />;
-  }
+// useSanityProjects suspends while loading and throws a failed load to the QueryErrorBoundary in
+// ProjectDetail. An unknown id still reaches Next's 404 through notFound().
+const ProjectDetailContent = ({ params }: ProjectDetailProps): JSX.Element => {
+  const { data: projects } = useSanityProjects();
 
   const project = projects?.find((p) => p._id === params.id);
 
@@ -112,7 +111,7 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
   }
 
   return (
-    <Layout>
+    <>
       <div className="relative w-full h-[60vh] min-h-[450px] max-h-[650px] flex items-center justify-center overflow-hidden">
         {project.image && (
           <>
@@ -314,8 +313,26 @@ export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
+
+/** Shown in the page's place, inside the site's layout, when the projects fail to load. */
+const ProjectLoadError = ({ retry }: { retry: () => void }): JSX.Element => (
+  <div className="container mx-auto px-4 py-24">
+    <SectionLoadError section="this project" retry={retry} />
+  </div>
+);
+
+/** The project page. A failed load keeps the site's layout and offers a retry. */
+export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => (
+  <Layout>
+    <QueryErrorBoundary fallback={(_error, retry) => <ProjectLoadError retry={retry} />}>
+      <Suspense fallback={<ProjectDetailSkeleton />}>
+        <ProjectDetailContent params={params} />
+      </Suspense>
+    </QueryErrorBoundary>
+  </Layout>
+);
 ProjectDetail.displayName = 'ProjectDetail';
 export default ProjectDetail;

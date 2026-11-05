@@ -14,61 +14,47 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
-import { currentlyPlayingSong } from '@/lib';
+import { type CurrentlyPlayingTrack, currentlyPlayingSong } from '@/lib/api-integrations/spotify';
+import type { NowPlayingResponse } from './schema';
 
-const SpotifyArtistSchema = Schema.Struct({
-  name: Schema.String,
-});
+export type { NowPlayingResponse } from './schema';
 
-const SpotifyImageSchema = Schema.Struct({
-  url: Schema.String,
-});
+const SPOTIFY_LINK_HOST = 'open.spotify.com';
+/** Spotify's image CDN, the host next.config allows next/image to load album art from. */
+const SPOTIFY_IMAGE_HOST = 'i.scdn.co';
 
-const SpotifyAlbumSchema = Schema.Struct({
-  images: Schema.Array(SpotifyImageSchema),
-});
-
-const SpotifyExternalUrlsSchema = Schema.Struct({
-  spotify: Schema.String,
-});
-
-const SpotifyTrackSchema = Schema.Struct({
-  name: Schema.String,
-  artists: Schema.Array(SpotifyArtistSchema),
-  album: SpotifyAlbumSchema,
-  external_urls: SpotifyExternalUrlsSchema,
-});
-
-const SpotifyResponseSchema = Schema.Struct({
-  is_playing: Schema.Boolean,
-  item: Schema.optional(SpotifyTrackSchema),
-});
-
-const NowPlayingResponseSchema = Schema.Struct({
-  isPlaying: Schema.Boolean,
-  songName: Schema.optional(Schema.String),
-  artistName: Schema.optional(Schema.String),
-  songURL: Schema.optional(Schema.String),
-  imageURL: Schema.optional(Schema.String),
-});
-
-export type SpotifyResponse = Schema.Schema.Type<typeof SpotifyResponseSchema>;
-export type NowPlayingResponse = Schema.Schema.Type<typeof NowPlayingResponseSchema>;
-
-export async function getNowPlaying(): Promise<NowPlayingResponse> {
-  const response = (await currentlyPlayingSong()) as SpotifyResponse | null;
-
-  if (!response || !response.is_playing) {
-    return { isPlaying: false };
+/** `value` as an https URL on `hostname`, or undefined, so the cards only link to Spotify. */
+const httpsUrlOn = (value: string | undefined, hostname: string): string | undefined => {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === hostname ? url.href : undefined;
+  } catch {
+    return undefined;
   }
+};
 
+const fromTrack = (track: CurrentlyPlayingTrack): NowPlayingResponse => {
+  const artistName = track.artists.map((artist) => artist.name).join(', ');
   return {
-    isPlaying: response.is_playing,
-    songName: response.item?.name,
-    // TODO: flag
-    artistName: response.item?.artists?.map((artist: any) => artist.name).join(', '),
-    songURL: response.item?.external_urls?.spotify,
-    imageURL: response.item?.album?.images?.[0]?.url,
+    isPlaying: true,
+    songName: track.name,
+    artistName: artistName || undefined,
+    songURL: httpsUrlOn(track.external_urls?.spotify, SPOTIFY_LINK_HOST),
+    artistURL: httpsUrlOn(track.artists[0]?.external_urls?.spotify, SPOTIFY_LINK_HOST),
+    imageURL: httpsUrlOn(track.album?.images[0]?.url, SPOTIFY_IMAGE_HOST),
   };
+};
+
+/**
+ * What is playing on Spotify, shaped for the site's cards. Nothing playing (Spotify's 204, or a
+ * paused player) is `{ isPlaying: false }`. Failures throw, so the route answers 500 rather than
+ * claiming nothing is playing.
+ */
+export async function getNowPlaying(): Promise<NowPlayingResponse> {
+  const playback = await currentlyPlayingSong();
+  if (!playback?.is_playing) return { isPlaying: false };
+  // Playing, but not a track: an episode or an ad has no track details to show.
+  if (!playback.item) return { isPlaying: true };
+  return fromTrack(playback.item);
 }

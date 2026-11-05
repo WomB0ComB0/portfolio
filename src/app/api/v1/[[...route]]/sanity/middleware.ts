@@ -28,6 +28,18 @@ export const sanityCacheHeaders = createCacheHeaders({
 });
 
 /**
+ * For the last good answer, served while Sanity fails: the CDN asks again within a minute, so
+ * fresh content shows soon after Sanity recovers.
+ */
+export const sanityStaleCacheHeaders = createCacheHeaders('Short');
+
+/** For errors and missing documents, which no CDN or browser may store. */
+export const sanityNoStoreHeaders = createCacheHeaders({
+  contentType: 'application/json',
+  cacheControl: 'no-store',
+});
+
+/**
  * Middleware for Sanity routes
  * Handles request/response logging
  */

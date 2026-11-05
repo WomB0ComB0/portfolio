@@ -18,7 +18,7 @@
 
 import { Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { FiMapPin } from 'react-icons/fi';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { GoogleMaps } from '@/app/(routes)/(main)/(personal)/places/_components';
@@ -33,6 +33,7 @@ import { useDebounce } from '@/hooks';
 import type { Place } from '@/hooks/sanity/schemas';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
+import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import type { PhotoItem, PlaceItem } from '@/types/places';
 import { validateUserInput } from '@/utils';
 
@@ -82,38 +83,57 @@ const PlaceCardSkeleton = () => (
  * Loading state component
  */
 const LoadingState = () => (
-  <Layout>
-    <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
-      <div className="w-full max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-16 w-16 rounded-2xl bg-muted/50" />
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-32 sm:h-10 sm:w-40 bg-muted/50" />
-              <Skeleton className="h-5 w-32 bg-muted/50" />
-            </div>
+  <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
+    <div className="w-full max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-2xl bg-muted/50" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32 sm:h-10 sm:w-40 bg-muted/50" />
+            <Skeleton className="h-5 w-32 bg-muted/50" />
           </div>
         </div>
       </div>
-      <div className="w-full max-w-7xl mx-auto">
-        <Skeleton className="w-full h-[400px] md:h-[500px] bg-muted/50 rounded-2xl" />
-      </div>
-      <div className="w-full max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {new Array(6).fill(null).map((_, i) => (
-            <PlaceCardSkeleton key={`${+i}`} />
-          ))}
-        </div>
+    </div>
+    <div className="w-full max-w-7xl mx-auto">
+      <Skeleton className="w-full h-[400px] md:h-[500px] bg-muted/50 rounded-2xl" />
+    </div>
+    <div className="w-full max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {new Array(6).fill(null).map((_, i) => (
+          <PlaceCardSkeleton key={`${+i}`} />
+        ))}
       </div>
     </div>
-  </Layout>
+  </div>
+);
+
+/** Shown in the page's place, inside the site's layout, when the places fail to load. */
+const PlacesLoadError = ({ retry }: { retry: () => void }) => (
+  <div role="alert" className="w-full min-h-screen p-8 flex items-center justify-center">
+    <Card className="max-w-md mx-auto bg-card/50 backdrop-blur-sm border-border/50">
+      <CardContent className="py-16 px-8 text-center space-y-6">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10">
+          <FiMapPin className="text-4xl text-destructive" />
+        </div>
+        <div className="space-y-2">
+          <CardTitle className="text-xl">Unable to Load Places</CardTitle>
+          <CardDescription>Failed to fetch places data. Please try again later.</CardDescription>
+        </div>
+        <Button type="button" variant="outline" onClick={retry}>
+          Try Again
+        </Button>
+      </CardContent>
+    </Card>
+  </div>
 );
 
 /**
- * Places page component with interactive list and map
+ * The places list and map. useSanityPlaces suspends while loading and throws a failed first load
+ * to the QueryErrorBoundary in Places; a failed background refetch keeps the loaded places.
  */
-export const Places = () => {
-  const { data: sanityPlaces, isLoading, error } = useSanityPlaces();
+const PlacesContent = () => {
+  const { data: sanityPlaces } = useSanityPlaces();
 
   // placesQuery already orders dated places newest-first, then undated by `order`.
   const places: PlaceItem[] = useMemo(
@@ -183,123 +203,108 @@ export const Places = () => {
     },
   };
 
-  if (isLoading) return <LoadingState />;
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="w-full min-h-screen p-8 flex items-center justify-center">
-          <Card className="max-w-md mx-auto bg-card/50 backdrop-blur-sm border-border/50">
-            <CardContent className="py-16 px-8 text-center space-y-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10">
-                <FiMapPin className="text-4xl text-destructive" />
-              </div>
-              <div className="space-y-2">
-                <CardTitle className="text-xl">Unable to Load Places</CardTitle>
-                <CardDescription>
-                  Failed to fetch places data. Please try again later.
-                </CardDescription>
-              </div>
-              <Button variant="outline" onClick={() => globalThis.location.reload()}>
-                Try Again
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
-    <Layout>
-      <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
-        <div className="w-full max-w-7xl mx-auto">
-          <PageHeader
-            title="Places I've Visited"
-            description={`${totalCount} ${totalCount === 1 ? 'location' : 'locations'} visited`}
-            icon={<FiMapPin />}
-          />
-        </div>
+    <div className="w-full min-h-screen p-4 sm:p-6 md:p-12 space-y-8">
+      <div className="w-full max-w-7xl mx-auto">
+        <PageHeader
+          title="Places I've Visited"
+          description={`${totalCount} ${totalCount === 1 ? 'location' : 'locations'} visited`}
+          icon={<FiMapPin />}
+        />
+      </div>
 
-        <div className="w-full max-w-7xl mx-auto">
-          <FilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search places..."
-            filters={[
-              {
-                value: selectedCategory,
-                onChange: setSelectedCategory,
-                options: uniqueCategories,
-                placeholder: 'All Categories',
-                icon: <Building2 className="h-4 w-4" />,
-              },
-            ]}
-            onClear={clearFilters}
-            hasActiveFilters={hasActiveFilters}
-            resultsCount={filteredPlaces.length}
-            totalCount={places.length}
-            entityName="places"
-          />
-        </div>
+      <div className="w-full max-w-7xl mx-auto">
+        <FilterBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search places..."
+          filters={[
+            {
+              value: selectedCategory,
+              onChange: setSelectedCategory,
+              options: uniqueCategories,
+              placeholder: 'All Categories',
+              icon: <Building2 className="h-4 w-4" />,
+            },
+          ]}
+          onClear={clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          resultsCount={filteredPlaces.length}
+          totalCount={places.length}
+          entityName="places"
+        />
+      </div>
 
-        <div className="w-full max-w-7xl mx-auto">
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden shadow-xl rounded-2xl">
-            <CardContent className="p-0">
-              <div className="w-full h-[400px] md:h-[500px] relative">
-                <GoogleMaps placesToDisplay={filteredPlaces} />
+      <div className="w-full max-w-7xl mx-auto">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden shadow-xl rounded-2xl">
+          <CardContent className="p-0">
+            <div className="w-full h-[400px] md:h-[500px] relative">
+              <GoogleMaps placesToDisplay={filteredPlaces} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="w-full max-w-7xl mx-auto">
+        {displayedPlaces.length > 0 ? (
+          <>
+            <motion.div
+              variants={containerVariants}
+              initial={false}
+              animate="show"
+              className="grid gap-6 justify-center grid-cols-[repeat(auto-fit,minmax(220px,280px))]"
+            >
+              {displayedPlaces.map((place: PlaceItem) => (
+                <motion.div key={place.id} variants={itemVariants} className="h-full w-full">
+                  <PlaceCard place={place} />
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Infinite scroll trigger and load more button */}
+            <PaginationControls
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              loadMoreRef={loadMoreRef}
+              onLoadMore={loadMore}
+              loadingText="Loading more places..."
+              buttonText="Load More Places"
+            />
+          </>
+        ) : (
+          <MagicCard className="backdrop-blur-sm border-border/50">
+            <CardContent className="py-20">
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-muted/50">
+                  <FiMapPin className="text-3xl text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-foreground font-medium">No places found</p>
+                  <p className="text-muted-foreground text-sm">
+                    There are currently no locations to display.
+                  </p>
+                </div>
               </div>
             </CardContent>
-          </Card>
-        </div>
-
-        <div className="w-full max-w-7xl mx-auto">
-          {displayedPlaces.length > 0 ? (
-            <>
-              <motion.div
-                variants={containerVariants}
-                initial={false}
-                animate="show"
-                className="grid gap-6 justify-center grid-cols-[repeat(auto-fit,minmax(220px,280px))]"
-              >
-                {displayedPlaces.map((place: PlaceItem) => (
-                  <motion.div key={place.id} variants={itemVariants} className="h-full w-full">
-                    <PlaceCard place={place} />
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {/* Infinite scroll trigger and load more button */}
-              <PaginationControls
-                hasMore={hasMore}
-                isLoadingMore={isLoadingMore}
-                loadMoreRef={loadMoreRef}
-                onLoadMore={loadMore}
-                loadingText="Loading more places..."
-                buttonText="Load More Places"
-              />
-            </>
-          ) : (
-            <MagicCard className="backdrop-blur-sm border-border/50">
-              <CardContent className="py-20">
-                <div className="text-center space-y-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-muted/50">
-                    <FiMapPin className="text-3xl text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-foreground font-medium">No places found</p>
-                    <p className="text-muted-foreground text-sm">
-                      There are currently no locations to display.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </MagicCard>
-          )}
-        </div>
+          </MagicCard>
+        )}
       </div>
-    </Layout>
+    </div>
   );
 };
+
+/**
+ * Places page component with interactive list and map. A failed load stays inside the site's
+ * layout, with a retry.
+ */
+export const Places = () => (
+  <Layout>
+    <QueryErrorBoundary fallback={(_error, retry) => <PlacesLoadError retry={retry} />}>
+      <Suspense fallback={<LoadingState />}>
+        <PlacesContent />
+      </Suspense>
+    </QueryErrorBoundary>
+  </Layout>
+);
 Places.displayName = 'Places';
 export default Places;

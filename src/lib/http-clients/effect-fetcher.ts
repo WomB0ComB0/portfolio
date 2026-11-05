@@ -17,6 +17,7 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform';
 import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
 import { env } from '@/env';
+import { getURL } from '@/utils';
 
 /**
  * Configuration options for the fetcher utility.
@@ -67,28 +68,10 @@ const MAX_ERROR_BODY_CHARS = 2_000;
 /**
  * Get the base URL for API requests.
  * - Client-side: returns empty string (uses relative URLs)
- * - Server-side: returns absolute URL for SSR
+ * - Server-side: returns the site's absolute origin from getURL(), which picks it (on production,
+ *   the production domain, so SSR self-fetches go through the CDN)
  */
-const getBaseURL = (): string => {
-  // Client-side: use relative URLs
-  if (globalThis.window !== undefined) {
-    return '';
-  }
-
-  // Server-side: need absolute URL for SSR
-  // Check for explicit site URL first (production)
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
-  }
-
-  // Vercel deployment (preview/production)
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-  }
-
-  // Local development
-  return 'http://localhost:3000';
-};
+const getBaseURL = (): string => (globalThis.window === undefined ? getURL() : EMPTY);
 
 /** True when `url` is absolute and shares an origin (scheme, host and port) with `baseURL`. */
 const isOwnOrigin = (url: string, baseURL: string): boolean => {

@@ -85,17 +85,50 @@ const DashboardCard = ({
   );
 };
 
+/** GET /api/v1/now-playing. A failure is a query error (a 500), never `isPlaying: false`. */
+const NowPlayingSchema = Schema.Struct({
+  isPlaying: Schema.Boolean,
+  songName: Schema.optional(Schema.String),
+  artistName: Schema.optional(Schema.String),
+  songURL: Schema.optional(Schema.String),
+  imageURL: Schema.optional(Schema.String),
+});
+
+type NowPlayingData = Schema.Schema.Type<typeof NowPlayingSchema>;
+
+interface NowPlayingTileView {
+  title: string;
+  subtitle: string;
+  /** Only a playing track with a Spotify page makes the tile a link. */
+  href?: string;
+  imageURL?: string;
+  isLive: boolean;
+}
+
+const SPOTIFY_SUBTITLE = 'Spotify';
+
+/** What the tile says in each state of its query. A failure wins over an earlier poll's track. */
+const nowPlayingTileView = (
+  data: NowPlayingData | undefined,
+  isError: boolean,
+): NowPlayingTileView => {
+  if (isError) return { title: 'Spotify unavailable', subtitle: SPOTIFY_SUBTITLE, isLive: false };
+  if (!data) return { title: 'Checking Spotify…', subtitle: SPOTIFY_SUBTITLE, isLive: false };
+  if (!data.isPlaying) {
+    return { title: 'Not Currently Listening', subtitle: SPOTIFY_SUBTITLE, isLive: false };
+  }
+  return {
+    title: data.songName || 'Listening on Spotify',
+    subtitle: data.artistName || SPOTIFY_SUBTITLE,
+    href: data.songURL,
+    imageURL: data.imageURL,
+    isLive: true,
+  };
+};
+
 // NowPlaying card adapted to the new design
 const NowPlayingCard = () => {
-  const NowPlayingSchema = Schema.Struct({
-    isPlaying: Schema.Boolean,
-    songName: Schema.optional(Schema.String),
-    artistName: Schema.optional(Schema.String),
-    songURL: Schema.optional(Schema.String),
-    imageURL: Schema.optional(Schema.String),
-  });
-
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ['now-playing-homepage'],
     queryFn: async () => {
       // TanStack Query's shared default (shouldRetryQuery) is the single retry layer.
@@ -108,32 +141,30 @@ const NowPlayingCard = () => {
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 30,
   });
+  const view = nowPlayingTileView(data, isError);
 
   return (
-    <DashboardCard className="p-4" href={data?.songURL}>
+    <DashboardCard className="p-4" href={view.href}>
       <div className="flex items-center gap-4">
-        {data?.imageURL ? (
+        {view.imageURL ? (
+          // The track name sits right beside the art, so the image itself is decorative.
           <Image
-            src={data.imageURL}
-            alt={data.songName || 'Album art'}
+            src={view.imageURL}
+            alt=""
             width={56}
             height={56}
             className="rounded-md h-14 w-14"
           />
         ) : (
           <div className="h-14 w-14 flex items-center justify-center bg-white/5 rounded-md text-neutral-500">
-            <SiSpotify className="h-6 w-6" />
+            <SiSpotify aria-hidden="true" className="h-6 w-6" />
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">
-            {data?.isPlaying ? data.songName || 'Listening on Spotify' : 'Not Currently Listening'}
-          </p>
-          <p className="text-xs text-neutral-400 truncate">
-            {data?.isPlaying ? data.artistName || 'Spotify' : 'Spotify'}
-          </p>
+          <p className="text-sm font-medium text-white truncate">{view.title}</p>
+          <p className="text-xs text-neutral-400 truncate">{view.subtitle}</p>
         </div>
-        {data?.isPlaying && (
+        {view.isLive && (
           <Music aria-hidden="true" className="h-5 w-5 text-green-500 motion-safe:animate-pulse" />
         )}
       </div>

@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { useDebounce, useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
+import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { validateUserInput } from '@/utils';
 
 const ITEMS_PER_PAGE = 9;
@@ -60,22 +61,35 @@ const ProjectCardSkeleton = (): JSX.Element => (
 );
 
 const ProjectsListSkeleton = (): JSX.Element => (
-  <div className="space-y-12">
-    <PageHeader
-      title="My Projects"
-      description="A showcase of my work spanning web development, mobile apps, and machine learning"
-      icon={<Code />}
-    />
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {new Array(6).fill(null).map((_, i) => (
-        <ProjectCardSkeleton key={`skeleton-${+i}`} />
-      ))}
-    </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    {new Array(6).fill(null).map((_, i) => (
+      <ProjectCardSkeleton key={`skeleton-${+i}`} />
+    ))}
   </div>
 );
 
+/** Shown in the list's place, under the page header, when the projects fail to load. */
+const ProjectsLoadError = ({ retry }: { retry: () => void }): JSX.Element => (
+  <div role="alert" className="text-center py-24 space-y-6">
+    <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-destructive/10 backdrop-blur-sm">
+      <FolderGit2 className="h-12 w-12 text-destructive" />
+    </div>
+    <div className="space-y-2">
+      <h3 className="text-2xl font-bold text-foreground">Unable to Load Projects</h3>
+      <p className="text-muted-foreground max-w-md mx-auto">
+        Failed to load projects. Please try again later.
+      </p>
+    </div>
+    <Button type="button" variant="outline" onClick={retry}>
+      Try again
+    </Button>
+  </div>
+);
+
+// useSanityProjects suspends while loading and throws a failed first load to the
+// QueryErrorBoundary in ProjectsList; a failed background refetch keeps the loaded list.
 const ProjectsListContent = (): JSX.Element => {
-  const { data: projects, isLoading, error } = useSanityProjects();
+  const { data: projects } = useSanityProjects();
 
   const projectsList = projects || [];
 
@@ -157,34 +171,8 @@ const ProjectsListContent = (): JSX.Element => {
     },
   };
 
-  if (isLoading) {
-    return <ProjectsListSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-24 space-y-6">
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-destructive/10 backdrop-blur-sm">
-          <FolderGit2 className="h-12 w-12 text-destructive" />
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-2xl font-bold text-foreground">Unable to Load Projects</h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Failed to load projects. Please try again later.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-16">
-      <PageHeader
-        title="My Projects"
-        description="A showcase of my work spanning web development, mobile apps, and machine learning"
-        icon={<Code />}
-      />
-
       {/* Filter Bar */}
       <FilterBar
         searchQuery={searchQuery}
@@ -361,10 +349,17 @@ const ProjectsListContent = (): JSX.Element => {
 export const ProjectsList = (): JSX.Element => {
   return (
     <Layout>
-      <div className="container mx-auto px-4 md:px-6 py-12 max-w-7xl">
-        <Suspense fallback={<ProjectsListSkeleton />}>
-          <ProjectsListContent />
-        </Suspense>
+      <div className="container mx-auto px-4 md:px-6 py-12 max-w-7xl space-y-16">
+        <PageHeader
+          title="My Projects"
+          description="A showcase of my work spanning web development, mobile apps, and machine learning"
+          icon={<Code />}
+        />
+        <QueryErrorBoundary fallback={(_error, retry) => <ProjectsLoadError retry={retry} />}>
+          <Suspense fallback={<ProjectsListSkeleton />}>
+            <ProjectsListContent />
+          </Suspense>
+        </QueryErrorBoundary>
       </div>
     </Layout>
   );

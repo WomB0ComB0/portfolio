@@ -41,7 +41,7 @@ import {
 } from './discord-activity.utils';
 
 const NOW_PLAYING_URL = '/api/v1/now-playing';
-/** Same cadence as the Lanyard query; request-queue allows now-playing 5 calls a minute. */
+/** Same cadence as the Lanyard query. This poll is the only limit; the client queue has no cap. */
 const NOW_PLAYING_REFRESH_MS = 30_000;
 /**
  * How long an answer may be shown: two polls, so one failed poll keeps the song but an answer
