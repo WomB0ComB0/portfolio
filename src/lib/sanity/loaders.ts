@@ -17,7 +17,8 @@ import 'server-only';
 
 /**
  * @file Server Sanity data, shared by /api/v1/sanity/* and the pages. Each collection has ONE
- * stale-on-error cache:
+ * stale-on-error cache per server process, so the routes and the pages make one Sanity request
+ * per collection per TTL in each process (separate serverless instances each ask on their own):
  * - Raw readers (`readProjects`, ...) answer what the getter returned, undecoded, through that
  *   cache. The API routes serve them as they are and map failures to HTTP (see serve.ts).
  * - Page loaders (`loadProjects`, ...) decode each document on its own (invalid ones are dropped
@@ -26,6 +27,8 @@ import 'server-only';
  * When Sanity fails after a good load, both get the last good answer and the loaders send a
  * warning. When it fails with nothing cached, the loaders reject with the getter's error and
  * report nothing themselves: Next reports page errors, and metadata reports its own fallback.
+ * A missing document is only believed fresh: like the API's 503, `loadResume` rejects when the
+ * "no active resume" it would serve is stale.
  */
 
 import type { Schema } from 'effect';
@@ -51,7 +54,7 @@ import {
   type YoutubeVideo,
   YoutubeVideoSchema,
 } from '@/hooks/sanity/schemas';
-import { createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
+import { createStaleCache, type StaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
   getArticles,
@@ -85,50 +88,66 @@ export const SANITY_CACHE_TTL_MS = 5 * 60_000;
 /** What the getter last answered, fresh or stale. Rejects only when nothing is cached. */
 export type SanityReader<T> = () => Promise<StaleCacheResult<T>>;
 
-interface CachedReader<T> {
-  readonly read: SanityReader<T>;
-  readonly clear: () => void;
-}
+/**
+ * Next's bundler loads this module once for route handlers and once for pages, even in one Node
+ * process, so module state would give each its own cache. The readers' cache lives on globalThis
+ * under this registry key instead, and every copy of the module finds the same one.
+ */
+const SHARED_READERS_KEY = Symbol.for('portfolio.sanity.readers');
+
+type ProcessGlobal = typeof globalThis & { [SHARED_READERS_KEY]?: StaleCache<unknown> };
 
 /**
- * A collection's cache and the reader in front of it. `key` is the API route's key. The clock is
- * read on every call, so a test's faked Date moves it too.
+ * The process's cache, created by whichever copy of the module loads first. It holds every
+ * collection under its API route key; each key is read by one reader below, so its data always
+ * has that reader's type. The clock is read on every call, so a test's faked Date moves it too.
  */
-function cachedReader<T>(key: string, load: () => Promise<T>): CachedReader<T> {
-  const store = createStaleCache<T>({ ttlMs: SANITY_CACHE_TTL_MS, now: () => Date.now() });
-  return { read: () => store.get(key, load), clear: () => store.clear() };
+function processCache(): StaleCache<unknown> {
+  const processGlobal = globalThis as ProcessGlobal;
+  processGlobal[SHARED_READERS_KEY] ??= createStaleCache<unknown>({
+    ttlMs: SANITY_CACHE_TTL_MS,
+    now: () => Date.now(),
+  });
+  return processGlobal[SHARED_READERS_KEY];
 }
 
-const readers = {
-  projects: cachedReader('projects', getProjects),
-  featuredProjects: cachedReader('featured-projects', getFeaturedProjects),
-  experiences: cachedReader('experiences', getExperiences),
-  certifications: cachedReader('certifications', getCertifications),
-  places: cachedReader('places', getPlaces),
-  resume: cachedReader('resume', getResume),
-  presentations: cachedReader('presentations', getPresentations),
-  articles: cachedReader('articles', getArticles),
-  talks: cachedReader('talks', fetchTalks),
-  videos: cachedReader('videos', loadYoutubeVideos),
-} as const;
+const sharedCache = processCache();
 
-export const readProjects: SanityReader<Project[]> = readers.projects.read;
-export const readFeaturedProjects: SanityReader<Project[]> = readers.featuredProjects.read;
-export const readExperiences: SanityReader<Experience[]> = readers.experiences.read;
-export const readCertifications: SanityReader<Certification[]> = readers.certifications.read;
-export const readPlaces: SanityReader<Place[]> = readers.places.read;
+/**
+ * The reader for collection `key`. `load` is this copy's getter: it runs only when the shared
+ * cache has no fresh answer and no other copy is already loading `key`.
+ */
+const cachedReader =
+  <T>(key: string, load: () => Promise<T>): SanityReader<T> =>
+  () =>
+    sharedCache.get(key, load) as Promise<StaleCacheResult<T>>;
+
+export const readProjects = cachedReader<Project[]>('projects', getProjects);
+export const readFeaturedProjects = cachedReader<Project[]>(
+  'featured-projects',
+  getFeaturedProjects,
+);
+export const readExperiences = cachedReader<Experience[]>('experiences', getExperiences);
+export const readCertifications = cachedReader<Certification[]>(
+  'certifications',
+  getCertifications,
+);
+export const readPlaces = cachedReader<Place[]>('places', getPlaces);
 /** `data` is null when no resume is active. */
-export const readResume: SanityReader<Resume | null> = readers.resume.read;
-export const readPresentations: SanityReader<Presentation[]> = readers.presentations.read;
-export const readArticles: SanityReader<Article[]> = readers.articles.read;
+export const readResume = cachedReader<Resume | null>('resume', getResume);
+export const readPresentations = cachedReader<Presentation[]>('presentations', getPresentations);
+export const readArticles = cachedReader<Article[]>('articles', getArticles);
 /** Talks with YouTube durations where a key is set. */
-export const readTalks: SanityReader<Talk[]> = readers.talks.read;
+export const readTalks = cachedReader<Talk[]>('talks', fetchTalks);
 /** Sanity's videos plus the channel's uploads, each tagged with its `source` when a key is set. */
-export const readVideos: SanityReader<YoutubeVideo[]> = readers.videos.read;
+export const readVideos = cachedReader<YoutubeVideo[]>('videos', loadYoutubeVideos);
 
-/** Forgets every collection's answer and every decoded result. Tests only. */
+/**
+ * Forgets every collection's answer, for every copy of this module in the process, and this
+ * copy's decoded results. Tests only.
+ */
 export function resetSanityLoaderCaches(): void {
-  for (const reader of Object.values(readers)) reader.clear();
+  sharedCache.clear();
   resetDecodeMemo();
 }
 
@@ -141,10 +160,13 @@ function reportStale(key: string, error: unknown): void {
 }
 
 /** The answer's data, after reporting that it is stale if it is. */
-async function readData<T>(read: SanityReader<T>, key: string): Promise<T> {
-  const result = await read();
+function dataOf<T>(result: StaleCacheResult<T>, key: string): T {
   if (result.stale) reportStale(key, result.error);
   return result.data;
+}
+
+async function readData<T>(read: SanityReader<T>, key: string): Promise<T> {
+  return dataOf(await read(), key);
 }
 
 /** `key`'s list, each document decoded with `schema`; invalid documents are dropped. */
@@ -184,11 +206,17 @@ export const loadTalks = cache(
   (): Promise<readonly Talk[]> => loadList(readTalks, TalkSchema, 'talks'),
 );
 
-/** The active resume, or null when none is active (or it is invalid, which is reported). */
-export const loadResume = cache(
-  async (): Promise<Resume | null> =>
-    decodeOne(ResumeSchema, await readData(readResume, 'resume'), 'resume'),
-);
+/**
+ * The active resume, or null when Sanity's fresh answer is that none is active (or it is invalid,
+ * which is reported). A stale null is an old "none" served only because Sanity just failed, so it says
+ * nothing about the resume now: like the API's 503 (serve.ts), this rejects with that failure,
+ * so a page reaches its error boundary instead of answering 404 during an outage.
+ */
+export const loadResume = cache(async (): Promise<Resume | null> => {
+  const result = await readResume();
+  if (result.stale && result.data == null) throw ensureBaseError(result.error, 'sanity:resume');
+  return decodeOne(ResumeSchema, dataOf(result, 'resume'), 'resume');
+});
 
 const isYoutubeApiVideo = (doc: unknown): boolean =>
   typeof doc === 'object' && doc !== null && (doc as { source?: unknown }).source === 'youtube-api';

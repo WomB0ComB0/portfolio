@@ -21,8 +21,15 @@
  * caller's fallback) while the rest of the page and the shell stay.
  */
 
+import {
+  type QueryClient,
+  QueryClientContext,
+  QueryErrorResetBoundary,
+  type QueryKey,
+  useQueryErrorResetBoundary,
+} from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Component, type ReactElement, type ReactNode, useTransition } from 'react';
+import { Component, type ReactElement, type ReactNode, useContext, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { reportError } from '@/lib/observability/report';
@@ -57,7 +64,7 @@ interface SectionErrorBoundaryProps {
   label: string;
   fallback?: ReactNode;
   children: ReactNode;
-  /** Runs `reset` together with a route refresh. */
+  /** Lets the section's queries fetch again, then runs `reset` together with a route refresh. */
   retry: (reset: () => void) => void;
   isRetrying: boolean;
 }
@@ -123,28 +130,45 @@ export interface SectionBoundaryProps {
   label: string;
   /** Rendered as is instead of the default SectionError, with no retry. */
   fallback?: ReactNode;
+  /**
+   * The keys (or key prefixes) of client queries the section renders. Try again resets them
+   * first, so a section whose render threw on data it fetched fine fetches that data again,
+   * instead of rendering the same cached data (and failing again) until its staleTime runs out.
+   */
+  queryKeys?: readonly QueryKey[];
   children: ReactNode;
 }
 
 /**
- * An error boundary for one section. A failure renders "Couldn't load <label>" with Try again,
- * which re-renders the route on the server and then the section, in one transition, so the
- * section re-renders with the refreshed data instead of failing again on the old payload.
- *
- * notFound() and redirect() pass through to Next's boundaries. The failure stays until Try again
- * or a remount: give the boundary a `key` that changes with its content (e.g. the active tab) to
- * clear it when the content changes.
- *
- * @example
- * <SectionBoundary label="top tracks">
- *   <TopTracks />
- * </SectionBoundary>
+ * Clears the section's cached queries. The section is unmounted while its fallback shows, so
+ * resetQueries only clears them; the remount fetches. Without a QueryClientProvider there are no
+ * client queries to clear.
  */
-export function SectionBoundary({ label, fallback, children }: SectionBoundaryProps): ReactElement {
+function resetSectionQueries(
+  queryClient: QueryClient | undefined,
+  queryKeys: readonly QueryKey[] | undefined,
+): void {
+  if (queryClient === undefined) return;
+  for (const queryKey of queryKeys ?? []) void queryClient.resetQueries({ queryKey });
+}
+
+/** SectionBoundary inside its own QueryErrorResetBoundary scope. */
+function ScopedSectionBoundary({
+  label,
+  fallback,
+  queryKeys,
+  children,
+}: SectionBoundaryProps): ReactElement {
   const router = useRouter();
+  const queryClient = useContext(QueryClientContext);
+  const queryErrors = useQueryErrorResetBoundary();
   const [isRetrying, startTransition] = useTransition();
 
+  // TanStack rethrows a suspense query's cached error on remount until its reset boundary is
+  // reset, so the queries are released first; the refresh then covers server-rendered children.
   const retry = (reset: () => void): void => {
+    resetSectionQueries(queryClient, queryKeys);
+    queryErrors.reset();
     startTransition(() => {
       router.refresh();
       reset();
@@ -155,5 +179,33 @@ export function SectionBoundary({ label, fallback, children }: SectionBoundaryPr
     <SectionErrorBoundary label={label} fallback={fallback} retry={retry} isRetrying={isRetrying}>
       {children}
     </SectionErrorBoundary>
+  );
+}
+
+/**
+ * An error boundary for one section. A failure renders "Couldn't load <label>" with Try again,
+ * which re-renders the route on the server and then the section, in one transition, so the
+ * section re-renders with the refreshed data instead of failing again on the old payload.
+ *
+ * It also recovers client sections: a suspense query (useSuspenseQuery, useDataLoader) that
+ * failed inside it fetches again on Try again, since the boundary resets its own
+ * QueryErrorResetBoundary scope (retrying one section does not refetch another) and `queryKeys`.
+ *
+ * notFound() and redirect() pass through to Next's boundaries. The failure stays until Try again
+ * or a remount: give the boundary a `key` that changes with its content (e.g. the active tab) to
+ * clear it when the content changes.
+ *
+ * @example
+ * <SectionBoundary label="top tracks" queryKeys={[['spotify', 'top-tracks']]}>
+ *   <Suspense fallback={<TracksSkeleton />}>
+ *     <TopTracks />
+ *   </Suspense>
+ * </SectionBoundary>
+ */
+export function SectionBoundary(props: SectionBoundaryProps): ReactElement {
+  return (
+    <QueryErrorResetBoundary>
+      <ScopedSectionBoundary {...props} />
+    </QueryErrorResetBoundary>
   );
 }

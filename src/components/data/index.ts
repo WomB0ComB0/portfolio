@@ -15,8 +15,10 @@
  */
 
 /**
- * @file Building blocks for server-rendered data sections. No directive on purpose: server
- * components import SectionError from here, and the client parts carry their own 'use client'.
+ * @file Building blocks for data sections, server-rendered or client suspense queries
+ * (SectionBoundary's Try again refetches both; pass it `queryKeys` for client queries). No
+ * directive on purpose: server components import SectionError from here, and the client parts
+ * carry their own 'use client'.
  * Not re-exported from the root '@/components' barrel, which pulls cmd and layout into the RSC
  * graph.
  */

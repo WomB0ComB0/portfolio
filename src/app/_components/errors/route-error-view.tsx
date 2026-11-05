@@ -44,8 +44,10 @@ export interface RouteErrorViewProps {
  * The page-level error view: a heading, one sentence, Try again and Home. The nav and footer stay
  * around it, since the route's error boundary sits inside the shell.
  *
- * It also renders a robots noindex meta, which React hoists into the document head: a page whose
- * error is streamed after the 200 status has gone out is still kept out of search indexes.
+ * It sets no robots meta. Only visitors' browsers render it: Next keeps the server HTML for bots
+ * instead of rendering a segment's error boundary, and crawlers that run no JavaScript never get
+ * this far. Keeping a failed page out of search indexes takes server-rendered metadata or a real
+ * error status.
  */
 export function RouteErrorView({
   onRetry,
@@ -57,8 +59,6 @@ export function RouteErrorView({
       aria-labelledby={TITLE_ID}
       className="mx-auto flex w-full max-w-xl flex-col items-center gap-8 px-6 py-20 text-center sm:py-28"
     >
-      <meta name="robots" content="noindex" />
-
       <div className="flex flex-col items-center gap-3">
         <span
           aria-hidden="true"

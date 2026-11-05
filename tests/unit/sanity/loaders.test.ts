@@ -16,12 +16,14 @@
  */
 
 /**
- * @file The server Sanity loaders pages read: one stale-on-error cache per collection, shared
- * with /api/v1/sanity/*, then per-document decoding.
- * - Within the TTL, pages and the API route share one Sanity request per collection.
+ * @file The server Sanity loaders pages read: one stale-on-error cache per collection per server
+ * process, shared with /api/v1/sanity/*, then per-document decoding.
+ * - Within the TTL, pages and the API route share one Sanity request per collection per process,
+ *   even when Next loads this module once for route handlers and once for pages.
  * - When Sanity fails after a good load, pages get the last good list plus one warning.
  * - When Sanity fails with nothing cached, the loader rejects with the getter's BaseError and
- *   reports nothing itself (Next reports page errors).
+ *   reports nothing itself (Next reports page errors). So does loadResume when the only resume
+ *   answer cached is a stale "none".
  * - Invalid CMS documents are dropped and listed in one warning instead of failing the page.
  * - By-id lookups never send a malformed id to Sanity.
  * Only the Sanity client, the YouTube integration, the env and Sentry are mocked.
@@ -80,6 +82,15 @@ const deferredAnswer = <T>() => {
     resolve = done;
   });
   return { promise, resolve };
+};
+
+/**
+ * Another copy of loaders.ts and everything it imports, as Next loads one for route handlers and
+ * another for pages in the same Node process.
+ */
+const loadModuleCopy = async () => {
+  vi.resetModules();
+  return import('@/lib/sanity/loaders');
 };
 
 const apiGet = (path: string) =>
@@ -172,7 +183,7 @@ describe('loadProjects', () => {
 });
 
 describe('the API route and the pages', () => {
-  it('share one Sanity request per collection within the TTL', async () => {
+  it('share one Sanity request per collection within the TTL in one process', async () => {
     const projects = [makeProject(), makeProject()];
     sanity.sanityFetchWithToken.mockResolvedValue(projects);
 
@@ -197,6 +208,32 @@ describe('the API route and the pages', () => {
     expect(await res.json()).toEqual([valid, workshop]);
     expect(fromPages).toEqual([valid]);
     expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('share one Sanity request when the route and the pages load separate module copies', async () => {
+    const projects = [makeProject(), makeProject()];
+    sanity.sanityFetchWithToken.mockResolvedValue(projects);
+    const routeCopy = await loadModuleCopy();
+    const pageCopy = await loadModuleCopy();
+
+    const fromRoute = await routeCopy.readProjects();
+    const fromPages = await pageCopy.loadProjects();
+
+    expect(pageCopy.readProjects).not.toBe(routeCopy.readProjects);
+    expect(fromRoute).toEqual({ stale: false, data: projects });
+    expect(fromPages).toEqual(projects);
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('forget the shared answers for every module copy on resetSanityLoaderCaches', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([makeProject()]);
+    const routeCopy = await loadModuleCopy();
+    await routeCopy.readProjects();
+
+    resetSanityLoaderCaches();
+    await routeCopy.readProjects();
+
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(2);
   });
 
   it('keep featured projects in their own cache', async () => {
@@ -257,6 +294,38 @@ describe('loadResume', () => {
 
     expect(await loadResume()).toBeNull();
     expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('answers the last good resume and sends one warning when Sanity fails past the TTL', async () => {
+    const resume = makeResume();
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(resume);
+    await loadResume();
+
+    sanity.sanityFetchWithToken.mockRejectedValue(sanityDown());
+    vi.setSystemTime(T0 + AFTER_TTL);
+
+    expect(await loadResume()).toEqual(resume);
+    expectOneReport('warning', 'load resume for pages');
+  });
+
+  it('rejects with the failure, as the API answers 503, when the cached "no resume" is stale', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(null);
+    expect(await loadResume()).toBeNull();
+
+    sanity.sanityFetchWithToken.mockRejectedValue(sanityDown());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const error = await loadResume().then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+    const res = await apiGet('/resume');
+
+    expect(isBaseError(error)).toBe(true);
+    expect(error).toMatchObject({
+      command: 'sanity:resume',
+      cause: expect.objectContaining({ message: 'Sanity answered 502 Bad Gateway' }),
+    });
+    expect(res.status).toBe(503);
   });
 });
 

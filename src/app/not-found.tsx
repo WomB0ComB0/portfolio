@@ -25,13 +25,10 @@
 
 import type { JSX } from 'react';
 import { NotFoundView } from '@/app/_components/errors';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { Layout } from '@/components/layout/layout';
-import { constructMetadata } from '@/utils';
 
-export const metadata = constructMetadata({
-  title: '404',
-  description: 'This page does not exist',
-});
+export const metadata = NOT_FOUND_METADATA;
 
 export default function NotFoundPage(): JSX.Element {
   return (

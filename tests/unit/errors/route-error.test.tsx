@@ -18,11 +18,14 @@
  * @file The (routes) error boundary shows a failed page's error inside the shell.
  *
  * It replaces only the page: one heading, a Try again that fetches the route again from the
- * server, and a way home. Client-side errors go to Sentry once; server errors (with a digest)
- * were already reported on the server. A noindex meta keeps a streamed error page out of indexes.
+ * server (busy until the page has loaded again), and a way home. Client-side errors go to Sentry
+ * once; server errors (with a digest) were already reported on the server. It renders no robots
+ * meta: crawlers never see a client error boundary (Next keeps the server HTML for bots), so
+ * noindex belongs in server-rendered metadata.
  */
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { type ReactNode, use, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
@@ -41,8 +44,33 @@ const serverError = (): Error & { digest: string } =>
     digest: SERVER_DIGEST,
   });
 
-const robotsMeta = (): Element | null =>
-  document.querySelector('meta[name="robots"][content="noindex"]');
+const robotsMeta = (): Element | null => document.querySelector('meta[name="robots"]');
+
+/** A promise the test settles by hand, so a retry stays pending until it does. */
+const deferred = (): { promise: Promise<string>; resolve: (value: string) => void } => {
+  let resolve: (value: string) => void = () => undefined;
+  const promise = new Promise<string>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+};
+
+const RENDER_FAILED = new Error('render failed');
+
+/** Suspends until `pending` settles, then shows what it resolved to. */
+function Loaded({ pending }: { pending: Promise<string> }): ReactNode {
+  return <p>{use(pending)}</p>;
+}
+
+/**
+ * A failed page as Next renders it: the boundary until `reset`, then the page, which suspends on
+ * `pending` (its refetched payload) inside the retry's transition.
+ */
+function FailedPage({ pending }: { pending: Promise<string> }): ReactNode {
+  const [failed, setFailed] = useState(true);
+  if (!failed) return <Loaded pending={pending} />;
+  return <RouteError error={RENDER_FAILED} reset={() => setFailed(false)} />;
+}
 
 beforeEach(() => {
   sentry.captureException.mockClear();
@@ -123,10 +151,31 @@ describe('src/app/(routes)/error.tsx', () => {
     expect(sentry.captureException).toHaveBeenCalledWith('plain string');
   });
 
-  it('renders a robots noindex meta, so an error streamed under a 200 is not indexed', () => {
+  it('disables Try again and marks it busy until the page has loaded again', async () => {
+    const reload = deferred();
+    render(<FailedPage pending={reload.promise} />);
+
+    // Awaited: React drops a render that suspends inside a synchronous act scope.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    const retry = screen.getByRole('button', { name: 'Try again' });
+    expect(retry).toBeDisabled();
+    expect(retry).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(retry);
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => reload.resolve('Page loaded'));
+
+    expect(await screen.findByText('Page loaded')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Something went wrong' })).toBeNull();
+  });
+
+  it('renders no robots meta: crawlers never see a client error boundary', () => {
     render(<RouteError error={new Error('render failed')} reset={vi.fn()} />);
 
-    expect(robotsMeta()).not.toBeNull();
+    expect(robotsMeta()).toBeNull();
   });
 });
 

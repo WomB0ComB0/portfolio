@@ -16,8 +16,9 @@
 
 /**
  * @file How every /api/v1/sanity route answers. Each route reads its collection through the
- * stale-on-error cache it shares with the pages ('@/lib/sanity/loaders'), and only maps the
- * result to HTTP. A Sanity failure never looks like real content:
+ * stale-on-error cache it shares with the pages in the same server process
+ * ('@/lib/sanity/loaders'), and only maps the result to HTTP. A Sanity failure never looks like
+ * real content:
  * - Sanity answers: 200 with the CDN cache headers. Real empty lists are cached like any answer.
  * - Sanity fails, and the collection has an earlier answer in memory: 200 with that answer, a
  *   short CDN cache, and a Sentry warning. For STALE_RETRY_BACKOFF_MS (30 s) after that failure
@@ -102,7 +103,8 @@ function answerUnavailable(set: ResponseSet, body: { readonly error: string }): 
 
 /**
  * Builds a route handler that serves `read`'s answer, raw, and maps it to HTTP. The cache is the
- * collection's, so the route and the pages share one Sanity request per TTL.
+ * collection's, so the route and the pages share one Sanity request per TTL per server process
+ * (separate serverless instances cannot share it, so each asks on its own).
  * Use it as `.get(path, ({ set }) => handler(set))`.
  */
 export function sanityRoute<T>({

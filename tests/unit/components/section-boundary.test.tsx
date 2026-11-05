@@ -15,13 +15,20 @@
  */
 
 /**
- * @file SectionBoundary keeps a failure inside its section, retries with a route refresh, reports
- * only client-side failures, and lets Next's notFound()/redirect() errors through. SectionError
- * and RetryButton, which it builds on, are covered here too.
+ * @file SectionBoundary keeps a failure inside its section, retries with a route refresh (and a
+ * reset of the section's client queries), reports only client-side failures, and lets Next's
+ * notFound()/redirect() errors through. SectionError and RetryButton, which it builds on, are
+ * covered here too, including the busy state while a retry loads.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
-import { Component, type ReactNode } from 'react';
+import {
+  QueryClient,
+  QueryClientProvider,
+  type QueryKey,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { Component, type ReactNode, Suspense, use, useEffect, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
@@ -71,6 +78,55 @@ const failWith = (error: unknown): void => {
   });
 };
 
+interface Deferred<T> {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+}
+
+/** A promise the test settles by hand, so a retry stays pending until it does. */
+const deferred = <T,>(): Deferred<T> => {
+  let resolve: (value: T) => void = () => undefined;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+};
+
+/** Suspends until `pending` settles, then shows what it resolved to. */
+function Loaded({ pending }: { pending: Promise<string> }): ReactNode {
+  return <p>{use(pending)}</p>;
+}
+
+/** Holds `pending` until the first route refresh, then suspends on it inside that transition. */
+function RefreshedRoute({ pending }: { pending: Promise<string> }): ReactNode {
+  const [isRefreshed, setRefreshed] = useState(false);
+  useEffect(() => {
+    refresh.mockImplementation(() => setRefreshed(true));
+  }, []);
+  return (
+    <>
+      <RetryButton />
+      {isRefreshed ? <Loaded pending={pending} /> : null}
+    </>
+  );
+}
+
+const TRACKS_KEY: QueryKey = ['top-tracks'];
+/** Cached data the section fails to render, as a malformed Sanity image _ref does. */
+const UNRENDERABLE = 'tracks the section cannot render';
+
+/** A client section that reads one suspense query, as useDataLoader and useSanity* do. */
+function Tracks({ queryFn }: { queryFn: () => Promise<string> }): ReactNode {
+  const { data } = useSuspenseQuery({ queryKey: TRACKS_KEY, queryFn, staleTime: 60_000 });
+  if (data === UNRENDERABLE) throw new Error('cannot render the cached tracks');
+  return <p>{data}</p>;
+}
+
+const renderWithQueries = (ui: ReactNode): void => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 interface OuterState {
   error: unknown;
 }
@@ -101,6 +157,7 @@ beforeEach(() => {
 afterEach(() => {
   consoleError.mockRestore();
   sectionBody.mockReset();
+  refresh.mockReset();
   vi.clearAllMocks();
 });
 
@@ -139,6 +196,80 @@ describe('SectionBoundary', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(screen.getByText('Section loaded')).toBeInTheDocument();
     expect(screen.queryByText(FALLBACK_TITLE)).toBeNull();
+  });
+
+  it('disables Try again and marks it busy until the retried section has loaded', async () => {
+    failWith(new Error(RAW_MESSAGE));
+    const reload = deferred<string>();
+    render(
+      <SectionBoundary label={LABEL}>
+        <Section />
+      </SectionBoundary>,
+    );
+    sectionBody.mockImplementation(() => <Loaded pending={reload.promise} />);
+
+    // Awaited: React drops a render that suspends inside a synchronous act scope.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    const retry = screen.getByRole('button', { name: 'Try again' });
+    expect(retry).toBeDisabled();
+    expect(retry).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(retry);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => reload.resolve('Section loaded'));
+
+    expect(await screen.findByText('Section loaded')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
+  it('Try again fetches a failed suspense query again, so the section recovers', async () => {
+    const queryFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new Error('503 from the API'))
+      .mockResolvedValue('Top tracks loaded');
+    renderWithQueries(
+      <SectionBoundary label={LABEL}>
+        <Suspense fallback={<p>Loading tracks</p>}>
+          <Tracks queryFn={queryFn} />
+        </Suspense>
+      </SectionBoundary>,
+    );
+    await screen.findByText(FALLBACK_TITLE);
+    expect(queryFn).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    expect(await screen.findByText('Top tracks loaded')).toBeInTheDocument();
+    expect(queryFn).toHaveBeenCalledTimes(2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(FALLBACK_TITLE)).toBeNull();
+  });
+
+  it('Try again resets queryKeys first, so cached data that failed to render is fetched again', async () => {
+    const queryFn = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValueOnce(UNRENDERABLE)
+      .mockResolvedValue('Top tracks loaded');
+    renderWithQueries(
+      <SectionBoundary label={LABEL} queryKeys={[TRACKS_KEY]}>
+        <Suspense fallback={<p>Loading tracks</p>}>
+          <Tracks queryFn={queryFn} />
+        </Suspense>
+      </SectionBoundary>,
+    );
+    await screen.findByText(FALLBACK_TITLE);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    expect(await screen.findByText('Top tracks loaded')).toBeInTheDocument();
+    expect(queryFn).toHaveBeenCalledTimes(2);
   });
 
   it('reports a client-side failure once, tagged with the section label', () => {
@@ -256,6 +387,27 @@ describe('RetryButton', () => {
     expect(onRetry.mock.invocationCallOrder[0]).toBeLessThan(
       refresh.mock.invocationCallOrder[0] ?? Number.NaN,
     );
+  });
+
+  it('stays disabled and busy until the refreshed route has rendered', async () => {
+    const refreshed = deferred<string>();
+    render(<RefreshedRoute pending={refreshed.promise} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    const button = screen.getByRole('button', { name: 'Try again' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(button);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => refreshed.resolve('Route refreshed'));
+
+    expect(await screen.findByText('Route refreshed')).toBeInTheDocument();
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute('aria-busy');
   });
 
   it('accepts its own label', () => {
