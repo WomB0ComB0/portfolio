@@ -40,9 +40,10 @@ export const SPONSORS_DEADLINE_MS = 3_000;
 const SPONSORS_REPORT_CONTEXT = 'load sponsors for page';
 
 /**
- * The sponsors, or null when GitHub failed or missed the deadline. Never throws: the failure is
- * reported here (a missed deadline only as a warning, since the fetch may still succeed) and only
- * the sponsors block shows an error.
+ * The sponsors, or null when GitHub failed with no list cached, or missed the deadline. Never
+ * throws, so only the sponsors block shows an error. getGitHubSponsors reports a failed GitHub
+ * load itself (reporting the same error here again is a no-op); a missed deadline is reported
+ * here, as a warning, since the fetch keeps running and fills the cache for the next visit.
  */
 async function loadSponsors(): Promise<GitHubSponsorsData | null> {
   try {

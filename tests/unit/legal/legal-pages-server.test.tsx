@@ -105,13 +105,22 @@ const moduleSpecifiersOf = (source: ts.SourceFile): string[] =>
     return specifier !== undefined && ts.isStringLiteral(specifier) ? [specifier.text] : [];
   });
 
-/** The `<h1>` texts in server HTML, with tags and whitespace runs collapsed. */
+/** `html` with every `<...>` run dropped, scanned once so no tag can be rebuilt from the parts. */
+const withoutTags = (html: string): string => {
+  let text = '';
+  let inTag = false;
+  for (const char of html) {
+    if (char === '<') inTag = true;
+    else if (char === '>') inTag = false;
+    else if (!inTag) text += char;
+  }
+  return text;
+};
+
+/** The `<h1>` texts in server HTML, with tags dropped and whitespace runs collapsed. */
 const headingsIn = (html: string): string[] =>
   [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)].map(([, inner = '']) =>
-    inner
-      .replaceAll(/<[^>]+>/g, '')
-      .replaceAll(/\s+/g, ' ')
-      .trim(),
+    withoutTags(inner).replaceAll(/\s+/g, ' ').trim(),
   );
 
 describe.each(LEGAL_PAGES)('$name page', ({ heading, interfaceFile, Interface, Page }) => {

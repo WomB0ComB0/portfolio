@@ -305,22 +305,31 @@ describe('Dev Stats age', () => {
         <DevStats />
       </QueryClientProvider>
     );
-    // A few hours into the birthday in UTC, which is still March 23 in New York.
-    setClock('2026-03-24T02:00:00Z');
-    const page = document.createElement('div');
-    page.innerHTML = renderToString(tree());
-    document.body.append(page);
-    expect(valueAbove('Age')).toHaveTextContent('22yrs');
+    const originalZone = process.env.TZ;
+    try {
+      // The server runs in UTC, a few hours into the birthday, which is still March 23 in New York.
+      process.env.TZ = 'UTC';
+      setClock('2026-03-24T02:00:00Z');
+      const page = document.createElement('div');
+      page.innerHTML = renderToString(tree());
+      document.body.append(page);
+      expect(valueAbove('Age')).toHaveTextContent('22yrs');
 
-    // The browser hydrates a few seconds later.
-    setClock('2026-03-24T02:00:05Z');
-    const onRecoverableError = vi.fn();
-    const root = await act(async () => hydrateRoot(page, tree(), { onRecoverableError }));
+      // A browser in New York hydrates a few seconds later. An age from local dates would read 21
+      // here, and React would report the mismatch.
+      process.env.TZ = 'America/New_York';
+      setClock('2026-03-24T02:00:05Z');
+      const onRecoverableError = vi.fn();
+      const root = await act(async () => hydrateRoot(page, tree(), { onRecoverableError }));
 
-    expect(onRecoverableError).not.toHaveBeenCalled();
-    expect(valueAbove('Age')).toHaveTextContent('22yrs');
-    act(() => root.unmount());
-    page.remove();
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(valueAbove('Age')).toHaveTextContent('22yrs');
+      act(() => root.unmount());
+      page.remove();
+    } finally {
+      if (originalZone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalZone;
+    }
   });
 });
 

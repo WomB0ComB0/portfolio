@@ -34,6 +34,7 @@ import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { post } from '@/lib/http-clients/effect-fetcher';
+import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils';
 
 /**
@@ -342,8 +343,20 @@ async function fetchAllSponsors(username: string, token: string): Promise<GitHub
   return { sponsors: [...sponsors], totalCount, totalMonthlyIncome: monthlyIncome(sponsors) };
 }
 
-/** Fetches from GitHub and caches a success. Failures are wrapped and never cached. */
-async function loadAndCache(username: string, token: string): Promise<GitHubSponsorsData> {
+/** Tags and groups the Sentry issue when GitHub can't be read. */
+const SPONSORS_REPORT_CONTEXT = 'github sponsors';
+
+/**
+ * Fetches from GitHub and stores a success in `cache`, the store that was current when the load
+ * started, so a load that outlives a reset never fills the new store. A failure is reported once,
+ * here, and never stored. When `cache` still holds an older list, that list is returned instead
+ * (reported as a warning): sponsors change rarely, and the last good list beats an error.
+ */
+async function loadAndCache(
+  cache: SponsorsCacheState,
+  username: string,
+  token: string,
+): Promise<GitHubSponsorsData> {
   try {
     logger.info('[GitHub Sponsors] Fetching sponsors for:', { username });
     const data = await fetchAllSponsors(username, token);
@@ -352,12 +365,31 @@ async function loadAndCache(username: string, token: string): Promise<GitHubSpon
       activeSponsors: data.sponsors.filter((sponsor) => sponsor.isActive).length,
       totalMonthlyIncome: `$${data.totalMonthlyIncome}`,
     });
-    sponsorsCache().results.set(username, { data, fetchedAt: Date.now() });
+    cache.results.set(username, { data, fetchedAt: Date.now() });
     return data;
   } catch (error) {
-    logger.error('[GitHub Sponsors] Error fetching sponsors:', error);
-    throw ensureBaseError(error, 'github:sponsors', { username, hasToken: true });
+    const failure = ensureBaseError(error, 'github:sponsors', { username, hasToken: true });
+    const previous = cache.results.get(username);
+    reportApiFailure(failure, {
+      context: SPONSORS_REPORT_CONTEXT,
+      level: previous ? 'warning' : 'error',
+    });
+    if (previous) return previous.data;
+    throw failure;
   }
+}
+
+/** Starts the load for `username` in `cache`, shared by every caller until it settles. */
+function startLoad(
+  cache: SponsorsCacheState,
+  username: string,
+  token: string,
+): Promise<GitHubSponsorsData> {
+  const load = loadAndCache(cache, username, token).finally(() => {
+    cache.inflight.delete(username);
+  });
+  cache.inflight.set(username, load);
+  return load;
 }
 
 /**
@@ -365,7 +397,9 @@ async function loadAndCache(username: string, token: string): Promise<GitHubSpon
  * Handles pagination to collect all sponsor records and caches results in memory for 1 hour,
  * once per server process: the page and the API route share the cache, and callers that arrive
  * while a fetch is in flight share that fetch. A fetch that outlives its caller's deadline still
- * fills the cache for the next one.
+ * fills the cache for the next one. Once a list has expired it is still returned at once while a
+ * refresh runs in the background, and kept if that refresh fails, so a slow or failing GitHub
+ * never turns a list already in memory into an error.
  * Requires the `GITHUB_TOKEN` environment variable with `read:org` and `read:user` scopes.
  *
  * @function
@@ -398,14 +432,12 @@ export async function getGitHubSponsors(
     return { sponsors: [], totalCount: 0, totalMonthlyIncome: 0 };
   }
 
-  const pending = cache.inflight.get(username);
-  if (pending) return pending;
+  const load = cache.inflight.get(username) ?? startLoad(cache, username, token);
+  if (!cached) return load;
 
-  const load = loadAndCache(username, token).finally(() => {
-    cache.inflight.delete(username);
-  });
-  cache.inflight.set(username, load);
-  return load;
+  // Stale while revalidating: the refresh keeps `cached` on failure, so it never rejects here.
+  logger.info('[GitHub Sponsors] Returning expired data while refreshing');
+  return cached.data;
 }
 
 /**

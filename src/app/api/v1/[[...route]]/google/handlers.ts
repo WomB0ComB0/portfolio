@@ -16,6 +16,7 @@
 
 import { Schema } from 'effect';
 import { getAnalytics } from '@/lib';
+import { withDeadline } from '@/lib/async/deadline';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { logger } from '@/utils';
 
@@ -25,6 +26,13 @@ export const GoogleAnalyticsSchema = Schema.Struct({
 export type GoogleAnalyticsData = Schema.Schema.Type<typeof GoogleAnalyticsSchema>;
 
 const CACHE_DURATION = 60 * 60 * 1000;
+
+/**
+ * Upstream time budget, as in the other /stats handlers. Every caller shares one in-flight report,
+ * and runReport's own default timeout is 60 s, so without this one stalled report would fail the
+ * page-view stat for every visitor until it gave up. The card's browser fetch allows 10 s.
+ */
+const UPSTREAM_DEADLINE_MS = 8_000;
 
 interface CachedAnalytics {
   readonly data: GoogleAnalyticsData;
@@ -70,7 +78,7 @@ async function refreshGoogleAnalytics(state: GoogleAnalyticsState): Promise<Goog
 
   try {
     logger.info('[Google Handler] Fetching fresh analytics data...');
-    const result = await getAnalytics();
+    const result = await withDeadline(getAnalytics(), UPSTREAM_DEADLINE_MS, 'google analytics');
     const analytics: GoogleAnalyticsData = result?.analytics || fallbackData;
 
     logger.info('[Google Handler] Received analytics:', { analytics });

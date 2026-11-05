@@ -232,3 +232,27 @@ describe.each(cases)('$name shared by every bundled copy', (handlerCase) => {
     expect(loads()).toBe(1);
   });
 });
+
+describe('getGoogleAnalytics with a stalled report', () => {
+  it('gives up after 8 s with the zero fallback, so the next caller starts a fresh report', async () => {
+    vi.useFakeTimers();
+    try {
+      // runReport's own timeout is 60 s; every caller joins the shared load, so it must settle sooner.
+      analytics.getAnalytics.mockImplementation(() => new Promise(() => undefined));
+      const { getGoogleAnalytics, resetGoogleAnalyticsCache } = await import(
+        '@/app/api/v1/[[...route]]/google/handlers'
+      );
+      resetGoogleAnalyticsCache();
+
+      const stalled = getGoogleAnalytics();
+      await vi.advanceTimersByTimeAsync(8_000);
+      await expect(stalled).resolves.toEqual({ total_pageviews: 0 });
+
+      analytics.getAnalytics.mockResolvedValue({ analytics: { total_pageviews: 7 }, response: {} });
+      await expect(getGoogleAnalytics()).resolves.toEqual({ total_pageviews: 7 });
+      expect(analytics.getAnalytics).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

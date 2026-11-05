@@ -20,7 +20,8 @@
  * schema. A sponsorship whose account GitHub won't show (`sponsorEntity: null`) is left out
  * instead of failing the whole list. The one-hour cache lives once per process: a second copy of
  * the module (Next bundles the page and the API route separately) answers from it, callers share a
- * fetch in flight, and a fetch that outlives its caller's deadline still fills the cache.
+ * fetch in flight, and a fetch that outlives its caller's deadline still fills the cache. An
+ * expired list is served at once while it refreshes and kept when the refresh fails.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +31,10 @@ vi.mock('@/env', () => {
   const env = { GITHUB_TOKEN: 'test-token', NODE_ENV: 'test' };
   return { env, default: env };
 });
+
+// Records reports instead of sending them; the module reports a failed GitHub load itself.
+const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
+vi.mock('@/lib/observability/report', () => report);
 
 import {
   getGitHubSponsors,
@@ -110,6 +115,7 @@ const loginsOf = (data: Awaited<ReturnType<typeof getGitHubSponsors>>): string[]
 
 beforeEach(() => {
   resetGitHubSponsorsCache();
+  report.reportApiFailure.mockClear();
   // The integration logs every fetch; keep the test output to the assertions.
   vi.spyOn(console, 'log').mockImplementation(() => undefined);
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -191,6 +197,79 @@ describe('getGitHubSponsors cache', () => {
 
     expect(loginsOf(await getGitHubSponsors())).toEqual(['octocat']);
     expect(loginsOf(await getGitHubSponsors())).toEqual(['octocat']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** An answer the schema rejects at once (no retry), standing in for a GitHub failure. */
+const BROKEN_ANSWER = { data: { user: { sponsorshipsAsMaintainer: { totalCount: 'many' } } } };
+
+/** Moves `Date.now()` past the one-hour cache lifetime. */
+const expireCache = (): void => {
+  const later = Date.now() + 61 * 60 * 1_000;
+  vi.spyOn(Date, 'now').mockReturnValue(later);
+};
+
+describe('getGitHubSponsors after the cache expires', () => {
+  it('serves the expired list at once while it refreshes, then the fresh one', async () => {
+    stubGitHub(sponsorshipsPage([sponsorshipNode('old-sponsor')]));
+    await getGitHubSponsors();
+    expireCache();
+    const { fetchMock, answer } = stubSlowGitHub();
+
+    // GitHub hasn't answered, yet the caller (and the page's 3 s deadline) gets the list at once.
+    expect(loginsOf(await getGitHubSponsors())).toEqual(['old-sponsor']);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    answer(sponsorshipsPage([sponsorshipNode('new-sponsor')]));
+
+    await vi.waitFor(async () =>
+      expect(loginsOf(await getGitHubSponsors())).toEqual(['new-sponsor']),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the expired list when the refresh fails, reported as a warning', async () => {
+    stubGitHub(sponsorshipsPage([sponsorshipNode('old-sponsor')]));
+    await getGitHubSponsors();
+    expireCache();
+    stubGitHub(BROKEN_ANSWER);
+
+    expect(loginsOf(await getGitHubSponsors())).toEqual(['old-sponsor']);
+    await vi.waitFor(() =>
+      expect(report.reportApiFailure).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ level: 'warning' }),
+      ),
+    );
+    expect(loginsOf(await getGitHubSponsors())).toEqual(['old-sponsor']);
+  });
+
+  it('rejects, and reports one error, when GitHub fails with nothing cached', async () => {
+    stubGitHub(BROKEN_ANSWER);
+
+    const failure = await getGitHubSponsors().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(report.reportApiFailure).toHaveBeenCalledTimes(1);
+    expect(report.reportApiFailure).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({ level: 'error' }),
+    );
+  });
+});
+
+describe('resetGitHubSponsorsCache', () => {
+  it('keeps a load that outlives the reset out of the new cache', async () => {
+    const slow = stubSlowGitHub();
+    const beforeReset = getGitHubSponsors();
+    await vi.waitFor(() => expect(slow.fetchMock).toHaveBeenCalled());
+
+    resetGitHubSponsorsCache();
+    slow.answer(sponsorshipsPage([sponsorshipNode('from-before-reset')]));
+    await beforeReset;
+
+    const fetchMock = stubGitHub(sponsorshipsPage([sponsorshipNode('after-reset')]));
+    expect(loginsOf(await getGitHubSponsors())).toEqual(['after-reset']);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

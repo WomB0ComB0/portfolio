@@ -210,7 +210,20 @@ test.describe('server HTML without JavaScript', () => {
       test.skip(await isEmptyList(page, emptyText), `${path} lists no items here`);
 
       // Anywhere in the document: a streamed list sits in a hidden element after the shell's main.
-      await expect(item(page.locator('body')).first()).toBeAttached();
+      const firstItem = item(page.locator('body')).first();
+      await expect(firstItem).toBeAttached();
+
+      // Without JavaScript nothing can change an inline style, so this check can't race an
+      // animation: no entrance may leave the item, or an ancestor, serialized at opacity 0.
+      const isSerializedTransparent = await firstItem.evaluate((element) => {
+        for (let node: Element | null = element; node; node = node.parentElement) {
+          if (node instanceof HTMLElement && node.style.opacity === '0') return true;
+        }
+        return false;
+      });
+      expect(isSerializedTransparent, `${path}'s first item is serialized at opacity 0`).toBe(
+        false,
+      );
     });
   }
 
