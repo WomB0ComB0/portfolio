@@ -54,14 +54,18 @@ export function proxy(request: NextRequest): NextResponse {
   try {
     const nonce = createNonce();
     const isProd = env.NODE_ENV === 'production';
+    // VERCEL=1 marks a Vercel deployment, so a local `next start` with only a VERCEL_ENV in an
+    // env file never asks for reports. (`vercel env pull` writes VERCEL="1" too, but with
+    // VERCEL_ENV="development", whose sample rate is 0; `next dev` is excluded through NODE_ENV.)
+    const onVercel = process.env.VERCEL === '1';
     const vercelEnv = process.env.VERCEL_ENV;
-    // Sampled on Vercel production only (0 elsewhere), tagged like the SDK's own events. The dev
-    // server never asks for reports, even with a VERCEL_ENV pulled into a local env file.
+    // Sampled on Vercel production only (0 elsewhere), tagged like the SDK's own events: the
+    // release follows the build's naming order (src/config/sentry-build.ts).
     const reportUri =
-      isProd && Math.random() < cspReportSampleRate(vercelEnv)
+      isProd && onVercel && Math.random() < cspReportSampleRate(vercelEnv)
         ? sentryCspReportEndpoint(env.NEXT_PUBLIC_SENTRY_DSN, {
             environment: vercelEnv,
-            release: process.env.VERCEL_GIT_COMMIT_SHA,
+            release: process.env.SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA,
           })
         : undefined;
 

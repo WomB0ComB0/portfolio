@@ -174,7 +174,7 @@ export function cspHeaderName(
 export interface CspReportTags {
   /** Sentry environment, e.g. VERCEL_ENV. */
   environment?: string;
-  /** Sentry release: the commit SHA (VERCEL_GIT_COMMIT_SHA), as for the SDK's own events. */
+  /** Sentry release: SENTRY_RELEASE or the commit SHA, as for the SDK's own events. */
   release?: string;
 }
 

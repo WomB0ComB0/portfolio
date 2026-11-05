@@ -16,7 +16,8 @@
  */
 
 /**
- * @file The Sentry init options: only Vercel deployments report, server and edge use the same
+ * @file The Sentry init options: only Vercel deployments report (they carry a marker local runs
+ * lack, on top of VERCEL_ENV), server and edge use the same
  * environment names as the browser, visitor IP headers never leave the server, and the browser
  * drops known third-party noise.
  */
@@ -43,14 +44,23 @@ type Span = Parameters<typeof stripVisitorIpAttributes>[0];
 
 describe('isSentryEnabled', () => {
   it('reports from Vercel production and preview deployments', () => {
-    expect(isSentryEnabled({ vercelEnv: 'production' })).toBe(true);
-    expect(isSentryEnabled({ vercelEnv: 'preview' })).toBe(true);
+    expect(isSentryEnabled({ onVercel: true, vercelEnv: 'production' })).toBe(true);
+    expect(isSentryEnabled({ onVercel: true, vercelEnv: 'preview' })).toBe(true);
   });
 
   it('sends nothing from local runs (next dev, next start, vercel dev)', () => {
     expect(isSentryEnabled({})).toBe(false);
     expect(isSentryEnabled({ vercelEnv: '' })).toBe(false);
     expect(isSentryEnabled({ vercelEnv: 'development' })).toBe(false);
+    expect(isSentryEnabled({ onVercel: true, vercelEnv: 'development' })).toBe(false);
+    expect(isSentryEnabled({ onVercel: true })).toBe(false);
+  });
+
+  it('needs the deployment marker, so a VERCEL_ENV in a local env file is not enough', () => {
+    // A local `next build && next start` with a VERCEL_ENV in a local env file.
+    expect(isSentryEnabled({ vercelEnv: 'production', nodeEnv: 'production' })).toBe(false);
+    expect(isSentryEnabled({ vercelEnv: 'preview', nodeEnv: 'production' })).toBe(false);
+    expect(isSentryEnabled({ onVercel: false, vercelEnv: 'production' })).toBe(false);
   });
 
   it('can be switched on locally with an explicit opt-in', () => {
@@ -60,10 +70,13 @@ describe('isSentryEnabled', () => {
     expect(isSentryEnabled({ optIn: '1', nodeEnv: 'development' })).toBe(true);
   });
 
-  it('keeps the dev server off even with a VERCEL_ENV pulled into a local env file', () => {
-    expect(isSentryEnabled({ vercelEnv: 'production', nodeEnv: 'development' })).toBe(false);
-    expect(isSentryEnabled({ vercelEnv: 'preview', nodeEnv: 'development' })).toBe(false);
-    expect(isSentryEnabled({ vercelEnv: 'production', nodeEnv: 'production' })).toBe(true);
+  it('keeps the dev server off even when every deployment variable is set', () => {
+    const deployment = { onVercel: true, vercelEnv: 'production' };
+    expect(isSentryEnabled({ ...deployment, nodeEnv: 'development' })).toBe(false);
+    expect(isSentryEnabled({ ...deployment, vercelEnv: 'preview', nodeEnv: 'development' })).toBe(
+      false,
+    );
+    expect(isSentryEnabled({ ...deployment, nodeEnv: 'production' })).toBe(true);
   });
 });
 
@@ -82,8 +95,9 @@ describe('serverEnvironment', () => {
 describe('buildClientOptions', () => {
   it('is disabled locally and enabled on Vercel', () => {
     expect(buildClientOptions({}).enabled).toBe(false);
-    expect(buildClientOptions({ vercelEnv: 'production' }).enabled).toBe(true);
-    expect(buildClientOptions({ vercelEnv: 'preview' }).enabled).toBe(true);
+    expect(buildClientOptions({ vercelEnv: 'production' }).enabled).toBe(false);
+    expect(buildClientOptions({ onVercel: true, vercelEnv: 'production' }).enabled).toBe(true);
+    expect(buildClientOptions({ onVercel: true, vercelEnv: 'preview' }).enabled).toBe(true);
     expect(buildClientOptions({ optIn: '1' }).enabled).toBe(true);
   });
 
@@ -174,8 +188,9 @@ describe('buildServerOptions', () => {
   it('is disabled locally and enabled on Vercel, for Node.js and edge alike', () => {
     expect(buildServerOptions({}).enabled).toBe(false);
     expect(buildServerOptions({ vercelEnv: 'development' }).enabled).toBe(false);
-    expect(buildServerOptions({ vercelEnv: 'production' }).enabled).toBe(true);
-    expect(buildServerOptions({ vercelEnv: 'preview' }).enabled).toBe(true);
+    expect(buildServerOptions({ vercelEnv: 'production' }).enabled).toBe(false);
+    expect(buildServerOptions({ onVercel: true, vercelEnv: 'production' }).enabled).toBe(true);
+    expect(buildServerOptions({ onVercel: true, vercelEnv: 'preview' }).enabled).toBe(true);
     expect(buildServerOptions({ optIn: '1' }).enabled).toBe(true);
   });
 
@@ -306,6 +321,15 @@ describe('createTracesSampler', () => {
     const ctx = context({});
     expect(sampler(ctx)).toBe(0.1);
     expect(ctx.inheritOrSampleWith).toHaveBeenCalledWith(0.1);
+  });
+
+  it('returns the upstream decision when it differs from the fallback rate', () => {
+    const sampler = createTracesSampler(0.1);
+    for (const inherited of [0, 1]) {
+      const ctx = context({ inheritOrSampleWith: vi.fn(() => inherited) });
+      expect(sampler(ctx), String(inherited)).toBe(inherited);
+      expect(ctx.inheritOrSampleWith).toHaveBeenCalledWith(0.1);
+    }
   });
 
   it('never traces uptime checks or the Sentry tunnel', () => {

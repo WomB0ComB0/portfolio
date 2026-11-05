@@ -38,10 +38,10 @@
       "matchPackageNames": ["/^@logtail\\//"]
     },
     {
-      "description": "@vercel/otel declares peers on the OpenTelemetry SDK it targets, so it moves in the same PR as @opentelemetry/*",
+      "description": "The @opentelemetry/* packages pin exact versions of each other, so they move in one PR",
       "matchManagers": ["npm", "bun"],
       "groupName": "opentelemetry-js",
-      "matchPackageNames": ["/^@opentelemetry\\//", "@vercel/otel"]
+      "matchPackageNames": ["/^@opentelemetry\\//"]
     },
     {
       "matchManagers": ["npm", "bun"],

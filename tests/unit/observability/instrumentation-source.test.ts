@@ -28,28 +28,89 @@ import { describe, expect, it } from 'vitest';
 const ROOT = process.cwd();
 const SOURCE_FILE = /\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/;
 
-/**
- * A file-level directive: the first statement, after any leading whitespace and comments.
- * A linear scan rather than one regex, which would backtrack on long runs of comments.
- */
-function fileDirective(source: string): string | undefined {
-  let index = 0;
+const isWhitespace = (char: string) => char.trim() === '';
+const isLineBreak = (char: string) => char === '\n' || char === '\r';
+
+/** First index at or after `start` that is not whitespace or a comment; -1 if a comment is open. */
+function skipTrivia(source: string, start: number): number {
+  let index = start;
   while (index < source.length) {
-    if (/\s/.test(source.charAt(index))) {
+    if (isWhitespace(source.charAt(index))) {
       index += 1;
     } else if (source.startsWith('//', index)) {
       const end = source.indexOf('\n', index);
-      if (end === -1) return undefined;
+      if (end === -1) return source.length;
       index = end + 1;
     } else if (source.startsWith('/*', index)) {
       const end = source.indexOf('*/', index + 2);
-      if (end === -1) return undefined;
+      if (end === -1) return -1;
       index = end + 2;
     } else {
       break;
     }
   }
-  return /^['"](use (?:server|client))['"]/.exec(source.slice(index))?.[1];
+  return index;
+}
+
+/** Index just past the string literal that opens at `start`, or -1 if it is not closed. */
+function stringLiteralEnd(source: string, start: number): number {
+  const quote = source.charAt(start);
+  let index = start + 1;
+  while (index < source.length) {
+    const char = source.charAt(index);
+    if (char === quote) return index + 1;
+    if (isLineBreak(char)) return -1;
+    index += char === '\\' ? 2 : 1;
+  }
+  return -1;
+}
+
+/**
+ * Where the next statement may start after a string literal that ends at `start`, or -1 when the
+ * literal is part of a longer expression. The literal is a whole statement when `;`, a line break
+ * (a line comment or a block comment spanning lines counts) or the end of the file follows.
+ */
+function directiveEnd(source: string, start: number): number {
+  let index = start;
+  while (index < source.length) {
+    const char = source.charAt(index);
+    if (char === ';' || isLineBreak(char)) return index + 1;
+    if (isWhitespace(char)) {
+      index += 1;
+    } else if (source.startsWith('//', index)) {
+      return index;
+    } else if (source.startsWith('/*', index)) {
+      const close = source.indexOf('*/', index + 2);
+      if (close === -1) return -1;
+      const comment = source.slice(index + 2, close);
+      if (comment.includes('\n') || comment.includes('\r')) return close + 2;
+      index = close + 2;
+    } else {
+      return -1;
+    }
+  }
+  return index;
+}
+
+/**
+ * The file's directive prologue, in order: each statement that is only a string literal, before
+ * the first other statement, skipping whitespace and comments. 'use strict' followed by
+ * 'use server' gives both. Every character is visited a bounded number of times (a linear scan,
+ * not a regex that could backtrack on long runs of comments).
+ */
+function directivePrologue(source: string): string[] {
+  const directives: string[] = [];
+  let index = skipTrivia(source, 0);
+  while (index >= 0 && index < source.length) {
+    const quote = source.charAt(index);
+    if (quote !== "'" && quote !== '"') break;
+    const end = stringLiteralEnd(source, index);
+    const next = end === -1 ? -1 : directiveEnd(source, end);
+    if (next === -1) break;
+    directives.push(source.slice(index + 1, end - 1));
+    index = skipTrivia(source, next);
+  }
+  return directives;
 }
 
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8');
@@ -62,7 +123,7 @@ describe('src/instrumentation.ts', () => {
   const source = read('src/instrumentation.ts');
 
   it('has no directive', () => {
-    expect(fileDirective(source)).toBeUndefined();
+    expect(directivePrologue(source)).toEqual([]);
     expect(source).not.toMatch(/^\s*['"]use server['"]/m);
   });
 
@@ -77,16 +138,42 @@ describe('src/instrumentation.ts', () => {
 
 describe('Sentry helpers in other modules', () => {
   it('detects file-level directives', () => {
-    expect(fileDirective("'use server';\nexport const a = 1;")).toBe('use server');
-    expect(fileDirective('/**\n * Licence\n */\n\n"use client";')).toBe('use client');
-    expect(fileDirective("export const a = 1;\n'use server';")).toBeUndefined();
+    expect(directivePrologue("'use server';\nexport const a = 1;")).toEqual(['use server']);
+    expect(directivePrologue('/**\n * Licence\n */\n\n"use client";')).toEqual(['use client']);
+    expect(directivePrologue("'use server'")).toEqual(['use server']);
+    expect(directivePrologue("export const a = 1;\n'use server';")).toEqual([]);
+  });
+
+  it("reads the whole prologue, so 'use server' after 'use strict' still counts", () => {
+    expect(directivePrologue("'use strict';\n'use server';\nexport const a = 1;")).toEqual([
+      'use strict',
+      'use server',
+    ]);
+    expect(
+      directivePrologue('// a\n"use strict" // b\n/* c\n */ \'use client\'\nexport {};'),
+    ).toEqual(['use strict', 'use client']);
+    expect(directivePrologue("'use strict'; /* c */ 'use server';")).toEqual([
+      'use strict',
+      'use server',
+    ]);
+  });
+
+  it('stops at the first statement that is not a lone string literal', () => {
+    expect(directivePrologue("'use strict'.length;\n'use server';")).toEqual([]);
+    expect(directivePrologue("'use strict';\nimport a from 'a';\n'use server';")).toEqual([
+      'use strict',
+    ]);
+    expect(directivePrologue("'use strict' + 'use server';")).toEqual([]);
+    expect(directivePrologue("'use strict' /* c */ 'use server';")).toEqual([]);
+    expect(directivePrologue("'use server")).toEqual([]);
+    expect(directivePrologue('/* unterminated')).toEqual([]);
   });
 
   it("are never exported from a 'use server' file", () => {
     const offenders = srcFiles.filter((file) => {
       const source = read(file);
       return (
-        fileDirective(source) === 'use server' &&
+        directivePrologue(source).includes('use server') &&
         /@sentry\/|@\/instrumentation|onRequestError|captureException/.test(source)
       );
     });

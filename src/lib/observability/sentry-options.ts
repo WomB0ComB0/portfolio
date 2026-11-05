@@ -19,12 +19,16 @@
  * instrumentation-server.ts and instrumentation-edge.ts), as plain functions of the environment.
  *
  * Only Vercel deployments (production and preview) report. Local `next dev` and a local
- * `next build && next start` send nothing, which also keeps dev-only traffic such as Million
- * Lint's local requests out of Sentry. To debug the integration locally, set SENTRY_ENABLED=1
- * (server and edge) or NEXT_PUBLIC_SENTRY_ENABLED=1 (browser, needs a production build because
- * the /monitoring tunnel only exists there).
+ * `next build && next start` send nothing, even with a VERCEL_ENV in a local env file, which also
+ * keeps dev-only traffic such as Million Lint's local requests out of Sentry. One exception: a
+ * file from `vercel env pull` also sets the server marker (VERCEL="1"), so pull only its default
+ * 'development' target, because preview or production values would turn server reports on. To
+ * debug the integration locally, set SENTRY_ENABLED=1 (server and edge) or
+ * NEXT_PUBLIC_SENTRY_ENABLED=1 (browser, needs a production build because the /monitoring tunnel
+ * only exists there).
  *
- * `release` is never set here: withSentryConfig injects the commit SHA for every runtime.
+ * `release` is never set here: withSentryConfig injects the release name (SENTRY_RELEASE or the
+ * commit SHA, see src/config/sentry-build.ts) for every runtime.
  */
 
 import type { BrowserOptions, ErrorEvent, NodeOptions } from '@sentry/nextjs';
@@ -56,6 +60,13 @@ export const LOCAL_ENVIRONMENT = 'local';
 
 /** The environment variables the options depend on, read by each entry point. */
 export interface SentryRuntimeEnv {
+  /**
+   * True on a Vercel deployment. The server and edge check VERCEL === '1', which `vercel env pull`
+   * also writes (with VERCEL_ENV="development" by default). The browser checks
+   * NEXT_PUBLIC_VERCEL_URL, which Vercel inlines into deployment builds only: pulled env files get
+   * no NEXT_PUBLIC_VERCEL_* variables.
+   */
+  onVercel?: boolean;
   /** VERCEL_ENV on the server and edge, NEXT_PUBLIC_VERCEL_ENV in the browser. */
   vercelEnv?: string;
   /** VERCEL_TARGET_ENV: a custom Vercel environment's name, when there is one. */
@@ -67,12 +78,14 @@ export interface SentryRuntimeEnv {
 }
 
 /**
- * True on Vercel production and preview deployments, or with the explicit opt-in. The dev server
- * never reports without the opt-in, even when a local env file carries a pulled VERCEL_ENV.
+ * True on Vercel production and preview deployments, or with the explicit opt-in. Without the
+ * opt-in, the dev server is always off, and a local production build stays off without the
+ * deployment marker, even when a local env file carries a VERCEL_ENV.
  */
 export function isSentryEnabled(env: SentryRuntimeEnv): boolean {
   if (env.optIn === '1') return true;
   if (env.nodeEnv === 'development') return false;
+  if (!env.onVercel) return false;
   return REPORTING_VERCEL_ENVS.has(env.vercelEnv ?? '');
 }
 

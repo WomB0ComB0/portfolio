@@ -20,6 +20,7 @@
  */
 
 import { getGitHubSponsors } from '@/lib/api-integrations/github-sponsors';
+import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils';
 
 /**
@@ -43,6 +44,9 @@ export async function getGitHubSponsorsHandler() {
     });
   } catch (error) {
     logger.error('[GitHub Sponsors API] Error:', error);
+    // The handler answers the 500 itself, so neither Next's onRequestError nor the API's root
+    // error handler sees this failure. Throttled per context, and skipped if already reported.
+    reportApiFailure(error, { context: 'fetch sponsors' });
 
     return new Response(
       JSON.stringify({
@@ -93,6 +97,7 @@ export async function getActiveSponsorsHandler() {
     });
   } catch (error) {
     logger.error('[GitHub Sponsors API] Error (active):', error);
+    reportApiFailure(error, { context: 'fetch active sponsors' });
 
     return new Response(
       JSON.stringify({

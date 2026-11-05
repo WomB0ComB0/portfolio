@@ -25,6 +25,9 @@ import { buildServerOptions } from '@/lib/observability/sentry-options';
 init({
   dsn: env.NEXT_PUBLIC_SENTRY_DSN,
   ...buildServerOptions({
+    // VERCEL=1 marks a Vercel deployment. `vercel env pull` writes VERCEL="1" too, but with
+    // VERCEL_ENV="development" (the default target), which never reports.
+    onVercel: process.env.VERCEL === '1',
     vercelEnv: process.env.VERCEL_ENV,
     vercelTargetEnv: process.env.VERCEL_TARGET_ENV,
     optIn: process.env.SENTRY_ENABLED,

@@ -350,7 +350,24 @@ const withMillion = MillionLint.next({
   },
 });
 
-const combinedConfig = withMillion(withBundleAnalyzerConfig(config));
+/**
+ * Million Lint registers its loader under `experimental.turbo` when Turbopack runs. Next 16 no
+ * longer reads that key (the build warns "Unrecognized key(s) ... 'turbo'"), so the loader has not
+ * run under Turbopack. Dropping the key keeps that behaviour without the warning; moving the rules
+ * to `turbopack.rules` would start transforming every component in production builds.
+ */
+function withoutLegacyTurboKey(nextConfig: NextConfig): NextConfig {
+  const experimental: Record<string, unknown> = { ...nextConfig.experimental };
+  if (!('turbo' in experimental)) return nextConfig;
+  return {
+    ...nextConfig,
+    experimental: Object.fromEntries(
+      Object.entries(experimental).filter(([key]) => key !== 'turbo'),
+    ) as NextConfig['experimental'],
+  };
+}
+
+const combinedConfig = withoutLegacyTurboKey(withMillion(withBundleAnalyzerConfig(config)));
 
 // Every production build is wrapped (tunnel, release and debug-ID injection); uploads and
 // release creation additionally need the auth token. See src/config/sentry-build.ts.
