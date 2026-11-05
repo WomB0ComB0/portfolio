@@ -48,8 +48,8 @@ const DashboardCard = ({
   href?: string;
   className?: string;
   children?: React.ReactNode;
-}) => (
-  <Link href={href || '#'} className={cn('block h-full', !href && 'pointer-events-none')}>
+}) => {
+  const card = (
     <MagicCard
       className={cn(
         'group h-full rounded-xl border border-white/10 p-6 transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/10',
@@ -73,8 +73,17 @@ const DashboardCard = ({
         </div>
       )}
     </MagicCard>
-  </Link>
-);
+  );
+
+  // A card without a destination is not a link, so keyboard users can't tab to a dead "#".
+  return href ? (
+    <Link href={href} className="block h-full">
+      {card}
+    </Link>
+  ) : (
+    <div className="block h-full">{card}</div>
+  );
+};
 
 // NowPlaying card adapted to the new design
 const NowPlayingCard = () => {
@@ -118,13 +127,15 @@ const NowPlayingCard = () => {
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">
-            {data?.isPlaying ? data.songName : 'Not Currently Listening'}
+            {data?.isPlaying ? data.songName || 'Listening on Spotify' : 'Not Currently Listening'}
           </p>
           <p className="text-xs text-neutral-400 truncate">
-            {data?.isPlaying ? data.artistName : 'Spotify'}
+            {data?.isPlaying ? data.artistName || 'Spotify' : 'Spotify'}
           </p>
         </div>
-        {data?.isPlaying && <Music className="h-5 w-5 text-green-500 animate-pulse" />}
+        {data?.isPlaying && (
+          <Music aria-hidden="true" className="h-5 w-5 text-green-500 motion-safe:animate-pulse" />
+        )}
       </div>
     </DashboardCard>
   );

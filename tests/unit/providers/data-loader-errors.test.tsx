@@ -168,4 +168,21 @@ describe('DataLoader error handling', () => {
     expect(h.reportError).toHaveBeenCalledWith(expect.any(TypeError));
     expect(h.reportError).not.toHaveBeenCalledWith(expect.any(FetcherError));
   });
+
+  it('reports a transform bug once, as itself rather than as a failed fetch', async () => {
+    stubReply(200, { ok: true });
+    const transform = () => {
+      throw new RangeError('transform bug');
+    };
+    renderOnPage(
+      <DataLoader url="/api/v1/lanyard" transform={transform} ErrorComponent={KindError}>
+        {() => <p>loaded</p>}
+      </DataLoader>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('failed: RangeError');
+    expectPageIntact();
+    expect(h.reportError).toHaveBeenCalledTimes(1);
+    expect(h.reportError).toHaveBeenCalledWith(expect.any(RangeError));
+  });
 });

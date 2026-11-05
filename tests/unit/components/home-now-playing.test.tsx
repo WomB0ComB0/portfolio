@@ -96,4 +96,22 @@ describe('homepage now-playing card', () => {
     expect(nowPlayingCalls).toHaveLength(1);
     expect(nowPlayingCalls[0]?.[1]).toMatchObject({ retries: 0 });
   });
+
+  it('is not a link while nothing plays, so keyboard users never reach a dead "#"', async () => {
+    stubNowPlaying({ isPlaying: false });
+
+    renderHomePage();
+
+    const status = await screen.findByText('Not Currently Listening');
+    expect(status.closest('a')).toBeNull();
+    expect(document.querySelector('a[href="#"]')).toBeNull();
+  });
+
+  it('names the playing state even when Spotify sends no track details', async () => {
+    stubNowPlaying({ isPlaying: true });
+
+    renderHomePage();
+
+    expect(await screen.findByText('Listening on Spotify')).toBeInTheDocument();
+  });
 });

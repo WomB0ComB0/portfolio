@@ -163,6 +163,25 @@ describe('getLeetCodeStats', () => {
     await expect(getLeetCodeStats()).rejects.toMatchObject({ command: 'leetcode:fetch' });
   });
 
+  it('rejects a partial reply that carries GraphQL errors, so it is never cached', async () => {
+    const partial = leetCodeReply();
+    const fetchMock = stubFetch(() =>
+      jsonResponse({
+        errors: [{ message: 'ranking is temporarily unavailable' }],
+        data: {
+          matchedUser: { ...partial.data.matchedUser, profile: { ranking: null } },
+        },
+      }),
+    );
+    const getLeetCodeStats = await loadGetLeetCodeStats();
+
+    await expect(getLeetCodeStats()).rejects.toMatchObject({ command: 'leetcode:fetch' });
+
+    fetchMock.mockImplementation(async () => jsonResponse(leetCodeReply()));
+    await expect(getLeetCodeStats()).resolves.toMatchObject({ ranking: expect.any(Number) });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('serves cached stats for 6 hours without asking LeetCode again', async () => {
     const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
     const getLeetCodeStats = await loadGetLeetCodeStats();

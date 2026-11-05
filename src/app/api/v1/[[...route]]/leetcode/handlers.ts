@@ -55,9 +55,13 @@ const MatchedUserSchema = Schema.Struct({
   profile: Schema.Struct({ ranking: Schema.NullOr(Schema.Number) }),
 });
 
-/** LeetCode answers an unknown username with `matchedUser: null` (and a GraphQL error). */
+/**
+ * LeetCode answers an unknown username with `matchedUser: null` (and a GraphQL error). A reply
+ * with any `errors` may be partial (e.g. a null ranking), so it is treated as a failure.
+ */
 const LeetCodeReplySchema = Schema.Struct({
   data: Schema.Struct({ matchedUser: Schema.NullOr(MatchedUserSchema) }),
+  errors: Schema.optional(Schema.Array(Schema.Struct({ message: Schema.String }))),
 });
 
 const LeetCodeStatsSchema = Schema.Struct({
@@ -139,6 +143,10 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
     ),
   );
 
+  const firstError = reply.errors?.[0];
+  if (firstError) {
+    throw new Error(`LeetCode GraphQL error: ${firstError.message}`);
+  }
   const user = reply.data.matchedUser;
   if (!user) {
     throw new Error('LeetCode user not found');

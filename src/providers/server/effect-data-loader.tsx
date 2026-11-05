@@ -324,45 +324,46 @@ function DataLoaderContent<T = unknown, S extends Schema.Schema<any, any, never>
 
   // Memoized query function with schema support and request deduplication
   const queryFn = useCallback(async () => {
-    try {
-      // Wrap the Effect execution in the request queue for automatic deduplication
-      const result = await requestQueue.enqueue(
-        url,
-        'GET',
-        async () => {
-          const effect = pipe(
-            get(url, fetcherOptions, params),
-            Effect.provide(FetchHttpClient.layer),
-          );
-          return await Effect.runPromise(effect);
-        },
-        {
-          headers: fetcherOptions?.headers,
-          bypassDeduplication: false,
-        },
-      );
+    const request = async () => {
+      try {
+        // Wrap the Effect execution in the request queue for automatic deduplication
+        return await requestQueue.enqueue(
+          url,
+          'GET',
+          async () => {
+            const effect = pipe(
+              get(url, fetcherOptions, params),
+              Effect.provide(FetchHttpClient.layer),
+            );
+            return await Effect.runPromise(effect);
+          },
+          {
+            headers: fetcherOptions?.headers,
+            bypassDeduplication: false,
+          },
+        );
+      } catch (error) {
+        // Effect.runPromise rejects with a FiberFailure; rethrow the fetcher's own error so its
+        // status reaches the error component and the retry rule (no retry for 4xx).
+        const failure = unwrapEffectError(error);
+        if (failure instanceof ValidationError || failure instanceof FetcherError) throw failure;
 
-      // Apply transformation if provided (note: schema validation happens first)
-      const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
+        // Wrap unexpected request errors
+        throw new FetcherError(
+          failure instanceof Error ? failure.message : 'Unknown error occurred',
+          url,
+          undefined,
+          failure,
+        );
+      }
+    };
+    const result = await request();
 
-      // Call success callback
-      if (onSuccess) onSuccess(finalResult);
-
-      return finalResult;
-    } catch (error) {
-      // Effect.runPromise rejects with a FiberFailure; rethrow the fetcher's own error so its
-      // status reaches the error component and the retry rule (no retry for 4xx).
-      const failure = unwrapEffectError(error);
-      if (failure instanceof ValidationError || failure instanceof FetcherError) throw failure;
-
-      // Wrap unexpected errors
-      throw new FetcherError(
-        failure instanceof Error ? failure.message : 'Unknown error occurred',
-        url,
-        undefined,
-        failure,
-      );
-    }
+    // The caller's callbacks run outside the try: an exception there is a bug in this page, not
+    // a failed request, so it reaches LoadFailureBoundary unchanged and is reported once.
+    const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
+    if (onSuccess) onSuccess(finalResult);
+    return finalResult;
   }, [url, fetcherOptions, params, transform, onSuccess]);
 
   // Query options. `retry` and `retryDelay` come from the QueryClient defaults (shouldRetryQuery
