@@ -41,7 +41,7 @@ describe('sitemap', () => {
     const entries = await Sitemap();
 
     for (const entry of entries) {
-      expect(entry.url.startsWith('https://mikeodnis.dev')).toBe(true);
+      expect(new URL(entry.url).origin).toBe('https://mikeodnis.dev');
       expect(entry.lastModified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
     expect(new Set(entries.map((entry) => entry.url)).size).toBe(entries.length);
