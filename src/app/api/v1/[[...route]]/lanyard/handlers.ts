@@ -18,7 +18,11 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { config } from '@/config';
-import { get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { reportApiFailure } from '@/lib/observability/report';
+
+/** The route's error-handler context, so stale-fallback warnings group with its errors. */
+const REPORT_CONTEXT = 'fetching Lanyard data';
 
 const DiscordUserSchema = Schema.Struct({
   username: Schema.String,
@@ -59,32 +63,56 @@ export type DiscordUser = Schema.Schema.Type<typeof DiscordUserSchema>;
 export type LanyardData = Schema.Schema.Type<typeof LanyardDataSchema>;
 
 const CACHE_DURATION = 60 * 1_000;
+/**
+ * How old a cached presence may be and still answer when Lanyard fails. Presence goes stale fast,
+ * so past this the route errors rather than show an old status as live.
+ */
+const MAX_STALE_AGE = 5 * 60 * 1_000;
 let cache: { data: LanyardData; timestamp: number } | null = null;
+
+/**
+ * Upstream time budget. The Discord card's DataLoader gives up after 30 s, so the stale fallback
+ * (or the 500) has to be ready well before that: three 4 s attempts with 1 s and 2 s backoff take
+ * 15 s, inside the deadline.
+ */
+const ATTEMPT_TIMEOUT_MS = 4_000;
+/** Caps the attempts together, retries and body reads included. */
+const UPSTREAM_DEADLINE_MS = 16_000;
 
 export async function getLanyardData(): Promise<LanyardData> {
   if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
     return cache.data;
   }
 
+  const url = `https://api.lanyard.rest/v1/users/${config.discord.id}`;
   const effect = pipe(
-    get(`https://api.lanyard.rest/v1/users/${config.discord.id}`, {
+    get(url, {
       schema: LanyardResponseSchema,
       retries: 2,
-      timeout: 10_000,
+      timeout: ATTEMPT_TIMEOUT_MS,
+    }),
+    Effect.timeoutFail({
+      duration: UPSTREAM_DEADLINE_MS,
+      onTimeout: () =>
+        new FetcherError(`Lanyard did not answer within ${UPSTREAM_DEADLINE_MS} ms`, url),
     }),
     Effect.provide(FetchHttpClient.layer),
   );
 
   try {
-    const response = await Effect.runPromise(effect);
-    const lanyard = response.data as any as LanyardData;
+    const { data: lanyard } = await Effect.runPromise(effect);
     cache = { data: lanyard, timestamp: Date.now() };
 
     return lanyard;
   } catch (error) {
-    throw ensureBaseError(error, 'lanyard:fetch', {
+    const failure = ensureBaseError(error, 'lanyard:fetch', {
       discordId: config.discord.id,
       cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
     });
+    if (cache && Date.now() - cache.timestamp < MAX_STALE_AGE) {
+      reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
+      return cache.data;
+    }
+    throw failure;
   }
 }

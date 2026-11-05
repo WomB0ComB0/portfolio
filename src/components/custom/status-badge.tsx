@@ -88,7 +88,8 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
       const effect = pipe(
         get('/api/status', {
           schema: StatusResponseSchema,
-          retries: 2,
+          // One attempt: the QueryClient's shared rule (shouldRetryQuery) does the retrying.
+          retries: 0,
           timeout: 5_000,
         }),
         Effect.provide(FetchHttpClient.layer),
@@ -97,7 +98,6 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
     },
     staleTime: 1000 * 60, // 1 minute
     refetchInterval: 1000 * 60, // Refetch every minute
-    retry: 1,
   });
 
   const state = statusData?.data.state ?? 'unknown';

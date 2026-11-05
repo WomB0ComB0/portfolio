@@ -49,8 +49,11 @@ export const SANITY_CACHE_CONFIG = {
  * Default Effect fetcher options for Sanity requests
  */
 export const SANITY_FETCHER_OPTIONS = {
-  /** Number of retry attempts on failure */
-  retries: 2,
+  /**
+   * The fetch makes one attempt: TanStack Query's shared retry rule (shouldRetryQuery in
+   * query-client.ts) is the only retry layer, so a failure costs at most 2 requests, not 6.
+   */
+  retries: 0,
   /** Request timeout in milliseconds */
   timeout: 10_000,
 } as const;

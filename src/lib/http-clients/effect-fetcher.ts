@@ -259,6 +259,20 @@ export class FetcherError extends Error {
   }
 }
 
+/**
+ * Whether a failed attempt may be retried; the caller's `retries` budget caps the count separately.
+ * Validation errors and 4xx responses are final. A 429 is retried only on the server: in the
+ * browser every visitor's tab would hit an upstream that is already rate limiting, and TanStack
+ * Query decides whether a failed query is worth another try.
+ */
+const isRetryableError = (error: FetcherError | ValidationError): boolean => {
+  if (error instanceof ValidationError) return false;
+  const { status } = error;
+  if (!status) return true;
+  if (status === 429) return globalThis.window === undefined;
+  return status < 400 || status >= 500;
+};
+
 // --- Overloaded function signatures for type safety with effect/Schema ---
 
 /**
@@ -519,22 +533,12 @@ export function fetcher<T = unknown>(
         }),
       );
 
-    // Enhanced retry schedule:
-    // - Exponential backoff starting from retryDelay
-    // - Maximum number of retries
-    // - Special handling for 429 rate limit errors
+    // Retry schedule: exponential backoff from retryDelay, at most `retries` retries (so 0 means
+    // one attempt for every status, 429 included), and only for retryable errors.
     const retrySchedule = pipe(
       Schedule.exponential(Duration.millis(retryDelay)),
       Schedule.intersect(Schedule.recurs(retries)),
-      Schedule.whileInput((error: FetcherError | ValidationError) => {
-        // Don't retry validation errors or client errors (except 429)
-        if (error instanceof ValidationError) return false;
-        if (error instanceof FetcherError && error.status) {
-          if (error.status === 429) return true; // Always retry 429 rate limits
-          if (error.status >= 400 && error.status < 500) return false; // Don't retry other 4xx
-        }
-        return true;
-      }),
+      Schedule.whileInput(isRetryableError),
     );
 
     /**

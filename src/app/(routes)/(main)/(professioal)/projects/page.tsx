@@ -30,6 +30,7 @@ const ProjectsList = dynamic(
 export const metadata = constructMetadata({
   title: 'Projects',
   description: 'Explore my portfolio of web development, machine learning, and software projects',
+  path: '/projects',
 });
 
 /**

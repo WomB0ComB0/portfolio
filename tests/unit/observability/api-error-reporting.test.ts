@@ -57,6 +57,7 @@ import { BaseError } from '@/classes/error';
 import {
   API_REPORT_COOLDOWN_MS,
   isServerSideApiError,
+  reportApiFailure,
   reportError,
   resetApiReportCooldowns,
 } from '@/lib/observability/report';
@@ -136,6 +137,47 @@ describe('createErrorHandler', () => {
       new Error('down'),
     );
     expect(sentry.captureException.mock.calls[0]?.[1]).toMatchObject({ level: 'warning' });
+  });
+});
+
+describe('reportApiFailure cooldown', () => {
+  const context = 'fetching Lanyard data';
+  const levels = () => sentry.captureException.mock.calls.map(([, options]) => options?.level);
+
+  it('still reports the error after a stale-fallback warning for the same context', () => {
+    // The outage starts: the route serves its cached value and warns.
+    expect(reportApiFailure(new Error('timeout'), { context, level: 'warning', now: 0 })).toBe(
+      true,
+    );
+    // Within the window the cache runs out and the route answers 500.
+    expect(reportApiFailure(new Error('timeout'), { context, level: 'error', now: 60_000 })).toBe(
+      true,
+    );
+
+    expect(levels()).toEqual(['warning', 'error']);
+  });
+
+  it('keeps one fingerprint per context, so the warning and the error share an issue', () => {
+    reportApiFailure(new Error('timeout'), { context, level: 'warning', now: 0 });
+    reportApiFailure(new Error('timeout'), { context, level: 'error', now: 1 });
+
+    const fingerprints = sentry.captureException.mock.calls.map(
+      ([, options]) => options?.fingerprint,
+    );
+    expect(fingerprints).toEqual([
+      ['api', context, '{{ default }}'],
+      ['api', context, '{{ default }}'],
+    ]);
+  });
+
+  it('throttles each level on its own', () => {
+    reportApiFailure(new Error('a'), { context, level: 'warning', now: 0 });
+    reportApiFailure(new Error('b'), { context, level: 'warning', now: 1 });
+    reportApiFailure(new Error('c'), { context, level: 'error', now: 2 });
+    reportApiFailure(new Error('d'), { context, level: 'error', now: 3 });
+    reportApiFailure(new Error('e'), { context, level: 'warning', now: API_REPORT_COOLDOWN_MS });
+
+    expect(levels()).toEqual(['warning', 'error', 'warning']);
   });
 });
 

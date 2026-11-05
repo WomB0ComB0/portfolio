@@ -31,6 +31,7 @@ const Certifications = dynamic(
 export const metadata = constructMetadata({
   title: 'Certifications',
   description: 'View my professional certifications and credentials',
+  path: '/certifications',
 });
 
 const CertificationsPage = (): JSX.Element => {

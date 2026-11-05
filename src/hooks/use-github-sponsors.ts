@@ -55,7 +55,7 @@ const GitHubSponsorsSchema = Schema.Struct({
 
 /**
  * Custom React Query hook to fetch all GitHub sponsors—both active and inactive—using the portfolio API endpoint.
- * Uses Effect, schema validation, and retries.
+ * Uses Effect and schema validation; retries come from the QueryClient defaults.
  *
  * @function useGitHubSponsors
  * @returns {import('@tanstack/react-query').UseQueryResult<GitHubSponsorsData, unknown>}
@@ -82,7 +82,8 @@ export function useGitHubSponsors() {
       const effect = pipe(
         get('/api/v1/github-sponsors', {
           schema: GitHubSponsorsSchema,
-          retries: 2,
+          // One attempt: the QueryClient's shared rule (shouldRetryQuery) does the retrying.
+          retries: 0,
           timeout: 10_000,
         }),
         Effect.provide(FetchHttpClient.layer),
@@ -92,13 +93,12 @@ export function useGitHubSponsors() {
       return result as GitHubSponsorsData;
     },
     staleTime: 1000 * 60 * 60, // 1 hour
-    retry: 2,
   });
 }
 
 /**
  * Custom React Query hook to fetch only active GitHub sponsors using the portfolio API endpoint.
- * Uses Effect, schema validation, and retries.
+ * Uses Effect and schema validation; retries come from the QueryClient defaults.
  *
  * @function useActiveSponsors
  * @returns {import('@tanstack/react-query').UseQueryResult<GitHubSponsorsData, unknown>}
@@ -123,7 +123,8 @@ export function useActiveSponsors() {
       const effect = pipe(
         get('/api/v1/github-sponsors/active', {
           schema: GitHubSponsorsSchema,
-          retries: 2,
+          // One attempt: the QueryClient's shared rule (shouldRetryQuery) does the retrying.
+          retries: 0,
           timeout: 10_000,
         }),
         Effect.provide(FetchHttpClient.layer),
@@ -133,6 +134,5 @@ export function useActiveSponsors() {
       return result as GitHubSponsorsData;
     },
     staleTime: 1000 * 60 * 60, // 1 hour
-    retry: 2,
   });
 }

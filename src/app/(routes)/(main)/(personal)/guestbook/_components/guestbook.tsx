@@ -93,14 +93,17 @@ const MessageSkeleton = () => {
   );
 };
 
+/** Keys for the loading skeleton's four placeholder rows, which never reorder. */
+const SKELETON_KEYS = ['loading-1', 'loading-2', 'loading-3', 'loading-4'] as const;
+
 /**
  * Loading UI - renders skeleton state for messages
  */
 function LoadingUI() {
   return (
     <div className="space-y-4">
-      {new Array(4).fill(null).map((_, index) => (
-        <MessageSkeleton key={`loading-${index + 1}`} />
+      {SKELETON_KEYS.map((key) => (
+        <MessageSkeleton key={key} />
       ))}
     </div>
   );
@@ -144,7 +147,8 @@ export const GuestbookComponent = () => {
     queryFn: async () => {
       const effect = pipe(
         get('/api/v1/messages', {
-          retries: 2,
+          // One attempt: the QueryClient's shared rule (shouldRetryQuery) does the retrying.
+          retries: 0,
           timeout: 10_000,
           schema: MessagesResponseSchema,
         }),

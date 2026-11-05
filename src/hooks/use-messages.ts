@@ -89,7 +89,9 @@ export function usePostMessage() {
 
       const effect = pipe(
         post('/api/v1/messages', messageData, {
-          retries: 2,
+          // Sent once: the API adds a new entry per POST, so a retry after a timeout could post
+          // the message twice. Mutations don't retry by default either.
+          retries: 0,
           timeout: 10_000,
           schema: MessageSchema,
         }),

@@ -33,7 +33,12 @@ export const PageHeader = ({
   return (
     <header className={cn('page-header', className)}>
       <div className="page-header-container">
-        {icon && <div className="page-header-icon">{icon}</div>}
+        {/* Decorative: the title beside it already names the page. */}
+        {icon && (
+          <div className="page-header-icon" aria-hidden="true">
+            {icon}
+          </div>
+        )}
         <h1 className="page-header-title">{title}</h1>
       </div>
       {description && <p className="page-header-description">{description}</p>}

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { MotionConfig } from 'motion/react';
 import type { JSX, JSXElementConstructor, ReactNode } from 'react';
 
 /**
@@ -92,6 +93,9 @@ function ProviderStack<T extends JSXElementConstructor<any>[]>({
  * Composes an array of React context providers around its children node.
  * Serves as a wrapper for the application's context composition needs.
  *
+ * The node is also wrapped in `<MotionConfig reducedMotion="user">`, so every `motion` component
+ * in the app follows the operating system's reduced-motion setting.
+ *
  * @template T - Array of component providers.
  * @param {ProvidersProps<T>} props - The props containing providers and children.
  * @returns {JSX.Element} A React element wrapped with the composed providers.
@@ -107,5 +111,10 @@ export function Providers<T extends JSXElementConstructor<any>[]>({
   node,
   providers,
 }: ProvidersProps<T>): JSX.Element {
-  return <ProviderStack providers={providers} node={node} />;
+  return (
+    <ProviderStack
+      providers={providers}
+      node={<MotionConfig reducedMotion="user">{node}</MotionConfig>}
+    />
+  );
 }

@@ -31,8 +31,8 @@ export const Stats = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <PageHeader
-          title="Live Development Statistics"
-          description="A real-time look at my activity and project metrics"
+          title="Development Statistics"
+          description="What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours."
           icon={<FiActivity />}
         />
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">

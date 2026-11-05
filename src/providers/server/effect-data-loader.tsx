@@ -19,6 +19,7 @@
 import { FetchHttpClient } from '@effect/platform';
 import type { QueryKey } from '@tanstack/react-query';
 import {
+  QueryErrorResetBoundary,
   type UseSuspenseQueryOptions,
   useQueryClient,
   useSuspenseQuery,
@@ -35,7 +36,9 @@ import {
   requestQueue,
   ValidationError,
 } from '@/lib/http-clients';
+import { reportError } from '@/lib/observability/report';
 import { logger, parseCodePathDetailed } from '@/utils';
+import { unwrapEffectError } from './query-client';
 
 /**
  * @module effect-data-loader
@@ -51,7 +54,9 @@ import { logger, parseCodePathDetailed } from '@/utils';
  * - Type-safe data loading for React components with Effect Schema validation
  * - Suspense support
  * - Runtime type validation with detailed error messages
- * - Customizable error and loading components
+ * - Customizable error and loading components. A failed first load renders `ErrorComponent` in
+ *   place of the children (it stops at the DataLoader, not the page's error boundary); a failed
+ *   background refetch keeps the data already on screen.
  * - Query caching and invalidation
  * - Optimistic updates
  * - Retry and timeout logic
@@ -98,6 +103,14 @@ export interface DataLoaderRenderProps<T> {
   setQueryData: (data: T | ((prev: T) => T)) => void;
 }
 
+/** What DataLoader passes its `ErrorComponent`. */
+export interface DataLoaderErrorProps {
+  /** Why the first load failed. */
+  error: Error;
+  /** Clears the failure and loads the data again. */
+  retry: () => void;
+}
+
 /**
  * Base props for DataLoader without schema.
  */
@@ -110,8 +123,8 @@ export interface BaseDataLoaderProps<T> {
   queryOptions?: Partial<UseSuspenseQueryOptions<T, Error, T, QueryKey>>;
   /** Custom loading component */
   LoadingComponent?: React.ReactNode;
-  /** Custom error component */
-  ErrorComponent?: React.ComponentType<{ error: Error; retry: () => void }> | React.ReactElement;
+  /** Shown in place of the children when the first load fails (after the query's retries). */
+  ErrorComponent?: React.ComponentType<DataLoaderErrorProps> | React.ReactElement;
   /** Fetcher options (retries, timeout, etc.) */
   options?: FetcherOptions<T>;
   /** Query parameters */
@@ -168,39 +181,91 @@ export interface DataLoaderPropsWithSchema<S extends Schema.Schema<any, any, nev
   options?: FetcherOptions<Schema.Schema.Type<S>> & { schema: S };
 }
 
+/** Renders `ErrorComponent`, given as a component or an element, with the failure and a retry. */
+function renderErrorComponent(
+  ErrorComponent: React.ComponentType<DataLoaderErrorProps> | React.ReactElement,
+  error: Error,
+  retry: () => void,
+): React.ReactNode {
+  if (React.isValidElement(ErrorComponent)) {
+    return React.cloneElement(ErrorComponent as React.ReactElement<Partial<DataLoaderErrorProps>>, {
+      error,
+      retry,
+    });
+  }
+  const Component = ErrorComponent as React.ComponentType<DataLoaderErrorProps>;
+  return <Component error={error} retry={retry} />;
+}
+
 /**
- * Enhanced DataLoader component with Effect Schema validation, better error handling, caching, and developer experience.
- *
- * @example Without schema
- * ```tsx
- * <DataLoader<User[]> url="/api/users">
- *   {(users) => <UserList users={users} />}
- * </DataLoader>
- * ```
- *
- * @example With schema (automatic type inference)
- * ```tsx
- * const UsersSchema = Schema.Array(Schema.Struct({
- *   id: Schema.Number,
- *   name: Schema.String,
- *   email: Schema.String
- * }));
- *
- * <DataLoader url="/api/users" schema={UsersSchema}>
- *   {(users) => <UserList users={users} />} // users is fully typed!
- * </DataLoader>
- * ```
+ * Whether Sentry hears about a failure without this boundary's help. A FetcherError is an HTTP or
+ * network failure: the API routes report their own upstream failures server-side
+ * (reportApiFailure), and a visitor's dropped connection is not actionable. The QueryCache logs
+ * every query error as well. A ValidationError (an answer the schema rejects) or a render bug in
+ * the children is reported nowhere else, so the boundary reports those, as src/app/error.tsx did.
  */
-export function DataLoader<T = unknown>(props: DataLoaderProps<T>): React.ReactElement;
-export function DataLoader<S extends Schema.Schema<any, any, never>>(
-  props: DataLoaderPropsWithSchema<S>,
-): React.ReactElement;
-export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never> = any>({
+const isReportedElsewhere = (error: unknown): boolean => error instanceof FetcherError;
+
+interface LoadFailureBoundaryProps {
+  children: React.ReactNode;
+  /** Renders the failure in place of the children. */
+  fallback: (error: Error, retry: () => void) => React.ReactNode;
+  /** Runs before the children render again: QueryErrorResetBoundary's `reset`. */
+  onRetry: () => void;
+}
+
+interface LoadFailureBoundaryState {
+  error: Error | null;
+}
+
+/**
+ * Keeps a failed first load inside its DataLoader. useSuspenseQuery throws when it has no data to
+ * show; without this boundary the error reaches src/app/error.tsx, which replaces the whole page.
+ */
+class LoadFailureBoundary extends React.Component<
+  LoadFailureBoundaryProps,
+  LoadFailureBoundaryState
+> {
+  state: LoadFailureBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: unknown): LoadFailureBoundaryState {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+
+  componentDidCatch(error: unknown): void {
+    if (!isReportedElsewhere(error)) reportError(error);
+  }
+
+  /** Lets the query fetch again on remount (TanStack keeps a thrown error otherwise), then remounts. */
+  private readonly retry = (): void => {
+    this.props.onRetry();
+    this.setState({ error: null });
+  };
+
+  render(): React.ReactNode {
+    const { error } = this.state;
+    return error ? this.props.fallback(error, this.retry) : this.props.children;
+  }
+}
+
+type DataLoaderImplProps<T, S extends Schema.Schema<any, any, never>> = (
+  | DataLoaderProps<T>
+  | DataLoaderPropsWithSchema<S>
+) & {
+  schema?: S;
+};
+
+/**
+ * Runs DataLoader's query and renders its children with the data. A failed first load throws to
+ * LoadFailureBoundary (see DataLoader). Once data has loaded, a failed background refetch leaves
+ * that data in place (TanStack keeps it beside the error), so the children keep showing it until
+ * a later refetch succeeds.
+ */
+function DataLoaderContent<T = unknown, S extends Schema.Schema<any, any, never> = any>({
   children,
   url,
   queryOptions = {},
   LoadingComponent = <Loader />,
-  ErrorComponent = ClientError,
   options = {},
   params = {},
   queryKey,
@@ -212,9 +277,7 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
   refetchOnWindowFocus = false,
   refetchOnReconnect = true,
   schema,
-}: (DataLoaderProps<T> | DataLoaderPropsWithSchema<S>) & {
-  schema?: S;
-}): React.ReactElement {
+}: DataLoaderImplProps<T, S>): React.ReactElement {
   const queryClient = useQueryClient();
 
   // Generate stable query key including schema
@@ -227,11 +290,13 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
     return keyArray;
   }, [queryKey, url, params, options, schema]);
 
-  // Enhanced fetcher options with better defaults and schema support
+  // Fetcher defaults with schema support. `retries: 0` makes one attempt per queryFn and leaves
+  // retrying to TanStack Query (shouldRetryQuery), so failures are not retried at two layers.
+  // A caller's `options.retries` would still override it; callers leave it unset or 0
+  // (Sanity's createDataLoaderOptions passes 0).
   const fetcherOptions = useMemo((): FetcherOptions<any> => {
     const baseOptions: FetcherOptions<any> = {
-      retries: 3,
-      retryDelay: 1_000,
+      retries: 0,
       timeout: 30_000,
       onError: (err) => {
         const path = parseCodePathDetailed(url, fetcher);
@@ -285,22 +350,23 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
 
       return finalResult;
     } catch (error) {
-      // Enhanced error handling for validation errors
-      if (error instanceof ValidationError) throw error;
-
-      if (error instanceof FetcherError) throw error;
+      // Effect.runPromise rejects with a FiberFailure; rethrow the fetcher's own error so its
+      // status reaches the error component and the retry rule (no retry for 4xx).
+      const failure = unwrapEffectError(error);
+      if (failure instanceof ValidationError || failure instanceof FetcherError) throw failure;
 
       // Wrap unexpected errors
       throw new FetcherError(
-        error instanceof Error ? error.message : 'Unknown error occurred',
+        failure instanceof Error ? failure.message : 'Unknown error occurred',
         url,
         undefined,
-        error,
+        failure,
       );
     }
   }, [url, fetcherOptions, params, transform, onSuccess]);
 
-  // Enhanced query options
+  // Query options. `retry` and `retryDelay` come from the QueryClient defaults (shouldRetryQuery
+  // in query-client.ts) unless `queryOptions` overrides them.
   const queryOptionsWithDefaults = useMemo(() => {
     const baseOptions: UseSuspenseQueryOptions<any, Error, any, QueryKey> = {
       queryKey: finalQueryKey,
@@ -309,20 +375,6 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
       refetchInterval,
       refetchOnWindowFocus,
       refetchOnReconnect,
-      retry: (failureCount: number, error: unknown) => {
-        // Don't retry client errors (4xx)
-        if (
-          error instanceof ValidationError ||
-          (error instanceof FetcherError &&
-            error.status &&
-            error.status >= 400 &&
-            error.status < 500)
-        )
-          return false;
-
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex: number) => Math.min(1_000 * 2 ** attemptIndex, 30_000),
       ...queryOptions,
     };
 
@@ -337,7 +389,8 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
     queryOptions,
   ]);
 
-  const { data, error, refetch, isRefetching } = useSuspenseQuery(queryOptionsWithDefaults);
+  // `data` is always defined here: without it, useSuspenseQuery suspends or throws instead.
+  const { data, refetch, isRefetching } = useSuspenseQuery(queryOptionsWithDefaults);
 
   // Enhanced render props
   const renderProps = useMemo(() => {
@@ -357,25 +410,6 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
     return props;
   }, [refetch, isRefetching, queryClient, finalQueryKey]);
 
-  // Enhanced error component with retry capability and validation error support
-  const renderError = useCallback(
-    (error: Error) => {
-      if (React.isValidElement(ErrorComponent)) {
-        return React.cloneElement(ErrorComponent as React.ReactElement<any>, {
-          error,
-          retry: () => refetch(),
-        });
-      }
-
-      const Component = ErrorComponent as React.ComponentType<{
-        error: Error;
-        retry: () => void;
-      }>;
-      return <Component error={error} retry={() => refetch()} />;
-    },
-    [ErrorComponent, refetch],
-  );
-
   // Determine how to call children function
   const renderChildren = useCallback(() => {
     if (typeof children === 'function') {
@@ -392,8 +426,57 @@ export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never>
     return null;
   }, [children, data, renderProps]);
 
+  return <Suspense fallback={LoadingComponent}>{renderChildren()}</Suspense>;
+}
+
+/**
+ * Enhanced DataLoader component with Effect Schema validation, better error handling, caching, and developer experience.
+ *
+ * A failed first load renders `ErrorComponent` (default: ClientError) in place of the children,
+ * with a `retry` that loads again; the failure does not reach the page's error boundary. A failed
+ * background refetch keeps the loaded data on screen.
+ *
+ * @example Without schema
+ * ```tsx
+ * <DataLoader<User[]> url="/api/users">
+ *   {(users) => <UserList users={users} />}
+ * </DataLoader>
+ * ```
+ *
+ * @example With schema (automatic type inference)
+ * ```tsx
+ * const UsersSchema = Schema.Array(Schema.Struct({
+ *   id: Schema.Number,
+ *   name: Schema.String,
+ *   email: Schema.String
+ * }));
+ *
+ * <DataLoader url="/api/users" schema={UsersSchema}>
+ *   {(users) => <UserList users={users} />} // users is fully typed!
+ * </DataLoader>
+ * ```
+ */
+export function DataLoader<T = unknown>(props: DataLoaderProps<T>): React.ReactElement;
+export function DataLoader<S extends Schema.Schema<any, any, never>>(
+  props: DataLoaderPropsWithSchema<S>,
+): React.ReactElement;
+export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never> = any>(
+  props: DataLoaderImplProps<T, S>,
+): React.ReactElement {
+  const { ErrorComponent = ClientError } = props;
+
+  // Each DataLoader gets its own reset scope, so retrying one card does not refetch the others.
   return (
-    <Suspense fallback={LoadingComponent}>{error ? renderError(error) : renderChildren()}</Suspense>
+    <QueryErrorResetBoundary>
+      {({ reset }) => (
+        <LoadFailureBoundary
+          onRetry={reset}
+          fallback={(error, retry) => renderErrorComponent(ErrorComponent, error, retry)}
+        >
+          <DataLoaderContent {...props} />
+        </LoadFailureBoundary>
+      )}
+    </QueryErrorResetBoundary>
   );
 }
 
@@ -439,10 +522,11 @@ export function useDataLoader(url: string, options: any = {}) {
     return keyArray;
   }, [queryKey, url, params, fetcherOptions, schema]);
 
+  // One attempt per queryFn by default; TanStack Query owns retries (see DataLoaderContent). A
+  // caller's `options.retries` still overrides it; createDataLoaderOptions passes 0.
   const enhancedFetcherOptions = useMemo(() => {
     const baseOptions: FetcherOptions<any> = {
-      retries: 3,
-      retryDelay: 1_000,
+      retries: 0,
       timeout: 30_000,
       onError: (err) => {
         if (err instanceof ValidationError) {
@@ -498,19 +582,7 @@ export function useDataLoader(url: string, options: any = {}) {
       refetchInterval,
       refetchOnWindowFocus,
       refetchOnReconnect,
-      retry: (failureCount: number, error: unknown) => {
-        if (
-          error instanceof ValidationError ||
-          (error instanceof FetcherError &&
-            error.status &&
-            error.status >= 400 &&
-            error.status < 500)
-        ) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex: number) => Math.min(1_000 * 2 ** attemptIndex, 30_000),
+      // `retry` and `retryDelay` come from the QueryClient defaults (shouldRetryQuery).
       ...queryOptions,
     };
 

@@ -14,11 +14,51 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
+import { FetchHttpClient } from '@effect/platform';
+import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
+import { FetcherError, post } from '@/lib/http-clients/effect-fetcher';
+import { reportApiFailure } from '@/lib/observability/report';
 
 const LEETCODE_GRAPHQL_URL = 'https://leetcode.com/graphql';
 const LEETCODE_USERNAME = 'WomB0ComB0';
+/** The route's error-handler context, so stale-fallback warnings group with its errors. */
+const REPORT_CONTEXT = 'fetch LeetCode stats';
+
+const LEETCODE_QUERY = `
+  query getUserProfile($username: String!) {
+    matchedUser(username: $username) {
+      submitStatsGlobal {
+        acSubmissionNum { difficulty count submissions }
+        totalSubmissionNum { difficulty count submissions }
+      }
+      profile { ranking }
+    }
+  }
+`;
+
+/**
+ * One row per difficulty ('All', 'Easy', 'Medium', 'Hard'): `count` is problems, `submissions` is
+ * submissions. In `acSubmissionNum` both count accepted ones only.
+ */
+const SubmissionCountSchema = Schema.Struct({
+  difficulty: Schema.String,
+  count: Schema.Number,
+  submissions: Schema.Number,
+});
+
+const MatchedUserSchema = Schema.Struct({
+  submitStatsGlobal: Schema.Struct({
+    acSubmissionNum: Schema.Array(SubmissionCountSchema),
+    totalSubmissionNum: Schema.Array(SubmissionCountSchema),
+  }),
+  profile: Schema.Struct({ ranking: Schema.NullOr(Schema.Number) }),
+});
+
+/** LeetCode answers an unknown username with `matchedUser: null` (and a GraphQL error). */
+const LeetCodeReplySchema = Schema.Struct({
+  data: Schema.Struct({ matchedUser: Schema.NullOr(MatchedUserSchema) }),
+});
 
 const LeetCodeStatsSchema = Schema.Struct({
   totalSolved: Schema.Number,
@@ -29,72 +69,81 @@ const LeetCodeStatsSchema = Schema.Struct({
   ranking: Schema.Number,
 });
 
+type SubmissionCount = Schema.Schema.Type<typeof SubmissionCountSchema>;
+type MatchedUser = Schema.Schema.Type<typeof MatchedUserSchema>;
 export type LeetCodeStats = Schema.Schema.Type<typeof LeetCodeStatsSchema>;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 let cache: { data: LeetCodeStats; timestamp: number } | null = null;
 
 /**
- * Fetches LeetCode stats via the official GraphQL API.
+ * Upstream time budget. The LeetCode card's fetch gives up after 10 s, so the stale fallback (or
+ * the 500) has to be ready well before that: one retry of a 3.5 s attempt fits in the deadline.
+ */
+const ATTEMPT_TIMEOUT_MS = 3_500;
+const RETRY_DELAY_MS = 500;
+/** Caps the attempts together, retries and body reads included. */
+const UPSTREAM_DEADLINE_MS = 8_000;
+
+const rowFor = (rows: readonly SubmissionCount[], difficulty: string) =>
+  rows.find((row) => row.difficulty === difficulty);
+
+/** Accepted over total submissions as a percentage, to 2 decimals; 0 with no submissions. */
+const toAcceptanceRate = (accepted: number, total: number): number =>
+  total > 0 ? Math.round((accepted / total) * 100 * 100) / 100 : 0;
+
+function toStats(user: MatchedUser): LeetCodeStats {
+  const { acSubmissionNum, totalSubmissionNum } = user.submitStatsGlobal;
+  const solved = (difficulty: string) => rowFor(acSubmissionNum, difficulty)?.count ?? 0;
+
+  return {
+    totalSolved: solved('All'),
+    easySolved: solved('Easy'),
+    mediumSolved: solved('Medium'),
+    hardSolved: solved('Hard'),
+    acceptanceRate: toAcceptanceRate(
+      rowFor(acSubmissionNum, 'All')?.submissions ?? 0,
+      rowFor(totalSubmissionNum, 'All')?.submissions ?? 0,
+    ),
+    ranking: user.profile.ranking ?? 0,
+  };
+}
+
+/**
+ * Fetches LeetCode stats via the official GraphQL API. A reply that doesn't match the schema
+ * fails, so it never reaches the cache.
  */
 async function fetchFromGraphQL(): Promise<LeetCodeStats> {
-  const query = `
-    query getUserProfile($username: String!) {
-      matchedUser(username: $username) {
-        submitStatsGlobal {
-          acSubmissionNum {
-            difficulty
-            count
-          }
-        }
-        profile {
-          ranking
-        }
-      }
-    }
-  `;
+  const reply = await Effect.runPromise(
+    pipe(
+      post(
+        LEETCODE_GRAPHQL_URL,
+        { query: LEETCODE_QUERY, variables: { username: LEETCODE_USERNAME } },
+        {
+          schema: LeetCodeReplySchema,
+          retries: 1,
+          retryDelay: RETRY_DELAY_MS,
+          timeout: ATTEMPT_TIMEOUT_MS,
+          headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com' },
+        },
+      ),
+      Effect.timeoutFail({
+        duration: UPSTREAM_DEADLINE_MS,
+        onTimeout: () =>
+          new FetcherError(
+            `LeetCode did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+            LEETCODE_GRAPHQL_URL,
+          ),
+      }),
+      Effect.provide(FetchHttpClient.layer),
+    ),
+  );
 
-  const response = await fetch(LEETCODE_GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Referer: 'https://leetcode.com',
-    },
-    body: JSON.stringify({
-      query,
-      variables: { username: LEETCODE_USERNAME },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`LeetCode GraphQL returned ${response.status}`);
-  }
-
-  const json = await response.json();
-  const user = json?.data?.matchedUser;
-
+  const user = reply.data.matchedUser;
   if (!user) {
     throw new Error('LeetCode user not found');
   }
-
-  const submissions: { difficulty: string; count: number }[] =
-    user.submitStatsGlobal.acSubmissionNum;
-  const getCount = (diff: string) => submissions.find((s) => s.difficulty === diff)?.count ?? 0;
-
-  const totalSolved = getCount('All');
-  const easySolved = getCount('Easy');
-  const mediumSolved = getCount('Medium');
-  const hardSolved = getCount('Hard');
-  const totalSubmissions = totalSolved > 0 ? totalSolved : 1;
-
-  return {
-    totalSolved,
-    easySolved,
-    mediumSolved,
-    hardSolved,
-    acceptanceRate: Math.round((totalSolved / totalSubmissions) * 100 * 100) / 100,
-    ranking: user.profile.ranking ?? 0,
-  };
+  return toStats(user);
 }
 
 export async function getLeetCodeStats(): Promise<LeetCodeStats> {
@@ -107,10 +156,12 @@ export async function getLeetCodeStats(): Promise<LeetCodeStats> {
     cache = { data, timestamp: Date.now() };
     return data;
   } catch (error) {
-    // Return stale cache if available rather than propagating a 503
+    const failure = ensureBaseError(error, 'leetcode:fetch');
+    // Serve the last good stats rather than a 500; they change slowly.
     if (cache) {
+      reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
       return cache.data;
     }
-    throw ensureBaseError(error, 'leetcode:fetch');
+    throw failure;
   }
 }

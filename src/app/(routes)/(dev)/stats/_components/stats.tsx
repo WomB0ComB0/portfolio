@@ -39,6 +39,13 @@ const WakaTimeResponseSchema = Schema.Struct({
   total_seconds: Schema.Number,
 });
 
+/** Shared by the skeleton and the loaded card. Page views are GA's last 30 days; hours are all time. */
+const LABELS = {
+  age: 'Age',
+  pageViews: 'Page views (30 days)',
+  hoursCoded: 'Hours coded (all time)',
+} as const;
+
 const StatItem = ({
   icon,
   title,
@@ -53,7 +60,10 @@ const StatItem = ({
   isLoading: boolean;
 }) => (
   <div className="flex flex-col items-center text-center">
-    <div className="text-muted-foreground">{icon}</div>
+    {/* Decorative: the label below names the stat. */}
+    <div aria-hidden="true" className="text-muted-foreground">
+      {icon}
+    </div>
     {isLoading ? (
       <Skeleton className="h-10 w-20 mt-2" />
     ) : (
@@ -69,9 +79,9 @@ const StatItem = ({
 const DevStatsSkeleton = () => (
   <StatCard title="Dev Stats" icon={<FiCode />}>
     <div className="grid grid-cols-3 gap-4">
-      <StatItem icon={<FiCalendar />} title="Age" value={0} isLoading />
-      <StatItem icon={<FiEye />} title="Site Views" value={0} isLoading />
-      <StatItem icon={<FiClock />} title="Hours Coded" value={0} isLoading />
+      <StatItem icon={<FiCalendar />} title={LABELS.age} value={0} isLoading />
+      <StatItem icon={<FiEye />} title={LABELS.pageViews} value={0} isLoading />
+      <StatItem icon={<FiClock />} title={LABELS.hoursCoded} value={0} isLoading />
     </div>
   </StatCard>
 );
@@ -84,7 +94,7 @@ export const DevStats = memo(() => {
         queryFn: async () => {
           const effect = pipe(
             get('/api/v1/google', {
-              retries: 2,
+              retries: 0,
               timeout: 10_000,
               schema: GoogleResponseSchema,
             }),
@@ -99,7 +109,7 @@ export const DevStats = memo(() => {
         queryFn: async () => {
           const effect = pipe(
             get('/api/v1/wakatime', {
-              retries: 2,
+              retries: 0,
               timeout: 10_000,
               schema: WakaTimeResponseSchema,
             }),
@@ -131,20 +141,20 @@ export const DevStats = memo(() => {
         <div className="grid grid-cols-3 gap-4">
           <StatItem
             icon={<FiCalendar size={20} />}
-            title="Age"
+            title={LABELS.age}
             value={age}
             unit="yrs"
             isLoading={false}
           />
           <StatItem
             icon={<FiEye size={20} />}
-            title="Site Views"
+            title={LABELS.pageViews}
             value={googleData?.total_pageviews ?? 0}
             isLoading={false}
           />
           <StatItem
             icon={<FiClock size={20} />}
-            title="Hours Coded"
+            title={LABELS.hoursCoded}
             value={wakatimeData?.total_seconds ? Math.round(wakatimeData.total_seconds / 3600) : 0}
             isLoading={false}
           />

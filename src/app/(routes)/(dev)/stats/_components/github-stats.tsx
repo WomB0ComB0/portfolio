@@ -49,6 +49,9 @@ const GitHubStatsSchema = Schema.Struct({
   ),
 });
 
+/** Screen-reader unit for a repo's star count, which is shown as a bare number. */
+const starsLabel = (stars: number) => (stars === 1 ? 'star' : 'stars');
+
 const StatItem = ({
   icon,
   value,
@@ -59,7 +62,9 @@ const StatItem = ({
   label: string;
 }) => (
   <div className="flex items-center gap-3">
-    <div className="text-muted-foreground">{icon}</div>
+    <div aria-hidden="true" className="text-muted-foreground">
+      {icon}
+    </div>
     <div>
       <NumberTicker className="text-lg md:text-xl font-bold text-card-foreground" value={value} />
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -97,7 +102,8 @@ export const GitHubStats = memo(() => {
     queryFn: async () => {
       const effect = pipe(
         get('/api/v1/github-stats', {
-          retries: 2,
+          // TanStack Query is the only retry layer; retrying here as well multiplies the attempts.
+          retries: 0,
           timeout: 10_000,
           schema: GitHubStatsSchema,
         }),
@@ -155,7 +161,7 @@ export const GitHubStats = memo(() => {
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-semibold text-foreground group-hover:text-primary">
+                    <p className="font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
                       {repo.name}
                     </p>
                     <p className="text-sm text-muted-foreground line-clamp-1">
@@ -164,10 +170,15 @@ export const GitHubStats = memo(() => {
                   </div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground shrink-0">
                     <div className="flex items-center gap-1">
-                      <FiStar className="h-4 w-4" />
-                      <span>{repo.stars}</span>
+                      <FiStar aria-hidden="true" className="h-4 w-4" />
+                      <span>
+                        {repo.stars} <span className="sr-only">{starsLabel(repo.stars)}</span>
+                      </span>
                     </div>
-                    <FiArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100" />
+                    <FiArrowUpRight
+                      aria-hidden="true"
+                      className="h-4 w-4 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+                    />
                   </div>
                 </div>
                 {repo.language && (
@@ -178,6 +189,7 @@ export const GitHubStats = memo(() => {
                     {repo.language}
                   </Badge>
                 )}
+                <span className="sr-only"> (opens in a new tab)</span>
               </motion.a>
             ))}
           </div>

@@ -57,6 +57,7 @@ const Licenses = dynamic(
 export const metadata = constructMetadata({
   title: 'Licenses',
   description: 'Information about open source and third-party licenses.',
+  path: '/licenses',
 });
 
 /**

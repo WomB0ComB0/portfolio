@@ -24,71 +24,12 @@ import {
 import '@/styles/globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { constructMetadata, constructViewport } from '@/utils';
 
 export const metadata = constructMetadata();
 export const viewport = constructViewport();
 export const dynamic = 'force-dynamic';
-
-const kodchasanFont = localFont({
-  src: [
-    {
-      path: '../../public/assets/fonts/Kodchasan-Light.ttf',
-      weight: '300',
-      style: 'normal',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-LightItalic.ttf',
-      weight: '300',
-      style: 'italic',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-Regular.ttf',
-      weight: '400',
-      style: 'normal',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-Italic.ttf',
-      weight: '400',
-      style: 'italic',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-Medium.ttf',
-      weight: '500',
-      style: 'normal',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-MediumItalic.ttf',
-      weight: '500',
-      style: 'italic',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-SemiBold.ttf',
-      weight: '600',
-      style: 'normal',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-SemiBoldItalic.ttf',
-      weight: '600',
-      style: 'italic',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-Bold.ttf',
-      weight: '700',
-      style: 'normal',
-    },
-    {
-      path: '../../public/assets/fonts/Kodchasan-BoldItalic.ttf',
-      weight: '700',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-kodchasan',
-  display: 'swap',
-  preload: true,
-});
 
 export const RootLayout = async ({ children }: { children: React.ReactNode }) => {
   const headersList = await headers();
@@ -102,7 +43,6 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
       data-a11y-link-underlines="false"
       data-turbo-loaded
       data-scroll-behavior="smooth"
-      className={`${kodchasanFont.variable}`}
     >
       <head>
         <meta name="mobile-web-app-capable" content="yes" />

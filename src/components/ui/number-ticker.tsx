@@ -16,51 +16,138 @@
  * limitations under the License.
  */
 
-import { useInView, useMotionValue, useSpring } from 'motion/react';
-import { useEffect, useRef } from 'react';
+import { animate, useInView, useReducedMotion } from 'motion/react';
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import { cn } from '@/lib/utils';
 
+/** How long a count takes, in seconds. */
+const COUNT_DURATION_S = 1;
+
+export interface NumberTickerProps {
+  /** The number to show. */
+  value: number;
+  /** 'up' counts from 0 to `value`; 'down' counts from `value` down to 0 and rests there. */
+  direction?: 'up' | 'down';
+  className?: string;
+  /** Wait before counting, in seconds. */
+  delay?: number;
+  /** Fixed number of decimal places. */
+  decimalPlaces?: number;
+}
+
+interface CountOptions {
+  from: number;
+  to: number;
+  delay: number;
+  formatter: Intl.NumberFormat;
+  onDone: () => void;
+}
+
+const subscribeToNothing = () => () => {};
+
+/** True while React renders on the server or hydrates server HTML; false for a client render. */
+const useIsServerHtmlRender = (): boolean =>
+  useSyncExternalStore(
+    subscribeToNothing,
+    () => false,
+    () => true,
+  );
+
+/** Shows `text` in the counting copy (its ::before draws it), skipping frames that don't change it. */
+const writeCount = (element: HTMLElement, text: string): void => {
+  if (element.dataset.count !== text) {
+    element.dataset.count = text;
+  }
+};
+
+/**
+ * Counts the element in `ref` from `from` to `to` once it scrolls into view. Each frame is written
+ * straight to the DOM, so the count doesn't re-render React.
+ */
+const useCount = (
+  ref: RefObject<HTMLSpanElement | null>,
+  isEnabled: boolean,
+  { from, to, delay, formatter, onDone }: CountOptions,
+): void => {
+  const shown = useRef<number | null>(null);
+  const isInView = useInView(ref, { once: true });
+
+  // Before paint, so a ticker that is already on screen never shows its final value first.
+  useLayoutEffect(() => {
+    if (isEnabled && ref.current) {
+      writeCount(ref.current, formatter.format(shown.current ?? from));
+    }
+  }, [isEnabled, ref, formatter, from]);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!isEnabled || !isInView || !element) return;
+
+    const controls = animate(shown.current ?? from, to, {
+      duration: COUNT_DURATION_S,
+      delay,
+      ease: 'easeOut',
+      onUpdate: (latest) => {
+        shown.current = latest;
+        writeCount(element, formatter.format(latest));
+      },
+      onComplete: onDone,
+    });
+    return () => controls.stop();
+  }, [isEnabled, isInView, ref, formatter, from, to, delay, onDone]);
+};
+
+/**
+ * A number that counts to its value when it scrolls into view.
+ *
+ * The value it rests on is always real text: in server HTML, without JavaScript, for screen
+ * readers and for tests. While counting, that text is visually hidden and an aria-hidden copy
+ * shows the count. There is no count with prefers-reduced-motion, or for a ticker hydrated from
+ * server HTML, which already shows its value.
+ */
 export const NumberTicker = ({
   value,
   direction = 'up',
   delay = 0,
   className,
   decimalPlaces = 0,
-}: {
-  value: number;
-  direction?: 'up' | 'down';
-  className?: string;
-  delay?: number; // delay in s
-  decimalPlaces?: number;
-}) => {
-  const ref = useRef<HTMLSpanElement>(null);
-  const motionValue = useMotionValue(direction === 'down' ? value : 0);
-  const springValue = useSpring(motionValue, {
-    damping: 60,
-    stiffness: 100,
-  });
-  const isInView = useInView(ref, { once: true, margin: '0px' });
-
-  useEffect(() => {
-    isInView &&
-      setTimeout(() => {
-        motionValue.set(direction === 'down' ? 0 : value);
-      }, delay * 1000);
-  }, [motionValue, isInView, delay, value, direction]);
-
-  useEffect(
+}: NumberTickerProps) => {
+  const formatter = useMemo(
     () =>
-      springValue.on('change', (latest) => {
-        if (ref.current) {
-          ref.current.textContent = Intl.NumberFormat('en-US', {
-            minimumFractionDigits: decimalPlaces,
-            maximumFractionDigits: decimalPlaces,
-          }).format(Number(latest.toFixed(decimalPlaces)));
-        }
+      new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: decimalPlaces,
+        maximumFractionDigits: decimalPlaces,
       }),
-    [springValue, decimalPlaces],
+    [decimalPlaces],
   );
+  const [from, to] = direction === 'down' ? [value, 0] : [0, value];
+  const finalText = formatter.format(to);
+
+  const isServerHtml = useIsServerHtmlRender();
+  const prefersReducedMotion = useReducedMotion();
+  // Decided once, at mount. Server HTML has already painted the final value, so counting it
+  // again would flash it back to the start; later value changes show at once.
+  const [isCounting, setIsCounting] = useState(
+    () =>
+      !isServerHtml &&
+      prefersReducedMotion === false &&
+      Number.isFinite(value) &&
+      formatter.format(from) !== finalText,
+  );
+  const stopCounting = useCallback(() => setIsCounting(false), []);
+
+  const countRef = useRef<HTMLSpanElement>(null);
+  useCount(countRef, isCounting, { from, to, delay, formatter, onDone: stopCounting });
 
   return (
     <span
@@ -68,8 +155,16 @@ export const NumberTicker = ({
         'inline-block tabular-nums text-black dark:text-white tracking-wider',
         className,
       )}
-      ref={ref}
-    />
+    >
+      {isCounting ? (
+        <>
+          <span className="sr-only">{finalText}</span>
+          <span aria-hidden="true" className="before:content-[attr(data-count)]" ref={countRef} />
+        </>
+      ) : (
+        finalText
+      )}
+    </span>
   );
 };
 NumberTicker.displayName = 'NumberTicker';

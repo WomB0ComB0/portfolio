@@ -30,6 +30,7 @@ const Resume = dynamic(
 export const metadata = constructMetadata({
   title: 'Resume',
   description: 'View and download my professional resume',
+  path: '/resume',
 });
 
 /**

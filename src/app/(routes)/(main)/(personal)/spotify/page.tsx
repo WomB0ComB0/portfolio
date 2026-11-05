@@ -30,6 +30,7 @@ const Spotify = dynamic(
 export const metadata = constructMetadata({
   title: 'Spotify Stats',
   description: 'Check out my music taste and Spotify listening statistics',
+  path: '/spotify',
 });
 
 /**

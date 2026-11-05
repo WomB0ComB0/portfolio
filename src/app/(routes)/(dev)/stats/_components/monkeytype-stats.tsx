@@ -76,8 +76,13 @@ const CircularProgress = ({ value, colorClass }: { value: number; colorClass: st
   );
 };
 
+/** WPM and accuracy come from the best 60 s personal best, not an average or the latest test. */
+const PersonalBestCaption = () => (
+  <p className="text-xs text-muted-foreground text-center">WPM and accuracy: 60 s personal best</p>
+);
+
 const MonkeytypeSkeleton = () => (
-  <StatCard title="Monkeytype Stats" icon={<FaKeyboard />}>
+  <StatCard title="Monkeytype Stats" icon={<FaKeyboard />} footer={<PersonalBestCaption />}>
     <div className="grid grid-cols-3 gap-4 text-center">
       <div className="space-y-1">
         <Skeleton className="h-4 w-16 mx-auto" />
@@ -102,7 +107,7 @@ export const MonkeytypeStats = memo(() => {
       const effect = pipe(
         get('https://api.monkeytype.com/users/WomB0ComB0/profile', {
           schema: MonkeytypeResponseSchema,
-          retries: 2,
+          retries: 0,
           timeout: 10_000,
         }),
         Effect.provide(FetchHttpClient.layer),
@@ -128,7 +133,7 @@ export const MonkeytypeStats = memo(() => {
   if (!best60) return null;
 
   return (
-    <StatCard title="Monkeytype Stats" icon={<FaKeyboard />}>
+    <StatCard title="Monkeytype Stats" icon={<FaKeyboard />} footer={<PersonalBestCaption />}>
       <div className="grid grid-cols-3 gap-4 text-center items-center">
         <div className="flex flex-col items-center">
           <span className="text-xs text-muted-foreground">WPM</span>

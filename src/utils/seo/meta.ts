@@ -17,32 +17,91 @@
 import type { Metadata, Viewport } from 'next';
 import { app } from '@/constants';
 
+/** The size of the card src/app/api/og/route.tsx renders. */
+const OG_IMAGE_SIZE = { width: 1_200, height: 630 } as const;
+
+/** An og:video. Nothing is emitted unless a caller passes one. */
+export interface MetadataVideo {
+  readonly url: string;
+  readonly type?: string;
+  readonly width?: number;
+  readonly height?: number;
+}
+
+/** A Twitter player card. `playerUrl` must be an embeddable HTTPS iframe page. */
+export interface MetadataPlayer {
+  readonly playerUrl: string;
+  readonly streamUrl: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Options for {@link constructMetadata}. Every field is optional. */
+export interface MetadataOptions {
+  /** The page title. Defaults to app.name. */
+  readonly title?: string;
+  /** The page description. Defaults to app.description. */
+  readonly description?: string;
+  /** The preview image URL. Defaults to the card /api/og renders for the title and description. */
+  readonly image?: string;
+  /** The Twitter card image URL. Defaults to the preview image. */
+  readonly twitter?: string;
+  /** The favicon URL. */
+  readonly icons?: string;
+  /** When true, asks search engines not to index or follow the page. */
+  readonly noIndex?: boolean;
+  /** The page's path on the site, e.g. '/stats'. Sets og:url; without it og:url is left out. */
+  readonly path?: string;
+  /** An og:video for the page. */
+  readonly video?: MetadataVideo;
+  /** A Twitter player for the page. Switches the card type to 'player'. */
+  readonly player?: MetadataPlayer;
+}
+
+interface PreviewImage {
+  readonly url: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly alt?: string;
+}
+
+/** The caller's image as given, or the generated /api/og card with its known size. */
+const previewImage = (title: string, description: string, image?: string): PreviewImage =>
+  image
+    ? { url: image }
+    : {
+        url: `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
+        ...OG_IMAGE_SIZE,
+        alt: title,
+      };
+
+const twitterCard = (player?: MetadataPlayer) =>
+  player
+    ? { card: 'player' as const, players: [{ ...player }] }
+    : { card: 'summary_large_image' as const };
+
 /**
  * Constructs the metadata object for web pages, including OpenGraph, Twitter, and icon data.
+ *
+ * Video and player tags appear only when a caller passes them, og:site_name is the site's name,
+ * and og:url is the absolute URL of `path` (left out when no path is given, so pages without
+ * one do not all claim the homepage). The canonical link comes from src/app/layout.tsx.
  *
  * @function
  * @public
  * @author Mike Odnis
  * @see {@link https://nextjs.org/docs/app/building-your-application/optimizing/metadata Next.js Metadata Documentation}
  * @web
- * @version 1.0.0
+ * @version 2.0.0
  *
- * @param {Object} [params] - Configuration options for the metadata.
- * @param {string} [params.title] - The page title. Defaults to app.name.
- * @param {string} [params.description] - The page description. Defaults to app.description.
- * @param {string} [params.image] - URL for the OpenGraph preview image. Defaults to '/opengraph-image.png'.
- * @param {string} [params.twitter] - URL for the Twitter card image. Defaults to '/twitter-image.png'.
- * @param {string} [params.icons] - URL for the site favicon/icon. Defaults to '/assets/svgs/logo.svg'.
- * @param {boolean} [params.noIndex] - If true, prevents indexing of the page by search engines.
- * @param {string} [params.url] - Canonical URL of the page. Defaults to app.url.
- *
+ * @param {MetadataOptions} [options] - Configuration options for the metadata.
  * @returns {Metadata} Metadata configuration suitable for Next.js app router.
  *
  * @example
  * // Basic usage for metadata construction
- * const meta = constructMetadata({ title: 'About', description: 'About page' });
+ * const meta = constructMetadata({ title: 'About', description: 'About page', path: '/about' });
  *
- * @throws {TypeError} If a provided URL is malformed and cannot be parsed.
+ * @throws {TypeError} If app.url is malformed and cannot be parsed.
  * @readonly
  * @project portfolio
  * @author WomB0ComB0
@@ -54,40 +113,11 @@ export function constructMetadata({
   twitter,
   icons = '/assets/svgs/logo.svg',
   noIndex = false,
-  url = app.url,
-
-  ogVideo = 'https://cdn.example.com/og/intro.mp4',
-  ogVideoType = 'video/mp4',
-  ogVideoWidth = 1_280,
-  ogVideoHeight = 720,
-
-  twitterPlayer = 'https://example.com/embed/player?src=intro', // must be an embeddable <iframe>
-  twitterPlayerWidth = 1_280,
-  twitterPlayerHeight = 720,
-  twitterPlayerStream = 'https://cdn.example.com/og/intro.mp4', // optional raw stream
-}: {
-  title?: string;
-  description?: string;
-  image?: string;
-  twitter?: string;
-  icons?: string;
-  noIndex?: boolean;
-  url?: string;
-
-  ogVideo?: string;
-  ogVideoType?: string;
-  ogVideoWidth?: number;
-  ogVideoHeight?: number;
-  twitterPlayer?: string;
-  twitterPlayerWidth?: number;
-  twitterPlayerHeight?: number;
-  twitterPlayerStream?: string;
-} = {}): Metadata {
-  // Construct dynamic OG image URL with title and description
-  const ogImageUrl =
-    image ??
-    `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`;
-  const twitterImageUrl = twitter ?? ogImageUrl;
+  path,
+  video,
+  player,
+}: MetadataOptions = {}): Metadata {
+  const ogImage = previewImage(title, description, image);
 
   return {
     title: {
@@ -98,37 +128,19 @@ export function constructMetadata({
     openGraph: {
       title,
       description,
-      url,
-      siteName: title,
+      ...(path !== undefined && { url: new URL(path, app.url).href }),
+      siteName: app.name,
       type: 'website',
       locale: 'en_US',
-      images: [{ url: ogImageUrl }],
-      videos: [
-        {
-          url: ogVideo,
-          secureUrl: ogVideo,
-          type: ogVideoType,
-          width: ogVideoWidth,
-          height: ogVideoHeight,
-        },
-      ],
+      images: [{ ...ogImage }],
+      ...(video && { videos: [{ ...video }] }),
     },
     twitter: {
-      card: 'player',
+      ...twitterCard(player),
       title,
       description,
-      images: [twitterImageUrl],
+      images: [twitter ? { url: twitter } : { ...ogImage }],
       creator: '@mike_odnis',
-    },
-    other: {
-      ...(twitterPlayer && {
-        'twitter:player': twitterPlayer,
-        'twitter:player:width': String(twitterPlayerWidth),
-        'twitter:player:height': String(twitterPlayerHeight),
-      }),
-      ...(twitterPlayerStream && { 'twitter:player:stream': twitterPlayerStream }),
-      currentYear: new Date().getFullYear(),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
     icons: [{ url: icons, href: icons }],
     category: 'technology',

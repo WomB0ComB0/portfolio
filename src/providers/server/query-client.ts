@@ -20,9 +20,54 @@ import {
   QueryCache,
   QueryClient,
 } from '@tanstack/react-query';
+import { Cause, Runtime } from 'effect';
 import { cache } from 'react';
 import SuperJSON from 'superjson';
+import { ValidationError } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
+
+/** Retries a failing query gets in the browser. Its queryFn's fetch should not retry as well. */
+export const MAX_BROWSER_QUERY_RETRIES = 1;
+
+/**
+ * Returns the error an Effect failed with. `Effect.runPromise` rejects with a FiberFailure that
+ * keeps the original error (e.g. the fetcher's FetcherError, with its status) in its Cause.
+ * Anything else is returned unchanged.
+ */
+export const unwrapEffectError = (error: unknown): unknown =>
+  Runtime.isFiberFailure(error) ? Cause.squash(error[Runtime.FiberFailureCauseId]) : error;
+
+/** The HTTP status an error carries, such as FetcherError's `status`, if it has a numeric one. */
+const statusOf = (error: unknown): number | undefined => {
+  if (typeof error !== 'object' || error === null || !('status' in error)) return undefined;
+  return typeof error.status === 'number' ? error.status : undefined;
+};
+
+/** 4xx responses (429 included) and schema mismatches: asking again gets the same answer. */
+const isClientError = (error: unknown): boolean => {
+  if (error instanceof ValidationError) return true;
+  const status = statusOf(error);
+  return status !== undefined && status >= 400 && status < 500;
+};
+
+/**
+ * TanStack Query `retry` predicate shared by every query. In the browser a failing query is
+ * retried once (network errors, timeouts, 5xx and unknown errors) and client errors never are;
+ * on the server nothing is retried, matching TanStack's own server default.
+ *
+ * @param failureCount - Retries already made: TanStack passes 0 after the first failure.
+ * @param error - What the queryFn threw; a FiberFailure from `Effect.runPromise` is unwrapped.
+ * @param onServer - Whether this runs without a browser window. Tests pass it explicitly.
+ * @returns Whether TanStack should run the queryFn again.
+ */
+export const shouldRetryQuery = (
+  failureCount: number,
+  error: unknown,
+  onServer: boolean = globalThis.window === undefined,
+): boolean => {
+  if (onServer || failureCount >= MAX_BROWSER_QUERY_RETRIES) return false;
+  return !isClientError(unwrapEffectError(error));
+};
 
 /**
  * Instantiates (and memoizes per invocation context) a configured TanStack QueryClient instance
@@ -121,6 +166,13 @@ export const createQueryClient = cache(() => {
         },
       }),
       defaultOptions: {
+        queries: {
+          /**
+           * One retry layer for queries: their fetches should pass `retries: 0` and leave
+           * retrying to this. TanStack's default delay (1 s, doubling) applies.
+           */
+          retry: shouldRetryQuery,
+        },
         dehydrate: {
           /**
            * Serializes dehydratable data in a type-safe manner with SuperJSON.

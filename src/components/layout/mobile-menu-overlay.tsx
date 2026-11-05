@@ -26,6 +26,13 @@ import { FiBriefcase, FiChevronDown, FiCode, FiCommand, FiHome, FiX } from 'reac
 import { Button } from '@/components/ui/button';
 import { groupNavItems } from './nav';
 
+/**
+ * Tailwind's `lg` breakpoint, where layout.tsx swaps the bottom bar for the sidebar. It is in rem,
+ * so it follows the browser's font size (1024 px only at the default 16 px); matching the same
+ * query closes the overlay exactly when the bar that opened it is gone.
+ */
+const SIDEBAR_MEDIA_QUERY = '(min-width: 64rem)';
+
 interface MobileMenuOverlayProps {
   isOpen: boolean;
   onClose: () => void;
@@ -116,14 +123,15 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
     }, [isOpen, onClose, triggerRef]);
 
     useEffect(() => {
-      const handleResize = () => {
-        if (window.innerWidth >= 768 && isOpen) {
-          onClose();
-        }
+      if (!isOpen) return;
+
+      const sidebarQuery = window.matchMedia(SIDEBAR_MEDIA_QUERY);
+      const closeOnceSidebarShows = () => {
+        if (sidebarQuery.matches) onClose();
       };
 
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
+      sidebarQuery.addEventListener('change', closeOnceSidebarShows);
+      return () => sidebarQuery.removeEventListener('change', closeOnceSidebarShows);
     }, [isOpen, onClose]);
 
     if (!mounted || !isOpen) return null;

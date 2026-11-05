@@ -35,7 +35,11 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
-import { get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { reportApiFailure } from '@/lib/observability/report';
+
+/** The route's error-handler context, so stale-fallback warnings group with its errors. */
+const REPORT_CONTEXT = 'fetching GitHub stats';
 
 const GitHubUserSchema = Schema.Struct({
   public_repos: Schema.Number,
@@ -58,8 +62,11 @@ const TopRepoSchema = Schema.Struct({
   name: Schema.String,
   description: Schema.Union(Schema.String, Schema.Null),
   stars: Schema.Number,
+  language: Schema.Union(Schema.String, Schema.Null),
+  url: Schema.String,
 });
 
+/** Mutable arrays, so the type fits the route's `github-stats.response` model as it is. */
 const GitHubStatsDataSchema = Schema.Struct({
   user: Schema.Struct({
     repos: Schema.Number,
@@ -68,117 +75,142 @@ const GitHubStatsDataSchema = Schema.Struct({
   }),
   stats: Schema.Struct({
     totalStars: Schema.Number,
-    topLanguages: Schema.Array(Schema.String),
+    topLanguages: Schema.mutable(Schema.Array(Schema.String)),
   }),
-  topRepos: Schema.Array(TopRepoSchema),
+  topRepos: Schema.mutable(Schema.Array(TopRepoSchema)),
 });
 
 export type GitHubStatsData = Schema.Schema.Type<typeof GitHubStatsDataSchema>;
 export type TopRepo = Schema.Schema.Type<typeof TopRepoSchema>;
 export type GitHubRepo = Schema.Schema.Type<typeof GitHubRepoSchema>;
+type GitHubUser = Schema.Schema.Type<typeof GitHubUserSchema>;
 
 const CACHE_DURATION = 60 * 60 * 1_000; // 1 hour
 let cache: { data: GitHubStatsData; timestamp: number } | null = null;
+
+/**
+ * Upstream time budget. The GitHub card's fetch gives up after 10 s, so the stale fallback (or the
+ * 500) has to be ready well before that: one retry of a 3.5 s attempt fits in the deadline.
+ */
+const ATTEMPT_TIMEOUT_MS = 3_500;
+const RETRY_DELAY_MS = 500;
+/** Caps the three parallel calls together, retries and body reads included. */
+const UPSTREAM_DEADLINE_MS = 8_000;
+
+function gitHubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'User-Agent': 'Portfolio-Dashboard',
+  };
+  if (env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  }
+  return headers;
+}
+
+/**
+ * The profile, personal repos and org repos, fetched in parallel. The first failure, or the
+ * deadline, interrupts the other calls and fails the whole effect.
+ */
+function fetchGitHubSources() {
+  const options = {
+    retries: 1,
+    retryDelay: RETRY_DELAY_MS,
+    timeout: ATTEMPT_TIMEOUT_MS,
+    headers: gitHubHeaders(),
+  };
+  const personalReposUrl = env.GITHUB_TOKEN
+    ? 'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner'
+    : 'https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated';
+
+  return pipe(
+    Effect.all(
+      [
+        get('https://api.github.com/users/WomB0ComB0', { ...options, schema: GitHubUserSchema }),
+        get(personalReposUrl, { ...options, schema: GitHubReposArraySchema }),
+        get('https://api.github.com/orgs/ElysiumOSS/repos?per_page=100&sort=updated', {
+          ...options,
+          schema: GitHubReposArraySchema,
+        }),
+      ],
+      { concurrency: 'unbounded' },
+    ),
+    Effect.timeoutFail({
+      duration: UPSTREAM_DEADLINE_MS,
+      onTimeout: () =>
+        new FetcherError(
+          `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+          'https://api.github.com',
+        ),
+    }),
+    Effect.provide(FetchHttpClient.layer),
+  );
+}
+
+function toStatsData(
+  me: GitHubUser,
+  personalRepos: readonly GitHubRepo[],
+  orgRepos: readonly GitHubRepo[],
+): GitHubStatsData {
+  // Combine personal and organization repos
+  const allRepos = [...personalRepos, ...orgRepos];
+
+  // Filter out forks and sort by stars
+  const topRepos = allRepos
+    .filter((repo) => !repo.fork)
+    .sort((a, b) => b.stargazers_count - a.stargazers_count)
+    .slice(0, 10);
+
+  // Calculate total stars from all repos (personal + org)
+  const totalStars = allRepos.reduce((acc, curr) => acc + curr.stargazers_count, 0);
+
+  // Get unique languages from all repos
+  const languages = new Set(
+    allRepos.map((repo) => repo.language).filter((lang): lang is string => lang !== null),
+  );
+
+  return {
+    user: {
+      repos: me.public_repos + orgRepos.length, // Include org repos in count
+      followers: me.followers,
+      avatar_url: me.avatar_url,
+    },
+    stats: {
+      totalStars,
+      topLanguages: Array.from(languages).slice(0, 5),
+    },
+    topRepos: topRepos.map((repo) => ({
+      name: repo.name,
+      description: repo.description,
+      stars: repo.stargazers_count,
+      language: repo.language,
+      url: repo.html_url,
+    })),
+  };
+}
 
 export async function getGitHubStats(): Promise<GitHubStatsData> {
   if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
     return cache.data;
   }
 
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'Portfolio-Dashboard',
-  };
-
-  if (env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
-  }
-
-  const userEffect = pipe(
-    get('https://api.github.com/users/WomB0ComB0', {
-      schema: GitHubUserSchema,
-      retries: 2,
-      timeout: 10_000,
-      headers,
-    }),
-    Effect.provide(FetchHttpClient.layer),
-  );
-
-  const personalReposUrl = env.GITHUB_TOKEN
-    ? 'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner'
-    : 'https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated';
-
-  const personalReposEffect = pipe(
-    get(personalReposUrl, {
-      schema: GitHubReposArraySchema,
-      retries: 2,
-      timeout: 10_000,
-      headers,
-    }),
-    Effect.provide(FetchHttpClient.layer),
-  );
-
-  const orgReposEffect = pipe(
-    get('https://api.github.com/orgs/ElysiumOSS/repos?per_page=100&sort=updated', {
-      schema: GitHubReposArraySchema,
-      retries: 2,
-      timeout: 10_000,
-      headers,
-    }),
-    Effect.provide(FetchHttpClient.layer),
-  );
-
   try {
-    const [meJson, personalReposJson, orgReposJson] = await Promise.all([
-      Effect.runPromise(userEffect),
-      Effect.runPromise(personalReposEffect),
-      Effect.runPromise(orgReposEffect),
-    ]);
-
-    // Combine personal and organization repos
-    const allRepos = [...personalReposJson, ...orgReposJson];
-
-    // Filter out forks and sort by stars
-    const topRepos = allRepos
-      .filter((repo) => !repo.fork)
-      .sort((a, b) => b.stargazers_count - a.stargazers_count)
-      .slice(0, 10);
-
-    // Calculate total stars from all repos (personal + org)
-    const totalStars = allRepos.reduce((acc, curr) => acc + curr.stargazers_count, 0);
-
-    // Get unique languages from all repos
-    const languages = new Set(
-      allRepos.map((repo) => repo.language).filter((lang): lang is string => lang !== null),
-    );
-
-    const data: GitHubStatsData = {
-      user: {
-        repos: meJson.public_repos + orgReposJson.length, // Include org repos in count
-        followers: meJson.followers,
-        avatar_url: meJson.avatar_url,
-      },
-      stats: {
-        totalStars,
-        topLanguages: Array.from(languages).slice(0, 5),
-      },
-      topRepos: topRepos.map((repo) => ({
-        name: repo.name,
-        description: repo.description,
-        stars: repo.stargazers_count,
-        language: repo.language,
-        url: repo.html_url,
-      })),
-    };
-
+    const [me, personalRepos, orgRepos] = await Effect.runPromise(fetchGitHubSources());
+    const data = toStatsData(me, personalRepos, orgRepos);
     cache = { data, timestamp: Date.now() };
 
     return data;
   } catch (error) {
-    throw ensureBaseError(error, 'github:stats', {
+    const failure = ensureBaseError(error, 'github:stats', {
       username: 'WomB0ComB0',
       organization: 'ElysiumOSS',
       cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
     });
+    // Repo and star counts change slowly: the last good stats beat a 500.
+    if (cache) {
+      reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
+      return cache.data;
+    }
+    throw failure;
   }
 }

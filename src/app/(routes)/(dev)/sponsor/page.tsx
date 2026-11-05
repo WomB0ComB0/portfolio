@@ -46,6 +46,7 @@ export const metadata = constructMetadata({
   title: 'Sponsor',
   description:
     'Support my work through sponsorship. See my current sponsors and ways to contribute.',
+  path: '/sponsor',
 });
 
 /**

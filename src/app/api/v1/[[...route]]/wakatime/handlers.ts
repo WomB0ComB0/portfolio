@@ -18,8 +18,12 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
-import { get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { reportApiFailure } from '@/lib/observability/report';
 import { wakaTimeAuthorization } from './auth';
+
+/** The route's error-handler context, so stale-fallback warnings group with its errors. */
+const REPORT_CONTEXT = 'fetching WakaTime data';
 
 // Schema for WakaTime API response
 const WakaTimeDataSchema = Schema.Struct({
@@ -38,6 +42,16 @@ export type WakaTimeData = Schema.Schema.Type<typeof WakaTimeDataSchema>;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 let cache: { data: WakaTimeData; timestamp: number } | null = null;
 
+const WAKATIME_URL = 'https://wakatime.com/api/v1/users/current/all_time_since_today';
+/**
+ * Upstream time budget. The dev-stats card's fetch gives up after 10 s, so the stale fallback (or
+ * the 500) has to be ready well before that: one retry of a 3.5 s attempt fits in the deadline.
+ */
+const ATTEMPT_TIMEOUT_MS = 3_500;
+const RETRY_DELAY_MS = 500;
+/** Caps the attempts together, retries and body reads included. */
+const UPSTREAM_DEADLINE_MS = 8_000;
+
 export async function getWakaTimeData(): Promise<WakaTimeData> {
   if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
     return cache.data;
@@ -46,27 +60,38 @@ export async function getWakaTimeData(): Promise<WakaTimeData> {
   const authorization = wakaTimeAuthorization(env.WAKA_TIME_API_KEY);
 
   const effect = pipe(
-    get('https://wakatime.com/api/v1/users/current/all_time_since_today', {
+    get(WAKATIME_URL, {
       headers: {
         Authorization: authorization,
       },
       schema: WakaTimeResponseSchema,
-      retries: 2,
-      timeout: 10_000,
+      retries: 1,
+      retryDelay: RETRY_DELAY_MS,
+      timeout: ATTEMPT_TIMEOUT_MS,
+    }),
+    Effect.timeoutFail({
+      duration: UPSTREAM_DEADLINE_MS,
+      onTimeout: () =>
+        new FetcherError(`WakaTime did not answer within ${UPSTREAM_DEADLINE_MS} ms`, WAKATIME_URL),
     }),
     Effect.provide(FetchHttpClient.layer),
   );
 
   try {
-    const response = await Effect.runPromise(effect);
-    const data = response.data as any as WakaTimeData;
+    const { data } = await Effect.runPromise(effect);
     cache = { data, timestamp: Date.now() };
 
     return data;
   } catch (error) {
-    throw ensureBaseError(error, 'wakatime:fetch', {
+    const failure = ensureBaseError(error, 'wakatime:fetch', {
       endpoint: 'all_time_since_today',
       cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
     });
+    // All-time totals only grow: the last good value beats a 500.
+    if (cache) {
+      reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
+      return cache.data;
+    }
+    throw failure;
   }
 }

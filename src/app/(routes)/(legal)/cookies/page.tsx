@@ -55,6 +55,7 @@ const Cookies = dynamic(
 export const metadata = constructMetadata({
   title: 'Cookies Policy',
   description: 'Information about how cookies are used on this site.',
+  path: '/cookies',
 });
 
 /**
