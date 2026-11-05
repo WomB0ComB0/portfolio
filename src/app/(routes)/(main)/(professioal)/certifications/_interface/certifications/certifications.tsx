@@ -29,9 +29,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useDebounce, useSanityCertifications } from '@/hooks';
+import { SANITY_ENDPOINTS, useDebounce, useSanityCertifications } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { formatDateOnly, validateUserInput } from '@/utils';
 
 type Certifications = ReturnType<typeof useSanityCertifications>['data'];
@@ -532,7 +532,10 @@ export const Certifications = () => {
           description="A collection of my professional certifications and credentials."
           icon={<Award />}
         />
-        <QueryErrorBoundary section="certifications">
+        <QueryErrorBoundary
+          section="certifications"
+          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.certifications)]}
+        >
           <Suspense fallback={<CertificationsPageSkeleton />}>
             <CertificationsContent />
           </Suspense>

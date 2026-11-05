@@ -23,8 +23,10 @@
  * Runs under jsdom, where `window` is defined.
  */
 
+import { Schema } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { REQUEST_QUEUE_STALE_MS, requestQueue } from '@/lib/http-clients/request-queue';
+import { logger } from '@/utils';
 
 /** More calls than the old per-minute cap allowed for one Sanity URL. */
 const REQUESTS = 8;
@@ -62,6 +64,7 @@ describe('requestQueue in the browser', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('shares one in-flight GET between concurrent identical calls', async () => {
@@ -144,5 +147,93 @@ describe('requestQueue in the browser', () => {
       'resume',
     );
     expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a stale request on the next call to any URL, not only on a call to its own', () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    requestQueue.enqueue('/api/v1/sanity/hung-alone', 'GET', () => deferred<string>().promise);
+
+    vi.advanceTimersByTime(REQUEST_QUEUE_STALE_MS + 1);
+    requestQueue.enqueue('/api/v1/sanity/talks', 'GET', async () => 'talks');
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('/api/v1/sanity/hung-alone'));
+  });
+
+  it('runs calls on their own when JSON cannot tell their bodies apart', () => {
+    const executor = vi.fn(() => deferred<string>().promise);
+    const form = (name: string) => {
+      const data = new FormData();
+      data.set('name', name);
+      return data;
+    };
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const bodies: readonly (readonly [unknown, unknown])[] = [
+      [form('a'), form('b')],
+      [new Blob(['a']), new Blob(['b'])],
+      [new URLSearchParams('q=a'), new URLSearchParams('q=b')],
+      [{ upload: new Blob(['a']) }, { upload: new Blob(['b']) }],
+      [cyclic, cyclic],
+    ];
+
+    for (const pair of bodies) {
+      for (const body of pair)
+        requestQueue.enqueue('/api/v1/guestbook', 'POST', executor, { body });
+    }
+
+    expect(executor).toHaveBeenCalledTimes(bodies.length * 2);
+  });
+
+  it('still shares calls whose bodies are the same JSON', () => {
+    const executor = vi.fn(() => deferred<string>().promise);
+
+    requestQueue.enqueue('/api/v1/sanity/posts', 'GET', executor, {
+      body: { page: 2, tag: ['go'] },
+    });
+    requestQueue.enqueue('/api/v1/sanity/posts', 'GET', executor, {
+      body: { page: 2, tag: ['go'] },
+    });
+    requestQueue.enqueue('/api/v1/echo', 'POST', executor, { body: 'hello' });
+    requestQueue.enqueue('/api/v1/echo', 'POST', executor, { body: 'hello' });
+
+    expect(executor).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives callers that decode the same URL differently their own result', async () => {
+    const reply = {
+      isPlaying: true,
+      songName: 'Test Song',
+      artistURL: 'https://open.spotify.com/artist/test-artist',
+    };
+    const WithArtistSchema = Schema.Struct({
+      isPlaying: Schema.Boolean,
+      songName: Schema.String,
+      artistURL: Schema.String,
+    });
+    const WithoutArtistSchema = Schema.Struct({
+      isPlaying: Schema.Boolean,
+      songName: Schema.String,
+    });
+    const response = deferred<unknown>();
+    const decodeWith =
+      <A, I>(schema: Schema.Schema<A, I>) =>
+      async () =>
+        Schema.decodeUnknownSync(schema)(await response.promise);
+
+    const fallback = requestQueue.enqueue(
+      '/api/v1/now-playing',
+      'GET',
+      decodeWith(WithoutArtistSchema),
+      {
+        resultKey: 'without-artist',
+      },
+    );
+    const card = requestQueue.enqueue('/api/v1/now-playing', 'GET', decodeWith(WithArtistSchema), {
+      resultKey: 'with-artist',
+    });
+    response.resolve(reply);
+
+    await expect(card).resolves.toEqual(reply);
+    await expect(fallback).resolves.toEqual({ isPlaying: true, songName: 'Test Song' });
   });
 });

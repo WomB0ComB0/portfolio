@@ -197,9 +197,13 @@ export const getAccessToken = async (): Promise<{ access_token: string }> => {
 const isRejectedToken = (error: unknown): boolean =>
   error instanceof FetcherError && error.status === HTTP_UNAUTHORIZED;
 
-/** Spotify's own failure, as opposed to an answer about this request (a 4xx). */
-const isServerError = (error: unknown): boolean =>
+/**
+ * Spotify's own failure (a 5xx) on `url` itself. Not an answer about the request (a 4xx), and not
+ * a 5xx from the token endpoint while getting the access token for `url`.
+ */
+const isServerErrorFor = (error: unknown, url: string): boolean =>
   error instanceof FetcherError &&
+  error.url === url &&
   error.status !== undefined &&
   error.status >= HTTP_SERVER_ERROR_MIN;
 
@@ -266,11 +270,8 @@ const topItemsUrl = (endpoint: TopItemsEndpoint, limit: number, offset?: number)
 };
 
 /** One page of top tracks, in a single attempt: fetchTopItemsResilient decides what follows. */
-const fetchTopTracksPage = async (limit: number, offset: number): Promise<readonly unknown[]> => {
-  const page = await spotifyGet(topItemsUrl('tracks', limit, offset), {
-    schema: SpotifyTrackSchema,
-    retries: 0,
-  });
+const fetchTopTracksPage = async (url: string): Promise<readonly unknown[]> => {
+  const page = await spotifyGet(url, { schema: SpotifyTrackSchema, retries: 0 });
   return page.items;
 };
 
@@ -278,16 +279,18 @@ const fetchTopTracksPage = async (limit: number, offset: number): Promise<readon
  * Top tracks, skipping an item Spotify can't serve. A 5xx on a page is Spotify failing, possibly on
  * one corrupted item, so the page is split in two until the bad item stands alone and is skipped.
  * Any other failure (a 4xx, a timeout, a dropped connection, an answer the schema rejects) is the
- * same for every page, so it is thrown at once rather than repeated for each half.
+ * same for every page, so it is thrown at once rather than repeated for each half. So is a failed
+ * token refresh, 5xx included: it isn't the page failing, and each half would only refresh again.
  */
 const fetchTopItemsResilient = async (
   limit = TOP_ITEMS_LIMIT,
   offset = 0,
 ): Promise<readonly unknown[]> => {
+  const url = topItemsUrl('tracks', limit, offset);
   try {
-    return await fetchTopTracksPage(limit, offset);
+    return await fetchTopTracksPage(url);
   } catch (error) {
-    if (!isServerError(error)) throw error;
+    if (!isServerErrorFor(error, url)) throw error;
     if (limit <= 1) {
       logger.warn(`Skipping corrupted Spotify tracks item at offset ${offset}:`, {
         error: error instanceof Error ? error.message : String(error),

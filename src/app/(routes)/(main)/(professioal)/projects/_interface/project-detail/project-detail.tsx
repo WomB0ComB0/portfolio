@@ -29,9 +29,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useSanityProjects } from '@/hooks';
+import { SANITY_ENDPOINTS, useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import { QueryErrorBoundary, SectionLoadError } from '@/providers/server/effect-data-loader';
+import {
+  dataLoaderQueryKey,
+  QueryErrorBoundary,
+  SectionLoadError,
+} from '@/providers/server/effect-data-loader';
 import { formatDatePeriod, formatMonthYear } from '@/utils';
 import { DraggableGallery } from '../../_components';
 import type { ProjectDetailProps } from './project-detail.types';
@@ -327,7 +331,10 @@ const ProjectLoadError = ({ retry }: { retry: () => void }): JSX.Element => (
 /** The project page. A failed load keeps the site's layout and offers a retry. */
 export const ProjectDetail = ({ params }: ProjectDetailProps): JSX.Element => (
   <Layout>
-    <QueryErrorBoundary fallback={(_error, retry) => <ProjectLoadError retry={retry} />}>
+    <QueryErrorBoundary
+      queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.projects)]}
+      fallback={(_error, retry) => <ProjectLoadError retry={retry} />}
+    >
       <Suspense fallback={<ProjectDetailSkeleton />}>
         <ProjectDetailContent params={params} />
       </Suspense>

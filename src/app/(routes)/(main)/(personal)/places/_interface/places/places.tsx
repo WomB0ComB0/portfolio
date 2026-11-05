@@ -29,11 +29,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FilterBar } from '@/components/ui/filter-bar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDebounce } from '@/hooks';
+import { SANITY_ENDPOINTS, useDebounce } from '@/hooks';
 import type { Place } from '@/hooks/sanity/schemas';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { urlFor } from '@/lib/sanity/client';
-import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import type { PhotoItem, PlaceItem } from '@/types/places';
 import { validateUserInput } from '@/utils';
 
@@ -299,7 +299,10 @@ const PlacesContent = () => {
  */
 export const Places = () => (
   <Layout>
-    <QueryErrorBoundary fallback={(_error, retry) => <PlacesLoadError retry={retry} />}>
+    <QueryErrorBoundary
+      queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.places)]}
+      fallback={(_error, retry) => <PlacesLoadError retry={retry} />}
+    >
       <Suspense fallback={<LoadingState />}>
         <PlacesContent />
       </Suspense>

@@ -23,7 +23,9 @@
  *   again, and reportApiFailure's cooldown throttles those reports.
  * - Sanity fails with nothing in memory: 503 with `Cache-Control: no-store`, a JSON error body,
  *   and a Sentry error.
- * - A single document that does not exist (no active resume): 404, also `no-store`.
+ * - A single document that does not exist (no active resume): 404, also `no-store`. Only a fresh
+ *   answer can say that: when Sanity fails and the earlier answer in memory is that 404, the
+ *   route answers 503 as if nothing were cached, so an outage never looks like a deleted document.
  */
 
 import { type Context, StatusMap } from 'elysia';
@@ -68,6 +70,9 @@ function reportStale(key: string, context: string, error: unknown): void {
   reportApiFailure(failure, { context, level: 'warning' });
 }
 
+/** A load that found no document (null), as opposed to one that failed. */
+const isMissing = (data: unknown): boolean => data === null || data === undefined;
+
 function answerData<T>(
   set: ResponseSet,
   result: StaleCacheResult<T>,
@@ -109,6 +114,11 @@ export function sanityRoute<T>({
       result = await cache.get(key, load);
     } catch (error) {
       return answerUnavailable(set, handleUnavailable(error));
+    }
+    // A stale "missing" is an old answer served only because Sanity just failed, so it says
+    // nothing about the document now: answer the outage, not a 404 the page would not retry.
+    if (result.stale && isMissing(result.data)) {
+      return answerUnavailable(set, handleUnavailable(result.error));
     }
     if (result.stale) reportStale(key, context, result.error);
     return answerData(set, result, notFoundMessage);

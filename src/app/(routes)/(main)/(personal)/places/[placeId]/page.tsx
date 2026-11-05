@@ -19,16 +19,21 @@
 import { AnimatePresence, motion, useMotionValue } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import Layout from '@/components/layout/layout';
 import { MagicCard } from '@/components/magicui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SANITY_ENDPOINTS } from '@/hooks/sanity/config';
 import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
 import { cn } from '@/lib/utils';
-import { QueryErrorBoundary, SectionLoadError } from '@/providers/server/effect-data-loader';
+import {
+  dataLoaderQueryKey,
+  QueryErrorBoundary,
+  SectionLoadError,
+} from '@/providers/server/effect-data-loader';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
 import { viewerPhotoUrl } from './_components/viewer-photo-url';
@@ -62,13 +67,31 @@ const variants = {
 
 const MotionImage = motion.create(Image);
 
+/** The places this page reads, reset by Try again so a retry fetches them again. */
+const PLACES_QUERY_KEYS = [dataLoaderQueryKey(SANITY_ENDPOINTS.places)];
+
+/** The photo card's shape (title, summary, photo frame) while the place loads. */
+const PlacePhotosSkeleton = () => (
+  <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+    <Card className="w-full max-w-7xl" aria-busy="true" aria-label="Loading place">
+      <CardHeader className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-full max-w-md" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="w-full aspect-video rounded-lg" />
+      </CardContent>
+    </Card>
+  </div>
+);
+
 /**
- * The place's details and photo viewer. useSanityPlaces suspends while loading and throws a failed
- * load to the QueryErrorBoundary in PlacePhotosPage.
+ * The place's details and photo viewer. useSanityPlaces suspends while loading (PlacePhotosPage
+ * shows PlacePhotosSkeleton) and throws a failed load to the QueryErrorBoundary there.
  */
 const PlacePhotosContent = ({ params }: PhotoModalProps) => {
   const { placeId } = use(params);
-  const { data: sanityPlaces, isLoading } = useSanityPlaces();
+  const { data: sanityPlaces } = useSanityPlaces();
   const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -186,22 +209,6 @@ const PlacePhotosContent = ({ params }: PhotoModalProps) => {
     },
     [isPanningZoom, zoom, zoomX, zoomY],
   );
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-        <Card className="w-full max-w-7xl">
-          <CardHeader className="space-y-4">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-full max-w-md" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="w-full aspect-video rounded-lg" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (!place) {
     return (
@@ -454,18 +461,23 @@ const PlacePhotosContent = ({ params }: PhotoModalProps) => {
 
 /**
  * The place page. A failed load of the places stays inside the site's layout, with a retry; an
- * unknown id still shows "Place not found".
+ * unknown id still shows "Place not found". The Suspense boundary sits inside the layout, so a
+ * load (the first, or a retry's) shows the skeleton under the site navigation instead of
+ * suspending up to src/app/loading.tsx, whose full-screen loader would replace it.
  */
 const PlacePhotosPage = ({ params }: PhotoModalProps) => (
   <Layout>
     <QueryErrorBoundary
+      queryKeys={PLACES_QUERY_KEYS}
       fallback={(_error, retry) => (
         <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
           <SectionLoadError section="this place" retry={retry} />
         </div>
       )}
     >
-      <PlacePhotosContent params={params} />
+      <Suspense fallback={<PlacePhotosSkeleton />}>
+        <PlacePhotosContent params={params} />
+      </Suspense>
     </QueryErrorBoundary>
   </Layout>
 );

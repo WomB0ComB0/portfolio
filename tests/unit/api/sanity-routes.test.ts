@@ -123,6 +123,8 @@ beforeEach(() => {
   youtube.fetchChannelVideos.mockReset();
   youtube.fetchYouTubeVideoMetadataBatch.mockReset();
   envValues.YOUTUBE_SERVER_API_KEY = undefined;
+  // loadTalks reads its YouTube key from here.
+  envValues.NEXT_PUBLIC_FIREBASE_API_KEY = undefined;
 });
 
 afterEach(() => {
@@ -237,6 +239,121 @@ describe('GET /sanity/resume', () => {
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(await res.json()).toEqual({ error: 'No active resume', status: 404 });
     expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('answers 503, not a stale 404, when Sanity fails after answering no active resume', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(null);
+    const get = await loadApp();
+    expect((await get('/resume')).status).toBe(404);
+
+    sanity.sanityFetchWithToken.mockRejectedValue(sanityDown());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const failed = await get('/resume');
+    // Within the retry backoff the cache serves its stale null without asking Sanity.
+    const backedOff = await get('/resume');
+
+    for (const res of [failed, backedOff]) {
+      expect(res.status).toBe(503);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.json()).toEqual({
+        error: 'Failed to fetch resume from Sanity',
+        status: 503,
+      });
+    }
+    expect(sentry.captureException).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        level: 'error',
+        tags: { 'api.context': 'fetch resume from Sanity' },
+      }),
+    );
+  });
+
+  it('serves the last good resume, not a 503, when Sanity fails after answering one', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(resume);
+    const get = await loadApp();
+    await get('/resume');
+
+    sanity.sanityFetchWithToken.mockRejectedValueOnce(sanityDown());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const res = await get('/resume');
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe(STALE_CACHE_CONTROL);
+    expect(await res.json()).toEqual(resume);
+  });
+});
+
+describe('GET /sanity/talks', () => {
+  const VIDEO_ID = 'AbCdEfGhI_-';
+
+  const talk = (id: string, videoUrl: string | null, videoFormat = 'youtube') => ({
+    _id: id,
+    _type: 'talk',
+    _createdAt: '2026-01-01T00:00:00Z',
+    _updatedAt: '2026-01-01T00:00:00Z',
+    _rev: `rev-${id}`,
+    title: `Talk ${id}`,
+    description: 'A talk',
+    venue: 'A venue',
+    date: '2026-01-01',
+    videoFormat,
+    videoUrl,
+    duration: 'stored',
+    order: 1,
+  });
+
+  /** Answers YouTube metadata for exactly VIDEO_ID, so only a cleanly parsed ID gets it. */
+  const metadataFor = async (ids: string[]) =>
+    new Map(
+      ids
+        .filter((id) => id === VIDEO_ID)
+        .map((id) => [id, { ...channelVideo(id, '2026-01-01T00:00:00Z'), duration: '12:34' }]),
+    );
+
+  it.each([
+    ['youtu.be with ?si=', `https://youtu.be/${VIDEO_ID}?si=share-token`],
+    ['youtu.be with ?t=', `https://youtu.be/${VIDEO_ID}?t=30`],
+    ['youtu.be with a fragment', `https://youtu.be/${VIDEO_ID}#t=30`],
+    ['youtu.be with a trailing slash', `https://youtu.be/${VIDEO_ID}/`],
+    ['watch?v=', `https://www.youtube.com/watch?v=${VIDEO_ID}`],
+    ['watch with v after other params', `https://youtube.com/watch?list=PL1&v=${VIDEO_ID}&t=5s`],
+    ['mobile watch', `https://m.youtube.com/watch?v=${VIDEO_ID}#comments`],
+    ['/embed/', `https://www.youtube.com/embed/${VIDEO_ID}?start=10`],
+    ['/shorts/', `https://youtube.com/shorts/${VIDEO_ID}?feature=share`],
+    ['/live/', `https://www.youtube.com/live/${VIDEO_ID}?si=x`],
+    ['no scheme', `youtu.be/${VIDEO_ID}?si=x`],
+  ])('reads the video ID from a %s link', async (_form, videoUrl) => {
+    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'yt-key-example';
+    sanity.sanityFetchWithToken.mockResolvedValue([talk('t1', videoUrl)]);
+    youtube.fetchYouTubeVideoMetadataBatch.mockImplementation(metadataFor);
+    const get = await loadApp();
+
+    const body: Array<{ duration: string }> = await (await get('/talks')).json();
+
+    expect(youtube.fetchYouTubeVideoMetadataBatch).toHaveBeenCalledWith(
+      [VIDEO_ID],
+      'yt-key-example',
+    );
+    expect(body.map((item) => item.duration)).toEqual(['12:34']);
+  });
+
+  it('asks YouTube about no ID for links that are not YouTube videos', async () => {
+    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'yt-key-example';
+    sanity.sanityFetchWithToken.mockResolvedValue([
+      talk('t1', 'https://www.youtube.com/@mikeodnis'),
+      talk('t2', `https://notyoutube.com/watch?v=${VIDEO_ID}`),
+      talk('t3', 'https://youtu.be/too-short'),
+      talk('t4', 'not a url at all'),
+      talk('t5', `https://vimeo.com/${VIDEO_ID}`, 'vimeo'),
+      talk('t6', null),
+    ]);
+    const get = await loadApp();
+
+    const body: Array<{ duration: string }> = await (await get('/talks')).json();
+
+    expect(youtube.fetchYouTubeVideoMetadataBatch).not.toHaveBeenCalled();
+    expect(body.every((item) => item.duration === 'stored')).toBe(true);
   });
 });
 

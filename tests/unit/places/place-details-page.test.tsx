@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import { type ReactNode, Suspense } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -85,13 +86,18 @@ h.places = [
   },
 ];
 
-/** The page suspends on `use(params)`; React only resumes it inside an awaited act(). */
+/**
+ * The page suspends on `use(params)`; React only resumes it inside an awaited act(). The page's
+ * error boundary resets queries on retry, so it needs a QueryClient, as every page has in the app.
+ */
 async function renderPage(placeId: string) {
   await act(async () => {
     render(
-      <Suspense fallback={<p>loading</p>}>
-        <PlaceDetailsPage params={Promise.resolve({ placeId })} />
-      </Suspense>,
+      <QueryClientProvider client={new QueryClient()}>
+        <Suspense fallback={<p>loading</p>}>
+          <PlaceDetailsPage params={Promise.resolve({ placeId })} />
+        </Suspense>
+      </QueryClientProvider>,
     );
   });
 }

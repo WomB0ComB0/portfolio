@@ -50,6 +50,11 @@ const NOW_PLAYING_REFRESH_MS = 30_000;
  */
 const NOW_PLAYING_MAX_AGE_MS = 2 * NOW_PLAYING_REFRESH_MS;
 const NOW_PLAYING_QUERY_KEY = ['discord-card', 'now-playing'] as const;
+/**
+ * The /spotify card asks the same URL but decodes more of the answer (artistURL), so the request
+ * queue never hands either one the other's decoded result.
+ */
+const NOW_PLAYING_RESULT_KEY = 'discord-card:NowPlayingSchema';
 const NOW_PLAYING_TIMEOUT_MS = 5_000;
 const ART_SIZE = 40;
 const SPOTIFY_ART_HOST = 'i.scdn.co';
@@ -67,18 +72,22 @@ interface ActivityRowData {
 }
 
 const fetchNowPlaying = (): Promise<NowPlaying> =>
-  requestQueue.enqueue(NOW_PLAYING_URL, 'GET', () =>
-    Effect.runPromise(
-      pipe(
-        get(NOW_PLAYING_URL, {
-          schema: NowPlayingSchema,
-          retries: 1,
-          timeout: NOW_PLAYING_TIMEOUT_MS,
-          onError: (error) => logger.warn('[Discord] now-playing fallback failed', { error }),
-        }),
-        Effect.provide(FetchHttpClient.layer),
+  requestQueue.enqueue(
+    NOW_PLAYING_URL,
+    'GET',
+    () =>
+      Effect.runPromise(
+        pipe(
+          get(NOW_PLAYING_URL, {
+            schema: NowPlayingSchema,
+            retries: 1,
+            timeout: NOW_PLAYING_TIMEOUT_MS,
+            onError: (error) => logger.warn('[Discord] now-playing fallback failed', { error }),
+          }),
+          Effect.provide(FetchHttpClient.layer),
+        ),
       ),
-    ),
+    { resultKey: NOW_PLAYING_RESULT_KEY },
   );
 
 /**

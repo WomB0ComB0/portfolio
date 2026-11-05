@@ -46,6 +46,11 @@ type NowPlayingData = Schema.Schema.Type<typeof NowPlayingSchema>;
 
 const NOW_PLAYING_URL = '/api/v1/now-playing';
 const NOW_PLAYING_QUERY_KEY = ['spotify-page', 'now-playing'] as const;
+/**
+ * The Discord card's fallback asks the same URL but decodes less of the answer (no artistURL), so
+ * the request queue never hands this card its result.
+ */
+const NOW_PLAYING_RESULT_KEY = 'spotify-card:NowPlayingSchema';
 /** How often the card asks again, so "Now playing" is never more than this out of date. */
 const NOW_PLAYING_REFRESH_MS = 60_000;
 const NOW_PLAYING_TIMEOUT_MS = 10_000;
@@ -230,17 +235,21 @@ const NowPlayingError = ({ onRetry, isRetrying }: NowPlayingErrorProps) => (
  * requests). TanStack Query's shared default (shouldRetryQuery) is the single retry layer.
  */
 const fetchNowPlaying = (): Promise<NowPlayingData> =>
-  requestQueue.enqueue(NOW_PLAYING_URL, 'GET', () =>
-    Effect.runPromise(
-      pipe(
-        get(NOW_PLAYING_URL, {
-          schema: NowPlayingSchema,
-          retries: 0,
-          timeout: NOW_PLAYING_TIMEOUT_MS,
-        }),
-        Effect.provide(FetchHttpClient.layer),
+  requestQueue.enqueue(
+    NOW_PLAYING_URL,
+    'GET',
+    () =>
+      Effect.runPromise(
+        pipe(
+          get(NOW_PLAYING_URL, {
+            schema: NowPlayingSchema,
+            retries: 0,
+            timeout: NOW_PLAYING_TIMEOUT_MS,
+          }),
+          Effect.provide(FetchHttpClient.layer),
+        ),
       ),
-    ),
+    { resultKey: NOW_PLAYING_RESULT_KEY },
   );
 
 /**

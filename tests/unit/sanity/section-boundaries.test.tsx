@@ -25,7 +25,7 @@
  * in for src/app/error.tsx and for Next's not-found boundary.
  */
 
-import { QueryClientProvider } from '@tanstack/react-query';
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Component, type ReactElement, type ReactNode, Suspense } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -138,10 +138,10 @@ const stubReplies = (...replies: Reply[]) => {
 };
 
 /** Pages suspend on their data (and the place page on `use(params)`); act() lets them resume. */
-const renderPage = async (page: ReactElement) => {
+const renderPage = async (page: ReactElement, client: QueryClient = productionClient()) => {
   await act(async () => {
     render(
-      <QueryClientProvider client={productionClient()}>
+      <QueryClientProvider client={client}>
         <PageErrorBoundary>
           <Suspense fallback={<p>loading</p>}>{page}</Suspense>
         </PageErrorBoundary>
@@ -327,6 +327,94 @@ describe.each(CONSUMERS)('$name when Sanity is down', ({ page, title, failure, r
     expect(screen.queryByText(failure)).not.toBeInTheDocument();
     expectShellIntact(title);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("resets the section's own query on Try again, so a cached answer is fetched again", async () => {
+    stubReplies(SANITY_DOWN, SANITY_DOWN, { status: 200, body: loaded.body });
+    const client = productionClient();
+    const resetQueries = vi.spyOn(client, 'resetQueries');
+    await renderPage(page(), client);
+    await screen.findByText(failure);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: retry }));
+    });
+    await screen.findAllByText(loaded.text);
+
+    // Every filter the boundary reset with finds the query this page actually ran.
+    const pageQueries = client.getQueryCache().getAll();
+    expect(pageQueries).toHaveLength(1);
+    expect(resetQueries).toHaveBeenCalled();
+    for (const [filters] of resetQueries.mock.calls) {
+      expect(client.getQueryCache().findAll(filters)).toEqual(pageQueries);
+    }
+  });
+});
+
+describe('/projects/[id] when the loaded project cannot render', () => {
+  it('fetches the project again on Try again instead of re-rendering the cached answer', async () => {
+    const malformedImage = { _type: 'image', asset: { _ref: 'image-bad', _type: 'reference' } };
+    const fetchMock = stubReplies(
+      { status: 200, body: [{ ...project, image: malformedImage }] },
+      { status: 200, body: [project] },
+    );
+    await renderPage(<ProjectDetail params={{ id: 'p1' }} />);
+    expect(await screen.findByText("Couldn't load this project right now.")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    expect((await screen.findAllByText('Example Project')).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Couldn't load this project right now.")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expectShellIntact();
+  });
+});
+
+describe('/places/[placeId] while a retry is loading', () => {
+  it('shows the photo skeleton inside the site layout, not the root loader', async () => {
+    let answerRetry: (reply: Response) => void = () => undefined;
+    const retryAnswer = new Promise<Response>((resolve) => {
+      answerRetry = resolve;
+    });
+    const sanityDown = () =>
+      new Response(JSON.stringify(SANITY_DOWN.body), {
+        status: SANITY_DOWN.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    // The first attempt and the browser's one retry fail; the Try again request waits.
+    const fetchMock = vi
+      .fn<() => Promise<Response>>()
+      .mockResolvedValueOnce(sanityDown())
+      .mockResolvedValueOnce(sanityDown())
+      .mockReturnValueOnce(retryAnswer);
+    vi.stubGlobal('fetch', fetchMock);
+    await renderPage(<PlacePhotosPage params={Promise.resolve({ placeId: 'pl1' })} />);
+    await screen.findByText("Couldn't load this place right now.");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.getByLabelText('Loading place')).toBeInTheDocument();
+    // "loading" is the stand-in for src/app/loading.tsx, above the layout.
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    expectShellIntact();
+
+    await act(async () => {
+      answerRetry(
+        new Response(JSON.stringify([place]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
+    expect((await screen.findAllByText('Example Venue')).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText('Loading place')).not.toBeInTheDocument();
   });
 });
 

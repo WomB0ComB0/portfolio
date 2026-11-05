@@ -36,9 +36,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useSanityExperiences } from '@/hooks';
+import { SANITY_ENDPOINTS, useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { formatDatePeriod } from '@/utils';
 
 /**
@@ -292,7 +292,10 @@ export const ExperienceDetail = ({ params }: ExperienceDetailProps): JSX.Element
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
-        <QueryErrorBoundary section="this experience">
+        <QueryErrorBoundary
+          section="this experience"
+          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
+        >
           <Suspense fallback={<ExperienceDetailSkeleton />}>
             <ExperienceDetailContent id={params.id} />
           </Suspense>

@@ -36,7 +36,11 @@ const YOUTUBE_CHANNEL_HANDLE = '@mikeodnis';
 const CHANNEL_VIDEO_LIMIT = 50;
 /** Channel videos sort after Sanity's own in `order`. */
 const CHANNEL_ORDER_OFFSET = 100;
-const YOUTUBE_VIDEO_ID = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/;
+/** A YouTube video ID: 11 characters of letters, digits, '-' and '_'. */
+const YOUTUBE_VIDEO_ID = /^[\w-]{11}$/;
+/** youtube.com paths whose next segment is the video ID, e.g. /embed/ID or /shorts/ID. */
+const YOUTUBE_ID_PATHS = new Set(['embed', 'shorts', 'live', 'v']);
+const HAS_SCHEME = /^[a-z][a-z\d+.-]*:\/\//i;
 
 /** A video in the /videos answer, tagged with where it came from. */
 export type ListedVideo = YoutubeVideo & { readonly source: 'sanity' | 'youtube-api' };
@@ -44,8 +48,45 @@ export type ListedVideo = YoutubeVideo & { readonly source: 'sanity' | 'youtube-
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+/** Parses `value` as a URL, taking a link pasted without its scheme as https. */
+function parseUrl(value: string): URL | null {
+  const trimmed = value.trim();
+  try {
+    return new URL(HAS_SCHEME.test(trimmed) ? trimmed : `https://${trimmed}`);
+  } catch {
+    return null;
+  }
+}
+
+const isYoutubeHost = (host: string): boolean =>
+  host === 'youtube.com' ||
+  host.endsWith('.youtube.com') ||
+  host === 'youtube-nocookie.com' ||
+  host.endsWith('.youtube-nocookie.com');
+
+/** The ID candidate in a youtu.be or youtube.com URL, before it is checked. */
+function videoIdCandidate(url: URL): string | null | undefined {
+  const host = url.hostname.toLowerCase();
+  const [first, second] = url.pathname.split('/').filter(Boolean);
+  if (host === 'youtu.be') return first;
+  if (!isYoutubeHost(host)) return null;
+  if (first === 'watch') return url.searchParams.get('v');
+  return first !== undefined && YOUTUBE_ID_PATHS.has(first) ? second : null;
+}
+
+/**
+ * The video ID in a YouTube link: youtube.com/watch?v=ID, youtu.be/ID, and youtube.com's
+ * /embed/, /shorts/, /live/ and /v/ paths. Query strings (?si=, ?t=, &list=) and fragments are
+ * not part of the ID. Answers null for any other link, or one whose ID is not a YouTube ID.
+ */
+export function youtubeVideoIdOf(link: string): string | null {
+  const url = parseUrl(link);
+  const candidate = url ? videoIdCandidate(url) : null;
+  return candidate && YOUTUBE_VIDEO_ID.test(candidate) ? candidate : null;
+}
+
 const youtubeIdOfTalk = (talk: Talk): string | null =>
-  talk.videoFormat === 'youtube' ? (talk.videoUrl?.match(YOUTUBE_VIDEO_ID)?.[1] ?? null) : null;
+  talk.videoFormat === 'youtube' && talk.videoUrl ? youtubeVideoIdOf(talk.videoUrl) : null;
 
 /**
  * Replaces stored durations with YouTube's. Durations are optional, so a YouTube failure keeps

@@ -29,9 +29,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FilterBar } from '@/components/ui/filter-bar';
-import { useDebounce, useSanityProjects } from '@/hooks';
+import { SANITY_ENDPOINTS, useDebounce, useSanityProjects } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { validateUserInput } from '@/utils';
 
 const ITEMS_PER_PAGE = 9;
@@ -355,7 +355,10 @@ export const ProjectsList = (): JSX.Element => {
           description="A showcase of my work spanning web development, mobile apps, and machine learning"
           icon={<Code />}
         />
-        <QueryErrorBoundary fallback={(_error, retry) => <ProjectsLoadError retry={retry} />}>
+        <QueryErrorBoundary
+          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.projects)]}
+          fallback={(_error, retry) => <ProjectsLoadError retry={retry} />}
+        >
           <Suspense fallback={<ProjectsListSkeleton />}>
             <ProjectsListContent />
           </Suspense>

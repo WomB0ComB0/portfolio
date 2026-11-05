@@ -17,9 +17,9 @@
 /**
  * @fileoverview In-flight request sharing for browser fetches.
  *
- * In the browser, concurrent identical calls (same method, URL, body, Authorization and
- * Content-Type) share one request until it settles. Nothing is kept after that: TanStack Query
- * stays the only response cache.
+ * In the browser, concurrent identical calls (same method, URL, JSON body, Authorization,
+ * Content-Type and result key) share one request until it settles. Nothing is kept after that:
+ * TanStack Query stays the only response cache. A call whose body isn't plain JSON runs on its own.
  *
  * On the server the queue steps aside and runs every request directly. One server instance
  * renders pages for many visitors at once, so any state here would make one visitor wait on, or
@@ -55,11 +55,34 @@ const headerValue = (
   return key === undefined ? undefined : headers[key];
 };
 
-/** Identifies calls that may share one request. */
+/**
+ * Whether JSON.stringify writes `value` out in full, so two bodies with the same JSON are the same
+ * body. FormData, a Blob or URLSearchParams would all come out as `{}`, and a cycle would throw.
+ */
+const isJsonValue = (value: unknown, ancestors: ReadonlySet<object> = new Set()): boolean => {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string' || typeof value === 'boolean') return true;
+  // NaN and Infinity come out as null.
+  if (typeof value === 'number') return Number.isFinite(value);
+  return typeof value === 'object' && isJsonContainer(value, ancestors);
+};
+
+/** A plain object or array, not inside itself, whose values are all JSON. */
+const isJsonContainer = (value: object, ancestors: ReadonlySet<object>): boolean => {
+  if (ancestors.has(value)) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  const isPlain = Array.isArray(value) || prototype === Object.prototype || prototype === null;
+  if (!isPlain) return false;
+  const path = new Set(ancestors).add(value);
+  return Object.values(value).every((item) => isJsonValue(item, path));
+};
+
+/** Identifies calls that may share one request. Only for a body isJsonValue accepts. */
 const requestKey = (url: string, method: string, options?: EnqueueOptions): string =>
   JSON.stringify([
     method.toUpperCase(),
     url,
+    options?.resultKey ?? null,
     options?.body ?? null,
     ...RESPONSE_HEADERS.map((name) => headerValue(options?.headers, name) ?? null),
   ]);
@@ -80,7 +103,8 @@ class RequestQueueManager {
    * @param url Request URL; part of the sharing key.
    * @param method HTTP method; part of the sharing key.
    * @param executor Performs the request. Called at most once per shared request.
-   * @param options Body and headers for the key, or `bypassDeduplication` to always run alone.
+   * @param options Body, headers and result key for the key, or `bypassDeduplication` to always
+   * run alone.
    */
   public enqueue<T>(
     url: string,
@@ -88,35 +112,39 @@ class RequestQueueManager {
     executor: () => Promise<T>,
     options?: EnqueueOptions,
   ): Promise<T> {
-    if (isServer() || options?.bypassDeduplication) return start(executor);
+    if (isServer()) return start(executor);
+    this.dropStale();
+    if (options?.bypassDeduplication || !isJsonValue(options?.body)) return start(executor);
 
     const key = requestKey(url, method, options);
-    const shared = this.liveRequest(key, url);
+    const shared = this.inFlight.get(key);
     if (shared) {
       logger.debug(`[RequestQueue] Sharing the in-flight request to ${url}`);
       return shared.promise as Promise<T>;
     }
-    return this.track(key, start(executor));
+    return this.track(key, url, start(executor));
   }
 
-  /** The in-flight request for `key`, unless it is missing or stale. */
-  private liveRequest(key: string, url: string): PendingRequest<unknown> | undefined {
-    const pending = this.inFlight.get(key);
-    if (!pending) return undefined;
-    if (Date.now() - pending.startedAt < REQUEST_QUEUE_STALE_MS) return pending;
-
-    this.inFlight.delete(key);
-    logger.warn(`[RequestQueue] Stopped sharing a request that never settled: ${url}`);
-    return undefined;
+  /**
+   * Stops sharing every request in flight for REQUEST_QUEUE_STALE_MS or longer. Run on each call,
+   * so hung requests to URLs nobody asks for again don't pile up for the life of the tab.
+   */
+  private dropStale(): void {
+    const now = Date.now();
+    for (const [key, pending] of this.inFlight) {
+      if (now - pending.startedAt < REQUEST_QUEUE_STALE_MS) continue;
+      this.inFlight.delete(key);
+      logger.warn(`[RequestQueue] Stopped sharing a request that never settled: ${pending.url}`);
+    }
   }
 
   /** Shares `request` under `key` until it settles. */
-  private track<T>(key: string, request: Promise<T>): Promise<T> {
+  private track<T>(key: string, url: string, request: Promise<T>): Promise<T> {
     const promise = request.finally(() => {
       // A stale request settling late must not remove the fresh one that replaced it.
       if (this.inFlight.get(key)?.promise === promise) this.inFlight.delete(key);
     });
-    this.inFlight.set(key, { promise, startedAt: Date.now() });
+    this.inFlight.set(key, { promise, startedAt: Date.now(), url });
     return promise;
   }
 }

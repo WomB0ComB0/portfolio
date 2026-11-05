@@ -28,9 +28,9 @@ import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSanityExperiences } from '@/hooks';
+import { SANITY_ENDPOINTS, useSanityExperiences } from '@/hooks';
 import { urlFor } from '@/lib/sanity/client';
-import { QueryErrorBoundary } from '@/providers/server/effect-data-loader';
+import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
 import { formatDatePeriod } from '@/utils';
 
 const ITEMS_PER_PAGE = 10;
@@ -376,7 +376,10 @@ export const ExperienceList = () => {
           description="A chronological journey through my professional career"
           icon={<Briefcase />}
         />
-        <QueryErrorBoundary section="work experience">
+        <QueryErrorBoundary
+          section="work experience"
+          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
+        >
           <Suspense fallback={<ExperienceListSkeleton />}>
             <ExperienceListContent />
           </Suspense>
