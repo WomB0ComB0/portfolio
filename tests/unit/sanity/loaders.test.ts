@@ -26,15 +26,25 @@
  *   answer cached is a stale "none".
  * - Invalid CMS documents are dropped and listed in one warning instead of failing the page.
  * - By-id lookups never send a malformed id to Sanity.
+ * - Talks and videos wait on YouTube for at most YOUTUBE_LOAD_DEADLINE_MS, under the browser's
+ *   10 s timeout, and a malformed talk never withholds the others.
  * Only the Sanity client, the YouTube integration, the env and Sentry are mocked.
  */
 
-import { makeExperience, makePlace, makeProject, makeResume } from '@tests/fixtures/sanity-docs';
+import {
+  makeExperience,
+  makePlace,
+  makeProject,
+  makeResume,
+  makeTalk,
+} from '@tests/fixtures/sanity-docs';
 import { Elysia } from 'elysia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sanityRoutes } from '@/app/api/v1/[[...route]]/sanity';
 import { isBaseError } from '@/classes/error';
+import { DeadlineError } from '@/lib/async/deadline';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
+import { YOUTUBE_ENRICHMENT_DEADLINE_MS } from '@/lib/sanity/enrich';
 import {
   isSanityDocumentId,
   loadExperienceById,
@@ -44,9 +54,11 @@ import {
   loadProjectById,
   loadProjects,
   loadResume,
+  loadTalks,
   loadVideos,
   resetSanityLoaderCaches,
   SANITY_CACHE_TTL_MS,
+  YOUTUBE_LOAD_DEADLINE_MS,
 } from '@/lib/sanity/loaders';
 import { logger } from '@/utils';
 
@@ -411,5 +423,143 @@ describe('loadVideos', () => {
       { _id: 'yt-channel-channelVid1', source: 'youtube-api' },
       { _id: 'video-stored', source: 'sanity' },
     ]);
+  });
+});
+
+describe('loadTalks', () => {
+  it('drops only a YouTube talk whose videoUrl is not a string and enriches the others', async () => {
+    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'firebase-key-example';
+    const onYoutube = makeTalk({
+      videoFormat: 'youtube',
+      videoUrl: 'https://youtu.be/talkVideo01',
+    });
+    const malformed = { ...makeTalk({ videoFormat: 'youtube' }), videoUrl: 42 };
+    sanity.sanityFetchWithToken.mockResolvedValue([onYoutube, malformed]);
+    youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValue(
+      new Map([['talkVideo01', { duration: '12:34' }]]),
+    );
+
+    const talks = await loadTalks();
+
+    expect(talks).toEqual([{ ...onYoutube, duration: '12:34' }]);
+    expect(youtube.fetchYouTubeVideoMetadataBatch).toHaveBeenCalledWith(
+      ['talkVideo01'],
+      'firebase-key-example',
+    );
+    expectOneReport('warning', 'decode talks');
+    expect(sentry.captureException.mock.calls[0]?.[0]).toMatchObject({
+      metadata: { invalid: [{ id: malformed._id }] },
+    });
+  });
+});
+
+describe('talks and videos when YouTube hangs', () => {
+  /** The browser's fetch timeout for /api/v1/sanity/* (effect-fetcher's default). */
+  const BROWSER_TIMEOUT_MS = 10_000;
+  const PENDING = Symbol('pending');
+  type Outcome<T> = { readonly value: T } | { readonly error: unknown } | typeof PENDING;
+
+  /** A YouTube request that never answers. */
+  const hanging = () => new Promise<never>(() => undefined);
+
+  /** How `promise` settled once the deadline's worth of time has passed, or PENDING. */
+  const outcomeAfterDeadline = async <T>(promise: Promise<T>): Promise<Outcome<T>> => {
+    let outcome: Outcome<T> = PENDING;
+    promise.then(
+      (value) => {
+        outcome = { value };
+      },
+      (error: unknown) => {
+        outcome = { error };
+      },
+    );
+    await vi.advanceTimersByTimeAsync(YOUTUBE_LOAD_DEADLINE_MS);
+    return outcome;
+  };
+
+  const talk = makeTalk({ videoFormat: 'youtube', videoUrl: 'https://youtu.be/talkVideo01' });
+  const channelVideo = {
+    videoId: 'channelVid1',
+    title: 'Channel video',
+    description: 'From the channel',
+    duration: '4:20',
+    publishedAt: '2026-04-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(T0);
+    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'firebase-key-example';
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
+  });
+
+  it('give up before the browser does', () => {
+    expect(YOUTUBE_LOAD_DEADLINE_MS).toBeLessThan(BROWSER_TIMEOUT_MS);
+  });
+
+  it('keep the stored durations when the duration lookup hangs, within the deadline', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([talk]);
+    youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValueOnce(
+      new Map([['talkVideo01', { duration: '12:34' }]]),
+    );
+    expect(await loadTalks()).toEqual([{ ...talk, duration: '12:34' }]);
+
+    youtube.fetchYouTubeVideoMetadataBatch.mockReturnValue(hanging());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const outcome = await outcomeAfterDeadline(apiGet('/talks'));
+
+    expect(outcome).not.toBe(PENDING);
+    if (outcome === PENDING || !('value' in outcome)) throw new Error('the route rejected');
+    expect(outcome.value.status).toBe(200);
+    expect(await outcome.value.json()).toEqual([talk]);
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('serve talks with their stored durations when nothing is cached and the lookup hangs', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([talk]);
+    youtube.fetchYouTubeVideoMetadataBatch.mockReturnValue(hanging());
+
+    const outcome = await outcomeAfterDeadline(loadTalks());
+
+    expect(YOUTUBE_ENRICHMENT_DEADLINE_MS).toBeLessThan(YOUTUBE_LOAD_DEADLINE_MS);
+    expect(outcome).toEqual({ value: [talk] });
+  });
+
+  it('reject talks for pages within the deadline when Sanity itself hangs and nothing is cached', async () => {
+    sanity.sanityFetchWithToken.mockReturnValue(hanging());
+
+    const outcome = await outcomeAfterDeadline(loadTalks());
+
+    expect(outcome).toEqual({ error: expect.any(DeadlineError) });
+  });
+
+  it('serve the last good videos to pages within the deadline, with one warning', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    youtube.fetchChannelVideos.mockResolvedValueOnce([channelVideo]);
+    const videos = await loadVideos();
+    expect(videos.map(({ _id }) => _id)).toEqual(['yt-channel-channelVid1']);
+
+    youtube.fetchChannelVideos.mockReturnValue(hanging());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const outcome = await outcomeAfterDeadline(loadVideos());
+
+    expect(outcome).toEqual({ value: videos });
+    expectOneReport('warning', 'load videos for pages');
+    expect(sentry.captureException.mock.calls[0]?.[0]).toMatchObject({
+      command: 'sanity:videos',
+      cause: expect.any(DeadlineError),
+    });
+  });
+
+  it('answer 503 for videos from the API within the deadline when nothing is cached', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    youtube.fetchChannelVideos.mockReturnValue(hanging());
+
+    const outcome = await outcomeAfterDeadline(apiGet('/videos'));
+
+    expect(outcome).not.toBe(PENDING);
+    if (outcome === PENDING || !('value' in outcome)) throw new Error('the route rejected');
+    expect(outcome.value.status).toBe(503);
+    expect(outcome.value.headers.get('cache-control')).toContain('no-store');
   });
 });

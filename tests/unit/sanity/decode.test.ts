@@ -21,9 +21,9 @@
  */
 
 import { makePlace, makeProject, makeResume } from '@tests/fixtures/sanity-docs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlaceSchema, ProjectSchema, ResumeSchema } from '@/hooks/sanity/schemas';
-import { resetApiReportCooldowns } from '@/lib/observability/report';
+import { API_REPORT_COOLDOWN_MS, resetApiReportCooldowns } from '@/lib/observability/report';
 import { decodeEach, decodeOne, resetDecodeMemo } from '@/lib/sanity/decode';
 
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
@@ -51,6 +51,25 @@ beforeEach(() => {
   resetApiReportCooldowns();
   resetDecodeMemo();
 });
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Runs `first` and `second` one millisecond inside the API report cooldown window. */
+const withinCooldown = (first: () => void, second: () => void): void => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(0);
+  first();
+  vi.setSystemTime(API_REPORT_COOLDOWN_MS - 1);
+  second();
+};
+
+/** The `_id`s each Sentry event lists, in order. */
+const reportedIds = (): string[][] =>
+  sentry.captureException.mock.calls.map((_, index) =>
+    reportAt(index).error.metadata.invalid.map((doc) => doc.id),
+  );
 
 describe('decodeEach', () => {
   it('keeps every valid document in input order and ignores excess properties', () => {
@@ -100,8 +119,7 @@ describe('decodeEach', () => {
     const docs = [makePlace(), { ...makePlace(), category: 'Workshop' }];
 
     const first = decodeEach(PlaceSchema, docs, 'places');
-    // Without the memo, the next call would report again once the cooldown is gone.
-    resetApiReportCooldowns();
+    // Decode warnings skip the cooldown, so only the memo keeps this from reporting again.
     const second = decodeEach(PlaceSchema, docs, 'places');
 
     expect(second).toBe(first);
@@ -112,7 +130,6 @@ describe('decodeEach', () => {
     const workshop = { ...makePlace(), category: 'Workshop' };
 
     decodeEach(PlaceSchema, [workshop], 'places');
-    resetApiReportCooldowns();
     decodeEach(PlaceSchema, [workshop], 'places');
 
     expect(sentry.captureException).toHaveBeenCalledTimes(2);
@@ -122,11 +139,28 @@ describe('decodeEach', () => {
     const docs = [{ ...makePlace(), category: 'Workshop' }];
 
     decodeEach(PlaceSchema, docs, 'places');
-    resetApiReportCooldowns();
     resetDecodeMemo();
     decodeEach(PlaceSchema, docs, 'places');
 
     expect(sentry.captureException).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports two different invalid answers within the cooldown window', () => {
+    const first = { ...makePlace(), category: 'Workshop' };
+    const second = { ...makePlace(), category: 'Meetup' };
+
+    withinCooldown(
+      () => decodeEach(PlaceSchema, [makePlace(), first], 'places'),
+      () => decodeEach(PlaceSchema, [second, makePlace()], 'places'),
+    );
+
+    expect(reportedIds()).toEqual([[first._id], [second._id]]);
+    for (const index of [0, 1]) {
+      expect(reportAt(index).context).toMatchObject({
+        level: 'warning',
+        tags: { 'api.context': 'decode places' },
+      });
+    }
   });
 
   it('answers a real empty list without reporting', () => {
@@ -152,7 +186,6 @@ describe('decodeOne', () => {
     const broken = { ...makeResume(), pdfFile: null };
 
     expect(decodeOne(ResumeSchema, broken, 'resume')).toBeNull();
-    resetApiReportCooldowns();
     expect(decodeOne(ResumeSchema, broken, 'resume')).toBeNull();
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
@@ -161,5 +194,17 @@ describe('decodeOne', () => {
     expect(error.command).toBe('sanity:decode:resume');
     expect(error.metadata.invalid).toEqual([{ id: broken._id, problem: expect.any(String) }]);
     expect(context).toMatchObject({ level: 'warning', tags: { 'api.context': 'decode resume' } });
+  });
+
+  it('reports two different invalid documents within the cooldown window', () => {
+    const first = { ...makeResume(), pdfFile: null };
+    const second = { ...makeResume(), pdfFile: null };
+
+    withinCooldown(
+      () => decodeOne(ResumeSchema, first, 'resume'),
+      () => decodeOne(ResumeSchema, second, 'resume'),
+    );
+
+    expect(reportedIds()).toEqual([[first._id], [second._id]]);
   });
 });

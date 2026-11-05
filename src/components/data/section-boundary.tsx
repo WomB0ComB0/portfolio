@@ -47,11 +47,14 @@ const NEXT_CONTROL_FLOW_DIGEST_PREFIXES = [
   'NEXT_REDIRECT',
 ] as const;
 
-/** The error's digest. Next sets one on every error that comes from the server. */
+/**
+ * The error's digest. Next sets one on every error that comes from the server. An empty digest
+ * counts as none, as in RouteError, so such an error is still reported.
+ */
 function digestOf(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null || !('digest' in error)) return undefined;
   const { digest } = error;
-  return typeof digest === 'string' ? digest : undefined;
+  return typeof digest === 'string' && digest !== '' ? digest : undefined;
 }
 
 function isNextControlFlowError(error: unknown): boolean {

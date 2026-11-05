@@ -54,6 +54,7 @@ import {
   type YoutubeVideo,
   YoutubeVideoSchema,
 } from '@/hooks/sanity/schemas';
+import { withDeadline } from '@/lib/async/deadline';
 import { createStaleCache, type StaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
@@ -137,10 +138,28 @@ export const readPlaces = cachedReader<Place[]>('places', getPlaces);
 export const readResume = cachedReader<Resume | null>('resume', getResume);
 export const readPresentations = cachedReader<Presentation[]>('presentations', getPresentations);
 export const readArticles = cachedReader<Article[]>('articles', getArticles);
+/**
+ * The longest a talks or videos load may run. Both wait on YouTube, whose retries can take 30 s
+ * or more, and the browser gives up on the route after 10 s; like the other routes'
+ * UPSTREAM_DEADLINE_MS, this leaves time to answer. Past it the load rejects, so the cache
+ * serves the last good answer, or with nothing cached the route answers 503 and a page rejects.
+ * The YouTube requests are not cancelled, and their late answer is not cached.
+ */
+export const YOUTUBE_LOAD_DEADLINE_MS = 8_000;
+
+/** `load`, rejecting with a DeadlineError once {@link YOUTUBE_LOAD_DEADLINE_MS} passes. */
+const withinYoutubeDeadline =
+  <T>(key: string, load: () => Promise<T>): (() => Promise<T>) =>
+  () =>
+    withDeadline(load(), YOUTUBE_LOAD_DEADLINE_MS, `sanity ${key} with YouTube data`);
+
 /** Talks with YouTube durations where a key is set. */
-export const readTalks = cachedReader<Talk[]>('talks', fetchTalks);
+export const readTalks = cachedReader<Talk[]>('talks', withinYoutubeDeadline('talks', fetchTalks));
 /** Sanity's videos plus the channel's uploads, each tagged with its `source` when a key is set. */
-export const readVideos = cachedReader<YoutubeVideo[]>('videos', loadYoutubeVideos);
+export const readVideos = cachedReader<YoutubeVideo[]>(
+  'videos',
+  withinYoutubeDeadline('videos', loadYoutubeVideos),
+);
 
 /**
  * Forgets every collection's answer, for every copy of this module in the process, and this

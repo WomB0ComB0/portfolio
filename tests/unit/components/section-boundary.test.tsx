@@ -298,6 +298,20 @@ describe('SectionBoundary', () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
+  it('reports an error with an empty digest, which did not come from the server', () => {
+    const error = withDigest('');
+    failWith(error);
+
+    render(
+      <SectionBoundary label={LABEL}>
+        <Section />
+      </SectionBoundary>,
+    );
+
+    expect(screen.getByText(FALLBACK_TITLE)).toBeInTheDocument();
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(error, { tags: { section: LABEL } });
+  });
+
   it.each([
     'NEXT_HTTP_ERROR_FALLBACK;404',
     'NEXT_NOT_FOUND',

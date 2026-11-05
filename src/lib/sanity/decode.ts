@@ -80,7 +80,11 @@ const problemOf = (error: ParseResult.ParseError): string =>
     .join('; ')
     .slice(0, MAX_PROBLEM_LENGTH);
 
-/** One warning for an answer of `total` documents, `invalid` of which failed. */
+/**
+ * One warning for an answer of `total` documents, `invalid` of which failed. Sent without the
+ * context's cooldown: the memo already reports each answer once, and a throttled report would
+ * never be retried, so a second answer's invalid documents would go unreported.
+ */
 function reportInvalid(
   collection: string,
   total: number,
@@ -89,7 +93,7 @@ function reportInvalid(
   const summary = `${invalid.length} of ${total} ${collection} documents failed validation`;
   reportApiFailure(
     ensureBaseError(new Error(summary), `sanity:decode:${collection}`, { invalid }),
-    { context: `decode ${collection}`, level: 'warning' },
+    { context: `decode ${collection}`, level: 'warning', cooldown: false },
   );
 }
 
