@@ -29,6 +29,7 @@ const Places = dynamic(
 export const metadata = constructMetadata({
   title: 'Places',
   description: 'Explore the locations I have visited, including hackathons, tech events, and more',
+  path: '/places',
 });
 
 const PlacesPage = (): JSX.Element => {

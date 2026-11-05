@@ -59,23 +59,32 @@ export function reportError(error: unknown, context?: CaptureContext): boolean {
   return true;
 }
 
-/** Upstream failures in one API context are reported at most once per window, per instance. */
+/** Each API context reports at most once per window and level, per instance. */
 export const API_REPORT_COOLDOWN_MS = 5 * 60_000;
 const lastApiReportAt = new Map<string, number>();
+
+type ApiReportLevel = 'error' | 'warning';
 
 export interface ApiFailureReport {
   /** The handler's context, e.g. 'fetch system status'. Tags and groups the issue. */
   context: string;
   /** 'warning' when the route still answers with fallback data. */
-  level?: 'error' | 'warning';
+  level?: ApiReportLevel;
   now?: number;
 }
 
 /**
+ * Cooldowns are kept per context and level: a stale-fallback warning sent when an outage starts
+ * must not silence the error the same route sends once its fallback runs out.
+ */
+const cooldownKey = (context: string, level: ApiReportLevel): string => `${level}:${context}`;
+
+/**
  * Reports a failure a route handled itself (createErrorHandler). Issues are grouped by context
- * first (then by Sentry's default grouping within it), and each context sends at most one event
- * per {@link API_REPORT_COOLDOWN_MS}, so an upstream outage that every request runs into costs
- * one event per window instead of one per request.
+ * first (then by Sentry's default grouping within it), so a context's warnings and errors share
+ * an issue. Each context sends at most one event per level per {@link API_REPORT_COOLDOWN_MS}, so
+ * an upstream outage that every request runs into costs one event per window instead of one per
+ * request.
  */
 export function reportApiFailure(
   error: unknown,
@@ -83,9 +92,10 @@ export function reportApiFailure(
 ): boolean {
   if (wasReported(error)) return false;
   markReported(error);
-  const last = lastApiReportAt.get(context);
+  const key = cooldownKey(context, level);
+  const last = lastApiReportAt.get(key);
   if (last !== undefined && now - last < API_REPORT_COOLDOWN_MS) return false;
-  lastApiReportAt.set(context, now);
+  lastApiReportAt.set(key, now);
   Sentry.captureException(error, {
     level,
     tags: { 'api.context': context },
@@ -94,7 +104,7 @@ export function reportApiFailure(
   return true;
 }
 
-/** Forgets the per-context cooldowns. Tests only. */
+/** Forgets the per-context, per-level cooldowns. Tests only. */
 export function resetApiReportCooldowns(): void {
   lastApiReportAt.clear();
 }

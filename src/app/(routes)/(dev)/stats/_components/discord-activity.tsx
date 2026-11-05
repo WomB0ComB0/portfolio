@@ -158,11 +158,18 @@ const fromNowPlaying = ({
   };
 };
 
-/** Album art with a small Spotify badge, or the icon tile the card has always used. */
+/**
+ * Album art with a small Spotify badge, or the icon tile the card has always used. The tile is
+ * hidden from assistive tech because the row heading already names the activity. Album art keeps
+ * its alt text: for Discord rows it names the album (`large_text`), which the row doesn't show.
+ */
 const ActivityTile = ({ icon, art }: Pick<ActivityRowData, 'icon' | 'art'>) => {
   if (!art) {
     return (
-      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+      <div
+        aria-hidden="true"
+        className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0"
+      >
         {icon}
       </div>
     );

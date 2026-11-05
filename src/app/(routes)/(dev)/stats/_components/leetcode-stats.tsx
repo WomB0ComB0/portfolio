@@ -16,42 +16,93 @@
  * limitations under the License.
  */
 
+import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
+import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import { SiLeetcode } from 'react-icons/si';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { get } from '@/lib/http-clients/effect-fetcher';
+import { cn } from '@/lib/utils';
 import { StatCard } from './stat-card';
 
-interface LeetCodeStatsData {
-  totalSolved: number;
-  easySolved: number;
-  mediumSolved: number;
-  hardSolved: number;
+const LeetCodeStatsSchema = Schema.Struct({
+  totalSolved: Schema.Number,
+  easySolved: Schema.Number,
+  mediumSolved: Schema.Number,
+  hardSolved: Schema.Number,
+  acceptanceRate: Schema.Number,
+  ranking: Schema.Number,
+});
+type LeetCodeStatsData = Schema.Schema.Type<typeof LeetCodeStatsSchema>;
+
+/** A non-2xx or malformed response rejects, so the query errors instead of rendering bad data. */
+const fetchLeetCodeStats = (): Promise<LeetCodeStatsData> =>
+  Effect.runPromise(
+    pipe(
+      get('/api/v1/leetcode', { retries: 0, timeout: 10_000, schema: LeetCodeStatsSchema }),
+      Effect.provide(FetchHttpClient.layer),
+    ),
+  );
+
+interface ProgressBarProps {
+  value: number;
+  max: number;
+  colorClass: string;
+}
+
+const clampFraction = (value: number, max: number) =>
+  max > 0 ? Math.min(Math.max(value / max, 0), 1) : 0;
+
+/**
+ * Fills by sliding a full-width pill in from the left, so the animation stays on the compositor.
+ * A translate keeps the pill's rounded right end a semicircle (a scale would squash it), and the
+ * track's rounded clip shapes the left end. `isolate` guards against older WebKit dropping that
+ * rounded clip while the fill animates on its own compositing layer.
+ */
+const ProgressBar = ({ value, max, colorClass }: ProgressBarProps) => {
+  const fraction = clampFraction(value, max);
+  return (
+    <div className="isolate h-2 w-full overflow-hidden rounded-full bg-primary-background/10">
+      <motion.div
+        className={`h-2 w-full rounded-full ${colorClass}`}
+        initial={{ x: '-100%' }}
+        animate={{ x: `${(fraction - 1) * 100}%` }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      />
+    </div>
+  );
+};
+
+interface SummaryStatProps {
+  label: string;
+  value: string;
+}
+
+const SummaryStat = ({ label, value }: SummaryStatProps) => (
+  <div>
+    <span className="text-xs text-muted-foreground">{label}</span>
+    <p className="text-lg sm:text-xl font-semibold text-card-foreground">{value}</p>
+  </div>
+);
+
+interface SummaryProps {
   acceptanceRate: number;
   ranking: number;
 }
 
-const ProgressBar = ({
-  value,
-  max,
-  colorClass,
-}: {
-  value: number;
-  max: number;
-  colorClass: string;
-}) => {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
+/** LeetCode reports a ranking of 0 when it has none; the rank is left out rather than read "#0". */
+const Summary = ({ acceptanceRate, ranking }: SummaryProps) => {
+  const isRanked = ranking > 0;
   return (
-    <div className="w-full bg-primary-background/10 rounded-full h-2">
-      <motion.div
-        className={`h-2 rounded-full ${colorClass}`}
-        initial={{ width: 0 }}
-        animate={{ width: `${percentage}%` }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-      />
+    <div className={cn('grid grid-cols-1 gap-4 text-center', isRanked && 'sm:grid-cols-2')}>
+      <SummaryStat label="Acceptance" value={`${acceptanceRate.toFixed(1)}%`} />
+      {isRanked && (
+        <SummaryStat label="Global rank" value={`#${ranking.toLocaleString('en-US')}`} />
+      )}
     </div>
   );
 };
@@ -81,9 +132,9 @@ const LeetCodeSkeleton = () => (
 );
 
 export const LeetCodeStats = memo(() => {
-  const { data, isLoading } = useQuery<LeetCodeStatsData>({
+  const { data, isLoading } = useQuery({
     queryKey: ['leetcode-stats'],
-    queryFn: () => fetch('/api/v1/leetcode').then((res) => res.json()),
+    queryFn: fetchLeetCodeStats,
     staleTime: 1000 * 60 * 60 * 6, // 6 hours
   });
 
@@ -112,6 +163,7 @@ export const LeetCodeStats = memo(() => {
           className="text-xs text-muted-foreground hover:underline text-center block"
         >
           View Profile
+          <span className="sr-only"> (opens in a new tab)</span>
         </a>
       }
     >
@@ -137,20 +189,7 @@ export const LeetCodeStats = memo(() => {
           ))}
         </div>
         <Separator className="my-4 bg-primary-background/10" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
-          <div>
-            <span className="text-xs text-muted-foreground">Acceptance</span>
-            <p className="text-lg sm:text-xl font-semibold text-card-foreground">
-              {acceptanceRate.toFixed(1)}%
-            </p>
-          </div>
-          <div>
-            <span className="text-xs text-muted-foreground">Ranking</span>
-            <p className="text-lg sm:text-xl font-semibold text-card-foreground">
-              Top {ranking.toLocaleString()}
-            </p>
-          </div>
-        </div>
+        <Summary acceptanceRate={acceptanceRate} ranking={ranking} />
       </div>
     </StatCard>
   );

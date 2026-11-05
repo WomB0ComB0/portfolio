@@ -56,7 +56,9 @@ const Stats = dynamic(
  */
 export const metadata = constructMetadata({
   title: 'Stats',
-  description: 'View my live stats, Discord status, and activity metrics',
+  description:
+    "What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours.",
+  path: '/stats',
 });
 
 /**

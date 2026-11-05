@@ -29,6 +29,7 @@ export const metadata = constructMetadata({
   title: 'Media',
   description:
     'Explore my blog posts, presentations, talks, videos, and articles on technology, software development, and more',
+  path: '/media',
 });
 
 const MediaPage = (): JSX.Element => {

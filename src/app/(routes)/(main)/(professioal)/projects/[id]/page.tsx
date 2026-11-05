@@ -69,11 +69,13 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const path = `/projects/${encodeURIComponent(id)}`;
 
   try {
     const projects = await getProjects();
     const project = projects.find((p) => p._id === id);
 
+    // An unknown id renders a 404, so it gets no og:url.
     if (!project) {
       return constructMetadata({
         title: 'Project Not Found',
@@ -89,12 +91,14 @@ export async function generateMetadata({
       title: project.title,
       description: project.description,
       image: imageUrl,
+      path,
     });
   } catch (error) {
     logger.error('Error generating metadata:', error);
     return constructMetadata({
       title: 'Project',
       description: 'View project details',
+      path,
     });
   }
 }

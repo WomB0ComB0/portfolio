@@ -68,11 +68,13 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const path = `/experience/${encodeURIComponent(id)}`;
 
   try {
     const experiences = await getExperiences();
     const experienceItem = experiences.find((exp) => exp._id === id);
 
+    // An unknown id renders a 404, so it gets no og:url.
     if (!experienceItem) {
       return constructMetadata({
         title: 'Experience Not Found',
@@ -83,12 +85,14 @@ export async function generateMetadata({
     return constructMetadata({
       title: `${experienceItem.position} at ${experienceItem.company}`,
       description: experienceItem.description,
+      path,
     });
   } catch (error) {
     logger.error('Error generating metadata:', error);
     return constructMetadata({
       title: 'Experience',
       description: 'View professional experience details',
+      path,
     });
   }
 }

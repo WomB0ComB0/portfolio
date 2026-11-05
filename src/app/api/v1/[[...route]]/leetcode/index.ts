@@ -14,19 +14,28 @@
  * limitations under the License.
  */
 
-import { Elysia } from 'elysia';
+import { Elysia, StatusMap } from 'elysia';
 import { getLeetCodeStats } from './handlers';
+import { cacheHeaders, errorHandler } from './middleware';
+import { leetcodeSchema } from './schema';
 
-export const leetCodeStatsRoute = new Elysia({ prefix: '/leetcode' }).get('/', async () => {
-  try {
-    const data = await getLeetCodeStats();
-    return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch LeetCode stats' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-});
+export const leetCodeStatsRoute = new Elysia({ prefix: '/leetcode' }).model(leetcodeSchema).get(
+  '/',
+  async ({ set }) => {
+    try {
+      const data = await getLeetCodeStats();
+      Object.assign(set.headers, cacheHeaders());
+      return data;
+    } catch (error) {
+      const errorResponse = errorHandler(error);
+      set.status = StatusMap['Internal Server Error'];
+      return { error: errorResponse.error };
+    }
+  },
+  {
+    response: {
+      200: 'leetcode.response',
+      500: 'leetcode.error',
+    },
+  },
+);

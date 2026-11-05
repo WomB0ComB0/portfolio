@@ -17,10 +17,16 @@
  */
 
 import { motion } from 'motion/react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useId } from 'react';
 import { MagicCard } from '@/components';
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+
+/**
+ * The classes CardTitle produced for this title (its own merged with ours). CardTitle renders a
+ * div, so the card renders its own h2 to put the title in the page's heading outline.
+ */
+const TITLE_CLASS = 'text-sm font-medium tracking-tight text-muted-foreground';
 
 interface StatCardProps {
   icon: ReactNode;
@@ -39,8 +45,10 @@ export const StatCard = ({
   footer,
   delay = 0,
 }: StatCardProps) => {
+  const titleId = useId();
   return (
-    <motion.div
+    <motion.section
+      aria-labelledby={titleId}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
@@ -53,12 +61,17 @@ export const StatCard = ({
         )}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className="text-muted-foreground">{icon}</div>
+          <h2 id={titleId} className={TITLE_CLASS}>
+            {title}
+          </h2>
+          {/* The title already names the card; Simple Icons SVGs carry role="img" and no name. */}
+          <div aria-hidden="true" className="text-muted-foreground">
+            {icon}
+          </div>
         </CardHeader>
         <CardContent className="grow">{children}</CardContent>
         {footer && <div className="p-6 pt-0">{footer}</div>}
       </MagicCard>
-    </motion.div>
+    </motion.section>
   );
 };

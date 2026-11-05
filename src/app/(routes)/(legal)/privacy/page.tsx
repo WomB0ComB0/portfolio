@@ -57,6 +57,7 @@ const Privacy = dynamic(
 export const metadata = constructMetadata({
   title: 'Privacy Policy',
   description: 'Details about privacy and data handling on this site.',
+  path: '/privacy',
 });
 
 /**

@@ -29,6 +29,7 @@ const Sitemap = async (): Promise<MetadataRoute.Sitemap> => {
     '/certifications',
     '/resume',
     '/spotify',
+    '/stats',
     '/experience',
     '/guestbook',
     '/places',

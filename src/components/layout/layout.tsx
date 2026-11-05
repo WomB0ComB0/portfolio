@@ -53,20 +53,23 @@ export const Layout = ({
   return (
     <div className="relative min-h-screen bg-background font-clash">
       {/* <ShaderBackground> */}
-      <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden overflow-y-hidden selection:bg-primary/30">
+      {/* Exactly one nav is shown at every width: the sidebar from lg up, the bottom bar below it.
+          The hidden one uses display:none so it leaves the tab order. The pb-16 pairs here and on
+          the section keep the content and the footer clear of the fixed bottom bar. */}
+      <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden overflow-y-hidden pb-16 lg:pb-0 selection:bg-primary/30">
         <Palette />
         <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
-          <header className="w-[6%] fixed left-0 h-full z-20 lg:block md:block max-lg:sr-only max-md:sr-only">
+          <header className="w-[6%] fixed left-0 h-full z-20 hidden lg:block">
             <NavBar path={pathname ?? ''} />
           </header>
-          <section className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 md:pb-0">
+          <section className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 lg:pb-0">
             {children}
           </section>
         </div>
         <Footer />
         <LightRays count={5} blur={20} />
       </div>
-      <div className="fixed bottom-0 left-0 right-0 z-50 block lg:hidden md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
         <MobileNavBar path={pathname ?? ''} />
       </div>
     </div>

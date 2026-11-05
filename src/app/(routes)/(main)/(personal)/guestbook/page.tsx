@@ -31,6 +31,7 @@ const Guestbook = dynamic(
 export const metadata = constructMetadata({
   title: 'Guestbook',
   description: 'Sign my guestbook and leave a message!',
+  path: '/guestbook',
 });
 
 /**

@@ -31,6 +31,7 @@ const ExperienceList = dynamic(
 export const metadata = constructMetadata({
   title: 'Experience',
   description: 'Explore my professional work experience and career journey',
+  path: '/experience',
 });
 
 const ExperiencePage = (): JSX.Element => {
