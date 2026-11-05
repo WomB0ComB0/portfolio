@@ -16,70 +16,72 @@
 
 import { Elysia } from 'elysia';
 import {
-  getArticles,
-  getCertifications,
-  getExperiences,
-  getFeaturedProjects,
-  getPlaces,
-  getPresentations,
-  getProjects,
-  getResume,
-} from '@/lib/sanity/api';
-import { loadTalks, loadYoutubeVideos } from './handlers';
+  readArticles,
+  readCertifications,
+  readExperiences,
+  readFeaturedProjects,
+  readPlaces,
+  readPresentations,
+  readProjects,
+  readResume,
+  readTalks,
+  readVideos,
+} from '@/lib/sanity/loaders';
 import { sanityMiddleware } from './middleware';
 import { sanityRoute } from './serve';
 
-// Each route sets its own headers (serve.ts): only real answers get a public cache header.
+// Each route reads its collection through the cache it shares with the pages, raw (undecoded),
+// and sets its own headers (serve.ts): only real answers get a public cache header.
 const resume = sanityRoute({
   key: 'resume',
   context: 'fetch resume from Sanity',
-  load: getResume,
+  read: readResume,
   notFoundMessage: 'No active resume',
 });
 const experiences = sanityRoute({
   key: 'experiences',
   context: 'fetch experiences from Sanity',
-  load: getExperiences,
+  read: readExperiences,
 });
 const projects = sanityRoute({
   key: 'projects',
   context: 'fetch projects from Sanity',
-  load: getProjects,
+  read: readProjects,
 });
 const featuredProjects = sanityRoute({
   key: 'featured-projects',
   context: 'fetch featured projects from Sanity',
-  load: getFeaturedProjects,
+  read: readFeaturedProjects,
 });
 const certifications = sanityRoute({
   key: 'certifications',
   context: 'fetch certifications from Sanity',
-  load: getCertifications,
+  read: readCertifications,
 });
 const places = sanityRoute({
   key: 'places',
   context: 'fetch places from Sanity',
-  load: getPlaces,
+  read: readPlaces,
 });
 const presentations = sanityRoute({
   key: 'presentations',
   context: 'fetch presentations from Sanity',
-  load: getPresentations,
+  read: readPresentations,
 });
 const talks = sanityRoute({
   key: 'talks',
   context: 'fetch talks from Sanity',
-  load: loadTalks,
+  read: readTalks,
 });
 const articles = sanityRoute({
   key: 'articles',
   context: 'fetch articles from Sanity',
-  load: getArticles,
+  read: readArticles,
 });
 const videos = sanityRoute({
   key: 'videos',
   context: 'fetch YouTube videos from Sanity',
-  load: loadYoutubeVideos,
+  read: readVideos,
 });
 
 /**

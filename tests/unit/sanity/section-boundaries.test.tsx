@@ -50,14 +50,15 @@ vi.mock('@/lib/observability/report', async (importOriginal) => ({
   reportError: h.reportError,
 }));
 // The site shell, reduced to a landmark the tests can look for.
-vi.mock('@/components/layout/layout', () => ({
-  default: ({ children }: { children?: ReactNode }) => (
+vi.mock('@/components/layout/layout', () => {
+  const Layout = ({ children }: { children?: ReactNode }) => (
     <>
       <nav aria-label="Site">site navigation</nav>
       {children}
     </>
-  ),
-}));
+  );
+  return { Layout, default: Layout };
+});
 // client.ts require()s '@/env' at load; the pages only need the image URL builder.
 vi.mock('@/lib/sanity/client', async () => {
   const { createImageUrlBuilder } = await import('@sanity/image-url');
@@ -83,6 +84,7 @@ import { ExperienceList } from '@/app/(routes)/(main)/(professioal)/experience/_
 import { ProjectDetail } from '@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail/project-detail';
 import { ProjectsList } from '@/app/(routes)/(main)/(professioal)/projects/_interface/projects-list/projects-list';
 import { Resume } from '@/app/(routes)/(main)/(professioal)/resume/_interface/resume/resume';
+import SiteLayout from '@/app/(routes)/layout';
 import { FetcherError, ValidationError } from '@/lib/http-clients/effect-fetcher';
 import { createQueryClient } from '@/providers/server/query-client';
 
@@ -143,7 +145,9 @@ const renderPage = async (page: ReactElement, client: QueryClient = productionCl
     render(
       <QueryClientProvider client={client}>
         <PageErrorBoundary>
-          <Suspense fallback={<p>loading</p>}>{page}</Suspense>
+          <SiteLayout>
+            <Suspense fallback={<p>loading</p>}>{page}</Suspense>
+          </SiteLayout>
         </PageErrorBoundary>
       </QueryClientProvider>,
     );

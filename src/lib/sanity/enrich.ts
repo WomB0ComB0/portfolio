@@ -1,3 +1,4 @@
+import 'server-only';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -27,8 +28,16 @@ import {
   fetchYouTubeVideoMetadataBatch,
   type YouTubeVideoMetadata,
 } from '@/lib/api-integrations/youtube';
+import { withDeadline } from '@/lib/async/deadline';
 import { getTalks, getYoutubeVideos } from '@/lib/sanity/api';
 import { logger } from '@/utils';
+
+/**
+ * How long the optional enrichment (talk durations, stored videos' titles) may wait on YouTube
+ * before the stored values are used. Well under the routes' overall YouTube deadline, so a slow
+ * YouTube costs the extra details, not the whole list.
+ */
+export const YOUTUBE_ENRICHMENT_DEADLINE_MS = 4_000;
 
 /** The channel whose uploads are listed next to the videos stored in Sanity. */
 const YOUTUBE_CHANNEL_HANDLE = '@mikeodnis';
@@ -85,8 +94,14 @@ export function youtubeVideoIdOf(link: string): string | null {
   return candidate && YOUTUBE_VIDEO_ID.test(candidate) ? candidate : null;
 }
 
+/**
+ * The talk's YouTube video ID. Documents are not decoded yet, so a `videoUrl` that is not a
+ * string answers null here and the talk is left for the decoder to drop, alone.
+ */
 const youtubeIdOfTalk = (talk: Talk): string | null =>
-  talk.videoFormat === 'youtube' && talk.videoUrl ? youtubeVideoIdOf(talk.videoUrl) : null;
+  talk.videoFormat === 'youtube' && typeof talk.videoUrl === 'string'
+    ? youtubeVideoIdOf(talk.videoUrl)
+    : null;
 
 /**
  * Replaces stored durations with YouTube's. Durations are optional, so a YouTube failure keeps
@@ -97,7 +112,11 @@ async function withYoutubeDurations(talks: Talk[], apiKey: string): Promise<Talk
   if (videoIds.length === 0) return talks;
 
   try {
-    const metadata = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
+    const metadata = await withDeadline(
+      fetchYouTubeVideoMetadataBatch(videoIds, apiKey),
+      YOUTUBE_ENRICHMENT_DEADLINE_MS,
+      'youtube talk durations',
+    );
     return talks.map((talk) => {
       const duration = metadata.get(youtubeIdOfTalk(talk) ?? '')?.duration;
       return duration ? { ...talk, duration } : talk;
@@ -159,9 +178,13 @@ async function withYoutubeMetadata(
   if (videos.length === 0) return videos;
 
   try {
-    const metadata = await fetchYouTubeVideoMetadataBatch(
-      videos.map((video) => video.videoId),
-      apiKey,
+    const metadata = await withDeadline(
+      fetchYouTubeVideoMetadataBatch(
+        videos.map((video) => video.videoId),
+        apiKey,
+      ),
+      YOUTUBE_ENRICHMENT_DEADLINE_MS,
+      'youtube video metadata',
     );
     return videos.map((video) => {
       const live = metadata.get(video.videoId);

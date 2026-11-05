@@ -47,7 +47,7 @@ interface PageModule {
 }
 
 const STATIC_PAGES: Readonly<Record<string, () => Promise<PageModule>>> = {
-  '/': () => import('@/app/page'),
+  '/': () => import('@/app/(routes)/page'),
   '/cookies': () => import('@/app/(routes)/(legal)/cookies/page'),
   '/licenses': () => import('@/app/(routes)/(legal)/licenses/page'),
   '/privacy': () => import('@/app/(routes)/(legal)/privacy/page'),

@@ -24,7 +24,6 @@ import { type JSX, Suspense, useMemo, useState } from 'react';
 import { FaGithub } from 'react-icons/fa';
 import { PaginationControls, usePagination } from '@/app/_components';
 import { MagicCard, PageHeader } from '@/components';
-import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -348,23 +347,21 @@ const ProjectsListContent = (): JSX.Element => {
 
 export const ProjectsList = (): JSX.Element => {
   return (
-    <Layout>
-      <div className="container mx-auto px-4 md:px-6 py-12 max-w-7xl space-y-16">
-        <PageHeader
-          title="My Projects"
-          description="A showcase of my work spanning web development, mobile apps, and machine learning"
-          icon={<Code />}
-        />
-        <QueryErrorBoundary
-          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.projects)]}
-          fallback={(_error, retry) => <ProjectsLoadError retry={retry} />}
-        >
-          <Suspense fallback={<ProjectsListSkeleton />}>
-            <ProjectsListContent />
-          </Suspense>
-        </QueryErrorBoundary>
-      </div>
-    </Layout>
+    <div className="container mx-auto px-4 md:px-6 py-12 max-w-7xl space-y-16">
+      <PageHeader
+        title="My Projects"
+        description="A showcase of my work spanning web development, mobile apps, and machine learning"
+        icon={<Code />}
+      />
+      <QueryErrorBoundary
+        queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.projects)]}
+        fallback={(_error, retry) => <ProjectsLoadError retry={retry} />}
+      >
+        <Suspense fallback={<ProjectsListSkeleton />}>
+          <ProjectsListContent />
+        </Suspense>
+      </QueryErrorBoundary>
+    </div>
   );
 };
 ProjectsList.displayName = 'ProjectsList';

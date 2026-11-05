@@ -197,6 +197,7 @@
     "react-resizable-panels": "4.18.0",
     "recharts": "3.10.1",
     "sanity": "^6.0.0",
+    "server-only": "0.0.1",
     "sonner": "2.0.8",
     "styled-components": "^6.6.0",
     "stylelint": "^18.0.0",

@@ -24,7 +24,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { PaginationControls, usePagination } from '@/app/_components';
-import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -369,23 +368,21 @@ const TimelineCard = ({
  */
 export const ExperienceList = () => {
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-12 max-w-7xl space-y-12">
-        <PageHeader
-          title="Work Experience"
-          description="A chronological journey through my professional career"
-          icon={<Briefcase />}
-        />
-        <QueryErrorBoundary
-          section="work experience"
-          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
-        >
-          <Suspense fallback={<ExperienceListSkeleton />}>
-            <ExperienceListContent />
-          </Suspense>
-        </QueryErrorBoundary>
-      </div>
-    </Layout>
+    <div className="container mx-auto px-4 py-12 max-w-7xl space-y-12">
+      <PageHeader
+        title="Work Experience"
+        description="A chronological journey through my professional career"
+        icon={<Briefcase />}
+      />
+      <QueryErrorBoundary
+        section="work experience"
+        queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
+      >
+        <Suspense fallback={<ExperienceListSkeleton />}>
+          <ExperienceListContent />
+        </Suspense>
+      </QueryErrorBoundary>
+    </div>
   );
 };
 ExperienceList.displayName = 'ExperienceList';

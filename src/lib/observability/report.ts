@@ -70,6 +70,12 @@ export interface ApiFailureReport {
   context: string;
   /** 'warning' when the route still answers with fallback data. */
   level?: ApiReportLevel;
+  /**
+   * false sends the report whatever the context's cooldown, and neither checks nor starts it. For
+   * callers that already report each failure once (e.g. one warning per decoded Sanity answer),
+   * where a throttled report would be lost for good.
+   */
+  cooldown?: boolean;
   now?: number;
 }
 
@@ -84,18 +90,20 @@ const cooldownKey = (context: string, level: ApiReportLevel): string => `${level
  * first (then by Sentry's default grouping within it), so a context's warnings and errors share
  * an issue. Each context sends at most one event per level per {@link API_REPORT_COOLDOWN_MS}, so
  * an upstream outage that every request runs into costs one event per window instead of one per
- * request.
+ * request (unless `cooldown` is false).
  */
 export function reportApiFailure(
   error: unknown,
-  { context, level = 'error', now = Date.now() }: ApiFailureReport,
+  { context, level = 'error', cooldown = true, now = Date.now() }: ApiFailureReport,
 ): boolean {
   if (wasReported(error)) return false;
   markReported(error);
-  const key = cooldownKey(context, level);
-  const last = lastApiReportAt.get(key);
-  if (last !== undefined && now - last < API_REPORT_COOLDOWN_MS) return false;
-  lastApiReportAt.set(key, now);
+  if (cooldown) {
+    const key = cooldownKey(context, level);
+    const last = lastApiReportAt.get(key);
+    if (last !== undefined && now - last < API_REPORT_COOLDOWN_MS) return false;
+    lastApiReportAt.set(key, now);
+  }
   Sentry.captureException(error, {
     level,
     tags: { 'api.context': context },

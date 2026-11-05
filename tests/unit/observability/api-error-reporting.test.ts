@@ -179,6 +179,56 @@ describe('reportApiFailure cooldown', () => {
 
     expect(levels()).toEqual(['warning', 'error', 'warning']);
   });
+
+  it('cooldown: false sends every report, with the same level and fingerprint', () => {
+    const sent = ['a', 'b'].map((message, now) =>
+      reportApiFailure(new Error(message), { context, level: 'warning', cooldown: false, now }),
+    );
+
+    expect(sent).toEqual([true, true]);
+    expect(sentry.captureException.mock.calls.map(([, options]) => options)).toEqual([
+      {
+        level: 'warning',
+        tags: { 'api.context': context },
+        fingerprint: ['api', context, '{{ default }}'],
+      },
+      {
+        level: 'warning',
+        tags: { 'api.context': context },
+        fingerprint: ['api', context, '{{ default }}'],
+      },
+    ]);
+  });
+
+  it('cooldown: false neither waits for nor starts the context cooldown', () => {
+    reportApiFailure(new Error('throttled first'), { context, level: 'warning', now: 0 });
+    reportApiFailure(new Error('exempt'), { context, level: 'warning', cooldown: false, now: 1 });
+    resetApiReportCooldowns();
+    reportApiFailure(new Error('exempt again'), {
+      context,
+      level: 'warning',
+      cooldown: false,
+      now: 2,
+    });
+    reportApiFailure(new Error('throttled second'), { context, level: 'warning', now: 3 });
+
+    expect(sentry.captureException.mock.calls.map(([error]) => (error as Error).message)).toEqual([
+      'throttled first',
+      'exempt',
+      'exempt again',
+      'throttled second',
+    ]);
+  });
+
+  it('cooldown: false still skips an error that was already reported', () => {
+    const error = new Error('once');
+    reportApiFailure(error, { context, level: 'warning', cooldown: false, now: 0 });
+
+    expect(reportApiFailure(error, { context, level: 'warning', cooldown: false, now: 1 })).toBe(
+      false,
+    );
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('createErrorHandlerWithDefault', () => {

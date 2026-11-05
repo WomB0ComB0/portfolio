@@ -15,12 +15,15 @@
  */
 
 /**
- * @file How every /api/v1/sanity route answers. A Sanity failure never looks like real content:
+ * @file How every /api/v1/sanity route answers. Each route reads its collection through the
+ * stale-on-error cache it shares with the pages in the same server process
+ * ('@/lib/sanity/loaders'), and only maps the result to HTTP. A Sanity failure never looks like
+ * real content:
  * - Sanity answers: 200 with the CDN cache headers. Real empty lists are cached like any answer.
- * - Sanity fails, and the route has an earlier answer in memory: 200 with that answer, a short
- *   CDN cache, and a Sentry warning. For STALE_RETRY_BACKOFF_MS (30 s) after that failure the
- *   route keeps serving the earlier answer without asking Sanity; each such answer is reported
- *   again, and reportApiFailure's cooldown throttles those reports.
+ * - Sanity fails, and the collection has an earlier answer in memory: 200 with that answer, a
+ *   short CDN cache, and a Sentry warning. For STALE_RETRY_BACKOFF_MS (30 s) after that failure
+ *   the route keeps serving the earlier answer without asking Sanity; each such answer is
+ *   reported again, and reportApiFailure's cooldown throttles those reports.
  * - Sanity fails with nothing in memory: 503 with `Cache-Control: no-store`, a JSON error body,
  *   and a Sentry error.
  * - A single document that does not exist (no active resume): 404, also `no-store`. Only a fresh
@@ -31,13 +34,13 @@
 import { type Context, StatusMap } from 'elysia';
 import { createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 import { ensureBaseError } from '@/classes/error';
+import type { StaleCacheResult } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils';
-import { createStaleCache, type StaleCacheResult } from '../shared/stale-cache';
 import { sanityCacheHeaders, sanityNoStoreHeaders, sanityStaleCacheHeaders } from './middleware';
 
 /** How long an answer is served from memory before Sanity is asked again. Matches s-maxage. */
-export const SANITY_CACHE_TTL_MS = 5 * 60 * 1_000;
+export { SANITY_CACHE_TTL_MS } from '@/lib/sanity/loaders';
 
 const DEFAULT_NOT_FOUND_MESSAGE = 'Not found';
 
@@ -48,16 +51,20 @@ export interface SanityErrorBody {
 }
 
 export interface SanityRouteConfig<T> {
-  /** The route's cache key, e.g. 'projects'. */
+  /** The collection's cache key, e.g. 'projects'. Names the route's stale warnings. */
   readonly key: string;
   /**
    * The error-handler context, e.g. 'fetch projects from Sanity'. It names the 503 message and
    * groups the route's warnings and errors in Sentry.
    */
   readonly context: string;
-  /** Loads the answer. It throws when Sanity fails, and answers null for a missing document. */
-  readonly load: () => Promise<T>;
-  /** The 404 message when `load` answers null. */
+  /**
+   * Reads the collection through its shared stale-on-error cache (a reader from
+   * '@/lib/sanity/loaders'). It rejects only when Sanity fails with nothing cached, and its data
+   * is null for a missing document.
+   */
+  readonly read: () => Promise<StaleCacheResult<T>>;
+  /** The 404 message when `read`'s data is null. */
   readonly notFoundMessage?: string;
 }
 
@@ -95,23 +102,24 @@ function answerUnavailable(set: ResponseSet, body: { readonly error: string }): 
 }
 
 /**
- * Builds a route handler that serves `load`'s answer through a stale-on-error cache of its own.
+ * Builds a route handler that serves `read`'s answer, raw, and maps it to HTTP. The cache is the
+ * collection's, so the route and the pages share one Sanity request per TTL per server process
+ * (separate serverless instances cannot share it, so each asks on its own).
  * Use it as `.get(path, ({ set }) => handler(set))`.
  */
 export function sanityRoute<T>({
   key,
   context,
-  load,
+  read,
   notFoundMessage = DEFAULT_NOT_FOUND_MESSAGE,
 }: SanityRouteConfig<T>): (set: ResponseSet) => Promise<NonNullable<T> | SanityErrorBody> {
-  const cache = createStaleCache<T>({ ttlMs: SANITY_CACHE_TTL_MS });
   // Logs, and reports at error level: nothing is left to serve.
   const handleUnavailable = createErrorHandler({ context, includeErrorDetails: false });
 
   return async (set) => {
     let result: StaleCacheResult<T>;
     try {
-      result = await cache.get(key, load);
+      result = await read();
     } catch (error) {
       return answerUnavailable(set, handleUnavailable(error));
     }

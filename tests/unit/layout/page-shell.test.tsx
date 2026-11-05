@@ -15,21 +15,25 @@
  */
 
 /**
- * @file The page shell's landmarks, skip link and hydration.
+ * @file The persistent page shell: landmarks, skip link, hydration and the per-page fade.
  *
- * Each page renders its own Layout, which owns the page's `<main>`. The server HTML must already
- * contain that one `<main>` (around the page content only, not the nav or footer), and hydrating
- * it must keep the same DOM instead of remounting the page.
+ * Every route renders inside src/app/(routes)/layout.tsx, which is
+ * `<Layout><PageEnter>{page}</PageEnter></Layout>`. Layout mounts once and stays mounted across
+ * client navigations, and its one `<main>` wraps the page content only (not the navs or the
+ * footer). The server HTML must already contain that `<main>`, hydrating it must keep the same
+ * DOM, and only a page mounted by a client navigation fades in.
  */
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useEffect } from 'react';
+import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import Layout from '@/components/layout/layout';
+import SiteLayout from '@/app/(routes)/layout';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/stats' }));
+const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn(() => '/stats') }));
+vi.mock('next/navigation', () => ({ usePathname }));
 // The command palette and background effect are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/magicui/light-rays', () => ({ LightRays: () => null }));
@@ -53,10 +57,10 @@ vi.mock('@/components/layout', () => ({
   ),
 }));
 
-/** The tree every page renders inside GlobalProvider (which adds no wrapper): its Layout. */
-const Page = ({ children }: { children: React.ReactNode }) => <Layout>{children}</Layout>;
-
 const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** An inline `opacity: 0` in server HTML: content hidden until JavaScript runs. */
+const HIDDEN_OPACITY = /opacity:\s*0(?:[;"]|\s)/;
 
 /** Page content that counts its mounts: a remount runs its effect again. */
 const mounts = vi.fn();
@@ -66,6 +70,21 @@ const Probe = () => {
   }, []);
   return <p>Page content</p>;
 };
+
+/** The element PageEnter puts between `<main>` and the page: the one that fades. */
+const frameOf = (main: HTMLElement): HTMLElement => {
+  const frame = main.firstElementChild;
+  if (!(frame instanceof HTMLElement)) throw new Error('<main> has no page frame');
+  return frame;
+};
+
+/** The parts of the shell that must outlive a navigation, in a fixed order. */
+const shellNodes = (): HTMLElement[] => [
+  screen.getByRole('main'),
+  screen.getByRole('navigation', { name: 'Main navigation' }),
+  screen.getByRole('navigation', { name: 'Mobile navigation' }),
+  screen.getByRole('contentinfo'),
+];
 
 // jsdom has no scrollIntoView; the skip link test stubs it.
 const originalScrollIntoView = Element.prototype.scrollIntoView;
@@ -79,22 +98,25 @@ const afterLinkNavigation = (): Promise<void> =>
     setImmediate(resolve);
   });
 
+beforeEach(() => {
+  usePathname.mockReturnValue('/stats');
+});
+
 afterEach(() => {
   document.body.innerHTML = '';
   mounts.mockClear();
   Element.prototype.scrollIntoView = originalScrollIntoView;
 });
 
-describe('Layout landmarks', () => {
+describe('Shell landmarks', () => {
   it('renders exactly one main#main-content around the page content only', () => {
     const { container } = render(
-      <Page>
+      <SiteLayout>
         <p>Page content</p>
-      </Page>,
+      </SiteLayout>,
     );
 
-    const mains = container.querySelectorAll('main');
-    expect(mains).toHaveLength(1);
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     const main = screen.getByRole('main');
     expect(main).toHaveAttribute('id', 'main-content');
     expect(main).toHaveAttribute('tabindex', '-1');
@@ -112,9 +134,9 @@ describe('Layout landmarks', () => {
 
   it('starts with a skip link to #main-content, before every other focusable element', () => {
     const { container } = render(
-      <Page>
+      <SiteLayout>
         <button type="button">Page action</button>
-      </Page>,
+      </SiteLayout>,
     );
 
     const [first] = container.querySelectorAll(FOCUSABLE);
@@ -133,9 +155,9 @@ describe('Layout landmarks', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     render(
-      <Page>
+      <SiteLayout>
         <p>Page content</p>
-      </Page>,
+      </SiteLayout>,
     );
     const historyLength = window.history.length;
     const hash = window.location.hash;
@@ -154,52 +176,118 @@ describe('Layout landmarks', () => {
 });
 
 describe('Server HTML and hydration', () => {
-  it('server-renders the main landmark, visible without JavaScript', () => {
+  it('server-renders one main landmark, with nothing hidden until JavaScript runs', () => {
     const html = renderToString(
-      <Page>
+      <SiteLayout>
         <p>Page content</p>
-      </Page>,
+      </SiteLayout>,
     );
 
     expect(html.match(/<main\b/g)).toHaveLength(1);
     expect(html).toMatch(/<main\b[^>]*\bid="main-content"/);
-    expect(html).not.toMatch(/opacity:\s*0(?:[;"]|\s)/);
+    expect(html).toContain('Page content');
+    expect(html).not.toMatch(HIDDEN_OPACITY);
   });
 
-  it('hydrates the server HTML in place, without remounting the page', async () => {
+  it('hydrates the server HTML in place: same <main> and page nodes, one page mount', async () => {
     const container = document.createElement('div');
     container.innerHTML = renderToString(
-      <Page>
+      <SiteLayout>
         <Probe />
-      </Page>,
+      </SiteLayout>,
     );
     document.body.append(container);
     const serverMain = container.querySelector('main');
     const serverContent = screen.getByText('Page content');
+    const onRecoverableError = vi.fn();
+    let root: Root | undefined;
 
+    try {
+      await act(async () => {
+        root = hydrateRoot(
+          container,
+          <SiteLayout>
+            <Probe />
+          </SiteLayout>,
+          { onRecoverableError },
+        );
+      });
+
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(serverMain).not.toBeNull();
+      expect(container.querySelector('main')).toBe(serverMain);
+      expect(screen.getByText('Page content')).toBe(serverContent);
+      expect(mounts).toHaveBeenCalledTimes(1);
+      // Hydration does not start the fade: the page stays fully visible.
+      expect(frameOf(screen.getByRole('main')).style.opacity).toBe('1');
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+    }
+  });
+});
+
+describe('Per-page fade', () => {
+  it('fades in a page mounted on the client, while <main> itself never animates', async () => {
     render(
-      <Page>
-        <Probe />
-      </Page>,
-      { container, hydrate: true },
+      <SiteLayout>
+        <p>Page content</p>
+      </SiteLayout>,
     );
-    await act(async () => {});
+    const main = screen.getByRole('main');
+    const frame = frameOf(main);
 
-    expect(serverMain).not.toBeNull();
-    expect(container.querySelector('main')).toBe(serverMain);
-    expect(screen.getByText('Page content')).toBe(serverContent);
-    expect(mounts).toHaveBeenCalledTimes(1);
+    expect(frame.style.opacity).toBe('0');
+    expect(frame.style.transform).toBe('');
+    expect(main).not.toHaveAttribute('style');
+    // It must also finish: a page left at opacity 0 is invisible.
+    await waitFor(() => expect(frame.style.opacity).toBe('1'));
+    expect(main).not.toHaveAttribute('style');
   });
 
-  it('plays the entrance animation for a page mounted by a client-side navigation', async () => {
-    render(
-      <Page>
-        <p>Page content</p>
-      </Page>,
+  it('remounts the page on a pathname change but keeps the same <main>, navs and footer', async () => {
+    const { rerender } = render(
+      <SiteLayout>
+        <Probe />
+      </SiteLayout>,
+    );
+    const before = shellNodes();
+    const firstFrame = frameOf(screen.getByRole('main'));
+    await waitFor(() => expect(firstFrame.style.opacity).toBe('1'));
+
+    usePathname.mockReturnValue('/projects');
+    rerender(
+      <SiteLayout>
+        <Probe />
+      </SiteLayout>,
     );
 
-    expect(screen.getByRole('main').style.opacity).toBe('0');
-    // It must also finish: a page left at opacity 0 is invisible.
-    await waitFor(() => expect(screen.getByRole('main').style.opacity).toBe('1'));
+    expect(mounts).toHaveBeenCalledTimes(2);
+    for (const [index, node] of shellNodes().entries()) {
+      expect(node).toBe(before[index]);
+    }
+    const nextFrame = frameOf(screen.getByRole('main'));
+    expect(nextFrame).not.toBe(firstFrame);
+    expect(nextFrame.style.opacity).toBe('0');
+    await waitFor(() => expect(nextFrame.style.opacity).toBe('1'));
+  });
+
+  it('keeps the page mounted when only the search params change (same pathname)', () => {
+    const { rerender } = render(
+      <SiteLayout>
+        <Probe />
+      </SiteLayout>,
+    );
+    const frame = frameOf(screen.getByRole('main'));
+
+    rerender(
+      <SiteLayout>
+        <Probe />
+      </SiteLayout>,
+    );
+
+    expect(mounts).toHaveBeenCalledTimes(1);
+    expect(frameOf(screen.getByRole('main'))).toBe(frame);
   });
 });

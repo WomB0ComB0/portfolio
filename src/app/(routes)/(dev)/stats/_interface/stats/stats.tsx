@@ -24,29 +24,26 @@ import {
   LeetCodeStats,
 } from '@/app/(routes)/(dev)/stats/_components';
 import { PageHeader } from '@/components';
-import Layout from '@/components/layout/layout';
 
 export const Stats = () => {
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <PageHeader
-          title="Development Statistics"
-          description="What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours."
-          icon={<FiActivity />}
-        />
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-          <div className="lg:col-span-3 space-y-8">
-            <GitHubStats />
-          </div>
-          <div className="lg:col-span-2 space-y-8">
-            <Discord />
-            <DevStats />
-            <LeetCodeStats />
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <PageHeader
+        title="Development Statistics"
+        description="What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours."
+        icon={<FiActivity />}
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+        <div className="lg:col-span-3 space-y-8">
+          <GitHubStats />
+        </div>
+        <div className="lg:col-span-2 space-y-8">
+          <Discord />
+          <DevStats />
+          <LeetCodeStats />
         </div>
       </div>
-    </Layout>
+    </div>
   );
 };
 

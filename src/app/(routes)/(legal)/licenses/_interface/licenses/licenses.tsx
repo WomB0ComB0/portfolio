@@ -20,7 +20,6 @@ import { ExternalLink, FileCode, FileText, Image } from 'lucide-react';
 import Link from 'next/link';
 import type { JSX } from 'react';
 import { MagicCard } from '@/components';
-import Layout from '@/components/layout/layout';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { emailHref } from '@/constants';
 import type { LicenseCardProps } from './licenses.types';
@@ -97,81 +96,79 @@ const LicenseCard = ({
  */
 export const Licenses = (): JSX.Element => {
   return (
-    <Layout>
-      <section className="container mx-auto px-4 py-12 max-w-5xl">
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-4 text-foreground">Content Licenses</h1>
-          <p className="text-lg text-muted-foreground">
-            Different types of content on this site are licensed under different terms to promote
-            sharing, collaboration, and proper attribution.
+    <section className="container mx-auto px-4 py-12 max-w-5xl">
+      <div className="mb-12">
+        <h1 className="text-4xl font-bold mb-4 text-foreground">Content Licenses</h1>
+        <p className="text-lg text-muted-foreground">
+          Different types of content on this site are licensed under different terms to promote
+          sharing, collaboration, and proper attribution.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        <LicenseCard
+          title="Blog Posts"
+          description="All blog posts and written articles are licensed under Creative Commons Attribution 4.0 International License. You are free to share and adapt the material as long as appropriate credit is given."
+          licenseName="CC BY 4.0"
+          licenseUrl="https://creativecommons.org/licenses/by/4.0/"
+          icon={<FileText className="h-6 w-6" />}
+        />
+
+        <LicenseCard
+          title="Code & Lab Projects"
+          description="All code examples, projects, and technical implementations in the lab section are licensed under Apache License 2.0. You may use, modify, and distribute the code for any purpose, including commercial applications."
+          licenseName="Apache License 2.0"
+          licenseUrl="https://www.apache.org/licenses/LICENSE-2.0"
+          icon={<FileCode className="h-6 w-6" />}
+        />
+
+        <LicenseCard
+          title="Photography & Images"
+          description="All photographs are licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. You may share and adapt the photos for non-commercial purposes with proper attribution. Applies only to photos I took. Doesn't grant rights to people's likeness or third-party logos."
+          licenseName="CC BY-NC-SA 4.0"
+          licenseUrl="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+          icon={<Image className="h-6 w-6" />}
+        />
+      </div>
+
+      <MagicCard className="mt-12 border-border">
+        <CardHeader>
+          <CardTitle className="text-xl text-foreground">Third-Party Licenses</CardTitle>
+        </CardHeader>
+        <CardContent className="text-muted-foreground space-y-4">
+          <p>
+            This website is built with various open-source libraries and frameworks. We are grateful
+            to the open-source community for their contributions.
           </p>
-        </div>
-
-        <div className="space-y-6">
-          <LicenseCard
-            title="Blog Posts"
-            description="All blog posts and written articles are licensed under Creative Commons Attribution 4.0 International License. You are free to share and adapt the material as long as appropriate credit is given."
-            licenseName="CC BY 4.0"
-            licenseUrl="https://creativecommons.org/licenses/by/4.0/"
-            icon={<FileText className="h-6 w-6" />}
-          />
-
-          <LicenseCard
-            title="Code & Lab Projects"
-            description="All code examples, projects, and technical implementations in the lab section are licensed under Apache License 2.0. You may use, modify, and distribute the code for any purpose, including commercial applications."
-            licenseName="Apache License 2.0"
-            licenseUrl="https://www.apache.org/licenses/LICENSE-2.0"
-            icon={<FileCode className="h-6 w-6" />}
-          />
-
-          <LicenseCard
-            title="Photography & Images"
-            description="All photographs are licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. You may share and adapt the photos for non-commercial purposes with proper attribution. Applies only to photos I took. Doesn't grant rights to people's likeness or third-party logos."
-            licenseName="CC BY-NC-SA 4.0"
-            licenseUrl="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-            icon={<Image className="h-6 w-6" />}
-          />
-        </div>
-
-        <MagicCard className="mt-12 border-border">
-          <CardHeader>
-            <CardTitle className="text-xl text-foreground">Third-Party Licenses</CardTitle>
-          </CardHeader>
-          <CardContent className="text-muted-foreground space-y-4">
-            <p>
-              This website is built with various open-source libraries and frameworks. We are
-              grateful to the open-source community for their contributions.
-            </p>
-            <p>
-              Major dependencies include Next.js (MIT License), React (MIT License), TailwindCSS
-              (MIT License), and many others. Each dependency maintains its own license terms.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              For a complete list of dependencies and their licenses, please refer to the{' '}
-              <code className="bg-muted px-2 py-1 rounded text-primary">package.json</code> file in
-              the project repository.
-            </p>
-          </CardContent>
-        </MagicCard>
-
-        <div className="mt-8 p-6 bg-muted rounded-lg border border-border">
-          <h3 className="text-lg font-semibold text-foreground mb-2">Questions or Permissions</h3>
-          <p className="text-muted-foreground">
-            If you have questions about these licenses or need special permissions beyond what is
-            granted, please feel free to{' '}
-            <a
-              href={emailHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:text-foreground underline"
-            >
-              contact me
-            </a>
-            {'.'}
+          <p>
+            Major dependencies include Next.js (MIT License), React (MIT License), TailwindCSS (MIT
+            License), and many others. Each dependency maintains its own license terms.
           </p>
-        </div>
-      </section>
-    </Layout>
+          <p className="text-sm text-muted-foreground">
+            For a complete list of dependencies and their licenses, please refer to the{' '}
+            <code className="bg-muted px-2 py-1 rounded text-primary">package.json</code> file in
+            the project repository.
+          </p>
+        </CardContent>
+      </MagicCard>
+
+      <div className="mt-8 p-6 bg-muted rounded-lg border border-border">
+        <h3 className="text-lg font-semibold text-foreground mb-2">Questions or Permissions</h3>
+        <p className="text-muted-foreground">
+          If you have questions about these licenses or need special permissions beyond what is
+          granted, please feel free to{' '}
+          <a
+            href={emailHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:text-foreground underline"
+          >
+            contact me
+          </a>
+          {'.'}
+        </p>
+      </div>
+    </section>
   );
 };
 Licenses.displayName = 'Licenses';

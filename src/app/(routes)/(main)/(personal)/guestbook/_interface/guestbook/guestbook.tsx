@@ -16,7 +16,6 @@
 
 import type { JSX } from 'react';
 import { GuestbookComponent } from '@/app/(routes)/(main)/(personal)/guestbook/_components';
-import Layout from '@/components/layout/layout';
 
 /**
  * Guestbook component.
@@ -28,13 +27,11 @@ import Layout from '@/components/layout/layout';
  */
 export const Guestbook = (): JSX.Element => {
   return (
-    <Layout>
-      <div className="w-full min-h-screen h-full p-8 flex flex-col items-center relative">
-        <section className="flex flex-col w-full justify-between mt-16 lg:mt-0 md:mt-0 prose mb-10">
-          <GuestbookComponent />
-        </section>
-      </div>
-    </Layout>
+    <div className="w-full min-h-screen h-full p-8 flex flex-col items-center relative">
+      <section className="flex flex-col w-full justify-between mt-16 lg:mt-0 md:mt-0 prose mb-10">
+        <GuestbookComponent />
+      </section>
+    </div>
   );
 };
 Guestbook.displayName = 'Guestbook';

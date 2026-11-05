@@ -25,6 +25,13 @@ import { MOBILE_MENU_DIALOG_ID, MobileMenuOverlay } from './mobile-menu-overlay'
 export const MobileNavBar = memo(({ path }: { path: string }) => {
   const { query } = useKBar();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // The shell stays mounted across navigations, so a route change the menu didn't make itself
+  // (Back, Forward, the palette) must close it here, or it stays open over the new page.
+  const [menuPath, setMenuPath] = useState(path);
+  if (menuPath !== path) {
+    setMenuPath(path);
+    setIsMenuOpen(false);
+  }
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const openMenu = useCallback(() => setIsMenuOpen(true), []);
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);

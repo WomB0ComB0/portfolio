@@ -24,7 +24,6 @@ import { Award, Building2, Calendar, Code2, ExternalLink, Hash, Search, X } from
 import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
-import Layout from '@/components/layout/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -525,23 +524,21 @@ const CertificationsContent = () => {
  */
 export const Certifications = () => {
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-12 max-w-7xl space-y-16">
-        <PageHeader
-          title="My Certifications"
-          description="A collection of my professional certifications and credentials."
-          icon={<Award />}
-        />
-        <QueryErrorBoundary
-          section="certifications"
-          queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.certifications)]}
-        >
-          <Suspense fallback={<CertificationsPageSkeleton />}>
-            <CertificationsContent />
-          </Suspense>
-        </QueryErrorBoundary>
-      </div>
-    </Layout>
+    <div className="container mx-auto px-4 py-12 max-w-7xl space-y-16">
+      <PageHeader
+        title="My Certifications"
+        description="A collection of my professional certifications and credentials."
+        icon={<Award />}
+      />
+      <QueryErrorBoundary
+        section="certifications"
+        queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.certifications)]}
+      >
+        <Suspense fallback={<CertificationsPageSkeleton />}>
+          <CertificationsContent />
+        </Suspense>
+      </QueryErrorBoundary>
+    </div>
   );
 };
 Certifications.displayName = 'Certifications';

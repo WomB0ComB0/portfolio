@@ -118,7 +118,7 @@ graph TD
 
 | Route                               | Source                                                 | Description                                                                                                          |
 | :---------------------------------- | :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
-| `/`                                 | `src/app/page.tsx`                                     | Home view with interactive canvas, command palette (`Cmd+K`), and quick links                                        |
+| `/`                                 | `src/app/(routes)/page.tsx`                            | Home view with interactive canvas, command palette (`Cmd+K`), and quick links                                        |
 | `/projects`, `/projects/[id]`       | `src/app/(routes)/(main)/(professioal)/projects`       | Full project catalog and individual project case studies from Sanity                                                 |
 | `/experience`, `/experience/[id]`   | `src/app/(routes)/(main)/(professioal)/experience`     | Career timeline and role details                                                                                     |
 | `/certifications`                   | `src/app/(routes)/(main)/(professioal)/certifications` | Technical certifications and credentials                                                                             |

@@ -15,7 +15,6 @@
  */
 
 import { MediaTabs } from '@/app/(routes)/(dev)/media/_components';
-import Layout from '@/components/layout/layout';
 
 /**
  * Media view component.
@@ -27,13 +26,11 @@ import Layout from '@/components/layout/layout';
  */
 export const MediaView = () => {
   return (
-    <Layout>
-      <div className="w-full min-h-screen p-4 md:p-8">
-        <div className="max-w-6xl mx-auto mb-10">
-          <MediaTabs />
-        </div>
+    <div className="w-full min-h-screen p-4 md:p-8">
+      <div className="max-w-6xl mx-auto mb-10">
+        <MediaTabs />
       </div>
-    </Layout>
+    </div>
   );
 };
 MediaView.displayName = 'MediaView';

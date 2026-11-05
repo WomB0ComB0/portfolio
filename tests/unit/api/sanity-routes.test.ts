@@ -80,14 +80,21 @@ const ROUTES = [
   ['/videos', 'fetch YouTube videos from Sanity'],
 ] as const;
 
-/** The routes keep their caches in module state, so every test loads a fresh app. */
+/**
+ * Every test loads a fresh app. The routes' answers live in one process-wide cache that survives
+ * vi.resetModules() (every copy of the loaders shares it), so it is cleared here as well.
+ */
 const loadApp = async () => {
   vi.resetModules();
-  const [{ Elysia }, { sanityRoutes }, { logger }] = await Promise.all([
-    import('elysia'),
-    import('@/app/api/v1/[[...route]]/sanity'),
-    import('@/utils'),
-  ]);
+  const [{ Elysia }, { sanityRoutes }, { logger }, { resetSanityLoaderCaches }] = await Promise.all(
+    [
+      import('elysia'),
+      import('@/app/api/v1/[[...route]]/sanity'),
+      import('@/utils'),
+      import('@/lib/sanity/loaders'),
+    ],
+  );
+  resetSanityLoaderCaches();
   vi.spyOn(logger, 'error').mockImplementation(() => undefined);
   vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
   vi.spyOn(logger, 'info').mockImplementation(() => undefined);
