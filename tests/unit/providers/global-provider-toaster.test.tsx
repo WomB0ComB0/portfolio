@@ -36,13 +36,11 @@ vi.mock('@/providers/server', async () => {
   const { QueryClient } = await import('@tanstack/react-query');
   return { createQueryClient: () => () => new QueryClient() };
 });
-vi.mock('@/components/animations', () => ({ PageTransition: passThrough }));
 vi.mock('@/app/_components', () => ({ WebVitals: () => null }));
 vi.mock('@vercel/analytics/react', () => ({ Analytics: () => null }));
 vi.mock('@tanstack/react-query-devtools', () => ({ ReactQueryDevtools: () => null }));
 vi.mock('nuqs/adapters/next/app', () => ({ NuqsAdapter: passThrough }));
 vi.mock('kbar', () => ({ KBarProvider: passThrough }));
-vi.mock('@/lib/navigation/actions', () => ({ actions: [] }));
 
 import { GlobalProvider } from '@/app/_providers/global-provider';
 

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -22,43 +24,93 @@ import {
   KBarPositioner,
   KBarResults,
   KBarSearch,
+  useKBar,
   useMatches,
+  useRegisterActions,
+  VisualState,
 } from 'kbar';
-import React, { type JSX } from 'react';
+import { useRouter } from 'next/navigation';
+import React, { type JSX, useEffect, useMemo } from 'react';
 import {
-  FiAward,
-  FiBarChart,
-  FiBookOpen,
-  FiBriefcase,
-  FiClipboard,
-  FiFileText,
-  FiHeadphones,
-  FiHeart,
-  FiHome,
-  FiMapPin,
-  FiUser,
-  FiVideo,
-} from 'react-icons/fi';
-import { SiHashnode } from 'react-icons/si';
+  createNavigationActions,
+  findNavigationShortcut,
+  NAVIGATION_SHORTCUTS,
+} from '@/lib/navigation/actions';
+
+/** Accessible name of the palette's search box. */
+const SEARCH_LABEL = 'Search pages and commands';
+
+/** The shortcut letter of each page action, by action id. */
+const SHORTCUT_KEYS: ReadonlyMap<ActionId, string> = new Map(
+  NAVIGATION_SHORTCUTS.map(({ id, key }) => [id, key]),
+);
+
+const APPLE_PLATFORM = /Mac|iPhone|iPad|iPod/;
+
+/** How the shortcut modifier is printed on this keyboard: Option on Apple devices, else Alt. */
+const modifierLabel = (): string =>
+  typeof navigator !== 'undefined' && APPLE_PLATFORM.test(navigator.platform) ? '⌥' : 'Alt';
+
+const isPaletteOpen = (visualState: VisualState): boolean =>
+  visualState === VisualState.animatingIn || visualState === VisualState.showing;
+
+/**
+ * Registers the page actions with the App Router, so choosing one is a client-side navigation
+ * rather than a full reload.
+ */
+const useNavigationActions = (navigate: (href: string) => void): void => {
+  const navigationActions = useMemo(() => createNavigationActions(navigate), [navigate]);
+  useRegisterActions(navigationActions, [navigationActions]);
+};
+
+/**
+ * Alt+letter (Option+letter) jumps to a page, but only while the palette is open. Nothing is bound
+ * page-wide, and bare letters stay with the search box (WCAG 2.1.4). So does an Option+letter that
+ * types a character on the viewer's layout, such as 'ł' on a Polish Mac (see findNavigationShortcut).
+ */
+const usePaletteShortcuts = (navigate: (href: string) => void): void => {
+  const { query, open } = useKBar((state) => ({ open: isPaletteOpen(state.visualState) }));
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const shortcut = findNavigationShortcut(event);
+      if (!shortcut) return;
+      event.preventDefault();
+      query.toggle();
+      navigate(shortcut.href);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, query, navigate]);
+};
 
 /**
  * @function Palette
  * @public
- * @description Renders the command palette modal interface using KBar components. Provides a styled search UI and result display for quick command or navigation actions within the application.
+ * @description Renders the command palette modal interface using KBar components, and registers
+ * the page actions and their in-palette shortcuts. ⌘K / Ctrl+K opens it.
  * @returns {JSX.Element} A React element rendering the palette modal and search results.
  * @author Mike Odnis
  * @web
  * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
+ * @version 2.0.0
  * @example
  *   <Palette />
  */
 export const Palette = (): JSX.Element => {
+  const router = useRouter();
+  const navigate = React.useCallback((href: string) => router.push(href), [router]);
+  useNavigationActions(navigate);
+  usePaletteShortcuts(navigate);
+
   return (
     <KBarPortal>
       <KBarPositioner className="z-50 select-none backdrop-blur bg-background/80 font-clash overflow-hidden">
         <KBarAnimator className="w-[90%] max-w-[600px] overflow-hidden text-lg bg-background text-foreground rounded-lg shadow-2xl kbar">
           <KBarSearch
+            aria-label={SEARCH_LABEL}
             className="w-full p-4 text-base bg-background text-foreground border-b border-accent/30 outline-none placeholder-foreground/50 focus:ring-2 focus:ring-accent"
             placeholder="Type a command or search..."
           />
@@ -96,7 +148,6 @@ function RenderResults(): JSX.Element {
             key={item.id}
             action={item}
             active={active}
-            // 🚩
             currentRootActionId={rootActionId}
           />
         )
@@ -105,11 +156,22 @@ function RenderResults(): JSX.Element {
   );
 }
 
+/** The Alt+letter hint shown beside a page action. */
+const ShortcutHint = ({ letter }: { readonly letter: string }): JSX.Element => (
+  <div className="flex items-center">
+    {[modifierLabel(), letter.toUpperCase()].map((label) => (
+      <kbd key={label} className="px-2 py-1 ml-2 text-xs bg-accent/30 text-foreground rounded">
+        {label}
+      </kbd>
+    ))}
+  </div>
+);
+
 /**
  * @readonly
  * @public
  * @description
- * Displays an individual action within the KBar results, supporting nested actions (ancestors), shortcut display, and dynamic icon mapping based on action name.
+ * Displays an individual action within the KBar results, supporting nested actions (ancestors), the action's own icon, and its in-palette shortcut hint.
  * @param {object} props The properties object.
  * @param {ActionImpl} props.action The action entry details to render.
  * @param {boolean} props.active Whether this result is the currently selected/active result.
@@ -119,7 +181,7 @@ function RenderResults(): JSX.Element {
  * @author Mike Odnis
  * @web
  * @see https://kbar.vercel.app/docs/components/results
- * @version 1.0.0
+ * @version 2.0.0
  * @example
  *   <ResultItem action={action} active={isActive} currentRootActionId={rootId} ref={ref} />
  */
@@ -147,45 +209,7 @@ export const ResultItem = React.forwardRef(
       return action.ancestors.slice(index + 1);
     }, [action.ancestors, currentRootActionId]);
 
-    /**
-     * @function getIcon
-     * @private
-     * @description Maps an action name to its associated icon React component.
-     * @param {string} name The action name to look up.
-     * @returns {JSX.Element | null} The corresponding icon element, or null if not mapped.
-     */
-    const getIcon = (name: string): JSX.Element | null => {
-      switch (name.toLowerCase()) {
-        case 'home':
-          return <FiHome size={18} />;
-        case 'projects':
-          return <FiClipboard size={18} />;
-        case 'experience':
-          return <FiBriefcase size={18} />;
-        case 'certifications':
-          return <FiAward size={18} />;
-        case 'resume':
-          return <FiFileText size={18} />;
-        case 'blog':
-          return <SiHashnode size={18} />;
-        case 'places':
-          return <FiMapPin size={18} />;
-        case 'stats':
-          return <FiBarChart size={18} />;
-        case 'spotify':
-          return <FiHeadphones size={18} />;
-        case 'guestbook':
-          return <FiBookOpen size={18} />;
-        case 'sponsor':
-          return <FiHeart size={18} />;
-        case 'about':
-          return <FiUser size={18} />;
-        case 'media':
-          return <FiVideo size={18} />;
-        default:
-          return null;
-      }
-    };
+    const shortcutKey = SHORTCUT_KEYS.get(action.id);
 
     return (
       <div
@@ -195,7 +219,7 @@ export const ResultItem = React.forwardRef(
         }`}
       >
         <div className="flex items-center gap-3">
-          {getIcon(action.name)}
+          {action.icon}
           <div className="flex flex-col">
             <div className="flex items-center gap-2 text-sm">
               {ancestors.length > 0 &&
@@ -212,15 +236,7 @@ export const ResultItem = React.forwardRef(
             )}
           </div>
         </div>
-        {action.shortcut?.length ? (
-          <div className="flex items-center">
-            {action.shortcut.map((sc) => (
-              <kbd key={sc} className="px-2 py-1 ml-2 text-xs bg-accent/30 text-foreground rounded">
-                {sc}
-              </kbd>
-            ))}
-          </div>
-        ) : null}
+        {shortcutKey ? <ShortcutHint letter={shortcutKey} /> : null}
       </div>
     );
   },

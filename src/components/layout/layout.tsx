@@ -17,9 +17,37 @@
  */
 
 import { usePathname } from 'next/navigation';
+import { MAIN_CONTENT_ID, PageMain } from '@/components/animations/pages/page-transition';
 import Palette from '@/components/cmd';
 import { LightRays } from '@/components/magicui/light-rays';
 import { Footer, MobileNavBar, NavBar } from '.';
+
+/**
+ * Moves focus and the viewport to the page's `<main>` without a fragment navigation. A native
+ * jump to #main-content adds a history entry with null state, which the app router ignores on
+ * popstate, so Back after a later client navigation would change the URL but keep the newer page.
+ */
+const skipToMain = (event: React.MouseEvent<HTMLAnchorElement>): void => {
+  event.preventDefault();
+  const main = document.getElementById(MAIN_CONTENT_ID);
+  main?.focus({ preventScroll: false });
+  main?.scrollIntoView();
+};
+
+/**
+ * The first focusable element on every page: hidden until focused, then shown over the top-left
+ * corner. It moves focus past the navs to the page's `<main>`; the href is the fallback before
+ * hydration and without JavaScript.
+ */
+const SkipToContent = () => (
+  <a
+    href={`#${MAIN_CONTENT_ID}`}
+    onClick={skipToMain}
+    className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:font-semibold focus:text-primary-foreground focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-ring"
+  >
+    Skip to content
+  </a>
+);
 
 /**
  * @function Layout
@@ -52,19 +80,21 @@ export const Layout = ({
   const pathname = usePathname();
   return (
     <div className="relative min-h-screen bg-background font-clash">
+      <SkipToContent />
       {/* <ShaderBackground> */}
       {/* Exactly one nav is shown at every width: the sidebar from lg up, the bottom bar below it.
           The hidden one uses display:none so it leaves the tab order. The pb-16 pairs here and on
-          the section keep the content and the footer clear of the fixed bottom bar. */}
+          the <main> keep the content and the footer clear of the fixed bottom bar. */}
       <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden overflow-y-hidden pb-16 lg:pb-0 selection:bg-primary/30">
         <Palette />
         <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
           <header className="w-[6%] fixed left-0 h-full z-20 hidden lg:block">
             <NavBar path={pathname ?? ''} />
           </header>
-          <section className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 lg:pb-0">
+          {/* The one <main>: page content only, with the navs and the footer outside it. */}
+          <PageMain className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 lg:pb-0">
             {children}
-          </section>
+          </PageMain>
         </div>
         <Footer />
         <LightRays count={5} blur={20} />

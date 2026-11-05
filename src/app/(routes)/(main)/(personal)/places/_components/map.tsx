@@ -23,6 +23,7 @@ import { APIProvider, InfoWindow, useMap, Map as VisGLMap } from '@vis.gl/react-
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiInfo, FiMapPin, FiX } from 'react-icons/fi';
+import { MAIN_CONTENT_ID } from '@/components/animations/pages/page-transition';
 import { Button } from '@/components/ui/button';
 import type { PlaceItem } from '@/types/places';
 import type { GoogleMapsProps, MarkersComponentProps } from './map.types';
@@ -83,17 +84,20 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
   const clusterer = useRef<MarkerClusterer | null>(null);
   const markers = useRef<{ [key: string]: google.maps.marker.AdvancedMarkerElement }>({});
 
-  // Escape on the map, or with nothing focused, closes the place card. Inside the card Google
-  // handles Escape itself (see the InfoWindow's onClose). An Escape another widget already
-  // consumed (a dropdown) or aimed elsewhere on the page (the command palette) is left alone.
+  // Escape on the map, or with nothing focused, closes the place card. "Nothing focused" is the
+  // body or the page's <main>, which a click on page content focuses (its tabindex=-1 is there for
+  // the skip link). Inside the card Google handles Escape itself (see the InfoWindow's onClose).
+  // An Escape another widget already consumed (a dropdown) or aimed elsewhere on the page (the
+  // command palette) is left alone.
   useEffect(() => {
     if (!activeMarker) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       const { target } = event;
-      const onMapOrPage =
-        target === document.body || (target instanceof Node && map?.getDiv().contains(target));
-      if (onMapOrPage) setActiveMarker(null);
+      const onPage =
+        target === document.body || (target instanceof Element && target.id === MAIN_CONTENT_ID);
+      const onMap = target instanceof Node && map?.getDiv().contains(target);
+      if (onPage || onMap) setActiveMarker(null);
     };
     document.addEventListener('keydown', closeOnEscape);
     return () => document.removeEventListener('keydown', closeOnEscape);

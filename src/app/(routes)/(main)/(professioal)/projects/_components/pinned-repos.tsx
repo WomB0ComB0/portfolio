@@ -70,9 +70,9 @@ export const PinnedRepos = ({ pinnedRepos, isLoading = false }: PinnedReposProps
                 </CardContent>
               </MagicCard>
             ))
-          : pinnedRepos.map((repo, index) => (
+          : pinnedRepos.map((repo) => (
               <MagicCard
-                key={`repo-${index + 1}`}
+                key={repo.url}
                 className="h-full border border-primary hover:shadow-md transition-shadow duration-300 border-none flex flex-col"
               >
                 <CardHeader className="grow">

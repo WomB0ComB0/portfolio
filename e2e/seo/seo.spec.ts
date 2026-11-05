@@ -453,11 +453,11 @@ test.describe('SEO', () => {
       await page.goto(targetUrl);
       await page.waitForLoadState('domcontentloaded');
 
+      // Exactly one tag, from constructViewport(): THEME_COLOR in src/utils/seo/meta.ts.
       const themeColor = page.locator('meta[name="theme-color"]');
-      const count = await themeColor.count();
 
-      // Theme color should exist (may be added dynamically)
-      expect(count).toBeGreaterThanOrEqual(0);
+      await expect(themeColor).toHaveCount(1);
+      await expect(themeColor).toHaveAttribute('content', '#0d0d0d');
     });
 
     test('should have manifest link', async ({ page }) => {

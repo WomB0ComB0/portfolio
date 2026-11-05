@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import type { Action } from 'kbar';
+import { createElement } from 'react';
+import type { IconType } from 'react-icons';
 import {
   FiAward,
   FiBarChart,
@@ -28,242 +31,181 @@ import {
   FiVideo,
 } from 'react-icons/fi';
 
-/**
- * @typedef {Object} NavigationAction
- * @property {string} id - Unique identifier for the action.
- * @property {string} name - Human-readable name for the navigation action.
- * @property {readonly string[]} shortcut - Keyboard shortcuts for triggering the action.
- * @property {string} keywords - Searchable keywords related to the action.
- * @property {() => void} perform - Function to perform the navigation action, which navigates the browser to a new path.
- * @property {string} section - The section this navigation action belongs to.
- * @property {JSX.Element} icon - JSX element icon representing the navigation action.
- * @description
- * Represents a single navigation command/action used in the command palette or quick navigation UI.
- * @author Mike Odnis
- * @version 1.0.0
- * @see https://github.com/WomB0ComB0/portfolio
- * @public
- */
+/** The palette section every page action is listed under. */
+export const NAVIGATION_SECTION = 'Navigation';
+
+/** Pixel size of the icon shown beside each page action in the palette. */
+const ACTION_ICON_SIZE = 18;
 
 /**
- * @constant
- * @readonly
- * @type {readonly NavigationAction[]}
- * @description
- * List of navigation and command actions available throughout the application. Used to power navigation shortcuts and palette UI.
- * Each object defines route, shortcut, identifying keywords, perform action, display section, and icon.
- * @author Mike Odnis
- * @version 1.0.0
- * @see https://github.com/WomB0ComB0/portfolio
- * @web
- * @public
- * @example
- * // Render available actions in a command bar:
- * actions.forEach(action => <button onClick={action.perform}>{action.name}</button>)
+ * A page the command palette can jump to.
+ *
+ * `key` is a letter, pressed together with Alt (Option on a Mac) while the palette is open. It is
+ * never bound as a bare, page-wide key: WCAG 2.1.4 rules out single-character shortcuts that fire
+ * everywhere, and inside the palette a bare letter belongs to the search box.
  */
-export const actions = [
-  {
-    id: 'home',
-    name: 'Home',
-    shortcut: ['h'],
-    keywords: 'home',
-    /**
-     * Navigates to the home page by setting pathname to '/'.
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     * @throws {Error} May throw if access to window or navigation fails unexpectedly.
-     * @example
-     * actions.find(a => a.id === 'home')?.perform()
-     */
-    perform: () => {
-      globalThis.location.pathname = '/';
-    },
-    section: 'Navigation',
-    icon: FiHome({ size: '1rem' }),
-  },
+export interface NavigationShortcut {
+  readonly id: string;
+  readonly name: string;
+  readonly href: string;
+  readonly key: string;
+  readonly keywords: string;
+  readonly icon: IconType;
+}
+
+export const NAVIGATION_SHORTCUTS: readonly NavigationShortcut[] = [
+  { id: 'home', name: 'Home', href: '/', key: 'h', keywords: 'home', icon: FiHome },
   {
     id: 'projects',
     name: 'Projects',
-    shortcut: ['p'],
+    href: '/projects',
+    key: 'p',
     keywords: 'projects portfolio work code',
-    /**
-     * Navigates to the projects page ('/projects').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     * @throws {Error} May throw if window navigation fails.
-     */
-    perform: () => {
-      globalThis.location.pathname = '/projects';
-    },
-    section: 'Navigation',
-    icon: FiBriefcase({ size: '1rem' }),
+    icon: FiBriefcase,
   },
   {
     id: 'experience',
     name: 'Experience',
-    shortcut: ['x'],
+    href: '/experience',
+    key: 'x',
     keywords: 'experience work history jobs',
-    /**
-     * Navigates to the experience page ('/experience').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     * @throws {Error} May throw if window navigation fails.
-     */
-    perform: () => {
-      globalThis.location.pathname = '/experience';
-    },
-    section: 'Navigation',
-    icon: FiClipboard({ size: '1rem' }),
+    icon: FiClipboard,
   },
   {
     id: 'certifications',
     name: 'Certifications',
-    shortcut: ['c'],
+    href: '/certifications',
+    key: 'c',
     keywords: 'certifications credentials certificates',
-    /**
-     * Navigates to the certifications page ('/certifications').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     * @throws {Error}
-     */
-    perform: () => {
-      globalThis.location.pathname = '/certifications';
-    },
-    section: 'Navigation',
-    icon: FiAward({ size: '1rem' }),
+    icon: FiAward,
   },
   {
     id: 'resume',
     name: 'Resume',
-    shortcut: ['r'],
+    href: '/resume',
+    key: 'r',
     keywords: 'resume cv',
-    /**
-     * Navigates to the resume page ('/resume').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/resume';
-    },
-    section: 'Navigation',
-    icon: FiFileText({ size: '1rem' }),
+    icon: FiFileText,
   },
   {
     id: 'media',
     name: 'Media',
-    shortcut: ['m'],
+    href: '/media',
+    key: 'm',
     keywords: 'media blog writing articles posts presentations talks videos',
-    /**
-     * Navigates to the media page ('/media').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/media';
-    },
-    section: 'Navigation',
-    icon: FiVideo({ size: '1rem' }),
+    icon: FiVideo,
   },
   {
     id: 'places',
     name: 'Places',
-    shortcut: ['l'],
+    href: '/places',
+    key: 'l',
     keywords: 'places locations map travel',
-    /**
-     * Navigates to the places page ('/places').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/places';
-    },
-    section: 'Navigation',
-    icon: FiMapPin({ size: '1rem' }),
+    icon: FiMapPin,
   },
   {
     id: 'spotify',
     name: 'Spotify',
-    shortcut: ['s'],
+    href: '/spotify',
+    key: 's',
     keywords: 'spotify music stats listening',
-    /**
-     * Navigates to the Spotify stats page ('/spotify').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/spotify';
-    },
-    section: 'Navigation',
-    icon: FiHeadphones({ size: '1rem' }),
+    icon: FiHeadphones,
   },
   {
     id: 'guestbook',
     name: 'Guestbook',
-    shortcut: ['g'],
+    href: '/guestbook',
+    key: 'g',
     keywords: 'guestbook messages comments',
-    /**s
-     * Navigates to the guestbook page ('/guestbook').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/guestbook';
-    },
-    section: 'Navigation',
-    icon: FiBookOpen({ size: '1rem' }),
+    icon: FiBookOpen,
   },
   {
     id: 'stats',
     name: 'Stats',
-    shortcut: ['d'],
+    href: '/stats',
+    key: 'd',
     keywords: 'stats analytics',
-    /**
-     * Navigates to the stats/analytics page ('/stats').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/stats';
-    },
-    section: 'Navigation',
-    icon: FiBarChart({ size: '1rem' }),
+    icon: FiBarChart,
   },
   {
+    // A letter, not the old '$': Option+Shift+4 types '›' on a Mac and has no letter key code.
     id: 'sponsor',
     name: 'Sponsor',
-    shortcut: ['$'],
+    href: '/sponsor',
+    key: 'o',
     keywords: 'sponsor support donate contribute funding',
-    /**
-     * Navigates to the sponsor/donate page ('/sponsor').
-     * @function
-     * @public
-     * @returns {void}
-     * @web
-     */
-    perform: () => {
-      globalThis.location.pathname = '/sponsor';
-    },
-    section: 'Navigation',
-    icon: FiHeart({ size: '1rem' }),
+    icon: FiHeart,
   },
 ];
+
+/**
+ * Builds the palette's page actions around a client-side navigate function (the App Router's
+ * `router.push`), so choosing one never reloads the page.
+ *
+ * The actions deliberately carry no kbar `shortcut`: kbar binds every action shortcut as a
+ * page-wide key while the palette is closed. The palette handles `key` itself, only while open.
+ */
+export const createNavigationActions = (navigate: (href: string) => void): Action[] =>
+  NAVIGATION_SHORTCUTS.map(({ id, name, href, keywords, icon }) => ({
+    id,
+    name,
+    keywords,
+    section: NAVIGATION_SECTION,
+    icon: createElement(icon, { size: ACTION_ICON_SIZE, 'aria-hidden': true }),
+    perform: () => navigate(href),
+  }));
+
+/** `KeyboardEvent.code` of the physical key for a letter, e.g. 'KeyG' for 'g'. */
+const letterKeyCode = (letter: string): string => `Key${letter.toUpperCase()}`;
+
+/**
+ * What Option+letter types on the macOS US (ABC) layout, for each shortcut letter. A Mac reports
+ * that character as `key`, not the letter. Other Mac layouts type real text with Option (Option+L
+ * is 'ł' on Polish Pro and '@' on German), so only these exact characters count as a shortcut.
+ * On the US layout Option+E, I, N and U are dead keys, which report 'Dead': a shortcut on one of
+ * those letters would map to 'Dead' here.
+ */
+const US_MAC_OPTION_KEYS: Readonly<Record<string, string>> = {
+  c: 'ç',
+  d: '∂',
+  g: '©',
+  h: '˙',
+  l: '¬',
+  m: 'µ',
+  o: 'ø',
+  p: 'π',
+  r: '®',
+  s: 'ß',
+  x: '≈',
+};
+
+type ShortcutKeyPress = Pick<KeyboardEvent, 'key' | 'code' | 'altKey' | 'ctrlKey' | 'metaKey'>;
+
+/** Alt (Option) with no Ctrl or Meta. Ctrl+Alt is AltGr on many layouts, where it types text. */
+const isAltOnly = ({ altKey, ctrlKey, metaKey }: ShortcutKeyPress): boolean =>
+  altKey && !ctrlKey && !metaKey;
+
+/** The shortcut for the letter the layout typed, which is what the palette's hint shows. */
+const byTypedLetter = (key: string): NavigationShortcut | undefined => {
+  const typed = key.toLowerCase();
+  return NAVIGATION_SHORTCUTS.find((shortcut) => shortcut.key === typed);
+};
+
+/** The shortcut for a US-layout Option+letter on a Mac, by its physical key and exact character. */
+const byUsMacOptionKey = ({ key, code }: ShortcutKeyPress): NavigationShortcut | undefined =>
+  NAVIGATION_SHORTCUTS.find(
+    (shortcut) => code === letterKeyCode(shortcut.key) && key === US_MAC_OPTION_KEYS[shortcut.key],
+  );
+
+/**
+ * The page whose shortcut a key press is: Alt (Option) plus the letter, with no Ctrl or Meta.
+ *
+ * The typed letter wins, so on Dvorak or Colemak Alt+D opens Stats whichever physical key D is on.
+ * The physical key is a fallback only for the character US-layout Option types on a Mac (Option+P
+ * types 'π'). Any other character, such as Option+L typing 'ł' on Polish Pro, is left to the search
+ * box.
+ */
+export const findNavigationShortcut = (event: ShortcutKeyPress): NavigationShortcut | undefined => {
+  if (!isAltOnly(event)) return undefined;
+  return byTypedLetter(event.key) ?? byUsMacOptionKey(event);
+};

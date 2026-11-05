@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
+import type { useKBar } from 'kbar';
+import type { RefObject } from 'react';
+
 export interface MobileMenuOverlayProps {
-  isOpen: boolean;
-  onClose: () => void;
-  pathname: string;
-  query: ReturnType<typeof import('kbar').useKBar>['query'];
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly pathname: string;
+  readonly query: ReturnType<typeof useKBar>['query'];
+  /** The button that opened the menu. Focus goes back to it when the menu closes. */
+  readonly triggerRef?: RefObject<HTMLButtonElement | null>;
 }

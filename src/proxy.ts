@@ -110,7 +110,6 @@ export function proxy(request: NextRequest): NextResponse {
  * Static files are excluded by name, not by "contains a dot" or by extension: dynamic pages such
  * as /places/[placeId] also render HTML for URLs like /places/a.b or /places/x.png, and those
  * documents must still get the CSP. Keep this list in sync with public/ and the metadata routes.
- * Speculation-rules prerenders are full documents, so they get a CSP too.
  */
 export const config = {
   matcher: [

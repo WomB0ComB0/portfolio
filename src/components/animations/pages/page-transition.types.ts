@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
-export type PageTransitionProps = {
+export type PageMainProps = {
   children: React.ReactNode;
+  /** Layout classes for the landmark, merged after its own focus styles. */
+  className?: string;
 };

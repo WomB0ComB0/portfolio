@@ -1,7 +1,5 @@
 'use client';
 
-import type { PageTransitionProps } from './page-transition.types';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -18,43 +16,48 @@ import type { PageTransitionProps } from './page-transition.types';
  * limitations under the License.
  */
 
-import { AnimatePresence, motion } from 'motion/react';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { motion, type Variants } from 'motion/react';
+import { useState } from 'react';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
+import { cn } from '@/lib/utils';
+import type { PageMainProps } from './page-transition.types';
 
-const variants = {
+/** The id of the page's `<main>`, which the page Layout's skip link targets. */
+export const MAIN_CONTENT_ID = 'main-content';
+
+const PAGE_VARIANTS: Variants = {
   hidden: { opacity: 0, y: 20 },
   enter: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
 };
 
-export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
-  const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false);
+const ENTER_TRANSITION = { duration: 0.2, ease: 'easeInOut' } as const;
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return <>{children}</>;
-  }
+/**
+ * The page's `<main>` landmark. The page Layout puts it around the page content only, so the
+ * navs and the footer stay outside it, and `tabIndex={-1}` lets the skip link move focus here.
+ *
+ * The server HTML and its hydration render the same element in its final, visible state, so
+ * hydration keeps the server DOM and the page works before (and without) JavaScript. A page
+ * mounted by a client-side navigation fades and slides in instead; MotionConfig
+ * reducedMotion="user" in the providers drops the slide for people who ask for less motion.
+ */
+export const PageMain = ({ children, className }: PageMainProps) => {
+  const isServerHtml = useIsServerHtmlRender();
+  // Fixed at mount: the store reads false right after hydration, which must not start the animation.
+  const [initial] = useState<false | 'hidden'>(isServerHtml ? false : 'hidden');
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.main
-        key={pathname}
-        variants={variants}
-        initial="hidden"
-        animate="enter"
-        exit="exit"
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="min-h-screen"
-      >
-        {children}
-      </motion.main>
-    </AnimatePresence>
+    <motion.main
+      id={MAIN_CONTENT_ID}
+      tabIndex={-1}
+      className={cn('outline-none', className)}
+      variants={PAGE_VARIANTS}
+      initial={initial}
+      animate="enter"
+      transition={ENTER_TRANSITION}
+    >
+      {children}
+    </motion.main>
   );
 };
-PageTransition.displayName = 'PageTransition';
-export default PageTransition;
+PageMain.displayName = 'PageMain';

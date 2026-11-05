@@ -24,9 +24,7 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
 import { z } from 'zod';
 import { WebVitals } from '@/app/_components';
-import { PageTransition } from '@/components/animations';
 import { Toaster } from '@/components/ui/sonner';
-import { actions } from '@/lib/navigation/actions';
 
 import { Providers } from '@/providers';
 import { TailwindIndicator } from '@/providers/core';
@@ -82,9 +80,10 @@ export const GlobalProvider: React.FC<
             <>
               {/*
                * @public
-               * @description Wraps the main content with a page transition animation component.
+               * @description The page. Each page's Layout renders its <main> landmark (PageMain),
+               * which also plays the entrance animation on client-side navigations.
                */}
-              <PageTransition>{children}</PageTransition>
+              {children}
               {/*
                * @public
                * @description Renders toast() calls (sign-in, sign-out, guestbook feedback). Dark,
@@ -117,10 +116,11 @@ export const GlobalProvider: React.FC<
           providers={[
             /**
              * @public
-             * @description Provides the KBar context for the command palette, enabling quick navigation and actions via Cmd+K.
-             * @param {Action[]} actions - The list of actions available in the command palette.
+             * @description Provides the KBar context for the command palette (Cmd+K). It gets no
+             * actions here: the Palette (src/components/cmd.tsx) registers the page actions with
+             * the App Router itself, so choosing one is a client-side navigation.
              */
-            [KBarProvider, { actions }],
+            [KBarProvider, {}],
             /**
              * @public
              * @description Provides the TanStack Query client context for efficient data fetching, caching, and state management.

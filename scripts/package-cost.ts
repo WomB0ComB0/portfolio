@@ -32,6 +32,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { PackageJson } from 'type-fest';
 import { Stringify } from '@/utils';
+import { formatWithBiome } from './format-with-biome';
 
 const execPromise = promisify(exec);
 
@@ -100,22 +101,17 @@ const categorizedPackages = {
 // Ensure the output directory exists
 mkdirSync(OUTPUT_DIR, { recursive: true });
 
-// Write results
-writeFileSync(
-  `${OUTPUT_DIR}/high.json`,
-  Stringify([...categorizedPackages.high].map((e) => e.name)),
-  { flag: 'w' },
-);
-writeFileSync(
-  `${OUTPUT_DIR}/medium.json`,
-  Stringify([...categorizedPackages.medium].map((e) => e.name)),
-  { flag: 'w' },
-);
-writeFileSync(
-  `${OUTPUT_DIR}/low.json`,
-  Stringify([...categorizedPackages.low].map((e) => e.name)),
-  { flag: 'w' },
-);
+const TIERS = ['high', 'medium', 'low'] as const;
+const reportFile = (tier: (typeof TIERS)[number]): string => `${OUTPUT_DIR}/${tier}.json`;
+
+// Write results, then format them with Biome: `bun run lint` checks these tracked files with
+// `biome ci`, which joins any array short enough to fit on one line.
+for (const tier of TIERS) {
+  writeFileSync(reportFile(tier), `${Stringify(categorizedPackages[tier].map((e) => e.name))}\n`, {
+    flag: 'w',
+  });
+}
+formatWithBiome(TIERS.map(reportFile), process.cwd());
 
 console.log('\n📦 Package Size Summary:');
 console.log(`   🔴 High (> 10 MB): ${categorizedPackages.high.length} packages`);

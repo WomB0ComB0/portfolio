@@ -25,9 +25,9 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
 
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { cn } from '@/lib/utils';
 
 /** How long a count takes, in seconds. */
@@ -52,16 +52,6 @@ interface CountOptions {
   formatter: Intl.NumberFormat;
   onDone: () => void;
 }
-
-const subscribeToNothing = () => () => {};
-
-/** True while React renders on the server or hydrates server HTML; false for a client render. */
-const useIsServerHtmlRender = (): boolean =>
-  useSyncExternalStore(
-    subscribeToNothing,
-    () => false,
-    () => true,
-  );
 
 /** Shows `text` in the counting copy (its ::before draws it), skipping frames that don't change it. */
 const writeCount = (element: HTMLElement, text: string): void => {

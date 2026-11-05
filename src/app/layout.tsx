@@ -15,12 +15,7 @@
  */
 
 import { GlobalProvider } from '@/app/_providers';
-import {
-  AnalyticsScripts,
-  SpeculationRules,
-  StructuredData,
-  ViewTransitions,
-} from '@/components/scripts';
+import { AnalyticsScripts, StructuredData } from '@/components/scripts';
 import '@/styles/globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -48,7 +43,7 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#4B0082" />
+        {/* theme-color comes from the viewport export (constructViewport), once. */}
         {/* Referrer-Policy and X-XSS-Protection come from the headers in src/config/security-headers.ts;
             a meta referrer tag here would override the header. */}
 
@@ -58,9 +53,7 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
         <meta name="geo.placename" content="New York, NY" />
 
         <AnalyticsScripts nonce={nonce} />
-        <SpeculationRules nonce={nonce} />
         <StructuredData nonce={nonce} />
-        <ViewTransitions />
       </head>
       <body suppressHydrationWarning>
         <GlobalProvider>

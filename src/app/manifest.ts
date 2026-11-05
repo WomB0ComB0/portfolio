@@ -17,7 +17,7 @@ import type { MetadataRoute } from 'next/types';
  */
 
 import { app } from '@/constants';
-import { getURL } from '@/utils';
+import { getURL, THEME_COLOR } from '@/utils';
 
 /**
  * Extends the base screenshot type from Next.js MetadataRoute.Manifest with additional form factor property
@@ -104,8 +104,9 @@ export default function manifest(): ExtendedManifest {
     id: '/',
     start_url: '/',
     scope: '/',
-    theme_color: '#BA9BDD',
-    background_color: '#560BAD',
+    // The page background, like the theme-color tag, so the splash screen matches the page.
+    theme_color: THEME_COLOR,
+    background_color: THEME_COLOR,
     orientation: 'portrait-primary',
     display_override: ['minimal-ui', 'browser', 'fullscreen', 'window-controls-overlay'],
     display: 'standalone',

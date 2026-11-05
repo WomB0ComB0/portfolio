@@ -27,6 +27,7 @@ import {
   Shield,
   UserCheck,
 } from 'lucide-react';
+import Link from 'next/link';
 import type { JSX } from 'react';
 import { MagicCard } from '@/components';
 import Layout from '@/components/layout/layout';
@@ -139,12 +140,12 @@ export const Privacy = (): JSX.Element => {
                     <div>
                       <span className="font-semibold">Cookies and Tracking:</span> We use cookies
                       and similar technologies to operate and personalize the website. See our{' '}
-                      <a
+                      <Link
                         href="/cookies"
                         className="text-primary hover:underline font-medium inline-flex items-center gap-1"
                       >
                         Cookie Policy
-                      </a>{' '}
+                      </Link>{' '}
                       for details.
                     </div>
                   </li>

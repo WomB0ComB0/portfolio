@@ -20,6 +20,13 @@ import { app } from '@/constants';
 /** The size of the card src/app/api/og/route.tsx renders. */
 const OG_IMAGE_SIZE = { width: 1_200, height: 630 } as const;
 
+/**
+ * The browser chrome and PWA colour: the page background (`--background`, oklch(16% 0 285deg) in
+ * src/styles/globals.css) as hex, so the address bar and splash screen blend with the dark page.
+ * tests/unit/seo/theme-color.test.ts recomputes it from the token.
+ */
+export const THEME_COLOR = '#0d0d0d';
+
 /** An og:video. Nothing is emitted unless a caller passes one. */
 export interface MetadataVideo {
   readonly url: string;
@@ -181,10 +188,8 @@ export function constructViewport(): Viewport {
     userScalable: true,
     viewportFit: 'cover',
     interactiveWidget: 'resizes-visual',
-    themeColor: [
-      { media: '(prefers-color-scheme: light)', color: '#BA9BDD' },
-      { media: '(prefers-color-scheme: dark)', color: '#4B0082' },
-    ],
-    colorScheme: 'dark light',
+    // The one theme-color tag on the page; the site is dark-only, whatever the OS preference.
+    themeColor: THEME_COLOR,
+    colorScheme: 'dark',
   };
 }
