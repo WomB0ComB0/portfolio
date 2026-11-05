@@ -18,8 +18,8 @@
 
 import { Schema } from 'effect';
 import { Suspense } from 'react';
-import { FiActivity, FiHeadphones, FiPlus } from 'react-icons/fi';
-import { SiDiscord, SiVscodium } from 'react-icons/si';
+import { FiPlus } from 'react-icons/fi';
+import { SiDiscord } from 'react-icons/si';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -27,21 +27,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { config } from '@/config';
 import { DataLoader } from '@/providers/server/effect-data-loader';
 import { logger } from '@/utils';
+import { DiscordActivities } from './discord-activity';
+import { ActivitySchema } from './discord-activity.utils';
 import { StatCard } from './stat-card';
-
-const ActivitySchema = Schema.Struct({
-  name: Schema.String,
-  type: Schema.Number,
-  state: Schema.optional(Schema.String),
-  details: Schema.optional(Schema.String),
-  application_id: Schema.optional(Schema.String),
-  assets: Schema.optional(
-    Schema.Struct({
-      large_image: Schema.optional(Schema.String),
-      large_text: Schema.optional(Schema.String),
-    }),
-  ),
-});
 
 const DiscordUserSchema = Schema.Struct({
   username: Schema.String,
@@ -99,16 +87,6 @@ const DiscordError = () => (
   </StatCard>
 );
 
-const ActivityIcon = ({ name }: { name: string }) => {
-  if (name.toLowerCase().includes('spotify')) {
-    return <FiHeadphones className="h-5 w-5" />;
-  }
-  if (name.toLowerCase().includes('visual studio code')) {
-    return <SiVscodium className="h-5 w-5" />;
-  }
-  return <FiActivity className="h-5 w-5" />;
-};
-
 export const Discord = () => {
   return (
     <Suspense fallback={<DiscordSkeleton />}>
@@ -123,7 +101,6 @@ export const Discord = () => {
       >
         {(data: Schema.Schema.Type<typeof LanyardResponseSchema>) => {
           const { discord_status: status, discord_user: user, activities } = data;
-          const activity = activities?.find((a) => a.type === 0);
           const handleAddFriend = () => {
             const discordId = config.discord.id;
             if (discordId) {
@@ -185,28 +162,7 @@ export const Discord = () => {
                 <Separator className="bg-border/30" />
 
                 <div className="min-h-16 flex items-center">
-                  {activity ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                        <ActivityIcon name={activity.name} />
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="font-semibold text-sm text-foreground">{activity.name}</p>
-                        {activity.details && (
-                          <p className="text-xs text-muted-foreground">{activity.details}</p>
-                        )}
-                        {activity.state && (
-                          <p className="text-xs text-muted-foreground/80">{activity.state}</p>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center w-full">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Currently not in an activity.
-                      </p>
-                    </div>
-                  )}
+                  <DiscordActivities activities={activities} />
                 </div>
               </div>
             </StatCard>
