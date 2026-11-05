@@ -14,9 +14,20 @@
  * limitations under the License.
  */
 
-export { ArticlesSection } from './articles-section';
-export { BlogSection } from './blog-section';
-export { MediaTabs } from './media-tabs';
-export { PresentationsSection } from './presentations-section';
-export { TalksSection } from './talks-section';
-export { VideosSection } from './videos-section';
+/**
+ * @file The /media components. Every one is a server component except MediaTabs (a client
+ * island), and MediaPanel loads data through a server-only module, so import from here only on
+ * the server.
+ */
+
+export { ArticlesSection, type ArticlesSectionProps, ArticlesSkeleton } from './articles-section';
+export { BlogSection, type BlogSectionProps, BlogSkeleton } from './blog-section';
+export { MediaPanel, type MediaPanelProps, MediaPanelSkeleton } from './media-panel';
+export { MediaTabs, type MediaTabsProps } from './media-tabs';
+export {
+  PresentationsSection,
+  type PresentationsSectionProps,
+  PresentationsSkeleton,
+} from './presentations-section';
+export { TalksSection, type TalksSectionProps, TalksSkeleton } from './talks-section';
+export { VideosSection, type VideosSectionProps, VideosSkeleton } from './videos-section';

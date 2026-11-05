@@ -15,11 +15,10 @@
  */
 
 /**
- * @file DataLoader and useDataLoader leave retrying to the QueryClient's shared rule. DataLoader
- * used to combine fetcher `retries: 3` with its own `failureCount < 3`, so a failing endpoint
- * (Lanyard on /stats) was requested 16 times over about 40 s. It also wrapped the fetcher's
- * error, which dropped the HTTP status, so 4xx answers were retried as if they were network
- * failures. The Sanity hooks passed fetcher `retries: 2` on top of the query retry: 6 requests.
+ * @file DataLoader leaves retrying to the QueryClient's shared rule (shouldRetryQuery). It used to
+ * combine fetcher `retries: 3` with its own `failureCount < 3`, so a failing endpoint (Lanyard on
+ * /stats) was requested 16 times over about 40 s. It also wrapped the fetcher's error, which
+ * dropped the HTTP status, so 4xx answers were retried as if they were network failures.
  *
  * Everything is wired as in production: the real createQueryClient()() and no boundary of the
  * test's own around DataLoader. PageErrorBoundary stands in for src/app/error.tsx.
@@ -44,7 +43,6 @@ vi.mock('@/lib/http-clients/request-queue', () => ({
   },
 }));
 
-import { useSanityExperiences } from '@/hooks/sanity/use-sanity-suspense';
 import { FetcherError } from '@/lib/http-clients/effect-fetcher';
 import { DataLoader, type DataLoaderErrorProps } from '@/providers/server/effect-data-loader';
 import { createQueryClient } from '@/providers/server/query-client';
@@ -110,12 +108,6 @@ const renderLoader = () =>
     </DataLoader>,
   );
 
-/** The way the experience pages read Sanity data: useDataLoader via createDataLoaderOptions. */
-const SanityExperiences = () => {
-  const { data } = useSanityExperiences();
-  return <p>{data.length} experiences</p>;
-};
-
 describe('DataLoader retries', () => {
   beforeEach(() => {
     // React and the QueryCache log the expected failures on console.error.
@@ -161,38 +153,5 @@ describe('DataLoader retries', () => {
     renderLoader();
 
     expect(await screen.findByText('loaded')).toBeInTheDocument();
-  });
-});
-
-describe('useDataLoader retries (Sanity hooks)', () => {
-  beforeEach(() => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  it('requests a failing Sanity endpoint at most twice', async () => {
-    const fetchMock = stubStatus(500);
-    // useDataLoader is a bare suspense hook: its caller's boundary (here the page's) gets the error.
-    renderOnPage(<SanityExperiences />);
-
-    expect(await screen.findByText(PAGE_ERROR)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const paths = fetchMock.mock.calls.map(([input]) =>
-      input instanceof Request ? input.url : String(input),
-    );
-    expect(paths.every((path) => path.includes('/api/v1/sanity/experiences'))).toBe(true);
-  });
-
-  it('requests a Sanity endpoint answering 404 once', async () => {
-    const fetchMock = stubStatus(404);
-    renderOnPage(<SanityExperiences />);
-
-    expect(await screen.findByText(PAGE_ERROR)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

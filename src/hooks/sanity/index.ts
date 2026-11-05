@@ -15,79 +15,23 @@
  */
 
 /**
- * @fileoverview Centralized exports for all Sanity data fetching hooks
+ * @fileoverview A few per-document Effect schemas of Sanity, and the Resume type.
  *
- * This file provides a clean API for importing Sanity hooks throughout
- * the application. All hooks are organized by their usage pattern:
- * - Standard React Query hooks (useExperiences, useProjects, etc.)
- * - Suspense-based hooks (useSanityExperiences, useSanityProjects, etc.)
- * - Declarative DataLoader components (SanityDataLoader.Experiences, etc.)
+ * Pages load Sanity data on the server through the cached loaders in '@/lib/sanity/loaders',
+ * which decode one document at a time with the schemas in './schemas' (imported from there
+ * directly, not through this barrel). There are no client-side Sanity hooks, and no list schemas:
+ * nothing in the browser decodes a whole Sanity collection.
  *
- * @example Standard hooks
- * ```tsx
- * import { useExperiences } from '@/hooks/sanity';
- *
- * function Component() {
- *   const { data, isLoading, error } = useExperiences();
- *   // ...
- * }
- * ```
- *
- * @example Suspense hooks
- * ```tsx
- * import { useSanityExperiences } from '@/hooks/sanity';
- *
- * function Component() {
- *   const { data } = useSanityExperiences();
- *   return <div>{data.map(...)}</div>;
- * }
- *
- * // Wrap with Suspense
- * <Suspense fallback={<Loader />}>
- *   <Component />
- * </Suspense>
- * ```
- *
- * @example DataLoader components
- * ```tsx
- * import { SanityDataLoader } from '@/hooks/sanity';
- *
- * <SanityDataLoader.Experiences>
- *   {(experiences) => experiences.map(...)}
- * </SanityDataLoader.Experiences>
+ * @example
+ * ```ts
+ * import { ProjectSchema, type Resume } from '@/hooks/sanity';
  * ```
  */
 
-// Configuration utilities
-export {
-  createDataLoaderOptions,
-  createSanityQueryKey,
-  getSanityEndpoint,
-  SANITY_API_BASE,
-  SANITY_CACHE_CONFIG,
-  SANITY_ENDPOINTS,
-  SANITY_FETCHER_OPTIONS,
-  type SanityEndpoint,
-} from './config';
-// Declarative DataLoader components
-export { SanityDataLoader } from './data-loaders';
-// Schemas for external use
 export {
   CertificationSchema,
-  CertificationsSchema,
   ExperienceSchema,
-  ExperiencesSchema,
   ProjectSchema,
-  ProjectsSchema,
   type Resume,
   ResumeSchema,
 } from './schemas';
-// Standard React Query hooks
-// Suspense-based hooks
-export {
-  useSanityCertifications,
-  useSanityExperiences,
-  useSanityFeaturedProjects,
-  useSanityProjects,
-  useSanityResume,
-} from './use-sanity-suspense';

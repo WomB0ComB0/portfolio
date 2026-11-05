@@ -18,8 +18,8 @@
  * @fileoverview Effect Schema definitions for Sanity CMS data types
  *
  * Centralized schema definitions for all Sanity document types with
- * Effect Schema validation. These schemas are shared across both
- * standard React Query hooks and Suspense-based useDataLoader hooks.
+ * Effect Schema validation. The server loaders in '@/lib/sanity/loaders' decode each
+ * document with them, and pages take their types.
  */
 
 import { Schema } from 'effect';
@@ -365,17 +365,11 @@ export const YoutubeVideoSchema = Schema.Struct({
 });
 
 /**
- * Array schemas for list endpoints
+ * The places list as one schema. The loaders decode each document on its own (decodeEach), so
+ * one bad document is dropped rather than failing the list; this whole-list form is kept only
+ * for the schema tests (place-schema.test.ts).
  */
-export const ExperiencesSchema = Schema.Array(ExperienceSchema);
-export const ProjectsSchema = Schema.Array(ProjectSchema);
-export const CertificationsSchema = Schema.Array(CertificationSchema);
 export const PlacesSchema = Schema.Array(PlaceSchema);
-export const ResumesSchema = Schema.Array(ResumeSchema);
-export const PresentationsSchema = Schema.Array(PresentationSchema);
-export const TalksSchema = Schema.Array(TalkSchema);
-export const ArticlesSchema = Schema.Array(ArticleSchema);
-export const YoutubeVideosSchema = Schema.Array(YoutubeVideoSchema);
 
 /**
  * TypeScript types derived from schemas
@@ -395,13 +389,3 @@ export type Presentation = Schema.Schema.Type<typeof PresentationSchema>;
 export type Talk = Schema.Schema.Type<typeof TalkSchema>;
 export type Article = Schema.Schema.Type<typeof ArticleSchema>;
 export type YoutubeVideo = Schema.Schema.Type<typeof YoutubeVideoSchema>;
-
-export type Experiences = Schema.Schema.Type<typeof ExperiencesSchema>;
-export type Projects = Schema.Schema.Type<typeof ProjectsSchema>;
-export type Certifications = Schema.Schema.Type<typeof CertificationsSchema>;
-export type Places = Schema.Schema.Type<typeof PlacesSchema>;
-export type Resumes = Schema.Schema.Type<typeof ResumesSchema>;
-export type Presentations = Schema.Schema.Type<typeof PresentationsSchema>;
-export type Talks = Schema.Schema.Type<typeof TalksSchema>;
-export type Articles = Schema.Schema.Type<typeof ArticlesSchema>;
-export type YoutubeVideos = Schema.Schema.Type<typeof YoutubeVideosSchema>;

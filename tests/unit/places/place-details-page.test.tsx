@@ -14,15 +14,31 @@
  * limitations under the License.
  */
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
-import { type ReactNode, Suspense } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+/**
+ * @file /places/[placeId] renders on the server: an unknown id answers a real 404 (notFound()),
+ * the place's summary and photos come from the loaders, and the metadata names the place.
+ */
+
+import { fireEvent, render, screen } from '@testing-library/react';
+import type { Metadata } from 'next';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Place } from '@/hooks/sanity/schemas';
+import { makePlace } from '../../fixtures/sanity-docs';
 
 const FULL_DESCRIPTION =
   'A description long enough that the list card cuts it off, so this page is where it can be read in full.';
+const NOT_FOUND_DIGEST = 'NEXT_HTTP_ERROR_FALLBACK;404';
+const SITE = 'https://mikeodnis.dev';
+const MAX_DESCRIPTION_LENGTH = 160;
 
-const h = vi.hoisted(() => ({ places: [] as unknown[] }));
+const h = vi.hoisted(() => {
+  // app.url is read from this variable when the constants module loads.
+  vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://mikeodnis.dev');
+  return {
+    loadPlaceById: vi.fn<(id: string) => Promise<unknown>>(),
+    reportApiFailure: vi.fn((_error: unknown, _report: unknown) => true),
+  };
+});
 
 // t3-env validates on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -31,84 +47,102 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-vi.mock('@/hooks/sanity/use-sanity-suspense', () => ({
-  useSanityPlaces: () => ({ data: h.places, isLoading: false }),
-}));
-// The site shell (navigation, command palette) plays no part here.
-vi.mock('@/components/layout/layout', () => ({
-  default: ({ children }: { children?: ReactNode }) => children,
-}));
-// The real URL builder, so the viewer test sees the URL the page actually requests.
+vi.mock('@/lib/sanity/loaders', () => ({ loadPlaceById: h.loadPlaceById }));
+vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.reportApiFailure }));
+// The real URL builder, so the tests see the URLs the page actually requests.
 vi.mock('@/lib/sanity/client', async () => {
   const { createImageUrlBuilder } = await import('@sanity/image-url');
   const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
   return { urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source) };
 });
 
-import PlaceDetailsPage from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
+import PlacePage, {
+  generateMetadata,
+} from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
 
-h.places = [
-  {
-    _id: 'p1',
-    _type: 'place',
-    _createdAt: '2026-01-01T00:00:00Z',
-    _updatedAt: '2026-01-01T00:00:00Z',
-    _rev: 'r1',
-    name: 'Quiet Place',
-    description: FULL_DESCRIPTION,
-    category: 'Conference',
-    latitude: 40.75,
-    longitude: -73.99,
-    startDate: '2026-05-12',
-    photos: null,
-    order: 1,
-    featured: false,
-  },
-  {
-    _id: 'p2',
-    _type: 'place',
-    _createdAt: '2026-01-01T00:00:00Z',
-    _updatedAt: '2026-01-01T00:00:00Z',
-    _rev: 'r2',
-    name: 'Photographed Place',
-    description: FULL_DESCRIPTION,
-    category: 'Hackathon',
-    latitude: 40.75,
-    longitude: -73.99,
-    startDate: '2026-05-12',
-    photos: [
-      // A portrait first: the viewer must not crop it to the frame's shape.
-      { _type: 'image', _key: 'a', asset: { _ref: 'image-a-3000x4000-jpg', _type: 'reference' } },
-      { _type: 'image', _key: 'b', asset: { _ref: 'image-b-1600x1200-jpg', _type: 'reference' } },
-    ],
-    order: 2,
-    featured: false,
-  },
-];
+const image = (key: string, ref: string, caption?: string) => ({
+  _type: 'image' as const,
+  _key: key,
+  asset: { _ref: ref, _type: 'reference' as const },
+  ...(caption && { caption }),
+});
 
-/**
- * The page suspends on `use(params)`; React only resumes it inside an awaited act(). The page's
- * error boundary resets queries on retry, so it needs a QueryClient, as every page has in the app.
- */
+const quietPlace = makePlace({
+  name: 'Quiet Place',
+  description: FULL_DESCRIPTION,
+  category: 'Conference',
+  latitude: 40.75,
+  longitude: -73.99,
+  photos: null,
+});
+
+const photographedPlace = makePlace({
+  name: 'Photographed Place',
+  description: FULL_DESCRIPTION,
+  category: 'Hackathon',
+  photos: [
+    // A portrait first: the viewer must not crop it to the frame's shape.
+    image('a', 'image-a-3000x4000-jpg'),
+    image('b', 'image-b-1600x1200-jpg', 'The stage before the keynote'),
+  ],
+});
+
+const PLACES: readonly Place[] = [quietPlace, photographedPlace];
+
+const paramsOf = (placeId: string) => ({ params: Promise.resolve({ placeId }) });
+
 async function renderPage(placeId: string) {
-  await act(async () => {
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <Suspense fallback={<p>loading</p>}>
-          <PlaceDetailsPage params={Promise.resolve({ placeId })} />
-        </Suspense>
-      </QueryClientProvider>,
-    );
-  });
+  render(await PlacePage(paramsOf(placeId)));
 }
 
-describe('place page', () => {
-  it('shows a place without photos in full, with an empty state instead of the viewer', async () => {
-    await renderPage('p1');
+/** The decoded src of the image named `name`. */
+const imageSrc = (name: string): string =>
+  decodeURIComponent(screen.getByRole('img', { name }).getAttribute('src') ?? '');
 
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Quiet Place' }),
-    ).toBeInTheDocument();
+const ogUrlOf = (metadata: Metadata): unknown =>
+  (metadata.openGraph as { url?: unknown } | undefined)?.url;
+
+const ogImageUrlOf = (metadata: Metadata): string => {
+  const images = metadata.openGraph?.images;
+  const [first] = Array.isArray(images) ? images : [images];
+  return String((first as { url?: unknown } | undefined)?.url ?? '');
+};
+
+const titleOf = (metadata: Metadata): unknown =>
+  (metadata.title as { default?: unknown } | null | undefined)?.default;
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
+
+beforeEach(() => {
+  h.reportApiFailure.mockClear();
+  h.loadPlaceById.mockReset();
+  h.loadPlaceById.mockImplementation(
+    async (id: string) => PLACES.find((place) => place._id === id) ?? null,
+  );
+});
+
+describe('place page', () => {
+  it('answers 404 for an unknown place, instead of a "not found" card served with a 200', async () => {
+    await expect(PlacePage(paramsOf('__nope__'))).rejects.toMatchObject({
+      digest: NOT_FOUND_DIGEST,
+    });
+    expect(h.loadPlaceById).toHaveBeenCalledWith('__nope__');
+  });
+
+  it('lets a Sanity outage reach the error boundary', async () => {
+    const outage = new Error('sanity is down');
+    h.loadPlaceById.mockRejectedValue(outage);
+
+    await expect(PlacePage(paramsOf(quietPlace._id))).rejects.toBe(outage);
+  });
+
+  it('shows a place without photos in full, with an empty state instead of the viewer', async () => {
+    await renderPage(quietPlace._id);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Quiet Place' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByText(FULL_DESCRIPTION)).toBeInTheDocument();
     expect(screen.getByText('Conference')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'No photos yet' })).toBeInTheDocument();
@@ -117,21 +151,23 @@ describe('place page', () => {
       'https://maps.google.com/?q=40.75,-73.99',
     );
     expect(screen.getByRole('link', { name: 'Back to Places' })).toHaveAttribute('href', '/places');
+    expect(screen.getByRole('link', { name: 'Close' })).toHaveAttribute('href', '/places');
+    expect(screen.queryByText(/^Photo \d+ of \d+$/)).not.toBeInTheDocument();
   });
+});
 
-  it('shows the photo viewer, under the same header, for a place with photos', async () => {
-    await renderPage('p2');
+describe('place photo viewer', () => {
+  it('shows the photos under the same header, the portrait whole', async () => {
+    await renderPage(photographedPlace._id);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Photographed Place' }),
+      screen.getByRole('heading', { level: 1, name: 'Photographed Place' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Hackathon')).toBeInTheDocument();
-    // The position text only renders in the viewer branch.
     expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
-    // The portrait is requested whole: sized by height, with no aspect-ratio crop (`rect=`).
-    const src = decodeURIComponent(
-      screen.getByRole('img', { name: 'Photo of Photographed Place' }).getAttribute('src') ?? '',
-    );
+    // The portrait is requested whole: fit=max, sized by height, with no aspect-ratio crop.
+    const src = imageSrc('Photo of Photographed Place');
+    expect(src).toContain('fit=max');
     expect(src).toContain('h=1200');
     expect(src).not.toContain('rect=');
     expect(screen.getByRole('link', { name: 'Close photo viewer' })).toHaveAttribute(
@@ -141,11 +177,103 @@ describe('place page', () => {
     expect(screen.queryByRole('heading', { name: 'No photos yet' })).not.toBeInTheDocument();
   });
 
-  it('says so when the place does not exist', async () => {
-    await renderPage('missing');
+  it('moves to another photo with its dot, and shows that photo and its caption', async () => {
+    await renderPage(photographedPlace._id);
 
-    expect(await screen.findByRole('heading', { name: 'Place not found' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'No photos yet' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Places' })).toHaveAttribute('href', '/places');
+    fireEvent.click(screen.getByRole('button', { name: 'Go to photo 2' }));
+
+    expect(screen.getByText('Photo 2 of 2')).toBeInTheDocument();
+    // The landscape fills the width instead.
+    expect(imageSrc('The stage before the keynote')).toContain('w=1600');
+    expect(screen.getByText('The stage before the keynote')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to photo 1' }));
+
+    expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
+  });
+
+  it('zooms in and back out, within its limits', async () => {
+    await renderPage(photographedPlace._id);
+    const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
+    const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
+
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(zoomOut).toBeDisabled();
+
+    fireEvent.click(zoomIn);
+    expect(screen.getByText('120%')).toBeInTheDocument();
+    expect(zoomOut).toBeEnabled();
+
+    fireEvent.click(zoomOut);
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(zoomOut).toBeDisabled();
+
+    for (let step = 0; step < 15; step += 1) fireEvent.click(zoomIn);
+    expect(screen.getByText('300%')).toBeInTheDocument();
+    expect(zoomIn).toBeDisabled();
+  });
+});
+
+describe('place page metadata', () => {
+  it("is the place's own: its name, its URL and its first photo", async () => {
+    const metadata = await generateMetadata(paramsOf(photographedPlace._id));
+
+    expect(titleOf(metadata)).toBe('Photographed Place');
+    expect(metadata.description).toBe(FULL_DESCRIPTION);
+    expect(ogUrlOf(metadata)).toBe(`${SITE}/places/${photographedPlace._id}`);
+    const preview = decodeURIComponent(ogImageUrlOf(metadata));
+    expect(preview).toContain('/a-3000x4000.jpg');
+    expect(preview).toContain('w=1200');
+    expect(preview).toContain('h=630');
+  });
+
+  it('uses the generated preview card for a place without photos', async () => {
+    const metadata = await generateMetadata(paramsOf(quietPlace._id));
+
+    expect(ogImageUrlOf(metadata)).toMatch(/^\/api\/og\?title=Quiet%20Place&/);
+  });
+
+  it('cuts a long description at a word boundary, within 160 characters', async () => {
+    const words = Array.from({ length: 80 }, (_, i) => `word${i}`);
+    const long = words.join(' ');
+    expect(long.length).toBeGreaterThan(400);
+    const place = makePlace({ name: 'Wordy Place', description: long });
+    h.loadPlaceById.mockResolvedValue(place);
+
+    const { description } = await generateMetadata(paramsOf(place._id));
+
+    expect(description).toBeTypeOf('string');
+    const text = description as string;
+    expect(text.length).toBeLessThanOrEqual(MAX_DESCRIPTION_LENGTH);
+    expect(text.endsWith('…')).toBe(true);
+    const kept = text.slice(0, -1).split(' ');
+    // Every word kept is whole, and as many as fit are kept.
+    expect(kept).toEqual(words.slice(0, kept.length));
+    expect(`${kept.join(' ')} ${words[kept.length]}…`.length).toBeGreaterThan(
+      MAX_DESCRIPTION_LENGTH,
+    );
+  });
+
+  it('says "Place Not Found" for an unknown id, without og:url or a report', async () => {
+    const metadata = await generateMetadata(paramsOf('__nope__'));
+
+    expect(titleOf(metadata)).toBe('Place Not Found');
+    expect(ogUrlOf(metadata)).toBeUndefined();
+    expect(h.reportApiFailure).not.toHaveBeenCalled();
+  });
+
+  it('keeps generic metadata and its URL during an outage, and reports it as a warning', async () => {
+    const outage = new Error('sanity is down');
+    h.loadPlaceById.mockRejectedValue(outage);
+
+    const metadata = await generateMetadata(paramsOf('some-place'));
+
+    expect(titleOf(metadata)).toBe('Places');
+    expect(ogUrlOf(metadata)).toBe(`${SITE}/places/some-place`);
+    expect(h.reportApiFailure).toHaveBeenCalledTimes(1);
+    expect(h.reportApiFailure).toHaveBeenCalledWith(outage, {
+      context: 'build place page metadata',
+      level: 'warning',
+    });
   });
 });

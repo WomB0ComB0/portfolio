@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
-import { constructMetadata } from '@/utils';
+/**
+ * @file /projects. It lives in the (list) route group so that its loading.tsx wraps this page
+ * only: a skeleton above /projects/[id] would stream a 200 before that page's notFound() runs.
+ */
 
-const ProjectsList = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(professioal)/projects/_interface/projects-list').then(
-      (mod) => mod.ProjectsList,
-    ),
-  {
-    ssr: true,
-  },
-);
+import type { JSX } from 'react';
+import {
+  ProjectsList,
+  toProjectCard,
+} from '@/app/(routes)/(main)/(professioal)/projects/_interface/projects-list';
+import { loadProjects } from '@/lib/sanity/loaders';
+import { constructMetadata } from '@/utils';
 
 export const metadata = constructMetadata({
   title: 'Projects',
@@ -34,15 +34,10 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Projects page component.
- * Renders the list of projects showcasing the portfolio.
- *
- * @returns {JSX.Element} The projects page.
- * @author Mike Odnis
- * @version 1.0.0
+ * Every project, rendered on the server. A Sanity outage with nothing cached rejects here and
+ * reaches the (routes) error view inside the shell.
  */
-const ProjectsPage = () => {
-  return <ProjectsList />;
-};
-
-export default ProjectsPage;
+export default async function ProjectsPage(): Promise<JSX.Element> {
+  const projects = await loadProjects();
+  return <ProjectsList projects={projects.map(toProjectCard)} />;
+}

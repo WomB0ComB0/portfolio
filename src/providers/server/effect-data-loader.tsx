@@ -25,11 +25,10 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
-import { AlertTriangle } from 'lucide-react';
 import { unstable_rethrow } from 'next/navigation';
 import React, { Suspense, useCallback, useMemo } from 'react';
 import { ClientError, Loader } from '@/components/client';
-import { Button } from '@/components/ui/button';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import {
   FetcherError,
   type FetcherOptions,
@@ -46,26 +45,21 @@ import { unwrapEffectError } from './query-client';
 /**
  * @module effect-data-loader
  *
- * Enhanced DataLoader for React using React Query, Effect, and Effect Schema validation.
- *
- * This module provides a generic, type-safe React component and hook for loading data asynchronously
- * with advanced error handling, runtime validation, caching, and developer experience. It is designed
- * to work with Effect, Effect Schema, and React Query, supporting features like retries, timeouts,
- * schema validation, optimistic updates, and more.
+ * DataLoader: a React component that loads data in the browser with React Query, Effect and
+ * Effect Schema validation. Pages render their own data on the server; DataLoader is for live
+ * widgets that poll an API route (the /stats Discord card).
  *
  * ## Features
- * - Type-safe data loading for React components with Effect Schema validation
- * - Suspense support
- * - Runtime type validation with detailed error messages
+ * - Type-safe data loading with Effect Schema validation
+ * - Never fetches during server rendering. Data a server component prefetched into the
+ *   QueryClient (behind a HydrationBoundary) renders in the server HTML and hydrates as is;
+ *   otherwise the server HTML holds `LoadingComponent` and the browser fetches once.
  * - Customizable error and loading components. A failed first load renders `ErrorComponent` in
  *   place of the children (it stops at the DataLoader, not the page's error boundary); a failed
  *   background refetch keeps the data already on screen.
- * - Query caching and invalidation
- * - Optimistic updates
- * - Retry and timeout logic
- * - Render props and hook API
+ * - Query caching and invalidation, optimistic updates, render props
+ * - Retries come from the QueryClient's shared rule (shouldRetryQuery)
  * @see DataLoader
- * @see useDataLoader
  * @example
  * ```tsx
  * import { DataLoader } from './effect-data-loader';
@@ -79,7 +73,7 @@ import { unwrapEffectError } from './query-client';
  *
  * function UserList() {
  *   return (
- *     <DataLoader url="/api/users" schema={UserSchema}>
+ *     <DataLoader url="/api/users" schema={Schema.Array(UserSchema)}>
  *       {(users) => (
  *         <ul>{users.map(u => <li key={u.id}>{u.name}</li>)}</ul>
  *       )}
@@ -124,7 +118,10 @@ export interface BaseDataLoaderProps<T> {
   url: string;
   /** Additional React Query options */
   queryOptions?: Partial<UseSuspenseQueryOptions<T, Error, T, QueryKey>>;
-  /** Custom loading component */
+  /**
+   * Shown while the first load is in flight, and in the server HTML unless the data was
+   * prefetched on the server (default: the full-screen Loader).
+   */
   LoadingComponent?: React.ReactNode;
   /** Shown in place of the children when the first load fails (after the query's retries). */
   ErrorComponent?: React.ComponentType<DataLoaderErrorProps> | React.ReactElement;
@@ -228,10 +225,10 @@ interface LoadFailureBoundaryState {
  * Keeps a failed first load inside its DataLoader. useSuspenseQuery throws when it has no data to
  * show; without this boundary the error reaches src/app/error.tsx, which replaces the whole page.
  *
- * A query that awaits Effect.runPromise directly rejects with Effect's FiberFailure (DataLoader and
- * useDataLoader unwrap it already), so the boundary unwraps it too: the fallback gets the
- * fetcher's own error (a FetcherError keeps its `status`), and the reporting rule sees it too.
- * Next's notFound() and redirect() pass through to Next's own boundaries.
+ * A query that awaits Effect.runPromise directly rejects with Effect's FiberFailure (DataLoader
+ * unwraps it already), so the boundary unwraps it too: the fallback gets the fetcher's own error
+ * (a FetcherError keeps its `status`), and the reporting rule sees it too. Next's notFound() and
+ * redirect() pass through to Next's own boundaries.
  */
 class LoadFailureBoundary extends React.Component<
   LoadFailureBoundaryProps,
@@ -262,34 +259,10 @@ class LoadFailureBoundary extends React.Component<
   }
 }
 
-/** What {@link SectionLoadError} shows: which section failed, and how to load it again. */
-export interface SectionLoadErrorProps {
-  /** Completes "Couldn't load … right now.", e.g. 'certifications' or 'this project'. */
-  section: string;
-  /** Loads the section again. */
-  retry: () => void;
-}
-
-/** The default section fallback: a short notice and a Try again button. */
-export function SectionLoadError({ section, retry }: SectionLoadErrorProps): React.ReactElement {
-  return (
-    <div
-      role="alert"
-      className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border/50 bg-card/40 px-6 py-12 text-center backdrop-blur-sm"
-    >
-      <AlertTriangle className="h-8 w-8 text-destructive" aria-hidden="true" />
-      <p className="text-foreground">Couldn't load {section} right now.</p>
-      <Button type="button" variant="outline" onClick={retry}>
-        Try again
-      </Button>
-    </div>
-  );
-}
-
 /**
- * The start of every query key useDataLoader and DataLoader build for `url` (unless the caller
- * passes its own `queryKey`). TanStack matches filters by prefix, so this key finds those queries
- * whatever params, timeout or schema they were built with.
+ * The start of every query key DataLoader builds for `url` (unless the caller passes its own
+ * `queryKey`). TanStack matches filters by prefix, so this key finds those queries whatever
+ * params, timeout or schema they were built with.
  */
 export const dataLoaderQueryKey = (url: string): QueryKey => ['dataloader', url];
 
@@ -307,76 +280,106 @@ interface KeyedFetcherOptions {
 const schemaKeyOf = (schema: Schema.Schema.AnyNoContext | undefined): string | undefined =>
   schema ? `schema:${Schema.format(schema)}` : undefined;
 
-/** The query key of a DataLoader or useDataLoader: the caller's own, or one built from the request. */
-function useDataLoaderQueryKey(
-  queryKey: QueryKey | undefined,
-  url: string,
-  params: unknown,
-  fetcherOptions: KeyedFetcherOptions | undefined,
-  schema: Schema.Schema.AnyNoContext | undefined,
-): QueryKey {
-  return useMemo(() => {
-    if (queryKey) return queryKey;
-    const rest = [params, fetcherOptions?.headers, fetcherOptions?.timeout, schemaKeyOf(schema)];
-    return [...dataLoaderQueryKey(url), ...rest.filter(Boolean)];
-  }, [queryKey, url, params, fetcherOptions, schema]);
+/**
+ * DataLoader's defaults for its object props. Module constants, so a DataLoader that leaves them
+ * out keeps one query key and one query function across renders.
+ */
+const NO_PARAMS: QueryParams = {};
+const NO_FETCHER_OPTIONS: FetcherOptions<unknown> = {};
+const NO_QUERY_OPTIONS: Partial<UseSuspenseQueryOptions<unknown, Error, unknown, QueryKey>> = {};
+
+const DEFAULT_STALE_TIME_MS = 5 * 60 * 1_000;
+const DEFAULT_REFETCH_INTERVAL_MS = 5 * 60 * 1_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** The props that decide which query a DataLoader reads. */
+interface DataLoaderKeyProps {
+  readonly url: string;
+  readonly queryKey?: QueryKey;
+  readonly params?: QueryParams;
+  readonly options?: KeyedFetcherOptions;
+  readonly schema?: Schema.Schema.AnyNoContext;
 }
 
-/** What every QueryErrorBoundary takes, whichever error UI it shows. */
-interface QueryErrorBoundaryBaseProps {
+/**
+ * The query key a DataLoader reads: the caller's own `queryKey`, or one built from the request
+ * (url, params, headers, timeout and the schema it decodes with). DataLoader computes it once and
+ * hands it to the gate, the query and the error boundary, so the server-render check, the fetch
+ * and Try again all address the same cache entry.
+ */
+function useDataLoaderKey({
+  url,
+  queryKey,
+  params = NO_PARAMS,
+  options,
+  schema,
+}: DataLoaderKeyProps): QueryKey {
+  return useMemo(() => {
+    if (queryKey) return queryKey;
+    const rest = [params, options?.headers, options?.timeout, schemaKeyOf(schema)];
+    return [...dataLoaderQueryKey(url), ...rest.filter(Boolean)];
+  }, [queryKey, url, params, options, schema]);
+}
+
+/** What QueryErrorBoundary takes: the children it guards and the error UI it shows instead. */
+export interface QueryErrorBoundaryProps {
   children: React.ReactNode;
+  /** Renders the failure in place of the children, with a retry that loads them again. */
+  fallback: LoadFailureFallback;
   /**
-   * The keys (or key prefixes, e.g. {@link dataLoaderQueryKey}) of the queries the section
-   * renders. Try again resets them first, so the section fetches them again: without this, a
-   * section whose render threw after a successful fetch would render the same cached data (and
-   * throw again) until its staleTime ran out.
+   * The keys (or key prefixes, e.g. {@link dataLoaderQueryKey}) of the queries the children
+   * read. Try again resets them first, so the children fetch them again: without this, children
+   * whose render threw after a successful fetch would render the same cached data (and throw
+   * again) until its staleTime ran out.
    */
   queryKeys?: readonly QueryKey[];
 }
 
-/** Either a section name for the default notice, or the page's own error UI. */
-export type QueryErrorBoundaryProps = QueryErrorBoundaryBaseProps &
-  ({ section: string; fallback?: never } | { fallback: LoadFailureFallback; section?: never });
-
 /**
- * Keeps a failed first load of a suspense query (useDataLoader, the useSanity* hooks) inside one
- * section of a page, as DataLoader does for its children: the page's shell and other sections
- * stay, and the fallback's retry loads the query again. Reporting is DataLoader's: a failed fetch
- * is not reported again (the API route reports its upstream failure), while an answer the schema
- * rejects or a render bug is reported once.
+ * DataLoader's error boundary: keeps a failed first load of a suspense query (useSuspenseQuery)
+ * inside the widget that reads it, so the rest of the page stays and the fallback's retry loads
+ * the query again. It is for client islands that fetch in the browser (a live widget polling an
+ * API route); pages load their Sanity data on the server, and an outage there reaches
+ * (routes)/error.tsx. Reporting is DataLoader's: a failed fetch is not reported again (the API
+ * route reports its upstream failure), while an answer the schema rejects or a render bug is
+ * reported once.
  *
- * Try again resets `queryKeys` (their cached data and error) before the section remounts, so the
+ * Try again resets `queryKeys` (their cached data and error) before the children remount, so the
  * remount fetches them again rather than rendering data that already failed to render.
  *
- * @example
- * <QueryErrorBoundary section="certifications" queryKeys={[dataLoaderQueryKey(url)]}>
- *   <Suspense fallback={<Skeleton />}><Certifications /></Suspense>
+ * @example As DataLoader uses it
+ * ```tsx
+ * <QueryErrorBoundary
+ *   queryKeys={[queryKey]}
+ *   fallback={(error, retry) => <ClientError error={error} retry={retry} />}
+ * >
+ *   <Suspense fallback={<Loader />}><LiveCard /></Suspense>
  * </QueryErrorBoundary>
+ * ```
  */
-export function QueryErrorBoundary(props: QueryErrorBoundaryProps): React.ReactElement {
-  const { children, queryKeys } = props;
+export function QueryErrorBoundary({
+  children,
+  fallback,
+  queryKeys,
+}: QueryErrorBoundaryProps): React.ReactElement {
   const queryClient = useQueryClient();
-  const renderFailure: LoadFailureFallback =
-    props.fallback === undefined
-      ? (_error, retry) => <SectionLoadError section={props.section} retry={retry} />
-      : props.fallback;
 
-  // The section is unmounted while its fallback shows, so its queries have no observers and
+  // The children are unmounted while the fallback shows, so their queries have no observers and
   // resetQueries only clears them (it refetches active queries alone); the remount fetches.
-  const resetSectionQueries = useCallback((): void => {
+  const resetGuardedQueries = useCallback((): void => {
     for (const queryKey of queryKeys ?? []) void queryClient.resetQueries({ queryKey });
   }, [queryClient, queryKeys]);
 
-  // Each boundary gets its own reset scope, so retrying one section does not refetch the others.
+  // Each boundary gets its own reset scope, so retrying one widget does not refetch the others.
   return (
     <QueryErrorResetBoundary>
       {({ reset }) => (
         <LoadFailureBoundary
           onRetry={() => {
-            resetSectionQueries();
+            resetGuardedQueries();
             reset();
           }}
-          fallback={renderFailure}
+          fallback={fallback}
         >
           {children}
         </LoadFailureBoundary>
@@ -392,184 +395,237 @@ type DataLoaderImplProps<T, S extends Schema.Schema<any, any, never>> = (
   schema?: S;
 };
 
-/**
- * Runs DataLoader's query and renders its children with the data. A failed first load throws to
- * LoadFailureBoundary (see DataLoader). Once data has loaded, a failed background refetch leaves
- * that data in place (TanStack keeps it beside the error), so the children keep showing it until
- * a later refetch succeeds.
- */
-function DataLoaderContent<T = unknown, S extends Schema.Schema<any, any, never> = any>({
-  children,
-  url,
-  queryOptions = {},
-  LoadingComponent = <Loader />,
-  options = {},
-  params = {},
-  queryKey,
-  onSuccess,
-  onError,
-  transform,
-  staleTime = 1_000 * 60 * 5, // 5 minutes
-  refetchInterval = 1_000 * 60 * 5, // 5 minutes
-  refetchOnWindowFocus = false,
-  refetchOnReconnect = true,
-  schema,
-}: DataLoaderImplProps<T, S>): React.ReactElement {
-  const queryClient = useQueryClient();
-  const finalQueryKey = useDataLoaderQueryKey(queryKey, url, params, options, schema);
+/** DataLoader's props once DataLoader has resolved the query key and the loading UI. */
+type ResolvedDataLoaderProps<T, S extends Schema.Schema<any, any, never>> = DataLoaderImplProps<
+  T,
+  S
+> & {
+  queryKey: QueryKey;
+  LoadingComponent: React.ReactNode;
+};
 
-  // Fetcher defaults with schema support. `retries: 0` makes one attempt per queryFn and leaves
-  // retrying to TanStack Query (shouldRetryQuery), so failures are not retried at two layers.
-  // A caller's `options.retries` would still override it; callers leave it unset or 0
-  // (Sanity's createDataLoaderOptions passes 0).
-  const fetcherOptions = useMemo((): FetcherOptions<any> => {
+/** How DataLoader calls its children: a one-argument render prop ignores the utilities. */
+type RenderChildren = (data: unknown, utils: DataLoaderRenderProps<unknown>) => React.ReactNode;
+
+/** Logs a failed request with where it came from, then calls the caller's `onError`. */
+function logLoadFailure(url: string, err: unknown, onError?: (error: Error) => void): void {
+  logger.info(`[DataLoader]: ${parseCodePathDetailed(url, fetcher)}`);
+
+  if (err instanceof FetcherError) {
+    logger.error(`[DataLoader]: Status ${err.status}`, err.responseData);
+  } else if (err instanceof ValidationError) {
+    logger.error(`[DataLoader]: Validation failed - ${err.getProblemsString()}`);
+    logger.error(`[DataLoader]: Invalid data:`, err.responseData);
+  } else {
+    logger.error('[DataLoader]: Unexpected error', err);
+  }
+
+  if (onError && err instanceof Error) onError(err);
+}
+
+/**
+ * The fetcher options for one DataLoader. `retries: 0` makes one attempt per queryFn and leaves
+ * retrying to TanStack Query (shouldRetryQuery), so failures are not retried at two layers. A
+ * caller's `options.retries` would still override it; callers leave it unset or 0.
+ */
+function useFetcherOptions(
+  url: string,
+  options: FetcherOptions<any>,
+  onError: ((error: Error) => void) | undefined,
+  schema: Schema.Schema<any, any, never> | undefined,
+): FetcherOptions<any> {
+  return useMemo((): FetcherOptions<any> => {
     const baseOptions: FetcherOptions<any> = {
       retries: 0,
-      timeout: 30_000,
-      onError: (err) => {
-        const path = parseCodePathDetailed(url, fetcher);
-        logger.info(`[DataLoader]: ${path}`);
-
-        if (err instanceof FetcherError) {
-          logger.error(`[DataLoader]: Status ${err.status}`, err.responseData);
-        } else if (err instanceof ValidationError) {
-          logger.error(`[DataLoader]: Validation failed - ${err.getProblemsString()}`);
-          logger.error(`[DataLoader]: Invalid data:`, err.responseData);
-        } else {
-          logger.error('[DataLoader]: Unexpected error', err);
-        }
-
-        // Call user-provided error handler
-        if (onError && err instanceof Error) onError(err);
-      },
-      ...(options || null),
+      timeout: DEFAULT_TIMEOUT_MS,
+      onError: (err) => logLoadFailure(url, err, onError),
+      ...options,
     };
-
-    if (schema) return { ...baseOptions, schema };
-
-    return baseOptions;
+    return schema ? { ...baseOptions, schema } : baseOptions;
   }, [url, options, onError, schema]);
+}
+
+/**
+ * One GET of `url` through the page-wide request queue, which shares identical in-flight browser
+ * requests. Rejects with the fetcher's own error: Effect.runPromise rejects with a FiberFailure,
+ * and the error component and the retry rule (no retry for 4xx) need the FetcherError's status.
+ */
+async function requestThroughQueue(
+  url: string,
+  params: QueryParams,
+  fetcherOptions: FetcherOptions<any>,
+  resultKey: string | undefined,
+): Promise<unknown> {
+  try {
+    return await requestQueue.enqueue(
+      url,
+      'GET',
+      () =>
+        Effect.runPromise(
+          pipe(get(url, fetcherOptions, params), Effect.provide(FetchHttpClient.layer)),
+        ),
+      {
+        // The query string is built from params, so calls that differ in it never share.
+        body: params,
+        headers: fetcherOptions.headers,
+        // Each caller gets the result decoded with its own schema.
+        resultKey,
+        bypassDeduplication: false,
+      },
+    );
+  } catch (error) {
+    const failure = unwrapEffectError(error);
+    if (failure instanceof ValidationError || failure instanceof FetcherError) throw failure;
+    // Wrap unexpected request errors
+    throw new FetcherError(
+      failure instanceof Error ? failure.message : 'Unknown error occurred',
+      url,
+      undefined,
+      failure,
+    );
+  }
+}
+
+interface QueryFnSettings {
+  readonly url: string;
+  readonly params: QueryParams;
+  readonly fetcherOptions: FetcherOptions<any>;
+  readonly transform?: (data: any) => unknown;
+  readonly onSuccess?: (data: any) => void;
+}
+
+/** The query function: the request, then the caller's `transform` and `onSuccess`. */
+function useDataLoaderQueryFn({
+  url,
+  params,
+  fetcherOptions,
+  transform,
+  onSuccess,
+}: QueryFnSettings): () => Promise<unknown> {
   // Keyed on the schema itself, so options passed inline don't format it again each render.
   const decodeSchema = fetcherOptions.schema;
   const resultKey = useMemo(() => schemaKeyOf(decodeSchema), [decodeSchema]);
 
-  // Memoized query function with schema support and request deduplication
-  const queryFn = useCallback(async () => {
-    const request = async () => {
-      try {
-        // Wrap the Effect execution in the request queue for automatic deduplication
-        return await requestQueue.enqueue(
-          url,
-          'GET',
-          async () => {
-            const effect = pipe(
-              get(url, fetcherOptions, params),
-              Effect.provide(FetchHttpClient.layer),
-            );
-            return await Effect.runPromise(effect);
-          },
-          {
-            // The query string is built from params, so calls that differ in it never share.
-            body: params,
-            headers: fetcherOptions?.headers,
-            // Each caller gets the result decoded with its own schema.
-            resultKey,
-            bypassDeduplication: false,
-          },
-        );
-      } catch (error) {
-        // Effect.runPromise rejects with a FiberFailure; rethrow the fetcher's own error so its
-        // status reaches the error component and the retry rule (no retry for 4xx).
-        const failure = unwrapEffectError(error);
-        if (failure instanceof ValidationError || failure instanceof FetcherError) throw failure;
-
-        // Wrap unexpected request errors
-        throw new FetcherError(
-          failure instanceof Error ? failure.message : 'Unknown error occurred',
-          url,
-          undefined,
-          failure,
-        );
-      }
-    };
-    const result = await request();
-
-    // The caller's callbacks run outside the try: an exception there is a bug in this page, not
-    // a failed request, so it reaches LoadFailureBoundary unchanged and is reported once.
-    const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
+  return useCallback(async () => {
+    const result = await requestThroughQueue(url, params, fetcherOptions, resultKey);
+    // The caller's callbacks run outside the request's try: an exception there is a bug in this
+    // page, not a failed request, so it reaches LoadFailureBoundary unchanged and is reported once.
+    const finalResult = typeof transform === 'function' ? transform(result) : result;
     if (onSuccess) onSuccess(finalResult);
     return finalResult;
-  }, [url, fetcherOptions, resultKey, params, transform, onSuccess]);
+  }, [url, params, fetcherOptions, resultKey, transform, onSuccess]);
+}
 
-  // Query options. `retry` and `retryDelay` come from the QueryClient defaults (shouldRetryQuery
-  // in query-client.ts) unless `queryOptions` overrides them.
-  const queryOptionsWithDefaults = useMemo(() => {
-    const baseOptions: UseSuspenseQueryOptions<any, Error, any, QueryKey> = {
-      queryKey: finalQueryKey,
+/**
+ * Runs DataLoader's query and renders its children with the data. Without data it suspends (the
+ * gate's Suspense shows `LoadingComponent`); a failed first load throws to LoadFailureBoundary
+ * (see DataLoader). Once data has loaded, a failed background refetch leaves that data in place
+ * (TanStack keeps it beside the error), so the children keep showing it until a later refetch
+ * succeeds.
+ */
+function DataLoaderQuery<T = unknown, S extends Schema.Schema<any, any, never> = any>({
+  children,
+  url,
+  queryOptions,
+  LoadingComponent,
+  options,
+  params = NO_PARAMS,
+  queryKey,
+  onSuccess,
+  onError,
+  transform,
+  staleTime = DEFAULT_STALE_TIME_MS,
+  refetchInterval = DEFAULT_REFETCH_INTERVAL_MS,
+  refetchOnWindowFocus = false,
+  refetchOnReconnect = true,
+  schema,
+}: ResolvedDataLoaderProps<T, S>): React.ReactElement {
+  const queryClient = useQueryClient();
+  const fetcherOptions = useFetcherOptions(url, options ?? NO_FETCHER_OPTIONS, onError, schema);
+  const extraQueryOptions = (queryOptions ?? NO_QUERY_OPTIONS) as typeof NO_QUERY_OPTIONS;
+  const queryFn = useDataLoaderQueryFn({ url, params, fetcherOptions, transform, onSuccess });
+
+  // `retry` and `retryDelay` come from the QueryClient defaults (shouldRetryQuery in
+  // query-client.ts) unless `queryOptions` overrides them.
+  const suspenseQueryOptions = useMemo(
+    (): UseSuspenseQueryOptions<unknown, Error, unknown, QueryKey> => ({
+      queryKey,
       queryFn,
       staleTime,
       refetchInterval,
       refetchOnWindowFocus,
       refetchOnReconnect,
-      ...queryOptions,
-    };
-
-    return baseOptions;
-  }, [
-    finalQueryKey,
-    queryFn,
-    staleTime,
-    refetchInterval,
-    refetchOnWindowFocus,
-    refetchOnReconnect,
-    queryOptions,
-  ]);
+      ...extraQueryOptions,
+    }),
+    [
+      queryKey,
+      queryFn,
+      staleTime,
+      refetchInterval,
+      refetchOnWindowFocus,
+      refetchOnReconnect,
+      extraQueryOptions,
+    ],
+  );
 
   // `data` is always defined here: without it, useSuspenseQuery suspends or throws instead.
-  const { data, refetch, isRefetching } = useSuspenseQuery(queryOptionsWithDefaults);
+  const { data, refetch, isRefetching } = useSuspenseQuery(suspenseQueryOptions);
 
-  // Enhanced render props
-  const renderProps = useMemo(() => {
-    const props: DataLoaderRenderProps<any> = {
+  const renderProps = useMemo(
+    (): DataLoaderRenderProps<unknown> => ({
       refetch: async () => {
         await refetch();
       },
       isRefetching,
       queryClient,
       invalidate: async () => {
-        await queryClient.invalidateQueries({ queryKey: finalQueryKey });
+        await queryClient.invalidateQueries({ queryKey });
       },
-      setQueryData: (newData: any) => {
-        queryClient.setQueryData(finalQueryKey, newData);
+      setQueryData: (newData) => {
+        queryClient.setQueryData(queryKey, newData);
       },
-    };
-    return props;
-  }, [refetch, isRefetching, queryClient, finalQueryKey]);
+    }),
+    [refetch, isRefetching, queryClient, queryKey],
+  );
 
-  // Determine how to call children function
-  const renderChildren = useCallback(() => {
-    if (typeof children === 'function') {
-      // Check if it's a function that accepts 2 parameters (data + utils)
-      try {
-        const result =
-          children.length > 1 ? (children as any)(data, renderProps) : (children as any)(data);
-        return result;
-      } catch {
-        // Fallback to simple call if inspection fails
-        return (children as any)(data);
-      }
-    }
-    return null;
-  }, [children, data, renderProps]);
-
-  return <Suspense fallback={LoadingComponent}>{renderChildren()}</Suspense>;
+  const renderChildren = children as RenderChildren;
+  return <Suspense fallback={LoadingComponent}>{renderChildren(data, renderProps)}</Suspense>;
 }
 
-/** DataLoaderContent's default `params`, so DataLoader builds the same key. */
-const NO_PARAMS: QueryParams = {};
+/**
+ * Decides where DataLoader's data comes from, so it never fetches during server rendering:
+ * - On the server and while hydrating, with the data already in the QueryClient (a server
+ *   component prefetched it behind a HydrationBoundary), it renders the query, which reads that
+ *   data without fetching. The server HTML holds the content and hydrates with no flash.
+ * - On the server and while hydrating, without the data, it renders `LoadingComponent` only. The
+ *   server HTML holds the skeleton (card frame included), and hydration matches it.
+ * - In the browser after hydration, and on a client-only mount, it renders the query, which
+ *   fetches once (if it has no fresh data) behind a Suspense that shows `LoadingComponent`.
+ *
+ * Both hooks run on every render, whichever branch is taken.
+ */
+function DataLoaderGate<T = unknown, S extends Schema.Schema<any, any, never> = any>(
+  props: ResolvedDataLoaderProps<T, S>,
+): React.ReactElement {
+  const { queryKey, LoadingComponent } = props;
+  const queryClient = useQueryClient();
+  const isServerHtml = useIsServerHtmlRender();
+  const hasData = queryClient.getQueryData(queryKey) !== undefined;
+
+  if (isServerHtml && !hasData) return <>{LoadingComponent}</>;
+  return (
+    <Suspense fallback={LoadingComponent}>
+      <DataLoaderQuery {...props} />
+    </Suspense>
+  );
+}
 
 /**
  * Enhanced DataLoader component with Effect Schema validation, better error handling, caching, and developer experience.
+ *
+ * It never fetches during server rendering: the server HTML shows `LoadingComponent`, unless a
+ * server component prefetched the same query key into the QueryClient (HydrationBoundary), in
+ * which case it shows the data. The browser then fetches once, only if it has no fresh data.
  *
  * A failed first load renders `ErrorComponent` (default: ClientError) in place of the children,
  * with a `retry` that loads again; the failure does not reach the page's error boundary. A failed
@@ -602,153 +658,21 @@ export function DataLoader<S extends Schema.Schema<any, any, never>>(
 export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never> = any>(
   props: DataLoaderImplProps<T, S>,
 ): React.ReactElement {
-  const {
-    ErrorComponent = ClientError,
-    queryKey,
-    url,
-    params = NO_PARAMS,
-    options,
-    schema,
-  } = props;
-  // Built here and handed to the content, so the retry resets exactly the query the card renders.
-  const finalQueryKey = useDataLoaderQueryKey(queryKey, url, params, options, schema);
+  const { ErrorComponent = ClientError, LoadingComponent = <Loader /> } = props;
+  // Built once and handed down, so the gate, the query and the retry all use exactly this key.
+  const queryKey = useDataLoaderKey(props);
 
   // Each DataLoader gets its own reset scope, so retrying one card does not refetch the others.
   return (
     <QueryErrorBoundary
-      queryKeys={[finalQueryKey]}
+      queryKeys={[queryKey]}
       fallback={(error, retry) => renderErrorComponent(ErrorComponent, error, retry)}
     >
-      <DataLoaderContent {...props} queryKey={finalQueryKey} />
+      <DataLoaderGate {...props} queryKey={queryKey} LoadingComponent={LoadingComponent} />
     </QueryErrorBoundary>
   );
 }
 
 DataLoader.displayName = 'DataLoader';
-
-/**
- * Hook version of DataLoader for use outside of JSX.
- */
-export function useDataLoader<T = unknown>(
-  url: string,
-  options?: Omit<DataLoaderProps<T>, 'children' | 'LoadingComponent' | 'ErrorComponent'>,
-): ReturnType<typeof useSuspenseQuery<T, Error, T, QueryKey>>;
-
-export function useDataLoader<S extends Schema.Schema<any, any, never>>(
-  url: string,
-  options: Omit<DataLoaderPropsWithSchema<S>, 'children' | 'LoadingComponent' | 'ErrorComponent'>,
-): ReturnType<
-  typeof useSuspenseQuery<Schema.Schema.Type<S>, Error, Schema.Schema.Type<S>, QueryKey>
->;
-
-export function useDataLoader(url: string, options: any = {}) {
-  const {
-    queryOptions = {},
-    options: fetcherOptions = {},
-    params = {},
-    queryKey,
-    onSuccess,
-    onError,
-    transform,
-    staleTime = 1_000 * 60 * 5,
-    refetchInterval = 1_000 * 60 * 5,
-    refetchOnWindowFocus = false,
-    refetchOnReconnect = true,
-    schema,
-  } = options;
-
-  const finalQueryKey = useDataLoaderQueryKey(queryKey, url, params, fetcherOptions, schema);
-
-  // One attempt per queryFn by default; TanStack Query owns retries (see DataLoaderContent). A
-  // caller's `options.retries` still overrides it; createDataLoaderOptions passes 0.
-  const enhancedFetcherOptions = useMemo(() => {
-    const baseOptions: FetcherOptions<any> = {
-      retries: 0,
-      timeout: 30_000,
-      onError: (err) => {
-        if (err instanceof ValidationError) {
-          logger.error(`[useDataLoader]: Validation failed - ${err.getProblemsString()}`);
-        }
-
-        if (typeof onError === 'function' && err instanceof Error) {
-          onError(err);
-        }
-      },
-      ...(fetcherOptions || null),
-    };
-
-    if (schema) {
-      return { ...baseOptions, schema };
-    }
-
-    return baseOptions;
-  }, [fetcherOptions, onError, schema]);
-  // Keyed on the schema itself: callers such as the useSanity* hooks pass fresh options each render.
-  const decodeSchema = enhancedFetcherOptions.schema;
-  const resultKey = useMemo(() => schemaKeyOf(decodeSchema), [decodeSchema]);
-
-  const queryFn = useCallback(async () => {
-    // Wrap the Effect execution in the request queue for automatic deduplication
-    const result = await requestQueue
-      .enqueue(
-        url,
-        'GET',
-        async () => {
-          const effect = pipe(
-            get(url, enhancedFetcherOptions, params as QueryParams),
-            Effect.provide(FetchHttpClient.layer),
-          );
-          return await Effect.runPromise(effect);
-        },
-        {
-          // The query string is built from params, so calls that differ in it never share.
-          body: params,
-          headers: enhancedFetcherOptions?.headers,
-          // Each caller gets the result decoded with its own schema.
-          resultKey,
-          bypassDeduplication: false,
-        },
-      )
-      .catch((error: unknown) => {
-        // Effect.runPromise rejects with a FiberFailure; reject with the fetcher's own error
-        // instead (a FetcherError keeps its status), as DataLoaderContent does, so the query's
-        // error, the QueryCache log and QueryErrorBoundary all see the same thing.
-        throw unwrapEffectError(error);
-      });
-
-    const finalResult = transform && typeof transform === 'function' ? transform(result) : result;
-
-    if (typeof onSuccess === 'function') {
-      onSuccess(finalResult);
-    }
-
-    return finalResult;
-  }, [url, enhancedFetcherOptions, resultKey, params, transform, onSuccess]);
-
-  const queryOptionsWithDefaults = useMemo(() => {
-    const baseOptions: UseSuspenseQueryOptions<any, Error, any, QueryKey> = {
-      queryKey: finalQueryKey as QueryKey,
-      queryFn,
-      staleTime,
-      refetchInterval,
-      refetchOnWindowFocus,
-      refetchOnReconnect,
-      // `retry` and `retryDelay` come from the QueryClient defaults (shouldRetryQuery).
-      ...queryOptions,
-    };
-
-    return baseOptions;
-  }, [
-    finalQueryKey,
-    queryFn,
-    staleTime,
-    refetchInterval,
-    refetchOnWindowFocus,
-    refetchOnReconnect,
-    queryOptions,
-  ]);
-
-  return useSuspenseQuery(queryOptionsWithDefaults);
-}
 
 export default DataLoader;

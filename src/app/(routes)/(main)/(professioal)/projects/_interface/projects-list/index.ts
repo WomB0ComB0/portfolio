@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { ProjectsList } from './projects-list';
+export { ProjectsList, type ProjectsListProps, toProjectCard } from './projects-list';

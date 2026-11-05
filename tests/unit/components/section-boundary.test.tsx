@@ -115,7 +115,7 @@ const TRACKS_KEY: QueryKey = ['top-tracks'];
 /** Cached data the section fails to render, as a malformed Sanity image _ref does. */
 const UNRENDERABLE = 'tracks the section cannot render';
 
-/** A client section that reads one suspense query, as useDataLoader and useSanity* do. */
+/** A client section that reads its data with a plain useSuspenseQuery. */
 function Tracks({ queryFn }: { queryFn: () => Promise<string> }): ReactNode {
   const { data } = useSuspenseQuery({ queryKey: TRACKS_KEY, queryFn, staleTime: 60_000 });
   if (data === UNRENDERABLE) throw new Error('cannot render the cached tracks');

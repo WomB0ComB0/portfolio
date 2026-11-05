@@ -14,34 +14,9 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
-import type { JSX } from 'react';
+import type { ReactElement } from 'react';
+import { Stats } from '@/app/(routes)/(dev)/stats/_interface/stats';
 import { constructMetadata } from '@/utils';
-
-/**
- * @readonly
- * @description
- *      Dynamically imports the Stats component for the statistics dashboard route,
- *      enabling code splitting and server-side rendering (SSR).
- *
- * @returns {React.ComponentType} A dynamic React component for displaying stats.
- *
- * @throws {Error} Throws if importing the Stats module fails.
- *
- * @see https://nextjs.org/docs/pages/building-your-application/optimizing/dynamic-imports
- * @web
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @example
- * // Usage within the page:
- * <Stats />
- */
-const Stats = dynamic(
-  () => import('@/app/(routes)/(dev)/stats/_interface/stats').then((mod) => mod.Stats),
-  {
-    ssr: true,
-  },
-);
 
 /**
  * @readonly
@@ -62,23 +37,11 @@ export const metadata = constructMetadata({
 });
 
 /**
- * @function StatsPage
- * @description
- *      Top-level page component for rendering the personal statistics dashboard.
- *      Delegates all presentational and data logic to the dynamically loaded Stats module.
- *
- * @returns {JSX.Element} A React element rendering the statistics dashboard.
- *
- * @web
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @example
- * // Server component render:
- * <StatsPage />
+ * The /stats page. A server component: the GitHub, LeetCode, Dev Stats and Monkeytype numbers
+ * are loaded on the server and stream into the HTML card by card; only the live Discord card
+ * fetches in the browser. The route has no loading.tsx on purpose: nothing above the cards is
+ * awaited and each card has its own Suspense skeleton (see `_interface/stats/stats.tsx`).
  */
-const StatsPage = (): JSX.Element => {
+export default function StatsPage(): ReactElement {
   return <Stats />;
-};
-StatsPage.displayName = 'StatsPage';
-export default StatsPage;
+}

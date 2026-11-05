@@ -8,38 +8,15 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the Licens1e is distributed on an "AS IS" BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
+import { Privacy } from '@/app/(routes)/(legal)/privacy/_interface';
 import { constructMetadata } from '@/utils';
-
-/**
- * @constant Privacy
- * @description
- *      Dynamically imports the Privacy component presenting the privacy policy for the portfolio site.
- *      Utilizes Next.js dynamic import for code-splitting and optimized loading in the privacy policy legal route.
- * @type {import('react').ComponentType}
- * @readonly
- * @web
- * @public
- * @throws {Error} Throws if the Privacy module fails to load.
- * @see https://nextjs.org/docs/pages/building-your-application/optimizing/dynamic-imports
- * @see https://github.com/WomB0ComB0/portfolio
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- * @example
- * // Usage in PrivacyPage:
- * <Privacy />
- */
-const Privacy = dynamic(
-  () => import('@/app/(routes)/(legal)/privacy/_interface').then((mod) => mod.Privacy),
-  { ssr: true },
-);
 
 /**
  * @constant metadata
@@ -63,20 +40,15 @@ export const metadata = constructMetadata({
 /**
  * @function PrivacyPage
  * @description
- *      Top-level route component serving the Privacy Policy legal document screen for the portfolio.
- *      Solely responsible for mounting the dynamically-loaded Privacy policy informational component.
- * @returns {JSX.Element} The React element that renders the privacy policy legal content.
- * @throws {Error} Throws if the Privacy component fails to render.
+ *      Renders the privacy policy. Both the page and the policy are server components, so the
+ *      policy text is in the server HTML; only interactive leaves such as MagicCard and the
+ *      Cookie Policy link hydrate.
+ * @returns {JSX.Element} The privacy policy.
  * @web
  * @public
  * @author Mike Odnis <https://github.com/WomB0ComB0>
  * @version 1.0.0
  * @see Privacy
- * @example
- * // Standard server-side page export:
- * export default function PrivacyPage() {
- *   return <Privacy />;
- * }
  */
 const PrivacyPage = (): JSX.Element => {
   return <Privacy />;

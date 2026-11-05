@@ -16,38 +16,18 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { FiArrowUpRight, FiGithub, FiStar, FiUsers } from 'react-icons/fi';
+import { RetryButton } from '@/components/data/retry-button';
+import { SectionError } from '@/components/data/section-error';
 import { Badge } from '@/components/ui/badge';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
+import { type GitHubStatsData, githubStatsQuery } from '../_lib/stats-queries';
 import { StatCard } from './stat-card';
-
-const GitHubStatsSchema = Schema.Struct({
-  user: Schema.Struct({
-    repos: Schema.Number,
-    followers: Schema.Number,
-    avatar_url: Schema.String,
-  }),
-  stats: Schema.Struct({
-    totalStars: Schema.Number,
-    topLanguages: Schema.Array(Schema.String),
-  }),
-  topRepos: Schema.Array(
-    Schema.Struct({
-      name: Schema.String,
-      description: Schema.Union(Schema.String, Schema.Null),
-      stars: Schema.Number,
-      language: Schema.Union(Schema.String, Schema.Null),
-      url: Schema.String,
-    }),
-  ),
-});
 
 /** Screen-reader unit for a repo's star count, which is shown as a bare number. */
 const starsLabel = (stars: number) => (stars === 1 ? 'star' : 'stars');
@@ -72,9 +52,10 @@ const StatItem = ({
   </div>
 );
 
-const GitHubStatsSkeleton = () => (
+/** The card while its data loads: the loaded card's frame, with placeholders for its content. */
+export const GitHubStatsSkeleton = () => (
   <div className="space-y-8">
-    <StatCard title="GitHub Stats" icon={<FiGithub />}>
+    <StatCard title="GitHub Stats" icon={<FiGithub />} hasEntrance={false}>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Skeleton className="h-12 w-full" />
         <Skeleton className="h-12 w-full" />
@@ -96,106 +77,100 @@ const GitHubStatsSkeleton = () => (
   </div>
 );
 
-export const GitHubStats = memo(() => {
-  const { data: githubData, isLoading } = useQuery({
-    queryKey: ['github-stats'],
-    queryFn: async () => {
-      const effect = pipe(
-        get('/api/v1/github-stats', {
-          // TanStack Query is the only retry layer; retrying here as well multiplies the attempts.
-          retries: 0,
-          timeout: 10_000,
-          schema: GitHubStatsSchema,
-        }),
-        Effect.provide(FetchHttpClient.layer),
-      );
-      return await Effect.runPromise(effect);
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
+type TopRepo = GitHubStatsData['topRepos'][number];
 
-  if (isLoading) {
-    return <GitHubStatsSkeleton />;
-  }
-
-  if (!githubData) {
-    return null;
-  }
-
+/**
+ * The repositories slide in one after another when the list mounts in the browser. A list
+ * hydrated from server HTML is already in place, so it stays put (its server HTML never hides it).
+ */
+const TopRepoList = ({ repos }: { repos: readonly TopRepo[] }) => {
+  const isServerHtml = useIsServerHtmlRender();
+  const [skipsEntrance] = useState(isServerHtml);
   return (
-    <div className="space-y-8">
-      <StatCard title="GitHub Stats" icon={<FiGithub />}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center sm:text-left">
-          <StatItem
-            icon={<FiGithub size={24} />}
-            value={githubData.user.repos}
-            label="Repositories"
-          />
-          <StatItem
-            icon={<FiStar size={24} />}
-            value={githubData.stats.totalStars}
-            label="Total Stars"
-          />
-          <StatItem
-            icon={<FiUsers size={24} />}
-            value={githubData.user.followers}
-            label="Followers"
-          />
-        </div>
-      </StatCard>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-3 space-y-4">
-          <h3 className="text-xl font-semibold text-primary">Top Repositories</h3>
-          <div className="space-y-2">
-            {githubData.topRepos.map((repo, index) => (
-              <motion.a
-                key={repo.url}
-                href={repo.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-3 rounded-lg hover:bg-card/50 transition-colors group"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.05 }}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
-                      {repo.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground line-clamp-1">
-                      {repo.description || 'No description'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground shrink-0">
-                    <div className="flex items-center gap-1">
-                      <FiStar aria-hidden="true" className="h-4 w-4" />
-                      <span>
-                        {repo.stars} <span className="sr-only">{starsLabel(repo.stars)}</span>
-                      </span>
-                    </div>
-                    <FiArrowUpRight
-                      aria-hidden="true"
-                      className="h-4 w-4 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
-                    />
-                  </div>
-                </div>
-                {repo.language && (
-                  <Badge
-                    variant="secondary"
-                    className="mt-2 text-xs bg-primary/10 text-primary border-primary/20"
-                  >
-                    {repo.language}
-                  </Badge>
-                )}
-                <span className="sr-only"> (opens in a new tab)</span>
-              </motion.a>
-            ))}
+    <div className="space-y-2">
+      {repos.map((repo, index) => (
+        <motion.a
+          key={repo.url}
+          href={repo.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block p-3 rounded-lg hover:bg-card/50 transition-colors group"
+          initial={skipsEntrance ? false : { opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: index * 0.05 }}
+        >
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
+                {repo.name}
+              </p>
+              <p className="text-sm text-muted-foreground line-clamp-1">
+                {repo.description || 'No description'}
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground shrink-0">
+              <div className="flex items-center gap-1">
+                <FiStar aria-hidden="true" className="h-4 w-4" />
+                <span>
+                  {repo.stars} <span className="sr-only">{starsLabel(repo.stars)}</span>
+                </span>
+              </div>
+              <FiArrowUpRight
+                aria-hidden="true"
+                className="h-4 w-4 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+              />
+            </div>
           </div>
-        </div>
+          {repo.language && (
+            <Badge
+              variant="secondary"
+              className="mt-2 text-xs bg-primary/10 text-primary border-primary/20"
+            >
+              {repo.language}
+            </Badge>
+          )}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </motion.a>
+      ))}
+    </div>
+  );
+};
+
+const GitHubStatsCard = ({ data }: { data: GitHubStatsData }) => (
+  <div className="space-y-8">
+    <StatCard title="GitHub Stats" icon={<FiGithub />}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center sm:text-left">
+        <StatItem icon={<FiGithub size={24} />} value={data.user.repos} label="Repositories" />
+        <StatItem icon={<FiStar size={24} />} value={data.stats.totalStars} label="Total Stars" />
+        <StatItem icon={<FiUsers size={24} />} value={data.user.followers} label="Followers" />
+      </div>
+    </StatCard>
+
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="lg:col-span-3 space-y-4">
+        <h3 className="text-xl font-semibold text-primary">Top Repositories</h3>
+        <TopRepoList repos={data.topRepos} />
       </div>
     </div>
+  </div>
+);
+
+/**
+ * The GitHub card. Its data is usually prefetched on the server (see the /stats page), so it
+ * renders on the first pass; otherwise it shows its skeleton and fetches in the browser. A failed
+ * load with nothing cached says so, with Try again.
+ */
+export const GitHubStats = memo(() => {
+  const { data, isError, refetch } = useQuery(githubStatsQuery);
+
+  if (data !== undefined) return <GitHubStatsCard data={data} />;
+  if (!isError) return <GitHubStatsSkeleton />;
+  return (
+    <SectionError
+      title="Couldn't load GitHub stats"
+      headingLevel={2}
+      action={<RetryButton onRetry={() => void refetch()} />}
+    />
   );
 });
 GitHubStats.displayName = 'GitHubStats';

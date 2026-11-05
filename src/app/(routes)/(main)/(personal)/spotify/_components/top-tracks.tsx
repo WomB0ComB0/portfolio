@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,166 +14,188 @@
  * limitations under the License.
  */
 
-import { Schema } from 'effect';
-import { motion } from 'motion/react';
+/**
+ * @file The /spotify top tracks grid, rendered on the server. It calls fetchTopTracks, the
+ * function behind GET /api/v1/top-tracks, directly; nothing in the browser calls that route any
+ * more. Each track is a real link to its Spotify page, so it works with Enter, middle-click and
+ * without JavaScript.
+ */
+
+import 'server-only';
+
 import Image from 'next/image';
-import { MagicCard } from '@/components';
+import type { ReactElement } from 'react';
+import { SiSpotify } from 'react-icons/si';
+
+import { fetchTopTracks, type TopTrack } from '@/app/api/v1/[[...route]]/top-tracks/handlers';
+import { RetryButton } from '@/components/data/retry-button';
+import { SectionError } from '@/components/data/section-error';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DataLoader } from '@/providers/server/effect-data-loader';
+import { DeadlineError, withDeadline } from '@/lib/async/deadline';
+import { reportApiFailure } from '@/lib/observability/report';
+import { cn } from '@/lib/utils';
+
+/** The grid of the list and of its skeleton, so the skeleton takes the list's place exactly. */
+const TOP_TRACKS_GRID_CLASS = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
 
 /**
- * @readonly
- * @const
- * @public
- * @description Schema for an individual top track from Spotify.
- * @author Mike Odnis
- * @see https://effect-ts.github.io/docs/
- * @version 1.0.0
+ * How long the section waits for Spotify before it shows its error, so a slow Spotify can't hold
+ * the page's stream open. A late answer still fills the handler's cache for the next visit.
  */
-const TrackSchema = Schema.Struct({
-  name: Schema.String,
-  artist: Schema.String,
-  url: Schema.String,
-  imageUrl: Schema.String,
-});
+export const TOP_TRACKS_DEADLINE_MS = 8_000;
+
+/** Spotify returns at most this many top tracks (TOP_ITEMS_LIMIT in the Spotify integration). */
+const SKELETON_ITEM_COUNT = 20;
+const ALBUM_ART_PX = 64;
+const REPORT_CONTEXT = 'render /spotify top tracks';
+const ERROR_TITLE = "Couldn't load top tracks";
+const EMPTY_MESSAGE = 'No top tracks data available at the moment.';
+
+/** gap rather than space-x: the link's absolutely positioned sr-only text must not add a margin. */
+const CARD_CLASS = 'flex h-full items-center gap-4 bg-secondary rounded-lg p-3';
+const LINK_CLASS =
+  'transition-[background-color,transform] duration-300 hover:bg-primary/25 motion-safe:hover:scale-[1.03] motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+const ALBUM_ART_CLASS = 'w-16 h-16 shrink-0 rounded-md shadow-md';
+const RANK_CLASS = 'w-6 shrink-0 text-right font-semibold tabular-nums text-muted-foreground';
+
+type TopTracksResult =
+  | { readonly ok: true; readonly tracks: readonly TopTrack[] }
+  | { readonly ok: false };
+
+/** The track's Spotify page when the API sent an https URL (local files have none). */
+const spotifyHref = (url: string): string | undefined => {
+  try {
+    return new URL(url).protocol === 'https:' ? url : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 /**
- * @readonly
- * @const
- * @public
- * @description Schema for Spotify top tracks API response, as an array of tracks.
- * @author Mike Odnis
- * @see https://effect-ts.github.io/docs/
- * @version 1.0.0
+ * The top tracks, or a failure that is already reported. Never throws: a Spotify outage (or the
+ * 502 one bad item can cause) stays inside this section instead of reaching the route's error
+ * page.
  */
-const TopTracksResponseSchema = Schema.Array(TrackSchema);
+async function loadTopTracks(): Promise<TopTracksResult> {
+  try {
+    const tracks = await withDeadline(fetchTopTracks(), TOP_TRACKS_DEADLINE_MS, 'top tracks');
+    return { ok: true, tracks };
+  } catch (error) {
+    reportApiFailure(error, {
+      context: REPORT_CONTEXT,
+      level: error instanceof DeadlineError ? 'warning' : 'error',
+    });
+    return { ok: false };
+  }
+}
 
-/**
- * @function TopTracksSkeleton
- * @public
- * @description Skeleton loading component for top tracks list while data loads.
- * @returns {JSX.Element} Skeleton loading placeholders for track cards.
- * @author Mike Odnis
- * @see Skeleton
- * @version 1.0.0
- * @web
- */
-const TopTracksSkeleton = () => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {new Array(12).fill(null).map((_, index) => (
-      <div
-        key={`skeleton-${+index}`}
-        className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg"
-      >
-        <Skeleton className="w-16 h-16 rounded-md bg-secondary/50" />
-        <div className="grow space-y-2">
-          <Skeleton className="h-5 w-3/4 bg-secondary/50" />
-          <Skeleton className="h-4 w-1/2 bg-secondary/50" />
-        </div>
+/** The album art, or the Spotify mark when the API sent no image. */
+const AlbumArt = ({ imageUrl }: { imageUrl: string }): ReactElement =>
+  imageUrl ? (
+    // The track and artist names sit right beside the art, so the image itself is decorative.
+    <Image
+      src={imageUrl}
+      alt=""
+      className={ALBUM_ART_CLASS}
+      width={ALBUM_ART_PX}
+      height={ALBUM_ART_PX}
+      sizes={`${ALBUM_ART_PX}px`}
+      placeholder="empty"
+    />
+  ) : (
+    <span
+      className={cn(
+        ALBUM_ART_CLASS,
+        'flex items-center justify-center bg-muted text-muted-foreground',
+      )}
+    >
+      <SiSpotify aria-hidden="true" className="size-6" />
+    </span>
+  );
+
+interface TrackCardProps {
+  track: TopTrack;
+  rank: number;
+}
+
+/** Rank, art, name and artist. The spaces and " by " keep the link's name "1 Song by Artist". */
+const TrackCardContent = ({ track, rank }: TrackCardProps): ReactElement => (
+  <>
+    <span className={RANK_CLASS}>{rank}</span> <AlbumArt imageUrl={track.imageUrl} />{' '}
+    <span className="min-w-0 grow overflow-hidden">
+      <span className="block truncate font-semibold text-foreground">{track.name}</span>{' '}
+      <span className="sr-only">by</span>{' '}
+      <span className="block truncate text-sm text-muted-foreground">{track.artist}</span>
+    </span>
+  </>
+);
+
+/** A link to the track's Spotify page, or a plain card when the API sent no usable URL. */
+const TrackCard = ({ track, rank }: TrackCardProps): ReactElement => {
+  const href = spotifyHref(track.url);
+  if (!href) {
+    return (
+      <div className={CARD_CLASS}>
+        <TrackCardContent track={track} rank={rank} />
       </div>
-    ))}
-  </div>
-);
-
-/**
- * @function TopTracksError
- * @public
- * @description Error component shown when loading top tracks fails.
- * @returns {JSX.Element} UI message for error state.
- * @author Mike Odnis
- * @version 1.0.0
- * @web
- */
-const TopTracksError = () => (
-  <div className="text-destructive bg-destructive/20 p-4 rounded-lg text-center">
-    Failed to load top tracks. Please try again later.
-  </div>
-);
-
-/**
- * @function TopTracks
- * @public
- * @description Renders the Top Tracks component, which displays the user's most played Spotify tracks in the last 4 weeks.
- * Fetches data from the `/api/v1/top-tracks` endpoint and renders responsive, interactive track cards.
- * Handles loading and error states gracefully.
- * @returns {JSX.Element} Top tracks card UI with track info and images.
- * @throws {Error} If the data fetching encounters unrecoverable errors (shown in the UI).
- * @author Mike Odnis
- * @see DataLoader
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- * @example
- * // Usage in a React component
- * <TopTracks />
- * @web
- */
-export const TopTracks = () => {
+    );
+  }
   return (
-    <MagicCard className="rounded-2xl shadow-2xl p-6">
-      <h2 className="text-3xl font-bold text-foreground mb-2 text-center">Top Tracks</h2>
-      <p className="text-muted-foreground mb-6 text-center">
-        My most played tracks in the last 4 weeks.
-      </p>
-      <DataLoader
-        url="/api/v1/top-tracks"
-        schema={TopTracksResponseSchema}
-        staleTime={1000 * 60 * 60}
-        refetchInterval={1000 * 60 * 60}
-        refetchOnWindowFocus={false}
-        ErrorComponent={TopTracksError}
-        LoadingComponent={<TopTracksSkeleton />}
-      >
-        {(data: Schema.Schema.Type<typeof TopTracksResponseSchema>) => (
-          <>
-            {data.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.map((track: Schema.Schema.Type<typeof TrackSchema>, index: number) => (
-                  /**
-                   * @private
-                   * @description Animates and displays an individual top track card.
-                   * @param {Schema.Schema.Type<typeof TrackSchema>} track - Top track info, including name, artist, url, and image.
-                   * @param {number} index - Index for animation transition delay.
-                   * @returns {JSX.Element}
-                   * @author Mike Odnis
-                   * @web
-                   */
-                  <motion.div
-                    key={track.url}
-                    className="flex items-center space-x-4 bg-secondary rounded-lg p-3 cursor-pointer hover:bg-primary/25 transition-all duration-300"
-                    onClick={() => window.open(track.url, '_blank')}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Image
-                      src={track.imageUrl}
-                      alt={`Album art for ${track.name} by ${track.artist}`}
-                      className="w-16 h-16 rounded-md shadow-md"
-                      width={64}
-                      height={64}
-                      priority={false}
-                      placeholder="empty"
-                      sizes="64px"
-                    />
-                    <div className="grow overflow-hidden">
-                      <p className="text-foreground font-semibold truncate">{track.name}</p>
-                      <p className="text-muted-foreground text-sm truncate">{track.artist}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center">
-                No top tracks data available at the moment.
-              </p>
-            )}
-          </>
-        )}
-      </DataLoader>
-    </MagicCard>
+    <a href={href} target="_blank" rel="noopener noreferrer" className={cn(CARD_CLASS, LINK_CLASS)}>
+      <TrackCardContent track={track} rank={rank} />{' '}
+      <span className="sr-only">(opens in a new tab)</span>
+    </a>
   );
 };
-TopTracks.displayName = 'TopTracks';
-export default TopTracks;
+
+/** The ranked grid; an ordered list, so assistive tech hears the position and the count too. */
+const TopTracksGrid = ({ tracks }: { tracks: readonly TopTrack[] }): ReactElement => (
+  <ol className={TOP_TRACKS_GRID_CLASS}>
+    {tracks.map((track, index) => (
+      <li key={track.url || `${track.name}-${track.artist}`}>
+        <TrackCard track={track} rank={index + 1} />
+      </li>
+    ))}
+  </ol>
+);
+
+/**
+ * The /spotify top tracks of the last 4 weeks. An async server component: it renders the grid
+ * in the server HTML, or "Couldn't load top tracks" with a Try again that re-renders the route
+ * when Spotify fails or takes longer than {@link TOP_TRACKS_DEADLINE_MS}.
+ *
+ * @example
+ * <Suspense fallback={<TopTracksSkeleton />}>
+ *   <TopTracks />
+ * </Suspense>
+ */
+export async function TopTracks(): Promise<ReactElement> {
+  const result = await loadTopTracks();
+  if (!result.ok) return <SectionError title={ERROR_TITLE} action={<RetryButton />} />;
+  if (result.tracks.length === 0) {
+    return <p className="text-muted-foreground text-center">{EMPTY_MESSAGE}</p>;
+  }
+  return <TopTracksGrid tracks={result.tracks} />;
+}
+
+const SKELETON_KEYS = Array.from({ length: SKELETON_ITEM_COUNT }, (_, index) => `track-${index}`);
+
+/** The grid's placeholder, with the real grid classes and card box sizes. */
+export function TopTracksSkeleton(): ReactElement {
+  return (
+    <output className="block" aria-label="Loading top tracks">
+      <ul className={TOP_TRACKS_GRID_CLASS} aria-hidden="true">
+        {SKELETON_KEYS.map((key) => (
+          <li key={key} className={CARD_CLASS}>
+            <Skeleton className="h-5 w-6 shrink-0 bg-muted" />
+            <Skeleton className="size-16 shrink-0 rounded-md bg-muted" />
+            <div className="grow space-y-2">
+              <Skeleton className="h-5 w-3/4 bg-muted" />
+              <Skeleton className="h-4 w-1/2 bg-muted" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </output>
+  );
+}

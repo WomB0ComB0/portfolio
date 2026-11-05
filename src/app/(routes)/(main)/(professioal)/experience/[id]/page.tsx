@@ -14,72 +14,45 @@
  * limitations under the License.
  */
 
+/**
+ * @file /experience/[id]. The page loads its experience at the top level, with no Suspense or
+ * loading.tsx above it, so an unknown id answers HTTP 404 (src/app/(routes)/not-found.tsx, in the
+ * shell) and a Sanity failure with nothing cached answers 500 (src/app/(routes)/error.tsx).
+ * Metadata and page share one load per request through the loader's React cache().
+ */
+
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
+import { ExperienceDetail } from '@/app/(routes)/(main)/(professioal)/experience/_interface/experience-detail';
 import { reportApiFailure } from '@/lib/observability/report';
-import { getExperiences } from '@/lib/sanity/api';
+import { loadExperienceById } from '@/lib/sanity/loaders';
 import { constructMetadata, logger } from '@/utils';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build experience page metadata';
 
-/**
- * Dynamically imports the ExperienceDetail component for SSR.
- *
- * @readonly
- * @type {import('react').ComponentType<{ params: { id: string } }>}
- * @web
- * @author Mike Odnis
- * @see https://nextjs.org/docs/pages/api-reference/functions/dynamic
- * @version 1.0.0
- */
-const ExperienceDetail = (await import('next/dynamic')).default(
-  () =>
-    import('@/app/(routes)/(main)/(professioal)/experience/_interface/experience-detail').then(
-      (mod) => mod.ExperienceDetail,
-    ),
-  {
-    ssr: true,
-  },
-);
+interface ExperienceDetailPageProps {
+  readonly params: Promise<{ id: string }>;
+}
 
 // No generateStaticParams: the root layout is force-dynamic (the CSP nonce is per request), so
 // every id renders on request anyway, and a build-time id list only made `next build` try and
-// fail to prerender each one. Unknown ids still 404 through notFound() in ExperienceDetail.
+// fail to prerender each one.
 
 /**
- * Generates metadata for the Experience detail page for SEO and meta tags.
- *
- * Attempts to resolve the experience by id and propagate metadata for the experience,
- * or provides fallback metadata if not found or on error.
- *
- * @function
- * @async
- * @public
- * @param {{ params: Promise<{ id: string }> }} context - The params object containing the experience id as a Promise.
- * @returns {Promise<Record<string, any>>} A metadata object suitable for Next.js SEO/meta rendering.
- * @throws {Error} Throws error if fetching experiences fails or unexpected issues occur.
- * @example
- * const meta = await generateMetadata({ params: Promise.resolve({ id: 'abc123' }) });
- * @web
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata
- * @version 1.0.0
+ * The experience's title and description, with its og:url. An unknown id gets "Not Found" and no
+ * og:url (the page answers 404). When Sanity fails, whether the id exists is unknown, so the
+ * page's defaults are kept, og:url included, and the failure is reported as a warning.
  */
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: ExperienceDetailPageProps): Promise<Metadata> {
   const { id } = await params;
   const path = `/experience/${encodeURIComponent(id)}`;
 
   try {
-    const experiences = await getExperiences();
-    const experienceItem = experiences.find((exp) => exp._id === id);
+    const experience = await loadExperienceById(id);
 
-    // An unknown id renders a 404, so it gets no og:url.
-    if (!experienceItem) {
+    if (!experience) {
       return constructMetadata({
         title: 'Experience Not Found',
         description: 'The requested experience item could not be found',
@@ -87,13 +60,11 @@ export async function generateMetadata({
     }
 
     return constructMetadata({
-      title: `${experienceItem.position} at ${experienceItem.company}`,
-      description: experienceItem.description,
+      title: `${experience.position} at ${experience.company}`,
+      description: experience.description,
       path,
     });
   } catch (error) {
-    // Sanity failed, so whether the id exists is unknown: keep the page's defaults (and its
-    // og:url) rather than claiming "Not Found". The page body shows its own error state.
     logger.warn('Experience metadata fell back to the defaults', { error });
     reportApiFailure(error, { context: METADATA_REPORT_CONTEXT, level: 'warning' });
     return constructMetadata({
@@ -104,31 +75,14 @@ export async function generateMetadata({
   }
 }
 
-/**
- * Renders the detail page for a specific work experience entry.
- *
- * Resolves the Next.js dynamic route parameter and passes it to the dynamic ExperienceDetail component.
- *
- * @function
- * @async
- * @public
- * @param {{ params: Promise<{ id: string }> }} props - The page props containing dynamic route params as a Promise.
- * @returns {Promise<JSX.Element>} The JSX for the Experience Detail view.
- * @throws {Error} Throws if params cannot be resolved.
- * @example
- * <ExperienceDetailPage params={Promise.resolve({ id: 'abc123' })} />
- * @web
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/page
- * @version 1.0.0
- */
+/** One experience, or a real 404 for an id Sanity does not have. */
 const ExperienceDetailPage = async ({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<JSX.Element> => {
-  const resolvedParams = await params;
-  return <ExperienceDetail params={resolvedParams} />;
+}: ExperienceDetailPageProps): Promise<JSX.Element> => {
+  const { id } = await params;
+  const experience = await loadExperienceById(id);
+  if (!experience) notFound();
+  return <ExperienceDetail experience={experience} />;
 };
 ExperienceDetailPage.displayName = 'ExperienceDetailPage';
 export default ExperienceDetailPage;

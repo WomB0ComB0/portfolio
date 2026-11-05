@@ -15,7 +15,7 @@
  */
 
 import type { JSX, ReactNode } from 'react';
-import { cn } from '@/lib';
+import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
   title: string;

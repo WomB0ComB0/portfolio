@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-import { QueryClientProvider } from '@tanstack/react-query';
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Analytics } from '@vercel/analytics/react';
 import { KBarProvider } from 'kbar';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
-import { useState } from 'react';
 import { z } from 'zod';
 import { WebVitals } from '@/app/_components';
 import { Toaster } from '@/components/ui/sonner';
@@ -35,6 +34,26 @@ import { createQueryClient } from '@/providers/server';
 // CSP (no 'unsafe-eval') every probe still files a violation report. jitless skips it; Zod then
 // uses its interpreted path, which is fast enough at this scale.
 z.config({ jitless: true });
+
+/** The browser's QueryClient, built on the first render and kept for the whole page load. */
+let browserQueryClient: QueryClient | undefined;
+
+/**
+ * The QueryClient for this render. On the server, a new client for every request, so visitors
+ * never share cached data. In the browser, one client for the page load.
+ *
+ * It is a module singleton rather than useState: no Suspense boundary sits between this provider
+ * and the pages (a root loading.tsx would turn detail-page 404s into 200s), so when the first
+ * hydration suspends, React discards the uncommitted tree, this provider's state included, and
+ * renders it again. Kept in state, the client was built again each time, losing every query the
+ * discarded render had started. createQueryClient's React cache() memoizes nothing in a client
+ * component, so each call here builds a new client.
+ */
+const getQueryClient = (): QueryClient => {
+  if (typeof window === 'undefined') return createQueryClient()();
+  browserQueryClient ??= createQueryClient()();
+  return browserQueryClient;
+};
 
 /**
  * @public
@@ -62,12 +81,9 @@ export const GlobalProvider: React.FC<
   /**
    * @private
    * @web
-   * @description
-   * The QueryClient for this mount, created once. createQueryClient's React cache() memoizes
-   * nothing in a client component, so calling it during render would build a new client (and an
-   * empty query cache) on every re-render of this provider.
+   * @description The QueryClient: one per server render, one per page load in the browser.
    */
-  const [queryClient] = useState(() => createQueryClient()());
+  const queryClient = getQueryClient();
 
   return (
     <>

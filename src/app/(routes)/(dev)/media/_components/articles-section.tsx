@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,121 +14,100 @@
  * limitations under the License.
  */
 
-import type { Schema } from 'effect';
 import { CalendarIcon, ExternalLinkIcon, UsersIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import { type JSX, Suspense } from 'react';
-import { MagicCard } from '@/components/magicui';
+import type { JSX } from 'react';
+import type { Article } from '@/app/(routes)/(dev)/media/_lib/load-media';
+import { MagicCard } from '@/components/magicui/magic-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type ArticleSchema, ArticlesSchema } from '@/hooks/sanity/schemas';
-import { DataLoader } from '@/providers/server/effect-data-loader';
 import { formatDate } from '@/utils/date';
+
+const ARTICLE_SKELETON_CARDS = 3;
+
+const ArticleCard = ({ article }: { article: Article }): JSX.Element => (
+  <div className="h-full w-full">
+    <a
+      href={article.publicationUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block h-full"
+    >
+      <MagicCard className="h-full transition-shadow hover:shadow-lg">
+        <div className="flex flex-col h-full">
+          <CardHeader className="grow">
+            <CardTitle className="line-clamp-2">{article.title}</CardTitle>
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <ExternalLinkIcon className="w-3 h-3" />
+              {article.publication}
+            </p>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <p className="text-muted-foreground mb-4 line-clamp-3">{article.excerpt}</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {article.tags?.map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground mt-auto">
+              <div className="flex items-center">
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                <span>
+                  {formatDate(article.publishedDate, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+              {article.coAuthors && article.coAuthors.length > 0 && (
+                <div className="flex items-center">
+                  <UsersIcon className="w-4 h-4 mr-2" />
+                  <span className="line-clamp-1">Co-authors: {article.coAuthors.join(', ')}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </div>
+      </MagicCard>
+    </a>
+  </div>
+);
+
+export interface ArticlesSectionProps {
+  readonly items: readonly Article[];
+}
 
 /**
  * @function ArticlesSection
  * @description
- *   Renders the articles section for the media page.
+ *   Renders the articles section for the media page, on the server from the list the page
+ *   loaded.
  * @returns {JSX.Element} The articles section component.
  * @web
  * @public
  * @author Mike Odnis
- * @version 1.0.0
+ * @version 2.0.0
  */
-export const ArticlesSection = (): JSX.Element => {
-  return (
-    <Suspense fallback={<ArticlesSkeleton />}>
-      <DataLoader
-        url="/api/v1/sanity/articles"
-        schema={ArticlesSchema}
-        staleTime={1000 * 60 * 5}
-        refetchInterval={1000 * 60 * 5}
-        refetchOnWindowFocus={false}
-        ErrorComponent={ArticlesErrorMessage}
-      >
-        {(data: Schema.Schema.Type<typeof ArticlesSchema>) =>
-          data.length === 0 ? (
-            <EmptyState message="No articles available yet." />
-          ) : (
-            <div className="grid gap-4 sm:gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] justify-center">
-              <AnimatePresence>
-                {data.map((article: Schema.Schema.Type<typeof ArticleSchema>, index: number) => (
-                  <motion.div
-                    key={article._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="h-full w-full"
-                  >
-                    <a
-                      href={article.publicationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block h-full"
-                    >
-                      <MagicCard className="h-full transition-shadow hover:shadow-lg">
-                        <div className="flex flex-col h-full">
-                          <CardHeader className="grow">
-                            <CardTitle className="line-clamp-2">{article.title}</CardTitle>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <ExternalLinkIcon className="w-3 h-3" />
-                              {article.publication}
-                            </p>
-                          </CardHeader>
-                          <CardContent className="mt-auto">
-                            <p className="text-muted-foreground mb-4 line-clamp-3">
-                              {article.excerpt}
-                            </p>
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              {article.tags?.map((tag: string) => (
-                                <Badge key={tag} variant="secondary">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                            <div className="flex flex-col gap-2 text-sm text-muted-foreground mt-auto">
-                              <div className="flex items-center">
-                                <CalendarIcon className="w-4 h-4 mr-2" />
-                                <span>
-                                  {formatDate(article.publishedDate, {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                  })}
-                                </span>
-                              </div>
-                              {article.coAuthors && article.coAuthors.length > 0 && (
-                                <div className="flex items-center">
-                                  <UsersIcon className="w-4 h-4 mr-2" />
-                                  <span className="line-clamp-1">
-                                    Co-authors: {article.coAuthors.join(', ')}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </div>
-                      </MagicCard>
-                    </a>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )
-        }
-      </DataLoader>
-    </Suspense>
+export const ArticlesSection = ({ items }: ArticlesSectionProps): JSX.Element =>
+  items.length === 0 ? (
+    <EmptyState message="No articles available yet." />
+  ) : (
+    <div className="grid gap-4 sm:gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] justify-center">
+      {items.map((article) => (
+        <ArticleCard key={article._id} article={article} />
+      ))}
+    </div>
   );
-};
 
 /**
  * Skeleton loader for articles section
  */
-const ArticlesSkeleton = (): JSX.Element => (
+export const ArticlesSkeleton = (): JSX.Element => (
   <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-    {new Array(3).fill(null).map((_, i) => (
+    {Array.from({ length: ARTICLE_SKELETON_CARDS }, (_, i) => (
       <MagicCard key={`article-skeleton-${Number(i)}`} className="h-full">
         <Card className="h-full">
           <CardHeader>
@@ -151,19 +128,6 @@ const ArticlesSkeleton = (): JSX.Element => (
       </MagicCard>
     ))}
   </div>
-);
-
-/**
- * Error message component for articles section
- */
-const ArticlesErrorMessage = (): JSX.Element => (
-  <Card className="border-destructive/30 bg-destructive/10">
-    <CardContent className="flex items-center justify-center p-6">
-      <p className="font-semibold text-destructive">
-        Failed to load articles. Please try again later.
-      </p>
-    </CardContent>
-  </Card>
 );
 
 /**

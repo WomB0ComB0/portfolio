@@ -31,12 +31,6 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-// The full '@/lib' barrel includes decorator-based HTTP clients that Vitest can't parse; the
-// guestbook's components only need its class-name helpers.
-vi.mock('@/lib', async () => ({
-  ...(await import('@/lib/utils')),
-  ...(await import('@/lib/ui-utils')),
-}));
 vi.mock('sonner', () => ({ toast: h.toast }));
 vi.mock('@/core/auth', () => ({
   useCurrentUser: () => ({ displayName: 'Ada', email: 'ada@example.com' }),

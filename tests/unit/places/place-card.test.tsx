@@ -58,6 +58,19 @@ describe('PlaceCard', () => {
     expect(screen.queryByRole('link', { name: /View Photos/ })).not.toBeInTheDocument();
   });
 
+  it('puts a pending spinner inside the place page link, and none in the Maps link', () => {
+    render(<PlaceCard place={place([])} />);
+
+    const spinnersIn = (link: HTMLElement) =>
+      Array.from(link.querySelectorAll('span[aria-hidden="true"]')).filter((span) =>
+        span.className.includes('data-[pending]'),
+      );
+    expect(
+      spinnersIn(screen.getByRole('link', { name: 'View Details for Test Place' })),
+    ).toHaveLength(1);
+    expect(spinnersIn(screen.getByRole('link', { name: /^Test Place/ }))).toHaveLength(0);
+  });
+
   it('opens the location in Google Maps from the card header', () => {
     render(<PlaceCard place={place([])} />);
 

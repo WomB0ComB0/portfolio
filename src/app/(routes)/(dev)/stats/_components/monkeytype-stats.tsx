@@ -16,29 +16,26 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { FaKeyboard } from 'react-icons/fa';
+import { RetryButton } from '@/components/data/retry-button';
+import { SectionError } from '@/components/data/section-error';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
+import { type MonkeytypeData, monkeytypeQuery } from '../_lib/stats-queries';
 import { StatCard } from './stat-card';
 
-const MonkeytypeDataSchema = Schema.Struct({
-  personalBests: Schema.Struct({
-    time: Schema.Struct({
-      '60': Schema.Array(Schema.Struct({ wpm: Schema.Number, acc: Schema.Number })),
-    }),
-  }),
-  typingStats: Schema.Struct({ completedTests: Schema.Number }),
-});
-const MonkeytypeResponseSchema = Schema.Struct({ data: MonkeytypeDataSchema });
-export type MonkeytypeData = Schema.Schema.Type<typeof MonkeytypeDataSchema>;
-
+/**
+ * The ring draws itself in when it mounts in the browser. A ring hydrated from server HTML
+ * already shows its value there (and without JavaScript), so it rests at it instead of emptying
+ * and redrawing.
+ */
 const CircularProgress = ({ value, colorClass }: { value: number; colorClass: string }) => {
+  const isServerHtml = useIsServerHtmlRender();
+  const [skipsEntrance] = useState(isServerHtml);
   const radius = 32;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
@@ -64,7 +61,7 @@ const CircularProgress = ({ value, colorClass }: { value: number; colorClass: st
           cx="40"
           cy="40"
           style={{ strokeDasharray: circumference, strokeDashoffset: offset }}
-          initial={{ strokeDashoffset: circumference }}
+          initial={skipsEntrance ? false : { strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
           transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
         />
@@ -81,8 +78,14 @@ const PersonalBestCaption = () => (
   <p className="text-xs text-muted-foreground text-center">WPM and accuracy: 60 s personal best</p>
 );
 
-const MonkeytypeSkeleton = () => (
-  <StatCard title="Monkeytype Stats" icon={<FaKeyboard />} footer={<PersonalBestCaption />}>
+/** The card while its data loads: the loaded card's frame, with placeholders for its content. */
+export const MonkeytypeStatsSkeleton = () => (
+  <StatCard
+    title="Monkeytype Stats"
+    icon={<FaKeyboard />}
+    footer={<PersonalBestCaption />}
+    hasEntrance={false}
+  >
     <div className="grid grid-cols-3 gap-4 text-center">
       <div className="space-y-1">
         <Skeleton className="h-4 w-16 mx-auto" />
@@ -100,30 +103,8 @@ const MonkeytypeSkeleton = () => (
   </StatCard>
 );
 
-export const MonkeytypeStats = memo(() => {
-  const { data: monkeytypeData, isLoading } = useQuery({
-    queryKey: ['monkeytype-stats'],
-    queryFn: async () => {
-      const effect = pipe(
-        get('https://api.monkeytype.com/users/WomB0ComB0/profile', {
-          schema: MonkeytypeResponseSchema,
-          retries: 0,
-          timeout: 10_000,
-        }),
-        Effect.provide(FetchHttpClient.layer),
-      );
-      return (await Effect.runPromise(effect)).data;
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
-
-  if (isLoading) {
-    return <MonkeytypeSkeleton />;
-  }
-
-  if (!monkeytypeData) return null;
-
-  const best60 = monkeytypeData.personalBests.time['60']?.reduce(
+const MonkeytypeStatsCard = ({ data }: { data: MonkeytypeData }) => {
+  const best60 = data.personalBests.time['60']?.reduce(
     (best, current) => {
       return current.wpm > best.wpm ? current : best;
     },
@@ -150,11 +131,30 @@ export const MonkeytypeStats = memo(() => {
           <span className="text-xs text-muted-foreground">Tests</span>
           <NumberTicker
             className="text-md md:text-lg font-bold text-card-foreground"
-            value={monkeytypeData.typingStats.completedTests}
+            value={data.typingStats.completedTests}
           />
         </div>
       </div>
     </StatCard>
+  );
+};
+
+/**
+ * The Monkeytype card. Its data is usually prefetched on the server, with the Dev Stats card's
+ * (see the /stats page); otherwise it shows its skeleton and asks Monkeytype from the browser. A
+ * failed load with nothing cached says so, with Try again.
+ */
+export const MonkeytypeStats = memo(() => {
+  const { data, isError, refetch } = useQuery(monkeytypeQuery);
+
+  if (data !== undefined) return <MonkeytypeStatsCard data={data} />;
+  if (!isError) return <MonkeytypeStatsSkeleton />;
+  return (
+    <SectionError
+      title="Couldn't load Monkeytype stats"
+      headingLevel={2}
+      action={<RetryButton onRetry={() => void refetch()} />}
+    />
   );
 });
 MonkeytypeStats.displayName = 'MonkeytypeStats';

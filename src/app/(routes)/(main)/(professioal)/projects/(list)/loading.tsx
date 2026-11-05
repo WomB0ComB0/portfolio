@@ -14,26 +14,14 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
+/**
+ * @file /projects while its projects load. Inside the (list) group on purpose: a loading.tsx in
+ * projects/ would also wrap /projects/[id] and answer 200 before its notFound() could 404.
+ */
+
 import type { JSX } from 'react';
-import { constructMetadata } from '@/utils';
+import { ProjectsListSkeleton } from '@/app/(routes)/(main)/(professioal)/projects/_components/projects-skeleton';
 
-const Places = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(personal)/places/_interface/places').then((mod) => mod.Places),
-  {
-    ssr: true,
-  },
-);
-
-export const metadata = constructMetadata({
-  title: 'Places',
-  description: 'Explore the locations I have visited, including hackathons, tech events, and more',
-  path: '/places',
-});
-
-const PlacesPage = (): JSX.Element => {
-  return <Places />;
-};
-PlacesPage.displayName = 'PlacesPage';
-export default PlacesPage;
+export default function ProjectsLoading(): JSX.Element {
+  return <ProjectsListSkeleton />;
+}

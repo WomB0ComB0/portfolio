@@ -15,8 +15,8 @@
  */
 
 export { default as Discord } from './discord';
-export { default as GitHubStats } from './github-stats';
-export { LeetCodeStats } from './leetcode-stats';
-export { default as MonkeytypeStats } from './monkeytype-stats';
+export { default as GitHubStats, GitHubStatsSkeleton } from './github-stats';
+export { LeetCodeStats, LeetCodeStatsSkeleton } from './leetcode-stats';
+export { default as MonkeytypeStats, MonkeytypeStatsSkeleton } from './monkeytype-stats';
 export { StatCard } from './stat-card';
-export { default as DevStats } from './stats';
+export { DevStatsSkeleton, default as DevStats } from './stats';

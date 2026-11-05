@@ -37,10 +37,15 @@ vi.mock('@/env', () => {
 const CACHE_DURATION = 6 * 60 * 60 * 1_000;
 const T0 = new Date('2026-11-05T12:00:00Z').getTime();
 
-/** The handler caches in module state, so each test loads a fresh copy of it. */
+/**
+ * Each test loads a fresh copy of the handler (which also resets the report cooldowns) and empties
+ * its cache, which lives on globalThis and so outlives a fresh import.
+ */
 const loadGetLeetCodeStats = async () => {
   vi.resetModules();
-  return (await import('@/app/api/v1/[[...route]]/leetcode/handlers')).getLeetCodeStats;
+  const handlers = await import('@/app/api/v1/[[...route]]/leetcode/handlers');
+  handlers.resetLeetCodeCache();
+  return handlers.getLeetCodeStats;
 };
 
 const jsonResponse = (body: unknown, status = 200) =>

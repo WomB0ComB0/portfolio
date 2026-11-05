@@ -35,6 +35,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
+import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
@@ -86,7 +87,39 @@ export type GitHubRepo = Schema.Schema.Type<typeof GitHubRepoSchema>;
 type GitHubUser = Schema.Schema.Type<typeof GitHubUserSchema>;
 
 const CACHE_DURATION = 60 * 60 * 1_000; // 1 hour
-let cache: { data: GitHubStatsData; timestamp: number } | null = null;
+
+interface CachedStats {
+  readonly data: GitHubStatsData;
+  readonly timestamp: number;
+}
+
+/**
+ * What getGitHubStats keeps between calls. Next bundles this module once for the /stats page
+ * (whose prefetch calls getGitHubStats directly) and once for /api/v1, so module state would give
+ * each its own cache. Kept in processGlobal instead, a prefetch that misses its deadline still
+ * fills the cache the card's fallback request to /api/v1/github-stats reads, or that request joins
+ * the load still running, rather than asking GitHub a second time.
+ */
+interface GitHubStatsState {
+  /** The last good stats and when they were fetched. */
+  cache: CachedStats | null;
+  /** The refresh running now; every caller that finds the cache expired joins it. */
+  inFlight: Promise<GitHubStatsData> | null;
+}
+
+const STATE_NAME = 'github-stats.cache';
+
+/** Looked up on every call, so a reset in a test takes effect without reloading this module. */
+const sharedState = (): GitHubStatsState =>
+  processGlobal<GitHubStatsState>(STATE_NAME, () => ({ cache: null, inFlight: null }));
+
+/** Forgets the cached stats and any running refresh. Tests only. */
+export function resetGitHubStatsCache(): void {
+  resetProcessGlobal(STATE_NAME);
+}
+
+const isFresh = (cache: CachedStats | null): cache is CachedStats =>
+  cache !== null && Date.now() - cache.timestamp < CACHE_DURATION;
 
 /**
  * Upstream time budget. The GitHub card's fetch gives up after 10 s, so the stale fallback (or the
@@ -189,22 +222,23 @@ function toStatsData(
   };
 }
 
-export async function getGitHubStats(): Promise<GitHubStatsData> {
-  if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
-    return cache.data;
-  }
-
+/**
+ * Asks GitHub again and caches the answer in `state`, the store that was current when the refresh
+ * started (so one that outlives a test's reset never fills the next test's cache).
+ */
+async function refreshGitHubStats(state: GitHubStatsState): Promise<GitHubStatsData> {
   try {
     const [me, personalRepos, orgRepos] = await Effect.runPromise(fetchGitHubSources());
     const data = toStatsData(me, personalRepos, orgRepos);
-    cache = { data, timestamp: Date.now() };
+    state.cache = { data, timestamp: Date.now() };
 
     return data;
   } catch (error) {
+    const { cache } = state;
     const failure = ensureBaseError(error, 'github:stats', {
       username: 'WomB0ComB0',
       organization: 'ElysiumOSS',
-      cacheExpired: !cache || Date.now() - cache.timestamp >= CACHE_DURATION,
+      cacheExpired: !isFresh(cache),
     });
     // Repo and star counts change slowly: the last good stats beat a 500.
     if (cache) {
@@ -213,4 +247,17 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
     }
     throw failure;
   }
+}
+
+export async function getGitHubStats(): Promise<GitHubStatsData> {
+  const state = sharedState();
+  if (isFresh(state.cache)) {
+    return state.cache.data;
+  }
+
+  // One refresh at a time: a late prefetch and the card's own request share GitHub's answer.
+  state.inFlight ??= refreshGitHubStats(state).finally(() => {
+    state.inFlight = null;
+  });
+  return state.inFlight;
 }

@@ -52,8 +52,9 @@ const statusInfo = {
   offline: { text: 'Offline', color: 'bg-gray-500', pulse: false },
 };
 
-const DiscordSkeleton = () => (
-  <StatCard title="Discord Status" icon={<SiDiscord />}>
+/** The card's placeholder. No entrance, so only the loaded card that replaces it fades in. */
+export const DiscordSkeleton = () => (
+  <StatCard title="Discord Status" icon={<SiDiscord />} hasEntrance={false}>
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

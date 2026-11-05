@@ -19,17 +19,20 @@ import type { MetadataRoute } from 'next';
 const SITEMAP_URL = 'https://mikeodnis.dev/sitemap.xml';
 
 /**
- * Interim: pages still load their content in the browser from /api/v1/*, so a crawler kept out of
- * /api/ renders them empty. Until pages render their data on the server, crawlers may read the
- * content API and the OG image route. Narrow this back to `/api/og` once they do.
+ * Pages render their content on the server, so a crawler needs no API to read them. Under /api/
+ * only the OG image route stays open, for link previews.
+ *
+ * Interim: the guestbook still loads its messages in the browser from /api/v1/messages, so that
+ * endpoint stays open too. Remove it once the guestbook renders its messages on the server.
  */
-const ALLOW = ['/', '/api/v1/', '/api/og'];
+const ALLOW = ['/', '/api/og', '/api/v1/messages'];
 
 /**
- * The rest of /api/ (admin, status, health) stays closed, as do the /api/v1 service endpoints,
- * which carry no page content. Crawlers use the longest matching rule, so these beat `/api/v1/`.
+ * The rest of /api/ stays closed: admin, status and health, the service endpoints, and the content
+ * API, whose data the pages now put in their server HTML. Crawlers use the longest matching rule,
+ * so the allows above beat `/api/`.
  */
-const DISALLOW = ['/api/', '/api/v1/health', '/api/v1/info', '/api/v1/status', '/api/v1/version'];
+const DISALLOW = ['/api/'];
 
 /** The rules every user-agent group shares; each group gets its own copy. */
 const crawlRules = (): { allow: string[]; disallow: string[] } => ({
@@ -45,7 +48,7 @@ const crawlRules = (): { allow: string[]; disallow: string[] } => ({
  * @remarks
  * - Googlebot, Applebot and Bingbot keep their own groups, and every other crawler gets the `*`
  *   group. All of them share one set of rules.
- * - Pages and the read-only content API are allowed; admin and service endpoints are not.
+ * - Pages, the OG image route and the guestbook's messages are allowed; the rest of /api/ is not.
  */
 export default function robots(): MetadataRoute.Robots {
   return {

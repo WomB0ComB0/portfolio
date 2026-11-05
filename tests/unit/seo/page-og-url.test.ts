@@ -18,10 +18,12 @@
 /**
  * @file Every static page exports metadata whose og:url is its own absolute URL, the homepage
  * included: the root layout sets no path, so a page that exports no metadata (as the old
- * 'use client' homepage could not) has no og:url at all. The page modules are imported for real;
- * only their client bodies are stubbed, since metadata never renders them.
+ * 'use client' homepage could not) has no og:url at all. The page modules are imported for real
+ * and never rendered, since metadata needs no body. The Sanity loaders are mocked, and every
+ * static page in the sitemap (its entries without a detail segment) has a module listed here.
  */
 
+import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
 import type { Metadata } from 'next';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -30,13 +32,45 @@ vi.hoisted(() => {
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://mikeodnis.dev');
 });
 
-// Each page wraps its body in next/dynamic, and the homepage renders a client component.
-vi.mock('next/dynamic', () => ({ default: () => () => null }));
+const loaders = vi.hoisted(() => ({
+  loadProjects: vi.fn(),
+  loadExperiences: vi.fn(),
+  loadPlaces: vi.fn(),
+  loadCertifications: vi.fn(),
+  loadResume: vi.fn(),
+}));
+
+// t3-env validates every variable on import; metadata needs none of them.
+vi.mock('@/env', () => {
+  const env = new Proxy({} as Record<string, unknown>, {
+    get: (_target, key) => (key === 'NODE_ENV' ? 'test' : undefined),
+  });
+  return { env, default: env };
+});
+vi.mock('@/lib/sanity/client', () => ({ sanityFetchWithToken: vi.fn(), urlFor: vi.fn() }));
+// The sitemap's loaders answer one document per detail section; the pages never call theirs.
+vi.mock('@/lib/sanity/loaders', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sanity/loaders')>()),
+  ...loaders,
+}));
+// Client modules with import-time side effects: Firebase starts (and rejects the missing API key)
+// for the sign-in and stats islands, and the map imports a stylesheet.
+vi.mock('@/core/firebase', () => ({ app: {}, auth: {}, firestore: {} }));
+vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map', () => ({
+  GoogleMaps: () => null,
+}));
+// The homepage's client component.
 vi.mock('@/app/_components/home', () => ({ HomePage: () => null }));
 
 import Sitemap from '@/app/sitemap';
 import { app } from '@/constants';
 import { constructMetadata } from '@/utils/seo/meta';
+
+loaders.loadProjects.mockResolvedValue([makeProject()]);
+loaders.loadExperiences.mockResolvedValue([makeExperience()]);
+loaders.loadPlaces.mockResolvedValue([makePlace()]);
+loaders.loadCertifications.mockResolvedValue([]);
+loaders.loadResume.mockResolvedValue(null);
 
 afterAll(() => {
   vi.unstubAllEnvs();
@@ -54,14 +88,17 @@ const STATIC_PAGES: Readonly<Record<string, () => Promise<PageModule>>> = {
   '/sponsor': () => import('@/app/(routes)/(dev)/sponsor/page'),
   '/media': () => import('@/app/(routes)/(dev)/media/page'),
   '/stats': () => import('@/app/(routes)/(dev)/stats/page'),
-  '/projects': () => import('@/app/(routes)/(main)/(professioal)/projects/page'),
+  '/projects': () => import('@/app/(routes)/(main)/(professioal)/projects/(list)/page'),
   '/certifications': () => import('@/app/(routes)/(main)/(professioal)/certifications/page'),
   '/resume': () => import('@/app/(routes)/(main)/(professioal)/resume/page'),
-  '/experience': () => import('@/app/(routes)/(main)/(professioal)/experience/page'),
+  '/experience': () => import('@/app/(routes)/(main)/(professioal)/experience/(list)/page'),
   '/spotify': () => import('@/app/(routes)/(main)/(personal)/spotify/page'),
   '/guestbook': () => import('@/app/(routes)/(main)/(personal)/guestbook/page'),
-  '/places': () => import('@/app/(routes)/(main)/(personal)/places/page'),
+  '/places': () => import('@/app/(routes)/(main)/(personal)/places/(list)/page'),
 };
+
+/** A page per Sanity document: /projects/<id>, /experience/<id> or /places/<id>. */
+const DETAIL_PATH = /^\/(?:projects|experience|places)\/[^/]+$/;
 
 const STATS_DESCRIPTION =
   "What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours.";
@@ -73,10 +110,14 @@ const metadataOf = async (route: string): Promise<Metadata> => {
 };
 
 describe('static page og:url', () => {
-  it('lists a page module for every route in the sitemap', async () => {
-    const sitemapRoutes = (await Sitemap()).map((entry) => new URL(entry.url).pathname);
+  it('lists a page module for every static page in the sitemap', async () => {
+    const paths = (await Sitemap()).map((entry) => new URL(entry.url).pathname);
+    const detailPaths = paths.filter((path) => DETAIL_PATH.test(path));
+    const staticPaths = paths.filter((path) => !DETAIL_PATH.test(path));
 
-    expect(Object.keys(STATIC_PAGES).sort()).toEqual([...sitemapRoutes].sort());
+    // One detail page per mocked document, so the filter above is really exercised.
+    expect(detailPaths).toHaveLength(3);
+    expect(Object.keys(STATIC_PAGES).sort()).toEqual([...staticPaths].sort());
   });
 
   it.each(Object.keys(STATIC_PAGES))('%s exports its own absolute og:url', async (route) => {

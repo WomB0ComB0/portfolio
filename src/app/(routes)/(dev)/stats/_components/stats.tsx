@@ -16,28 +16,24 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { useQueries } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { FiCalendar, FiClock, FiCode, FiEye } from 'react-icons/fi';
+import { RetryButton } from '@/components/data/retry-button';
+import { SectionError } from '@/components/data/section-error';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Skeleton } from '@/components/ui/skeleton';
-import { age } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
-import { MonkeytypeStats } from './monkeytype-stats';
+import { ageOn } from '@/constants/app';
+import {
+  type GoogleResponse,
+  pageViewsQuery,
+  type WakaTimeResponse,
+  wakatimeQuery,
+} from '../_lib/stats-queries';
+import { MonkeytypeStats, MonkeytypeStatsSkeleton } from './monkeytype-stats';
 import { StatCard } from './stat-card';
 
-const GoogleResponseSchema = Schema.Struct({
-  total_pageviews: Schema.optional(Schema.Number),
-});
-
-const WakaTimeResponseSchema = Schema.Struct({
-  text: Schema.String,
-  digital: Schema.String,
-  decimal: Schema.String,
-  total_seconds: Schema.Number,
-});
+const SECONDS_PER_HOUR = 3600;
 
 /** Shared by the skeleton and the loaded card. Page views are GA's last 30 days; hours are all time. */
 const LABELS = {
@@ -76,8 +72,8 @@ const StatItem = ({
   </div>
 );
 
-const DevStatsSkeleton = () => (
-  <StatCard title="Dev Stats" icon={<FiCode />}>
+const DevStatsCardSkeleton = () => (
+  <StatCard title="Dev Stats" icon={<FiCode />} hasEntrance={false}>
     <div className="grid grid-cols-3 gap-4">
       <StatItem icon={<FiCalendar />} title={LABELS.age} value={0} isLoading />
       <StatItem icon={<FiEye />} title={LABELS.pageViews} value={0} isLoading />
@@ -86,83 +82,87 @@ const DevStatsSkeleton = () => (
   </StatCard>
 );
 
-export const DevStats = memo(() => {
-  const queries = useQueries({
-    queries: [
-      {
-        queryKey: ['google'],
-        queryFn: async () => {
-          const effect = pipe(
-            get('/api/v1/google', {
-              retries: 0,
-              timeout: 10_000,
-              schema: GoogleResponseSchema,
-            }),
-            Effect.provide(FetchHttpClient.layer),
-          );
-          return await Effect.runPromise(effect);
-        },
-        staleTime: 1000 * 60 * 5,
-      },
-      {
-        queryKey: ['wakatime'],
-        queryFn: async () => {
-          const effect = pipe(
-            get('/api/v1/wakatime', {
-              retries: 0,
-              timeout: 10_000,
-              schema: WakaTimeResponseSchema,
-            }),
-            Effect.provide(FetchHttpClient.layer),
-          );
-          return await Effect.runPromise(effect);
-        },
-        staleTime: 1000 * 60 * 60,
-      },
-    ],
-  });
+/**
+ * What {@link DevStats} shows while its data loads: the Dev Stats card and the Monkeytype card
+ * below it, each with the loaded card's frame.
+ */
+export const DevStatsSkeleton = () => (
+  <div className="space-y-8">
+    <DevStatsCardSkeleton />
+    <MonkeytypeStatsSkeleton />
+  </div>
+);
 
-  const googleData = useMemo(() => queries[0].data ?? null, [queries[0].data]);
-  const wakatimeData = useMemo(() => queries[1].data ?? null, [queries[1].data]);
-  const isLoading = queries.some((query) => query.isLoading);
+interface DevStatsCardProps {
+  pageViews: GoogleResponse;
+  wakatime: WakaTimeResponse;
+}
 
-  if (isLoading) {
+/**
+ * The age is worked out when the card renders, from a UTC birth date, so the server HTML and the
+ * hydrating browser compute the same number whatever the visitor's time zone or however long the
+ * server process has been up.
+ */
+const DevStatsCard = ({ pageViews, wakatime }: DevStatsCardProps) => (
+  <StatCard title="Dev Stats" icon={<FiCode />}>
+    <div className="grid grid-cols-3 gap-4">
+      <StatItem
+        icon={<FiCalendar size={20} />}
+        title={LABELS.age}
+        value={ageOn(new Date())}
+        unit="yrs"
+        isLoading={false}
+      />
+      <StatItem
+        icon={<FiEye size={20} />}
+        title={LABELS.pageViews}
+        value={pageViews.total_pageviews ?? 0}
+        isLoading={false}
+      />
+      <StatItem
+        icon={<FiClock size={20} />}
+        title={LABELS.hoursCoded}
+        value={wakatime.total_seconds ? Math.round(wakatime.total_seconds / SECONDS_PER_HOUR) : 0}
+        isLoading={false}
+      />
+    </div>
+  </StatCard>
+);
+
+/**
+ * The Dev Stats card, from page views (Google Analytics) and coding time (WakaTime). If either
+ * failed with nothing cached, the card says so rather than showing a made-up 0, and Try again
+ * fetches the failed ones again.
+ */
+const DevStatsSection = () => {
+  const [pageViews, wakatime] = useQueries({ queries: [pageViewsQuery, wakatimeQuery] });
+  const failed = [pageViews, wakatime].filter((query) => query.isError && query.data === undefined);
+
+  if (failed.length > 0) {
+    const retry = () => {
+      for (const query of failed) void query.refetch();
+    };
     return (
-      <div className="space-y-8">
-        <DevStatsSkeleton />
-        <MonkeytypeStats />
-      </div>
+      <SectionError
+        title="Couldn't load dev stats"
+        headingLevel={2}
+        action={<RetryButton onRetry={retry} />}
+      />
     );
   }
+  if (pageViews.data === undefined || wakatime.data === undefined) return <DevStatsCardSkeleton />;
+  return <DevStatsCard pageViews={pageViews.data} wakatime={wakatime.data} />;
+};
 
-  return (
-    <div className="space-y-8">
-      <StatCard title="Dev Stats" icon={<FiCode />}>
-        <div className="grid grid-cols-3 gap-4">
-          <StatItem
-            icon={<FiCalendar size={20} />}
-            title={LABELS.age}
-            value={age}
-            unit="yrs"
-            isLoading={false}
-          />
-          <StatItem
-            icon={<FiEye size={20} />}
-            title={LABELS.pageViews}
-            value={googleData?.total_pageviews ?? 0}
-            isLoading={false}
-          />
-          <StatItem
-            icon={<FiClock size={20} />}
-            title={LABELS.hoursCoded}
-            value={wakatimeData?.total_seconds ? Math.round(wakatimeData.total_seconds / 3600) : 0}
-            isLoading={false}
-          />
-        </div>
-      </StatCard>
-      <MonkeytypeStats />
-    </div>
-  );
-});
+/**
+ * The Dev Stats card with the Monkeytype card below it. Their data is usually prefetched on the
+ * server (see the /stats page); otherwise each shows its skeleton and fetches in the browser.
+ */
+export const DevStats = memo(() => (
+  <div className="space-y-8">
+    <DevStatsSection />
+    <MonkeytypeStats />
+  </div>
+));
 DevStats.displayName = 'DevStats';
 export default DevStats;

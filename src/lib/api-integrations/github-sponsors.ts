@@ -32,16 +32,21 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
+import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
 
-// Schema for GitHub Sponsors response
+/**
+ * The sponsoring account. The query asks for its fields only `... on User` and
+ * `... on Organization`, so an account of any other type arrives with just `__typename`. Such a
+ * node is dropped when mapping (see {@link toSponsor}) instead of failing the whole list.
+ */
 const SponsorEntitySchema = Schema.Struct({
   __typename: Schema.String,
-  login: Schema.String,
+  login: Schema.NullishOr(Schema.String),
   name: Schema.NullishOr(Schema.String),
-  avatarUrl: Schema.String,
-  url: Schema.String,
+  avatarUrl: Schema.NullishOr(Schema.String),
+  url: Schema.NullishOr(Schema.String),
 });
 
 /**
@@ -62,7 +67,9 @@ const SponsorTierSchema = Schema.Struct({
  * @private
  */
 const SponsorshipNodeSchema = Schema.Struct({
-  sponsorEntity: SponsorEntitySchema,
+  // Nullable in GitHub's schema: it is null when the account can't be shown, e.g. one that was
+  // deleted or suspended. One such node must not fail the decode of every other sponsor.
+  sponsorEntity: Schema.NullOr(SponsorEntitySchema),
   tier: Schema.NullishOr(SponsorTierSchema),
   createdAt: Schema.String,
   isActive: Schema.Boolean,
@@ -90,6 +97,13 @@ const GitHubSponsorsResponseSchema = Schema.Struct({
     ),
   }),
 });
+
+type SponsorshipNode = Schema.Schema.Type<typeof SponsorshipNodeSchema>;
+
+/** One page of `sponsorshipsAsMaintainer`. */
+type SponsorshipsPage = NonNullable<
+  Schema.Schema.Type<typeof GitHubSponsorsResponseSchema>['data']['user']
+>['sponsorshipsAsMaintainer'];
 
 /**
  * Represents a GitHub sponsor of the maintainer (user or organization).
@@ -146,12 +160,47 @@ export interface GitHubSponsorsData {
  */
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
+/** GitHub's maximum page size for a connection. */
+const PAGE_SIZE = 100;
+
+const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql';
+
+/** The {@link processGlobal} name of this module's cache. */
+const CACHE_NAME = 'github-sponsors.cache';
+
+interface CachedSponsors {
+  readonly data: GitHubSponsorsData;
+  /** `Date.now()` when GitHub answered. */
+  readonly fetchedAt: number;
+}
+
 /**
- * @readonly
- * @private
- * @description In-memory cache for sponsor data to avoid unnecessary API calls.
+ * In-memory state shared by every copy of this module in the process. Next bundles the /sponsor
+ * page and /api/v1/github-sponsors separately, so a module-level variable would give each its own
+ * cache and its own GitHub calls.
  */
-let cache: { data: GitHubSponsorsData; timestamp: number } | null = null;
+interface SponsorsCacheState {
+  /** The last good answer per username. Failures are never stored. */
+  readonly results: Map<string, CachedSponsors>;
+  /**
+   * The load in flight per username. Callers that arrive meanwhile share it, so a slow GitHub
+   * sees one request chain per process, however many pages stop waiting at their deadline.
+   */
+  readonly inflight: Map<string, Promise<GitHubSponsorsData>>;
+}
+
+const sponsorsCache = (): SponsorsCacheState =>
+  processGlobal<SponsorsCacheState>(CACHE_NAME, () => ({
+    results: new Map<string, CachedSponsors>(),
+    inflight: new Map<string, Promise<GitHubSponsorsData>>(),
+  }));
+
+/**
+ * Forgets the cached sponsors and any load in flight, in every copy of this module. Tests only.
+ */
+export function resetGitHubSponsorsCache(): void {
+  resetProcessGlobal(CACHE_NAME);
+}
 
 /**
  * @readonly
@@ -203,8 +252,120 @@ const GITHUB_GRAPHQL_QUERY = `
 `;
 
 /**
+ * The node as a Sponsor, or null when GitHub sent no account to show: a null `sponsorEntity`
+ * (a deleted or suspended sponsor) or one without a login, avatar or profile URL. Such an entry
+ * has nothing to link to or key on.
+ */
+function toSponsor(node: SponsorshipNode): Sponsor | null {
+  const entity = node.sponsorEntity;
+  if (!entity?.login || !entity.avatarUrl || !entity.url) return null;
+  return {
+    login: entity.login,
+    name: entity.name ?? null,
+    avatarUrl: entity.avatarUrl,
+    url: entity.url,
+    tier: node.tier
+      ? { name: node.tier.name, monthlyPriceInDollars: node.tier.monthlyPriceInDollars }
+      : null,
+    createdAt: node.createdAt,
+    isActive: node.isActive,
+    type: entity.__typename === 'Organization' ? 'Organization' : 'User',
+  };
+}
+
+/** The page's sponsors that can be shown; the rest are logged and left out. */
+function listableSponsors(nodes: readonly SponsorshipNode[]): Sponsor[] {
+  const sponsors = nodes.flatMap((node) => {
+    const sponsor = toSponsor(node);
+    return sponsor ? [sponsor] : [];
+  });
+  const skipped = nodes.length - sponsors.length;
+  if (skipped > 0) {
+    logger.warn('[GitHub Sponsors] Skipped sponsorships with no account to show', { skipped });
+  }
+  return sponsors;
+}
+
+/** One page of the user's sponsorships, or null when GitHub has no such user. */
+async function fetchSponsorshipsPage(
+  username: string,
+  after: string | null,
+  token: string,
+): Promise<SponsorshipsPage | null> {
+  const effect = pipe(
+    post(
+      GITHUB_GRAPHQL_URL,
+      { query: GITHUB_GRAPHQL_QUERY, variables: { login: username, first: PAGE_SIZE, after } },
+      {
+        schema: GitHubSponsorsResponseSchema,
+        retries: 2,
+        timeout: 10_000,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    ),
+    Effect.provide(FetchHttpClient.layer),
+  );
+  const response = await Effect.runPromise(effect);
+  return response.data.user?.sponsorshipsAsMaintainer ?? null;
+}
+
+/** Sum of the monthly tiers of the active sponsors, in USD. */
+const monthlyIncome = (sponsors: readonly Sponsor[]): number =>
+  sponsors
+    .filter((sponsor) => sponsor.isActive)
+    .reduce((sum, sponsor) => sum + (sponsor.tier?.monthlyPriceInDollars ?? 0), 0);
+
+/** Every page of the user's sponsorships, straight from GitHub. Throws on any failed page. */
+async function fetchAllSponsors(username: string, token: string): Promise<GitHubSponsorsData> {
+  let sponsors: readonly Sponsor[] = [];
+  let totalCount = 0;
+  let after: string | null = null;
+
+  for (let pageNumber = 1; ; pageNumber += 1) {
+    const page = await fetchSponsorshipsPage(username, after, token);
+    if (!page) {
+      logger.warn('[GitHub Sponsors] User not found or no sponsor data', { username });
+      break;
+    }
+    const pageSponsors = listableSponsors(page.nodes);
+    sponsors = [...sponsors, ...pageSponsors];
+    totalCount = page.totalCount;
+    logger.info(`[GitHub Sponsors] Fetched ${pageSponsors.length} sponsors (page ${pageNumber})`);
+    // A next page without a cursor would fetch the first page again, forever.
+    if (!page.pageInfo.hasNextPage || !page.pageInfo.endCursor) break;
+    after = page.pageInfo.endCursor;
+  }
+
+  return { sponsors: [...sponsors], totalCount, totalMonthlyIncome: monthlyIncome(sponsors) };
+}
+
+/** Fetches from GitHub and caches a success. Failures are wrapped and never cached. */
+async function loadAndCache(username: string, token: string): Promise<GitHubSponsorsData> {
+  try {
+    logger.info('[GitHub Sponsors] Fetching sponsors for:', { username });
+    const data = await fetchAllSponsors(username, token);
+    logger.info('[GitHub Sponsors] Successfully fetched:', {
+      totalSponsors: data.sponsors.length,
+      activeSponsors: data.sponsors.filter((sponsor) => sponsor.isActive).length,
+      totalMonthlyIncome: `$${data.totalMonthlyIncome}`,
+    });
+    sponsorsCache().results.set(username, { data, fetchedAt: Date.now() });
+    return data;
+  } catch (error) {
+    logger.error('[GitHub Sponsors] Error fetching sponsors:', error);
+    throw ensureBaseError(error, 'github:sponsors', { username, hasToken: true });
+  }
+}
+
+/**
  * Fetches all sponsors from the GitHub Sponsors API for a given user.
- * Handles pagination to collect all sponsor records and caches results in memory for 1 hour.
+ * Handles pagination to collect all sponsor records and caches results in memory for 1 hour,
+ * once per server process: the page and the API route share the cache, and callers that arrive
+ * while a fetch is in flight share that fetch. A fetch that outlives its caller's deadline still
+ * fills the cache for the next one.
  * Requires the `GITHUB_TOKEN` environment variable with `read:org` and `read:user` scopes.
  *
  * @function
@@ -224,126 +385,27 @@ const GITHUB_GRAPHQL_QUERY = `
 export async function getGitHubSponsors(
   username: string = 'WomB0ComB0',
 ): Promise<GitHubSponsorsData> {
-  // Return cached data if still valid
-  if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
+  const cache = sponsorsCache();
+  const cached = cache.results.get(username);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_DURATION) {
     logger.info('[GitHub Sponsors] Returning cached data');
-    return cache.data;
+    return cached.data;
   }
 
-  // Check if GitHub token is available
-  if (!env.GITHUB_TOKEN) {
-    console.warn('[GitHub Sponsors] No GITHUB_TOKEN found, returning empty sponsor list');
-    return {
-      sponsors: [],
-      totalCount: 0,
-      totalMonthlyIncome: 0,
-    };
+  const token = env.GITHUB_TOKEN;
+  if (!token) {
+    logger.warn('[GitHub Sponsors] No GITHUB_TOKEN found, returning empty sponsor list');
+    return { sponsors: [], totalCount: 0, totalMonthlyIncome: 0 };
   }
 
-  try {
-    logger.info('[GitHub Sponsors] Fetching sponsors for:', { username });
+  const pending = cache.inflight.get(username);
+  if (pending) return pending;
 
-    const allSponsors: Sponsor[] = [];
-    let hasNextPage = true;
-    let after: string | null = null;
-    let totalCount = 0;
-
-    // Fetch all pages of sponsors
-    while (hasNextPage) {
-      const variables: { login: string; first: number; after: string | null } = {
-        login: username,
-        first: 100, // Max per page
-        after,
-      };
-
-      const effect = pipe(
-        post(
-          'https://api.github.com/graphql',
-          {
-            query: GITHUB_GRAPHQL_QUERY,
-            variables,
-          },
-          {
-            schema: GitHubSponsorsResponseSchema,
-            retries: 2,
-            timeout: 10_000,
-            headers: {
-              Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        ),
-        Effect.provide(FetchHttpClient.layer),
-      );
-
-      const response: Schema.Schema.Type<typeof GitHubSponsorsResponseSchema> =
-        await Effect.runPromise(effect);
-
-      if (!response.data.user) {
-        console.warn('[GitHub Sponsors] User not found or no sponsor data');
-        break;
-      }
-
-      const { nodes, pageInfo, totalCount: count } = response.data.user.sponsorshipsAsMaintainer;
-
-      totalCount = count;
-      hasNextPage = pageInfo.hasNextPage;
-      after = pageInfo.endCursor ?? null;
-
-      // Map nodes to Sponsor objects
-      const sponsors = nodes.map((node: Schema.Schema.Type<typeof SponsorshipNodeSchema>) => ({
-        login: node.sponsorEntity.login,
-        name: node.sponsorEntity.name ?? null,
-        avatarUrl: node.sponsorEntity.avatarUrl,
-        url: node.sponsorEntity.url,
-        tier: node.tier
-          ? {
-              name: node.tier.name,
-              monthlyPriceInDollars: node.tier.monthlyPriceInDollars,
-            }
-          : null,
-        createdAt: node.createdAt,
-        isActive: node.isActive,
-        type: (node.sponsorEntity.__typename === 'Organization' ? 'Organization' : 'User') as
-          | 'Organization'
-          | 'User',
-      }));
-
-      allSponsors.push(...sponsors);
-
-      logger.info(
-        `[GitHub Sponsors] Fetched ${sponsors.length} sponsors (page ${allSponsors.length / 100})`,
-      );
-    }
-
-    // Calculate total monthly income from active sponsors
-    const totalMonthlyIncome = allSponsors
-      .filter((s) => s.isActive && s.tier)
-      .reduce((sum, s) => sum + (s.tier?.monthlyPriceInDollars || 0), 0);
-
-    const data: GitHubSponsorsData = {
-      sponsors: allSponsors,
-      totalCount,
-      totalMonthlyIncome,
-    };
-
-    logger.info('[GitHub Sponsors] Successfully fetched:', {
-      totalSponsors: allSponsors.length,
-      activeSponsors: allSponsors.filter((s) => s.isActive).length,
-      totalMonthlyIncome: `$${totalMonthlyIncome}`,
-    });
-
-    // Cache the result
-    cache = { data, timestamp: Date.now() };
-
-    return data;
-  } catch (error) {
-    logger.error('[GitHub Sponsors] Error fetching sponsors:', error);
-    throw ensureBaseError(error, 'github:sponsors', {
-      username,
-      hasToken: !!env.GITHUB_TOKEN,
-    });
-  }
+  const load = loadAndCache(username, token).finally(() => {
+    cache.inflight.delete(username);
+  });
+  cache.inflight.set(username, load);
+  return load;
 }
 
 /**

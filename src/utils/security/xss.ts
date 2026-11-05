@@ -139,6 +139,13 @@ export const sanitizeUrl = (
   }
 };
 
+/** How much of the input validateUserInput sanitises, as a multiple of maxLength, with a floor. */
+const INPUT_BOUND_FACTOR = 4;
+const MIN_INPUT_BOUND = 256;
+
+const inputBound = (maxLength: number): number =>
+  Math.max(maxLength * INPUT_BOUND_FACTOR, MIN_INPUT_BOUND);
+
 /**
  * Validates and sanitizes generic user input by trimming, removing HTML tags (unless allowed), normalizing whitespace,
  * and removing dangerous patterns to prevent XSS and basic injection flaws.
@@ -159,8 +166,11 @@ export const validateUserInput = (input: string, maxLength = 500, allowHtml = fa
     return '';
   }
 
-  // Trim whitespace
-  let sanitizedInput = input.trim();
+  // Trim whitespace, then bound the work. The tag-strip below is quadratic on a long run of
+  // unclosed '<', and callers pass text from the URL (?q) that the server renders, so an oversized
+  // value must not reach it whole. The slack over maxLength lets tags and runs of whitespace that
+  // straddle the cut still be removed before the final slice, so typed input comes out the same.
+  let sanitizedInput = input.trim().slice(0, inputBound(maxLength));
 
   // Remove HTML tags if not allowed
   if (!allowHtml) {
