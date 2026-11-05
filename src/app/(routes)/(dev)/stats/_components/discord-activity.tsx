@@ -17,10 +17,10 @@
  */
 
 import { FetchHttpClient } from '@effect/platform';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Effect, pipe } from 'effect';
 import Image from 'next/image';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { FiActivity, FiArrowUpRight, FiHeadphones } from 'react-icons/fi';
 import { SiSpotify, SiVscodium } from 'react-icons/si';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,10 +44,12 @@ const NOW_PLAYING_URL = '/api/v1/now-playing';
 /** Same cadence as the Lanyard query; request-queue allows now-playing 5 calls a minute. */
 const NOW_PLAYING_REFRESH_MS = 30_000;
 /**
- * How long an answer may be shown. Two polls: one failed poll keeps the song, but an answer
- * left over from failed polls, or from before the fallback was switched off, is never shown.
+ * How long an answer may be shown: two polls, so one failed poll keeps the song but an answer
+ * left over from repeated failures is not shown. Answers from before the fallback was switched
+ * off are dropped when it switches off (see useNowPlayingFallback).
  */
 const NOW_PLAYING_MAX_AGE_MS = 2 * NOW_PLAYING_REFRESH_MS;
+const NOW_PLAYING_QUERY_KEY = ['discord-card', 'now-playing'] as const;
 const NOW_PLAYING_TIMEOUT_MS = 5_000;
 const ART_SIZE = 40;
 const SPOTIFY_ART_HOST = 'i.scdn.co';
@@ -85,9 +87,19 @@ const fetchNowPlaying = (): Promise<NowPlaying> =>
  * query in its error state, which the card shows as "not in an activity", never as its error card.
  * TanStack keeps the last good answer through later failures, so callers check `isStale` too.
  */
-const useNowPlayingFallback = (enabled: boolean) =>
-  useQuery({
-    queryKey: ['discord-card', 'now-playing'],
+const useNowPlayingFallback = (enabled: boolean) => {
+  const queryClient = useQueryClient();
+  // A disabled query keeps its last answer. Reset it while Discord reports listening, so turning
+  // the fallback back on starts from a new request instead of showing that track until the next
+  // poll. Resetting a disabled query does not refetch it.
+  useEffect(() => {
+    if (!enabled) {
+      void queryClient.resetQueries({ queryKey: NOW_PLAYING_QUERY_KEY, exact: true });
+    }
+  }, [enabled, queryClient]);
+
+  return useQuery({
+    queryKey: NOW_PLAYING_QUERY_KEY,
     queryFn: fetchNowPlaying,
     enabled,
     staleTime: NOW_PLAYING_MAX_AGE_MS,
@@ -97,6 +109,7 @@ const useNowPlayingFallback = (enabled: boolean) =>
     // The fetch retries once itself, and the next poll is the retry after that.
     retry: false,
   });
+};
 
 const ActivityIcon = ({ name }: { name: string }) => {
   const lower = name.toLowerCase();

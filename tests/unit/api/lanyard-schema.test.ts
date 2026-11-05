@@ -139,6 +139,20 @@ describe('getLanyardData', () => {
     expect((await getLanyardData()).activities).toEqual([{ name: 'Some Game', type: 0 }]);
   });
 
+  it('accepts a null assets object from Lanyard', async () => {
+    vi.stubGlobal(
+      'fetch',
+      lanyardReply({
+        discord_user: discordUser,
+        activities: [{ name: 'Some Game', type: 0, assets: null }],
+        discord_status: 'online',
+      }),
+    );
+    const getLanyardData = await loadGetLanyardData();
+
+    expect((await getLanyardData()).activities).toEqual([{ name: 'Some Game', type: 0 }]);
+  });
+
   it("passes the example reply from Lanyard's README through the handler and the route", async () => {
     // https://github.com/Phineas/lanyard#getting-a-users-presence-data (Spotify + VS Code)
     vi.stubGlobal(

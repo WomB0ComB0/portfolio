@@ -182,6 +182,33 @@ describe('Discord card activity', () => {
     ]);
   });
 
+  it('shows at most three activity rows, listening first', async () => {
+    const twitch = { name: 'Twitch', type: 1, details: 'Live now' };
+    const youtube = { name: 'YouTube', type: 3, details: 'Some video' };
+    stubApi({ lanyard: { status: 200, body: lanyard([youtube, vscode, twitch, spotify]) } });
+    renderCard();
+
+    const rows = within(await activityList()).getAllByRole('listitem');
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Listening to Spotify'),
+      expect.stringContaining('Playing Visual Studio Code'),
+      expect.stringContaining('Streaming Twitch'),
+    ]);
+    expect(screen.queryByText('Some video')).not.toBeInTheDocument();
+  });
+
+  it('drops the cached now-playing answer while Discord reports listening', async () => {
+    stubApi({ lanyard: { status: 200, body: lanyard([spotify]) } });
+    // A fresh fallback answer from before Discord started reporting the song.
+    const queryClient = clientWithNowPlaying(playing, 5_000);
+    renderCard(queryClient);
+
+    await activityList();
+    // When Discord stops reporting, the fallback must start from a new request, not this answer.
+    await waitFor(() => expect(queryClient.getQueryData(NOW_PLAYING_KEY)).toBeUndefined());
+    expect(requestedPaths).not.toContain('/api/v1/now-playing');
+  });
+
   it('ignores a custom status, so a status alone leaves the empty state', async () => {
     stubApi({
       lanyard: { status: 200, body: lanyard([customStatus]) },
@@ -292,5 +319,31 @@ describe('Discord card activity', () => {
 
     expect(queryClient.getQueryState(NOW_PLAYING_KEY)?.status).toBe('error');
     expect(screen.getByRole('link', { name: /^Listening on Spotify/ })).toBeInTheDocument();
+  });
+
+  it('drops a song that goes stale while the card stays mounted', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      stubApi({
+        lanyard: { status: 200, body: lanyard([]) },
+        nowPlaying: { status: 500, body: { error: 'Spotify is down' } },
+      });
+      const queryClient = clientWithNowPlaying(playing, 5_000);
+      renderCard(queryClient);
+      await screen.findByRole('link', { name: /^Listening on Spotify/ });
+
+      // Two failed polls later the song is older than the 60 s limit.
+      await act(() => vi.advanceTimersByTimeAsync(61_000));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('link', { name: /^Listening on Spotify/ }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(screen.getByText(EMPTY_STATE)).toBeInTheDocument();
+      expect(screen.queryByText(ERROR_CARD)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
