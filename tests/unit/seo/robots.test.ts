@@ -19,8 +19,9 @@
  * crawler uses the group naming its user agent, else the `*` group; the longest matching rule
  * wins, `Allow` wins a tie, and a path no rule matches is allowed.
  *
- * Pages load their content in the browser from /api/v1/*, so a crawler kept out of /api/ renders
- * them empty (with /api/ blocked, /projects dropped to 166 characters and /places to 0).
+ * Pages render their content on the server, so crawlers get the pages and the OG image route,
+ * and /api/ is closed again, the content API included. The one interim exception is
+ * /api/v1/messages: the guestbook still loads its messages in the browser.
  */
 
 import type { MetadataRoute } from 'next';
@@ -56,19 +57,32 @@ function isAllowed(rule: RobotsRule, path: string): boolean {
 
 const CRAWLERS = ['Googlebot', 'Bingbot', 'Applebot', 'DuckDuckBot'] as const;
 
-/** Content the pages fetch while they render, and the OG image route that link previews use. */
-const CONTENT_PATHS = [
+/** The guestbook's messages: the only API path a page still reads in the browser. */
+const GUESTBOOK_MESSAGES = '/api/v1/messages';
+
+/** Pages (detail pages included), the OG image route link previews use, and the guestbook's messages. */
+const CRAWLABLE_PATHS = [
   '/',
   '/projects',
+  '/projects/project-1',
+  '/experience/experience-1',
+  '/places/place-1',
+  '/sitemap.xml',
+  '/api/og',
+  '/api/og?title=Projects',
+  GUESTBOOK_MESSAGES,
+  `${GUESTBOOK_MESSAGES}?page=2`,
+];
+
+/** The content API, whose data the pages now render on the server, and the service endpoints. */
+const CLOSED_PATHS = [
+  '/api/',
+  '/api/v1/',
   '/api/v1/sanity/projects',
   '/api/v1/sanity/places',
   '/api/v1/blog',
   '/api/v1/github-stats',
-  '/api/og?title=Projects',
-];
-
-/** API paths that carry no page content. */
-const NON_CONTENT_PATHS = [
+  '/api/v1/now-playing',
   '/api/admin',
   '/api/admin/ban',
   '/api/status',
@@ -91,15 +105,30 @@ describe('robots', () => {
     for (const pattern of patterns) expect(pattern).not.toMatch(/[*$]/);
   });
 
-  it('has a `*` group for crawlers it does not name', () => {
-    const wildcard = rulesOf(config).filter((rule) => toList(rule.userAgent).includes('*'));
-    expect(wildcard).toHaveLength(1);
+  it('keeps the Googlebot, Applebot and Bingbot groups and one `*` group', () => {
+    const agents = rulesOf(config).map((rule) => toList(rule.userAgent).sort());
+
+    expect(agents).toEqual([['Googlebot'], ['Applebot', 'Bingbot'], ['*']]);
   });
 
-  it.each(CRAWLERS)('lets %s fetch page content and the content API', (crawler) => {
+  it.each(rulesOf(config).map((rule) => [toList(rule.userAgent).join(', '), rule] as const))(
+    'the %s group allows / and /api/og, disallows /api/, and opens only the guestbook under /api/v1',
+    (_agents, rule) => {
+      const allow = toList(rule.allow);
+
+      expect(allow).toEqual(expect.arrayContaining(['/', '/api/og']));
+      expect(toList(rule.disallow)).toEqual(['/api/']);
+      expect(allow).not.toContain('/api/v1/');
+      expect(allow.filter((pattern) => pattern.startsWith('/api/v1'))).toEqual([
+        GUESTBOOK_MESSAGES,
+      ]);
+    },
+  );
+
+  it.each(CRAWLERS)('lets %s fetch pages, the OG image and the guestbook messages', (crawler) => {
     const group = groupFor(config, crawler);
     expect(group).toBeDefined();
-    for (const path of CONTENT_PATHS) {
+    for (const path of CRAWLABLE_PATHS) {
       expect({ path, allowed: isAllowed(group as RobotsRule, path) }).toEqual({
         path,
         allowed: true,
@@ -107,9 +136,9 @@ describe('robots', () => {
     }
   });
 
-  it.each(CRAWLERS)('keeps %s out of admin and service endpoints', (crawler) => {
+  it.each(CRAWLERS)('keeps %s out of the rest of /api/', (crawler) => {
     const group = groupFor(config, crawler) as RobotsRule;
-    for (const path of NON_CONTENT_PATHS) {
+    for (const path of CLOSED_PATHS) {
       expect({ path, allowed: isAllowed(group, path) }).toEqual({ path, allowed: false });
     }
   });

@@ -15,23 +15,30 @@
  */
 
 /**
- * @readonly
- * @const
- * @public
- * @type {number}
- * @description
- * Age in years, dynamically calculated from birth date (March 24, 2004) to current time.
- * Uses average year length (365.25 days) to account for leap years.
- * @author Mike Odnis
- * @web
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
- * @example
- *   console.log(age); // e.g., 20
+ * Birth date, March 24, 2004, at midnight UTC. Fixed in UTC rather than parsed in local time so
+ * a server (UTC) and a browser in any time zone roll the age over at the same instant.
  */
-export const age = Math.floor(
-  (Date.now() - new Date('March 24, 2004').getTime()) / 1_000 / 60 / 60 / 24 / 365.25,
-);
+const BIRTH_DATE = new Date(Date.UTC(2004, 2, 24));
+
+/**
+ * Age in whole years on `date`, counted in UTC calendar days: it goes up at 00:00 UTC on March 24.
+ *
+ * Call it when rendering rather than storing the result at module load. A server process outlives
+ * a birthday, and a value captured when it started would disagree with the browser's (a
+ * hydration mismatch) until the next restart.
+ *
+ * @example
+ *   ageOn(new Date('2026-03-23T23:59:59Z')); // 21
+ *   ageOn(new Date('2026-03-24T00:00:00Z')); // 22
+ */
+export const ageOn = (date: Date): number => {
+  const years = date.getUTCFullYear() - BIRTH_DATE.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const birthMonth = BIRTH_DATE.getUTCMonth();
+  const hasHadBirthday =
+    month > birthMonth || (month === birthMonth && date.getUTCDate() >= BIRTH_DATE.getUTCDate());
+  return hasHadBirthday ? years : years - 1;
+};
 
 /**
  * @readonly
@@ -57,7 +64,7 @@ import packageJson from '../../package.json' with { type: 'json' };
  * - name: App or author name
  * - url: Canonical portfolio url
  * - email: Primary contact email
- * - description: Short site summary with dynamic age
+ * - description: Short site summary with the age when the module loaded (server metadata only)
  * - version: Current application/package version from package.json
  * - keywords: Array of branding, technology, and experience keywords for SEO/metadata
  * - logo: Root-level logo image URL
@@ -77,7 +84,7 @@ export const app: Readonly<{
   name: 'Mike Odnis',
   url: baseUrl,
   email: 'mike@mikeodnis.dev',
-  description: `Explore Mike Odnis' portfolio, an innovative, ${age} year-old Computer Science student at Farmingdale State College, passionate about software development and technology.`,
+  description: `Explore Mike Odnis' portfolio, an innovative, ${ageOn(new Date())} year-old Computer Science student at Farmingdale State College, passionate about software development and technology.`,
   version: packageJson.version,
   keywords: [
     /** Core & Brand */

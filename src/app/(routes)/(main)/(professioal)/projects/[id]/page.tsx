@@ -14,72 +14,51 @@
  * limitations under the License.
  */
 
+/**
+ * @file /projects/[id], rendered on the server. The project is looked up before anything streams
+ * (no loading.tsx or Suspense sits above this page), so an unknown id answers a real 404 through
+ * notFound() and the (routes) not-found view, and a Sanity outage with nothing cached answers a
+ * real 500 through the (routes) error view. The metadata and the page share one load: the loaders
+ * are React-cache()d per request.
+ */
+
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
+import { ProjectDetail } from '@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail/project-detail';
 import { reportApiFailure } from '@/lib/observability/report';
-import { getProjects } from '@/lib/sanity/api';
 import { urlFor } from '@/lib/sanity/client';
+import { loadProjectById } from '@/lib/sanity/loaders';
 import { constructMetadata, logger } from '@/utils';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build project page metadata';
 
-/**
- * ProjectDetail React component (dynamically imported).
- *
- * Renders the detail page content for a specific project given its id.
- *
- * @constant
- * @see https://nextjs.org/docs/pages/building-your-application/optimizing/dynamic-imports
- * @web
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @version 1.0.0
- */
-const ProjectDetail = (await import('next/dynamic')).default(
-  () =>
-    import('@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail').then(
-      (mod) => mod.ProjectDetail,
-    ),
-  {
-    ssr: true,
-  },
-);
+/** The Open Graph image: Sanity's image at the size link previews use. */
+const OG_IMAGE_WIDTH = 1200;
+const OG_IMAGE_HEIGHT = 630;
+const DEFAULT_OG_IMAGE = '/opengraph-image.png';
+
+interface ProjectPageProps {
+  params: Promise<{ id: string }>;
+}
 
 // No generateStaticParams: the root layout is force-dynamic (the CSP nonce is per request), so
 // every id renders on request anyway, and a build-time id list only made `next build` try and
-// fail to prerender each one. Unknown ids still 404 through notFound() in ProjectDetail.
+// fail to prerender each one.
 
 /**
- * Generates Open Graph and SEO metadata for a specific project detail page.
- *
- * Utilizes the project id param to find details and construct page metadata.
- *
- * @async
- * @function generateMetadata
- * @param {{ params: Promise<{ id: string }> }} ctx - Context containing route parameters promise.
- * @returns {Promise<Record<string, any>>} The constructed metadata object for Next.js.
- * @throws {Error} Throws if metadata or project fails to load.
- * @example
- * const meta = await generateMetadata({ params: Promise.resolve({ id: 'xyz' }) });
- * @web
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata
- * @version 1.0.0
+ * The project's title, description, image and og:url. An unknown id gets "Not Found" and no
+ * og:url; when Sanity fails, whether the id exists is unknown, so the page's defaults (with their
+ * og:url) are kept and the failure is reported as a warning.
  */
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
   const { id } = await params;
   const path = `/projects/${encodeURIComponent(id)}`;
 
   try {
-    const projects = await getProjects();
-    const project = projects.find((p) => p._id === id);
+    const project = await loadProjectById(id);
 
-    // An unknown id renders a 404, so it gets no og:url.
     if (!project) {
       return constructMetadata({
         title: 'Project Not Found',
@@ -88,8 +67,8 @@ export async function generateMetadata({
     }
 
     const imageUrl = project.image
-      ? urlFor(project.image).width(1200).height(630).url()
-      : '/opengraph-image.png';
+      ? urlFor(project.image).width(OG_IMAGE_WIDTH).height(OG_IMAGE_HEIGHT).url()
+      : DEFAULT_OG_IMAGE;
 
     return constructMetadata({
       title: project.title,
@@ -98,8 +77,6 @@ export async function generateMetadata({
       path,
     });
   } catch (error) {
-    // Sanity failed, so whether the id exists is unknown: keep the page's defaults (and its
-    // og:url) rather than claiming "Not Found". The page body shows its own error state.
     logger.warn('Project metadata fell back to the defaults', { error });
     reportApiFailure(error, { context: METADATA_REPORT_CONTEXT, level: 'warning' });
     return constructMetadata({
@@ -110,33 +87,12 @@ export async function generateMetadata({
   }
 }
 
-/**
- * ProjectDetailPage - Server component to render a project's detail page.
- *
- * Fetches and resolves route parameters, and renders the {@link ProjectDetail} component.
- *
- * @async
- * @function ProjectDetailPage
- * @param {{ params: Promise<{ id: string }> }} props - Next.js route props with params promise.
- * @returns {Promise<JSX.Element>} Rendered ProjectDetail React component.
- * @throws {Error} Throws if params cannot be resolved or component fails to render.
- * @example
- * export default async function Page(props) {
- *   return <ProjectDetailPage {...props} />;
- * }
- * @web
- * @public
- * @author Mike Odnis <https://github.com/WomB0ComB0>
- * @readonly
- * @version 1.0.0
- */
-const ProjectDetailPage = async ({
+/** The project with this id; an unknown or malformed id is a 404. */
+export default async function ProjectDetailPage({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<JSX.Element> => {
-  const resolvedParams = await params;
-  return <ProjectDetail params={resolvedParams} />;
-};
-ProjectDetailPage.displayName = 'ProjectDetailPage';
-export default ProjectDetailPage;
+}: ProjectPageProps): Promise<JSX.Element> {
+  const { id } = await params;
+  const project = await loadProjectById(id);
+  if (!project) notFound();
+  return <ProjectDetail project={project} />;
+}

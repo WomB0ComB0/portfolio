@@ -16,45 +16,41 @@
  * limitations under the License.
  */
 
-import { useQueryState } from 'nuqs';
-import type { ComponentType, JSX } from 'react';
+import { parseAsStringLiteral, useQueryState } from 'nuqs';
+import {
+  type ComponentType,
+  type JSX,
+  type ReactNode,
+  type TransitionStartFunction,
+  useTransition,
+} from 'react';
 import type { IconBaseProps } from 'react-icons';
 import { FiFileText, FiMic, FiMonitor, FiRss, FiVideo } from 'react-icons/fi';
-import { PageHeader } from '@/components/custom/page-header';
+import {
+  DEFAULT_MEDIA_TAB,
+  MEDIA_TAB_LABELS,
+  MEDIA_TABS,
+  type MediaTab,
+  parseMediaTab,
+} from '@/app/(routes)/(dev)/media/_lib/media-tabs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArticlesSection } from './articles-section';
-import { BlogSection } from './blog-section';
-import { PresentationsSection } from './presentations-section';
-import { TalksSection } from './talks-section';
-import { VideosSection } from './videos-section';
+import { cn } from '@/lib/utils';
 
-interface TabConfig {
-  value: string;
-  label: string;
-  ariaLabel: string;
-  icon: ComponentType<IconBaseProps>;
-  content: ComponentType;
-}
+const TAB_ICONS: Readonly<Record<MediaTab, ComponentType<IconBaseProps>>> = {
+  blog: FiRss,
+  presentations: FiMonitor,
+  talks: FiMic,
+  videos: FiVideo,
+  articles: FiFileText,
+};
 
-const TABS_CONFIG: TabConfig[] = [
-  { value: 'blog', label: 'Blog', ariaLabel: 'Blog posts', icon: FiRss, content: BlogSection },
-  {
-    value: 'presentations',
-    label: 'Presentations',
-    ariaLabel: 'Presentations',
-    icon: FiMonitor,
-    content: PresentationsSection,
-  },
-  { value: 'talks', label: 'Talks', ariaLabel: 'Talks', icon: FiMic, content: TalksSection },
-  { value: 'videos', label: 'Videos', ariaLabel: 'Videos', icon: FiVideo, content: VideosSection },
-  {
-    value: 'articles',
-    label: 'Articles',
-    ariaLabel: 'Articles',
-    icon: FiFileText,
-    content: ArticlesSection,
-  },
-];
+const TAB_ARIA_LABELS: Readonly<Record<MediaTab, string>> = {
+  blog: 'Blog posts',
+  presentations: 'Presentations',
+  talks: 'Talks',
+  videos: 'Videos',
+  articles: 'Articles',
+};
 
 const TAB_TRIGGER_CLASSES = [
   'flex-1 min-w-[110px] sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all duration-300',
@@ -66,56 +62,85 @@ const TAB_TRIGGER_CLASSES = [
 ].join(' ');
 
 /**
+ * `?tab=` as the tab bar writes it. A change is a server navigation (not shallow), pushed so
+ * Back returns to the previous tab, without scrolling, and inside `startTransition` so the old
+ * panel stays (dimmed) until the new one starts streaming.
+ */
+const useTabParam = (startTransition: TransitionStartFunction) =>
+  useQueryState(
+    'tab',
+    parseAsStringLiteral(MEDIA_TABS)
+      .withDefault(DEFAULT_MEDIA_TAB)
+      .withOptions({ shallow: false, history: 'push', scroll: false, startTransition }),
+  );
+
+export interface MediaTabsProps {
+  /**
+   * The tab the server rendered `children` for. The bar marks it, not the URL's tab, so after a
+   * click the old tab stays selected until the server's render of the new tab starts streaming.
+   */
+  readonly active: MediaTab;
+  /** The active tab's panel. */
+  readonly children: ReactNode;
+}
+
+/**
  * @function MediaTabs
  * @description
- *   Main media page component with tabbed interface for different media types.
- *   Includes sections for Blog, Presentations, Talks, Videos, and Articles.
- *   Tab state is persisted in URL query parameters for shareable links.
- * @returns {JSX.Element} The React JSX element containing the media tabs.
+ *   The /media tab bar. The server renders the active tab's panel and passes it in as children;
+ *   choosing a tab writes `?tab=` and navigates, so the server renders the new tab's panel
+ *   while this bar (and the header above it) stays mounted. Tabs activate on click, Enter or
+ *   Space, not on arrow-key focus, since each activation is a server round trip.
+ * @returns {JSX.Element} The tab bar with the active panel.
  * @web
  * @public
  * @author Mike Odnis
- * @version 1.0.0
+ * @version 2.0.0
  */
-export const MediaTabs = (): JSX.Element => {
-  const [activeTab, setActiveTab] = useQueryState('tab', {
-    defaultValue: 'blog',
-    shallow: true,
-  });
+export const MediaTabs = ({ active, children }: MediaTabsProps): JSX.Element => {
+  const [isPending, startTransition] = useTransition();
+  const [, setTab] = useTabParam(startTransition);
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:py-12">
-      <PageHeader
-        title="Media"
-        description="Explore my blog posts, presentations, talks, videos, and articles"
-        icon={<FiFileText />}
-      />
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-10">
-        <TabsList
-          className="w-full flex flex-wrap justify-center gap-2 h-auto p-3 bg-muted/30 backdrop-blur-md rounded-2xl border border-border/40 shadow-lg"
-          role="tablist"
-          aria-label="Media categories"
-        >
-          {TABS_CONFIG.map(({ value, label, ariaLabel, icon: Icon }) => (
+    <Tabs
+      value={active}
+      onValueChange={(value) => void setTab(parseMediaTab(value))}
+      activationMode="manual"
+      className="w-full mt-10"
+    >
+      <TabsList
+        className="w-full flex flex-wrap justify-center gap-2 h-auto p-3 bg-muted/30 backdrop-blur-md rounded-2xl border border-border/40 shadow-lg"
+        aria-label="Media categories"
+      >
+        {MEDIA_TABS.map((tab) => {
+          const Icon = TAB_ICONS[tab];
+          return (
             <TabsTrigger
-              key={value}
-              value={value}
+              key={tab}
+              value={tab}
               className={TAB_TRIGGER_CLASSES}
-              aria-label={ariaLabel}
+              aria-label={TAB_ARIA_LABELS[tab]}
             >
               <Icon className="w-4 h-4" aria-hidden="true" />
-              <span>{label}</span>
+              <span>{MEDIA_TAB_LABELS[tab]}</span>
             </TabsTrigger>
-          ))}
-        </TabsList>
+          );
+        })}
+      </TabsList>
 
-        {TABS_CONFIG.map(({ value, content: Content }) => (
-          <TabsContent key={value} value={value} className="mt-10">
-            <Content />
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
+      {MEDIA_TABS.map((tab) => (
+        <TabsContent key={tab} value={tab} className="mt-10">
+          {tab === active ? (
+            <div
+              aria-busy={isPending || undefined}
+              className={cn('motion-safe:transition-opacity', isPending && 'opacity-60')}
+            >
+              {children}
+            </div>
+          ) : null}
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 };
 

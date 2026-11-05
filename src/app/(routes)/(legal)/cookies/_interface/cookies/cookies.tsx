@@ -1,5 +1,3 @@
-'use client';
-
 /**
 Copyright 2025 Mike Odnis
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -10,11 +8,11 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 import { Cookie, ExternalLink, Gauge, Shield } from 'lucide-react';
 import type { JSX } from 'react';
-import { MagicCard } from '@/components';
+import { MagicCard } from '@/components/magicui/magic-card';
 import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { emailHref, encodedEmail } from '@/constants';
+import { emailHref, encodedEmail } from '@/constants/app';
 
 export const Cookies = (): JSX.Element => {
   return (

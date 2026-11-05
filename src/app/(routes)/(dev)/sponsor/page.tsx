@@ -14,21 +14,11 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
+import type { ReactElement } from 'react';
+
 import { constructMetadata } from '@/utils';
 
-/**
- * Dynamically imported React component for displaying sponsor information.
- * This component is loaded client-side but also rendered server-side (SSR) to ensure content is available on initial page load.
- *
- * @web
- * @author Mike Odnis
- * @version 1.0.0
- * @see {@link ./_interface/sponsor}
- */
-const Sponsor = dynamic(() => import('./_interface/sponsor').then((mod) => mod.Sponsor), {
-  ssr: true,
-});
+import { Sponsor } from './_interface/sponsor';
 
 /**
  * Metadata configuration for the Sponsor page.
@@ -50,19 +40,10 @@ export const metadata = constructMetadata({
 });
 
 /**
- * The main page component for displaying sponsor information.
- * This functional component renders the dynamically loaded `Sponsor` component,
- * which showcases current sponsors and outlines ways to contribute to the project.
- *
- * @public
- * @returns {JSX.Element} A React JSX element representing the Sponsor page.
- * @web
- * @author Mike Odnis
- * @version 1.0.0
- * @see {@link Sponsor} for the actual sponsor display logic.
+ * /sponsor. Not async on purpose: the header, benefits, platforms and contact card render at
+ * once, and only the sponsors block waits on GitHub, behind its own Suspense boundary and within
+ * a deadline (see Sponsors). The block has its own skeleton, so the route needs no loading.tsx.
  */
-const SponsorPage = () => {
+export default function SponsorPage(): ReactElement {
   return <Sponsor />;
-};
-SponsorPage.displayName = 'SponsorPage';
-export default SponsorPage;
+}

@@ -294,9 +294,14 @@ export const GuestbookComponent = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xl font-semibold text-white">Recent Messages</h2>
-            <span className="text-xs text-neutral-400 font-medium">
-              {totalCount} {totalCount === 1 ? 'message' : 'messages'}
-            </span>
+            {/* Until the first page arrives the count would read "0 messages", then jump. */}
+            {isLoading ? (
+              <Skeleton className="h-3 w-20 bg-muted/50" />
+            ) : (
+              <span className="text-xs text-neutral-400 font-medium">
+                {totalCount} {totalCount === 1 ? 'message' : 'messages'}
+              </span>
+            )}
           </div>
 
           <div className="space-y-4">

@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/**
+ * @file The /spotify sections. NowPlaying is a client island (a live poll); the top lists are
+ * async server components that import 'server-only', so only server components may import this
+ * barrel.
+ */
+
 export { NowPlaying } from './now-playing';
-export { TopArtists } from './top-artists';
-export { TopTracks } from './top-tracks';
+export { TopArtists, TopArtistsSkeleton } from './top-artists';
+export { TopTracks, TopTracksSkeleton } from './top-tracks';

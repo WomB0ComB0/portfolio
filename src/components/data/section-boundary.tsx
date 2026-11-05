@@ -190,7 +190,7 @@ function ScopedSectionBoundary({
  * which re-renders the route on the server and then the section, in one transition, so the
  * section re-renders with the refreshed data instead of failing again on the old payload.
  *
- * It also recovers client sections: a suspense query (useSuspenseQuery, useDataLoader) that
+ * It also recovers client sections: a suspense query (useSuspenseQuery, DataLoader) that
  * failed inside it fetches again on Try again, since the boundary resets its own
  * QueryErrorResetBoundary scope (retrying one section does not refetch another) and `queryKeys`.
  *

@@ -14,6 +14,22 @@
  * limitations under the License.
  */
 
+// Never re-export the _interface modules here: they are server-only (urlFor), and client
+// components import from this folder.
 export { default as DraggableGallery } from './draggable-gallery';
 export { default as PinnedRepos } from './pinned-repos';
+export {
+  PROJECT_GRID_CLASS,
+  ProjectCard,
+  type ProjectCardData,
+  type ProjectCardProps,
+  projectHref,
+} from './project-card';
+export {
+  type ProjectFilterOptions,
+  type ProjectFilters,
+  ProjectsExplorer,
+  type ProjectsExplorerProps,
+} from './projects-explorer';
+export { ProjectsListSkeleton, ProjectsPageFrame } from './projects-skeleton';
 export { default as Repository } from './repository';

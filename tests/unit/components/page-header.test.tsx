@@ -21,12 +21,7 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { FiActivity } from 'react-icons/fi';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
-// The full '@/lib' barrel includes decorator-based HTTP clients that Vitest can't parse;
-// PageHeader only needs cn.
-vi.mock('@/lib', async () => import('@/lib/utils'));
-
+import { afterEach, describe, expect, it } from 'vitest';
 import { PageHeader } from '@/components/custom/page-header';
 
 const TITLE = 'Development Statistics';

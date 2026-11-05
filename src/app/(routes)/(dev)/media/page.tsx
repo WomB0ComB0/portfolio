@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
-import type { JSX } from 'react';
+import { type JSX, Suspense } from 'react';
+import { MediaPanel, MediaPanelSkeleton } from '@/app/(routes)/(dev)/media/_components/media-panel';
+import { MediaView } from '@/app/(routes)/(dev)/media/_interface/media/media';
+import { MEDIA_SECTION_LABELS, parseMediaTab } from '@/app/(routes)/(dev)/media/_lib/media-tabs';
+import { SectionBoundary } from '@/components/data/section-boundary';
 import { constructMetadata } from '@/utils';
-
-const MediaView = dynamic(
-  () => import('@/app/(routes)/(dev)/media/_interface/media').then((mod) => mod.MediaView),
-  {
-    ssr: true,
-  },
-);
 
 export const metadata = constructMetadata({
   title: 'Media',
@@ -32,8 +28,28 @@ export const metadata = constructMetadata({
   path: '/media',
 });
 
-const MediaPage = (): JSX.Element => {
-  return <MediaView />;
-};
-MediaPage.displayName = 'MediaPage';
-export default MediaPage;
+interface MediaPageProps {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/**
+ * /media, rendered on the server: the header and tab bar at once, and the active tab's panel
+ * (only that tab's data is loaded) streamed in behind its skeleton. The Suspense and the section
+ * boundary are keyed by the tab, so switching tabs shows the new panel's skeleton and clears an
+ * earlier tab's error, while the header and the tab bar stay.
+ */
+export default async function MediaPage({ searchParams }: MediaPageProps): Promise<JSX.Element> {
+  const active = parseMediaTab((await searchParams).tab);
+  return (
+    <MediaView
+      active={active}
+      panel={
+        <Suspense key={active} fallback={<MediaPanelSkeleton tab={active} />}>
+          <SectionBoundary label={MEDIA_SECTION_LABELS[active]}>
+            <MediaPanel tab={active} />
+          </SectionBoundary>
+        </Suspense>
+      }
+    />
+  );
+}

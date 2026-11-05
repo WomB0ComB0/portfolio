@@ -15,3 +15,4 @@
  */
 
 export { default as GoogleMaps } from './map';
+export { PlacesExplorer } from './places-explorer';

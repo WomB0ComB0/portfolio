@@ -17,6 +17,7 @@
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
+import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { FetcherError, post } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
@@ -78,7 +79,39 @@ type MatchedUser = Schema.Schema.Type<typeof MatchedUserSchema>;
 export type LeetCodeStats = Schema.Schema.Type<typeof LeetCodeStatsSchema>;
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
-let cache: { data: LeetCodeStats; timestamp: number } | null = null;
+
+interface CachedStats {
+  readonly data: LeetCodeStats;
+  readonly timestamp: number;
+}
+
+/**
+ * What getLeetCodeStats keeps between calls. Next bundles this module once for the /stats page
+ * (whose prefetch calls getLeetCodeStats directly) and once for /api/v1, so module state would
+ * give each its own cache. Kept in processGlobal instead, a prefetch that misses its deadline
+ * still fills the cache the card's fallback request to /api/v1/leetcode reads, or that request
+ * joins the load still running, rather than asking LeetCode a second time.
+ */
+interface LeetCodeState {
+  /** The last good stats and when they were fetched. */
+  cache: CachedStats | null;
+  /** The refresh running now; every caller that finds the cache expired joins it. */
+  inFlight: Promise<LeetCodeStats> | null;
+}
+
+const STATE_NAME = 'leetcode.cache';
+
+/** Looked up on every call, so a reset in a test takes effect without reloading this module. */
+const sharedState = (): LeetCodeState =>
+  processGlobal<LeetCodeState>(STATE_NAME, () => ({ cache: null, inFlight: null }));
+
+/** Forgets the cached stats and any running refresh. Tests only. */
+export function resetLeetCodeCache(): void {
+  resetProcessGlobal(STATE_NAME);
+}
+
+const isFresh = (cache: CachedStats | null): cache is CachedStats =>
+  cache !== null && Date.now() - cache.timestamp < CACHE_DURATION;
 
 /**
  * Upstream time budget. The LeetCode card's fetch gives up after 10 s, so the stale fallback (or
@@ -154,17 +187,18 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
   return toStats(user);
 }
 
-export async function getLeetCodeStats(): Promise<LeetCodeStats> {
-  if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
-    return cache.data;
-  }
-
+/**
+ * Asks LeetCode again and caches the answer in `state`, the store that was current when the
+ * refresh started (so one that outlives a test's reset never fills the next test's cache).
+ */
+async function refreshLeetCodeStats(state: LeetCodeState): Promise<LeetCodeStats> {
   try {
     const data = await fetchFromGraphQL();
-    cache = { data, timestamp: Date.now() };
+    state.cache = { data, timestamp: Date.now() };
     return data;
   } catch (error) {
     const failure = ensureBaseError(error, 'leetcode:fetch');
+    const { cache } = state;
     // Serve the last good stats rather than a 500; they change slowly.
     if (cache) {
       reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
@@ -172,4 +206,17 @@ export async function getLeetCodeStats(): Promise<LeetCodeStats> {
     }
     throw failure;
   }
+}
+
+export async function getLeetCodeStats(): Promise<LeetCodeStats> {
+  const state = sharedState();
+  if (isFresh(state.cache)) {
+    return state.cache.data;
+  }
+
+  // One refresh at a time: a late prefetch and the card's own request share LeetCode's answer.
+  state.inFlight ??= refreshLeetCodeStats(state).finally(() => {
+    state.inFlight = null;
+  });
+  return state.inFlight;
 }

@@ -14,19 +14,9 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
+import { Guestbook } from '@/app/(routes)/(main)/(personal)/guestbook/_interface';
 import { constructMetadata } from '@/utils';
-
-const Guestbook = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(personal)/guestbook/_interface/guestbook').then(
-      (mod) => mod.Guestbook,
-    ),
-  {
-    ssr: true,
-  },
-);
 
 export const metadata = constructMetadata({
   title: 'Guestbook',
@@ -36,7 +26,10 @@ export const metadata = constructMetadata({
 
 /**
  * Guestbook page component.
- * Renders the guestbook interface for users to leave messages.
+ * Renders the guestbook interface for users to leave messages. The interface is imported directly
+ * (no next/dynamic); its client island handles sign-in and the messages. The page awaits nothing,
+ * so it has no loading.tsx; the island shows its own sign-in card and message skeleton while the
+ * messages load.
  *
  * @returns {JSX.Element} The guestbook page.
  * @author Mike Odnis

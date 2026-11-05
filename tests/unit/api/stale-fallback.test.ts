@@ -61,7 +61,11 @@ const stubFetch = (reply: (url: string) => Response) => {
   return fetchMock;
 };
 
-/** Each handler caches in module state, so every test loads fresh copies. */
+/**
+ * Every test loads fresh copies (Lanyard caches in module state, and the report cooldowns reset
+ * too). The GitHub and WakaTime caches live on globalThis, so a fresh import alone no longer
+ * empties them; their resets do.
+ */
 const loadHandlers = async () => {
   vi.resetModules();
   const [github, wakatime, lanyard] = await Promise.all([
@@ -69,6 +73,8 @@ const loadHandlers = async () => {
     import('@/app/api/v1/[[...route]]/wakatime/handlers'),
     import('@/app/api/v1/[[...route]]/lanyard/handlers'),
   ]);
+  github.resetGitHubStatsCache();
+  wakatime.resetWakaTimeCache();
   return {
     getGitHubStats: github.getGitHubStats,
     getWakaTimeData: wakatime.getWakaTimeData,

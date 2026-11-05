@@ -16,37 +16,19 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
 import { motion } from 'motion/react';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { SiLeetcode } from 'react-icons/si';
+import { RetryButton } from '@/components/data/retry-button';
+import { SectionError } from '@/components/data/section-error';
 import NumberTicker from '@/components/ui/number-ticker';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { get } from '@/lib/http-clients/effect-fetcher';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { cn } from '@/lib/utils';
+import { type LeetCodeStatsData, leetcodeStatsQuery } from '../_lib/stats-queries';
 import { StatCard } from './stat-card';
-
-const LeetCodeStatsSchema = Schema.Struct({
-  totalSolved: Schema.Number,
-  easySolved: Schema.Number,
-  mediumSolved: Schema.Number,
-  hardSolved: Schema.Number,
-  acceptanceRate: Schema.Number,
-  ranking: Schema.Number,
-});
-type LeetCodeStatsData = Schema.Schema.Type<typeof LeetCodeStatsSchema>;
-
-/** A non-2xx or malformed response rejects, so the query errors instead of rendering bad data. */
-const fetchLeetCodeStats = (): Promise<LeetCodeStatsData> =>
-  Effect.runPromise(
-    pipe(
-      get('/api/v1/leetcode', { retries: 0, timeout: 10_000, schema: LeetCodeStatsSchema }),
-      Effect.provide(FetchHttpClient.layer),
-    ),
-  );
 
 interface ProgressBarProps {
   value: number;
@@ -62,14 +44,20 @@ const clampFraction = (value: number, max: number) =>
  * A translate keeps the pill's rounded right end a semicircle (a scale would squash it), and the
  * track's rounded clip shapes the left end. `isolate` guards against older WebKit dropping that
  * rounded clip while the fill animates on its own compositing layer.
+ *
+ * The fill slides in only when the bar mounts in the browser. A bar hydrated from server HTML
+ * already shows its value there (and without JavaScript), so it rests at it instead of emptying
+ * and refilling.
  */
 const ProgressBar = ({ value, max, colorClass }: ProgressBarProps) => {
   const fraction = clampFraction(value, max);
+  const isServerHtml = useIsServerHtmlRender();
+  const [skipsEntrance] = useState(isServerHtml);
   return (
     <div className="isolate h-2 w-full overflow-hidden rounded-full bg-primary-background/10">
       <motion.div
         className={`h-2 w-full rounded-full ${colorClass}`}
-        initial={{ x: '-100%' }}
+        initial={skipsEntrance ? false : { x: '-100%' }}
         animate={{ x: `${(fraction - 1) * 100}%` }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
       />
@@ -107,8 +95,9 @@ const Summary = ({ acceptanceRate, ranking }: SummaryProps) => {
   );
 };
 
-const LeetCodeSkeleton = () => (
-  <StatCard title="LeetCode Stats" icon={<SiLeetcode />}>
+/** The card while its data loads: the loaded card's frame, with placeholders for its content. */
+export const LeetCodeStatsSkeleton = () => (
+  <StatCard title="LeetCode Stats" icon={<SiLeetcode />} hasEntrance={false}>
     <div className="space-y-4">
       <div className="flex items-center justify-center">
         <Skeleton className="h-12 w-24" />
@@ -131,19 +120,7 @@ const LeetCodeSkeleton = () => (
   </StatCard>
 );
 
-export const LeetCodeStats = memo(() => {
-  const { data, isLoading } = useQuery({
-    queryKey: ['leetcode-stats'],
-    queryFn: fetchLeetCodeStats,
-    staleTime: 1000 * 60 * 60 * 6, // 6 hours
-  });
-
-  if (isLoading) {
-    return <LeetCodeSkeleton />;
-  }
-
-  if (!data) return null;
-
+const LeetCodeStatsCard = ({ data }: { data: LeetCodeStatsData }) => {
   const { totalSolved, easySolved, mediumSolved, hardSolved, acceptanceRate, ranking } = data;
   const breakdown = [
     { label: 'Easy', value: easySolved, colorClass: 'bg-green-500' },
@@ -192,6 +169,25 @@ export const LeetCodeStats = memo(() => {
         <Summary acceptanceRate={acceptanceRate} ranking={ranking} />
       </div>
     </StatCard>
+  );
+};
+
+/**
+ * The LeetCode card. Its data is usually prefetched on the server (see the /stats page), so it
+ * renders on the first pass; otherwise it shows its skeleton and fetches in the browser. A failed
+ * or malformed load with nothing cached says so, with Try again, instead of throwing.
+ */
+export const LeetCodeStats = memo(() => {
+  const { data, isError, refetch } = useQuery(leetcodeStatsQuery);
+
+  if (data !== undefined) return <LeetCodeStatsCard data={data} />;
+  if (!isError) return <LeetCodeStatsSkeleton />;
+  return (
+    <SectionError
+      title="Couldn't load LeetCode stats"
+      headingLevel={2}
+      action={<RetryButton onRetry={() => void refetch()} />}
+    />
   );
 });
 LeetCodeStats.displayName = 'LeetCodeStats';

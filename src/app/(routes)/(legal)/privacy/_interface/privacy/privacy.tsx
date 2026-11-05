@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -29,11 +27,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import type { JSX } from 'react';
-import { MagicCard } from '@/components';
+import { MagicCard } from '@/components/magicui/magic-card';
 import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { emailHref, encodedEmail } from '@/constants';
+import { emailHref, encodedEmail } from '@/constants/app';
 
 export const Privacy = (): JSX.Element => {
   return (

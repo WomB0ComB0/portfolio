@@ -22,7 +22,7 @@
  */
 
 import { FetchHttpClient } from '@effect/platform';
-import { QueryObserver } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { Effect, Runtime } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -30,7 +30,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/env', () => ({ env: {}, default: {} }));
 
 import { FetcherError, get, ValidationError } from '@/lib/http-clients/effect-fetcher';
-import { createQueryClient, shouldRetryQuery } from '@/providers/server/query-client';
+import {
+  createQueryClient,
+  makeQueryClient,
+  shouldRetryQuery,
+} from '@/providers/server/query-client';
 
 const URL_UNDER_TEST = 'https://api.example.com/stats';
 
@@ -103,6 +107,22 @@ describe('createQueryClient retry default', () => {
   it('uses shouldRetryQuery for every query', () => {
     const queryClient = createQueryClient()();
     expect(queryClient.getDefaultOptions().queries?.retry).toBe(shouldRetryQuery);
+  });
+
+  it('builds a new client with its own caches on every makeQueryClient() call', () => {
+    const first = makeQueryClient();
+    const second = makeQueryClient();
+
+    expect(first).toBeInstanceOf(QueryClient);
+    expect(second).not.toBe(first);
+    expect(second.getQueryCache()).not.toBe(first.getQueryCache());
+    expect(second.getMutationCache()).not.toBe(first.getMutationCache());
+    expect(first.getDefaultOptions().queries?.retry).toBe(shouldRetryQuery);
+    expect(second.getDefaultOptions().queries?.retry).toBe(shouldRetryQuery);
+
+    // A query one client caches is invisible to the other (one server render never sees another's).
+    first.setQueryData(['shared-key'], 'from the first request');
+    expect(second.getQueryData(['shared-key'])).toBeUndefined();
   });
 
   /**

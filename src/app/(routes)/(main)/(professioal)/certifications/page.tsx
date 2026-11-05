@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
+import {
+  Certifications,
+  toCertificationCard,
+} from '@/app/(routes)/(main)/(professioal)/certifications/_interface/certifications/certifications';
+import { loadCertifications } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils';
-
-const Certifications = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(professioal)/certifications/_interface/certifications').then(
-      (mod) => mod.Certifications,
-    ),
-  {
-    ssr: true,
-  },
-);
 
 export const metadata = constructMetadata({
   title: 'Certifications',
@@ -34,8 +28,11 @@ export const metadata = constructMetadata({
   path: '/certifications',
 });
 
-const CertificationsPage = (): JSX.Element => {
-  return <Certifications />;
-};
-CertificationsPage.displayName = 'CertificationsPage';
-export default CertificationsPage;
+/**
+ * Every certification, rendered on the server. When Sanity fails with nothing cached the load
+ * rejects, and src/app/(routes)/error.tsx shows the error inside the shell.
+ */
+export default async function CertificationsPage(): Promise<JSX.Element> {
+  const certs = await loadCertifications();
+  return <Certifications certifications={certs.map(toCertificationCard)} />;
+}

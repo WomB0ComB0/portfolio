@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,467 +14,133 @@
  * limitations under the License.
  */
 
-import { AnimatePresence, motion, useMotionValue } from 'motion/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
-import { MagicCard } from '@/components/magicui';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { SANITY_ENDPOINTS } from '@/hooks/sanity/config';
-import { useSanityPlaces } from '@/hooks/sanity/use-sanity-suspense';
-import { cn } from '@/lib/utils';
-import {
-  dataLoaderQueryKey,
-  QueryErrorBoundary,
-  SectionLoadError,
-} from '@/providers/server/effect-data-loader';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import type { JSX } from 'react';
+import { MagicCard } from '@/components/magicui/magic-card';
+import { CardContent, CardHeader } from '@/components/ui/card';
+import { reportApiFailure } from '@/lib/observability/report';
+import { urlFor } from '@/lib/sanity/client';
+import { loadPlaceById, type Place } from '@/lib/sanity/loaders';
+import { constructMetadata } from '@/utils/seo/meta';
+import { PlacePhotoViewer } from './_components/place-photo-viewer';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
 import { viewerPhotoUrl } from './_components/viewer-photo-url';
-import type { PhotoModalProps, PhotoWithCaption } from './page.types';
+import type { PlacePageProps, ViewerPhoto } from './page.types';
 
-const swipeConfidenceThreshold = 10000;
-const swipePower = (offset: number, velocity: number) => {
-  return Math.abs(offset) * velocity;
+/** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
+const METADATA_REPORT_CONTEXT = 'build place page metadata';
+/** The longest meta description, which search results show before cutting it themselves. */
+const MAX_DESCRIPTION_LENGTH = 160;
+const ELLIPSIS = '…';
+/** The size of a link preview card. */
+const PREVIEW_WIDTH = 1200;
+const PREVIEW_HEIGHT = 630;
+/** The viewer's photo box: each photo is scaled to fit it whole. */
+const VIEWER_MAX_WIDTH = 1600;
+const VIEWER_MAX_HEIGHT = 1200;
+/** Punctuation and spaces left dangling where a description is cut. */
+const DANGLING_END = /[\s,.;:!?–—-]+$/u;
+
+/**
+ * `text` on one line, cut at the last word that fits within {@link MAX_DESCRIPTION_LENGTH}
+ * characters with the ellipsis. A single word longer than that is cut where it has to be.
+ */
+function metaDescription(text: string): string {
+  const oneLine = text.replace(/\s+/g, ' ').trim();
+  if (oneLine.length <= MAX_DESCRIPTION_LENGTH) return oneLine;
+
+  const room = MAX_DESCRIPTION_LENGTH - ELLIPSIS.length;
+  // A space at index `room` ends a word that fits exactly, so the search starts there.
+  const lastSpace = oneLine.lastIndexOf(' ', room);
+  const kept = lastSpace > 0 ? oneLine.slice(0, lastSpace) : oneLine.slice(0, room);
+  return `${kept.replace(DANGLING_END, '')}${ELLIPSIS}`;
+}
+
+/** The first photo as a link preview, or undefined for the generated card. */
+const previewImage = (place: Place): string | undefined => {
+  const [first] = place.photos ?? [];
+  return first ? urlFor(first).width(PREVIEW_WIDTH).height(PREVIEW_HEIGHT).url() : undefined;
 };
 
-const variants = {
-  enter: (direction: number) => {
-    return {
-      x: direction > 0 ? 1000 : -1000,
-      opacity: 0,
-    };
-  },
-  center: {
-    zIndex: 1,
-    x: 0,
-    opacity: 1,
-  },
-  exit: (direction: number) => {
-    return {
-      zIndex: 0,
-      x: direction < 0 ? 1000 : -1000,
-      opacity: 0,
-    };
-  },
-};
+/**
+ * The place's title, description and first photo. An unknown id gets "Place Not Found" without
+ * og:url (the page answers 404). If Sanity is down with nothing cached, whether the id exists is
+ * unknown, so the page keeps generic metadata (and its og:url) and the outage is reported.
+ */
+export async function generateMetadata({ params }: PlacePageProps): Promise<Metadata> {
+  const { placeId } = await params;
+  const path = `/places/${encodeURIComponent(placeId)}`;
 
-const MotionImage = motion.create(Image);
+  try {
+    const place = await loadPlaceById(placeId);
+    if (!place) {
+      return constructMetadata({
+        title: 'Place Not Found',
+        description: 'The requested place could not be found',
+      });
+    }
+    return constructMetadata({
+      title: place.name,
+      description: metaDescription(place.description),
+      image: previewImage(place),
+      path,
+    });
+  } catch (error) {
+    reportApiFailure(error, { context: METADATA_REPORT_CONTEXT, level: 'warning' });
+    return constructMetadata({ title: 'Places', description: 'A place I visited', path });
+  }
+}
 
-/** The places this page reads, reset by Try again so a retry fetches them again. */
-const PLACES_QUERY_KEYS = [dataLoaderQueryKey(SANITY_ENDPOINTS.places)];
+/** The viewer's photos: each whole (never cropped to the frame), with its alt text. */
+const viewerPhotos = (place: Place): ViewerPhoto[] =>
+  (place.photos ?? []).map((photo) => ({
+    url: viewerPhotoUrl(photo.asset, VIEWER_MAX_WIDTH, VIEWER_MAX_HEIGHT),
+    caption: photo.caption,
+    alt: photo.caption || `Photo of ${place.name}`,
+  }));
 
-/** The photo card's shape (title, summary, photo frame) while the place loads. */
-const PlacePhotosSkeleton = () => (
-  <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-    <Card className="w-full max-w-7xl" aria-busy="true" aria-label="Loading place">
-      <CardHeader className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-full max-w-md" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="w-full aspect-video rounded-lg" />
-      </CardContent>
-    </Card>
-  </div>
+/** The place page's header content; the close link's name says what it closes. */
+const placeSummary = (place: Place, closeLabel: string): JSX.Element => (
+  <PlaceSummary
+    name={place.name}
+    category={place.category}
+    description={place.description}
+    startDate={place.startDate}
+    endDate={place.endDate}
+    closeLabel={closeLabel}
+  />
 );
 
 /**
- * The place's details and photo viewer. useSanityPlaces suspends while loading (PlacePhotosPage
- * shows PlacePhotosSkeleton) and throws a failed load to the QueryErrorBoundary there.
+ * A place in full: its summary, then its photos, or an empty state with a map link when it has
+ * none. An unknown id answers 404, and a Sanity outage with nothing cached reaches the shell's
+ * error boundary.
  */
-const PlacePhotosContent = ({ params }: PhotoModalProps) => {
-  const { placeId } = use(params);
-  const { data: sanityPlaces } = useSanityPlaces();
-  const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
-  const [zoom, setZoom] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isPanningZoom, setIsPanningZoom] = useState(false);
+export default async function PlacePage({ params }: PlacePageProps): Promise<JSX.Element> {
+  const { placeId } = await params;
+  const place = await loadPlaceById(placeId);
+  if (!place) notFound();
 
-  const fullscreenRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const zoomX = useMotionValue(0);
-  const zoomY = useMotionValue(0);
-
-  const place = useMemo(
-    () => sanityPlaces?.find((p) => p._id === placeId),
-    [sanityPlaces, placeId],
-  );
-
-  const photos = useMemo(() => (place?.photos || []) as PhotoWithCaption[], [place]);
-
-  const currentPhoto = photos[currentPhotoIndex];
-  const imageUrl = currentPhoto?.asset ? viewerPhotoUrl(currentPhoto.asset, 1600, 1200) : '';
-
-  const paginate = useCallback(
-    (newDirection: number) => {
-      if (zoom > 1) return;
-      const newIndex = currentPhotoIndex + newDirection;
-      if (newIndex >= 0 && newIndex < photos.length) {
-        setPage([newIndex, newDirection]);
-        setZoom(1);
-        zoomX.set(0);
-        zoomY.set(0);
-      }
-    },
-    [currentPhotoIndex, photos.length, zoom, zoomX, zoomY],
-  );
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      fullscreenRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-      setZoom(1);
-      zoomX.set(0);
-      zoomY.set(0);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-      setZoom(1);
-      zoomX.set(0);
-      zoomY.set(0);
-    }
-  }, [zoomX, zoomY]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const handleZoomIn = useCallback(() => {
-    setZoom((prevZoom) => Math.min(prevZoom + 0.2, 3));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setZoom((prevZoom) => {
-      const newZoom = Math.max(prevZoom - 0.2, 1);
-      if (newZoom === 1) {
-        zoomX.set(0);
-        zoomY.set(0);
-      }
-      return newZoom;
-    });
-  }, [zoomX, zoomY]);
-
-  const handlePanStart = useCallback(() => {
-    if (zoom > 1) {
-      setIsPanningZoom(true);
-    }
-  }, [zoom]);
-
-  const handlePanEnd = useCallback(() => {
-    setIsPanningZoom(false);
-  }, []);
-
-  const handlePan = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isPanningZoom && imageRef.current && containerRef.current) {
-        const image = imageRef.current;
-        const containerWidth = containerRef.current.offsetWidth;
-        const containerHeight = containerRef.current.offsetHeight;
-        // The <img> fills its box, and object-contain letterboxes the photo inside it. Clamp to the
-        // photo as drawn, so a zoomed portrait can't be dragged out of view.
-        const drawnScale =
-          image.naturalWidth && image.naturalHeight
-            ? Math.min(
-                image.offsetWidth / image.naturalWidth,
-                image.offsetHeight / image.naturalHeight,
-              )
-            : 1;
-        const imageWidth =
-          (image.naturalWidth ? image.naturalWidth * drawnScale : image.offsetWidth) * zoom;
-        const imageHeight =
-          (image.naturalHeight ? image.naturalHeight * drawnScale : image.offsetHeight) * zoom;
-
-        const maxX = Math.max(0, (imageWidth - containerWidth) / 2);
-        const maxY = Math.max(0, (imageHeight - containerHeight) / 2);
-
-        const newX = zoomX.get() + event.movementX;
-        const newY = zoomY.get() + event.movementY;
-
-        zoomX.set(Math.max(-maxX, Math.min(maxX, newX)));
-        zoomY.set(Math.max(-maxY, Math.min(maxY, newY)));
-      }
-    },
-    [isPanningZoom, zoom, zoomX, zoomY],
-  );
-
-  if (!place) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-        <MagicCard className="max-w-md">
-          <CardContent className="flex flex-col items-center gap-6 p-12 text-center">
-            <div className="space-y-3">
-              <h1 className="text-2xl font-bold leading-tight">Place not found</h1>
-              <p className="text-muted-foreground leading-relaxed">
-                This place may have been removed, or the link is incomplete.
-              </p>
-            </div>
-            <Button asChild variant="outline" size="lg" className="text-foreground">
-              <Link href="/places">Back to Places</Link>
-            </Button>
-          </CardContent>
-        </MagicCard>
-      </div>
-    );
-  }
-
-  // No photos (yet, or ever): still show the place in full, since the list card cuts it short.
-  if (photos.length === 0) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="min-h-screen p-4 md:p-8"
-      >
-        <div className="w-full max-w-7xl mx-auto">
-          <MagicCard>
-            <CardHeader>
-              <PlaceSummary
-                name={place.name}
-                category={place.category}
-                description={place.description}
-                startDate={place.startDate}
-                endDate={place.endDate}
-                closeLabel="Close"
-              />
-            </CardHeader>
-            <CardContent>
-              <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
-            </CardContent>
-          </MagicCard>
-        </div>
-      </motion.div>
-    );
-  }
+  const photos = viewerPhotos(place);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen p-4 md:p-8"
-    >
+    <div className="min-h-screen p-4 md:p-8">
       <div className="w-full max-w-7xl mx-auto">
         <MagicCard>
-          <CardHeader className="space-y-4">
-            <PlaceSummary
-              name={place.name}
-              category={place.category}
-              description={place.description}
-              startDate={place.startDate}
-              endDate={place.endDate}
-              closeLabel="Close photo viewer"
-            />
-
-            {photos.length > 1 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium">
-                  Photo {currentPhotoIndex + 1} of {photos.length}
-                </span>
-                <span className="text-xs opacity-70">← Drag to navigate →</span>
-              </div>
-            )}
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div
-              ref={fullscreenRef}
-              className={cn(
-                'relative w-full aspect-video bg-muted rounded-lg overflow-hidden',
-                isFullscreen && 'fixed inset-0 z-50 bg-black rounded-none aspect-auto',
-              )}
-            >
-              <AnimatePresence initial={false} custom={direction}>
-                <motion.div
-                  key={currentPhotoIndex}
-                  custom={direction}
-                  variants={variants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{
-                    x: { type: 'spring', stiffness: 300, damping: 30 },
-                    opacity: { duration: 0.2 },
-                  }}
-                  drag={zoom === 1 && photos.length > 1 ? 'x' : false}
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={1}
-                  onDragEnd={(_e, { offset, velocity }) => {
-                    if (zoom === 1) {
-                      const swipe = swipePower(offset.x, velocity.x);
-
-                      if (swipe < -swipeConfidenceThreshold) {
-                        paginate(1);
-                      } else if (swipe > swipeConfidenceThreshold) {
-                        paginate(-1);
-                      }
-                    }
-                  }}
-                  className="absolute inset-0" // ensure it truly fills the wrapper
-                >
-                  {imageUrl ? (
-                    <div
-                      ref={containerRef}
-                      // Fill the frame so object-contain shows every photo whole and centred. A
-                      // fixed 4:3 box overflowed the 16:9 frame and clipped the bottom quarter.
-                      className={cn(
-                        'relative select-none flex items-center justify-center w-full h-full',
-                        zoom > 1 && 'cursor-move',
-                        zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
-                      )}
-                      onPointerDown={handlePanStart}
-                      onPointerUp={handlePanEnd}
-                      onPointerLeave={handlePanEnd}
-                      onPointerMove={handlePan}
-                    >
-                      <MotionImage
-                        src={imageUrl}
-                        alt={currentPhoto?.caption || `Photo of ${place.name}`}
-                        ref={imageRef}
-                        fill
-                        className="object-contain"
-                        sizes={
-                          isFullscreen
-                            ? '100vw'
-                            : '(max-width:768px) 100vw, (max-width:1200px) 75vw, 50vw'
-                        }
-                        draggable={false}
-                        style={{ scale: zoom, x: zoomX, y: zoomY }}
-                        loading="eager"
-                        priority={true} // optional
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <p className="text-muted-foreground">No image available</p>
-                    </div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {imageUrl && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto z-10"
-                  >
-                    <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-lg">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={handleZoomIn}
-                        disabled={zoom >= 3}
-                        aria-label="Zoom in"
-                      >
-                        <FiZoomIn className="h-4 w-4" />
-                      </Button>
-                      <span className="px-2 text-sm font-medium min-win-12 text-center">
-                        {Math.round(zoom * 100)}%
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={handleZoomOut}
-                        disabled={zoom === 1}
-                        aria-label="Zoom out"
-                      >
-                        <FiZoomOut className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      onClick={toggleFullscreen}
-                      className="shadow-lg"
-                      aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                    >
-                      {isFullscreen ? (
-                        <FiX className="h-4 w-4" />
-                      ) : (
-                        <FiMaximize className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {currentPhoto?.caption && (
-              <motion.div
-                key={`caption-${currentPhotoIndex}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-muted/50 rounded-lg p-6"
-              >
-                <p className="text-sm text-muted-foreground leading-relaxed italic text-center">
-                  {currentPhoto.caption}
-                </p>
-              </motion.div>
-            )}
-
-            {photos.length > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-2">
-                {photos.map((_, index) => (
-                  <Button
-                    key={`${+index}`}
-                    onClick={() => {
-                      const newDirection = index > currentPhotoIndex ? 1 : -1;
-                      setPage([index, newDirection]);
-                      setZoom(1);
-                      zoomX.set(0);
-                      zoomY.set(0);
-                    }}
-                    className={cn(
-                      'h-2 rounded-full transition-all',
-                      index === currentPhotoIndex
-                        ? 'w-8 bg-primary'
-                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
-                    )}
-                    aria-label={`Go to photo ${index + 1}`}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
+          {photos.length === 0 ? (
+            <>
+              <CardHeader>{placeSummary(place, 'Close')}</CardHeader>
+              <CardContent>
+                <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
+              </CardContent>
+            </>
+          ) : (
+            <PlacePhotoViewer photos={photos} summary={placeSummary(place, 'Close photo viewer')} />
+          )}
         </MagicCard>
       </div>
-    </motion.div>
+    </div>
   );
-};
-
-/**
- * The place page. A failed load of the places stays inside the site's layout, with a retry; an
- * unknown id still shows "Place not found". The Suspense boundary sits inside the layout, so a
- * load (the first, or a retry's) shows the skeleton under the site navigation instead of
- * suspending up to src/app/loading.tsx, whose full-screen loader would replace it.
- */
-const PlacePhotosPage = ({ params }: PhotoModalProps) => (
-  <QueryErrorBoundary
-    queryKeys={PLACES_QUERY_KEYS}
-    fallback={(_error, retry) => (
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-        <SectionLoadError section="this place" retry={retry} />
-      </div>
-    )}
-  >
-    <Suspense fallback={<PlacePhotosSkeleton />}>
-      <PlacePhotosContent params={params} />
-    </Suspense>
-  </QueryErrorBoundary>
-);
-PlacePhotosPage.displayName = 'PlacePhotosPage';
-export default PlacePhotosPage;
+}

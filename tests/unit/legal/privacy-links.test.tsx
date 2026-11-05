@@ -32,9 +32,8 @@ import { Privacy } from '@/app/(routes)/(legal)/privacy/_interface/privacy/priva
 const { passThrough } = vi.hoisted(() => ({
   passThrough: ({ children }: { children?: ReactNode }) => children,
 }));
-// The page shell and card effect are not under test.
-vi.mock('@/components/layout/layout', () => ({ default: passThrough }));
-vi.mock('@/components', () => ({ MagicCard: passThrough }));
+// The card's hover effect is not under test.
+vi.mock('@/components/magicui/magic-card', () => ({ MagicCard: passThrough }));
 
 const renderPrivacy = () => {
   const push = vi.fn();

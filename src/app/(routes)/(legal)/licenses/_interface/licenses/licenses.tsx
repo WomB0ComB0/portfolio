@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -19,9 +17,9 @@
 import { ExternalLink, FileCode, FileText, Image } from 'lucide-react';
 import Link from 'next/link';
 import type { JSX } from 'react';
-import { MagicCard } from '@/components';
+import { MagicCard } from '@/components/magicui/magic-card';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { emailHref } from '@/constants';
+import { emailHref } from '@/constants/app';
 import type { LicenseCardProps } from './licenses.types';
 
 /**

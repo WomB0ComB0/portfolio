@@ -14,17 +14,42 @@
  * limitations under the License.
  */
 
+import type { ComponentType } from 'react';
+
+import type { GitHubSponsorsData, Sponsor } from '@/lib/api-integrations/github-sponsors';
+
+export type { GitHubSponsorsData, Sponsor };
+
+/** An icon component (lucide or react-icons) that takes a class name. */
+export type SponsorIcon = ComponentType<{ className?: string }>;
+
 export interface SponsorPlatform {
   name: string;
   username: string;
   url: string;
-  icon: React.ReactNode;
+  icon: SponsorIcon;
+  /** Tailwind gradient stops for the icon tile, e.g. 'from-purple-500 to-pink-500'. */
   color: string;
   description: string;
 }
 
 export interface BenefitItem {
-  icon: React.ReactNode;
+  icon: SponsorIcon;
   title: string;
   description: string;
+}
+
+export interface SponsorListsProps {
+  /**
+   * What the sponsors block loaded from GitHub Sponsors, or null when that call failed or missed
+   * its deadline. On null only the sponsors block shows an error; the rest of the page is static
+   * and never waits on GitHub.
+   */
+  sponsors: GitHubSponsorsData | null;
+}
+
+/** The listable sponsors, split by whether their sponsorship is active. */
+export interface SponsorGroups {
+  current: readonly Sponsor[];
+  past: readonly Sponsor[];
 }

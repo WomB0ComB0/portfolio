@@ -14,18 +14,10 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
+import type { JSX } from 'react';
+import { Resume } from '@/app/(routes)/(main)/(professioal)/resume/_interface/resume/resume';
+import { loadResume } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils';
-
-const Resume = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(professioal)/resume/_interface/resume').then(
-      (mod) => mod.Resume,
-    ),
-  {
-    ssr: true,
-  },
-);
 
 export const metadata = constructMetadata({
   title: 'Resume',
@@ -34,15 +26,10 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Resume page component.
- * Renders the resume interface for viewing and downloading the professional resume.
- *
- * @returns {JSX.Element} The resume page.
- * @author Mike Odnis
- * @version 1.0.0
+ * The active resume, rendered on the server; null when none is published. When Sanity fails with
+ * nothing fresh to say, the load rejects and src/app/(routes)/error.tsx shows the error inside
+ * the shell.
  */
-const ResumePage = () => {
-  return <Resume />;
-};
-
-export default ResumePage;
+export default async function ResumePage(): Promise<JSX.Element> {
+  return <Resume resume={await loadResume()} />;
+}

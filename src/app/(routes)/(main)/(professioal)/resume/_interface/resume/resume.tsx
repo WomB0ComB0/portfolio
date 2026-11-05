@@ -1,5 +1,4 @@
-'use client';
-
+import 'server-only';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,196 +15,179 @@
  * limitations under the License.
  */
 
+/**
+ * @file The /resume page, rendered on the server: the active resume's PDF in a frame with a link
+ * to open it, or a calm note when none is published. A failed load is not caught here; it reaches
+ * the route's error page inside the shell.
+ */
+
 import { ExternalLink, FileText } from 'lucide-react';
-import { motion } from 'motion/react';
-import Link from 'next/link';
-import { Suspense } from 'react';
-import { MagicCard, PageHeader } from '@/components';
-import { Button } from '@/components/ui/button';
+import type { JSX, ReactNode } from 'react';
+import { PageHeader } from '@/components/custom/page-header';
+import { MagicCard } from '@/components/magicui/magic-card';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type Resume as ResumeType, SANITY_ENDPOINTS, useSanityResume } from '@/hooks';
-import { FetcherError } from '@/lib/http-clients';
-import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
+import type { Resume as ResumeDocument } from '@/hooks/sanity/schemas';
+import { cn } from '@/lib/utils';
 
 const BASE_CDN_URL = 'https://cdn.sanity.io/files/34jrnkds/production/';
+const DEFAULT_TITLE = 'Resume';
+const NOT_AVAILABLE = 'N/A';
+/** A Sanity `date` value: a calendar day with no time or zone. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+/** Always in UTC, so the day shown is the day stored wherever the page renders. */
+const LAST_UPDATED_FORMAT = new Intl.DateTimeFormat('en-US', {
+  dateStyle: 'long',
+  timeZone: 'UTC',
+});
 
-/** The API answers 404 { error: 'No active resume' } when none is active: a retry gets the same. */
-const isNoActiveResume = (error: Error): boolean =>
-  error instanceof FetcherError && error.status === 404;
+const PAGE_CLASS = 'relative container mx-auto px-4 py-8 min-h-screen';
+const SECTION_CLASS =
+  'z-20 flex flex-col w-full justify-between mt-8 sm:mt-16 lg:mt-0 md:mt-0 mb-10 mx-auto';
+const VIEWER_CARD_CLASS = 'w-full max-w-4xl mx-auto border-primary rounded-xl overflow-hidden';
+/** The PDF frame; the loading skeleton has the same box. */
+const FRAME_CLASS =
+  'relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-primary overflow-hidden bg-background';
 
-/** Placeholder while the resume loads. */
-const ResumeSkeleton = () => (
-  <div className="relative container mx-auto px-4 py-8 min-h-screen">
-    <section className="z-20 flex flex-col w-full justify-between mt-8 sm:mt-16 lg:mt-0 md:mt-0 mb-10 mx-auto">
-      <Card className="w-full max-w-4xl mx-auto bg-card border-primary rounded-xl overflow-hidden shadow-lg">
-        <CardContent className="p-4 sm:p-6">
-          <div className="space-y-4">
-            <Skeleton className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full bg-accent" />
-            <div className="flex justify-center">
-              <Skeleton className="h-3 sm:h-4 w-24 sm:w-32 bg-accent" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </section>
+/** The PDF's CDN URL, built from its file reference ('file-<id>-pdf') as it always has been. */
+function pdfUrlOf(resume: ResumeDocument): string | undefined {
+  const ref = resume.pdfFile.asset._ref;
+  return ref ? `${BASE_CDN_URL}${ref.split('-').slice(1, 2).join('-')}.pdf` : undefined;
+}
+
+/**
+ * "Last updated" as a long US date. A YYYY-MM-DD value is read as that day at UTC midnight, so it
+ * never shows as the day before in US time zones; a full timestamp shows its UTC day.
+ */
+function formatLastUpdated(lastUpdated: string): string {
+  const date = new Date(DATE_ONLY.test(lastUpdated) ? `${lastUpdated}T00:00:00Z` : lastUpdated);
+  return Number.isNaN(date.getTime()) ? NOT_AVAILABLE : LAST_UPDATED_FORMAT.format(date);
+}
+
+const PageFrame = ({ children }: { children: ReactNode }): JSX.Element => (
+  <div className={PAGE_CLASS}>
+    <section className={SECTION_CLASS}>{children}</section>
   </div>
 );
 
-/**
- * No resume to show: none is active, it has no PDF, or it failed to load. Only a failed load
- * passes `retry`, which loads it again.
- */
-const ResumeUnavailable = ({ retry }: { retry?: () => void }) => (
-  <div className="relative container mx-auto px-4 py-8 min-h-screen">
-    <section className="z-20 flex flex-col w-full justify-between mt-8 sm:mt-16 lg:mt-0 md:mt-0 mb-10 mx-auto">
-      <Card className="w-full max-w-4xl mx-auto bg-linear-to-b from-destructive/20 to-destructive/20 border-destructive rounded-xl overflow-hidden shadow-lg">
-        <CardContent className="p-8 text-center">
-          <FileText className="h-16 w-16 text-destructive-foreground mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-destructive-foreground mb-2">
-            Resume Not Available
-          </h2>
-          <p className="text-destructive-foreground/80">
-            Sorry, the resume is currently unavailable. Please check back later.
-          </p>
-          {retry && (
-            <Button type="button" variant="outline" className="mt-6" onClick={retry}>
-              Try again
-            </Button>
+/** No resume is published (or it has no PDF). A state, not an error: no warning colours. */
+const NoResume = (): JSX.Element => (
+  <PageFrame>
+    <PageHeader title={DEFAULT_TITLE} icon={<FileText />} />
+    <Card className="w-full max-w-4xl mx-auto bg-card/40 backdrop-blur-md border-white/10 rounded-xl overflow-hidden">
+      <CardContent className="p-8 text-center">
+        <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" aria-hidden="true" />
+        <p className="text-lg font-medium text-foreground">No resume is published right now</p>
+        <p className="mt-2 text-muted-foreground">Please check back later.</p>
+      </CardContent>
+    </Card>
+  </PageFrame>
+);
+
+/** The PDF in a frame, with a link to open it in a new tab beside it. */
+const ResumeViewer = ({ pdfUrl }: { pdfUrl: string }): JSX.Element => (
+  <MagicCard
+    className={`${VIEWER_CARD_CLASS} shadow-lg hover:shadow-primary/20 transition-shadow duration-300`}
+  >
+    <CardContent className="p-4 sm:p-6">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <a
+          href={pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            buttonVariants({ variant: 'outline', size: 'sm' }),
+            'w-full sm:w-auto text-muted-foreground border-primary text-xs sm:text-sm transition-all hover:-translate-y-0.5',
           )}
-        </CardContent>
-      </Card>
-    </section>
-  </div>
+        >
+          <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" aria-hidden="true" />
+          Open PDF
+        </a>
+      </div>
+
+      <div className={FRAME_CLASS}>
+        <iframe
+          title="Resume PDF"
+          src={`${pdfUrl}#view=FitH`}
+          className="w-full h-full"
+          loading="lazy"
+        />
+      </div>
+
+      <div className="mt-4 text-center">
+        <p className="text-muted-foreground text-xs sm:text-sm">
+          If the PDF viewer doesn't load,{' '}
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:text-primary/90 underline decoration-primary transition-colors"
+          >
+            click here to open in a new tab
+          </a>
+          {'.'}
+        </p>
+        <p className="text-muted-foreground mt-2 text-[11px]">Filename: {pdfUrl}</p>
+      </div>
+    </CardContent>
+  </MagicCard>
 );
 
-/**
- * Renders the user's resume in PDF format with options to download and view the file.
- * Loading suspends to the skeleton and a failed load throws to the boundary in {@link Resume}.
- */
-const ResumeContent = () => {
-  const { data: resume } = useSanityResume();
+export interface ResumeProps {
+  /** The active resume, or null when none is published. */
+  readonly resume: ResumeDocument | null;
+}
 
-  const typedResume = resume as ResumeType | undefined;
-  const pdfUrl = typedResume?.pdfFile?.asset._ref
-    ? `${BASE_CDN_URL}${typedResume.pdfFile.asset._ref.split('-').slice(1, 2).join('-')}.pdf`
-    : undefined;
-  const lastUpdated = typedResume?.lastUpdated
-    ? new Date(typedResume.lastUpdated).toLocaleDateString()
-    : 'N/A';
+/** The active resume's PDF with a link to open it, or a calm note when none is published. */
+export const Resume = ({ resume }: ResumeProps): JSX.Element => {
+  const pdfUrl = resume ? pdfUrlOf(resume) : undefined;
+  if (!resume || !pdfUrl) return <NoResume />;
 
-  if (!resume || !pdfUrl) return <ResumeUnavailable />;
-
-  // Render main resume PDF content
   return (
-    <div className="relative container mx-auto px-4 py-8 min-h-screen">
-      <section className="z-20 flex flex-col w-full justify-between mt-8 sm:mt-16 lg:mt-0 md:mt-0 mb-10 mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <PageHeader
-            title={typedResume?.title || 'Resume'}
-            description={`Last updated: ${lastUpdated}`}
-            icon={<FileText />}
-          />
-          <MagicCard className="w-full max-w-4xl mx-auto border-primary rounded-xl overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
-            <CardContent className="p-4 sm:p-6">
-              <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  {/**
-                   * Open Resume Button
-                   * @param {MouseEvent} e - The click event
-                   * @returns {void}
-                   */}
-                  <Button variant="outline" size="sm">
-                    <Link
-                      href={pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center w-full sm:w-auto text-muted-foreground border-primary text-xs sm:text-sm transition-all hover:-translate-y-0.5 flex-row"
-                    >
-                      <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      Open PDF
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-primary overflow-hidden bg-background">
-                {/**
-                 * Embedded PDF iframe for resume.
-                 * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe}
-                 */}
-                <iframe
-                  title="Resume PDF"
-                  src={`${pdfUrl}#view=FitH`}
-                  className="w-full h-full"
-                  loading="lazy"
-                />
-              </div>
-
-              <div className="mt-4 text-center">
-                <p className="text-muted-foreground text-xs sm:text-sm">
-                  If the PDF viewer doesn't load,{' '}
-                  <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-primary/90 underline decoration-primary transition-colors"
-                  >
-                    click here to open in a new tab
-                  </a>
-                  {'.'}
-                </p>
-                {typedResume?.pdfFile && (
-                  /**
-                   * Render original PDF filename for download or verification.
-                   * @readonly
-                   * @type {string}
-                   */
-                  <p className="text-muted-foreground mt-2 text-[11px]">
-                    Filename: {pdfUrl || 'resume.pdf'}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </MagicCard>
-        </motion.div>
-      </section>
-    </div>
+    <PageFrame>
+      <div>
+        <PageHeader
+          title={resume.title || DEFAULT_TITLE}
+          description={`Last updated: ${formatLastUpdated(resume.lastUpdated)}`}
+          icon={<FileText />}
+        />
+        <ResumeViewer pdfUrl={pdfUrl} />
+      </div>
+    </PageFrame>
   );
 };
+Resume.displayName = 'Resume';
 
 /**
- * The resume page: the PDF with options to open it, inside the site's layout.
- * When no resume is active (404) it shows "Resume Not Available"; when the load fails it shows
- * the same card with a retry. Neither replaces the page.
- *
- * @function
- * @public
- * @web
- * @author Mike Odnis
- * @see {@link https://github.com/WomB0ComB0/portfolio|Project Repository (portfolio)}
- * @see ResumeType
- * @version 1.0.0
- * @returns {JSX.Element} The resume view, including skeleton, error and PDF embed states.
- * @example
- * // Usage within a Next.js page
- * <Resume />
+ * The page while it loads (loading.tsx): the real header, so its h1 is on screen from the first
+ * flush (even with JavaScript off), over a frame the size of the PDF's. It has the default title;
+ * a published resume's own title, if it has one, replaces it in place. Only what needs the data is
+ * a placeholder: the "Last updated" line and the viewer.
  */
-export const Resume = () => (
-  <QueryErrorBoundary
-    queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.resume)]}
-    fallback={(error, retry) => (
-      <ResumeUnavailable retry={isNoActiveResume(error) ? undefined : retry} />
-    )}
-  >
-    <Suspense fallback={<ResumeSkeleton />}>
-      <ResumeContent />
-    </Suspense>
-  </QueryErrorBoundary>
+export const ResumeSkeleton = (): JSX.Element => (
+  <PageFrame>
+    <div>
+      <PageHeader title={DEFAULT_TITLE} icon={<FileText />} />
+      <output className="block" aria-label="Loading resume">
+        {/*
+          The "Last updated" line. PageHeader draws its description above its bottom padding
+          (page-header.css: pb-4); with no description that padding ends the header. So the bar
+          is one description line tall (text-sm, md:text-base) and is lifted by that padding with
+          relative positioning, which moves it without moving the boxes after it: it sits where
+          the date will, and the frame below does not shift when the page arrives.
+        */}
+        <Skeleton className="relative -top-4 mx-auto h-5 md:h-6 w-56" />
+        <Card className={`${VIEWER_CARD_CLASS} shadow-lg`}>
+          <CardContent className="p-4 sm:p-6">
+            <Skeleton className="mb-4 sm:mb-6 h-8 w-full sm:w-28" />
+            <Skeleton className={cn(FRAME_CLASS, 'bg-primary/10')} />
+          </CardContent>
+        </Card>
+      </output>
+    </div>
+  </PageFrame>
 );
-Resume.displayName = 'Resume';
+ResumeSkeleton.displayName = 'ResumeSkeleton';
+
 export default Resume;

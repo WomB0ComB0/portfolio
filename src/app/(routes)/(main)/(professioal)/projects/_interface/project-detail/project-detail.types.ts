@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import type { Project } from '@/hooks/sanity/schemas';
+
 export interface ProjectDetailProps {
-  params: { id: string };
+  /** The project the page found; an unknown id 404s in the page before this renders. */
+  project: Project;
 }

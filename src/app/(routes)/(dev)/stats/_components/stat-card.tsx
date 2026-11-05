@@ -17,9 +17,10 @@
  */
 
 import { motion } from 'motion/react';
-import { type ReactNode, useId } from 'react';
-import { MagicCard } from '@/components';
+import { type ReactNode, useId, useState } from 'react';
+import { MagicCard } from '@/components/magicui/magic-card';
 import { CardContent, CardHeader } from '@/components/ui/card';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { cn } from '@/lib/utils';
 
 /**
@@ -35,6 +36,12 @@ interface StatCardProps {
   className?: string;
   footer?: ReactNode;
   delay?: number;
+  /**
+   * Whether a card mounted in the browser fades and rises in. Skeletons pass false: a placeholder
+   * that animates in, only to be replaced by the loaded card's own entrance, plays the card's
+   * entrance twice. Defaults to true.
+   */
+  hasEntrance?: boolean;
 }
 
 export const StatCard = ({
@@ -44,12 +51,18 @@ export const StatCard = ({
   className,
   footer,
   delay = 0,
+  hasEntrance = true,
 }: StatCardProps) => {
   const titleId = useId();
+  // A card hydrated from server HTML is already in place, so only a browser mount (a client
+  // navigation, or data that arrived after a browser fetch) fades it in. Captured once: the hook
+  // reads false again after hydration.
+  const isServerHtml = useIsServerHtmlRender();
+  const [skipsEntrance] = useState(isServerHtml || !hasEntrance);
   return (
     <motion.section
       aria-labelledby={titleId}
-      initial={{ opacity: 0, y: 20 }}
+      initial={skipsEntrance ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
       className="h-full"

@@ -14,21 +14,39 @@
  * limitations under the License.
  */
 
-import { MediaTabs } from '@/app/(routes)/(dev)/media/_components';
+import type { JSX, ReactNode } from 'react';
+import { FiFileText } from 'react-icons/fi';
+import { MediaTabs } from '@/app/(routes)/(dev)/media/_components/media-tabs';
+import type { MediaTab } from '@/app/(routes)/(dev)/media/_lib/media-tabs';
+import { PageHeader } from '@/components/custom/page-header';
+
+export interface MediaViewProps {
+  /** The tab `panel` belongs to. */
+  readonly active: MediaTab;
+  /** The active tab's panel, or its skeleton. */
+  readonly panel: ReactNode;
+}
 
 /**
- * Media view component.
- * Renders the media page with tabbed content for different media types.
+ * Media view component, rendered on the server.
+ * Renders the media page header and the tab bar around the active tab's panel.
  *
  * @returns {JSX.Element} The media view.
  * @author Mike Odnis
- * @version 1.0.0
+ * @version 2.0.0
  */
-export const MediaView = () => {
+export const MediaView = ({ active, panel }: MediaViewProps): JSX.Element => {
   return (
     <div className="w-full min-h-screen p-4 md:p-8">
       <div className="max-w-6xl mx-auto mb-10">
-        <MediaTabs />
+        <div className="container mx-auto px-4 py-8 lg:py-12">
+          <PageHeader
+            title="Media"
+            description="Explore my blog posts, presentations, talks, videos, and articles"
+            icon={<FiFileText />}
+          />
+          <MediaTabs active={active}>{panel}</MediaTabs>
+        </div>
       </div>
     </div>
   );

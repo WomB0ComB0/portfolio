@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-import type { SanityImage } from '@/hooks/sanity/schemas';
-
-export interface PhotoModalProps {
+/** The place page's route props. */
+export interface PlacePageProps {
   params: Promise<{
     placeId: string;
   }>;
 }
 
-export interface PhotoWithCaption extends SanityImage {
+/** A photo as the viewer shows it, its URL built on the server. */
+export interface ViewerPhoto {
+  url: string;
   caption?: string;
+  /** The caption, or "Photo of <place>" when it has none. */
+  alt: string;
 }

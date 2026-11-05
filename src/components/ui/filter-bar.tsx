@@ -49,6 +49,27 @@ export interface FilterConfig {
   icon: ReactNode;
 }
 
+/** The value of the "every option" item each select lists first, labelled with its placeholder. */
+const ALL_VALUE = 'all';
+
+const optionValue = (option: FilterOption | string): string =>
+  typeof option === 'string' ? option : option.value;
+
+const optionLabel = (option: FilterOption | string): string =>
+  typeof option === 'string' ? option : option.label;
+
+/**
+ * The text the closed select shows for its current value. Radix copies the chosen item's text into
+ * the trigger through a portal that exists only after hydration, so the server HTML (and the page
+ * without JavaScript) had a blank, unnamed combobox; given as SelectValue's children, the label is
+ * in the server HTML too, and Radix then skips the portal. A value the options lack shows as is.
+ */
+const selectedLabel = ({ value, options, placeholder }: FilterConfig): string => {
+  if (value === '' || value === ALL_VALUE) return placeholder;
+  const selected = options.find((option) => optionValue(option) === value);
+  return selected === undefined ? value : optionLabel(selected);
+};
+
 interface FilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
@@ -103,27 +124,26 @@ export function FilterBar({
                 <div className="flex items-center gap-2 w-full overflow-hidden">
                   <div className="text-muted-foreground shrink-0">{filter.icon}</div>
                   <span className="truncate">
-                    <SelectValue placeholder={filter.placeholder} />
+                    <SelectValue placeholder={filter.placeholder}>
+                      {selectedLabel(filter)}
+                    </SelectValue>
                   </span>
                 </div>
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                <SelectItem value="all">{filter.placeholder}</SelectItem>
-                {filter.options.map((option) => {
-                  const value = typeof option === 'string' ? option : option.value;
-                  const label = typeof option === 'string' ? option : option.label;
-                  return (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
+                <SelectItem value={ALL_VALUE}>{filter.placeholder}</SelectItem>
+                {filter.options.map((option) => (
+                  <SelectItem key={optionValue(option)} value={optionValue(option)}>
+                    {optionLabel(option)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           ))}
 
-          {/* Clear Filters Button */}
-          <AnimatePresence>
+          {/* Clear Filters Button. initial={false}: a filter already in the URL renders it in
+              place (server HTML never hides it); only a filter chosen later animates it in. */}
+          <AnimatePresence initial={false}>
             {hasActiveFilters && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, width: 0 }}
@@ -145,8 +165,8 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* Results Count */}
-      <AnimatePresence>
+      {/* Results Count, in place when the filter came from the URL (see the Clear button). */}
+      <AnimatePresence initial={false}>
         {hasActiveFilters && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}

@@ -15,14 +15,17 @@
  */
 
 /**
- * @file Try again in a section boundary loads the section's data again. It used to clear only the
- * boundary: when a render threw after a successful fetch (a malformed Sanity image _ref is
+ * @file Try again in a QueryErrorBoundary loads its children's data again. It used to clear only
+ * the boundary: when a render threw after a successful fetch (a malformed Sanity image _ref is
  * enough), the remount rendered the same cached data within its staleTime and threw again, so
- * the button never worked until the cache went stale. QueryErrorBoundary now resets the
- * section's query keys first, and DataLoader resets its own query.
+ * the button never worked until the cache went stale. QueryErrorBoundary now resets its query
+ * keys first, and DataLoader, which renders through it, resets its own query.
+ *
+ * The boundary only takes the caller's fallback: the default section notice went with the client
+ * Sanity sections D2 removed (pages load on the server and outages reach (routes)/error.tsx).
  */
 
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, useSuspenseQuery } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode, Suspense } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,12 +50,13 @@ vi.mock('@/lib/observability/report', async (importOriginal) => ({
   reportError: h.reportError,
 }));
 
+import * as dataLoaderModule from '@/providers/server/effect-data-loader';
 import {
   DataLoader,
   type DataLoaderErrorProps,
   dataLoaderQueryKey,
+  type LoadFailureFallback,
   QueryErrorBoundary,
-  useDataLoader,
 } from '@/providers/server/effect-data-loader';
 import { createQueryClient } from '@/providers/server/query-client';
 
@@ -83,11 +87,30 @@ const renderVersion = ({ version }: Answer): ReactNode => {
   return <p>version {version}</p>;
 };
 
-/** Reads the data the way the useSanity* hooks do, and renders it. */
-const Section = () => <>{renderVersion(useDataLoader<Answer>(URL_UNDER_TEST).data)}</>;
+/** A suspense query under DataLoader's key prefix for `url`, as a client section reads its data. */
+const useAnswer = (url: string): Answer =>
+  useSuspenseQuery({
+    queryKey: dataLoaderQueryKey(url),
+    queryFn: async (): Promise<Answer> => (await fetch(url)).json(),
+  }).data;
+
+/** Reads the data with a suspense query and renders it. */
+const Section = () => <>{renderVersion(useAnswer(URL_UNDER_TEST))}</>;
 
 /** Another section on the page, outside the failing section's boundary. */
-const Sibling = () => <p>sibling {useDataLoader<Answer>('/api/v1/sanity/other').data.version}</p>;
+const Sibling = () => <p>sibling {useAnswer('/api/v1/sanity/other').version}</p>;
+
+const FAILED = "Couldn't load things right now.";
+
+/** A QueryErrorBoundary fallback: a notice and a Try again button. */
+const tryAgain: LoadFailureFallback = (_error, retry) => (
+  <div role="alert">
+    <p>{FAILED}</p>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </div>
+);
 
 /** A DataLoader ErrorComponent with a retry button. */
 const RetryButton = ({ retry }: DataLoaderErrorProps) => (
@@ -120,23 +143,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('QueryErrorBoundary with the section query keys', () => {
+describe('QueryErrorBoundary with its query keys', () => {
   it('fetches again on Try again after a render error, and renders the fresh answer', async () => {
     const fetchMock = stubVersions();
     await renderInClient(
-      <QueryErrorBoundary section="things" queryKeys={[dataLoaderQueryKey(URL_UNDER_TEST)]}>
+      <QueryErrorBoundary fallback={tryAgain} queryKeys={[dataLoaderQueryKey(URL_UNDER_TEST)]}>
         <Suspense fallback={<p>loading</p>}>
           <Section />
         </Suspense>
       </QueryErrorBoundary>,
     );
-    expect(await screen.findByText("Couldn't load things right now.")).toBeInTheDocument();
+    expect(await screen.findByText(FAILED)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     await clickTryAgain('Try again');
 
     expect(await screen.findByText('version 2')).toBeInTheDocument();
-    expect(screen.queryByText("Couldn't load things right now.")).not.toBeInTheDocument();
+    expect(screen.queryByText(FAILED)).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     // The render bug is reported once; the retry that worked is not.
     expect(h.reportError).toHaveBeenCalledTimes(1);
@@ -146,7 +169,7 @@ describe('QueryErrorBoundary with the section query keys', () => {
     const fetchMock = stubVersions();
     await renderInClient(
       <>
-        <QueryErrorBoundary section="things" queryKeys={[dataLoaderQueryKey(URL_UNDER_TEST)]}>
+        <QueryErrorBoundary fallback={tryAgain} queryKeys={[dataLoaderQueryKey(URL_UNDER_TEST)]}>
           <Suspense fallback={<p>loading</p>}>
             <Section />
           </Suspense>
@@ -156,7 +179,7 @@ describe('QueryErrorBoundary with the section query keys', () => {
         </Suspense>
       </>,
     );
-    await screen.findByText("Couldn't load things right now.");
+    await screen.findByText(FAILED);
     const sibling = (await screen.findByText(/^sibling \d$/)).textContent;
 
     await clickTryAgain('Try again');
@@ -165,6 +188,14 @@ describe('QueryErrorBoundary with the section query keys', () => {
     expect(screen.getByText(/^sibling \d$/).textContent).toBe(sibling);
     // One request each, then one for the section's retry.
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('QueryErrorBoundary fallback', () => {
+  it('has no default section notice: the caller always passes its own error UI', () => {
+    // Client Sanity sections were its only users; pages now load on the server, so a default
+    // notice (SectionLoadError) would ship with no caller.
+    expect(Object.keys(dataLoaderModule)).not.toContain('SectionLoadError');
   });
 });
 

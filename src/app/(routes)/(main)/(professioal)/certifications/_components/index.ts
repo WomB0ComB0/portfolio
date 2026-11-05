@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,12 +14,9 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { Loader } from '@/components/client/loader';
-
-const Loading = React.memo(() => {
-  return <Loader />;
-});
-
-Loading.displayName = 'Loading';
-export default Loading;
+export {
+  type CertificationCardData,
+  CertificationsExplorer,
+  type CertificationsExplorerProps,
+  CertificationsExplorerSkeleton,
+} from './certifications-explorer';

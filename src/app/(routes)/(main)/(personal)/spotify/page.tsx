@@ -14,18 +14,9 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
+import type { ReactElement } from 'react';
+import { Spotify } from '@/app/(routes)/(main)/(personal)/spotify/_interface/spotify/spotify';
 import { constructMetadata } from '@/utils';
-
-const Spotify = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(personal)/spotify/_interface/spotify').then(
-      (mod) => mod.Spotify,
-    ),
-  {
-    ssr: true,
-  },
-);
 
 export const metadata = constructMetadata({
   title: 'Spotify Stats',
@@ -34,15 +25,9 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Spotify page component.
- * Renders the Spotify statistics page.
- *
- * @returns {JSX.Element} The Spotify page.
- * @author Mike Odnis
- * @version 1.0.0
+ * The /spotify page. A server component: the top lists render in the server HTML (each behind
+ * its own Suspense boundary), and only the now-playing card fetches in the browser.
  */
-export const SpotifyPage = () => {
+export default function SpotifyPage(): ReactElement {
   return <Spotify />;
-};
-SpotifyPage.displayName = 'SpotifyPage';
-export default SpotifyPage;
+}

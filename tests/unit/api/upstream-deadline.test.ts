@@ -110,6 +110,7 @@ const lanyardReply = {
 
 interface HandlerCase {
   name: string;
+  /** Imports the handler and empties any cache it keeps on globalThis, which outlives a fresh import. */
   load: () => Promise<() => Promise<unknown>>;
   reply: (url: string) => Response;
   /** How long after a good fetch the handler asks the upstream again. */
@@ -122,8 +123,11 @@ interface HandlerCase {
 const cases: HandlerCase[] = [
   {
     name: 'getLeetCodeStats',
-    load: async () =>
-      (await import('@/app/api/v1/[[...route]]/leetcode/handlers')).getLeetCodeStats,
+    load: async () => {
+      const handlers = await import('@/app/api/v1/[[...route]]/leetcode/handlers');
+      handlers.resetLeetCodeCache();
+      return handlers.getLeetCodeStats;
+    },
     reply: () => jsonResponse(leetCodeReply),
     refreshAfterMs: 6 * HOUR,
     budgetMs: CARD_BUDGET_MS,
@@ -132,8 +136,11 @@ const cases: HandlerCase[] = [
   },
   {
     name: 'getGitHubStats',
-    load: async () =>
-      (await import('@/app/api/v1/[[...route]]/github-stats/handlers')).getGitHubStats,
+    load: async () => {
+      const handlers = await import('@/app/api/v1/[[...route]]/github-stats/handlers');
+      handlers.resetGitHubStatsCache();
+      return handlers.getGitHubStats;
+    },
     reply: gitHubReply,
     refreshAfterMs: HOUR,
     budgetMs: CARD_BUDGET_MS,
@@ -142,7 +149,11 @@ const cases: HandlerCase[] = [
   },
   {
     name: 'getWakaTimeData',
-    load: async () => (await import('@/app/api/v1/[[...route]]/wakatime/handlers')).getWakaTimeData,
+    load: async () => {
+      const handlers = await import('@/app/api/v1/[[...route]]/wakatime/handlers');
+      handlers.resetWakaTimeCache();
+      return handlers.getWakaTimeData;
+    },
     reply: () => jsonResponse(wakaTimeReply),
     refreshAfterMs: HOUR,
     budgetMs: CARD_BUDGET_MS,
@@ -161,7 +172,10 @@ const cases: HandlerCase[] = [
   },
 ];
 
-/** Each handler caches in module state, so every test loads a fresh copy. */
+/**
+ * Every test loads a fresh copy (Lanyard caches in module state, and the report cooldowns reset
+ * too); each case's load empties the caches that live on globalThis.
+ */
 const loadHandler = async (handlerCase: HandlerCase) => {
   vi.resetModules();
   return handlerCase.load();

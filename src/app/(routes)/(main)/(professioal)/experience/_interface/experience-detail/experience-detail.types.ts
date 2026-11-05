@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-/**
- * Interface representing the route parameters for the ExperienceDetail component.
- */
+import type { Experience } from '@/hooks/sanity/schemas';
+
+/** The experience the detail page found for its id; the page answers 404 before rendering none. */
 export interface ExperienceDetailProps {
-  params: { id: string };
+  readonly experience: Experience;
 }

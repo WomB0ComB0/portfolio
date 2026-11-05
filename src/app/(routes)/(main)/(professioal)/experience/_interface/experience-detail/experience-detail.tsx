@@ -1,5 +1,4 @@
-'use client';
-
+import 'server-only';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,6 +15,12 @@
  * limitations under the License.
  */
 
+/**
+ * @file One experience, rendered on the server from the document its page already loaded. The
+ * page answers 404 for an unknown id before this renders, so there is no loading or missing
+ * state here. The logo is built with urlFor, which is why this module is server-only.
+ */
+
 import {
   ArrowLeft,
   Building2,
@@ -28,276 +33,197 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { type JSX, Suspense } from 'react';
-import { MagicCard } from '@/components';
+import type { JSX, ReactNode } from 'react';
+import { MagicCard } from '@/components/magicui/magic-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { SANITY_ENDPOINTS, useSanityExperiences } from '@/hooks';
+import type { Experience } from '@/hooks/sanity/schemas';
 import { urlFor } from '@/lib/sanity/client';
-import { dataLoaderQueryKey, QueryErrorBoundary } from '@/providers/server/effect-data-loader';
-import { formatDatePeriod } from '@/utils';
+import { formatDatePeriod } from '@/utils/date';
+import type { ExperienceDetailProps } from './experience-detail.types';
 
-/**
- * Interface representing the route parameters for the ExperienceDetail component.
- */
-interface ExperienceDetailProps {
-  params: { id: string };
+/** The logo's rendered size, also requested from Sanity's image CDN. */
+const LOGO_SIZE_PX = 96;
+
+const SECTION_CARD_CLASS =
+  'border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300';
+
+/** A titled card under the summary: an icon, an h3 and a rule above the content. */
+const DetailSection = ({
+  icon,
+  title,
+  children,
+}: {
+  readonly icon: ReactNode;
+  readonly title: string;
+  readonly children: ReactNode;
+}): JSX.Element => (
+  <MagicCard className={SECTION_CARD_CLASS}>
+    <CardContent className="p-8 md:p-10">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 rounded-lg bg-primary/10">{icon}</div>
+        <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">{title}</h3>
+      </div>
+      <Separator className="mb-6" />
+      {children}
+    </CardContent>
+  </MagicCard>
+);
+
+/** Dates, location and the company's site, under the company name. */
+const ExperienceFacts = ({ experience }: { readonly experience: Experience }): JSX.Element => (
+  <div className="flex flex-col gap-2 text-sm text-muted-foreground pt-2">
+    <div className="flex items-center gap-2">
+      <Calendar className="h-4 w-4" />
+      <span className="font-medium">
+        {formatDatePeriod(experience.startDate, experience.endDate, experience.current)}
+      </span>
+    </div>
+
+    {experience.location && (
+      <div className="flex items-center gap-2">
+        <MapPin className="h-4 w-4" />
+        <span>{experience.location}</span>
+      </div>
+    )}
+
+    {experience.companyUrl && (
+      <Link
+        href={experience.companyUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors group w-fit"
+      >
+        <ExternalLink className="h-4 w-4" />
+        <span className="group-hover:underline font-medium">Visit Company Website</span>
+      </Link>
+    )}
+  </div>
+);
+
+/** The page's only h1 (the position), the company, and the logo when there is one. */
+const ExperienceSummary = ({ experience }: { readonly experience: Experience }): JSX.Element => (
+  <MagicCard className="border-border/50 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-shadow duration-300">
+    <CardContent className="p-8 md:p-10">
+      <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
+        {experience.logo && (
+          <div className="shrink-0 w-24 h-24 relative bg-background rounded-lg overflow-hidden ring-2 ring-border p-2 shadow-md">
+            <Image
+              src={
+                urlFor(experience.logo).width(LOGO_SIZE_PX).height(LOGO_SIZE_PX).url() ||
+                '/placeholder.svg'
+              }
+              alt={`${experience.company} logo`}
+              width={LOGO_SIZE_PX}
+              height={LOGO_SIZE_PX}
+              className="rounded-md object-contain"
+            />
+          </div>
+        )}
+
+        <div className="grow space-y-3">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight text-balance">
+            {experience.position}
+          </h1>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            <h2 className="text-xl md:text-2xl font-semibold text-primary">{experience.company}</h2>
+          </div>
+          <ExperienceFacts experience={experience} />
+        </div>
+      </div>
+    </CardContent>
+  </MagicCard>
+);
+
+interface KeyedText {
+  readonly key: string;
+  readonly text: string;
 }
 
-/**
- * Skeleton loader for experience detail page
- */
-const ExperienceDetailSkeleton = () => {
-  return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-xl">
-          <CardContent className="p-8 md:p-10">
-            <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
-              <div className="shrink-0 w-24 h-24 bg-muted animate-pulse rounded-lg ring-2 ring-border" />
-              <div className="grow space-y-3 w-full">
-                <div className="h-10 bg-muted animate-pulse rounded w-3/4" />
-                <div className="h-8 bg-muted animate-pulse rounded w-1/2" />
-                <div className="flex flex-col gap-2 mt-4">
-                  <div className="h-5 bg-muted animate-pulse rounded w-2/5" />
-                  <div className="h-5 bg-muted animate-pulse rounded w-1/3" />
-                  <div className="h-5 bg-muted animate-pulse rounded w-2/5" />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+/** Each entry with a key that stays unique when the CMS lists the same text twice. */
+const withKeys = (items: readonly string[]): readonly KeyedText[] =>
+  items.map((text, position) => ({
+    key: `${text}#${items.slice(0, position).filter((earlier) => earlier === text).length}`,
+    text,
+  }));
 
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm">
-          <CardContent className="p-8 md:p-10">
-            <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-6" />
-            <div className="space-y-3">
-              <div className="h-6 w-full bg-muted animate-pulse rounded-md" />
-              <div className="h-6 w-11/12 bg-muted animate-pulse rounded-md" />
-              <div className="h-6 w-full bg-muted animate-pulse rounded-md" />
-            </div>
-          </CardContent>
-        </Card>
+const Responsibilities = ({ items }: { readonly items: readonly string[] }): JSX.Element => (
+  <DetailSection
+    icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
+    title="Key Responsibilities"
+  >
+    <ul className="space-y-4">
+      {withKeys(items).map(({ key, text }) => (
+        <li key={key} className="flex items-start gap-3 text-foreground/80">
+          <div className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
+          <span className="leading-relaxed text-base">{text}</span>
+        </li>
+      ))}
+    </ul>
+  </DetailSection>
+);
 
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm">
-          <CardContent className="p-8 md:p-10">
-            <div className="h-8 w-56 bg-muted animate-pulse rounded-md mb-6" />
-            <ul className="space-y-4">
-              {new Array(4).fill(null).map((_, i) => (
-                <li key={`item-${+i}`} className="flex items-start gap-3">
-                  <div className="mt-2 h-2 w-2 rounded-full bg-muted animate-pulse shrink-0" />
-                  <div className="h-5 bg-muted animate-pulse rounded w-full" />
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/95 backdrop-blur-sm">
-          <CardContent className="p-8 md:p-10">
-            <div className="h-8 w-48 bg-muted animate-pulse rounded-md mb-6" />
-            <div className="flex flex-wrap gap-3">
-              {new Array(6).fill(null).map((_, i) => (
-                <div
-                  key={`skill-skeleton-${+i}`}
-                  className="h-10 w-24 bg-muted animate-pulse rounded-lg"
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+const Technologies = ({ items }: { readonly items: readonly string[] }): JSX.Element => (
+  <DetailSection icon={<Code2 className="h-5 w-5 text-primary" />} title="Technologies Used">
+    <div className="flex flex-wrap gap-3">
+      {withKeys(items).map(({ key, text }) => (
+        <Badge
+          key={key}
+          variant="secondary"
+          className="px-4 py-2.5 text-sm font-medium bg-muted/50 hover:bg-muted transition-colors duration-200 cursor-default"
+        >
+          {text}
+        </Badge>
+      ))}
     </div>
-  );
-};
+  </DetailSection>
+);
 
-/**
- * Displays the content and detailed information for a specific experience.
- */
-const ExperienceDetailContent = ({ id }: { id: string }): JSX.Element => {
-  const { data: experiences } = useSanityExperiences();
-  const experienceItem = experiences.find((exp) => exp._id === id);
-
-  if (!experienceItem) {
-    notFound();
-  }
-
-  const period = formatDatePeriod(
-    experienceItem.startDate,
-    experienceItem.endDate,
-    experienceItem.current,
-  );
-
-  return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <MagicCard className="border-border/50 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-shadow duration-300">
-          <CardContent className="p-8 md:p-10">
-            <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
-              {experienceItem.logo && (
-                <div className="shrink-0 w-24 h-24 relative bg-background rounded-lg overflow-hidden ring-2 ring-border p-2 shadow-md">
-                  <Image
-                    src={
-                      urlFor(experienceItem.logo).width(96).height(96).url() || '/placeholder.svg'
-                    }
-                    alt={`${experienceItem.company} logo`}
-                    width={96}
-                    height={96}
-                    className="rounded-md object-contain"
-                  />
-                </div>
-              )}
-
-              <div className="grow space-y-3">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight text-balance">
-                  {experienceItem.position}
-                </h1>
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  <h2 className="text-xl md:text-2xl font-semibold text-primary">
-                    {experienceItem.company}
-                  </h2>
-                </div>
-
-                <div className="flex flex-col gap-2 text-sm text-muted-foreground pt-2">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span className="font-medium">{period}</span>
-                  </div>
-
-                  {experienceItem.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{experienceItem.location}</span>
-                    </div>
-                  )}
-
-                  {experienceItem.companyUrl && (
-                    <Link
-                      href={experienceItem.companyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors group w-fit"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="group-hover:underline font-medium">
-                        Visit Company Website
-                      </span>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </MagicCard>
-
-        <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <CardContent className="p-8 md:p-10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">Description</h3>
-            </div>
-            <Separator className="mb-6" />
-            <p className="text-base text-foreground/90 leading-relaxed whitespace-pre-line">
-              {experienceItem.description}
-            </p>
-          </CardContent>
-        </MagicCard>
-
-        {experienceItem.responsibilities && experienceItem.responsibilities.length > 0 && (
-          <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <CardContent className="p-8 md:p-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">
-                  Key Responsibilities
-                </h3>
-              </div>
-              <Separator className="mb-6" />
-              <ul className="space-y-4">
-                {experienceItem.responsibilities.map((responsibility: string, index: number) => (
-                  <li
-                    key={`responsibility-${+index}`}
-                    className="flex items-start gap-3 text-foreground/80"
-                  >
-                    <div className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
-                    <span className="leading-relaxed text-base">{responsibility}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </MagicCard>
-        )}
-
-        {experienceItem.technologies && experienceItem.technologies.length > 0 && (
-          <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <CardContent className="p-8 md:p-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Code2 className="h-5 w-5 text-primary" />
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-semibold text-foreground">
-                  Technologies Used
-                </h3>
-              </div>
-              <Separator className="mb-6" />
-              <div className="flex flex-wrap gap-3">
-                {experienceItem.technologies.map((tech: string, index: number) => (
-                  <Badge
-                    key={`tech-${+index}`}
-                    variant="secondary"
-                    className="px-4 py-2.5 text-sm font-medium bg-muted/50 hover:bg-muted transition-colors duration-200 cursor-default"
-                  >
-                    {tech}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </MagicCard>
-        )}
-
-        <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg">
-          <CardContent className="p-6">
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto bg-background/50 backdrop-blur-sm hover:bg-background border-border/50 hover:border-border shadow-md hover:shadow-lg transition-all duration-300 group"
-            >
-              <Link href="/experience">
-                <ArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200" />
-                Back to Experience
-              </Link>
-            </Button>
-          </CardContent>
-        </MagicCard>
-      </div>
-    </div>
-  );
-};
-
-/**
- * Renders the ExperienceDetail page, including suspense state and layout. A failed load stays
- * inside the layout, with a retry; an unknown id still reaches Next's 404 through notFound().
- */
-export const ExperienceDetail = ({ params }: ExperienceDetailProps): JSX.Element => {
-  return (
-    <div className="container mx-auto px-4 py-12">
-      <QueryErrorBoundary
-        section="this experience"
-        queryKeys={[dataLoaderQueryKey(SANITY_ENDPOINTS.experiences)]}
+const BackToExperience = (): JSX.Element => (
+  <MagicCard className="border-border/50 backdrop-blur-sm shadow-lg">
+    <CardContent className="p-6">
+      <Button
+        asChild
+        size="lg"
+        variant="outline"
+        className="w-full sm:w-auto bg-background/50 backdrop-blur-sm hover:bg-background border-border/50 hover:border-border shadow-md hover:shadow-lg transition-all duration-300 group"
       >
-        <Suspense fallback={<ExperienceDetailSkeleton />}>
-          <ExperienceDetailContent id={params.id} />
-        </Suspense>
-      </QueryErrorBoundary>
+        <Link href="/experience">
+          <ArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200" />
+          Back to Experience
+        </Link>
+      </Button>
+    </CardContent>
+  </MagicCard>
+);
+
+/** One experience in full: summary, description, responsibilities and technologies. */
+export const ExperienceDetail = ({ experience }: ExperienceDetailProps): JSX.Element => {
+  const { responsibilities, technologies } = experience;
+
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-5xl mx-auto space-y-8">
+          <ExperienceSummary experience={experience} />
+
+          <DetailSection icon={<FileText className="h-5 w-5 text-primary" />} title="Description">
+            <p className="text-base text-foreground/90 leading-relaxed whitespace-pre-line">
+              {experience.description}
+            </p>
+          </DetailSection>
+
+          {responsibilities && responsibilities.length > 0 && (
+            <Responsibilities items={responsibilities} />
+          )}
+          {technologies && technologies.length > 0 && <Technologies items={technologies} />}
+
+          <BackToExperience />
+        </div>
+      </div>
     </div>
   );
 };

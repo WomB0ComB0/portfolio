@@ -14,28 +14,24 @@
  * limitations under the License.
  */
 
-import dynamic from 'next/dynamic';
 import type { JSX } from 'react';
-import { constructMetadata } from '@/utils';
-
-const ExperienceList = dynamic(
-  () =>
-    import('@/app/(routes)/(main)/(professioal)/experience/_interface/experience-list').then(
-      (mod) => mod.ExperienceList,
-    ),
-  {
-    ssr: true,
-  },
-);
+import {
+  Places,
+  toPlaceItem,
+} from '@/app/(routes)/(main)/(personal)/places/_interface/places/places';
+import { loadPlaces } from '@/lib/sanity/loaders';
+import { constructMetadata } from '@/utils/seo/meta';
 
 export const metadata = constructMetadata({
-  title: 'Experience',
-  description: 'Explore my professional work experience and career journey',
-  path: '/experience',
+  title: 'Places',
+  description: 'Explore the locations I have visited, including hackathons, tech events, and more',
+  path: '/places',
 });
 
-const ExperiencePage = (): JSX.Element => {
-  return <ExperienceList />;
-};
-ExperiencePage.displayName = 'ExperiencePage';
-export default ExperiencePage;
+/**
+ * Every place, rendered on the server. When Sanity fails with nothing cached, loadPlaces rejects
+ * and the shell's error boundary takes over the page.
+ */
+export default async function PlacesPage(): Promise<JSX.Element> {
+  return <Places places={(await loadPlaces()).map(toPlaceItem)} />;
+}

@@ -16,6 +16,7 @@
 
 import Link from 'next/link';
 import { FiExternalLink, FiImage, FiInfo, FiMapPin } from 'react-icons/fi';
+import { LinkPending } from '@/components/data/link-pending';
 import { MagicCard } from '@/components/magicui';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { PlaceItem } from '@/types/places';
@@ -67,7 +68,7 @@ export function PlaceCard({ place }: PlaceCardProps) {
         <CardContent className="pt-0 pb-5 px-6 mt-auto">
           <Link
             href={`/places/${place.id}`}
-            className="w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-colors duration-300 flex items-center justify-center gap-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="relative w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-colors duration-300 flex items-center justify-center gap-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {photoCount > 0 ? (
               <>
@@ -84,6 +85,9 @@ export function PlaceCard({ place }: PlaceCardProps) {
                 ("View Details for Antler NYC"). A word, not punctuation, because browsers add
                 a space before this absolutely positioned span when they build the name. */}{' '}
             <span className="sr-only">for {place.name}</span>
+            {/* The place page has no loading.tsx (it answers real 404s), so this is the click
+                feedback. Absolute, so the centred label does not move. */}
+            <LinkPending className="absolute right-4 top-1/2 -translate-y-1/2" />
           </Link>
         </CardContent>
       </div>

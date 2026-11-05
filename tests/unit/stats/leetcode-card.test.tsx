@@ -16,14 +16,21 @@
 
 /**
  * @file The /stats LeetCode card. /api/v1/leetcode is answered by a stubbed fetch, so the card's
- * real fetcher, schema and query wiring run. A failed or malformed answer must leave the card out
- * rather than throw while rendering, which with no error boundary takes down the whole page.
+ * real fetcher, schema and query wiring (shared with the server prefetch, in
+ * stats/_lib/stats-queries) run. A failed or malformed answer must say so in the card, with Try
+ * again, rather than throw while rendering or silently leave the card out.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MotionGlobalConfig } from 'motion/react';
+import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+
+// Try again also refreshes the route, which re-runs the server prefetch.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 // t3-env validates on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -44,10 +51,15 @@ vi.mock('@/components/ui/number-ticker', () => {
   return { default: Ticker, NumberTicker: Ticker };
 });
 
-import { LeetCodeStats } from '@/app/(routes)/(dev)/stats/_components/leetcode-stats';
+import {
+  LeetCodeStats,
+  LeetCodeStatsSkeleton,
+} from '@/app/(routes)/(dev)/stats/_components/leetcode-stats';
+import { leetcodeStatsQuery } from '@/app/(routes)/(dev)/stats/_lib/stats-queries';
 
 const QUERY_KEY = ['leetcode-stats'];
 const CARD_TITLE = 'LeetCode Stats';
+const ERROR_TITLE = "Couldn't load LeetCode stats";
 
 const stats = {
   totalSolved: 520,
@@ -62,8 +74,8 @@ type Reply = { status: number; body: unknown };
 
 const requestedPaths: string[] = [];
 
-/** Answers /api/v1/leetcode; anything else is a test bug. */
-const stubLeetCode = (reply: Reply) => {
+/** Answers /api/v1/leetcode with each reply in turn, the last one from then on; anything else is a test bug. */
+const stubLeetCode = (...replies: [Reply, ...Reply[]]) => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
@@ -72,6 +84,7 @@ const stubLeetCode = (reply: Reply) => {
       if (url.pathname !== '/api/v1/leetcode') {
         throw new Error(`unexpected request: ${url.pathname}`);
       }
+      const reply = replies[Math.min(requestedPaths.length, replies.length) - 1] ?? replies[0];
       return new Response(JSON.stringify(reply.body), {
         status: reply.status,
         headers: { 'content-type': 'application/json' },
@@ -108,6 +121,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  refresh.mockClear();
 });
 
 describe('LeetCode card', () => {
@@ -149,25 +163,88 @@ describe('LeetCode card', () => {
     expect(link).toHaveAttribute('href', 'https://leetcode.com/WomB0ComB0/');
   });
 
-  it('leaves the card out, without throwing, when the API answers 500', async () => {
+  it('says it could not load the stats, without throwing, when the API answers 500', async () => {
     stubLeetCode({ status: 500, body: { error: 'Failed to fetch LeetCode stats' } });
-    const { container, queryClient } = renderCard();
+    const { queryClient } = renderCard();
 
     await settledAsError(queryClient);
+    expect(screen.getByRole('heading', { level: 2, name: ERROR_TITLE })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
     expect(screen.queryByText(CARD_TITLE)).not.toBeInTheDocument();
     expect(screen.queryByText('Total Solved')).not.toBeInTheDocument();
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText(/Failed to fetch|500/)).not.toBeInTheDocument();
     // TanStack Query owns retries; the fetcher asks once.
     expect(requestedPaths).toEqual(['/api/v1/leetcode']);
   });
 
-  it('leaves the card out when a 200 answer does not match the stats shape', async () => {
+  it('says it could not load the stats when a 200 answer does not match the stats shape', async () => {
     stubLeetCode({ status: 200, body: { ...stats, acceptanceRate: 'n/a' } });
-    const { container, queryClient } = renderCard();
+    const { queryClient } = renderCard();
 
     await settledAsError(queryClient);
+    expect(screen.getByRole('heading', { level: 2, name: ERROR_TITLE })).toBeVisible();
     expect(screen.queryByText(CARD_TITLE)).not.toBeInTheDocument();
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText('n/a')).not.toBeInTheDocument();
+  });
+
+  it('fetches again on Try again and then shows the stats', async () => {
+    stubLeetCode({ status: 500, body: { error: 'down' } }, { status: 200, body: stats });
+    renderCard();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('Total Solved')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: ERROR_TITLE })).not.toBeInTheDocument();
+    expect(requestedPaths).toEqual(['/api/v1/leetcode', '/api/v1/leetcode']);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('LeetCode card with prefetched data', () => {
+  const prefetchedClient = () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(leetcodeStatsQuery.queryKey, stats);
+    return queryClient;
+  };
+
+  it('renders it on the first render, from the shared query key, without fetching', () => {
+    stubLeetCode({ status: 200, body: stats });
+    render(
+      <QueryClientProvider client={prefetchedClient()}>
+        <LeetCodeStats />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Total Solved')).toBeInTheDocument();
+    expect(requestedPaths).toEqual([]);
+  });
+
+  it('server-renders each bar filled to its value rather than empty', () => {
+    const page = document.createElement('div');
+    page.innerHTML = renderToString(
+      <QueryClientProvider client={prefetchedClient()}>
+        <LeetCodeStats />
+      </QueryClientProvider>,
+    );
+    const fillIn = (label: string) =>
+      Array.from(page.querySelectorAll('span'))
+        .find((span) => span.textContent === label)
+        ?.parentElement?.querySelector('.overflow-hidden > div');
+
+    // Easy is 200 of 520 (-61.54%), Hard 60 of 520 (-88.46%).
+    expect(fillIn('Easy')?.getAttribute('style')).toMatch(/translateX\(-61\.53\d*%\)/);
+    expect(fillIn('Hard')?.getAttribute('style')).toMatch(/translateX\(-88\.46\d*%\)/);
+    expect(page.innerHTML).not.toContain('translateX(-100%)');
+  });
+});
+
+describe('LeetCodeStatsSkeleton', () => {
+  it("has the card's frame and title, with placeholders for its numbers", () => {
+    const { container } = render(<LeetCodeStatsSkeleton />);
+
+    expect(screen.getByRole('heading', { level: 2, name: CARD_TITLE })).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Total Solved')).not.toBeInTheDocument();
   });
 });
 
