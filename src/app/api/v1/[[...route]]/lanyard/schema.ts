@@ -30,6 +30,13 @@ export const lanyardSchema = {
         type: t.Number(),
         state: t.Optional(t.String()),
         details: t.Optional(t.String()),
+        // Art for the /stats card: Spotify sends `spotify:<image id>` and the album name.
+        assets: t.Optional(
+          t.Object({
+            large_image: t.Optional(t.String()),
+            large_text: t.Optional(t.String()),
+          }),
+        ),
       }),
     ),
     discord_status: t.String(),

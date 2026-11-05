@@ -27,11 +27,21 @@ const DiscordUserSchema = Schema.Struct({
   id: Schema.String,
 });
 
+/** A field Lanyard may leave out or send as null; null decodes as missing. */
+const OptionalString = Schema.optionalWith(Schema.String, { nullable: true });
+
+const ActivityAssetsSchema = Schema.Struct({
+  large_image: OptionalString,
+  large_text: OptionalString,
+});
+
 const ActivitySchema = Schema.Struct({
   name: Schema.String,
   type: Schema.Number,
-  state: Schema.optional(Schema.String),
-  details: Schema.optional(Schema.String),
+  // Discord documents both as `?string`: optional and nullable.
+  state: OptionalString,
+  details: OptionalString,
+  assets: Schema.optionalWith(ActivityAssetsSchema, { nullable: true }),
 });
 
 const LanyardDataSchema = Schema.Struct({
