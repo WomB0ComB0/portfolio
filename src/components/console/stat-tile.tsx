@@ -27,7 +27,7 @@
  * error state, next to words.
  */
 
-import { CircleAlert, Clock } from 'lucide-react';
+import { ArrowUpRight, CircleAlert, Clock } from 'lucide-react';
 import { type ReactElement, type ReactNode, useId } from 'react';
 
 import { formatAge, type Timestamp } from '@/components/console/format-age';
@@ -132,12 +132,22 @@ const VALUE_SIZE_CLASS = {
 
 const ROWS_CLASS = 'grid h-full grid-rows-[auto_1fr_auto] gap-3';
 const HEAD_CLASS = 'flex items-start justify-between gap-3';
+const HEAD_END_CLASS = 'flex shrink-0 items-center gap-2';
 const LABEL_CLASS = 'label-mono text-muted-foreground';
 const LIVE_BADGE_CLASS = 'label-mono inline-flex shrink-0 items-center gap-1.5 text-live';
+/** The new-tab cue of an external tile link; it nudges toward where it leads while hovered. */
+const NEW_TAB_ARROW_CLASS =
+  'size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-(--motion-fast) ease-out-expo group-hover/tile:text-foreground motion-safe:group-hover/tile:translate-x-0.5 motion-safe:group-hover/tile:-translate-y-0.5';
 const BODY_CLASS = 'flex min-w-0 flex-col justify-end gap-3';
-const FIGURE_CLASS = 'figure text-foreground';
+/**
+ * The value and its unit as a wrapping row: '692' and 'solved' have no break opportunity between
+ * them, so in a narrow tile the unit drops under the number instead of running past the tile.
+ * The column gap is the space between them when they fit on one line. The loading placeholder
+ * sits in the same row, so both states keep one height.
+ */
+const FIGURE_CLASS = 'figure flex flex-wrap items-baseline gap-x-1 text-foreground';
 const ERROR_FIGURE_CLASS = 'figure text-muted-foreground';
-const UNIT_CLASS = 'ml-1 font-sans text-body-sm font-normal tracking-normal text-muted-foreground';
+const UNIT_CLASS = 'font-sans text-body-sm font-normal tracking-normal text-muted-foreground';
 const IDLE_CLASS = 'font-sans text-title font-medium text-muted-foreground';
 const META_CLASS =
   'flex min-h-[1.125rem] flex-wrap items-center gap-x-2 gap-y-1 font-mono text-meta text-muted-foreground';
@@ -318,6 +328,8 @@ interface StatTileBodyProps {
   labelAs: StatTileLabelElement;
   labelId: string;
   showLive: boolean;
+  /** The whole tile is a link that opens a new tab: the head shows the arrow that says so. */
+  opensNewTab: boolean;
   figure: FigureProps;
   context: ContextLineProps;
   children?: ReactNode;
@@ -328,6 +340,7 @@ function StatTileBody({
   labelAs: Label,
   labelId,
   showLive,
+  opensNewTab,
   figure,
   context,
   children,
@@ -338,7 +351,18 @@ function StatTileBody({
         <Label id={labelId} className={LABEL_CLASS}>
           {label}
         </Label>
-        {showLive && <LiveBadge />}
+        {(showLive || opensNewTab) && (
+          <span className={HEAD_END_CLASS}>
+            {showLive && <LiveBadge />}
+            {opensNewTab && (
+              <ArrowUpRight
+                aria-hidden="true"
+                data-new-tab-arrow=""
+                className={NEW_TAB_ARROW_CLASS}
+              />
+            )}
+          </span>
+        )}
       </div>
       <div className={BODY_CLASS}>
         <Figure {...figure} />
@@ -435,6 +459,11 @@ export function StatTile(props: StatTileProps): ReactElement {
   const labelId = id ?? generatedId;
   const shown = presentValue(value);
   const resolved = resolveState(state, shown);
+  // The sr-only '(opens in a new tab)' comes from Tile; sighted readers get the arrow.
+  const opensNewTab =
+    tileProps.variant === 'interactive' &&
+    tileProps.external === true &&
+    hasDestination(tileProps.href);
 
   const body = (
     <StatTileBody
@@ -442,6 +471,7 @@ export function StatTile(props: StatTileProps): ReactElement {
       labelAs={labelAs}
       labelId={labelId}
       showLive={live && resolved === 'ready'}
+      opensNewTab={opensNewTab}
       figure={{ state: resolved, shown, unit, format, tween, size, idleText }}
       context={{ state: resolved, meta, updatedAt, delta, format, errorText, action }}
     >

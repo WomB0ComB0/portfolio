@@ -128,7 +128,11 @@ export interface InteractiveTileProps
     Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof TileOwnProps | 'href' | 'target' | 'rel'> {
   variant: 'interactive';
   href: string;
-  /** Opens in a new tab (a plain anchor with rel="noopener noreferrer"). */
+  /**
+   * Opens in a new tab (a plain anchor with rel="noopener noreferrer") and says so to screen
+   * readers. Sighted readers need the aria-hidden ArrowUpRight too, placed by the content, which
+   * knows where it fits: StatTile draws it at the end of its head row.
+   */
   external?: boolean;
   /** Internal links only. Off by default: a page of tiles would prefetch every target at once. */
   prefetch?: boolean;

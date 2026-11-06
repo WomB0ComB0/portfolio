@@ -19,8 +19,8 @@ import { HomePage } from '@/app/_components/home';
 import { constructMetadata } from '@/utils';
 
 /**
- * The root layout's defaults (the site name and description) plus og:url for '/'. The page is a
- * server component so it can export this; the interactive body lives in HomePage.
+ * The root layout's defaults (the site name and description) plus og:url for '/'. The body is
+ * HomePage, the server-rendered bento.
  */
 export const metadata = constructMetadata({ path: '/' });
 

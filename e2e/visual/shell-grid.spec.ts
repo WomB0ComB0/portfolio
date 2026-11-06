@@ -267,12 +267,21 @@ async function filterBarBottom(main: Locator): Promise<number> {
   return Math.max(...boxes.map((box) => box.y + box.height));
 }
 
-/** Loads `path` at `viewport` and waits for the page's main to show. */
+/**
+ * Content that is still on its way: a Suspense segment React streamed into a hidden div and has
+ * not revealed yet, or a skeleton that marks itself busy. React reveals streamed segments in
+ * batches, after the load event, so a page measured straight after goto can still grow by
+ * thousands of pixels (seen on /projects, /experience and the home bento).
+ */
+const PENDING_CONTENT = 'div[hidden][id^="S:"], main [aria-busy="true"]';
+
+/** Loads `path` at `viewport` and waits for the page's main to show with its streamed content. */
 async function openAt(page: Page, path: string, viewport: Viewport): Promise<Locator> {
   await page.setViewportSize(viewport);
   await page.goto(`${getTargetUrl()}${path}`);
   const main = page.locator(MAIN);
   await expect(main).toBeVisible();
+  await expect(page.locator(PENDING_CONTENT)).toHaveCount(0);
   return main;
 }
 

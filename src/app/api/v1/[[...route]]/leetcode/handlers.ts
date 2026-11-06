@@ -18,6 +18,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
+import type { CachedValue } from '@/lib/cache/stale-cache';
 import { FetcherError, post } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
@@ -206,6 +207,17 @@ async function refreshLeetCodeStats(state: LeetCodeState): Promise<LeetCodeStats
     }
     throw failure;
   }
+}
+
+/**
+ * The last stats LeetCode answered and when they were fetched (epoch ms), however old, or
+ * undefined when it never answered in this process. Never asks LeetCode and never waits on a
+ * running refresh: for a caller whose deadline ran out while {@link getLeetCodeStats} was still
+ * refreshing (the home tile). That refresh keeps running and still fills the cache.
+ */
+export function peekLeetCodeStats(): CachedValue<LeetCodeStats> | undefined {
+  const { cache } = sharedState();
+  return cache ? { data: cache.data, loadedAt: cache.timestamp } : undefined;
 }
 
 export async function getLeetCodeStats(): Promise<LeetCodeStats> {

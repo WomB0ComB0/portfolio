@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { t } from 'elysia';
+import { type Static, t } from 'elysia';
 
 /**
  * @constant statusSchemas
@@ -40,6 +40,16 @@ export const statusSchemas = {
       ]),
       lastUpdated: t.String(),
       message: t.Optional(t.String()),
+      /**
+       * How many of the active (unpaused) Better Stack monitors are up. Only a fresh or cached
+       * check has it; the 'unknown' fallbacks do not.
+       */
+      monitors: t.Optional(t.Object({ up: t.Number(), total: t.Number() })),
+      /**
+       * True when Better Stack just failed and this is the last answer it gave, served from the
+       * cache (its `lastUpdated` says when). Absent on a current answer and on the fallbacks.
+       */
+      stale: t.Optional(t.Boolean()),
     }),
   }),
   'status.error': t.Object({
@@ -48,3 +58,6 @@ export const statusSchemas = {
     error: t.String(),
   }),
 } as const;
+
+/** What /api/status answers in `data`, and what handleStatusCheck resolves to. */
+export type ServiceStatus = Static<(typeof statusSchemas)['status.response']>['data'];

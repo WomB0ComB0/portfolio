@@ -117,6 +117,18 @@ describe('StatTile ready', () => {
     );
   });
 
+  // At 320 px the LeetCode tile's 104 px content box got '692solved' (115 px) as one unbreakable
+  // run: digits then letters have no break opportunity, so the unit must wrap as a flex item.
+  it('lets the unit wrap under the number, with the usual space between them when both fit', () => {
+    const tile = renderStat({ value: 692, unit: 'solved', size: 'lg' });
+    const figure = figureOf(tile);
+
+    expect(figure).toHaveClass('flex', 'flex-wrap', 'items-baseline', 'gap-x-1');
+    // A margin on the unit would indent it once it wraps to its own line.
+    expect(within(tile).getByText('solved').className).not.toMatch(/(?:^|\s)m[lrxs]?-/);
+    expect(within(tile).getByText('solved').parentElement).toBe(figure);
+  });
+
   it.each([
     ['md', ['text-stat']],
     ['lg', ['text-stat', '@sm:text-display']],
@@ -398,6 +410,41 @@ describe('StatTile root', () => {
       />,
     );
     expect(screen.getByRole('link')).toHaveAttribute('target', '_blank');
+  });
+
+  it('an external interactive tile shows the new-tab arrow in its head, hidden from the name', () => {
+    render(
+      <StatTile
+        label="LeetCode"
+        labelAs="h2"
+        value={692}
+        unit="solved"
+        variant="interactive"
+        href="https://leetcode.com/u/WomB0ComB0/"
+        external
+      />,
+    );
+    const link = screen.getByRole('link');
+    const arrow = rowsOf(link)[0]?.querySelector('svg[data-new-tab-arrow]');
+
+    expect(arrow).toHaveAttribute('aria-hidden', 'true');
+    expect(arrow).toHaveClass(
+      'size-4',
+      'text-muted-foreground',
+      'group-hover/tile:text-foreground',
+    );
+    expect(link).toHaveAccessibleName(/^LeetCode\s*692\s*solved.*\(opens in a new tab\)$/);
+  });
+
+  it.each([
+    ['an internal link', { variant: 'interactive', href: '/projects' }],
+    ['an external link with nowhere to go', { variant: 'interactive', href: '#', external: true }],
+    ['a plain tile', {}],
+  ] as const)('%s shows no new-tab arrow', (_case, props) => {
+    const { container } = render(
+      <StatTile {...(props as StatTileProps)} label={LABEL} value={22} />,
+    );
+    expect(container.querySelector('[data-new-tab-arrow]')).toBeNull();
   });
 
   it('names the root from a heading label with the given id', () => {

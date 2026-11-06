@@ -20,7 +20,8 @@
  * from memory, an older one is reloaded, and a failed reload serves the last good value marked
  * stale. Errors are never cached, while real empty results ([] and null) are. After a failed
  * reload the last good value is served for a short backoff without asking the upstream again, so
- * a hanging upstream costs one slow request per backoff instead of one per request.
+ * a hanging upstream costs one slow request per backoff instead of one per request. peek answers
+ * the last good value at once, however old, without loading or waiting.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -276,5 +277,68 @@ describe('createStaleCache after a failed reload', () => {
 
     await expect(cache.get('key', load)).resolves.toEqual({ stale: false, data: 'after clear' });
     expect(load).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createStaleCache.peek', () => {
+  it('is undefined for a key that was never loaded, and loads nothing', () => {
+    const { cache } = setup<string>();
+
+    expect(cache.peek('key')).toBeUndefined();
+  });
+
+  it('answers the last value loaded and when, without loading again once it is past the TTL', async () => {
+    const { cache, advance } = setup<string>();
+    advance(250);
+    await cache.get('key', async () => 'good');
+    advance(TTL_MS * 10);
+    const load = vi.fn(async () => 'newer');
+
+    expect(cache.peek('key')).toEqual({ data: 'good', loadedAt: 250 });
+    expect(load).not.toHaveBeenCalled();
+    // peek started nothing: the next get still has to load.
+    await expect(cache.get('key', load)).resolves.toEqual({ stale: false, data: 'newer' });
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers the old value at once while a slow reload is running, then the new one', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'old');
+    advance(TTL_MS);
+    let finish: (value: string) => void = () => undefined;
+    const slow = new Promise<string>((resolve) => {
+      finish = resolve;
+    });
+    const reload = cache.get('key', () => slow);
+
+    expect(cache.peek('key')).toEqual({ data: 'old', loadedAt: 0 });
+
+    finish('new');
+    await reload;
+    expect(cache.peek('key')).toEqual({ data: 'new', loadedAt: TTL_MS });
+  });
+
+  it('keeps the last good value after a failed reload, and is undefined when nothing loaded', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'good');
+    advance(TTL_MS);
+    const down = async (): Promise<string> => {
+      throw new Error('upstream down');
+    };
+
+    await cache.get('key', down);
+    await expect(cache.get('cold', down)).rejects.toThrow('upstream down');
+
+    expect(cache.peek('key')).toEqual({ data: 'good', loadedAt: 0 });
+    expect(cache.peek('cold')).toBeUndefined();
+  });
+
+  it('is undefined after clear()', async () => {
+    const { cache } = setup<string>();
+    await cache.get('key', async () => 'before');
+
+    cache.clear();
+
+    expect(cache.peek('key')).toBeUndefined();
   });
 });

@@ -28,6 +28,20 @@ export { formatAge, type Timestamp } from './format-age';
 export { Freshness, type FreshnessProps } from './freshness';
 export { LiveNumber, type LiveNumberProps } from './live-number';
 export { PageShell, type PageShellProps } from './page-shell';
+export {
+  type ChartTone,
+  SegmentBar,
+  type SegmentBarProps,
+  type SegmentBarSegment,
+  SegmentBarSkeleton,
+  type SegmentBarSkeletonProps,
+} from './segment-bar';
+export {
+  Sparkline,
+  type SparklinePoint,
+  type SparklineProps,
+  sparklinePoints,
+} from './sparkline';
 export { SpotlightRoot } from './spotlight-root';
 export {
   formatStatValue,

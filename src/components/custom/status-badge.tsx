@@ -22,6 +22,7 @@ import { Effect, pipe, Schema } from 'effect';
 import Link from 'next/link';
 import { memo } from 'react';
 import { get } from '@/lib/http-clients/effect-fetcher';
+import { SERVICE_STATE_COPY, serviceCopyKey } from '@/lib/status/service-state';
 import { cn } from '@/lib/utils';
 
 const StatusResponseSchema = Schema.Struct({
@@ -36,10 +37,13 @@ const StatusResponseSchema = Schema.Struct({
     ),
     lastUpdated: Schema.String,
     message: Schema.optional(Schema.String),
+    /** How many active monitors are up; total 0 means every monitor is paused. */
+    monitors: Schema.optional(Schema.Struct({ up: Schema.Number, total: Schema.Number })),
   }),
 });
 
 type ServiceState = 'operational' | 'degraded' | 'down' | 'unknown';
+type StatusData = Schema.Schema.Type<typeof StatusResponseSchema>['data'];
 
 interface StatusBadgeProps {
   className?: string;
@@ -77,6 +81,30 @@ function getStatusLabel(state: ServiceState): string {
   }
 }
 
+/** What the badge shows: its words (the link's name), its dot's colour, and whether it pulses. */
+export interface StatusBadgeView {
+  readonly label: string;
+  readonly color: string;
+  readonly pulse: boolean;
+}
+
+/**
+ * The badge for an answer (or none yet). An answer that counted no active monitor says
+ * 'Monitoring paused' with the neutral dot, not pulsing: Better Stack reports 'operational' then,
+ * with nothing being watched, which must never read as 'All Systems Operational'.
+ */
+export function statusBadgeView(data: StatusData | undefined): StatusBadgeView {
+  const state = data?.state ?? 'unknown';
+  if (serviceCopyKey(state, data?.monitors) === 'paused') {
+    return {
+      label: SERVICE_STATE_COPY.paused.label,
+      color: getStatusColor('unknown'),
+      pulse: false,
+    };
+  }
+  return { label: getStatusLabel(state), color: getStatusColor(state), pulse: true };
+}
+
 /**
  * Client component that displays live status from Better Stack
  * Uses React Query for data fetching with Effect-based HTTP client
@@ -100,9 +128,7 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
     refetchInterval: 1000 * 60, // Refetch every minute
   });
 
-  const state = statusData?.data.state ?? 'unknown';
-  const color = getStatusColor(state);
-  const label = getStatusLabel(state);
+  const { label, color, pulse } = statusBadgeView(statusData?.data);
 
   return (
     <Link
@@ -116,7 +142,10 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
       aria-label={label}
       title={label}
     >
-      <span aria-hidden="true" className={cn('h-2 w-2 rounded-full animate-pulse', color)} />
+      <span
+        aria-hidden="true"
+        className={cn('h-2 w-2 rounded-full', pulse && 'animate-pulse', color)}
+      />
       <span className="hidden sm:inline">Status</span>
     </Link>
   );

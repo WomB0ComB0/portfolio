@@ -49,6 +49,12 @@ const CURRENT_SPONSORS_GRID_CLASS = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-col
 const SKELETON_ROW_COUNT = 6;
 
 /**
+ * A past sponsor's avatar is 64px (h-16 w-16) and its link scales it to 110% on hover, so it is
+ * drawn at up to 70.4px: 72px picks a file at least that wide (96w at 1x) instead of 64w.
+ */
+const PAST_AVATAR_SIZES = '72px';
+
+/**
  * GitHub can hand back a sponsorship whose account is gone (sl-09). Such an entry has no login to
  * link to or key on, so it is left out instead of breaking the list. getGitHubSponsors already
  * drops these; this keeps the view safe on its own.
@@ -250,7 +256,7 @@ function PastSponsorAvatar({ sponsor }: { sponsor: SponsorEntry }): ReactElement
             alt={`${displayName(sponsor)}'s avatar`}
             fill
             className="object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
-            sizes="64px"
+            sizes={PAST_AVATAR_SIZES}
           />
         </div>
         <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors text-center truncate w-full">

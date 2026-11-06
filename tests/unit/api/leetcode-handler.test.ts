@@ -218,3 +218,55 @@ describe('getLeetCodeStats', () => {
     );
   });
 });
+
+describe('peekLeetCodeStats', () => {
+  /** A fresh handler module with an empty cache, as loadGetLeetCodeStats gives. */
+  const loadHandlers = async () => {
+    vi.resetModules();
+    const handlers = await import('@/app/api/v1/[[...route]]/leetcode/handlers');
+    handlers.resetLeetCodeCache();
+    return handlers;
+  };
+
+  it('is undefined, and asks LeetCode nothing, when no stats were ever fetched', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
+    const { peekLeetCodeStats } = await loadHandlers();
+
+    expect(peekLeetCodeStats()).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('answers the last stats and when they were fetched, however old, without refreshing', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
+    const { getLeetCodeStats, peekLeetCodeStats } = await loadHandlers();
+    const first = await getLeetCodeStats();
+    vi.setSystemTime(T0 + CACHE_DURATION * 2);
+
+    expect(peekLeetCodeStats()).toEqual({ data: first, loadedAt: T0 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers at once while a refresh is still running, which then fills the cache', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
+    const { getLeetCodeStats, peekLeetCodeStats } = await loadHandlers();
+    const first = await getLeetCodeStats();
+
+    let answer: (response: Response) => void = () => {};
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    vi.setSystemTime(T0 + CACHE_DURATION + 1);
+    const refresh = getLeetCodeStats();
+
+    expect(peekLeetCodeStats()).toEqual({ data: first, loadedAt: T0 });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    answer(jsonResponse(leetCodeReply({ accepted: 1_300 })));
+    const refreshed = await refresh;
+    expect(refreshed.acceptanceRate).not.toBe(first.acceptanceRate);
+    expect(peekLeetCodeStats()).toEqual({ data: refreshed, loadedAt: Date.now() });
+  });
+});

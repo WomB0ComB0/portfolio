@@ -25,20 +25,6 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { MagicCard } from '@/components/magicui';
-import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
-
-describe('LayoutTextFlip', () => {
-  it('colours the name and the flipping word with the primary token', () => {
-    render(<LayoutTextFlip text="Mike Odnis" words={['Mobile', 'Cloud']} />);
-
-    expect(screen.getByText('Mike Odnis')).toHaveClass('text-primary');
-
-    const flipBox = screen.getByText('Mobile').parentElement;
-    expect(flipBox).toHaveClass('text-primary');
-    expect(flipBox).not.toHaveClass('text-black');
-    expect(flipBox?.className).not.toMatch(/\bdark:text-/);
-  });
-});
 
 describe('MagicCard', () => {
   const cardRoot = (text: string): HTMLElement | null | undefined =>

@@ -40,6 +40,24 @@ export const NEW_TAB_LABEL = '(opens in a new tab)';
 const STRETCHED_LINK_CLASS =
   "after:absolute after:inset-0 after:content-[''] after:rounded-[inherit] [[data-linked-tile]_&]:focus-visible:outline-none";
 
+/** U+2060 WORD JOINER: invisible, and no line may break just before or after it. */
+const WORD_JOINER = '\u2060';
+
+/**
+ * The new-tab arrow, glued to the word before it. The nowrap span starts with a WORD JOINER, so
+ * there is no break opportunity between the link's last word and the icon, and the arrow never
+ * wraps onto a line of its own. The span is aria-hidden as a whole, so the joiner stays out of
+ * the accessible name too.
+ */
+function NewTabArrow(): ReactElement {
+  return (
+    <span aria-hidden="true" data-new-tab-arrow="" className="shrink-0 whitespace-nowrap">
+      {WORD_JOINER}
+      <ArrowUpRight aria-hidden="true" className="ml-0.5 inline size-3.5" />
+    </span>
+  );
+}
+
 export interface TileLinkProps {
   /** An empty or '#' href renders the children as text, with no link. Linked trimmed. */
   href: string;
@@ -122,7 +140,7 @@ export function TileLink({
         className={linkClassName}
       >
         {children}
-        <ArrowUpRight aria-hidden="true" className="ml-0.5 inline size-3.5" />
+        <NewTabArrow />
         {suffix}
         <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
       </a>
