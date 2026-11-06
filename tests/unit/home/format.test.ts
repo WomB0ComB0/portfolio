@@ -16,23 +16,20 @@
  */
 
 /**
- * @file The home tiles' date, time and coordinate formatting (src/app/_components/home/data/
- * format.ts). Days and clock times are New York's, whatever the machine's time zone: the tests
- * run under America/Los_Angeles, where reading a Sanity date in local time would shift it to the
- * day before.
+ * @file The home tiles' date and time formatting (src/app/_components/home/data/format.ts).
+ * Days and clock times are New York's, whatever the machine's time zone: the tests run under
+ * America/Los_Angeles, where reading a Sanity date in local time would shift it to the day before.
  */
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   formatAsOfDay,
   formatClockET,
-  formatCoordinates,
   formatDay,
   formatDaySpan,
   formatMonthYear,
   formatRelative,
-  isOngoing,
-  lastVisitDay,
+  lastDayOf,
   nyToday,
 } from '@/app/_components/home/data/format';
 
@@ -200,85 +197,36 @@ describe('formatClockET', () => {
   });
 });
 
-describe('formatCoordinates', () => {
-  it('prints north and west for New York', () => {
-    expect(formatCoordinates(40.7128, -74.006)).toBe('40.71° N, 74.01° W');
+describe('lastDayOf', () => {
+  it('is the one day of a single-day place', () => {
+    expect(lastDayOf({ startDate: '2026-08-21' })).toBe('2026-08-21');
+    expect(lastDayOf({ startDate: '2026-08-21', endDate: null })).toBe('2026-08-21');
   });
 
-  it('prints south and east for Sydney', () => {
-    expect(formatCoordinates(-33.8688, 151.2093)).toBe('33.87° S, 151.21° E');
+  // Corgi NYC's visits were Jul 29 and Sep 15, stored as one range.
+  it('is the end of a range, whether or not that day has come', () => {
+    expect(lastDayOf({ startDate: '2026-07-29', endDate: '2026-09-15' })).toBe('2026-09-15');
+    expect(lastDayOf({ startDate: '2026-11-04', endDate: '2026-12-31' })).toBe('2026-12-31');
   });
 
-  it('gives a value that rounds to zero the positive hemisphere', () => {
-    expect(formatCoordinates(-0.001, -0.004)).toBe('0.00° N, 0.00° E');
+  it('is the start when the end is before it (bad data) or the same day', () => {
+    expect(lastDayOf({ startDate: '2026-10-20', endDate: '2026-10-02' })).toBe('2026-10-20');
+    expect(lastDayOf({ startDate: '2026-10-20', endDate: '2026-10-20' })).toBe('2026-10-20');
   });
 
-  it('prints nothing for a value that is not a number', () => {
-    expect(formatCoordinates(Number.NaN, 0)).toBe('');
-  });
-});
-
-describe('isOngoing', () => {
-  const TODAY = '2026-11-05';
-
-  it('is true on the day of a single-day place', () => {
-    expect(isOngoing({ startDate: TODAY }, TODAY)).toBe(true);
-  });
-
-  it('is true on any day within a range, ends included', () => {
-    expect(isOngoing({ startDate: '2026-11-03', endDate: '2026-11-07' }, TODAY)).toBe(true);
-    expect(isOngoing({ startDate: '2026-11-01', endDate: TODAY }, TODAY)).toBe(true);
-  });
-
-  it('is false for a past place, an ended range and an undated place', () => {
-    expect(isOngoing({ startDate: '2026-11-04' }, TODAY)).toBe(false);
-    expect(isOngoing({ startDate: '2026-10-01', endDate: '2026-11-04' }, TODAY)).toBe(false);
-    expect(isOngoing({ startDate: null }, TODAY)).toBe(false);
-  });
-
-  it('is false for a place that has not started', () => {
-    expect(isOngoing({ startDate: '2026-11-06', endDate: '2026-11-08' }, TODAY)).toBe(false);
-  });
-});
-
-describe('lastVisitDay', () => {
-  const TODAY = '2026-11-05';
-
-  it('is the one day of a single-day place on or before today', () => {
-    expect(lastVisitDay({ startDate: '2026-08-21' }, TODAY)).toBe('2026-08-21');
-    expect(lastVisitDay({ startDate: TODAY, endDate: null }, TODAY)).toBe(TODAY);
-  });
-
-  it('is the last day of a range that is over, not its first', () => {
-    expect(lastVisitDay({ startDate: '2026-07-29', endDate: '2026-09-15' }, TODAY)).toBe(
-      '2026-09-15',
+  it('compares and answers the date parts of timestamps', () => {
+    expect(lastDayOf({ startDate: '2026-11-04T22:00:00Z', endDate: '2026-11-05T02:00:00Z' })).toBe(
+      '2026-11-05',
     );
-    expect(lastVisitDay({ startDate: '2026-10-01', endDate: TODAY }, TODAY)).toBe(TODAY);
-  });
-
-  // A stated run of visits (Corgi NYC: Jul 29 and Sep 15) is not a visit on every day between.
-  it('is the first day while a range is on, until its last day comes', () => {
-    const corgi = { startDate: '2026-07-29', endDate: '2026-09-15' };
-
-    expect(lastVisitDay({ startDate: '2026-09-01', endDate: '2026-12-31' }, TODAY)).toBe(
-      '2026-09-01',
+    expect(lastDayOf({ startDate: '2026-11-04T22:00:00Z', endDate: '2026-11-04T23:00:00Z' })).toBe(
+      '2026-11-04',
     );
-    expect(lastVisitDay(corgi, '2026-07-29')).toBe('2026-07-29');
-    expect(lastVisitDay(corgi, '2026-09-14')).toBe('2026-07-29');
-    expect(lastVisitDay(corgi, '2026-09-15')).toBe('2026-09-15');
   });
 
-  it('is null for a place that has not started, or has no start date', () => {
-    expect(lastVisitDay({ startDate: '2026-11-06', endDate: '2026-11-08' }, TODAY)).toBe(null);
-    expect(lastVisitDay({ startDate: '2026-12-01' }, TODAY)).toBe(null);
-    expect(lastVisitDay({ startDate: null, endDate: '2026-10-01' }, TODAY)).toBe(null);
-    expect(lastVisitDay({}, TODAY)).toBe(null);
-  });
-
-  it('keeps the start when the end is not after it', () => {
-    expect(lastVisitDay({ startDate: '2026-10-20', endDate: '2026-10-02' }, TODAY)).toBe(
-      '2026-10-20',
-    );
+  it('is null without a start date', () => {
+    expect(lastDayOf({ startDate: null, endDate: '2026-10-01' })).toBe(null);
+    expect(lastDayOf({ startDate: '' })).toBe(null);
+    expect(lastDayOf({})).toBe(null);
   });
 });
 

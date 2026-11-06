@@ -127,7 +127,7 @@ UPDATE_VISUAL_BASELINES=1 bunx playwright test e2e/visual/homepage.spec.ts \
 
 Baselines are per browser project and platform. The screenshots mask what changes on its own: the
 now playing, status and GitHub slots, the footer's status badge, text marked `data-dated` (the last
-place's label and when line, worded from today's date) and any stale tile's 'as of …' line.
+place's when line, worded from today's date) and any stale tile's 'as of …' line.
 
 ## Running Tests
 

@@ -30,6 +30,10 @@ import 'server-only';
  *   so each fails on its own collection only.
  * - A stale answer (the last good one, served because its source just failed) is shown, marked
  *   stale, with a warning, except for now playing: an old track must never show as playing.
+ * - The project tile also reads the owner's recent commits on GitHub (a source of their own,
+ *   apart from the GitHub tile's, so each tile's failure is reported under its own name), but
+ *   never fails or waits past its own short budget for them: without them it shows the featured
+ *   pick, as before.
  * - Route handlers are called directly; their schema modules are imported as types only, so
  *   Elysia never loads here.
  */
@@ -48,9 +52,13 @@ import {
 } from '@/app/api/v1/[[...route]]/now-playing/handlers';
 import { ensureBaseError } from '@/classes/error';
 import {
+  type CommittedRepo,
   type GitHubActivity,
   peekGitHubActivity,
+  peekRecentCommits,
+  type RecentCommits,
   readGitHubActivity,
+  readRecentCommits,
 } from '@/lib/api-integrations/github-activity';
 import {
   type MonkeytypeProfile,
@@ -73,19 +81,21 @@ import {
   peekPlaces,
   peekProjects,
 } from '@/lib/sanity/loaders';
-import { nyToday } from './format';
 import {
   type CurrentRoles,
   hasBest60,
+  type ProjectPick,
+  placeCutoffDay,
   selectCurrentRoles,
-  selectFeaturedProject,
   selectLatestPlace,
+  selectProjectPick,
   type TypingTileData,
   toTypingStats,
 } from './selectors';
 import {
   LIVE_TILE_DEADLINE_MS,
   type LiveInitial,
+  SERVER_TILE_DEADLINE_MS,
   settle,
   staleTile,
   type TileResult,
@@ -102,6 +112,16 @@ export interface SiteCounts {
 /** Spotify's answer is reused this long, so concurrent renders share one request. */
 export const NOW_PLAYING_TTL_MS = 15_000;
 const NOW_PLAYING_KEY = 'now';
+
+/**
+ * How long the project tile waits for the owner's recent commits. Shorter than the tile's own
+ * deadline ({@link SERVER_TILE_DEADLINE_MS}), so a slow GitHub alone never runs the tile out of
+ * time: Sanity's list, loaded alongside, still decides when it renders.
+ */
+export const PROJECT_ACTIVITY_BUDGET_MS = SERVER_TILE_DEADLINE_MS - 1_000;
+const PROJECT_ACTIVITY_LABEL = 'home:project-activity';
+/** Its own context, so a GitHub warning never holds back the project tile's Sanity reports. */
+const PROJECT_ACTIVITY_CONTEXT = 'home project activity';
 
 const EMPTY: TileResult<never> = { status: 'empty' };
 
@@ -146,10 +166,48 @@ const rolesTile = (experiences: readonly Experience[]): TileResult<CurrentRoles>
 };
 
 const placeTile = (places: readonly Place[]): TileResult<Place> =>
-  okOrEmpty(selectLatestPlace(places, nyToday()));
+  okOrEmpty(selectLatestPlace(places, placeCutoffDay(Date.now())));
 
-const projectTile = (projects: readonly Project[]): TileResult<Project> =>
-  okOrEmpty(selectFeaturedProject(projects));
+const projectTile = (
+  projects: readonly Project[],
+  repos: readonly CommittedRepo[],
+): TileResult<ProjectPick> => okOrEmpty(selectProjectPick(projects, repos, Date.now()));
+
+/** The repositories in `commits`, none without an answer. */
+const reposOf = (commits: RecentCommits | undefined): readonly CommittedRepo[] =>
+  commits?.repos ?? [];
+
+/**
+ * A GitHub problem the project tile got past: it still shows a project, so it is a warning. The
+ * error comes from the recent commits' own source, never the GitHub tile's, so this report never
+ * stands in for (and so silences) that tile's own.
+ */
+function reportActivityProblem(error: unknown): void {
+  reportApiFailure(ensureBaseError(error, PROJECT_ACTIVITY_LABEL), {
+    context: PROJECT_ACTIVITY_CONTEXT,
+    level: 'warning',
+  });
+}
+
+/**
+ * The owner's recent commits for the project tile. Never rejects. A stale answer is used (its
+ * days are still true). A failure, or no answer within {@link PROJECT_ACTIVITY_BUDGET_MS}, leaves
+ * the commits GitHub last answered (peeked), else none. Each is one warning.
+ */
+async function recentCommits(): Promise<readonly CommittedRepo[]> {
+  try {
+    const result = await withDeadline(
+      readRecentCommits(),
+      PROJECT_ACTIVITY_BUDGET_MS,
+      PROJECT_ACTIVITY_LABEL,
+    );
+    if (result.stale) reportActivityProblem(result.error);
+    return reposOf(result.data);
+  } catch (error) {
+    reportActivityProblem(error);
+    return reposOf(peekRecentCommits()?.data);
+  }
+}
 
 /**
  * The current roles (first 3 in Studio order, plus the total); empty when none is current.
@@ -163,8 +221,9 @@ export const loadCurrentRoles = cache(
 );
 
 /**
- * The most recent place visited by today in New York; empty when no place is dated. Past the
- * deadline, from the last places cached.
+ * The place whose visit ended most recently before the cutoff day (selectLatestPlace: past visits
+ * only; placeCutoffDay: New York's today 12 hours ago, so a visit shows from noon ET the day
+ * after); empty when none has. Past the deadline, from the last places cached.
  */
 export const loadLatestPlace = cache(
   (): Promise<TileResult<Place>> =>
@@ -174,14 +233,27 @@ export const loadLatestPlace = cache(
 );
 
 /**
- * The first featured project with a cover (else without one); empty when none is featured.
- * Past the deadline, from the last projects cached.
+ * The project of the repository the owner committed to last (selectProjectPick: his own commits,
+ * within 30 days, never this site), else the first featured project with a cover (else without
+ * one); empty when there is neither. GitHub failing or slow leaves the featured pick and never
+ * fails the tile; Sanity failing does. Past the deadline, from the last projects and commits
+ * cached.
  */
-export const loadFeaturedProject = cache(
-  (): Promise<TileResult<Project>> =>
-    settle('project', async () => projectTile(await loadProjects()), {
-      onDeadline: () => lastGood(peekProjects(), projectTile),
-    }),
+export const loadProjectPick = cache(
+  (): Promise<TileResult<ProjectPick>> =>
+    settle(
+      'project',
+      async () => {
+        const [projects, repos] = await Promise.all([loadProjects(), recentCommits()]);
+        return projectTile(projects, repos);
+      },
+      {
+        onDeadline: () =>
+          lastGood(peekProjects(), (projects) =>
+            projectTile(projects, reposOf(peekRecentCommits()?.data)),
+          ),
+      },
+    ),
 );
 
 const lengthTile = (list: readonly unknown[]): TileResult<number> => fresh(list.length);

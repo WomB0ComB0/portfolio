@@ -22,11 +22,13 @@ import { placeType } from './place';
 import { presentationType } from './presentation';
 import { projectType } from './project';
 import { resumeType } from './resume';
+import { siteSettingsType } from './site-settings';
 import { talkType } from './talk';
 import { youtubeVideoType } from './youtube-video';
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
+    siteSettingsType,
     projectType,
     experienceType,
     certificationType,

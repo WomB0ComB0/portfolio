@@ -23,6 +23,12 @@
  */
 
 import { Schema } from 'effect';
+import {
+  isSiteEmail,
+  isSiteHttpsUrl,
+  SITE_LOCATION_MAX_LENGTH,
+  SITE_TAGLINE_MAX_LENGTH,
+} from '@/sanity/site-settings-rules';
 
 /**
  * Sanity Image Schema
@@ -365,6 +371,63 @@ export const YoutubeVideoSchema = Schema.Struct({
 });
 
 /**
+ * The site settings' fields follow the rules in src/sanity/site-settings-rules.ts, which the
+ * Studio schema checks too, so Studio refuses what this decoder would drop.
+ */
+
+/**
+ * A field's one message, whichever of its checks fails (and even for a non-string), so a report
+ * names each bad field once and never repeats the value, which may be an address.
+ */
+const fieldMessage = (message: string) => ({
+  message: () => ({ message, override: true }),
+});
+
+/** Hero text: trimmed, not blank, at most `maxLength` characters. */
+const siteTextSchema = (maxLength: number) =>
+  Schema.Trim.pipe(Schema.nonEmptyString(), Schema.maxLength(maxLength)).annotations(
+    fieldMessage(`Expected text of 1 to ${maxLength} characters`),
+  );
+
+/** An address a mailto link carries as it is (isSiteEmail): no '?', '&' or '#'. */
+const SiteEmailSchema = Schema.Trim.pipe(Schema.filter(isSiteEmail)).annotations(
+  fieldMessage('Expected an email address without ?, & or #'),
+);
+
+const HttpsUrlSchema = Schema.Trim.pipe(Schema.filter(isSiteHttpsUrl)).annotations(
+  fieldMessage('Expected an https URL without credentials'),
+);
+
+/** A field Studio may leave empty: then it has no key at all. */
+const SETTING = { exact: true } as const;
+
+/** Every invalid field is reported, not just the first, and the loader keeps the valid ones. */
+const SiteSettingsFieldsSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('siteSettings'),
+  location: Schema.optionalWith(siteTextSchema(SITE_LOCATION_MAX_LENGTH), SETTING),
+  tagline: Schema.optionalWith(siteTextSchema(SITE_TAGLINE_MAX_LENGTH), SETTING),
+  email: Schema.optionalWith(SiteEmailSchema, SETTING),
+  githubUrl: Schema.optionalWith(HttpsUrlSchema, SETTING),
+  linkedinUrl: Schema.optionalWith(HttpsUrlSchema, SETTING),
+}).annotations({ parseOptions: { errors: 'all' } });
+
+/**
+ * The site settings singleton (its fields feed the home hero). Every field is optional. GROQ
+ * answers null for one left empty, and a null field decodes as no key at all, before the fields
+ * are checked: so empty is never invalid, and each invalid field is one issue at its own path.
+ */
+export const SiteSettingsDocumentSchema = Schema.transform(
+  Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  SiteSettingsFieldsSchema,
+  {
+    strict: false,
+    decode: (doc) => Object.fromEntries(Object.entries(doc).filter(([, value]) => value !== null)),
+    encode: (settings) => settings,
+  },
+);
+
+/**
  * The places list as one schema. The loaders decode each document on its own (decodeEach), so
  * one bad document is dropped rather than failing the list; this whole-list form is kept only
  * for the schema tests (place-schema.test.ts).
@@ -389,3 +452,4 @@ export type Presentation = Schema.Schema.Type<typeof PresentationSchema>;
 export type Talk = Schema.Schema.Type<typeof TalkSchema>;
 export type Article = Schema.Schema.Type<typeof ArticleSchema>;
 export type YoutubeVideo = Schema.Schema.Type<typeof YoutubeVideoSchema>;
+export type SiteSettings = Schema.Schema.Type<typeof SiteSettingsDocumentSchema>;

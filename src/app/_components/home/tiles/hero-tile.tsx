@@ -17,23 +17,44 @@
 import 'server-only';
 
 /**
- * @file The home hero: avatar, the page's one h1, the current role, the positioning line and the
- * ways to get in touch. A sync server component, so the h1 is in the first flush; only the role
- * line waits for its data, behind its own Suspense, in a box that keeps its height.
+ * @file The home hero: avatar, the page's one h1, the current role, the location, the positioning
+ * line and the ways to get in touch. A sync server component, so the h1 is in the first flush.
+ *
+ * The location, the positioning line and the contact links come from the site settings in
+ * Sanity, each falling back to its built-in value ({@link HERO_FALLBACK_COPY}) when it is empty or
+ * invalid, or the settings fail to load. They never hold the first flush: each sits in its own
+ * Suspense boundary whose fallback is the same markup, filled from the settings this server last
+ * loaded (the built-in values before any). So the first flush always has the words and all four
+ * links, and on a warm server the content that streams in is the fallback's twin: nothing moves.
+ * A new server has nothing cached to match: its first visitors get the built-in copy first, the
+ * tagline in a box as tall as Studio's longest tagline at the tile's width (five lines on a phone,
+ * three from a 24rem tile), so the owner's longer tagline streaming in moves nothing either.
+ * (Loading the settings at startup would not help: instrumentation's register() is awaited before
+ * an instance serves any route, so every cold start would wait on Sanity.) Only the tagline can
+ * change height: the location sits beside the taller avatar, and the links are always the same
+ * four.
+ * The role line waits behind a placeholder, in a box that keeps its height.
  */
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { type ReactElement, Suspense } from 'react';
+import { cache, type ReactElement, Suspense } from 'react';
 
+import { ensureBaseError } from '@/classes/error';
 import { StatusDot, Tile } from '@/components/console';
 import { app } from '@/constants';
+import { reportApiFailure } from '@/lib/observability/report';
+import { loadSiteSettings, peekSiteSettings, type SiteSettings } from '@/lib/sanity/loaders';
 import { loadCurrentRoles } from '../data/loaders';
+import { settle, type TileResult } from '../data/tile-result';
 import { PaletteHint } from './palette-hint';
 import { ExternalAnchor, GITHUB_PROFILE_URL, SkeletonBar } from './tile-states';
 
-/** The hero's one positioning line (owner decision 7). */
+/** The hero's one positioning line (owner decision 7), unless the site settings give a tagline. */
 export const HERO_POSITIONING = 'Building web software end to end.';
+
+/** Where the hero says Mike is (shown in capitals), unless the site settings give a location. */
+export const HERO_LOCATION = 'New York, NY';
 
 export const HERO_TITLE_ID = 'home-title';
 
@@ -44,6 +65,81 @@ const AVATAR_PX = 96;
 
 export const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/mikeodnis/';
 const RESUME_PATH = '/resume';
+
+/** What the site settings change in the hero. */
+export interface HeroCopy {
+  readonly location: string;
+  readonly tagline: string;
+  readonly email: string;
+  readonly githubUrl: string;
+  readonly linkedinUrl: string;
+}
+
+/** The hero's built-in copy: what it shows without site settings. */
+export const HERO_FALLBACK_COPY: HeroCopy = {
+  location: HERO_LOCATION,
+  tagline: HERO_POSITIONING,
+  email: app.email,
+  githubUrl: GITHUB_PROFILE_URL,
+  linkedinUrl: LINKEDIN_PROFILE_URL,
+};
+
+/** The hero's copy from `settings`; each field they lack (empty, or dropped as invalid) built in. */
+export function heroCopyOf(settings: SiteSettings | null | undefined): HeroCopy {
+  return {
+    location: settings?.location ?? HERO_FALLBACK_COPY.location,
+    tagline: settings?.tagline ?? HERO_FALLBACK_COPY.tagline,
+    email: settings?.email ?? HERO_FALLBACK_COPY.email,
+    githubUrl: settings?.githubUrl ?? HERO_FALLBACK_COPY.githubUrl,
+    linkedinUrl: settings?.linkedinUrl ?? HERO_FALLBACK_COPY.linkedinUrl,
+  };
+}
+
+const HERO_TILE = 'hero';
+
+const copyTile = (settings: SiteSettings | null | undefined): TileResult<HeroCopy> => ({
+  status: 'ok',
+  data: heroCopyOf(settings),
+  stale: false,
+});
+
+/** The copy the first flush shows, and whether it came from settings this server loaded. */
+interface InitialCopy {
+  readonly copy: HeroCopy;
+  /**
+   * False before this server ever loaded the settings (or when reading them failed): the copy
+   * streaming in may then differ from the built-in copy shown first.
+   */
+  readonly loaded: boolean;
+}
+
+/**
+ * The copy from the settings this server last loaded, however old, without waiting; the built-in
+ * copy before any. The hero has no error boundary, so a failure here is reported and falls back.
+ */
+function lastLoadedCopy(): InitialCopy {
+  try {
+    const cached = peekSiteSettings();
+    return { copy: heroCopyOf(cached?.data), loaded: cached !== undefined };
+  } catch (error) {
+    reportApiFailure(ensureBaseError(error, `home:${HERO_TILE}`), {
+      context: `home ${HERO_TILE} tile`,
+    });
+    return { copy: HERO_FALLBACK_COPY, loaded: false };
+  }
+}
+
+/**
+ * This request's hero copy, from the site settings. Never throws: a failure is reported like any
+ * home tile's (context 'home hero tile') and leaves the built-in copy; past the tile deadline, the
+ * copy from the settings last loaded.
+ */
+export const loadHeroCopy = cache(async (): Promise<HeroCopy> => {
+  const result = await settle(HERO_TILE, async () => copyTile(await loadSiteSettings()), {
+    onDeadline: () => copyTile(peekSiteSettings()?.data),
+  });
+  return result.status === 'ok' ? result.data : HERO_FALLBACK_COPY;
+});
 
 /**
  * 44 px tall at every width, so each is a comfortable touch target. Text only: no brand icons.
@@ -84,21 +180,54 @@ export async function HeroRoleLine(): Promise<ReactElement | null> {
   );
 }
 
-function HeroLinks(): ReactElement {
+interface CopyProps {
+  readonly copy: HeroCopy;
+}
+
+type CopyView = (props: CopyProps) => ReactElement;
+
+/** Beside the avatar, in capitals. min-w-0 lets a long one wrap instead of widening the row. */
+function HeroLocation({ copy }: CopyProps): ReactElement {
+  return <p className="label-mono min-w-0 text-muted-foreground">{copy.location}</p>;
+}
+
+/** The tagline's type size, on its box too, so the box's `lh` is the tagline's line. */
+const TAGLINE_TYPE_CLASS = 'text-body @xl:text-title';
+
+/**
+ * The tagline's box when nothing is cached ({@link InitialCopy}): as many tagline lines as
+ * Studio's longest (120 characters) wraps to at the tile's width, so the owner's tagline replaces
+ * the built-in one without moving anything below it. Otherwise as tall as the tagline.
+ *
+ * Measured in Chromium with Geist at 16/26 px, against the tile's content width: five lines below
+ * 18rem (238 px on a 320 px phone), four up to 24rem (293 px at 375 px; some still four at
+ * 360 px), three from 24rem, where the 40ch measure and, from 36rem, the title size hold it there.
+ */
+export const TAGLINE_SLOT_RESERVED_CLASS = `min-h-[5lh] @2xs:min-h-[4lh] @sm:min-h-[3lh] ${TAGLINE_TYPE_CLASS}`;
+
+function HeroTagline({ copy }: CopyProps): ReactElement {
+  return (
+    <p className={`max-w-[40ch] text-pretty text-muted-foreground ${TAGLINE_TYPE_CLASS}`}>
+      {copy.tagline}
+    </p>
+  );
+}
+
+function HeroLinks({ copy }: CopyProps): ReactElement {
   return (
     <ul className="flex flex-wrap gap-2">
       <li>
-        <a href={`mailto:${app.email}`} className={PRIMARY_LINK_CLASS}>
+        <a href={`mailto:${copy.email}`} className={PRIMARY_LINK_CLASS}>
           Email me
         </a>
       </li>
       <li>
-        <ExternalAnchor href={GITHUB_PROFILE_URL} className={GHOST_LINK_CLASS}>
+        <ExternalAnchor href={copy.githubUrl} className={GHOST_LINK_CLASS}>
           GitHub
         </ExternalAnchor>
       </li>
       <li>
-        <ExternalAnchor href={LINKEDIN_PROFILE_URL} className={GHOST_LINK_CLASS}>
+        <ExternalAnchor href={copy.linkedinUrl} className={GHOST_LINK_CLASS}>
           LinkedIn
         </ExternalAnchor>
       </li>
@@ -111,8 +240,31 @@ function HeroLinks(): ReactElement {
   );
 }
 
+async function LoadedCopy({ view: View }: { readonly view: CopyView }): Promise<ReactElement> {
+  return <View copy={await loadHeroCopy()} />;
+}
+
+/**
+ * `view` with this request's settings, streamed in. Until they load, the same `view` with
+ * `initial`, so the first flush has it and the swap moves nothing when the two agree.
+ */
+function CopySlot({
+  initial,
+  view: View,
+}: {
+  readonly initial: HeroCopy;
+  readonly view: CopyView;
+}): ReactElement {
+  return (
+    <Suspense fallback={<View copy={initial} />}>
+      <LoadedCopy view={View} />
+    </Suspense>
+  );
+}
+
 /** The dominant tile of the bento. The h1 never takes the brand colour. */
 export function HeroTile(): ReactElement {
+  const { copy: initial, loaded } = lastLoadedCopy();
   return (
     <Tile variant="raised" tone="hero" padding="lg" className="h-full gap-6">
       <div className="flex items-center gap-4">
@@ -126,7 +278,7 @@ export function HeroTile(): ReactElement {
           fetchPriority="high"
           className="size-18 shrink-0 rounded-full ring-2 ring-brand @xl:size-24"
         />
-        <p className="label-mono text-muted-foreground">New York, NY</p>
+        <CopySlot initial={initial} view={HeroLocation} />
       </div>
       <div className="flex flex-col gap-3">
         <h1
@@ -140,12 +292,12 @@ export function HeroTile(): ReactElement {
             <HeroRoleLine />
           </Suspense>
         </div>
-        <p className="max-w-[40ch] text-pretty text-body text-muted-foreground @xl:text-title">
-          {HERO_POSITIONING}
-        </p>
+        <div data-hero-tagline-slot className={loaded ? undefined : TAGLINE_SLOT_RESERVED_CLASS}>
+          <CopySlot initial={initial} view={HeroTagline} />
+        </div>
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-3">
-        <HeroLinks />
+        <CopySlot initial={initial} view={HeroLinks} />
         <PaletteHint />
       </div>
     </Tile>

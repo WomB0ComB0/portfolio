@@ -27,7 +27,7 @@ import { defineConfig } from 'sanity';
 import { structureTool } from 'sanity/structure';
 // Import schema and structure
 import { schema } from './src/sanity/schemaTypes';
-import { structure } from './src/sanity/structure';
+import { singletonSafeActions, structure, withoutSingletonTemplates } from './src/sanity/structure';
 
 // Hardcoded values for standalone deployment
 // These are safe to expose as they're public client-side values
@@ -43,7 +43,9 @@ export default defineConfig({
   projectId,
   dataset,
   // Add and edit the content schema in the './sanity/schemaTypes' folder
-  schema,
+  schema: { ...schema, templates: withoutSingletonTemplates },
+  // Singletons (the site settings) keep publish and discard only: no delete, duplicate, unpublish
+  document: { actions: singletonSafeActions },
   plugins: [
     structureTool({ structure }),
     // Vision is for querying with GROQ from inside the Studio

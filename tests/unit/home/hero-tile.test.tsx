@@ -20,9 +20,20 @@
  * Suspense inside a box that keeps its height (and stays empty when there is no role). Also the
  * "Jump to…" palette button: the shell's shortcut hint and a click that opens the palette.
  *
- * The hero is rendered with react-dom/static's prerender, which waits for the async role line as
- * the server does, then parsed into jsdom to be queried. renderToString gives the first flush
- * (the role line's fallback). jsdom applies no CSS, so sr-only words count in accessible names.
+ * The location, the positioning line and the contact links come from the Sanity site settings,
+ * each falling back to today's built-in value when missing, invalid or failing, and none of them
+ * waits for Sanity before the first flush. A new server starts with nothing cached
+ * (instrumentation's register() asks Sanity nothing, since every route waits for it): its first
+ * flush is the built-in copy, with the tagline's box as tall as Studio's longest tagline at the
+ * tile's width (five lines on a phone, three from 24rem), so the owner's longer tagline streaming
+ * in moves nothing. The real Sanity loaders run
+ * against a mocked client, so what Sanity answers is decoded as in production; only Sentry, its
+ * entry points and the env are mocked too, and the hero's peek at the cached settings is a spy
+ * that runs the real one.
+ *
+ * The hero is rendered with react-dom/static's prerender, which waits for the async parts as the
+ * server does, then parsed into jsdom to be queried. renderToString gives the first flush (every
+ * Suspense fallback). jsdom applies no CSS, so sr-only words count in accessible names.
  */
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -32,7 +43,13 @@ import { renderToString } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ toggle: vi.fn(), loadCurrentRoles: vi.fn() }));
+const h = vi.hoisted(() => ({
+  toggle: vi.fn(),
+  loadCurrentRoles: vi.fn(),
+  sanityFetchWithToken: vi.fn(),
+  captureException: vi.fn(),
+  peekSiteSettings: vi.fn(),
+}));
 
 vi.mock('kbar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('kbar')>()),
@@ -42,6 +59,25 @@ vi.mock('kbar', async (importOriginal) => ({
 vi.mock('@/app/_components/home/data/loaders', () => ({
   loadCurrentRoles: h.loadCurrentRoles,
 }));
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: h.captureException,
+  captureRequestError: vi.fn(),
+}));
+vi.mock('@/lib/sanity/client', () => ({ sanityFetchWithToken: h.sanityFetchWithToken }));
+// The Sentry entry points instrumentation's register() loads; their own tests cover them.
+vi.mock('../../../instrumentation-server', () => ({}));
+vi.mock('../../../instrumentation-edge', () => ({}));
+// t3-env validates every production variable on import.
+vi.mock('@/env', () => {
+  const env = {};
+  return { env, default: env };
+});
+vi.mock('@/lib/sanity/loaders', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/sanity/loaders')>();
+  h.peekSiteSettings.mockImplementation(actual.peekSiteSettings);
+  return { ...actual, peekSiteSettings: h.peekSiteSettings };
+});
 
 vi.mock('next/link', () => ({
   default: ({
@@ -61,10 +97,26 @@ vi.mock('next/link', () => ({
 }));
 
 import type { CurrentRoles } from '@/app/_components/home/data/selectors';
-import type { TileResult } from '@/app/_components/home/data/tile-result';
-import { HERO_POSITIONING, HeroRoleLine, HeroTile } from '@/app/_components/home/tiles/hero-tile';
+import { SERVER_TILE_DEADLINE_MS, type TileResult } from '@/app/_components/home/data/tile-result';
+import {
+  HERO_FALLBACK_COPY,
+  HERO_LOCATION,
+  HERO_POSITIONING,
+  type HeroCopy,
+  HeroRoleLine,
+  HeroTile,
+  heroCopyOf,
+  LINKEDIN_PROFILE_URL,
+  loadHeroCopy,
+  TAGLINE_SLOT_RESERVED_CLASS,
+} from '@/app/_components/home/tiles/hero-tile';
 import { PALETTE_HINT_LABEL, PaletteHint } from '@/app/_components/home/tiles/palette-hint';
+import { GITHUB_PROFILE_URL } from '@/app/_components/home/tiles/tile-states';
 import { app } from '@/constants';
+import { register } from '@/instrumentation';
+import { resetApiReportCooldowns } from '@/lib/observability/report';
+import { resetSanityLoaderCaches, SANITY_CACHE_TTL_MS } from '@/lib/sanity/loaders';
+import { SITE_TAGLINE_MAX_LENGTH } from '@/sanity/site-settings-rules';
 
 const FOUNDER = makeExperience({
   position: 'Founder & CEO',
@@ -79,10 +131,39 @@ const ROLES: TileResult<CurrentRoles> = {
   stale: false,
 };
 
+/** The settings document as Sanity answers it (synthetic values). */
+const SETTINGS = {
+  _id: 'siteSettings',
+  _type: 'siteSettings',
+  location: 'Brooklyn, NY',
+  tagline: 'Shipping fraud detection and the web around it.',
+  email: 'hello@example.dev',
+  githubUrl: 'https://github.com/example',
+  linkedinUrl: 'https://www.linkedin.com/in/example/',
+} as const;
+
+const SETTINGS_COPY: HeroCopy = {
+  location: SETTINGS.location,
+  tagline: SETTINGS.tagline,
+  email: SETTINGS.email,
+  githubUrl: SETTINGS.githubUrl,
+  linkedinUrl: SETTINGS.linkedinUrl,
+};
+
+const T0 = new Date('2026-11-06T12:00:00Z').getTime();
+
+/** A Sanity request that never answers. */
+const pending = (): Promise<never> => new Promise(() => {});
+
 /** The hero's HTML once every Suspense boundary has resolved, as the server streams it. */
 async function renderHeroHtml(): Promise<void> {
   const { prelude } = await prerender(<HeroTile />);
   document.body.innerHTML = await new Response(prelude).text();
+}
+
+/** The hero's first flush: every Suspense boundary still shows its fallback. */
+function renderFirstFlush(): void {
+  document.body.innerHTML = renderToString(<HeroTile />);
 }
 
 /** The box that holds the role line: the h1's next sibling. */
@@ -92,18 +173,72 @@ const roleSlot = (): HTMLElement => {
   return slot;
 };
 
+/** The box around the tagline. */
+const taglineSlot = (): HTMLElement => {
+  const slot = document.querySelector('[data-hero-tagline-slot]');
+  if (!(slot instanceof HTMLElement)) throw new Error('no tagline slot');
+  return slot;
+};
+
+/**
+ * A tagline about three times the built-in one (107 characters): three lines from a 24rem tile,
+ * more on a phone.
+ */
+const LONG_TAGLINE =
+  'Shipping fraud detection, payments infrastructure and the web around both, from first sketch to production.';
+
+/** The word or words beside the avatar. */
+const locationText = (): string | null | undefined =>
+  screen.getByRole('img').parentElement?.querySelector('p')?.textContent;
+
+/** Where each contact link leads, by its spoken name. */
+const contactHrefs = (): Record<string, string | null> => ({
+  email: screen.getByRole('link', { name: 'Email me' }).getAttribute('href'),
+  github: screen.getByRole('link', { name: 'GitHub (opens in a new tab)' }).getAttribute('href'),
+  linkedin: screen
+    .getByRole('link', { name: 'LinkedIn (opens in a new tab)' })
+    .getAttribute('href'),
+});
+
+const hrefsOf = (copy: HeroCopy): Record<string, string> => ({
+  email: `mailto:${copy.email}`,
+  github: copy.githubUrl,
+  linkedin: copy.linkedinUrl,
+});
+
+/** The hero's copy, as the page shows it. */
+const expectCopy = (copy: HeroCopy): void => {
+  expect(locationText()).toBe(copy.location);
+  expect(screen.getByText(copy.tagline).tagName).toBe('P');
+  expect(contactHrefs()).toEqual(hrefsOf(copy));
+};
+
+const expectHeroReport = (level: 'error' | 'warning'): void => {
+  expect(h.captureException).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ level, tags: { 'api.context': 'home hero tile' } }),
+  );
+};
+
 const setPlatform = (platform: string): void => {
   Object.defineProperty(navigator, 'platform', { value: platform, configurable: true });
 };
 
 beforeEach(() => {
   h.loadCurrentRoles.mockResolvedValue(ROLES);
+  h.sanityFetchWithToken.mockReset();
+  h.sanityFetchWithToken.mockResolvedValue(null);
+  h.captureException.mockReset();
+  resetSanityLoaderCaches();
+  resetApiReportCooldowns();
 });
 
 afterEach(() => {
   cleanup();
   document.body.innerHTML = '';
   vi.clearAllMocks();
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
   Reflect.deleteProperty(navigator, 'platform');
 });
 
@@ -193,11 +328,204 @@ describe('HeroTile', () => {
   );
 
   it('puts the h1 in the first flush and a placeholder bar in the role box', () => {
-    h.loadCurrentRoles.mockReturnValue(new Promise(() => {}));
-    document.body.innerHTML = renderToString(<HeroTile />);
+    h.loadCurrentRoles.mockReturnValue(pending());
+    renderFirstFlush();
     expect(screen.getByRole('heading', { level: 1, name: 'Mike Odnis' })).toBeInTheDocument();
     const bar = roleSlot().querySelector('span[aria-hidden="true"]');
     expect(bar).toHaveClass('h-[1.5em]', 'bg-surface-3');
+  });
+});
+
+describe('HeroTile with the site settings', () => {
+  it('shows the location, the tagline and the contact links from the settings', async () => {
+    h.sanityFetchWithToken.mockResolvedValue(SETTINGS);
+    await renderHeroHtml();
+    expectCopy(SETTINGS_COPY);
+    expect(screen.queryByText(HERO_POSITIONING)).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Mike Odnis');
+    expect(h.captureException).not.toHaveBeenCalled();
+  });
+
+  it("shows today's copy when there is no settings document", async () => {
+    await renderHeroHtml();
+    expect(HERO_LOCATION).toBe('New York, NY');
+    expectCopy(HERO_FALLBACK_COPY);
+    expect(h.captureException).not.toHaveBeenCalled();
+  });
+
+  it('falls back for each invalid field alone, keeping the valid ones', async () => {
+    h.sanityFetchWithToken.mockResolvedValue({
+      ...SETTINGS,
+      email: 'hello@example.dev?cc=someone@example.org',
+      githubUrl: 'http://github.com/example',
+      linkedinUrl: 'javascript:alert(1)',
+    });
+    await renderHeroHtml();
+    expectCopy({
+      ...SETTINGS_COPY,
+      email: app.email,
+      githubUrl: GITHUB_PROFILE_URL,
+      linkedinUrl: LINKEDIN_PROFILE_URL,
+    });
+  });
+
+  it("renders today's copy and reports the hero tile when Sanity fails with nothing cached", async () => {
+    h.sanityFetchWithToken.mockRejectedValue(new Error('Sanity answered 502 Bad Gateway'));
+    await renderHeroHtml();
+    expectCopy(HERO_FALLBACK_COPY);
+    expectHeroReport('error');
+  });
+
+  it('puts the h1, the copy and all four links in the first flush while the settings load', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.sanityFetchWithToken.mockReturnValue(pending());
+    renderFirstFlush();
+    expect(screen.getByRole('heading', { level: 1, name: 'Mike Odnis' })).toBeInTheDocument();
+    expect(within(screen.getByRole('list')).getAllByRole('link')).toHaveLength(4);
+    expectCopy(HERO_FALLBACK_COPY);
+  });
+
+  it('fills the first flush from the settings last loaded, so a warm server swaps in no change', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(T0);
+    h.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
+    await loadHeroCopy();
+
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS + 1);
+    h.sanityFetchWithToken.mockReturnValue(pending());
+    renderFirstFlush();
+
+    expectCopy(SETTINGS_COPY);
+    // The reload is under way: the next request gets what it answers.
+    await vi.waitFor(() => expect(h.sanityFetchWithToken).toHaveBeenCalledTimes(2));
+  });
+
+  it("renders today's copy, and reports, when reading the cached settings throws", () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.peekSiteSettings.mockImplementationOnce(() => {
+      throw new Error('cache unreadable');
+    });
+    h.sanityFetchWithToken.mockReturnValue(pending());
+    renderFirstFlush();
+    expectCopy(HERO_FALLBACK_COPY);
+    expectHeroReport('error');
+    // Nothing known to match what streams in: the tagline's box is reserved.
+    expect(taglineSlot().className).toBe(TAGLINE_SLOT_RESERVED_CLASS);
+  });
+});
+
+describe('HeroTile on a server with nothing cached yet', () => {
+  it('reserves tagline lines in the first flush, at the tagline’s own type size', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.sanityFetchWithToken.mockReturnValue(pending());
+
+    renderFirstFlush();
+
+    expect(taglineSlot().className).toBe(TAGLINE_SLOT_RESERVED_CLASS);
+    expect(taglineSlot()).toHaveClass('text-body', '@xl:text-title');
+    expect(taglineSlot()).toHaveTextContent(HERO_POSITIONING);
+    expect(screen.getByText(HERO_POSITIONING)).toHaveClass('text-body', '@xl:text-title');
+  });
+
+  // Measured in Chromium with Geist at 16/26 px: 120-character taglines took five lines at the
+  // 238 px of text a 320 px phone's hero has, four at 375 px (293 px) and up to 360 px, three
+  // from a 24rem tile. One box three lines tall let a phone's hero grow by one or two lines,
+  // pushing the links and the tiles below them down, when the owner's tagline streamed in.
+  it('reserves as many lines as Studio’s longest tagline takes at each tile width', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.sanityFetchWithToken.mockReturnValue(pending());
+
+    renderFirstFlush();
+
+    const reserved = taglineSlot()
+      .className.split(' ')
+      .filter((name) => name.includes('min-h-'));
+    expect(reserved).toEqual(['min-h-[5lh]', '@2xs:min-h-[4lh]', '@sm:min-h-[3lh]']);
+    // The measurement holds for Studio's limit: raising it means measuring again.
+    expect(SITE_TAGLINE_MAX_LENGTH).toBe(120);
+  });
+
+  it('streams the owner’s copy into that box, so a longer tagline moves nothing below it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.sanityFetchWithToken.mockReturnValue(pending());
+    renderFirstFlush();
+    expectCopy(HERO_FALLBACK_COPY);
+    const firstFlushBox = taglineSlot().className;
+
+    resetSanityLoaderCaches();
+    vi.useRealTimers();
+    h.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, tagline: LONG_TAGLINE });
+    await renderHeroHtml();
+
+    expect(LONG_TAGLINE.length).toBeGreaterThan(3 * HERO_POSITIONING.length);
+    expectCopy({ ...SETTINGS_COPY, tagline: LONG_TAGLINE });
+    expect(taglineSlot().className).toBe(firstFlushBox);
+    expect(firstFlushBox).toBe(TAGLINE_SLOT_RESERVED_CLASS);
+  });
+
+  it('reserves nothing once the settings are cached: the first flush is the streamed twin', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(T0);
+    h.sanityFetchWithToken.mockResolvedValueOnce({ ...SETTINGS, tagline: LONG_TAGLINE });
+    await loadHeroCopy();
+
+    renderFirstFlush();
+
+    expect(taglineSlot()).toHaveTextContent(LONG_TAGLINE);
+    expect(taglineSlot().className).toBe('');
+  });
+
+  // register() is awaited before a new instance serves any route, the home page or not: a Sanity
+  // round trip there would hold up every cold start for the hero's sake.
+  it('is how a new server starts: instrumentation’s register() asks Sanity nothing', async () => {
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+
+    await register();
+
+    expect(h.sanityFetchWithToken).not.toHaveBeenCalled();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.sanityFetchWithToken.mockReturnValue(pending());
+    renderFirstFlush();
+    expectCopy(HERO_FALLBACK_COPY);
+    expect(taglineSlot().className).toBe(TAGLINE_SLOT_RESERVED_CLASS);
+  });
+});
+
+describe('loadHeroCopy', () => {
+  it('answers the settings last loaded, and warns, when a reload outlasts the tile deadline', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(T0);
+    h.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
+    expect(await loadHeroCopy()).toEqual(SETTINGS_COPY);
+
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS + 1);
+    h.sanityFetchWithToken.mockReturnValue(pending());
+    const copy = loadHeroCopy();
+    await vi.advanceTimersByTimeAsync(SERVER_TILE_DEADLINE_MS);
+
+    expect(await copy).toEqual(SETTINGS_COPY);
+    expectHeroReport('warning');
+  });
+});
+
+describe('heroCopyOf', () => {
+  it("takes each field the settings have, and today's value for each they lack", () => {
+    expect(heroCopyOf({ _id: 'siteSettings', _type: 'siteSettings', tagline: 'Hi.' })).toEqual({
+      ...HERO_FALLBACK_COPY,
+      tagline: 'Hi.',
+    });
+    expect(heroCopyOf(null)).toEqual(HERO_FALLBACK_COPY);
+    expect(heroCopyOf(undefined)).toEqual(HERO_FALLBACK_COPY);
+  });
+
+  it("is today's hero without settings", () => {
+    expect(HERO_FALLBACK_COPY).toEqual({
+      location: 'New York, NY',
+      tagline: 'Building web software end to end.',
+      email: app.email,
+      githubUrl: 'https://github.com/WomB0ComB0',
+      linkedinUrl: 'https://www.linkedin.com/in/mikeodnis/',
+    });
   });
 });
 

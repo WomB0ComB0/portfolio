@@ -210,7 +210,8 @@ const BOUNDARY_LABELS = [
   'LeetCode',
   'Typing',
   'GitHub activity',
-  'Featured project',
+  // The tile itself says 'Latest work' or 'Featured project'; the slot names neither.
+  'Project',
   'Last place',
   'Current roles',
   'Site index',
@@ -371,7 +372,7 @@ describe('HomePage loading and failure', () => {
       ['LeetCode', 'leet'],
       ['Typing', 'type'],
       ['GitHub activity', 'gh'],
-      ['Featured project', 'proj'],
+      ['Project', 'proj'],
       ['Last place', 'place'],
       ['Current roles', 'role'],
     ];

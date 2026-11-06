@@ -47,6 +47,7 @@ import {
   presentationsQuery,
   projectBySlugQuery,
   projectsQuery,
+  siteSettingsQuery,
   talksQuery,
   youtubeVideosQuery,
 } from './queries';
@@ -142,6 +143,14 @@ export function getPlaces(): Promise<Place[]> {
 /** The active resume: null when none is active. Throws when Sanity fails. */
 export function getResume(): Promise<Resume | null> {
   return fetchDocument<Resume>('resume', activeResumeQuery);
+}
+
+/**
+ * The site settings singleton, undecoded (the loader checks each field on its own): null before
+ * it is created. Throws when Sanity fails.
+ */
+export function getSiteSettings(): Promise<unknown> {
+  return fetchDocument<unknown>('site-settings', siteSettingsQuery);
 }
 
 /** All presentations. Throws when Sanity fails. */

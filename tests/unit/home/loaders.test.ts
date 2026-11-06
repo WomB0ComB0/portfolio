@@ -19,6 +19,9 @@
  * @file The home tiles' server loaders (src/app/_components/home/data/loaders.ts). None of them
  * ever rejects:
  * - The Sanity tiles (roles, place, project, counts) each fail only with their own collection.
+ * - The project tile shows the project of the repository the owner's own commits went to last
+ *   (readRecentCommits, never the GitHub tile's pushes), else the featured pick: GitHub failing,
+ *   stale or slower than its 3 s budget never fails it (one warning each).
  * - GitHub and typing show a stale answer marked stale, with `asOf` and one warning; LeetCode's
  *   handler reports its own, which the tile shows marked stale with `asOf`.
  * - Past the 4 s deadline, GitHub, typing and each Sanity tile show the value their source last
@@ -41,15 +44,16 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadCurrentRoles,
-  loadFeaturedProject,
   loadGitHubActivity,
   loadLatestPlace,
   loadLeetCode,
   loadNowPlaying,
+  loadProjectPick,
   loadServiceStatus,
   loadSiteCounts,
   loadTyping,
   NOW_PLAYING_TTL_MS,
+  PROJECT_ACTIVITY_BUDGET_MS,
   resetNowPlayingCache,
 } from '@/app/_components/home/data/loaders';
 import {
@@ -59,7 +63,11 @@ import {
 import type { ServiceStatus } from '@/app/api/[[...route]]/status/schema';
 import type { LeetCodeStats } from '@/app/api/v1/[[...route]]/leetcode/handlers';
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
-import type { GitHubActivity } from '@/lib/api-integrations/github-activity';
+import type {
+  CommittedRepo,
+  GitHubActivity,
+  RecentCommits,
+} from '@/lib/api-integrations/github-activity';
 import type { MonkeytypeProfile } from '@/lib/api-integrations/monkeytype';
 
 const sanity = vi.hoisted(() => ({
@@ -72,7 +80,12 @@ const sanity = vi.hoisted(() => ({
   peekCertifications: vi.fn(),
   peekPlaces: vi.fn(),
 }));
-const github = vi.hoisted(() => ({ readGitHubActivity: vi.fn(), peekGitHubActivity: vi.fn() }));
+const github = vi.hoisted(() => ({
+  readGitHubActivity: vi.fn(),
+  peekGitHubActivity: vi.fn(),
+  readRecentCommits: vi.fn(),
+  peekRecentCommits: vi.fn(),
+}));
 const monkeytype = vi.hoisted(() => ({
   readMonkeytypeProfile: vi.fn(),
   peekMonkeytypeProfile: vi.fn(),
@@ -105,7 +118,8 @@ const roles = [
   makeExperience({ current: false, order: 1 }),
   makeExperience({ current: true, order: 2 }),
 ];
-const places = [makePlace({ startDate: '2026-11-05' }), makePlace({ startDate: '2026-10-01' })];
+/** The first is the last place: its visit was yesterday in New York (NOW is Nov 5 there). */
+const places = [makePlace({ startDate: '2026-11-04' }), makePlace({ startDate: '2026-10-01' })];
 const projects = [
   makeProject({ featured: true, order: 0, title: 'Fraud Guard' }),
   makeProject({ featured: false, order: 1 }),
@@ -121,6 +135,20 @@ const ACTIVITY: GitHubActivity = {
   latestCommit: null,
   fetchedAt: '2026-11-06T03:00:00.000Z',
 };
+
+/** The owner's own commits to `nameWithOwner`, his newest on `lastCommitDay`. */
+const repo = (nameWithOwner: string, lastCommitDay: string): CommittedRepo => ({
+  nameWithOwner,
+  url: `https://github.com/${nameWithOwner}`,
+  lastCommitDay,
+  commitsThatDay: 1,
+});
+
+/** His recent commits as GitHub answers them, at 11 PM in New York on 2026-11-05. */
+const commits = (repos: readonly CommittedRepo[]): RecentCommits => ({
+  repos,
+  fetchedAt: '2026-11-06T03:00:00.000Z',
+});
 
 const LEETCODE: LeetCodeStats = {
   totalSolved: 692,
@@ -164,6 +192,10 @@ beforeEach(() => {
   sanity.loadPlaces.mockResolvedValue(places);
   sanity.loadProjects.mockResolvedValue(projects);
   sanity.loadCertifications.mockResolvedValue(certifications);
+  // GitHub answers with no recent commits unless a test says otherwise, so the project tile is
+  // the featured pick and reports nothing.
+  github.readGitHubActivity.mockResolvedValue({ stale: false, data: ACTIVITY });
+  github.readRecentCommits.mockResolvedValue({ stale: false, data: commits([]) });
   resetNowPlayingCache();
 });
 
@@ -179,7 +211,11 @@ describe('the Sanity tiles', () => {
       stale: false,
     });
     await expect(loadLatestPlace()).resolves.toMatchObject({ status: 'ok', data: places[0] });
-    await expect(loadFeaturedProject()).resolves.toMatchObject({ status: 'ok', data: projects[0] });
+    await expect(loadProjectPick()).resolves.toEqual({
+      status: 'ok',
+      data: { source: 'featured', project: projects[0] },
+      stale: false,
+    });
     await expect(loadSiteCounts()).resolves.toEqual({
       projects: 2,
       roles: 3,
@@ -202,7 +238,7 @@ describe('the Sanity tiles', () => {
       const [rolesTile, placeTile, projectTile, counts] = await Promise.all([
         loadCurrentRoles(),
         loadLatestPlace(),
-        loadFeaturedProject(),
+        loadProjectPick(),
         loadSiteCounts(),
       ]);
 
@@ -250,17 +286,49 @@ describe('the Sanity tiles', () => {
 
     await expect(loadCurrentRoles()).resolves.toEqual({ status: 'empty' });
     await expect(loadLatestPlace()).resolves.toEqual({ status: 'empty' });
-    await expect(loadFeaturedProject()).resolves.toEqual({ status: 'empty' });
+    await expect(loadProjectPick()).resolves.toEqual({ status: 'empty' });
     expect(report.reportApiFailure).not.toHaveBeenCalled();
   });
 
-  it("take today from New York's calendar, so a place dated tomorrow there is skipped", async () => {
-    // UTC has reached Nov 6, New York has not.
-    const tomorrow = makePlace({ startDate: '2026-11-06' });
-    const today = makePlace({ startDate: '2026-11-05' });
-    sanity.loadPlaces.mockResolvedValue([tomorrow, today]);
+  it("take today from New York's calendar, so a visit on its today is not over yet", async () => {
+    // UTC has reached Nov 6, New York has not: Nov 5 is still today there.
+    const today = makePlace({ startDate: '2026-11-05', order: -99 });
+    const yesterday = makePlace({ startDate: '2026-11-04' });
+    sanity.loadPlaces.mockResolvedValue([today, yesterday]);
 
-    await expect(loadLatestPlace()).resolves.toMatchObject({ status: 'ok', data: today });
+    await expect(loadLatestPlace()).resolves.toMatchObject({ status: 'ok', data: yesterday });
+  });
+
+  // Visits are days, not times: an evening party dated Nov 6 can still be going at 00:30 ET on
+  // Nov 7 (and in San Francisco Nov 6 is not even over). It shows from noon ET the day after.
+  it.each([
+    ['00:30 ET', false, Date.UTC(2026, 10, 7, 5, 30)],
+    ['11:59 ET', false, Date.UTC(2026, 10, 7, 16, 59)],
+    ['12:00 ET', true, Date.UTC(2026, 10, 7, 17, 0)],
+    ['12:30 ET', true, Date.UTC(2026, 10, 7, 17, 30)],
+  ] as const)(
+    'show a visit dated Nov 6 from noon ET on Nov 7: at %s, shown %s',
+    async (_at, shown, now) => {
+      vi.setSystemTime(now);
+      const party = makePlace({ category: 'Event', startDate: '2026-11-06' });
+      sanity.loadPlaces.mockResolvedValue([party]);
+
+      const tile = await loadLatestPlace();
+
+      expect(tile).toEqual(
+        shown ? { status: 'ok', data: party, stale: false } : { status: 'empty' },
+      );
+    },
+  );
+
+  it('are empty when every place is dated but none has ended before the cutoff day', async () => {
+    // NOW is Nov 5 in New York: a visit on Nov 5 and a run from Nov 1 to Nov 9 are both on.
+    sanity.loadPlaces.mockResolvedValue([
+      makePlace({ startDate: '2026-11-05' }),
+      makePlace({ startDate: '2026-11-01', endDate: '2026-11-09' }),
+    ]);
+
+    await expect(loadLatestPlace()).resolves.toEqual({ status: 'empty' });
   });
 });
 
@@ -311,6 +379,138 @@ describe('loadGitHubActivity', () => {
 
     await expect(loadGitHubActivity()).resolves.toEqual({ status: 'error' });
     expect(reportOptions()).toEqual([{ context: 'home github tile', level: 'error' }]);
+  });
+});
+
+describe('loadProjectPick', () => {
+  const grepo = makeProject({ title: 'grepo', githubUrl: 'https://github.com/WomB0ComB0/grepo' });
+  const site = makeProject({
+    title: 'Portfolio',
+    githubUrl: 'https://github.com/WomB0ComB0/portfolio',
+  });
+  const featured = { source: 'featured', project: projects[0] } as const;
+  /** Yesterday in New York (NOW is 10:30 PM on Nov 5 there). */
+  const YESTERDAY = '2026-11-04';
+  const ACTIVE_COMMITS = commits([repo('WomB0ComB0/grepo', YESTERDAY)]);
+  const LATEST_WORK = {
+    source: 'activity',
+    project: grepo,
+    repo: 'WomB0ComB0/grepo',
+    lastCommitDay: YESTERDAY,
+  } as const;
+  const ACTIVITY_WARNING = { context: 'home project activity', level: 'warning' };
+
+  beforeEach(() => {
+    sanity.loadProjects.mockResolvedValue([...projects, grepo, site]);
+  });
+
+  it('is the project of the repository he committed to last, with that day', async () => {
+    github.readRecentCommits.mockResolvedValue({ stale: false, data: ACTIVE_COMMITS });
+
+    await expect(loadProjectPick()).resolves.toEqual({
+      status: 'ok',
+      data: LATEST_WORK,
+      stale: false,
+    });
+    expect(report.reportApiFailure).not.toHaveBeenCalled();
+  });
+
+  it("follows his own commits only, never the GitHub tile's pushes", async () => {
+    // The GitHub tile's answer plays no part: only readRecentCommits decides.
+    github.readRecentCommits.mockResolvedValue({ stale: false, data: ACTIVE_COMMITS });
+    github.readGitHubActivity.mockRejectedValue(new Error('GitHub 502'));
+
+    await expect(loadProjectPick()).resolves.toMatchObject({ data: LATEST_WORK });
+    expect(github.readGitHubActivity).not.toHaveBeenCalled();
+    expect(github.peekGitHubActivity).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no repository he committed to has a project', [repo('WomB0ComB0/dotfiles', YESTERDAY)]],
+    ['he committed only to this site', [repo('WomB0ComB0/portfolio', YESTERDAY)]],
+    ['his last commit was over 30 days ago', [repo('WomB0ComB0/grepo', '2026-10-05')]],
+    ['he committed nothing lately', []],
+  ])('is the featured pick when %s', async (_when, repos) => {
+    github.readRecentCommits.mockResolvedValue({ stale: false, data: commits(repos) });
+
+    await expect(loadProjectPick()).resolves.toEqual({
+      status: 'ok',
+      data: featured,
+      stale: false,
+    });
+    expect(report.reportApiFailure).not.toHaveBeenCalled();
+  });
+
+  it('is the featured pick, with a warning, when GitHub fails with nothing cached', async () => {
+    github.readRecentCommits.mockRejectedValue(new Error('GITHUB_TOKEN is not set'));
+
+    await expect(loadProjectPick()).resolves.toEqual({
+      status: 'ok',
+      data: featured,
+      stale: false,
+    });
+    expect(reportOptions()).toEqual([ACTIVITY_WARNING]);
+    expect(report.reportApiFailure.mock.calls[0]?.[0]).toMatchObject({
+      command: 'home:project-activity',
+    });
+  });
+
+  it('still uses a stale GitHub answer, whose days are true, with a warning', async () => {
+    const outage = new Error('GitHub 502');
+    github.readRecentCommits.mockResolvedValue({
+      stale: true,
+      data: ACTIVE_COMMITS,
+      error: outage,
+      loadedAt: LOADED_AT,
+    });
+
+    await expect(loadProjectPick()).resolves.toEqual({
+      status: 'ok',
+      data: LATEST_WORK,
+      stale: false,
+    });
+    expect(reportOptions()).toEqual([ACTIVITY_WARNING]);
+    expect(report.reportApiFailure.mock.calls[0]?.[0]).toMatchObject({ cause: outage });
+  });
+
+  describe('when GitHub is slower than its budget', () => {
+    /** Starts the load and lets GitHub's budget, not the tile's deadline, pass. */
+    async function pastBudget() {
+      github.readRecentCommits.mockReturnValue(never());
+      const settled = vi.fn();
+      const pick = loadProjectPick();
+      void pick.then(settled);
+      await vi.advanceTimersByTimeAsync(PROJECT_ACTIVITY_BUDGET_MS - 1);
+      expect(settled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      return pick;
+    }
+
+    it('uses the commits GitHub last answered, in time for the tile', async () => {
+      github.peekRecentCommits.mockReturnValue({ data: ACTIVE_COMMITS, loadedAt: LOADED_AT });
+
+      await expect(pastBudget()).resolves.toEqual({
+        status: 'ok',
+        data: LATEST_WORK,
+        stale: false,
+      });
+      expect(PROJECT_ACTIVITY_BUDGET_MS).toBeLessThan(SERVER_TILE_DEADLINE_MS);
+      expect(reportOptions()).toEqual([ACTIVITY_WARNING]);
+    });
+
+    it('is the featured pick when GitHub never answered', async () => {
+      await expect(pastBudget()).resolves.toEqual({ status: 'ok', data: featured, stale: false });
+      expect(github.peekRecentCommits).toHaveBeenCalledTimes(1);
+      expect(reportOptions()).toEqual([ACTIVITY_WARNING]);
+    });
+  });
+
+  it('fails as before when Sanity fails, whatever GitHub answers', async () => {
+    sanity.loadProjects.mockRejectedValue(new Error('Sanity 503'));
+    github.readRecentCommits.mockResolvedValue({ stale: false, data: ACTIVE_COMMITS });
+
+    await expect(loadProjectPick()).resolves.toEqual({ status: 'error' });
+    expect(reportOptions()).toEqual([{ context: 'home project tile', level: 'error' }]);
   });
 });
 
@@ -467,16 +667,35 @@ describe('the server tiles past their deadline', () => {
     sanity.peekProjects.mockReturnValue({ data: projects, loadedAt: LOADED_AT });
 
     const [placeTile, projectTile] = await pastDeadline(() =>
-      Promise.all([loadLatestPlace(), loadFeaturedProject()]),
+      Promise.all([loadLatestPlace(), loadProjectPick()]),
     );
 
     expect(placeTile).toEqual({ status: 'ok', data: places[0], stale: true, asOf: LOADED_AT_ISO });
     expect(projectTile).toEqual({
       status: 'ok',
-      data: projects[0],
+      data: { source: 'featured', project: projects[0] },
       stale: true,
       asOf: LOADED_AT_ISO,
     });
+  });
+
+  it('show his latest work from the projects and commits last loaded, stale', async () => {
+    const active = makeProject({ githubUrl: 'https://github.com/WomB0ComB0/grepo' });
+    const lastCommitDay = '2026-11-05';
+    sanity.loadProjects.mockReturnValue(never());
+    sanity.peekProjects.mockReturnValue({ data: [...projects, active], loadedAt: LOADED_AT });
+    github.peekRecentCommits.mockReturnValue({
+      data: commits([repo('WomB0ComB0/grepo', lastCommitDay)]),
+      loadedAt: LOADED_AT,
+    });
+
+    await expect(pastDeadline(loadProjectPick)).resolves.toEqual({
+      status: 'ok',
+      data: { source: 'activity', project: active, repo: 'WomB0ComB0/grepo', lastCommitDay },
+      stale: true,
+      asOf: LOADED_AT_ISO,
+    });
+    expect(reportOptions()).toEqual([{ context: 'home project tile', level: 'warning' }]);
   });
 
   it('fall back per collection: a count with nothing loaded is null, one with a list is counted', async () => {

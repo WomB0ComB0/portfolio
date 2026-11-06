@@ -180,7 +180,8 @@ const DATA_SLOTS: readonly DataSlotSpec[] = [
   },
   {
     area: 'proj',
-    label: 'Featured project',
+    // Not 'Featured project': the tile is the owner's latest work when his commits pick it.
+    label: 'Project',
     Content: ProjectTile,
     Skeleton: ProjectTileSkeleton,
     Fallback: () => <ProjectTileView result={TILE_ERROR} />,

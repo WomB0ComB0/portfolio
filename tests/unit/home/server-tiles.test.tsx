@@ -30,13 +30,13 @@ import { join } from 'node:path';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
 import type { AnchorHTMLAttributes, ReactElement, ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 const loaders = vi.hoisted(() => ({
   loadLeetCode: vi.fn(),
   loadTyping: vi.fn(),
   loadGitHubActivity: vi.fn(),
-  loadFeaturedProject: vi.fn(),
+  loadProjectPick: vi.fn(),
   loadLatestPlace: vi.fn(),
   loadCurrentRoles: vi.fn(),
   loadSiteCounts: vi.fn(),
@@ -73,7 +73,7 @@ vi.mock('next/link', () => ({
 }));
 
 import type { SiteCounts } from '@/app/_components/home/data/loaders';
-import type { TypingTileData } from '@/app/_components/home/data/selectors';
+import type { ProjectPick, TypingTileData } from '@/app/_components/home/data/selectors';
 import type { TileResult } from '@/app/_components/home/data/tile-result';
 import {
   GitHubTile,
@@ -118,11 +118,13 @@ import {
   joinMeta,
   SkeletonBar,
   TileEmpty,
+  TileLabel,
+  type TileLabelProps,
   TileUnavailable,
 } from '@/app/_components/home/tiles/tile-states';
 import type { LeetCodeStats } from '@/app/api/v1/[[...route]]/leetcode/handlers';
 import type { GitHubActivity } from '@/lib/api-integrations/github-activity';
-import type { Experience } from '@/lib/sanity/loaders';
+import type { Experience, Project } from '@/lib/sanity/loaders';
 
 /** 11:07 AM in New York on Thursday, Nov 5, 2026 (EST). */
 const NOW = Date.parse('2026-11-05T16:07:00Z');
@@ -186,6 +188,20 @@ const FEATURED = makeProject({
   startDate: '2025-02-01',
   technologies: ['Python', 'FastAPI', 'React', 'PostgreSQL', 'Docker', 'Redis'],
   image: COVER,
+});
+
+/** The day before NOW's, in New York. */
+const YESTERDAY = '2026-11-04';
+
+/** `project` as the featured pick, chosen without GitHub. */
+const featuredPick = (project: Project): ProjectPick => ({ source: 'featured', project });
+
+/** `project` as his latest work: he last committed to its repository on `lastCommitDay`. */
+const activePick = (project: Project, lastCommitDay = YESTERDAY): ProjectPick => ({
+  source: 'activity',
+  project,
+  repo: 'WomB0ComB0/fraud-guard',
+  lastCommitDay,
 });
 
 const PHOTO = {
@@ -346,15 +362,31 @@ const VIEW_CASES: readonly TileCase[] = [
   },
   { name: 'GitHub empty', element: <GitHubTileView result={EMPTY} now={NOW} /> },
   { name: 'GitHub error', element: <GitHubTileView result={ERROR} now={NOW} />, isError: true },
-  { name: 'Project ok', element: <ProjectTileView result={ok(FEATURED)} /> },
+  { name: 'Project ok', element: <ProjectTileView result={ok(featuredPick(FEATURED))} /> },
   {
     name: 'Project without a cover',
-    element: <ProjectTileView result={ok({ ...FEATURED, image: null })} />,
+    element: <ProjectTileView result={ok(featuredPick({ ...FEATURED, image: null }))} />,
   },
   {
     name: 'Project stale',
     element: (
-      <ProjectTileView result={ok(FEATURED, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />
+      <ProjectTileView
+        result={ok(featuredPick(FEATURED), { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />
+    ),
+  },
+  {
+    name: 'Project active',
+    element: <ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />,
+  },
+  {
+    name: 'Project active, stale',
+    element: (
+      <ProjectTileView
+        result={ok(activePick(FEATURED), { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />
     ),
   },
   { name: 'Project empty', element: <ProjectTileView result={EMPTY} /> },
@@ -663,7 +695,7 @@ describe('GitHubTileView', () => {
 
 describe('ProjectTileView', () => {
   it('shows the cover, title link, description, up to four chips and the meta', () => {
-    const { container } = render(<ProjectTileView result={ok(FEATURED)} />);
+    const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} />);
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-linked-tile');
     const cover = within(tile).getByRole('img', { name: 'The Fraud Guard dashboard' });
@@ -689,7 +721,9 @@ describe('ProjectTileView', () => {
   });
 
   it('draws a typographic cover without an image, never "No Image Available"', () => {
-    const { container } = render(<ProjectTileView result={ok({ ...FEATURED, image: null })} />);
+    const { container } = render(
+      <ProjectTileView result={ok(featuredPick({ ...FEATURED, image: null }))} />,
+    );
     const cover = container.querySelector('[data-cover="typographic"]');
     expect(cover).toHaveAttribute('aria-hidden', 'true');
     expect(cover).toHaveTextContent('FG');
@@ -700,7 +734,9 @@ describe('ProjectTileView', () => {
 
   it('falls back to the typographic cover when the image reference is malformed', () => {
     const broken = { ...COVER, asset: { _ref: 'not-an-image-ref', _type: 'reference' as const } };
-    const { container } = render(<ProjectTileView result={ok({ ...FEATURED, image: broken })} />);
+    const { container } = render(
+      <ProjectTileView result={ok(featuredPick({ ...FEATURED, image: broken }))} />,
+    );
     expect(container.querySelector('[data-cover="typographic"]')).not.toBeNull();
     expect(container.querySelector('img')).toBeNull();
   });
@@ -715,7 +751,7 @@ describe('ProjectTileView', () => {
   });
 
   it('encodes the document id in the link', () => {
-    render(<ProjectTileView result={ok({ ...FEATURED, _id: 'fraud/guard v2' })} />);
+    render(<ProjectTileView result={ok(featuredPick({ ...FEATURED, _id: 'fraud/guard v2' }))} />);
     expect(screen.getByRole('link', { name: 'Fraud Guard' })).toHaveAttribute(
       'href',
       '/projects/fraud%2Fguard%20v2',
@@ -724,7 +760,10 @@ describe('ProjectTileView', () => {
 
   it('says which day a stale project’s list is from, and nothing more when fresh', () => {
     const { container } = render(
-      <ProjectTileView result={ok(FEATURED, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
+      <ProjectTileView
+        result={ok(featuredPick(FEATURED), { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />,
     );
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-state', 'stale');
@@ -733,8 +772,70 @@ describe('ProjectTileView', () => {
     ).toHaveAttribute('data-dated');
     cleanup();
 
-    render(<ProjectTileView result={ok(FEATURED)} now={NOW} />);
+    render(<ProjectTileView result={ok(featuredPick(FEATURED))} now={NOW} />);
     expect(screen.queryByText(/as of/)).toBeNull();
+  });
+
+  it('labels the project his commits chose "Latest work" and says the day he last committed', () => {
+    const { container } = render(<ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />);
+    const tile = tileOf(container);
+
+    // A label that claims only what GitHub shows, so a 'Completed' status beside it is no
+    // contradiction: he committed to a finished project.
+    expect(within(tile).getByRole('heading', { level: 2 })).toHaveTextContent(/^Latest work$/);
+    expect(within(tile).queryByText(/Active/)).toBeNull();
+    expect(
+      within(tile).getByText('Machine Learning · Completed · 2025 · committed yesterday'),
+    ).toHaveAttribute('data-dated');
+    // Everything else is the tile as it was.
+    expect(within(tile).getByRole('link', { name: 'Fraud Guard' })).toHaveAttribute(
+      'href',
+      `/projects/${encodeURIComponent(FEATURED._id)}`,
+    );
+    expect(within(tile).getByRole('img', { name: 'The Fraud Guard dashboard' })).toBeVisible();
+  });
+
+  it.each([
+    ['2026-11-05', 'committed today'],
+    ['2026-11-02', 'committed 3 d ago'],
+    ['2026-10-20', 'committed Oct 20'],
+  ])('words a last commit on %s as "%s": a day, never a time', (lastCommitDay, words) => {
+    render(<ProjectTileView result={ok(activePick(FEATURED, lastCommitDay))} now={NOW} />);
+
+    expect(screen.getByText(`Machine Learning · Completed · 2025 · ${words}`)).toBeInTheDocument();
+  });
+
+  it('keeps "Featured project", and says nothing of a commit, for the featured pick', () => {
+    const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} now={NOW} />);
+    const tile = tileOf(container);
+
+    expect(within(tile).getByRole('heading', { level: 2 })).toHaveTextContent(/^Featured project$/);
+    expect(within(tile).queryByText(/committed|pushed/)).toBeNull();
+    expect(within(tile).getByText('Machine Learning · Completed · 2025')).not.toHaveAttribute(
+      'data-dated',
+    );
+  });
+
+  it('puts the commit day before the day a stale list is from', () => {
+    render(
+      <ProjectTileView
+        result={ok(activePick(FEATURED), { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />,
+    );
+
+    expect(
+      screen.getByText('Machine Learning · Completed · 2025 · committed yesterday · as of Nov 5'),
+    ).toBeInTheDocument();
+  });
+
+  it('leaves out a commit day it cannot word, keeping the label', () => {
+    render(<ProjectTileView result={ok(activePick(FEATURED, '2026-11-06'))} now={NOW} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Latest work' })).toBeInTheDocument();
+    expect(screen.getByText('Machine Learning · Completed · 2025')).not.toHaveAttribute(
+      'data-dated',
+    );
   });
 
   it('takes up to two initials from the title', () => {
@@ -781,30 +882,89 @@ describe('PlaceTileView', () => {
     );
   });
 
-  it('shows the photo thumbnail from 18rem and the coordinates below it', () => {
+  /** No trace of the place's coordinates (40.7128, -74.006): no degrees, none of their digits. */
+  const expectNoCoordinates = (tile: HTMLElement): void => {
+    const text = tile.textContent ?? '';
+    expect(text).not.toContain('°');
+    expect(text).not.toMatch(/40\.7|74\.0/);
+  };
+
+  it('shows the photo thumbnail from 18rem, and never the coordinates', () => {
     const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
-    const thumbnail = within(tileOf(container)).getByRole('img', { name: 'The main stage' });
+    const tile = tileOf(container);
+    const thumbnail = within(tile).getByRole('img', { name: 'The main stage' });
     expect(thumbnail).toHaveClass('hidden', '@2xs:block');
     const source = imageSource(thumbnail);
     expect(source).toContain('stage1-800x600.jpg?');
     for (const param of ['w=144', 'h=144', 'fit=crop']) expect(source).toContain(param);
-    expect(screen.getByText('40.71° N, 74.01° W')).toHaveClass('@2xs:hidden');
+    expectNoCoordinates(tile);
   });
 
-  it('always shows the coordinates for a place without photos', () => {
-    render(<PlaceTileView result={ok({ ...PAST_PLACE, photos: null })} now={NOW} />);
-    expect(screen.queryByRole('img')).toBeNull();
-    expect(screen.getByText('40.71° N, 74.01° W')).not.toHaveClass('@2xs:hidden');
-  });
-
-  it('says "Here now" with an amber dot while the visit is on', () => {
+  it('shows nothing in the photo’s place without photos: no coordinates, no map pin', () => {
     const { container } = render(
-      <PlaceTileView result={ok({ ...PAST_PLACE, startDate: '2026-11-05' })} now={NOW} />,
+      <PlaceTileView result={ok({ ...PAST_PLACE, photos: null })} now={NOW} />,
     );
-    const label = screen.getByRole('heading', { level: 2, name: 'Here now' });
-    expect(label).toHaveClass('text-ongoing');
-    expect(label.querySelector('[data-status-dot]')).toHaveAttribute('data-tone', 'ongoing');
-    expect(within(tileOf(container)).getByText('Conference · Nov 5')).toBeInTheDocument();
+    const tile = tileOf(container);
+    expect(within(tile).queryByRole('img')).toBeNull();
+    expect(tile.querySelector('svg')).toBeNull();
+    expectNoCoordinates(tile);
+  });
+
+  it('never says "Here now" or shows an amber dot for a past visit', () => {
+    const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
+    const tile = tileOf(container);
+    expect(within(tile).getByRole('heading', { level: 2 })).toHaveAccessibleName('Last place');
+    expect(within(tile).queryByText(/here now/i)).toBeNull();
+    expect(tile.querySelector('[data-status-dot], .text-ongoing')).toBeNull();
+    expectNoCoordinates(tile);
+  });
+
+  /** 1:07 PM in New York on Nov 5: past noon, so a visit on Nov 4 is over (placeCutoffDay). */
+  const AFTERNOON = Date.parse('2026-11-05T18:07:00Z');
+
+  // Past visits only (owner decision). selectLatestPlace never hands the tile a place whose visit
+  // may be on, and the view holds the same rule, so a place that reaches it another way (another
+  // loader, an old selection) shows the empty state: never its name, days or 'today'.
+  it.each([
+    ['a visit dated today', { startDate: '2026-11-05' }, NOW],
+    ['a range that is on', { startDate: '2026-10-30', endDate: '2026-11-08' }, NOW],
+    ['a range that ends today', { startDate: '2026-10-30', endDate: '2026-11-05' }, AFTERNOON],
+    ['a place yet to come', { startDate: '2026-11-12' }, AFTERNOON],
+    ['an undated place', { startDate: null }, AFTERNOON],
+    ['a visit dated yesterday, before noon', { startDate: '2026-11-04' }, NOW],
+  ])('shows no place for %s', (_case, days, now) => {
+    const { container } = render(
+      <PlaceTileView result={ok({ ...PAST_PLACE, ...days })} now={now} />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'empty');
+    expect(within(tile).getByText('No places yet')).toBeInTheDocument();
+    expect(within(tile).getByRole('link', { name: 'All places' })).toHaveAttribute(
+      'href',
+      '/places',
+    );
+    expect(within(tile).queryByText(PAST_PLACE.name)).toBeNull();
+    expect(tile.textContent).not.toMatch(/today|Conference|Oct 30|Nov \d/);
+    expect(within(tile).queryByText(/here now/i)).toBeNull();
+    expectNoCoordinates(tile);
+  });
+
+  it('shows no place for a stale list’s place whose visit is on', () => {
+    const stale = ok(
+      { ...PAST_PLACE, startDate: '2026-11-05' },
+      { stale: true, asOf: FIVE_MIN_AGO },
+    );
+    const { container } = render(<PlaceTileView result={stale} now={NOW} />);
+    expect(tileOf(container)).toHaveAttribute('data-state', 'empty');
+    expect(screen.queryByText(PAST_PLACE.name)).toBeNull();
+  });
+
+  it('shows a visit dated yesterday from noon in New York', () => {
+    const yesterday = ok({ ...PAST_PLACE, startDate: '2026-11-04' });
+    const { container } = render(<PlaceTileView result={yesterday} now={AFTERNOON} />);
+    const tile = tileOf(container);
+    expect(within(tile).getByRole('link', { name: PAST_PLACE.name })).toBeInTheDocument();
+    expect(within(tile).getByText('Conference · Nov 4 · yesterday')).toBeInTheDocument();
   });
 
   // Corgi NYC's visits were Jul 29 and Sep 15: 51 days before NOW, so the span says when.
@@ -816,7 +976,7 @@ describe('PlaceTileView', () => {
     endDate: '2026-09-15',
   });
 
-  /** The tile's context line: its dated <p> (the dated label is an h2). */
+  /** The tile's context line: its dated <p>. */
   const metaOf = (container: HTMLElement): HTMLElement => {
     const meta = tileOf(container).querySelector<HTMLElement>('p[data-dated]');
     if (!meta) throw new Error('no context line');
@@ -844,19 +1004,11 @@ describe('PlaceTileView', () => {
 
   it('counts the relative day from a range’s last day, not its first', () => {
     const range = { ...PAST_PLACE, startDate: '2026-10-20', endDate: '2026-11-04' };
-    const { container } = render(<PlaceTileView result={ok(range)} now={NOW} />);
+    const { container } = render(<PlaceTileView result={ok(range)} now={AFTERNOON} />);
     const meta = metaOf(container);
 
     expect(seenText(meta)).toBe('Conference · Oct 20 – Nov 4 · yesterday');
     expect(heardText(meta)).toBe('Conference · Oct 20 to Nov 4 · yesterday');
-  });
-
-  it('says "Here now" with the span, and no relative day, while a range is on', () => {
-    const range = { ...PAST_PLACE, startDate: '2026-10-30', endDate: '2026-11-08' };
-    const { container } = render(<PlaceTileView result={ok(range)} now={NOW} />);
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Here now' })).toBeInTheDocument();
-    expect(seenText(metaOf(container))).toBe('Conference · Oct 30 – Nov 8');
   });
 
   it('joins the stale list’s day after a range, and a single day with no dash or "to"', () => {
@@ -871,22 +1023,15 @@ describe('PlaceTileView', () => {
     expect(metaOf(single.container).querySelector('[aria-hidden], .sr-only')).toBeNull();
   });
 
-  // The visual spec masks [data-dated] only, so the rest of the place tile is still compared.
-  it.each([
-    ['a past visit', PAST_PLACE.startDate, 'Last place', 'Conference · Oct 30 · 6 d ago'],
-    ['a visit still on', '2026-11-05', 'Here now', 'Conference · Nov 5'],
-  ])(
-    'marks only the words worded from today data-dated, for %s',
-    (_case, startDate, label, when) => {
-      const { container } = render(
-        <PlaceTileView result={ok({ ...PAST_PLACE, startDate })} now={NOW} />,
-      );
+  // The visual spec masks [data-dated] only, so the rest of the place tile, its label included
+  // (always 'Last place'), is still compared.
+  it('marks only the words worded from today data-dated: the when line, not the label', () => {
+    const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
 
-      expect(
-        [...container.querySelectorAll('[data-dated]')].map((node) => node.textContent),
-      ).toEqual([label, when]);
-    },
-  );
+    expect([...container.querySelectorAll('[data-dated]')].map((node) => node.textContent)).toEqual(
+      ['Conference · Oct 30 · 6 d ago'],
+    );
+  });
 
   it.each([
     [EMPTY, 'No places yet'],
@@ -1093,6 +1238,33 @@ describe('skeletons', () => {
     expect(textOutsideLabel(tileOf(container))).not.toMatch(/\d/);
   });
 
+  // The place tile lost its coordinates line; a skeleton that kept a bar for it (and a 12px meta
+  // bar) made the one-column tile shrink when a place without a photo streamed in.
+  it('Last place reserves the loaded lines: one name line, then the meta, nothing between', () => {
+    const loaded = tileOf(
+      render(<PlaceTileView result={ok({ ...PAST_PLACE, photos: null })} now={NOW} />).container,
+    );
+    expect(within(loaded).getByRole('heading', { level: 3 })).toHaveClass('text-body');
+    expect(within(loaded).getByText('Conference · Oct 30 · 6 d ago')).toHaveClass(
+      'mt-auto',
+      'text-meta',
+    );
+    cleanup();
+
+    const skeleton = tileOf(render(<PlaceTileSkeleton />).container);
+    const bodyLine = `h-[${lineHeightToken('body')}]`;
+    const metaLine = `h-[${lineHeightToken('meta')}]`;
+    // Every box under the label, in order (the sr-only loading note takes no space).
+    const boxes = [...skeleton.children].filter(
+      (box) => box.tagName !== 'H2' && !box.classList.contains('sr-only'),
+    );
+    expect(
+      boxes.map((box) => box.className.split(' ').filter((c) => /^(?:mt-|h-\[)/.test(c))),
+    ).toEqual([[bodyLine], ['mt-auto', metaLine]]);
+    // One bar in each: the name's and the meta's.
+    expect(boxes.map((box) => box.querySelectorAll('[aria-hidden="true"]').length)).toEqual([1, 1]);
+  });
+
   // The old skeleton's 40px, 16px and 12px bars were about 54px shorter than the loaded tile above
   // a 40rem tile, so every row below jumped when GitHub answered.
   it('GitHub reserves the loaded lines: the figure, the commit, the meta', () => {
@@ -1195,6 +1367,17 @@ describe('tile states', () => {
     expect(screen.getByText('GitHub').tagName).toBe('SPAN');
   });
 
+  // No label is worded from today's date any more ('Here now' is gone): the visual spec compares
+  // every label, and only TileMeta can be marked data-dated.
+  it('gives a tile label no `dated`, so no label is ever masked as dated', () => {
+    expectTypeOf<TileLabelProps>().not.toHaveProperty('dated');
+    const stray = { dated: true } as unknown as TileLabelProps;
+    render(<TileLabel {...stray}>Last place</TileLabel>);
+    expect(screen.getByRole('heading', { level: 2, name: 'Last place' })).not.toHaveAttribute(
+      'data-dated',
+    );
+  });
+
   it('hides skeleton bars from assistive tech', () => {
     const { container } = render(<SkeletonBar className="h-4" />);
     expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
@@ -1217,7 +1400,7 @@ describe('async tiles', () => {
     loaders.loadLeetCode.mockResolvedValue(ok(LEETCODE));
     loaders.loadTyping.mockResolvedValue(ok(TYPING));
     loaders.loadGitHubActivity.mockResolvedValue(ok(ACTIVITY, { asOf: FIVE_MIN_AGO }));
-    loaders.loadFeaturedProject.mockResolvedValue(ok(FEATURED));
+    loaders.loadProjectPick.mockResolvedValue(ok(activePick(FEATURED)));
     loaders.loadLatestPlace.mockResolvedValue(ok(PAST_PLACE));
     loaders.loadCurrentRoles.mockResolvedValue(ok({ roles: roles(1), total: 1 }));
     loaders.loadSiteCounts.mockResolvedValue(COUNTS);
@@ -1243,6 +1426,7 @@ describe('async tiles', () => {
     expect(screen.getByRole('link', { name: /^Typing\s*142/ })).toBeInTheDocument();
     expect(screen.getByText('portfolio · a1b2c3d · 3 h ago')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fraud Guard' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Latest work' })).toBeInTheDocument();
     expect(screen.getByText('Conference · Oct 30 · 6 d ago')).toBeInTheDocument();
     expect(screen.getByText('Founder & CEO')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '22 projects' })).toBeInTheDocument();
