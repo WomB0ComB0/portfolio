@@ -55,9 +55,9 @@ vi.mock('@/providers/server', async () => {
 vi.mock('@vercel/analytics/react', () => ({ Analytics: () => null }));
 vi.mock('@vercel/speed-insights/next', () => ({ SpeedInsights: () => null }));
 vi.mock('@tanstack/react-query-devtools', () => ({ ReactQueryDevtools: () => null }));
-// The command palette, background effect and real navs are not under test.
+// The command palette, the tile spotlight's pointer listener and the real navs are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
-vi.mock('@/components/magicui/light-rays', () => ({ LightRays: () => null }));
+vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
 vi.mock('@/components/layout', () => ({
   NavBar: () => <nav aria-label="Main navigation" />,
   MobileNavBar: () => <nav aria-label="Mobile navigation" />,

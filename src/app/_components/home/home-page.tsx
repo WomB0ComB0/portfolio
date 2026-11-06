@@ -171,10 +171,16 @@ const NowPlayingCard = () => {
   );
 };
 
-/** The homepage body. src/app/(routes)/page.tsx renders it and owns the route's metadata. */
+/**
+ * The homepage body. src/app/(routes)/page.tsx renders it and owns the route's metadata.
+ *
+ * overflow-clip contains DotPattern: it moves down by half the scroll on every scroll, and the
+ * shell no longer clips the column vertically (that broke position: sticky), so unclipped it
+ * grew the page with each scroll to the bottom. clip, unlike hidden, makes no scroll container.
+ */
 export const HomePage = () => {
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen overflow-clip">
       <DotPattern className="absolute inset-0 h-full w-full opacity-[0.03] pointer-events-none mask-[radial-gradient(ellipse_at_center,white,transparent_80%)]" />
 
       <div className="container mx-auto max-w-5xl px-4 py-16 md:py-24 space-y-24">

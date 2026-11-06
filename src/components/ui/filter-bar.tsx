@@ -47,10 +47,37 @@ export interface FilterConfig {
   options: (FilterOption | string)[];
   placeholder: string;
   icon: ReactNode;
+  /** The select's accessible name. Defaults to "Filter by …" built from the placeholder. */
+  label?: string;
 }
 
 /** The value of the "every option" item each select lists first, labelled with its placeholder. */
 const ALL_VALUE = 'all';
+
+/**
+ * The bar's outer box. Static below lg: sticky there, the bar (163 px tall when its controls
+ * stack) stayed on screen with the bottom bar and left a phone a few hundred pixels of content,
+ * and there is no top nav for an offset to clear. From lg it sticks 1rem from the top; z-30 keeps
+ * it under the rail's z-40 flyouts. `relative` anchors the results count to the bar at every
+ * width. projects-skeleton.tsx repeats this string (a server file cannot import a constant from
+ * this client module); filter-bar-sticky.test.tsx checks the two match.
+ */
+const FRAME_CLASS = 'relative -mx-4 px-4 md:mx-0 md:px-0 lg:sticky lg:top-4 lg:z-30';
+
+/**
+ * The results count hangs just below the bar, out of flow so showing it never moves the list. It
+ * sits over the cards whenever the bar sticks, so it is an opaque chip, never bare text on a card.
+ * At -bottom-7 a 24 px chip keeps 4 px clear of the bar and of /places' map 32 px below it.
+ */
+const RESULTS_COUNT_CLASS =
+  'absolute -bottom-7 left-4 flex items-center gap-2 rounded-full border border-hairline bg-surface-1 px-3 py-0.5 text-meta font-medium text-muted-foreground shadow-tile';
+
+/**
+ * The select's accessible name. A combobox is not named by its text (that is its value), so
+ * without one axe reports an unnamed button: "All Categories" gives "Filter by categories".
+ */
+const triggerLabel = ({ label, placeholder }: FilterConfig): string =>
+  label ?? `Filter by ${placeholder.replace(/^all\s+/i, '').toLowerCase()}`;
 
 const optionValue = (option: FilterOption | string): string =>
   typeof option === 'string' ? option : option.value;
@@ -96,7 +123,7 @@ export function FilterBar({
   className,
 }: Readonly<FilterBarProps>) {
   return (
-    <div className={cn('sticky top-24 z-30 -mx-4 px-4 md:mx-0 md:px-0', className)}>
+    <div className={cn(FRAME_CLASS, className)}>
       <div className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-lg shadow-black/5">
         <div className="flex flex-col lg:flex-row gap-2">
           {/* Search Input */}
@@ -120,7 +147,10 @@ export function FilterBar({
               value={filter.value}
               onValueChange={filter.onChange}
             >
-              <SelectTrigger className="w-full lg:w-[200px] bg-transparent border-transparent hover:bg-white/5 focus:bg-white/10 transition-all duration-300 h-10 rounded-xl">
+              <SelectTrigger
+                aria-label={triggerLabel(filter)}
+                className="w-full lg:w-[200px] bg-transparent border-transparent hover:bg-white/5 focus:bg-white/10 transition-all duration-300 h-10 rounded-xl"
+              >
                 <div className="flex items-center gap-2 w-full overflow-hidden">
                   <div className="text-muted-foreground shrink-0">{filter.icon}</div>
                   <span className="truncate">
@@ -172,7 +202,7 @@ export function FilterBar({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute -bottom-8 left-4 flex items-center gap-2 text-sm text-muted-foreground font-medium"
+            className={RESULTS_COUNT_CLASS}
           >
             <Filter className="h-3.5 w-3.5" />
             {/* Geist's digits are proportional; tabular-nums keeps the count steady as it updates. */}

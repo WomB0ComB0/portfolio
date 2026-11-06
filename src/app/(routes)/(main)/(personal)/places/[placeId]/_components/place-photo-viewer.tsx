@@ -56,6 +56,21 @@ const MotionImage = motion.create(Image);
 /** The caption's entrance when the photo changes. The first photo's is server content: no fade. */
 const CAPTION_ENTER = { opacity: 0, y: 10 };
 
+/**
+ * The photo frame's rendered width, so next/image fetches a candidate as wide as it is drawn. The
+ * frame is main minus the page's p-4 (p-8 from md), the card's 1 px border and CardContent's px-6:
+ * main is the viewport below lg, then the viewport minus the 64 px rail, capped at max-w-shell
+ * (1200 px) from a 1264 px viewport, where the frame stops at 1086 px. The old 50vw, set for the
+ * 60% column, picked a 640-750 w file for that 1086 px frame and upscaled it.
+ *
+ * Each calc puts 100vw after a space on purpose: next/image trims its srcset by the smallest vw
+ * length in `sizes`, but only spots one that follows a space or starts the string. Written
+ * calc(100vw - 82px) it finds none and lists the 16-40 w icon sizes as well, which made the
+ * preload selector too long for jsdom in place-details-page.test.tsx.
+ */
+const FRAME_SIZES =
+  '(max-width: 767px) calc(-82px + 100vw), (max-width: 1023px) calc(-114px + 100vw), (max-width: 1263px) calc(-178px + 100vw), 1086px';
+
 interface PlacePhotoViewerProps {
   /** At least one photo, with URLs built on the server. */
   photos: readonly ViewerPhoto[];
@@ -254,11 +269,7 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
                     ref={imageRef}
                     fill
                     className="object-contain"
-                    sizes={
-                      isFullscreen
-                        ? '100vw'
-                        : '(max-width:768px) 100vw, (max-width:1200px) 75vw, 50vw'
-                    }
+                    sizes={isFullscreen ? '100vw' : FRAME_SIZES}
                     draggable={false}
                     style={{ scale: zoom, x: zoomX, y: zoomY }}
                     loading="eager"

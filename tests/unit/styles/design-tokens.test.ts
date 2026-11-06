@@ -63,7 +63,8 @@ const COLOUR_TOKENS = {
 
 /**
  * Translucent tokens: [token, the colour token it lightens, alpha]. The glow, spotlight, lift,
- * hero wash and live-pulse read these instead of color-mix(), whose no-support fallback is full strength.
+ * hero wash, live-pulse and status badge fills read these instead of color-mix(), whose
+ * no-support fallback is full strength.
  */
 const TRANSLUCENT_TOKENS = [
   ['brand-glow', 'brand', '9%'],
@@ -71,7 +72,14 @@ const TRANSLUCENT_TOKENS = [
   ['brand-edge', 'brand', '18%'],
   ['brand-wash', 'brand', '14%'],
   ['live-halo', 'live', '20%'],
+  ['live-tint', 'live', '12%'],
+  ['ongoing-tint', 'ongoing', '12%'],
+  ['down-tint', 'down', '12%'],
+  ['info-tint', 'info', '12%'],
 ] as const;
+
+/** The status badge fills, each mapped to a bg-<name> utility. */
+const STATUS_TINTS = ['live-tint', 'ongoing-tint', 'down-tint', 'info-tint'] as const;
 
 /** Non-colour tokens in :root that CSS and JS read with var(). */
 const LAYOUT_AND_MOTION_TOKENS = {
@@ -215,6 +223,7 @@ describe('@theme maps and utilities', () => {
     'ongoing',
     'down',
     'info',
+    ...STATUS_TINTS,
     'focus',
     'chart-1',
     'chart-2',
@@ -364,6 +373,16 @@ describe('the token classes compile with the repo Tailwind', () => {
     expect(css).toMatch(/\.spotlight\s*\{[^}]*&::before\s*\{[^}]*var\(--brand-spot\)/);
     expect(THEME_INLINE.get('shadow-lift')).toContain('var(--brand-edge)');
     expect(css).toMatch(/@keyframes live-pulse\s*\{[^}]*var\(--live-halo\)/);
+  });
+
+  it('fills status badges from the translucent tint tokens, not a color-mix() of the status colour', async () => {
+    const classes = STATUS_TINTS.map((tint) => `bg-${tint}`);
+    const css = await compileTokens(classes);
+
+    expect(css).not.toContain('color-mix');
+    for (const tint of STATUS_TINTS) {
+      expect(ruleFor(css, `bg-${tint}`)).toBe(`background-color: var(--${tint});`);
+    }
   });
 });
 

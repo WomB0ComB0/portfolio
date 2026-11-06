@@ -104,6 +104,11 @@ const useCount = (
  * readers and for tests. While counting, that text is visually hidden and an aria-hidden copy
  * shows the count. There is no count with prefers-reduced-motion, or for a ticker hydrated from
  * server HTML, which already shows its value.
+ *
+ * @deprecated Use `LiveNumber` from '@/components/console' instead. NumberTicker counts up from 0
+ * whenever it mounts on the client (a client navigation, or a remount after a refetch), so a real
+ * figure briefly reads as a smaller one. LiveNumber prints the final value on its first render
+ * and only glides from one real value to the next.
  */
 export const NumberTicker = ({
   value,

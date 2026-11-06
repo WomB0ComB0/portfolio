@@ -21,7 +21,7 @@
  * `<Layout><PageEnter>{page}</PageEnter></Layout>`. Layout mounts once and stays mounted across
  * client navigations, and its one `<main>` wraps the page content only (not the navs or the
  * footer). The server HTML must already contain that `<main>`, hydrating it must keep the same
- * DOM, and only a page mounted by a client navigation fades in.
+ * DOM, and only a page mounted by a client navigation fades in (never under reduced motion).
  */
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -31,12 +31,13 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SiteLayout from '@/app/(routes)/layout';
+import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 
 const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn(() => '/stats') }));
 vi.mock('next/navigation', () => ({ usePathname }));
-// The command palette and background effect are not under test.
+// The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
-vi.mock('@/components/magicui/light-rays', () => ({ LightRays: () => null }));
+vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
 // layout.tsx imports the navs and footer from its own barrel. Each nav has a link, so the
 // skip link has something to come before.
 vi.mock('@/components/layout', () => ({
@@ -88,6 +89,15 @@ const shellNodes = (): HTMLElement[] => [
 
 // jsdom has no scrollIntoView; the skip link test stubs it.
 const originalScrollIntoView = Element.prototype.scrollIntoView;
+// The setup file's matchMedia matches nothing; the reduced-motion test swaps it.
+const originalMatchMedia = globalThis.matchMedia;
+
+/** A browser whose visitor asked the OS for reduced motion, and nothing else. */
+const reducedMotionMatchMedia = (query: string): MediaQueryList =>
+  ({
+    ...originalMatchMedia(query),
+    matches: query === REDUCED_MOTION_QUERY,
+  }) as MediaQueryList;
 
 /**
  * Resolves once a link click's navigation has run: jsdom follows a link in a setImmediate task,
@@ -106,6 +116,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   mounts.mockClear();
   Element.prototype.scrollIntoView = originalScrollIntoView;
+  globalThis.matchMedia = originalMatchMedia;
 });
 
 describe('Shell landmarks', () => {
@@ -271,6 +282,27 @@ describe('Per-page fade', () => {
     expect(nextFrame).not.toBe(firstFrame);
     expect(nextFrame.style.opacity).toBe('0');
     await waitFor(() => expect(nextFrame.style.opacity).toBe('1'));
+  });
+
+  it('shows each client-mounted page at once when the visitor asked for reduced motion', () => {
+    globalThis.matchMedia = reducedMotionMatchMedia;
+    const { rerender } = render(
+      <SiteLayout>
+        <Probe />
+      </SiteLayout>,
+    );
+
+    expect(frameOf(screen.getByRole('main')).style.opacity).toBe('1');
+
+    usePathname.mockReturnValue('/projects');
+    rerender(
+      <SiteLayout>
+        <Probe />
+      </SiteLayout>,
+    );
+
+    expect(mounts).toHaveBeenCalledTimes(2);
+    expect(frameOf(screen.getByRole('main')).style.opacity).toBe('1');
   });
 
   it('keeps the page mounted when only the search params change (same pathname)', () => {

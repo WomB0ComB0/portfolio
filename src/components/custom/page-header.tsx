@@ -24,6 +24,13 @@ interface PageHeaderProps {
   className?: string;
 }
 
+/**
+ * The legacy centred page header: an optional icon, the page's h1 and a description.
+ *
+ * @deprecated Use `PageShell` from '@/components/console' instead: a left-aligned console header
+ * (eyebrow, the one h1, description, actions and a stat strip) that also applies the page
+ * gutter. PageHeader stays only for pages not yet redesigned.
+ */
 export const PageHeader = ({
   title,
   description,

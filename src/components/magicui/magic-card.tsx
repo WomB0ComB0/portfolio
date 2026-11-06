@@ -1,7 +1,5 @@
 'use client';
 
-import type { MagicCardProps } from './magic-card.types';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -19,116 +17,131 @@ import type { MagicCardProps } from './magic-card.types';
  */
 
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
-import { useEffect, useRef } from 'react';
+import { type ReactElement, type RefObject, useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
+import type { MagicCardProps } from './magic-card.types';
+
 /**
- * MagicCard is a React component that adds a dynamic radial gradient "spotlight"
- * effect that follows the user's mouse position inside the card.
- *
- * This effect is commonly used for interactive UI cards. Utilizes Framer Motion's
- * reactive motion values for smooth, performant effects.
- *
- * @function
- * @param {MagicCardProps} props - Props for the MagicCard component.
- * @param {React.ReactNode} props.children - Child nodes to render within the MagicCard.
- * @param {string} [props.className] - Additional CSS class names applied to the card.
- * @param {number} [props.gradientSize=200] - The diameter of the radial gradient in px.
- * @param {string} [props.gradientColor='rgba(76, 29, 149, 0.15)'] - The CSS color of the gradient.
- * @param {number} [props.gradientOpacity=0.8] - Opacity for the gradient overlay.
- *
- * @returns {JSX.Element} A div element styled as an interactive card with spotlight gradient, containing children.
- *
- * @throws {Error} Prop values such as invalid types (e.g. non-number for gradientSize) may cause React runtime warnings.
- *
- * @example
- * <MagicCard gradientSize={300} gradientColor="rgba(255,0,0,0.3)">
- *   <p>Hover me for a magic spotlight!</p>
- * </MagicCard>
- *
- * @web
- * @see {@link https://www.framer.com/docs/motion-value/}
- * @see MagicCardProps
- * @author Mike Odnis
- * @version 1.0.0
- * @public
+ * The tile surface: a hairline border on surface-1 that strengthens on hover. Callers' classes
+ * still win through cn (tailwind-merge), so legacy overrides such as `border-border/50` or
+ * `rounded-3xl` keep working.
  */
-export const MagicCard = ({
-  children,
-  className,
-  gradientSize = 200,
-  gradientColor = 'rgba(70, 33, 172, 0.15)',
-  gradientOpacity = 0.8,
-}: MagicCardProps) => {
-  /**
-   * s@readonly
-   * @type {import('motion').MotionValue<number>}
-   * Reactive motion value for mouse X coordinate (relative to card)
-   */
-  const mouseX = useMotionValue(-gradientSize);
+const CARD_CLASS =
+  'group relative flex size-full overflow-hidden rounded-tile border border-hairline bg-surface-1 text-card-foreground transition-colors duration-(--motion-fast) hover:border-hairline-strong';
 
-  /**
-   * @readonly
-   * @type {import('motion').MotionValue<number>}
-   * Reactive motion value for mouse Y coordinate (relative to card)
-   */
-  const mouseY = useMotionValue(-gradientSize);
+const SPOTLIGHT_CLASS =
+  'pointer-events-none absolute -inset-px rounded-[inherit] opacity-0 transition-opacity duration-(--motion-base) group-hover:opacity-100';
 
-  /**
-   * Handler for mouse movement over the card. Updates spotlight's origin.
-   *
-   * @param {React.MouseEvent<HTMLDivElement>} e - The mouse event.
-   * @returns {void}
-   * @private
-   */
-  const cardRef = useRef<HTMLDivElement>(null);
+/** The spotlight's diameter, in px. */
+const DEFAULT_GRADIENT_SIZE = 200;
+/**
+ * A translucent brand literal, not color-mix(): the token keeps the spotlight on the palette and
+ * faint wherever it is read.
+ */
+const DEFAULT_GRADIENT_COLOR = 'var(--brand-wash)';
+const DEFAULT_GRADIENT_OPACITY = 0.8;
+
+interface SpotlightOverlayProps {
+  readonly cardRef: RefObject<HTMLDivElement | null>;
+  readonly size: number;
+  readonly color: string;
+  readonly opacity: number;
+}
+
+/**
+ * The radial glow that follows the pointer inside the card. It is mounted only while the
+ * spotlight is on, so a card without it attaches no listeners and keeps no motion values.
+ */
+function SpotlightOverlay({ cardRef, size, color, opacity }: SpotlightOverlayProps): ReactElement {
+  const mouseX = useMotionValue(-size);
+  const mouseY = useMotionValue(-size);
 
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    // Parked a full diameter outside the top-left corner, the glow is out of sight.
+    const park = (): void => {
+      mouseX.set(-size);
+      mouseY.set(-size);
+    };
+    const follow = (event: MouseEvent): void => {
       const { left, top } = card.getBoundingClientRect();
-      mouseX.set(e.clientX - left);
-      mouseY.set(e.clientY - top);
+      mouseX.set(event.clientX - left);
+      mouseY.set(event.clientY - top);
     };
 
-    const handleMouseLeave = () => {
-      mouseX.set(-gradientSize);
-      mouseY.set(-gradientSize);
-    };
-
-    card.addEventListener('mousemove', handleMouseMove);
-    card.addEventListener('mouseleave', handleMouseLeave);
-
-    // Initialize/Reset
-    mouseX.set(-gradientSize);
-    mouseY.set(-gradientSize);
+    card.addEventListener('mousemove', follow);
+    card.addEventListener('mouseleave', park);
+    park();
 
     return () => {
-      card.removeEventListener('mousemove', handleMouseMove);
-      card.removeEventListener('mouseleave', handleMouseLeave);
+      card.removeEventListener('mousemove', follow);
+      card.removeEventListener('mouseleave', park);
     };
-  }, [mouseX, mouseY, gradientSize]);
+  }, [cardRef, mouseX, mouseY, size]);
+
+  const background = useMotionTemplate`radial-gradient(${size}px circle at ${mouseX}px ${mouseY}px, ${color}, transparent 100%)`;
 
   return (
-    <div
-      ref={cardRef}
-      className={cn(
-        'group relative flex size-full overflow-hidden rounded-xl bg-primary/5 dark:bg-primary border border-primary dark:border-primary/70 text-card-foreground',
-        className,
-      )}
-    >
+    <motion.div
+      aria-hidden="true"
+      data-magic-card-spotlight=""
+      className={SPOTLIGHT_CLASS}
+      style={{ background, opacity }}
+    />
+  );
+}
+
+/**
+ * A card on the Live Console tile surface (hairline border, surface-1) with an optional pointer
+ * spotlight.
+ *
+ * @deprecated Use `Tile` from '@/components/console' instead: variant 'interactive' (the whole
+ * tile is one link) or 'linked' (a tile holding one stretched TileLink) for a clickable card,
+ * 'plain' or 'raised' otherwise. MagicCard stays only for pages not yet redesigned, and already
+ * wears the tile surface so they match the console chrome.
+ *
+ * @param {MagicCardProps} props - Props for the MagicCard component.
+ * @param {React.ReactNode} props.children - Child nodes to render within the MagicCard.
+ * @param {string} [props.className] - Classes merged over the tile surface (callers win).
+ * @param {number} [props.gradientSize=200] - The diameter of the radial gradient in px.
+ * @param {string} [props.gradientColor='var(--brand-wash)'] - The CSS colour of the gradient.
+ * @param {number} [props.gradientOpacity=0.8] - Opacity for the gradient overlay.
+ * @param {boolean} [props.spotlight=true] - false skips the overlay and its pointer listeners.
+ *
+ * @example
+ * <MagicCard spotlight={false}>
+ *   <p>A static card on the tile surface.</p>
+ * </MagicCard>
+ *
+ * @see MagicCardProps
+ * @author Mike Odnis
+ * @version 1.1.0
+ * @public
+ */
+export const MagicCard = ({
+  children,
+  className,
+  gradientSize = DEFAULT_GRADIENT_SIZE,
+  gradientColor = DEFAULT_GRADIENT_COLOR,
+  gradientOpacity = DEFAULT_GRADIENT_OPACITY,
+  spotlight = true,
+}: MagicCardProps): ReactElement => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={cardRef} className={cn(CARD_CLASS, className)}>
       <div className="relative z-10 w-full h-full">{children}</div>
-      <motion.div
-        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{
-          background: useMotionTemplate`
-            radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px, ${gradientColor}, transparent 100%)
-          `,
-          opacity: gradientOpacity,
-        }}
-      />
+      {spotlight && (
+        <SpotlightOverlay
+          cardRef={cardRef}
+          size={gradientSize}
+          color={gradientColor}
+          opacity={gradientOpacity}
+        />
+      )}
     </div>
   );
 };

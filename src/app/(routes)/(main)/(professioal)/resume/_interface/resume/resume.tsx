@@ -45,7 +45,12 @@ const LAST_UPDATED_FORMAT = new Intl.DateTimeFormat('en-US', {
 const PAGE_CLASS = 'relative container mx-auto px-4 py-8 min-h-screen';
 const SECTION_CLASS =
   'z-20 flex flex-col w-full justify-between mt-8 sm:mt-16 lg:mt-0 md:mt-0 mb-10 mx-auto';
-const VIEWER_CARD_CLASS = 'w-full max-w-4xl mx-auto border-primary rounded-xl overflow-hidden';
+/**
+ * hover:border-primary overrides MagicCard's hover:border-hairline-strong: pointing at the PDF
+ * iframe hovers the card the whole time it is read, and the purple border turned grey.
+ */
+const VIEWER_CARD_CLASS =
+  'w-full max-w-4xl mx-auto border-primary hover:border-primary rounded-xl overflow-hidden';
 /** The PDF frame; the loading skeleton has the same box. */
 const FRAME_CLASS =
   'relative w-full h-[70vh] min-h-[500px] rounded-lg border-2 border-primary overflow-hidden bg-background';

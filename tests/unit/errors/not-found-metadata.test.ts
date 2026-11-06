@@ -27,7 +27,7 @@ import { describe, expect, it, vi } from 'vitest';
 // The root not-found imports the shell; none of it renders here.
 vi.mock('next/navigation', () => ({ usePathname: () => '/no-such-page' }));
 vi.mock('@/components/cmd', () => ({ default: () => null }));
-vi.mock('@/components/magicui/light-rays', () => ({ LightRays: () => null }));
+vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
 vi.mock('@/components/layout', () => ({
   NavBar: () => null,
   MobileNavBar: () => null,

@@ -20,15 +20,19 @@
  * @interface MagicCardProps
  * @extends React.HTMLAttributes<HTMLDivElement>
  * @property {number} [gradientSize] - The diameter of the radial gradient spotlight effect, in pixels.
- * @property {string} [gradientColor] - The CSS color string for the gradient. Defaults to a purple-tinted rgba.
+ * @property {string} [gradientColor] - The CSS colour of the spotlight. Defaults to the translucent
+ *   brand token `var(--brand-wash)`.
  * @property {number} [gradientOpacity] - Opacity of the radial gradient overlay (0-1).
+ * @property {boolean} [spotlight] - Whether the spotlight follows the pointer. Defaults to true;
+ *   false renders no overlay and attaches no pointer listeners.
  * @author Mike Odnis
  * @see {@link https://github.com/WomB0ComB0/portfolio}
- * @version 1.0.0
+ * @version 1.1.0
  * @public
  */
 export interface MagicCardProps extends React.HTMLAttributes<HTMLDivElement> {
   gradientSize?: number;
   gradientColor?: string;
   gradientOpacity?: number;
+  spotlight?: boolean;
 }

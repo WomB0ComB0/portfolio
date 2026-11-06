@@ -70,6 +70,15 @@
   --brand-wash: oklch(65% 0.12 285deg / 14%);
   --live-halo: oklch(80% 0.18 152deg / 20%);
 
+  /*
+   * Status badge fills (bg-live-tint, ...): each status colour at 12% alpha. The status text on
+   * its own tint meets 4.5:1 over the canvas and every surface (token-contrast.test.ts).
+   */
+  --live-tint: oklch(80% 0.18 152deg / 12%);
+  --ongoing-tint: oklch(80% 0.123 80deg / 12%);
+  --down-tint: oklch(72% 0.15 25deg / 12%);
+  --info-tint: oklch(76% 0.1 235deg / 12%);
+
   /* The one focus ring colour (at least 3:1 on every surface). */
   --focus: oklch(76% 0.1 285deg);
 
@@ -174,6 +183,10 @@
   --color-ongoing: var(--ongoing);
   --color-down: var(--down);
   --color-info: var(--info);
+  --color-live-tint: var(--live-tint);
+  --color-ongoing-tint: var(--ongoing-tint);
+  --color-down-tint: var(--down-tint);
+  --color-info-tint: var(--info-tint);
   --color-focus: var(--focus);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -298,6 +311,15 @@
 /* stylelint-enable custom-property-pattern */
 
 @layer base {
+  /*
+   * The phone bottom bar's full height: --mobile-bar-h of controls above the home-indicator
+   * inset. The bar's height and the page column's bottom clearance both read this one value, so
+   * they cannot drift apart. It is here, not in the first :root block, which holds literals only.
+   */
+  :root {
+    --mobile-bar-total: calc(var(--mobile-bar-h) + env(safe-area-inset-bottom));
+  }
+
   *,
   *::before,
   *::after {

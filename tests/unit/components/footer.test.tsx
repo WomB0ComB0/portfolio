@@ -17,8 +17,9 @@
 /**
  * @file The site footer names the project's real license and sits centred on phones.
  *
- * jsdom applies no Tailwind CSS, so the spacing check is a class contract: the left offset that
- * clears the fixed desktop rail may only apply from lg up, where the rail is shown.
+ * jsdom applies no Tailwind CSS, so the spacing check is a class contract: the footer is as wide
+ * as the page column and centred under it, and it adds no offset of its own for the desktop rail
+ * (the shell's column beside the rail already clears it).
  */
 
 import { readFileSync } from 'node:fs';
@@ -56,13 +57,24 @@ describe('Footer', () => {
     expect(screen.queryByRole('link', { name: /MIT/ })).toBeNull();
   });
 
-  it('keeps the copyright line centred below lg, offsetting it only beside the desktop rail', () => {
+  it('keeps the copyright line centred on phones, with no rail offset at any width', () => {
     render(<Footer />);
 
     const line = classesOf(screen.getByText(/2024-present/));
-    const unprefixedLeftPadding = line.filter((name) => /^(?:pl|ps|px)-/.test(name));
+    const leftPadding = line.filter((name) => /^(?:[a-z0-9-]+:)?(?:pl|ps|px)-/.test(name));
 
-    expect(unprefixedLeftPadding).toEqual([]);
-    expect(line.filter((name) => /^(?:sm|md):(?:pl|ps|px)-/.test(name))).toEqual([]);
+    expect(leftPadding).toEqual([]);
+    expect(line).toEqual(expect.arrayContaining(['text-center', 'sm:text-left']));
+  });
+
+  it('spans the page column, centred, with the page gutter inside', () => {
+    render(<Footer />);
+
+    const footer = classesOf(screen.getByRole('contentinfo'));
+
+    expect(footer).toEqual(
+      expect.arrayContaining(['mx-auto', 'w-full', 'max-w-shell', 'px-(--page-gutter)']),
+    );
+    expect(footer.filter((name) => /^lg:(?:pl|ps|px)-/.test(name))).toEqual([]);
   });
 });

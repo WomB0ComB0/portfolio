@@ -22,8 +22,15 @@
 
 import { cn } from '@/lib/utils';
 
+/**
+ * A loading placeholder on the console's lightest surface. It pulses only without
+ * prefers-reduced-motion. `animate-pulse` stays a plain class (tests and loading checks select
+ * `.animate-pulse`); `motion-reduce:animate-none` stops it, as `motion-safe:` would.
+ */
+const SKELETON_CLASS = 'rounded-md bg-surface-3 animate-pulse motion-reduce:animate-none';
+
 function Skeleton({ className, ...props }: Readonly<React.HTMLAttributes<HTMLDivElement>>) {
-  return <div className={cn('animate-pulse rounded-md bg-primary/10', className)} {...props} />;
+  return <div className={cn(SKELETON_CLASS, className)} {...props} />;
 }
 
 export { Skeleton };

@@ -27,9 +27,9 @@ import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/no-such-page' }));
-// The command palette and background effect are not under test.
+// The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
-vi.mock('@/components/magicui/light-rays', () => ({ LightRays: () => null }));
+vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
 // layout.tsx imports the navs and footer from its own barrel.
 vi.mock('@/components/layout', () => ({
   NavBar: () => <nav aria-label="Main navigation" />,
