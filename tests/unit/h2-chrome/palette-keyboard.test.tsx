@@ -191,6 +191,19 @@ describe('Palette results above the on-screen keyboard', () => {
     expect(scrollBox.style.maxHeight).toBe('400px');
   });
 
+  it('fits the list the moment it opens when the keyboard is already up', async () => {
+    // The viewport shrinks before the palette mounts, so no resize reaches its listeners: only
+    // the measurement made on mount can fit the list.
+    const viewport = new FakeVisualViewport();
+    viewport.resizeTo(360);
+    setVisualViewport(viewport);
+    layOutPalette();
+
+    const scrollBox = await openPalette();
+
+    expect(scrollBox.style.maxHeight).toBe(`${360 - LIST_TOP - BELOW_LIST - BOTTOM_GAP}px`);
+  });
+
   it("keeps kbar's 400 px list where the browser has no visualViewport", async () => {
     setVisualViewport(undefined);
     layOutPalette();

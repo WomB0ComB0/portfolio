@@ -108,6 +108,51 @@ const expectPaletteToStayOpen = async (): Promise<void> => {
   expect(search).toHaveFocus();
 };
 
+/**
+ * Focuses `button` as Tab would, then opens the palette with it. kbar remembers the element that
+ * had focus when it opened, so the button has to own focus first for its return to mean anything.
+ */
+const openPaletteFrom = async (button: HTMLElement): Promise<void> => {
+  act(() => button.focus());
+  expect(button).toHaveFocus();
+  fireEvent.click(button);
+  await expectPaletteToStayOpen();
+};
+
+/** kbar's backdrop: the positioner around KBarAnimator's outer panel and inner wrapper. */
+const paletteBackdrop = (): HTMLElement => {
+  const backdrop = screen.getByRole('combobox').parentElement?.parentElement?.parentElement;
+  if (!backdrop) throw new Error('kbar rendered no positioner around the palette');
+  return backdrop;
+};
+
+/**
+ * The two ways to leave the palette without running a result. kbar closes on a pointerdown
+ * outside its panel (a capture listener on window), so the click follows only as a browser's would.
+ */
+const DISMISSALS = [
+  ['Escape', () => fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })],
+  [
+    'a click on the backdrop',
+    () => {
+      const backdrop = paletteBackdrop();
+      fireEvent.pointerDown(backdrop);
+      fireEvent.click(backdrop);
+    },
+  ],
+] as const;
+
+/**
+ * The palette settled back in kbar's `hidden` state: the portal is gone, and the focus kbar hands
+ * back on closing has landed.
+ */
+const expectPaletteClosed = async (): Promise<void> => {
+  await waitFor(() =>
+    expect(screen.getByTestId('palette-state')).toHaveTextContent(VisualState.hidden),
+  );
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+};
+
 describe('Chrome source', () => {
   it.each(CHROME_FILES)('%s has no dead font-clash, no gradient and no legacy colours', (file) => {
     const source = readFileSync(join(process.cwd(), file), 'utf8');
@@ -143,10 +188,22 @@ describe('MobileNavBar', () => {
   it('opens the palette from the Search button, and it stays open on its focused search box', async () => {
     renderBarWithPalette();
 
-    fireEvent.click(screen.getByRole('button', { name: SEARCH_LABEL }));
-
-    await expectPaletteToStayOpen();
+    await openPaletteFrom(screen.getByRole('button', { name: SEARCH_LABEL }));
   });
+
+  it.each(DISMISSALS)(
+    'returns focus to the Search button when %s closes the palette',
+    async (_name, dismiss) => {
+      renderBarWithPalette();
+      const button = screen.getByRole('button', { name: SEARCH_LABEL });
+      await openPaletteFrom(button);
+
+      dismiss();
+
+      await expectPaletteClosed();
+      expect(button).toHaveFocus();
+    },
+  );
 
   it('shows Ctrl K off Apple devices, hidden on touch screens, and names the keys for AT', () => {
     renderBarWithPalette();
@@ -235,7 +292,7 @@ describe('NavBar rail', () => {
     expect(button).toHaveTextContent('⌘K');
   });
 
-  it('opens the palette from the command menu button, and it stays open on its search box', async () => {
+  const renderRailWithPalette = () =>
     render(
       <KBarProvider>
         <Palette />
@@ -244,10 +301,25 @@ describe('NavBar rail', () => {
       </KBarProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open command menu' }));
+  it('opens the palette from the command menu button, and it stays open on its search box', async () => {
+    renderRailWithPalette();
 
-    await expectPaletteToStayOpen();
+    await openPaletteFrom(screen.getByRole('button', { name: 'Open command menu' }));
   });
+
+  it.each(DISMISSALS)(
+    'returns focus to the command menu button when %s closes the palette',
+    async (_name, dismiss) => {
+      renderRailWithPalette();
+      const button = screen.getByRole('button', { name: 'Open command menu' });
+      await openPaletteFrom(button);
+
+      dismiss();
+
+      await expectPaletteClosed();
+      expect(button).toHaveFocus();
+    },
+  );
 });
 
 describe('Palette', () => {
