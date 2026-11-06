@@ -51,11 +51,14 @@ const TYPING_LABEL = 'Typing';
 
 const ACTION_LINK_CLASS = 'inline-flex items-center gap-0.5 font-medium text-brand-ink';
 
-/** LeetCode's difficulties in bar order: each one's name, fixed chart series and solved count. */
+/**
+ * LeetCode's difficulties in bar order: each one's name, LeetCode's own colour for it (teal, amber,
+ * red, as on leetcode.com, so the split never reads in another palette) and solved count.
+ */
 const DIFFICULTIES = [
-  { key: 'easy', label: 'Easy', tone: 1, solved: 'easySolved' },
-  { key: 'medium', label: 'Medium', tone: 2, solved: 'mediumSolved' },
-  { key: 'hard', label: 'Hard', tone: 3, solved: 'hardSolved' },
+  { key: 'easy', label: 'Easy', tone: 'leet-easy', solved: 'easySolved' },
+  { key: 'medium', label: 'Medium', tone: 'leet-medium', solved: 'mediumSolved' },
+  { key: 'hard', label: 'Hard', tone: 'leet-hard', solved: 'hardSolved' },
 ] as const satisfies readonly (Omit<SegmentBarSegment, 'value'> & {
   solved: keyof LeetCodeStats;
 })[];

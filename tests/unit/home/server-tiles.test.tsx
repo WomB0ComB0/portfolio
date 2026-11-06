@@ -235,6 +235,19 @@ function textOutsideLabel(tile: HTMLElement): string {
   return copy.textContent ?? '';
 }
 
+/** `node`'s text without the parts `selector` matches, its runs of spaces made one. */
+function textWithout(node: Element, selector: string): string {
+  const copy = node.cloneNode(true) as Element;
+  for (const part of copy.querySelectorAll(selector)) part.remove();
+  return (copy.textContent ?? '').replace(/\s+/gu, ' ').trim();
+}
+
+/** What a sighted reader sees of `node`: its text without the sr-only words. */
+const seenText = (node: Element): string => textWithout(node, '.sr-only');
+
+/** What a screen reader reads of `node`: its text without the aria-hidden parts. */
+const heardText = (node: Element): string => textWithout(node, '[aria-hidden="true"]');
+
 /** Every URL query parameter of a next/image src, decoded through its /_next/image wrapper. */
 const imageSource = (image: HTMLElement): string =>
   decodeURIComponent(image.getAttribute('src') ?? '');
@@ -427,6 +440,22 @@ describe('LeetCodeTileView', () => {
         .map((value) => value.textContent),
     ).toEqual(['120', '80', '15']);
     expect(within(tile).getByText('refreshed every 6 h')).toBeInTheDocument();
+  });
+
+  // The chart series tones painted Easy periwinkle, Medium orange and Hard green.
+  it('paints each difficulty, and its legend swatch, in LeetCode’s own colour', () => {
+    const { container } = render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />);
+    const parts = [...container.querySelectorAll<HTMLElement>('[data-segment-track] > span')];
+    const swatches = [...container.querySelectorAll('dt > span')];
+    const leetClasses = ['bg-leet-easy', 'bg-leet-medium', 'bg-leet-hard'];
+
+    expect(parts.map((part) => part.dataset.segment)).toEqual(['easy', 'medium', 'hard']);
+    expect(parts.map((part) => part.className)).toEqual(leetClasses);
+    expect(swatches).toHaveLength(3);
+    for (const [index, swatch] of swatches.entries()) {
+      expect(swatch).toHaveClass(leetClasses[index] as string);
+      expect(swatch.className).not.toMatch(/bg-chart-/);
+    }
   });
 
   it('shows sighted readers that the tile opens a new tab, as every external link does', () => {
@@ -776,6 +805,70 @@ describe('PlaceTileView', () => {
     expect(label).toHaveClass('text-ongoing');
     expect(label.querySelector('[data-status-dot]')).toHaveAttribute('data-tone', 'ongoing');
     expect(within(tileOf(container)).getByText('Conference · Nov 5')).toBeInTheDocument();
+  });
+
+  // Corgi NYC's visits were Jul 29 and Sep 15: 51 days before NOW, so the span says when.
+  const CORGI = makePlace({
+    ...PAST_PLACE,
+    name: 'Corgi NYC',
+    category: 'Event',
+    startDate: '2026-07-29',
+    endDate: '2026-09-15',
+  });
+
+  /** The tile's context line: its dated <p> (the dated label is an h2). */
+  const metaOf = (container: HTMLElement): HTMLElement => {
+    const meta = tileOf(container).querySelector<HTMLElement>('p[data-dated]');
+    if (!meta) throw new Error('no context line');
+    return meta;
+  };
+
+  it('shows a range as its span, with no relative day once its last day is 14 days back', () => {
+    const { container } = render(<PlaceTileView result={ok(CORGI)} now={NOW} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Last place' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Corgi NYC' })).toBeInTheDocument();
+    expect(seenText(metaOf(container))).toBe('Event · Jul 29 – Sep 15');
+  });
+
+  // An en dash is not read at a screen reader's default punctuation level: /places' PlaceDateRange
+  // hides it and says 'to', so the two pages read a span alike.
+  it('reads a range’s dash as "to" to screen readers, as /places does', () => {
+    const { container } = render(<PlaceTileView result={ok(CORGI)} now={NOW} />);
+    const meta = metaOf(container);
+
+    expect(heardText(meta)).toBe('Event · Jul 29 to Sep 15');
+    expect(within(meta).getByText('–')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(meta).getByText('to')).toHaveClass('sr-only');
+  });
+
+  it('counts the relative day from a range’s last day, not its first', () => {
+    const range = { ...PAST_PLACE, startDate: '2026-10-20', endDate: '2026-11-04' };
+    const { container } = render(<PlaceTileView result={ok(range)} now={NOW} />);
+    const meta = metaOf(container);
+
+    expect(seenText(meta)).toBe('Conference · Oct 20 – Nov 4 · yesterday');
+    expect(heardText(meta)).toBe('Conference · Oct 20 to Nov 4 · yesterday');
+  });
+
+  it('says "Here now" with the span, and no relative day, while a range is on', () => {
+    const range = { ...PAST_PLACE, startDate: '2026-10-30', endDate: '2026-11-08' };
+    const { container } = render(<PlaceTileView result={ok(range)} now={NOW} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Here now' })).toBeInTheDocument();
+    expect(seenText(metaOf(container))).toBe('Conference · Oct 30 – Nov 8');
+  });
+
+  it('joins the stale list’s day after a range, and a single day with no dash or "to"', () => {
+    const stale = ok(CORGI, { stale: true, asOf: FIVE_MIN_AGO });
+    const { container } = render(<PlaceTileView result={stale} now={NOW} />);
+
+    expect(seenText(metaOf(container))).toBe('Event · Jul 29 – Sep 15 · as of Nov 5');
+    expect(heardText(metaOf(container))).toBe('Event · Jul 29 to Sep 15 · as of Nov 5');
+    cleanup();
+
+    const single = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
+    expect(metaOf(single.container).querySelector('[aria-hidden], .sr-only')).toBeNull();
   });
 
   // The visual spec masks [data-dated] only, so the rest of the place tile is still compared.

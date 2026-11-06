@@ -90,6 +90,15 @@
   --chart-5: #d55181;
   --chart-6: #3987e5;
 
+  /*
+   * LeetCode's own difficulty colours (leetcode.com's computed styles, the same in both its
+   * themes), so its easy, medium and hard split reads as it does there. Each meets 3:1 on the
+   * canvas and every surface, and is always shown beside its name.
+   */
+  --leet-easy: #1cbaba;
+  --leet-medium: #ffb700;
+  --leet-hard: #f63737;
+
   /* Motion durations. src/lib/design/motion.ts mirrors them for JS animation. */
   --motion-instant: 100ms;
   --motion-fast: 150ms;
@@ -194,6 +203,9 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-chart-6: var(--chart-6);
+  --color-leet-easy: var(--leet-easy);
+  --color-leet-medium: var(--leet-medium);
+  --color-leet-hard: var(--leet-hard);
 
   /*
    * Geist and Geist Mono come from next/font (src/app/fonts.ts), which sets these variables on

@@ -40,6 +40,13 @@ const OKLCH_LITERAL = /^oklch\(\d+(?:\.\d+)?% \d+(?:\.\d+)? \d+(?:\.\d+)?deg\)$/
 /** The validated chart palette, in its fixed order. */
 const CHART_HEX = ['#8884d5', '#d95926', '#199e70', '#c98500', '#d55181', '#3987e5'] as const;
 
+/** LeetCode's own difficulty colours, read from leetcode.com's computed styles. */
+const LEET_HEX = {
+  'leet-easy': '#1cbaba',
+  'leet-medium': '#ffb700',
+  'leet-hard': '#f63737',
+} as const;
+
 /** Every Live Console colour token and its literal value. */
 const COLOUR_TOKENS = {
   canvas: 'oklch(16% 0.016 285deg)',
@@ -194,6 +201,10 @@ describe('colour tokens (first :root block)', () => {
     expect(CHART_HEX.map((_, index) => rootToken(`chart-${index + 1}`))).toEqual(CHART_HEX);
   });
 
+  it.each(Object.entries(LEET_HEX))('--%s is LeetCode’s own %s', (name, value) => {
+    expect(rootToken(name)).toBe(value);
+  });
+
   it.each(Object.entries(LAYOUT_AND_MOTION_TOKENS))('--%s is %s', (name, value) => {
     expect(rootToken(name)).toBe(value);
   });
@@ -231,6 +242,7 @@ describe('@theme maps and utilities', () => {
     'chart-4',
     'chart-5',
     'chart-6',
+    ...Object.keys(LEET_HEX),
   ])('@theme inline maps --color-%s to var(--%s)', (name) => {
     expect(THEME_INLINE.get(`color-${name}`)).toBe(`var(--${name})`);
   });
@@ -317,6 +329,9 @@ describe('the token classes compile with the repo Tailwind', () => {
       'text-info',
       'outline-focus',
       'bg-chart-6',
+      'bg-leet-easy',
+      'bg-leet-medium',
+      'bg-leet-hard',
       'font-sans',
       'font-mono',
       'text-label',
@@ -341,6 +356,7 @@ describe('the token classes compile with the repo Tailwind', () => {
     expect(ruleFor(css, 'text-label')).toContain('font-size: var(--text-label)');
     expect(ruleFor(css, 'max-w-shell')).toContain('max-width: var(--container-shell)');
     expect(ruleFor(css, 'rounded-tile')).toContain('border-radius: var(--radius-tile)');
+    expect(ruleFor(css, 'bg-leet-hard')).toBe('background-color: var(--leet-hard);');
     expect(css).toMatch(/\.spotlight\s*\{[^}]*&::before\s*\{/);
   });
 

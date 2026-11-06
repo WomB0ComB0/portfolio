@@ -16,9 +16,9 @@
 
 /**
  * @file SegmentBar draws parts sized by their share of the whole on a decorative 8px track, in
- * the literal bg-chart-n classes; parts at zero or without a real number draw nothing, so a whole
- * of zero is an empty track with no NaN width. The legend is a <dl> of name and en-US amount in
- * tabular figures, with a swatch per name, that stacks in narrow tiles.
+ * literal bg-chart-n or bg-leet-* classes; parts at zero or without a real number draw nothing,
+ * so a whole of zero is an empty track with no NaN width. The legend is a <dl> of name and en-US
+ * amount in tabular figures, with a swatch per name, that stacks in narrow tiles.
  */
 
 import { readFileSync } from 'node:fs';
@@ -42,6 +42,13 @@ const LEETCODE: readonly SegmentBarSegment[] = [
   { key: 'easy', label: 'Easy', value: 215, tone: 1 },
   { key: 'medium', label: 'Medium', value: 379, tone: 2 },
   { key: 'hard', label: 'Hard', value: 98, tone: 3 },
+];
+
+/** The same split in LeetCode's own difficulty colours, as the home tile draws it. */
+const LEETCODE_TONED: readonly SegmentBarSegment[] = [
+  { key: 'easy', label: 'Easy', value: 215, tone: 'leet-easy' },
+  { key: 'medium', label: 'Medium', value: 379, tone: 'leet-medium' },
+  { key: 'hard', label: 'Hard', value: 98, tone: 'leet-hard' },
 ];
 
 interface RenderedBar {
@@ -84,6 +91,18 @@ describe('SegmentBar track', () => {
 
     expect(parts.map((part) => part.className)).toEqual(['bg-chart-1', 'bg-chart-2', 'bg-chart-3']);
     expect(parts.map((part) => part.dataset.segment)).toEqual(['easy', 'medium', 'hard']);
+  });
+
+  it('paints the named LeetCode tones with their own literal classes, parts and swatches', () => {
+    const { parts, legend } = renderBar(LEETCODE_TONED);
+    const swatches = Array.from(legend.querySelectorAll('dt > span'));
+    const expected = ['bg-leet-easy', 'bg-leet-medium', 'bg-leet-hard'];
+
+    expect(parts.map((part) => part.className)).toEqual(expected);
+    expect(swatches).toHaveLength(3);
+    for (const [index, swatch] of swatches.entries()) {
+      expect(swatch).toHaveClass(expected[index] as string);
+    }
   });
 
   it('is a decorative, rounded 8px track with a 2px gap between parts', () => {
@@ -188,7 +207,8 @@ describe('SegmentBar legend', () => {
 describe('SegmentBar classes', () => {
   it('writes every tone as a literal class, never built from a template', () => {
     for (const tone of [1, 2, 3, 4, 5, 6]) expect(SOURCE).toContain(`'bg-chart-${tone}'`);
-    expect(SOURCE).not.toMatch(/`[^`]*bg-chart-\$\{/);
+    for (const level of ['easy', 'medium', 'hard']) expect(SOURCE).toContain(`'bg-leet-${level}'`);
+    expect(SOURCE).not.toMatch(/`[^`]*bg-(?:chart|leet)-\$\{/);
   });
 
   it('compile with the repo Tailwind: the narrow-tile stack is a container query', async () => {

@@ -181,6 +181,9 @@ export function asOfText(iso: string, now: Instant): string {
   return day && clock ? `as of ${day} ${clock}` : '';
 }
 
-/** The parts of a context line that have words, joined by ' · '. */
+/** Between the parts of a context line. */
+export const META_SEPARATOR = ' · ';
+
+/** The parts of a context line that have words, joined by {@link META_SEPARATOR}. */
 export const joinMeta = (parts: readonly (string | null | undefined)[]): string =>
-  parts.filter((part): part is string => Boolean(part)).join(' · ');
+  parts.filter((part): part is string => Boolean(part)).join(META_SEPARATOR);
