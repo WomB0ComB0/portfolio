@@ -225,6 +225,7 @@
     "@next/bundle-analyzer": "^16.4.4",
     "@octokit/graphql-schema": "^15.26.1",
     "@playwright/test": "^1.64.1",
+    "@sanity/validation": "^6.21.0",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",

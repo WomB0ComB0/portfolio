@@ -17,35 +17,35 @@
 import 'server-only';
 
 /**
- * @file The home last-place tile: the most recent place visited, or 'Here now' while a visit is
- * on (New York's today). A linked tile whose stretched link is the place's name. A run of visits
- * shows its first and last day ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15'), and how long ago
- * counts from the last.
+ * @file The home last-place tile: the place whose visit ended most recently. Past visits only, so
+ * it never says where the owner is now: no 'Here now', and no coordinates (/places has the map).
+ * selectLatestPlace picks only a visit that is over (placeCutoffDay: from noon ET the day after),
+ * and the view applies the same rule again: a place whose visit may still be on, however it got
+ * here, shows the empty state. A linked tile whose stretched link is the place's name. A run of
+ * visits shows its first and last day ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15'), and how
+ * long ago counts from the last.
  *
  * At 18rem of tile width and above it shows the first photo as a 72 px thumbnail; narrower, or
- * without a photo, the coordinates stand in for it.
+ * without a photo, nothing takes its place.
  */
 
-import { MapPin } from 'lucide-react';
 import Image from 'next/image';
 import type { ReactElement } from 'react';
 
-import { hasDestination, SrOnlyWords, StatusDot, Tile, TileLink } from '@/components/console';
+import { hasDestination, SrOnlyWords, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import {
   type DaySpanParts,
   formatAsOfDay,
-  formatCoordinates,
   formatDay,
   formatDaySpan,
   formatRelative,
   type Instant,
-  isOngoing,
-  lastVisitDay,
-  nyToday,
+  lastDayOf,
 } from '../data/format';
 import { loadLatestPlace } from '../data/loaders';
+import { lastDayIfOver, placeCutoffDay } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
 import {
   joinMeta,
@@ -59,7 +59,6 @@ import {
 } from './tile-states';
 
 const LABEL = 'Last place';
-const ONGOING_LABEL = 'Here now';
 const PLACES_PATH = '/places';
 
 /** Drawn at 72 px; the file is twice that for 2x screens. */
@@ -69,10 +68,18 @@ const THUMB_SOURCE_PX = THUMB_PX * 2;
 /** Between a span's first and last day: an en dash, as /places prints a visit's dates. */
 const SPAN_DASH = ' – ';
 
-const NAME_CLASS = 'line-clamp-2 wrap-break-word text-body font-semibold text-foreground';
-const COORDINATES_CLASS =
-  'mt-1 flex items-center gap-1.5 font-mono text-meta tabular-nums text-muted-foreground';
+const NAME_CLASS =
+  'line-clamp-2 min-w-0 flex-1 wrap-break-word text-body font-semibold text-foreground';
 const THUMB_CLASS = 'hidden size-18 shrink-0 rounded-md object-cover @2xs:block';
+
+/**
+ * The skeleton's boxes: one line of the name (text-body's line height) and the meta line
+ * (text-meta's), so the tile keeps its height when a place without a photo streams in.
+ */
+const NAME_LINE_CLASS = 'flex h-[1.625rem] items-center';
+const META_LINE_CLASS = 'mt-auto flex h-[1.125rem] items-center';
+
+const NO_PLACE: TileResult<never> = { status: 'empty' };
 
 /** The first photo's 144 px square, or null without a photo it can resolve. */
 function thumbnailUrl(place: Place): string | null {
@@ -87,17 +94,6 @@ function thumbnailUrl(place: Place): string | null {
 }
 
 const placeHref = (place: Place): string => `${PLACES_PATH}/${encodeURIComponent(place._id)}`;
-
-/** 'Here now' while a visit is on, so the label depends on today's date either way. */
-function PlaceLabel({ ongoing }: { ongoing: boolean }): ReactElement {
-  if (!ongoing) return <TileLabel dated>{LABEL}</TileLabel>;
-  return (
-    <TileLabel dated className="inline-flex items-center gap-1.5 text-ongoing">
-      <StatusDot tone="ongoing" />
-      {ONGOING_LABEL}
-    </TileLabel>
-  );
-}
 
 /**
  * A range's end, after its start: ' – Sep 15' on screen, ' to Sep 15' to a screen reader, which
@@ -117,7 +113,7 @@ function SpanEnd({ end }: { end: string }): ReactElement {
 interface PlaceMetaProps {
   category: Place['category'];
   days: DaySpanParts | null;
-  /** How long ago, or null when the label or the days already say when. */
+  /** How long ago, or null when the days already say when. */
   when: string | null;
   asOf: string;
 }
@@ -150,37 +146,28 @@ interface PlaceViewProps {
 }
 
 function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
-  const today = nyToday(now);
-  const ongoing = isOngoing(place, today);
   const href = placeHref(place);
   const thumbnail = thumbnailUrl(place);
   // A single day, or a run of visits from first to last ('Jul 29 – Sep 15').
   const days = formatDaySpan(place, now);
-  // How long ago is counted from the last visit, which for a range that is over is its last day.
-  const lastDay = lastVisitDay(place, today) ?? '';
+  // How long ago counts from the visit's last day: a range's end.
+  const lastDay = lastDayOf(place) ?? '';
   const relative = formatRelative(lastDay, now);
-  // 'Here now' already says when, and a relative day would read as if the visit were over. From
-  // 14 days back formatRelative gives the last day's date itself, which the days already show.
-  const when = ongoing || relative === formatDay(lastDay, now) ? null : relative;
+  // From 14 days back formatRelative gives the last day's date itself, which the days already show.
+  const when = relative === formatDay(lastDay, now) ? null : relative;
   return (
     <Tile
       variant={hasDestination(href) ? 'linked' : 'plain'}
       className="gap-3"
       data-state={stale ? 'stale' : undefined}
     >
-      <PlaceLabel ongoing={ongoing} />
+      <TileLabel>{LABEL}</TileLabel>
       <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h3 className={NAME_CLASS}>
-            <TileLink href={href} className="text-inherit">
-              {place.name}
-            </TileLink>
-          </h3>
-          <p className={thumbnail ? `${COORDINATES_CLASS} @2xs:hidden` : COORDINATES_CLASS}>
-            <MapPin aria-hidden="true" className="size-3.5 shrink-0" />
-            {formatCoordinates(place.latitude, place.longitude)}
-          </p>
-        </div>
+        <h3 className={NAME_CLASS}>
+          <TileLink href={href} className="text-inherit">
+            {place.name}
+          </TileLink>
+        </h3>
         {thumbnail && (
           <Image
             src={thumbnail}
@@ -204,22 +191,33 @@ export interface PlaceTileViewProps {
 }
 
 /**
+ * `result` as the tile may show it at `now`: a place whose visit is not over by placeCutoffDay
+ * (dated today or within the grace, a range still on, a place yet to come, an undated one) is no
+ * place. selectLatestPlace never picks one; this holds for any other way a place gets here.
+ */
+function pastVisitsOnly(result: TileResult<Place>, now: Instant): TileResult<Place> {
+  if (result.status !== 'ok') return result;
+  return lastDayIfOver(result.data, placeCutoffDay(now)) === null ? NO_PLACE : result;
+}
+
+/**
  * The latest place, or a note with a way to every place. A stale one (from the list last loaded,
- * served past the deadline) says which day that list is from.
+ * served past the deadline) says which day that list is from. Past visits only (pastVisitsOnly).
  */
 export function PlaceTileView({ result, now = Date.now() }: PlaceTileViewProps): ReactElement {
-  if (result.status === 'ok') {
-    const { data, stale } = result;
-    const asOf = stale ? formatAsOfDay(result.asOf, now) : '';
+  const shown = pastVisitsOnly(result, now);
+  if (shown.status === 'ok') {
+    const { data, stale } = shown;
+    const asOf = stale ? formatAsOfDay(shown.asOf, now) : '';
     return <PlaceView place={data} now={now} stale={stale} asOf={asOf} />;
   }
-  const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
+  const Note = shown.status === 'error' ? TileUnavailable : TileEmpty;
   return (
-    <Tile className="gap-3" data-state={result.status}>
+    <Tile className="gap-3" data-state={shown.status}>
       <TileLabel>{LABEL}</TileLabel>
       <Note
         className="mt-auto"
-        message={result.status === 'error' ? 'Places unavailable' : 'No places yet'}
+        message={shown.status === 'error' ? 'Places unavailable' : 'No places yet'}
         href={PLACES_PATH}
         linkLabel="All places"
       />
@@ -227,16 +225,17 @@ export function PlaceTileView({ result, now = Date.now() }: PlaceTileViewProps):
   );
 }
 
-/** The loading place tile, with the real label. */
+/** The loading place tile, with the real label: one name line and the meta line. */
 export function PlaceTileSkeleton(): ReactElement {
   return (
     <Tile className="gap-3" aria-busy="true" data-state="loading">
       <TileLabel>{LABEL}</TileLabel>
-      <div className="flex flex-col gap-2">
+      <span className={NAME_LINE_CLASS}>
         <SkeletonBar className="h-5 w-4/5" />
-        <SkeletonBar className="h-4 w-1/2" />
-      </div>
-      <SkeletonBar className="mt-auto h-3 w-32 rounded-sm" />
+      </span>
+      <span className={META_LINE_CLASS}>
+        <SkeletonBar className="h-3 w-32 rounded-sm" />
+      </span>
       <LoadingNote>Loading the latest place</LoadingNote>
     </Tile>
   );

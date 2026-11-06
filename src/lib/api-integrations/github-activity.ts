@@ -17,23 +17,27 @@ import 'server-only';
  */
 
 /**
- * @file The server source for the home page's GitHub tile: contributions per week for the last
- * {@link ACTIVITY_WEEKS} weeks and the latest commit by {@link GITHUB_LOGIN}. There is no HTTP
- * route: only the server tile reads it (add one when a client needs it).
+ * @file The server sources for two home tiles. There is no HTTP route: only the server tiles read
+ * them (add one when a client needs it).
  *
- * One GraphQL query reads the contribution calendar and the newest commits on the default branch
- * of the {@link REPOSITORIES_READ} most recently pushed repositories: public, not forks, owned by
- * the user or by an organization the user belongs to. Only PUBLIC repositories are queried, so a private commit
- * headline can never reach the page. The REST Events API is not an option: GitHub dropped the
- * commit list from PushEvent payloads on 2025-10-07.
+ * - The GitHub tile: contributions per week for the last {@link ACTIVITY_WEEKS} weeks and the
+ *   latest commit by {@link GITHUB_LOGIN}. One GraphQL query reads the contribution calendar and
+ *   the newest commits on the default branch of the {@link REPOSITORIES_READ} most recently pushed
+ *   repositories: public, not forks, owned by the user or by an organization the user belongs to.
+ *   Only PUBLIC repositories are queried, so a private commit headline can never reach the page.
+ *   The REST Events API is not an option: GitHub dropped the commit list from PushEvent payloads
+ *   on 2025-10-07.
+ * - The project tile: the public repositories the user's own commits went to in the last
+ *   {@link RECENT_COMMITS_DAYS} days, each with the day of his newest one
+ *   ({@link readRecentCommits}). A separate, smaller query, so it never slows the GitHub tile's.
  *
- * Answers come from a stale-on-error cache, fresh for ten minutes; after a failed reload the last
- * good activity is served, marked stale. It lives in processGlobal, so a route added later shares
- * it with the page instead of asking GitHub again.
+ * Answers come from stale-on-error caches, fresh for ten minutes; after a failed reload the last
+ * good answer is served, marked stale. They live in processGlobal, so a route added later shares
+ * them with the page instead of asking GitHub again.
  */
 
 import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
+import { Effect, Either, Option, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -86,6 +90,40 @@ export interface GitHubActivity {
   readonly fetchedAt: string;
 }
 
+/**
+ * How far back the project tile looks for the user's commits, in days. The tile's selector
+ * applies the same window again, as a cached answer ages.
+ */
+export const RECENT_COMMITS_DAYS = 30;
+
+/** A public repository GitHub counts the user's own commits to, and the day of his newest. */
+export interface CommittedRepo {
+  /** `owner/name`. */
+  readonly nameWithOwner: string;
+  /** On github.com. */
+  readonly url: string;
+  /**
+   * The day of his newest commit there, YYYY-MM-DD, as GitHub's contribution calendar dates it.
+   * A day, not a moment: GitHub counts commit contributions per day.
+   */
+  readonly lastCommitDay: string;
+  /** How many of his commits GitHub counts there on that day. */
+  readonly commitsThatDay: number;
+}
+
+/**
+ * The user's recent own commits, by repository. GitHub counts a commit as his when its author
+ * email is on his account and it reached the default branch of a repository that is not a fork:
+ * a bot's or a teammate's push, a push to another branch, or a commit only in a fork is not one.
+ * Repositories he owns, belongs to through an organization, or collaborates on all count.
+ */
+export interface RecentCommits {
+  /** Public repositories only, his newest commit day first; on one day, more commits first. */
+  readonly repos: readonly CommittedRepo[];
+  /** When GitHub answered, ISO 8601. */
+  readonly fetchedAt: string;
+}
+
 const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql';
 /** Commit and repository links must point here before the tile may link to them. */
 const GITHUB_WEB_HOST = 'github.com';
@@ -112,6 +150,16 @@ const CACHE_NAME = 'github-activity.cache';
 const CACHE_KEY = 'activity';
 /** Tags every failure, so Sentry groups them. */
 const ERROR_COMMAND = 'github:activity';
+
+/**
+ * Repositories GitHub lists the user's commits for: its maximum. Private ones are listed too
+ * (when the token can see them) and dropped here, so they must not crowd out the public ones.
+ */
+const COMMITTED_REPOSITORIES_READ = 100;
+const RECENT_COMMITS_CACHE_NAME = 'github-recent-commits.cache';
+const RECENT_COMMITS_CACHE_KEY = 'recent-commits';
+/** Tags every failure of the recent commits, apart from the activity's. */
+const RECENT_COMMITS_COMMAND = 'github:recent-commits';
 
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
@@ -158,6 +206,33 @@ const ACTIVITY_QUERY = `
                   }
                 }
               }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * The repositories the user's commits went to between `from` and `to`, each with its newest
+ * contribution day. Unlike `repositories`, this field takes no privacy filter: `isPrivate` comes
+ * first so the decoder can drop a private repository before reading anything else of it.
+ */
+const RECENT_COMMITS_QUERY = `
+  query($login: String!, $from: DateTime!, $to: DateTime!) {
+    user(login: $login) {
+      contributionsCollection(from: $from, to: $to) {
+        commitContributionsByRepository(maxRepositories: ${COMMITTED_REPOSITORIES_READ}) {
+          repository {
+            isPrivate
+            nameWithOwner
+            url
+          }
+          contributions(first: 1, orderBy: { field: OCCURRED_AT, direction: DESC }) {
+            nodes {
+              occurredAt
+              commitCount
             }
           }
         }
@@ -228,6 +303,42 @@ const decodeActivityData = Schema.decodeUnknownSync(
   Schema.Struct({ user: Schema.NullOr(ActivityUserSchema) }),
 );
 
+/**
+ * The reply's outline only: each repository's entry stays unknown until it is known to be
+ * public ({@link isPublicEntry}), so nothing of a private one is read, kept or put in an error.
+ */
+const RecentCommitsDataSchema = Schema.Struct({
+  user: Schema.NullOr(
+    Schema.Struct({
+      contributionsCollection: Schema.Struct({
+        commitContributionsByRepository: Schema.Array(Schema.Unknown),
+      }),
+    }),
+  ),
+});
+
+/** One public repository's entry. */
+const CommitContributionsSchema = Schema.Struct({
+  repository: Schema.Struct({
+    isPrivate: Schema.Literal(false),
+    nameWithOwner: Schema.String,
+    url: Schema.String,
+  }),
+  contributions: Schema.Struct({
+    nodes: Schema.NullishOr(
+      Schema.Array(
+        Schema.NullOr(
+          Schema.Struct({ occurredAt: Schema.String, commitCount: Schema.NonNegativeInt }),
+        ),
+      ),
+    ),
+  }),
+});
+type CommitContributions = Schema.Schema.Type<typeof CommitContributionsSchema>;
+
+const decodeRecentCommitsData = Schema.decodeUnknownEither(RecentCommitsDataSchema);
+const decodeCommitContributions = Schema.decodeUnknownOption(CommitContributionsSchema);
+
 /** The weeks the query covers: from Sunday 00:00 UTC, eleven weeks before this one, to now. */
 interface ActivitySpan {
   readonly fromMs: number;
@@ -240,6 +351,12 @@ const activityCache = (): StaleCache<GitHubActivity> =>
     createStaleCache<GitHubActivity>({ ttlMs: ACTIVITY_TTL_MS, now: () => Date.now() }),
   );
 
+/** The recent commits' own cache, so neither source's failure or slowness holds the other. */
+const recentCommitsCache = (): StaleCache<RecentCommits> =>
+  processGlobal(RECENT_COMMITS_CACHE_NAME, () =>
+    createStaleCache<RecentCommits>({ ttlMs: ACTIVITY_TTL_MS, now: () => Date.now() }),
+  );
+
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 function activitySpan(nowMs: number): ActivitySpan {
@@ -249,16 +366,19 @@ function activitySpan(nowMs: number): ActivitySpan {
   return { fromMs: weekStartMs - (ACTIVITY_WEEKS - 1) * WEEK_MS, nowMs };
 }
 
-function requestActivity(token: string, span: ActivitySpan) {
-  const variables = {
-    login: GITHUB_LOGIN,
-    from: new Date(span.fromMs).toISOString(),
-    to: new Date(span.nowMs).toISOString(),
-  };
+/** The user's contributions between `fromMs` and `nowMs`, as the queries' variables. */
+const spanVariables = (fromMs: number, nowMs: number) => ({
+  login: GITHUB_LOGIN,
+  from: new Date(fromMs).toISOString(),
+  to: new Date(nowMs).toISOString(),
+});
+
+/** POSTs one query, retried once, within {@link UPSTREAM_DEADLINE_MS}. */
+function requestGraphQL(token: string, query: string, variables: Record<string, string>) {
   return pipe(
     post(
       GITHUB_GRAPHQL_URL,
-      { query: ACTIVITY_QUERY, variables },
+      { query, variables },
       {
         schema: GraphQLReplySchema,
         headers: {
@@ -283,13 +403,18 @@ function requestActivity(token: string, span: ActivitySpan) {
   );
 }
 
-/** The user in the reply. GraphQL errors, a reply that does not match, or no such user throw. */
-function activityUser(reply: GraphQLReply): ActivityUser {
+/** The reply's data. GraphQL errors throw, with GitHub's messages. */
+function replyData(reply: GraphQLReply): unknown {
   if (reply.errors && reply.errors.length > 0) {
     const messages = reply.errors.map((error) => error.message).join('; ');
     throw new Error(`GitHub GraphQL errors: ${messages}`);
   }
-  const { user } = decodeActivityData(reply.data);
+  return reply.data;
+}
+
+/** The user in the reply. GraphQL errors, a reply that does not match, or no such user throw. */
+function activityUser(reply: GraphQLReply): ActivityUser {
+  const { user } = decodeActivityData(replyData(reply));
   if (!user) throw new Error(`GitHub has no user ${GITHUB_LOGIN}`);
   return user;
 }
@@ -378,10 +503,112 @@ async function loadActivity(): Promise<GitHubActivity> {
 
   const span = activitySpan(Date.now());
   try {
-    const reply = await Effect.runPromise(requestActivity(token, span));
+    const variables = spanVariables(span.fromMs, span.nowMs);
+    const reply = await Effect.runPromise(requestGraphQL(token, ACTIVITY_QUERY, variables));
     return toActivity(activityUser(reply), span);
   } catch (error) {
     throw ensureBaseError(error, ERROR_COMMAND, { login: GITHUB_LOGIN });
+  }
+}
+
+/**
+ * True only for an entry GitHub marks public in so many words (`isPrivate: false`): a private
+ * one, or one whose privacy is missing or unreadable, is dropped unread.
+ */
+function isPublicEntry(entry: unknown): boolean {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const { repository } = entry as { repository?: unknown };
+  return (
+    typeof repository === 'object' &&
+    repository !== null &&
+    (repository as { isPrivate?: unknown }).isPrivate === false
+  );
+}
+
+/**
+ * The calendar day a contribution's `occurredAt` names. GitHub dates a day's contributions by
+ * that day's start in its calendar's time zone, Pacific time (07:00Z or 08:00Z): for any zone at
+ * or west of UTC, that start falls on the same day in UTC. Null for a value that is not a date.
+ */
+function contributionDay(occurredAt: string): string | null {
+  const ms = Date.parse(occurredAt);
+  return Number.isNaN(ms) ? null : isoDay(ms);
+}
+
+type ContributionNode = NonNullable<
+  NonNullable<CommitContributions['contributions']['nodes']>[number]
+>;
+
+/** The node with the newest day, whatever order GitHub sent them in. */
+const newestContribution = (nodes: readonly (ContributionNode | null)[]): ContributionNode | null =>
+  nodes.reduce<ContributionNode | null>(
+    (newest, node) =>
+      node && (newest === null || Date.parse(node.occurredAt) > Date.parse(newest.occurredAt))
+        ? node
+        : newest,
+    null,
+  );
+
+/**
+ * `entry` as a CommittedRepo, or null when it is private (or not plainly public), does not link to
+ * github.com, or has no day GitHub can date.
+ */
+function toCommittedRepo(entry: unknown): CommittedRepo | null {
+  if (!isPublicEntry(entry)) return null;
+  const decoded = decodeCommitContributions(entry);
+  if (Option.isNone(decoded)) return null;
+  const { repository, contributions } = decoded.value;
+  const newest = newestContribution(contributions.nodes ?? []);
+  const day = newest ? contributionDay(newest.occurredAt) : null;
+  if (!newest || !day || !isGitHubLink(repository.url)) return null;
+  return {
+    nameWithOwner: repository.nameWithOwner,
+    url: repository.url,
+    lastCommitDay: day,
+    commitsThatDay: newest.commitCount,
+  };
+}
+
+/** Newest day first; on one day, more commits first; otherwise in GitHub's order. */
+const byNewestCommit = (a: CommittedRepo, b: CommittedRepo): number =>
+  b.lastCommitDay.localeCompare(a.lastCommitDay) || b.commitsThatDay - a.commitsThatDay;
+
+/**
+ * The public repositories in the reply. GraphQL errors or no such user throw. A reply in another
+ * shape throws a fixed message: a schema error would print the values it met, and the reply may
+ * hold private repositories' names.
+ */
+function toRecentCommits(reply: GraphQLReply): RecentCommits {
+  const decoded = decodeRecentCommitsData(replyData(reply));
+  if (Either.isLeft(decoded)) {
+    throw new Error("GitHub's commit contributions did not have the expected shape");
+  }
+  const { user } = decoded.right;
+  if (!user) throw new Error(`GitHub has no user ${GITHUB_LOGIN}`);
+  const entries = user.contributionsCollection.commitContributionsByRepository;
+  return {
+    repos: entries.flatMap((entry) => toCommittedRepo(entry) ?? []).sort(byNewestCommit),
+    fetchedAt: new Date(Date.now()).toISOString(),
+  };
+}
+
+/** Asks GitHub. Every failure is a BaseError tagged {@link RECENT_COMMITS_COMMAND}. */
+async function loadRecentCommits(): Promise<RecentCommits> {
+  const token = env.GITHUB_TOKEN;
+  if (!token) {
+    throw ensureBaseError(new Error('GITHUB_TOKEN is not set'), RECENT_COMMITS_COMMAND);
+  }
+  const nowMs = Date.now();
+  try {
+    // One day more than the window. The selector accepts every day up to 30 back from New York's
+    // today, and GitHub starts a day at midnight Pacific time; 30 days before now can be hours into
+    // that oldest day (a day later in UTC on a New York evening), leaving its earlier commits out.
+    // 31 days before now is always before that day starts. The selector drops the extra day.
+    const variables = spanVariables(nowMs - (RECENT_COMMITS_DAYS + 1) * DAY_MS, nowMs);
+    const reply = await Effect.runPromise(requestGraphQL(token, RECENT_COMMITS_QUERY, variables));
+    return toRecentCommits(reply);
+  } catch (error) {
+    throw ensureBaseError(error, RECENT_COMMITS_COMMAND, { login: GITHUB_LOGIN });
   }
 }
 
@@ -402,7 +629,25 @@ export function peekGitHubActivity(): CachedValue<GitHubActivity> | undefined {
   return activityCache().peek(CACHE_KEY);
 }
 
-/** Forgets the cached activity, in every copy of this module. Tests only. */
+/**
+ * The user's recent own commits by public repository, fresh or stale (the last good answer, after
+ * a failed reload). Reports nothing. Rejects only when nothing is cached. Its failures are its
+ * own errors, never the activity's, so each tile reports its own.
+ */
+export function readRecentCommits(): Promise<StaleCacheResult<RecentCommits>> {
+  return recentCommitsCache().get(RECENT_COMMITS_CACHE_KEY, loadRecentCommits);
+}
+
+/**
+ * The recent commits GitHub last answered and when they were cached (epoch ms), however old, or
+ * undefined when it never answered in this process. Never asks GitHub and never waits.
+ */
+export function peekRecentCommits(): CachedValue<RecentCommits> | undefined {
+  return recentCommitsCache().peek(RECENT_COMMITS_CACHE_KEY);
+}
+
+/** Forgets the cached activity and recent commits, in every copy of this module. Tests only. */
 export function resetGitHubActivityCache(): void {
   resetProcessGlobal(CACHE_NAME);
+  resetProcessGlobal(RECENT_COMMITS_CACHE_NAME);
 }

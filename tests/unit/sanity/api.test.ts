@@ -38,9 +38,11 @@ import {
   getProjectBySlug,
   getProjects,
   getResume,
+  getSiteSettings,
   getTalks,
   getYoutubeVideos,
 } from '@/lib/sanity/api';
+import { siteSettingsQuery } from '@/lib/sanity/queries';
 
 const LIST_GETTERS = [
   ['experiences', getExperiences],
@@ -103,6 +105,31 @@ describe('getProjectBySlug', () => {
       command: 'sanity:project-by-slug',
       cause: outage,
       metadata: { params: { slug: 'grepo' } },
+    });
+  });
+});
+
+describe('getSiteSettings', () => {
+  it('asks for the singleton by its fixed id and answers it undecoded', async () => {
+    const raw = { _id: 'siteSettings', _type: 'siteSettings', tagline: '  Hi.  ', email: null };
+    sanity.sanityFetchWithToken.mockResolvedValue(raw);
+
+    await expect(getSiteSettings()).resolves.toBe(raw);
+    expect(sanity.sanityFetchWithToken.mock.calls[0]?.[0]).toBe(siteSettingsQuery);
+  });
+
+  it('answers null before the document is created', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue(null);
+
+    await expect(getSiteSettings()).resolves.toBeNull();
+  });
+
+  it('throws when the query fails', async () => {
+    sanity.sanityFetchWithToken.mockRejectedValue(outage);
+
+    await expect(getSiteSettings()).rejects.toMatchObject({
+      command: 'sanity:site-settings',
+      cause: outage,
     });
   });
 });

@@ -17,8 +17,12 @@
 import 'server-only';
 
 /**
- * @file The home featured-project tile: the first featured project with a cover, in Studio
- * order (owner decision 7). A flush linked tile whose stretched link is the title.
+ * @file The home project tile. It follows the owner's own commits on GitHub: the project of the
+ * public repository he committed to last, in the last 30 days, labelled 'Latest work' with the
+ * day of that commit ('committed yesterday'). The label claims only that: the project's own
+ * status (often 'Completed') stays beside it. Without one (or without GitHub), the first featured
+ * project with a cover, in Studio order (owner decision 7), labelled 'Featured project'. A flush
+ * linked tile whose stretched link is the title.
  *
  * The cover URL is built here, on the server (urlFor never reaches the client). A project with no
  * cover, or one whose image reference cannot be resolved, gets a typographic cover: its initials
@@ -31,8 +35,9 @@ import type { ReactElement } from 'react';
 import { hasDestination, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Project } from '@/lib/sanity/loaders';
-import { formatAsOfDay, type Instant } from '../data/format';
-import { loadFeaturedProject } from '../data/loaders';
+import { formatAsOfDay, formatRelative, type Instant } from '../data/format';
+import { loadProjectPick } from '../data/loaders';
+import type { ProjectPick } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
 import {
   joinMeta,
@@ -45,6 +50,11 @@ import {
 } from './tile-states';
 
 const LABEL = 'Featured project';
+/**
+ * The label when the owner's commits chose the project. It says only what the data shows (he
+ * committed to it lately), so it never contradicts a 'Completed' status beside it.
+ */
+const ACTIVE_LABEL = 'Latest work';
 const PROJECTS_PATH = '/projects';
 
 const COVER_WIDTH = 1200;
@@ -147,15 +157,30 @@ function TechChips({ technologies }: { technologies: readonly string[] }): React
   );
 }
 
+/**
+ * 'committed today', 'committed yesterday', 'committed 3 d ago', then 'committed Oct 20', for a
+ * project the owner's commits chose; else '' (as for a day it cannot word). A day, not a time:
+ * GitHub counts his commits per day.
+ */
+function committedText(pick: ProjectPick, now: Instant): string {
+  if (pick.source !== 'activity') return '';
+  const ago = formatRelative(pick.lastCommitDay, now);
+  return ago ? `committed ${ago}` : '';
+}
+
 interface ProjectViewProps {
   project: Project;
+  /** 'Latest work' when the owner's commits chose it, else 'Featured project'. */
+  label: string;
   /** The project comes from the list last loaded, served past the deadline. */
   stale: boolean;
+  /** 'committed yesterday' for his latest work, else ''. */
+  committed: string;
   /** 'as of Nov 5' for a stale project whose list's load day is known, else ''. */
   asOf: string;
 }
 
-function ProjectView({ project, stale, asOf }: ProjectViewProps): ReactElement {
+function ProjectView({ project, label, stale, committed, asOf }: ProjectViewProps): ReactElement {
   const href = projectHref(project);
   return (
     <Tile
@@ -165,7 +190,7 @@ function ProjectView({ project, stale, asOf }: ProjectViewProps): ReactElement {
     >
       <Cover project={project} />
       <div className={BODY_CLASS}>
-        <TileLabel>{LABEL}</TileLabel>
+        <TileLabel>{label}</TileLabel>
         <h3 className={TITLE_CLASS}>
           <TileLink href={href} className="text-inherit">
             {project.title}
@@ -173,9 +198,9 @@ function ProjectView({ project, stale, asOf }: ProjectViewProps): ReactElement {
         </h3>
         <p className={DESCRIPTION_CLASS}>{project.description}</p>
         <TechChips technologies={project.technologies} />
-        {/* A stale list's day ('as of Nov 5') depends on today once the year turns. */}
-        <TileMeta className="pt-1" dated={asOf !== ''}>
-          {joinMeta([project.category, project.status, startYear(project), asOf])}
+        {/* 'committed yesterday' counts from today; 'as of Nov 5' gains a year once it turns. */}
+        <TileMeta className="pt-1" dated={committed !== '' || asOf !== ''}>
+          {joinMeta([project.category, project.status, startYear(project), committed, asOf])}
         </TileMeta>
       </div>
     </Tile>
@@ -183,19 +208,28 @@ function ProjectView({ project, stale, asOf }: ProjectViewProps): ReactElement {
 }
 
 export interface ProjectTileViewProps {
-  result: TileResult<Project>;
+  result: TileResult<ProjectPick>;
   now?: Instant;
 }
 
 /**
- * The featured project, or a note with a way to every project. A stale one (from the list last
- * loaded, served past the deadline) says which day that list is from.
+ * The owner's latest work (with the day he last committed to it) or the featured project, or a
+ * note with a way to every project. A stale one (from the list last loaded, served past the
+ * deadline) says which day that list is from.
  */
 export function ProjectTileView({ result, now = Date.now() }: ProjectTileViewProps): ReactElement {
   if (result.status === 'ok') {
     const { data, stale } = result;
     const asOf = stale ? formatAsOfDay(result.asOf, now) : '';
-    return <ProjectView project={data} stale={stale} asOf={asOf} />;
+    return (
+      <ProjectView
+        project={data.project}
+        label={data.source === 'activity' ? ACTIVE_LABEL : LABEL}
+        stale={stale}
+        committed={committedText(data, now)}
+        asOf={asOf}
+      />
+    );
   }
   const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
   return (
@@ -229,5 +263,5 @@ export function ProjectTileSkeleton(): ReactElement {
 }
 
 export async function ProjectTile(): Promise<ReactElement> {
-  return <ProjectTileView result={await loadFeaturedProject()} />;
+  return <ProjectTileView result={await loadProjectPick()} />;
 }

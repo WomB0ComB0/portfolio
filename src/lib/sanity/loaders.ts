@@ -31,9 +31,12 @@ import 'server-only';
  * report nothing themselves: Next reports page errors, and metadata reports its own fallback.
  * A missing document is only believed fresh: like the API's 503, `loadResume` rejects when the
  * "no active resume" it would serve is stale.
+ *
+ * The site settings singleton has no API route and is read by the pages only. Its fields are
+ * decoded one by one: an invalid field is dropped (and reported), the others are kept.
  */
 
-import type { Schema } from 'effect';
+import { Either, Option, ParseResult, Schema } from 'effect';
 import { cache } from 'react';
 import { ensureBaseError } from '@/classes/error';
 import {
@@ -51,6 +54,8 @@ import {
   ProjectSchema,
   type Resume,
   ResumeSchema,
+  type SiteSettings,
+  SiteSettingsDocumentSchema,
   type Talk,
   TalkSchema,
   type YoutubeVideo,
@@ -73,6 +78,7 @@ import {
   getPresentations,
   getProjects,
   getResume,
+  getSiteSettings,
 } from './api';
 import { decodeEach, decodeOne, resetDecodeMemo } from './decode';
 import { loadTalks as fetchTalks, type ListedVideo, loadYoutubeVideos } from './enrich';
@@ -85,6 +91,7 @@ export type {
   Presentation,
   Project,
   Resume,
+  SiteSettings,
   Talk,
   YoutubeVideo,
 } from '@/hooks/sanity/schemas';
@@ -267,6 +274,53 @@ export const loadResume = cache(async (): Promise<Resume | null> => {
   if (result.stale && result.data == null) throw ensureBaseError(result.error, 'sanity:resume');
   return decodeOne(ResumeSchema, dataOf(result, 'resume'), 'resume');
 });
+
+const SITE_SETTINGS_KEY = 'site-settings';
+
+const readSiteSettings = cachedReader<unknown>(SITE_SETTINGS_KEY, getSiteSettings);
+
+const decodeSettings = Schema.decodeUnknownEither(SiteSettingsDocumentSchema);
+
+/** The top-level fields an invalid document gets wrong (the schema lists every one). */
+function invalidFields(doc: object): ReadonlySet<PropertyKey> {
+  const result = decodeSettings(doc);
+  if (Either.isRight(result)) return new Set();
+  const issues = ParseResult.ArrayFormatter.formatErrorSync(result.left);
+  return new Set(issues.flatMap(({ path }) => path.slice(0, 1)));
+}
+
+/**
+ * `doc` as site settings. Each field that breaks its rule is left out, so the page falls back for
+ * that field alone; the document is reported once per answer, naming every bad field. Null when
+ * there is no document, or what is left is still not one (no _id, another _type).
+ */
+function decodeSiteSettings(doc: unknown): SiteSettings | null {
+  const settings = decodeOne(SiteSettingsDocumentSchema, doc, SITE_SETTINGS_KEY);
+  if (settings !== null || typeof doc !== 'object' || doc === null) return settings;
+  const invalid = invalidFields(doc);
+  const validFields = Object.fromEntries(Object.entries(doc).filter(([key]) => !invalid.has(key)));
+  return Option.getOrNull(Either.getRight(decodeSettings(validFields)));
+}
+
+/**
+ * The site settings, each invalid field left out; null when the document does not exist yet.
+ * When Sanity fails after a good load, the last good settings and a warning; with nothing
+ * cached, rejects with the getter's error.
+ */
+export const loadSiteSettings = cache(
+  async (): Promise<SiteSettings | null> =>
+    decodeSiteSettings(await readData(readSiteSettings, SITE_SETTINGS_KEY)),
+);
+
+/**
+ * The settings last cached, decoded like {@link loadSiteSettings}'s, and when they were loaded,
+ * however old; undefined when Sanity never answered in this process. Never asks Sanity or waits.
+ */
+export function peekSiteSettings(): CachedValue<SiteSettings | null> | undefined {
+  const cached = sharedCache.peek(SITE_SETTINGS_KEY);
+  if (!cached) return undefined;
+  return { data: decodeSiteSettings(cached.data), loadedAt: cached.loadedAt };
+}
 
 const isYoutubeApiVideo = (doc: unknown): boolean =>
   typeof doc === 'object' && doc !== null && (doc as { source?: unknown }).source === 'youtube-api';

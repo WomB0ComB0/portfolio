@@ -44,6 +44,7 @@ const sanityApi = vi.hoisted(() => ({
   getPresentations: vi.fn(),
   getProjects: vi.fn(),
   getResume: vi.fn(),
+  getSiteSettings: vi.fn(),
   getTalks: vi.fn(),
   getYoutubeVideos: vi.fn(),
 }));

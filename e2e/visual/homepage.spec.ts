@@ -20,7 +20,7 @@
  * - at 375, 768, 1024 and 1440 px, under reduced motion and once every tile has loaded, a
  *   screenshot of the whole page with what changes on its own masked: the live now playing,
  *   status and GitHub slots and the footer's status badge, and what the server words relative to
- *   now: the text marked data-dated (the last place's label and its when line) and any stale
+ *   now: the text marked data-dated (the last place's when line) and any stale
  *   tile's 'as of …' line (LeetCode, typing).
  *
  * Baselines: the repository commits none yet, and a toHaveScreenshot with no baseline fails (and
@@ -67,10 +67,10 @@ const LIVE_SLOTS = ['now', 'status', 'gh'] as const;
 
 /**
  * Text the server words from today's date, so it changes from one day to the next with no new
- * data (TileLabel's and TileMeta's `dated`): the last place's label ('Here now' while a visit is
- * on) and its line with the relative day ('yesterday', '6 d ago') and the date, which gains the
- * year once the year turns (place-tile.tsx). The rest of the place tile is compared. Each is a
- * flex item of its tile, so its box spans the tile whatever its words.
+ * data (TileMeta's `dated`): the last place's line with the relative day ('yesterday', '6 d ago')
+ * and the date, which gains the year once the year turns (place-tile.tsx). The rest of the place
+ * tile, its 'Last place' label included, is compared.
+ * Each is a flex item of its tile, so its box spans the tile whatever its words.
  */
 const DATED_TEXT = '[data-dated]';
 

@@ -47,7 +47,7 @@ const TEXT_LINK_CLASS =
 const ARROW_CLASS = 'size-3.5 shrink-0';
 
 /**
- * `data-dated` for text the server words from today's date ('Here now', '6 d ago'), which changes
+ * `data-dated` for text the server words from today's date ('yesterday', '6 d ago'), which changes
  * from one day to the next with no new data: screenshots mask just that text.
  */
 const datedAttribute = (dated: boolean | undefined) => (dated ? { 'data-dated': '' } : {});
@@ -55,15 +55,16 @@ const datedAttribute = (dated: boolean | undefined) => (dated ? { 'data-dated': 
 export interface TileLabelProps {
   id?: string;
   className?: string;
-  /** The words depend on today's date (marked data-dated). */
-  dated?: boolean;
   children: ReactNode;
 }
 
-/** A tile's name, as the h2 that names its part of the page. */
-export function TileLabel({ id, className, dated, children }: TileLabelProps): ReactElement {
+/**
+ * A tile's name, as the h2 that names its part of the page. Its words never depend on today's
+ * date, so screenshots always compare it (only TileMeta can be `dated`).
+ */
+export function TileLabel({ id, className, children }: TileLabelProps): ReactElement {
   return (
-    <h2 id={id} className={cn(LABEL_CLASS, className)} {...datedAttribute(dated)}>
+    <h2 id={id} className={cn(LABEL_CLASS, className)}>
       {children}
     </h2>
   );

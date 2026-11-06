@@ -15,7 +15,7 @@
  */
 
 /**
- * @file Dates, times and coordinates as the home tiles print them. Pure and isomorphic (no
+ * @file Dates and times as the home tiles print them. Pure and isomorphic (no
  * directive), so server tiles and client islands share it. Everything that depends on the clock
  * takes `now`, so tests and hydration-sensitive callers pass their own.
  *
@@ -33,7 +33,6 @@ export const NY_TIME_ZONE = 'America/New_York';
 const DAY_MS = 24 * 60 * 60_000;
 /** From this many days back, a relative time gives way to the date itself. */
 const RELATIVE_DAYS_LIMIT = 14;
-const COORDINATE_DECIMALS = 2;
 
 /** A Sanity `date` (YYYY-MM-DD) or a month (YYYY-MM). */
 const CALENDAR_DATE = /^\d{4}-\d{2}(?:-\d{2})?$/;
@@ -97,7 +96,8 @@ const NY_CLOCK = new Intl.DateTimeFormat('en-US', {
  */
 const plainSpaces = (text: string): string => text.replace(/\s+/gu, ' ');
 
-const toMs = (at: Instant): number => (at instanceof Date ? at.getTime() : at);
+/** `at` in epoch milliseconds. */
+export const toMs = (at: Instant): number => (at instanceof Date ? at.getTime() : at);
 
 interface ParsedDate {
   readonly ms: number;
@@ -255,48 +255,20 @@ export function formatClockET(ms: number): string {
   return `${plainSpaces(NY_CLOCK.format(ms))} ET`;
 }
 
-/** One axis to 2 decimals with its hemisphere. A value that rounds to 0 takes the positive one. */
-function formatAxis(value: number, positive: string, negative: string): string {
-  const magnitude = Math.abs(value).toFixed(COORDINATE_DECIMALS);
-  const hemisphere = value < 0 && Number(magnitude) !== 0 ? negative : positive;
-  return `${magnitude}° ${hemisphere}`;
-}
-
-/** '40.71° N, 74.01° W'. '' when either value is not a finite number. */
-export function formatCoordinates(latitude: number, longitude: number): string {
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
-  return `${formatAxis(latitude, 'N', 'S')}, ${formatAxis(longitude, 'E', 'W')}`;
-}
-
 /**
- * The latest of the span's days known to be a visit by `today` (both YYYY-MM-DD): its last day
- * once that day has come, else its first. An end that is not after the start is ignored. Null
- * without a start date, or when the span starts after `today`.
+ * The span's last day, YYYY-MM-DD (date parts only): its end when it has one on or after its
+ * start, else its start. Null without a start date. A visit is over once this day is.
  *
  * Venues visited on and off store their latest visit as the start, and a stated run of visits as
- * a range (Corgi NYC: Jul 29 and Sep 15). The days between a range's ends need not be visits, so
- * while a range is on, only its first day counts: on Sep 1 Corgi NYC was last visited Jul 29.
+ * a range (Corgi NYC: Jul 29 and Sep 15), whose last day is its end.
  *
  * @example
- * lastVisitDay({ startDate: '2026-07-29', endDate: '2026-09-15' }, '2026-09-01') // '2026-07-29'
- * lastVisitDay({ startDate: '2026-07-29', endDate: '2026-09-15' }, '2026-11-06') // '2026-09-15'
+ * lastDayOf({ startDate: '2026-07-29', endDate: '2026-09-15' }) // '2026-09-15'
+ * lastDayOf({ startDate: '2026-10-20', endDate: '2026-10-02' }) // '2026-10-20' (end before start)
  */
-export function lastVisitDay({ startDate, endDate }: DateSpan, today: string): string | null {
+export function lastDayOf({ startDate, endDate }: DateSpan): string | null {
   const start = startDate?.slice(0, 10);
-  if (!start || start > today) return null;
+  if (!start) return null;
   const end = endDate?.slice(0, 10);
-  return end && end > start && end <= today ? end : start;
-}
-
-/**
- * True when `today` (YYYY-MM-DD) is one of the span's days: its start day, or any day from start
- * to end when it has an end. False without a start date. This is the 'Here now' label's test,
- * not a visit's: a range is on from its first day to its last (see lastVisitDay).
- */
-export function isOngoing({ startDate, endDate }: DateSpan, today: string): boolean {
-  if (!startDate) return false;
-  const start = startDate.slice(0, 10);
-  if (start === today) return true;
-  const end = endDate?.slice(0, 10);
-  return end ? start <= today && today <= end : false;
+  return end && end >= start ? end : start;
 }

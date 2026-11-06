@@ -19,7 +19,9 @@
  * @file The home GitHub tile's server source. One GraphQL POST, public non-fork repositories only,
  * weekly sums over twelve Sunday-start UTC weeks, the newest own non-merge commit, and a
  * stale-on-error cache shared by every copy of the module, which peekGitHubActivity reads without
- * asking GitHub. Only fetch, the clock and the env are faked.
+ * asking GitHub. And the project tile's: the public repositories GitHub counts the owner's own
+ * commits to over 30 days (never a bot's or teammate's push), private ones dropped unread, from a
+ * query, cache and errors of its own. Only fetch, the clock and the env are faked.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,12 +38,22 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 
+import { makeProject } from '@tests/fixtures/sanity-docs';
+import { nyToday } from '@/app/_components/home/data/format';
+import {
+  ACTIVE_PROJECT_WINDOW_DAYS,
+  selectActiveProject,
+} from '@/app/_components/home/data/selectors';
+import { isBaseError } from '@/classes/error';
 import {
   ACTIVITY_TTL_MS,
   ACTIVITY_WEEKS,
   GITHUB_LOGIN,
   peekGitHubActivity,
+  peekRecentCommits,
+  RECENT_COMMITS_DAYS,
   readGitHubActivity,
+  readRecentCommits,
   resetGitHubActivityCache,
 } from '@/lib/api-integrations/github-activity';
 
@@ -173,6 +185,19 @@ const sentRequest = async (fetchMock: ReturnType<typeof stubFetch>, call = 0) =>
 
 const readData = async () => (await readGitHubActivity()).data;
 
+/** `error` and the errors it wraps, through `cause`. */
+function causeChain(error: unknown): Error[] {
+  const chain: Error[] = [];
+  let link: unknown = error;
+  while (link instanceof Error && chain.length < 5) {
+    chain.push(link);
+    link = link.cause;
+  }
+  return chain;
+}
+
+const causeMessages = (error: unknown): string[] => causeChain(error).map((link) => link.message);
+
 beforeEach(() => {
   // Only the clock is faked: the fetcher's retry delay still runs on real timers.
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -287,6 +312,16 @@ describe('GitHub activity: request', () => {
     expect(query).toMatch(/history\(first: 20\)/);
   });
 
+  it("leaves the project tile's question out of the GitHub tile's query", async () => {
+    // Its own, separate query: the 30-day commit contributions never slow this one down.
+    const fetchMock = stubFetch(() => jsonResponse(activityReply({})));
+
+    await readGitHubActivity();
+
+    const { query } = (await sentRequest(fetchMock)).body;
+    expect(query).not.toMatch(/pushedAt|commitContributionsByRepository/);
+  });
+
   it.each([
     ['early on a Sunday', '2026-11-01T00:30:00Z', '2026-08-16T00:00:00.000Z'],
     ['late on a Saturday', '2026-11-07T23:59:59Z', '2026-08-16T00:00:00.000Z'],
@@ -374,6 +409,295 @@ describe('GitHub activity: latest commit', () => {
     stubFetch(() => jsonResponse(activityReply({ repositories })));
 
     await expect(readData()).resolves.toMatchObject({ latestCommit: { headline: 'feat: real' } });
+  });
+});
+
+/** GitHub's start of `day` in Pacific time, as a commit contribution's occurredAt carries it. */
+const pacificDayStart = (day: string): string =>
+  `${day}T${day < '2026-11-01' ? '07' : '08'}:00:00Z`;
+
+interface ContributionFixture {
+  readonly day: string;
+  readonly commits: number;
+}
+
+/** One repository's entry in commitContributionsByRepository, as GitHub sends it. */
+const committedNode = (
+  nameWithOwner: string,
+  days: readonly ContributionFixture[],
+  repository: Record<string, unknown> = {},
+) => ({
+  repository: {
+    isPrivate: false,
+    nameWithOwner,
+    url: `https://github.com/${nameWithOwner}`,
+    ...repository,
+  },
+  contributions: {
+    nodes: days.map(({ day, commits }) => ({
+      occurredAt: pacificDayStart(day),
+      commitCount: commits,
+    })),
+  },
+});
+
+const commitsReply = (entries: unknown) => ({
+  data: { user: { contributionsCollection: { commitContributionsByRepository: entries } } },
+});
+
+const readCommits = async () => (await readRecentCommits()).data;
+
+/** True when the project tile's selector takes a commit on `day` as recent work at `now`. */
+const tileAcceptsDay = (day: string, now: number): boolean => {
+  const repo = 'WomB0ComB0/grepo';
+  const url = `https://github.com/${repo}`;
+  const committed = { nameWithOwner: repo, url, lastCommitDay: day, commitsThatDay: 1 };
+  return selectActiveProject([makeProject({ githubUrl: url })], [committed], now) !== null;
+};
+
+describe("recent commits (the project tile's source)", () => {
+  it('asks its own query: his commit contributions of the last 30 days and one more, privacy first', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(commitsReply([])));
+
+    await readRecentCommits();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = await sentRequest(fetchMock);
+    expect(request.url).toBe('https://api.github.com/graphql');
+    expect(request.authorization).toBe(`bearer ${TEST_TOKEN}`);
+    expect(request.body.query).toMatch(
+      /commitContributionsByRepository\(maxRepositories: 100\)\s*{\s*repository\s*{\s*isPrivate\s/,
+    );
+    expect(request.body.query).toContain('orderBy: { field: OCCURRED_AT, direction: DESC }');
+    expect(request.body.query).not.toMatch(/pushedAt|contributionCalendar|history/);
+    // The tile's selector applies the same window again, as a cached answer ages.
+    expect(RECENT_COMMITS_DAYS).toBe(30);
+    expect(ACTIVE_PROJECT_WINDOW_DAYS).toBe(RECENT_COMMITS_DAYS);
+    expect(request.body.variables).toEqual({
+      login: GITHUB_LOGIN,
+      from: new Date(T0 - 31 * DAY_MS).toISOString(),
+      to: new Date(T0).toISOString(),
+    });
+  });
+
+  // The selector accepts every day up to ACTIVE_PROJECT_WINDOW_DAYS back from New York's today;
+  // GitHub dates a contribution by its day's start in Pacific time. A query starting after that
+  // start never fetches a commit made earlier on the oldest day, so the tile would miss it.
+  it.each([
+    ['7 AM in New York', '2026-11-05T12:00:00Z'],
+    ['9 PM in New York, already the next day in UTC', '2026-11-03T02:00:00Z'],
+    ['a minute to midnight in New York', '2026-11-03T04:59:00Z'],
+    ['a minute after midnight in New York', '2026-11-03T05:01:00Z'],
+  ])('asks from before the oldest day the tile accepts starts, at %s', async (_at, nowIso) => {
+    const now = Date.parse(nowIso);
+    vi.setSystemTime(now);
+    const fetchMock = stubFetch(() => jsonResponse(commitsReply([])));
+
+    await readRecentCommits();
+
+    const oldest = addDays(nyToday(now), -ACTIVE_PROJECT_WINDOW_DAYS);
+    expect(tileAcceptsDay(oldest, now)).toBe(true);
+    expect(tileAcceptsDay(addDays(oldest, -1), now)).toBe(false);
+    const { from } = (await sentRequest(fetchMock)).body.variables;
+    expect(Date.parse(String(from))).toBeLessThan(Date.parse(pacificDayStart(oldest)));
+  });
+
+  it('lists public repositories by his newest commit day, newest first; on one day, more commits first', async () => {
+    const entries = [
+      committedNode('WomB0ComB0/ralph', [{ day: '2026-10-20', commits: 2 }]),
+      // Whatever order the days come in, the newest is the one that counts.
+      committedNode('WomB0ComB0/grepo', [
+        { day: '2026-10-20', commits: 9 },
+        { day: '2026-11-03', commits: 1 },
+      ]),
+      committedNode('ElysiumOSS/website', [{ day: '2026-11-05', commits: 1 }]),
+      committedNode('resq-software/.github', [{ day: '2026-11-05', commits: 4 }]),
+    ];
+    stubFetch(() => jsonResponse(commitsReply(entries)));
+
+    await expect(readCommits()).resolves.toEqual({
+      repos: [
+        {
+          nameWithOwner: 'resq-software/.github',
+          url: 'https://github.com/resq-software/.github',
+          lastCommitDay: '2026-11-05',
+          commitsThatDay: 4,
+        },
+        {
+          nameWithOwner: 'ElysiumOSS/website',
+          url: 'https://github.com/ElysiumOSS/website',
+          lastCommitDay: '2026-11-05',
+          commitsThatDay: 1,
+        },
+        {
+          nameWithOwner: 'WomB0ComB0/grepo',
+          url: 'https://github.com/WomB0ComB0/grepo',
+          lastCommitDay: '2026-11-03',
+          commitsThatDay: 1,
+        },
+        {
+          nameWithOwner: 'WomB0ComB0/ralph',
+          url: 'https://github.com/WomB0ComB0/ralph',
+          lastCommitDay: '2026-10-20',
+          commitsThatDay: 2,
+        },
+      ],
+      fetchedAt: new Date(T0).toISOString(),
+    });
+  });
+
+  it('drops every private repository, and any not plainly public, before reading it', async () => {
+    const day = [{ day: '2026-11-05', commits: 3 }];
+    const entries = [
+      committedNode('WomB0ComB0/secret-plan', day, { isPrivate: true }),
+      committedNode('WomB0ComB0/secret-null', day, { isPrivate: null }),
+      committedNode('WomB0ComB0/secret-text', day, { isPrivate: 'false' }),
+      {
+        repository: { nameWithOwner: 'WomB0ComB0/secret-unsaid', url: 'https://github.com/x/y' },
+        contributions: { nodes: [{ occurredAt: pacificDayStart('2026-11-05'), commitCount: 1 }] },
+      },
+      committedNode('WomB0ComB0/grepo', [{ day: '2026-11-01', commits: 1 }]),
+    ];
+    stubFetch(() => jsonResponse(commitsReply(entries)));
+
+    const commits = await readCommits();
+
+    expect(commits.repos.map((repo) => repo.nameWithOwner)).toEqual(['WomB0ComB0/grepo']);
+    expect(JSON.stringify(commits)).not.toContain('secret');
+    expect(JSON.stringify(peekRecentCommits())).not.toContain('secret');
+  });
+
+  it('leaves out one it cannot link or date, without failing the rest', async () => {
+    const entries = [
+      null,
+      'WomB0ComB0/not-an-entry',
+      committedNode('WomB0ComB0/elsewhere', [{ day: '2026-11-05', commits: 1 }], {
+        url: 'https://gitlab.com/WomB0ComB0/elsewhere',
+      }),
+      committedNode('WomB0ComB0/no-days', []),
+      { ...committedNode('WomB0ComB0/null-days', []), contributions: { nodes: null } },
+      {
+        ...committedNode('WomB0ComB0/undated', []),
+        contributions: { nodes: [{ occurredAt: 'yesterday', commitCount: 1 }] },
+      },
+      committedNode('WomB0ComB0/no-name', [{ day: '2026-11-05', commits: 1 }], {
+        nameWithOwner: 42,
+      }),
+      committedNode('WomB0ComB0/grepo', [{ day: '2026-11-02', commits: 1 }]),
+    ];
+    stubFetch(() => jsonResponse(commitsReply(entries)));
+
+    const { repos } = await readCommits();
+
+    expect(repos.map((repo) => repo.nameWithOwner)).toEqual(['WomB0ComB0/grepo']);
+  });
+
+  it('rejects a reply in another shape without repeating anything from it', async () => {
+    stubFetch(() => jsonResponse(commitsReply({ 'WomB0ComB0/secret-plan': { isPrivate: true } })));
+
+    const error = await readRecentCommits().then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+
+    expect(isBaseError(error)).toBe(true);
+    expect(error).toMatchObject({ command: 'github:recent-commits' });
+    const messages = causeMessages(error);
+    expect(messages).toContain("GitHub's commit contributions did not have the expected shape");
+    expect(messages.join(' ')).not.toContain('secret');
+  });
+
+  it("rejects with GitHub's message on GraphQL errors, and when there is no such user", async () => {
+    stubFetch(() => jsonResponse({ errors: [{ message: 'Something went wrong' }] }));
+    await expect(readRecentCommits()).rejects.toThrow(
+      'GitHub GraphQL errors: Something went wrong',
+    );
+
+    resetGitHubActivityCache();
+    stubFetch(() => jsonResponse({ data: { user: null } }));
+    await expect(readRecentCommits()).rejects.toThrow(`GitHub has no user ${GITHUB_LOGIN}`);
+  });
+
+  it('rejects without asking GitHub when GITHUB_TOKEN is not set, as its own source', async () => {
+    fakeEnv.values = { NODE_ENV: 'test' };
+    const fetchMock = stubFetch(() => jsonResponse(commitsReply([])));
+
+    const error = await readRecentCommits().then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+
+    expect(error).toMatchObject({ command: 'github:recent-commits' });
+    expect(causeMessages(error)).toContain('GITHUB_TOKEN is not set');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('serves its last answer, stale, when GitHub fails past the TTL; peek answers it at once', async () => {
+    const entries = [committedNode('WomB0ComB0/grepo', [{ day: '2026-11-04', commits: 2 }])];
+    stubFetch(() => jsonResponse(commitsReply(entries)));
+    const first = await readCommits();
+    expect(peekRecentCommits()).toEqual({ data: first, loadedAt: T0 });
+
+    vi.setSystemTime(T0 + ACTIVITY_TTL_MS + 1);
+    const failing = stubFetch(() => jsonResponse({ message: 'Bad credentials' }, 401));
+
+    await expect(readRecentCommits()).resolves.toMatchObject({ stale: true, data: first });
+    expect(failing).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the two GitHub sources', () => {
+  /** Answers each query with its own reply, by what it asks for; lists which were asked. */
+  function stubBoth(activity: unknown, commits: unknown): string[] {
+    const asked: string[] = [];
+    stubFetch(() => jsonResponse(activity)).mockImplementation(async (_input, init) => {
+      const { query } = JSON.parse(await new Response(init?.body).text()) as { query: string };
+      const isCommits = query.includes('commitContributionsByRepository');
+      asked.push(isCommits ? 'commits' : 'activity');
+      return jsonResponse(isCommits ? commits : activity);
+    });
+    return asked;
+  }
+
+  it('ask GitHub separately: reading one never asks for the other', async () => {
+    const asked = stubBoth(activityReply({}), commitsReply([]));
+
+    await readGitHubActivity();
+    expect(asked).toEqual(['activity']);
+    await readRecentCommits();
+    expect(asked).toEqual(['activity', 'commits']);
+  });
+
+  it('fail with errors of their own, so neither report can stand in for the other', async () => {
+    fakeEnv.values = { NODE_ENV: 'test' };
+
+    const [activityError, commitsError] = await Promise.all(
+      [readGitHubActivity(), readRecentCommits()].map((read) =>
+        read.then(
+          () => undefined,
+          (reason: unknown) => reason,
+        ),
+      ),
+    );
+
+    expect(activityError).toMatchObject({ command: 'github:activity' });
+    expect(commitsError).toMatchObject({ command: 'github:recent-commits' });
+    expect(causeChain(activityError)).not.toContain(commitsError);
+    expect(causeChain(commitsError)).not.toContain(activityError);
+  });
+
+  it('keep their own caches: one failing leaves the other fresh', async () => {
+    stubBoth(activityReply({ days: daysFrom('2026-11-01', [2]) }), commitsReply([]));
+    const activity = await readData();
+    await readCommits();
+
+    vi.setSystemTime(T0 + ACTIVITY_TTL_MS + 1);
+    stubBoth(activityReply({ days: daysFrom('2026-11-01', [5]) }), { errors: [{ message: 'x' }] });
+
+    await expect(readRecentCommits()).resolves.toMatchObject({ stale: true });
+    const reloaded = await readGitHubActivity();
+    expect(reloaded.stale).toBe(false);
+    expect(reloaded.data.total).not.toBe(activity.total);
   });
 });
 
