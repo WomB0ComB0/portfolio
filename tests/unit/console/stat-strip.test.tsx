@@ -131,6 +131,12 @@ describe('StatStrip', () => {
     expect(link.closest('dd')).not.toBeNull();
   });
 
+  it('links the href without the spaces and nbsp around it', () => {
+    renderStrip([{ label: 'projects', value: 22, href: '  /projects  ' }]);
+
+    expect(screen.getByRole('link', { name: '22 projects' })).toHaveAttribute('href', '/projects');
+  });
+
   it.each(['', '#', '  '])('ignores the empty href %j', (href) => {
     const list = renderStrip([{ label: 'projects', value: 22, href }]);
 
@@ -188,6 +194,21 @@ describe('number formatting', () => {
     expect(numberFormatter({ style: 'percent' })).toBe(numberFormatter({ style: 'percent' }));
     expect(numberFormatter()).toBe(numberFormatter({}));
     expect(numberFormatter()).not.toBe(numberFormatter({ style: 'percent' }));
+  });
+
+  it('returns the same formatter for equivalent options in any key order', () => {
+    const percent = numberFormatter({ style: 'percent', maximumFractionDigits: 1 });
+
+    expect(numberFormatter({ maximumFractionDigits: 1, style: 'percent' })).toBe(percent);
+    // Intl ignores an undefined option, so the cache does too.
+    expect(
+      numberFormatter({
+        maximumFractionDigits: 1,
+        style: 'percent',
+        minimumFractionDigits: undefined,
+      }),
+    ).toBe(percent);
+    expect(numberFormatter({ style: 'percent', maximumFractionDigits: 2 })).not.toBe(percent);
   });
 
   it('formats numbers in en-US and passes strings through', () => {

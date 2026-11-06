@@ -62,13 +62,14 @@ const COLOUR_TOKENS = {
 } as const;
 
 /**
- * Translucent tokens: [token, the colour token it lightens, alpha]. The glow, spotlight, lift and
- * live-pulse read these instead of color-mix(), whose no-support fallback is full strength.
+ * Translucent tokens: [token, the colour token it lightens, alpha]. The glow, spotlight, lift,
+ * hero wash and live-pulse read these instead of color-mix(), whose no-support fallback is full strength.
  */
 const TRANSLUCENT_TOKENS = [
   ['brand-glow', 'brand', '9%'],
   ['brand-spot', 'brand', '16%'],
   ['brand-edge', 'brand', '18%'],
+  ['brand-wash', 'brand', '14%'],
   ['live-halo', 'live', '20%'],
 ] as const;
 
@@ -416,7 +417,11 @@ describe('src/app/fonts.ts', () => {
       display: 'swap',
     });
     expect(monoOptions).toMatchObject({ variable: '--font-geist-mono', preload: false });
-    expect(fontVariables).toBe('--font-geist --font-geist-mono');
+  });
+
+  it("puts both loaders' variable classes on fontVariables, Geist first", () => {
+    // The mock returns a distinct class per loader, so a hard-coded string cannot pass.
+    expect(fontVariables).toBe('geist-variable-mock mono-variable-mock');
   });
 
   it("keeps Geist's metric-adjusted fallback face, so the swap to Geist does not re-wrap text", () => {

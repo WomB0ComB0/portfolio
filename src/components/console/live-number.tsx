@@ -61,18 +61,27 @@ function cubicBezier([x1, y1, x2, y2]: BezierPoints): (progress: number) => numb
 
 const easeOutExpo = cubicBezier(EASE.outExpo);
 
-/** Whether a change should show at once instead of gliding. */
+/**
+ * Whether a change should show at once instead of gliding. A duration that is not a positive
+ * finite number counts as none: under an infinite one progress stays at 0, so frames would keep
+ * coming while the old number never moved.
+ */
 const showsAtOnce = (from: number, to: number, durationMs: number): boolean =>
   from === to ||
   !Number.isFinite(from) ||
   !Number.isFinite(to) ||
+  !Number.isFinite(durationMs) ||
   durationMs <= 0 ||
   document.hidden ||
   prefersReducedMotion();
 
-/** The number shown at `eased` of the way; whole numbers stay whole while they glide. */
+/**
+ * The number shown at `eased` of the way; whole numbers stay whole while they glide. A weighted
+ * sum, not `from + (to - from) * eased`: that difference overflows to Infinity for far-apart
+ * finite values (-1e308 to 1e308), and the glide would print '∞'.
+ */
 function numberBetween(from: number, to: number, eased: number): number {
-  const next = from + (to - from) * eased;
+  const next = from * (1 - eased) + to * eased;
   return Number.isInteger(from) && Number.isInteger(to) ? Math.round(next) : next;
 }
 

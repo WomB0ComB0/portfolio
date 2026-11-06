@@ -22,7 +22,7 @@
  * - `plain`: a hairline-bordered surface.
  * - `raised`: one step lighter with a shadow, for popovers and emphasis.
  * - `interactive`: the whole tile is ONE link (next/link, or a new-tab anchor when `external`).
- *   It must not contain other links or buttons. With no destination (see hasDestination) it
+ *   It must not contain other links or buttons. With no destination (see destinationOf) it
  *   renders as `plain`, so a tile never looks clickable without going anywhere.
  * - `linked`: a plain element (marked `data-linked-tile`) that holds exactly one stretched
  *   <TileLink>; other links may sit above its overlay with `relative z-10`. The tile draws the
@@ -37,7 +37,7 @@ import Link from 'next/link';
 import type { AnchorHTMLAttributes, HTMLAttributes, ReactElement, ReactNode } from 'react';
 
 import { type TileSpan, tileSpanClass } from '@/components/console/tile-grid';
-import { hasDestination, NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
+import { destinationOf, NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
 import { cn } from '@/lib/utils';
 
 /**
@@ -56,6 +56,15 @@ const LINK_FOCUS_RING_CLASS =
   'has-[[data-tile-link]:focus-visible]:outline-2 has-[[data-tile-link]:focus-visible]:outline-offset-2 has-[[data-tile-link]:focus-visible]:outline-focus';
 
 /**
+ * The `hero` wash: translucent brand fading to transparent, painted as a background-image over
+ * the variant's own background colour, so a raised tile keeps its surface-2 and a plain one its
+ * surface-1. --brand-wash is a literal with alpha, not color-mix(): Tailwind's fallback for
+ * browsers without color-mix would paint full-strength brand. One literal class, so Tailwind's
+ * scanner sees it.
+ */
+const HERO_WASH_CLASS = 'bg-[linear-gradient(160deg,var(--brand-wash),transparent_60%)]';
+
+/**
  * Tile classes. The root is an inline-size container (`@container`), so content inside a tile
  * sizes itself with `@sm:`/`@md:` against the tile's own width. The padding step (`@md:p-5`) sits
  * on the tile itself, so it answers to the nearest ANCESTOR container instead (a TileGrid's).
@@ -70,10 +79,7 @@ export const tileVariants = cva(
         interactive: LIFT_CLASS,
         linked: `${LIFT_CLASS} ${LINK_FOCUS_RING_CLASS}`,
       },
-      tone: {
-        default: '',
-        hero: 'bg-[linear-gradient(160deg,color-mix(in_oklch,var(--brand)_14%,var(--surface-1)),var(--surface-1)_60%)]',
-      },
+      tone: { default: '', hero: HERO_WASH_CLASS },
       padding: {
         none: 'p-0',
         sm: 'p-3',
@@ -86,7 +92,7 @@ export const tileVariants = cva(
 );
 
 export type TileVariant = 'plain' | 'raised' | 'interactive' | 'linked';
-/** `hero` washes the top-left corner with brand; it is drawn for the surface-1 variants. */
+/** `hero` washes the top-left corner with translucent brand over the variant's own surface. */
 export type TileTone = 'default' | 'hero';
 export type TilePadding = 'none' | 'sm' | 'md' | 'lg';
 /** Elements a non-link tile can render as. Use `li` inside `<TileGrid as="ul">`. */
@@ -226,6 +232,7 @@ function InteractiveTile({
  */
 export function Tile(props: TileProps): ReactElement {
   if (props.variant !== 'interactive') return <StaticTile {...props} />;
-  if (hasDestination(props.href)) return <InteractiveTile {...props} />;
-  return <StaticTile {...plainTileProps(props)} />;
+  const destination = destinationOf(props.href);
+  if (destination === null) return <StaticTile {...plainTileProps(props)} />;
+  return <InteractiveTile {...props} href={destination} />;
 }

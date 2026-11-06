@@ -29,9 +29,10 @@ import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
+import { compile } from 'tailwindcss';
 import { describe, expect, it, vi } from 'vitest';
 
-import { Tile, type TileProps } from '@/components/console/tile';
+import { Tile, type TileProps, tileVariants } from '@/components/console/tile';
 
 vi.mock('next/link', () => ({
   default: ({
@@ -70,6 +71,9 @@ const LINK_RING_CLASSES = [
   'has-[[data-tile-link]:focus-visible]:outline-offset-2',
   'has-[[data-tile-link]:focus-visible]:outline-focus',
 ];
+
+/** The `hero` brand wash: translucent brand over the variant's own background colour. */
+const HERO_WASH = 'bg-[linear-gradient(160deg,var(--brand-wash),transparent_60%)]';
 
 /** Renders a tile whose only content is a text node, so that text's element is the tile root. */
 function renderTile(props: TileProps): HTMLElement {
@@ -202,6 +206,19 @@ describe('interactive Tile', () => {
     expect(tile).toHaveAttribute('id', 'projects');
     expect(tile).toHaveAttribute('aria-label', 'Projects');
   });
+
+  it.each([
+    ['an internal', false, '/projects'],
+    ['an external', true, 'https://github.com/WomB0ComB0'],
+  ])('links %s href without the spaces and nbsp around it', (_case, external, destination) => {
+    render(
+      <Tile variant="interactive" href={`  ${destination}  `} external={external}>
+        Projects
+      </Tile>,
+    );
+
+    expect(screen.getByRole('link')).toHaveAttribute('href', destination);
+  });
 });
 
 describe('linked Tile', () => {
@@ -261,6 +278,44 @@ describe('Tile options', () => {
     const hero = renderTile({ tone: 'hero', padding: 'lg' });
     expect(hero.className).toContain('bg-[linear-gradient(160deg,');
     expect(hero).toHaveClass('p-6', '@md:p-8');
+  });
+
+  it.each([
+    ['plain', 'surface-1'],
+    ['interactive', 'surface-1'],
+    ['linked', 'surface-1'],
+    ['raised', 'surface-2'],
+  ] as const)('the hero wash on a %s tile sits over its own %s', (variant, surface) => {
+    const classes = tileVariants({ variant, tone: 'hero' }).split(' ');
+    const washes = classes.filter((name) => name.startsWith('bg-[linear-gradient('));
+
+    // One translucent wash, and the variant's own surface colour under it.
+    expect(washes).toEqual([HERO_WASH]);
+    expect(classes).toContain(`bg-${surface}`);
+  });
+
+  it('a raised hero tile keeps its raised surface and shadow under the wash', () => {
+    const tile = renderTile({ variant: 'raised', tone: 'hero' });
+
+    expect(tile).toHaveClass('bg-surface-2', 'shadow-raised', HERO_WASH);
+    expect(tile.className).not.toContain('var(--surface-1)');
+  });
+
+  it('draws no wash for the default tone', () => {
+    for (const variant of ['plain', 'raised', 'interactive', 'linked'] as const) {
+      expect(tileVariants({ variant })).not.toContain('linear-gradient');
+    }
+  });
+
+  it('writes the wash as one literal class that compiles to a gradient without color-mix', async () => {
+    const source = readFileSync(SOURCE, 'utf8');
+    const { build } = await compile('@tailwind utilities;');
+    const css = build([HERO_WASH]);
+
+    expect(source).toContain(`'${HERO_WASH}'`);
+    expect(css).toContain('linear-gradient(160deg,var(--brand-wash),transparent 60%)');
+    // Tailwind's no-color-mix fallback would paint full-strength brand.
+    expect(css).not.toContain('color-mix');
   });
 
   it('padding="none" is flush at every container width', () => {

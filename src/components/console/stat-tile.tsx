@@ -30,8 +30,9 @@
 import { CircleAlert, Clock } from 'lucide-react';
 import { type ReactElement, type ReactNode, useId } from 'react';
 
-import type { Timestamp } from '@/components/console/format-age';
+import { formatAge, type Timestamp } from '@/components/console/format-age';
 import { Freshness } from '@/components/console/freshness';
+import { hasContent } from '@/components/console/has-content';
 import { LiveNumber } from '@/components/console/live-number';
 import { formatStatValue, presentValue } from '@/components/console/stat-strip';
 import { StatusDot } from '@/components/console/status-dot';
@@ -249,6 +250,10 @@ function Figure({ state, shown, unit, format, tween, size, idleText }: FigurePro
   );
 }
 
+/** Whether Freshness would print an age for `updatedAt` now (formatAge says '' when it can't). */
+const hasFreshnessText = (updatedAt: Timestamp | undefined): boolean =>
+  updatedAt !== undefined && formatAge(updatedAt) !== '';
+
 interface ContextLineProps {
   state: StatTileState;
   meta?: ReactNode;
@@ -284,11 +289,13 @@ function ContextLine({
         </>
       );
     case 'stale': {
-      const note = freshness ?? meta;
+      // Meta wins, as in the other states. Freshness counts only when it will print words: for an
+      // invalid or far-future updatedAt it renders nothing, which would leave 'Stale ·' dangling.
+      const note = meta ?? (hasFreshnessText(updatedAt) ? freshness : null);
       return (
         <>
           <Clock aria-hidden="true" className={ICON_CLASS} />
-          <span>{note ? `${STALE_LABEL} ·` : STALE_LABEL}</span>
+          <span>{hasContent(note) ? `${STALE_LABEL} ·` : STALE_LABEL}</span>
           {note}
           {deltaText}
         </>

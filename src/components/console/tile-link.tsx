@@ -41,7 +41,7 @@ const STRETCHED_LINK_CLASS =
   "after:absolute after:inset-0 after:content-[''] after:rounded-[inherit] [[data-linked-tile]_&]:focus-visible:outline-none";
 
 export interface TileLinkProps {
-  /** An empty or '#' href renders the children as text, with no link. */
+  /** An empty or '#' href renders the children as text, with no link. Linked trimmed. */
   href: string;
   /** Opens in a new tab, with an arrow icon and a spoken "(opens in a new tab)". */
   external?: boolean;
@@ -68,14 +68,21 @@ export function SrOnlyWords({ children }: { children: ReactNode }): ReactElement
 }
 
 /**
- * Whether `href` leads anywhere. A missing, blank or bare '#' href comes from data with no URL;
- * linking it would reload the page (or open a copy of it in a new tab), so console components
- * render text or a plain tile instead.
+ * Where `href` leads, trimmed, or null when it leads nowhere. A missing, blank or bare '#' href
+ * comes from data with no URL; linking it would reload the page (or open a copy of it in a new
+ * tab), so console components render text or a plain tile instead.
+ *
+ * Link the returned string, never the raw href: trim() also strips non-breaking spaces, which a
+ * browser does not strip from an href but percent-encodes into the path.
  */
-export const hasDestination = (href: string | undefined): href is string => {
+export function destinationOf(href: string | undefined): string | null {
   const trimmed = href?.trim() ?? '';
-  return trimmed !== '' && trimmed !== '#';
-};
+  return trimmed === '' || trimmed === '#' ? null : trimmed;
+}
+
+/** Whether `href` leads anywhere (see destinationOf, whose trimmed value is what to link). */
+export const hasDestination = (href: string | undefined): href is string =>
+  destinationOf(href) !== null;
 
 /**
  * The one link that makes a whole `linked` Tile clickable. It carries `data-tile-link`, which the
@@ -99,7 +106,8 @@ export function TileLink({
   className,
   children,
 }: TileLinkProps): ReactElement {
-  if (!hasDestination(href)) return <span className={className}>{children}</span>;
+  const destination = destinationOf(href);
+  if (destination === null) return <span className={className}>{children}</span>;
 
   const linkClassName = cn(STRETCHED_LINK_CLASS, className);
   const suffix = srSuffix ? <SrOnlyWords>{srSuffix}</SrOnlyWords> : null;
@@ -107,7 +115,7 @@ export function TileLink({
   if (external) {
     return (
       <a
-        href={href}
+        href={destination}
         target="_blank"
         rel="noopener noreferrer"
         data-tile-link=""
@@ -122,7 +130,7 @@ export function TileLink({
   }
 
   return (
-    <Link href={href} prefetch={prefetch} data-tile-link="" className={linkClassName}>
+    <Link href={destination} prefetch={prefetch} data-tile-link="" className={linkClassName}>
       {children}
       {suffix}
     </Link>

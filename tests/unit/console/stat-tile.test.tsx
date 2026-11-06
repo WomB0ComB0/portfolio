@@ -280,6 +280,28 @@ describe('StatTile stale', () => {
     renderStat({ value: 1, state: 'stale' });
     expect(screen.getByText('Stale')).toBeInTheDocument();
   });
+
+  it('puts meta in place of the freshness, as the ready and idle states do', () => {
+    const tile = renderStat({
+      value: 1,
+      state: 'stale',
+      meta: 'from the last sync',
+      updatedAt: Date.now() - 3 * 60 * MINUTE_MS,
+    });
+
+    expect(rowsOf(tile)[2]?.textContent).toBe('Stale ·from the last sync');
+    expect(tile.querySelector('time')).toBeNull();
+  });
+
+  it.each([
+    ['an invalid', 'not a date'],
+    ['a far-future', Date.now() + 10 * MINUTE_MS],
+  ])('says Stale alone, with no dangling separator, for %s updatedAt', (_case, updatedAt) => {
+    const tile = renderStat({ value: 1, state: 'stale', updatedAt });
+
+    expect(rowsOf(tile)[2]?.textContent).toBe('Stale');
+    expect(within(tile).queryByText('Stale ·')).toBeNull();
+  });
 });
 
 describe('StatTile live badge', () => {
@@ -358,6 +380,11 @@ describe('StatTile root', () => {
     expect(tile).not.toHaveAttribute('data-spotlight');
     expect(tile).not.toHaveAttribute('href');
     expect(within(tile).getByText('22')).toBeInTheDocument();
+  });
+
+  it('an interactive tile links its href without the spaces and nbsp around it', () => {
+    render(<StatTile label={LABEL} value={22} variant="interactive" href={'  /projects  '} />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/projects');
   });
 
   it('an external interactive tile opens a new tab', () => {

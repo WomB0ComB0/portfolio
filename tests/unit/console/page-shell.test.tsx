@@ -113,6 +113,43 @@ describe('PageShell', () => {
     expect(header.children).toHaveLength(1);
   });
 
+  it('keeps a 0 inside its slot wrapper instead of printing a bare 0', () => {
+    render(
+      <PageShell title="Stats" eyebrow={0} description={0} actions={0} stats={0}>
+        body
+      </PageShell>,
+    );
+    const header = screen.getByRole('banner');
+    const [titleBlock, actions, stats] = Array.from(header.children);
+    const hasBareText = (element: Element | undefined): boolean =>
+      Array.from(element?.childNodes ?? []).some((node) => node.nodeType === Node.TEXT_NODE);
+
+    expect(header.children).toHaveLength(3);
+    expect(hasBareText(header)).toBe(false);
+    expect(hasBareText(titleBlock)).toBe(false);
+    expect(Array.from(titleBlock?.children ?? []).map((child) => child.textContent)).toEqual([
+      '0',
+      'Stats',
+      '0',
+    ]);
+    expect(actions).toHaveClass('flex-wrap');
+    expect(actions).toHaveTextContent('0');
+    expect(stats).toHaveClass('md:col-span-2');
+    expect(stats).toHaveTextContent('0');
+  });
+
+  it('leaves out slots given false, null or an empty string', () => {
+    render(
+      <PageShell title="Stats" eyebrow="" description={false} actions={null} stats="">
+        body
+      </PageShell>,
+    );
+    const header = screen.getByRole('banner');
+
+    expect(header.querySelectorAll('p')).toHaveLength(0);
+    expect(header.children).toHaveLength(1);
+  });
+
   it('renders on the server and has no use client directive', () => {
     expect(renderToString(<PageShell title="Stats">body</PageShell>)).toContain('<h1');
     expect(readFileSync(SOURCE, 'utf8')).not.toMatch(/['"]use client['"]/);
@@ -133,6 +170,7 @@ describe('console barrel', () => {
     'LiveNumber',
     'Freshness',
     'formatAge',
+    'destinationOf',
     'hasDestination',
     'StatusDot',
     'PageShell',

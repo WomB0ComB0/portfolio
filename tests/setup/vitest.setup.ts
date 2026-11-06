@@ -23,16 +23,20 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // next/font/google's runtime module is empty outside Next's SWC transform, so importing
-// src/app/fonts.ts (the root layout does) would crash. Each loader is a spy that returns a font
-// object echoing the CSS variable it was given.
+// src/app/fonts.ts (the root layout does) would crash. Each loader is a spy that returns its own
+// class-like `variable`, as next/font does (a generated class name, not the CSS variable it was
+// given), so a test can tell which loader a value came from and catch a hard-coded one.
 vi.mock('next/font/google', () => {
-  const fontLoader = () =>
-    vi.fn((options?: { variable?: string }) => ({
+  const fontLoader = (variableClass: string) =>
+    vi.fn(() => ({
       className: 'font-mock',
-      variable: options?.variable ?? '',
+      variable: variableClass,
       style: { fontFamily: 'mock' },
     }));
-  return { Geist: fontLoader(), Geist_Mono: fontLoader() };
+  return {
+    Geist: fontLoader('geist-variable-mock'),
+    Geist_Mono: fontLoader('mono-variable-mock'),
+  };
 });
 
 // Mock environment variables for tests

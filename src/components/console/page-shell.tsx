@@ -25,6 +25,7 @@
 
 import type { ReactElement, ReactNode } from 'react';
 
+import { hasContent } from '@/components/console/has-content';
 import { cn } from '@/lib/utils';
 
 const ROOT_CLASS = 'flex flex-col gap-8 md:gap-12';
@@ -72,12 +73,12 @@ export function PageShell({
     <div className={cn(ROOT_CLASS, gutter && GUTTER_CLASS, className)}>
       <header className={HEADER_CLASS}>
         <div className="min-w-0 space-y-3">
-          {eyebrow && <p className="label-mono text-muted-foreground">{eyebrow}</p>}
+          {hasContent(eyebrow) && <p className="label-mono text-muted-foreground">{eyebrow}</p>}
           <h1 className={TITLE_CLASS}>{title}</h1>
-          {description && <p className={DESCRIPTION_CLASS}>{description}</p>}
+          {hasContent(description) && <p className={DESCRIPTION_CLASS}>{description}</p>}
         </div>
-        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-        {stats && <div className="md:col-span-2">{stats}</div>}
+        {hasContent(actions) && <div className="flex flex-wrap gap-2">{actions}</div>}
+        {hasContent(stats) && <div className="md:col-span-2">{stats}</div>}
       </header>
       {children}
     </div>

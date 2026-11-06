@@ -67,6 +67,7 @@
   --brand-glow: oklch(65% 0.12 285deg / 9%);
   --brand-spot: oklch(65% 0.12 285deg / 16%);
   --brand-edge: oklch(65% 0.12 285deg / 18%);
+  --brand-wash: oklch(65% 0.12 285deg / 14%);
   --live-halo: oklch(80% 0.18 152deg / 20%);
 
   /* The one focus ring colour (at least 3:1 on every surface). */

@@ -32,7 +32,7 @@ import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Tile } from '@/components/console/tile';
-import { hasDestination, TileLink } from '@/components/console/tile-link';
+import { destinationOf, hasDestination, TileLink } from '@/components/console/tile-link';
 
 vi.mock('next/link', () => ({
   default: ({
@@ -112,6 +112,19 @@ describe('TileLink', () => {
     expect(arrow).toHaveClass('size-3.5');
   });
 
+  it.each([
+    ['an internal', false, '/places'],
+    ['an external', true, 'https://github.com/WomB0ComB0'],
+  ])('links %s href without the spaces and nbsp around it', (_case, external, destination) => {
+    render(
+      <TileLink href={`  ${destination}  `} external={external}>
+        Places
+      </TileLink>,
+    );
+
+    expect(screen.getByRole('link')).toHaveAttribute('href', destination);
+  });
+
   it.each(['', '#', '  '])('renders %j as text with no link', (href) => {
     render(<TileLink href={href}>Coming soon</TileLink>);
 
@@ -173,7 +186,22 @@ describe('hasDestination', () => {
     },
   );
 
-  it.each([undefined, '', '   ', '#', ' # '])('%j leads nowhere', (href) => {
+  it.each([undefined, '', '   ', '#', ' # ', ' # '])('%j leads nowhere', (href) => {
     expect(hasDestination(href)).toBe(false);
+  });
+});
+
+describe('destinationOf', () => {
+  it.each([
+    ['/projects', '/projects'],
+    [' /places ', '/places'],
+    [' https://github.com/WomB0ComB0 \n', 'https://github.com/WomB0ComB0'],
+    ['#section', '#section'],
+  ])('%j leads to %j', (href, destination) => {
+    expect(destinationOf(href)).toBe(destination);
+  });
+
+  it.each([undefined, '', '   ', '#', ' # '])('%j leads nowhere', (href) => {
+    expect(destinationOf(href)).toBeNull();
   });
 });

@@ -150,6 +150,21 @@ describe('LiveNumber changes shown at once', () => {
 
     expect(requestFrame).not.toHaveBeenCalled();
   });
+
+  // An infinite duration kept progress at 0: frames ran forever on the old number.
+  it.each([
+    ['a zero', 0],
+    ['a negative', -100],
+    ['an infinite', Number.POSITIVE_INFINITY],
+    ['a NaN', Number.NaN],
+  ])('for %s duration', (_case, durationMs) => {
+    const { visible, rerender } = renderNumber(10);
+
+    rerender(<LiveNumber value={2000} durationMs={durationMs} />);
+
+    expect(visible.textContent).toBe('2,000');
+    expect(requestFrame).not.toHaveBeenCalled();
+  });
 });
 
 describe('LiveNumber tween', () => {
@@ -202,6 +217,43 @@ describe('LiveNumber tween', () => {
     expect(parseShown(visible.textContent)).toBeLessThan(midway);
     advance(DURATION_MS.tween);
     expect(visible.textContent).toBe('0');
+  });
+
+  it('never shows Infinity between far-apart finite values', () => {
+    const { visible, rerender } = renderNumber(-1e308);
+
+    rerender(<LiveNumber value={1e308} />);
+    const seen: string[] = [];
+    for (let elapsed = 0; elapsed < DURATION_MS.tween; elapsed += FRAME_MS) {
+      advance(FRAME_MS);
+      seen.push(visible.textContent ?? '');
+    }
+
+    expect(seen.length).toBeGreaterThan(1);
+    expect(seen.every((text) => !text.includes('∞') && Number.isFinite(parseShown(text)))).toBe(
+      true,
+    );
+    expect(parseShown(seen.at(-1) ?? '')).toBe(1e308);
+  });
+
+  it('an equivalent format with its keys in another order does not restart the glide', () => {
+    const view = render(
+      <LiveNumber value={0} format={{ maximumFractionDigits: 0, useGrouping: true }} />,
+    );
+    view.rerender(
+      <LiveNumber value={1000} format={{ maximumFractionDigits: 0, useGrouping: true }} />,
+    );
+    advance(FRAME_MS * 6);
+
+    view.rerender(
+      <LiveNumber value={1000} format={{ useGrouping: true, maximumFractionDigits: 0 }} />,
+    );
+
+    expect(cancelFrame).not.toHaveBeenCalled();
+    // On the original schedule the glide is over; a restarted one would still be under way.
+    advance(DURATION_MS.tween - FRAME_MS * 6);
+    expect(view.container.querySelector('[aria-hidden="true"]')?.textContent).toBe('1,000');
+    expect(frames.size).toBe(0);
   });
 
   it('follows a custom duration', () => {

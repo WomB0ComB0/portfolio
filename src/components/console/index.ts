@@ -70,6 +70,7 @@ export {
   tileSpanClass,
 } from './tile-grid';
 export {
+  destinationOf,
   hasDestination,
   NEW_TAB_LABEL,
   SrOnlyWords,

@@ -23,7 +23,7 @@
 import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 
-import { hasDestination, SrOnlyWords } from '@/components/console/tile-link';
+import { destinationOf, SrOnlyWords } from '@/components/console/tile-link';
 import { cn } from '@/lib/utils';
 
 /** Every console number is formatted in this locale, so the server and the browser agree. */
@@ -35,11 +35,26 @@ const FORMATTER_CACHE_LIMIT = 32;
 const formatters = new Map<string, Intl.NumberFormat>();
 
 /**
- * The shared en-US formatter for `format`. Equal options return the same instance, so a caller
- * can pass an inline options object and still get a stable formatter (and stable effect deps).
+ * The cache key for `format`: its defined entries sorted by name. Plain JSON.stringify follows
+ * insertion order, so `{ a, b }` and `{ b, a }` would get two formatters, and LiveNumber, whose
+ * effect depends on the instance, would restart its glide. Intl ignores an undefined option, so
+ * the key does too. Every NumberFormatOptions value is a primitive, so one level is enough.
+ */
+function formatterKey(format: Intl.NumberFormatOptions = {}): string {
+  // Object keys are unique, so the comparator never meets a tie.
+  const entries = Object.entries(format)
+    .filter(([, option]) => option !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : 1));
+  return JSON.stringify(entries);
+}
+
+/**
+ * The shared en-US formatter for `format`. Equal options return the same instance, whatever
+ * their key order, so a caller can pass an inline options object and still get a stable
+ * formatter (and stable effect deps).
  */
 export function numberFormatter(format?: Intl.NumberFormatOptions): Intl.NumberFormat {
-  const key = JSON.stringify(format ?? {});
+  const key = formatterKey(format);
   const cached = formatters.get(key);
   if (cached) return cached;
   if (formatters.size >= FORMATTER_CACHE_LIMIT) formatters.clear();
@@ -114,11 +129,12 @@ function StripValue({ label, value, unit, href }: StatStripItem): ReactNode {
       {unit && <span className="ml-0.5 font-normal text-muted-foreground">{unit}</span>}
     </>
   );
-  if (!hasDestination(href)) return text;
+  const destination = destinationOf(href);
+  if (destination === null) return text;
 
   // A bare number makes a poor link name out of context, so the label rides along for readers.
   return (
-    <Link href={href} prefetch={false} className="underline-offset-4 hover:underline">
+    <Link href={destination} prefetch={false} className="underline-offset-4 hover:underline">
       {text}
       <SrOnlyWords>{label}</SrOnlyWords>
     </Link>
