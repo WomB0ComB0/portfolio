@@ -20,23 +20,33 @@ import { motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
+import { DURATION_MS, EASE, prefersReducedMotion, seconds } from '@/lib/design/motion';
 
 type PageEnterProps = Readonly<{ children: React.ReactNode }>;
 
 /** Where a client-mounted page starts. Opacity only: no slide, so nothing shifts the layout. */
 const HIDDEN = { opacity: 0 } as const;
 const SHOWN = { opacity: 1 } as const;
-const FADE = { duration: 0.15, ease: 'easeOut' } as const;
+const FADE = { duration: seconds(DURATION_MS.fast), ease: EASE.outExpo } as const;
 
 /**
- * One page's fade-in. It captures at mount whether it is server HTML (or its hydration), which
- * renders in its final state, so the page is visible before and without JavaScript; a frame
- * mounted by a client navigation starts hidden and fades in.
+ * Whether a frame mounting now starts hidden. Server HTML (and its hydration) renders in its final
+ * state, so the page is visible before and without JavaScript. Reduced motion skips the fade too:
+ * the app's MotionConfig reducedMotion="user" stops transforms but still plays opacity.
+ */
+const startsHidden = (isServerHtml: boolean): boolean => !isServerHtml && !prefersReducedMotion();
+
+/**
+ * One page's fade-in. It captures at mount whether it is server HTML (or its hydration); a frame
+ * mounted by a client navigation starts hidden and fades in, unless the visitor asked for
+ * reduced motion.
  */
 const PageEnterFrame = ({ children }: PageEnterProps) => {
   const isServerHtml = useIsServerHtmlRender();
   // Fixed at mount: the store reads false right after hydration, which must not start the fade.
-  const [initial] = useState<false | typeof HIDDEN>(isServerHtml ? false : HIDDEN);
+  const [initial] = useState<false | typeof HIDDEN>(() =>
+    startsHidden(isServerHtml) ? HIDDEN : false,
+  );
 
   return (
     <motion.div initial={initial} animate={SHOWN} transition={FADE}>

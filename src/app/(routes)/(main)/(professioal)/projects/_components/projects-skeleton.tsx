@@ -47,9 +47,16 @@ export function ProjectsPageFrame({ children }: { children: ReactNode }): JSX.El
   );
 }
 
+/**
+ * FilterBar's outer box, repeated from filter-bar.tsx because a server file cannot import a
+ * constant from that client module (it would arrive as a client reference). Static below lg and
+ * sticky from lg, as there; filter-bar-sticky.test.tsx checks the two match.
+ */
+const FILTER_BAR_FRAME_CLASS = 'relative -mx-4 px-4 md:mx-0 md:px-0 lg:sticky lg:top-4 lg:z-30';
+
 /** The filter bar's box: a search field and two menus, as tall as the real ones. */
 const FilterBarSkeleton = (): JSX.Element => (
-  <div className="sticky top-24 z-30 -mx-4 px-4 md:mx-0 md:px-0">
+  <div className={FILTER_BAR_FRAME_CLASS}>
     <div className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-lg shadow-black/5">
       <div className="flex flex-col lg:flex-row gap-2">
         <div className={`flex-1 h-10 rounded-xl ${PULSE}`} />

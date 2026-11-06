@@ -25,17 +25,28 @@ import type * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Badge classes in the console language. Focus uses the global :focus-visible outline.
+ *
+ * The status variants (live, ongoing, down, info) fill with the translucent `--<tone>-tint`
+ * tokens, not `bg-<tone>/12`: Tailwind's fallback for browsers without color-mix() would paint
+ * that at full strength behind the text. Like every status colour, a status badge always shows
+ * a word, never colour alone. Each class is a literal so Tailwind's scanner sees it.
+ */
 const badgeVariants = cva(
-  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-colors',
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
-        secondary:
-          'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        default: 'border-transparent bg-brand-subtle text-brand-ink',
+        secondary: 'border-transparent bg-surface-3 text-foreground',
         destructive:
           'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
-        outline: 'text-foreground',
+        outline: 'border-hairline text-muted-foreground',
+        live: 'border-transparent bg-live-tint text-live',
+        ongoing: 'border-transparent bg-ongoing-tint text-ongoing',
+        down: 'border-transparent bg-down-tint text-down',
+        info: 'border-transparent bg-info-tint text-info',
       },
     },
     defaultVariants: {

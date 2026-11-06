@@ -21,8 +21,8 @@ import Link from 'next/link';
 import type React from 'react';
 import { memo, type RefObject, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FiCommand, FiHome, FiX } from 'react-icons/fi';
-import { Button } from '@/components/ui/button';
+import { FiCommand, FiX } from 'react-icons/fi';
+import { DURATION_MS, EASE, seconds } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import type { MobileMenuOverlayProps } from './mobile-menu-overlay.types';
 import { HOME_NAV_ITEM, NAV_GROUPS, type NavGroupData, type NavItem } from './nav';
@@ -42,8 +42,21 @@ export const MOBILE_MENU_TITLE = 'Site menu';
 
 const MOBILE_MENU_TITLE_ID = 'mobile-menu-title';
 
-/** Seconds between each section's entrance. */
-const SECTION_STAGGER_S = 0.05;
+/** Menu icons, in rem so they follow the browser's font size. */
+const ITEM_ICON_SIZE = '1rem';
+const SECTION_ICON_SIZE = '0.875rem';
+const CLOSE_ICON_SIZE = '1.125rem';
+
+/** Every row in the menu, links and the command menu button alike: at least a 44 px target. */
+const MENU_ITEM =
+  'flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body-sm transition-colors duration-(--motion-fast) ease-standard';
+const MENU_ITEM_IDLE = 'text-foreground hover:bg-surface-3';
+const MENU_ITEM_CURRENT = 'bg-brand-subtle font-medium text-brand-ink';
+
+/** The sheet rises this far as it fades in, in px. */
+const SHEET_OFFSET_PX = 24;
+const BACKDROP_TRANSITION = { duration: seconds(DURATION_MS.fast), ease: EASE.outExpo } as const;
+const SHEET_TRANSITION = { duration: seconds(DURATION_MS.base), ease: EASE.outExpo } as const;
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -148,49 +161,33 @@ interface MobileNavLinkProps {
   readonly onNavigate: () => void;
 }
 
+/** A page row: the current page is a brand-subtle fill with brand-ink text. */
 const MobileNavLink = ({ item, isCurrent, onNavigate }: MobileNavLinkProps) => (
-  <Button
-    asChild
-    variant="ghost"
-    className={cn(
-      'w-full h-auto min-h-11 flex items-center justify-start gap-3 text-sm py-3 px-4 rounded-md',
-      isCurrent
-        ? 'bg-primary/10 font-medium text-foreground'
-        : 'hover:bg-accent/40 text-foreground',
-    )}
+  <Link
+    href={item.slug}
     onClick={onNavigate}
+    aria-current={isCurrent ? 'page' : undefined}
+    className={cn(MENU_ITEM, isCurrent ? MENU_ITEM_CURRENT : MENU_ITEM_IDLE)}
   >
-    <Link href={item.slug} aria-current={isCurrent ? 'page' : undefined}>
-      <item.icon size="1rem" aria-hidden />
-      <span>{item.name}</span>
-    </Link>
-  </Button>
+    <item.icon size={ITEM_ICON_SIZE} className="shrink-0" aria-hidden />
+    <span>{item.name}</span>
+  </Link>
 );
 
 export interface MobileNavSectionProps {
   readonly group: NavGroupData;
   readonly pathname: string;
   readonly onNavigate: () => void;
-  /** Position among the sections, which staggers their entrance. */
-  readonly order: number;
 }
 
 /** One nav group in the mobile menu: its heading and every page in it, always listed. */
-export const MobileNavSection = ({ group, pathname, onNavigate, order }: MobileNavSectionProps) => {
+export const MobileNavSection = ({ group, pathname, onNavigate }: MobileNavSectionProps) => {
   const headingId = `mobile-nav-${group.id}`;
   const Icon = group.icon;
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: (order + 1) * SECTION_STAGGER_S }}
-      className="pt-3"
-    >
-      <h3
-        id={headingId}
-        className="flex items-center gap-2 px-4 pb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-      >
-        <Icon size="0.875rem" aria-hidden />
+    <div className="pt-4">
+      <h3 id={headingId} className="label-mono flex items-center gap-2 px-3 pb-1.5 text-faint">
+        <Icon size={SECTION_ICON_SIZE} aria-hidden />
         {group.label}
       </h3>
       <ul aria-labelledby={headingId} className="grid gap-1 sm:grid-cols-2">
@@ -200,58 +197,7 @@ export const MobileNavSection = ({ group, pathname, onNavigate, order }: MobileN
           </li>
         ))}
       </ul>
-    </motion.div>
-  );
-};
-
-interface MobileHomeLinkProps {
-  readonly item: NavItem;
-  readonly pathname: string;
-  readonly onNavigate: () => void;
-}
-
-const MobileHomeLink = ({ item, pathname, onNavigate }: MobileHomeLinkProps) => {
-  const isCurrent = pathname === item.slug;
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: SECTION_STAGGER_S }}
-    >
-      <Button
-        asChild
-        variant="ghost"
-        className={cn(
-          'w-full flex items-center justify-start gap-3 text-base py-3 px-4 rounded-lg transition-all',
-          isCurrent
-            ? // Override the ghost variant's hover:bg-accent, which would put the dark
-              // primary-foreground label on the accent surface (about 2:1).
-              'bg-primary/95 text-primary-foreground hover:bg-primary/95 hover:text-primary-foreground'
-            : 'hover:bg-accent',
-        )}
-        onClick={onNavigate}
-      >
-        <Link
-          href={item.slug}
-          className="flex items-center gap-3 w-full"
-          aria-current={isCurrent ? 'page' : undefined}
-        >
-          <div
-            className={cn(
-              'w-9 h-9 flex items-center justify-center rounded-md',
-              isCurrent ? 'bg-primary-foreground/20' : 'bg-primary/8',
-            )}
-          >
-            <FiHome size="1.05rem" aria-hidden />
-          </div>
-          <span
-            className={cn('font-medium', isCurrent ? 'text-primary-foreground' : 'text-foreground')}
-          >
-            {item.name}
-          </span>
-        </Link>
-      </Button>
-    </motion.div>
+    </div>
   );
 };
 
@@ -277,78 +223,70 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-9998 bg-black/60 backdrop-blur-sm"
+          transition={BACKDROP_TRANSITION}
+          className="fixed inset-0 z-9998 bg-canvas/70 backdrop-blur-sm"
           onClick={onClose}
         />
 
         <motion.div
           ref={dialogRef}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: SHEET_OFFSET_PX }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.25, type: 'spring' as const, damping: 25, stiffness: 300 }}
-          className="fixed inset-x-0 bottom-0 z-9999 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-card shadow-2xl"
+          exit={{ opacity: 0, y: SHEET_OFFSET_PX }}
+          transition={SHEET_TRANSITION}
+          className="fixed inset-x-0 bottom-0 z-9999 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-tile border-t border-hairline bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-raised"
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={MOBILE_MENU_TITLE_ID}
           id={MOBILE_MENU_DIALOG_ID}
         >
-          <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-border bg-linear-to-b from-card/80 to-card/60 backdrop-blur-md">
-            <h2 id={MOBILE_MENU_TITLE_ID} className="font-semibold text-lg text-foreground">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-hairline bg-surface-1/90 py-3 pr-3 pl-6 backdrop-blur-md">
+            <h2 id={MOBILE_MENU_TITLE_ID} className="text-body font-semibold text-foreground">
               {MOBILE_MENU_TITLE}
             </h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-9 w-9"
+            <button
+              type="button"
+              className="inline-flex size-11 items-center justify-center rounded-full border border-hairline bg-surface-2 text-muted-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-3 hover:text-foreground"
               onClick={onClose}
               aria-label="Close menu"
             >
-              <FiX size="1.25rem" aria-hidden />
-            </Button>
+              <FiX size={CLOSE_ICON_SIZE} aria-hidden />
+            </button>
           </div>
 
-          <nav className="p-4 pb-8 space-y-1.5" aria-label="Site pages">
+          <nav className="px-3 pt-3 pb-6" aria-label="Site pages">
             {HOME_NAV_ITEM && (
-              <MobileHomeLink item={HOME_NAV_ITEM} pathname={pathname} onNavigate={onClose} />
+              <MobileNavLink
+                item={HOME_NAV_ITEM}
+                isCurrent={pathname === HOME_NAV_ITEM.slug}
+                onNavigate={onClose}
+              />
             )}
 
-            {NAV_GROUPS.map((group, index) => (
+            {NAV_GROUPS.map((group) => (
               <MobileNavSection
                 key={group.id}
                 group={group}
                 pathname={pathname}
                 onNavigate={onClose}
-                order={index + 1}
               />
             ))}
 
-            <div className="py-2">
-              <div className="border-t border-border/60" />
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: (NAV_GROUPS.length + 2) * SECTION_STAGGER_S }}
-            >
-              <Button
-                variant="ghost"
-                className="w-full flex items-center justify-start gap-3 text-base py-3 px-4 rounded-lg hover:bg-accent transition-all"
+            <div className="mt-4 border-t border-hairline pt-3">
+              <button
+                type="button"
+                className={cn(MENU_ITEM, MENU_ITEM_IDLE)}
                 onClick={() => {
                   query.toggle();
                   onClose();
                 }}
                 aria-label="Open command menu"
               >
-                <div className="w-9 h-9 flex items-center justify-center rounded-md bg-primary/8">
-                  <FiCommand size="1.05rem" className="text-foreground" aria-hidden />
-                </div>
-                <span className="font-medium text-foreground">Command Menu</span>
-              </Button>
-            </motion.div>
+                <FiCommand size={ITEM_ICON_SIZE} className="shrink-0" aria-hidden />
+                <span>Command menu</span>
+              </button>
+            </div>
           </nav>
         </motion.div>
       </AnimatePresence>

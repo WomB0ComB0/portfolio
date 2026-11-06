@@ -107,9 +107,31 @@ const SectionHeading = ({
   </div>
 );
 
+/**
+ * The hero: 60vh, held between 450 and 650 px. Its height is a variable so the screenshot inside
+ * can size itself to it.
+ */
+const HERO_CLASS =
+  'relative w-full h-(--hero-h) [--hero-h:clamp(450px,60vh,650px)] flex items-center justify-center overflow-hidden';
+
+/**
+ * The screenshot's 16:9 frame: as wide as 80% of the hero and max-w-4xl (56rem) allow, and never
+ * so wide that it is taller than the hero minus 6rem, so 3rem stays free above and below it. In
+ * the 1200 px column a plain 80% made it 504 px tall, more than a laptop's 450 px hero, and its
+ * top and bottom were cut off.
+ */
+const SCREENSHOT_FRAME_CLASS =
+  'relative w-[min(80%,56rem,(var(--hero-h)-6rem)*16/9)] aspect-video rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10';
+
+/**
+ * The cards below the hero. They rise 2rem into it, within the 3rem the screenshot always leaves
+ * free, so the opaque summary card never covers the image; -mt-24 hid its bottom 96 px.
+ */
+const BODY_CLASS = 'container mx-auto px-4 -mt-8 relative z-10 pb-24';
+
 /** The image, over a blurred, faded copy of itself. */
 const ProjectHero = ({ project }: ProjectDetailProps): JSX.Element => (
-  <div className="relative w-full h-[60vh] min-h-[450px] max-h-[650px] flex items-center justify-center overflow-hidden">
+  <div className={HERO_CLASS}>
     {project.image && (
       <>
         <Image
@@ -127,7 +149,7 @@ const ProjectHero = ({ project }: ProjectDetailProps): JSX.Element => (
       </>
     )}
 
-    <div className="relative w-[80%] max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+    <div className={SCREENSHOT_FRAME_CLASS}>
       {project.image ? (
         <Image
           src={imageUrl(project.image)}
@@ -288,7 +310,7 @@ export function ProjectDetail({ project }: ProjectDetailProps): JSX.Element {
     <>
       <ProjectHero project={project} />
 
-      <div className="container mx-auto px-4 -mt-24 relative z-10 pb-24">
+      <div className={BODY_CLASS}>
         <div className="max-w-5xl mx-auto space-y-8">
           <ProjectSummary project={project} />
 

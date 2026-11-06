@@ -19,7 +19,9 @@
  *
  * `--primary-foreground` is a near-black text colour meant for primary backgrounds. Text that
  * switches to it on hover without a primary background, or keeps it while the background
- * switches to the accent surface, ends up dark on dark.
+ * switches to another surface, ends up dark on dark. The mobile menu's current page is a
+ * brand-subtle fill with brand-ink text (tested at 4.5:1 in token-contrast.test.ts), which no
+ * hover changes; other pages keep the light foreground on the surface-3 hover.
  */
 
 import { render, screen, within } from '@testing-library/react';
@@ -60,23 +62,32 @@ const renderOverlay = (pathname: string) =>
 const homeNavLink = (): HTMLElement =>
   within(screen.getByRole('navigation')).getByRole('link', { name: 'Home' });
 
+/** Every class on the element and its descendants. */
+const classesWithin = (element: HTMLElement): string[] =>
+  [element, ...element.querySelectorAll('*')].flatMap((node) =>
+    (node.getAttribute('class') ?? '').split(/\s+/).filter(Boolean),
+  );
+
 describe('MobileMenuOverlay Home item', () => {
-  it('keeps the primary background on hover while Home is the current page', () => {
+  it('marks Home with brand-ink on brand-subtle while it is the current page, with no hover swap', () => {
     renderOverlay('/');
 
     const link = homeNavLink();
-    expect(link).toHaveClass('bg-primary/95', 'hover:bg-primary/95', 'text-primary-foreground');
-    expect(link).not.toHaveClass('hover:bg-accent');
-    expect(within(link).getByText('Home')).toHaveClass('text-primary-foreground');
+    expect(link).toHaveClass('bg-brand-subtle', 'text-brand-ink');
+    expect(link).not.toHaveClass('bg-primary/95');
+    const classes = classesWithin(link);
+    expect(classes.filter((name) => name.startsWith('hover:'))).toEqual([]);
+    expect(classes.filter((name) => name.includes('primary-foreground'))).toEqual([]);
   });
 
-  it('uses the accent hover and light label on other pages', () => {
+  it('uses the surface-3 hover and the light foreground on other pages', () => {
     renderOverlay('/projects');
 
     const link = homeNavLink();
-    expect(link).toHaveClass('hover:bg-accent');
+    expect(link).toHaveClass('hover:bg-surface-3', 'text-foreground');
     expect(link).not.toHaveClass('bg-primary/95');
-    expect(within(link).getByText('Home')).toHaveClass('text-foreground');
+    expect(link).not.toHaveClass('bg-brand-subtle');
+    expect(classesWithin(link).filter((name) => name.includes('primary-foreground'))).toEqual([]);
   });
 });
 

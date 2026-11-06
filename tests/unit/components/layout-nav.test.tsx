@@ -19,7 +19,8 @@
  *
  * jsdom applies no Tailwind CSS, so this checks the class contract: the sidebar and the bottom
  * bar switch at the same breakpoint, the hidden one uses display:none (never sr-only, which
- * leaves invisible links in the tab order), and the bar's bottom padding switches with it.
+ * leaves invisible links in the tab order), and the column that holds the page and the footer
+ * clears the bottom bar exactly while it shows.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -28,9 +29,9 @@ import { describe, expect, it, vi } from 'vitest';
 import Layout from '@/components/layout/layout';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/stats' }));
-// The command palette and background effect are not under test.
+// The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
-vi.mock('@/components/magicui/light-rays', () => ({ LightRays: () => null }));
+vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
 // layout.tsx imports the navs and footer from its own barrel.
 vi.mock('@/components/layout', () => ({
   NavBar: () => <nav aria-label="Main navigation" />,
@@ -38,24 +39,29 @@ vi.mock('@/components/layout', () => ({
   Footer: () => <footer />,
 }));
 
+/**
+ * The bottom bar's full height (--mobile-bar-h above the safe-area inset), the one custom property
+ * the bar's height reads too (tests/unit/h2-chrome/mobile-bar-clearance.test.tsx).
+ */
+const BOTTOM_BAR_CLEARANCE = 'pb-(--mobile-bar-total)';
+
 const classesOf = (element: Element | null): string[] =>
   (element?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 
 const renderShell = () => {
-  render(
+  const { container } = render(
     <Layout>
       <p>Page content</p>
     </Layout>,
   );
   const sidebar = screen.getByRole('navigation', { name: 'Main navigation' }).parentElement;
   const bottomBar = screen.getByRole('navigation', { name: 'Mobile navigation' }).parentElement;
-  const content = screen.getByText('Page content').parentElement;
-  const footerWrapper = screen.getByRole('contentinfo').parentElement;
+  const column = screen.getByRole('main').parentElement;
   return {
+    container,
     sidebar: classesOf(sidebar),
     bottomBar: classesOf(bottomBar),
-    content: classesOf(content),
-    footerWrapper: classesOf(footerWrapper),
+    column,
   };
 };
 
@@ -77,11 +83,15 @@ describe('Layout navigation', () => {
   });
 
   it('keeps the content and the footer clear of the bottom bar exactly while it shows', () => {
-    const { content, footerWrapper } = renderShell();
+    const { container, column } = renderShell();
+    const classes = classesOf(column);
 
-    for (const classes of [content, footerWrapper]) {
-      expect(classes).toEqual(expect.arrayContaining(['pb-16', 'lg:pb-0']));
-      expect(classes).not.toContain('md:pb-0');
-    }
+    // One clearance, on the column beside the rail: the bar's full height, including the
+    // home-indicator inset the bar adds below its controls.
+    expect(classes).toEqual(expect.arrayContaining([BOTTOM_BAR_CLEARANCE, 'lg:pb-0']));
+    expect(classes).not.toContain('md:pb-0');
+    expect(column).toContainElement(screen.getByRole('contentinfo'));
+    // The old fixed pb-16 pairs (main and its wrapper) are gone, so nothing stacks a second gap.
+    expect(container.querySelectorAll('[class~="pb-16"]')).toHaveLength(0);
   });
 });

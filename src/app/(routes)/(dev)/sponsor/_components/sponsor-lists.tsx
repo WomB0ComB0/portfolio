@@ -123,7 +123,9 @@ function CurrentSponsorsList({
     <div className="space-y-6">
       {totalMonthlyIncome > 0 && (
         <div className="flex items-center justify-center">
-          <MagicCard className="bg-primary/5 border-primary/20">
+          {/* hover:border-primary/20 keeps MagicCard's hover:border-hairline-strong from turning
+              this card's brand border grey on hover; the card is not a link. */}
+          <MagicCard className="bg-primary/5 border-primary/20 hover:border-primary/20">
             <CardContent className="p-6 text-center">
               <p className="text-sm text-muted-foreground mb-2">Monthly Support</p>
               <p className="text-3xl font-bold text-primary">${totalMonthlyIncome}</p>

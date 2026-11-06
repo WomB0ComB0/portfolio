@@ -22,8 +22,9 @@ import Link from 'next/link';
 import { memo, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { IconType } from 'react-icons';
 import { FiBriefcase, FiCode, FiCommand, FiHome, FiShield, FiUser } from 'react-icons/fi';
-import { Button } from '@/components/ui/button';
+import { usePaletteShortcut } from '@/components/cmd';
 import { NavbarItems } from '@/constants/index';
+import { DURATION_MS, EASE, seconds } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 
 export type NavGroupId = 'professional' | 'developer' | 'personal' | 'legal';
@@ -46,9 +47,6 @@ interface NavGroupDefinition extends Omit<NavGroupData, 'items'> {
 }
 
 const HOME_SLUG = '/';
-
-/** Seconds between each flyout link's entrance. */
-const FLYOUT_STAGGER_S = 0.03;
 
 /** The groups in display order, and the routes each one holds. */
 const GROUP_DEFINITIONS: readonly NavGroupDefinition[] = [
@@ -102,6 +100,43 @@ export const isGroupActive = (group: NavGroupData, path: string): boolean =>
 
 /** The id of a group's flyout panel, which its trigger names in aria-controls. */
 export const navFlyoutId = (id: NavGroupId): string => `nav-flyout-${id}`;
+
+/** Rail icons and flyout icons, in rem so they follow the browser's font size. */
+const RAIL_ICON_SIZE = '1.125rem';
+const FLYOUT_ICON_SIZE = '1rem';
+
+/** Every rail button and link: a 44 px target. */
+const RAIL_ITEM =
+  'relative inline-flex size-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-(--motion-fast) ease-standard';
+
+/** A rail item that is neither the current page's nor open. */
+const RAIL_ITEM_IDLE = 'text-muted-foreground hover:bg-surface-2 hover:text-foreground';
+
+/** A group trigger whose flyout is open while the current page is elsewhere. */
+const RAIL_ITEM_OPEN = 'bg-surface-2 text-foreground';
+
+/**
+ * The current page's rail item: a raised fill and a 2 px brand bar on the rail's left edge. The
+ * nav's px-2 plus the 2 px left over around the 44 px item put that edge 10 px (left-2.5) away.
+ */
+const RAIL_ITEM_CURRENT =
+  'bg-surface-3 text-foreground before:absolute before:-left-2.5 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-brand';
+
+const railItemState = (isCurrent: boolean, isOpen = false): string => {
+  if (isCurrent) return RAIL_ITEM_CURRENT;
+  return isOpen ? RAIL_ITEM_OPEN : RAIL_ITEM_IDLE;
+};
+
+const FLYOUT_LINK =
+  'flex items-center gap-3 rounded-md px-2.5 py-2 text-body-sm transition-colors duration-(--motion-fast) ease-standard';
+const FLYOUT_LINK_IDLE = 'text-foreground hover:bg-surface-3';
+const FLYOUT_LINK_CURRENT = 'bg-brand-subtle font-medium text-brand-ink';
+
+/** A flyout slides this far in from the rail as it fades in, in px. */
+const FLYOUT_OFFSET_PX = -6;
+const FLYOUT_HIDDEN = { opacity: 0, x: FLYOUT_OFFSET_PX } as const;
+const FLYOUT_SHOWN = { opacity: 1, x: 0 } as const;
+const FLYOUT_TRANSITION = { duration: seconds(DURATION_MS.fast), ease: EASE.outExpo } as const;
 
 interface FlyoutDismissOptions {
   readonly isOpen: boolean;
@@ -162,24 +197,15 @@ interface NavFlyoutLinkProps {
 }
 
 const NavFlyoutLink = ({ item, isCurrent, onNavigate }: NavFlyoutLinkProps) => (
-  <Button
-    asChild
-    variant="ghost"
-    className={cn(
-      'w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
-      isCurrent ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-accent/50 text-foreground',
-    )}
+  <Link
+    href={item.slug}
     onClick={onNavigate}
+    aria-current={isCurrent ? 'page' : undefined}
+    className={cn(FLYOUT_LINK, isCurrent ? FLYOUT_LINK_CURRENT : FLYOUT_LINK_IDLE)}
   >
-    <Link
-      href={item.slug}
-      className="flex items-center gap-3"
-      aria-current={isCurrent ? 'page' : undefined}
-    >
-      <item.icon size="1.1rem" aria-hidden />
-      <span className="text-sm">{item.name}</span>
-    </Link>
-  </Button>
+    <item.icon size={FLYOUT_ICON_SIZE} className="shrink-0" aria-hidden />
+    <span>{item.name}</span>
+  </Link>
 );
 
 export interface NavGroupProps {
@@ -205,65 +231,39 @@ export const NavGroup = memo(({ group, path, isOpen, onToggle, onClose }: NavGro
   const Icon = group.icon;
 
   return (
-    <div ref={containerRef} className="relative w-full flex flex-col items-center">
-      <Button
+    <div ref={containerRef} className="relative flex w-full flex-col items-center">
+      <button
         ref={triggerRef}
-        variant="ghost"
-        size="icon"
+        type="button"
         onClick={() => onToggle(group.id)}
-        className={cn(
-          'w-11 h-11 rounded-xl transition-all duration-200 relative group',
-          isActive || isOpen
-            ? 'bg-accent text-foreground shadow-sm'
-            : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
-        )}
+        className={cn(RAIL_ITEM, railItemState(isActive, isOpen))}
         aria-label={`${group.label} section`}
         aria-expanded={isOpen}
         aria-controls={panelId}
       >
-        <Icon size="1.25rem" strokeWidth={isActive ? 2.5 : 2} aria-hidden />
-        {isActive && (
-          <span
-            aria-hidden
-            className="absolute -right-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full"
-          />
-        )}
-      </Button>
+        <Icon size={RAIL_ICON_SIZE} strokeWidth={isActive ? 2.5 : 2} aria-hidden />
+      </button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
             id={panelId}
-            initial={{ opacity: 0, x: -10, scale: 0.95 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -10, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-full ml-3 top-0 z-50 min-w-[200px] bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden"
+            initial={FLYOUT_HIDDEN}
+            animate={FLYOUT_SHOWN}
+            exit={FLYOUT_HIDDEN}
+            transition={FLYOUT_TRANSITION}
+            className="absolute top-0 left-full z-50 ml-4 min-w-52 rounded-tile border border-hairline bg-surface-2 p-1.5 shadow-raised"
           >
-            <div className="p-2 flex flex-col gap-1">
-              <div
-                id={labelId}
-                className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-              >
-                {group.label}
-              </div>
-              <ul aria-labelledby={labelId} className="flex flex-col gap-1">
-                {group.items.map((item, index) => (
-                  <motion.li
-                    key={item.slug}
-                    initial={{ opacity: 0, x: -5 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * FLYOUT_STAGGER_S }}
-                  >
-                    <NavFlyoutLink
-                      item={item}
-                      isCurrent={path === item.slug}
-                      onNavigate={onClose}
-                    />
-                  </motion.li>
-                ))}
-              </ul>
+            <div id={labelId} className="label-mono px-2.5 pt-2 pb-1 text-faint">
+              {group.label}
             </div>
+            <ul aria-labelledby={labelId} className="flex flex-col gap-0.5">
+              {group.items.map((item) => (
+                <li key={item.slug}>
+                  <NavFlyoutLink item={item} isCurrent={path === item.slug} onNavigate={onClose} />
+                </li>
+              ))}
+            </ul>
           </motion.div>
         )}
       </AnimatePresence>
@@ -275,23 +275,40 @@ NavGroup.displayName = 'NavGroup';
 const HomeRailLink = ({ item, path }: { readonly item: NavItem; readonly path: string }) => {
   const isCurrent = path === item.slug;
   return (
-    <Button
-      asChild
-      variant="ghost"
-      size="icon"
-      className={cn(
-        'w-11 h-11 rounded-xl transition-all duration-200 relative group',
-        isCurrent
-          ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90'
-          : 'hover:bg-accent/70 text-muted-foreground hover:text-foreground',
-      )}
+    <Link
+      href={item.slug}
+      className={cn(RAIL_ITEM, railItemState(isCurrent))}
       aria-label={item.name}
       aria-current={isCurrent ? 'page' : undefined}
     >
-      <Link href={item.slug}>
-        <FiHome size="1.25rem" strokeWidth={isCurrent ? 2.5 : 2} aria-hidden />
-      </Link>
-    </Button>
+      <FiHome size={RAIL_ICON_SIZE} strokeWidth={isCurrent ? 2.5 : 2} aria-hidden />
+    </Link>
+  );
+};
+
+/**
+ * Opens the command palette. A tooltip beside the rail names it and its shortcut on hover and on
+ * keyboard focus; aria-keyshortcuts gives assistive tech the same shortcut.
+ */
+const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
+  const shortcut = usePaletteShortcut();
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(RAIL_ITEM, RAIL_ITEM_IDLE, 'group/palette')}
+      aria-label="Open command menu"
+      aria-keyshortcuts={shortcut.keys}
+    >
+      <FiCommand size={RAIL_ICON_SIZE} aria-hidden />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 left-full z-50 ml-4 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-md border border-hairline bg-surface-2 px-2.5 py-1.5 text-body-sm text-foreground opacity-0 shadow-raised transition-opacity duration-(--motion-fast) ease-standard group-hover/palette:opacity-100 group-focus-visible/palette:opacity-100"
+      >
+        Command menu
+        <kbd className="font-mono text-label text-muted-foreground">{shortcut.label}</kbd>
+      </span>
+    </button>
   );
 };
 
@@ -321,8 +338,8 @@ export const NavBar = memo(({ path }: { path: string }) => {
   }, [isPaletteShown, closeGroups]);
 
   return (
-    <div className="w-16 h-full flex flex-col items-center py-6 gap-3 border-r border-border/30">
-      <nav className="flex flex-col items-center gap-2 w-full px-2" aria-label="Main navigation">
+    <div className="flex h-full w-16 flex-col items-center gap-3 border-r border-hairline bg-canvas/80 py-6 backdrop-blur-md">
+      <nav className="flex w-full flex-col items-center gap-2 px-2" aria-label="Main navigation">
         {HOME_NAV_ITEM && <HomeRailLink item={HOME_NAV_ITEM} path={path} />}
 
         {NAV_GROUPS.map((group) => (
@@ -336,17 +353,9 @@ export const NavBar = memo(({ path }: { path: string }) => {
           />
         ))}
 
-        <div className="w-8 h-px bg-border/50 my-1" />
+        <div aria-hidden="true" className="my-1 h-px w-8 bg-hairline" />
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-11 h-11 rounded-xl hover:bg-accent/70 text-muted-foreground hover:text-foreground transition-all duration-200"
-          onClick={query.toggle}
-          aria-label="Open command menu"
-        >
-          <FiCommand size="1.25rem" aria-hidden />
-        </Button>
+        <PaletteRailButton onOpen={query.toggle} />
       </nav>
     </div>
   );

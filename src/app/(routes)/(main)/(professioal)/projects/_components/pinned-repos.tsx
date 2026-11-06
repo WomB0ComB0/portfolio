@@ -115,8 +115,11 @@ export const PinnedRepos = ({ pinnedRepos, isLoading = false }: PinnedReposProps
                         </Tooltip>
                       </TooltipProvider>
                     </div>
+                    {/* The default badge's opaque brand-subtle fill and brand-ink text, not the
+                        outline variant on bg-primary/30: that left muted text on a translucent
+                        brand fill, which turns solid brand where color-mix() is missing. */}
                     {repo.primaryLanguage && (
-                      <Badge variant="outline" className="text-xs bg-primary/30 border-primary">
+                      <Badge className="text-xs">
                         <Code2 className="h-3 w-3 mr-1" />
                         {repo.primaryLanguage.name}
                       </Badge>

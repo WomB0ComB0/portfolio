@@ -49,8 +49,18 @@ const CONSOLE_TEXT = [
   'info',
 ] as const;
 
+/** The status colours; each has a translucent `--<tone>-tint` badge fill. */
+const STATUS_TONES = ['live', 'ongoing', 'down', 'info'] as const;
+
 /** Linear-light sRGB channels, nominally 0..1. */
 type LinearRgb = readonly [number, number, number];
+
+/** A translucent `oklch(L C H / A%)` token split into its opaque colour and its alpha (0..1). */
+function splitAlpha(value: string): { readonly opaque: string; readonly alpha: number } {
+  const match = /^(oklch\([^/]+?)\s*\/\s*([\d.]+)%\)$/.exec(value);
+  if (!match) throw new Error(`not a translucent oklch value: ${value}`);
+  return { opaque: `${match[1]})`, alpha: Number(match[2]) / 100 };
+}
 
 /** Returns the custom properties declared in the first `:root { ... }` block. */
 function rootTokens(css: string): Map<string, string> {
@@ -218,6 +228,29 @@ describe('colour token contrast (globals.css :root)', () => {
       AA_NORMAL_TEXT,
     );
   });
+
+  /** A status badge's fill: the `--<tone>-tint` token composited over an opaque surface. */
+  const tintOver = (tone: string, surface: string): LinearRgb => {
+    const value = tokens.get(`${tone}-tint`);
+    if (!value) throw new Error(`--${tone}-tint is not declared in :root`);
+    const { opaque, alpha } = splitAlpha(value);
+    return composite(clip(oklchToLinearSrgb(opaque)), alpha, color(surface));
+  };
+
+  const tintPairs = STATUS_TONES.flatMap((tone) =>
+    CONSOLE_SURFACES.map((surface) => [tone, surface] as const),
+  );
+
+  it.each(tintPairs)(
+    'text-%s on its bg-*-tint badge over --%s meets WCAG AA for normal text (4.5:1)',
+    (tone, surface) => {
+      const ratio = contrastRatio(color(tone), tintOver(tone, surface));
+      expect(
+        ratio,
+        `${tone} on ${tone}-tint over ${surface} is ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    },
+  );
 
   it.each(CONSOLE_SURFACES)('the --focus ring meets 3:1 against --%s', (surface) => {
     const ratio = contrastRatio(color('focus'), color(surface));

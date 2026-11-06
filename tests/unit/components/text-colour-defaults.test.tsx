@@ -56,6 +56,18 @@ describe('MagicCard', () => {
     expect(root).not.toHaveClass('text-primary');
   });
 
+  it('sits on the tile surface: a hairline border on surface-1, never a purple border', () => {
+    render(
+      <MagicCard>
+        <p>Tile surface</p>
+      </MagicCard>,
+    );
+
+    const root = cardRoot('Tile surface');
+    expect(root).toHaveClass('border', 'border-hairline', 'bg-surface-1', 'rounded-tile');
+    expect(root?.className).not.toMatch(/\bborder-primary\b|\bbg-primary\b|\bdark:/);
+  });
+
   it('lets a caller override the text colour', () => {
     render(
       <MagicCard className="text-foreground">

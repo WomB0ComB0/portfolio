@@ -19,8 +19,43 @@
 import { usePathname } from 'next/navigation';
 import { MAIN_CONTENT_ID, PageMain } from '@/components/animations/pages/page-transition';
 import Palette from '@/components/cmd';
-import { LightRays } from '@/components/magicui/light-rays';
+import { SpotlightRoot } from '@/components/console/spotlight-root';
 import { Footer, MobileNavBar, NavBar } from '.';
+
+/**
+ * The page canvas. `atmosphere` paints a faint brand light from the top right; its gradient is
+ * positioned in percent of its box, so the box is one viewport tall (100svh, which does not
+ * resize as a phone's URL bar slides) instead of the whole page, where a long page would push the
+ * light above the top edge. overflow-x-clip, unlike hidden, keeps position: sticky working.
+ */
+const ROOT_CLASS = 'relative min-h-dvh overflow-x-clip bg-canvas atmosphere bg-size-[100%_100svh]';
+
+/**
+ * The 64 px rail, from lg up. display:none below lg takes it out of the tab order. z-40 keeps its
+ * flyouts above in-page sticky bars (FilterBar is sticky z-30 from lg; main is no stacking context)
+ * and below every z-50 overlay: the palette, dialogs, sheets and the bottom bar.
+ */
+const RAIL_CLASS = 'fixed inset-y-0 left-0 z-40 hidden w-16 lg:block';
+
+/**
+ * The column beside the rail: main, then the footer. Below lg its bottom padding is the fixed
+ * bottom bar's full height, --mobile-bar-total (globals.css), the one value the bar's own height
+ * reads too, so the end of the footer scrolls clear of the bar.
+ */
+const COLUMN_CLASS = 'flex min-h-dvh flex-col pb-(--mobile-bar-total) lg:pb-0 lg:pl-16';
+
+/**
+ * The page column: at most max-w-shell (75rem), centred in the space beside the rail, and the
+ * `page` container for container queries. No horizontal padding: PageShell and TileGrid apply
+ * --page-gutter themselves, and legacy pages keep their own padding.
+ */
+const MAIN_CLASS = 'relative mx-auto w-full max-w-shell flex-1 @container/page py-6 md:py-10';
+
+/** The bottom bar, below lg only. */
+const BOTTOM_BAR_CLASS = 'fixed inset-x-0 bottom-0 z-50 lg:hidden';
+
+const SKIP_LINK_CLASS =
+  'sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:border focus:border-hairline-strong focus:bg-surface-2 focus:px-4 focus:py-2 focus:font-medium focus:text-foreground focus:shadow-raised focus:outline-2 focus:outline-offset-2 focus:outline-focus';
 
 /**
  * Moves focus and the viewport to the page's `<main>` without a fragment navigation. A native
@@ -40,37 +75,23 @@ const skipToMain = (event: React.MouseEvent<HTMLAnchorElement>): void => {
  * hydration and without JavaScript.
  */
 const SkipToContent = () => (
-  <a
-    href={`#${MAIN_CONTENT_ID}`}
-    onClick={skipToMain}
-    className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:font-semibold focus:text-primary-foreground focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-ring"
-  >
+  <a href={`#${MAIN_CONTENT_ID}`} onClick={skipToMain} className={SKIP_LINK_CLASS}>
     Skip to content
   </a>
 );
 
 /**
- * @function Layout
- * @public
- * @description
- * Provides the core layout structure for all pages within the application. It establishes
- * the visual foundation, global styling, core navigation (side and mobile bars), animated
- * backgrounds/effects, and children content. The component ensures a responsive, visually-rich
- * shell using overlayed SVG/canvas backgrounds, contextual navigation bars, and a global command palette.
+ * The site shell around every page: skip link, command palette, the tile spotlight's pointer
+ * listener, the navs, the one `<main>` and the footer.
  *
- * @param {Readonly<{children: React.ReactNode}>} props - Props object containing the children React nodes to render within the layout.
- *   @param {React.ReactNode} props.children - The main child content for the layout (routed page content).
- * @returns {JSX.Element} A React JSX element composing the full application layout, including navigation, backgrounds, and children.
- * @throws {Error} If required child components fail to render, or if any sub-provider encounters an initialization error.
+ * Exactly one nav shows at every width: the 64 px rail from lg up, the bottom bar below it. Main
+ * and the footer share one column offset by the rail, each at most max-w-shell wide and centred
+ * in it, so the footer sits under the content at every width.
+ *
  * @example
- * // Usage wrapping a page route:
  * <Layout>
  *   <YourPageContent />
  * </Layout>
- * @author Mike Odnis
- * @see https://github.com/WomB0ComB0/portfolio
- * @web
- * @version 2.0.0
  */
 export const Layout = ({
   children,
@@ -79,27 +100,19 @@ export const Layout = ({
 }>) => {
   const pathname = usePathname();
   return (
-    <div className="relative min-h-screen bg-background font-clash">
+    <div className={ROOT_CLASS}>
       <SkipToContent />
-      {/* <ShaderBackground> */}
-      {/* Exactly one nav is shown at every width: the sidebar from lg up, the bottom bar below it.
-          The hidden one uses display:none so it leaves the tab order. The pb-16 pairs here and on
-          the <main> keep the content and the footer clear of the fixed bottom bar. */}
-      <div className="relative z-10 flex flex-col items-center min-h-screen overflow-x-hidden overflow-y-hidden pb-16 lg:pb-0 selection:bg-primary/30">
-        <Palette />
-        <div className="flex w-full h-full lg:w-[60%] md:w-2/3">
-          <header className="w-[6%] fixed left-0 h-full z-20 hidden lg:block">
-            <NavBar path={pathname ?? ''} />
-          </header>
-          {/* The one <main>: page content only, with the navs and the footer outside it. */}
-          <PageMain className="w-full pt-16 lg:pt-0 lg:pl-[6%] relative z-20 pb-16 lg:pb-0">
-            {children}
-          </PageMain>
-        </div>
+      <Palette />
+      <SpotlightRoot />
+      <header className={RAIL_CLASS}>
+        <NavBar path={pathname ?? ''} />
+      </header>
+      <div className={COLUMN_CLASS}>
+        {/* The one <main>: page content only, with the navs and the footer outside it. */}
+        <PageMain className={MAIN_CLASS}>{children}</PageMain>
         <Footer />
-        <LightRays count={5} blur={20} />
       </div>
-      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
+      <div className={BOTTOM_BAR_CLASS}>
         <MobileNavBar path={pathname ?? ''} />
       </div>
     </div>

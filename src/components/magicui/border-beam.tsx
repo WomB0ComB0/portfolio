@@ -49,6 +49,10 @@ import { cn } from '@/lib/utils';
  * @see https://developer.mozilla.org/docs/Web/CSS/--*
  * @see https://developer.mozilla.org/docs/Web/CSS/CSS_Custom_Properties
  * @version 1.0.0
+ * @deprecated It never animates: `after:animate-border-beam` has no keyframes or animation
+ * token in globals.css, so only a static border slice shows. Its default colours (#ffaa40,
+ * #9c40ff) are off the Live Console palette. Use a Tile from '@/components/console' (hairline
+ * border, `hover:border-hairline-strong`) for emphasis instead.
  */
 export const BorderBeam = ({
   className,
