@@ -174,7 +174,9 @@ const config: NextConfig = {
       // Hashnode post covers (cdn.hashnode.com and the blog's generated /api/og/** title cards).
       ...HASHNODE_COVER_PATTERNS,
     ],
-    imageSizes: [16, 20, 24, 32, 40],
+    // Widths for images drawn at a fixed size (`sizes="96px"`), below the smallest deviceSizes
+    // entry (640): without 48-256, the home avatar (96px) and place thumbnail (72px) fetched 640w.
+    imageSizes: [16, 20, 24, 32, 40, 48, 64, 96, 128, 256],
     minimumCacheTTL: 60 * 60 * 24,
     formats: ['image/avif', 'image/webp'], // Modern image formats
     dangerouslyAllowSVG: false, // Prevent SVG XSS attacks

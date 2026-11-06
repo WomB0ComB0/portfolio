@@ -19,7 +19,8 @@
  * @file The server's one Monkeytype source (/stats prefetch and the home page). It decodes the
  * profile leniently (a missing 60 s best still decodes), rejects a reply that does not match,
  * serves the last good profile for an hour, and after a failed reload serves it stale with one
- * Sentry warning. Only fetch, the env and Sentry are faked.
+ * Sentry warning. peekMonkeytypeProfile answers the last profile without asking Monkeytype. Only
+ * fetch, the env and Sentry are faked.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,6 +41,7 @@ import {
   getMonkeytypeProfile,
   MONKEYTYPE_CACHE_TTL_MS,
   MONKEYTYPE_PROFILE_URL,
+  peekMonkeytypeProfile,
   readMonkeytypeProfile,
   resetMonkeytypeCache,
 } from '@/lib/api-integrations/monkeytype';
@@ -183,5 +185,29 @@ describe('Monkeytype server source', () => {
         tags: { 'api.context': 'fetch Monkeytype profile' },
       }),
     );
+  });
+});
+
+describe('peekMonkeytypeProfile', () => {
+  it('is undefined before Monkeytype ever answered, and asks Monkeytype nothing', () => {
+    const fetchMock = stubFetch(() => jsonResponse(profileReply({ '60': [] })));
+
+    expect(peekMonkeytypeProfile()).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('answers the last profile at once while a reload past the TTL is still running', async () => {
+    stubFetch(() => jsonResponse(profileReply({ '60': [{ wpm: 120, acc: 97 }] })));
+    const good = await getMonkeytypeProfile();
+    vi.setSystemTime(T0 + MONKEYTYPE_CACHE_TTL_MS + 1);
+    const hanging = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal('fetch', hanging);
+
+    void readMonkeytypeProfile();
+    await vi.waitFor(() => expect(hanging).toHaveBeenCalledTimes(1));
+
+    expect(peekMonkeytypeProfile()).toEqual({ data: good, loadedAt: T0 });
+    expect(hanging).toHaveBeenCalledTimes(1);
+    expect(sentry.captureException).not.toHaveBeenCalled();
   });
 });

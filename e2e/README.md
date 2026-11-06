@@ -31,6 +31,7 @@ e2e/
 ├── accessibility/        # WCAG accessibility tests
 │   └── a11y.spec.ts      # Keyboard nav, ARIA, semantic HTML
 ├── journeys/             # User journey tests
+│   ├── home-bento.spec.ts
 │   ├── navigation.spec.ts
 │   ├── guestbook.spec.ts
 │   ├── dark-mode.spec.ts
@@ -41,9 +42,11 @@ e2e/
 ├── performance/          # Performance tests
 │   └── perf.spec.ts      # Load times, Core Web Vitals, caching
 ├── seo/                  # SEO tests
-│   └── seo.spec.ts       # Meta tags, OG, structured data
+│   ├── seo.spec.ts       # Meta tags, OG, structured data
+│   └── server-render.spec.ts
 ├── visual/               # Visual regression tests
-│   └── homepage.spec.ts
+│   ├── homepage.spec.ts
+│   └── shell-grid.spec.ts
 ├── fixtures/             # Playwright fixtures
 │   ├── auth.setup.ts     # Auth state setup
 │   └── base.ts           # Extended test fixtures
@@ -56,6 +59,8 @@ e2e/
 
 User journey tests that verify end-to-end flows:
 
+- **home-bento.spec.ts** - Home bento layout at 320 to 1440 px, links, keyboard, motion, console,
+  and the HTML without JavaScript
 - **navigation.spec.ts** - Site navigation, routing, back/forward
 - **guestbook.spec.ts** - Guestbook viewing and posting
 - **dark-mode.spec.ts** - Theme toggle, persistence
@@ -108,6 +113,21 @@ Visual regression and responsive tests:
 - Homepage rendering
 - Responsive design (mobile, tablet, desktop)
 - Content visibility
+
+The screenshot tests in `homepage.spec.ts` are attach-only until baselines are committed: the
+repository has none yet, so each screenshot is attached to the test report for review and compared
+with nothing, and these tests cannot fail on how the page looks. A screenshot is compared once its
+baseline file exists. Create or refresh baselines on purpose, review the diff, then commit the
+`e2e/visual/homepage.spec.ts-snapshots/` folder:
+
+```bash
+UPDATE_VISUAL_BASELINES=1 bunx playwright test e2e/visual/homepage.spec.ts \
+  --project=chromium --update-snapshots
+```
+
+Baselines are per browser project and platform. The screenshots mask what changes on its own: the
+now playing, status and GitHub slots, the footer's status badge, text marked `data-dated` (the last
+place's label and when line, worded from today's date) and any stale tile's 'as of …' line.
 
 ## Running Tests
 

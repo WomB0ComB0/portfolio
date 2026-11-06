@@ -112,6 +112,28 @@ describe('TileLink', () => {
     expect(arrow).toHaveClass('size-3.5');
   });
 
+  // Seen at 1440 px: the 176 px status tile put 'All systems up' on one line and the arrow alone
+  // on the next. A word joiner leaves no break opportunity between the last word and the icon.
+  it('keeps the new-tab arrow on the line of the last word', () => {
+    render(
+      <TileLink href="https://status.mikeodnis.dev" external srSuffix="(service status page)">
+        All systems up
+      </TileLink>,
+    );
+
+    const link = screen.getByRole('link', {
+      name: 'All systems up (service status page) (opens in a new tab)',
+    });
+    const glue = link.querySelector('svg')?.parentElement;
+    expect(glue?.tagName).toBe('SPAN');
+    expect(glue).toHaveClass('whitespace-nowrap');
+    expect(glue).toHaveAttribute('aria-hidden', 'true');
+    // The joiner opens the nowrap span, right after the words: no space between them.
+    expect(glue?.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+    expect(glue?.firstChild?.textContent).toBe('\u2060');
+    expect(glue?.previousSibling?.textContent).toBe('All systems up');
+  });
+
   it.each([
     ['an internal', false, '/places'],
     ['an external', true, 'https://github.com/WomB0ComB0'],

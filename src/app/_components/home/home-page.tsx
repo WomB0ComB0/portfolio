@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,281 +14,242 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
-import { ArrowRight, Award, Briefcase, Code, FileText, Mail, Music } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import type { JSX } from 'react';
-import { FaGithub, FaLinkedin } from 'react-icons/fa';
-import { SiSpotify } from 'react-icons/si';
-import { DotPattern, MagicCard } from '@/components/magicui';
-import { Button } from '@/components/ui/button';
-import { LayoutTextFlip } from '@/components/ui/layout-text-flip';
-import { app } from '@/constants';
-import { get } from '@/lib/http-clients/effect-fetcher';
-import { cn } from '@/lib/utils';
-
-// A new, styled DashboardCard to match your design
-const DashboardCard = ({
-  icon,
-  title,
-  description,
-  href,
-  className,
-  children,
-}: {
-  icon?: JSX.Element;
-  title?: string;
-  description?: string;
-  href?: string;
-  className?: string;
-  children?: React.ReactNode;
-}) => {
-  const card = (
-    <MagicCard
-      className={cn(
-        'group h-full rounded-xl border border-white/10 p-6 transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/10',
-        className,
-      )}
-    >
-      {children || (
-        <div className="flex flex-col justify-between h-full">
-          <div>
-            <div className="mb-4 h-10 w-10 rounded-lg bg-white/5 flex items-center justify-center text-primary">
-              {icon}
-            </div>
-            <h3 className="text-lg font-bold text-white">{title}</h3>
-            <p className="text-sm text-neutral-400 mt-1">{description}</p>
-          </div>
-          {href && (
-            <div className="mt-4 flex items-center text-sm font-medium text-neutral-400 transition-colors duration-300 group-hover:text-primary">
-              Read More <ArrowRight className="ml-2 h-4 w-4" />
-            </div>
-          )}
-        </div>
-      )}
-    </MagicCard>
-  );
-
-  // A card without a destination is not a link, so keyboard users can't tab to a dead "#".
-  return href ? (
-    <Link href={href} className="block h-full">
-      {card}
-    </Link>
-  ) : (
-    <div className="block h-full">{card}</div>
-  );
-};
-
-/** GET /api/v1/now-playing. A failure is a query error (a 500), never `isPlaying: false`. */
-const NowPlayingSchema = Schema.Struct({
-  isPlaying: Schema.Boolean,
-  songName: Schema.optional(Schema.String),
-  artistName: Schema.optional(Schema.String),
-  songURL: Schema.optional(Schema.String),
-  imageURL: Schema.optional(Schema.String),
-});
-
-type NowPlayingData = Schema.Schema.Type<typeof NowPlayingSchema>;
-
-interface NowPlayingTileView {
-  title: string;
-  subtitle: string;
-  /** Only a playing track with a Spotify page makes the tile a link. */
-  href?: string;
-  imageURL?: string;
-  isLive: boolean;
-}
-
-const SPOTIFY_SUBTITLE = 'Spotify';
-
-/** What the tile says in each state of its query. A failure wins over an earlier poll's track. */
-const nowPlayingTileView = (
-  data: NowPlayingData | undefined,
-  isError: boolean,
-): NowPlayingTileView => {
-  if (isError) return { title: 'Spotify unavailable', subtitle: SPOTIFY_SUBTITLE, isLive: false };
-  if (!data) return { title: 'Checking Spotify…', subtitle: SPOTIFY_SUBTITLE, isLive: false };
-  if (!data.isPlaying) {
-    return { title: 'Not Currently Listening', subtitle: SPOTIFY_SUBTITLE, isLive: false };
-  }
-  return {
-    title: data.songName || 'Listening on Spotify',
-    subtitle: data.artistName || SPOTIFY_SUBTITLE,
-    href: data.songURL,
-    imageURL: data.imageURL,
-    isLive: true,
-  };
-};
-
-// NowPlaying card adapted to the new design
-const NowPlayingCard = () => {
-  const { data, isError } = useQuery({
-    queryKey: ['now-playing-homepage'],
-    queryFn: async () => {
-      // TanStack Query's shared default (shouldRetryQuery) is the single retry layer.
-      const effect = pipe(
-        get('/api/v1/now-playing', { schema: NowPlayingSchema, retries: 0, timeout: 5000 }),
-        Effect.provide(FetchHttpClient.layer),
-      );
-      return await Effect.runPromise(effect);
-    },
-    staleTime: 1000 * 30,
-    refetchInterval: 1000 * 30,
-  });
-  const view = nowPlayingTileView(data, isError);
-
-  return (
-    <DashboardCard className="p-4" href={view.href}>
-      <div className="flex items-center gap-4">
-        {view.imageURL ? (
-          // The track name sits right beside the art, so the image itself is decorative.
-          <Image
-            src={view.imageURL}
-            alt=""
-            width={56}
-            height={56}
-            className="rounded-md h-14 w-14"
-          />
-        ) : (
-          <div className="h-14 w-14 flex items-center justify-center bg-white/5 rounded-md text-neutral-500">
-            <SiSpotify aria-hidden="true" className="h-6 w-6" />
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{view.title}</p>
-          <p className="text-xs text-neutral-400 truncate">{view.subtitle}</p>
-        </div>
-        {view.isLive && (
-          <Music aria-hidden="true" className="h-5 w-5 text-green-500 motion-safe:animate-pulse" />
-        )}
-      </div>
-    </DashboardCard>
-  );
-};
+import 'server-only';
 
 /**
- * The homepage body. src/app/(routes)/page.tsx renders it and owns the route's metadata.
+ * @file The home page: the Live Console bento. A server component that lays out ten slots in
+ * reading order (hero, now playing, status, LeetCode, typing, GitHub, featured project, last
+ * place, current roles, site index); bento.module.css places them in its grid areas.
  *
- * overflow-clip contains DotPattern: it moves down by half the scroll on every scroll, and the
- * shell no longer clips the column vertically (that broke position: sticky), so unclipped it
- * grew the page with each scroll to the bottom. clip, unlike hidden, makes no scroll container.
+ * Every slot but the hero is its own loading and failure unit: a SectionBoundary whose fallback is
+ * the tile's own error state, around a Suspense whose fallback is the tile's skeleton, around a
+ * tile whose loader never throws and stops waiting at its deadline. So no tile can fail the page
+ * or hold the stream past its deadline, and a fallback sits in the same area as the tile it stands
+ * for. The hero has no Suspense, so its h1 is in the first flush; only its role line streams.
+ *
+ * A tile that resolves after the first flush is streamed in a hidden chunk that an inline script
+ * moves into place. With JavaScript off that tile shows its skeleton, though its content is in
+ * the HTML. No loading.tsx: the slots' own skeletons are the loading state.
  */
-export const HomePage = () => {
+
+import { type ReactElement, type ReactNode, Suspense } from 'react';
+
+import { Tile } from '@/components/console/tile';
+import { SectionBoundary } from '@/components/data/section-boundary';
+import { STATUS_PAGE_URL } from '@/lib/status/service-state';
+import { cn } from '@/lib/utils';
+import styles from './bento.module.css';
+import { loadNowPlaying, loadServiceStatus } from './data/loaders';
+import type { TileResult } from './data/tile-result';
+import { NowPlayingTile, NowPlayingTileSkeleton } from './live/now-playing-tile';
+import { StatusTile, StatusTileSkeleton } from './live/status-tile';
+import { GitHubTile, GitHubTileSkeleton, GitHubTileView } from './tiles/github-tile';
+import { HeroTile } from './tiles/hero-tile';
+import {
+  LeetCodeTile,
+  LeetCodeTileSkeleton,
+  LeetCodeTileView,
+  TypingTile,
+  TypingTileSkeleton,
+  TypingTileView,
+} from './tiles/metric-tiles';
+import { PlaceTile, PlaceTileSkeleton, PlaceTileView } from './tiles/place-tile';
+import { ProjectTile, ProjectTileSkeleton, ProjectTileView } from './tiles/project-tile';
+import { RolesTile, RolesTileSkeleton, RolesTileView } from './tiles/roles-tile';
+import {
+  SiteIndexTile,
+  SiteIndexTileSkeleton,
+  SiteIndexTileView,
+  UNKNOWN_SITE_COUNTS,
+} from './tiles/site-index-tile';
+import { TileLabel, TileUnavailable } from './tiles/tile-states';
+
+/** The bento's grid areas in DOM order, which bento.module.css keeps as the visual order too. */
+export const BENTO_AREAS = [
+  'hero',
+  'now',
+  'status',
+  'leet',
+  'type',
+  'gh',
+  'proj',
+  'place',
+  'role',
+  'strip',
+] as const;
+
+export type BentoArea = (typeof BENTO_AREAS)[number];
+
+const SPOTIFY_PATH = '/spotify';
+
+/** What every server tile's error fallback renders: its own error state, never a number. */
+const TILE_ERROR: TileResult<never> = { status: 'error' };
+
+/** One data slot: its area, its name in error reports, and its three states. */
+interface DataSlotSpec {
+  readonly area: Exclude<BentoArea, 'hero'>;
+  /** SectionBoundary's label: the `section` tag on a client-side failure's report. */
+  readonly label: string;
+  readonly Content: () => ReactNode | Promise<ReactNode>;
+  readonly Skeleton: () => ReactNode;
+  readonly Fallback: () => ReactNode;
+}
+
+interface LiveTileFallbackProps {
+  label: string;
+  message: string;
+  href: string;
+  linkLabel: string;
+  external?: boolean;
+}
+
+/**
+ * A live island's error-boundary fallback. Static, with no hooks, so it cannot fail the way the
+ * island just did, and it promises no retry. Plain: its only link is the note's way out.
+ */
+function LiveTileFallback({ label, ...note }: LiveTileFallbackProps): ReactElement {
   return (
-    <div className="relative min-h-screen overflow-clip">
-      <DotPattern className="absolute inset-0 h-full w-full opacity-[0.03] pointer-events-none mask-[radial-gradient(ellipse_at_center,white,transparent_80%)]" />
+    <Tile className="gap-3" data-state="error">
+      <TileLabel>{label}</TileLabel>
+      <TileUnavailable className="mt-auto" {...note} />
+    </Tile>
+  );
+}
 
-      <div className="container mx-auto max-w-5xl px-4 py-16 md:py-24 space-y-24">
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 items-center">
-          <div className="relative mx-auto w-40 h-40 md:w-48 md:h-48">
-            <Image
-              src="https://avatars.githubusercontent.com/u/95197809?v=4"
-              alt="Mike Odnis's profile picture"
-              width={192}
-              height={192}
-              className="rounded-full object-cover w-full h-full border-2 border-primary/50 shadow-2xl"
-              priority
-              sizes="(max-width: 768px) 160px, 192px"
-            />
-          </div>
+/** The now-playing island, seeded with the server's Spotify snapshot. */
+async function NowPlayingSlot(): Promise<ReactElement> {
+  return <NowPlayingTile initial={await loadNowPlaying()} />;
+}
 
-          <div className="md:col-span-2 text-center md:text-left space-y-6">
-            <LayoutTextFlip
-              text="Mike Odnis"
-              words={['Mobile', 'Fullstack', 'Cybersecurity', 'Cloud', 'AI', 'DevOps']}
-              className="flex-col md:flex-row items-center gap-y-2"
-            />
-            <p className="text-lg text-neutral-400 mt-2">Engineer</p>
-            <p className="text-neutral-300 leading-relaxed max-w-lg mx-auto md:mx-0">
-              I build robust, scalable, and user-centric applications. With a foundation in computer
-              science and a passion for modern technology, I turn complex problems into elegant
-              software solutions.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 items-center sm:items-start justify-center md:justify-start w-full">
-              <Button
-                variant={'outline'}
-                asChild
-                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg w-full sm:w-auto"
-              >
-                <a
-                  href={`mailto:${app.email}`}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
-                >
-                  <Mail className="h-4 w-4 text-primary" /> <span>Get in Touch</span>
-                </a>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg w-full sm:w-auto"
-              >
-                <a
-                  href="https://github.com/WomB0ComB0"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
-                >
-                  <FaGithub className="h-4 w-4" /> <span>GitHub</span>
-                </a>
-              </Button>
+/** The status island, seeded with the server's status check. */
+async function StatusSlot(): Promise<ReactElement> {
+  return <StatusTile initial={await loadServiceStatus()} />;
+}
 
-              <Button
-                asChild
-                variant="outline"
-                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white rounded-lg w-full sm:w-auto"
-              >
-                <a
-                  href="https://linkedin.com/in/mikeodnis"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 w-full"
-                >
-                  <FaLinkedin className="h-4 w-4" /> <span>LinkedIn</span>
-                </a>
-              </Button>
-            </div>
-          </div>
-        </section>
+/** The nine data slots, in DOM order after the hero. */
+const DATA_SLOTS: readonly DataSlotSpec[] = [
+  {
+    area: 'now',
+    label: 'Now playing',
+    Content: NowPlayingSlot,
+    Skeleton: NowPlayingTileSkeleton,
+    Fallback: () => (
+      <LiveTileFallback
+        label="Now playing"
+        message="Now playing unavailable"
+        href={SPOTIFY_PATH}
+        linkLabel="Top tracks"
+      />
+    ),
+  },
+  {
+    area: 'status',
+    label: 'Status',
+    Content: StatusSlot,
+    Skeleton: StatusTileSkeleton,
+    Fallback: () => (
+      <LiveTileFallback
+        label="Status"
+        message="Status unavailable"
+        href={STATUS_PAGE_URL}
+        linkLabel="Status page"
+        external
+      />
+    ),
+  },
+  {
+    area: 'leet',
+    label: 'LeetCode',
+    Content: LeetCodeTile,
+    Skeleton: LeetCodeTileSkeleton,
+    Fallback: () => <LeetCodeTileView result={TILE_ERROR} />,
+  },
+  {
+    area: 'type',
+    label: 'Typing',
+    Content: TypingTile,
+    Skeleton: TypingTileSkeleton,
+    Fallback: () => <TypingTileView result={TILE_ERROR} />,
+  },
+  {
+    area: 'gh',
+    label: 'GitHub activity',
+    Content: GitHubTile,
+    Skeleton: GitHubTileSkeleton,
+    Fallback: () => <GitHubTileView result={TILE_ERROR} />,
+  },
+  {
+    area: 'proj',
+    label: 'Featured project',
+    Content: ProjectTile,
+    Skeleton: ProjectTileSkeleton,
+    Fallback: () => <ProjectTileView result={TILE_ERROR} />,
+  },
+  {
+    area: 'place',
+    label: 'Last place',
+    Content: PlaceTile,
+    Skeleton: PlaceTileSkeleton,
+    Fallback: () => <PlaceTileView result={TILE_ERROR} />,
+  },
+  {
+    area: 'role',
+    label: 'Current roles',
+    Content: RolesTile,
+    Skeleton: RolesTileSkeleton,
+    Fallback: () => <RolesTileView result={TILE_ERROR} />,
+  },
+  {
+    area: 'strip',
+    label: 'Site index',
+    Content: SiteIndexTile,
+    Skeleton: SiteIndexTileSkeleton,
+    Fallback: () => <SiteIndexTileView counts={UNKNOWN_SITE_COUNTS} />,
+  },
+];
 
-        <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-[1fr]">
-            <DashboardCard
-              href="/projects"
-              icon={<Code className="h-6 w-6" />}
-              title="Featured Projects"
-              description="Explore my portfolio of web apps, mobile solutions, and technical experiments."
-              className="sm:col-span-2"
-            />
-            <DashboardCard
-              href="/experience"
-              icon={<Briefcase className="h-6 w-6" />}
-              title="Work Experience"
-              description="A timeline of my professional journey and career milestones."
-            />
-            <DashboardCard
-              href="/certifications"
-              icon={<Award className="h-6 w-6" />}
-              title="Certifications"
-              description="Explore my verified credentials, licenses, and technical certifications."
-            />
-            <div className="sm:col-span-2 flex flex-col gap-6">
-              <NowPlayingCard />
-              <DashboardCard
-                href="/resume"
-                icon={<FileText className="h-6 w-6" />}
-                title="View My Resume"
-                description="Get a detailed overview of my skills, education, and professional background."
-              />
-            </div>
-          </div>
-        </section>
+interface SlotProps {
+  area: BentoArea;
+  children: ReactNode;
+}
+
+/** One grid area. `data-bento-slot` names it for the browser checks (module classes are hashed). */
+function Slot({ area, children }: SlotProps): ReactElement {
+  return (
+    <div className={cn(styles.slot, styles[area])} data-bento-slot={area}>
+      {children}
+    </div>
+  );
+}
+
+function DataSlot({ area, label, Content, Skeleton, Fallback }: DataSlotSpec): ReactElement {
+  return (
+    <Slot area={area}>
+      <SectionBoundary label={label} fallback={<Fallback />}>
+        <Suspense fallback={<Skeleton />}>
+          <Content />
+        </Suspense>
+      </SectionBoundary>
+    </Slot>
+  );
+}
+
+/**
+ * The home page body. src/app/(routes)/page.tsx renders it inside the shell's main, which is
+ * full-bleed, so the bento pads its own sides with --page-gutter. No landmarks of its own: the
+ * hero holds the page's h1 and every tile names itself with an h2.
+ */
+export function HomePage(): ReactElement {
+  return (
+    <div className={styles.container}>
+      <div className={styles.grid}>
+        <Slot area="hero">
+          <HeroTile />
+        </Slot>
+        {DATA_SLOTS.map((slot) => (
+          <DataSlot key={slot.area} {...slot} />
+        ))}
       </div>
     </div>
   );
-};
-
-HomePage.displayName = 'HomePage';
-export default HomePage;
+}

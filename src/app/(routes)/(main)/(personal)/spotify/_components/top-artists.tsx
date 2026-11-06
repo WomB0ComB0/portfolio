@@ -48,6 +48,13 @@ export const TOP_ARTISTS_DEADLINE_MS = 8_000;
 /** Spotify returns at most this many top artists (TOP_ITEMS_LIMIT in the Spotify integration). */
 const SKELETON_ITEM_COUNT = 20;
 const PORTRAIT_PX = 96;
+/** The card's link draws it 5% larger on hover (motion-safe:hover:scale-105 in LINK_CLASS). */
+const LINK_HOVER_SCALE = 1.05;
+/**
+ * The portrait's width at its hover scale (100.8px, rounded up), so a 1x screen fetches the 128w
+ * file instead of drawing the 96w one larger than it is.
+ */
+const PORTRAIT_SIZES = `${Math.ceil(PORTRAIT_PX * LINK_HOVER_SCALE)}px`;
 const REPORT_CONTEXT = 'render /spotify top artists';
 const ERROR_TITLE = "Couldn't load top artists";
 const EMPTY_MESSAGE = 'No top artists data available at the moment.';
@@ -98,7 +105,7 @@ const ArtistPortrait = ({ imageUrl }: { imageUrl: string }): ReactElement =>
       className={cn(PORTRAIT_CLASS, 'object-cover')}
       width={PORTRAIT_PX}
       height={PORTRAIT_PX}
-      sizes={`${PORTRAIT_PX}px`}
+      sizes={PORTRAIT_SIZES}
       placeholder="empty"
     />
   ) : (

@@ -23,6 +23,8 @@ import 'server-only';
  *   cache. The API routes serve them as they are and map failures to HTTP (see serve.ts).
  * - Page loaders (`loadProjects`, ...) decode each document on its own (invalid ones are dropped
  *   and reported) and are React-cache()d per request.
+ * - Peeks (`peekProjects`, ...) answer the last list cached, decoded the same way, at once and
+ *   however old, without asking Sanity: for a home tile whose deadline ran out mid-reload.
  *
  * When Sanity fails after a good load, both get the last good answer and the loaders send a
  * warning. When it fails with nothing cached, the loaders reject with the getter's error and
@@ -55,7 +57,12 @@ import {
   YoutubeVideoSchema,
 } from '@/hooks/sanity/schemas';
 import { withDeadline } from '@/lib/async/deadline';
-import { createStaleCache, type StaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
+import {
+  type CachedValue,
+  createStaleCache,
+  type StaleCache,
+  type StaleCacheResult,
+} from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
   getArticles,
@@ -196,6 +203,30 @@ async function loadList<A, I>(
 ): Promise<readonly A[]> {
   return decodeEach(schema, await readData(read, key), key);
 }
+
+/**
+ * `key`'s last list in the shared cache, decoded like {@link loadList}'s, and when it was loaded
+ * (epoch ms), however old; undefined when Sanity never answered it in this process. Never asks
+ * Sanity, never waits and reports no staleness (an invalid document is still reported, once per
+ * answer, by decodeEach).
+ */
+function peekList<A, I>(
+  schema: Schema.Schema<A, I, never>,
+  key: string,
+): CachedValue<readonly A[]> | undefined {
+  const cached = sharedCache.peek(key);
+  if (!cached || !Array.isArray(cached.data)) return undefined;
+  return { data: decodeEach(schema, cached.data, key), loadedAt: cached.loadedAt };
+}
+
+export const peekProjects = (): CachedValue<readonly Project[]> | undefined =>
+  peekList(ProjectSchema, 'projects');
+export const peekExperiences = (): CachedValue<readonly Experience[]> | undefined =>
+  peekList(ExperienceSchema, 'experiences');
+export const peekCertifications = (): CachedValue<readonly Certification[]> | undefined =>
+  peekList(CertificationSchema, 'certifications');
+export const peekPlaces = (): CachedValue<readonly Place[]> | undefined =>
+  peekList(PlaceSchema, 'places');
 
 export const loadProjects = cache(
   (): Promise<readonly Project[]> => loadList(readProjects, ProjectSchema, 'projects'),

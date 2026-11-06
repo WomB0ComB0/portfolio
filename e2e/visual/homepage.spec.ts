@@ -15,316 +15,151 @@
  */
 
 /**
- * @file Homepage Visual Tests
- * @description Visual regression, responsive design, and screenshot tests for the homepage.
+ * @file The home page's visual checks:
+ * - it answers 200, with the site's title and a responsive viewport meta;
+ * - at 375, 768, 1024 and 1440 px, under reduced motion and once every tile has loaded, a
+ *   screenshot of the whole page with what changes on its own masked: the live now playing,
+ *   status and GitHub slots and the footer's status badge, and what the server words relative to
+ *   now: the text marked data-dated (the last place's label and its when line) and any stale
+ *   tile's 'as of …' line (LeetCode, typing).
+ *
+ * Baselines: the repository commits none yet, and a toHaveScreenshot with no baseline fails (and
+ * writes one). So by default each screenshot is attached to the test report for review, not
+ * compared. A screenshot is compared with toHaveScreenshot when its baseline file exists, or when
+ * UPDATE_VISUAL_BASELINES=1 is set, which is how baselines are created or refreshed on purpose:
+ *
+ *   UPDATE_VISUAL_BASELINES=1 bunx playwright test e2e/visual/homepage.spec.ts \
+ *     --project=chromium --update-snapshots
+ *
+ * Baselines are per browser project and platform (Playwright's default snapshot path, under
+ * e2e/visual/homepage.spec.ts-snapshots/). The unmasked tiles (LeetCode, typing, the featured
+ * project, the roles and the site index) change whenever their data does, and every tile changes
+ * with the design tokens: review the diff before committing new baselines. page.clock cannot pin
+ * the dated text: the server words it, so it is masked instead.
+ *
+ * The behaviour checks (layout at each width, links, keyboard, motion, console, no-JavaScript
+ * HTML) live in e2e/journeys/home-bento.spec.ts.
  */
 
-import { expect, test } from '@playwright/test';
+import { existsSync } from 'node:fs';
+import { expect, type Locator, type Page, type TestInfo, test } from '@playwright/test';
 
-import { getTargetUrl, PERFORMANCE_THRESHOLDS } from '../fixtures/base';
+import { getTargetUrl } from '../fixtures/base';
 
-// Common viewport sizes for testing
-const VIEWPORTS = {
-  mobile: { width: 375, height: 812 },
-  tablet: { width: 768, height: 1024 },
-  desktop: { width: 1920, height: 1080 },
-};
+/** The shell's one `<main>` (src/components/animations/pages/page-transition.tsx). */
+const MAIN = 'main#main-content';
 
-test.describe('Homepage Visual Tests', () => {
-  test.describe('Page Loading', () => {
-    test('should load successfully with 200 status', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      const response = await page.goto(targetUrl);
+const SLOT = '[data-bento-slot]';
+const SLOT_COUNT = 10;
 
-      expect(response?.status()).toBe(200);
-    });
+/** A tile still loading (its skeleton) marks itself busy. */
+const BUSY = '[aria-busy="true"]';
 
-    test('should have correct title', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
+const VIEWPORTS = [
+  { width: 375, height: 812 },
+  { width: 768, height: 1024 },
+  { width: 1024, height: 768 },
+  { width: 1440, height: 900 },
+] as const;
 
-      await expect(page).toHaveTitle(/Mike Odnis|Portfolio/i);
-    });
+/** Slots whose content changes from one load to the next. */
+const LIVE_SLOTS = ['now', 'status', 'gh'] as const;
 
-    test('should have meta viewport for responsive design', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
+/**
+ * Text the server words from today's date, so it changes from one day to the next with no new
+ * data (TileLabel's and TileMeta's `dated`): the last place's label ('Here now' while a visit is
+ * on) and its line with the relative day ('yesterday', '6 d ago') and the date, which gains the
+ * year once the year turns (place-tile.tsx). The rest of the place tile is compared. Each is a
+ * flex item of its tile, so its box spans the tile whatever its words.
+ */
+const DATED_TEXT = '[data-dated]';
 
-      const viewport = page.locator('meta[name="viewport"]');
-      const content = await viewport.getAttribute('content');
+/**
+ * A stale tile's 'as of Nov 5 11:02 AM ET' (asOfText in tiles/tile-states.tsx): the LeetCode and
+ * typing meta line, worded from the load time and today's date. Matches the line, wherever it is.
+ */
+const AS_OF_LINE = /\bas of\b/;
 
-      expect(content).toContain('width=device-width');
-    });
+/** The footer's StatusBadge links here; its dot's colour is live too. */
+const STATUS_PAGE_URL = 'https://status.mikeodnis.dev';
+
+const UPDATE_BASELINES = process.env.UPDATE_VISUAL_BASELINES === '1';
+
+/** Compare when asked to (creating baselines), or when this screenshot already has a baseline. */
+const shouldCompare = (testInfo: TestInfo, name: string): boolean =>
+  UPDATE_BASELINES || existsSync(testInfo.snapshotPath(name, { kind: 'screenshot' }));
+
+/** What the screenshots mask: everything live, or worded relative to now. */
+const liveContent = (page: Page): Locator[] => [
+  ...LIVE_SLOTS.map((area) => page.locator(`[data-bento-slot="${area}"]`)),
+  page.locator(MAIN).locator(SLOT).locator(DATED_TEXT),
+  page.locator(MAIN).locator(SLOT).getByText(AS_OF_LINE),
+  page.getByRole('contentinfo').locator(`a[href="${STATUS_PAGE_URL}"]`),
+];
+
+/**
+ * Waits for what a screenshot shows to stop changing: every tile loaded (no skeleton left), every
+ * image decoded, below the fold too (lazy images load now rather than mid-capture), and the fonts.
+ * An image that fails to load is left as it is: the screenshot then shows it for review.
+ */
+async function settle(page: Page): Promise<void> {
+  const main = page.locator(MAIN);
+  await expect(main.locator(SLOT)).toHaveCount(SLOT_COUNT);
+  await expect(main.locator(`${SLOT} ${BUSY}`)).toHaveCount(0);
+  await page.evaluate(async () => {
+    const images = [...document.images];
+    for (const image of images) image.loading = 'eager';
+    await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
+    await document.fonts.ready;
+  });
+}
+
+test.describe('home page basics', () => {
+  test('answers 200', async ({ page }) => {
+    const response = await page.goto(getTargetUrl());
+
+    expect(response?.status()).toBe(200);
   });
 
-  test.describe('Hero Section', () => {
-    test('should display hero content above the fold', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+  test("has the site's title", async ({ page }) => {
+    await page.goto(getTargetUrl());
 
-      // Hero should be visible without scrolling
-      const hero = page.locator('main').first();
-      await expect(hero).toBeVisible();
-      await expect(hero).toBeInViewport();
-    });
-
-    test('should have readable text contrast', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Check that text elements have visible content
-      const heading = page.locator('h1, h2, h3').first();
-      const headingCount = await heading.count();
-
-      if (headingCount > 0) {
-        await expect(heading).toBeVisible();
-
-        // Verify heading has actual text content
-        const headingText = await heading.textContent();
-        expect(headingText?.trim().length).toBeGreaterThan(0);
-      }
-    });
+    await expect(page).toHaveTitle(/Mike Odnis|Portfolio/i);
   });
 
-  test.describe('Responsive Design', () => {
-    test('should render correctly on mobile viewport', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.mobile);
-      const response = await page.goto(targetUrl);
+  test('declares a responsive viewport', async ({ page }) => {
+    await page.goto(getTargetUrl());
 
-      expect(response?.status()).toBe(200);
-
-      // Main content should still be visible
-      const main = page.locator('main');
-      await expect(main).toBeVisible();
-
-      // No horizontal scrollbar (content fits)
-      const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-      const viewportWidth = await page.evaluate(() => window.innerWidth);
-      expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 20); // Allow small tolerance
-    });
-
-    test('should render correctly on tablet viewport', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.tablet);
-      const response = await page.goto(targetUrl);
-
-      expect(response?.status()).toBe(200);
-
-      const main = page.locator('main');
-      await expect(main).toBeVisible();
-    });
-
-    test('should render correctly on desktop viewport', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.desktop);
-      const response = await page.goto(targetUrl);
-
-      expect(response?.status()).toBe(200);
-
-      const main = page.locator('main');
-      await expect(main).toBeVisible();
-    });
-
-    test('should have mobile navigation that works', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.mobile);
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Look for mobile menu button (hamburger) or command menu
-      const mobileMenuButton = page.locator(
-        'button[aria-label*="menu" i], button[aria-label*="navigation" i], button[aria-label*="command" i], [data-testid="mobile-menu"]',
-      );
-      const hasMobileMenu = (await mobileMenuButton.count()) > 0;
-
-      // Either has mobile menu button (visible or hidden) or navigation is always visible
-      if (hasMobileMenu) {
-        // Button exists - it may be visible or hidden (command palette style)
-        const isVisible = await mobileMenuButton.first().isVisible();
-        if (isVisible) {
-          // Try clicking it
-          await mobileMenuButton.first().click();
-          await page.waitForTimeout(500);
-        }
-        // Pass as long as menu button exists (even if hidden)
-        expect(true).toBeTruthy();
-      } else {
-        // No mobile menu - navigation might always be visible
-        const navLinks = await page.locator('nav a, header a').count();
-        expect(navLinks).toBeGreaterThanOrEqual(0);
-      }
-    });
+    await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
+      'content',
+      /width=device-width/,
+    );
   });
+});
 
-  test.describe('Visual Screenshots', () => {
-    test('should capture desktop screenshot', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.desktop);
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+test.describe('home page screenshots', () => {
+  for (const viewport of VIEWPORTS) {
+    test(`${viewport.width} px: the whole page, live content masked`, async ({
+      page,
+    }, testInfo) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.setViewportSize(viewport);
+      await page.goto(getTargetUrl());
+      await settle(page);
 
-      // Wait for animations to settle
-      await page.waitForTimeout(500);
-
-      await page.screenshot({
-        path: 'playwright/screenshots/homepage-desktop.png',
-        fullPage: false,
-      });
-    });
-
-    test('should capture mobile screenshot', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.mobile);
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(500);
-
-      await page.screenshot({
-        path: 'playwright/screenshots/homepage-mobile.png',
-      });
-    });
-
-    test('should capture tablet screenshot', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize(VIEWPORTS.tablet);
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(500);
-
-      await page.screenshot({
-        path: 'playwright/screenshots/homepage-tablet.png',
-      });
-    });
-
-    test('should capture full page screenshot', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(500);
-
-      await page.screenshot({
-        path: 'playwright/screenshots/homepage-full.png',
+      const name = `home-${viewport.width}.png`;
+      const options = {
         fullPage: true,
-      });
-    });
-
-    test('should capture dark mode screenshot', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Force dark mode
-      await page.evaluate(() => {
-        document.documentElement.classList.add('dark');
-      });
-      await page.waitForTimeout(300);
-
-      await page.screenshot({
-        path: 'playwright/screenshots/homepage-dark.png',
-        fullPage: false,
-      });
-    });
-  });
-
-  test.describe('Console & Errors', () => {
-    test('should have no critical console errors', async ({ page }) => {
-      const consoleErrors: string[] = [];
-
-      page.on('console', (msg) => {
-        if (msg.type() === 'error') {
-          consoleErrors.push(msg.text());
-        }
-      });
-
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Filter out known non-critical errors
-      const criticalErrors = consoleErrors.filter(
-        (error) =>
-          !error.includes('third-party') &&
-          !error.includes('analytics') &&
-          !error.includes('Failed to load resource') &&
-          !error.includes('hydration') &&
-          !error.includes('favicon'),
-      );
-
-      expect(criticalErrors).toHaveLength(0);
-    });
-
-    test('should not have uncaught JavaScript errors', async ({ page }) => {
-      const pageErrors: Error[] = [];
-
-      page.on('pageerror', (error) => {
-        pageErrors.push(error);
-      });
-
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(1000);
-
-      expect(pageErrors).toHaveLength(0);
-    });
-  });
-
-  test.describe('Performance', () => {
-    test('should load critical content quickly', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      const startTime = Date.now();
-
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // DOM should be ready within environment-aware threshold
-      const domReadyTime = Date.now() - startTime;
-      expect(domReadyTime).toBeLessThan(PERFORMANCE_THRESHOLDS.domReady);
-    });
-
-    test('should have images with proper dimensions', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Check that visible images have width and height
-      const images = page.locator('img:visible');
-      const imageCount = await images.count();
-
-      for (let i = 0; i < Math.min(imageCount, 10); i++) {
-        const img = images.nth(i);
-        const width = await img.getAttribute('width');
-        const height = await img.getAttribute('height');
-
-        // Images should ideally have explicit dimensions to prevent layout shift
-        // But this is informational - won't fail the test
-        if (!width || !height) {
-          console.log(`Image ${i} missing explicit dimensions`);
-        }
+        mask: liveContent(page),
+        animations: 'disabled' as const,
+        scale: 'css' as const,
+      };
+      if (shouldCompare(testInfo, name)) {
+        await expect(page).toHaveScreenshot(name, options);
+      } else {
+        const body = await page.screenshot(options);
+        await testInfo.attach(name, { body, contentType: 'image/png' });
       }
     });
-
-    test('should not have layout shift on load', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-
-      // Get initial hero height
-      const hero = page.locator('main').first();
-      await page.waitForLoadState('domcontentloaded');
-      const initialHeight = await hero.boundingBox();
-
-      // Wait for full load
-      await page.waitForLoadState('domcontentloaded');
-      const finalHeight = await hero.boundingBox();
-
-      // Height shouldn't change drastically
-      if (initialHeight && finalHeight) {
-        const heightDiff = Math.abs(finalHeight.height - initialHeight.height);
-        expect(heightDiff).toBeLessThan(100);
-      }
-    });
-  });
+  }
 });

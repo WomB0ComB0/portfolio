@@ -28,7 +28,7 @@ import 'server-only';
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
-import { createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
+import { type CachedValue, createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
@@ -103,6 +103,15 @@ const fetchProfile = async (): Promise<MonkeytypeProfile> => {
  */
 export function readMonkeytypeProfile(): Promise<StaleCacheResult<MonkeytypeProfile>> {
   return profileCache.get(CACHE_KEY, fetchProfile);
+}
+
+/**
+ * The last profile Monkeytype answered and when it was cached (epoch ms), however old, or
+ * undefined when it never answered in this process. Never asks Monkeytype and never waits: for a
+ * caller whose deadline ran out while {@link readMonkeytypeProfile} was still reloading.
+ */
+export function peekMonkeytypeProfile(): CachedValue<MonkeytypeProfile> | undefined {
+  return profileCache.peek(CACHE_KEY);
 }
 
 /**

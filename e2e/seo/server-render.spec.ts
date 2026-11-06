@@ -78,9 +78,6 @@ const SERVER_PAGES = [
   '/privacy',
 ] as const;
 
-/** The home page has no h1 until the HOME PR rewrites it; D2 leaves it untouched. */
-const PAGES_WITHOUT_H1: ReadonlySet<string> = new Set(['/']);
-
 /** What /resume shows when no resume is published: a state of the page, not an error. */
 const NO_RESUME_TEXT = 'No resume is published right now';
 
@@ -199,7 +196,7 @@ test.describe('server HTML without JavaScript', () => {
       expect(response?.status()).toBe(200);
       await expect(page.locator(MAIN)).toHaveCount(1);
       await expect(page.locator(LOADER)).toHaveCount(0);
-      if (!PAGES_WITHOUT_H1.has(path)) await expectServerHeading(page);
+      await expectServerHeading(page);
     });
   }
 

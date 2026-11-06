@@ -88,6 +88,20 @@ describe('GET /api/status headers', () => {
     expect(await res.json()).toMatchObject({ success: true, data: { state: 'operational' } });
   });
 
+  it("keeps the handler's stale flag in data, next to the headers", async () => {
+    const cached = {
+      state: 'degraded' as const,
+      lastUpdated: '2026-11-04T00:00:00.000Z',
+      message: 'Using cached status data due to API error',
+      monitors: { up: 3, total: 4 },
+      stale: true,
+    };
+    vi.mocked(handleStatusCheck).mockResolvedValue(cached);
+    const res = await getStatus();
+    expectMergedHeaders(res);
+    expect(await res.json()).toMatchObject({ success: true, data: cached });
+  });
+
   it('keeps them on the fallback response too', async () => {
     vi.mocked(handleStatusCheck).mockRejectedValue(new Error('fetch failed'));
     const res = await getStatus();

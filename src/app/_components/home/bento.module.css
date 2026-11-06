@@ -1,0 +1,140 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The home bento: ten named areas under three layouts, chosen by the bento's own width (a
+ * container query), not the viewport's, so the rail and the shell's max width are accounted for.
+ *
+ * - narrow, below 40rem: 2 columns;
+ * - medium, 40rem to 67.5rem (768 and 1024 px viewports): 6 columns;
+ * - wide, from 67.5rem (1280 px and up, a 1136 px content box in the 75rem shell): 12 columns.
+ *
+ * In every layout the areas appear in DOM order (row by row, left to right), so the reading and
+ * tab order match what is seen, and the hero has the most cells. Every row is filled: no holes.
+ * The hero is also the largest tile on screen: the featured project's 16:10 cover grows its tile's
+ * height with its width, so the project always spans fewer columns than the hero (at 4 of 6
+ * columns, as wide as the hero, it came out taller than the hero at 768 and 1024 px).
+ * tests/unit/home/bento-areas.test.ts checks all of that, and project-tile.tsx's cover `sizes`
+ * is worked out from these columns and gaps: change it with them (the test checks that too).
+ *
+ * No top padding: the shell's main already pads the page's top and bottom.
+ */
+
+.container {
+  container: bento / inline-size;
+  padding-inline: var(--page-gutter);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "hero hero"
+    "now now"
+    "status status"
+    "leet type"
+    "gh gh"
+    "proj proj"
+    "place place"
+    "role role"
+    "strip strip";
+  gap: 0.75rem;
+}
+
+@container bento (width >= 40rem) {
+  .grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-rows: minmax(8rem, auto);
+    grid-template-areas:
+      "hero hero hero hero now now"
+      "hero hero hero hero now now"
+      "hero hero hero hero status status"
+      "leet leet leet type type type"
+      "gh gh gh gh gh gh"
+      "proj proj proj place place place"
+      "proj proj proj role role role"
+      "strip strip strip strip strip strip";
+    gap: 1rem;
+  }
+}
+
+@container bento (width >= 67.5rem) {
+  .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: minmax(8.5rem, auto);
+    grid-template-areas:
+      "hero hero hero hero hero hero hero now now now now now"
+      "hero hero hero hero hero hero hero now now now now now"
+      "hero hero hero hero hero hero hero status status leet leet leet"
+      "type type type gh gh gh gh gh gh gh gh gh"
+      "proj proj proj proj proj place place place role role role role"
+      "proj proj proj proj proj strip strip strip strip strip strip strip";
+  }
+}
+
+/*
+ * A slot holds one tile, or its skeleton or error fallback, in the same area, so a tile landing
+ * moves nothing. min-width: 0 lets long text clamp instead of widening the column; the tile
+ * fills the slot's full height, so tiles in one row line up.
+ */
+.slot {
+  display: grid;
+  min-width: 0;
+}
+
+.slot > * {
+  min-height: 100%;
+}
+
+.hero {
+  grid-area: hero;
+}
+
+.now {
+  grid-area: now;
+}
+
+.status {
+  grid-area: status;
+}
+
+.leet {
+  grid-area: leet;
+}
+
+.type {
+  grid-area: type;
+}
+
+.gh {
+  grid-area: gh;
+}
+
+.proj {
+  grid-area: proj;
+}
+
+.place {
+  grid-area: place;
+}
+
+.role {
+  grid-area: role;
+}
+
+.strip {
+  grid-area: strip;
+}

@@ -25,6 +25,8 @@
  * - After such a failure the earlier value keeps being served, without loading, for
  *   `retryBackoffMs`. A hanging upstream then costs one slow request per backoff, not one per
  *   request. The first request after the backoff loads again; a good load replaces the value.
+ * - `peek` answers the last good value without loading or waiting, for a caller that cannot wait
+ *   for a slow reload (a page tile past its deadline).
  *
  * Whatever a successful load returns is cached, so a real empty list ([]) or a missing document
  * (null) is cached like any other value. A failure is never cached as a value: with nothing to
@@ -64,6 +66,13 @@ export interface StaleResult<T> {
 
 export type StaleCacheResult<T> = FreshResult<T> | StaleResult<T>;
 
+/** The last value a load returned for a key, and when. */
+export interface CachedValue<T> {
+  readonly data: T;
+  /** When `data` was loaded, on the cache's clock. */
+  readonly loadedAt: number;
+}
+
 export interface StaleCache<T> {
   /**
    * Answers the value for `key`, loading it with `load` when it is missing or older than the
@@ -71,14 +80,17 @@ export interface StaleCache<T> {
    * earlier value exists.
    */
   get(key: string, load: () => Promise<T>): Promise<StaleCacheResult<T>>;
+  /**
+   * The last value loaded for `key` and when, however old, or undefined when none was. Never
+   * loads and never waits, so a caller whose deadline ran out while `get` was still reloading
+   * can show the last good value; that reload keeps running and still fills the cache.
+   */
+  peek(key: string): CachedValue<T> | undefined;
   /** Forgets every value. */
   clear(): void;
 }
 
-interface Entry<T> {
-  readonly data: T;
-  readonly loadedAt: number;
-}
+type Entry<T> = CachedValue<T>;
 
 /** A failed reload of a cached key: why, and when the upstream may be asked again. */
 interface Backoff {
@@ -157,6 +169,11 @@ export function createStaleCache<T>({
         if (!lastGood) throw error;
         return staleResult(lastGood, error);
       }
+    },
+    peek(key) {
+      const cached = entries.get(key);
+      if (!cached) return undefined;
+      return { data: cached.data, loadedAt: cached.loadedAt };
     },
     clear() {
       entries.clear();

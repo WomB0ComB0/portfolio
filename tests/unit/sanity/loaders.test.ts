@@ -26,12 +26,14 @@
  *   answer cached is a stale "none".
  * - Invalid CMS documents are dropped and listed in one warning instead of failing the page.
  * - By-id lookups never send a malformed id to Sanity.
+ * - Peeks answer a collection's last cached list, decoded, at once and without asking Sanity.
  * - Talks and videos wait on YouTube for at most YOUTUBE_LOAD_DEADLINE_MS, under the browser's
  *   10 s timeout, and a malformed talk never withholds the others.
  * Only the Sanity client, the YouTube integration, the env and Sentry are mocked.
  */
 
 import {
+  makeCertification,
   makeExperience,
   makePlace,
   makeProject,
@@ -47,7 +49,9 @@ import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { YOUTUBE_ENRICHMENT_DEADLINE_MS } from '@/lib/sanity/enrich';
 import {
   isSanityDocumentId,
+  loadCertifications,
   loadExperienceById,
+  loadExperiences,
   loadFeaturedProjects,
   loadPlaceById,
   loadPlaces,
@@ -56,6 +60,10 @@ import {
   loadResume,
   loadTalks,
   loadVideos,
+  peekCertifications,
+  peekExperiences,
+  peekPlaces,
+  peekProjects,
   resetSanityLoaderCaches,
   SANITY_CACHE_TTL_MS,
   YOUTUBE_LOAD_DEADLINE_MS,
@@ -290,6 +298,64 @@ describe('loadPlaces', () => {
 
     expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
     for (const result of results) expect(result).toEqual(places);
+  });
+});
+
+describe('the peeks', () => {
+  it('answer nothing, and ask Sanity nothing, before a list was loaded', () => {
+    expect(peekProjects()).toBeUndefined();
+    expect(peekExperiences()).toBeUndefined();
+    expect(peekCertifications()).toBeUndefined();
+    expect(peekPlaces()).toBeUndefined();
+    expect(sanity.sanityFetchWithToken).not.toHaveBeenCalled();
+  });
+
+  it('each answer its own collection, decoded, with when it was loaded', async () => {
+    const projects = [makeProject()];
+    const experiences = [makeExperience(), makeExperience()];
+    const certifications = [makeCertification()];
+    const places = [makePlace(), makePlace(), makePlace()];
+    for (const list of [projects, experiences, certifications, places]) {
+      sanity.sanityFetchWithToken.mockResolvedValueOnce(list);
+    }
+    await loadProjects();
+    await loadExperiences();
+    await loadCertifications();
+    await loadPlaces();
+
+    expect(peekProjects()).toEqual({ data: projects, loadedAt: T0 });
+    expect(peekExperiences()).toEqual({ data: experiences, loadedAt: T0 });
+    expect(peekCertifications()).toEqual({ data: certifications, loadedAt: T0 });
+    expect(peekPlaces()).toEqual({ data: places, loadedAt: T0 });
+  });
+
+  it('answer the last list at once while a reload past the TTL hangs, reporting nothing new', async () => {
+    const valid = makePlace();
+    const workshop = { ...makePlace(), category: 'Workshop' };
+    sanity.sanityFetchWithToken.mockResolvedValueOnce([valid, workshop]);
+    await loadPlaces();
+    vi.setSystemTime(T0 + AFTER_TTL);
+    sanity.sanityFetchWithToken.mockReturnValue(new Promise(() => {}));
+
+    void loadPlaces();
+    await vi.waitFor(() => expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(2));
+
+    expect(peekPlaces()).toEqual({ data: [valid], loadedAt: T0 });
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(2);
+    // Only the first load's decode warning: the peek decodes the same answer, so it is not sent again.
+    expectOneReport('warning', 'decode places');
+  });
+
+  it('read the list the API route loaded, from another module copy', async () => {
+    const experiences = [makeExperience()];
+    sanity.sanityFetchWithToken.mockResolvedValue(experiences);
+    const routeCopy = await loadModuleCopy();
+    const pageCopy = await loadModuleCopy();
+
+    await routeCopy.readExperiences();
+
+    expect(pageCopy.peekExperiences()).toEqual({ data: experiences, loadedAt: T0 });
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
   });
 });
 
