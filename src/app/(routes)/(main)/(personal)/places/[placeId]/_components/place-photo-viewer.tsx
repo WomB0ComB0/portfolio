@@ -187,10 +187,12 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
 
         {photos.length > 1 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium">
+            {/* Geist's digits are proportional: tabular-nums stops the hint beside it shifting. */}
+            <span className="font-medium tabular-nums">
               Photo {currentPhotoIndex + 1} of {photos.length}
             </span>
-            <span className="text-xs opacity-70">← Drag to navigate →</span>
+            {/* text-faint, not opacity-70: the darker muted token at 70% fell below 4.5:1 here. */}
+            <span className="text-xs text-faint">← Drag to navigate →</span>
           </div>
         )}
       </CardHeader>
@@ -291,7 +293,7 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
                   >
                     <FiZoomIn className="h-4 w-4" />
                   </Button>
-                  <span className="px-2 text-sm font-medium min-win-12 text-center">
+                  <span className="px-2 text-sm font-medium min-win-12 text-center tabular-nums">
                     {Math.round(zoom * 100)}%
                   </span>
                   <Button

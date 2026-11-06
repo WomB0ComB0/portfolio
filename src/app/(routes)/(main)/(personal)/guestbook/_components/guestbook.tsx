@@ -254,7 +254,9 @@ export const GuestbookComponent = () => {
                     placeholder="What's on your mind?"
                     maxLength={280}
                   />
-                  <div className="absolute bottom-2.5 right-3 text-xs text-neutral-400 font-medium">
+                  {/* Geist's digits are proportional; tabular-nums keeps this right-anchored
+                      counter from jittering on every keystroke. */}
+                  <div className="absolute bottom-2.5 right-3 text-xs text-neutral-400 font-medium tabular-nums">
                     {message.length} / 280
                   </div>
                 </div>
@@ -298,7 +300,7 @@ export const GuestbookComponent = () => {
             {isLoading ? (
               <Skeleton className="h-3 w-20 bg-muted/50" />
             ) : (
-              <span className="text-xs text-neutral-400 font-medium">
+              <span className="text-xs text-neutral-400 font-medium tabular-nums">
                 {totalCount} {totalCount === 1 ? 'message' : 'messages'}
               </span>
             )}

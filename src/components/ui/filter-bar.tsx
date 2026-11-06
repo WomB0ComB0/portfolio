@@ -175,7 +175,8 @@ export function FilterBar({
             className="absolute -bottom-8 left-4 flex items-center gap-2 text-sm text-muted-foreground font-medium"
           >
             <Filter className="h-3.5 w-3.5" />
-            <span>
+            {/* Geist's digits are proportional; tabular-nums keeps the count steady as it updates. */}
+            <span className="tabular-nums">
               Showing {resultsCount} of {totalCount} {entityName}
             </span>
           </motion.div>

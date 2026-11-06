@@ -294,7 +294,10 @@ export const Privacy = (): JSX.Element => {
                 >
                   <div>
                     <span className="font-semibold">{service.name}</span>
-                    <span className="text-muted-foreground text-sm ml-2">({service.purpose})</span>
+                    {/* Muted text on the hover fill (bg-accent) is 4.14:1, so it brightens with it. */}
+                    <span className="text-muted-foreground text-sm ml-2 transition-colors group-hover:text-foreground">
+                      ({service.purpose})
+                    </span>
                   </div>
                   <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </a>

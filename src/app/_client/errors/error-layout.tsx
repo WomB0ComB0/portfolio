@@ -1,7 +1,5 @@
 'use client';
 
-import { LightRays } from '@/components';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -98,7 +96,7 @@ const ErrorLayout: React.FC<{
   }): React.JSX.Element => {
     return (
       // The page's one <main>: error pages render outside the page Layout, which owns it elsewhere.
-      <main className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden p-4 gap-3">
+      <main className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden p-4 gap-3 bg-background atmosphere">
         <motion.div
           style={{
             zIndex: 10,
@@ -112,24 +110,11 @@ const ErrorLayout: React.FC<{
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-6" />
-          <h1
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold text-white mb-6 sm:mb-8"
-            style={{
-              fontFamily: 'Kodchasan, serif',
-              textShadow: '0 0 10px rgba(0,0,0,0.2)',
-            }}
-          >
+          <AlertTriangle aria-hidden="true" className="mx-auto mb-6 size-8 text-down" />
+          <h1 className="mb-6 font-sans text-hero font-extrabold tracking-display tabular-nums text-foreground sm:mb-8">
             {title}
           </h1>
-          <p
-            className="mt-2 text-base text-white/80 mb-10"
-            style={{
-              fontFamily: 'Kodchasan, serif',
-            }}
-          >
-            {description}
-          </p>
+          <p className="mt-2 mb-10 text-body text-muted-foreground">{description}</p>
           <div className="mt-6 flex flex-col gap-4">
             <Button
               size="lg"
@@ -159,7 +144,6 @@ const ErrorLayout: React.FC<{
           </div>
           {error?.digest && <p className="mt-8 text-sm text-white/60">Error ID: {error.digest}</p>}
         </motion.div>
-        <LightRays count={5} blur={20} />
       </main>
     );
   },

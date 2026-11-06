@@ -15,8 +15,26 @@
  */
 
 import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
 
-export function cn(...inputs: ClassValue[]) {
+/**
+ * tailwind-merge taught the Live Console theme from src/styles/globals.css. Without it, an unknown
+ * `text-*` reads as a colour (so `text-stat` would knock out `text-foreground`) and `shadow-raised`
+ * as a shadow colour. Keep these lists in step with the `@theme static` names.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      text: ['label', 'meta', 'body-sm', 'body', 'title', 'heading', 'stat', 'display', 'hero'],
+      tracking: ['display', 'stat', 'label'],
+      radius: ['tile'],
+      shadow: ['tile', 'raised', 'lift'],
+      ease: ['out-expo', 'standard'],
+      container: ['shell'],
+    },
+  },
+});
+
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }

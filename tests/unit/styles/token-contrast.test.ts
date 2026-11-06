@@ -31,6 +31,23 @@ import { describe, expect, it } from 'vitest';
 // import.meta.url is not a file: URL, so resolve from the working directory instead.
 const GLOBALS_CSS = join(process.cwd(), 'src/styles/globals.css');
 const AA_NORMAL_TEXT = 4.5;
+/** WCAG 1.4.11: focus rings and other non-text UI need 3:1 against what is next to them. */
+const AA_NON_TEXT = 3;
+
+/** The Live Console surfaces, darkest first: every text tier must read on all of them. */
+const CONSOLE_SURFACES = ['canvas', 'surface-1', 'surface-2', 'surface-3'] as const;
+/** The Live Console tokens that colour text. */
+const CONSOLE_TEXT = [
+  'fg',
+  'fg-muted',
+  'fg-faint',
+  'brand',
+  'brand-ink',
+  'live',
+  'ongoing',
+  'down',
+  'info',
+] as const;
 
 /** Linear-light sRGB channels, nominally 0..1. */
 type LinearRgb = readonly [number, number, number];
@@ -119,6 +136,14 @@ describe('colour token contrast (globals.css :root)', () => {
     'muted-foreground',
     'primary',
     'primary-foreground',
+    'accent',
+    'accent-foreground',
+    ...CONSOLE_SURFACES,
+    ...CONSOLE_TEXT,
+    'hairline',
+    'hairline-strong',
+    'brand-subtle',
+    'focus',
   ])('--%s is within the sRGB gamut tolerance, so clipping it is accurate', (name) => {
     expect(isNearSrgbGamut(unclipped(name))).toBe(true);
   });
@@ -141,10 +166,63 @@ describe('colour token contrast (globals.css :root)', () => {
       () => color('primary'),
       () => composite(color('primary'), 0.1, color('card')),
     ],
+    [
+      'muted-foreground on bg-card/40 over background (translucent cards)',
+      () => color('muted-foreground'),
+      () => composite(color('card'), 0.4, color('background')),
+    ],
+    [
+      'foreground on accent (hover:bg-accent rows)',
+      () => color('foreground'),
+      () => color('accent'),
+    ],
+    ['accent-foreground on accent', () => color('accent-foreground'), () => color('accent')],
+    [
+      'fg-faint on bg-primary/5 over background (MagicCard: the place photo drag hint)',
+      () => color('fg-faint'),
+      () => composite(color('primary'), 0.05, color('background')),
+    ],
   ];
 
   it.each(pairs)('%s meets WCAG AA for normal text (4.5:1)', (name, text, surface) => {
     const ratio = contrastRatio(text(), surface());
     expect(ratio, `${name} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+
+  it('muted-foreground on accent falls below 4.5:1, so a hover:bg-accent row must lift its muted text', () => {
+    // A known failure, kept visible: rows that hover to bg-accent switch muted labels to
+    // foreground, which the pairs above check.
+    const ratio = contrastRatio(color('muted-foreground'), color('accent'));
+    expect(ratio, `muted-foreground on accent is ${ratio.toFixed(2)}:1`).toBeLessThan(
+      AA_NORMAL_TEXT,
+    );
+  });
+
+  const consolePairs = CONSOLE_TEXT.flatMap((text) =>
+    CONSOLE_SURFACES.map((surface) => [text, surface] as const),
+  );
+
+  it.each(consolePairs)('--%s on --%s meets WCAG AA for normal text (4.5:1)', (text, surface) => {
+    const ratio = contrastRatio(color(text), color(surface));
+    expect(ratio, `${text} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT,
+    );
+  });
+
+  it.each([
+    ['fg', 'brand-subtle'],
+    ['brand-ink', 'brand-subtle'],
+  ] as const)('--%s on the --%s selected fill meets 4.5:1', (text, surface) => {
+    const ratio = contrastRatio(color(text), color(surface));
+    expect(ratio, `${text} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT,
+    );
+  });
+
+  it.each(CONSOLE_SURFACES)('the --focus ring meets 3:1 against --%s', (surface) => {
+    const ratio = contrastRatio(color('focus'), color(surface));
+    expect(ratio, `focus on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+      AA_NON_TEXT,
+    );
   });
 });
