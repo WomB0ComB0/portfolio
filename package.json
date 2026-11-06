@@ -218,7 +218,7 @@
     "@babel/generator": "8.1.0",
     "@babel/parser": "8.1.0",
     "@babel/traverse": "8.1.0",
-    "@biomejs/biome": "2.6.5",
+    "@biomejs/biome": "2.6.6",
     "@graphql-codegen/cli": "7.4.6",
     "@graphql-codegen/typescript": "6.1.2",
     "@graphql-codegen/typescript-operations": "^6.2.0",
