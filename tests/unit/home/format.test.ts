@@ -24,6 +24,7 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  formatAsOfDay,
   formatClockET,
   formatCoordinates,
   formatDay,
@@ -83,6 +84,17 @@ describe('formatMonthYear', () => {
     expect(formatMonthYear('soon')).toBe('');
     expect(formatMonthYear('2026-02-30')).toBe('');
   });
+
+  it('prints nothing for a timestamp on a day that does not exist, never the day it rolls to', () => {
+    // Date.parse reads this as March 2.
+    expect(formatMonthYear('2026-02-30T12:00:00Z')).toBe('');
+    expect(formatMonthYear('2026-04-31T09:00:00-04:00')).toBe('');
+  });
+
+  it('checks the day as written, before the offset moves it to the next day', () => {
+    // 11:30 PM on Feb 28 at UTC-5 is Mar 1 in UTC, and still Feb 28 in New York.
+    expect(formatMonthYear('2026-02-28T23:30:00-05:00')).toBe('Feb 2026');
+  });
 });
 
 describe('formatDay', () => {
@@ -101,6 +113,21 @@ describe('formatDay', () => {
 
   it('prints nothing for a value that is not a date', () => {
     expect(formatDay('')).toBe('');
+    expect(formatDay('2026-02-30T12:00:00Z', NOW)).toBe('');
+  });
+});
+
+describe('formatAsOfDay', () => {
+  it('says which New York day stale data was loaded, with the year once it differs', () => {
+    // 11:02 PM on Nov 4 in New York.
+    expect(formatAsOfDay('2026-11-05T04:02:00Z', NOW)).toBe('as of Nov 4');
+    expect(formatAsOfDay('2025-12-31T17:00:00Z', NOW)).toBe('as of Dec 31, 2025');
+  });
+
+  it('says nothing without a load time it can read', () => {
+    expect(formatAsOfDay(undefined, NOW)).toBe('');
+    expect(formatAsOfDay('soon', NOW)).toBe('');
+    expect(formatAsOfDay('2026-02-30T12:00:00Z', NOW)).toBe('');
   });
 });
 
@@ -144,6 +171,7 @@ describe('formatRelative', () => {
     expect(formatRelative('2026-11-06', NOW)).toBe('');
     expect(formatRelative(new Date(NOW + 5 * MINUTE_MS).toISOString(), NOW)).toBe('');
     expect(formatRelative('not a date', NOW)).toBe('');
+    expect(formatRelative('2026-02-30T12:00:00Z', NOW)).toBe('');
   });
 });
 

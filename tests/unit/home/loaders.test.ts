@@ -19,7 +19,8 @@
  * @file The home tiles' server loaders (src/app/_components/home/data/loaders.ts). None of them
  * ever rejects:
  * - The Sanity tiles (roles, place, project, counts) each fail only with their own collection.
- * - GitHub and typing show a stale answer marked stale, with `asOf` and one warning.
+ * - GitHub and typing show a stale answer marked stale, with `asOf` and one warning; LeetCode's
+ *   handler reports its own, which the tile shows marked stale with `asOf`.
  * - Past the 4 s deadline, GitHub, typing and each Sanity tile show the value their source last
  *   loaded (peeked, never awaited), marked stale with when it was loaded, and send the deadline's
  *   one warning (LeetCode too); with nothing loaded, the error state.
@@ -76,7 +77,7 @@ const monkeytype = vi.hoisted(() => ({
   readMonkeytypeProfile: vi.fn(),
   peekMonkeytypeProfile: vi.fn(),
 }));
-const leetcode = vi.hoisted(() => ({ getLeetCodeStats: vi.fn(), peekLeetCodeStats: vi.fn() }));
+const leetcode = vi.hoisted(() => ({ readLeetCodeStats: vi.fn(), peekLeetCodeStats: vi.fn() }));
 const nowPlaying = vi.hoisted(() => ({ getNowPlaying: vi.fn() }));
 const status = vi.hoisted(() => ({ handleStatusCheck: vi.fn(), peekServiceStatus: vi.fn() }));
 const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
@@ -315,13 +316,27 @@ describe('loadGitHubActivity', () => {
 
 describe('loadLeetCode', () => {
   it('is ok with the handler’s stats', async () => {
-    leetcode.getLeetCodeStats.mockResolvedValue(LEETCODE);
+    leetcode.readLeetCodeStats.mockResolvedValue({ data: LEETCODE, stale: false, loadedAt: NOW });
 
     await expect(loadLeetCode()).resolves.toEqual({ status: 'ok', data: LEETCODE, stale: false });
   });
 
+  it('marks the handler’s stale fallback stale, dated when LeetCode gave it, reporting nothing more', async () => {
+    const loadedAt = NOW - 7 * HOUR_MS;
+    leetcode.readLeetCodeStats.mockResolvedValue({ data: LEETCODE, stale: true, loadedAt });
+
+    await expect(loadLeetCode()).resolves.toEqual({
+      status: 'ok',
+      data: LEETCODE,
+      stale: true,
+      asOf: new Date(loadedAt).toISOString(),
+    });
+    // The handler already reported the failed refresh.
+    expect(report.reportApiFailure).not.toHaveBeenCalled();
+  });
+
   it('is an error when the handler rejects', async () => {
-    leetcode.getLeetCodeStats.mockRejectedValue(new Error('LeetCode user not found'));
+    leetcode.readLeetCodeStats.mockRejectedValue(new Error('LeetCode user not found'));
 
     await expect(loadLeetCode()).resolves.toEqual({ status: 'error' });
     expect(reportOptions()).toEqual([{ context: 'home leetcode tile', level: 'error' }]);
@@ -479,7 +494,7 @@ describe('the server tiles past their deadline', () => {
   });
 
   it('show the LeetCode stats last fetched, stale, dated when they were fetched', async () => {
-    leetcode.getLeetCodeStats.mockReturnValue(never());
+    leetcode.readLeetCodeStats.mockReturnValue(never());
     leetcode.peekLeetCodeStats.mockReturnValue({ data: LEETCODE, loadedAt: LOADED_AT });
 
     await expect(pastDeadline(loadLeetCode)).resolves.toEqual({
@@ -492,7 +507,7 @@ describe('the server tiles past their deadline', () => {
   });
 
   it('are the LeetCode error state when LeetCode never answered', async () => {
-    leetcode.getLeetCodeStats.mockReturnValue(never());
+    leetcode.readLeetCodeStats.mockReturnValue(never());
 
     await expect(pastDeadline(loadLeetCode)).resolves.toEqual({ status: 'error' });
     expect(leetcode.peekLeetCodeStats).toHaveBeenCalledTimes(1);
@@ -500,10 +515,14 @@ describe('the server tiles past their deadline', () => {
   });
 
   it('peek nothing when LeetCode answers in time, or fails before the deadline', async () => {
-    leetcode.getLeetCodeStats.mockResolvedValueOnce(LEETCODE);
+    leetcode.readLeetCodeStats.mockResolvedValueOnce({
+      data: LEETCODE,
+      stale: false,
+      loadedAt: NOW,
+    });
     await expect(loadLeetCode()).resolves.toMatchObject({ status: 'ok', stale: false });
 
-    leetcode.getLeetCodeStats.mockRejectedValueOnce(new Error('LeetCode user not found'));
+    leetcode.readLeetCodeStats.mockRejectedValueOnce(new Error('LeetCode user not found'));
     await expect(loadLeetCode()).resolves.toEqual({ status: 'error' });
 
     expect(leetcode.peekLeetCodeStats).not.toHaveBeenCalled();

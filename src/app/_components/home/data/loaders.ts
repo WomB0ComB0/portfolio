@@ -38,9 +38,9 @@ import { cache } from 'react';
 import { handleStatusCheck, peekServiceStatus } from '@/app/api/[[...route]]/status/handlers';
 import type { ServiceStatus } from '@/app/api/[[...route]]/status/schema';
 import {
-  getLeetCodeStats,
   type LeetCodeStats,
   peekLeetCodeStats,
+  readLeetCodeStats,
 } from '@/app/api/v1/[[...route]]/leetcode/handlers';
 import {
   getNowPlaying,
@@ -237,14 +237,20 @@ export const loadGitHubActivity = cache(
 );
 
 /**
- * LeetCode's solved counts. Its handler serves (and reports) its own stale fallback. Past the
- * deadline, the stats last fetched, stale.
+ * LeetCode's solved counts. Its handler serves (and reports) its own stale fallback, which is
+ * marked stale with when LeetCode gave it. Past the deadline, the stats last fetched, stale.
  */
 export const loadLeetCode = cache(
   (): Promise<TileResult<LeetCodeStats>> =>
-    settle('leetcode', async () => fresh(await getLeetCodeStats()), {
-      onDeadline: () => lastGood(peekLeetCodeStats(), fresh),
-    }),
+    settle(
+      'leetcode',
+      async () => {
+        const read = await readLeetCodeStats();
+        const tile = fresh(read.data);
+        return read.stale ? asStale(tile, read.loadedAt) : tile;
+      },
+      { onDeadline: () => lastGood(peekLeetCodeStats(), fresh) },
+    ),
 );
 
 const typingTile = (profile: MonkeytypeProfile): TileResult<TypingTileData> => {

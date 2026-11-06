@@ -20,8 +20,8 @@
  * the state, and /api/status answers it in `data.monitors`; the 'unknown' fallbacks carry no
  * counts. The cache and the running check live in processGlobal, so the home page and /api/status
  * (two bundles of the module) share them. After a failure the last answer is served flagged
- * `stale: true` for a 30 s backoff without asking Better Stack, and one check never takes more
- * than 8 s. Only fetch, the clock (and, for the time cap, timers), the env and Sentry are faked.
+ * `stale: true` for a 30 s backoff without asking Better Stack (the failure reported once, as a
+ * warning), and one check never takes more than 8 s. Only fetch, the clock (and, for the time cap, timers), the env and Sentry are faked.
  */
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -55,6 +55,7 @@ import {
   peekServiceStatus,
   resetStatusCache,
 } from '@/app/api/[[...route]]/status/handlers';
+import { reportApiFailure } from '@/lib/observability/report';
 
 type MonitorStatus = BetterStackMonitor['attributes']['status'];
 
@@ -236,6 +237,24 @@ describe('handleStatusCheck cache', () => {
     vi.setSystemTime(failed + BACKOFF_MS);
     await handleStatusCheck();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports the failure behind a stale answer once, as a warning, not again during the backoff', async () => {
+    stubMonitors('up');
+    await handleStatusCheck();
+    const failed = T0 + CACHE_MS + 1;
+    vi.setSystemTime(failed);
+    stubFailure();
+
+    await handleStatusCheck();
+    vi.setSystemTime(failed + BACKOFF_MS - 1);
+    await handleStatusCheck();
+
+    expect(reportApiFailure).toHaveBeenCalledTimes(1);
+    expect(reportApiFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ command: 'status:fetch' }),
+      { context: 'fetch system status', level: 'warning' },
+    );
   });
 
   it('serves a good answer again, unflagged, once Better Stack recovers after the backoff', async () => {

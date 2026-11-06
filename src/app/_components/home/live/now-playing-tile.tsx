@@ -25,10 +25,10 @@
  * announce themselves (no aria-live): a song change is not worth interrupting a screen reader.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AudioLines } from 'lucide-react';
 import Image from 'next/image';
-import type { ReactElement, ReactNode } from 'react';
+import { type ReactElement, type ReactNode, useEffect } from 'react';
 
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
 import { StatusDot } from '@/components/console/status-dot';
@@ -78,8 +78,29 @@ export interface NowPlayingTileProps {
   initial: LiveInitial<NowPlayingResponse>;
 }
 
+type NowPlayingSnapshot = Extract<LiveInitial<NowPlayingResponse>, { kind: 'data' }>;
+
+/**
+ * Puts a server snapshot newer than the cached answer into the cache. The QueryClient outlives
+ * client navigations, so on a return to '/' it can hold an older answer, and initialData only
+ * fills an empty cache. This runs in an effect, as TanStack's HydrationBoundary does for a query
+ * already cached: on a first load the cache holds this very snapshot, so nothing changes and the
+ * hydrating render still matches the server HTML. Called before useQuery, so the newer answer is
+ * cached by the time the query decides whether to fetch on mount.
+ */
+function useNewerSnapshot(seeded: NowPlayingSnapshot | undefined): void {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!seeded) return;
+    const cachedAt = queryClient.getQueryState(NOW_PLAYING_QUERY_KEY)?.dataUpdatedAt ?? 0;
+    if (seeded.fetchedAt <= cachedAt) return;
+    queryClient.setQueryData(NOW_PLAYING_QUERY_KEY, seeded.data, { updatedAt: seeded.fetchedAt });
+  }, [queryClient, seeded]);
+}
+
 function useNowPlaying(initial: LiveInitial<NowPlayingResponse>) {
   const seeded = initial.kind === 'data' ? initial : undefined;
+  useNewerSnapshot(seeded);
   return useQuery({
     queryKey: NOW_PLAYING_QUERY_KEY,
     queryFn: async ({ signal }) => parseNowPlaying(await fetchJson(NOW_PLAYING_URL, { signal })),

@@ -17,8 +17,9 @@
 /**
  * @file The footer's StatusBadge. /api/status now counts the active monitors; when none is
  * active (every monitor paused) Better Stack still reports 'operational', so the badge must say
- * 'Monitoring paused' with a still, neutral dot rather than 'All Systems Operational'. The query
- * cache is seeded, so nothing is fetched.
+ * 'Monitoring paused' with a still, neutral dot rather than 'All Systems Operational'. An answer
+ * the route flagged stale (its cached one, after Better Stack failed) says 'Last known: ...' with
+ * a still dot. The query cache is seeded, or fetch stubbed where the decoding is checked.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -81,6 +82,27 @@ describe('statusBadgeView', () => {
   it('is Status Unknown before any answer', () => {
     expect(statusBadgeView(undefined)).toMatchObject({ label: 'Status Unknown' });
   });
+
+  it.each([
+    ['operational', { up: 3, total: 3 }, 'Last known: All Systems Operational', 'bg-emerald-500'],
+    ['down', { up: 1, total: 2 }, 'Last known: Service Outage', 'bg-red-500'],
+    ['operational', { up: 0, total: 0 }, 'Last known: Monitoring paused', 'bg-zinc-400'],
+  ] as const)(
+    'says a stale %s answer (%o monitors) is the last known one, without a pulse',
+    (state, monitors, label, color) => {
+      expect(statusBadgeView({ state, lastUpdated: LAST_UPDATED, monitors, stale: true })).toEqual({
+        label,
+        color,
+        pulse: false,
+      });
+    },
+  );
+
+  it('never calls an unknown state last known', () => {
+    expect(
+      statusBadgeView({ state: 'unknown', lastUpdated: LAST_UPDATED, stale: true }),
+    ).toMatchObject({ label: 'Status Unknown' });
+  });
 });
 
 describe('StatusBadge', () => {
@@ -95,14 +117,14 @@ describe('StatusBadge', () => {
     expect(link.querySelector('[aria-hidden="true"]')).not.toHaveClass('animate-pulse');
   });
 
-  it('decodes the monitor counts /api/status answers, its stale flag aside', async () => {
+  it('decodes the monitor counts and the stale flag /api/status answers', async () => {
     const body = {
       success: true,
       message: 'Status retrieved successfully',
       data: {
         state: 'operational',
         lastUpdated: LAST_UPDATED,
-        monitors: { up: 0, total: 0 },
+        monitors: { up: 3, total: 3 },
         stale: true,
       },
     };
@@ -119,8 +141,34 @@ describe('StatusBadge', () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() => expect(screen.getByRole('link')).toHaveAccessibleName('Monitoring paused'));
+    const link = screen.getByRole('link');
+    await waitFor(() => expect(link).toHaveAccessibleName('Last known: All Systems Operational'));
+    expect(link.querySelector('[aria-hidden="true"]')).not.toHaveClass('animate-pulse');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('decodes the monitor counts, so every monitor paused reads Monitoring paused', async () => {
+    const body = {
+      success: true,
+      message: 'Status retrieved successfully',
+      data: { state: 'operational', lastUpdated: LAST_UPDATED, monitors: { up: 0, total: 0 } },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }),
+      ),
+    );
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <StatusBadge />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('link')).toHaveAccessibleName('Monitoring paused'));
   });
 
   it('still pulses beside All Systems Operational when monitors are up', () => {

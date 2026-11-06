@@ -37,6 +37,8 @@ const COORDINATE_DECIMALS = 2;
 
 /** A Sanity `date` (YYYY-MM-DD) or a month (YYYY-MM). */
 const CALENDAR_DATE = /^\d{4}-\d{2}(?:-\d{2})?$/;
+/** The calendar day a timestamp starts with: 2026-02-30 of 2026-02-30T12:00:00Z. */
+const LEADING_DAY = /^\d{4}-\d{2}-\d{2}/;
 
 /** A moment as a Date or epoch milliseconds. */
 export type Instant = Date | number;
@@ -94,13 +96,25 @@ interface ParsedDate {
   readonly isCalendarDate: boolean;
 }
 
-/** `value` as epoch ms, or null when it is not a real date (2026-02-30 included). */
+/**
+ * True when `day` (YYYY-MM-DD or YYYY-MM) is on the calendar. Date.parse rolls 2026-02-30 over to
+ * March 2; a real day, read as UTC midnight, reads back as written.
+ */
+function isRealDay(day: string): boolean {
+  const ms = Date.parse(day);
+  return Number.isFinite(ms) && new Date(ms).toISOString().startsWith(day);
+}
+
+/**
+ * `value` as epoch ms, or null when it is not a real date: 2026-02-30 is not, and neither is a
+ * timestamp on that day (its day is checked as written, before its offset moves it).
+ */
 function parseDate(value: string): ParsedDate | null {
   const ms = Date.parse(value);
   if (!Number.isFinite(ms)) return null;
   const isCalendarDate = CALENDAR_DATE.test(value);
-  // Date.parse rolls 2026-02-30 over to March 2; a real calendar date reads back as written.
-  if (isCalendarDate && !new Date(ms).toISOString().startsWith(value)) return null;
+  const day = isCalendarDate ? value : LEADING_DAY.exec(value)?.[0];
+  if (day !== undefined && !isRealDay(day)) return null;
   return { ms, isCalendarDate };
 }
 
@@ -141,6 +155,15 @@ export function formatDay(value: string, now?: Instant): string {
   const formats = formatsFor(parsed);
   const otherYear = now !== undefined && yearOf(parsed) !== nyToday(now).slice(0, 4);
   return plainSpaces((otherYear ? formats.dayWithYear : formats.day).format(parsed.ms));
+}
+
+/**
+ * 'as of Nov 5': the day stale data was loaded (`asOf`, ISO 8601), for a tile whose data changes
+ * too slowly to need the clock. '' without an `asOf` or when it is not a date: never a guess.
+ */
+export function formatAsOfDay(asOf: string | undefined, now: Instant): string {
+  const day = asOf ? formatDay(asOf, now) : '';
+  return day ? `as of ${day}` : '';
 }
 
 /** Whole days from calendar day `from` to calendar day `to` (both YYYY-MM-DD, or YYYY-MM). */

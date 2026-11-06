@@ -32,6 +32,7 @@ import { hasDestination, StatusDot, Tile, TileLink } from '@/components/console'
 import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import {
+  formatAsOfDay,
   formatCoordinates,
   formatDay,
   formatRelative,
@@ -92,9 +93,13 @@ function PlaceLabel({ ongoing }: { ongoing: boolean }): ReactElement {
 interface PlaceViewProps {
   place: Place;
   now: Instant;
+  /** The place comes from the list last loaded, served past the deadline. */
+  stale: boolean;
+  /** 'as of Nov 5' for a stale place whose list's load day is known, else ''. */
+  asOf: string;
 }
 
-function PlaceView({ place, now }: PlaceViewProps): ReactElement {
+function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
   const ongoing = isOngoing(place, nyToday(now));
   const href = placeHref(place);
   const thumbnail = thumbnailUrl(place);
@@ -105,7 +110,11 @@ function PlaceView({ place, now }: PlaceViewProps): ReactElement {
   // 14 days back formatRelative gives the date itself, which the meta already shows.
   const when = ongoing || relative === day ? null : relative;
   return (
-    <Tile variant={hasDestination(href) ? 'linked' : 'plain'} className="gap-3">
+    <Tile
+      variant={hasDestination(href) ? 'linked' : 'plain'}
+      className="gap-3"
+      data-state={stale ? 'stale' : undefined}
+    >
       <PlaceLabel ongoing={ongoing} />
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
@@ -132,7 +141,7 @@ function PlaceView({ place, now }: PlaceViewProps): ReactElement {
         )}
       </div>
       {/* The relative day, and the date's year once the year turns, depend on today. */}
-      <TileMeta dated>{joinMeta([place.category, day, when])}</TileMeta>
+      <TileMeta dated>{joinMeta([place.category, day, when, asOf])}</TileMeta>
     </Tile>
   );
 }
@@ -142,9 +151,16 @@ export interface PlaceTileViewProps {
   now?: Instant;
 }
 
-/** The latest place, or a note with a way to every place. */
+/**
+ * The latest place, or a note with a way to every place. A stale one (from the list last loaded,
+ * served past the deadline) says which day that list is from.
+ */
 export function PlaceTileView({ result, now = Date.now() }: PlaceTileViewProps): ReactElement {
-  if (result.status === 'ok') return <PlaceView place={result.data} now={now} />;
+  if (result.status === 'ok') {
+    const { data, stale } = result;
+    const asOf = stale ? formatAsOfDay(result.asOf, now) : '';
+    return <PlaceView place={data} now={now} stale={stale} asOf={asOf} />;
+  }
   const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
   return (
     <Tile className="gap-3" data-state={result.status}>

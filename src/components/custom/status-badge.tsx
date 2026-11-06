@@ -39,6 +39,8 @@ const StatusResponseSchema = Schema.Struct({
     message: Schema.optional(Schema.String),
     /** How many active monitors are up; total 0 means every monitor is paused. */
     monitors: Schema.optional(Schema.Struct({ up: Schema.Number, total: Schema.Number })),
+    /** True when Better Stack just failed and this is its last answer, served from the cache. */
+    stale: Schema.optional(Schema.Boolean),
   }),
 });
 
@@ -88,12 +90,8 @@ export interface StatusBadgeView {
   readonly pulse: boolean;
 }
 
-/**
- * The badge for an answer (or none yet). An answer that counted no active monitor says
- * 'Monitoring paused' with the neutral dot, not pulsing: Better Stack reports 'operational' then,
- * with nothing being watched, which must never read as 'All Systems Operational'.
- */
-export function statusBadgeView(data: StatusData | undefined): StatusBadgeView {
+/** The badge for a current answer (or none yet). */
+function currentView(data: StatusData | undefined): StatusBadgeView {
   const state = data?.state ?? 'unknown';
   if (serviceCopyKey(state, data?.monitors) === 'paused') {
     return {
@@ -103,6 +101,19 @@ export function statusBadgeView(data: StatusData | undefined): StatusBadgeView {
     };
   }
   return { label: getStatusLabel(state), color: getStatusColor(state), pulse: true };
+}
+
+/**
+ * The badge for an answer (or none yet). An answer that counted no active monitor says
+ * 'Monitoring paused' with the neutral dot, not pulsing: Better Stack reports 'operational' then,
+ * with nothing being watched, which must never read as 'All Systems Operational'. An answer the
+ * route flagged stale (its cached one, after Better Stack failed) says 'Last known: ...' and does
+ * not pulse, as the home status tile does. An 'unknown' state is never 'last known'.
+ */
+export function statusBadgeView(data: StatusData | undefined): StatusBadgeView {
+  const view = currentView(data);
+  if (data?.stale !== true || data.state === 'unknown') return view;
+  return { ...view, label: `Last known: ${view.label}`, pulse: false };
 }
 
 /**

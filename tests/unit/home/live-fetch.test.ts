@@ -66,6 +66,24 @@ function stubHangingFetch() {
 }
 
 /**
+ * A fetch whose 200 answer arrives at once but whose body stalls until the request aborts, then
+ * errors with the abort's reason, as a browser's body stream does.
+ */
+function stubStalledBodyFetch() {
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const signal = init?.signal;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        signal?.addEventListener('abort', () => controller.error(signal.reason), { once: true });
+      },
+    });
+    return new Response(stream, { status: 200, headers: { 'content-type': 'application/json' } });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+/**
  * A `status` answer whose body never ends on its own, like a stalled stream, and records whether
  * it was cancelled. `failCancel` makes its cancel reject.
  */
@@ -176,6 +194,23 @@ describe('fetchJson', () => {
     expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
     expect(error).toBeInstanceOf(FetchTimeoutError);
     expect(shouldRetryQuery(0, error, BROWSER)).toBe(true);
+  });
+
+  it('still times out once the headers are in, while the JSON body is pending', async () => {
+    vi.useFakeTimers();
+    const fetchMock = stubStalledBodyFetch();
+    let settled = false;
+
+    const pending = rejectionOf(fetchJson(URL_UNDER_TEST, { timeoutMs: 1_000 })).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    // Settled by the deadline: a timer cleared once the headers came in would leave it hanging.
+    expect(settled).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(await pending).toBeInstanceOf(FetchTimeoutError);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('does not abort before the timeout, which defaults to 5 s', async () => {

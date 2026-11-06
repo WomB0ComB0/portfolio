@@ -20,6 +20,7 @@
  * its New York day and time when the route flagged it stale or a poll failed (never by comparing
  * clocks), and links to the public status page in a new tab. It caches under its own key, not
  * the footer badge's, and renders the same HTML whatever the clock says, so hydration matches.
+ * On a return to '/', a server snapshot newer than the cached answer replaces it.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -338,6 +339,48 @@ describe('StatusTile polling', () => {
     expect(SERVICE_STATUS_QUERY_KEY).not.toEqual(['system-status']);
     expect(client.getQueryData(['service-status'])).toEqual(status());
     expect(client.getQueryData(['system-status'])).toBeUndefined();
+  });
+});
+
+describe('StatusTile on a return to the home page', () => {
+  // The QueryClient outlives client navigations, so the tile can mount over an earlier answer.
+  it.each([
+    ['fresh', 10_000],
+    ['stale', 2 * MINUTE_MS],
+  ])(
+    'shows an outage in a server snapshot newer than a %s cached answer, without fetching again',
+    async (_freshness, cacheAge) => {
+      const fetchMock = stubStatus(answer(status()));
+      const client = testQueryClient();
+      client.setQueryData(SERVICE_STATUS_QUERY_KEY, status(), {
+        updatedAt: NOW.getTime() - cacheAge,
+      });
+      const outage = snapshot(status({ state: 'down' }));
+
+      const { container } = renderTile(outage, client);
+
+      await waitFor(() => expect(statusLink()).toHaveTextContent('Service outage'));
+      expect(dot(container)).toHaveAttribute('data-tone', 'down');
+      expect(dot(container)).not.toHaveClass('motion-safe:animate-live-pulse');
+      expect(client.getQueryState(SERVICE_STATUS_QUERY_KEY)?.dataUpdatedAt).toBe(outage.fetchedAt);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps a cached answer newer than the server snapshot', async () => {
+    const fetchMock = stubStatus(answer(status()));
+    const client = testQueryClient();
+    client.setQueryData(SERVICE_STATUS_QUERY_KEY, status({ state: 'down' }), {
+      updatedAt: NOW.getTime(),
+    });
+    const older = status({ lastUpdated: new Date(NOW.getTime() - 30_000).toISOString() });
+
+    renderTile(snapshot(older), client);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+
+    expect(statusLink()).toHaveTextContent('Service outage');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

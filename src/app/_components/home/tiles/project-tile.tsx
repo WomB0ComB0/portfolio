@@ -31,6 +31,7 @@ import type { ReactElement } from 'react';
 import { hasDestination, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Project } from '@/lib/sanity/loaders';
+import { formatAsOfDay, type Instant } from '../data/format';
 import { loadFeaturedProject } from '../data/loaders';
 import type { TileResult } from '../data/tile-result';
 import {
@@ -146,10 +147,22 @@ function TechChips({ technologies }: { technologies: readonly string[] }): React
   );
 }
 
-function ProjectView({ project }: { project: Project }): ReactElement {
+interface ProjectViewProps {
+  project: Project;
+  /** The project comes from the list last loaded, served past the deadline. */
+  stale: boolean;
+  /** 'as of Nov 5' for a stale project whose list's load day is known, else ''. */
+  asOf: string;
+}
+
+function ProjectView({ project, stale, asOf }: ProjectViewProps): ReactElement {
   const href = projectHref(project);
   return (
-    <Tile variant={hasDestination(href) ? 'linked' : 'plain'} padding="none">
+    <Tile
+      variant={hasDestination(href) ? 'linked' : 'plain'}
+      padding="none"
+      data-state={stale ? 'stale' : undefined}
+    >
       <Cover project={project} />
       <div className={BODY_CLASS}>
         <TileLabel>{LABEL}</TileLabel>
@@ -160,8 +173,9 @@ function ProjectView({ project }: { project: Project }): ReactElement {
         </h3>
         <p className={DESCRIPTION_CLASS}>{project.description}</p>
         <TechChips technologies={project.technologies} />
-        <TileMeta className="pt-1">
-          {joinMeta([project.category, project.status, startYear(project)])}
+        {/* A stale list's day ('as of Nov 5') depends on today once the year turns. */}
+        <TileMeta className="pt-1" dated={asOf !== ''}>
+          {joinMeta([project.category, project.status, startYear(project), asOf])}
         </TileMeta>
       </div>
     </Tile>
@@ -170,11 +184,19 @@ function ProjectView({ project }: { project: Project }): ReactElement {
 
 export interface ProjectTileViewProps {
   result: TileResult<Project>;
+  now?: Instant;
 }
 
-/** The featured project, or a note with a way to every project. */
-export function ProjectTileView({ result }: ProjectTileViewProps): ReactElement {
-  if (result.status === 'ok') return <ProjectView project={result.data} />;
+/**
+ * The featured project, or a note with a way to every project. A stale one (from the list last
+ * loaded, served past the deadline) says which day that list is from.
+ */
+export function ProjectTileView({ result, now = Date.now() }: ProjectTileViewProps): ReactElement {
+  if (result.status === 'ok') {
+    const { data, stale } = result;
+    const asOf = stale ? formatAsOfDay(result.asOf, now) : '';
+    return <ProjectView project={data} stale={stale} asOf={asOf} />;
+  }
   const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
   return (
     <Tile className="gap-3" data-state={result.status}>

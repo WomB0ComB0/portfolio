@@ -55,6 +55,12 @@ const SKELETON_ROW_COUNT = 6;
 const PAST_AVATAR_SIZES = '72px';
 
 /**
+ * A current sponsor's avatar is 48px (h-12 w-12) and its card's link scales it to 102% on hover,
+ * so it is drawn at up to 48.96px: 49px picks a file at least that wide (64w at 1x) instead of 48w.
+ */
+const CURRENT_AVATAR_SIZES = '49px';
+
+/**
  * GitHub can hand back a sponsorship whose account is gone (sl-09). Such an entry has no login to
  * link to or key on, so it is left out instead of breaking the list. getGitHubSponsors already
  * drops these; this keeps the view safe on its own.
@@ -93,7 +99,7 @@ function CurrentSponsorCard({ sponsor }: { sponsor: SponsorEntry }): ReactElemen
                 alt={`${displayName(sponsor)}'s avatar`}
                 fill
                 className="object-cover"
-                sizes="48px"
+                sizes={CURRENT_AVATAR_SIZES}
               />
             </div>
             <div className="flex-1 min-w-0">

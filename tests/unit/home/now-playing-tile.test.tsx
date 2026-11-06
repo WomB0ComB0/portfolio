@@ -19,11 +19,13 @@
  * polls every 30 s while the tab is focused. A failed poll drops the old track and its link, a
  * slow snapshot shows the skeleton until the island's own answer, and nothing links to '#'.
  * Retries are left to the QueryClient. The server HTML (JavaScript off) already holds each state.
+ * On a return to '/', a server snapshot newer than the cached answer replaces it.
  */
 
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { AnchorHTMLAttributes, ReactElement, ReactNode } from 'react';
+import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -360,6 +362,65 @@ describe('NowPlayingTile', () => {
     const { container } = renderTile(snapshot(TRACK));
 
     expect(container.querySelector('[aria-live]')).toBeNull();
+  });
+});
+
+describe('NowPlayingTile on a return to the home page', () => {
+  // The QueryClient outlives client navigations, so the tile can mount over an earlier answer.
+  it.each([
+    ['fresh', 10_000],
+    ['stale', 60_000],
+  ])(
+    'shows a server snapshot newer than a %s cached answer, without fetching again',
+    async (_freshness, cacheAge) => {
+      const fetchMock = stubNowPlaying(answer(TRACK));
+      const client = testQueryClient();
+      client.setQueryData(NOW_PLAYING_QUERY_KEY, TRACK, { updatedAt: Date.now() - cacheAge });
+      const fetchedAt = Date.now();
+
+      renderTile({ kind: 'data', data: IDLE, fetchedAt }, client);
+
+      expect(await screen.findByText('Not playing right now')).toBeInTheDocument();
+      expect(screen.queryByText('My War')).toBeNull();
+      expect(screen.queryByText('Live')).toBeNull();
+      expect(client.getQueryState(NOW_PLAYING_QUERY_KEY)?.dataUpdatedAt).toBe(fetchedAt);
+      await flush();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps a cached answer newer than the server snapshot', async () => {
+    const fetchMock = stubNowPlaying(answer(IDLE));
+    const client = testQueryClient();
+    client.setQueryData(NOW_PLAYING_QUERY_KEY, TRACK, { updatedAt: Date.now() });
+
+    renderTile({ kind: 'data', data: IDLE, fetchedAt: Date.now() - 5_000 }, client);
+    await flush();
+
+    expect(screen.getByRole('link', { name: TRACK_LINK_NAME })).toBeInTheDocument();
+    expect(screen.queryByText('Not playing right now')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('hydrates the server HTML of a first load as is', async () => {
+    const fetchMock = stubNowPlaying(answer(IDLE));
+    const initial = snapshot(TRACK);
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(withClient(<NowPlayingTile initial={initial} />));
+    document.body.append(container);
+    const onRecoverableError = vi.fn();
+
+    const root = await act(async () =>
+      hydrateRoot(container, withClient(<NowPlayingTile initial={initial} />), {
+        onRecoverableError,
+      }),
+    );
+
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: TRACK_LINK_NAME })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    container.remove();
   });
 });
 

@@ -338,14 +338,35 @@ const VIEW_CASES: readonly TileCase[] = [
     name: 'Project without a cover',
     element: <ProjectTileView result={ok({ ...FEATURED, image: null })} />,
   },
+  {
+    name: 'Project stale',
+    element: (
+      <ProjectTileView result={ok(FEATURED, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />
+    ),
+  },
   { name: 'Project empty', element: <ProjectTileView result={EMPTY} /> },
   { name: 'Project error', element: <ProjectTileView result={ERROR} />, isError: true },
   { name: 'Place ok', element: <PlaceTileView result={ok(PAST_PLACE)} now={NOW} /> },
+  {
+    name: 'Place stale',
+    element: (
+      <PlaceTileView result={ok(PAST_PLACE, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />
+    ),
+  },
   { name: 'Place empty', element: <PlaceTileView result={EMPTY} now={NOW} /> },
   { name: 'Place error', element: <PlaceTileView result={ERROR} now={NOW} />, isError: true },
   {
     name: 'Roles ok',
     element: <RolesTileView result={ok({ roles: roles(3), total: 5 })} />,
+  },
+  {
+    name: 'Roles stale',
+    element: (
+      <RolesTileView
+        result={ok({ roles: roles(3), total: 5 }, { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />
+    ),
   },
   { name: 'Roles empty', element: <RolesTileView result={EMPTY} /> },
   { name: 'Roles error', element: <RolesTileView result={ERROR} />, isError: true },
@@ -672,6 +693,21 @@ describe('ProjectTileView', () => {
     );
   });
 
+  it('says which day a stale project’s list is from, and nothing more when fresh', () => {
+    const { container } = render(
+      <ProjectTileView result={ok(FEATURED, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    expect(
+      within(tile).getByText('Machine Learning · Completed · 2025 · as of Nov 5'),
+    ).toHaveAttribute('data-dated');
+    cleanup();
+
+    render(<ProjectTileView result={ok(FEATURED)} now={NOW} />);
+    expect(screen.queryByText(/as of/)).toBeNull();
+  });
+
   it('takes up to two initials from the title', () => {
     expect(initialsOf('Fraud Guard')).toBe('FG');
     expect(initialsOf('grepo')).toBe('G');
@@ -692,6 +728,15 @@ describe('PlaceTileView', () => {
     );
     expect(within(tile).getByText('Conference · Oct 30 · 6 d ago')).toBeInTheDocument();
     expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass('line-clamp-2');
+  });
+
+  it('says which day a stale place’s list is from', () => {
+    const { container } = render(
+      <PlaceTileView result={ok(PAST_PLACE, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    expect(within(tile).getByText('Conference · Oct 30 · 6 d ago · as of Nov 5')).toBeVisible();
   });
 
   it('gives a place from another year its date once, with the year', () => {
@@ -813,6 +858,43 @@ describe('RolesTileView', () => {
   it('shows no count when every role is listed at every width', () => {
     render(<RolesTileView result={ok({ roles: roles(2), total: 2 })} />);
     expect(screen.queryByRole('link', { name: /more/ })).toBeNull();
+  });
+
+  it('says which day stale roles are from, under the count, at the tile’s foot', () => {
+    const { container } = render(
+      <RolesTileView
+        result={ok({ roles: roles(3), total: 5 }, { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    const asOf = within(tile).getByText('as of Nov 5');
+    expect(asOf).toHaveAttribute('data-dated');
+    // The '+N more' line already sits at the foot (mt-auto); the day goes right under it.
+    expect(asOf).toHaveClass('mt-0');
+    expect(asOf).not.toHaveClass('mt-auto');
+  });
+
+  it('pushes the stale day to the foot itself when no count is shown', () => {
+    render(
+      <RolesTileView
+        result={ok({ roles: roles(2), total: 2 }, { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />,
+    );
+    expect(screen.getByText('as of Nov 5')).toHaveClass('mt-auto');
+  });
+
+  it('prints no day for fresh roles, or for stale ones whose load time is unknown', () => {
+    const { container } = render(
+      <RolesTileView result={ok({ roles: roles(2), total: 2 })} now={NOW} />,
+    );
+    expect(tileOf(container)).not.toHaveAttribute('data-state');
+    cleanup();
+
+    render(<RolesTileView result={ok({ roles: roles(2), total: 2 }, { stale: true })} now={NOW} />);
+    expect(screen.queryByText(/as of/)).toBeNull();
   });
 
   it.each([

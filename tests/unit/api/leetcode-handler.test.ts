@@ -219,15 +219,48 @@ describe('getLeetCodeStats', () => {
   });
 });
 
-describe('peekLeetCodeStats', () => {
-  /** A fresh handler module with an empty cache, as loadGetLeetCodeStats gives. */
-  const loadHandlers = async () => {
-    vi.resetModules();
-    const handlers = await import('@/app/api/v1/[[...route]]/leetcode/handlers');
-    handlers.resetLeetCodeCache();
-    return handlers;
-  };
+/** A fresh handler module with an empty cache, as loadGetLeetCodeStats gives. */
+const loadHandlers = async () => {
+  vi.resetModules();
+  const handlers = await import('@/app/api/v1/[[...route]]/leetcode/handlers');
+  handlers.resetLeetCodeCache();
+  return handlers;
+};
 
+describe('readLeetCodeStats', () => {
+  it('answers fresh stats unflagged, with when LeetCode gave them', async () => {
+    stubFetch(() => jsonResponse(leetCodeReply()));
+    const { getLeetCodeStats, readLeetCodeStats } = await loadHandlers();
+    const stats = await getLeetCodeStats();
+    vi.setSystemTime(T0 + CACHE_DURATION - 1);
+
+    await expect(readLeetCodeStats()).resolves.toEqual({ data: stats, stale: false, loadedAt: T0 });
+  });
+
+  it('flags the last good stats stale after a failed refresh, keeping when they were fetched', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
+    const { getLeetCodeStats, readLeetCodeStats } = await loadHandlers();
+    const first = await getLeetCodeStats();
+    fetchMock.mockImplementation(async () => jsonResponse({ error: 'Forbidden' }, 403));
+    vi.setSystemTime(T0 + CACHE_DURATION + 1);
+
+    await expect(readLeetCodeStats()).resolves.toEqual({ data: first, stale: true, loadedAt: T0 });
+    // /api/v1/leetcode still answers the stats alone.
+    await expect(getLeetCodeStats()).resolves.toEqual(first);
+  });
+
+  it('joins the refresh /api/v1/leetcode started, asking LeetCode once', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
+    const { getLeetCodeStats, readLeetCodeStats } = await loadHandlers();
+
+    const [stats, read] = await Promise.all([getLeetCodeStats(), readLeetCodeStats()]);
+
+    expect(read).toEqual({ data: stats, stale: false, loadedAt: T0 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('peekLeetCodeStats', () => {
   it('is undefined, and asks LeetCode nothing, when no stats were ever fetched', async () => {
     const fetchMock = stubFetch(() => jsonResponse(leetCodeReply()));
     const { peekLeetCodeStats } = await loadHandlers();

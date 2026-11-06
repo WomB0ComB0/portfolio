@@ -47,6 +47,13 @@ export const TOP_TRACKS_DEADLINE_MS = 8_000;
 /** Spotify returns at most this many top tracks (TOP_ITEMS_LIMIT in the Spotify integration). */
 const SKELETON_ITEM_COUNT = 20;
 const ALBUM_ART_PX = 64;
+/** The card's link draws it 3% larger on hover (motion-safe:hover:scale-[1.03] in LINK_CLASS). */
+const LINK_HOVER_SCALE = 1.03;
+/**
+ * The art's width at its hover scale (65.92px, rounded up), so a 1x screen fetches the 96w file
+ * instead of drawing the 64w one larger than it is.
+ */
+const ALBUM_ART_SIZES = `${Math.ceil(ALBUM_ART_PX * LINK_HOVER_SCALE)}px`;
 const REPORT_CONTEXT = 'render /spotify top tracks';
 const ERROR_TITLE = "Couldn't load top tracks";
 const EMPTY_MESSAGE = 'No top tracks data available at the moment.';
@@ -99,7 +106,7 @@ const AlbumArt = ({ imageUrl }: { imageUrl: string }): ReactElement =>
       className={ALBUM_ART_CLASS}
       width={ALBUM_ART_PX}
       height={ALBUM_ART_PX}
-      sizes={`${ALBUM_ART_PX}px`}
+      sizes={ALBUM_ART_SIZES}
       placeholder="empty"
     />
   ) : (

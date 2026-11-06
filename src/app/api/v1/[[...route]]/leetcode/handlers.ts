@@ -86,6 +86,15 @@ interface CachedStats {
   readonly timestamp: number;
 }
 
+/** The stats a read answers, when LeetCode gave them, and whether they are an old answer. */
+export interface LeetCodeRead {
+  readonly data: LeetCodeStats;
+  /** True when a refresh just failed and these are the last good stats, however old. */
+  readonly stale: boolean;
+  /** When LeetCode answered `data` (epoch ms). */
+  readonly loadedAt: number;
+}
+
 /**
  * What getLeetCodeStats keeps between calls. Next bundles this module once for the /stats page
  * (whose prefetch calls getLeetCodeStats directly) and once for /api/v1, so module state would
@@ -97,7 +106,7 @@ interface LeetCodeState {
   /** The last good stats and when they were fetched. */
   cache: CachedStats | null;
   /** The refresh running now; every caller that finds the cache expired joins it. */
-  inFlight: Promise<LeetCodeStats> | null;
+  inFlight: Promise<LeetCodeRead> | null;
 }
 
 const STATE_NAME = 'leetcode.cache';
@@ -192,18 +201,19 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
  * Asks LeetCode again and caches the answer in `state`, the store that was current when the
  * refresh started (so one that outlives a test's reset never fills the next test's cache).
  */
-async function refreshLeetCodeStats(state: LeetCodeState): Promise<LeetCodeStats> {
+async function refreshLeetCodeStats(state: LeetCodeState): Promise<LeetCodeRead> {
   try {
     const data = await fetchFromGraphQL();
-    state.cache = { data, timestamp: Date.now() };
-    return data;
+    const loadedAt = Date.now();
+    state.cache = { data, timestamp: loadedAt };
+    return { data, stale: false, loadedAt };
   } catch (error) {
     const failure = ensureBaseError(error, 'leetcode:fetch');
     const { cache } = state;
     // Serve the last good stats rather than a 500; they change slowly.
     if (cache) {
       reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
-      return cache.data;
+      return { data: cache.data, stale: true, loadedAt: cache.timestamp };
     }
     throw failure;
   }
@@ -220,10 +230,17 @@ export function peekLeetCodeStats(): CachedValue<LeetCodeStats> | undefined {
   return cache ? { data: cache.data, loadedAt: cache.timestamp } : undefined;
 }
 
-export async function getLeetCodeStats(): Promise<LeetCodeStats> {
+/**
+ * The stats, with when LeetCode gave them and whether they are stale: the last good stats served
+ * because a refresh just failed (and was reported as a warning). For the home tile, which says how
+ * old stale stats are. Shares the cache and the running refresh with {@link getLeetCodeStats}.
+ *
+ * @throws {BaseError} When LeetCode fails and no stats were ever fetched.
+ */
+export async function readLeetCodeStats(): Promise<LeetCodeRead> {
   const state = sharedState();
   if (isFresh(state.cache)) {
-    return state.cache.data;
+    return { data: state.cache.data, stale: false, loadedAt: state.cache.timestamp };
   }
 
   // One refresh at a time: a late prefetch and the card's own request share LeetCode's answer.
@@ -231,4 +248,9 @@ export async function getLeetCodeStats(): Promise<LeetCodeStats> {
     state.inFlight = null;
   });
   return state.inFlight;
+}
+
+/** The stats alone, as /api/v1/leetcode answers them: the last good ones after a failed refresh. */
+export async function getLeetCodeStats(): Promise<LeetCodeStats> {
+  return (await readLeetCodeStats()).data;
 }

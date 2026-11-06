@@ -30,7 +30,7 @@ import type { ReactElement } from 'react';
 import { SrOnlyWords, Tile } from '@/components/console';
 import type { Experience } from '@/lib/sanity/loaders';
 import { cn } from '@/lib/utils';
-import { formatMonthYear } from '../data/format';
+import { formatAsOfDay, formatMonthYear, type Instant } from '../data/format';
 import { loadCurrentRoles } from '../data/loaders';
 import type { CurrentRoles } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
@@ -40,6 +40,7 @@ import {
   SkeletonBar,
   TileEmpty,
   TileLabel,
+  TileMeta,
   TileUnavailable,
 } from './tile-states';
 
@@ -80,13 +81,17 @@ function MoreLink({ count, className }: { count: number; className?: string }): 
   );
 }
 
+/** How many roles are not on screen below the 20rem tile (at least as many as above it). */
+const hiddenWhenNarrow = ({ roles, total }: CurrentRoles): number =>
+  total - Math.min(roles.length, NARROW_ROLES_SHOWN);
+
 /**
  * '+N more' for the roles not on screen. When the narrow and wide counts differ, one link shows
  * below the 20rem tile and the other above it; display: none keeps the hidden one unread.
  */
 function MoreRoles({ roles, total }: CurrentRoles): ReactElement | null {
   const wide = total - roles.length;
-  const narrow = total - Math.min(roles.length, NARROW_ROLES_SHOWN);
+  const narrow = hiddenWhenNarrow({ roles, total });
   if (narrow <= 0) return null;
   if (narrow === wide) {
     return (
@@ -105,10 +110,14 @@ function MoreRoles({ roles, total }: CurrentRoles): ReactElement | null {
 
 export interface RolesTileViewProps {
   result: TileResult<CurrentRoles>;
+  now?: Instant;
 }
 
-/** The current roles, or a note with a way to the experience page. */
-export function RolesTileView({ result }: RolesTileViewProps): ReactElement {
+/**
+ * The current roles, or a note with a way to the experience page. Stale roles (the list last
+ * loaded, served past the deadline) say which day they are from.
+ */
+export function RolesTileView({ result, now = Date.now() }: RolesTileViewProps): ReactElement {
   if (result.status !== 'ok') {
     const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
     return (
@@ -124,8 +133,9 @@ export function RolesTileView({ result }: RolesTileViewProps): ReactElement {
     );
   }
   const { roles } = result.data;
+  const asOf = result.stale ? formatAsOfDay(result.asOf, now) : '';
   return (
-    <Tile className="gap-3">
+    <Tile className="gap-3" data-state={result.stale ? 'stale' : undefined}>
       <TileLabel>{LABEL}</TileLabel>
       <ul className="flex flex-col gap-1">
         {roles.map((role, index) => (
@@ -133,6 +143,12 @@ export function RolesTileView({ result }: RolesTileViewProps): ReactElement {
         ))}
       </ul>
       <MoreRoles {...result.data} />
+      {asOf && (
+        // Under the '+N more' link, which already takes the tile's foot, when there is one.
+        <TileMeta dated className={hiddenWhenNarrow(result.data) > 0 ? 'mt-0' : undefined}>
+          {asOf}
+        </TileMeta>
+      )}
     </Tile>
   );
 }

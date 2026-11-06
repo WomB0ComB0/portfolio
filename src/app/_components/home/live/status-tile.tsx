@@ -29,8 +29,8 @@
  * clock with the server's. The server HTML and the hydrating client therefore agree.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import type { ReactElement, ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { type ReactElement, type ReactNode, useEffect } from 'react';
 
 import type { ServiceStatus } from '@/app/api/[[...route]]/status/schema';
 import { StatusDot, type StatusTone } from '@/components/console/status-dot';
@@ -133,8 +133,31 @@ export function serviceStatusView({
   };
 }
 
+type ServiceStatusSnapshot = Extract<LiveInitial<ServiceStatus>, { kind: 'data' }>;
+
+/**
+ * Puts a server snapshot newer than the cached answer into the cache, so a return to '/' shows
+ * an outage the server just saw instead of the answer cached before: the QueryClient outlives
+ * client navigations, and initialData only fills an empty cache. An effect, as in TanStack's
+ * HydrationBoundary: on a first load the cache holds this very snapshot, so the hydrating render
+ * still matches the server HTML. Called before useQuery, so the query sees the newer answer when
+ * it decides whether to fetch on mount.
+ */
+function useNewerSnapshot(seeded: ServiceStatusSnapshot | undefined): void {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!seeded) return;
+    const cachedAt = queryClient.getQueryState(SERVICE_STATUS_QUERY_KEY)?.dataUpdatedAt ?? 0;
+    if (seeded.fetchedAt <= cachedAt) return;
+    queryClient.setQueryData(SERVICE_STATUS_QUERY_KEY, seeded.data, {
+      updatedAt: seeded.fetchedAt,
+    });
+  }, [queryClient, seeded]);
+}
+
 function useServiceStatus(initial: LiveInitial<ServiceStatus>) {
   const seeded = initial.kind === 'data' ? initial : undefined;
+  useNewerSnapshot(seeded);
   return useQuery({
     queryKey: SERVICE_STATUS_QUERY_KEY,
     queryFn: async ({ signal }) => parseServiceStatus(await fetchJson(STATUS_URL, { signal })),

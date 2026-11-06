@@ -21,6 +21,7 @@ import { env } from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { STALE_RETRY_BACKOFF_MS } from '@/lib/cache/stale-cache';
 import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { reportApiFailure } from '@/lib/observability/report';
 import type { ServiceStatus } from './schema';
 
 // Schema for Better Stack Monitor attributes
@@ -79,6 +80,8 @@ const RETRY_DELAY_MS = 500;
 const UPSTREAM_DEADLINE_MS = 8_000;
 const STALE_MESSAGE = 'Using cached status data due to API error';
 const FALLBACK_MESSAGE = 'Unable to fetch current status - please try again later';
+/** The route's error-handler context, so stale-fallback warnings group with its reports. */
+const REPORT_CONTEXT = 'fetch system status';
 
 interface CachedStatus {
   readonly data: ServiceStatus;
@@ -178,8 +181,9 @@ const staleAnswer = (data: ServiceStatus): ServiceStatus => ({
 /**
  * Asks Better Stack and caches the answer in `store`, the one that was current when the check
  * started (so one that outlives a test's reset never fills the next test's cache). On failure the
- * cached answer is returned marked stale and served for the backoff without asking again; with
- * nothing cached, the 'unknown' fallback is served briefly and the error is thrown.
+ * cached answer is returned marked stale (the failure reported as a warning) and served for the
+ * backoff without asking again; with nothing cached, the 'unknown' fallback is served briefly and
+ * the error is thrown, for the caller to report.
  */
 async function refreshStatus(store: StatusStore): Promise<ServiceStatus> {
   try {
@@ -194,8 +198,14 @@ async function refreshStatus(store: StatusStore): Promise<ServiceStatus> {
     store.failure = null;
     return result;
   } catch (error) {
-    // The last answer, even expired, beats failing completely.
+    const failure = ensureBaseError(error, 'status:fetch', {
+      apiEndpoint: 'monitors',
+      fallbackProvided: true,
+    });
+    // The last answer, even expired, beats failing completely. Nobody else sees this failure, so
+    // it is reported here; the backoff keeps that to one check (and report) per 30 s at most.
     if (store.cache) {
+      reportApiFailure(failure, { context: REPORT_CONTEXT, level: 'warning' });
       const answer = staleAnswer(store.cache.data);
       store.failure = { answer, retryAt: Date.now() + RETRY_BACKOFF_MS };
       return answer;
@@ -209,10 +219,7 @@ async function refreshStatus(store: StatusStore): Promise<ServiceStatus> {
     // Sooner than the backoff: with nothing to show, the next check is worth more.
     store.failure = { answer: fallback, retryAt: Date.now() + FALLBACK_TTL_MS };
 
-    throw ensureBaseError(error, 'status:fetch', {
-      apiEndpoint: 'monitors',
-      fallbackProvided: true,
-    });
+    throw failure;
   }
 }
 

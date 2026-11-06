@@ -31,7 +31,8 @@
  *   route handlers) and 'server-only';
  * - '@/classes/error', whose BaseError is built on Effect's Data. It also catches a value import
  *   of data/tile-result.ts, whose settle() reports through it: islands import its types only.
- * However the module is spelled: '@/…', a relative path, with an extension or through /index.
+ * However the module is spelled: '@/…', a relative path, with dot segments, an extension or
+ * through /index.
  * Type-only imports are fine, because they are erased before bundling.
  *
  * Modules outside the home folder are checked by their specifier only, not followed: this guard
@@ -159,11 +160,11 @@ const valueSpecifiers = (source: string, file: string): string[] =>
   });
 
 /**
- * The repository path `specifier` names from `file`: '@/' is src/, and a relative path resolves
- * from the file's folder. Packages give undefined.
+ * The repository path `specifier` names from `file`, normalised ('.' and '..' resolved): '@/' is
+ * src/, and a relative path resolves from the file's folder. Packages give undefined.
  */
 const repoPathOf = (specifier: string, file: string): string | undefined => {
-  if (specifier.startsWith('@/')) return `src/${specifier.slice(2)}`;
+  if (specifier.startsWith('@/')) return posix.join('src', specifier.slice(2));
   if (specifier.startsWith('.')) return posix.join(posix.dirname(file), specifier);
   return undefined;
 };
@@ -275,6 +276,13 @@ describe('the home client-import guard', () => {
     ["import { client } from '@/lib/sanity/client.ts';", '@/lib/sanity/client.ts'],
     ["import { client } from '@/lib/sanity/client/index';", '@/lib/sanity/client/index'],
     ["import { client } from '../../../../lib/sanity/client';", '../../../../lib/sanity/client'],
+    // Dot segments in an alias still name the banned module.
+    ["import { client } from '@/lib/sanity/../sanity/client';", '@/lib/sanity/../sanity/client'],
+    ["import { client } from '@/lib/./sanity/client';", '@/lib/./sanity/client'],
+    [
+      "import { loadNowPlaying } from '@/app/_components/home/live/../data/loaders';",
+      '@/app/_components/home/live/../data/loaders',
+    ],
     ["import { createClient } from '@sanity/client';", '@sanity/client'],
     ["import { ensureBaseError } from '@/classes/error';", '@/classes/error'],
     ["import { loadNowPlaying } from '../data/loaders';", '../data/loaders'],
