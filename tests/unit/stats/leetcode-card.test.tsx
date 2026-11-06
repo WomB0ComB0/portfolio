@@ -270,4 +270,15 @@ describe('LeetCode progress bars', () => {
     expect(fillFor('Hard').style.transform).toMatch(/^translateX\(-88\.46\d*%\)$/);
     expect(fillFor('Medium').style.transform).not.toMatch(/scale/);
   });
+
+  // Tailwind's green, yellow and red were near LeetCode's, not its own; the home tile uses these.
+  it('fill each difficulty in LeetCode’s own colour token', async () => {
+    stubLeetCode({ status: 200, body: stats });
+    renderCard();
+    await screen.findByText('Easy');
+
+    expect(fillFor('Easy')).toHaveClass('bg-leet-easy');
+    expect(fillFor('Medium')).toHaveClass('bg-leet-medium');
+    expect(fillFor('Hard')).toHaveClass('bg-leet-hard');
+  });
 });

@@ -30,11 +30,13 @@ export { LiveNumber, type LiveNumberProps } from './live-number';
 export { PageShell, type PageShellProps } from './page-shell';
 export {
   type ChartTone,
+  type LeetCodeTone,
   SegmentBar,
   type SegmentBarProps,
   type SegmentBarSegment,
   SegmentBarSkeleton,
   type SegmentBarSkeletonProps,
+  type SegmentTone,
 } from './segment-bar';
 export {
   Sparkline,

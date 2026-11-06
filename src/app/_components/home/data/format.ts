@@ -49,6 +49,15 @@ export interface DateSpan {
   readonly endDate?: string | null;
 }
 
+/**
+ * A span of days as printed: its first day, and its last when it ends on a later one. Apart, so a
+ * page can set the two ends apart in markup (an en dash for the eye, 'to' for a screen reader).
+ */
+export interface DaySpanParts {
+  readonly start: string;
+  readonly end?: string;
+}
+
 interface DayFormats {
   readonly monthYear: Intl.DateTimeFormat;
   readonly day: Intl.DateTimeFormat;
@@ -130,14 +139,21 @@ export function nyToday(now: Instant = new Date()): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
+/** The day `parsed` falls on where it is printed, YYYY-MM-DD: UTC for a calendar date, else NY. */
+const dayOf = (parsed: ParsedDate): string =>
+  parsed.isCalendarDate ? new Date(parsed.ms).toISOString().slice(0, 10) : nyToday(parsed.ms);
+
 /** The year `parsed` falls in, where it is printed. */
-const yearOf = (parsed: ParsedDate): string =>
-  parsed.isCalendarDate
-    ? new Date(parsed.ms).toISOString().slice(0, 4)
-    : nyToday(parsed.ms).slice(0, 4);
+const yearOf = (parsed: ParsedDate): string => dayOf(parsed).slice(0, 4);
 
 const formatsFor = (parsed: ParsedDate): DayFormats =>
   parsed.isCalendarDate ? CALENDAR_DAY_FORMATS : NY_DAY_FORMATS;
+
+/** 'Oct 30', or 'Oct 30, 2025' with the year. */
+function printDay(parsed: ParsedDate, withYear: boolean): string {
+  const formats = formatsFor(parsed);
+  return plainSpaces((withYear ? formats.dayWithYear : formats.day).format(parsed.ms));
+}
 
 /** 'Mar 2026'. '' when `value` is not a date. */
 export function formatMonthYear(value: string): string {
@@ -152,9 +168,32 @@ export function formatMonthYear(value: string): string {
 export function formatDay(value: string, now?: Instant): string {
   const parsed = parseDate(value);
   if (!parsed) return '';
-  const formats = formatsFor(parsed);
-  const otherYear = now !== undefined && yearOf(parsed) !== nyToday(now).slice(0, 4);
-  return plainSpaces((otherYear ? formats.dayWithYear : formats.day).format(parsed.ms));
+  return printDay(parsed, now !== undefined && yearOf(parsed) !== nyToday(now).slice(0, 4));
+}
+
+/**
+ * A span of days, split at the dash: { start: 'Jul 29', end: 'Sep 15' }, or { start: 'Nov 3',
+ * end: '7' } within one month (the /places convention, src/utils/date.ts formatDateRangeParts).
+ * As in formatDay, the year shows only when it is not `now`'s: once, at the end, for a span within
+ * one year ('Sep 15, 2025'), and on both days for a span that crosses one ('Dec 28, 2025' to
+ * 'Jan 3, 2026'). Without an end on a later day, just the start, as formatDay prints it. Null when
+ * the start is not a date.
+ */
+export function formatDaySpan({ startDate, endDate }: DateSpan, now: Instant): DaySpanParts | null {
+  const start = startDate ? parseDate(startDate) : null;
+  if (!(startDate && start)) return null;
+  const end = endDate ? parseDate(endDate) : null;
+  if (!end || dayOf(end) <= dayOf(start)) return { start: formatDay(startDate, now) };
+
+  const year = yearOf(end);
+  if (yearOf(start) !== year) return { start: printDay(start, true), end: printDay(end, true) };
+  const withYear = year !== nyToday(now).slice(0, 4);
+  const yearSuffix = withYear ? `, ${year}` : '';
+  const sameMonth = dayOf(start).slice(0, 7) === dayOf(end).slice(0, 7);
+  const last = sameMonth
+    ? `${Number(dayOf(end).slice(8, 10))}${yearSuffix}`
+    : printDay(end, withYear);
+  return { start: printDay(start, false), end: last };
 }
 
 /**
@@ -230,8 +269,29 @@ export function formatCoordinates(latitude: number, longitude: number): string {
 }
 
 /**
+ * The latest of the span's days known to be a visit by `today` (both YYYY-MM-DD): its last day
+ * once that day has come, else its first. An end that is not after the start is ignored. Null
+ * without a start date, or when the span starts after `today`.
+ *
+ * Venues visited on and off store their latest visit as the start, and a stated run of visits as
+ * a range (Corgi NYC: Jul 29 and Sep 15). The days between a range's ends need not be visits, so
+ * while a range is on, only its first day counts: on Sep 1 Corgi NYC was last visited Jul 29.
+ *
+ * @example
+ * lastVisitDay({ startDate: '2026-07-29', endDate: '2026-09-15' }, '2026-09-01') // '2026-07-29'
+ * lastVisitDay({ startDate: '2026-07-29', endDate: '2026-09-15' }, '2026-11-06') // '2026-09-15'
+ */
+export function lastVisitDay({ startDate, endDate }: DateSpan, today: string): string | null {
+  const start = startDate?.slice(0, 10);
+  if (!start || start > today) return null;
+  const end = endDate?.slice(0, 10);
+  return end && end > start && end <= today ? end : start;
+}
+
+/**
  * True when `today` (YYYY-MM-DD) is one of the span's days: its start day, or any day from start
- * to end when it has an end. False without a start date.
+ * to end when it has an end. False without a start date. This is the 'Here now' label's test,
+ * not a visit's: a range is on from its first day to its last (see lastVisitDay).
  */
 export function isOngoing({ startDate, endDate }: DateSpan, today: string): boolean {
   if (!startDate) return false;

@@ -19,7 +19,8 @@
  * @file What the home tiles pick from the pages' Sanity lists, and the typing tile's numbers
  * (src/app/_components/home/data/selectors.ts). The rules hold whatever order the list arrives
  * in: Studio order (`order` ascending, then the newer start) for roles and the featured
- * project; the latest day, then the lower `order`, for the last place.
+ * project; the latest day known to be a visit (a range's last day once it has come, else its
+ * first), then the lower `order`, for the last place.
  */
 
 import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
@@ -110,6 +111,70 @@ describe('selectLatestPlace', () => {
     const earlier = makePlace({ startDate: '2026-08-01', order: -99 });
 
     expect(selectLatestPlace([earlier, afternoon, evening], TODAY)?._id).toBe(evening._id);
+  });
+
+  describe('around a stated run of visits (the live places, Nov 2026)', () => {
+    // Corgi NYC's visits were Jul 29 and Sep 15, stored as one range; the rest are single days.
+    const corgi = makePlace({
+      name: 'Corgi NYC',
+      category: 'Event',
+      startDate: '2026-07-29',
+      endDate: '2026-09-15',
+      order: -91,
+    });
+    const buildFridays = makePlace({ name: 'build fridays', startDate: '2026-08-21', order: -98 });
+    const pitchAndRun = makePlace({ name: 'Pitch and Run', startDate: '2026-08-21', order: -97 });
+    const antler = makePlace({ name: 'Antler NYC', startDate: '2026-08-11', order: -74 });
+    const places = [corgi, buildFridays, pitchAndRun, antler];
+
+    it('ranks the range by its last day once that day comes, beating days inside it', () => {
+      expect(selectLatestPlace(places, TODAY)?.name).toBe('Corgi NYC');
+      expect(selectLatestPlace(places, '2026-09-15')?.name).toBe('Corgi NYC');
+    });
+
+    // Its days between the two visits are not visits: on them he was not at Corgi NYC.
+    it.each(['2026-08-22', '2026-09-01', '2026-09-14'])(
+      'ranks the range by its first day before its last, so the later single day wins on %s',
+      (today) => {
+        expect(selectLatestPlace(places, today)?.name).toBe('build fridays');
+      },
+    );
+
+    it('lets a single day visited after the range started win on that day, whatever its order', () => {
+      expect(selectLatestPlace([corgi, antler], '2026-08-11')?.name).toBe('Antler NYC');
+    });
+  });
+
+  it('still picks a range that is on over a place visited before it started', () => {
+    const hackathon = makePlace({ startDate: '2026-11-04', endDate: '2026-11-06', order: 5 });
+    const before = makePlace({ startDate: '2026-11-03', order: -99 });
+    const since = makePlace({ startDate: '2026-11-05', order: 9 });
+
+    expect(selectLatestPlace([before, hackathon], TODAY)?._id).toBe(hackathon._id);
+    expect(selectLatestPlace([before, hackathon, since], TODAY)?._id).toBe(since._id);
+  });
+
+  it('breaks a tie between a range that ends today and a place dated today by order', () => {
+    const range = makePlace({ startDate: '2026-10-01', endDate: TODAY, order: -10 });
+    const earlier = makePlace({ startDate: TODAY, order: -20 });
+    const later = makePlace({ startDate: TODAY, order: 0 });
+
+    expect(selectLatestPlace([range, earlier], TODAY)?._id).toBe(earlier._id);
+    expect(selectLatestPlace([later, range], TODAY)?._id).toBe(range._id);
+  });
+
+  it('skips a range that has not started, however late it ends', () => {
+    const upcoming = makePlace({ startDate: '2026-11-06', endDate: '2026-11-08' });
+    const past = makePlace({ startDate: '2026-10-01' });
+
+    expect(selectLatestPlace([upcoming, past], TODAY)?._id).toBe(past._id);
+  });
+
+  it('ignores an end before the start (bad data), ranking the place by its start', () => {
+    const backwards = makePlace({ startDate: '2026-10-20', endDate: '2026-10-02' });
+    const between = makePlace({ startDate: '2026-10-10' });
+
+    expect(selectLatestPlace([between, backwards], TODAY)?._id).toBe(backwards._id);
   });
 
   it('is null when no place is dated on or before today', () => {

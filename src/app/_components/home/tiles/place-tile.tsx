@@ -18,7 +18,9 @@ import 'server-only';
 
 /**
  * @file The home last-place tile: the most recent place visited, or 'Here now' while a visit is
- * on (New York's today). A linked tile whose stretched link is the place's name.
+ * on (New York's today). A linked tile whose stretched link is the place's name. A run of visits
+ * shows its first and last day ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15'), and how long ago
+ * counts from the last.
  *
  * At 18rem of tile width and above it shows the first photo as a 72 px thumbnail; narrower, or
  * without a photo, the coordinates stand in for it.
@@ -28,16 +30,19 @@ import { MapPin } from 'lucide-react';
 import Image from 'next/image';
 import type { ReactElement } from 'react';
 
-import { hasDestination, StatusDot, Tile, TileLink } from '@/components/console';
+import { hasDestination, SrOnlyWords, StatusDot, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import {
+  type DaySpanParts,
   formatAsOfDay,
   formatCoordinates,
   formatDay,
+  formatDaySpan,
   formatRelative,
   type Instant,
   isOngoing,
+  lastVisitDay,
   nyToday,
 } from '../data/format';
 import { loadLatestPlace } from '../data/loaders';
@@ -45,6 +50,7 @@ import type { TileResult } from '../data/tile-result';
 import {
   joinMeta,
   LoadingNote,
+  META_SEPARATOR,
   SkeletonBar,
   TileEmpty,
   TileLabel,
@@ -59,6 +65,9 @@ const PLACES_PATH = '/places';
 /** Drawn at 72 px; the file is twice that for 2x screens. */
 const THUMB_PX = 72;
 const THUMB_SOURCE_PX = THUMB_PX * 2;
+
+/** Between a span's first and last day: an en dash, as /places prints a visit's dates. */
+const SPAN_DASH = ' – ';
 
 const NAME_CLASS = 'line-clamp-2 wrap-break-word text-body font-semibold text-foreground';
 const COORDINATES_CLASS =
@@ -90,6 +99,47 @@ function PlaceLabel({ ongoing }: { ongoing: boolean }): ReactElement {
   );
 }
 
+/**
+ * A range's end, after its start: ' – Sep 15' on screen, ' to Sep 15' to a screen reader, which
+ * does not read an en dash at its default punctuation level. /places' PlaceDateRange says a span
+ * the same way.
+ */
+function SpanEnd({ end }: { end: string }): ReactElement {
+  return (
+    <>
+      <span aria-hidden="true">{SPAN_DASH}</span>
+      <SrOnlyWords>to</SrOnlyWords>
+      {` ${end}`}
+    </>
+  );
+}
+
+interface PlaceMetaProps {
+  category: Place['category'];
+  days: DaySpanParts | null;
+  /** How long ago, or null when the label or the days already say when. */
+  when: string | null;
+  asOf: string;
+}
+
+/**
+ * The context line: category, days, how long ago and, for a stale place, the list's day. A range's
+ * end is markup (SpanEnd), so the line is joined around it.
+ */
+function PlaceMeta({ category, days, when, asOf }: PlaceMetaProps): ReactElement {
+  const head = joinMeta([category, days?.start]);
+  const tail = joinMeta([when, asOf]);
+  return (
+    // The relative day, and the date's year once the year turns, depend on today.
+    <TileMeta dated>
+      {head}
+      {days?.end ? <SpanEnd end={days.end} /> : null}
+      {head && tail ? META_SEPARATOR : null}
+      {tail}
+    </TileMeta>
+  );
+}
+
 interface PlaceViewProps {
   place: Place;
   now: Instant;
@@ -100,15 +150,18 @@ interface PlaceViewProps {
 }
 
 function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
-  const ongoing = isOngoing(place, nyToday(now));
+  const today = nyToday(now);
+  const ongoing = isOngoing(place, today);
   const href = placeHref(place);
   const thumbnail = thumbnailUrl(place);
-  const startDate = place.startDate ?? '';
-  const day = formatDay(startDate, now);
-  const relative = formatRelative(startDate, now);
+  // A single day, or a run of visits from first to last ('Jul 29 – Sep 15').
+  const days = formatDaySpan(place, now);
+  // How long ago is counted from the last visit, which for a range that is over is its last day.
+  const lastDay = lastVisitDay(place, today) ?? '';
+  const relative = formatRelative(lastDay, now);
   // 'Here now' already says when, and a relative day would read as if the visit were over. From
-  // 14 days back formatRelative gives the date itself, which the meta already shows.
-  const when = ongoing || relative === day ? null : relative;
+  // 14 days back formatRelative gives the last day's date itself, which the days already show.
+  const when = ongoing || relative === formatDay(lastDay, now) ? null : relative;
   return (
     <Tile
       variant={hasDestination(href) ? 'linked' : 'plain'}
@@ -140,8 +193,7 @@ function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
           />
         )}
       </div>
-      {/* The relative day, and the date's year once the year turns, depend on today. */}
-      <TileMeta dated>{joinMeta([place.category, day, when, asOf])}</TileMeta>
+      <PlaceMeta category={place.category} days={days} when={when} asOf={asOf} />
     </Tile>
   );
 }

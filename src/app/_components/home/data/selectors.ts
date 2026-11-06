@@ -25,6 +25,7 @@
 
 import type { Experience, Place, Project } from '@/hooks/sanity/schemas';
 import type { MonkeytypeProfile } from '@/lib/api-integrations/monkeytype';
+import { lastVisitDay } from './format';
 
 /** How many current roles the roles tile lists. */
 export const ROLES_SHOWN = 3;
@@ -72,15 +73,18 @@ const byStudioOrder = (
   b: { readonly order: number; readonly startDate?: string | null },
 ): number => a.order - b.order || newerFirst(a.startDate, b.startDate);
 
-/** The day a place starts, YYYY-MM-DD, or null when it has no date. */
-const dayOf = (place: Place): string | null => place.startDate?.slice(0, 10) ?? null;
+/** A place with the day of its last known visit by today (YYYY-MM-DD, lastVisitDay). */
+interface Visit {
+  readonly place: Place;
+  readonly day: string;
+}
 
 /**
- * The latest day first; on the same day the lower `order` first (by convention, a more negative
+ * The latest visit first; on the same day the lower `order` first (by convention, a more negative
  * order is later in the day).
  */
-const byLatestVisit = (a: Place, b: Place): number =>
-  newerFirst(dayOf(a), dayOf(b)) || a.order - b.order;
+const byLatestVisit = (a: Visit, b: Visit): number =>
+  newerFirst(a.day, b.day) || a.place.order - b.place.order;
 
 /** The current roles in Studio order: the first {@link ROLES_SHOWN}, and how many there are. */
 export function selectCurrentRoles(experiences: readonly Experience[]): CurrentRoles {
@@ -89,15 +93,18 @@ export function selectCurrentRoles(experiences: readonly Experience[]): CurrentR
 }
 
 /**
- * The most recent place visited by `today` (YYYY-MM-DD): undated and future-dated places are
- * skipped. Null when no place qualifies.
+ * The place visited most recently by `today` (YYYY-MM-DD), by the latest day known to be a visit
+ * (lastVisitDay): a range's last day once that day has come, else its first or only day. So from
+ * Sep 15 a run of visits from Jul 29 to Sep 15 is more recent than a single day on Aug 21, though
+ * it started first; before Sep 15 the Aug 21 day is. Undated places, and places that start after
+ * today, are skipped. Null when none qualifies.
  */
 export function selectLatestPlace(places: readonly Place[], today: string): Place | null {
-  const visited = places.filter((place) => {
-    const day = dayOf(place);
-    return day !== null && day <= today;
+  const visits = places.flatMap((place): Visit[] => {
+    const day = lastVisitDay(place, today);
+    return day === null ? [] : [{ place, day }];
   });
-  return visited.sort(byLatestVisit)[0] ?? null;
+  return visits.sort(byLatestVisit)[0]?.place ?? null;
 }
 
 /**

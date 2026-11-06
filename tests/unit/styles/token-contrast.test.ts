@@ -52,6 +52,9 @@ const CONSOLE_TEXT = [
 /** The status colours; each has a translucent `--<tone>-tint` badge fill. */
 const STATUS_TONES = ['live', 'ongoing', 'down', 'info'] as const;
 
+/** LeetCode's difficulty colours (hex): segment bar parts and legend swatches, non-text marks. */
+const LEET_TONES = ['leet-easy', 'leet-medium', 'leet-hard'] as const;
+
 /** Linear-light sRGB channels, nominally 0..1. */
 type LinearRgb = readonly [number, number, number];
 
@@ -109,6 +112,14 @@ const clip = ([r, g, b]: LinearRgb): LinearRgb => {
 
 const encode = (c: number): number => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
 const decode = (v: number): number => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+
+/** Converts a CSS `#rrggbb` value to linear-light sRGB. */
+function hexToLinearSrgb(value: string): LinearRgb {
+  const match = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(value);
+  if (!match) throw new Error(`not a #rrggbb value: ${value}`);
+  const channel = (hex = ''): number => decode(Number.parseInt(hex, 16) / 255);
+  return [channel(match[1]), channel(match[2]), channel(match[3])];
+}
 
 /** `top` at `alpha` opacity over an opaque `bottom`, blended in gamma-encoded sRGB. */
 function composite(top: LinearRgb, alpha: number, bottom: LinearRgb): LinearRgb {
@@ -255,6 +266,20 @@ describe('colour token contrast (globals.css :root)', () => {
   it.each(CONSOLE_SURFACES)('the --focus ring meets 3:1 against --%s', (surface) => {
     const ratio = contrastRatio(color('focus'), color(surface));
     expect(ratio, `focus on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+      AA_NON_TEXT,
+    );
+  });
+
+  const leetPairs = LEET_TONES.flatMap((tone) =>
+    CONSOLE_SURFACES.map((surface) => [tone, surface] as const),
+  );
+
+  // The bar's parts sit on surface-2 (its track) and the swatches on the tile's surface.
+  it.each(leetPairs)('--%s, a bar part and swatch, meets 3:1 against --%s', (tone, surface) => {
+    const value = tokens.get(tone);
+    if (!value) throw new Error(`--${tone} is not declared in :root`);
+    const ratio = contrastRatio(hexToLinearSrgb(value), color(surface));
+    expect(ratio, `${tone} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
       AA_NON_TEXT,
     );
   });

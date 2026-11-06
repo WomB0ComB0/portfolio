@@ -28,9 +28,11 @@ import {
   formatClockET,
   formatCoordinates,
   formatDay,
+  formatDaySpan,
   formatMonthYear,
   formatRelative,
   isOngoing,
+  lastVisitDay,
   nyToday,
 } from '@/app/_components/home/data/format';
 
@@ -236,5 +238,101 @@ describe('isOngoing', () => {
 
   it('is false for a place that has not started', () => {
     expect(isOngoing({ startDate: '2026-11-06', endDate: '2026-11-08' }, TODAY)).toBe(false);
+  });
+});
+
+describe('lastVisitDay', () => {
+  const TODAY = '2026-11-05';
+
+  it('is the one day of a single-day place on or before today', () => {
+    expect(lastVisitDay({ startDate: '2026-08-21' }, TODAY)).toBe('2026-08-21');
+    expect(lastVisitDay({ startDate: TODAY, endDate: null }, TODAY)).toBe(TODAY);
+  });
+
+  it('is the last day of a range that is over, not its first', () => {
+    expect(lastVisitDay({ startDate: '2026-07-29', endDate: '2026-09-15' }, TODAY)).toBe(
+      '2026-09-15',
+    );
+    expect(lastVisitDay({ startDate: '2026-10-01', endDate: TODAY }, TODAY)).toBe(TODAY);
+  });
+
+  // A stated run of visits (Corgi NYC: Jul 29 and Sep 15) is not a visit on every day between.
+  it('is the first day while a range is on, until its last day comes', () => {
+    const corgi = { startDate: '2026-07-29', endDate: '2026-09-15' };
+
+    expect(lastVisitDay({ startDate: '2026-09-01', endDate: '2026-12-31' }, TODAY)).toBe(
+      '2026-09-01',
+    );
+    expect(lastVisitDay(corgi, '2026-07-29')).toBe('2026-07-29');
+    expect(lastVisitDay(corgi, '2026-09-14')).toBe('2026-07-29');
+    expect(lastVisitDay(corgi, '2026-09-15')).toBe('2026-09-15');
+  });
+
+  it('is null for a place that has not started, or has no start date', () => {
+    expect(lastVisitDay({ startDate: '2026-11-06', endDate: '2026-11-08' }, TODAY)).toBe(null);
+    expect(lastVisitDay({ startDate: '2026-12-01' }, TODAY)).toBe(null);
+    expect(lastVisitDay({ startDate: null, endDate: '2026-10-01' }, TODAY)).toBe(null);
+    expect(lastVisitDay({}, TODAY)).toBe(null);
+  });
+
+  it('keeps the start when the end is not after it', () => {
+    expect(lastVisitDay({ startDate: '2026-10-20', endDate: '2026-10-02' }, TODAY)).toBe(
+      '2026-10-20',
+    );
+  });
+});
+
+describe('formatDaySpan', () => {
+  it('splits a range in this year into its first and last day, without the year', () => {
+    expect(formatDaySpan({ startDate: '2026-07-29', endDate: '2026-09-15' }, NOW)).toEqual({
+      start: 'Jul 29',
+      end: 'Sep 15',
+    });
+  });
+
+  it('names the month once for a range within one month, as /places does', () => {
+    expect(formatDaySpan({ startDate: '2026-11-03', endDate: '2026-11-07' }, NOW)).toEqual({
+      start: 'Nov 3',
+      end: '7',
+    });
+    expect(formatDaySpan({ startDate: '2025-05-19', endDate: '2025-05-20' }, NOW)).toEqual({
+      start: 'May 19',
+      end: '20, 2025',
+    });
+  });
+
+  it('prints the year once, at the end, for a range in another year than now', () => {
+    expect(formatDaySpan({ startDate: '2025-07-29', endDate: '2025-09-15' }, NOW)).toEqual({
+      start: 'Jul 29',
+      end: 'Sep 15, 2025',
+    });
+  });
+
+  it('prints both years for a range that crosses a year', () => {
+    expect(formatDaySpan({ startDate: '2025-12-28', endDate: '2026-01-03' }, NOW)).toEqual({
+      start: 'Dec 28, 2025',
+      end: 'Jan 3, 2026',
+    });
+  });
+
+  it('gives a single day no end, printed as formatDay does, as for an end not after the start', () => {
+    expect(formatDaySpan({ startDate: '2026-10-30' }, NOW)).toEqual({ start: 'Oct 30' });
+    expect(formatDaySpan({ startDate: '2025-10-30', endDate: null }, NOW)).toEqual({
+      start: 'Oct 30, 2025',
+    });
+    expect(formatDaySpan({ startDate: '2026-10-30', endDate: '2026-10-30' }, NOW)).toEqual({
+      start: 'Oct 30',
+    });
+    expect(formatDaySpan({ startDate: '2026-10-30', endDate: '2026-10-02' }, NOW)).toEqual({
+      start: 'Oct 30',
+    });
+  });
+
+  it('gives the start alone when the end is not a date, and null without a start', () => {
+    expect(formatDaySpan({ startDate: '2026-10-30', endDate: '2026-02-30' }, NOW)).toEqual({
+      start: 'Oct 30',
+    });
+    expect(formatDaySpan({ startDate: null, endDate: '2026-10-30' }, NOW)).toBe(null);
+    expect(formatDaySpan({ startDate: 'soon' }, NOW)).toBe(null);
   });
 });

@@ -122,10 +122,11 @@ export const LeetCodeStatsSkeleton = () => (
 
 const LeetCodeStatsCard = ({ data }: { data: LeetCodeStatsData }) => {
   const { totalSolved, easySolved, mediumSolved, hardSolved, acceptanceRate, ranking } = data;
+  // LeetCode's own difficulty colours, as the home tile's bar draws them.
   const breakdown = [
-    { label: 'Easy', value: easySolved, colorClass: 'bg-green-500' },
-    { label: 'Medium', value: mediumSolved, colorClass: 'bg-yellow-500' },
-    { label: 'Hard', value: hardSolved, colorClass: 'bg-red-500' },
+    { label: 'Easy', value: easySolved, colorClass: 'bg-leet-easy' },
+    { label: 'Medium', value: mediumSolved, colorClass: 'bg-leet-medium' },
+    { label: 'Hard', value: hardSolved, colorClass: 'bg-leet-hard' },
   ];
 
   return (

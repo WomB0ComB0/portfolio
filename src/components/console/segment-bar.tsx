@@ -32,6 +32,15 @@ import { cn } from '@/lib/utils';
 /** A chart series slot: the fixed --chart-1..6 order, assigned in order and never cycled. */
 export type ChartTone = 1 | 2 | 3 | 4 | 5 | 6;
 
+/** LeetCode's own difficulty colours (--leet-easy, --leet-medium, --leet-hard). */
+export type LeetCodeTone = 'leet-easy' | 'leet-medium' | 'leet-hard';
+
+/**
+ * What paints a part and its swatch: a chart series slot for parts with no colour of their own,
+ * or a named colour for parts whose source already colours them (LeetCode's difficulties).
+ */
+export type SegmentTone = ChartTone | LeetCodeTone;
+
 /** Literal classes so Tailwind's scanner sees every one; never build them from a template. */
 const TONE_CLASS = {
   1: 'bg-chart-1',
@@ -40,7 +49,10 @@ const TONE_CLASS = {
   4: 'bg-chart-4',
   5: 'bg-chart-5',
   6: 'bg-chart-6',
-} as const satisfies Record<ChartTone, string>;
+  'leet-easy': 'bg-leet-easy',
+  'leet-medium': 'bg-leet-medium',
+  'leet-hard': 'bg-leet-hard',
+} as const satisfies Record<SegmentTone, string>;
 
 /** 8px, fully rounded ends; the 2px gap between parts shows the track. */
 const TRACK_CLASS = 'flex h-2 gap-0.5 overflow-hidden rounded-full bg-surface-2';
@@ -69,7 +81,7 @@ export interface SegmentBarSegment {
   key: string;
   label: string;
   value: number;
-  tone: ChartTone;
+  tone: SegmentTone;
 }
 
 export interface SegmentBarProps {
@@ -148,9 +160,9 @@ export function SegmentBarSkeleton({ segments, className }: SegmentBarSkeletonPr
  * @example
  * <SegmentBar
  *   segments={[
- *     { key: 'easy', label: 'Easy', value: 215, tone: 1 },
- *     { key: 'medium', label: 'Medium', value: 379, tone: 2 },
- *     { key: 'hard', label: 'Hard', value: 98, tone: 3 },
+ *     { key: 'easy', label: 'Easy', value: 215, tone: 'leet-easy' },
+ *     { key: 'medium', label: 'Medium', value: 379, tone: 'leet-medium' },
+ *     { key: 'hard', label: 'Hard', value: 98, tone: 'leet-hard' },
  *   ]}
  * />
  */
