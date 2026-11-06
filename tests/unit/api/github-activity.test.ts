@@ -38,7 +38,12 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 
-import { ACTIVE_PROJECT_WINDOW_DAYS } from '@/app/_components/home/data/selectors';
+import { makeProject } from '@tests/fixtures/sanity-docs';
+import { nyToday } from '@/app/_components/home/data/format';
+import {
+  ACTIVE_PROJECT_WINDOW_DAYS,
+  selectActiveProject,
+} from '@/app/_components/home/data/selectors';
 import { isBaseError } from '@/classes/error';
 import {
   ACTIVITY_TTL_MS,
@@ -442,8 +447,16 @@ const commitsReply = (entries: unknown) => ({
 
 const readCommits = async () => (await readRecentCommits()).data;
 
+/** True when the project tile's selector takes a commit on `day` as recent work at `now`. */
+const tileAcceptsDay = (day: string, now: number): boolean => {
+  const repo = 'WomB0ComB0/grepo';
+  const url = `https://github.com/${repo}`;
+  const committed = { nameWithOwner: repo, url, lastCommitDay: day, commitsThatDay: 1 };
+  return selectActiveProject([makeProject({ githubUrl: url })], [committed], now) !== null;
+};
+
 describe("recent commits (the project tile's source)", () => {
-  it('asks its own query: his commit contributions of the last 30 days, privacy first', async () => {
+  it('asks its own query: his commit contributions of the last 30 days and one more, privacy first', async () => {
     const fetchMock = stubFetch(() => jsonResponse(commitsReply([])));
 
     await readRecentCommits();
@@ -462,9 +475,31 @@ describe("recent commits (the project tile's source)", () => {
     expect(ACTIVE_PROJECT_WINDOW_DAYS).toBe(RECENT_COMMITS_DAYS);
     expect(request.body.variables).toEqual({
       login: GITHUB_LOGIN,
-      from: new Date(T0 - 30 * DAY_MS).toISOString(),
+      from: new Date(T0 - 31 * DAY_MS).toISOString(),
       to: new Date(T0).toISOString(),
     });
+  });
+
+  // The selector accepts every day up to ACTIVE_PROJECT_WINDOW_DAYS back from New York's today;
+  // GitHub dates a contribution by its day's start in Pacific time. A query starting after that
+  // start never fetches a commit made earlier on the oldest day, so the tile would miss it.
+  it.each([
+    ['7 AM in New York', '2026-11-05T12:00:00Z'],
+    ['9 PM in New York, already the next day in UTC', '2026-11-03T02:00:00Z'],
+    ['a minute to midnight in New York', '2026-11-03T04:59:00Z'],
+    ['a minute after midnight in New York', '2026-11-03T05:01:00Z'],
+  ])('asks from before the oldest day the tile accepts starts, at %s', async (_at, nowIso) => {
+    const now = Date.parse(nowIso);
+    vi.setSystemTime(now);
+    const fetchMock = stubFetch(() => jsonResponse(commitsReply([])));
+
+    await readRecentCommits();
+
+    const oldest = addDays(nyToday(now), -ACTIVE_PROJECT_WINDOW_DAYS);
+    expect(tileAcceptsDay(oldest, now)).toBe(true);
+    expect(tileAcceptsDay(addDays(oldest, -1), now)).toBe(false);
+    const { from } = (await sentRequest(fetchMock)).body.variables;
+    expect(Date.parse(String(from))).toBeLessThan(Date.parse(pacificDayStart(oldest)));
   });
 
   it('lists public repositories by his newest commit day, newest first; on one day, more commits first', async () => {

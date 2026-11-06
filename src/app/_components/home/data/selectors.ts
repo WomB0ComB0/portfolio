@@ -27,7 +27,7 @@
 import type { Experience, Place, Project } from '@/hooks/sanity/schemas';
 import type { CommittedRepo } from '@/lib/api-integrations/github-activity';
 import type { MonkeytypeProfile } from '@/lib/api-integrations/monkeytype';
-import { type DateSpan, type Instant, lastDayOf, nyToday, toMs } from './format';
+import { type DateSpan, type Instant, lastDayOf, NY_TIME_ZONE, nyToday } from './format';
 
 /** How many current roles the roles tile lists. */
 export const ROLES_SHOWN = 3;
@@ -146,23 +146,39 @@ export function selectCurrentRoles(experiences: readonly Experience[]): CurrentR
 }
 
 /**
- * How long into the next day in New York a visit's last day still counts as not over: 12 hours.
- * Visits are stored as days, not times. An evening event (a Luma or Partiful RSVP) can run past
- * midnight, and west of New York the day itself is not over at midnight ET. So a visit on day D
- * counts as over from noon ET on D + 1, never while the owner may still be there.
+ * The hour on New York's clock (0 to 23) from which a visit that ended the day before counts as
+ * over: noon. Visits are stored as days, not times. An evening event (a Luma or Partiful RSVP) can
+ * run past midnight, and west of New York the day itself is not over at midnight ET. So a visit on
+ * day D counts as over from 12:00 ET on D + 1 (wall-clock time, so on a daylight-saving day too),
+ * never while the owner may still be there.
  */
-export const PLACE_GRACE_MS = 12 * 3_600_000;
+export const PLACE_CUTOFF_HOUR_ET = 12;
+
+/** New York's clock hour, 0 to 23 (h23: midnight is 0, never 24). */
+const NY_HOUR = new Intl.DateTimeFormat('en-US', {
+  timeZone: NY_TIME_ZONE,
+  hour: 'numeric',
+  hourCycle: 'h23',
+});
+
+const nyHour = (now: Instant): number =>
+  Number(NY_HOUR.formatToParts(now).find((part) => part.type === 'hour')?.value);
+
+/** The calendar day before `day` (YYYY-MM-DD). */
+const dayBefore = (day: string): string =>
+  new Date(Date.parse(day) - DAY_MS).toISOString().slice(0, 10);
 
 /**
- * The day (YYYY-MM-DD) a visit must end before to count as over at `now`: New York's today as it
- * was {@link PLACE_GRACE_MS} ago.
+ * The day (YYYY-MM-DD) a visit must end before to count as over at `now`: New York's today from
+ * {@link PLACE_CUTOFF_HOUR_ET}:00 on its clock, its yesterday before then.
  *
  * @example
  * placeCutoffDay(Date.UTC(2026, 10, 7, 5, 30)) // '2026-11-06': at 00:30 ET Nov 7, Nov 6 is not over
  * placeCutoffDay(Date.UTC(2026, 10, 7, 17, 30)) // '2026-11-07': from noon ET Nov 7, it is
  */
 export function placeCutoffDay(now: Instant): string {
-  return nyToday(toMs(now) - PLACE_GRACE_MS);
+  const today = nyToday(now);
+  return nyHour(now) >= PLACE_CUTOFF_HOUR_ET ? today : dayBefore(today);
 }
 
 /**
@@ -177,13 +193,13 @@ export function lastDayIfOver(span: DateSpan, cutoff: string): string | null {
 
 /**
  * The place whose visit ended most recently before `cutoff` (YYYY-MM-DD; the loader passes
- * placeCutoffDay, New York's today 12 hours ago). Past visits only, so the home page never tells
- * where the owner is now: a place counts once lastDayIfOver says its visit is over. A visit on the
- * cutoff day, a range still on (ending on it or later) and a place yet to come are skipped, as are
- * undated places. Ranked by that last day, newest first, then the lower `order` (byLatestVisit).
- * So from a Sep 16 cutoff a run of visits from Jul 29 to Sep 15 is more recent than a single day
- * on Aug 21, though it started first; until then only the Aug 21 day can show. Null when none
- * qualifies.
+ * placeCutoffDay: New York's today from noon ET, its yesterday before). Past visits only, so the
+ * home page never tells where the owner is now: a place counts once lastDayIfOver says its visit
+ * is over. A visit on the cutoff day, a range still on (ending on it or later) and a place yet to
+ * come are skipped, as are undated places. Ranked by that last day, newest first, then the lower
+ * `order` (byLatestVisit). So from a Sep 16 cutoff a run of visits from Jul 29 to Sep 15 is more
+ * recent than a single day on Aug 21, though it started first; until then only the Aug 21 day can
+ * show. Null when none qualifies.
  */
 export function selectLatestPlace(places: readonly Place[], cutoff: string): Place | null {
   const visits = places.flatMap((place): Visit[] => {

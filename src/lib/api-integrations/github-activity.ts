@@ -600,7 +600,11 @@ async function loadRecentCommits(): Promise<RecentCommits> {
   }
   const nowMs = Date.now();
   try {
-    const variables = spanVariables(nowMs - RECENT_COMMITS_DAYS * DAY_MS, nowMs);
+    // One day more than the window. The selector accepts every day up to 30 back from New York's
+    // today, and GitHub starts a day at midnight Pacific time; 30 days before now can be hours into
+    // that oldest day (a day later in UTC on a New York evening), leaving its earlier commits out.
+    // 31 days before now is always before that day starts. The selector drops the extra day.
+    const variables = spanVariables(nowMs - (RECENT_COMMITS_DAYS + 1) * DAY_MS, nowMs);
     const reply = await Effect.runPromise(requestGraphQL(token, RECENT_COMMITS_QUERY, variables));
     return toRecentCommits(reply);
   } catch (error) {

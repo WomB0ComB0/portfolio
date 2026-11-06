@@ -186,9 +186,14 @@ interface CopyProps {
 
 type CopyView = (props: CopyProps) => ReactElement;
 
-/** Beside the avatar, in capitals. min-w-0 lets a long one wrap instead of widening the row. */
+/**
+ * Beside the avatar, in capitals. min-w-0 lets a long one wrap instead of widening the row, and
+ * wrap-break-word breaks a word too long for the line (Studio allows 40 characters unbroken).
+ */
 function HeroLocation({ copy }: CopyProps): ReactElement {
-  return <p className="label-mono min-w-0 text-muted-foreground">{copy.location}</p>;
+  return (
+    <p className="label-mono min-w-0 wrap-break-word text-muted-foreground">{copy.location}</p>
+  );
 }
 
 /** The tagline's type size, on its box too, so the box's `lh` is the tagline's line. */
@@ -205,19 +210,28 @@ const TAGLINE_TYPE_CLASS = 'text-body @xl:text-title';
  */
 export const TAGLINE_SLOT_RESERVED_CLASS = `min-h-[5lh] @2xs:min-h-[4lh] @sm:min-h-[3lh] ${TAGLINE_TYPE_CLASS}`;
 
+/** wrap-break-word: a word too long for the tile's width breaks instead of overflowing it. */
 function HeroTagline({ copy }: CopyProps): ReactElement {
   return (
-    <p className={`max-w-[40ch] text-pretty text-muted-foreground ${TAGLINE_TYPE_CLASS}`}>
+    <p
+      className={`max-w-[40ch] text-pretty wrap-break-word text-muted-foreground ${TAGLINE_TYPE_CLASS}`}
+    >
       {copy.tagline}
     </p>
   );
 }
 
+/**
+ * The mailto link for `email`. A mail client decodes %XX in the address, so a literal '%' (which
+ * SITE_EMAIL_PATTERN allows) goes as %25: first%2Blast@ stays that, not first+last@.
+ */
+const mailtoHref = (email: string): string => `mailto:${email.replaceAll('%', '%25')}`;
+
 function HeroLinks({ copy }: CopyProps): ReactElement {
   return (
     <ul className="flex flex-wrap gap-2">
       <li>
-        <a href={`mailto:${copy.email}`} className={PRIMARY_LINK_CLASS}>
+        <a href={mailtoHref(copy.email)} className={PRIMARY_LINK_CLASS}>
           Email me
         </a>
       </li>

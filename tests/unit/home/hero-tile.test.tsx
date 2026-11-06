@@ -116,7 +116,7 @@ import { app } from '@/constants';
 import { register } from '@/instrumentation';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { resetSanityLoaderCaches, SANITY_CACHE_TTL_MS } from '@/lib/sanity/loaders';
-import { SITE_TAGLINE_MAX_LENGTH } from '@/sanity/site-settings-rules';
+import { SITE_LOCATION_MAX_LENGTH, SITE_TAGLINE_MAX_LENGTH } from '@/sanity/site-settings-rules';
 
 const FOUNDER = makeExperience({
   position: 'Founder & CEO',
@@ -367,6 +367,27 @@ describe('HeroTile with the site settings', () => {
       githubUrl: GITHUB_PROFILE_URL,
       linkedinUrl: LINKEDIN_PROFILE_URL,
     });
+  });
+
+  // A valid location or tagline can be one word Studio's limits allow; at 320 px it would run out
+  // of the tile instead of wrapping.
+  it('breaks a long unbroken location or tagline inside the tile instead of overflowing it', async () => {
+    const location = 'X'.repeat(SITE_LOCATION_MAX_LENGTH);
+    const tagline = 'x'.repeat(SITE_TAGLINE_MAX_LENGTH);
+    h.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, location, tagline });
+    await renderHeroHtml();
+    expect(locationText()).toBe(location);
+    expect(screen.getByText(location)).toHaveClass('min-w-0', 'wrap-break-word');
+    expect(screen.getByText(tagline)).toHaveClass('wrap-break-word');
+  });
+
+  it("sends a literal '%' in the address as %25, so the mail client gets the address as set", async () => {
+    h.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, email: 'first%2Blast@example.dev' });
+    await renderHeroHtml();
+    const href = contactHrefs().email ?? '';
+    expect(href).toBe('mailto:first%252Blast@example.dev');
+    // What a mail client decodes the link to: the configured mailbox, not first+last@.
+    expect(decodeURIComponent(href)).toBe('mailto:first%2Blast@example.dev');
   });
 
   it("renders today's copy and reports the hero tile when Sanity fails with nothing cached", async () => {

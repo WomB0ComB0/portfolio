@@ -32,7 +32,7 @@ import {
   ACTIVE_PROJECT_WINDOW_DAYS,
   hasBest60,
   lastDayIfOver,
-  PLACE_GRACE_MS,
+  PLACE_CUTOFF_HOUR_ET,
   parseGitHubPath,
   placeCutoffDay,
   ROLES_SHOWN,
@@ -242,8 +242,8 @@ describe('selectLatestPlace', () => {
 // Visits are stored as days, not times, so midnight in New York is too soon to call one over: an
 // evening event may still be going, and west of New York the day is not over yet.
 describe('placeCutoffDay', () => {
-  it('waits 12 hours into the next New York day', () => {
-    expect(PLACE_GRACE_MS).toBe(12 * 60 * 60_000);
+  it('waits until noon on the next New York day', () => {
+    expect(PLACE_CUTOFF_HOUR_ET).toBe(12);
   });
 
   it.each([
@@ -251,6 +251,12 @@ describe('placeCutoffDay', () => {
     ['11:59 ET Nov 7', '2026-11-06', Date.UTC(2026, 10, 7, 16, 59)],
     ['noon ET Nov 7', '2026-11-07', Date.UTC(2026, 10, 7, 17, 0)],
     ['11:59 PM ET Nov 7', '2026-11-07', Date.UTC(2026, 10, 8, 4, 59)],
+    // Wall-clock noon, not 12 elapsed hours: Nov 1 has 25 hours in New York, Mar 8 has 23.
+    ['11:30 EST Nov 1 (clocks went back)', '2026-10-31', Date.UTC(2026, 10, 1, 16, 30)],
+    ['noon EST Nov 1 (clocks went back)', '2026-11-01', Date.UTC(2026, 10, 1, 17, 0)],
+    ['11:59 EDT Mar 8 (clocks went forward)', '2026-03-07', Date.UTC(2026, 2, 8, 15, 59)],
+    ['12:30 EDT Mar 8 (clocks went forward)', '2026-03-08', Date.UTC(2026, 2, 8, 16, 30)],
+    ['00:30 EST Mar 1 (a month starts)', '2026-02-28', Date.UTC(2026, 2, 1, 5, 30)],
   ] as const)('at %s, a visit must have ended before %s', (_at, cutoff, now) => {
     expect(placeCutoffDay(now)).toBe(cutoff);
     expect(placeCutoffDay(new Date(now))).toBe(cutoff);

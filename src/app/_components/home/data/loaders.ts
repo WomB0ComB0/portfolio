@@ -222,7 +222,7 @@ export const loadCurrentRoles = cache(
 
 /**
  * The place whose visit ended most recently before the cutoff day (selectLatestPlace: past visits
- * only; placeCutoffDay: New York's today 12 hours ago, so a visit shows from noon ET the day
+ * only; placeCutoffDay: New York's yesterday until noon ET, so a visit shows from noon ET the day
  * after); empty when none has. Past the deadline, from the last places cached.
  */
 export const loadLatestPlace = cache(
