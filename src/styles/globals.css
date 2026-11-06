@@ -18,206 +18,107 @@
 
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "./fonts.css";
 @import "./page-header.css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* Mobile navigation safe area */
-.safe-area-inset-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Hide scrollbar for mobile nav overflow */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-/* Custom Scrollbar for Webkit Browsers (Chrome, Safari, Edge) */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, var(--primary) 30%, transparent);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, var(--primary) 50%, transparent);
-}
-
-/* Custom Scrollbar for Firefox */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--primary) 30%, transparent) transparent;
-}
-
 /*
-.flare {
-  position: fixed;
-  border: 2px solid #560bad;
-  border-radius: 50%;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  z-index: 999999 !important;
-  backdrop-filter: blur(1px);
-  background-color: #560bad33;
-  transition:
-    width 0.2s ease-in-out,
-    height 0.2s ease-in-out;
-}
-
-@media screen and (width <= 768px) {
-  .flare {
-    display: none;
-    width: 0;
-    height: 0;
-    transition:
-      width 0.2s ease-in-out,
-      height 0.2s ease-in-out,
-      opacity 0.2s ease-in-out;
-  }
-}
-
-.flare.pointer {
-  display: none;
-  opacity: 0 !important;
-  transition:
-    width 0.2s ease-in-out,
-    height 0.2s ease-in-out,
-    opacity 0.2s ease-in-out;
-}
-*/
-
-.loader {
-  width: 400px;
-  height: 400px;
-  border-radius: 50%;
-  position: relative;
-  background: conic-gradient(#560bad, #ba9bdd);
-  animation: 2s rotate linear infinite;
-  border: 5px solid #242424;
-  transition: 0.5s;
-}
-
-.loader::before {
-  position: absolute;
-  content: "";
-  width: calc(100% - 5px);
-  height: calc(100% - 5px);
-  background: #242424;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-}
-
-.loader::after {
-  position: absolute;
-  content: "";
-  z-index: -3;
-  width: calc(100% + 10px);
-  height: calc(100% + 10px);
-  background: inherit;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  filter: blur(25px);
-  border-radius: 50%;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html,
-  body {
-    scroll-behavior: auto;
-  }
-}
-
-@media only screen and (width <= 600px) {
-  .loader {
-    width: 300px;
-    height: 300px;
-  }
-}
-
-@media only screen and (width >= 600px) {
-  .loader {
-    width: 350px;
-    height: 350px;
-  }
-}
-
-@media only screen and (width >= 768px) {
-  .loader {
-    width: 400px;
-    height: 400px;
-  }
-}
-
-/* Updated to deep purple color scheme inspired by reference design */
+ * Live Console tokens: tinted black with periwinkle.
+ *
+ * Tests read this block up to its first closing brace and parse the literal oklch(L% C Hdeg)
+ * values (tests/unit/styles/token-contrast.test.ts, design-tokens.test.ts and
+ * tests/unit/seo/theme-color.test.ts), so it holds no nested blocks and no var() references.
+ * Never name a colour token "base" or "current": Tailwind's text-base would lose its font size,
+ * and bg-current/text-current always mean currentcolor.
+ */
 :root {
   /* The site is dark-only: the UA draws dark form controls, scrollbars and canvas. */
   color-scheme: dark;
 
-  /* Lifted base. THEME_COLOR in src/utils/seo/meta.ts is this colour as hex (#0d0d0d). */
-  --background: oklch(16% 0 285deg);
+  /* Surfaces, darkest first. Tiles on surface-1 always carry a hairline border. */
+  --canvas: oklch(16% 0.016 285deg);
+  --surface-1: oklch(20% 0.02 285deg);
+  --surface-2: oklch(23.5% 0.025 285deg);
+  --surface-3: oklch(27% 0.028 285deg);
+  --hairline: oklch(30% 0.03 285deg);
+  --hairline-strong: oklch(40% 0.04 285deg);
+
+  /* Text tiers. Each meets 4.5:1 on the canvas and on all three surfaces. */
+  --fg: oklch(94% 0.03 285deg);
+  --fg-muted: oklch(74% 0.038 285deg);
+  --fg-faint: oklch(65% 0.03 285deg);
+
+  /* Brand. brand-ink is brand-coloured text and links; brand-subtle is a selected fill. */
+  --brand: oklch(65% 0.12 285deg);
+  --brand-ink: oklch(76% 0.1 285deg);
+  --brand-subtle: oklch(30% 0.07 285deg);
+
+  /* Status colours. Always shown next to a word, never colour alone. */
+  --live: oklch(80% 0.18 152deg);
+  --ongoing: oklch(80% 0.123 80deg);
+  --down: oklch(72% 0.15 25deg);
+  --info: oklch(76% 0.1 235deg);
+
+  /*
+   * Translucent light for glows, edges and halos: a token's own channels plus an alpha. They are
+   * literals, not color-mix(): for browsers without color-mix, Tailwind's fallback drops the mix
+   * and paints the full-strength colour instead of a faint tint.
+   */
+  --brand-glow: oklch(65% 0.12 285deg / 9%);
+  --brand-spot: oklch(65% 0.12 285deg / 16%);
+  --brand-edge: oklch(65% 0.12 285deg / 18%);
+  --brand-wash: oklch(65% 0.12 285deg / 14%);
+  --live-halo: oklch(80% 0.18 152deg / 20%);
+
+  /* The one focus ring colour (at least 3:1 on every surface). */
+  --focus: oklch(76% 0.1 285deg);
+
+  /* Chart series in this fixed order, never cycled. Scatter and small multiples cap at 3. */
+  --chart-1: #8884d5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #3987e5;
+
+  /* Motion durations. src/lib/design/motion.ts mirrors them for JS animation. */
+  --motion-instant: 100ms;
+  --motion-fast: 150ms;
+  --motion-base: 240ms;
+  --motion-slow: 400ms;
+  --motion-tween: 600ms;
+
+  /* Layout */
+  --page-gutter: clamp(1rem, 0.5rem + 2vw, 2rem);
+  --tile-row: 7.5rem;
+  --mobile-bar-h: 4.5rem;
+
+  /*
+   * shadcn names, each equal to its token above (design-tokens.test.ts checks every pair).
+   * The page background is the canvas: THEME_COLOR in src/utils/seo/meta.ts is it as hex (#0c0c14).
+   */
+  --background: oklch(16% 0.016 285deg);
   --foreground: oklch(94% 0.03 285deg);
-
-  /* Surfaces */
-  --card: oklch(20% 0.01 285deg);
-  --card-foreground: oklch(92% 0.035 285deg);
-  --popover: oklch(20% 0.01 285deg);
-  --popover-foreground: oklch(92% 0.035 285deg);
-
-  /* Brand. Text pairs are checked by tests/unit/styles/token-contrast.test.ts (WCAG AA). */
+  --card: oklch(20% 0.02 285deg);
+  --card-foreground: oklch(94% 0.03 285deg);
+  --popover: oklch(23.5% 0.025 285deg);
+  --popover-foreground: oklch(94% 0.03 285deg);
   --primary: oklch(65% 0.12 285deg);
-  --primary-foreground: oklch(18% 0 285deg);
+  --primary-foreground: oklch(16% 0.016 285deg);
+  --muted: oklch(27% 0.028 285deg);
+  --muted-foreground: oklch(74% 0.038 285deg);
+  --border: oklch(30% 0.03 285deg);
+  --input: oklch(30% 0.03 285deg);
+  --ring: oklch(76% 0.1 285deg);
+  --radius: 0.5rem;
+
+  /* legacy: do not use in new code */
   --secondary: oklch(32% 0.1 285deg);
   --secondary-foreground: oklch(92% 0.035 285deg);
   --accent: oklch(40% 0.12 285deg);
   --accent-foreground: oklch(92% 0.03 285deg);
-
-  /* UI */
-  --muted: oklch(28% 0.05 285deg);
-  --muted-foreground: oklch(80% 0.04 285deg);
   --destructive: oklch(44% 0.1 27deg);
   --destructive-foreground: oklch(94% 0.02 285deg);
-  --border: oklch(26% 0.02 285deg);
-  --input: oklch(26% 0.02 285deg);
-  --ring: oklch(72% 0.06 285deg);
-
-  /* Charts */
-  --chart-1: oklch(72% 0.06 285deg);
-  --chart-2: oklch(52% 0.12 285deg);
-  --chart-3: oklch(40% 0.12 285deg);
-  --chart-4: oklch(90% 0.035 285deg);
-  --chart-5: oklch(58% 0.1 285deg);
-  --radius: 0.5rem;
-
-  /* Sidebar */
   --sidebar: oklch(14% 0.01 240deg);
   --sidebar-foreground: oklch(92% 0.02 240deg);
   --sidebar-primary: oklch(50% 0.1 230deg);
@@ -228,112 +129,7 @@
   --sidebar-ring: oklch(60% 0.12 230deg);
 }
 
-.dark {
-  /* Slightly deeper than :root, but still lighter than before */
-  --background: oklch(14% 0 285deg);
-  --foreground: oklch(94% 0.03 285deg);
-  --card: oklch(18% 0.01 285deg);
-  --card-foreground: oklch(92% 0.035 285deg);
-  --popover: oklch(18% 0.01 285deg);
-  --popover-foreground: oklch(92% 0.035 285deg);
-  --primary: oklch(50% 0.12 285deg);
-  --primary-foreground: oklch(20% 0 285deg);
-  --secondary: oklch(30% 0.1 285deg);
-  --secondary-foreground: oklch(92% 0.035 285deg);
-  --accent: oklch(38% 0.12 285deg);
-  --accent-foreground: oklch(92% 0.03 285deg);
-  --muted: oklch(26% 0.05 285deg);
-  --muted-foreground: oklch(80% 0.04 285deg);
-  --destructive: oklch(42% 0.1 27deg);
-  --destructive-foreground: oklch(94% 0.02 285deg);
-  --border: oklch(24% 0.02 285deg);
-  --input: oklch(24% 0.02 285deg);
-  --ring: oklch(70% 0.06 285deg);
-  --chart-1: oklch(70% 0.06 285deg);
-  --chart-2: oklch(50% 0.12 285deg);
-  --chart-3: oklch(38% 0.12 285deg);
-  --chart-4: oklch(90% 0.035 285deg);
-  --chart-5: oklch(56% 0.1 285deg);
-  --sidebar: oklch(12% 0.01 240deg);
-  --sidebar-foreground: oklch(93% 0.02 240deg);
-  --sidebar-primary: oklch(48% 0.1 230deg);
-  --sidebar-primary-foreground: oklch(98% 0 285deg);
-  --sidebar-accent: oklch(20% 0.01 240deg);
-  --sidebar-accent-foreground: oklch(93% 0.02 240deg);
-  --sidebar-border: oklch(20% 0.01 240deg);
-  --sidebar-ring: oklch(60% 0.12 230deg);
-}
-
-@layer base {
-  *,
-  *::before,
-  *::after {
-    @apply box-border tabular-nums;
-
-    box-sizing: border-box;
-  }
-
-  img {
-    @apply select-none;
-  }
-
-  :host,
-  html {
-    @apply list-none font-sans text-base leading-7 tabular-nums antialiased transition-all duration-300;
-
-    text-size-adjust: 100%;
-    font-feature-settings: normal;
-    font-variation-settings: normal;
-    tab-size: 4;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /*
-   * A thin page scrollbar in the theme colours; the thumb is about 3.4:1 against the background.
-   * scrollbar-color is inherited, so the command palette, menus and other scrolling boxes match.
-   * The gutter stays reserved when the page is short or a scroll lock hides overflow, so classic
-   * scrollbars (Windows, Linux) don't shift the layout sideways as they come and go.
-   */
-  html {
-    scrollbar-width: thin;
-    scrollbar-gutter: stable;
-    scrollbar-color: color-mix(in oklch, var(--primary) 70%, transparent) transparent;
-  }
-
-  body {
-    @apply bg-background text-foreground transition-colors duration-200 ease-in;
-  }
-
-  body.scav {
-    @apply bg-background;
-  }
-
-  /*
-   * Plain line-height values, not leading-*: leading-* sets --tw-leading, which every text-*
-   * size utility reads before its own line height, so it would override them all.
-   */
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    @apply font-sans font-bold text-primary;
-
-    line-height: 1.2;
-  }
-
-  p {
-    @apply font-sans font-normal;
-
-    line-height: 1.75;
-  }
-
-  a {
-    @apply text-primary no-underline transition-colors duration-200 ease-in;
-  }
-}
-
+/* Theme values that read the tokens above at runtime. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -354,15 +150,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -371,6 +158,45 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Live Console colours: bg-canvas, bg-surface-1, border-hairline, text-faint, text-live, ... */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-faint: var(--fg-faint);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-live: var(--live);
+  --color-ongoing: var(--ongoing);
+  --color-down: var(--down);
+  --color-info: var(--info);
+  --color-focus: var(--focus);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+
+  /*
+   * Geist and Geist Mono come from next/font (src/app/fonts.ts), which sets these variables on
+   * <html>. The var() fallbacks keep a sans stack where they are absent (global-error.tsx).
+   */
+  --font-sans: var(--font-geist, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono, ui-monospace), ui-monospace, sfmono-regular, menlo, monospace;
+
+  /* A hover lift for interactive tiles: a deep drop shadow plus a faint brand edge. */
+  --shadow-lift: 0 16px 40px -16px oklch(0% 0 0deg / 70%), 0 0 0 1px var(--brand-edge);
+
+  /* Legacy radii and animations */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-scroll: scroll var(--animation-duration, 40s) var(--animation-direction, forwards)
@@ -422,12 +248,327 @@
   }
 }
 
+/*
+ * Always emitted, so plain CSS and JS can read them with var() whether or not a utility uses them.
+ * Type scale: text-label and text-meta are mono captions, text-stat/display/hero are figures.
+ */
+/* stylelint-disable custom-property-pattern -- Tailwind pairs --text-NAME with --text-NAME--line-height. */
+@theme static {
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.125rem;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.375rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.625rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-heading: 1.75rem;
+  --text-heading--line-height: 2.125rem;
+  --text-stat: 2.5rem;
+  --text-stat--line-height: 1;
+  --text-display: clamp(2.5rem, 1.25rem + 4vw, 4rem);
+  --text-display--line-height: 1;
+  --text-hero: clamp(3.5rem, 1.5rem + 6.5vw, 6rem);
+  --text-hero--line-height: 0.95;
+  --tracking-display: -0.04em;
+  --tracking-stat: -0.03em;
+  --tracking-label: 0.08em;
+  --radius-tile: 0.75rem;
+  --container-shell: 75rem;
+  --shadow-tile: inset 0 1px 0 0 oklch(100% 0 0deg / 4%), 0 1px 2px 0 oklch(0% 0 0deg / 35%);
+  --shadow-raised: inset 0 1px 0 0 oklch(100% 0 0deg / 5%), 0 8px 24px -8px oklch(0% 0 0deg / 55%);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --animate-live-pulse: live-pulse 2.4s var(--ease-standard) infinite;
+
+  @keyframes live-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 3px var(--live-halo);
+    }
+
+    50% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+  }
+}
+
+/* stylelint-enable custom-property-pattern */
+
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    border-color: var(--hairline);
+  }
+
+  :host,
+  html {
+    @apply list-none font-sans antialiased;
+
+    line-height: 1.625;
+    text-size-adjust: 100%;
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    tab-size: 4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /*
+   * A thin page scrollbar in the theme colours; the thumb is about 3.4:1 against the background.
+   * scrollbar-color is inherited, so the command palette, menus and other scrolling boxes match.
+   * The gutter stays reserved when the page is short or a scroll lock hides overflow, so classic
+   * scrollbars (Windows, Linux) don't shift the layout sideways as they come and go.
+   */
+  html {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    scrollbar-color: color-mix(in oklch, var(--primary) 70%, transparent) transparent;
   }
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /*
+   * Plain line-height values, not leading-*: leading-* sets --tw-leading, which every text-*
+   * size utility reads before its own line height, so it would override them all.
+   */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-sans font-semibold text-foreground;
+
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  p {
+    @apply font-sans font-normal;
+
+    line-height: 1.75;
+  }
+
+  /* brand-ink, not brand: brand text on surface-3 is only 4.54:1. */
+  a {
+    color: var(--brand-ink);
+    text-decoration: none;
+    text-underline-offset: 0.2em;
+    transition: color var(--motion-fast) var(--ease-standard);
+  }
+
+  /* The one focus ring. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--brand-subtle);
+    color: var(--fg);
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  img {
+    @apply select-none;
+  }
+}
+
+/* stylelint-disable at-rule-no-unknown, nesting-selector-no-missing-scoping-root -- Tailwind v4 @utility blocks. */
+
+/* A tabular mono figure: stat values, counters. */
+@utility figure {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-stat);
+  line-height: 1;
+}
+
+/* An uppercase mono caption: tile labels, eyebrows. */
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  /* stylelint-disable-next-line custom-property-pattern -- Tailwind's --text-NAME--line-height pair. */
+  line-height: var(--text-label--line-height);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/*
+ * A brand glow that follows the pointer on hover. The element must be positioned; SpotlightRoot
+ * sets --spot-x and --spot-y on [data-spotlight] elements. Touch devices never see it.
+ * The element is its own stacking context, so the glow (z-index -1) paints over its background
+ * but under its content, and never tints the text.
+ */
+@utility spotlight {
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(
+      16rem circle at var(--spot-x, 50%) var(--spot-y, -40%),
+      var(--brand-spot),
+      transparent 70%
+    );
+    transition: opacity var(--motion-base) var(--ease-standard);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover::before {
+      opacity: 1;
+    }
+  }
+}
+
+/* A faint brand light from the top right of a page or panel. */
+@utility atmosphere {
+  background-image: radial-gradient(60rem 32rem at 85% -12%, var(--brand-glow), transparent 70%);
+  background-repeat: no-repeat;
+}
+
+/* stylelint-enable at-rule-no-unknown, nesting-selector-no-missing-scoping-root */
+
+/* biome-ignore-start lint/complexity/noImportantStyles: reduced motion everywhere must beat utility and inline styles. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* biome-ignore-end lint/complexity/noImportantStyles: end of the reduced-motion block. */
+
+/* Mobile navigation safe area */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Hide scrollbar for mobile nav overflow */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom Scrollbar for Webkit Browsers (Chrome, Safari, Edge) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--primary) 30%, transparent);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--primary) 50%, transparent);
+}
+
+/* Custom Scrollbar for Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--primary) 30%, transparent) transparent;
+}
+
+.loader {
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  position: relative;
+  background: conic-gradient(#560bad, #ba9bdd);
+  animation: 2s rotate linear infinite;
+  border: 5px solid #242424;
+  transition: 0.5s;
+}
+
+.loader::before {
+  position: absolute;
+  content: "";
+  width: calc(100% - 5px);
+  height: calc(100% - 5px);
+  background: #242424;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.loader::after {
+  position: absolute;
+  content: "";
+  z-index: -3;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  background: inherit;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  filter: blur(25px);
+  border-radius: 50%;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media only screen and (width <= 600px) {
+  .loader {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+@media only screen and (width >= 600px) {
+  .loader {
+    width: 350px;
+    height: 350px;
+  }
+}
+
+@media only screen and (width >= 768px) {
+  .loader {
+    width: 400px;
+    height: 400px;
   }
 }

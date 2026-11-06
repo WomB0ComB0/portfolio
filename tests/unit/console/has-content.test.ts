@@ -14,26 +14,21 @@
  * limitations under the License.
  */
 
-import type { Config } from 'tailwindcss';
+/**
+ * @file hasContent calls a slot empty when React would render nothing for it (null, undefined,
+ * a boolean) or it is '', so a 0, which React prints, still gets its wrapper.
+ */
 
-const config = {
-  darkMode: 'class',
-  content: ['./src/**/*.{ts,tsx,js,jsx}'],
-  theme: {
-    extend: {
-      fontFamily: {
-        sans: ['Kodchasan', 'sans-serif'],
-      },
-      container: {
-        center: true,
-        padding: '2rem',
-        screens: {
-          '2xl': '1400px',
-        },
-      },
-    },
-  },
-  plugins: [require('tailwindcss-animate'), require('@tailwindcss/typography')],
-} satisfies Config;
+import { describe, expect, it } from 'vitest';
 
-export default config;
+import { hasContent } from '@/components/console/has-content';
+
+describe('hasContent', () => {
+  it.each([0, Number.NaN, 'Work', ' ', ['Work']])('%j has content', (slot) => {
+    expect(hasContent(slot)).toBe(true);
+  });
+
+  it.each([null, undefined, false, true, ''])('%j is empty', (slot) => {
+    expect(hasContent(slot)).toBe(false);
+  });
+});

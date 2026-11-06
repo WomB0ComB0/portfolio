@@ -21,6 +21,7 @@
 
 import { expect, test } from '@playwright/test';
 
+import { THEME_COLOR } from '@/utils/seo/meta';
 import { getTargetUrl } from '../fixtures/base';
 
 const PAGES_TO_TEST = [
@@ -457,7 +458,7 @@ test.describe('SEO', () => {
       const themeColor = page.locator('meta[name="theme-color"]');
 
       await expect(themeColor).toHaveCount(1);
-      await expect(themeColor).toHaveAttribute('content', '#0d0d0d');
+      await expect(themeColor).toHaveAttribute('content', THEME_COLOR);
     });
 
     test('should have manifest link', async ({ page }) => {

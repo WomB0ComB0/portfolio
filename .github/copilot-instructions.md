@@ -51,8 +51,10 @@
   `lib/fetcher.ts` as the main Axios-based utility.
 - **Validation**: **Zod** is used extensively for API request/response validation.
 - **UI & Styling**: Uses base UI components from `src/components/ui/` (built in the **shadcn/ui**
-  style) and custom components like `magicui/` for effects. The primary font is **Kodchasan**
-  (defined in `tailwind.config.ts`).
+  style) and custom components like `magicui/` for effects. The fonts are **Geist** and **Geist
+  Mono**, loaded with `next/font` in `src/app/fonts.ts`; the Live Console design tokens and
+  utilities live in `src/styles/globals.css` (Tailwind v4, no `tailwind.config.ts`), and the
+  console primitives (Tile, StatTile, PageShell, ...) in `src/components/console`.
 - **Generated Code**: GraphQL types for GitHub are generated in `src/generated/` using
   `graphql-codegen`.
 

@@ -15,6 +15,7 @@
  */
 
 import { GlobalProvider } from '@/app/_providers';
+import { fontVariables } from '@/app/fonts';
 import { AnalyticsScripts, StructuredData } from '@/components/scripts';
 import '@/styles/globals.css';
 import { Analytics } from '@vercel/analytics/react';
@@ -33,6 +34,7 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
   return (
     <html
       lang="en"
+      className={fontVariables}
       suppressHydrationWarning
       data-a11y-animated-images="system"
       data-a11y-link-underlines="false"

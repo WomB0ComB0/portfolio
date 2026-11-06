@@ -206,15 +206,20 @@ const DATE_TONES = {
   },
 } as const;
 
+/**
+ * The uppercase label over a card's date or credential ID. Plain muted text: at /70 on the
+ * translucent card it measured 4.54:1, and 4.44:1 under the hover spotlight, below AA's 4.5.
+ */
+const DETAIL_LABEL_CLASS =
+  'block text-xs font-medium text-muted-foreground uppercase tracking-wider';
+
 const CertificationDate = ({ label, date, tone }: CertificationDateProps): JSX.Element => (
   <div className="flex items-center gap-3 text-muted-foreground group/date">
     <div className={DATE_TONES[tone].box}>
       <Calendar className={DATE_TONES[tone].icon} aria-hidden="true" />
     </div>
     <span className="leading-relaxed">
-      <span className="block text-xs font-medium text-muted-foreground/70 uppercase tracking-wider">
-        {label}
-      </span>
+      <span className={DETAIL_LABEL_CLASS}>{label}</span>
       <time dateTime={date} className="text-foreground font-medium">
         {formatDateOnly(date)}
       </time>
@@ -228,9 +233,7 @@ const CertificationCredentialId = ({ credentialId }: { credentialId: string }): 
       <Hash className="h-4 w-4 text-blue-500" aria-hidden="true" />
     </div>
     <div className="min-w-0">
-      <span className="block text-xs font-medium text-muted-foreground/70 uppercase tracking-wider">
-        Credential ID
-      </span>
+      <span className={DETAIL_LABEL_CLASS}>Credential ID</span>
       <span className="text-xs font-mono text-foreground break-all">{credentialId}</span>
     </div>
   </div>
@@ -328,7 +331,11 @@ const IssuerSection = ({ issuer, certifications }: IssuerSectionProps): JSX.Elem
       >
         {issuer}
       </h2>
-      <Badge variant="secondary" className="ml-auto text-sm px-3 py-1 bg-white/5 border-white/10">
+      {/* The count follows the search as it is typed; tabular-nums keeps Geist's digits steady. */}
+      <Badge
+        variant="secondary"
+        className="ml-auto text-sm px-3 py-1 bg-white/5 border-white/10 tabular-nums"
+      >
         {certifications.length} {certifications.length === 1 ? 'Certification' : 'Certifications'}
       </Badge>
     </div>

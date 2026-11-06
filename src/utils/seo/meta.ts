@@ -21,11 +21,12 @@ import { app } from '@/constants';
 const OG_IMAGE_SIZE = { width: 1_200, height: 630 } as const;
 
 /**
- * The browser chrome and PWA colour: the page background (`--background`, oklch(16% 0 285deg) in
- * src/styles/globals.css) as hex, so the address bar and splash screen blend with the dark page.
+ * The browser chrome and PWA colour: the page background (`--background`, equal to the Live
+ * Console `--canvas`, oklch(16% 0.016 285deg) in src/styles/globals.css) as hex, so the address
+ * bar and splash screen blend with the tinted-black page.
  * tests/unit/seo/theme-color.test.ts recomputes it from the token.
  */
-export const THEME_COLOR = '#0d0d0d';
+export const THEME_COLOR = '#0c0c14';
 
 /** An og:video. Nothing is emitted unless a caller passes one. */
 export interface MetadataVideo {
