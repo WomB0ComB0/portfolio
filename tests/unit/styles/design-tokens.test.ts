@@ -272,8 +272,17 @@ describe('@theme maps and utilities', () => {
     expect(THEME_STATIC.get('ease-out-expo')).toBe('cubic-bezier(0.16, 1, 0.3, 1)');
   });
 
-  it.each(['figure', 'label-mono', 'spotlight', 'atmosphere'])('defines @utility %s', (name) => {
+  it.each(['label-mono', 'spotlight', 'atmosphere'])('defines @utility %s', (name) => {
     expect(blocksNamed(`@utility ${name}`)).toHaveLength(1);
+  });
+
+  // Nothing called the sizeless `figure` once the home tiles moved to figure-lg/md/sm, and its
+  // face had quietly flipped from Geist Mono to Geist: a trap for the next caller, so it is gone.
+  it('drops the sizeless figure utility; figure-lg, figure-md and figure-sm stay', () => {
+    expect(blocksNamed('@utility figure')).toHaveLength(0);
+    for (const tier of ['lg', 'md', 'sm']) {
+      expect(blocksNamed(`@utility figure-${tier}`)).toHaveLength(1);
+    }
   });
 
   it('ends every animation and transition at once under reduced motion', () => {
@@ -345,7 +354,6 @@ describe('the token classes compile with the repo Tailwind', () => {
       'ease-out-expo',
       'ease-standard',
       'animate-live-pulse',
-      'figure',
       'label-mono',
       'atmosphere',
     ];

@@ -275,7 +275,8 @@
 
 /*
  * Always emitted, so plain CSS and JS can read them with var() whether or not a utility uses them.
- * Type scale: text-label and text-meta are mono captions, text-stat/display/hero are figures.
+ * Type scale: text-label and text-meta are mono captions, text-stat/display/hero are figures, for
+ * the site chrome and page headers. Home tiles use the refined type utilities (tile-label, ...).
  */
 /* stylelint-disable custom-property-pattern -- Tailwind pairs --text-NAME with --text-NAME--line-height. */
 @theme static {
@@ -423,16 +424,167 @@
 
 /* stylelint-disable at-rule-no-unknown, nesting-selector-no-missing-scoping-root -- Tailwind v4 @utility blocks. */
 
-/* A tabular mono figure: stat values, counters. */
-@utility figure {
-  font-family: var(--font-mono);
+/*
+ * The refined type (home bento). Geist for everything people read, Geist Mono only for machine
+ * tokens. Weights 400, 500 and 600 only, no upper case, and at most three styles per tile (label,
+ * primary, meta) plus an optional mono token.
+ *
+ * Each utility is one whole style (family, size, line height, weight, tracking) and never sets a
+ * colour: pair it with text-foreground, text-muted-foreground, text-faint or a status colour.
+ * Tailwind sorts these multi-property utilities before single-property ones, so a font-medium or
+ * tracking-normal beside one still wins; a text-* size beside one is a mistake.
+ *
+ * label-mono and the text-* scale stay as they were, for the site chrome (rail, command palette,
+ * footer, page headers).
+ */
+
+/* The hero's name. Sized by its tile (an inline-size container): 44px at 343px, 72px at 50rem. */
+@utility hero-name {
+  font-family: var(--font-sans);
+  font-size: clamp(2.75rem, 1rem + 7cqi, 4.5rem);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--tracking-stat);
   line-height: 1;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+
+  /* Where the name reaches 48px, a little tighter. */
+  @container (width >= 28.5rem) {
+    /* stylelint-disable-next-line no-invalid-position-declaration -- @utility is the style rule. */
+    letter-spacing: -0.05em;
+  }
 }
 
-/* An uppercase mono caption: tile labels, eyebrows. */
+/* The hero's role line, e.g. "Founder & CEO, ResQ Systems · New York, NY". */
+@utility hero-role {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.625rem;
+  letter-spacing: 0;
+  text-wrap: pretty;
+}
+
+/* The hero's tagline: smaller than the role line, so the hierarchy reads name, role, tagline. */
+@utility hero-tagline {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5rem;
+  letter-spacing: 0;
+  text-wrap: pretty;
+}
+
+/* A tile's label, in sentence case as written: "LeetCode", "Recently at", "Current roles". */
+@utility tile-label {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A tile's primary line: a track, a place, a role, a status word. */
+@utility tile-title {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+  letter-spacing: -0.011em;
+}
+
+/* The project tile's title. */
+@utility tile-title-lg {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.625rem;
+  letter-spacing: -0.02em;
+}
+
+/* A secondary line under a title: an artist, a subtitle, a commit headline. */
+@utility tile-sub {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0;
+}
+
+/* Context: dates, counts, "60 s best · 93% accuracy", a legend. Tabular, so ages never jitter. */
+@utility tile-meta {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.125rem;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A machine token, such as a repo slug or a key cap: the one job Geist Mono keeps. */
+@utility mono-token {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1rem;
+  letter-spacing: 0;
+}
+
+/*
+ * Figures by the tile's tier, never the viewport: lg (48px) for an M tile such as GitHub, md
+ * (36px) for an S stat tile, sm (28px) for the site index. Geist with tabular figures, so
+ * "1,300" sets with a narrow comma and a live number still never jitters.
+ */
+@utility figure-lg {
+  font-family: var(--font-sans);
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility figure-md {
+  font-family: var(--font-sans);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility figure-sm {
+  font-family: var(--font-sans);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The words after a figure: "solved", "wpm", "contributions in 12 weeks". */
+@utility figure-unit {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/*
+ * A figure and its unit on one baseline, 6px apart. "692" and "solved" have no break opportunity
+ * between them, so the unit wraps under the figure as a flex item in a narrow tile (a margin on
+ * the unit would indent it there).
+ */
+@utility figure-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.375rem;
+}
+
+/* An uppercase mono caption for the site chrome: rail sections, palette groups, page eyebrows. */
 @utility label-mono {
   font-family: var(--font-mono);
   font-size: var(--text-label);

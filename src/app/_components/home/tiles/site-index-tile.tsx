@@ -17,11 +17,13 @@
 import 'server-only';
 
 /**
- * @file The home site index: four links to the main sections, each with how many entries it
- * holds ('22 projects'). A plain tile of four cells divided by hairlines: 2x2 below a 36rem tile,
- * one row of four above.
+ * @file The home site index: four links to the main sections, each a figure with its section's
+ * name ('22 projects'). A slim, flush tile of four cells divided by hairlines, 2x2 at every width.
+ * The numbers and names say what it is, so its h2 ('Site index') is for screen readers only.
  *
  * A section whose list failed to load shows its name without a number: never a made-up count.
+ * The tile then says 'error' (tile-states.tsx's state contract): its cell is a line shorter than
+ * the reference content its skeleton holds.
  */
 
 import Link from 'next/link';
@@ -29,10 +31,9 @@ import type { ReactElement } from 'react';
 
 import { numberFormatter, Tile } from '@/components/console';
 import { loadSiteCounts, type SiteCounts } from '../data/loaders';
-import { LoadingNote, SkeletonBar } from './tile-states';
+import { FigurePlaceholder, LoadingNote } from './tile-states';
 
 const TITLE = 'Site index';
-const VISIBLE_LABEL = 'Index';
 
 /** Every count unknown: the index's fallback when the tile itself fails. */
 export const UNKNOWN_SITE_COUNTS: SiteCounts = {
@@ -56,51 +57,46 @@ export const SITE_INDEX_ENTRIES = [
   { key: 'places', href: '/places', one: 'place', other: 'places' },
 ] as const satisfies readonly IndexEntry[];
 
+/** The digits the skeleton holds room for: '64'. */
+const SKELETON_DIGITS = 2;
+
 /**
- * The hairlines are the list's background showing through 1px gaps between surface cells.
+ * The hairlines are the list's background showing through 1px gaps between surface cells; the list
+ * runs to the tile's edges, its corners 1px inside the tile's (the border).
  *
- * The longest name, 'CERTIFICATIONS', is 14 label-mono glyphs: 114 px at 0.08em tracking, 101 px
- * without. Four across waits for a 36rem tile, where a cell has 119 px inside its padding (at
- * 30rem it had 95). In the 2x2 grid below an 18rem tile (a 320 px viewport gives 254 px), the
- * cells loosen their padding and the names their tracking, which leaves 105 px for 101.
+ * Always 2x2. Four across needs every name beside its figure, about 623 px of list (39rem), which
+ * only a narrow bento from 39rem to 40rem gave this tile: a 16 px band whose estimates were the
+ * 2x2 tile's, so the four-across tile left a hole and moved the page.
  */
 const GRID_CLASS =
-  'grid grid-cols-2 gap-px overflow-hidden rounded-md border border-hairline bg-hairline @xl:grid-cols-4';
-const CELL_PADDING_CLASS = 'px-3 py-3 @max-2xs:px-2.5';
-/** The list clips its corners, so the focus ring is drawn inside each cell. */
-const CELL_LINK_CLASS = `flex h-full min-h-20 flex-col justify-end gap-1 bg-surface-1 ${CELL_PADDING_CLASS} text-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-2 focus-visible:-outline-offset-2`;
-const COUNT_CLASS = 'figure text-[2rem]';
-const CELL_NAME_CLASS = 'label-mono text-muted-foreground @max-2xs:tracking-normal';
-/** The visible 'Index': label-mono sets no weight, so it takes the h2 labels' semibold itself. */
-const VISIBLE_LABEL_CLASS = 'label-mono font-semibold text-muted-foreground';
+  'grid grid-cols-2 gap-px overflow-hidden rounded-[calc(var(--radius-tile)-1px)] bg-hairline';
+const CELL_CLASS = 'flex min-w-0 bg-surface-1';
+/**
+ * A figure and its name on one baseline; the name wraps under the figure in a cell too narrow for
+ * both. The list clips its corners, so the focus ring is drawn inside the cell.
+ */
+const CELL_BODY_CLASS = 'flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 px-4 py-3.5';
+const CELL_LINK_CLASS = `${CELL_BODY_CLASS} text-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-2 focus-visible:-outline-offset-2`;
+const COUNT_CLASS = 'figure-sm text-foreground';
+const NAME_CLASS = 'figure-unit text-muted-foreground';
+/** The count's type, for its placeholder while the counts load. */
+const COUNT_PLACEHOLDER_CLASS = 'figure-sm';
 
 const formatCount = (value: number): string => numberFormatter().format(value);
 
 function IndexCell({ entry, count }: { entry: IndexEntry; count: number | null }): ReactElement {
   const name = count === 1 ? entry.one : entry.other;
   return (
-    <li>
+    <li className={CELL_CLASS}>
       <Link href={entry.href} prefetch={false} className={CELL_LINK_CLASS}>
         {count !== null && (
           <>
             <span className={COUNT_CLASS}>{formatCount(count)}</span>{' '}
           </>
         )}
-        <span className={CELL_NAME_CLASS}>{name}</span>
+        <span className={NAME_CLASS}>{name}</span>
       </Link>
     </li>
-  );
-}
-
-/** The index's heading: 'Site index' for screen readers, 'Index' on screen. */
-function IndexHeading(): ReactElement {
-  return (
-    <>
-      <h2 className="sr-only">{TITLE}</h2>
-      <p aria-hidden="true" className={VISIBLE_LABEL_CLASS}>
-        {VISIBLE_LABEL}
-      </p>
-    </>
   );
 }
 
@@ -108,10 +104,14 @@ export interface SiteIndexTileViewProps {
   counts: SiteCounts;
 }
 
+/** Whether every section's count loaded: the reference content, else the error state. */
+const hasEveryCount = (counts: SiteCounts): boolean =>
+  SITE_INDEX_ENTRIES.every((entry) => counts[entry.key] !== null);
+
 export function SiteIndexTileView({ counts }: SiteIndexTileViewProps): ReactElement {
   return (
-    <Tile className="gap-3">
-      <IndexHeading />
+    <Tile padding="none" data-state={hasEveryCount(counts) ? 'ready' : 'error'}>
+      <h2 className="sr-only">{TITLE}</h2>
       <ul className={GRID_CLASS}>
         {SITE_INDEX_ENTRIES.map((entry) => (
           <IndexCell key={entry.key} entry={entry} count={counts[entry.key]} />
@@ -121,19 +121,18 @@ export function SiteIndexTileView({ counts }: SiteIndexTileViewProps): ReactElem
   );
 }
 
-/** The loading index: the real heading and four cells with a bar where each number goes. */
+/** The loading index: the real heading and names, a placeholder as wide as each count. */
 export function SiteIndexTileSkeleton(): ReactElement {
   return (
-    <Tile className="gap-3" aria-busy="true" data-state="loading">
-      <IndexHeading />
+    <Tile padding="none" aria-busy="true" data-state="loading">
+      <h2 className="sr-only">{TITLE}</h2>
       <ul aria-hidden="true" className={GRID_CLASS}>
         {SITE_INDEX_ENTRIES.map((entry) => (
-          <li
-            key={entry.key}
-            className={`flex min-h-20 flex-col justify-end gap-1 bg-surface-1 ${CELL_PADDING_CLASS}`}
-          >
-            <SkeletonBar className="h-8 w-10" />
-            <span className={CELL_NAME_CLASS}>{entry.other}</span>
+          <li key={entry.key} className={CELL_CLASS}>
+            <span className={CELL_BODY_CLASS}>
+              <FigurePlaceholder digits={SKELETON_DIGITS} className={COUNT_PLACEHOLDER_CLASS} />{' '}
+              <span className={NAME_CLASS}>{entry.other}</span>
+            </span>
           </li>
         ))}
       </ul>

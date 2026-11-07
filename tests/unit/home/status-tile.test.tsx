@@ -15,12 +15,19 @@
  */
 
 /**
- * @file The home status island says every state in words (the dot only decorates them), counts
- * the monitors, says 'Monitoring paused' when none is active, marks an answer 'Last known' with
- * its New York day and time when the route flagged it stale or a poll failed (never by comparing
- * clocks), and links to the public status page in a new tab. It caches under its own key, not
- * the footer badge's, and renders the same HTML whatever the clock says, so hydration matches.
- * On a return to '/', a server snapshot newer than the cached answer replaces it.
+ * @file The home status island is a slim tile: one line, a still dot and the state in words (the
+ * dot only decorates them), linked to the public status page in a new tab. Its h2 ('Site status')
+ * is for screen readers only. It counts the monitors only when some are not up ('Degraded · 5/6
+ * up'), says 'Monitoring paused' when none is active, and marks an answer 'Last known' with its
+ * New York day and time on a second line when the route flagged it stale or a poll failed (never
+ * by comparing clocks). Nothing on it moves. It caches under its own key, not the footer badge's,
+ * and renders the same HTML whatever the clock says, so hydration matches. On a return to '/', a
+ * server snapshot newer than the cached answer replaces it.
+ *
+ * Its root says what it shows (the e2e layout checks compare only tiles showing their reference
+ * content): data-state 'loading' with aria-busy, 'ready' for a current answer, 'stale' plus
+ * data-stale="" whenever the 'Last known' words or the 'as of' line show, and 'error' for 'Status
+ * unavailable'.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -39,12 +46,17 @@ import {
   serviceStatusView,
 } from '@/app/_components/home/live/status-tile';
 import type { ServiceStatus } from '@/app/api/[[...route]]/status/schema';
-import { STATUS_PAGE_URL } from '@/lib/status/service-state';
+import { CHECKING_STATUS, STATUS_PAGE_URL } from '@/lib/status/service-state';
 
 /** 11:00 AM in New York (EST). */
 const NOW = new Date('2026-11-05T16:00:00.000Z');
 const MINUTE_MS = 60_000;
 const STATUS_PATH = '/api/status';
+/**
+ * Between a state and its count, as toHaveTextContent sees it: the markup's no-break space before
+ * the dot (service-state.test.ts checks it) is whitespace, which the matcher collapses to a space.
+ */
+const SEP = ' · ';
 
 const status = (overrides: Partial<ServiceStatus> = {}): ServiceStatus => ({
   state: 'operational',
@@ -95,7 +107,11 @@ function renderTile(initial: LiveInitial<ServiceStatus>, client = testQueryClien
 }
 
 const statusLink = () => screen.getByRole('link');
+/** The tile's root, which carries its data-state (and data-stale for an old answer). */
+const rootOf = (container: HTMLElement) => container.firstElementChild;
 const dot = (container: HTMLElement) => container.querySelector('[data-status-dot]');
+/** The tile's paragraphs, in order: its state line, then a line for an old answer. */
+const linesOf = (container: HTMLElement) => [...container.querySelectorAll('p')];
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -111,45 +127,91 @@ afterEach(() => {
 describe('StatusTile states', () => {
   it.each([
     ['operational', 'All systems up', 'live'],
-    ['degraded', 'Degraded performance', 'ongoing'],
-    ['down', 'Service outage', 'down'],
+    ['degraded', 'Degraded', 'ongoing'],
+    ['down', 'Outage', 'down'],
     ['unknown', 'Status unavailable', 'idle'],
   ] as const)('says %s in words (%s) beside a %s dot', (state, words, tone) => {
     stubStatus(answer(status({ state })));
     const { container } = renderTile(snapshot(status({ state })));
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Status' })).toBeInTheDocument();
-    expect(statusLink()).toHaveTextContent(words);
+    expect(statusLink()).toHaveTextContent(new RegExp(`^${words}`));
     expect(dot(container)).toHaveAttribute('data-tone', tone);
     expect(dot(container)).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('pulses only while operational', () => {
+  // The visible 'STATUS' label is gone: the words name the tile.
+  it("names itself 'Site status' for screen readers only, with no visible label", () => {
     stubStatus(answer(status()));
-    const { container, unmount } = renderTile(snapshot(status()));
-    expect(dot(container)).toHaveClass('motion-safe:animate-live-pulse');
-    unmount();
+    const { container } = renderTile(snapshot(status()));
 
-    const down = renderTile(snapshot(status({ state: 'down' })));
-    expect(dot(down.container)).not.toHaveClass('motion-safe:animate-live-pulse');
+    expect(screen.getByRole('heading', { level: 2, name: 'Site status' })).toHaveClass('sr-only');
+    expect(container.querySelector('h2 ~ *')?.textContent).not.toMatch(/^Status/);
   });
 
-  it('counts the monitors in mono', () => {
+  it('is one line while the answer is current: no count, no second line', () => {
+    stubStatus(answer(status()));
+    const { container } = renderTile(snapshot(status()));
+
+    expect(linesOf(container)).toHaveLength(1);
+    expect(linesOf(container)[0]).toHaveClass('tile-title');
+    expect(container.textContent).not.toMatch(/\d/);
+    expect(statusLink().querySelector('[data-status-words]')).toHaveTextContent('All systems up');
+  });
+
+  // The words are the state: in a narrow lane they wrap, never 'All syste…' or 'Degraded · 3/…'.
+  it.each([
+    ['operational', 'All systems up'],
+    ['degraded', 'Degraded'],
+  ] as const)('wraps the %s words rather than cutting them short', (state, words) => {
+    stubStatus(answer(status({ state })));
+    const { container } = renderTile(snapshot(status({ state })));
+
+    expect(statusLink()).toHaveTextContent(new RegExp(`^${words}`));
+    expect(container.querySelector('.truncate, .text-ellipsis, .line-clamp-1')).toBeNull();
+    expect(statusLink()).not.toHaveClass('flex');
+    // The dot keeps to the first line's middle when the words run onto a second.
+    expect(dot(container)?.parentElement).toHaveClass('h-[1lh]', 'items-center');
+  });
+
+  // 'Checking status…' is no state: wrapped, the skeleton was a line taller than the one-line
+  // answer in a 375 px window's 181 px lane, and the tiles below moved when the answer landed.
+  it('keeps the checking words to one line, as tall as the answer it stands in for', () => {
+    const { container } = render(<StatusTileSkeleton />);
+
+    expect(container).toHaveTextContent(CHECKING_STATUS);
+    expect(container.querySelector('p')).toHaveClass('tile-title');
+    expect(screen.getByText(CHECKING_STATUS)).toHaveClass('truncate', 'min-w-0');
+  });
+
+  // Motion is the now-playing equaliser's alone: the dot breathed while every service was up.
+  it.each(['operational', 'degraded', 'down', 'unknown'] as const)(
+    'keeps the %s dot still',
+    (state) => {
+      stubStatus(answer(status({ state })));
+      const { container } = renderTile(snapshot(status({ state })));
+
+      expect(dot(container)?.className).not.toMatch(/animate/);
+    },
+  );
+
+  it('counts the monitors after the words only when some are not up', () => {
     stubStatus(answer(status()));
     renderTile(snapshot(status({ state: 'degraded', monitors: { up: 5, total: 6 } })));
 
-    const line = screen.getByText('5/6 monitors up');
-    expect(line).toHaveClass('font-mono', 'text-meta', 'tabular-nums');
+    expect(statusLink()).toHaveTextContent(`Degraded${SEP}5/6 up`);
+    const count = screen.getByText(/5\/6 up/);
+    expect(count).toHaveClass('tabular-nums', 'font-normal', 'text-muted-foreground');
   });
 
   it.each([
+    ['every monitor up', { up: 6, total: 6 }],
     ['no counts', undefined],
     ['no active monitor', { up: 0, total: 0 }],
-  ])('prints no monitor line for %s', (_label, monitors) => {
+  ])('prints no count for %s', (_label, monitors) => {
     stubStatus(answer(status()));
-    renderTile(snapshot(status({ monitors })));
+    const { container } = renderTile(snapshot(status({ monitors })));
 
-    expect(screen.queryByText(/monitors up/)).toBeNull();
+    expect(container.textContent).not.toMatch(/\d+\/\d+/);
   });
 
   it('links the words to the status page in a new tab', () => {
@@ -171,15 +233,15 @@ describe('StatusTile states', () => {
 describe('StatusTile monitoring paused', () => {
   const paused = () => status({ monitors: { up: 0, total: 0 } });
 
-  it("says 'Monitoring paused' beside an idle, still dot, with no monitor line", () => {
+  it("says 'Monitoring paused' beside an idle, still dot, with no count", () => {
     stubStatus(answer(paused()));
     const { container } = renderTile(snapshot(paused()));
 
     expect(statusLink()).toHaveTextContent(/^Monitoring paused/);
     expect(screen.queryByText(/All systems up/)).toBeNull();
     expect(dot(container)).toHaveAttribute('data-tone', 'idle');
-    expect(dot(container)).not.toHaveClass('motion-safe:animate-live-pulse');
-    expect(screen.queryByText(/monitors/)).toBeNull();
+    expect(dot(container)?.className).not.toMatch(/animate/);
+    expect(container.textContent).not.toMatch(/\d/);
   });
 
   it('says it in the server HTML too (JavaScript off)', () => {
@@ -187,7 +249,7 @@ describe('StatusTile monitoring paused', () => {
 
     expect(markup).toContain('Monitoring paused');
     expect(markup).not.toContain('All systems up');
-    expect(markup).not.toContain('animate-live-pulse');
+    expect(markup).not.toContain('animate');
   });
 
   it("marks a stale paused answer 'Last known: Monitoring paused'", () => {
@@ -200,15 +262,18 @@ describe('StatusTile monitoring paused', () => {
 });
 
 describe('StatusTile last known state', () => {
-  it("marks an answer the route flagged stale 'Last known', with its day and time", () => {
+  it("marks an answer the route flagged stale 'Last known', with its day and time below", () => {
     // As the loader seeds it: fetchedAt is the check's own time, whatever its age.
     const old = cachedOnError({ lastUpdated: '2026-11-05T15:55:00.000Z' });
     stubStatus(answer(old));
     const { container } = renderTile(snapshot(old));
 
     expect(statusLink()).toHaveTextContent('Last known: All systems up');
-    expect(screen.getByText('as of Nov 5, 10:55 AM ET')).toHaveClass('tabular-nums');
-    expect(dot(container)).not.toHaveClass('motion-safe:animate-live-pulse');
+    const asOf = screen.getByText('as of Nov 5, 10:55 AM ET');
+    expect(asOf).toHaveClass('tile-meta', 'text-muted-foreground');
+    expect(linesOf(container)).toEqual([expect.anything(), asOf]);
+    expect(rootOf(container)).toHaveAttribute('data-state', 'stale');
+    expect(rootOf(container)).toHaveAttribute('data-stale', '');
   });
 
   it('dates a stale answer from an earlier day with that day', () => {
@@ -230,7 +295,8 @@ describe('StatusTile last known state', () => {
 
     expect(statusLink()).toHaveTextContent(/^All systems up/);
     expect(screen.queryByText(/as of/)).toBeNull();
-    expect(dot(container)).toHaveClass('motion-safe:animate-live-pulse');
+    expect(rootOf(container)).toHaveAttribute('data-state', 'ready');
+    expect(rootOf(container)).not.toHaveAttribute('data-stale');
   });
 
   it("shows a poll's cached-on-error answer as 'Last known'", async () => {
@@ -246,27 +312,44 @@ describe('StatusTile last known state', () => {
 
   it("keeps the last answer as 'Last known' when a later poll fails", async () => {
     stubStatus(serverError);
-    renderTile(snapshot(status({ state: 'degraded' })));
+    renderTile(snapshot(status({ state: 'degraded', monitors: { up: 5, total: 6 } })));
 
     await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS));
 
-    await waitFor(() => expect(statusLink()).toHaveTextContent('Last known: Degraded performance'));
+    await waitFor(() => expect(statusLink()).toHaveTextContent(`Last known: Degraded${SEP}5/6 up`));
     expect(screen.getByText('as of Nov 5, 11:00 AM ET')).toBeInTheDocument();
+  });
+
+  it('marks its root stale (data-stale) once a later poll fails, and drops it when one answers', async () => {
+    stubStatus(serverError, answer(status()));
+    const { container } = renderTile(snapshot(status()));
+    expect(rootOf(container)).not.toHaveAttribute('data-stale');
+
+    await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS));
+    await waitFor(() => expect(rootOf(container)).toHaveAttribute('data-stale', ''));
+    expect(rootOf(container)).toHaveAttribute('data-state', 'stale');
+
+    await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS));
+    await waitFor(() => expect(rootOf(container)).not.toHaveAttribute('data-stale'));
+    expect(rootOf(container)).toHaveAttribute('data-state', 'ready');
+    expect(screen.queryByText(/as of/)).toBeNull();
   });
 
   it("never calls an unknown state 'last known'", () => {
     const unknown = cachedOnError({ state: 'unknown', lastUpdated: '2026-11-05T15:00:00.000Z' });
     stubStatus(answer(unknown));
-    renderTile(snapshot(unknown));
+    const { container } = renderTile(snapshot(unknown));
 
     expect(statusLink()).toHaveTextContent(/^Status unavailable/);
     expect(screen.queryByText(/as of/)).toBeNull();
+    expect(rootOf(container)).toHaveAttribute('data-state', 'error');
+    expect(rootOf(container)).not.toHaveAttribute('data-stale');
   });
 });
 
 describe('StatusTile polling', () => {
   it('shows the snapshot without fetching, then polls /api/status once a minute', async () => {
-    const fetchMock = stubStatus(answer(status({ state: 'down' })));
+    const fetchMock = stubStatus(answer(status({ state: 'down', monitors: { up: 4, total: 6 } })));
     renderTile(snapshot(status()));
 
     expect(statusLink()).toHaveTextContent('All systems up');
@@ -275,7 +358,7 @@ describe('StatusTile polling', () => {
 
     await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS));
 
-    await waitFor(() => expect(statusLink()).toHaveTextContent('Service outage'));
+    await waitFor(() => expect(statusLink()).toHaveTextContent(`Outage${SEP}4/6 up`));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -309,18 +392,22 @@ describe('StatusTile polling', () => {
 
   it("says 'Status unavailable' when the first poll fails with no snapshot", async () => {
     stubStatus(serverError);
-    renderTile({ kind: 'timeout' });
+    const { container } = renderTile({ kind: 'timeout' });
 
     await waitFor(() => expect(statusLink()).toHaveTextContent('Status unavailable'));
     expect(screen.queryByText(/as of/)).toBeNull();
+    expect(rootOf(container)).toHaveAttribute('data-state', 'error');
+    expect(rootOf(container)).not.toHaveAttribute('aria-busy');
   });
 
   it("says 'Status unavailable' for a failed snapshot while it fetches its own answer", async () => {
     stubStatus(answer(status()));
-    renderTile({ kind: 'error' });
+    const { container } = renderTile({ kind: 'error' });
 
     expect(statusLink()).toHaveTextContent('Status unavailable');
+    expect(rootOf(container)).toHaveAttribute('data-state', 'error');
     await waitFor(() => expect(statusLink()).toHaveTextContent('All systems up'));
+    expect(rootOf(container)).toHaveAttribute('data-state', 'ready');
   });
 
   it('leaves retrying to the QueryClient default', async () => {
@@ -359,9 +446,8 @@ describe('StatusTile on a return to the home page', () => {
 
       const { container } = renderTile(outage, client);
 
-      await waitFor(() => expect(statusLink()).toHaveTextContent('Service outage'));
+      await waitFor(() => expect(statusLink()).toHaveTextContent(/^Outage/));
       expect(dot(container)).toHaveAttribute('data-tone', 'down');
-      expect(dot(container)).not.toHaveClass('motion-safe:animate-live-pulse');
       expect(client.getQueryState(SERVICE_STATUS_QUERY_KEY)?.dataUpdatedAt).toBe(outage.fetchedAt);
       await act(() => vi.advanceTimersByTimeAsync(0));
       expect(fetchMock).not.toHaveBeenCalled();
@@ -379,7 +465,7 @@ describe('StatusTile on a return to the home page', () => {
     renderTile(snapshot(older), client);
     await act(() => vi.advanceTimersByTimeAsync(0));
 
-    expect(statusLink()).toHaveTextContent('Service outage');
+    expect(statusLink()).toHaveTextContent(/^Outage/);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -388,12 +474,19 @@ describe('StatusTile server HTML', () => {
   const html = (initial: LiveInitial<ServiceStatus>) =>
     renderToString(withClient(<StatusTile initial={initial} />));
 
-  it('holds the state, the count and the link (JavaScript off)', () => {
+  it('holds the state and the link, and no count while all is up (JavaScript off)', () => {
     const markup = html(snapshot(status()));
 
     expect(markup).toContain('All systems up');
-    expect(markup).toContain('6/6 monitors up');
+    expect(markup).not.toContain('6/6');
     expect(markup).toContain(`href="${STATUS_PAGE_URL}"`);
+  });
+
+  it('holds the count when some monitor is down', () => {
+    const markup = html(snapshot(status({ state: 'down', monitors: { up: 2, total: 6 } })));
+
+    expect(markup).toContain('Outage');
+    expect(markup).toContain('2/6 up');
   });
 
   it('holds the unavailable copy for a failed snapshot, not a skeleton', () => {
@@ -401,6 +494,7 @@ describe('StatusTile server HTML', () => {
 
     expect(markup).toContain('Status unavailable');
     expect(markup).not.toContain('aria-busy');
+    expect(markup).toContain('data-state="error"');
   });
 
   it("marks the route's stale answer 'Last known' in the server HTML (JavaScript off)", () => {
@@ -408,7 +502,16 @@ describe('StatusTile server HTML', () => {
 
     expect(markup).toContain('Last known: All systems up');
     expect(markup).toContain('as of Nov 5, 9:00 AM ET');
-    expect(markup).not.toContain('animate-live-pulse');
+    expect(markup).not.toContain('animate');
+    expect(markup).toContain('data-state="stale"');
+    expect(markup).toContain('data-stale=""');
+  });
+
+  it('marks a current answer ready, with no data-stale (JavaScript off)', () => {
+    const markup = html(snapshot(status()));
+
+    expect(markup).toContain('data-state="ready"');
+    expect(markup).not.toContain('data-stale');
   });
 
   it('is the same whatever the clock says, so hydration matches', () => {
@@ -423,14 +526,25 @@ describe('StatusTile server HTML', () => {
 });
 
 describe('StatusTileSkeleton', () => {
-  it("is busy, says 'Checking status…' beside an idle dot, and links nowhere", () => {
+  it("is busy, says 'Checking status…' beside an idle dot on its one line, and links nowhere", () => {
     const { container } = render(<StatusTileSkeleton />);
 
-    expect(container.firstElementChild).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByRole('heading', { level: 2, name: 'Status' })).toBeInTheDocument();
+    expect(rootOf(container)).toHaveAttribute('aria-busy', 'true');
+    expect(rootOf(container)).toHaveAttribute('data-state', 'loading');
+    expect(rootOf(container)).not.toHaveAttribute('data-stale');
+    expect(screen.getByRole('heading', { level: 2, name: 'Site status' })).toHaveClass('sr-only');
     expect(screen.getByText('Checking status…')).toBeInTheDocument();
     expect(dot(container)).toHaveAttribute('data-tone', 'idle');
     expect(container.querySelector('a')).toBeNull();
+  });
+
+  // The tile hugs its line, so the skeleton has the current answer's one line and nothing more.
+  it('is the loaded one-line tile: one tile-title line, no placeholder bar', () => {
+    const { container } = render(<StatusTileSkeleton />);
+
+    expect(linesOf(container)).toHaveLength(1);
+    expect(linesOf(container)[0]).toHaveClass('tile-title');
+    expect(container.querySelector('[aria-hidden="true"]:not([data-status-dot])')).toBeNull();
   });
 });
 
@@ -446,30 +560,43 @@ describe('serviceStatusView', () => {
   });
 
   it.each([
-    ['operational', true],
-    ['degraded', false],
-    ['down', false],
-    ['unknown', false],
-  ] as const)('asks the dot to breathe for a current %s answer: %s', (state, pulse) => {
-    const view = serviceStatusView({
-      data: status({ state }),
-      isError: false,
-      initialKind: 'data',
-    });
-
-    expect(view).toHaveProperty('pulse', pulse);
+    ['operational', { up: 6, total: 6 }, { label: 'All systems up', tone: 'live' }],
+    ['degraded', { up: 5, total: 6 }, { label: 'Degraded', count: '5/6 up', tone: 'ongoing' }],
+    ['down', { up: 1, total: 6 }, { label: 'Outage', count: '1/6 up', tone: 'down' }],
+    ['unknown', undefined, { label: 'Status unavailable', tone: 'idle' }],
+  ] as const)('words a current %s answer with %o monitors', (state, monitors, words) => {
+    expect(
+      serviceStatusView({ data: status({ state, monitors }), isError: false, initialKind: 'data' }),
+    ).toEqual({ kind: 'status', ...words, lastKnown: false, unavailable: state === 'unknown' });
   });
 
-  it('asks a stale operational answer, or one with no active monitor, not to breathe', () => {
-    const view = (data: ServiceStatus) =>
-      serviceStatusView({ data, isError: false, initialKind: 'data' });
-
-    expect(view(cachedOnError())).toHaveProperty('pulse', false);
-    expect(view(status({ monitors: { up: 0, total: 0 } }))).toMatchObject({
-      label: 'Monitoring paused',
+  it.each([
+    ['the latest poll failed', true, 'timeout'],
+    ['the server snapshot failed', false, 'error'],
+  ] as const)("is 'Status unavailable' with no data when %s", (_why, isError, initialKind) => {
+    expect(serviceStatusView({ data: undefined, isError, initialKind })).toEqual({
+      kind: 'status',
+      label: 'Status unavailable',
       tone: 'idle',
-      pulse: false,
-      monitors: undefined,
+      lastKnown: false,
+      unavailable: true,
+    });
+  });
+
+  it('says a stale answer is the last known one, with when it was checked', () => {
+    expect(
+      serviceStatusView({
+        data: cachedOnError({ lastUpdated: '2026-11-05T15:55:00.000Z' }),
+        isError: false,
+        initialKind: 'data',
+      }),
+    ).toEqual({
+      kind: 'status',
+      label: 'Last known: All systems up',
+      tone: 'live',
+      lastKnown: true,
+      unavailable: false,
+      asOf: 'as of Nov 5, 10:55 AM ET',
     });
   });
 
@@ -481,6 +608,6 @@ describe('serviceStatusView', () => {
     });
 
     expect(view).toMatchObject({ kind: 'status', label: 'Last known: All systems up' });
-    expect(view).toHaveProperty('asOf', undefined);
+    expect(view).not.toHaveProperty('asOf');
   });
 });

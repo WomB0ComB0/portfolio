@@ -20,6 +20,8 @@
  * - A valid document is answered trimmed; an empty field (GROQ's null) is simply absent.
  * - Each invalid field is dropped on its own and the rest kept; the document is reported once
  *   per answer, naming every bad field. Something that is not the settings at all is null.
+ * - A location of spaces only is the owner clearing it: absent, the other fields kept, and no
+ *   report (the location has no built-in value; a tagline of spaces is still invalid).
  * - With no document, null and no report.
  * - When Sanity fails after a good load, the last good settings and one warning; with nothing
  *   cached, a rejection with the getter's BaseError and no report of its own.
@@ -140,6 +142,37 @@ describe('loadSiteSettings', () => {
       tagline: 'Hi.',
     });
     expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['spaces', '   '],
+    ['an empty string', ''],
+    ['a line break', '\n'],
+  ])(
+    'answers a location of %s as cleared: absent, the rest kept, no report',
+    async (_, location) => {
+      sanity.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, location });
+
+      const { location: _cleared, ...rest } = SETTINGS;
+      expect(await loadSiteSettings()).toStrictEqual(rest);
+      expect(peekSiteSettings()).toEqual({ data: rest, loadedAt: T0 });
+      expect(sentry.captureException).not.toHaveBeenCalled();
+    },
+  );
+
+  it('answers the last good settings, never an older location, when Sanity fails after a clear', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
+    await loadSiteSettings();
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS + 1);
+    sanity.sanityFetchWithToken.mockResolvedValueOnce({ ...SETTINGS, location: null });
+    await loadSiteSettings();
+
+    sanity.sanityFetchWithToken.mockRejectedValue(sanityDown());
+    vi.setSystemTime(T0 + 2 * (SANITY_CACHE_TTL_MS + 1));
+
+    const { location: _cleared, ...rest } = SETTINGS;
+    expect(await loadSiteSettings()).toStrictEqual(rest);
+    expect(peekSiteSettings()?.data).toStrictEqual(rest);
   });
 
   it('drops each invalid field alone, keeps the rest, and names every bad one in one warning', async () => {

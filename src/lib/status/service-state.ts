@@ -15,13 +15,12 @@
  */
 
 /**
- * @file The words and status-dot tone for each state /api/status reports, and the monitor count
- * line. Pure and isomorphic (no directive, no runtime imports), so server and client code share
- * one copy of the wording.
- *
- * The home status tile uses it all. The footer StatusBadge uses serviceCopyKey and the paused
- * words so far; PR F should move its other words here too, so the footer and the tile never
- * describe the same state in different words.
+ * @file The words and status-dot tone for each state /api/status reports, and the monitor count.
+ * Pure and isomorphic (no directive, no runtime imports), so server and client code share one copy
+ * of the wording: the home status tile and the footer StatusBadge both say a state the same way
+ * ('All systems up', 'Degraded · 3/4 up', 'Last known: Outage · 2/4 up'), say 'Checking status…'
+ * before any answer, and 'Status unavailable' only when the check failed with no answer or the
+ * route could not say.
  */
 
 import type { StatusTone } from '@/components/console/status-dot';
@@ -47,13 +46,30 @@ export interface ServiceStateCopy {
   readonly tone: StatusTone;
 }
 
+/** Sentence case, as short as the slim tile's one line allows. */
 export const SERVICE_STATE_COPY: Readonly<Record<ServiceCopyKey, ServiceStateCopy>> = {
   operational: { label: 'All systems up', tone: 'live' },
-  degraded: { label: 'Degraded performance', tone: 'ongoing' },
-  down: { label: 'Service outage', tone: 'down' },
+  degraded: { label: 'Degraded', tone: 'ongoing' },
+  down: { label: 'Outage', tone: 'down' },
   unknown: { label: 'Status unavailable', tone: 'idle' },
   paused: { label: 'Monitoring paused', tone: 'idle' },
 };
+
+/**
+ * The words before any answer, while the check runs. No state's words: nothing has failed yet, so
+ * it is never 'Status unavailable'. Here, not in the 'use client' status tile, so the footer badge
+ * shares them.
+ */
+export const CHECKING_STATUS = 'Checking status…';
+
+/** Before the words of an old answer (see isLastKnownAnswer). */
+export const LAST_KNOWN_PREFIX = 'Last known: ';
+
+/**
+ * Between a state and its count. The no-break space keeps the dot on the state's line when the
+ * words wrap.
+ */
+export const STATUS_SEPARATOR = ' · ';
 
 /** How many of the active monitors are up, as the status route reports them. */
 export interface MonitorCounts {
@@ -72,10 +88,61 @@ export function serviceCopyKey(state: ServiceStateKey, monitors?: MonitorCounts)
 }
 
 /**
- * '6/6 monitors up', or undefined when there are no counts or no active monitor, so a tile never
- * prints a count it was not given ('0/0').
+ * '3/4 up': how many active monitors are up, only when some are not. Undefined when every one is
+ * up (the state already says so), and without counts or an active monitor, so nothing ever prints
+ * a count it was not given ('0/0') or a bare one.
  */
 export function monitorsLine(monitors?: MonitorCounts): string | undefined {
-  if (!monitors || monitors.total === 0) return undefined;
-  return `${monitors.up}/${monitors.total} monitors up`;
+  if (!monitors || !(monitors.total > 0) || monitors.up >= monitors.total) return undefined;
+  return `${monitors.up}/${monitors.total} up`;
 }
+
+/**
+ * Whether an answer is an old one, said 'Last known: ...': the route flagged it stale (its cached
+ * answer after Better Stack failed), or the latest poll failed and this is the answer kept from
+ * before. An 'unknown' state never is. The tile and the footer badge both decide it here, so they
+ * never word the same answer differently.
+ *
+ * @example isLastKnownAnswer('operational', undefined, true) // true: a later poll failed
+ */
+export function isLastKnownAnswer(
+  state: ServiceStateKey,
+  stale: boolean | undefined,
+  pollFailed: boolean,
+): boolean {
+  return state !== 'unknown' && (pollFailed || stale === true);
+}
+
+/** A state as both the tile and the footer badge word it. */
+export interface ServiceStatusWords {
+  /** 'All systems up', or 'Last known: All systems up' for an old answer. */
+  readonly label: string;
+  /** '3/4 up', when some active monitor is not up. */
+  readonly count?: string;
+  readonly tone: StatusTone;
+}
+
+/**
+ * An answer's words. `lastKnown` marks an old answer (served from the route's cache after Better
+ * Stack failed, or kept after a failed poll) 'Last known: ...'; an 'unknown' state never is. A
+ * paused or unknown answer has no count.
+ */
+export function serviceStatusWords(
+  state: ServiceStateKey,
+  monitors: MonitorCounts | undefined,
+  lastKnown: boolean,
+): ServiceStatusWords {
+  const key = serviceCopyKey(state, monitors);
+  const copy = SERVICE_STATE_COPY[key];
+  const isLastKnown = lastKnown && state !== 'unknown';
+  const count = key === 'paused' || key === 'unknown' ? undefined : monitorsLine(monitors);
+  return {
+    label: isLastKnown ? `${LAST_KNOWN_PREFIX}${copy.label}` : copy.label,
+    ...(count ? { count } : {}),
+    tone: copy.tone,
+  };
+}
+
+/** The words as one line, e.g. 'Degraded · 3/4 up'. */
+export const statusSentence = ({ label, count }: ServiceStatusWords): string =>
+  count ? `${label}${STATUS_SEPARATOR}${count}` : label;

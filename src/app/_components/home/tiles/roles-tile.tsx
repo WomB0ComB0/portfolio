@@ -17,11 +17,11 @@
 import 'server-only';
 
 /**
- * @file The home current-roles tile: up to three current roles in Studio order, each a link to
- * its page, and how many more there are. A plain tile, because it holds several links.
- *
- * Below a 20rem tile the third role is hidden, and the '+N more' count grows by one to match, so
- * the count always says how many roles are not on screen.
+ * @file The home current-roles tile: the owner's current roles in Studio order, but not the first,
+ * which the hero's role line already names (owner decision: don't repeat it). Each is a link to its
+ * page ('Elysium · since 2023'), and '+N more' counts the current roles named nowhere on the page.
+ * A plain tile, because it holds several links. The roles stack, and sit side by side from a 32rem
+ * tile.
  */
 
 import Link from 'next/link';
@@ -29,15 +29,14 @@ import type { ReactElement } from 'react';
 
 import { SrOnlyWords, Tile } from '@/components/console';
 import type { Experience } from '@/lib/sanity/loaders';
-import { cn } from '@/lib/utils';
-import { formatAsOfDay, formatMonthYear, type Instant } from '../data/format';
+import { companyName, formatAsOfDay, formatYear, type Instant } from '../data/format';
 import { loadCurrentRoles } from '../data/loaders';
 import type { CurrentRoles } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
 import {
   joinMeta,
   LoadingNote,
-  SkeletonBar,
+  SkeletonLine,
   TileEmpty,
   TileLabel,
   TileMeta,
@@ -46,65 +45,51 @@ import {
 
 const LABEL = 'Current roles';
 const EXPERIENCE_PATH = '/experience';
-/** Roles listed below a 20rem tile; ROLES_SHOWN (3) above it. */
-const NARROW_ROLES_SHOWN = 2;
+/** The roles the skeleton holds room for: what the tile lists beside the hero's. */
+const SKELETON_ROLES = ['first', 'second'] as const;
 
-const ROLE_LINK_CLASS =
-  '-mx-2 block rounded-md px-2 py-1.5 text-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-2';
-/** line-clamp sets its own display (a clamped box), so the span needs no `block`. */
-const POSITION_CLASS = 'line-clamp-2 wrap-break-word text-body-sm font-semibold';
-const COMPANY_CLASS = 'block truncate font-mono text-meta text-muted-foreground';
-const MORE_LINK_CLASS = 'font-mono text-meta font-medium text-brand-ink hover:underline';
+const TILE_CLASS = 'gap-3';
+const LIST_CLASS = 'grid gap-0.5 @[32rem]:grid-cols-2 @[32rem]:gap-x-4';
+/** A role's box: its hover fill reaches past the text, into the tile's padding. */
+const ROLE_BOX_CLASS = '-mx-2 flex min-w-0 flex-col gap-0.5 rounded-lg px-2 py-1.5';
+const ROLE_LINK_CLASS = `${ROLE_BOX_CLASS} text-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-2`;
+const POSITION_CLASS = 'truncate tile-title text-foreground';
+const COMPANY_CLASS = 'truncate tile-meta text-muted-foreground';
+const MORE_LINK_CLASS =
+  'self-start tile-meta font-medium text-brand-ink underline-offset-4 hover:underline';
 
 const roleHref = (role: Experience): string => `${EXPERIENCE_PATH}/${encodeURIComponent(role._id)}`;
 
-function RoleItem({ role, index }: { role: Experience; index: number }): ReactElement {
-  const since = formatMonthYear(role.startDate);
+/** The roles the tile lists: every role shown but the first, which the hero names. */
+export const rolesBesideHero = ({ roles }: CurrentRoles): readonly Experience[] => roles.slice(1);
+
+/** How many current roles neither the hero nor this tile names. */
+const unnamedRoles = ({ roles, total }: CurrentRoles): number => Math.max(0, total - roles.length);
+
+/** 'Elysium · since 2023': the company as people say it, and the year the role began. */
+export function roleMeta(role: Experience): string {
+  const since = formatYear(role.startDate);
+  return joinMeta([companyName(role.company), since ? `since ${since}` : null]);
+}
+
+function RoleItem({ role }: { role: Experience }): ReactElement {
   return (
-    <li className={index >= NARROW_ROLES_SHOWN ? 'hidden @xs:block' : undefined}>
+    <li className="min-w-0">
       <Link href={roleHref(role)} prefetch={false} className={ROLE_LINK_CLASS}>
         <span className={POSITION_CLASS}>{role.position}</span>{' '}
-        <span className={COMPANY_CLASS}>
-          {joinMeta([role.company, since ? `since ${since}` : null])}
-        </span>
+        <span className={COMPANY_CLASS}>{roleMeta(role)}</span>
       </Link>
     </li>
   );
 }
 
-function MoreLink({ count, className }: { count: number; className?: string }): ReactElement {
+function MoreRoles({ count }: { count: number }): ReactElement | null {
+  if (count <= 0) return null;
   return (
-    <Link href={EXPERIENCE_PATH} prefetch={false} className={cn(MORE_LINK_CLASS, className)}>
+    <Link href={EXPERIENCE_PATH} prefetch={false} className={MORE_LINK_CLASS}>
       +{count} more
       <SrOnlyWords>current roles</SrOnlyWords>
     </Link>
-  );
-}
-
-/** How many roles are not on screen below the 20rem tile (at least as many as above it). */
-const hiddenWhenNarrow = ({ roles, total }: CurrentRoles): number =>
-  total - Math.min(roles.length, NARROW_ROLES_SHOWN);
-
-/**
- * '+N more' for the roles not on screen. When the narrow and wide counts differ, one link shows
- * below the 20rem tile and the other above it; display: none keeps the hidden one unread.
- */
-function MoreRoles({ roles, total }: CurrentRoles): ReactElement | null {
-  const wide = total - roles.length;
-  const narrow = hiddenWhenNarrow({ roles, total });
-  if (narrow <= 0) return null;
-  if (narrow === wide) {
-    return (
-      <p className="mt-auto">
-        <MoreLink count={narrow} />
-      </p>
-    );
-  }
-  return (
-    <p className="mt-auto">
-      <MoreLink count={narrow} className="@xs:hidden" />
-      {wide > 0 && <MoreLink count={wide} className="hidden @xs:inline" />}
-    </p>
   );
 }
 
@@ -114,38 +99,46 @@ export interface RolesTileViewProps {
 }
 
 /**
- * The current roles, or a note with a way to the experience page. Stale roles (the list last
- * loaded, served past the deadline) say which day they are from.
+ * The current roles beside the hero's, or a note with a way to the experience page. Stale roles
+ * (the list last loaded, served past the deadline) say which day they are from, the note too when
+ * the hero's is the only one: the hero names it undated.
  */
 export function RolesTileView({ result, now = Date.now() }: RolesTileViewProps): ReactElement {
-  if (result.status !== 'ok') {
-    const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
+  const listed = result.status === 'ok' ? rolesBesideHero(result.data) : [];
+  const asOf = result.status === 'ok' && result.stale ? formatAsOfDay(result.asOf, now) : '';
+  if (result.status !== 'ok' || listed.length === 0) {
+    const isError = result.status === 'error';
+    const Note = isError ? TileUnavailable : TileEmpty;
+    const emptyMessage =
+      result.status === 'ok' ? 'No other current roles' : 'No current roles listed';
+    const isStale = result.status === 'ok' && result.stale;
     return (
-      <Tile className="gap-3" data-state={result.status}>
+      <Tile className={TILE_CLASS} data-state={isError ? 'error' : isStale ? 'stale' : 'empty'}>
         <TileLabel>{LABEL}</TileLabel>
         <Note
-          className="mt-auto"
-          message={result.status === 'error' ? 'Roles unavailable' : 'No current roles listed'}
+          message={isError ? 'Roles unavailable' : emptyMessage}
           href={EXPERIENCE_PATH}
           linkLabel="All experience"
         />
+        {asOf && (
+          <TileMeta dated stale>
+            {asOf}
+          </TileMeta>
+        )}
       </Tile>
     );
   }
-  const { roles } = result.data;
-  const asOf = result.stale ? formatAsOfDay(result.asOf, now) : '';
   return (
-    <Tile className="gap-3" data-state={result.stale ? 'stale' : undefined}>
+    <Tile className={TILE_CLASS} data-state={result.stale ? 'stale' : 'ready'}>
       <TileLabel>{LABEL}</TileLabel>
-      <ul className="flex flex-col gap-1">
-        {roles.map((role, index) => (
-          <RoleItem key={role._id} role={role} index={index} />
+      <ul className={LIST_CLASS}>
+        {listed.map((role) => (
+          <RoleItem key={role._id} role={role} />
         ))}
       </ul>
-      <MoreRoles {...result.data} />
+      <MoreRoles count={unnamedRoles(result.data)} />
       {asOf && (
-        // Under the '+N more' link, which already takes the tile's foot, when there is one.
-        <TileMeta dated className={hiddenWhenNarrow(result.data) > 0 ? 'mt-0' : undefined}>
+        <TileMeta dated stale>
           {asOf}
         </TileMeta>
       )}
@@ -153,15 +146,20 @@ export function RolesTileView({ result, now = Date.now() }: RolesTileViewProps):
   );
 }
 
-/** The loading roles tile, with the real label. */
+/** The loading roles tile, the loaded one's size: the real label, two roles and the count. */
 export function RolesTileSkeleton(): ReactElement {
   return (
-    <Tile className="gap-3" aria-busy="true" data-state="loading">
+    <Tile className={TILE_CLASS} aria-busy="true" data-state="loading">
       <TileLabel>{LABEL}</TileLabel>
-      <div className="flex flex-col gap-3">
-        <SkeletonBar className="h-9 w-4/5" />
-        <SkeletonBar className="h-9 w-3/5" />
-      </div>
+      <ul aria-hidden="true" className={LIST_CLASS}>
+        {SKELETON_ROLES.map((key) => (
+          <li key={key} className={ROLE_BOX_CLASS}>
+            <SkeletonLine type="tile-title" bar="h-4 w-4/5" />
+            <SkeletonLine type="tile-meta" bar="h-3 w-3/5 rounded-sm" />
+          </li>
+        ))}
+      </ul>
+      <SkeletonLine type="tile-meta" bar="h-3 w-16 rounded-sm" className="self-start" />
       <LoadingNote>Loading current roles</LoadingNote>
     </Tile>
   );

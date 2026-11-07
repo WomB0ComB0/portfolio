@@ -20,10 +20,18 @@
  * slow snapshot shows the skeleton until the island's own answer, and nothing links to '#'.
  * Retries are left to the QueryClient. The server HTML (JavaScript off) already holds each state.
  * On a return to '/', a server snapshot newer than the cached answer replaces it.
+ *
+ * The tile is compact: one row of 56px art and text, no visible label (its h2 is sr-only) and no
+ * 'Live' badge. While a track plays the equaliser before the artist is the only live cue and the
+ * page's only moving element; it stands still under reduced motion (equaliser.module.css, read as
+ * text here: Vitest cannot run this repository's PostCSS config, so the module's class names are
+ * mocked, as home-page.test.tsx mocks bento.module.css).
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import type { AnchorHTMLAttributes, ReactElement, ReactNode } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
@@ -43,6 +51,14 @@ vi.mock('next/link', () => ({
     <a {...rest} href={href} data-prefetch={String(prefetch)}>
       {children}
     </a>
+  ),
+}));
+
+/** Each class of the equaliser's CSS module as 'eq-<name>'. */
+vi.mock('@/app/_components/home/live/equaliser.module.css', () => ({
+  default: new Proxy(
+    {},
+    { get: (_target, name) => (typeof name === 'string' ? `eq-${name}` : undefined) },
   ),
 }));
 
@@ -125,6 +141,12 @@ function expectNoDeadLinks(root: ParentNode = document) {
 
 const tileOf = (element: HTMLElement): HTMLElement | null => element.closest('.rounded-tile');
 
+/** The equaliser (decorative) and its three bars. */
+const equaliserOf = (root: ParentNode): HTMLElement | null =>
+  root.querySelector<HTMLElement>('[data-equaliser]');
+const barsOf = (equaliser: HTMLElement | null): HTMLElement[] =>
+  equaliser ? [...equaliser.querySelectorAll<HTMLElement>('span')] : [];
+
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(NOW);
@@ -187,19 +209,26 @@ describe('NowPlayingTile', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
-  it("shows 'Spotify is unreachable' after a failed poll and drops the old track's link", async () => {
+  it("shows 'Spotify unreachable' after a failed poll and drops the old track and its link", async () => {
     stubNowPlaying(serverError);
     renderTile(snapshot(TRACK));
     expect(screen.getByRole('link', { name: TRACK_LINK_NAME })).toBeInTheDocument();
 
     await act(() => vi.advanceTimersByTimeAsync(NOW_PLAYING_POLL_MS));
 
-    const message = await screen.findByText('Spotify is unreachable');
-    expect(screen.getByText('retrying every 30 s')).toBeInTheDocument();
+    const message = await screen.findByText('Spotify unreachable');
+    expect(message).toHaveClass('text-faint');
+    // 'retrying every 30 s' was cut.
+    expect(screen.queryByText(/retrying/)).toBeNull();
     expect(screen.queryByText('My War')).toBeNull();
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('link', { name: TRACK_LINK_NAME })).toBeNull();
+    // Its one link is an ordinary way out, not the tile's: the tile is plain.
+    const way = screen.getByRole('link');
+    expect(way).toHaveAccessibleName('Top tracks');
+    expect(way).toHaveAttribute('href', '/spotify');
+    expect(way).not.toHaveAttribute('data-tile-link');
     expect(tileOf(message)).not.toHaveAttribute('data-linked-tile');
-    expect(screen.queryByText('Live')).toBeNull();
+    expect(equaliserOf(document)).toHaveAttribute('data-equaliser', 'still');
     expectNoDeadLinks();
   });
 
@@ -208,11 +237,11 @@ describe('NowPlayingTile', () => {
     renderTile(snapshot(TRACK));
 
     await act(() => vi.advanceTimersByTimeAsync(NOW_PLAYING_POLL_MS));
-    await screen.findByText('Spotify is unreachable');
+    await screen.findByText('Spotify unreachable');
     await act(() => vi.advanceTimersByTimeAsync(NOW_PLAYING_POLL_MS));
 
     expect(await screen.findByText('Unravel')).toBeInTheDocument();
-    expect(screen.queryByText('Spotify is unreachable')).toBeNull();
+    expect(screen.queryByText('Spotify unreachable')).toBeNull();
   });
 
   it('leaves retrying to the QueryClient default', async () => {
@@ -221,40 +250,74 @@ describe('NowPlayingTile', () => {
     renderTile(snapshot(TRACK), testQueryClient(retry));
 
     await act(() => vi.advanceTimersByTimeAsync(NOW_PLAYING_POLL_MS));
-    await screen.findByText('Spotify is unreachable');
+    await screen.findByText('Spotify unreachable');
 
     expect(retry).toHaveBeenCalledWith(0, expect.any(FetchStatusError));
     expect(retry.mock.calls[0]?.[1]).toMatchObject({ status: 500 });
   });
 
-  it('renders a playing track as one external link with its art and artist', () => {
+  it('renders a playing track as one external link with its 56px art and artist', () => {
     stubNowPlaying(answer(TRACK));
     const { container } = renderTile(snapshot(TRACK));
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Now playing' })).toBeInTheDocument();
     const link = screen.getByRole('link', { name: TRACK_LINK_NAME });
     expect(link).toHaveAttribute('href', TRACK.songURL);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link.getAttribute('rel')).toContain('noopener');
     expect(screen.getAllByRole('link')).toHaveLength(1);
     expect(screen.getByText('Shinsei Kamattechan')).toBeInTheDocument();
-    expect(screen.getByText('Live')).toHaveClass('text-live');
     expect(tileOf(link)).toHaveAttribute('data-linked-tile');
 
     const art = container.querySelector('img');
     expect(art).toHaveAttribute('alt', '');
     expect(art?.getAttribute('src')).toContain(encodeURIComponent('https://i.scdn.co/image/ghi'));
-    expect(art).toHaveAttribute('sizes', '96px');
+    expect(art).toHaveAttribute('sizes', '56px');
+    expect(art).toHaveClass('size-14', 'rounded-lg');
     expectNoDeadLinks();
   });
 
-  it('pulses the live dot while a track plays', () => {
+  // The visible 'NOW PLAYING' label and the 'LIVE' badge were cut: the track names the tile.
+  it("names itself 'Playing now on Spotify' for screen readers only, with no Live badge", () => {
     stubNowPlaying(answer(TRACK));
     const { container } = renderTile(snapshot(TRACK));
 
-    const dot = container.querySelector('[data-status-dot]');
-    expect(dot).toHaveAttribute('data-tone', 'live');
-    expect(dot).toHaveClass('motion-safe:animate-live-pulse');
+    const heading = screen.getByRole('heading', { level: 2, name: 'Playing now on Spotify' });
+    expect(heading).toHaveClass('sr-only');
+    expect(screen.queryByText(/^live$/i)).toBeNull();
+    expect(screen.queryByText(/now playing/i)).toBeNull();
+    expect(container.querySelector('[data-status-dot]')).toBeNull();
+  });
+
+  it('cuts a long title to one line, never the new-tab arrow after it', () => {
+    stubNowPlaying(answer(TRACK));
+    renderTile(snapshot(TRACK));
+
+    const link = screen.getByRole('link', { name: TRACK_LINK_NAME });
+    const title = within(link).getByText('My War');
+    const arrow = link.querySelector('[data-new-tab-arrow]');
+    expect(title).toHaveClass('truncate', 'min-w-0');
+    expect(arrow).not.toBeNull();
+    expect(title.contains(arrow)).toBe(false);
+    expect(link).toHaveClass('flex', 'items-baseline');
+    expect(link.parentElement).toHaveClass('tile-title');
+  });
+
+  it('moves the equaliser before the artist while a track plays: the one live cue', () => {
+    stubNowPlaying(answer(TRACK));
+    renderTile(snapshot(TRACK));
+
+    const artist = screen.getByText('Shinsei Kamattechan');
+    const equaliser = equaliserOf(artist.parentElement as HTMLElement);
+    expect(equaliser).toHaveAttribute('data-equaliser', 'live');
+    expect(equaliser).toHaveAttribute('aria-hidden', 'true');
+    expect(equaliser?.nextElementSibling).toBe(artist);
+    expect(equaliser).toHaveClass('eq-bars');
+    expect(equaliser).not.toHaveClass('eq-glyph');
+    expect(barsOf(equaliser).map((bar) => bar.className)).toEqual([
+      'eq-bar eq-live eq-low',
+      'eq-bar eq-live eq-high',
+      'eq-bar eq-live eq-mid',
+    ]);
   });
 
   it('is a plain tile with the track as text when Spotify sent no page for it', () => {
@@ -267,12 +330,18 @@ describe('NowPlayingTile', () => {
     expectNoDeadLinks();
   });
 
-  it("says 'Listening on Spotify' with the live word and no link when the track is unnamed", () => {
+  it("says 'Listening on Spotify' with the glyph's bars moving and no link when the track is unnamed", () => {
     stubNowPlaying(answer({ isPlaying: true }));
     renderTile(snapshot({ isPlaying: true }));
 
     expect(screen.getByText('Listening on Spotify')).toBeInTheDocument();
-    expect(screen.getByText('Live')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Playing now on Spotify' })).toHaveClass(
+      'sr-only',
+    );
+    const glyph = equaliserOf(document);
+    expect(glyph).toHaveAttribute('data-equaliser', 'live');
+    expect(glyph).toHaveClass('eq-glyph');
+    expect(screen.queryByText(/^live$/i)).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
   });
 
@@ -280,15 +349,28 @@ describe('NowPlayingTile', () => {
     stubNowPlaying(answer(IDLE));
     renderTile(snapshot(IDLE));
 
-    expect(screen.getByText('Not playing right now')).toBeInTheDocument();
-    expect(screen.getByText('Spotify · idle')).toBeInTheDocument();
+    // 'Not playing right now' and 'SPOTIFY · IDLE' were cut down to this.
+    expect(screen.getByText('Not playing')).toBeInTheDocument();
+    expect(screen.queryByText(/idle/i)).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Spotify' })).toHaveClass('sr-only');
     const link = screen.getByRole('link', { name: 'Top tracks and artists I listen to most' });
     expect(link).toHaveAttribute('href', '/spotify');
     expect(link).toHaveAttribute('data-prefetch', 'false');
     expect(link).not.toHaveAttribute('target');
     expect(tileOf(link)).toHaveAttribute('data-linked-tile');
-    expect(screen.queryByText('Live')).toBeNull();
     expectNoDeadLinks();
+  });
+
+  it('shows a still glyph of the same bars in the art’s place while idle', () => {
+    stubNowPlaying(answer(IDLE));
+    renderTile(snapshot(IDLE));
+
+    const glyph = equaliserOf(document);
+    expect(glyph).toHaveAttribute('data-equaliser', 'still');
+    expect(glyph).toHaveClass('eq-glyph');
+    expect(glyph?.parentElement).toHaveClass('size-14');
+    for (const bar of barsOf(glyph)) expect(bar).toHaveClass('eq-still', 'eq-thick');
+    for (const bar of barsOf(glyph)) expect(bar).not.toHaveClass('eq-live');
   });
 
   it('shows the skeleton for a timed-out snapshot, then the state it fetches', async () => {
@@ -297,11 +379,11 @@ describe('NowPlayingTile', () => {
 
     const busy = container.querySelector('[aria-busy="true"]');
     expect(busy).not.toBeNull();
-    expect(screen.getByRole('heading', { level: 2, name: 'Now playing' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Spotify' })).toBeInTheDocument();
     expect(screen.getByText('Loading now playing')).toHaveClass('sr-only');
     expect(screen.queryByRole('link')).toBeNull();
 
-    expect(await screen.findByText('Not playing right now')).toBeInTheDocument();
+    expect(await screen.findByText('Not playing')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[aria-busy]')).toBeNull();
   });
@@ -310,7 +392,7 @@ describe('NowPlayingTile', () => {
     const fetchMock = stubNowPlaying(answer(TRACK));
     renderTile({ kind: 'error' });
 
-    expect(screen.getByText('Spotify is unreachable')).toBeInTheDocument();
+    expect(screen.getByText('Spotify unreachable')).toBeInTheDocument();
     expect(document.querySelector('[aria-busy]')).toBeNull();
 
     expect(await screen.findByRole('link', { name: TRACK_LINK_NAME })).toBeInTheDocument();
@@ -380,9 +462,9 @@ describe('NowPlayingTile on a return to the home page', () => {
 
       renderTile({ kind: 'data', data: IDLE, fetchedAt }, client);
 
-      expect(await screen.findByText('Not playing right now')).toBeInTheDocument();
+      expect(await screen.findByText('Not playing')).toBeInTheDocument();
       expect(screen.queryByText('My War')).toBeNull();
-      expect(screen.queryByText('Live')).toBeNull();
+      expect(equaliserOf(document)).toHaveAttribute('data-equaliser', 'still');
       expect(client.getQueryState(NOW_PLAYING_QUERY_KEY)?.dataUpdatedAt).toBe(fetchedAt);
       await flush();
       expect(fetchMock).not.toHaveBeenCalled();
@@ -398,7 +480,7 @@ describe('NowPlayingTile on a return to the home page', () => {
     await flush();
 
     expect(screen.getByRole('link', { name: TRACK_LINK_NAME })).toBeInTheDocument();
-    expect(screen.queryByText('Not playing right now')).toBeNull();
+    expect(screen.queryByText('Not playing')).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -428,25 +510,26 @@ describe('NowPlayingTile server HTML (JavaScript off)', () => {
   const html = (initial: LiveInitial<NowPlayingResponse>) =>
     renderToString(withClient(<NowPlayingTile initial={initial} />));
 
-  it('holds the playing track and its link', () => {
+  it('holds the playing track, its link and the equaliser', () => {
     const markup = html(snapshot(TRACK));
 
     expect(markup).toContain('My War');
     expect(markup).toContain(`href="${TRACK.songURL}"`);
+    expect(markup).toContain('data-equaliser="live"');
     expect(markup).not.toContain('aria-busy');
   });
 
   it('holds the idle state and its /spotify link', () => {
     const markup = html(snapshot(IDLE));
 
-    expect(markup).toContain('Not playing right now');
+    expect(markup).toContain('Not playing');
     expect(markup).toContain('href="/spotify"');
   });
 
   it('holds the error copy for a failed snapshot, not a skeleton', () => {
     const markup = html({ kind: 'error' });
 
-    expect(markup).toContain('Spotify is unreachable');
+    expect(markup).toContain('Spotify unreachable');
     expect(markup).not.toContain('aria-busy');
   });
 
@@ -458,13 +541,112 @@ describe('NowPlayingTile server HTML (JavaScript off)', () => {
   });
 });
 
+// The browser checks compare only tiles in their reference content (tile-states.tsx's contract).
+// Every state of this tile is one 56px row, so only loading and error are not the reference;
+// 'Not playing' (idle) is a designed state of the same size, never 'empty'.
+describe('NowPlayingTile state contract', () => {
+  /** The tile's root in the server HTML for this snapshot. */
+  const rootFor = (initial: LiveInitial<NowPlayingResponse>): HTMLElement => {
+    const host = document.createElement('div');
+    host.innerHTML = renderToString(withClient(<NowPlayingTile initial={initial} />));
+    const root = host.firstElementChild;
+    if (!(root instanceof HTMLElement)) throw new Error('nothing rendered');
+    return root;
+  };
+
+  it.each([
+    ['a playing track', snapshot(TRACK), 'playing'],
+    ['an unnamed track', snapshot({ isPlaying: true, songName: ' ' }), 'playing-unknown'],
+    ['nothing playing', snapshot(IDLE), 'idle'],
+    ['a failed snapshot', { kind: 'error' } as const, 'error'],
+    ['a timed-out snapshot', { kind: 'timeout' } as const, 'loading'],
+  ] as const)('marks %s data-state="%s"', (_name, initial, state) => {
+    const root = rootFor(initial);
+    expect(root).toHaveAttribute('data-state', state);
+    expect(root.hasAttribute('aria-busy')).toBe(state === 'loading');
+    // Nothing here is ever stale: a failed poll is the error state, not the last answer.
+    expect(root.querySelector('[data-stale]')).toBeNull();
+  });
+
+  it('never calls nothing playing empty', () => {
+    expect(rootFor(snapshot(IDLE))).not.toHaveAttribute('data-state', 'empty');
+  });
+
+  it('marks its skeleton loading', () => {
+    const { container } = render(<NowPlayingTileSkeleton />);
+    expect(container.firstElementChild).toHaveAttribute('data-state', 'loading');
+  });
+});
+
 describe('NowPlayingTileSkeleton', () => {
-  it('has the real label, aria-busy and words for screen readers, and no link', () => {
+  it('has its hidden heading, aria-busy and words for screen readers, and no link', () => {
     const { container } = render(<NowPlayingTileSkeleton />);
 
     expect(container.firstElementChild).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByRole('heading', { level: 2, name: 'Now playing' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Spotify' })).toHaveClass('sr-only');
     expect(screen.getByText('Loading now playing')).toBeInTheDocument();
     expect(container.querySelector('a')).toBeNull();
+  });
+
+  // The tile was 288 to 321 px tall with a 96px cover; every state is now one 56px row.
+  it('holds the loaded row: the 56px art box, then one line of the title’s type and the artist’s', () => {
+    const { container } = render(<NowPlayingTileSkeleton />);
+    const row = container.querySelector('.items-center');
+    const [art, text] = row ? [...row.children] : [];
+
+    expect(art).toHaveClass('size-14', 'rounded-lg');
+    expect([...(text?.children ?? [])].map((line) => line.className)).toEqual([
+      expect.stringContaining('tile-title'),
+      expect.stringContaining('tile-sub'),
+    ]);
+    for (const line of text?.children ?? []) expect(line).toHaveClass('h-[1lh]');
+  });
+});
+
+describe('the equaliser’s motion (equaliser.module.css)', () => {
+  const css = readFileSync(
+    join(process.cwd(), 'src/app/_components/home/live/equaliser.module.css'),
+    'utf8',
+  );
+  /** The declarations of the last rule for `selector` in `source`. */
+  const lastRule = (source: string, selector: string): string =>
+    [...source.matchAll(new RegExp(`(?:^|\\n)\\s*\\${selector}\\s*\\{([^}]*)\\}`, 'g'))].at(
+      -1,
+    )?.[1] ?? '';
+
+  it('moves only transform (scaleY), so it stays on the compositor', () => {
+    const keyframes = /@keyframes\s+equalise\s*\{([\s\S]*?\n)\}/.exec(css)?.[1] ?? '';
+    const properties = [...keyframes.matchAll(/([a-z-]+)\s*:/g)].map((match) => match[1]);
+    expect(properties.length).toBeGreaterThan(0);
+    expect(new Set(properties)).toEqual(new Set(['transform']));
+    expect(keyframes).toMatch(/scaleY\(0\.25\)/);
+  });
+
+  it('stops under reduced motion, each bar at rest at 40%, 100% and 65%', () => {
+    const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1];
+    expect(reduced).toBeDefined();
+    expect(lastRule(reduced ?? '', '.live')).toMatch(/animation:\s*none/);
+    expect(lastRule(css, '.low')).toMatch(/transform:\s*scaleY\(0\.4\)/);
+    expect(lastRule(css, '.high')).toMatch(/transform:\s*scaleY\(1\)/);
+    expect(lastRule(css, '.mid')).toMatch(/transform:\s*scaleY\(0\.65\)/);
+  });
+
+  it('gives each bar its own speed, so they never move as one', () => {
+    const durations = ['.low', '.high', '.mid'].map(
+      (pose) => /animation-duration:\s*([\d.]+s)/.exec(lastRule(css, pose))?.[1],
+    );
+    expect(durations).toEqual(['0.7s', '0.9s', '1.1s']);
+    // The poses come after .live, so their timings win over its shorthand.
+    expect(css.indexOf('.low {')).toBeGreaterThan(css.indexOf('.live {'));
+  });
+
+  // Review finding CR611-5: forced colours paint every author fill as Canvas, the tile's own, so
+  // the bars, the tile's only live cue, vanished there.
+  it('keeps the bars in system colours under forced colours, where every fill is Canvas', () => {
+    const forced = /@media \(forced-colors: active\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(forced).not.toBeNull();
+    expect(lastRule(forced?.[1] ?? '', '.live')).toMatch(/background-color:\s*CanvasText/);
+    expect(lastRule(forced?.[1] ?? '', '.still')).toMatch(/background-color:\s*GrayText/);
+    expect(forced?.index).toBeGreaterThan(css.indexOf('.still {'));
   });
 });

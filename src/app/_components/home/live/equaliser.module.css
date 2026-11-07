@@ -1,0 +1,109 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The now-playing equaliser: three bars that rise and fall while a track plays. It is the tile's
+ * only live cue and the home page's only moving element, so it moves only `transform` (scaleY,
+ * on the compositor). Each bar has its own speed and a negative delay, so they never move as one.
+ *
+ * Under reduced motion the bars stand still at 40%, 100% and 65%: the same pose as the large
+ * still glyph that takes the album art's place when nothing plays.
+ *
+ * Every class is flat (one class per selector), so the source order alone decides: a later rule
+ * wins. Keep `.live` before the poses, whose timings override its shorthand.
+ */
+
+/* The inline equaliser, before the artist: 12px tall, 2px apart. */
+.bars {
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  gap: 2px;
+  height: 0.75rem;
+}
+
+/* The large glyph in the art's 56px box: 20px tall, 3px apart. */
+.glyph {
+  gap: 3px;
+  height: 1.25rem;
+}
+
+.bar {
+  display: block;
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  transform-origin: 50% 100%;
+}
+
+.thick {
+  width: 3px;
+}
+
+.live {
+  background-color: var(--live);
+  animation: equalise 0.9s ease-in-out infinite alternate;
+}
+
+.still {
+  background-color: var(--fg-faint);
+}
+
+/* Each bar's rest pose (a still bar keeps it), and its own speed while it moves. */
+.low {
+  transform: scaleY(0.4);
+  animation-duration: 0.7s;
+  animation-delay: -0.35s;
+}
+
+.high {
+  transform: scaleY(1);
+  animation-duration: 0.9s;
+  animation-delay: -0.6s;
+}
+
+.mid {
+  transform: scaleY(0.65);
+  animation-duration: 1.1s;
+  animation-delay: -0.2s;
+}
+
+@keyframes equalise {
+  from {
+    transform: scaleY(0.25);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live {
+    animation: none;
+  }
+}
+
+/* Forced colours paint every fill as Canvas, the tile's own: system colours keep the bars. */
+@media (forced-colors: active) {
+  .live {
+    background-color: CanvasText;
+  }
+
+  .still {
+    background-color: GrayText;
+  }
+}

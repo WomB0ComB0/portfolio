@@ -21,21 +21,27 @@
  * /api/v1/now-playing every 30 s while the tab is visible. Plain fetch through TanStack Query,
  * no Effect, so the island stays small.
  *
+ * A compact tile of one row, the same height in every state: 56px album art, then the track over
+ * its artist. While a track plays, a small equaliser before the artist is the only live cue (no
+ * 'Live' badge) and the page's only moving element; it stands still under reduced motion. Without
+ * a track, a large still glyph of the same bars takes the art's place. The content names the
+ * tile, so its h2 is for screen readers only: 'Playing now on Spotify', or 'Spotify'.
+ *
  * Retries are the QueryClient's (shouldRetryQuery): the query sets none of its own. Polls do not
  * announce themselves (no aria-live): a song change is not worth interrupting a screen reader.
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AudioLines } from 'lucide-react';
 import Image from 'next/image';
-import { type ReactElement, type ReactNode, useEffect } from 'react';
+import Link from 'next/link';
+import { type ReactElement, useEffect } from 'react';
 
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
-import { StatusDot } from '@/components/console/status-dot';
 import { Tile } from '@/components/console/tile';
 import { TileLink } from '@/components/console/tile-link';
 import { cn } from '@/lib/utils';
 import type { LiveInitial } from '../data/tile-result';
+import styles from './equaliser.module.css';
 import { fetchJson, parseNowPlaying } from './live-fetch';
 import {
   type NowPlayingView,
@@ -51,26 +57,29 @@ const NOW_PLAYING_URL = '/api/v1/now-playing';
 export const NOW_PLAYING_POLL_MS = 30_000;
 /** A snapshot younger than this is not fetched again on mount or on focus. */
 const NOW_PLAYING_STALE_MS = 25_000;
-/** The art's largest drawn size (size-24); next/image picks the file for it. */
-const ART_SIZE_PX = 96;
-const MS_PER_SECOND = 1_000;
-/** The error state's promise, worded from the poll interval so the two never disagree. */
-const RETRY_NOTE = `retrying every ${NOW_PLAYING_POLL_MS / MS_PER_SECOND} s`;
+/** The art's drawn size (size-14); next/image picks the file for it. */
+const ART_SIZE_PX = 56;
+const SPOTIFY_PATH = '/spotify';
 
-const LABEL = 'Now playing';
-const LABEL_CLASS = 'label-mono text-muted-foreground';
-const HEADER_CLASS = 'flex flex-wrap items-center justify-between gap-x-3 gap-y-1';
-const STATE_CLASS = 'label-mono inline-flex shrink-0 items-center gap-1.5';
-/** The track sits at the bottom of the tile, however tall its grid row makes it. */
-const BODY_CLASS = 'mt-auto flex items-center gap-3 @xs:gap-4';
-/** 64px in a tile under 20rem, 96px from there. Shared by the art, its glyph and the skeleton. */
-const ART_BOX_CLASS = 'size-16 shrink-0 rounded-md @xs:size-24';
-const TEXT_CLASS = 'min-w-0 flex-1';
-const TITLE_CLASS = 'line-clamp-2 text-title font-semibold';
-const MESSAGE_CLASS = 'line-clamp-2 text-body font-semibold';
-const SUBTITLE_CLASS = 'line-clamp-1 text-body-sm text-muted-foreground';
+/** The tile's hidden h2 while something plays, and otherwise. */
+export const PLAYING_TITLE = 'Playing now on Spotify';
+export const SPOTIFY_TITLE = 'Spotify';
+
+/** One row: the art, then the text, centred on each other. */
+const ROW_CLASS = 'flex min-w-0 items-center gap-3';
+/** 56px with an 8px radius. Shared by the art, its glyph and the skeleton. */
+const ART_BOX_CLASS = 'size-14 shrink-0 rounded-lg bg-surface-3';
+const TEXT_CLASS = 'flex min-w-0 flex-1 flex-col gap-0.5';
+/** The primary line: one line, cut short with an ellipsis. */
+const TITLE_CLASS = 'min-w-0 truncate tile-title';
+const SUB_CLASS = 'flex min-w-0 items-center gap-2 tile-sub text-muted-foreground';
 /** Links read as text in the tile and take the brand tint while the tile is hovered. */
 const LINK_CLASS = 'text-foreground group-hover/tile:text-brand-ink';
+/**
+ * The track link is a row of the truncated title and TileLink's new-tab arrow, so the ellipsis
+ * cuts the title short and never the arrow after it.
+ */
+const TRACK_LINK_CLASS = `flex min-w-0 items-baseline ${LINK_CLASS}`;
 const BAR_CLASS = 'block rounded-sm bg-surface-3 motion-safe:animate-pulse';
 
 export interface NowPlayingTileProps {
@@ -113,33 +122,45 @@ function useNowPlaying(initial: LiveInitial<NowPlayingResponse>) {
   });
 }
 
-function TileHeader({ children }: { children?: ReactNode }): ReactElement {
-  return (
-    <div className={HEADER_CLASS}>
-      <h2 className={LABEL_CLASS}>{LABEL}</h2>
-      {children}
-    </div>
-  );
+/** The bars in order: each one's rest pose and speed (equaliser.module.css). */
+const BAR_POSES = ['low', 'high', 'mid'] as const;
+
+interface EqualiserProps {
+  /** 'inline' before the artist (12px), or 'glyph' in the art's place (20px). */
+  size: 'inline' | 'glyph';
+  /** Moving, in the live colour; otherwise still and faint. */
+  live: boolean;
 }
 
-/** The live word beside the label. The dot only decorates it. */
-function LiveState(): ReactElement {
+/** Three bars: the live cue while a track plays, a still glyph otherwise. Decorative. */
+function Equaliser({ size, live }: EqualiserProps): ReactElement {
+  const isGlyph = size === 'glyph';
   return (
-    <span className={cn(STATE_CLASS, 'text-live')}>
-      <StatusDot tone="live" pulse />
-      Live
+    <span
+      aria-hidden="true"
+      data-equaliser={live ? 'live' : 'still'}
+      className={cn(styles.bars, isGlyph && styles.glyph)}
+    >
+      {BAR_POSES.map((pose) => (
+        <span
+          key={pose}
+          className={cn(
+            styles.bar,
+            isGlyph && styles.thick,
+            live ? styles.live : styles.still,
+            styles[pose],
+          )}
+        />
+      ))}
     </span>
   );
 }
 
-/** A glyph where the art goes, so every state keeps the same shape. */
-function ArtGlyph(): ReactElement {
+/** The art's box holding the large bars, so every state keeps the same shape. */
+function ArtGlyph({ live = false }: { live?: boolean }): ReactElement {
   return (
-    <span
-      aria-hidden="true"
-      className={cn(ART_BOX_CLASS, 'grid place-items-center bg-surface-3 text-muted-foreground')}
-    >
-      <AudioLines className="size-6 @xs:size-8" />
+    <span aria-hidden="true" className={cn(ART_BOX_CLASS, 'grid place-items-center')}>
+      <Equaliser size="glyph" live={live} />
     </span>
   );
 }
@@ -162,38 +183,38 @@ function TrackArt({ imageURL }: { imageURL?: string }): ReactElement {
 function PlayingTrack({ view }: { view: PlayingTrackView }): ReactElement {
   return (
     <>
-      <TileHeader>
-        <LiveState />
-      </TileHeader>
-      <div className={BODY_CLASS}>
+      <h2 className="sr-only">{PLAYING_TITLE}</h2>
+      <div className={ROW_CLASS}>
         <TrackArt imageURL={view.imageURL} />
         <div className={TEXT_CLASS}>
-          <p className={TITLE_CLASS}>
+          <p className="min-w-0 tile-title">
             <TileLink
               href={view.href ?? ''}
               external
               srSuffix={view.spokenSuffix}
-              className={LINK_CLASS}
+              className={TRACK_LINK_CLASS}
             >
-              {view.title}
+              <span className="min-w-0 truncate">{view.title}</span>
             </TileLink>
           </p>
-          <p className={SUBTITLE_CLASS}>{view.subtitle}</p>
+          <p className={SUB_CLASS}>
+            <Equaliser size="inline" live />
+            <span className="min-w-0 truncate">{view.subtitle}</span>
+          </p>
         </div>
       </div>
     </>
   );
 }
 
+/** Playing, but not a track (an episode or an ad): the glyph's bars move, nothing is linked. */
 function PlayingUnknown(): ReactElement {
   return (
     <>
-      <TileHeader>
-        <LiveState />
-      </TileHeader>
-      <div className={BODY_CLASS}>
-        <ArtGlyph />
-        <p className={cn(TEXT_CLASS, TITLE_CLASS)}>Listening on Spotify</p>
+      <h2 className="sr-only">{PLAYING_TITLE}</h2>
+      <div className={ROW_CLASS}>
+        <ArtGlyph live />
+        <p className={cn('flex-1', TITLE_CLASS, 'text-foreground')}>Listening on Spotify</p>
       </div>
     </>
   );
@@ -202,21 +223,16 @@ function PlayingUnknown(): ReactElement {
 function Idle(): ReactElement {
   return (
     <>
-      <TileHeader>
-        <span className={cn(STATE_CLASS, 'text-muted-foreground')}>
-          <StatusDot tone="idle" />
-          Spotify · idle
-        </span>
-      </TileHeader>
-      <div className={BODY_CLASS}>
+      <h2 className="sr-only">{SPOTIFY_TITLE}</h2>
+      <div className={ROW_CLASS}>
         <ArtGlyph />
         <div className={TEXT_CLASS}>
-          <p className={MESSAGE_CLASS}>Not playing right now</p>
-          <p className="text-body-sm">
+          <p className={cn(TITLE_CLASS, 'text-foreground')}>Not playing</p>
+          <p className="tile-sub text-muted-foreground">
             <TileLink
-              href="/spotify"
+              href={SPOTIFY_PATH}
               srSuffix="and artists I listen to most"
-              className={LINK_CLASS}
+              className="text-inherit group-hover/tile:text-brand-ink"
             >
               Top tracks
             </TileLink>
@@ -227,34 +243,50 @@ function Idle(): ReactElement {
   );
 }
 
-/** Spotify did not answer. Muted, not red: red means a site outage (see the status tile). */
+/**
+ * Spotify did not answer. Faint, not red: red means a site outage (see the status tile). The tile
+ * is plain; 'Top tracks' is an ordinary link out.
+ */
 function Unreachable(): ReactElement {
   return (
     <>
-      <TileHeader>
-        <span className={cn(STATE_CLASS, 'text-muted-foreground')}>{RETRY_NOTE}</span>
-      </TileHeader>
-      <div className={BODY_CLASS}>
+      <h2 className="sr-only">{SPOTIFY_TITLE}</h2>
+      <div className={ROW_CLASS}>
         <ArtGlyph />
-        <p className={cn(TEXT_CLASS, MESSAGE_CLASS)}>Spotify is unreachable</p>
+        <div className={TEXT_CLASS}>
+          <p className={cn(TITLE_CLASS, 'text-faint')}>Spotify unreachable</p>
+          <p className="tile-sub text-muted-foreground">
+            <Link
+              href={SPOTIFY_PATH}
+              prefetch={false}
+              className="underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Top tracks
+            </Link>
+          </p>
+        </div>
       </div>
     </>
   );
 }
 
 /**
- * The tile before any answer: the real label, the art box and two bars where the title and the
- * artist go, at their line heights, so the answer does not move anything.
+ * The tile before any answer, the same row as every state: the art's box and a bar in each text
+ * line (each box one line of its type), so the answer does not move anything.
  */
 export function NowPlayingTileSkeleton(): ReactElement {
   return (
-    <Tile variant="plain" className="h-full gap-3" aria-busy="true">
-      <TileHeader />
-      <div className={BODY_CLASS}>
-        <span aria-hidden="true" className={cn(BAR_CLASS, ART_BOX_CLASS)} />
+    <Tile variant="plain" aria-busy="true" data-state="loading">
+      <h2 className="sr-only">{SPOTIFY_TITLE}</h2>
+      <div className={ROW_CLASS}>
+        <span aria-hidden="true" className={cn(ART_BOX_CLASS, 'motion-safe:animate-pulse')} />
         <div aria-hidden="true" className={TEXT_CLASS}>
-          <span className={cn(BAR_CLASS, 'my-1 h-5 w-3/4')} />
-          <span className={cn(BAR_CLASS, 'my-1 h-3.5 w-1/2')} />
+          <span className="flex h-[1lh] items-center tile-title">
+            <span className={cn(BAR_CLASS, 'h-4 w-3/4')} />
+          </span>
+          <span className="flex h-[1lh] items-center tile-sub">
+            <span className={cn(BAR_CLASS, 'h-3.5 w-1/2')} />
+          </span>
         </div>
       </div>
       <span className="sr-only">Loading now playing</span>
@@ -293,7 +325,7 @@ export function NowPlayingTile({ initial }: NowPlayingTileProps): ReactElement {
   if (view.kind === 'loading') return <NowPlayingTileSkeleton />;
 
   return (
-    <Tile variant={nowPlayingHasLink(view) ? 'linked' : 'plain'} className="h-full gap-3">
+    <Tile variant={nowPlayingHasLink(view) ? 'linked' : 'plain'} data-state={view.kind}>
       <NowPlayingBody view={view} />
     </Tile>
   );

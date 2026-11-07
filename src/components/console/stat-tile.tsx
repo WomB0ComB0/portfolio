@@ -47,7 +47,11 @@ import { cn } from '@/lib/utils';
 
 /** `ready` and `stale` show the value; `idle` means there is nothing to show right now. */
 export type StatTileState = 'ready' | 'loading' | 'idle' | 'error' | 'stale';
-export type StatTileSize = 'md' | 'lg' | 'xl';
+/**
+ * The figure's tier, by the tile's size class and never the viewport: sm 28px (a slim tile such
+ * as the site index), md 36px (an S stat tile, the default), lg 48px (an M tile).
+ */
+export type StatTileSize = 'sm' | 'md' | 'lg';
 export type StatTileLabelElement = 'p' | 'h2' | 'h3';
 
 /** A change to show beside the figure, e.g. +12 this week. */
@@ -83,6 +87,7 @@ interface StatTileContentProps {
   live?: boolean;
   /** Glides a number to each new value (LiveNumber). Use it in client islands that refetch. */
   tween?: boolean;
+  /** The figure's tier: sm 28px, md 36px (default), lg 48px. */
   size?: StatTileSize;
   /** The label's element. Use a heading when the tile is a section of the page. */
   labelAs?: StatTileLabelElement;
@@ -124,33 +129,40 @@ const LIVE_LABEL = 'Live';
 const STALE_LABEL = 'Stale';
 const ERROR_DASH = '—';
 
-const VALUE_SIZE_CLASS = {
-  md: 'text-stat',
-  lg: 'text-stat @sm:text-display',
-  xl: 'text-display @md:text-hero',
+/**
+ * The refined type (globals.css): three styles per tile, the label, the figure with its unit, and
+ * the meta line. The figure is Geist with tabular figures at its tier's fixed size.
+ */
+const FIGURE_SIZE_CLASS = {
+  sm: 'figure-sm',
+  md: 'figure-md',
+  lg: 'figure-lg',
 } as const satisfies Record<StatTileSize, string>;
 
 const ROWS_CLASS = 'grid h-full grid-rows-[auto_1fr_auto] gap-3';
 const HEAD_CLASS = 'flex items-start justify-between gap-3';
 const HEAD_END_CLASS = 'flex shrink-0 items-center gap-2';
-const LABEL_CLASS = 'label-mono text-muted-foreground';
-const LIVE_BADGE_CLASS = 'label-mono inline-flex shrink-0 items-center gap-1.5 text-live';
+/** Sentence case as written ("LeetCode", "Typing"), never transformed to capitals. */
+const LABEL_CLASS = 'tile-label text-muted-foreground';
+const LIVE_BADGE_CLASS = 'tile-label inline-flex shrink-0 items-center gap-1.5 text-live';
 /** The new-tab cue of an external tile link; it nudges toward where it leads while hovered. */
 const NEW_TAB_ARROW_CLASS =
   'size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-(--motion-fast) ease-out-expo group-hover/tile:text-foreground motion-safe:group-hover/tile:translate-x-0.5 motion-safe:group-hover/tile:-translate-y-0.5';
 const BODY_CLASS = 'flex min-w-0 flex-col justify-end gap-3';
 /**
- * The value and its unit as a wrapping row: '692' and 'solved' have no break opportunity between
- * them, so in a narrow tile the unit drops under the number instead of running past the tile.
- * The column gap is the space between them when they fit on one line. The loading placeholder
- * sits in the same row, so both states keep one height.
+ * The value and its unit as a wrapping row (figure-row): '692' and 'solved' have no break
+ * opportunity between them, so in a narrow tile the unit drops under the number instead of
+ * running past the tile, and sits 6px after it when both fit. The loading placeholder sits in the
+ * same row, so both states keep one height.
  */
-const FIGURE_CLASS = 'figure flex flex-wrap items-baseline gap-x-1 text-foreground';
-const ERROR_FIGURE_CLASS = 'figure text-muted-foreground';
-const UNIT_CLASS = 'font-sans text-body-sm font-normal tracking-normal text-muted-foreground';
-const IDLE_CLASS = 'font-sans text-title font-medium text-muted-foreground';
+const FIGURE_CLASS = 'figure-row text-foreground';
+const ERROR_FIGURE_CLASS = 'text-muted-foreground';
+const UNIT_CLASS = 'figure-unit text-muted-foreground';
+/** Words in the figure's place: the primary line, so the tile still has three styles. */
+const IDLE_CLASS = 'tile-title text-muted-foreground';
+/** tile-meta's line is 1.125rem; the min height holds it while the line is empty. */
 const META_CLASS =
-  'flex min-h-[1.125rem] flex-wrap items-center gap-x-2 gap-y-1 font-mono text-meta text-muted-foreground';
+  'flex min-h-[1.125rem] flex-wrap items-center gap-x-2 gap-y-1 tile-meta text-muted-foreground';
 const VALUE_PLACEHOLDER_CLASS =
   'block h-[1em] w-[4ch] rounded-md bg-surface-3 motion-safe:animate-pulse';
 const META_PLACEHOLDER_CLASS = 'block h-3 w-24 rounded-sm bg-surface-3 motion-safe:animate-pulse';
@@ -228,7 +240,7 @@ interface FigureProps {
 
 /** Row 2. The placeholder sits in the same figure element as the value, so the height matches. */
 function Figure({ state, shown, unit, format, tween, size, idleText }: FigureProps): ReactElement {
-  const sizeClass = VALUE_SIZE_CLASS[size];
+  const sizeClass = FIGURE_SIZE_CLASS[size];
 
   if (state === 'loading') {
     return (

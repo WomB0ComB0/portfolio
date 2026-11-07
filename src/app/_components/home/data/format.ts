@@ -15,9 +15,10 @@
  */
 
 /**
- * @file Dates and times as the home tiles print them. Pure and isomorphic (no
- * directive), so server tiles and client islands share it. Everything that depends on the clock
- * takes `now`, so tests and hydration-sensitive callers pass their own.
+ * @file Dates, times and the few names the home tiles reword (a commit headline, a company, a
+ * project title), as the tiles print them. Pure and isomorphic (no directive), so server tiles and
+ * client islands share it. Everything that depends on the clock takes `now`, so tests and
+ * hydration-sensitive callers pass their own.
  *
  * - "Today", "yesterday" and clock times are New York's, where the site's owner lives.
  * - A Sanity calendar date (YYYY-MM-DD, or YYYY-MM) is a day, not a moment: it is printed as
@@ -161,6 +162,12 @@ export function formatMonthYear(value: string): string {
   return parsed ? plainSpaces(formatsFor(parsed).monthYear.format(parsed.ms)) : '';
 }
 
+/** '2026': the year `value` falls in where it is printed. '' when `value` is not a date. */
+export function formatYear(value: string): string {
+  const parsed = parseDate(value);
+  return parsed ? yearOf(parsed) : '';
+}
+
 /**
  * 'Oct 30'. With `now`, a day in another year than `now`'s adds the year ('Oct 30, 2025'), so
  * an old date never reads as a recent one. '' when `value` is not a date.
@@ -271,4 +278,106 @@ export function lastDayOf({ startDate, endDate }: DateSpan): string | null {
   if (!start) return null;
   const end = endDate?.slice(0, 10);
   return end && end >= start ? end : start;
+}
+
+/**
+ * A known conventional-commit type at the start, with an optional scope and '!', then ': ' (a
+ * colon and whitespace) or the end: 'feat(home): ', 'fix!: ', a bare 'feat:'. Only these types,
+ * so 'README: ', 'https://', 'fix:the' and 'useEffect(fn): ' are text. Types are not case
+ * sensitive (Conventional Commits 1.0).
+ */
+const COMMIT_PREFIX =
+  /^(?:feat|fix|chore|docs|refactor|perf|tests?|build|ci|style|revert|wip|deps)(?:\([^()]*\))?!?:(?:\s+|$)/iu;
+/** The pull request number GitHub appends to a squashed commit: ' (#604)'. */
+const COMMIT_PR_SUFFIX = /\s*\(#\d+\)\s*$/u;
+/** The first word: everything up to the first whitespace. */
+const FIRST_WORD = /^\S+/u;
+/**
+ * A plain word: lower-case ASCII letters (captured), then at most one simple contraction ('don't',
+ * 'it’s') and any trailing punctuation ('fix,', 'add.', 'why?'). Not 'iOS', 'eBay', 'v2',
+ * 'react-query', 'follow-ups', 'e.g.', 'rock'n'roll' or a URL: punctuation inside the word, a
+ * digit or a capital keeps it as written. A lower-case label before a colon ('ui:', 'api:') is
+ * capitalised like any first word ('Ui:'); only LOWER_CASE_NAMES stay as written.
+ */
+const PLAIN_WORD = /^([a-z]+)(?:['’][a-z]+)?[,.;:!?]*$/u;
+/** Names written in lower case by convention (tools and commands), never capitalised. */
+const LOWER_CASE_NAMES: ReadonlySet<string> = new Set([
+  'bun',
+  'bunx',
+  'ci',
+  'eslint',
+  'gh',
+  'git',
+  'npm',
+  'npx',
+  'pnpm',
+  'pnpx',
+  'tsc',
+  'vite',
+  'vitest',
+  'yarn',
+]);
+
+/**
+ * `text` with its first letter upper-cased, only when its first word is plain lower-case ASCII
+ * (before any trailing punctuation or a contraction) and not a lower-case name: 'the rail' becomes
+ * 'The rail', 'fix, just…' 'Fix, just…' and "don't…" "Don't…", while 'iOS', 'eBay', 'npm,',
+ * 'v2', 'follow-ups' and a URL stay as written.
+ */
+function sentenceCase(text: string): string {
+  const letters = PLAIN_WORD.exec(FIRST_WORD.exec(text)?.[0] ?? '')?.[1];
+  if (letters === undefined || LOWER_CASE_NAMES.has(letters)) return text;
+  return text.charAt(0).toLocaleUpperCase('en-US') + text.slice(1);
+}
+
+/**
+ * A commit's headline as a visitor reads it: no conventional-commit type (a known one only), no
+ * trailing pull request number, and a capital first letter where that cannot change a name. The
+ * headline as written when nothing would be left.
+ *
+ * @example commitHeadline('feat(home): the Live Console home bento (HOME) (#604)')
+ * // 'The Live Console home bento (HOME)'
+ * @example commitHeadline('fix(ios): iOS safe-area inset (#611)') // 'iOS safe-area inset'
+ */
+export function commitHeadline(headline: string): string {
+  const bare = headline.replace(COMMIT_PREFIX, '').replace(COMMIT_PR_SUFFIX, '').trim();
+  return bare ? sentenceCase(bare) : headline.trim();
+}
+
+/** A legal-form suffix after a company's name: ', Inc.', ' Inc', ', LLC'. */
+const COMPANY_SUFFIX = /,?\s+(?:Inc|LLC)\.?$/u;
+
+/**
+ * A company's name without its legal form, as people say it.
+ *
+ * @example companyName('ResQ Systems, Inc.') // 'ResQ Systems'
+ */
+export function companyName(company: string): string {
+  const name = company.trim();
+  return name.replace(COMPANY_SUFFIX, '') || name;
+}
+
+/** A project title and the description after its separator, if it has one. */
+export interface TitleParts {
+  readonly title: string;
+  /** '' when the title has no separator. */
+  readonly subtitle: string;
+}
+
+/** The first ' - ', ' – ', ' — ' or ': ' in a title, with the text on either side of it. */
+const TITLE_SEPARATOR = /^(.+?)(?:\s+[-–—]\s+|:\s+)(.+)$/u;
+
+/**
+ * A project title split at its first separator into the name and its description, each as
+ * written (only the owner knows which words are names).
+ *
+ * @example splitTitle('Fraud Guard - AI-Powered Transaction Monitoring')
+ * // { title: 'Fraud Guard', subtitle: 'AI-Powered Transaction Monitoring' }
+ */
+export function splitTitle(full: string): TitleParts {
+  const text = full.trim();
+  const match = TITLE_SEPARATOR.exec(text);
+  const title = match?.[1]?.trim();
+  const subtitle = match?.[2]?.trim();
+  return title && subtitle ? { title, subtitle } : { title: text, subtitle: '' };
 }

@@ -22,7 +22,15 @@ import { Effect, pipe, Schema } from 'effect';
 import Link from 'next/link';
 import { memo } from 'react';
 import { get } from '@/lib/http-clients/effect-fetcher';
-import { SERVICE_STATE_COPY, serviceCopyKey } from '@/lib/status/service-state';
+import {
+  CHECKING_STATUS,
+  isLastKnownAnswer,
+  SERVICE_STATE_COPY,
+  type ServiceCopyKey,
+  serviceCopyKey,
+  serviceStatusWords,
+  statusSentence,
+} from '@/lib/status/service-state';
 import { cn } from '@/lib/utils';
 
 const StatusResponseSchema = Schema.Struct({
@@ -44,76 +52,55 @@ const StatusResponseSchema = Schema.Struct({
   }),
 });
 
-type ServiceState = 'operational' | 'degraded' | 'down' | 'unknown';
 type StatusData = Schema.Schema.Type<typeof StatusResponseSchema>['data'];
 
 interface StatusBadgeProps {
   className?: string;
 }
 
-/**
- * Get color classes based on service state
- */
-function getStatusColor(state: ServiceState): string {
-  switch (state) {
-    case 'operational':
-      return 'bg-emerald-500';
-    case 'degraded':
-      return 'bg-amber-500';
-    case 'down':
-      return 'bg-red-500';
-    default:
-      return 'bg-zinc-400';
-  }
-}
+/** The dot's colour for what an answer says; paused and unknown share the neutral one. */
+const STATUS_COLOR = {
+  operational: 'bg-emerald-500',
+  degraded: 'bg-amber-500',
+  down: 'bg-red-500',
+  unknown: 'bg-zinc-400',
+  paused: 'bg-zinc-400',
+} as const satisfies Record<ServiceCopyKey, string>;
 
-/**
- * Get text label based on service state
- */
-function getStatusLabel(state: ServiceState): string {
-  switch (state) {
-    case 'operational':
-      return 'All Systems Operational';
-    case 'degraded':
-      return 'Degraded Performance';
-    case 'down':
-      return 'Service Outage';
-    default:
-      return 'Status Unknown';
-  }
-}
-
-/** What the badge shows: its words (the link's name), its dot's colour, and whether it pulses. */
+/** What the badge shows: its words (the link's name) and its dot's colour. */
 export interface StatusBadgeView {
   readonly label: string;
   readonly color: string;
-  readonly pulse: boolean;
-}
-
-/** The badge for a current answer (or none yet). */
-function currentView(data: StatusData | undefined): StatusBadgeView {
-  const state = data?.state ?? 'unknown';
-  if (serviceCopyKey(state, data?.monitors) === 'paused') {
-    return {
-      label: SERVICE_STATE_COPY.paused.label,
-      color: getStatusColor('unknown'),
-      pulse: false,
-    };
-  }
-  return { label: getStatusLabel(state), color: getStatusColor(state), pulse: true };
 }
 
 /**
- * The badge for an answer (or none yet). An answer that counted no active monitor says
- * 'Monitoring paused' with the neutral dot, not pulsing: Better Stack reports 'operational' then,
- * with nothing being watched, which must never read as 'All Systems Operational'. An answer the
- * route flagged stale (its cached one, after Better Stack failed) says 'Last known: ...' and does
- * not pulse, as the home status tile does. An 'unknown' state is never 'last known'.
+ * The badge for an answer (or none yet), in the home status tile's words (serviceStatusWords):
+ * - no answer: 'Checking status…' while the check runs, 'Status unavailable' once it failed;
+ * - an answer: 'All systems up', 'Degraded · 3/4 up', 'Outage · 2/4 up'. One that counted no
+ *   active monitor says 'Monitoring paused' with the neutral dot: Better Stack reports
+ *   'operational' then, with nothing being watched, which must never read as up. The route's
+ *   'unknown' says 'Status unavailable';
+ * - an old answer, which the route flagged stale (its cached one, after Better Stack failed) or
+ *   kept after a later poll failed (`isError`), says 'Last known: ...', exactly as the tile does
+ *   (isLastKnownAnswer). An 'unknown' state is never 'last known'.
+ *
+ * The dot never moves: the home page's one moving thing is the now-playing equaliser.
+ *
+ * @example statusBadgeView(undefined) // { label: 'Checking status…', color: 'bg-zinc-400' }
  */
-export function statusBadgeView(data: StatusData | undefined): StatusBadgeView {
-  const view = currentView(data);
-  if (data?.stale !== true || data.state === 'unknown') return view;
-  return { ...view, label: `Last known: ${view.label}`, pulse: false };
+export function statusBadgeView(data: StatusData | undefined, isError = false): StatusBadgeView {
+  if (!data) {
+    return {
+      label: isError ? SERVICE_STATE_COPY.unknown.label : CHECKING_STATUS,
+      color: STATUS_COLOR.unknown,
+    };
+  }
+  const lastKnown = isLastKnownAnswer(data.state, data.stale, isError);
+  const words = serviceStatusWords(data.state, data.monitors, lastKnown);
+  return {
+    label: statusSentence(words),
+    color: STATUS_COLOR[serviceCopyKey(data.state, data.monitors)],
+  };
 }
 
 /**
@@ -121,7 +108,7 @@ export function statusBadgeView(data: StatusData | undefined): StatusBadgeView {
  * Uses React Query for data fetching with Effect-based HTTP client
  */
 export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
-  const { data: statusData } = useQuery({
+  const { data: statusData, isError } = useQuery({
     queryKey: ['system-status'],
     queryFn: async () => {
       const effect = pipe(
@@ -139,7 +126,8 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
     refetchInterval: 1000 * 60, // Refetch every minute
   });
 
-  const { label, color, pulse } = statusBadgeView(statusData?.data);
+  // The link's name and its title are the same words in every state.
+  const { label, color } = statusBadgeView(statusData?.data, isError);
 
   return (
     <Link
@@ -153,10 +141,7 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
       aria-label={label}
       title={label}
     >
-      <span
-        aria-hidden="true"
-        className={cn('h-2 w-2 rounded-full', pulse && 'animate-pulse', color)}
-      />
+      <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', color)} />
       <span className="hidden sm:inline">Status</span>
     </Link>
   );

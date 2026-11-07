@@ -18,15 +18,19 @@
  * @file The home page's server tiles in every state their loaders answer: ok, stale, empty and
  * error. Each names itself with an h2, never shows a number it does not have (an error shows
  * words and a way to the source), never links to '#' or nowhere, and opens external links in a
- * new tab that it announces. Each skeleton keeps the real label and is marked busy, and each
- * async tile renders what its loader resolves.
+ * new tab that it announces. Each skeleton keeps the real label, is marked busy, and holds the
+ * loaded tile's lines, so the tile landing moves nothing; each async tile renders what its loader
+ * resolves.
  *
- * jsdom applies no CSS, so container-query visibility is checked as the classes that produce it,
+ * The copy is the owner's final copy (bento lab brief 1.1) in the refined type: sentence-case
+ * labels (tile-label), Geist figures by the tile's size class (figure-lg/md/sm), meta lines in
+ * tile-meta. Tiles hug their content: nothing stretches them or pushes a line to their foot.
+ *
+ * jsdom applies no CSS, so container-query behaviour is checked as the classes that produce it,
  * and sr-only words count in accessible names. next/link is a plain anchor exposing prefetch.
+ * Testing Library's text matchers see a no-break space as a space.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
 import type { AnchorHTMLAttributes, ReactElement, ReactNode } from 'react';
@@ -87,6 +91,7 @@ import {
   TypingTile,
   TypingTileSkeleton,
   TypingTileView,
+  typingMeta,
 } from '@/app/_components/home/tiles/metric-tiles';
 import {
   PlaceTile,
@@ -106,7 +111,6 @@ import {
   RolesTileView,
 } from '@/app/_components/home/tiles/roles-tile';
 import {
-  SITE_INDEX_ENTRIES,
   SiteIndexTile,
   SiteIndexTileSkeleton,
   SiteIndexTileView,
@@ -115,7 +119,9 @@ import {
 import {
   asOfText,
   ExternalAnchor,
+  figureShape,
   joinMeta,
+  META_SEPARATOR,
   SkeletonBar,
   TileEmpty,
   TileLabel,
@@ -166,7 +172,7 @@ const ACTIVITY: GitHubActivity = {
   latestCommit: {
     repo: 'WomB0ComB0/portfolio',
     repoUrl: 'https://github.com/WomB0ComB0/portfolio',
-    headline: 'feat(home): the Live Console bento',
+    headline: 'feat(home): the Live Console bento (#604)',
     url: 'https://github.com/WomB0ComB0/portfolio/commit/a1b2c3d4e5',
     sha: 'a1b2c3d',
     committedAt: '2026-11-05T13:07:00Z',
@@ -180,8 +186,12 @@ const COVER = {
   alt: 'The Fraud Guard dashboard',
 } as const;
 
+/** The cover with Studio's hotspot on the logo, low in the frame. */
+const COVER_WITH_HOTSPOT = { ...COVER, hotspot: { x: 0.5, y: 0.75, width: 0.3, height: 0.2 } };
+
 const FEATURED = makeProject({
-  title: 'Fraud Guard',
+  title: 'Fraud Guard - AI-Powered Transaction Monitoring',
+  description: 'Watches every card payment and flags the ones that look like fraud.',
   featured: true,
   category: 'Machine Learning',
   status: 'Completed',
@@ -217,6 +227,7 @@ const PAST_PLACE = makePlace({
   photos: [PHOTO],
 });
 
+/** `count` current roles: the first is the hero's (Founder & CEO, ResQ Systems, Inc.). */
 const roles = (count: number): Experience[] =>
   Array.from({ length: count }, (_, index) =>
     index === 0
@@ -226,7 +237,7 @@ const roles = (count: number): Experience[] =>
           current: true,
           startDate: '2026-03-01',
         })
-      : makeExperience({ current: true }),
+      : makeExperience({ current: true, startDate: '2024-01-15' }),
   );
 
 const COUNTS: SiteCounts = { projects: 22, roles: 15, certifications: 64, places: 57 };
@@ -244,19 +255,15 @@ const tileOf = (container: HTMLElement): HTMLElement => {
   return tile;
 };
 
-/** The tile's text with its h2 left out (the label may hold a figure such as '12 weeks'). */
-function textOutsideLabel(tile: HTMLElement): string {
-  const copy = tile.cloneNode(true) as HTMLElement;
-  for (const heading of copy.querySelectorAll('h2')) heading.remove();
-  return copy.textContent ?? '';
-}
-
 /** `node`'s text without the parts `selector` matches, its runs of spaces made one. */
 function textWithout(node: Element, selector: string): string {
   const copy = node.cloneNode(true) as Element;
   for (const part of copy.querySelectorAll(selector)) part.remove();
   return (copy.textContent ?? '').replace(/\s+/gu, ' ').trim();
 }
+
+/** The tile's text with its h2 left out. */
+const textOutsideLabel = (tile: HTMLElement): string => textWithout(tile, 'h2');
 
 /** What a sighted reader sees of `node`: its text without the sr-only words. */
 const seenText = (node: Element): string => textWithout(node, '.sr-only');
@@ -265,92 +272,84 @@ const seenText = (node: Element): string => textWithout(node, '.sr-only');
 const heardText = (node: Element): string => textWithout(node, '[aria-hidden="true"]');
 
 /** Every URL query parameter of a next/image src, decoded through its /_next/image wrapper. */
-const imageSource = (image: HTMLElement): string =>
-  decodeURIComponent(image.getAttribute('src') ?? '');
+const imageSource = (image: Element): string => decodeURIComponent(image.getAttribute('src') ?? '');
 
-const TAILWIND_SPACING_PX = 4;
-/** label-mono: 12px Geist Mono (every glyph advances 0.6em) at 0.08em tracking. */
-const LABEL_PX = 12;
-const MONO_ADVANCE_EM = 0.6;
-const LABEL_TRACKING_EM = 0.08;
-/** Tailwind v4's default container sizes, in px (16px rem); globals.css overrides none of them. */
-const CONTAINER_PX: Readonly<Record<string, number>> = {
-  '3xs': 256,
-  '2xs': 288,
-  xs: 320,
-  sm: 384,
-  md: 448,
-  lg: 512,
-  xl: 576,
-  '2xl': 672,
+/** The element's children that take space: not the sr-only words. */
+const shownChildren = (element: Element | null | undefined): Element[] =>
+  [...(element?.children ?? [])].filter((child) => !child.classList.contains('sr-only'));
+
+/** Classes that stretch a tile or push a line to its foot: none, now that tiles hug. */
+const STRETCH = '.h-full, .mt-auto, [class*="min-h-full"]';
+
+const expectHugs = (tile: HTMLElement): void => {
+  expect(tile).not.toHaveClass('h-full');
+  expect(tile.querySelector(STRETCH)).toBeNull();
 };
 
-const SITE_INDEX_NAMES = SITE_INDEX_ENTRIES.flatMap((entry) => [entry.one, entry.other]);
-
-/** The first capture of the first class on `element` that `pattern` matches, or null. */
-function classValueOrNull(element: Element, pattern: RegExp): string | null {
-  for (const name of element.classList) {
-    const value = pattern.exec(name)?.[1];
-    if (value !== undefined) return value;
-  }
-  return null;
-}
-
-function classValue(element: Element, pattern: RegExp): string {
-  const value = classValueOrNull(element, pattern);
-  if (value === null) throw new Error(`no class matching ${pattern} on ${element.outerHTML}`);
-  return value;
-}
-
-/** A container variant's size in px: a named one ('xl') or an arbitrary one ('[30rem]'). */
-function containerPx(size: string): number {
-  const rem = /^\[([\d.]+)rem\]$/.exec(size)?.[1];
-  const px = rem === undefined ? CONTAINER_PX[size] : Number(rem) * 16;
-  if (px === undefined) throw new Error(`unknown container size @${size}`);
-  return px;
-}
-
-/** A line-height token from globals.css, e.g. --text-meta--line-height: 1.125rem. */
-function lineHeightToken(name: string): string {
-  const globals = readFileSync(join(process.cwd(), 'src/styles/globals.css'), 'utf8');
-  const value = new RegExp(`--text-${name}--line-height:\\s*([\\d.]+rem);`).exec(globals)?.[1];
-  if (!value) throw new Error(`no --text-${name}--line-height in globals.css`);
-  return value;
-}
+/**
+ * The tile state contract (tile-states.tsx): a root not showing its reference content says why
+ * in data-state; 'ready' is the reference content.
+ */
+type TileState = 'ready' | 'loading' | 'error' | 'empty' | 'stale';
 
 interface TileCase {
   readonly name: string;
   readonly element: ReactElement;
+  /** The root's data-state. */
+  readonly state: Exclude<TileState, 'loading'>;
   readonly isError?: boolean;
 }
 
 const VIEW_CASES: readonly TileCase[] = [
-  { name: 'LeetCode ok', element: <LeetCodeTileView result={ok(LEETCODE)} now={NOW} /> },
+  {
+    name: 'LeetCode ok',
+    element: <LeetCodeTileView result={ok(LEETCODE)} now={NOW} />,
+    state: 'ready',
+  },
   {
     name: 'LeetCode stale',
     element: (
       <LeetCodeTileView result={ok(LEETCODE, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />
     ),
+    state: 'stale',
   },
-  { name: 'LeetCode empty', element: <LeetCodeTileView result={EMPTY} now={NOW} /> },
-  { name: 'LeetCode error', element: <LeetCodeTileView result={ERROR} />, isError: true },
-  { name: 'Typing ok', element: <TypingTileView result={ok(TYPING)} now={NOW} /> },
+  {
+    name: 'LeetCode empty',
+    element: <LeetCodeTileView result={EMPTY} now={NOW} />,
+    state: 'empty',
+  },
+  {
+    name: 'LeetCode error',
+    element: <LeetCodeTileView result={ERROR} />,
+    state: 'error',
+    isError: true,
+  },
+  { name: 'Typing ok', element: <TypingTileView result={ok(TYPING)} now={NOW} />, state: 'ready' },
   {
     name: 'Typing stale',
     element: <TypingTileView result={ok(TYPING, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
+    state: 'stale',
   },
-  { name: 'Typing empty', element: <TypingTileView result={EMPTY} now={NOW} /> },
-  { name: 'Typing error', element: <TypingTileView result={ERROR} />, isError: true },
+  { name: 'Typing empty', element: <TypingTileView result={EMPTY} now={NOW} />, state: 'empty' },
+  {
+    name: 'Typing error',
+    element: <TypingTileView result={ERROR} />,
+    state: 'error',
+    isError: true,
+  },
   {
     name: 'GitHub ok',
     element: <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
+    state: 'ready',
   },
   {
     name: 'GitHub stale',
     element: (
       <GitHubTileView result={ok(ACTIVITY, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />
     ),
+    state: 'stale',
   },
+  // Without a commit the tile has no commit lines: not the size its skeleton holds.
   {
     name: 'GitHub ok without a commit',
     element: (
@@ -359,13 +358,24 @@ const VIEW_CASES: readonly TileCase[] = [
         now={NOW}
       />
     ),
+    state: 'empty',
   },
-  { name: 'GitHub empty', element: <GitHubTileView result={EMPTY} now={NOW} /> },
-  { name: 'GitHub error', element: <GitHubTileView result={ERROR} now={NOW} />, isError: true },
-  { name: 'Project ok', element: <ProjectTileView result={ok(featuredPick(FEATURED))} /> },
+  { name: 'GitHub empty', element: <GitHubTileView result={EMPTY} now={NOW} />, state: 'empty' },
+  {
+    name: 'GitHub error',
+    element: <GitHubTileView result={ERROR} now={NOW} />,
+    state: 'error',
+    isError: true,
+  },
+  {
+    name: 'Project ok',
+    element: <ProjectTileView result={ok(featuredPick(FEATURED))} />,
+    state: 'ready',
+  },
   {
     name: 'Project without a cover',
     element: <ProjectTileView result={ok(featuredPick({ ...FEATURED, image: null }))} />,
+    state: 'ready',
   },
   {
     name: 'Project stale',
@@ -375,10 +385,12 @@ const VIEW_CASES: readonly TileCase[] = [
         now={NOW}
       />
     ),
+    state: 'stale',
   },
   {
     name: 'Project active',
     element: <ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />,
+    state: 'ready',
   },
   {
     name: 'Project active, stale',
@@ -388,21 +400,38 @@ const VIEW_CASES: readonly TileCase[] = [
         now={NOW}
       />
     ),
+    state: 'stale',
   },
-  { name: 'Project empty', element: <ProjectTileView result={EMPTY} /> },
-  { name: 'Project error', element: <ProjectTileView result={ERROR} />, isError: true },
-  { name: 'Place ok', element: <PlaceTileView result={ok(PAST_PLACE)} now={NOW} /> },
+  { name: 'Project empty', element: <ProjectTileView result={EMPTY} />, state: 'empty' },
+  {
+    name: 'Project error',
+    element: <ProjectTileView result={ERROR} />,
+    state: 'error',
+    isError: true,
+  },
+  {
+    name: 'Place ok',
+    element: <PlaceTileView result={ok(PAST_PLACE)} now={NOW} />,
+    state: 'ready',
+  },
   {
     name: 'Place stale',
     element: (
       <PlaceTileView result={ok(PAST_PLACE, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />
     ),
+    state: 'stale',
   },
-  { name: 'Place empty', element: <PlaceTileView result={EMPTY} now={NOW} /> },
-  { name: 'Place error', element: <PlaceTileView result={ERROR} now={NOW} />, isError: true },
+  { name: 'Place empty', element: <PlaceTileView result={EMPTY} now={NOW} />, state: 'empty' },
+  {
+    name: 'Place error',
+    element: <PlaceTileView result={ERROR} now={NOW} />,
+    state: 'error',
+    isError: true,
+  },
   {
     name: 'Roles ok',
     element: <RolesTileView result={ok({ roles: roles(3), total: 5 })} />,
+    state: 'ready',
   },
   {
     name: 'Roles stale',
@@ -412,16 +441,45 @@ const VIEW_CASES: readonly TileCase[] = [
         now={NOW}
       />
     ),
+    state: 'stale',
   },
-  { name: 'Roles empty', element: <RolesTileView result={EMPTY} /> },
-  { name: 'Roles error', element: <RolesTileView result={ERROR} />, isError: true },
-  { name: 'Index ok', element: <SiteIndexTileView counts={COUNTS} /> },
+  {
+    name: 'Roles with only the hero’s role',
+    element: <RolesTileView result={ok({ roles: roles(1), total: 1 })} />,
+    state: 'empty',
+  },
+  { name: 'Roles empty', element: <RolesTileView result={EMPTY} />, state: 'empty' },
+  {
+    name: 'Roles error',
+    element: <RolesTileView result={ERROR} />,
+    state: 'error',
+    isError: true,
+  },
+  { name: 'Index ok', element: <SiteIndexTileView counts={COUNTS} />, state: 'ready' },
+  // A count it could not load leaves its cell a line shorter: not the reference content.
+  {
+    name: 'Index with one failed count',
+    element: <SiteIndexTileView counts={{ ...COUNTS, roles: null }} />,
+    state: 'error',
+  },
   {
     name: 'Index with failed counts',
     element: <SiteIndexTileView counts={UNKNOWN_SITE_COUNTS} />,
+    state: 'error',
     isError: true,
   },
 ];
+
+/** Every skeleton, which the contract marks loading and busy. */
+const SKELETON_CASES = [
+  ['LeetCode', <LeetCodeTileSkeleton key="leetcode" />],
+  ['Typing', <TypingTileSkeleton key="typing" />],
+  ['GitHub', <GitHubTileSkeleton key="github" />],
+  ['Featured project', <ProjectTileSkeleton key="project" />],
+  ['Recently at', <PlaceTileSkeleton key="place" />],
+  ['Current roles', <RolesTileSkeleton key="roles" />],
+  ['Site index', <SiteIndexTileSkeleton key="index" />],
+] as const;
 
 describe('every tile view', () => {
   it.each(VIEW_CASES)('$name names itself with an h2', ({ element }) => {
@@ -445,6 +503,31 @@ describe('every tile view', () => {
     }
   });
 
+  // One stretched link, so one focus ring: a linked tile rings itself for its TileLink only.
+  it.each(VIEW_CASES)('$name has at most one stretched link', ({ element }) => {
+    const { container } = render(element);
+    const stretched = container.querySelectorAll('[data-tile-link]');
+    expect(stretched.length).toBeLessThanOrEqual(1);
+    if (stretched.length === 1) expect(tileOf(container)).toHaveAttribute('data-linked-tile');
+  });
+
+  // The owner: "some of the cards don't wrap around its contents".
+  it.each(VIEW_CASES)('$name hugs its content', ({ element }) => {
+    const { container } = render(element);
+    expectHugs(tileOf(container));
+  });
+
+  // Refined type: sentence case, and mono only for a machine token (the repository).
+  it.each(VIEW_CASES)('$name sets no upper case and no mono caption', ({ element }) => {
+    const { container } = render(element);
+    expect(
+      container.querySelector('.label-mono, .uppercase, .font-mono, .text-meta, .text-label'),
+    ).toBeNull();
+    for (const label of container.querySelectorAll('h2')) {
+      expect(label.className).toMatch(/\btile-label\b|\bsr-only\b/);
+    }
+  });
+
   it.each(VIEW_CASES.filter((tile) => tile.isError))(
     '$name shows words, never a number',
     ({ element }) => {
@@ -454,13 +537,72 @@ describe('every tile view', () => {
   );
 });
 
+// The browser checks compare only tiles showing their reference content with the server's
+// estimates, so every other state must say so on the tile's root (tile-states.tsx).
+describe('the tile state contract', () => {
+  it.each(VIEW_CASES)('$name says data-state="$state" on its root', ({ element, state }) => {
+    const { container } = render(element);
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', state);
+    expect(tile).not.toHaveAttribute('aria-busy');
+  });
+
+  it.each(VIEW_CASES)(
+    '$name marks a line that says when stale data was read',
+    ({ element, state }) => {
+      const { container } = render(element);
+      const staleLines = [...container.querySelectorAll('[data-stale]')];
+      if (state !== 'stale') {
+        expect(staleLines).toHaveLength(0);
+        return;
+      }
+      expect(staleLines).toHaveLength(1);
+      expect(staleLines[0]).toHaveAttribute('data-stale', '');
+      expect(staleLines[0]?.textContent).toMatch(/as of Nov 5/);
+    },
+  );
+
+  it.each(SKELETON_CASES)('the %s skeleton is loading and busy', (_label, element) => {
+    const { container } = render(element);
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'loading');
+    expect(tile).toHaveAttribute('aria-busy', 'true');
+    expect(container.querySelector('[data-stale]')).toBeNull();
+  });
+
+  it('gives each server tile’s error fallback (TILE_ERROR) the error state', () => {
+    for (const element of [
+      <LeetCodeTileView key="leet" result={ERROR} />,
+      <TypingTileView key="type" result={ERROR} />,
+      <GitHubTileView key="gh" result={ERROR} />,
+      <ProjectTileView key="proj" result={ERROR} />,
+      <PlaceTileView key="place" result={ERROR} />,
+      <RolesTileView key="role" result={ERROR} />,
+      <SiteIndexTileView key="strip" counts={UNKNOWN_SITE_COUNTS} />,
+    ]) {
+      const { container } = render(element);
+      expect(tileOf(container)).toHaveAttribute('data-state', 'error');
+      cleanup();
+    }
+  });
+});
+
 describe('LeetCodeTileView', () => {
-  it('makes the whole tile one link to the profile, with the solved split', () => {
-    render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />);
-    const tile = screen.getByRole('link', { name: /^LeetCode\s*215/ });
-    expect(tile).toHaveAttribute('href', 'https://leetcode.com/u/WomB0ComB0/');
-    expect(tile).toHaveAttribute('target', '_blank');
-    expect(within(tile).getByText('solved')).toBeInTheDocument();
+  it('makes its label the one stretched link to the profile, over the solved split', () => {
+    const { container } = render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />);
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-linked-tile');
+
+    const label = screen.getByRole('heading', { level: 2 });
+    expect(label).toHaveClass('tile-label', 'text-muted-foreground');
+    const link = within(label).getByRole('link', { name: `LeetCode profile ${NEW_TAB}` });
+    expect(link).toHaveAttribute('href', 'https://leetcode.com/u/WomB0ComB0/');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('data-tile-link');
+    expect(within(tile).getAllByRole('link')).toEqual([link]);
+
+    expect(within(tile).getByText('215')).toHaveClass('figure-md', 'text-foreground');
+    expect(within(tile).getByText('solved')).toHaveClass('figure-unit', 'text-muted-foreground');
     expect(
       within(tile)
         .getAllByRole('term')
@@ -471,7 +613,14 @@ describe('LeetCodeTileView', () => {
         .getAllByRole('definition')
         .map((value) => value.textContent),
     ).toEqual(['120', '80', '15']);
-    expect(within(tile).getByText('refreshed every 6 h')).toBeInTheDocument();
+  });
+
+  // 'refreshed every 6 h' was a cache setting, not a fact about the number: cut.
+  it('ends at its legend: no context line under it', () => {
+    const { container } = render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />);
+    const tile = tileOf(container);
+    expect(within(tile).queryByText(/refreshed/)).toBeNull();
+    expect(shownChildren(tile).at(-1)).toHaveAttribute('data-segment-bar');
   });
 
   // The chart series tones painted Easy periwinkle, Medium orange and Hard green.
@@ -490,30 +639,39 @@ describe('LeetCodeTileView', () => {
     }
   });
 
-  it('shows sighted readers that the tile opens a new tab, as every external link does', () => {
+  it('shows sighted readers that the label opens a new tab, as every external link does', () => {
     render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />);
-    const tile = screen.getByRole('link', { name: /^LeetCode/ });
-    expect(tile.querySelector('svg[data-new-tab-arrow]')).toHaveAttribute('aria-hidden', 'true');
-    expect(tile).toHaveAccessibleName(/\(opens in a new tab\)$/);
+    const link = screen.getByRole('link', { name: `LeetCode profile ${NEW_TAB}` });
+    expect(link.querySelector('[data-new-tab-arrow]')).toHaveAttribute('aria-hidden', 'true');
+    // Centred on the 13px label, the 14px arrow does not grow its line past the skeleton's.
+    expect(screen.getByRole('heading', { level: 2 })).toHaveClass('[&_svg]:align-middle');
   });
 
-  it('says when stale numbers were read', () => {
-    render(
+  it('says when stale numbers were read, beside a clock', () => {
+    const { container } = render(
       <LeetCodeTileView result={ok(LEETCODE, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
     );
-    const tile = screen.getByRole('link', { name: /^LeetCode/ });
+    const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-state', 'stale');
-    expect(tile).toHaveTextContent(/Stale ·\s*as of Nov 5 11:02 AM ET/);
+    const note = within(tile).getByText('as of Nov 5 11:02 AM ET');
+    expect(note).toHaveClass('tile-meta');
+    expect(note).toHaveAttribute('data-dated');
+    expect(note.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('shows words when there is nothing solved to show', () => {
+  it('shows words in the figure’s place when there is nothing solved to show', () => {
     render(<LeetCodeTileView result={EMPTY} now={NOW} />);
-    expect(screen.getByText('No solved problems yet')).toBeInTheDocument();
+    expect(screen.getByText('No solved problems yet')).toHaveClass(
+      'tile-title',
+      'text-muted-foreground',
+    );
   });
 
   it('is a plain tile with the error and an ordinary link to the profile', () => {
-    render(<LeetCodeTileView result={ERROR} />);
-    const tile = screen.getByRole('article', { name: 'LeetCode' });
+    const { container } = render(<LeetCodeTileView result={ERROR} />);
+    const tile = tileOf(container);
+    expect(tile).not.toHaveAttribute('data-linked-tile');
+    expect(screen.getByRole('heading', { level: 2, name: 'LeetCode' })).toBeInTheDocument();
     expect(within(tile).getByText('LeetCode stats unavailable')).toBeInTheDocument();
     expect(within(tile).getByRole('link', { name: `LeetCode profile ${NEW_TAB}` })).toHaveAttribute(
       'href',
@@ -523,20 +681,39 @@ describe('LeetCodeTileView', () => {
 });
 
 describe('TypingTileView', () => {
-  it('shows the 60 s personal best and its accuracy, linking the profile', () => {
-    render(<TypingTileView result={ok(TYPING)} now={NOW} />);
-    const tile = screen.getByRole('link', { name: /^Typing\s*142/ });
-    expect(tile).toHaveAttribute('href', 'https://monkeytype.com/profile/WomB0ComB0');
-    expect(within(tile).getByText('wpm')).toBeInTheDocument();
-    expect(within(tile).getByText('60 s personal best · 98.2% acc')).toBeInTheDocument();
-    expect(tile.querySelector('svg[data-new-tab-arrow]')).toHaveAttribute('aria-hidden', 'true');
+  it('shows the 60 s best and its accuracy, its label linking the profile', () => {
+    const { container } = render(<TypingTileView result={ok(TYPING)} now={NOW} />);
+    const tile = tileOf(container);
+    const label = screen.getByRole('heading', { level: 2 });
+    const link = within(label).getByRole('link', {
+      name: `Typing profile on Monkeytype ${NEW_TAB}`,
+    });
+    expect(link).toHaveAttribute('href', 'https://monkeytype.com/profile/WomB0ComB0');
+    expect(link.querySelector('[data-new-tab-arrow]')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(tile).getByText('142')).toHaveClass('figure-md');
+    expect(within(tile).getByText('wpm')).toHaveClass('figure-unit');
+    // Was '60 s personal best · 98.2% acc'.
+    const meta = within(tile).getByText('60 s best · 98% accuracy');
+    expect(meta).toHaveClass('tile-meta', 'text-muted-foreground');
+    // No-break spaces keep '60 s' and '98% accuracy' on one line each, and the dot with the words
+    // before it: a narrow tile wraps after the dot, never before 'accuracy'.
+    expect(meta.textContent).toBe(`60 s best${META_SEPARATOR}98% accuracy`);
+  });
+
+  it('rounds the accuracy to the whole percent, and leaves out one it cannot read', () => {
+    expect(typingMeta(92.6)).toBe(`60 s best${META_SEPARATOR}93% accuracy`);
+    expect(typingMeta(Number.NaN)).toBe('60 s best');
   });
 
   it('marks a stale best with when it was read', () => {
-    render(<TypingTileView result={ok(TYPING, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />);
-    const tile = screen.getByRole('link', { name: /^Typing/ });
+    const { container } = render(
+      <TypingTileView result={ok(TYPING, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
+    );
+    const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-state', 'stale');
-    expect(tile).toHaveTextContent(/Stale ·\s*60 s best · as of Nov 5 11:02 AM ET/);
+    expect(within(tile).getByText('60 s best · as of Nov 5 11:02 AM ET')).toHaveAttribute(
+      'data-dated',
+    );
   });
 
   it('says there is no 60 s test yet', () => {
@@ -552,47 +729,168 @@ describe('TypingTileView', () => {
 });
 
 describe('GitHubTileView', () => {
-  it('shows the total, the latest commit as the tile link, and its freshness', () => {
+  const COMMIT_NAME = `Latest commit: feat(home): the Live Console bento (#604), on GitHub ${NEW_TAB}`;
+
+  it('shows the total in 12 weeks, then the repository, the age and the headline as the link', () => {
     const { container } = render(
       <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
     );
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-linked-tile');
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'GitHub · 12 weeks' }),
-    ).toBeInTheDocument();
-    expect(within(tile).getByText('contributions').parentElement).toHaveTextContent(
-      '412contributions',
-    );
-    expect(within(tile).getByText('portfolio · a1b2c3d · 3 h ago')).toBeInTheDocument();
-    const commit = within(tile).getByRole('link', {
-      name: `feat(home): the Live Console bento (latest commit on GitHub) ${NEW_TAB}`,
-    });
+    // Was 'GITHUB · 12 WEEKS': the period moved onto the unit.
+    expect(screen.getByRole('heading', { level: 2, name: 'GitHub' })).toBeInTheDocument();
+    expect(within(tile).getByText('412')).toHaveClass('figure-lg', 'text-foreground');
+    expect(within(tile).getByText('contributions in 12 weeks')).toHaveClass('figure-unit');
+
+    const repo = within(tile).getByText('portfolio');
+    expect(repo).toHaveClass('mono-token');
+    expect(repo.parentElement).toHaveTextContent(/^portfolio · 3 h ago$/);
+    expect(repo.parentElement).toHaveAttribute('data-dated');
+
+    const commit = within(tile).getByRole('link', { name: COMMIT_NAME });
     expect(commit).toHaveAttribute('href', ACTIVITY.latestCommit?.url);
     expect(commit).toHaveAttribute('data-tile-link');
-    expect(within(tile).getByText('updated 5 min ago')).toHaveAttribute('datetime', FIVE_MIN_AGO);
   });
 
-  // A two-line headline used to be clamped together with the arrow after it, hiding the tile's
-  // only visible new-tab cue.
-  it('clamps only the commit headline, so its new-tab arrow is never cut off', () => {
+  // The SHA means nothing to a visitor; 'updated just now' repeated what the commit age says.
+  it('shows no SHA, and nothing of its own freshness while fresh', () => {
     const { container } = render(
       <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
     );
     const tile = tileOf(container);
-    const commit = within(tile).getByRole('link', { name: /latest commit on GitHub/ });
-    const headline = within(commit).getByText(ACTIVITY.latestCommit?.headline ?? '');
+    expect(tile.textContent).not.toContain('a1b2c3d');
+    expect(within(tile).queryByText(/updated/)).toBeNull();
+    expect(tile.querySelector('time')).toBeNull();
+  });
+
+  it('shows the headline as a visitor reads it, and names the link with it as written', () => {
+    render(<GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />);
+    const commit = screen.getByRole('link', { name: COMMIT_NAME });
+    const shown = within(commit).getByText('The Live Console bento');
+    expect(shown).toHaveAttribute('aria-hidden', 'true');
+    // Seen: the headline, then the arrow (glued to it by an invisible word joiner).
+    expect(textWithout(commit, '.sr-only, [data-new-tab-arrow]')).toBe('The Live Console bento');
+  });
+
+  // A two-line headline used to be clamped together with the arrow after it, hiding the tile's
+  // only visible new-tab cue.
+  it('cuts only the headline short, so its new-tab arrow is never cut off', () => {
+    const { container } = render(
+      <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
+    );
+    const tile = tileOf(container);
+    const commit = within(tile).getByRole('link', { name: COMMIT_NAME });
+    const headline = within(commit).getByText('The Live Console bento');
     const arrow = commit.querySelector('[data-new-tab-arrow]');
 
-    expect(headline).not.toBe(commit);
-    expect(headline).toHaveClass('line-clamp-1', 'min-w-0');
+    expect(headline).toHaveClass('truncate', 'min-w-0');
     expect(arrow).not.toBeNull();
     expect(headline.contains(arrow)).toBe(false);
-    // The headline and the arrow are items of one row; nothing around them clamps.
+    // The headline and the arrow are items of one row; nothing around them cuts.
     expect(commit).toHaveClass('flex', 'items-baseline');
     for (let node: HTMLElement | null = commit; node && node !== tile; node = node.parentElement) {
-      expect(node.className, node.outerHTML).not.toMatch(/line-clamp/);
+      expect(node.className, node.outerHTML).not.toMatch(/line-clamp|truncate/);
     }
+  });
+
+  // At 768 px the cut headline's ellipsis stood 10 to 12 px before the arrow: the arrow's 2 px
+  // margin, the 4 px inset of the arrow inside its icon, and what the ellipsis leaves of the
+  // headline's box. The arrow is pulled in 4 px, so it sits right after the ellipsis; a 4 px
+  // spacer that only a whole headline leaves room for keeps that one's spacing as it was.
+  it('sets the new-tab arrow right after a cut headline’s ellipsis, and a whole one as before', () => {
+    render(<GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />);
+    const commit = screen.getByRole('link', { name: COMMIT_NAME });
+    const arrow = commit.querySelector(':scope > [data-new-tab-arrow]');
+    expect(arrow?.querySelector('svg')).not.toBeNull();
+    expect(commit).toHaveClass(
+      // The arrow, pulled 4 px into the headline's box, after the spacer.
+      '[&>[data-new-tab-arrow]]:order-2',
+      '[&>[data-new-tab-arrow]>svg]:-ml-1',
+      // The spacer: 4 px wide, and the first thing to give way when the headline is cut.
+      'before:order-1',
+      'before:basis-1',
+      'before:shrink-[100000]',
+    );
+    // The headline keeps its place before both, and is the one that is cut.
+    const headline = within(commit).getByText('The Live Console bento');
+    expect(headline.className).not.toMatch(/order-/);
+    expect(headline).toHaveClass('min-w-0', 'truncate');
+  });
+
+  // Review finding WF-3: from 29rem the tile went side by side inside the 30rem tier, whose
+  // estimate is the stacked tile's (a 64 px hole at 464-479 px bentos).
+  it('sets the sparkline beside the figure from a 34rem tile, and in a narrow bento from 30rem', () => {
+    const { container } = render(
+      <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
+    );
+    const sparkline = container.querySelector('[data-sparkline]');
+    const body = sparkline?.parentElement?.parentElement;
+    expect(body).toHaveClass(
+      'grid',
+      '@[34rem]:grid-cols-[minmax(min-content,2fr)_minmax(0,3fr)]',
+      '@min-[30rem]/bento:@max-[40rem]/bento:grid-cols-[minmax(min-content,2fr)_minmax(0,3fr)]',
+    );
+    expect(sparkline).toHaveAttribute('height', '56');
+    expect(sparkline).toHaveClass('@[34rem]:h-18', '@min-[30rem]/bento:@max-[40rem]/bento:h-18');
+    expect(container.innerHTML).not.toContain('29rem');
+  });
+
+  // Review finding WF2-LAYOUT-1: in a 586 to 640 px bento the tile is 34rem wide, and the built CSS
+  // puts the 34rem rule's `minmax(0,2fr)` after the narrow bento's `minmax(min-content,2fr)`, so
+  // it won: the nowrap figure row ran 45 to 80 px into the sparkline's column, and the skeleton's
+  // bar painted over '12 weeks'. Both rules can match at once, and Tailwind orders them, not this
+  // class list, so every rule that sets the columns gives the text column the same min-content.
+  it('gives the figure’s column its min-content in every rule that sets the columns, loaded and loading', () => {
+    const bodyOf = (container: HTMLElement): Element | null | undefined =>
+      container.querySelector('.figure-row')?.parentElement?.parentElement;
+    const loaded = bodyOf(render(<GitHubTileView result={ok(ACTIVITY)} now={NOW} />).container);
+    const skeleton = bodyOf(render(<GitHubTileSkeleton />).container);
+
+    for (const body of [loaded, skeleton]) {
+      const columnRules = (body?.className ?? '')
+        .split(/\s+/)
+        .filter((name) => /(?:^|:)grid-cols-/.test(name));
+      expect(columnRules).toHaveLength(2);
+      for (const rule of columnRules) {
+        expect(rule).toMatch(/:grid-cols-\[minmax\(min-content,2fr\)_minmax\(0,3fr\)\]$/);
+      }
+    }
+    expect(skeleton?.className).toBe(loaded?.className);
+  });
+
+  // Sized by the nowrap headline, the loaded text column took 376 px in a 600 px window while the
+  // skeleton's took 197 px and wrapped the unit: the skeleton stood 24 px taller.
+  it('sizes its text column by the figure’s row, never the commit headline, as its skeleton does', () => {
+    const IN_NARROW_BENTO = '@min-[30rem]/bento:@max-[40rem]/bento:';
+    const loaded = render(<GitHubTileView result={ok(ACTIVITY)} now={NOW} />).container;
+    const column = loaded.querySelector('.figure-row')?.parentElement;
+    // figure-row is a wrapping flex row: both are needed to keep the unit beside the figure.
+    expect(column).toHaveClass(
+      `${IN_NARROW_BENTO}[&>.figure-row]:flex-nowrap`,
+      `${IN_NARROW_BENTO}[&>.figure-row]:whitespace-nowrap`,
+    );
+    const commitLines = column?.querySelector('[data-dated]')?.parentElement;
+    expect(commitLines).toHaveClass('contain-inline-size');
+    cleanup();
+
+    const skeleton = render(<GitHubTileSkeleton />).container;
+    const skeletonColumn = skeleton.querySelector('.figure-row')?.parentElement;
+    expect(skeletonColumn?.className).toBe(column?.className);
+    expect(skeletonColumn?.lastElementChild?.className).toBe(commitLines?.className);
+  });
+
+  // Review finding CR611-11: GitHub's wide lane (a 1fr lane, its text column at most 292.55 px) is
+  // about 1 px narrower than a four-digit row with Linux's hinted advances and about 3 px wider
+  // unhinted (macOS, Windows), so the tile's height, and roles' lane, hung on the platform and the
+  // digit count.
+  it('puts the unit on its own line in a wide bento, loaded and loading', () => {
+    const UNIT_OWN_LINE = '@min-[67.5rem]/bento:[&>.figure-row>:last-child]:basis-full';
+    const loaded = render(<GitHubTileView result={ok(ACTIVITY)} now={NOW} />).container;
+    expect(loaded.querySelector('.figure-row')?.parentElement).toHaveClass(UNIT_OWN_LINE);
+    cleanup();
+
+    const skeleton = render(<GitHubTileSkeleton />).container;
+    expect(skeleton.querySelector('.figure-row')?.parentElement).toHaveClass(UNIT_OWN_LINE);
   });
 
   it('says what the sparkline shows, for screen readers', () => {
@@ -618,7 +916,7 @@ describe('GitHubTileView', () => {
     ).toBeInTheDocument();
   });
 
-  it('links the profile instead of a commit that has no URL', () => {
+  it('links the profile from the label instead of a commit that has no URL', () => {
     const latestCommit = { ...ACTIVITY.latestCommit, url: ' ' } as GitHubActivity['latestCommit'];
     render(
       <GitHubTileView
@@ -627,11 +925,10 @@ describe('GitHubTileView', () => {
       />,
     );
     const heading = screen.getByRole('heading', { level: 2 });
-    expect(within(heading).getByRole('link')).toHaveAttribute(
-      'href',
-      'https://github.com/WomB0ComB0',
-    );
-    expect(screen.queryByText(/the Live Console bento/)).toBeNull();
+    expect(
+      within(heading).getByRole('link', { name: `GitHub profile ${NEW_TAB}` }),
+    ).toHaveAttribute('href', 'https://github.com/WomB0ComB0');
+    expect(screen.queryByText(/Live Console bento/)).toBeNull();
   });
 
   it('leaves the busiest week out when no week has a contribution', () => {
@@ -647,9 +944,11 @@ describe('GitHubTileView', () => {
     expect(screen.getByText('0 contributions in the last 12 weeks.')).toBeInTheDocument();
   });
 
-  it('shows stale activity as of an absolute New York time', () => {
+  it('shows stale activity as of an absolute New York time, beside a clock', () => {
     render(<GitHubTileView result={ok(ACTIVITY, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />);
-    expect(screen.getByText('as of Nov 5 11:02 AM ET')).toBeInTheDocument();
+    const note = screen.getByText('as of Nov 5 11:02 AM ET');
+    expect(note).toHaveClass('tile-meta');
+    expect(note.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.queryByText(/updated/)).toBeNull();
   });
 
@@ -665,7 +964,7 @@ describe('GitHubTileView', () => {
       'href',
       'https://github.com/WomB0ComB0',
     );
-    expect(screen.queryByText(/a1b2c3d/)).toBeNull();
+    expect(screen.queryByText('portfolio')).toBeNull();
   });
 
   it('keeps the sparkline place dashed and links the profile on error', () => {
@@ -694,40 +993,134 @@ describe('GitHubTileView', () => {
 });
 
 describe('ProjectTileView', () => {
-  it('shows the cover, title link, description, up to four chips and the meta', () => {
+  /** The label's detail beside the h2: '2025', 'committed yesterday'. */
+  const detailOf = (tile: HTMLElement): HTMLElement | null =>
+    (tile.querySelector('h2')?.nextElementSibling as HTMLElement | null) ?? null;
+
+  it('shows the 2:1 cover, the label with the year, the title link and one description line', () => {
     const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} />);
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-linked-tile');
-    const cover = within(tile).getByRole('img', { name: 'The Fraud Guard dashboard' });
+
+    // Decorative: the title beside it names the project.
+    const cover = tile.querySelector('img');
+    expect(cover).toHaveAttribute('alt', '');
     expect(cover).toHaveAttribute('loading', 'lazy');
     expect(cover).toHaveAttribute('sizes', PROJECT_COVER_SIZES);
-    const source = imageSource(cover);
-    expect(source).toContain('cdn.sanity.io/images/test/test/cover1-1600x1000.png?');
-    for (const param of ['w=1200', 'h=750', 'fit=crop', 'auto=format']) {
-      expect(source).toContain(param);
-    }
+    // self-start: as the media object's left half it keeps 2:1 instead of stretching to the text.
+    expect(cover).toHaveClass('aspect-[2/1]', 'w-full', 'object-cover', 'self-start');
+
+    expect(within(tile).getByRole('heading', { level: 2 })).toHaveTextContent(/^Featured project$/);
+    expect(seenText(detailOf(tile) as HTMLElement)).toBe('· 2025');
     const title = within(tile).getByRole('heading', { level: 3 });
+    expect(title).toHaveClass('tile-title-lg', 'line-clamp-2');
     expect(within(title).getByRole('link', { name: 'Fraud Guard' })).toHaveAttribute(
       'href',
       `/projects/${encodeURIComponent(FEATURED._id)}`,
     );
-    expect(within(tile).getByText(FEATURED.description)).toHaveClass('line-clamp-2');
-    expect(
-      within(tile)
-        .getAllByRole('listitem')
-        .map((chip) => chip.textContent),
-    ).toEqual(['Python', 'FastAPI', 'React', 'PostgreSQL']);
-    expect(within(tile).getByText('Machine Learning · Completed · 2025')).toBeInTheDocument();
+    expect(within(tile).getByText('AI-Powered Transaction Monitoring')).toHaveClass(
+      'tile-sub',
+      'text-muted-foreground',
+    );
   });
 
-  it('draws a typographic cover without an image, never "No Image Available"', () => {
+  // The 2-line description, the chips (which contradicted it) and 'Category · Status' are cut.
+  it('leaves the description, the tech chips, the category and the status to the project page', () => {
+    const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} />);
+    const tile = tileOf(container);
+    expect(tile.textContent).not.toContain(FEATURED.description);
+    expect(within(tile).queryByRole('list')).toBeNull();
+    for (const word of ['Python', 'Machine Learning', 'Completed']) {
+      expect(tile.textContent).not.toContain(word);
+    }
+  });
+
+  it('has no description line for a title without a separator', () => {
+    const { container } = render(
+      <ProjectTileView result={ok(featuredPick({ ...FEATURED, title: 'grepo' }))} />,
+    );
+    const tile = tileOf(container);
+    expect(within(tile).getByRole('link', { name: 'grepo' })).toBeInTheDocument();
+    expect(tile.querySelector('.tile-sub')).toBeNull();
+  });
+
+  /** The cover file's URL, from its next/image source. */
+  const coverSource = (image: Project['image']): string => {
+    const { container } = render(
+      <ProjectTileView result={ok(featuredPick({ ...FEATURED, image }))} />,
+    );
+    const source = imageSource(container.querySelector('img') as HTMLElement);
+    cleanup();
+    return source;
+  };
+
+  // Review finding WF-PERF-3: in Studio's own crop, a 16:10 cover shipped 25% more pixels than
+  // the 2:1 box shows, and a portrait one far more.
+  it('asks Sanity for a 2:1 file at the cover’s width, cut within Studio’s crop', () => {
+    const cropped = { ...COVER, crop: { top: 0, bottom: 0.5, left: 0.1, right: 0.1 } };
+    const source = coverSource(cropped);
+    expect(source).toContain('cdn.sanity.io/images/test/test/cover1-1600x1000.png?');
+    // The crop keeps 1280 x 500 of the 1600 x 1000 file: 2:1 takes 1000 x 500 of it, centred.
+    for (const param of ['w=1200', 'h=600', 'fit=crop', 'auto=format', 'rect=300,0,1000,500']) {
+      expect(source).toContain(param);
+    }
+  });
+
+  // @sanity/image-url's fit() centres the 2:1 window on the hotspot whenever both a width and a
+  // height are asked for, so the subject stays in the file, and the file is the box.
+  it('cuts the 2:1 file around the Sanity hotspot, and centres a cover without one', () => {
+    // The hotspot is low in the frame: the 1600 x 800 window drops to the file's foot.
+    expect(coverSource(COVER_WITH_HOTSPOT)).toContain('rect=0,200,1600,800');
+    expect(coverSource(COVER)).toContain('rect=0,100,1600,800');
+  });
+
+  // The file is already the box's 2:1, so an object-position has nothing left to move.
+  it('sets no object-position: the file is cut to the box', () => {
+    const { container } = render(
+      <ProjectTileView result={ok(featuredPick({ ...FEATURED, image: COVER_WITH_HOTSPOT }))} />,
+    );
+    expect(container.querySelector('img')?.style.objectPosition).toBe('');
+  });
+
+  /** The two conditions of the media object: a 38rem tile, or a 30rem to 40rem bento. */
+  const IN_MEDIA = ['@[38rem]:', '@min-[30rem]/bento:@max-[40rem]/bento:'] as const;
+  const inMedia = (utility: string): string[] => IN_MEDIA.map((variant) => `${variant}${utility}`);
+
+  // D2: phones (a bento below 30rem) get the stacked 2:1 cover of the brief; the 30rem tier,
+  // where the estimates change too, keeps the media object, so the hero stays the largest tile.
+  it('becomes a media object from a 38rem tile, and in a narrow bento from 30rem', () => {
+    const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} />);
+    const cover = container.querySelector('img');
+    expect(cover?.parentElement).toHaveClass('flex-col', ...inMedia('flex-row'));
+    expect(cover).toHaveClass(...inMedia('w-1/2'));
+    expect(container.innerHTML).not.toContain('22rem');
+  });
+
+  // Review finding project-skeleton-parity-cover-left: in the media object the description took
+  // two lines and the label row wrapped, so the loaded tile stood 20 to 44 px over its skeleton.
+  it('keeps the media object’s text to one line each, so it is never taller than the cover', () => {
+    const { container } = render(<ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />);
+    const tile = tileOf(container);
+    expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass(
+      'line-clamp-2',
+      ...inMedia('line-clamp-1'),
+    );
+    expect(within(tile).getByText('AI-Powered Transaction Monitoring')).toHaveClass(
+      'line-clamp-2',
+      ...inMedia('line-clamp-1'),
+    );
+    // The label row is one line at every width: its detail is cut short, never wrapped.
+    expect(tile.querySelector('h2')?.parentElement).toHaveClass('truncate');
+  });
+
+  it('draws a 2:1 typographic cover of the initials without an image, never "No Image Available"', () => {
     const { container } = render(
       <ProjectTileView result={ok(featuredPick({ ...FEATURED, image: null }))} />,
     );
     const cover = container.querySelector('[data-cover="typographic"]');
     expect(cover).toHaveAttribute('aria-hidden', 'true');
-    expect(cover).toHaveTextContent('FG');
-    expect(cover).toHaveTextContent('Machine Learning');
+    expect(cover).toHaveClass('aspect-[2/1]');
+    expect(cover).toHaveTextContent(/^FG$/);
     expect(container.querySelector('img')).toBeNull();
     expect(container.textContent).not.toMatch(/no image/i);
   });
@@ -758,41 +1151,84 @@ describe('ProjectTileView', () => {
     );
   });
 
-  it('says which day a stale project’s list is from, and nothing more when fresh', () => {
-    const { container } = render(
-      <ProjectTileView
-        result={ok(featuredPick(FEATURED), { stale: true, asOf: FIVE_MIN_AGO })}
-        now={NOW}
-      />,
-    );
-    const tile = tileOf(container);
-    expect(tile).toHaveAttribute('data-state', 'stale');
-    expect(
-      within(tile).getByText('Machine Learning · Completed · 2025 · as of Nov 5'),
-    ).toHaveAttribute('data-dated');
-    cleanup();
+  // Review findings WF2-D2-stale-asof-cut and WF2-reg-1: the label row is one line cut with an
+  // ellipsis, and 'as of Nov 5' ended its detail, so a 199 to 286 px row (a 480 to 672 px bento,
+  // or a 320 px phone) cut the tile's only visible sign that it is stale. It is a line of its own.
+  it.each([
+    ['the featured pick', featuredPick(FEATURED), '· 2025'],
+    ['the latest work', activePick(FEATURED), '· committed yesterday'],
+  ])(
+    'keeps the day a stale list is from in sight for %s: a line of its own, outside the label row its ellipsis cuts',
+    (_name, pick, detail) => {
+      const { container } = render(
+        <ProjectTileView result={ok(pick, { stale: true, asOf: FIVE_MIN_AGO })} now={NOW} />,
+      );
+      const tile = tileOf(container);
+      const row = tile.querySelector('h2')?.parentElement;
+      expect(tile).toHaveAttribute('data-state', 'stale');
+      expect(seenText(detailOf(tile) as HTMLElement)).toBe(detail);
+      expect(detailOf(tile)).not.toHaveAttribute('data-stale');
 
-    render(<ProjectTileView result={ok(featuredPick(FEATURED))} now={NOW} />);
+      const staleLine = within(tile).getByText('as of Nov 5');
+      expect(staleLine).toHaveAttribute('data-stale', '');
+      expect(staleLine).toHaveAttribute('data-dated');
+      expect(row?.contains(staleLine)).toBe(false);
+      for (
+        let node: HTMLElement | null = staleLine;
+        node && node !== tile;
+        node = node.parentElement
+      ) {
+        expect(node.className).not.toMatch(/\b(?:truncate|line-clamp-\d|whitespace-nowrap)\b/);
+      }
+    },
+  );
+
+  it('says nothing of a stale list when the list is fresh', () => {
+    const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} now={NOW} />);
     expect(screen.queryByText(/as of/)).toBeNull();
+    expect(container.querySelector('[data-stale]')).toBeNull();
   });
 
-  it('labels the project his commits chose "Latest work" and says the day he last committed', () => {
+  // Review finding project-label-row-leading-dot: as two items of a wrapping flex row, the label
+  // and its detail broke onto two lines, the second starting with '·'. Now they are one line box
+  // (an inline h2, then the detail), on the label's 16 px line (globals.css's p line height of
+  // 1.75 once made the detail 22.75 px tall), cut with an ellipsis instead of wrapping.
+  it('sets the label and its detail in one line box that never wraps, the dot glued to the label', () => {
+    const { container } = render(<ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />);
+    const label = within(tileOf(container)).getByRole('heading', { level: 2 });
+    const detail = detailOf(tileOf(container));
+    const row = label.parentElement;
+
+    expect(row).toHaveClass('tile-label', 'truncate');
+    expect(row?.tagName).toBe('DIV');
+    // globals.css gives every h2 `text-wrap: balance`, which sets text-wrap-mode back to wrap: the
+    // h2 needs its own nowrap, or 'Latest work' breaks in two inside the truncated row.
+    expect(label).toHaveClass('inline', 'whitespace-nowrap');
+    expect(detail?.tagName).toBe('SPAN');
+    expect(detail?.parentElement).toBe(row);
+    // META_SEPARATOR starts with a no-break space, so the dot never starts a line.
+    const separator = detail?.firstElementChild;
+    expect(separator).toHaveAttribute('aria-hidden', 'true');
+    expect(separator?.textContent).toBe(META_SEPARATOR);
+    expect(META_SEPARATOR.startsWith(' ')).toBe(true);
+  });
+
+  it('labels the project his commits chose "Latest work" beside the day he last committed', () => {
     const { container } = render(<ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />);
     const tile = tileOf(container);
 
-    // A label that claims only what GitHub shows, so a 'Completed' status beside it is no
-    // contradiction: he committed to a finished project.
-    expect(within(tile).getByRole('heading', { level: 2 })).toHaveTextContent(/^Latest work$/);
-    expect(within(tile).queryByText(/Active/)).toBeNull();
-    expect(
-      within(tile).getByText('Machine Learning · Completed · 2025 · committed yesterday'),
-    ).toHaveAttribute('data-dated');
-    // Everything else is the tile as it was.
+    // A label that claims only what GitHub shows, so the project's status is no contradiction.
+    const label = within(tile).getByRole('heading', { level: 2 });
+    expect(label).toHaveTextContent(/^Latest work$/);
+    expect(seenText(detailOf(tile) as HTMLElement)).toBe('· committed yesterday');
+    expect(detailOf(tile)).toHaveAttribute('data-dated');
+    // The label's own words never depend on the date.
+    expect(label).not.toHaveAttribute('data-dated');
+    expect(tile.textContent).not.toContain('2025');
     expect(within(tile).getByRole('link', { name: 'Fraud Guard' })).toHaveAttribute(
       'href',
       `/projects/${encodeURIComponent(FEATURED._id)}`,
     );
-    expect(within(tile).getByRole('img', { name: 'The Fraud Guard dashboard' })).toBeVisible();
   });
 
   it.each([
@@ -800,42 +1236,27 @@ describe('ProjectTileView', () => {
     ['2026-11-02', 'committed 3 d ago'],
     ['2026-10-20', 'committed Oct 20'],
   ])('words a last commit on %s as "%s": a day, never a time', (lastCommitDay, words) => {
-    render(<ProjectTileView result={ok(activePick(FEATURED, lastCommitDay))} now={NOW} />);
-
-    expect(screen.getByText(`Machine Learning · Completed · 2025 · ${words}`)).toBeInTheDocument();
+    const { container } = render(
+      <ProjectTileView result={ok(activePick(FEATURED, lastCommitDay))} now={NOW} />,
+    );
+    expect(seenText(detailOf(tileOf(container)) as HTMLElement)).toBe(`· ${words}`);
   });
 
-  it('keeps "Featured project", and says nothing of a commit, for the featured pick', () => {
+  it('keeps "Featured project" beside the year, and says nothing of a commit, for the featured pick', () => {
     const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} now={NOW} />);
     const tile = tileOf(container);
 
     expect(within(tile).getByRole('heading', { level: 2 })).toHaveTextContent(/^Featured project$/);
     expect(within(tile).queryByText(/committed|pushed/)).toBeNull();
-    expect(within(tile).getByText('Machine Learning · Completed · 2025')).not.toHaveAttribute(
-      'data-dated',
-    );
-  });
-
-  it('puts the commit day before the day a stale list is from', () => {
-    render(
-      <ProjectTileView
-        result={ok(activePick(FEATURED), { stale: true, asOf: FIVE_MIN_AGO })}
-        now={NOW}
-      />,
-    );
-
-    expect(
-      screen.getByText('Machine Learning · Completed · 2025 · committed yesterday · as of Nov 5'),
-    ).toBeInTheDocument();
+    expect(detailOf(tile)).not.toHaveAttribute('data-dated');
   });
 
   it('leaves out a commit day it cannot word, keeping the label', () => {
-    render(<ProjectTileView result={ok(activePick(FEATURED, '2026-11-06'))} now={NOW} />);
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Latest work' })).toBeInTheDocument();
-    expect(screen.getByText('Machine Learning · Completed · 2025')).not.toHaveAttribute(
-      'data-dated',
+    const { container } = render(
+      <ProjectTileView result={ok(activePick(FEATURED, '2026-11-06'))} now={NOW} />,
     );
+    expect(screen.getByRole('heading', { level: 2, name: 'Latest work' })).toBeInTheDocument();
+    expect(detailOf(tileOf(container))).toBeNull();
   });
 
   it('takes up to two initials from the title', () => {
@@ -847,17 +1268,55 @@ describe('ProjectTileView', () => {
 });
 
 describe('PlaceTileView', () => {
-  it('links the latest place by name and says where and when', () => {
+  /** The tile's context line: its dated <p>. */
+  const metaOf = (container: HTMLElement): HTMLElement => {
+    const meta = tileOf(container).querySelector<HTMLElement>('p[data-dated]');
+    if (!meta) throw new Error('no context line');
+    return meta;
+  };
+
+  /** 1:07 PM in New York on Nov 5: past noon, so a visit on Nov 4 is over (placeCutoffDay). */
+  const AFTERNOON = Date.parse('2026-11-05T18:07:00Z');
+
+  it('links the place by name under "Recently at" and says what and when', () => {
     const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-linked-tile');
-    expect(screen.getByRole('heading', { level: 2, name: 'Last place' })).toBeInTheDocument();
+    // Was 'LAST PLACE', which read like a ranking.
+    expect(screen.getByRole('heading', { level: 2, name: 'Recently at' })).toHaveClass(
+      'tile-label',
+    );
     expect(within(tile).getByRole('link', { name: PAST_PLACE.name })).toHaveAttribute(
       'href',
       `/places/${encodeURIComponent(PAST_PLACE._id)}`,
     );
-    expect(within(tile).getByText('Conference · Oct 30 · 6 d ago')).toBeInTheDocument();
-    expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass('line-clamp-2');
+    expect(seenText(metaOf(container))).toBe('Conference · Oct 30');
+    expect(metaOf(container)).toHaveClass('tile-meta');
+    expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass(
+      'tile-title',
+      'line-clamp-2',
+    );
+  });
+
+  // 'Event · Aug 21': the days say when, so no '6 d ago' or 'yesterday' after them.
+  it.each([
+    ['a single day', PAST_PLACE, NOW, 'Conference · Oct 30'],
+    [
+      'yesterday’s visit',
+      { ...PAST_PLACE, startDate: '2026-11-04' },
+      AFTERNOON,
+      'Conference · Nov 4',
+    ],
+    [
+      'a run ending yesterday',
+      { ...PAST_PLACE, startDate: '2026-10-20', endDate: '2026-11-04' },
+      AFTERNOON,
+      'Conference · Oct 20 – Nov 4',
+    ],
+  ])('says the days of %s and never how long ago', (_case, place, now, line) => {
+    const { container } = render(<PlaceTileView result={ok(place)} now={now} />);
+    expect(seenText(metaOf(container))).toBe(line);
+    expect(metaOf(container).textContent).not.toMatch(/ago|yesterday|today/);
   });
 
   it('says which day a stale place’s list is from', () => {
@@ -866,12 +1325,14 @@ describe('PlaceTileView', () => {
     );
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-state', 'stale');
-    expect(within(tile).getByText('Conference · Oct 30 · 6 d ago · as of Nov 5')).toBeVisible();
+    expect(seenText(metaOf(container))).toBe('Conference · Oct 30 · as of Nov 5');
   });
 
   it('gives a place from another year its date once, with the year', () => {
-    render(<PlaceTileView result={ok({ ...PAST_PLACE, startDate: '2025-10-30' })} now={NOW} />);
-    expect(screen.getByText('Conference · Oct 30, 2025')).toBeInTheDocument();
+    const { container } = render(
+      <PlaceTileView result={ok({ ...PAST_PLACE, startDate: '2025-10-30' })} now={NOW} />,
+    );
+    expect(seenText(metaOf(container))).toBe('Conference · Oct 30, 2025');
   });
 
   it('encodes the document id in the link', () => {
@@ -889,14 +1350,22 @@ describe('PlaceTileView', () => {
     expect(text).not.toMatch(/40\.7|74\.0/);
   };
 
-  it('shows the photo thumbnail from 18rem, and never the coordinates', () => {
+  // It showed from an 18rem tile only; the photo now leads the row at every width.
+  it('shows the photo as a 64px thumbnail at every width, before the text, and never the coordinates', () => {
     const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
     const tile = tileOf(container);
-    const thumbnail = within(tile).getByRole('img', { name: 'The main stage' });
-    expect(thumbnail).toHaveClass('hidden', '@2xs:block');
-    const source = imageSource(thumbnail);
+    const thumbnail = tile.querySelector('img');
+    // Decorative: the name beside it says where.
+    expect(thumbnail).toHaveAttribute('alt', '');
+    expect(thumbnail).toHaveAttribute('sizes', '64px');
+    expect(thumbnail).toHaveClass('size-16', 'rounded-lg', 'object-cover');
+    expect(thumbnail?.className).not.toMatch(/hidden/);
+    expect(thumbnail?.nextElementSibling).toContainElement(
+      screen.getByRole('heading', { level: 2 }),
+    );
+    const source = imageSource(thumbnail as HTMLElement);
     expect(source).toContain('stage1-800x600.jpg?');
-    for (const param of ['w=144', 'h=144', 'fit=crop']) expect(source).toContain(param);
+    for (const param of ['w=128', 'h=128', 'fit=crop']) expect(source).toContain(param);
     expectNoCoordinates(tile);
   });
 
@@ -905,7 +1374,7 @@ describe('PlaceTileView', () => {
       <PlaceTileView result={ok({ ...PAST_PLACE, photos: null })} now={NOW} />,
     );
     const tile = tileOf(container);
-    expect(within(tile).queryByRole('img')).toBeNull();
+    expect(tile.querySelector('img')).toBeNull();
     expect(tile.querySelector('svg')).toBeNull();
     expectNoCoordinates(tile);
   });
@@ -913,14 +1382,11 @@ describe('PlaceTileView', () => {
   it('never says "Here now" or shows an amber dot for a past visit', () => {
     const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
     const tile = tileOf(container);
-    expect(within(tile).getByRole('heading', { level: 2 })).toHaveAccessibleName('Last place');
+    expect(within(tile).getByRole('heading', { level: 2 })).toHaveAccessibleName('Recently at');
     expect(within(tile).queryByText(/here now/i)).toBeNull();
     expect(tile.querySelector('[data-status-dot], .text-ongoing')).toBeNull();
     expectNoCoordinates(tile);
   });
-
-  /** 1:07 PM in New York on Nov 5: past noon, so a visit on Nov 4 is over (placeCutoffDay). */
-  const AFTERNOON = Date.parse('2026-11-05T18:07:00Z');
 
   // Past visits only (owner decision). selectLatestPlace never hands the tile a place whose visit
   // may be on, and the view holds the same rule, so a place that reaches it another way (another
@@ -959,15 +1425,7 @@ describe('PlaceTileView', () => {
     expect(screen.queryByText(PAST_PLACE.name)).toBeNull();
   });
 
-  it('shows a visit dated yesterday from noon in New York', () => {
-    const yesterday = ok({ ...PAST_PLACE, startDate: '2026-11-04' });
-    const { container } = render(<PlaceTileView result={yesterday} now={AFTERNOON} />);
-    const tile = tileOf(container);
-    expect(within(tile).getByRole('link', { name: PAST_PLACE.name })).toBeInTheDocument();
-    expect(within(tile).getByText('Conference · Nov 4 · yesterday')).toBeInTheDocument();
-  });
-
-  // Corgi NYC's visits were Jul 29 and Sep 15: 51 days before NOW, so the span says when.
+  // Corgi NYC's visits were Jul 29 and Sep 15: the span says when.
   const CORGI = makePlace({
     ...PAST_PLACE,
     name: 'Corgi NYC',
@@ -976,17 +1434,10 @@ describe('PlaceTileView', () => {
     endDate: '2026-09-15',
   });
 
-  /** The tile's context line: its dated <p>. */
-  const metaOf = (container: HTMLElement): HTMLElement => {
-    const meta = tileOf(container).querySelector<HTMLElement>('p[data-dated]');
-    if (!meta) throw new Error('no context line');
-    return meta;
-  };
-
-  it('shows a range as its span, with no relative day once its last day is 14 days back', () => {
+  it('shows a run of visits as its span', () => {
     const { container } = render(<PlaceTileView result={ok(CORGI)} now={NOW} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Last place' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Recently at' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Corgi NYC' })).toBeInTheDocument();
     expect(seenText(metaOf(container))).toBe('Event · Jul 29 – Sep 15');
   });
@@ -1002,15 +1453,6 @@ describe('PlaceTileView', () => {
     expect(within(meta).getByText('to')).toHaveClass('sr-only');
   });
 
-  it('counts the relative day from a range’s last day, not its first', () => {
-    const range = { ...PAST_PLACE, startDate: '2026-10-20', endDate: '2026-11-04' };
-    const { container } = render(<PlaceTileView result={ok(range)} now={AFTERNOON} />);
-    const meta = metaOf(container);
-
-    expect(seenText(meta)).toBe('Conference · Oct 20 – Nov 4 · yesterday');
-    expect(heardText(meta)).toBe('Conference · Oct 20 to Nov 4 · yesterday');
-  });
-
   it('joins the stale list’s day after a range, and a single day with no dash or "to"', () => {
     const stale = ok(CORGI, { stale: true, asOf: FIVE_MIN_AGO });
     const { container } = render(<PlaceTileView result={stale} now={NOW} />);
@@ -1024,13 +1466,13 @@ describe('PlaceTileView', () => {
   });
 
   // The visual spec masks [data-dated] only, so the rest of the place tile, its label included
-  // (always 'Last place'), is still compared.
-  it('marks only the words worded from today data-dated: the when line, not the label', () => {
+  // (always 'Recently at'), is still compared.
+  it('marks only the line whose words depend on today data-dated, not the label', () => {
     const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
 
-    expect([...container.querySelectorAll('[data-dated]')].map((node) => node.textContent)).toEqual(
-      ['Conference · Oct 30 · 6 d ago'],
-    );
+    expect([...container.querySelectorAll('[data-dated]')].map((node) => seenText(node))).toEqual([
+      'Conference · Oct 30',
+    ]);
   });
 
   it.each([
@@ -1044,61 +1486,126 @@ describe('PlaceTileView', () => {
 });
 
 describe('RolesTileView', () => {
-  it('links each shown role to its page with the company and start month', () => {
+  /** Each role link's words as a sighted reader sees them. */
+  const roleLines = (): string[] =>
+    screen.getAllByRole('listitem').map((item) => seenText(within(item).getByRole('link')));
+
+  // Owner decision: the hero's role line already says 'Founder & CEO, ResQ Systems'.
+  it('lists the current roles beside the hero’s, never the hero’s own', () => {
     const shown = roles(3);
-    render(<RolesTileView result={ok({ roles: shown, total: 5 })} />);
-    const founder = screen.getByRole('link', {
-      name: 'Founder & CEO ResQ Systems, Inc. · since Mar 2026',
-    });
-    expect(founder).toHaveAttribute(
-      'href',
-      `/experience/${encodeURIComponent(shown[0]?._id ?? '')}`,
+    const { container } = render(<RolesTileView result={ok({ roles: shown, total: 5 })} />);
+    const tile = tileOf(container);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Current roles' })).toBeInTheDocument();
+    expect(tile.textContent).not.toMatch(/Founder|ResQ/);
+    expect(roleLines()).toEqual([
+      `${shown[1]?.position} ${shown[1]?.company} · since 2024`,
+      `${shown[2]?.position} ${shown[2]?.company} · since 2024`,
+    ]);
+    expect(within(tile).getByText(shown[1]?.position ?? '')).toHaveClass('tile-title', 'truncate');
+    expect(within(tile).getByText(`${shown[1]?.company} · since 2024`)).toHaveClass(
+      'tile-meta',
+      'truncate',
     );
-    const items = screen.getAllByRole('listitem');
-    expect(items).toHaveLength(3);
-    expect(items[1]).not.toHaveClass('hidden');
-    expect(items[2]).toHaveClass('hidden', '@xs:block');
   });
 
-  it('counts the roles not on screen: +2 more from 20rem, +3 below it, for 5 roles', () => {
+  it('links each role to its page, its company as people say it and the year it began', () => {
+    const elysium = makeExperience({
+      position: 'Freelance Full Stack Developer',
+      company: 'Elysium, Inc.',
+      current: true,
+      startDate: '2023-01-09',
+    });
+    const [founder] = roles(1);
+    if (!founder) throw new Error('no role');
+    render(<RolesTileView result={ok({ roles: [founder, elysium], total: 2 })} />);
+
+    // Was 'Elysium · since Jan 2023': the month adds nothing here.
+    expect(roleLines()).toEqual(['Freelance Full Stack Developer Elysium · since 2023']);
+    expect(screen.getByRole('link', { name: /^Freelance Full Stack Developer/ })).toHaveAttribute(
+      'href',
+      `/experience/${encodeURIComponent(elysium._id)}`,
+    );
+  });
+
+  it('counts the current roles named nowhere on the page: +2 more for 5', () => {
     render(<RolesTileView result={ok({ roles: roles(3), total: 5 })} />);
-    const wide = screen.getByRole('link', { name: '+2 more current roles' });
-    const narrow = screen.getByRole('link', { name: '+3 more current roles' });
-    expect(wide).toHaveAttribute('href', '/experience');
-    expect(wide).toHaveClass('hidden', '@xs:inline');
-    expect(narrow).toHaveClass('@xs:hidden');
-  });
-
-  it('shows a count below 20rem only, when every role fits above it', () => {
-    render(<RolesTileView result={ok({ roles: roles(3), total: 3 })} />);
-    expect(screen.getByRole('link', { name: '+1 more current roles' })).toHaveClass('@xs:hidden');
+    const more = screen.getByRole('link', { name: '+2 more current roles' });
+    expect(more).toHaveAttribute('href', '/experience');
+    expect(more).toHaveClass('tile-meta', 'font-medium', 'text-brand-ink');
     expect(screen.getAllByRole('link', { name: /more/ })).toHaveLength(1);
   });
 
-  it('shows one count at every width when both widths hide the same roles', () => {
-    render(<RolesTileView result={ok({ roles: roles(2), total: 4 })} />);
-    const links = screen.getAllByRole('link', { name: /more/ });
-    expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAccessibleName('+2 more current roles');
-    expect(links[0]?.className).not.toMatch(/hidden/);
-  });
-
-  it('encodes the document id in each role link', () => {
-    const [founder] = roles(1);
-    if (!founder) throw new Error('no role');
-    render(<RolesTileView result={ok({ roles: [{ ...founder, _id: 'resq/ceo 1' }], total: 1 })} />);
-    expect(screen.getByRole('link', { name: /^Founder & CEO/ })).toHaveAttribute(
-      'href',
-      '/experience/resq%2Fceo%201',
-    );
-  });
-
-  it('shows no count when every role is listed at every width', () => {
-    render(<RolesTileView result={ok({ roles: roles(2), total: 2 })} />);
+  it('shows no count when every current role is on the page', () => {
+    render(<RolesTileView result={ok({ roles: roles(3), total: 3 })} />);
     expect(screen.queryByRole('link', { name: /more/ })).toBeNull();
   });
 
-  it('says which day stale roles are from, under the count, at the tile’s foot', () => {
+  it('lists the roles one under the other, and side by side from a 32rem tile', () => {
+    render(<RolesTileView result={ok({ roles: roles(3), total: 3 })} />);
+    expect(screen.getByRole('list')).toHaveClass('grid', '@[32rem]:grid-cols-2');
+    for (const item of screen.getAllByRole('listitem')) {
+      expect(item.className).not.toMatch(/hidden/);
+    }
+  });
+
+  it('encodes the document id in each role link', () => {
+    const [founder, other] = roles(2);
+    if (!(founder && other)) throw new Error('no roles');
+    render(
+      <RolesTileView
+        result={ok({ roles: [founder, { ...other, _id: 'resq/cto 1' }], total: 2 })}
+      />,
+    );
+    expect(screen.getByRole('link', { name: new RegExp(`^${other.position}`) })).toHaveAttribute(
+      'href',
+      '/experience/resq%2Fcto%201',
+    );
+  });
+
+  it('says there is no other current role when the hero’s is the only one', () => {
+    const { container } = render(<RolesTileView result={ok({ roles: roles(1), total: 1 })} />);
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'empty');
+    expect(within(tile).getByText('No other current roles')).toBeInTheDocument();
+    expect(within(tile).getByRole('link', { name: 'All experience' })).toHaveAttribute(
+      'href',
+      '/experience',
+    );
+    expect(tile.textContent).not.toMatch(/Founder/);
+  });
+
+  // Review finding CR611-8: the hero names its one role undated, so the page said nowhere what
+  // day a stale list was from.
+  it('says which day stale roles are from when the hero’s is the only one', () => {
+    const { container } = render(
+      <RolesTileView
+        result={ok({ roles: roles(1), total: 1 }, { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    expect(within(tile).getByText('No other current roles')).toBeInTheDocument();
+    const asOf = within(tile).getByText('as of Nov 5');
+    expect(asOf).toHaveAttribute('data-dated');
+    expect(asOf).toHaveAttribute('data-stale');
+    expect(shownChildren(tile).at(-1)).toBe(asOf);
+    expect(tile.textContent).not.toMatch(/Founder/);
+  });
+
+  it('marks stale the hero’s only role whose load time is unknown, with no line to mark', () => {
+    const { container } = render(
+      <RolesTileView result={ok({ roles: roles(1), total: 1 }, { stale: true })} now={NOW} />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    expect(within(tile).getByText('No other current roles')).toBeInTheDocument();
+    expect(screen.queryByText(/as of/)).toBeNull();
+    expect(container.querySelector('[data-stale]')).toBeNull();
+  });
+
+  it('says which day stale roles are from, on its own line after the count', () => {
     const { container } = render(
       <RolesTileView
         result={ok({ roles: roles(3), total: 5 }, { stale: true, asOf: FIVE_MIN_AGO })}
@@ -1109,30 +1616,24 @@ describe('RolesTileView', () => {
     expect(tile).toHaveAttribute('data-state', 'stale');
     const asOf = within(tile).getByText('as of Nov 5');
     expect(asOf).toHaveAttribute('data-dated');
-    // The '+N more' line already sits at the foot (mt-auto); the day goes right under it.
-    expect(asOf).toHaveClass('mt-0');
-    expect(asOf).not.toHaveClass('mt-auto');
-  });
-
-  it('pushes the stale day to the foot itself when no count is shown', () => {
-    render(
-      <RolesTileView
-        result={ok({ roles: roles(2), total: 2 }, { stale: true, asOf: FIVE_MIN_AGO })}
-        now={NOW}
-      />,
-    );
-    expect(screen.getByText('as of Nov 5')).toHaveClass('mt-auto');
+    expect(asOf).toHaveClass('tile-meta');
+    expect(shownChildren(tile).at(-1)).toBe(asOf);
   });
 
   it('prints no day for fresh roles, or for stale ones whose load time is unknown', () => {
     const { container } = render(
       <RolesTileView result={ok({ roles: roles(2), total: 2 })} now={NOW} />,
     );
-    expect(tileOf(container)).not.toHaveAttribute('data-state');
+    expect(tileOf(container)).toHaveAttribute('data-state', 'ready');
     cleanup();
 
-    render(<RolesTileView result={ok({ roles: roles(2), total: 2 }, { stale: true })} now={NOW} />);
+    const stale = render(
+      <RolesTileView result={ok({ roles: roles(2), total: 2 }, { stale: true })} now={NOW} />,
+    ).container;
     expect(screen.queryByText(/as of/)).toBeNull();
+    // Still stale, with no line to mark.
+    expect(tileOf(stale)).toHaveAttribute('data-state', 'stale');
+    expect(stale.querySelector('[data-stale]')).toBeNull();
   });
 
   it.each([
@@ -1151,7 +1652,6 @@ describe('RolesTileView', () => {
 describe('SiteIndexTileView', () => {
   it('names each cell by its count and section, e.g. "22 projects"', () => {
     render(<SiteIndexTileView counts={COUNTS} />);
-    expect(screen.getByRole('heading', { level: 2, name: 'Site index' })).toHaveClass('sr-only');
     for (const [name, href] of [
       ['22 projects', '/projects'],
       ['15 roles', '/experience'],
@@ -1160,51 +1660,37 @@ describe('SiteIndexTileView', () => {
     ] as const) {
       expect(screen.getByRole('link', { name })).toHaveAttribute('href', href);
     }
-    expect(screen.getByRole('list')).toHaveClass('grid-cols-2', '@xl:grid-cols-4');
   });
 
-  it('gives the visible "Index" the semibold weight of the h2 tile labels', () => {
-    render(<SiteIndexTileView counts={COUNTS} />);
-    const visible = screen.getByText('Index');
-    expect(visible).toHaveAttribute('aria-hidden', 'true');
-    // label-mono sets no weight; the base style makes h2s semibold and a <p> normal.
-    expect(visible.tagName).not.toBe('H2');
-    expect(visible).toHaveClass('label-mono', 'font-semibold');
+  // The visible 'INDEX' label was cut: the numbers with their names say what the tile is.
+  it("names itself 'Site index' for screen readers only, with no visible label", () => {
+    const { container } = render(<SiteIndexTileView counts={COUNTS} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Site index' })).toHaveClass('sr-only');
+    expect(screen.queryByText(/^index$/i)).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 
-  // At a 320 px viewport the 2x2 'CERTIFICATIONS' cell got 114 px of text in 101.5 px; and four
-  // across from a 30rem tile, a cell had 95 px. This models each cell's content box for every
-  // tile width from 320 px up, from the classes the tile renders and Tailwind's container sizes.
-  it('fits every section name inside its cell at every tile width from a 320 px viewport', () => {
+  it('sets each count as a small figure and its section in lower case beside it', () => {
     render(<SiteIndexTileView counts={COUNTS} />);
-    const list = screen.getByRole('list');
     const link = screen.getByRole('link', { name: '64 certifications' });
-    const name = within(link).getByText('certifications');
+    expect(within(link).getByText('64')).toHaveClass('figure-sm', 'text-foreground');
+    expect(within(link).getByText('certifications')).toHaveClass(
+      'figure-unit',
+      'text-muted-foreground',
+    );
+    // In a cell too narrow for both, the name wraps under the figure instead of overflowing.
+    expect(link).toHaveClass('flex', 'flex-wrap', 'items-baseline', 'min-w-0');
+  });
 
-    const fourAcrossFrom = containerPx(classValue(list, /^@(\w+|\[[\d.]+rem\]):grid-cols-4$/));
-    expect(link).toHaveClass('px-3');
-    // Narrow-tile adjustments, each optional: below its container size, a cell's own padding
-    // and a name without tracking.
-    const paddingSize = classValueOrNull(link, /^@max-(\w+):px-[\d.]+$/);
-    const narrowPaddingBelow = paddingSize === null ? 0 : containerPx(paddingSize);
-    const narrowPadding =
-      Number(classValueOrNull(link, /^@max-\w+:px-([\d.]+)$/) ?? 3) * TAILWIND_SPACING_PX;
-    const trackingSize = classValueOrNull(name, /^@max-(\w+):tracking-normal$/);
-    const untrackedBelow = trackingSize === null ? 0 : containerPx(trackingSize);
-
-    const longest = Math.max(...SITE_INDEX_NAMES.map((word) => word.length));
-    const misfits: string[] = [];
-    // 254 px: a 320 px viewport's strip tile inside its border and p-4; 700 px is past the widest.
-    for (let tile = 254; tile <= 700; tile += 1) {
-      const columns = tile >= fourAcrossFrom ? 4 : 2;
-      const padding = tile < narrowPaddingBelow ? narrowPadding : 3 * TAILWIND_SPACING_PX;
-      const tracking = tile < untrackedBelow ? 0 : LABEL_TRACKING_EM;
-      // The list's 1px border on each side, and a 1px hairline between cells.
-      const cell = (tile - 2 - (columns - 1)) / columns - 2 * padding;
-      const text = longest * (MONO_ADVANCE_EM + tracking) * LABEL_PX;
-      if (text > cell) misfits.push(`${tile} px tile: ${text.toFixed(1)} px in ${cell.toFixed(1)}`);
-    }
-    expect(misfits).toEqual([]);
+  // D4: four across only fired in a 16 px band of bentos (a 39rem tile below a 40rem bento),
+  // where the estimates were the 2x2 tile's.
+  it('is always 2x2, its cells flush to the tile’s edges', () => {
+    const { container } = render(<SiteIndexTileView counts={COUNTS} />);
+    const list = screen.getByRole('list');
+    expect(list).toHaveClass('grid-cols-2');
+    expect(list.className).not.toMatch(/grid-cols-(?!2\b)/);
+    expect(tileOf(container)).toHaveClass('p-0');
+    expect(list).toHaveClass('rounded-[calc(var(--radius-tile)-1px)]', 'overflow-hidden');
   });
 
   it('shows the section name without digits when its count failed', () => {
@@ -1221,83 +1707,246 @@ describe('SiteIndexTileView', () => {
 });
 
 describe('skeletons', () => {
-  it.each([
-    ['LeetCode', <LeetCodeTileSkeleton key="leetcode" />],
-    ['Typing', <TypingTileSkeleton key="typing" />],
-    ['GitHub · 12 weeks', <GitHubTileSkeleton key="github" />],
-    ['Featured project', <ProjectTileSkeleton key="project" />],
-    ['Last place', <PlaceTileSkeleton key="place" />],
-    ['Current roles', <RolesTileSkeleton key="roles" />],
-    ['Site index', <SiteIndexTileSkeleton key="index" />],
-  ] as const)('%s keeps its real label and is busy', (label, element) => {
-    const { container } = render(element);
-    expect(tileOf(container)).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByRole('heading', { level: 2, name: label })).toBeInTheDocument();
-    expect(screen.getByText(/^Loading/)).toHaveClass('sr-only');
-    expect(container.querySelector('a')).toBeNull();
-    expect(textOutsideLabel(tileOf(container))).not.toMatch(/\d/);
+  it.each(SKELETON_CASES)(
+    '%s keeps its real label, is busy and shows no number',
+    (label, element) => {
+      const { container } = render(element);
+      const tile = tileOf(container);
+      expect(tile).toHaveAttribute('aria-busy', 'true');
+      expect(screen.getByRole('heading', { level: 2, name: label })).toBeInTheDocument();
+      expect(screen.getByText(/^Loading/)).toHaveClass('sr-only');
+      expect(container.querySelector('a')).toBeNull();
+      // Units are fixed words ('contributions in 12 weeks'), never data.
+      expect(textWithout(tile, 'h2, .figure-unit')).not.toMatch(/\d/);
+      expectHugs(tile);
+    },
+  );
+
+  it('holds a figure’s place with its shape in tabular zeros, grouped as the figure will be', () => {
+    expect(figureShape(4)).toBe('0,000');
+    expect(figureShape(3)).toBe('000');
+    expect(figureShape(1)).toBe('0');
+    // Not figure spaces: they were 13 px too wide for '1,304' at 48 px (Geist has no U+2007, so
+    // they came from the fallback font), and the GitHub skeleton wrapped its unit where the
+    // figure did not.
+    expect(figureShape(4)).not.toBe(' ,   ');
+    expect(figureShape(3)).not.toBe('   ');
   });
 
-  // The place tile lost its coordinates line; a skeleton that kept a bar for it (and a 12px meta
-  // bar) made the one-column tile shrink when a place without a photo streamed in.
-  it('Last place reserves the loaded lines: one name line, then the meta, nothing between', () => {
-    const loaded = tileOf(
-      render(<PlaceTileView result={ok({ ...PAST_PLACE, photos: null })} now={NOW} />).container,
+  it('draws the shape as hidden generated content, so the document holds no digit', () => {
+    const { container } = render(<GitHubTileSkeleton />);
+    const placeholder = container.querySelector('.figure-row > [data-shape]');
+    expect(placeholder).toHaveAttribute('data-shape', '0,000');
+    expect(placeholder).toHaveAttribute('aria-hidden', 'true');
+    expect(placeholder).toHaveClass(
+      'figure-lg',
+      'before:invisible',
+      'before:content-[attr(data-shape)]',
     );
-    expect(within(loaded).getByRole('heading', { level: 3 })).toHaveClass('text-body');
-    expect(within(loaded).getByText('Conference · Oct 30 · 6 d ago')).toHaveClass(
-      'mt-auto',
-      'text-meta',
+    expect(placeholder?.textContent).toBe('');
+  });
+
+  // Critic finding forced-colors-skeleton-fake-figures: forced colours repaint transparent text
+  // in the system text colour, so '0,000 contributions' and '88% accuracy' read as data.
+  it.each(SKELETON_CASES)(
+    '%s hides every shape by visibility, never by colour alone',
+    (_label, element) => {
+      const { container } = render(element);
+      for (const placeholder of container.querySelectorAll('[data-shape]')) {
+        expect(placeholder).toHaveClass('before:invisible', 'before:content-[attr(data-shape)]');
+        expect(placeholder.className).not.toMatch(/(^|\s)(before:)?text-transparent(\s|$)/);
+        // Its fill is forced to Canvas there: an outline keeps it a box.
+        expect(placeholder).toHaveClass('forced-colors:outline');
+      }
+    },
+  );
+
+  it('keeps a plain skeleton bar a box under forced colours too', () => {
+    const { container } = render(<SkeletonBar className="h-4" />);
+    expect(container.firstElementChild).toHaveClass('bg-surface-3', 'forced-colors:outline');
+  });
+
+  it('sizes the site index’s count placeholders the same way, in the count’s type', () => {
+    const { container } = render(<SiteIndexTileSkeleton />);
+    const placeholders = [...container.querySelectorAll('[data-shape]')];
+    expect(placeholders).toHaveLength(4);
+    for (const placeholder of placeholders) {
+      expect(placeholder).toHaveAttribute('data-shape', '00');
+      expect(placeholder).toHaveClass('figure-sm');
+      expect(placeholder.textContent).toBe('');
+    }
+  });
+
+  // A one-line bar left the skeleton 18 px short in a 181 px lane, where the loaded line wraps.
+  it('shapes the typing skeleton’s context line like the loaded one, so it wraps where it does', () => {
+    const { container } = render(<TypingTileSkeleton />);
+    const placeholder = container.querySelector('p.tile-meta > [data-shape]');
+    expect(placeholder).toHaveAttribute('data-shape', typingMeta(88));
+    expect(placeholder?.getAttribute('data-shape')).toMatch(/^60 s best · 88% accuracy$/);
+    expect(placeholder?.textContent).toBe('');
+  });
+
+  /** A tile's rows that take space, each by the type style that sets its height. */
+  const TYPE_CLASSES = [
+    'tile-label',
+    'tile-title',
+    'tile-title-lg',
+    'tile-sub',
+    'tile-meta',
+    'figure-row',
+  ] as const;
+  const rowTypes = (element: Element | null | undefined): string[] =>
+    shownChildren(element).map(
+      (child) =>
+        TYPE_CLASSES.find((type) => child.classList.contains(type)) ??
+        (child.hasAttribute('data-segment-bar') ||
+        child.hasAttribute('data-segment-bar-placeholder')
+          ? 'segment-bar'
+          : child.tagName.toLowerCase()),
     );
+
+  // The old skeleton had a line for 'refreshed every 6 h' that the tile no longer has.
+  it('LeetCode holds the loaded rows: label, the figure’s row with its unit, the bar', () => {
+    const loaded = tileOf(render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />).container);
+    const loadedRows = rowTypes(loaded);
     cleanup();
 
-    const skeleton = tileOf(render(<PlaceTileSkeleton />).container);
-    const bodyLine = `h-[${lineHeightToken('body')}]`;
-    const metaLine = `h-[${lineHeightToken('meta')}]`;
-    // Every box under the label, in order (the sr-only loading note takes no space).
-    const boxes = [...skeleton.children].filter(
-      (box) => box.tagName !== 'H2' && !box.classList.contains('sr-only'),
-    );
-    expect(
-      boxes.map((box) => box.className.split(' ').filter((c) => /^(?:mt-|h-\[)/.test(c))),
-    ).toEqual([[bodyLine], ['mt-auto', metaLine]]);
-    // One bar in each: the name's and the meta's.
-    expect(boxes.map((box) => box.querySelectorAll('[aria-hidden="true"]').length)).toEqual([1, 1]);
+    const skeleton = tileOf(render(<LeetCodeTileSkeleton />).container);
+    expect(rowTypes(skeleton)).toEqual(loadedRows);
+    expect(loadedRows).toEqual(['tile-label', 'figure-row', 'segment-bar']);
+    const figure = skeleton.querySelector('.figure-row');
+    expect(figure?.firstElementChild).toHaveClass('figure-md', 'before:invisible');
+    expect(figure?.lastElementChild?.textContent).toBe('solved');
   });
 
-  // The old skeleton's 40px, 16px and 12px bars were about 54px shorter than the loaded tile above
-  // a 40rem tile, so every row below jumped when GitHub answered.
-  it('GitHub reserves the loaded lines: the figure, the commit, the meta', () => {
+  it('Typing holds the loaded rows: label, the figure’s row, the meta line', () => {
+    const loaded = tileOf(render(<TypingTileView result={ok(TYPING)} now={NOW} />).container);
+    const loadedRows = rowTypes(loaded);
+    cleanup();
+
+    const skeleton = tileOf(render(<TypingTileSkeleton />).container);
+    expect(rowTypes(skeleton)).toEqual(loadedRows);
+    expect(loadedRows).toEqual(['tile-label', 'figure-row', 'tile-meta']);
+    // Not a fixed one-line box: the meta line's shape wraps where the loaded line does.
+    expect(skeleton.querySelector('.tile-meta')).not.toHaveClass('h-[1lh]');
+    expect(skeleton.querySelector('.tile-meta > [data-shape]')).not.toBeNull();
+  });
+
+  // The old skeleton's bars were about 54px shorter than the loaded tile above a 40rem tile.
+  it('GitHub holds the loaded lines: the figure’s row with its unit, the commit’s two, the sparkline', () => {
     const loaded = tileOf(
       render(<GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />).container,
     );
-    const figure = within(loaded).getByText('contributions').parentElement;
-    const commitMeta = within(loaded).getByText('portfolio · a1b2c3d · 3 h ago');
-    const headline = within(loaded).getByRole('link', { name: /latest commit/ }).parentElement;
-    const meta = within(loaded).getByText('updated 5 min ago').parentElement;
-    expect(commitMeta).toHaveClass('text-meta');
-    expect(headline).toHaveClass('mt-1', 'text-body-sm');
-    expect(meta).toHaveClass('mt-auto', 'text-meta');
+    const loadedBody = loaded.querySelector('.grid');
+    const loadedMain = loadedBody?.firstElementChild;
+    const loadedSparkline = loaded.querySelector('[data-sparkline]');
+    const shape = {
+      rows: rowTypes(loaded),
+      body: loadedBody?.className,
+      main: rowTypes(loadedMain),
+      commit: rowTypes(loadedMain?.lastElementChild),
+      unit: loaded.querySelector('.figure-unit')?.textContent,
+    };
     cleanup();
 
     const skeleton = tileOf(render(<GitHubTileSkeleton />).container);
-    // The figure's own element (its type size changes with the tile) holding a 1em bar.
-    const placeholder = skeleton.querySelector('p');
-    expect(placeholder?.className).toBe(figure?.className);
-    expect(placeholder?.firstElementChild).toHaveClass('h-[1em]');
-    // Boxes the heights of the loaded lines, from the line-height tokens.
-    const metaLine = `h-[${lineHeightToken('meta')}]`;
-    const bodyLine = `h-[${lineHeightToken('body-sm')}]`;
-    const lines = [...skeleton.querySelectorAll(`[class*="h-["]`)].filter(
-      (box) => box.classList.contains(metaLine) || box.classList.contains(bodyLine),
-    );
-    expect(
-      lines.map((box) => box.className.split(' ').filter((c) => /^(?:mt-|h-\[)/.test(c))),
-    ).toEqual([[metaLine], ['mt-1', bodyLine], ['mt-auto', metaLine]]);
+    const body = skeleton.querySelector('.grid');
+    const main = body?.firstElementChild;
+    expect({
+      rows: rowTypes(skeleton),
+      body: body?.className,
+      main: rowTypes(main),
+      commit: rowTypes(main?.lastElementChild),
+      unit: skeleton.querySelector('.figure-unit')?.textContent,
+    }).toEqual(shape);
+    expect(shape.commit).toEqual(['tile-meta', 'tile-sub']);
+    expect(main?.querySelector('.figure-row > span')).toHaveClass('figure-lg', 'before:invisible');
+    // The sparkline's box: 56 px, and 72 px wherever the loaded one is.
+    const box = body?.lastElementChild;
+    expect(box).toHaveClass('h-14');
+    const tallClasses = (loadedSparkline?.getAttribute('class') ?? '')
+      .split(' ')
+      .filter((name) => name.endsWith(':h-18'));
+    expect(tallClasses).toHaveLength(2);
+    expect(box).toHaveClass(...tallClasses);
   });
 
-  // The legend wraps to two lines in the wide layout's 3-column tile and stacks to three below a
-  // 12rem bar; a one-line placeholder let the rows below jump when LeetCode answered.
+  it('Recently at holds the loaded row: the 64px photo, then label, name and meta lines', () => {
+    const loaded = tileOf(render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />).container);
+    const loadedRow = shownChildren(loaded)[0];
+    const shape = { row: loadedRow?.className, text: rowTypes(loadedRow?.lastElementChild) };
+    cleanup();
+
+    const skeleton = tileOf(render(<PlaceTileSkeleton />).container);
+    const row = shownChildren(skeleton)[0];
+    expect({ row: row?.className, text: rowTypes(row?.lastElementChild) }).toEqual(shape);
+    expect(shape.text).toEqual(['tile-label', 'tile-title', 'tile-meta']);
+    expect(row?.firstElementChild).toHaveClass('size-16', 'shrink-0');
+  });
+
+  it('Featured project holds the loaded media object: the 2:1 cover, label, title and description lines', () => {
+    const loaded = tileOf(
+      render(<ProjectTileView result={ok(featuredPick(FEATURED))} now={NOW} />).container,
+    );
+    const loadedMedia = shownChildren(loaded)[0];
+    const loadedCoverClasses = (loadedMedia?.firstElementChild?.className ?? '')
+      .split(' ')
+      .filter((name) => name !== 'object-cover');
+    const loadedBody = loadedMedia?.lastElementChild;
+    const shape = { media: loadedMedia?.className, body: loadedBody?.className };
+    const loadedRows = rowTypes(loadedBody);
+    cleanup();
+
+    const skeleton = tileOf(render(<ProjectTileSkeleton />).container);
+    const media = shownChildren(skeleton)[0];
+    expect({ media: media?.className, body: media?.lastElementChild?.className }).toEqual(shape);
+    expect(media?.firstElementChild).toHaveClass(...loadedCoverClasses);
+    expect(rowTypes(media?.lastElementChild)).toEqual(loadedRows);
+    // The label's row (its h2 and the detail beside it) is one label line.
+    expect(loadedRows).toEqual(['tile-label', 'tile-title-lg', 'tile-sub']);
+  });
+
+  it('Current roles holds the loaded rows: two roles of a title and a meta line, then the count', () => {
+    const loaded = tileOf(
+      render(<RolesTileView result={ok({ roles: roles(3), total: 5 })} />).container,
+    );
+    const loadedList = loaded.querySelector('ul');
+    const shape = {
+      rows: rowTypes(loaded),
+      list: loadedList?.className,
+      items: [...(loadedList?.children ?? [])].map((item) => rowTypes(item.firstElementChild)),
+    };
+    cleanup();
+
+    const skeleton = tileOf(render(<RolesTileSkeleton />).container);
+    const list = skeleton.querySelector('ul');
+    expect({
+      rows: rowTypes(skeleton),
+      list: list?.className,
+      items: [...(list?.children ?? [])].map((item) => rowTypes(item)),
+    }).toEqual(shape);
+    expect(shape.items).toEqual([
+      ['tile-title', 'tile-meta'],
+      ['tile-title', 'tile-meta'],
+    ]);
+  });
+
+  it('Site index holds the loaded cells: the same grid, a figure’s place and the real name', () => {
+    const loaded = tileOf(render(<SiteIndexTileView counts={COUNTS} />).container);
+    const loadedGrid = loaded.querySelector('ul')?.className;
+    cleanup();
+
+    const skeleton = tileOf(render(<SiteIndexTileSkeleton />).container);
+    expect(skeleton.querySelector('ul')?.className).toBe(loadedGrid);
+    const cells = [...skeleton.querySelectorAll('li > span')];
+    expect(cells).toHaveLength(4);
+    for (const cell of cells) {
+      expect(cell.firstElementChild).toHaveClass('figure-sm', 'before:invisible');
+      expect(cell.lastElementChild).toHaveClass('figure-unit');
+    }
+  });
+
+  // The legend wraps where the loaded one does (it stacks below a 12rem bar).
   it('LeetCode reserves a legend that wraps where the loaded one does', () => {
     const loaded = render(<LeetCodeTileView result={ok(LEETCODE)} now={NOW} />).container;
     const loadedBar = loaded.querySelector('[data-segment-bar]');
@@ -1316,7 +1965,6 @@ describe('skeletons', () => {
     if (!(placeholder && legend)) throw new Error('the skeleton has no legend placeholder');
 
     expect(placeholder).toHaveAttribute('aria-hidden', 'true');
-    // Both are the container the legend's @max-[12rem] stacking measures.
     expect(placeholder).toHaveClass('@container');
     expect(loadedBar).toHaveClass('@container');
     expect(legend.className).toBe(loadedClasses.legend);
@@ -1329,22 +1977,33 @@ describe('skeletons', () => {
       'Medium',
       'Hard',
     ]);
-    // Each amount's box is one text-label line (1rem) with a bar three digits wide.
-    expect(lineHeightToken('label')).toBe('1rem');
+    // Each amount is three tabular zeros in the legend's own type, hidden (segment-bar.tsx): a
+    // 3ch bar was 2 px wider than three Geist digits and wrapped the legend where the loaded one
+    // did not. No digit is in the document.
     for (const amount of legend.querySelectorAll('dd')) {
-      expect(amount).toHaveClass('h-4');
-      expect(amount.firstElementChild).toHaveClass('w-[3ch]');
+      expect(amount.firstElementChild).toHaveAttribute('data-shape', '000');
+      expect(amount.firstElementChild).toHaveClass('before:invisible');
+      expect(amount.textContent).not.toMatch(/\d/);
     }
   });
 });
 
 describe('tile states', () => {
+  it('sets a tile label in sentence case, muted, as the tile’s h2', () => {
+    render(<TileLabel>Recently at</TileLabel>);
+    const label = screen.getByRole('heading', { level: 2, name: 'Recently at' });
+    expect(label).toHaveClass('tile-label', 'text-muted-foreground');
+    expect(label.className).not.toMatch(/label-mono|uppercase/);
+  });
+
   it('marks an error with a decorative alert glyph in the down colour, beside words', () => {
     const { container } = render(<TileUnavailable message="Places unavailable" />);
     const glyph = container.querySelector('svg');
     expect(glyph).toHaveAttribute('aria-hidden', 'true');
     expect(glyph).toHaveClass('text-down');
     expect(screen.getByText('Places unavailable')).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass('tile-sub');
+    expect(container.firstElementChild).not.toHaveClass('mt-auto');
   });
 
   it('gives the empty state no alert glyph', () => {
@@ -1367,13 +2026,13 @@ describe('tile states', () => {
     expect(screen.getByText('GitHub').tagName).toBe('SPAN');
   });
 
-  // No label is worded from today's date any more ('Here now' is gone): the visual spec compares
-  // every label, and only TileMeta can be marked data-dated.
+  // No label is worded from today's date ('Here now' is gone): the visual spec compares every
+  // label, and only TileMeta can be marked data-dated.
   it('gives a tile label no `dated`, so no label is ever masked as dated', () => {
     expectTypeOf<TileLabelProps>().not.toHaveProperty('dated');
     const stray = { dated: true } as unknown as TileLabelProps;
-    render(<TileLabel {...stray}>Last place</TileLabel>);
-    expect(screen.getByRole('heading', { level: 2, name: 'Last place' })).not.toHaveAttribute(
+    render(<TileLabel {...stray}>Recently at</TileLabel>);
+    expect(screen.getByRole('heading', { level: 2, name: 'Recently at' })).not.toHaveAttribute(
       'data-dated',
     );
   });
@@ -1388,8 +2047,10 @@ describe('tile states', () => {
     expect(asOfText(FIVE_MIN_AGO, NOW)).toBe('as of Nov 5 11:02 AM ET');
   });
 
-  it('joins only the meta parts that have words', () => {
-    expect(joinMeta(['Conference', null, '', undefined, 'Oct 30'])).toBe('Conference · Oct 30');
+  // The no-break space keeps the dot on the line before it when a meta line wraps.
+  it('joins only the meta parts that have words, with a no-break space before each dot', () => {
+    expect(META_SEPARATOR).toBe(' · ');
+    expect(joinMeta(['Conference', null, '', undefined, 'Oct 30'])).toBe('Conference · Oct 30');
   });
 });
 
@@ -1397,12 +2058,13 @@ describe('async tiles', () => {
   it('render what their loaders resolve', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
+    const shownRoles = roles(2);
     loaders.loadLeetCode.mockResolvedValue(ok(LEETCODE));
     loaders.loadTyping.mockResolvedValue(ok(TYPING));
     loaders.loadGitHubActivity.mockResolvedValue(ok(ACTIVITY, { asOf: FIVE_MIN_AGO }));
     loaders.loadProjectPick.mockResolvedValue(ok(activePick(FEATURED)));
     loaders.loadLatestPlace.mockResolvedValue(ok(PAST_PLACE));
-    loaders.loadCurrentRoles.mockResolvedValue(ok({ roles: roles(1), total: 1 }));
+    loaders.loadCurrentRoles.mockResolvedValue(ok({ roles: shownRoles, total: 2 }));
     loaders.loadSiteCounts.mockResolvedValue(COUNTS);
 
     const tiles = {
@@ -1422,13 +2084,17 @@ describe('async tiles', () => {
       </div>,
     );
 
-    expect(screen.getByRole('link', { name: /^LeetCode\s*215/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^Typing\s*142/ })).toBeInTheDocument();
-    expect(screen.getByText('portfolio · a1b2c3d · 3 h ago')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: `LeetCode profile ${NEW_TAB}` })).toBeInTheDocument();
+    expect(screen.getByText('215')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: `Typing profile on Monkeytype ${NEW_TAB}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('portfolio').parentElement).toHaveTextContent('portfolio · 3 h ago');
     expect(screen.getByRole('link', { name: 'Fraud Guard' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Latest work' })).toBeInTheDocument();
-    expect(screen.getByText('Conference · Oct 30 · 6 d ago')).toBeInTheDocument();
-    expect(screen.getByText('Founder & CEO')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Recently at' })).toBeInTheDocument();
+    expect(screen.getByText(shownRoles[1]?.position ?? '')).toBeInTheDocument();
+    expect(screen.queryByText('Founder & CEO')).toBeNull();
     expect(screen.getByRole('link', { name: '22 projects' })).toBeInTheDocument();
     for (const load of Object.values(loaders)) expect(load).toHaveBeenCalledTimes(1);
   });

@@ -21,6 +21,10 @@
  * owner never publishes an edit the home page silently ignores): an address the mailto link
  * cannot carry, a location or tagline of spaces only, a link with credentials.
  *
+ * The location is the one field with no built-in value (owner decision: 'Clear the field in
+ * Studio to hide it'): Studio lets the owner clear it, and the site takes a location of spaces
+ * only, which only the API could still write, as cleared too, keeping the document's other fields.
+ *
  * Validation runs Sanity's own validator (@sanity/validation, the version `sanity` ships) on the
  * compiled schema, without a client: the rules are all local. The decoder side runs the site's
  * SiteSettingsDocumentSchema on the same values. The structure is checked with a fake Structure
@@ -122,6 +126,16 @@ describe('the site settings schema in Studio', () => {
     expect(await problemsWith({})).toEqual([]);
   });
 
+  // Clearing a string field in Studio unsets it: the key goes, and Publish must still work.
+  it('lets the owner clear the location to hide it, the other fields set', async () => {
+    const { location: _cleared, ...rest } = FULL;
+    expect(await problemsWith(rest)).toEqual([]);
+    expect(await problemsWith({ ...rest, location: undefined })).toEqual([]);
+    expect(siteSettingsType.fields.find(({ name }) => name === 'location')?.description).toBe(
+      'Optional. Shown after your current role at the top of the home page, in muted text, e.g. "New York, NY". Clear it to hide your location.',
+    );
+  });
+
   it(`limits the location to ${SITE_LOCATION_MAX_LENGTH} characters and the tagline to ${SITE_TAGLINE_MAX_LENGTH}`, async () => {
     expect(
       await problemsWith({
@@ -163,7 +177,9 @@ describe('the site settings schema in Studio', () => {
   it.each([
     ['location', '   '],
     ['tagline', ' \n\t '],
-  ])('refuses a %s of spaces only, which the site would drop', async (field, value) => {
+    ['location', ''],
+    ['location', ' \n '],
+  ])('refuses a %s of spaces only: clear the field instead', async (field, value) => {
     expect(await problemsWithMessages({ [field]: value })).toEqual([
       { ...error(field, 'custom.site-text-blank'), message: SITE_BLANK_TEXT_MESSAGE },
     ]);
@@ -195,7 +211,7 @@ describe('the site settings schema in Studio', () => {
     expect(relative).toMatchObject({ path: 'githubUrl', level: 'error' });
   });
 
-  it('says where on the site each field appears', () => {
+  it('says where on the site each field appears, and what leaving it empty does', () => {
     expect(siteSettingsType.fields.map(({ name }) => name)).toEqual([
       'location',
       'tagline',
@@ -205,8 +221,15 @@ describe('the site settings schema in Studio', () => {
     ]);
     for (const field of siteSettingsType.fields) {
       expect(field.description, field.name).toMatch(/home page/);
-      expect(field.description, field.name).toMatch(/Leave it empty/);
+      // The location has no built-in value to fall back to: clearing it hides it.
+      expect(field.description, field.name).toMatch(
+        field.name === 'location'
+          ? /^Optional\..*Clear it to hide your location\.$/
+          : /Leave it empty/,
+      );
     }
+    const location = siteSettingsType.fields[0]?.description ?? '';
+    expect(location).not.toMatch(/capitals|beside your avatar|built-in/);
   });
 
   it('is registered in the Studio schema', () => {
@@ -302,6 +325,34 @@ describe('Studio and the site agree', () => {
     ),
   )('Studio publishes %s = %j only when the site keeps it', async (field, value) => {
     expect(await studioPublishes(field, value)).toBe(siteKeeps(field, value));
+  });
+
+  it.each(['', '   ', ' \n\t '])(
+    'the site takes a location of %j as cleared, and keeps the other fields',
+    (location) => {
+      const decoded = decodeSettings({
+        _id: SITE_SETTINGS_ID,
+        _type: SITE_SETTINGS_TYPE,
+        ...FULL,
+        location,
+      });
+
+      expect(Either.isRight(decoded)).toBe(true);
+      const { location: _absent, ...rest } = FULL;
+      expect(Either.getOrNull(decoded)).toStrictEqual({
+        _id: SITE_SETTINGS_ID,
+        _type: SITE_SETTINGS_TYPE,
+        ...rest,
+      });
+    },
+  );
+
+  it('still takes a tagline of spaces only as invalid: it has a built-in value to fall back to', () => {
+    expect(
+      Either.isLeft(
+        decodeSettings({ _id: SITE_SETTINGS_ID, _type: SITE_SETTINGS_TYPE, tagline: '  ' }),
+      ),
+    ).toBe(true);
   });
 
   it('errs on the strict side for length: Studio counts the spaces the site trims', async () => {

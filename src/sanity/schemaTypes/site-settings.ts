@@ -21,6 +21,8 @@
  *
  * Every field is optional. The site reads each on its own and uses its built-in value for one
  * that is empty or breaks its rule, so a missing or half-filled document never breaks the page.
+ * The location is the exception: it has no built-in value (owner decision: 'Clear the field in
+ * Studio to hide it'), so clearing it hides it, and the site never shows one Studio does not set.
  * Studio checks the same rules before Publish (../site-settings-rules.ts, which the site's
  * decoder imports too): a value the site would drop is an error here, never a silent no-op.
  *
@@ -42,12 +44,13 @@ export const SITE_SETTINGS_TYPE = 'siteSettings';
 /** The one settings document's _id. */
 export const SITE_SETTINGS_ID = 'siteSettings';
 
-/** What a field's description adds about leaving it empty. */
+/** What a field's description adds about leaving it empty: every field but the location. */
 const WHEN_EMPTY = 'Leave it empty to show the site’s built-in value.';
 
 /**
  * A Studio rule from one of the site's checks: an empty field passes (the site shows its
- * built-in value), any other value must pass `accepts`, else `message` is an error with `code`.
+ * built-in value, or for the location none), any other value must pass `accepts`, else `message`
+ * is an error with `code`. Clearing a field in Studio unsets it, so the owner can always clear one.
  */
 const siteRule =
   (accepts: (value: string) => boolean, code: string, message: string) =>
@@ -68,11 +71,14 @@ export const siteSettingsType = defineType({
   title: 'Site settings',
   type: 'document',
   fields: [
+    // Optional, with no built-in value: clearing it hides it. Spaces only are still refused, so
+    // a cleared field is unset, never text that only looks empty.
     defineField({
       name: 'location',
       title: 'Location',
       type: 'string',
-      description: `Where you are, e.g. "New York, NY". Shown in capitals beside your avatar at the top of the home page. At most ${SITE_LOCATION_MAX_LENGTH} characters. ${WHEN_EMPTY}`,
+      description:
+        'Optional. Shown after your current role at the top of the home page, in muted text, e.g. "New York, NY". Clear it to hide your location.',
       validation: (rule) => rule.max(SITE_LOCATION_MAX_LENGTH).custom(notBlank),
     }),
     defineField({

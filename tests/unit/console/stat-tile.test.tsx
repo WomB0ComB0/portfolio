@@ -95,48 +95,73 @@ describe('StatTile ready', () => {
     expect(tile.tagName).toBe('ARTICLE');
     expect(tile).toHaveAttribute('data-state', 'ready');
     expect(tile).not.toHaveAttribute('aria-busy');
-    expect(within(tile).getByText(LABEL)).toHaveClass('label-mono', 'text-muted-foreground');
+    expect(within(tile).getByText(LABEL)).toHaveClass('tile-label', 'text-muted-foreground');
     expect(within(tile).getByText('4,159')).toBe(figureOf(tile));
-    expect(within(tile).getByText('hours')).toHaveClass(
-      'font-sans',
-      'text-body-sm',
-      'tracking-normal',
-      'text-muted-foreground',
-    );
+    expect(within(tile).getByText('hours')).toHaveClass('figure-unit', 'text-muted-foreground');
   });
 
-  it('keeps both the type-scale class and the colour on the figure and the context line', () => {
+  it('keeps both the type style and the colour on the figure and the context line', () => {
     const tile = renderStat({ value: 12 });
 
-    expect(figureOf(tile)).toHaveClass('figure', 'text-foreground', 'text-stat');
-    expect(rowsOf(tile)[2]).toHaveClass(
-      'min-h-[1.125rem]',
-      'font-mono',
-      'text-meta',
-      'text-muted-foreground',
-    );
+    expect(figureOf(tile)).toHaveClass('figure-md', 'text-foreground');
+    expect(rowsOf(tile)[2]).toHaveClass('min-h-[1.125rem]', 'tile-meta', 'text-muted-foreground');
+  });
+
+  // The refined type: three styles per tile (label, figure, meta), figures in Geist with tabular
+  // figures, labels in sentence case as written. No mono face and no capitals anywhere.
+  it.each([
+    ['ready', { value: 692, unit: 'solved', live: true, meta: '60 s best' }],
+    ['idle', { value: null }],
+    ['stale', { value: 692, state: 'stale', updatedAt: Date.now() - 3 * 60 * MINUTE_MS }],
+    ['error', { state: 'error' }],
+    ['loading', { state: 'loading' }],
+  ] as const)('%s uses no mono face, no upper case and no viewport-sized figure', (_s, props) => {
+    const tile = renderStat(props);
+    const classes = [tile, ...tile.querySelectorAll('*')].map((node) => node.getAttribute('class'));
+
+    for (const className of classes) {
+      expect(className ?? '').not.toMatch(
+        /(?:^|\s)(?:label-mono|font-mono|uppercase|tracking-label|text-(?:stat|display|hero))(?:\s|$)/,
+      );
+    }
+    expect(within(tile).getByText(LABEL)).toHaveTextContent(LABEL);
   });
 
   // At 320 px the LeetCode tile's 104 px content box got '692solved' (115 px) as one unbreakable
   // run: digits then letters have no break opportunity, so the unit must wrap as a flex item.
-  it('lets the unit wrap under the number, with the usual space between them when both fit', () => {
+  it('lets the unit wrap under the number, with the 6px gap between them when both fit', () => {
     const tile = renderStat({ value: 692, unit: 'solved', size: 'lg' });
     const figure = figureOf(tile);
 
-    expect(figure).toHaveClass('flex', 'flex-wrap', 'items-baseline', 'gap-x-1');
+    // figure-row: a wrapping, baseline-aligned flex row with a 0.375rem column gap (globals.css).
+    expect(figure).toHaveClass('figure-row');
     // A margin on the unit would indent it once it wraps to its own line.
     expect(within(tile).getByText('solved').className).not.toMatch(/(?:^|\s)m[lrxs]?-/);
     expect(within(tile).getByText('solved').parentElement).toBe(figure);
   });
 
   it.each([
-    ['md', ['text-stat']],
-    ['lg', ['text-stat', '@sm:text-display']],
-    ['xl', ['text-display', '@md:text-hero']],
-  ] as const)('size %s sizes the figure with %j', (size, classes) => {
+    ['sm', 'figure-sm'],
+    ['md', 'figure-md'],
+    ['lg', 'figure-lg'],
+  ] as const)('size %s sets the figure in %s, its tier and nothing else', (size, tier) => {
     const tile = renderStat({ value: 7, size });
+    const tiers = ['figure-sm', 'figure-md', 'figure-lg'].filter((name) => name !== tier);
 
-    expect(figureOf(tile)).toHaveClass(...classes);
+    expect(figureOf(tile)).toHaveClass(tier);
+    for (const other of tiers) expect(figureOf(tile)).not.toHaveClass(other);
+  });
+
+  it('defaults the figure to the md tier (36px), the S stat tile size', () => {
+    expect(figureOf(renderStat({ value: 7 }))).toHaveClass('figure-md');
+  });
+
+  it.each([
+    ['loading', { state: 'loading' }],
+    ['error', { state: 'error' }],
+  ] as const)('keeps the tier on the %s figure, so its height matches the value', (_s, props) => {
+    const tile = renderStat({ ...props, size: 'sm' });
+    expect(figureOf(tile)).toHaveClass('figure-sm');
   });
 
   it('formats with the given Intl options', () => {
@@ -221,10 +246,9 @@ describe('StatTile idle', () => {
     const tile = renderStat({ ...props, live: true });
 
     expect(tile).toHaveAttribute('data-state', 'idle');
+    // The words take the figure's place in the primary (tile title) style: still three styles.
     expect(within(tile).getByText('Nothing right now')).toHaveClass(
-      'font-sans',
-      'text-title',
-      'font-medium',
+      'tile-title',
       'text-muted-foreground',
     );
     expect(tile.textContent).not.toMatch(/\d/);
@@ -325,7 +349,9 @@ describe('StatTile live badge', () => {
     expect(dot).toHaveClass(PULSE_CLASS, 'bg-live');
     expect(dot).toHaveAttribute('data-tone', 'live');
     expect(word.contains(dot)).toBe(true);
-    expect(word).toHaveClass('label-mono', 'text-live');
+    // Sentence case in the label style, beside the dot: the colour always comes with a word.
+    expect(word).toHaveClass('tile-label', 'text-live');
+    expect(word).toHaveTextContent(/^Live$/);
   });
 
   it('a tile that is not live has no dot', () => {

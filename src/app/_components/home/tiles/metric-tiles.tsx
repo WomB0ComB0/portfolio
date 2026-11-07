@@ -17,39 +17,58 @@
 import 'server-only';
 
 /**
- * @file The two single-figure home tiles, LeetCode solved and typing speed, on the console
- * StatTile. Each exports a pure view of its TileResult, the async server tile that loads it, and
- * a skeleton with the real label.
+ * @file The two single-figure home tiles, LeetCode solved and typing speed. Each exports a pure
+ * view of its TileResult, the async server tile that loads it, and a skeleton the loaded tile's
+ * size.
  *
- * With data, the whole tile is one link to the profile. In the error state it is a plain tile
- * whose action is an ordinary link to the same profile, and the figure is a dash next to words.
+ * With data, each is a linked tile whose label is its one stretched link, to the profile ('LeetCode
+ * profile (opens in a new tab)'). Three type styles: the label, the figure with its unit, and the
+ * context (LeetCode's legend, typing's '60 s best · 93% accuracy'). The tile hugs them: LeetCode
+ * has no line under its legend. In the error state the tile is plain and its note links the
+ * profile; it never shows a number.
  */
 
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 import type { LeetCodeStats } from '@/app/api/v1/[[...route]]/leetcode/handlers';
 import {
+  numberFormatter,
   SegmentBar,
   type SegmentBarSegment,
   SegmentBarSkeleton,
-  StatTile,
-  StatTileSkeleton,
+  Tile,
+  TileLink,
 } from '@/components/console';
 import type { Instant } from '../data/format';
 import { loadLeetCode, loadTyping } from '../data/loaders';
 import type { TypingTileData } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
-import { asOfText, ExternalAnchor, joinMeta } from './tile-states';
+import {
+  asOfText,
+  FigureRow,
+  FigureRowSkeleton,
+  joinMeta,
+  LoadingNote,
+  ShapePlaceholder,
+  StaleNote,
+  TileLabel,
+  TileMeta,
+  TileUnavailable,
+} from './tile-states';
 
 export const LEETCODE_PROFILE_URL = 'https://leetcode.com/u/WomB0ComB0/';
 export const MONKEYTYPE_PROFILE_URL = 'https://monkeytype.com/profile/WomB0ComB0';
 
 const LEETCODE_LABEL = 'LeetCode';
-/** The LeetCode handler's CACHE_DURATION (leetcode/handlers.ts). */
-const LEETCODE_META = 'refreshed every 6 h';
 const TYPING_LABEL = 'Typing';
+/** The test the figure is from. A no-break space keeps '60 s' on one line. */
+const BEST_60 = '60 s best';
 
-const ACTION_LINK_CLASS = 'inline-flex items-center gap-0.5 font-medium text-brand-ink';
+const TILE_CLASS = 'gap-3';
+/** Words in the figure's place: the tile's primary line. */
+const IDLE_CLASS = 'tile-title text-muted-foreground';
+/** The skeleton's figure, three digits wide: LeetCode's 692 and typing's 101. */
+const FIGURE_DIGITS = 3;
 
 /**
  * LeetCode's difficulties in bar order: each one's name, LeetCode's own colour for it (teal, amber,
@@ -63,6 +82,8 @@ const DIFFICULTIES = [
   solved: keyof LeetCodeStats;
 })[];
 
+const formatCount = (value: number): string => numberFormatter().format(value);
+
 /** The solved split as the bar's parts, easy to hard. */
 export function leetCodeSegments(stats: LeetCodeStats): SegmentBarSegment[] {
   return DIFFICULTIES.map(({ key, label, tone, solved }) => ({
@@ -72,6 +93,50 @@ export function leetCodeSegments(stats: LeetCodeStats): SegmentBarSegment[] {
     tone,
   }));
 }
+
+interface LinkedMetricProps {
+  label: string;
+  href: string;
+  /** Read after the label, e.g. 'profile': 'LeetCode profile (opens in a new tab)'. */
+  srSuffix: string;
+  state: 'ready' | 'stale' | 'empty';
+  children: ReactNode;
+}
+
+/** A metric tile with somewhere to go: its label is the stretched link to the profile. */
+function LinkedMetric({ label, href, srSuffix, state, children }: LinkedMetricProps): ReactElement {
+  return (
+    <Tile variant="linked" className={TILE_CLASS} data-state={state}>
+      <TileLabel>
+        <TileLink href={href} external srSuffix={srSuffix} className="text-inherit">
+          {label}
+        </TileLink>
+      </TileLabel>
+      {children}
+    </Tile>
+  );
+}
+
+interface MetricUnavailableProps {
+  label: string;
+  message: string;
+  href: string;
+  linkLabel: string;
+}
+
+/** The error state: a plain tile, words and an ordinary link to the profile. */
+function MetricUnavailable({ label, ...note }: MetricUnavailableProps): ReactElement {
+  return (
+    <Tile className={TILE_CLASS} data-state="error">
+      <TileLabel>{label}</TileLabel>
+      <TileUnavailable {...note} external />
+    </Tile>
+  );
+}
+
+/** When stale data was read, or '' when that is not known. */
+const staleWhen = (asOf: string | undefined, now: Instant): string =>
+  asOf ? asOfText(asOf, now) : '';
 
 export interface LeetCodeTileViewProps {
   result: TileResult<LeetCodeStats>;
@@ -83,51 +148,43 @@ export function LeetCodeTileView({
   result,
   now = Date.now(),
 }: LeetCodeTileViewProps): ReactElement {
-  const shared = { label: LEETCODE_LABEL, labelAs: 'h2', size: 'lg' } as const;
   if (result.status === 'error') {
     return (
-      <StatTile
-        {...shared}
-        state="error"
-        errorText="LeetCode stats unavailable"
-        action={
-          <ExternalAnchor href={LEETCODE_PROFILE_URL} className={ACTION_LINK_CLASS}>
-            LeetCode profile
-          </ExternalAnchor>
-        }
+      <MetricUnavailable
+        label={LEETCODE_LABEL}
+        message="LeetCode stats unavailable"
+        href={LEETCODE_PROFILE_URL}
+        linkLabel="LeetCode profile"
       />
     );
   }
-  const profileLink = {
-    variant: 'interactive',
-    href: LEETCODE_PROFILE_URL,
-    external: true,
-  } as const;
+  const link = { label: LEETCODE_LABEL, href: LEETCODE_PROFILE_URL, srSuffix: 'profile' };
   if (result.status === 'empty') {
-    return <StatTile {...shared} {...profileLink} idleText="No solved problems yet" />;
+    return (
+      <LinkedMetric {...link} state="empty">
+        <p className={IDLE_CLASS}>No solved problems yet</p>
+      </LinkedMetric>
+    );
   }
   const { data, stale, asOf } = result;
-  const staleNote = stale && asOf ? asOfText(asOf, now) : '';
   return (
-    <StatTile
-      {...shared}
-      {...profileLink}
-      value={data.totalSolved}
-      unit="solved"
-      state={stale ? 'stale' : 'ready'}
-      meta={staleNote || LEETCODE_META}
-    >
+    <LinkedMetric {...link} state={stale ? 'stale' : 'ready'}>
+      <FigureRow value={formatCount(data.totalSolved)} unit="solved" size="md" />
       <SegmentBar segments={leetCodeSegments(data)} />
-    </StatTile>
+      {stale && <StaleNote>{staleWhen(asOf, now)}</StaleNote>}
+    </LinkedMetric>
   );
 }
 
-/** The loading LeetCode tile: the real label, with room for the bar and its legend. */
+/** The loading LeetCode tile: the real label, the figure's row, the bar and its legend. */
 export function LeetCodeTileSkeleton(): ReactElement {
   return (
-    <StatTileSkeleton label={LEETCODE_LABEL} labelAs="h2" size="lg">
+    <Tile className={TILE_CLASS} aria-busy="true" data-state="loading">
+      <TileLabel>{LEETCODE_LABEL}</TileLabel>
+      <FigureRowSkeleton digits={FIGURE_DIGITS} unit="solved" size="md" />
       <SegmentBarSkeleton segments={DIFFICULTIES} />
-    </StatTileSkeleton>
+      <LoadingNote>Loading LeetCode stats</LoadingNote>
+    </Tile>
   );
 }
 
@@ -140,51 +197,76 @@ export interface TypingTileViewProps {
   now?: Instant;
 }
 
+/**
+ * '60 s best · 93% accuracy': the test and its accuracy, to the whole percent. Without a finite
+ * accuracy, just the test. A no-break space holds '93% accuracy' together, so a narrow tile (the
+ * 181 px lane of a 375 px phone) wraps the line after the dot, not before 'accuracy'.
+ */
+export function typingMeta(accuracy: number): string {
+  return joinMeta([
+    BEST_60,
+    Number.isFinite(accuracy) ? `${Math.round(accuracy)}% accuracy` : null,
+  ]);
+}
+
 /** The fastest 60 s Monkeytype test, with its accuracy; a stale one says when it was read. */
 export function TypingTileView({ result, now = Date.now() }: TypingTileViewProps): ReactElement {
-  const shared = { label: TYPING_LABEL, labelAs: 'h2', size: 'lg' } as const;
   if (result.status === 'error') {
     return (
-      <StatTile
-        {...shared}
-        state="error"
-        errorText="Typing stats unavailable"
-        action={
-          <ExternalAnchor href={MONKEYTYPE_PROFILE_URL} className={ACTION_LINK_CLASS}>
-            Monkeytype profile
-          </ExternalAnchor>
-        }
+      <MetricUnavailable
+        label={TYPING_LABEL}
+        message="Typing stats unavailable"
+        href={MONKEYTYPE_PROFILE_URL}
+        linkLabel="Monkeytype profile"
       />
     );
   }
-  const profileLink = {
-    variant: 'interactive',
+  const link = {
+    label: TYPING_LABEL,
     href: MONKEYTYPE_PROFILE_URL,
-    external: true,
-  } as const;
+    srSuffix: 'profile on Monkeytype',
+  };
   if (result.status === 'empty') {
-    return <StatTile {...shared} {...profileLink} idleText="No 60 s test yet" />;
+    return (
+      <LinkedMetric {...link} state="empty">
+        <p className={IDLE_CLASS}>No 60 s test yet</p>
+      </LinkedMetric>
+    );
   }
   const { data, stale, asOf } = result;
   const { wpm, accuracy } = data.best60;
-  const meta = stale
-    ? joinMeta(['60 s best', asOf ? asOfText(asOf, now) : null])
-    : joinMeta(['60 s personal best', `${accuracy}% acc`]);
   return (
-    <StatTile
-      {...shared}
-      {...profileLink}
-      value={wpm}
-      unit="wpm"
-      state={stale ? 'stale' : 'ready'}
-      meta={meta}
-    />
+    <LinkedMetric {...link} state={stale ? 'stale' : 'ready'}>
+      <FigureRow value={formatCount(wpm)} unit="wpm" size="md" />
+      {stale ? (
+        <StaleNote>{joinMeta([BEST_60, staleWhen(asOf, now)])}</StaleNote>
+      ) : (
+        <TileMeta>{typingMeta(accuracy)}</TileMeta>
+      )}
+    </LinkedMetric>
   );
 }
 
-/** The loading typing tile, with the real label. */
+/** An accuracy as wide as most: the typing skeleton's context line holds room for two digits. */
+const SKELETON_ACCURACY = 88;
+
+/**
+ * The loading typing tile: the real label, the figure's row and the context line. The line is a
+ * bar the shape of '60 s best · 88% accuracy', so it wraps where the loaded line does: in a 181 px
+ * lane (a 375 px window beside a scrollbar) the loaded line takes two lines, and a one-line bar
+ * left the skeleton 18 px short.
+ */
 export function TypingTileSkeleton(): ReactElement {
-  return <StatTileSkeleton label={TYPING_LABEL} labelAs="h2" size="lg" />;
+  return (
+    <Tile className={TILE_CLASS} aria-busy="true" data-state="loading">
+      <TileLabel>{TYPING_LABEL}</TileLabel>
+      <FigureRowSkeleton digits={FIGURE_DIGITS} unit="wpm" size="md" />
+      <p aria-hidden="true" className="tile-meta">
+        <ShapePlaceholder shape={typingMeta(SKELETON_ACCURACY)} />
+      </p>
+      <LoadingNote>Loading typing stats</LoadingNote>
+    </Tile>
+  );
 }
 
 export async function TypingTile(): Promise<ReactElement> {

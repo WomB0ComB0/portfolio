@@ -23,14 +23,18 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  commitHeadline,
+  companyName,
   formatAsOfDay,
   formatClockET,
   formatDay,
   formatDaySpan,
   formatMonthYear,
   formatRelative,
+  formatYear,
   lastDayOf,
   nyToday,
+  splitTitle,
 } from '@/app/_components/home/data/format';
 
 const SECOND_MS = 1_000;
@@ -282,5 +286,213 @@ describe('formatDaySpan', () => {
     });
     expect(formatDaySpan({ startDate: null, endDate: '2026-10-30' }, NOW)).toBe(null);
     expect(formatDaySpan({ startDate: 'soon' }, NOW)).toBe(null);
+  });
+});
+
+describe('formatYear', () => {
+  // 'since Jan 2023' became 'since 2023' on the roles tile: the month added nothing there.
+  it('gives the year of a Sanity date as written, never the year before', () => {
+    expect(formatYear('2023-01-01')).toBe('2023');
+    expect(formatYear('2024-06')).toBe('2024');
+  });
+
+  it('gives the New York year of a timestamp, and nothing for what is not a date', () => {
+    // 2:00 AM UTC on Jan 1 is still Dec 31 in New York.
+    expect(formatYear('2026-01-01T02:00:00Z')).toBe('2025');
+    expect(formatYear('2026-02-30')).toBe('');
+    expect(formatYear('')).toBe('');
+  });
+});
+
+describe('commitHeadline', () => {
+  it.each([
+    ['feat(home): the Live Console home bento (HOME) (#604)', 'The Live Console home bento (HOME)'],
+    ['fix: last place by the last visit', 'Last place by the last visit'],
+    ['refactor(api)!: drop the v0 routes', 'Drop the v0 routes'],
+    [
+      'chore(deps): update dependency @biomejs/biome to v2.6.6 (#605)',
+      'Update dependency @biomejs/biome to v2.6.6',
+    ],
+  ])('reads %j as %j', (headline, shown) => {
+    expect(commitHeadline(headline)).toBe(shown);
+  });
+
+  it('keeps a headline without a prefix as written, capitalised', () => {
+    expect(commitHeadline('Merge branch main into feat/home')).toBe(
+      'Merge branch main into feat/home',
+    );
+    expect(commitHeadline('add the Spotify tile')).toBe('Add the Spotify tile');
+  });
+
+  it('keeps a pull request number that is not at the end, and a headline that would be empty', () => {
+    expect(commitHeadline('fix: (#12) regression in the rail')).toBe(
+      '(#12) regression in the rail',
+    );
+    // A type with nothing after it is a type, not a word to capitalise.
+    expect(commitHeadline('feat:')).toBe('feat:');
+    expect(commitHeadline('fix(home)!:')).toBe('fix(home)!:');
+    expect(commitHeadline('feat: (#12)')).toBe('feat: (#12)');
+  });
+
+  it.each([
+    'feat',
+    'fix',
+    'chore',
+    'docs',
+    'refactor',
+    'perf',
+    'test',
+    'tests',
+    'build',
+    'ci',
+    'style',
+    'revert',
+    'wip',
+    'deps',
+  ])('strips the conventional type %j, with or without a scope and a !', (type) => {
+    expect(commitHeadline(`${type}: tidy the rail`)).toBe('Tidy the rail');
+    expect(commitHeadline(`${type}(home): tidy the rail`)).toBe('Tidy the rail');
+    expect(commitHeadline(`${type}(home)!: tidy the rail`)).toBe('Tidy the rail');
+    expect(commitHeadline(`${type}!: tidy the rail`)).toBe('Tidy the rail');
+  });
+
+  // Conventional Commits types are not case sensitive.
+  it('strips a type written in capitals', () => {
+    expect(commitHeadline('Fix: the rail')).toBe('The rail');
+  });
+
+  // Review findings WF-PRIV-3 and commit-headline-capitalise-mangles: any word and colon used to
+  // count as a type, and the first letter was always upper-cased.
+  it.each([
+    ['https://example.com is down', 'https://example.com is down'],
+    ['fix: https://example.com is down', 'https://example.com is down'],
+    ['useEffect(fn): fix cleanup', 'useEffect(fn): fix cleanup'],
+    ['README: fix typo', 'README: fix typo'],
+    ['fix: iOS Safari scroll', 'iOS Safari scroll'],
+    ['fix(ios): iOS safe-area inset (#611)', 'iOS safe-area inset'],
+    ['docs: macOS setup', 'macOS setup'],
+    ['feat: iPhone layout', 'iPhone layout'],
+    ['feat: eBay listings', 'eBay listings'],
+    ['chore: npm audit fix', 'npm audit fix'],
+    ['fix(scope): npm audit', 'npm audit'],
+    ['chore: pnpm dedupe', 'pnpm dedupe'],
+    ['chore: bun update', 'bun update'],
+    ['chore: yarn install', 'yarn install'],
+    ['chore: git hooks', 'git hooks'],
+    ['chore: eslint rules', 'eslint rules'],
+    ['build: vite 7', 'vite 7'],
+    ['ci build failures on master', 'ci build failures on master'],
+  ])(
+    'reads %j as %j: only a known type is stripped, and no name is re-cased',
+    (headline, shown) => {
+      expect(commitHeadline(headline)).toBe(shown);
+    },
+  );
+
+  it('needs a space after the colon, so a word glued to a colon is not a type', () => {
+    expect(commitHeadline('fix:the rail')).toBe('fix:the rail');
+    // Not a known type, so nothing is stripped; its letters, before the colon, are a plain
+    // lower-case word, so it is capitalised like any first word.
+    expect(commitHeadline('feature: the rail')).toBe('Feature: the rail');
+  });
+
+  it('upper-cases only a first word of lower-case ASCII letters', () => {
+    expect(commitHeadline('feat: add the Spotify tile')).toBe('Add the Spotify tile');
+    expect(commitHeadline('feat: v2 of the rail')).toBe('v2 of the rail');
+    expect(commitHeadline('feat: react-query 5')).toBe('react-query 5');
+    expect(commitHeadline('feat: été')).toBe('été');
+    expect(commitHeadline('feat: 🎉 launch')).toBe('🎉 launch');
+  });
+
+  // Review finding WF2-D3-first-word-punct: the first word was everything up to a space, so its
+  // trailing comma, period or apostrophe kept a plain word lower-case ('fix, just had…').
+  it.each([
+    ['fix(stripe): fix, just had to reset cache', 'Fix, just had to reset cache'],
+    ["fix: don't show a place before noon", "Don't show a place before noon"],
+    ['fix: it’s the rail', 'It’s the rail'],
+    ['feat: add.', 'Add.'],
+    ['feat: done; tidy up', 'Done; tidy up'],
+    ['fix: why? the rail', 'Why? the rail'],
+    ['feat: wait!', 'Wait!'],
+    ["fix: don't, ever", "Don't, ever"],
+  ])(
+    'reads %j as %j: a plain word before its trailing punctuation or contraction',
+    (headline, shown) => {
+      expect(commitHeadline(headline)).toBe(shown);
+    },
+  );
+
+  it.each([
+    ['chore: npm, bump the lockfile', 'npm, bump the lockfile'],
+    ["chore: npm's cache", "npm's cache"],
+    ['chore: follow-ups from the dependency batch (#568)', 'follow-ups from the dependency batch'],
+    ['fix: iOS, the safe area', 'iOS, the safe area'],
+    ['fix: v2, again', 'v2, again'],
+    ['docs: https://example.com, the docs', 'https://example.com, the docs'],
+    ['docs: example.com is down', 'example.com is down'],
+    ["fix: rock'n'roll mode", "rock'n'roll mode"],
+    ['fix: e.g. the rail', 'e.g. the rail'],
+  ])(
+    'reads %j as %j: names, inner capitals, digits, hyphens and URLs stay as written',
+    (headline, shown) => {
+      expect(commitHeadline(headline)).toBe(shown);
+    },
+  );
+});
+
+describe('companyName', () => {
+  it.each([
+    ['ResQ Systems, Inc.', 'ResQ Systems'],
+    ['ResQ Systems Inc.', 'ResQ Systems'],
+    ['ResQ Systems, Inc', 'ResQ Systems'],
+    ['Acme, LLC', 'Acme'],
+    ['  Elysium  ', 'Elysium'],
+    ['Farmingdale State College', 'Farmingdale State College'],
+  ])('says %j as %j', (company, name) => {
+    expect(companyName(company)).toBe(name);
+  });
+
+  it('keeps a name that is only a legal form, and an Inc inside a name', () => {
+    expect(companyName('Inc.')).toBe('Inc.');
+    expect(companyName('Incubator Labs')).toBe('Incubator Labs');
+  });
+});
+
+describe('splitTitle', () => {
+  it.each([
+    [
+      'Fraud Guard - AI-Powered Transaction Monitoring',
+      'Fraud Guard',
+      'AI-Powered Transaction Monitoring',
+    ],
+    [
+      'Fraud Guard — AI-Powered Transaction Monitoring',
+      'Fraud Guard',
+      'AI-Powered Transaction Monitoring',
+    ],
+    [
+      'Fraud Guard – AI-Powered Transaction Monitoring',
+      'Fraud Guard',
+      'AI-Powered Transaction Monitoring',
+    ],
+    ['grepo: search your GitHub stars', 'grepo', 'search your GitHub stars'],
+  ])('splits %j at its first separator', (full, title, subtitle) => {
+    expect(splitTitle(full)).toEqual({ title, subtitle });
+  });
+
+  it('splits at the first separator only, keeping the description as written', () => {
+    expect(splitTitle('Atlas: maps - and more')).toEqual({
+      title: 'Atlas',
+      subtitle: 'maps - and more',
+    });
+  });
+
+  it('keeps a title with no separator whole: a hyphen in a word or a colon in a time is none', () => {
+    expect(splitTitle('AI-Powered Fraud Guard')).toEqual({
+      title: 'AI-Powered Fraud Guard',
+      subtitle: '',
+    });
+    expect(splitTitle('Standup at 10:30')).toEqual({ title: 'Standup at 10:30', subtitle: '' });
+    expect(splitTitle('  grepo  ')).toEqual({ title: 'grepo', subtitle: '' });
   });
 });

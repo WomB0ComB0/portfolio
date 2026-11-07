@@ -24,7 +24,12 @@
  * '@/' alias), and the decoder loads it wherever the site runs.
  */
 
-/** The longest location, in characters. It sits beside the avatar, in capitals. */
+/**
+ * The longest location, in characters. It ends the hero's role line, in muted sentence case,
+ * after the current role. The line is clamped to two lines below a 28rem hero and one from there,
+ * so a long location is cut with an ellipsis rather than growing the hero. It has no built-in
+ * value: cleared, the hero shows the role alone.
+ */
 export const SITE_LOCATION_MAX_LENGTH = 40;
 /**
  * The longest tagline, in characters: three lines under the hero's name from a 24rem tile, up to
@@ -42,7 +47,10 @@ export const SITE_EMAIL_MAX_LENGTH = 254;
 export const SITE_EMAIL_PATTERN =
   /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 
-/** What Studio says about a location or tagline of spaces only. */
+/**
+ * What Studio says about a location or tagline of spaces only. Clearing the field unsets it,
+ * which hides the location and gives the tagline its built-in value.
+ */
 export const SITE_BLANK_TEXT_MESSAGE = 'Leave it empty instead of only spaces';
 /** What Studio says about an address {@link isSiteEmail} refuses. */
 export const SITE_EMAIL_MESSAGE = 'Use letters, digits and . _ % + - before the @; no ?, & or #';

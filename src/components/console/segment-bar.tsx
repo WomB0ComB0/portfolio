@@ -57,17 +57,40 @@ const TONE_CLASS = {
 /** 8px, fully rounded ends; the 2px gap between parts shows the track. */
 const TRACK_CLASS = 'flex h-2 gap-0.5 overflow-hidden rounded-full bg-surface-2';
 
-/** Inline items that stack in a tile narrower than 12rem. */
+/**
+ * Inline items that stack in a tile narrower than 12rem. The legend is the tile's meta style
+ * (tile-meta: Geist 13/18, tabular), names and amounts alike, so a stat tile keeps three type
+ * styles: its label, its figure and its meta.
+ */
 const LEGEND_CLASS =
-  'mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-label tabular-nums text-muted-foreground @max-[12rem]:flex-col';
+  'mt-2 flex flex-wrap gap-x-3.5 gap-y-1 tile-meta text-muted-foreground @max-[12rem]:flex-col';
 const ITEM_CLASS = 'flex items-center gap-1.5';
 const SWATCH_CLASS = 'size-2 shrink-0 rounded-xs';
-const VALUE_CLASS = 'text-foreground';
 
-/** The loading look, as StatTile's placeholders: a muted block, breathing unless motion is off. */
-const PLACEHOLDER_CLASS = 'block bg-surface-3 motion-safe:animate-pulse';
-/** An amount's line (text-label's 1rem line-height), holding a bar three digits wide. */
-const PLACEHOLDER_VALUE_CLASS = 'flex h-4 items-center';
+/**
+ * The loading look, as StatTile's placeholders: a muted fill, breathing unless motion is off.
+ * Forced colours (Windows Contrast themes) paint every fill as Canvas, so there the bar keeps a
+ * system-colour outline and still shows as a box; an outline takes no room, so nothing moves.
+ */
+const PLACEHOLDER_CLASS = 'bg-surface-3 motion-safe:animate-pulse forced-colors:outline';
+
+/**
+ * An amount while it loads: three tabular zeros, for LeetCode's three-digit amounts. Every tabular
+ * digit has the font's one advance, so '000' is as wide as '120' in the legend's type (a hinting
+ * rasteriser may round a digit by a pixel). A ch was wider: 9px in Geist 13px, a digit about 8.
+ */
+const AMOUNT_SHAPE = '000';
+/**
+ * The amount's placeholder: a span with no type of its own, so it is set in the legend's tile-meta
+ * like the amount it stands for. Its zeros (data-shape) are generated content, so the document
+ * holds no digit, and they are hidden with visibility, never colour: forced colours replace a
+ * transparent colour with the text colour, and the zeros would read as an amount. Invisible, they
+ * keep their advance and line, so the fill behind them is exactly the loaded amount's box.
+ */
+const AMOUNT_PLACEHOLDER_CLASS = cn(
+  PLACEHOLDER_CLASS,
+  'rounded-xs before:invisible before:content-[attr(data-shape)]',
+);
 
 /** Three decimals of a percent are far below a pixel and keep the HTML stable. */
 const PERCENT_DECIMALS = 3;
@@ -120,8 +143,9 @@ export interface SegmentBarSkeletonProps {
 
 /**
  * SegmentBar while its amounts load: the 8px track and the legend's real names, each with a bar
- * for its amount, in SegmentBar's own container and legend classes, so it wraps (or stacks below
- * 12rem) exactly where the loaded legend will and nothing below moves when it arrives. Decorative
+ * for its amount the size of three digits in the legend's own type (AMOUNT_PLACEHOLDER_CLASS), in
+ * SegmentBar's own container and legend classes, so it wraps (or stacks below 12rem) exactly where
+ * a loaded legend of three-digit amounts will and nothing below moves when it arrives. Decorative
  * as a whole: the tile around it says what is loading.
  *
  * @example
@@ -135,7 +159,7 @@ export interface SegmentBarSkeletonProps {
 export function SegmentBarSkeleton({ segments, className }: SegmentBarSkeletonProps): ReactElement {
   return (
     <div aria-hidden="true" data-segment-bar-placeholder="" className={cn('@container', className)}>
-      <span className={cn(PLACEHOLDER_CLASS, 'h-2 w-full rounded-full')} />
+      <span className={cn(PLACEHOLDER_CLASS, 'block h-2 w-full rounded-full')} />
       <dl className={LEGEND_CLASS}>
         {segments.map((segment) => (
           <div key={segment.key} className={ITEM_CLASS}>
@@ -143,8 +167,8 @@ export function SegmentBarSkeleton({ segments, className }: SegmentBarSkeletonPr
               <span className={cn(SWATCH_CLASS, 'bg-surface-3')} />
               {segment.label}
             </dt>
-            <dd className={PLACEHOLDER_VALUE_CLASS}>
-              <span className={cn(PLACEHOLDER_CLASS, 'h-2.5 w-[3ch] rounded-xs')} />
+            <dd>
+              <span data-shape={AMOUNT_SHAPE} className={AMOUNT_PLACEHOLDER_CLASS} />
             </dd>
           </div>
         ))}
@@ -189,7 +213,7 @@ export function SegmentBar({ segments, className }: SegmentBarProps): ReactEleme
               <span aria-hidden="true" className={cn(SWATCH_CLASS, TONE_CLASS[segment.tone])} />
               {segment.label}
             </dt>{' '}
-            <dd className={VALUE_CLASS}>
+            <dd>
               <LegendValue value={segment.value} />
             </dd>
           </div>

@@ -34,6 +34,7 @@
 import { expect, type Locator, type Page, type TestInfo, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
+import { settleBento } from '../fixtures/home-bento';
 
 /** The shell's one `<main>` (src/components/animations/pages/page-transition.tsx). */
 const MAIN = 'main#main-content';
@@ -275,13 +276,20 @@ async function filterBarBottom(main: Locator): Promise<number> {
  */
 const PENDING_CONTENT = 'div[hidden][id^="S:"], main [aria-busy="true"]';
 
-/** Loads `path` at `viewport` and waits for the page's main to show with its streamed content. */
+/**
+ * Loads `path` at `viewport` and waits for the page's main to show with its streamed content. On
+ * the home page it also waits for the bento to settle: its masonry island can still add a 2 px row
+ * once a font or an image lands, after the streamed content is in, and a page that grows under a
+ * check that has scrolled to its end puts the footer's end below the bottom bar (1 run in about 16
+ * at 375 px on a phone).
+ */
 async function openAt(page: Page, path: string, viewport: Viewport): Promise<Locator> {
   await page.setViewportSize(viewport);
   await page.goto(`${getTargetUrl()}${path}`);
   const main = page.locator(MAIN);
   await expect(main).toBeVisible();
   await expect(page.locator(PENDING_CONTENT)).toHaveCount(0);
+  if (path === '/') await settleBento(page, main);
   return main;
 }
 

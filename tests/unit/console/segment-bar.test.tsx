@@ -18,7 +18,10 @@
  * @file SegmentBar draws parts sized by their share of the whole on a decorative 8px track, in
  * literal bg-chart-n or bg-leet-* classes; parts at zero or without a real number draw nothing,
  * so a whole of zero is an empty track with no NaN width. The legend is a <dl> of name and en-US
- * amount in tabular figures, with a swatch per name, that stacks in narrow tiles.
+ * amount in tabular figures, with a swatch per name, that stacks in narrow tiles. Its skeleton
+ * holds each amount's place with '000' drawn in the legend's own type as invisible generated
+ * content, so it is exactly as wide as a loaded three-digit amount (a ch width was 2px wider in
+ * Geist) and no colour mode ever paints the zeros.
  */
 
 import { readFileSync } from 'node:fs';
@@ -164,10 +167,21 @@ describe('SegmentBar legend', () => {
     expect(items.map((item) => item.textContent)).toEqual(['Easy 215', 'Medium 379', 'Hard 98']);
   });
 
-  it('sets the amounts in tabular figures, in the mono label style', () => {
+  it("sets names and amounts in the tile's meta style (Geist, tabular), not a fourth mono style", () => {
     const { legend } = renderBar();
 
-    expect(legend).toHaveClass('tabular-nums', 'font-mono', 'text-label', 'text-muted-foreground');
+    // tile-meta: Geist 13/18 with tabular figures (globals.css), the stat tile's own meta line.
+    expect(legend).toHaveClass('tile-meta', 'text-muted-foreground', 'gap-x-3.5');
+    expect(legend).not.toHaveClass('font-mono');
+    expect(legend).not.toHaveClass('text-label');
+  });
+
+  it('lets the amounts take the muted meta colour, with no colour of their own', () => {
+    const { legend } = renderBar();
+
+    for (const amount of legend.querySelectorAll('dd')) {
+      expect(amount.getAttribute('class') ?? '').not.toMatch(/(?:^|\s)text-/);
+    }
   });
 
   it('formats amounts in en-US', () => {
@@ -234,8 +248,12 @@ describe('SegmentBarSkeleton', () => {
       legend: legend.className,
       items: [...legend.children].map((item) => item.className),
       terms: [...legend.querySelectorAll('dt')].map((term) => term.className),
+      // The amounts have no type of their own in either: both take the legend's tile-meta.
+      amounts: [...legend.querySelectorAll('dd')].map((amount) => amount.className),
     };
   };
+  const skeletonOf = () => render(<SegmentBarSkeleton segments={LEETCODE} />).container;
+  const shapesOf = (container: Element) => [...container.querySelectorAll('dd > [data-shape]')];
 
   it('wraps where the loaded legend does: the same container and legend classes', () => {
     const loaded = render(<SegmentBar segments={LEETCODE} />).container;
@@ -249,19 +267,72 @@ describe('SegmentBarSkeleton', () => {
     expect(legendClasses(skeletonRoot)).toEqual(legendClasses(loadedRoot));
   });
 
-  it('keeps the names, with a three-digit bar on one label line for each amount', () => {
-    const { container } = render(<SegmentBarSkeleton segments={LEETCODE} />);
-    const root = container.firstElementChild;
+  it('keeps the names, with a placeholder for each amount', () => {
+    const container = skeletonOf();
 
-    expect(root).toHaveAttribute('aria-hidden', 'true');
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
     expect([...container.querySelectorAll('dt')].map((term) => term.textContent)).toEqual([
       'Easy',
       'Medium',
       'Hard',
     ]);
-    for (const amount of container.querySelectorAll('dd')) {
-      expect(amount).toHaveClass('h-4');
-      expect(amount.firstElementChild).toHaveClass('w-[3ch]', 'motion-safe:animate-pulse');
+    expect(shapesOf(container)).toHaveLength(3);
+  });
+
+  // In Geist tile-meta a ch is 9px and a tabular digit about 8.3px, so a 3ch bar was 2px wider
+  // than '120' per amount and the skeleton legend wrapped where the loaded one did not.
+  it("draws each amount's place as '000' in the legend's own type, never a ch width", () => {
+    const shapes = shapesOf(skeletonOf());
+    expect(shapes).toHaveLength(LEETCODE.length);
+    for (const shape of shapes) {
+      expect(shape).toHaveAttribute('data-shape', '000');
+      expect(shape).toHaveClass(
+        'before:content-[attr(data-shape)]',
+        'bg-surface-3',
+        'motion-safe:animate-pulse',
+      );
+      // No width, size or face of its own: the zeros' advance in the inherited tile-meta is it.
+      expect(shape.className).not.toMatch(
+        /(?:^|\s)(?:[\w-]*:)?(?:w|min-w|max-w|h|text|font|tile)-/,
+      );
+      expect(shape.tagName).toBe('SPAN');
     }
+    expect(SOURCE).not.toMatch(/\[[\d.]+ch\]/);
+  });
+
+  it('holds no digit in the document: the zeros are generated content only', () => {
+    const container = skeletonOf();
+
+    for (const amount of container.querySelectorAll('dd')) expect(amount.textContent).toBe('');
+    expect(container.textContent).not.toMatch(/\d/);
+    expect(renderToString(<SegmentBarSkeleton segments={LEETCODE} />)).not.toMatch(/>[^<]*\d/);
+  });
+
+  // Forced colours (Windows Contrast themes) replace a transparent colour with the system text
+  // colour and the bar's fill with Canvas: transparent zeros would read as real amounts.
+  it('hides the zeros with visibility, never colour, and outlines the bar under forced colours', async () => {
+    const shapes = shapesOf(skeletonOf());
+    expect(shapes).toHaveLength(LEETCODE.length);
+    for (const shape of shapes) {
+      expect(shape).toHaveClass('before:invisible', 'forced-colors:outline');
+      expect(shape.className).not.toMatch(/transparent|opacity-0|text-\[/);
+    }
+
+    const { build } = await compile('@tailwind utilities;');
+    const css = build(['before:invisible', 'forced-colors:outline']);
+    expect(css).toMatch(/::before\s*\{[^}]*visibility:\s*hidden/);
+    expect(css).toMatch(/@media \(forced-colors: active\)\s*\{[^}]*outline-width:\s*1px/);
+  });
+
+  it('outlines the track placeholder under forced colours too, so every bar shows as a box', () => {
+    const track = skeletonOf().querySelector('[data-segment-bar-placeholder] > span');
+
+    expect(track).toHaveClass('h-2', 'w-full', 'bg-surface-3', 'forced-colors:outline');
+  });
+
+  // A console primitive: /stats may use it, so it never reaches into the home tiles.
+  it('imports nothing from the app (the home tiles included)', () => {
+    expect(SOURCE).not.toMatch(/from ['"]@\/app\//);
+    expect(SOURCE).not.toMatch(/_components/);
   });
 });

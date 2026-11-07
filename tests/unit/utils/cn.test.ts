@@ -47,9 +47,7 @@ describe('cn with the Live Console theme', () => {
   it('lets a later type-scale class replace an earlier font size', () => {
     expect(cn('text-title', 'text-label')).toBe('text-label');
     expect(cn('text-sm', 'text-meta')).toBe('text-meta');
-    expect(cn('figure self-end text-foreground', 'text-stat')).toBe(
-      'figure self-end text-foreground text-stat',
-    );
+    expect(cn('self-end text-foreground', 'text-stat')).toBe('self-end text-foreground text-stat');
   });
 
   it('still lets a later text colour replace an earlier one', () => {
