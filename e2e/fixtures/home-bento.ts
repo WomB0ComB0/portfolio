@@ -33,6 +33,8 @@ import {
   rowsFor,
 } from '@/app/_components/home/bento-layout';
 
+import { isSpanSettled, type WrittenSpan } from './home-bento-estimates';
+
 export { isNativeLanes, spansEveryLane } from './home-bento-estimates';
 export { BENTO_AREAS, type BentoArea };
 
@@ -53,9 +55,11 @@ export const PENDING_CONTENT = 'div[hidden][id^="S:"], main [aria-busy="true"]';
 /**
  * What a slot shows. By the tiles' state contract, a tile that is not showing its reference
  * content (the content, and so the height, the estimate table is measured for) marks its root or
- * a descendant: data-state 'loading' (a skeleton, which is aria-busy too), 'error', 'empty' or
- * 'stale', or data-stale where a stale line ('as of …', 'Last known') shows. A ready tile carries
- * data-state 'ready', another value of its own (a status, a now playing kind) or none.
+ * a descendant: data-state 'loading' (a skeleton, which is aria-busy too, or a box reserved for
+ * copy still to come, which is not: the hero's tagline before this server has loaded the
+ * settings), 'error', 'empty' or 'stale', or data-stale where a stale line ('as of …', 'Last
+ * known') shows. A ready tile carries data-state 'ready', another value of its own (a status, a
+ * now playing kind) or none.
  */
 export type SlotState = 'reference' | 'error' | 'empty' | 'stale' | 'loading';
 
@@ -121,32 +125,33 @@ export interface BentoMeasure {
   readonly slots: readonly SlotMeasure[];
 }
 
-/** A slot's border-box height and the span the masonry wrote on it ('' before it has). */
-interface WrittenSpan {
-  readonly height: number;
-  readonly rowsJs: string;
+/** A slot as the settle check reads it: its area, its height and the span the masonry wrote. */
+interface SlotSpan extends WrittenSpan {
+  readonly area: string;
 }
 
-/**
- * Whether the masonry has nothing left to write on this slot: it wrote no span yet (no
- * JavaScript, native lanes, or not measured), the slot is hidden (the island keeps a hidden slot's
- * last span), or the span it wrote is the one the slot's height needs now.
- */
-const isSpanCurrent = ({ height, rowsJs }: WrittenSpan): boolean =>
-  rowsJs === '' || height === 0 || Number(rowsJs) === rowsFor(height);
+/** Why a slot's span is not settled: the masonry has not written one, or wrote another height's. */
+const unsettledSpan = ({ area, height, rowsJs }: SlotSpan): string =>
+  rowsJs === ''
+    ? `${area}: the masonry has not written its span`
+    : `${area}: spans ${rowsJs} rows, its ${Math.round(height * 10) / 10} px need ${rowsFor(height)}`;
 
 /**
- * True when no slot moves across two animation frames, a task and a third frame, and every span
- * the masonry wrote matches its slot's height. The island collects sizes in a ResizeObserver,
- * which runs after the frame's animation callbacks, and writes them in the next frame: when a
- * slot resized in the task before the first read (a font or an image landing, a resize), this
- * check's second frame can run before the island's write, so two quiet frames prove nothing. The
- * task and the third frame let that write land and lay out. A span write that moves no slot
- * (align-items: start keeps a slot's box whatever its span) shows only in --rows-js, hence the
- * comparison.
+ * What keeps the bento from being settled (JavaScript on), empty once it is: the slots moved across
+ * two animation frames, a task and a third frame, or a shown slot's span is not the one the
+ * masonry writes for its height now (home-bento-estimates.ts's isSpanSettled). The island collects
+ * sizes in a ResizeObserver, which runs after the frame's animation callbacks, and writes them in
+ * the next frame: when a slot resized in the task before the first read (a font or an image
+ * landing, a resize), this check's second frame can run before the island's write, so two quiet
+ * frames prove nothing. The task and the third frame let that write land and lay out. A span write
+ * that moves no slot (align-items: start keeps a slot's box whatever its span) shows only in
+ * --rows-js, hence the comparison. A shown slot with no span written means the island has not run
+ * yet (it starts only after hydration, and the slots sit still on the server's estimates until
+ * then), so it is not settled, unless the browser packs the lanes itself (CSS.supports('display',
+ * 'grid-lanes'), the island's own test), where the island writes none.
  */
-async function slotsStayPut(main: Locator): Promise<boolean> {
-  const { moved, spans } = await main.evaluate(
+async function unsettledSlots(main: Locator): Promise<string[]> {
+  const { moved, native, spans } = await main.evaluate(
     async (root, { selector, property }) => {
       const slots = (): HTMLElement[] => [...root.querySelectorAll<HTMLElement>(selector)];
       const read = (): string =>
@@ -175,7 +180,9 @@ async function slotsStayPut(main: Locator): Promise<boolean> {
       await nextFrame();
       return {
         moved: read() !== before,
+        native: CSS.supports('display', 'grid-lanes'),
         spans: slots().map((slot) => ({
+          area: slot.getAttribute('data-bento-slot') ?? '',
           height: slot.getBoundingClientRect().height,
           rowsJs: slot.style.getPropertyValue(property).trim(),
         })),
@@ -183,19 +190,32 @@ async function slotsStayPut(main: Locator): Promise<boolean> {
     },
     { selector: SLOT, property: MEASURED_ROWS_PROPERTY },
   );
-  return !moved && spans.every(isSpanCurrent);
+  return [
+    ...(moved ? ['the slots moved across the frames'] : []),
+    ...spans.filter((span) => !isSpanSettled(span, { nativeLanes: native })).map(unsettledSpan),
+  ];
 }
 
-/** Waits until the bento stops moving: after a load, a resize or a tile changing size. */
+/**
+ * Waits until the bento stops moving and the masonry has written every shown slot's span for its
+ * height: after a load, a resize or a tile changing size. A timeout names what was still
+ * unsettled at the last poll: the slots moving, or each slot whose span is missing or stale (the
+ * masonry island broken, or not run).
+ */
 export async function expectSlotsStill(main: Locator): Promise<void> {
-  await expect.poll(() => slotsStayPut(main), { message: 'the bento keeps moving' }).toBe(true);
+  await expect
+    .poll(() => unsettledSlots(main), {
+      message: 'the bento keeps moving, or the masonry has not written a span on a shown slot',
+    })
+    .toEqual([]);
 }
 
 /**
  * Waits for the bento to be final (JavaScript on): all ten slots, no streamed segment hidden and
  * no skeleton left, every image decoded (lazy ones too, so they load now rather than mid-measure)
- * and the fonts in, so no tile changes height after this; then the masonry settled. An image that
- * fails to load is left as it is.
+ * and the fonts in, so no tile changes height after this; then the masonry settled: unless the
+ * browser packs grid lanes itself, it ran (hydration done) and every shown slot carries the span it
+ * measured. An image that fails to load is left as it is.
  */
 export async function settleBento(page: Page, main: Locator): Promise<void> {
   await expect(main.locator(SLOT)).toHaveCount(BENTO_AREAS.length);

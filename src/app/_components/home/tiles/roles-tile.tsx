@@ -100,27 +100,34 @@ export interface RolesTileViewProps {
 
 /**
  * The current roles beside the hero's, or a note with a way to the experience page. Stale roles
- * (the list last loaded, served past the deadline) say which day they are from.
+ * (the list last loaded, served past the deadline) say which day they are from, the note too when
+ * the hero's is the only one: the hero names it undated.
  */
 export function RolesTileView({ result, now = Date.now() }: RolesTileViewProps): ReactElement {
   const listed = result.status === 'ok' ? rolesBesideHero(result.data) : [];
+  const asOf = result.status === 'ok' && result.stale ? formatAsOfDay(result.asOf, now) : '';
   if (result.status !== 'ok' || listed.length === 0) {
     const isError = result.status === 'error';
     const Note = isError ? TileUnavailable : TileEmpty;
     const emptyMessage =
       result.status === 'ok' ? 'No other current roles' : 'No current roles listed';
+    const isStale = result.status === 'ok' && result.stale;
     return (
-      <Tile className={TILE_CLASS} data-state={isError ? 'error' : 'empty'}>
+      <Tile className={TILE_CLASS} data-state={isError ? 'error' : isStale ? 'stale' : 'empty'}>
         <TileLabel>{LABEL}</TileLabel>
         <Note
           message={isError ? 'Roles unavailable' : emptyMessage}
           href={EXPERIENCE_PATH}
           linkLabel="All experience"
         />
+        {asOf && (
+          <TileMeta dated stale>
+            {asOf}
+          </TileMeta>
+        )}
       </Tile>
     );
   }
-  const asOf = result.stale ? formatAsOfDay(result.asOf, now) : '';
   return (
     <Tile className={TILE_CLASS} data-state={result.stale ? 'stale' : 'ready'}>
       <TileLabel>{LABEL}</TileLabel>

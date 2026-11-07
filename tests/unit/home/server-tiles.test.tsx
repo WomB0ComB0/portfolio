@@ -879,6 +879,20 @@ describe('GitHubTileView', () => {
     expect(skeletonColumn?.lastElementChild?.className).toBe(commitLines?.className);
   });
 
+  // Review finding CR611-11: GitHub's wide lane (a 1fr lane, its text column at most 292.55 px) is
+  // about 1 px narrower than a four-digit row with Linux's hinted advances and about 3 px wider
+  // unhinted (macOS, Windows), so the tile's height, and roles' lane, hung on the platform and the
+  // digit count.
+  it('puts the unit on its own line in a wide bento, loaded and loading', () => {
+    const UNIT_OWN_LINE = '@min-[67.5rem]/bento:[&>.figure-row>:last-child]:basis-full';
+    const loaded = render(<GitHubTileView result={ok(ACTIVITY)} now={NOW} />).container;
+    expect(loaded.querySelector('.figure-row')?.parentElement).toHaveClass(UNIT_OWN_LINE);
+    cleanup();
+
+    const skeleton = render(<GitHubTileSkeleton />).container;
+    expect(skeleton.querySelector('.figure-row')?.parentElement).toHaveClass(UNIT_OWN_LINE);
+  });
+
   it('says what the sparkline shows, for screen readers', () => {
     const { container } = render(
       <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
@@ -1559,6 +1573,36 @@ describe('RolesTileView', () => {
       '/experience',
     );
     expect(tile.textContent).not.toMatch(/Founder/);
+  });
+
+  // Review finding CR611-8: the hero names its one role undated, so the page said nowhere what
+  // day a stale list was from.
+  it('says which day stale roles are from when the hero’s is the only one', () => {
+    const { container } = render(
+      <RolesTileView
+        result={ok({ roles: roles(1), total: 1 }, { stale: true, asOf: FIVE_MIN_AGO })}
+        now={NOW}
+      />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    expect(within(tile).getByText('No other current roles')).toBeInTheDocument();
+    const asOf = within(tile).getByText('as of Nov 5');
+    expect(asOf).toHaveAttribute('data-dated');
+    expect(asOf).toHaveAttribute('data-stale');
+    expect(shownChildren(tile).at(-1)).toBe(asOf);
+    expect(tile.textContent).not.toMatch(/Founder/);
+  });
+
+  it('marks stale the hero’s only role whose load time is unknown, with no line to mark', () => {
+    const { container } = render(
+      <RolesTileView result={ok({ roles: roles(1), total: 1 }, { stale: true })} now={NOW} />,
+    );
+    const tile = tileOf(container);
+    expect(tile).toHaveAttribute('data-state', 'stale');
+    expect(within(tile).getByText('No other current roles')).toBeInTheDocument();
+    expect(screen.queryByText(/as of/)).toBeNull();
+    expect(container.querySelector('[data-stale]')).toBeNull();
   });
 
   it('says which day stale roles are from, on its own line after the count', () => {

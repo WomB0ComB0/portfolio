@@ -22,6 +22,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { rowsFor } from '@/app/_components/home/bento-layout';
+
 import type {
   BentoMeasure,
   GridMeasure,
@@ -31,6 +33,7 @@ import type {
 import {
   compareEstimates,
   compareFirstPaint,
+  isSpanSettled,
   spansEveryLane,
 } from '../../../e2e/fixtures/home-bento-estimates';
 
@@ -332,6 +335,28 @@ describe('the first paint check', () => {
     });
   });
 
+  // Review finding CR611-14: no case had an error, empty or stale slot only without JavaScript,
+  // so that half of the blockers could go with every test still passing.
+  it.each(['error', 'empty', 'stale'] as const)(
+    'blocks %s content only without JavaScript',
+    (state) => {
+      const settled = measureOf(NARROW_WIDE, {
+        status: { y: 0, natural: 76, width: 309.7 },
+        leet: { y: 0, natural: 164, width: 238.3 },
+      });
+      const firstPaint = measureOf(NARROW_WIDE, {
+        status: { y: 0, natural: 98, width: 309.7, state },
+        leet: { y: 98, natural: 196, width: 309.7 },
+      });
+
+      expect(compareFirstPaint(settled, firstPaint)).toEqual({
+        blockers: [`status (${state}, without JavaScript)`],
+        moved: [],
+        excused: [],
+      });
+    },
+  );
+
   it('reports, without failing, the moves of the slots after a gap that is off here', () => {
     expect(compareFirstPaint(withScript, withoutScript(154))).toEqual({
       blockers: [],
@@ -420,5 +445,37 @@ describe('the first paint check', () => {
       moved: ['role: top 878 px without JavaScript, 848 px with it'],
       excused: [],
     });
+  });
+});
+
+describe('the settle check', () => {
+  // Review finding CR611-0: an unwritten span counted as settled, so a bento measured before the
+  // island had run (before hydration) passed settle and every check saw the server's estimates.
+  it('does not count a shown slot as settled before the masonry wrote its span', () => {
+    expect(isSpanSettled({ height: 98, rowsJs: '' }, { nativeLanes: false })).toBe(false);
+  });
+
+  it('counts an unwritten span as settled where the browser packs the lanes itself', () => {
+    expect(isSpanSettled({ height: 98, rowsJs: '' }, { nativeLanes: true })).toBe(true);
+  });
+
+  it.each(['', '49', '7'])(
+    'counts a hidden (0 px) slot as settled whatever its span: %o',
+    (rowsJs) => {
+      expect(isSpanSettled({ height: 0, rowsJs }, { nativeLanes: false })).toBe(true);
+    },
+  );
+
+  it('needs a written span to be the one its height needs now', () => {
+    const needed = rowsFor(98);
+    expect(isSpanSettled({ height: 98, rowsJs: String(needed) }, { nativeLanes: false })).toBe(
+      true,
+    );
+    expect(isSpanSettled({ height: 98, rowsJs: String(needed + 1) }, { nativeLanes: false })).toBe(
+      false,
+    );
+    expect(isSpanSettled({ height: 98, rowsJs: String(needed - 1) }, { nativeLanes: true })).toBe(
+      false,
+    );
   });
 });

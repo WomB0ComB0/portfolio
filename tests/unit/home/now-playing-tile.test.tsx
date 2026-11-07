@@ -335,7 +335,9 @@ describe('NowPlayingTile', () => {
     renderTile(snapshot({ isPlaying: true }));
 
     expect(screen.getByText('Listening on Spotify')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Playing now on Spotify' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Playing now on Spotify' })).toHaveClass(
+      'sr-only',
+    );
     const glyph = equaliserOf(document);
     expect(glyph).toHaveAttribute('data-equaliser', 'live');
     expect(glyph).toHaveClass('eq-glyph');
@@ -636,5 +638,15 @@ describe('the equaliser’s motion (equaliser.module.css)', () => {
     expect(durations).toEqual(['0.7s', '0.9s', '1.1s']);
     // The poses come after .live, so their timings win over its shorthand.
     expect(css.indexOf('.low {')).toBeGreaterThan(css.indexOf('.live {'));
+  });
+
+  // Review finding CR611-5: forced colours paint every author fill as Canvas, the tile's own, so
+  // the bars, the tile's only live cue, vanished there.
+  it('keeps the bars in system colours under forced colours, where every fill is Canvas', () => {
+    const forced = /@media \(forced-colors: active\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(forced).not.toBeNull();
+    expect(lastRule(forced?.[1] ?? '', '.live')).toMatch(/background-color:\s*CanvasText/);
+    expect(lastRule(forced?.[1] ?? '', '.still')).toMatch(/background-color:\s*GrayText/);
+    expect(forced?.index).toBeGreaterThan(css.indexOf('.still {'));
   });
 });

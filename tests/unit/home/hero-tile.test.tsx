@@ -595,8 +595,10 @@ describe('HeroTile with the site settings', () => {
     renderFirstFlush();
     expectFirstFlushCopy(HERO_FALLBACK_COPY);
     expectHeroReport('error');
-    // Nothing known to match what streams in: the tagline's box is reserved.
+    // Nothing known to match what streams in: the tagline's box is reserved, and says so.
     expect(taglineSlot().className).toBe(TAGLINE_SLOT_RESERVED_CLASS);
+    expect(taglineSlot()).toHaveAttribute('data-state', 'loading');
+    expect(taglineSlot()).not.toHaveAttribute('aria-busy');
   });
 });
 
@@ -611,6 +613,11 @@ describe('HeroTile on a server with nothing cached yet', () => {
     expect(taglineSlot()).toHaveClass('hero-tagline');
     expect(taglineSlot()).toHaveTextContent(HERO_POSITIONING);
     expect(screen.getByText(HERO_POSITIONING)).toHaveClass('hero-tagline');
+    // Review finding CR611-1: the reserved box is not the hero's reference height, so it says so
+    // by the tiles' state contract. Not aria-busy: the copy is shown, and a run whose settings keep
+    // failing would wait on it for ever.
+    expect(taglineSlot()).toHaveAttribute('data-state', 'loading');
+    expect(taglineSlot()).not.toHaveAttribute('aria-busy');
   });
 
   // Measured in Chromium with Geist at 16 px: 120-character taglines took five lines at the
@@ -647,6 +654,8 @@ describe('HeroTile on a server with nothing cached yet', () => {
     expectCopy({ ...SETTINGS_COPY, tagline: LONG_TAGLINE });
     expect(taglineSlot().className).toBe(firstFlushBox);
     expect(firstFlushBox).toBe(TAGLINE_SLOT_RESERVED_CLASS);
+    // The box stays reserved for the page's life, so it stays marked.
+    expect(taglineSlot()).toHaveAttribute('data-state', 'loading');
   });
 
   it('reserves nothing once the settings are cached: the first flush is the streamed twin', async () => {
@@ -659,6 +668,7 @@ describe('HeroTile on a server with nothing cached yet', () => {
 
     expect(taglineSlot()).toHaveTextContent(LONG_TAGLINE);
     expect(taglineSlot().className).toBe('');
+    expect(taglineSlot()).not.toHaveAttribute('data-state');
   });
 
   // register() is awaited before a new instance serves any route, the home page or not: a Sanity

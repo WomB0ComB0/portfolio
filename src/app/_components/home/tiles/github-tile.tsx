@@ -92,9 +92,16 @@ const BODY_CLASS =
  * its skeleton split the same way. (Sized by the nowrap headline, the loaded column took 376 px
  * and kept the unit up, while the skeleton's took 197 px and wrapped it: 24 px taller in a 600 px
  * window.)
+ *
+ * In a wide bento (from 67.5rem) the unit always takes its own line, in any lane, loaded and
+ * loading. GitHub's wide lane (a 1fr lane, 317.6 to 334.5 px, its text column at most 292.55 px)
+ * is about 1 px narrower than a four-digit row ('0,000 contributions in 12 weeks') with Linux's
+ * hinted advances and about 3 px wider unhinted (macOS, Windows). Without the rule the tile's
+ * height, and so the lane roles packs into, would hang on the platform and the digit count; with
+ * it the tile is 268 px everywhere.
  */
 const TEXT_COLUMN_CLASS =
-  'flex min-w-0 flex-col gap-3 @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:flex-nowrap @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:whitespace-nowrap';
+  'flex min-w-0 flex-col gap-3 @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:flex-nowrap @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:whitespace-nowrap @min-[67.5rem]/bento:[&>.figure-row>:last-child]:basis-full';
 /** The commit lines take the column's width and never widen it: their headline is cut short. */
 const COMMIT_LINES_CLASS = 'flex min-w-0 flex-col gap-1 contain-inline-size';
 /** The sparkline's height on screen: 56 px, 72 px (h-18) side by side. */

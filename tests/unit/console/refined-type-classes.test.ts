@@ -45,8 +45,41 @@ function quotedStrings(source: string): string[] {
   );
 }
 
+/**
+ * A forbidden utility as a class: alone or after a variant (`sm:`, `[&_span]:`), with or without
+ * the important mark either side (`!uppercase`, `uppercase!`) and a line-height modifier
+ * (`text-hero/tight`).
+ */
 const FORBIDDEN =
-  /(?:^|\s)(?:label-mono|font-mono|uppercase|tracking-label|text-(?:label|stat|display|hero))(?=\s|$)/;
+  /(?:^|[\s:])!?(?:label-mono|font-mono|uppercase|tracking-label|text-(?:label|stat|display|hero))!?(?=[\s/]|$)/;
+
+describe('the forbidden type classes', () => {
+  // Review finding CR611-13: a variant prefix, the important mark or a line-height modifier let a
+  // forbidden utility through.
+  it.each([
+    'sm:uppercase',
+    'hover:font-mono',
+    'md:text-hero',
+    'group-hover/tile:tracking-label',
+    '[&_span]:uppercase',
+    '!uppercase',
+    'uppercase!',
+    'text-hero/tight',
+    'text-label/5',
+    'md:text-display/none',
+  ])('catches %s', (className) => {
+    expect(FORBIDDEN.test(`flex ${className} gap-2`)).toBe(true);
+    expect(FORBIDDEN.test(className)).toBe(true);
+  });
+
+  it.each(['normal-case', 'text-label-foo', 'aria-label', 'text-muted-foreground'])(
+    'lets %s through',
+    (className) => {
+      expect(FORBIDDEN.test(`flex ${className} gap-2`)).toBe(false);
+      expect(FORBIDDEN.test(className)).toBe(false);
+    },
+  );
+});
 
 describe('refined type in the home console primitives', () => {
   it.each(HOME_PRIMITIVES)('%s sets no mono face, capitals or viewport-sized figure', (file) => {

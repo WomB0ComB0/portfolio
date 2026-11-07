@@ -28,9 +28,11 @@
  * The tile state contract, which the browser checks rely on: a tile root that is not showing its
  * reference content (the loaded tile its skeleton and the server's estimates are measured from)
  * says why in `data-state`: 'loading' (a skeleton, also aria-busy), 'error', 'empty' or 'stale'.
- * A tile showing its reference content carries 'ready' or keeps a state of its own that names a
- * designed state of the same size ('idle' for 'Not playing', a status level). A line that says
- * when stale data was read ('as of Nov 5') carries `data-stale`.
+ * 'loading' also marks a box reserved for copy still to come, with no aria-busy since its content
+ * shows (the hero's tagline before this server has loaded the settings). A tile showing its
+ * reference content carries 'ready' or keeps a state of its own that names a designed state of
+ * the same size ('idle' for 'Not playing', a status level). A line that says when stale data was
+ * read ('as of Nov 5') carries `data-stale`.
  */
 
 import { ArrowUpRight, CircleAlert, Clock } from 'lucide-react';

@@ -178,7 +178,8 @@ export const BENTO_TILE_HEIGHTS_PX: Readonly<
   // 130, not the middle (137): it shares a lane with status (see the exception above).
   type: { sm: 130, 'sm-wide': 136, md: 136, 'md-wide': 136, lg: 136 },
   // The sparkline sits beside the figure in a 30 to 40rem bento. In a lane narrower than about
-  // 337 px the unit wraps: 268 px (a 640 to 690 px bento, and every wide one), else 244 px.
+  // 337 px the unit wraps: 268 px (a 640 to 690 px bento), else 244 px. In a wide bento the unit
+  // always wraps, by rule (github-tile.tsx's TEXT_COLUMN_CLASS), so 268 px on every platform.
   gh: { sm: 236, 'sm-wide': 172, md: 256, 'md-wide': 244, lg: 268 },
   // A 2 : 1 cover, so the tile grows with its lane: stacked below a 30rem bento (251 px at its
   // smallest, 355 px at 479 px), cover-left from 30rem to 40rem (121.6 to 161.4 px).

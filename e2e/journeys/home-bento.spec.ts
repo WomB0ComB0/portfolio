@@ -27,8 +27,9 @@
  *   hugs its content, with at most 24 px of empty space below it; the hero is the largest tile, and
  *   from a 40rem bento it spans two lanes; no visible text is under 12 px.
  * - Masonry, at the same widths: each slot's grid-row span matches its height within one row, so
- *   the script that measures the slots works (with it broken, the server's estimates stay, and
- *   those are only near each tile's height).
+ *   the script that measures the slots works. With it broken, or not run, the server's estimates
+ *   stay (only near each tile's height), and every check that waits for the bento to settle times
+ *   out there first, naming each shown slot whose span the masonry has not written.
  * - Estimates, at 375, 390, 412, 500, 600, 700, 720, 768, 820, 900, 1024 and 1440 px: a fresh
  *   page without JavaScript reserves each slot the height it has with JavaScript. A slot in one
  *   lane reserves within 16 px of it. A slot across every lane reserves at most 16 px more, and
@@ -77,11 +78,13 @@
  *
  * Waits are deterministic: a check starts once no streamed segment is left hidden and nothing in
  * main is aria-busy (as e2e/visual/shell-grid.spec.ts waits), the fonts and images are in, and the
- * slots stay put across two animation frames, a task and a third frame, with every span the
- * masonry wrote matching its slot's height (it writes them the frame after a slot resizes). A page
- * without JavaScript is measured once its slots are in and its fonts have loaded. The selectors,
- * the waits, the measuring and the slots' states live in e2e/fixtures/home-bento.ts, shared with
- * the visual spec; what the estimate and first paint checks compare, in
+ * slots stay put across two animation frames, a task and a third frame, with every shown slot
+ * carrying the span the masonry wrote for its height (it writes them the frame after a slot
+ * resizes, and only once React has hydrated, so a slot with none yet means it has not run; where
+ * the browser packs grid lanes itself it writes none). A page without JavaScript is measured once
+ * its slots are in and its fonts have loaded. The selectors, the waits, the measuring and the
+ * slots' states live in e2e/fixtures/home-bento.ts, shared with the visual spec; what the estimate
+ * and first paint checks compare, and the settle wait's span test, in
  * e2e/fixtures/home-bento-estimates.ts, which tests/unit/home/bento-estimate-checks.test.ts tests.
  */
 
@@ -219,6 +222,11 @@ interface SlotHeadings {
 interface RunningAnimation {
   /** The bento slot the target sits in, or '' outside the bento. */
   readonly area: string;
+  /**
+   * The data-equaliser of the equaliser the target sits in ('live' while it plays, 'still'
+   * otherwise), or null outside one.
+   */
+  readonly equaliser: string | null;
   /** The target, as `tag.classes` plus its pseudo-element, for the failure message. */
   readonly target: string;
   /** The CSS properties its keyframes set. */
@@ -445,6 +453,7 @@ function runningAnimations(page: Page): Promise<RunningAnimation[]> {
         return [
           {
             area: target.closest(selector)?.getAttribute('data-bento-slot') ?? '',
+            equaliser: target.closest('[data-equaliser]')?.getAttribute('data-equaliser') ?? null,
             target: `${target.tagName.toLowerCase()}.${classes}${effect.pseudoElement ?? ''}`,
             properties: [...properties].filter((property) => !bookkeeping.has(property)),
           },
@@ -458,13 +467,15 @@ function runningAnimations(page: Page): Promise<RunningAnimation[]> {
 const describeAnimation = ({ area, target, properties }: RunningAnimation): string =>
   `${area || 'page'} ${target}: ${properties.join(', ')}`;
 
-/** Running animations that are not the equaliser's: outside its slot, or moving more than it may. */
+/**
+ * Running animations that are not the playing equaliser's: anything outside a live equaliser
+ * (elsewhere in its tile, or in one at rest), or moving more than it may.
+ */
 const motionBesidesEqualiser = (animations: readonly RunningAnimation[]): string[] =>
   animations
     .filter(
-      ({ area, properties }) =>
-        area !== EQUALISER_AREA ||
-        properties.some((property) => !EQUALISER_PROPERTIES.has(property)),
+      ({ equaliser, properties }) =>
+        equaliser !== 'live' || properties.some((property) => !EQUALISER_PROPERTIES.has(property)),
     )
     .map(describeAnimation);
 
@@ -710,8 +721,10 @@ test.describe('home bento motion', () => {
 
     const playing = slotOf(main, EQUALISER_AREA).getByRole('heading', { name: PLAYING_HEADING });
     test.skip((await playing.count()) === 0, 'nothing is playing now, so the equaliser rests');
-    const equaliser = (await runningAnimations(page)).filter(({ area }) => area === EQUALISER_AREA);
-    expect(equaliser.length, 'running animations in the now playing tile').toBeGreaterThan(0);
+    const equaliser = (await runningAnimations(page)).filter(
+      (animation) => animation.equaliser === 'live',
+    );
+    expect(equaliser.length, 'running animations in the live equaliser').toBeGreaterThan(0);
   });
 });
 

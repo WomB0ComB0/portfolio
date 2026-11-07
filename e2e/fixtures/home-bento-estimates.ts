@@ -18,7 +18,8 @@
  * @file The home bento's estimate and first paint comparisons: pure functions of the page measured
  * with JavaScript and the same page measured without it (fixtures/home-bento.ts's measureBento),
  * with no browser and no Playwright import, so tests/unit/home/bento-estimate-checks.test.ts runs
- * them on made-up measures. e2e/journeys/home-bento.spec.ts reports what they find.
+ * them on made-up measures. e2e/journeys/home-bento.spec.ts reports what they find. Also the settle
+ * wait's test of one slot's span (isSpanSettled), for the same reason.
  */
 
 import {
@@ -28,6 +29,7 @@ import {
   type BentoTier,
   bentoTierAt,
   type HeightRange,
+  rowsFor,
 } from '@/app/_components/home/bento-layout';
 
 import type { BentoMeasure, GridMeasure, SlotMeasure, SlotState } from './home-bento';
@@ -67,6 +69,25 @@ const LANE_TOLERANCE_PX = 1;
 /** Native grid lanes pack by height, with no grid-row spans and no masonry script. */
 export const isNativeLanes = (grid: GridMeasure): boolean => grid.display.endsWith('grid-lanes');
 
+/** A slot's border-box height and the span the masonry wrote on it ('' before it has). */
+export interface WrittenSpan {
+  readonly height: number;
+  readonly rowsJs: string;
+}
+
+/**
+ * Whether the masonry has nothing left to write on this slot, with JavaScript on: the slot is
+ * hidden (the island keeps a hidden slot's last span), or the span it wrote is the one the slot's
+ * height needs now. A shown slot with no span written is settled only where the browser packs the
+ * lanes itself (`nativeLanes`, CSS.supports('display', 'grid-lanes'), the island's own test), since
+ * the island writes none there; anywhere else the island has not measured it yet (it runs only
+ * after hydration), so the slot still has the server's estimate.
+ */
+export const isSpanSettled = (
+  { height, rowsJs }: WrittenSpan,
+  { nativeLanes }: { readonly nativeLanes: boolean },
+): boolean => height === 0 || (rowsJs === '' ? nativeLanes : Number(rowsJs) === rowsFor(height));
+
 /** Whether the slot's grid-column span covers every lane of the grid. */
 export const spansEveryLane = (grid: GridMeasure, slot: SlotMeasure): boolean =>
   slot.columns !== null && grid.lanes.length > 0 && slot.columns >= grid.lanes.length;
@@ -92,7 +113,10 @@ const gapRange = (area: string, tier: BentoTier): HeightRange | undefined =>
 /**
  * The states that make a slot, without JavaScript, taller or shorter than its estimate for its
  * reference content. Not 'loading': every tile that streams keeps its skeleton there, and a
- * skeleton has its tile's footprint.
+ * skeleton has its tile's footprint. The one 'loading' box that is not a skeleton, the hero's
+ * tagline reserved before a server has loaded the settings, is taller than the hero's reference;
+ * this check does not tell it apart. Against one local server it never shows (the settings are
+ * cached before the first measure), only against a target with several server instances.
  */
 const OFF_FOOTPRINT_STATES: ReadonlySet<SlotState> = new Set(['error', 'empty', 'stale']);
 

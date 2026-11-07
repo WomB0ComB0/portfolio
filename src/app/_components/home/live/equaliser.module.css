@@ -96,3 +96,14 @@
     animation: none;
   }
 }
+
+/* Forced colours paint every fill as Canvas, the tile's own: system colours keep the bars. */
+@media (forced-colors: active) {
+  .live {
+    background-color: CanvasText;
+  }
+
+  .still {
+    background-color: GrayText;
+  }
+}

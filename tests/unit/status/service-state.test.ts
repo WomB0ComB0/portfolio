@@ -124,6 +124,7 @@ describe('serviceStatusWords', () => {
     ['degraded', { up: 4, total: 4 }, { label: 'Degraded', tone: 'ongoing' }],
     ['operational', { up: 0, total: 0 }, { label: 'Monitoring paused', tone: 'idle' }],
     ['unknown', undefined, { label: 'Status unavailable', tone: 'idle' }],
+    ['unknown', { up: 2, total: 4 }, { label: 'Status unavailable', tone: 'idle' }],
   ] as const)('words %s with %o', (state: ServiceStateKey, monitors, words) => {
     expect(serviceStatusWords(state, monitors, false)).toEqual(words);
   });
@@ -135,6 +136,10 @@ describe('serviceStatusWords', () => {
       tone: 'down',
     });
     expect(serviceStatusWords('unknown', undefined, true).label).toBe('Status unavailable');
+    expect(serviceStatusWords('unknown', { up: 2, total: 4 }, true)).toEqual({
+      label: 'Status unavailable',
+      tone: 'idle',
+    });
   });
 });
 

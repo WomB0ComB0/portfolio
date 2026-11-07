@@ -221,7 +221,9 @@ const TAGLINE_TYPE_CLASS = 'hero-tagline';
 /**
  * The tagline's box when nothing is cached ({@link InitialCopy}): as many tagline lines as
  * Studio's longest (120 characters) wraps to at the tile's width, so the owner's tagline replaces
- * the built-in one without moving anything below it. Otherwise as tall as the tagline.
+ * the built-in one without moving anything below it. Otherwise as tall as the tagline. The
+ * reserved box carries data-state 'loading' (tile-states.tsx's state contract): it is not the
+ * hero's reference height.
  *
  * Measured in Chromium with Geist at 16 px, against the tile's content width: five lines below
  * 18rem (238 px on a 320 px phone), four up to 24rem (293 px at 375 px; some still four at
@@ -324,7 +326,11 @@ export function HeroTile(): ReactElement {
             <HeroRoleLine />
           </Suspense>
         </div>
-        <div data-hero-tagline-slot className={loaded ? undefined : TAGLINE_SLOT_RESERVED_CLASS}>
+        <div
+          data-hero-tagline-slot
+          data-state={loaded ? undefined : 'loading'}
+          className={loaded ? undefined : TAGLINE_SLOT_RESERVED_CLASS}
+        >
           <CopySlot initial={initial} view={HeroTagline} />
         </div>
       </div>
