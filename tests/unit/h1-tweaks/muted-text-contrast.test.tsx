@@ -18,13 +18,14 @@
  * @file Muted text that the darker H1 muted token (74% L, was 80%) pushed below WCAG AA's 4.5:1.
  * Ratios from the token-contrast test's OKLCH math, with translucent layers composited in sRGB:
  * - certification detail labels at text-muted-foreground/70 on the bg-card/40 card: 4.54:1, and
- *   4.44:1 under the hover spotlight (plain muted text: 8.16:1);
+ *   4.44:1 under the hover spotlight (plain muted text: 8.16:1). The Ledger replaced those cards;
+ *   its rows keep every muted line opaque;
  * - the privacy service rows' purpose on the bg-accent hover fill: 4.14:1 (foreground: 8.02:1);
  * - the photo viewer's drag hint, muted text at opacity-70 on the card: 4.49:1 (text-faint: 5.69:1).
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { makeCertification } from '@tests/fixtures/sanity-docs';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,25 +38,23 @@ vi.mock('@/components/magicui/magic-card', () => ({ MagicCard: passThrough }));
 import { Privacy } from '@/app/(routes)/(legal)/privacy/_interface/privacy/privacy';
 import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/place-photo-viewer';
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
-import type { CertificationCardData } from '@/app/(routes)/(main)/(professioal)/certifications/_components/certifications-explorer';
-import { CertificationsExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/certifications-explorer';
+import { LedgerRow } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-row';
+import { ChipLink } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-toolbar';
+import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 
 /** Any translucent muted text colour, e.g. `text-muted-foreground/70`. */
 const TRANSLUCENT_MUTED = /\btext-muted-foreground\/\d+/;
 
-const CERTIFICATION: CertificationCardData = {
-  id: 'cert-1',
-  title: 'Azure Fundamentals',
-  issuer: 'Microsoft',
-  issueDate: '2024-03-01',
-  expiryDate: '2027-03-01',
-  credentialId: 'AZ-900-123',
-  credentialUrl: null,
-  description: null,
-  skills: [],
-  imageUrl: null,
-  imageAlt: 'Azure Fundamentals badge',
-};
+const [CERTIFICATION] = buildLedger([
+  makeCertification({
+    title: 'Azure Fundamentals',
+    issuer: 'Microsoft',
+    issueDate: '2024-03-01',
+    credentialId: 'AZ-900-123',
+    credentialUrl: 'https://learn.microsoft.com/x',
+    skills: ['Azure'],
+  }),
+]).entries;
 
 const PHOTOS: readonly ViewerPhoto[] = [
   { url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600', alt: 'Photo of A' },
@@ -65,20 +64,42 @@ const PHOTOS: readonly ViewerPhoto[] = [
 afterEach(cleanup);
 
 describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
-  it.each(['Issued', 'Expires', 'Credential ID'])(
-    'the certification "%s" label is opaque muted text',
-    (label) => {
-      render(
-        <NuqsTestingAdapter>
-          <CertificationsExplorer certifications={[CERTIFICATION]} />
-        </NuqsTestingAdapter>,
-      );
+  it('a certification row in the Ledger sets no translucent muted text', () => {
+    if (!CERTIFICATION) throw new Error('no certification built');
+    const { container } = render(
+      <table>
+        <tbody>
+          <LedgerRow entry={CERTIFICATION} />
+        </tbody>
+      </table>,
+    );
 
-      const element = screen.getByText(label);
-      expect(element).toHaveClass('text-muted-foreground');
-      expect(element.className).not.toMatch(TRANSLUCENT_MUTED);
-    },
-  );
+    expect(screen.getByText('Microsoft · Mar 2024 · learn.microsoft.com')).toHaveClass(
+      'text-muted-foreground',
+    );
+    const translucent = Array.from(container.querySelectorAll('[class]')).filter((element) =>
+      TRANSLUCENT_MUTED.test(element.getAttribute('class') ?? ''),
+    );
+    expect(translucent).toEqual([]);
+  });
+
+  it("the current issuer chip's count lifts from faint to muted on the brand-subtle fill", () => {
+    // fg-faint on brand-subtle is 4.27:1; fg-muted is 5.98:1 (token-contrast.test.ts).
+    render(
+      <ul>
+        <ChipLink
+          chip={{ slug: 'google', label: 'Google', count: 20 }}
+          current
+          href="/certifications?issuer=google"
+          onSelect={() => undefined}
+        />
+      </ul>,
+    );
+
+    const count = screen.getByText('20');
+    expect(count.closest('a')).toHaveAttribute('aria-current', 'true');
+    expect(count).toHaveClass('text-faint', '[[aria-current=true]_&]:text-muted-foreground');
+  });
 
   it('a privacy service purpose brightens with its row on hover', () => {
     render(<Privacy />);

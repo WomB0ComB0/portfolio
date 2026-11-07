@@ -474,6 +474,27 @@
   text-wrap: pretty;
 }
 
+/*
+ * A page's h1 (PageShell). Sized by the page container, never the viewport: 32px on a phone,
+ * 44px once the page is 48rem wide.
+ */
+@utility page-title {
+  font-family: var(--font-sans);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+
+  @container (width >= 48rem) {
+    /* stylelint-disable no-invalid-position-declaration -- @utility is the style rule. */
+    font-size: 2.75rem;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    /* stylelint-enable no-invalid-position-declaration */
+  }
+}
+
 /* A tile's label, in sentence case as written: "LeetCode", "Recently at", "Current roles". */
 @utility tile-label {
   font-family: var(--font-sans);

@@ -47,9 +47,10 @@ const WORD_JOINER = '\u2060';
  * The new-tab arrow, glued to the word before it. The nowrap span starts with a WORD JOINER, so
  * there is no break opportunity between the link's last word and the icon, and the arrow never
  * wraps onto a line of its own. The span is aria-hidden as a whole, so the joiner stays out of
- * the accessible name too.
+ * the accessible name too. Exported for other new-tab links (the /certifications Ledger's), which
+ * pair it with `<SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>` as TileLink does.
  */
-function NewTabArrow(): ReactElement {
+export function NewTabArrow(): ReactElement {
   return (
     <span aria-hidden="true" data-new-tab-arrow="" className="shrink-0 whitespace-nowrap">
       {WORD_JOINER}

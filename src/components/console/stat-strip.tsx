@@ -15,9 +15,12 @@
  */
 
 /**
- * @file A row of small figures for a page header ("22 projects · 15 roles"), and the number
- * formatting every console figure shares. Server-safe (no directive, no hooks): server tiles and
- * the LiveNumber island both format through numberFormatter, so their text always agrees.
+ * @file A row of figures for a page header (22 projects, 15 roles), and the number formatting
+ * every console figure shares. Server-safe (no directive, no hooks): server tiles and the
+ * LiveNumber island both format through numberFormatter, so their text always agrees.
+ *
+ * The type is the refined set (globals.css): each figure is Geist (figure-sm, tabular) with its
+ * label under it (figure-unit), hairlines between the items; no mono face, no capitals.
  */
 
 import Link from 'next/link';
@@ -83,12 +86,17 @@ export function presentValue(value: number | string | null | undefined): number 
 const UNAVAILABLE_DASH = '—';
 const UNAVAILABLE_LABEL = 'unavailable';
 
-const PLACEHOLDER_KEYS = ['first', 'second', 'third', 'fourth'] as const;
+/** How many placeholder items a loading strip shows unless told. */
+const DEFAULT_PLACEHOLDERS = 4;
 
-const STRIP_CLASS = 'flex flex-wrap gap-x-5 gap-y-2 font-mono text-meta text-muted-foreground';
-const ITEM_CLASS = 'flex items-baseline gap-1.5';
-const VALUE_CLASS = 'order-1 font-semibold text-foreground tabular-nums';
-const BAR_CLASS = 'block h-3 rounded-sm bg-surface-3 motion-safe:animate-pulse';
+/** Equal columns on a phone; on wide screens each item is as wide as its figure or label. */
+const STRIP_CLASS = 'grid grid-flow-col auto-cols-[minmax(0,1fr)] md:auto-cols-max';
+const ITEM_CLASS =
+  'flex min-w-0 flex-col gap-1 border-l border-hairline px-3 first:border-l-0 first:pl-0 last:pr-0 md:px-6';
+const VALUE_CLASS = 'order-1 figure-sm text-foreground';
+const LABEL_CLASS = 'order-2 figure-unit text-muted-foreground';
+const UNIT_CLASS = 'ml-0.5 figure-unit text-muted-foreground';
+const BAR_CLASS = 'block rounded-sm bg-surface-3 motion-safe:animate-pulse forced-colors:outline';
 
 export interface StatStripItem {
   /** Read after the value ("22 projects"). Labels key the items, so keep them unique. */
@@ -106,8 +114,10 @@ export interface StatStripItem {
 
 export interface StatStripProps {
   items: readonly StatStripItem[];
-  /** Shows four placeholder items and marks the list busy. */
+  /** Shows placeholder items instead and marks the list busy. */
   loading?: boolean;
+  /** How many placeholders loading shows (4 unless given): as many as the loaded strip's items. */
+  placeholderCount?: number;
   className?: string;
   'aria-label'?: string;
 }
@@ -126,7 +136,7 @@ function StripValue({ label, value, unit, href }: StatStripItem): ReactNode {
   const text = (
     <>
       {formatStatValue(shown)}
-      {unit && <span className="ml-0.5 font-normal text-muted-foreground">{unit}</span>}
+      {unit && <span className={UNIT_CLASS}>{unit}</span>}
     </>
   );
   const destination = destinationOf(href);
@@ -141,22 +151,23 @@ function StripValue({ label, value, unit, href }: StatStripItem): ReactNode {
   );
 }
 
+/** A figure bar (the figure's 28px line) over a label bar inside the label's 20px line. */
 function PlaceholderItem(): ReactElement {
   return (
     <div aria-hidden="true" data-placeholder="" className={ITEM_CLASS}>
-      <dt className="order-2">
-        <span className={cn(BAR_CLASS, 'w-16')} />
+      <dt className="order-2 py-[3px]">
+        <span className={cn(BAR_CLASS, 'h-3.5 w-16')} />
       </dt>
       <dd className="order-1">
-        <span className={cn(BAR_CLASS, 'w-8')} />
+        <span className={cn(BAR_CLASS, 'h-7 w-10')} />
       </dd>
     </div>
   );
 }
 
 /**
- * Small figures in a description list. Each label comes first in the DOM, so a screen reader
- * hears "Projects, 22", while CSS order shows the value first ("22 projects").
+ * Figures in a description list. Each label comes first in the DOM, so a screen reader hears
+ * "Projects, 22", while CSS order shows the figure first with its label under it.
  *
  * @example
  * <StatStrip aria-label="At a glance" items={[{ label: 'projects', value: 22, href: '/projects' }]} />
@@ -164,6 +175,7 @@ function PlaceholderItem(): ReactElement {
 export function StatStrip({
   items,
   loading = false,
+  placeholderCount = DEFAULT_PLACEHOLDERS,
   className,
   'aria-label': ariaLabel,
 }: StatStripProps): ReactElement {
@@ -174,10 +186,13 @@ export function StatStrip({
       className={cn(STRIP_CLASS, className)}
     >
       {loading
-        ? PLACEHOLDER_KEYS.map((key) => <PlaceholderItem key={key} />)
+        ? Array.from({ length: placeholderCount }, (_, index) => (
+            // The placeholders are identical and never reorder, so the index is their identity.
+            <PlaceholderItem key={`placeholder-${Number(index)}`} />
+          ))
         : items.map((item) => (
             <div key={item.label} className={ITEM_CLASS}>
-              <dt className="order-2">{item.label}</dt>
+              <dt className={LABEL_CLASS}>{item.label}</dt>
               <dd className={VALUE_CLASS}>
                 <StripValue {...item} />
               </dd>

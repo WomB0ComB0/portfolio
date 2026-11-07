@@ -171,6 +171,7 @@ export const certificationsQuery = `
     image,
     description,
     skills,
+    featured,
     order
   }
 `;
@@ -194,6 +195,7 @@ export const certificationByIdQuery = `
     image,
     description,
     skills,
+    featured,
     order
   }
 `;

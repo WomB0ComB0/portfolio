@@ -113,6 +113,13 @@ const STYLES = {
     'line-height': '1.5rem',
     'font-weight': '400',
   },
+  'page-title': {
+    'font-family': SANS,
+    'font-size': '2rem',
+    'line-height': '1.1',
+    'font-weight': '600',
+    'letter-spacing': '-0.035em',
+  },
   'tile-label': {
     'font-family': SANS,
     'font-size': '0.8125rem',
@@ -212,6 +219,12 @@ describe('the refined type utilities (globals.css)', () => {
     // compile() keeps the query nested in the utility; the build's Lightning CSS flattens it.
     expect(css).toMatch(
       /\.hero-name\s*\{[^}]*@container \(width >= 28\.5rem\)\s*\{\s*letter-spacing:\s*-0\.05em;/,
+    );
+  });
+
+  it('steps the page title to 44px once the page container is 48rem wide', () => {
+    expect(css).toMatch(
+      /\.page-title\s*\{[^}]*@container \(width >= 48rem\)\s*\{\s*font-size:\s*2\.75rem;\s*line-height:\s*1\.05;\s*letter-spacing:\s*-0\.04em;/,
     );
   });
 

@@ -21,6 +21,9 @@
  * It replaces the centred PageHeader as pages migrate. It renders no <main>: the shell's
  * PageMain is the landmark. Inside the shell, PageMain has no horizontal padding, so PageShell
  * applies the page gutter itself unless `gutter` is false.
+ *
+ * The type is the refined set (globals.css): the h1 is page-title (Geist 600, sized by the page
+ * container), the eyebrow a sentence-case tile-label, never the chrome's upper-case mono caption.
  */
 
 import type { ReactElement, ReactNode } from 'react';
@@ -28,20 +31,26 @@ import type { ReactElement, ReactNode } from 'react';
 import { hasContent } from '@/components/console/has-content';
 import { cn } from '@/lib/utils';
 
-const ROOT_CLASS = 'flex flex-col gap-8 md:gap-12';
+const ROOT_CLASS = 'flex flex-col gap-5 md:gap-6';
 const GUTTER_CLASS = 'px-(--page-gutter)';
 const HEADER_CLASS =
-  'grid gap-4 border-b border-hairline pb-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end';
-const TITLE_CLASS = 'text-display font-extrabold tracking-display text-foreground';
+  'grid gap-4 border-b border-hairline pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-6 md:pb-5';
+const TITLE_CLASS = 'page-title text-foreground';
+const EYEBROW_CLASS = 'tile-label text-muted-foreground';
 const DESCRIPTION_CLASS = 'max-w-[60ch] text-body text-muted-foreground';
+/** With actions beside the title, the stats take a row of their own under both. */
+const STATS_UNDER_CLASS = 'md:col-span-2';
 
 export interface PageShellProps {
   /** The page's one h1. */
   title: ReactNode;
-  /** A short mono line above the title, e.g. 'Work · 22 projects'. */
+  /** A short sentence-case line above the title, e.g. 'Work'. */
   eyebrow?: ReactNode;
   description?: ReactNode;
-  /** Usually a StatStrip; it spans the header's full width under the title. */
+  /**
+   * Usually a StatStrip. On wide screens it sits beside the title, or, when there are actions
+   * there, in a row of its own under both; on a phone it comes under the title.
+   */
   stats?: ReactNode;
   /** Buttons or links beside the title on wide screens, under it on narrow ones. */
   actions?: ReactNode;
@@ -72,13 +81,15 @@ export function PageShell({
   return (
     <div className={cn(ROOT_CLASS, gutter && GUTTER_CLASS, className)}>
       <header className={HEADER_CLASS}>
-        <div className="min-w-0 space-y-3">
-          {hasContent(eyebrow) && <p className="label-mono text-muted-foreground">{eyebrow}</p>}
+        <div className="min-w-0 space-y-2">
+          {hasContent(eyebrow) && <p className={EYEBROW_CLASS}>{eyebrow}</p>}
           <h1 className={TITLE_CLASS}>{title}</h1>
           {hasContent(description) && <p className={DESCRIPTION_CLASS}>{description}</p>}
         </div>
         {hasContent(actions) && <div className="flex flex-wrap gap-2">{actions}</div>}
-        {hasContent(stats) && <div className="md:col-span-2">{stats}</div>}
+        {hasContent(stats) && (
+          <div className={cn('min-w-0', hasContent(actions) && STATS_UNDER_CLASS)}>{stats}</div>
+        )}
       </header>
       {children}
     </div>

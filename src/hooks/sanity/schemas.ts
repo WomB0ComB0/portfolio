@@ -161,6 +161,11 @@ export const CertificationSchema = Schema.Struct({
   issueDate: Schema.String,
   expiryDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   skills: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  /**
+   * The Studio switch for the /certifications Featured row. Documents written before the field
+   * existed have no value, and GROQ answers null for them: both decode as false.
+   */
+  featured: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
   order: Schema.Number,
 });
 

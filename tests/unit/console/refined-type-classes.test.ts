@@ -17,10 +17,10 @@
  */
 
 /**
- * @file The console primitives the home bento renders follow the refined type: no class string in
- * them sets the mono face, upper case, the chrome's tracked label or a viewport-sized figure. The
- * mono face is left to the mono-token utility, which a tile applies to a machine token itself.
- * PageShell and StatStrip are not rendered on the home page and keep the chrome's type.
+ * @file The console primitives the home bento and the Ledger (/certifications) render follow the
+ * refined type: no class string in them sets the mono face, upper case, the chrome's tracked label
+ * or a viewport-sized figure. The mono face is left to the mono-token utility, which a tile applies
+ * to a machine token itself. PageShell and StatStrip had their refined pass with the Ledger.
  */
 
 import { readFileSync } from 'node:fs';
@@ -30,8 +30,10 @@ import { describe, expect, it } from 'vitest';
 const HOME_PRIMITIVES = [
   'freshness.tsx',
   'live-number.tsx',
+  'page-shell.tsx',
   'segment-bar.tsx',
   'sparkline.tsx',
+  'stat-strip.tsx',
   'stat-tile.tsx',
   'status-dot.tsx',
   'tile-link.tsx',
@@ -81,7 +83,7 @@ describe('the forbidden type classes', () => {
   );
 });
 
-describe('refined type in the home console primitives', () => {
+describe('refined type in the console primitives', () => {
   it.each(HOME_PRIMITIVES)('%s sets no mono face, capitals or viewport-sized figure', (file) => {
     const source = readFileSync(join(process.cwd(), 'src/components/console', file), 'utf8');
     const offending = quotedStrings(source).filter((text) => FORBIDDEN.test(text));
