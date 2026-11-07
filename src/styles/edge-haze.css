@@ -1,0 +1,453 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The scroll edge haze (src/components/layout/edge-haze.tsx): a straight band of progressive
+ * blur at the top and the bottom of the page column, tinted with the canvas and eased to nothing,
+ * as iOS 26's scroll edge. Variant A of the blur lab with the owner's settings: strength 6px,
+ * roundness 0%, top and bottom 11%, tint 59%, 8 layers, and the lighter stack on phones (7 layers
+ * up to 5px). tests/unit/styles/edge-haze-css.test.ts holds these values.
+ *
+ * Markup: .edge-haze holds .t and .b. Each holds 8 i.l blur layers, then i.tn (the tint); .t
+ * ends with i.cap (under a notch or the status bar).
+ *
+ * Never give .edge-haze or a band opacity, a filter, a mask or will-change: each would cut every
+ * backdrop-filter inside it off from the page behind. Opacity is animated on each layer instead.
+ */
+
+/*
+ * Safari before 18 blurs only with -webkit-backdrop-filter, and Chrome before 120 masks only with
+ * -webkit-mask-image and its own -webkit-mask-composite keywords: each twin is deliberate. Next's
+ * production CSS pass follows package.json's browserslist (Safari 18 and up today) and drops the
+ * -webkit-backdrop-filter twins, so older Safari gets the scrim below; they come back with the list.
+ */
+/* stylelint-disable property-no-vendor-prefix */
+
+:root {
+  /*
+   * Each band's height: the owner's 11% of the screen, 77 to 132 px. Under 550 px of height the
+   * floor follows 14svh instead (owner decision), so a landscape phone or a page at 200-400% zoom
+   * keeps most of the page clear; every taller screen is unchanged. html's scroll-padding reads
+   * these too.
+   */
+  --edge-haze-top: clamp(min(77px, 14svh), 11svh, 132px);
+  --edge-haze-bottom: clamp(min(77px, 14svh), 11svh, 132px);
+}
+
+/*
+ * One fixed layer over the column, never over the navs: on phones it stops at the bottom bar, from
+ * lg it starts beside the 64px rail. z-20 is over the content (z-10 at most) and under the sticky
+ * FilterBar (30), the rail and its flyouts (40), and the bar, palette, sheets and dialogs (50).
+ */
+.edge-haze {
+  /*
+   * The tint: the canvas, eased from the screen edge to nothing. Relative colours, not color-mix():
+   * Tailwind gives color-mix() a full-strength var(--canvas) fallback, a solid band where it fails.
+   */
+  --edge-haze-ramp:
+    oklch(from var(--canvas) l c h / 59%) 0%, oklch(from var(--canvas) l c h / 47%) 18%,
+    oklch(from var(--canvas) l c h / 34%) 37%, oklch(from var(--canvas) l c h / 21%) 57%,
+    oklch(from var(--canvas) l c h / 9%) 78%, transparent 100%;
+
+  position: fixed;
+  inset: 0 0 var(--mobile-bar-total);
+  z-index: 20;
+  pointer-events: none;
+}
+
+@media (width >= 64rem) {
+  .edge-haze {
+    inset: 0 0 0 4rem;
+  }
+}
+
+/* The bands are centred at max-w-shell, as main is. */
+.edge-haze > div {
+  position: absolute;
+  inset-inline: 0;
+  max-width: var(--container-shell);
+  margin-inline: auto;
+}
+
+/* Each layer's mask: in and out across its own band, or to the screen edge for the strongest. */
+.edge-haze > .t {
+  --edge-haze-fade: linear-gradient(
+    to top,
+    transparent 0%,
+    #000 33.33%,
+    #000 66.67%,
+    transparent 100%
+  );
+  --edge-haze-fade-end: linear-gradient(to top, transparent 0%, #000 50%, #000 100%, #000 100%);
+
+  top: env(safe-area-inset-top, 0);
+  height: var(--edge-haze-top);
+}
+
+.edge-haze > .b {
+  --edge-haze-fade: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 33.33%,
+    #000 66.67%,
+    transparent 100%
+  );
+  --edge-haze-fade-end: linear-gradient(to bottom, transparent 0%, #000 50%, #000 100%, #000 100%);
+
+  bottom: 0;
+  height: var(--edge-haze-bottom);
+}
+
+.edge-haze > div > i {
+  position: absolute;
+  display: block;
+  opacity: 0;
+}
+
+/* The blur layers: each a straight band of the column at its own radius, masked to fade. */
+.edge-haze > div > .l {
+  left: 0;
+  width: 100%;
+  height: var(--edge-haze-span);
+  -webkit-backdrop-filter: blur(var(--edge-haze-blur));
+  backdrop-filter: blur(var(--edge-haze-blur));
+  -webkit-mask-image: var(--edge-haze-fade);
+  mask-image: var(--edge-haze-fade);
+}
+
+.edge-haze > .t > .l {
+  top: var(--edge-haze-at);
+}
+
+.edge-haze > .b > .l {
+  bottom: var(--edge-haze-at);
+}
+
+/* Fine pointers: 8 layers, 1, 1.29, 1.67, 2.16, 2.78, 3.6, 4.65 and 6px, the weakest innermost. */
+.edge-haze .l:nth-child(1) {
+  --edge-haze-at: 66.67%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 1px;
+}
+
+.edge-haze .l:nth-child(2) {
+  --edge-haze-at: 55.56%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 1.29px;
+}
+
+.edge-haze .l:nth-child(3) {
+  --edge-haze-at: 44.44%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 1.67px;
+}
+
+.edge-haze .l:nth-child(4) {
+  --edge-haze-at: 33.33%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 2.16px;
+}
+
+.edge-haze .l:nth-child(5) {
+  --edge-haze-at: 22.22%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 2.78px;
+}
+
+.edge-haze .l:nth-child(6) {
+  --edge-haze-at: 11.11%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 3.6px;
+}
+
+.edge-haze .l:nth-child(7) {
+  --edge-haze-at: 0%;
+  --edge-haze-span: 33.33%;
+  --edge-haze-blur: 4.65px;
+}
+
+.edge-haze .l:nth-child(8) {
+  --edge-haze-at: 0%;
+  --edge-haze-span: 22.22%;
+  --edge-haze-blur: 6px;
+  --edge-haze-fade: var(--edge-haze-fade-end);
+}
+
+.edge-haze > div > .tn {
+  inset: 0;
+}
+
+.edge-haze > .t > .tn {
+  background-image: linear-gradient(to bottom, var(--edge-haze-ramp));
+}
+
+.edge-haze > .b > .tn {
+  background-image: linear-gradient(to top, var(--edge-haze-ramp));
+}
+
+/* Under a notch or the status bar: the full blur, so the ramp starts where people read. */
+.edge-haze > .t > .cap {
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: env(safe-area-inset-top, 0);
+  background: oklch(from var(--canvas) l c h / 59%);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Phones and tablets: the lighter stack, 7 layers, 1, 1.31, 1.71, 2.24, 2.92, 3.82 and 5px. */
+@media (pointer: coarse) {
+  .edge-haze .l:nth-child(1) {
+    --edge-haze-at: 62.5%;
+    --edge-haze-span: 37.5%;
+    --edge-haze-blur: 1px;
+  }
+
+  .edge-haze .l:nth-child(2) {
+    --edge-haze-at: 50%;
+    --edge-haze-span: 37.5%;
+    --edge-haze-blur: 1.31px;
+  }
+
+  .edge-haze .l:nth-child(3) {
+    --edge-haze-at: 37.5%;
+    --edge-haze-span: 37.5%;
+    --edge-haze-blur: 1.71px;
+  }
+
+  .edge-haze .l:nth-child(4) {
+    --edge-haze-at: 25%;
+    --edge-haze-span: 37.5%;
+    --edge-haze-blur: 2.24px;
+  }
+
+  .edge-haze .l:nth-child(5) {
+    --edge-haze-at: 12.5%;
+    --edge-haze-span: 37.5%;
+    --edge-haze-blur: 2.92px;
+  }
+
+  .edge-haze .l:nth-child(6) {
+    --edge-haze-at: 0%;
+    --edge-haze-span: 37.5%;
+    --edge-haze-blur: 3.82px;
+  }
+
+  .edge-haze .l:nth-child(7) {
+    --edge-haze-at: 0%;
+    --edge-haze-span: 25%;
+    --edge-haze-blur: 5px;
+    --edge-haze-fade: var(--edge-haze-fade-end);
+  }
+
+  .edge-haze .l:nth-child(n + 8) {
+    display: none;
+  }
+
+  .edge-haze > .t > .cap {
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+  }
+}
+
+/*
+ * Wide screens: the canvas shows beside the 1200px column, so the sides feather over 48px instead
+ * of ending in a hard line over the canvas and the atmosphere glow.
+ */
+@media (width >= 85rem) and (pointer: fine) {
+  .edge-haze {
+    --edge-haze-feather: linear-gradient(
+      to right,
+      transparent,
+      #000 48px,
+      #000 calc(100% - 48px),
+      transparent
+    );
+  }
+
+  .edge-haze > div > .l {
+    -webkit-mask-image: var(--edge-haze-fade), var(--edge-haze-feather);
+    -webkit-mask-composite: source-in;
+    mask-image: var(--edge-haze-fade), var(--edge-haze-feather);
+    mask-composite: intersect;
+  }
+
+  .edge-haze > div > .tn {
+    -webkit-mask-image: var(--edge-haze-feather);
+    mask-image: var(--edge-haze-feather);
+  }
+}
+
+/*
+ * The top band arrives over the first band height of scroll, so it is invisible at the top of the
+ * page; the bottom one leaves over the last, so the footer is sharp at the end. They follow the
+ * scroll position, never the clock: under reduced motion nothing moves on its own. On a page too
+ * short to scroll the timeline is inactive and both stay hidden.
+ */
+.edge-haze > .t > i {
+  animation: edge-haze-in linear both;
+  animation-timeline: scroll(root block);
+  animation-range: 0 var(--edge-haze-top);
+}
+
+.edge-haze > .b > i {
+  animation: edge-haze-out linear both;
+  animation-timeline: scroll(root block);
+  animation-range: calc(100% - var(--edge-haze-bottom)) 100%;
+}
+
+@keyframes edge-haze-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes edge-haze-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * Without scroll-driven animations (Firefox; Safari before 26), the component sets these from the
+ * scroll position. Until it runs, the first paint is at the top of the page: the top band hidden,
+ * the bottom one shown, so it does not snap on at hydration (on a page too short to scroll the
+ * script then hides it).
+ */
+@supports not (animation-timeline: scroll()) {
+  .edge-haze > .t > i {
+    animation: none;
+    opacity: var(--edge-haze-top-opacity, 0);
+  }
+
+  .edge-haze > .b > i {
+    animation: none;
+    opacity: var(--edge-haze-bottom-opacity, 1);
+  }
+}
+
+/*
+ * No blur (reduced transparency, or no backdrop-filter): the layers go, and a plain canvas scrim
+ * takes their place, always a straight, full-width band.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .edge-haze {
+    --edge-haze-ramp:
+      oklch(from var(--canvas) l c h / 94%) 0%, oklch(from var(--canvas) l c h / 86%) 22%,
+      oklch(from var(--canvas) l c h / 64%) 45%, oklch(from var(--canvas) l c h / 34%) 70%,
+      transparent 100%;
+  }
+
+  .edge-haze > div > .l {
+    display: none;
+  }
+
+  .edge-haze > div > .tn {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .edge-haze > .t > .cap {
+    background: oklch(from var(--canvas) l c h / 94%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .edge-haze {
+    --edge-haze-ramp:
+      oklch(from var(--canvas) l c h / 94%) 0%, oklch(from var(--canvas) l c h / 86%) 22%,
+      oklch(from var(--canvas) l c h / 64%) 45%, oklch(from var(--canvas) l c h / 34%) 70%,
+      transparent 100%;
+  }
+
+  .edge-haze > div > .l {
+    display: none;
+  }
+
+  .edge-haze > div > .tn {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .edge-haze > .t > .cap {
+    background: oklch(from var(--canvas) l c h / 94%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Forced colours (Windows High Contrast and others): no haze at all. */
+@media (forced-colors: active) {
+  .edge-haze {
+    display: none;
+  }
+}
+
+/*
+ * Focus, find-in-page and #hash targets stop clear of both bands (and of the bar on phones). The
+ * site set no scroll-padding before. The only sticky header, /projects' FilterBar (lg:top-4), ends
+ * 74px (4.625rem) down. From lg the top padding is never less than that, so it also clears the
+ * bar on a short screen whose band is shorter (e2e/visual/edge-haze.spec.ts checks 1024 x 640).
+ */
+html {
+  scroll-padding-block: calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px))
+    calc(var(--edge-haze-bottom) + var(--mobile-bar-total));
+}
+
+@media (width >= 64rem) {
+  html {
+    scroll-padding-block: max(var(--edge-haze-top), 4.625rem) var(--edge-haze-bottom);
+  }
+}
+
+/*
+ * Print: fixed, the haze would repeat on every printed page, its bottom band blanking the last
+ * rows of each, so it goes, and the bands' scroll padding with it. After both screen paddings, so
+ * it wins over them at every page width.
+ */
+@media print {
+  .edge-haze {
+    display: none;
+  }
+
+  html {
+    scroll-padding-block: 0;
+  }
+}
+
+/*
+ * An animation under a band makes the compositor blur that band again every frame.
+ * src/components/layout/pause-under-edge.ts marks a pulsing placeholder, a live dot or the
+ * equaliser while it overlaps a band, and it waits there until it is clear. :root raises the
+ * specificity over a one-class animation rule (a CSS module's), whatever the stylesheet order;
+ * Tailwind's animate-* utilities are in a layer, which this unlayered rule beats anyway.
+ */
+:root [data-under-edge] {
+  animation-play-state: paused;
+}
+
+/* stylelint-enable property-no-vendor-prefix */

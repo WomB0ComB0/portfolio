@@ -21,6 +21,8 @@ import { MAIN_CONTENT_ID, PageMain } from '@/components/animations/pages/page-tr
 import Palette from '@/components/cmd';
 import { SpotlightRoot } from '@/components/console/spotlight-root';
 import { Footer, MobileNavBar, NavBar } from '.';
+// Not through the barrel: tests stand in for the barrel's navs and footer only.
+import { EdgeHaze } from './edge-haze';
 
 /**
  * The page canvas. `atmosphere` paints a faint brand light from the top right; its gradient is
@@ -82,7 +84,7 @@ const SkipToContent = () => (
 
 /**
  * The site shell around every page: skip link, command palette, the tile spotlight's pointer
- * listener, the navs, the one `<main>` and the footer.
+ * listener, the navs, the one `<main>`, the footer and the scroll edge haze over them.
  *
  * Exactly one nav shows at every width: the 64 px rail from lg up, the bottom bar below it. Main
  * and the footer share one column offset by the rail, each at most max-w-shell wide and centred
@@ -112,6 +114,8 @@ export const Layout = ({
         <PageMain className={MAIN_CLASS}>{children}</PageMain>
         <Footer />
       </div>
+      {/* Fixed over the column at z-20, under the FilterBar, the rail, the bar and overlays. */}
+      <EdgeHaze path={pathname ?? ''} />
       <div className={BOTTOM_BAR_CLASS}>
         <MobileNavBar path={pathname ?? ''} />
       </div>
