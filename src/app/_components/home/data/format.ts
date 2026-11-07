@@ -390,10 +390,11 @@ const SENTENCE_STOP = /[.!?]['")\]’”]*(?=\s|$)/gu;
 
 /**
  * Text that ends in an abbreviation's dot, which ends no sentence: letters each followed by a dot
- * ('U.S.', 'e.g.', 'i.e.', a lone initial) or a common short form ('vs.', 'Inc.').
+ * ('U.S.', 'e.g.', 'i.e.', a lone initial) or a common short form ('vs.', 'Inc.'), after a
+ * space, the start, or an opening bracket or quote ('“U.S.”', '("e.g."', '[i.e.').
  */
 const ENDS_IN_ABBREVIATION =
-  /(?:^|[\s(])(?:(?:\p{L}\.)+|vs\.|approx\.|incl\.|Inc\.|Dr\.|Mr\.|Ms\.|Mrs\.)$/u;
+  /(?:^|[\s(["'‘“])(?:(?:\p{L}\.)+|vs\.|approx\.|incl\.|Inc\.|Dr\.|Mr\.|Ms\.|Mrs\.)$/u;
 
 /**
  * The first line of `text` with words in it, cut after its first sentence, as written; '' when

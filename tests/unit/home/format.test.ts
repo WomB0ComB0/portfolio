@@ -546,6 +546,18 @@ describe('firstSentence', () => {
     ['e.g.', 'Tools, e.g. scrapers and CLIs. More.', 'Tools, e.g. scrapers and CLIs.'],
     ['i.e.', 'One store, i.e. Postgres. More.', 'One store, i.e. Postgres.'],
     ['vs.', 'React vs. Vue, measured. More.', 'React vs. Vue, measured.'],
+    // CodeRabbit on #612: an opening quote or bracket before the abbreviation.
+    [
+      '“U.S.” in quotes',
+      'Built for the “U.S.” market. Supports regional deployments.',
+      'Built for the “U.S.” market.',
+    ],
+    ['"e.g." in straight quotes', 'Tools ("e.g." CLIs) ship. More.', 'Tools ("e.g." CLIs) ship.'],
+    [
+      '(i.e.) in brackets',
+      'One store [i.e. Postgres] only. More.',
+      'One store [i.e. Postgres] only.',
+    ],
   ])('reads past %s', (_abbreviation, text, sentence) => {
     expect(firstSentence(text)).toBe(sentence);
   });

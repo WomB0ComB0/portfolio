@@ -160,7 +160,9 @@ export function rowsFor(blockSizePx: number): number {
  * - status, LeetCode and typing below 30rem, one line taller each in a 288 px bento.
  * Content that still changes a height, so the table holds for today's: exactly one role beside
  * the hero's (a role, 56 px, shorter stacked), a site count of three digits ('certifications'
- * wraps under it in more cells: 19 px), a GitHub total of five digits, LeetCode's legend and the
+ * wraps under it in more cells: 19 px), a site count of exactly one (its singular name, one
+ * letter shorter than the skeleton's plural, can stay beside the figure where the plural wraps:
+ * 19 px shorter), a GitHub total of five digits, LeetCode's legend and the
  * typing line by their digits, the status line by its words, and the hero by its tagline.
  * Re-measure when a tile's markup changes, then run e2e/journeys/home-bento.spec.ts -g masonry
  * against a server with every API key: it fails when a one-lane tile reserves more than 16 px
