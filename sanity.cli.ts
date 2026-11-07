@@ -20,8 +20,11 @@
  **/
 import { defineCliConfig } from 'sanity/cli';
 
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
+// The same public fallbacks as sanity.config.ts (safe to expose: they ship in client code).
+// @sanity/cli 8 can evaluate this file without the app's .env values, and `sanity deploy` then
+// stops with 'does not contain a project identifier ("api.projectId")'.
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || '34jrnkds';
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
 
 export default defineCliConfig({
   api: {
