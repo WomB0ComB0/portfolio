@@ -124,14 +124,27 @@ const familyKeyOf = (issuer: string): string => familyOf(issuer).toLowerCase();
 
 /**
  * Each family's ?issuer slug, by family key. Names that slug alike ('C++ Institute' and
- * 'C Institute') or not at all (a non-Latin name) stay separate issuers: the later name, in name
- * order, takes -2, -3 and so on, so a shared link keeps its issuer as the data grows.
+ * 'C Institute') or not at all (a non-Latin name) stay separate issuers: the family whose first
+ * certificate is earliest keeps the plain slug, later ones take -2, -3 and so on (then by name).
+ * A newly added issuer almost always has newer certificates, so existing shared links keep their
+ * issuer; only a back-dated certificate from a new alike-named issuer could still move one.
  */
 function familySlugs(sources: readonly LedgerSource[]): ReadonlyMap<string, string> {
-  const keys = [...new Set(sources.map((source) => familyKeyOf(source.issuer)))].sort();
+  const earliest = new Map<string, string>();
+  for (const source of sources) {
+    const key = familyKeyOf(source.issuer);
+    // An unreadable date sorts after every month.
+    const month = sortKey(source) || '￿';
+    const known = earliest.get(key);
+    if (known === undefined || month < known) earliest.set(key, month);
+  }
+  const keys = [...earliest].sort(
+    ([keyA, monthA], [keyB, monthB]) =>
+      (monthA < monthB ? -1 : monthA > monthB ? 1 : 0) || (keyA < keyB ? -1 : keyA > keyB ? 1 : 0),
+  );
   const taken = new Set<string>();
   const slugs = new Map<string, string>();
-  for (const key of keys) {
+  for (const [key] of keys) {
     const base = familySlugOf(key);
     let slug = base;
     for (let suffix = 2; taken.has(slug); suffix += 1) slug = `${base}-${suffix}`;

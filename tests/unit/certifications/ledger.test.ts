@@ -253,12 +253,33 @@ describe('buildLedger', () => {
     );
     const slugs = alike.chips.map((chip) => chip.slug);
     expect(new Set(slugs).size).toBe(4);
-    // Assigned in name order, so a shared link keeps its issuer while the data grows.
-    expect(alike.index.families['c-institute']?.label).toBe('C Institute');
-    expect(alike.index.families['c-institute-2']?.label).toBe('C++ Institute');
+    // The family with the earliest certificate keeps the plain slug.
+    expect(alike.index.families['c-institute']?.label).toBe('C++ Institute');
+    expect(alike.index.families['c-institute-2']?.label).toBe('C Institute');
     for (const entry of alike.entries) {
       expect(alike.index.families[entry.familySlug]?.label).toBe(entry.family);
     }
+  });
+
+  // CodeRabbit on #613: in name order, adding 'C Institute' later took 'c-institute' from an
+  // existing 'C++ Institute' and broke its shared links. By earliest certificate it cannot.
+  it('keeps an existing issuer’s slug when a newer issuer with an alike name is added', () => {
+    const before = buildLedger([
+      cert({ title: 'One', issuer: 'C++ Institute', issueDate: '2023-01-01', order: 1 }),
+      cert({ title: 'Two', issuer: 'C++ Institute', issueDate: '2023-02-01', order: 2 }),
+    ]);
+    const after = buildLedger([
+      ...[
+        cert({ title: 'One', issuer: 'C++ Institute', issueDate: '2023-01-01', order: 1 }),
+        cert({ title: 'Two', issuer: 'C++ Institute', issueDate: '2023-02-01', order: 2 }),
+      ],
+      cert({ title: 'Three', issuer: 'C Institute', issueDate: '2025-03-01', order: 3 }),
+      cert({ title: 'Four', issuer: 'C Institute', issueDate: '2025-04-01', order: 4 }),
+    ]);
+
+    expect(before.index.families['c-institute']?.label).toBe('C++ Institute');
+    expect(after.index.families['c-institute']?.label).toBe('C++ Institute');
+    expect(after.index.families['c-institute-2']?.label).toBe('C Institute');
   });
 
   it('still folds one issuer written in different cases into one family', () => {
