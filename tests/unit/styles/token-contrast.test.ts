@@ -233,11 +233,20 @@ describe('colour token contrast (globals.css :root)', () => {
   it.each([
     ['fg', 'brand-subtle'],
     ['brand-ink', 'brand-subtle'],
+    // The current issuer chip's count on /certifications.
+    ['fg-muted', 'brand-subtle'],
   ] as const)('--%s on the --%s selected fill meets 4.5:1', (text, surface) => {
     const ratio = contrastRatio(color(text), color(surface));
     expect(ratio, `${text} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
       AA_NORMAL_TEXT,
     );
+  });
+
+  it('fg-faint on the brand-subtle fill falls below 4.5:1, so a selected chip lifts its faint text', () => {
+    // A known failure, kept visible: /certifications' current chip switches its count from faint
+    // to muted ([[aria-current=true]_&]:text-muted-foreground), which the pairs above check.
+    const ratio = contrastRatio(color('fg-faint'), color('brand-subtle'));
+    expect(ratio, `fg-faint on brand-subtle is ${ratio.toFixed(2)}:1`).toBeLessThan(AA_NORMAL_TEXT);
   });
 
   /** A status badge's fill: the `--<tone>-tint` token composited over an opaque surface. */

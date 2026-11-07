@@ -15,17 +15,16 @@
  */
 
 /**
- * @file /certifications renders on the server from loadCertifications(): every certification is
- * in the HTML, grouped by issuer, with no entrance animation hiding it. The search, issuer and
- * skill filters live in the URL (?q, ?issuer, ?skill), so a filtered view can be shared and
- * survives Back; a value that is not among the options shows everything.
+ * @file /certifications as the Ledger, rendered on the server from loadCertifications(): a header
+ * with three figures, a Featured row only when the owner featured something, then one table per
+ * year with a row per certificate. The one client island holds the filters; everything else is
+ * server code without the old card kit. (The URL filters: certifications-filters.test.tsx.)
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
-import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,234 +38,340 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 vi.mock('@/lib/sanity/loaders', () => ({ loadCertifications: h.loadCertifications }));
-// client.ts require()s '@/env' at load; the page only needs the image URL builder.
-vi.mock('@/lib/sanity/client', async () => {
-  const { createImageUrlBuilder } = await import('@sanity/image-url');
-  const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
-  return { urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source) };
-});
 
-import {
-  CertificationsPageSkeleton,
-  toCertificationCard,
-} from '@/app/(routes)/(main)/(professioal)/certifications/_interface/certifications/certifications';
 import CertificationsPage from '@/app/(routes)/(main)/(professioal)/certifications/page';
+import {
+  ALL_TITLES,
+  CERTS,
+  NEW_TAB,
+  renderPage,
+  rowFor,
+  rowTitles,
+  yearHeadings,
+} from './page-fixture';
 
 const C_DIR = 'src/app/(routes)/(main)/(professioal)/certifications';
-const EXPLORER_FILE = `${C_DIR}/_components/certifications-explorer.tsx`;
-const WRAPPER_FILE = `${C_DIR}/_interface/certifications/certifications.tsx`;
-
-const GOOGLE = 'Google';
-const AWS = 'Amazon Web Services';
-const MICROSOFT = 'Microsoft';
-
-const BADGE = {
-  _type: 'image' as const,
-  asset: { _ref: 'image-badge-800x450-png', _type: 'reference' as const },
-  alt: 'Power BI badge',
-};
-
-const CERTIFICATIONS = [
-  makeCertification({
-    issuer: GOOGLE,
-    title: 'Google Cloud Digital Leader',
-    // The CMS stores some skill lists as one joined string.
-    skills: ['Cloud Strategy • Networking'],
-  }),
-  makeCertification({ issuer: GOOGLE, title: 'Google Data Analytics', skills: ['SQL'] }),
-  makeCertification({ issuer: AWS, title: 'AWS Cloud Practitioner', skills: ['Cloud Strategy'] }),
-  makeCertification({
-    issuer: MICROSOFT,
-    title: 'Azure Fundamentals',
-    description: 'Core Azure services and governance.',
-    credentialId: 'AZ-900-123',
-  }),
-  makeCertification({ issuer: MICROSOFT, title: 'Power BI Data Analyst', image: BADGE }),
+const SERVER_FILES = [
+  `${C_DIR}/page.tsx`,
+  `${C_DIR}/_interface/certifications/certifications.tsx`,
+  `${C_DIR}/_components/ledger-row.tsx`,
+  `${C_DIR}/_components/featured-row.tsx`,
+  `${C_DIR}/_lib/ledger.ts`,
+  `${C_DIR}/_lib/filters.ts`,
+  `${C_DIR}/_lib/format.ts`,
 ];
+const ISLAND_FILE = `${C_DIR}/_components/ledger-explorer.tsx`;
+/** The island's own modules: its state hook, its toolbar and its year tables. */
+const ISLAND_PARTS = [
+  `${C_DIR}/_components/use-ledger-filters.ts`,
+  `${C_DIR}/_components/ledger-toolbar.tsx`,
+  `${C_DIR}/_components/ledger-years.tsx`,
+];
+/** Text a screen reader reads: aria-hidden subtrees left out. */
+const READ_ALOUD = { ignore: '[aria-hidden="true"], [aria-hidden="true"] *, script, style' };
 
-const TITLES_BY_ISSUER: Readonly<Record<string, readonly string[]>> = {
-  [GOOGLE]: ['Google Cloud Digital Leader', 'Google Data Analytics'],
-  [AWS]: ['AWS Cloud Practitioner'],
-  [MICROSOFT]: ['Azure Fundamentals', 'Power BI Data Analyst'],
-};
-const ALL_TITLES = Object.values(TITLES_BY_ISSUER).flat();
-
-/** An `opacity: 0` style (not 0.8): what a motion entrance serializes into server HTML. */
-const HIDDEN_BY_OPACITY = /opacity:\s*0(?![.\d])/;
-
-/** The card titles inside one issuer's section, in order. */
-const titlesIn = (issuer: string): string[] =>
-  within(screen.getByRole('region', { name: issuer }))
-    .getAllByRole('heading', { level: 3 })
-    .map((heading) => heading.textContent ?? '');
-
-const cardTitles = (): string[] =>
-  screen.queryAllByRole('heading', { level: 3 }).map((heading) => heading.textContent ?? '');
-
-/** The page at `searchParams`, with a URL that keeps what the page writes to it, as a browser's does. */
-async function renderPage(searchParams = '', onUrlUpdate?: OnUrlUpdateFunction) {
-  const page = await CertificationsPage();
-  return render(
-    <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate} hasMemory>
-      {page}
-    </NuqsTestingAdapter>,
-  );
-}
+/** What the chrome's type and the old cards used: none of it belongs on the Ledger. */
+const FORBIDDEN_TYPE =
+  /(?:^|[\s:])!?(?:label-mono|font-mono|uppercase|tracking-label|text-(?:label|stat|display|hero|xs|\[1[01]px\])|font-bold|font-extrabold|font-black)!?(?=[\s/]|$)/;
 
 beforeEach(() => {
   h.loadCertifications.mockReset();
-  h.loadCertifications.mockResolvedValue(CERTIFICATIONS);
+  h.loadCertifications.mockResolvedValue(CERTS);
 });
 
 afterEach(cleanup);
 
-describe('/certifications from the server', () => {
-  it('renders every certification, each under its issuer', async () => {
+describe('/certifications header', () => {
+  it('has one h1, the earliest month as its subline, and figures from the data', async () => {
+    const { container } = await renderPage();
+    // A description list has no ARIA role to query by; it is named by its aria-label.
+    const totals = container.querySelector<HTMLElement>('dl[aria-label="Totals"]') as HTMLElement;
+    const figure = (label: string): string | null =>
+      within(totals).getByText(label).parentElement?.querySelector('dd')?.textContent ?? null;
+
+    expect(screen.getAllByRole('heading', { level: 1 }).map((x) => x.textContent)).toEqual([
+      'Certifications',
+    ]);
+    expect(screen.getByText('Courses and certificates since July 2022.')).toBeInTheDocument();
+    expect(figure('certificates')).toBe('7');
+    // Google and Google Cloud Skills Boost are one company, Microsoft and its ambassadors another.
+    expect(figure('issuers')).toBe('4');
+    expect(figure('with a link')).toBe('6');
+  });
+});
+
+describe('the Ledger list', () => {
+  it('renders every certificate as a row, grouped by year, newest first', async () => {
     await renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'My Certifications' })).toBeVisible();
-    for (const [issuer, titles] of Object.entries(TITLES_BY_ISSUER)) {
-      expect(titlesIn(issuer)).toEqual(titles);
-    }
-    expect(cardTitles()).toHaveLength(CERTIFICATIONS.length);
-    expect(screen.getByText('AZ-900-123')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Power BI badge' })).toBeInTheDocument();
+    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(yearHeadings()).toEqual([
+      '2025, 1 certificate',
+      '2024, 2 certificates',
+      '2023, 3 certificates',
+      '2022, 1 certificate',
+    ]);
   });
 
-  it('server-renders every title with nothing hidden at opacity 0', async () => {
-    const html = renderToString(
-      <NuqsTestingAdapter>{await CertificationsPage()}</NuqsTestingAdapter>,
+  it('is a real table per year, named by its heading with a pause between the two numbers', async () => {
+    await renderPage();
+    const tables = screen.getAllByRole('table');
+
+    expect(tables).toHaveLength(4);
+    expect(tables[1]).toHaveAccessibleName('2024, 2 certificates');
+    expect(screen.getByRole('heading', { level: 2, name: '2024, 2 certificates' })).toBeVisible();
+    for (const table of tables) {
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((th) => th.textContent),
+      ).toEqual(['Certificate', 'Issuer', 'Issued', 'Verify']);
+    }
+  });
+
+  it('shows the column header row once, under the first year; later tables keep it for readers', async () => {
+    await renderPage();
+    const [first, ...later] = screen.getAllByRole('table') as HTMLElement[];
+    const headerClasses = (table: HTMLElement | undefined): string[] =>
+      Array.from(table?.querySelectorAll('th') ?? []).map((th) => th.className);
+
+    for (const className of headerClasses(first)) {
+      expect(className).not.toMatch(/clip-path/);
+    }
+    expect(later).toHaveLength(3);
+    for (const table of later) {
+      for (const className of headerClasses(table)) {
+        // Visually hidden inside the table's own layout (no sr-only: an absolutely positioned
+        // cell drops out of some browsers' table models), so the column keeps its header.
+        expect(className).toMatch(/\[clip-path:inset\(50%\)\]/);
+        expect(className).toMatch(/(?:^|\s)leading-0(?:\s|$)/);
+        expect(className).not.toMatch(/(?:^|\s)(?:sr-only|hidden|absolute)(?:\s|$)/);
+      }
+    }
+  });
+
+  it('links a title to its credential in a new tab, as the site words new-tab links', async () => {
+    await renderPage();
+    const link = within(rowFor('Build Wireframes')).getByRole('link', {
+      name: `Build Wireframes${NEW_TAB}`,
+    });
+
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.coursera.org/account/accomplishments/records/W5LT6G2556LY',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('shows issuer as written, the month, the host and the ID in the desktop cells', async () => {
+    await renderPage();
+    const [, issuer, issued, verify] = within(rowFor('BigQuery Basics')).getAllByRole('cell');
+    const month = within(issued as HTMLElement).getByText('Jun 2023');
+
+    expect(issuer).toHaveTextContent('Google Cloud Skills Boost');
+    expect(month.tagName).toBe('TIME');
+    expect(month).toHaveAttribute('datetime', '2023-06');
+    expect(verify).toHaveTextContent('cloudskillsboost.google');
+    const id = within(rowFor('Complete React Developer')).getByText('UC-5ba0a391');
+    expect(id).toHaveClass('mono-token');
+    // The ID shows wherever the Verify column is wide enough for it: from a 48rem page.
+    expect(id.className).toMatch(/@min-\[48rem\]\/page:block/);
+  });
+
+  it('gives screen readers the Verify cell’s host and names the ID', async () => {
+    await renderPage();
+    const verifyOf = (title: string): HTMLElement =>
+      within(rowFor(title)).getAllByRole('cell')[3] as HTMLElement;
+
+    expect(
+      within(verifyOf('BigQuery Basics')).getByText('cloudskillsboost.google', READ_ALOUD),
+    ).toHaveClass('sr-only');
+    const withId = verifyOf('Complete React Developer');
+    expect(within(withId).getByText('udemy.com', READ_ALOUD)).toBeInTheDocument();
+    expect(within(withId).getByText('Credential ID', READ_ALOUD)).toHaveClass('sr-only');
+  });
+
+  it('truncates a long host’s text but never its new-tab arrow', async () => {
+    await renderPage();
+    const verify = within(rowFor('BigQuery Basics')).getAllByRole('cell')[3] as HTMLElement;
+    const host = verify.querySelector('a') as HTMLAnchorElement;
+    const arrow = host.querySelector('[data-new-tab-arrow]') as HTMLElement;
+    const text = within(host).getByText('cloudskillsboost.google');
+
+    expect(host).not.toHaveClass('truncate');
+    expect(text).toHaveClass('truncate', 'min-w-0');
+    expect(arrow.parentElement).toBe(host);
+    expect(arrow).toHaveClass('shrink-0');
+  });
+
+  it('keeps the host link out of the tab order: the title already goes there', async () => {
+    await renderPage();
+    const row = rowFor('Build Wireframes');
+    const host = (within(row).getAllByRole('cell')[3] as HTMLElement).querySelector('a');
+
+    expect(host).toHaveTextContent('coursera.org');
+    expect(host).toHaveAttribute('tabindex', '-1');
+    expect(host).toHaveAttribute('aria-hidden', 'true');
+    expect(host?.getAttribute('href')).toBe(row.querySelector('a')?.getAttribute('href'));
+  });
+
+  it('says No link, and links nothing, for a certificate without a credential URL', async () => {
+    await renderPage();
+    const row = rowFor('Perform Cloud Data Science');
+
+    expect(within(row).queryByRole('link')).toBeNull();
+    expect(within(row).getByText('No link')).toBeInTheDocument();
+  });
+
+  // CodeRabbit on #613: an ID is still how a visitor verifies a credential by hand.
+  it('still shows the credential ID, named, when there is no URL', async () => {
+    h.loadCertifications.mockResolvedValue([
+      ...CERTS,
+      makeCertification({
+        title: 'Proctored Exam',
+        issuer: 'IBM',
+        issueDate: '2024-03-01',
+        order: 99,
+        credentialUrl: null,
+        credentialId: 'EXAM-42',
+      }),
+    ]);
+    await renderPage();
+    const row = rowFor('Proctored Exam');
+
+    expect(within(row).queryByRole('link')).toBeNull();
+    expect(within(row).getByText('No link')).toBeInTheDocument();
+    expect(row).toHaveTextContent(/Credential ID\s*EXAM-42/);
+  });
+
+  it('lists the split skills under the title, and the phone meta line under that', async () => {
+    await renderPage();
+    const row = rowFor('Complete React Developer');
+
+    expect(
+      within(row).getByText('Cascading Style Sheets (CSS) · Redux.js · React.js'),
+    ).toBeInTheDocument();
+    expect(within(row).getByText('Udemy · Sep 2023 · udemy.com')).toBeInTheDocument();
+    expect(
+      within(rowFor('Perform Cloud Data Science')).getByText('Microsoft · Dec 2024'),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('the Featured row', () => {
+  it('is left out entirely when nothing is featured', async () => {
+    const { container } = await renderPage();
+
+    expect(screen.queryByRole('heading', { name: 'Featured' })).toBeNull();
+    expect(container.querySelector('[data-featured]')).toBeNull();
+  });
+
+  it('shows up to four featured certificates in display order', async () => {
+    h.loadCertifications.mockResolvedValue(
+      CERTS.map((c) => ({ ...c, featured: c.title !== 'Build Wireframes' })),
+    );
+    await renderPage();
+    const section = screen.getByRole('region', { name: 'Featured' });
+    const tiles = within(section).getAllByRole('listitem');
+
+    expect(tiles.map((tile) => within(tile).getByRole('heading', { level: 3 }))).toHaveLength(4);
+    expect(
+      tiles.map((tile) => {
+        const heading = within(tile).getByRole('heading', { level: 3 });
+        return heading.querySelector('a, span')?.firstChild?.textContent;
+      }),
+    ).toEqual([
+      'Qiskit Global Summer School 2025',
+      'Perform Cloud Data Science with Azure Machine Learning',
+      'Complete React Developer',
+      'BigQuery Basics',
+    ]);
+    const qiskit = tiles[0] as HTMLElement;
+    expect(within(qiskit).getByText('IBM')).toBeInTheDocument();
+    expect(within(qiskit).getByText('Aug 2025')).toBeInTheDocument();
+    expect(within(qiskit).getByText('credly.com')).toBeInTheDocument();
+    expect(
+      within(qiskit).getByRole('link', { name: `Qiskit Global Summer School 2025${NEW_TAB}` }),
+    ).toHaveAttribute('href', 'https://www.credly.com/badges/abc/linked_in_profile');
+  });
+});
+
+describe('server rendering and module boundaries', () => {
+  // Owner decision (2026-11-07): no skeleton for this route. With a loading.tsx React streams the
+  // rows into a hidden segment behind it, so visitors without JavaScript, crawlers and link
+  // previews saw only the skeleton, and a Featured row the skeleton cannot predict would jump.
+  it('has no loading.tsx, so the whole Ledger is in the HTML as it arrives', () => {
+    const present = ['loading.tsx', 'loading.ts', 'loading.jsx', 'loading.js'].filter((file) =>
+      existsSync(join(process.cwd(), C_DIR, file)),
     );
 
-    for (const title of ALL_TITLES) expect(html).toContain(title);
-    expect(html).not.toMatch(HIDDEN_BY_OPACITY);
+    expect(present).toEqual([]);
   });
 
-  it('lets a failed load reach the route error boundary instead of showing an empty list', async () => {
+  it('server-renders every title, the filters applied, nothing hidden at opacity 0', async () => {
+    const all = renderToString(await CertificationsPage({ searchParams: Promise.resolve({}) }));
+    const google = renderToString(
+      await CertificationsPage({ searchParams: Promise.resolve({ issuer: 'google' }) }),
+    );
+
+    for (const title of ALL_TITLES) expect(all).toContain(title);
+    expect(all).not.toMatch(/opacity:\s*0(?![.\d])/);
+    expect(google).toContain('BigQuery Basics');
+    expect(google).not.toContain('Udemy TypeScript');
+  });
+
+  it('lets a failed load reach the route error boundary', async () => {
     h.loadCertifications.mockReset();
     h.loadCertifications.mockRejectedValue(new Error('Sanity is down'));
 
-    await expect(CertificationsPage()).rejects.toThrow('Sanity is down');
-  });
-});
-
-describe('/certifications filters in the URL', () => {
-  it('?issuer=Google shows only the Google group', async () => {
-    await renderPage('?issuer=Google');
-
-    expect(titlesIn(GOOGLE)).toEqual(TITLES_BY_ISSUER[GOOGLE]);
-    expect(screen.queryByRole('region', { name: AWS })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: MICROSOFT })).not.toBeInTheDocument();
-    expect(screen.getByText('Showing 2 of 5 certifications')).toBeInTheDocument();
+    await expect(CertificationsPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+      'Sanity is down',
+    );
   });
 
-  it('?skill matches one part of a joined skill string', async () => {
-    await renderPage('?skill=Networking');
-
-    expect(cardTitles()).toEqual(['Google Cloud Digital Leader']);
-  });
-
-  it('?q filters on the server render too', async () => {
-    await renderPage('?q=governance');
-
-    expect(cardTitles()).toEqual(['Azure Fundamentals']);
-  });
-
-  it("treats an issuer or skill that is not among the options as 'all'", async () => {
-    await renderPage('?issuer=Nobody&skill=Juggling');
-
-    expect(cardTitles()).toEqual(ALL_TITLES);
-    expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
-  });
-
-  it('writes the search to ?q with history replace, and filters the cards', async () => {
-    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
-    await renderPage('', onUrlUpdate);
-
-    fireEvent.change(screen.getByPlaceholderText('Search certifications...'), {
-      target: { value: 'power' },
-    });
-
-    await waitFor(() => expect(cardTitles()).toEqual(['Power BI Data Analyst']));
-    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
-    const update = onUrlUpdate.mock.calls.at(-1)?.[0];
-    expect(update?.searchParams.get('q')).toBe('power');
-    expect(update?.options.history).toBe('replace');
-    expect(update?.options.shallow).toBe(true);
-  });
-
-  it('Clear removes every filter from the URL', async () => {
-    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
-    await renderPage('?issuer=Google&q=data', onUrlUpdate);
-    expect(cardTitles()).toEqual(['Google Data Analytics']);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-
-    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
-    await waitFor(() => expect(cardTitles()).toEqual(ALL_TITLES));
-  });
-
-  it('shows "No matches found" with a way out when the filters match nothing', async () => {
-    await renderPage('?q=quantum');
-
-    expect(screen.getByRole('heading', { name: 'No matches found' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear Filters' })).toBeInTheDocument();
-  });
-
-  it('shows "No certifications found" when there are none at all', async () => {
+  it('says so when there are no certificates at all, with no toolbar', async () => {
     h.loadCertifications.mockResolvedValue([]);
     await renderPage();
+    const empty = screen.getByText('No certificates are listed yet.');
 
-    expect(screen.getByRole('heading', { name: 'No certifications found' })).toBeInTheDocument();
-  });
-});
-
-describe('certification cards and the loading skeleton', () => {
-  it('toCertificationCard precomputes the image URL at 800x450, or null without an image', () => {
-    const [withoutImage, withImage] = [CERTIFICATIONS[0], CERTIFICATIONS[4]].map((cert) =>
-      toCertificationCard(cert as NonNullable<typeof cert>),
-    );
-
-    expect(withoutImage).toMatchObject({
-      id: CERTIFICATIONS[0]?._id,
-      issuer: GOOGLE,
-      imageUrl: null,
-      imageAlt: 'Google Cloud Digital Leader certification badge',
-      expiryDate: null,
-      credentialUrl: null,
-    });
-    expect(withImage?.imageUrl).toMatch(/^https:\/\/cdn\.sanity\.io\/images\/test\/test\/badge-/);
-    expect(withImage?.imageUrl).toContain('w=800');
-    expect(withImage?.imageUrl).toContain('h=450');
-    expect(withImage?.imageAlt).toBe('Power BI badge');
+    // The designed empty state, under the tile state contract like the filtered one.
+    expect(empty.closest('[data-state="empty"]')).not.toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Certifications');
   });
 
-  it("lays the skeleton's cards out in the loaded grid's columns", async () => {
-    const loaded = await renderPage();
-    const loadedGrid = loaded.container.querySelector('section > .grid');
-    const loadedClass = loadedGrid?.className;
-    cleanup();
+  it('sets no upper case, mono face (but the IDs) or bold weight anywhere on the page', async () => {
+    h.loadCertifications.mockResolvedValue(CERTS.map((c) => ({ ...c, featured: true })));
+    const { container } = await renderPage({ skill: 'SQL' });
+    const offending = Array.from(container.querySelectorAll('[class]'))
+      .map((element) => element.getAttribute('class') ?? '')
+      .filter((classes) => FORBIDDEN_TYPE.test(classes));
 
-    const { container } = render(<CertificationsPageSkeleton />);
-
-    expect(screen.getByRole('heading', { level: 1, name: 'My Certifications' })).toBeVisible();
-    expect(screen.getByRole('status', { name: 'Loading certifications' })).toBeInTheDocument();
-    const skeletonGrids = container.querySelectorAll('section > .grid');
-    expect(skeletonGrids.length).toBeGreaterThan(0);
-    for (const grid of skeletonGrids) expect(grid.className).toBe(loadedClass);
+    expect(offending).toEqual([]);
   });
 
-  it('keeps Sanity, data hooks and client code out of the wrong modules', () => {
-    const explorer = readFileSync(join(process.cwd(), EXPLORER_FILE), 'utf8');
-    const wrapper = readFileSync(join(process.cwd(), WRAPPER_FILE), 'utf8');
+  it('keeps one small client island; the rest is server code with no old card kit', () => {
+    const island = readFileSync(join(process.cwd(), ISLAND_FILE), 'utf8');
 
-    expect(explorer).toMatch(/^'use client';/);
-    expect(explorer).not.toMatch(/from '@\/lib\/sanity/);
-    expect(explorer).not.toMatch(/from '@\/hooks'/);
-    expect(explorer).not.toMatch(/from '(?:framer-motion|motion\/react)'/);
-    expect(wrapper).not.toContain("'use client'");
-    expect(wrapper).not.toMatch(/from '@\/components'/);
+    expect(island).toMatch(/^'use client';/);
+    for (const file of [ISLAND_FILE, ...ISLAND_PARTS]) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8');
+      for (const banned of [
+        /from 'nuqs'/,
+        /from 'lucide-react'/,
+        /from 'next\/image'/,
+        /from '@\/lib\/sanity/,
+        /from '(?:framer-motion|motion\/react)'/,
+        /magic-card/,
+      ]) {
+        expect(source, file).not.toMatch(banned);
+      }
+    }
+    for (const file of SERVER_FILES) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8');
+      expect(source, file).not.toMatch(/['"]use client['"]/);
+      expect(source, file).not.toMatch(/magic-card|next\/image|from 'nuqs'/);
+    }
   });
 });

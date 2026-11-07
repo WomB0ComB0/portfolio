@@ -32,11 +32,12 @@
  * `next dev`, its route is compiled) before the browser loads it.
  *
  * Two limits are by design, so the no-JavaScript checks assert presence, not display:
- * - The list pages (/projects, /experience, /certifications, /places, /resume) keep a
- *   loading.tsx, so a client navigation shows their skeleton (with the page's own h1) at once.
- *   React always flushes that skeleton first and streams the items into a hidden element that an
- *   inline script moves into place, even when the whole response is ready within milliseconds.
- *   Crawlers get every item in the HTML; a visitor without JavaScript sees the skeleton.
+ * - The list pages (/projects, /experience, /places, /resume) keep a loading.tsx, so a client
+ *   navigation shows their skeleton (with the page's own h1) at once. React always flushes that
+ *   skeleton first and streams the items into a hidden element that an inline script moves into
+ *   place, even when the whole response is ready within milliseconds. Crawlers get every item in
+ *   the HTML; a visitor without JavaScript sees the skeleton. /certifications has no loading.tsx
+ *   (owner decision), so its rows show without JavaScript (e2e/journeys/certifications.spec.ts).
  * - A detail page calls notFound() with no Suspense above it, which is what makes its status a
  *   real 404. Next answers that with an empty error document plus the payload, and the browser
  *   renders "Page not found" inside the shell from it.
@@ -106,10 +107,10 @@ const CONTENT_PAGES: readonly ContentPage[] = [
   { path: '/places', item: detailLinks('/places'), emptyText: 'No places found' },
   {
     path: '/certifications',
-    // A card's title: an h3 in its issuer's section (named by the issuer's h2). A CSS locator,
-    // because role queries skip a streamed segment while it is still hidden.
-    item: (main) => main.locator('section[aria-labelledby] h3'),
-    emptyText: 'No certifications found',
+    // A certificate's row in the Ledger. A CSS locator, because role queries skip a streamed
+    // segment while it is still hidden.
+    item: (main) => main.locator('tr[data-cert-row]'),
+    emptyText: 'No certificates are listed yet.',
   },
   {
     path: '/resume',

@@ -73,20 +73,25 @@ function renderStrip(items: readonly StatStripItem[] = ITEMS, loading = false): 
 }
 
 describe('StatStrip', () => {
-  it('is a dl of dt/dd pairs with each label first in the DOM', () => {
+  it('is a dl of dt/dd pairs with each label first in the DOM, shown under its figure', () => {
     const list = renderStrip();
     const groups = Array.from(list.children);
 
     expect(list).toHaveAttribute('aria-label', 'Totals');
     expect(list).not.toHaveAttribute('aria-busy');
-    expect(list).toHaveClass('flex', 'font-mono', 'text-meta', 'text-muted-foreground');
+    expect(list).toHaveClass('grid', 'grid-flow-col');
+    // Refined: Geist figures, no mono face, nothing in the chrome's 13px meta size.
+    expect(list).not.toHaveClass('font-mono', 'text-meta');
     expect(groups).toHaveLength(ITEMS.length);
     for (const group of groups) {
       const [first, second] = Array.from(group.children);
+      // A column: the figure on top (order 1), its label under it (order 2).
+      expect(group).toHaveClass('flex', 'flex-col');
       expect(first?.tagName).toBe('DT');
-      expect(first).toHaveClass('order-2');
+      expect(first).toHaveClass('order-2', 'figure-unit', 'text-muted-foreground');
       expect(second?.tagName).toBe('DD');
-      expect(second).toHaveClass('order-1', 'font-semibold', 'text-foreground', 'tabular-nums');
+      expect(second).toHaveClass('order-1', 'figure-sm', 'text-foreground');
+      expect(second).not.toHaveClass('font-mono');
     }
   });
 
@@ -154,6 +159,18 @@ describe('StatStrip', () => {
       expect(placeholder).toHaveAttribute('aria-hidden', 'true');
     }
     expect(within(list).queryByText('1,234')).toBeNull();
+  });
+
+  it('loading shows as many placeholders as asked, so a skeleton matches its loaded strip', () => {
+    const { container } = render(<StatStrip items={[]} loading placeholderCount={3} />);
+    const placeholders = container.querySelectorAll('[data-placeholder]');
+
+    expect(placeholders).toHaveLength(3);
+    for (const placeholder of placeholders) {
+      // A figure bar over a label bar, in the loaded item's column.
+      expect(placeholder).toHaveClass('flex', 'flex-col');
+      expect(placeholder.querySelector('dd span')).toHaveClass('h-7');
+    }
   });
 
   it('renders on the server and has no use client directive', () => {

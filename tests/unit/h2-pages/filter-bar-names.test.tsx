@@ -23,7 +23,7 @@
  */
 
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { makeCertification } from '@tests/fixtures/sanity-docs';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -35,8 +35,8 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 
-import type { CertificationCardData } from '@/app/(routes)/(main)/(professioal)/certifications/_components/certifications-explorer';
-import { CertificationsExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/certifications-explorer';
+import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
+import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 import { FilterBar, type FilterConfig } from '@/components/ui/filter-bar';
 
 const noop = (): void => undefined;
@@ -63,24 +63,11 @@ const bar = (filters: FilterConfig[]) => (
   />
 );
 
-const CERTIFICATION: CertificationCardData = {
-  id: 'cert-1',
-  title: 'Cloud Practitioner',
-  issuer: 'Amazon Web Services',
-  issueDate: '2025-01-15',
-  expiryDate: null,
-  credentialId: null,
-  credentialUrl: null,
-  description: null,
-  skills: ['Cloud'],
-  imageUrl: null,
-  imageAlt: 'Cloud Practitioner badge',
-};
-
 afterEach(cleanup);
 
 describe('FilterBar select names', () => {
-  // The placeholders the /projects, /certifications and /places explorers pass today.
+  // The placeholders the /projects and /places explorers pass, and the two /certifications passed
+  // before the Ledger replaced its selects with issuer chips.
   it.each([
     ['All Categories', 'Filter by categories'],
     ['All Technologies', 'Filter by technologies'],
@@ -112,17 +99,20 @@ describe('FilterBar select names', () => {
     expect(within(container).getByRole('combobox', { name: 'Filter by issuers' })).toBeTruthy();
   });
 
-  it('leaves no select on /certifications unnamed', () => {
+  it('leaves nothing unnamed on /certifications: a named search and a named chip list', () => {
+    const ledger = buildLedger([makeCertification({ issuer: 'Amazon Web Services' })]);
     render(
-      <NuqsTestingAdapter>
-        <CertificationsExplorer certifications={[CERTIFICATION]} />
-      </NuqsTestingAdapter>,
+      <LedgerExplorer
+        rows={ledger.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
+        chips={ledger.chips}
+        other={ledger.other}
+        index={ledger.index}
+        initial={{ issuer: null, skill: null, q: '' }}
+      />,
     );
 
-    const boxes = screen.getAllByRole('combobox');
-    expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual([
-      'Filter by issuers',
-      'Filter by skills',
-    ]);
+    expect(screen.queryAllByRole('combobox')).toEqual([]);
+    expect(screen.getByRole('searchbox', { name: 'Search certificates' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Filter by issuer' })).toBeInTheDocument();
   });
 });

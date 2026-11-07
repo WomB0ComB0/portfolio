@@ -15,10 +15,11 @@
  */
 
 /**
- * @file PageShell gives a page one left-aligned h1 in display type, a header that holds the
- * eyebrow, description, actions and stats, the content after it, the page gutter unless turned
- * off, and no <main> of its own. The console barrel exports every primitive and stays out of the
- * root '@/components' barrel.
+ * @file PageShell gives a page one left-aligned h1 in the refined page title (Geist, weight 600,
+ * sized by the page container), a header that holds the eyebrow (sentence case, never the
+ * upper-case mono caption), description, actions and stats (beside the title when there are no
+ * actions), the content after it, the page gutter unless turned off, and no <main> of its own.
+ * The console barrel exports every primitive and stays out of the root '@/components' barrel.
  */
 
 import { readFileSync } from 'node:fs';
@@ -50,30 +51,45 @@ function renderFull() {
 }
 
 describe('PageShell', () => {
-  it('has one h1 in display type, and nothing centred', () => {
+  it('has one h1 in the refined page title (Geist 600), and nothing centred', () => {
     const { container } = renderFull();
     const headings = screen.getAllByRole('heading', { level: 1 });
 
     expect(headings).toHaveLength(1);
     expect(headings[0]).toHaveTextContent('Projects');
-    expect(headings[0]).toHaveClass(
-      'text-display',
-      'font-extrabold',
-      'tracking-display',
-      'text-foreground',
-    );
+    expect(headings[0]).toHaveClass('page-title', 'text-foreground');
+    for (const chrome of ['text-display', 'font-extrabold', 'tracking-display']) {
+      expect(headings[0]).not.toHaveClass(chrome);
+    }
     expect(container.querySelector('.text-center')).toBeNull();
   });
 
   it('puts the eyebrow, description, actions and stats inside the header', () => {
     renderFull();
     const header = screen.getByRole('banner');
+    const eyebrow = within(header).getByText('Work');
 
-    expect(within(header).getByText('Work')).toHaveClass('label-mono', 'text-muted-foreground');
+    // The eyebrow is sentence case in Geist, not the chrome's upper-case mono caption.
+    expect(eyebrow).toHaveClass('tile-label', 'text-muted-foreground');
+    expect(eyebrow).not.toHaveClass('label-mono');
     expect(within(header).getByText('Things I built.')).toHaveClass('text-body', 'max-w-[60ch]');
     expect(within(header).getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(within(header).getByText('22 projects').parentElement).toHaveClass('md:col-span-2');
     expect(header).toHaveClass('border-b', 'border-hairline');
+  });
+
+  it('sets the stats beside the title on wide screens when there are no actions', () => {
+    render(
+      <PageShell title="Certifications" stats={<p>64 certificates</p>}>
+        body
+      </PageShell>,
+    );
+    const header = screen.getByRole('banner');
+    const stats = within(header).getByText('64 certificates').parentElement;
+
+    expect(header).toHaveClass('md:grid-cols-[minmax(0,1fr)_auto]', 'md:items-end');
+    expect(stats).not.toHaveClass('md:col-span-2');
+    expect(header.children).toHaveLength(2);
   });
 
   it('renders the children after the header', () => {

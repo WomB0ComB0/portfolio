@@ -98,6 +98,7 @@ export function makeCertification(overrides: Partial<Certification> = {}): Certi
     issuer: `Issuer ${n}`,
     issueDate: '2025-01-15',
     order: n,
+    featured: false,
     ...overrides,
   };
 }

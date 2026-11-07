@@ -22,9 +22,9 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { makeCertification } from '@tests/fixtures/sanity-docs';
 import { Effect } from 'effect';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // t3-env validates on import; these tests need no real configuration.
@@ -50,8 +50,8 @@ vi.mock('@/lib/http-clients/effect-fetcher', () => ({
 import { GuestbookComponent } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook';
 import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/place-photo-viewer';
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
-import type { CertificationCardData } from '@/app/(routes)/(main)/(professioal)/certifications/_components/certifications-explorer';
-import { CertificationsExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/certifications-explorer';
+import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
+import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 import { FilterBar } from '@/components/ui/filter-bar';
 
 const TABULAR = 'tabular-nums';
@@ -61,19 +61,10 @@ const PHOTOS: readonly ViewerPhoto[] = [
   { url: 'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=1600', alt: 'Photo of B' },
 ];
 
-const CERTIFICATION: CertificationCardData = {
-  id: 'cert-1',
-  title: 'Cloud Practitioner',
-  issuer: 'Amazon Web Services',
-  issueDate: '2025-01-15',
-  expiryDate: null,
-  credentialId: null,
-  credentialUrl: null,
-  description: null,
-  skills: [],
-  imageUrl: null,
-  imageAlt: 'Cloud Practitioner badge',
-};
+const LEDGER = buildLedger([
+  makeCertification({ issuer: 'Amazon Web Services', issueDate: '2025-01-01' }),
+  makeCertification({ issuer: 'Amazon Web Services', issueDate: '2024-01-01' }),
+]);
 
 const noop = (): void => undefined;
 
@@ -130,13 +121,20 @@ describe('live counters use tabular figures', () => {
     expect(screen.getByText('Showing 2 of 15 projects')).toHaveClass(TABULAR);
   });
 
-  it('the certifications issuer badge, whose count follows the search', () => {
+  it('the certifications chip counts and year counts, which follow the filters', () => {
     render(
-      <NuqsTestingAdapter>
-        <CertificationsExplorer certifications={[CERTIFICATION]} />
-      </NuqsTestingAdapter>,
+      <LedgerExplorer
+        rows={LEDGER.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
+        chips={LEDGER.chips}
+        other={LEDGER.other}
+        index={LEDGER.index}
+        initial={{ issuer: null, skill: null, q: '' }}
+      />,
     );
+    const chips = screen.getByRole('list', { name: 'Filter by issuer' });
 
-    expect(screen.getByText('1 Certification')).toHaveClass(TABULAR);
+    for (const count of within(chips).getAllByText('2')) expect(count).toHaveClass(TABULAR);
+    // tile-meta sets tabular figures itself (globals.css).
+    expect(screen.getAllByText('1 certificate')[0]).toHaveClass('tile-meta');
   });
 });
