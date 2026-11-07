@@ -17,11 +17,18 @@
 /**
  * @file The home page's visual checks:
  * - it answers 200, with the site's title and a responsive viewport meta;
- * - at 375, 768, 1024 and 1440 px, under reduced motion and once every tile has loaded, a
- *   screenshot of the whole page with what changes on its own masked: the live now playing,
- *   status and GitHub slots and the footer's status badge, and what the server words relative to
- *   now: the text marked data-dated (the last place's when line) and any stale
- *   tile's 'as of …' line (LeetCode, typing).
+ * - at 375, 768, 1024 and 1440 px (bentos of 333, 711, 893 and 1136 px in a desktop browser, the
+ *   first three 10 px wider on a phone: four of the widths the masonry's estimate checks run at),
+ *   under reduced motion, once every tile has loaded (or shows its error state) and the masonry has
+ *   settled, a screenshot of the whole page with what changes on its own masked: the
+ *   live now playing, status and GitHub slots, the project slot (the latest work is picked by the
+ *   owner's commits and says when he committed), the footer's status badge, and what the server
+ *   words relative to now: the text marked data-dated (the 'Recently at' place's when line) and
+ *   any stale tile's 'as of …' line (LeetCode, typing).
+ *
+ * A masked slot keeps its box in the screenshot, so where every tile lands in the masonry is
+ * compared too. A tile whose data changes height moves the tiles after it, and can move them
+ * to another lane: that is the masonry working, so review such a diff rather than fail on it.
  *
  * Baselines: the repository commits none yet, and a toHaveScreenshot with no baseline fails (and
  * writes one). So by default each screenshot is attached to the test report for review, not
@@ -32,28 +39,22 @@
  *     --project=chromium --update-snapshots
  *
  * Baselines are per browser project and platform (Playwright's default snapshot path, under
- * e2e/visual/homepage.spec.ts-snapshots/). The unmasked tiles (LeetCode, typing, the featured
- * project, the roles and the site index) change whenever their data does, and every tile changes
- * with the design tokens: review the diff before committing new baselines. page.clock cannot pin
- * the dated text: the server words it, so it is masked instead.
+ * e2e/visual/homepage.spec.ts-snapshots/). The unmasked tiles (the hero, LeetCode, typing, the
+ * place, the roles and the site index) change whenever their data does, and every tile changes
+ * with the design tokens: review the diff before committing new baselines. A baseline holds only
+ * for the data it was taken with: one taken with every API key fails on a server without them,
+ * where the tiles that need one show their error states, and the reverse. page.clock
+ * cannot pin the dated text: the server words it, so it is masked instead.
  *
- * The behaviour checks (layout at each width, links, keyboard, motion, console, no-JavaScript
- * HTML) live in e2e/journeys/home-bento.spec.ts.
+ * The behaviour checks (layout at each width, the masonry's spans and estimates, links, keyboard,
+ * motion, console, no-JavaScript HTML) live in e2e/journeys/home-bento.spec.ts.
  */
 
 import { existsSync } from 'node:fs';
 import { expect, type Locator, type Page, type TestInfo, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
-
-/** The shell's one `<main>` (src/components/animations/pages/page-transition.tsx). */
-const MAIN = 'main#main-content';
-
-const SLOT = '[data-bento-slot]';
-const SLOT_COUNT = 10;
-
-/** A tile still loading (its skeleton) marks itself busy. */
-const BUSY = '[aria-busy="true"]';
+import { type BentoArea, MAIN, SLOT, settleBento } from '../fixtures/home-bento';
 
 const VIEWPORTS = [
   { width: 375, height: 812 },
@@ -62,14 +63,18 @@ const VIEWPORTS = [
   { width: 1440, height: 900 },
 ] as const;
 
-/** Slots whose content changes from one load to the next. */
-const LIVE_SLOTS = ['now', 'status', 'gh'] as const;
+/**
+ * Slots whose content changes from one load to the next: the live islands, the GitHub activity,
+ * and the project, which is the owner's latest work (by his commits, with a 'committed …' line
+ * worded from now) whenever his activity picks one.
+ */
+const LIVE_SLOTS: readonly BentoArea[] = ['now', 'status', 'gh', 'proj'];
 
 /**
  * Text the server words from today's date, so it changes from one day to the next with no new
- * data (TileMeta's `dated`): the last place's line with the relative day ('yesterday', '6 d ago')
- * and the date, which gains the year once the year turns (place-tile.tsx). The rest of the place
- * tile, its 'Last place' label included, is compared.
+ * data (TileMeta's `dated`): the place's line with the relative day ('yesterday', '6 d ago') and
+ * the date, which gains the year once the year turns (place-tile.tsx). The rest of the place
+ * tile, its 'Recently at' label included, is compared.
  * Each is a flex item of its tile, so its box spans the tile whatever its words.
  */
 const DATED_TEXT = '[data-dated]';
@@ -96,23 +101,6 @@ const liveContent = (page: Page): Locator[] => [
   page.locator(MAIN).locator(SLOT).getByText(AS_OF_LINE),
   page.getByRole('contentinfo').locator(`a[href="${STATUS_PAGE_URL}"]`),
 ];
-
-/**
- * Waits for what a screenshot shows to stop changing: every tile loaded (no skeleton left), every
- * image decoded, below the fold too (lazy images load now rather than mid-capture), and the fonts.
- * An image that fails to load is left as it is: the screenshot then shows it for review.
- */
-async function settle(page: Page): Promise<void> {
-  const main = page.locator(MAIN);
-  await expect(main.locator(SLOT)).toHaveCount(SLOT_COUNT);
-  await expect(main.locator(`${SLOT} ${BUSY}`)).toHaveCount(0);
-  await page.evaluate(async () => {
-    const images = [...document.images];
-    for (const image of images) image.loading = 'eager';
-    await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
-    await document.fonts.ready;
-  });
-}
 
 test.describe('home page basics', () => {
   test('answers 200', async ({ page }) => {
@@ -145,7 +133,9 @@ test.describe('home page screenshots', () => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.setViewportSize(viewport);
       await page.goto(getTargetUrl());
-      await settle(page);
+      // Every tile loaded, images decoded (an image that fails is shown for review), fonts in,
+      // and the masonry settled: nothing in the screenshot moves after this.
+      await settleBento(page, page.locator(MAIN));
 
       const name = `home-${viewport.width}.png`;
       const options = {

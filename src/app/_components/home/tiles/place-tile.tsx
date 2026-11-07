@@ -17,16 +17,16 @@
 import 'server-only';
 
 /**
- * @file The home last-place tile: the place whose visit ended most recently. Past visits only, so
- * it never says where the owner is now: no 'Here now', and no coordinates (/places has the map).
- * selectLatestPlace picks only a visit that is over (placeCutoffDay: from noon ET the day after),
- * and the view applies the same rule again: a place whose visit may still be on, however it got
- * here, shows the empty state. A linked tile whose stretched link is the place's name. A run of
- * visits shows its first and last day ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15'), and how
- * long ago counts from the last.
+ * @file The home place tile, 'Recently at': the place whose visit ended most recently. Past
+ * visits only, so it never says where the owner is now: no 'Here now', and no coordinates (/places
+ * has the map). selectLatestPlace picks only a visit that is over (placeCutoffDay: from noon ET
+ * the day after), and the view applies the same rule again: a place whose visit may still be on,
+ * however it got here, shows the empty state. A linked tile whose stretched link is the place's
+ * name.
  *
- * At 18rem of tile width and above it shows the first photo as a 72 px thumbnail; narrower, or
- * without a photo, nothing takes its place.
+ * One row: the first photo as a 64px thumbnail (at every width; nothing in its place without one),
+ * then the label, the name and 'Event · Aug 21'. A run of visits shows its first and last day
+ * ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15').
  */
 
 import Image from 'next/image';
@@ -35,15 +35,7 @@ import type { ReactElement } from 'react';
 import { hasDestination, SrOnlyWords, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
-import {
-  type DaySpanParts,
-  formatAsOfDay,
-  formatDay,
-  formatDaySpan,
-  formatRelative,
-  type Instant,
-  lastDayOf,
-} from '../data/format';
+import { type DaySpanParts, formatAsOfDay, formatDaySpan, type Instant } from '../data/format';
 import { loadLatestPlace } from '../data/loaders';
 import { lastDayIfOver, placeCutoffDay } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
@@ -52,36 +44,31 @@ import {
   LoadingNote,
   META_SEPARATOR,
   SkeletonBar,
+  SkeletonLine,
   TileEmpty,
   TileLabel,
   TileMeta,
   TileUnavailable,
 } from './tile-states';
 
-const LABEL = 'Last place';
+const LABEL = 'Recently at';
 const PLACES_PATH = '/places';
 
-/** Drawn at 72 px; the file is twice that for 2x screens. */
-const THUMB_PX = 72;
+/** Drawn at 64 px; the file is twice that for 2x screens. */
+const THUMB_PX = 64;
 const THUMB_SOURCE_PX = THUMB_PX * 2;
 
 /** Between a span's first and last day: an en dash, as /places prints a visit's dates. */
 const SPAN_DASH = ' – ';
 
-const NAME_CLASS =
-  'line-clamp-2 min-w-0 flex-1 wrap-break-word text-body font-semibold text-foreground';
-const THUMB_CLASS = 'hidden size-18 shrink-0 rounded-md object-cover @2xs:block';
-
-/**
- * The skeleton's boxes: one line of the name (text-body's line height) and the meta line
- * (text-meta's), so the tile keeps its height when a place without a photo streams in.
- */
-const NAME_LINE_CLASS = 'flex h-[1.625rem] items-center';
-const META_LINE_CLASS = 'mt-auto flex h-[1.125rem] items-center';
+const ROW_CLASS = 'flex min-w-0 items-center gap-3';
+const THUMB_CLASS = 'size-16 shrink-0 rounded-lg bg-surface-3 object-cover';
+const TEXT_CLASS = 'flex min-w-0 flex-1 flex-col gap-0.5';
+const NAME_CLASS = 'line-clamp-2 wrap-break-word tile-title text-foreground';
 
 const NO_PLACE: TileResult<never> = { status: 'empty' };
 
-/** The first photo's 144 px square, or null without a photo it can resolve. */
+/** The first photo's 128 px square, or null without a photo it can resolve. */
 function thumbnailUrl(place: Place): string | null {
   const photo = place.photos?.[0];
   if (!photo?.asset) return null;
@@ -113,25 +100,23 @@ function SpanEnd({ end }: { end: string }): ReactElement {
 interface PlaceMetaProps {
   category: Place['category'];
   days: DaySpanParts | null;
-  /** How long ago, or null when the days already say when. */
-  when: string | null;
   asOf: string;
 }
 
 /**
- * The context line: category, days, how long ago and, for a stale place, the list's day. A range's
- * end is markup (SpanEnd), so the line is joined around it.
+ * The context line: the category and the days ('Event · Aug 21'), and, for a stale place, the
+ * list's day. A range's end is markup (SpanEnd), so the line is joined around it.
  */
-function PlaceMeta({ category, days, when, asOf }: PlaceMetaProps): ReactElement {
+function PlaceMeta({ category, days, asOf }: PlaceMetaProps): ReactElement {
   const head = joinMeta([category, days?.start]);
-  const tail = joinMeta([when, asOf]);
   return (
-    // The relative day, and the date's year once the year turns, depend on today.
-    <TileMeta dated>
+    // A date's year shows once the year turns: the words depend on today. Stale, it says which
+    // day the list is from (data-stale).
+    <TileMeta dated stale={asOf !== ''}>
       {head}
       {days?.end ? <SpanEnd end={days.end} /> : null}
-      {head && tail ? META_SEPARATOR : null}
-      {tail}
+      {head && asOf ? META_SEPARATOR : null}
+      {asOf}
     </TileMeta>
   );
 }
@@ -148,30 +133,17 @@ interface PlaceViewProps {
 function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
   const href = placeHref(place);
   const thumbnail = thumbnailUrl(place);
-  // A single day, or a run of visits from first to last ('Jul 29 – Sep 15').
-  const days = formatDaySpan(place, now);
-  // How long ago counts from the visit's last day: a range's end.
-  const lastDay = lastDayOf(place) ?? '';
-  const relative = formatRelative(lastDay, now);
-  // From 14 days back formatRelative gives the last day's date itself, which the days already show.
-  const when = relative === formatDay(lastDay, now) ? null : relative;
   return (
     <Tile
       variant={hasDestination(href) ? 'linked' : 'plain'}
-      className="gap-3"
-      data-state={stale ? 'stale' : undefined}
+      data-state={stale ? 'stale' : 'ready'}
     >
-      <TileLabel>{LABEL}</TileLabel>
-      <div className="flex items-start gap-3">
-        <h3 className={NAME_CLASS}>
-          <TileLink href={href} className="text-inherit">
-            {place.name}
-          </TileLink>
-        </h3>
+      <div className={ROW_CLASS}>
         {thumbnail && (
+          // Decorative: the name beside it says where.
           <Image
             src={thumbnail}
-            alt={place.photos?.[0]?.alt ?? ''}
+            alt=""
             width={THUMB_PX}
             height={THUMB_PX}
             sizes={`${THUMB_PX}px`}
@@ -179,8 +151,16 @@ function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
             className={THUMB_CLASS}
           />
         )}
+        <div className={TEXT_CLASS}>
+          <TileLabel>{LABEL}</TileLabel>
+          <h3 className={NAME_CLASS}>
+            <TileLink href={href} className="text-inherit">
+              {place.name}
+            </TileLink>
+          </h3>
+          <PlaceMeta category={place.category} days={formatDaySpan(place, now)} asOf={asOf} />
+        </div>
       </div>
-      <PlaceMeta category={place.category} days={days} when={when} asOf={asOf} />
     </Tile>
   );
 }
@@ -216,7 +196,6 @@ export function PlaceTileView({ result, now = Date.now() }: PlaceTileViewProps):
     <Tile className="gap-3" data-state={shown.status}>
       <TileLabel>{LABEL}</TileLabel>
       <Note
-        className="mt-auto"
         message={shown.status === 'error' ? 'Places unavailable' : 'No places yet'}
         href={PLACES_PATH}
         linkLabel="All places"
@@ -225,17 +204,22 @@ export function PlaceTileView({ result, now = Date.now() }: PlaceTileViewProps):
   );
 }
 
-/** The loading place tile, with the real label: one name line and the meta line. */
+/**
+ * The loading place tile, the loaded one's size with a photo: the thumbnail's box beside the real
+ * label, one line of the name's type and one of the meta's. Without a photo the loaded row is the
+ * text's height, 4px under the thumbnail's.
+ */
 export function PlaceTileSkeleton(): ReactElement {
   return (
-    <Tile className="gap-3" aria-busy="true" data-state="loading">
-      <TileLabel>{LABEL}</TileLabel>
-      <span className={NAME_LINE_CLASS}>
-        <SkeletonBar className="h-5 w-4/5" />
-      </span>
-      <span className={META_LINE_CLASS}>
-        <SkeletonBar className="h-3 w-32 rounded-sm" />
-      </span>
+    <Tile aria-busy="true" data-state="loading">
+      <div className={ROW_CLASS}>
+        <SkeletonBar className="size-16 shrink-0 rounded-lg" />
+        <div className={TEXT_CLASS}>
+          <TileLabel>{LABEL}</TileLabel>
+          <SkeletonLine type="tile-title" bar="h-4 w-4/5" />
+          <SkeletonLine type="tile-meta" bar="h-3 w-28 rounded-sm" />
+        </div>
+      </div>
       <LoadingNote>Loading the latest place</LoadingNote>
     </Tile>
   );

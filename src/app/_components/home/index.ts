@@ -14,4 +14,5 @@
  * limitations under the License.
  */
 
+export * from './bento-layout';
 export * from './home-page';

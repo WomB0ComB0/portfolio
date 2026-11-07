@@ -24,6 +24,7 @@
 
 import { Schema } from 'effect';
 import {
+  hasText,
   isSiteEmail,
   isSiteHttpsUrl,
   SITE_LOCATION_MAX_LENGTH,
@@ -413,16 +414,28 @@ const SiteSettingsFieldsSchema = Schema.Struct({
 }).annotations({ parseOptions: { errors: 'all' } });
 
 /**
+ * The fields whose blank text means cleared: the location, the one with no built-in value (owner
+ * decision: 'Clear the field in Studio to hide it'). Studio refuses spaces only, but the API does
+ * not; such a location is the owner clearing it, not an invalid field to report.
+ */
+const CLEARED_WHEN_BLANK: ReadonlySet<string> = new Set(['location']);
+
+/** True for a field the document leaves empty: GROQ's null for any, or a blank location. */
+const isUnset = ([key, value]: readonly [string, unknown]): boolean =>
+  value === null || (CLEARED_WHEN_BLANK.has(key) && typeof value === 'string' && !hasText(value));
+
+/**
  * The site settings singleton (its fields feed the home hero). Every field is optional. GROQ
- * answers null for one left empty, and a null field decodes as no key at all, before the fields
- * are checked: so empty is never invalid, and each invalid field is one issue at its own path.
+ * answers null for one left empty, and a null field (or a blank location) decodes as no key at
+ * all, before the fields are checked: so empty is never invalid, and each invalid field is one
+ * issue at its own path. A blank tagline is still invalid: it falls back to the built-in one.
  */
 export const SiteSettingsDocumentSchema = Schema.transform(
   Schema.Record({ key: Schema.String, value: Schema.Unknown }),
   SiteSettingsFieldsSchema,
   {
     strict: false,
-    decode: (doc) => Object.fromEntries(Object.entries(doc).filter(([, value]) => value !== null)),
+    decode: (doc) => Object.fromEntries(Object.entries(doc).filter((entry) => !isUnset(entry))),
     encode: (settings) => settings,
   },
 );

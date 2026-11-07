@@ -17,23 +17,32 @@
 import 'server-only';
 
 /**
- * @file The home hero: avatar, the page's one h1, the current role, the location, the positioning
- * line and the ways to get in touch. A sync server component, so the h1 is in the first flush.
+ * @file The home hero: the avatar beside the page's one h1, the role line, the positioning line
+ * and the ways to get in touch. A sync server component, so the h1 is in the first flush.
  *
- * The location, the positioning line and the contact links come from the site settings in
- * Sanity, each falling back to its built-in value ({@link HERO_FALLBACK_COPY}) when it is empty or
- * invalid, or the settings fail to load. They never hold the first flush: each sits in its own
- * Suspense boundary whose fallback is the same markup, filled from the settings this server last
- * loaded (the built-in values before any). So the first flush always has the words and all four
- * links, and on a warm server the content that streams in is the fallback's twin: nothing moves.
- * A new server has nothing cached to match: its first visitors get the built-in copy first, the
- * tagline in a box as tall as Studio's longest tagline at the tile's width (five lines on a phone,
- * three from a 24rem tile), so the owner's longer tagline streaming in moves nothing either.
- * (Loading the settings at startup would not help: instrumentation's register() is awaited before
- * an instance serves any route, so every cold start would wait on Sanity.) Only the tagline can
- * change height: the location sits beside the taller avatar, and the links are always the same
- * four.
- * The role line waits behind a placeholder, in a box that keeps its height.
+ * The role line is '{position}, {company} · {location}': the first current role in Studio order,
+ * its company as people say it ('ResQ Systems', not 'ResQ Systems, Inc.'), then quietly, in the
+ * muted colour, where Mike is, from the site settings (owner decision: show it quietly). It
+ * streams in after the first flush behind a placeholder, in a box that keeps its height, and is
+ * clamped to the lines that box reserves.
+ *
+ * The location has no built-in value (owner decision: 'Clear the field in Studio to hide it'). A
+ * settings document without one (cleared, blank or invalid), or no document, shows no location;
+ * when Sanity fails, the last good settings this server cached decide, and with nothing cached
+ * there is none. So a location the owner cleared never comes back through a fallback.
+ *
+ * The positioning line and the contact links come from the site settings in Sanity, each falling
+ * back to its built-in value ({@link HERO_FALLBACK_COPY}) when it is empty or invalid, or the
+ * settings fail to load. The tagline and the links never hold the first flush:
+ * each sits in its own Suspense boundary whose fallback is the same markup, filled from the
+ * settings this server last loaded (the built-in values before any). So the first flush always
+ * has the words and all four links, and on a warm server the content that streams in is the
+ * fallback's twin: nothing moves. A new server has nothing cached to match: its first visitors
+ * get the built-in copy first, the tagline in a box as tall as Studio's longest tagline at the
+ * tile's width (five lines on a phone, three from a 24rem tile), so the owner's longer tagline
+ * streaming in moves nothing either. (Loading the settings at startup would not help:
+ * instrumentation's register() is awaited before an instance serves any route, so every cold
+ * start would wait on Sanity.) The links are always the same four.
  */
 
 import Image from 'next/image';
@@ -41,53 +50,54 @@ import Link from 'next/link';
 import { cache, type ReactElement, Suspense } from 'react';
 
 import { ensureBaseError } from '@/classes/error';
-import { StatusDot, Tile } from '@/components/console';
+import { Tile } from '@/components/console';
 import { app } from '@/constants';
 import { reportApiFailure } from '@/lib/observability/report';
 import { loadSiteSettings, peekSiteSettings, type SiteSettings } from '@/lib/sanity/loaders';
+import { companyName } from '../data/format';
 import { loadCurrentRoles } from '../data/loaders';
 import { settle, type TileResult } from '../data/tile-result';
-import { PaletteHint } from './palette-hint';
-import { ExternalAnchor, GITHUB_PROFILE_URL, SkeletonBar } from './tile-states';
+import { ExternalAnchor, GITHUB_PROFILE_URL, META_SEPARATOR, SkeletonBar } from './tile-states';
 
 /** The hero's one positioning line (owner decision 7), unless the site settings give a tagline. */
 export const HERO_POSITIONING = 'Building web software end to end.';
-
-/** Where the hero says Mike is (shown in capitals), unless the site settings give a location. */
-export const HERO_LOCATION = 'New York, NY';
 
 export const HERO_TITLE_ID = 'home-title';
 
 const AVATAR_SRC = 'https://avatars.githubusercontent.com/u/95197809?v=4';
 const AVATAR_ALT = "Mike Odnis's avatar: a painting of a scholar writing at his desk";
-/** The largest size it is drawn at (size-24). */
-const AVATAR_PX = 96;
+/** The largest size it is drawn at (size-18, from a 30rem tile). */
+const AVATAR_PX = 72;
 
 export const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/mikeodnis/';
 const RESUME_PATH = '/resume';
 
 /** What the site settings change in the hero. */
 export interface HeroCopy {
-  readonly location: string;
+  /** Where Mike is, after the role; null shows none. Never built in: only the settings say it. */
+  readonly location: string | null;
   readonly tagline: string;
   readonly email: string;
   readonly githubUrl: string;
   readonly linkedinUrl: string;
 }
 
-/** The hero's built-in copy: what it shows without site settings. */
+/** The hero's built-in copy: what it shows without site settings. No location: that is private. */
 export const HERO_FALLBACK_COPY: HeroCopy = {
-  location: HERO_LOCATION,
+  location: null,
   tagline: HERO_POSITIONING,
   email: app.email,
   githubUrl: GITHUB_PROFILE_URL,
   linkedinUrl: LINKEDIN_PROFILE_URL,
 };
 
-/** The hero's copy from `settings`; each field they lack (empty, or dropped as invalid) built in. */
+/**
+ * The hero's copy from `settings`; each field they lack (empty, or dropped as invalid) built in,
+ * except the location, which they alone give: without one, there is none.
+ */
 export function heroCopyOf(settings: SiteSettings | null | undefined): HeroCopy {
   return {
-    location: settings?.location ?? HERO_FALLBACK_COPY.location,
+    location: settings?.location ?? null,
     tagline: settings?.tagline ?? HERO_FALLBACK_COPY.tagline,
     email: settings?.email ?? HERO_FALLBACK_COPY.email,
     githubUrl: settings?.githubUrl ?? HERO_FALLBACK_COPY.githubUrl,
@@ -143,39 +153,58 @@ export const loadHeroCopy = cache(async (): Promise<HeroCopy> => {
 
 /**
  * 44 px tall at every width, so each is a comfortable touch target. Text only: no brand icons.
- * The filled one is brand with canvas text; the ghost ones are hairline outlines.
+ * 14/20 at 500, the filled one too: brand with canvas text; the ghost ones are hairline outlines.
  */
 const LINK_BASE_CLASS =
-  'inline-flex h-11 items-center gap-1 rounded-full px-4 text-body-sm font-medium transition-colors duration-(--motion-fast) ease-standard';
-const PRIMARY_LINK_CLASS = `${LINK_BASE_CLASS} bg-brand px-5 font-semibold text-canvas hover:bg-brand-ink`;
+  'inline-flex h-11 items-center gap-1 rounded-full px-4 text-sm font-medium transition-colors duration-(--motion-fast) ease-standard';
+const PRIMARY_LINK_CLASS = `${LINK_BASE_CLASS} bg-brand px-5 text-canvas hover:bg-brand-ink`;
 const GHOST_LINK_CLASS = `${LINK_BASE_CLASS} border border-hairline text-foreground hover:border-hairline-strong hover:bg-surface-3`;
 
 /**
- * Two lines below a 36rem hero (a long role wraps there), one above: the role line streams in
- * after the first flush, and the box keeps the hero from moving when it lands or stays empty.
+ * The role line's box, in the role line's type so its `lh` is the line's: two lines below a 28rem
+ * hero content box (the line wraps on a phone), one from there. 'Founder & CEO, ResQ Systems · New
+ * York, NY' is about 390 px at 18 px, so it fits on one line from 28rem (448 px) with room to
+ * spare; a 32rem step left an empty line under it in a 30 to 32rem hero (a 600 px viewport). The
+ * line streams in after the first flush, and the box keeps the hero from moving when it lands or
+ * stays empty.
  */
-const ROLE_SLOT_CLASS = 'min-h-[3em] text-body @xl:min-h-[1.5em]';
-const ROLE_LINE_CLASS = 'flex items-baseline gap-2 leading-[1.5] text-foreground';
-const NOW_BADGE_CLASS = 'label-mono inline-flex shrink-0 items-center gap-1.5 text-ongoing';
+const ROLE_SLOT_CLASS = 'hero-role min-h-[2lh] @md:min-h-[1lh]';
+/**
+ * The role line, clamped to the lines its box reserves, at the same steps: Studio takes a
+ * 40-character location and any position, which unclamped took a third line on a phone and a
+ * second from 28rem, so the hero grew when the line streamed in. The muted location ends the
+ * line, inside the clamp, so a long one is cut first, with an ellipsis; the whole line stays in
+ * the DOM for screen readers. wrap-break-word: an unbroken word breaks instead of overflowing.
+ */
+const ROLE_LINE_CLASS = 'hero-role line-clamp-2 wrap-break-word text-foreground @md:line-clamp-1';
+
+/** '{position}, {company}' for a role, its company as people say it; '' without either. */
+function roleText(role: { position: string; company: string } | undefined): string {
+  if (!role) return '';
+  return [role.position.trim(), companyName(role.company)].filter(Boolean).join(', ');
+}
 
 /**
- * '{position} at {company}' for the first current role in Studio order, beside an amber dot and
- * the word 'Now'. Nothing when no role is current or the roles failed to load: the hero reads
- * fine without it, and the roles tile shows that error.
+ * 'Founder & CEO, ResQ Systems · New York, NY': the first current role in Studio order, then the
+ * location from the site settings, muted. Either alone when the other is missing (no role is
+ * current or the roles failed; the owner cleared the location, or the settings failed with
+ * nothing cached), with no separator left over, and nothing without both: the hero reads fine
+ * without it, and the roles tile shows the roles' error.
  */
 export async function HeroRoleLine(): Promise<ReactElement | null> {
-  const result = await loadCurrentRoles();
-  const role = result.status === 'ok' ? result.data.roles[0] : undefined;
-  if (!role) return null;
+  const [roles, copy] = await Promise.all([loadCurrentRoles(), loadHeroCopy()]);
+  const role = roleText(roles.status === 'ok' ? roles.data.roles[0] : undefined);
+  const location = copy.location?.trim() ?? '';
+  if (!(role || location)) return null;
   return (
     <p className={ROLE_LINE_CLASS}>
-      <span className={NOW_BADGE_CLASS}>
-        <StatusDot tone="ongoing" />
-        Now
-      </span>
-      <span className="line-clamp-2 min-w-0">
-        {role.position} at {role.company}
-      </span>
+      {role}
+      {location && (
+        <span data-hero-location="" className="text-muted-foreground">
+          {role ? META_SEPARATOR : null}
+          {location}
+        </span>
+      )}
     </p>
   );
 }
@@ -186,36 +215,25 @@ interface CopyProps {
 
 type CopyView = (props: CopyProps) => ReactElement;
 
-/**
- * Beside the avatar, in capitals. min-w-0 lets a long one wrap instead of widening the row, and
- * wrap-break-word breaks a word too long for the line (Studio allows 40 characters unbroken).
- */
-function HeroLocation({ copy }: CopyProps): ReactElement {
-  return (
-    <p className="label-mono min-w-0 wrap-break-word text-muted-foreground">{copy.location}</p>
-  );
-}
-
-/** The tagline's type size, on its box too, so the box's `lh` is the tagline's line. */
-const TAGLINE_TYPE_CLASS = 'text-body @xl:text-title';
+/** The tagline's type, on its box too, so the box's `lh` is the tagline's line. */
+const TAGLINE_TYPE_CLASS = 'hero-tagline';
 
 /**
  * The tagline's box when nothing is cached ({@link InitialCopy}): as many tagline lines as
  * Studio's longest (120 characters) wraps to at the tile's width, so the owner's tagline replaces
  * the built-in one without moving anything below it. Otherwise as tall as the tagline.
  *
- * Measured in Chromium with Geist at 16/26 px, against the tile's content width: five lines below
+ * Measured in Chromium with Geist at 16 px, against the tile's content width: five lines below
  * 18rem (238 px on a 320 px phone), four up to 24rem (293 px at 375 px; some still four at
- * 360 px), three from 24rem, where the 40ch measure and, from 36rem, the title size hold it there.
+ * 360 px), three from 24rem, where the 40ch measure holds it there. The line is 24 px; the count
+ * of lines depends on the size only.
  */
 export const TAGLINE_SLOT_RESERVED_CLASS = `min-h-[5lh] @2xs:min-h-[4lh] @sm:min-h-[3lh] ${TAGLINE_TYPE_CLASS}`;
 
 /** wrap-break-word: a word too long for the tile's width breaks instead of overflowing it. */
 function HeroTagline({ copy }: CopyProps): ReactElement {
   return (
-    <p
-      className={`max-w-[40ch] text-pretty wrap-break-word text-muted-foreground ${TAGLINE_TYPE_CLASS}`}
-    >
+    <p className={`max-w-[40ch] wrap-break-word text-muted-foreground ${TAGLINE_TYPE_CLASS}`}>
       {copy.tagline}
     </p>
   );
@@ -276,12 +294,16 @@ function CopySlot({
   );
 }
 
-/** The dominant tile of the bento. The h1 never takes the brand colour. */
+/**
+ * The dominant tile of the bento, and the only large one. It hugs its content: the avatar beside
+ * the name (the name wraps under it when they do not fit), the role and positioning lines, then
+ * the links. The h1 never takes the brand colour.
+ */
 export function HeroTile(): ReactElement {
   const { copy: initial, loaded } = lastLoadedCopy();
   return (
-    <Tile variant="raised" tone="hero" padding="lg" className="h-full gap-6">
-      <div className="flex items-center gap-4">
+    <Tile variant="raised" tone="hero" padding="lg" className="gap-5">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-4">
         <Image
           src={AVATAR_SRC}
           alt={AVATAR_ALT}
@@ -290,19 +312,15 @@ export function HeroTile(): ReactElement {
           sizes={`${AVATAR_PX}px`}
           loading="eager"
           fetchPriority="high"
-          className="size-18 shrink-0 rounded-full ring-2 ring-brand @xl:size-24"
+          className="size-16 shrink-0 rounded-full ring-2 ring-brand @[30rem]:size-18"
         />
-        <CopySlot initial={initial} view={HeroLocation} />
-      </div>
-      <div className="flex flex-col gap-3">
-        <h1
-          id={HERO_TITLE_ID}
-          className="font-sans text-[clamp(2.5rem,0.75rem+11cqi,6rem)] font-extrabold leading-[0.95] tracking-display text-foreground"
-        >
+        <h1 id={HERO_TITLE_ID} className="min-w-0 hero-name text-foreground">
           Mike Odnis
         </h1>
-        <div className={ROLE_SLOT_CLASS}>
-          <Suspense fallback={<SkeletonBar className="h-[1.5em] w-3/5" />}>
+      </div>
+      <div className="flex max-w-[40rem] flex-col gap-1">
+        <div data-hero-role-slot="" className={ROLE_SLOT_CLASS}>
+          <Suspense fallback={<SkeletonBar className="h-[1lh] w-3/5" />}>
             <HeroRoleLine />
           </Suspense>
         </div>
@@ -310,10 +328,7 @@ export function HeroTile(): ReactElement {
           <CopySlot initial={initial} view={HeroTagline} />
         </div>
       </div>
-      <div className="mt-auto flex flex-wrap items-center gap-3">
-        <CopySlot initial={initial} view={HeroLinks} />
-        <PaletteHint />
-      </div>
+      <CopySlot initial={initial} view={HeroLinks} />
     </Tile>
   );
 }

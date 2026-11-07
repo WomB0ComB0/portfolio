@@ -15,12 +15,15 @@
  */
 
 /**
- * @file The home page's composition: ten slots in reading order, each in its grid area and
- * holding one tile; one h1 (the hero's); the live islands seeded with the server's snapshots;
- * every data slot behind a boundary whose fallback is that tile's own error state, and a
- * Suspense whose fallback is its skeleton, in the same area. The page stays a server component.
+ * @file The home page's composition: ten slots in priority order as the direct children of the
+ * masonry island's grid, each holding one tile and carrying its estimated span per tier from
+ * bento-layout.ts (so the server HTML paints the packed layout); one h1 (the hero's); the live
+ * islands seeded with the server's snapshots; every data slot behind a boundary whose fallback is
+ * that tile's own error state, and a Suspense whose fallback is its skeleton, in the same slot.
+ * The page stays a server component.
  *
- * The tiles and islands are stubs, so this checks the page and not them. The page is rendered
+ * The tiles and islands are stubs, so this checks the page and not them (bento-masonry.test.tsx
+ * checks the masonry island). The page is rendered
  * with react-dom/static's prerender, which waits for every async slot as the server does, then
  * parsed into jsdom; renderToString gives the first flush, where a slot still loading shows its
  * skeleton. SectionBoundary is a stub that records its label and fallback (the real one needs
@@ -98,6 +101,14 @@ vi.mock('@/app/_components/home/bento.module.css', () => ({
     get: (_target, name) => (typeof name === 'string' ? `bento-${name}` : undefined),
   }),
 }));
+// The island renders its grid div around the slots; the stub marks that div as the island's.
+vi.mock('@/app/_components/home/bento-masonry', () => ({
+  BentoMasonry: ({ className, children }: { className?: string; children: ReactNode }) => (
+    <div data-masonry-island="" className={className}>
+      {children}
+    </div>
+  ),
+}));
 vi.mock('@/components/data/section-boundary', () => ({
   SectionBoundary: ({
     label,
@@ -153,7 +164,7 @@ vi.mock('@/app/_components/home/tiles/project-tile', () => {
   return { ProjectTile: proj.tile, ProjectTileSkeleton: proj.skeleton, ProjectTileView: proj.view };
 });
 vi.mock('@/app/_components/home/tiles/place-tile', () => {
-  const place = h.stubTile('place', 'Last place');
+  const place = h.stubTile('place', 'Recently at');
   return { PlaceTile: place.tile, PlaceTileSkeleton: place.skeleton, PlaceTileView: place.view };
 });
 vi.mock('@/app/_components/home/tiles/roles-tile', () => {
@@ -187,12 +198,31 @@ vi.mock('next/link', () => ({
 }));
 
 import styles from '@/app/_components/home/bento.module.css';
+import {
+  BENTO_AREAS,
+  BENTO_GAP_PX,
+  BENTO_TIERS,
+  BENTO_TILE_HEIGHTS_PX,
+  type BentoArea,
+  rowsFor,
+} from '@/app/_components/home/bento-layout';
 import { HomePage } from '@/app/_components/home/home-page';
 
 const PAGE_SOURCE = path.resolve(__dirname, '../../../src/app/_components/home/home-page.tsx');
 
-/** The slots in reading order. */
-const AREAS = ['hero', 'now', 'status', 'leet', 'type', 'gh', 'proj', 'place', 'role', 'strip'];
+/** The slots in priority order, which is the reading order. */
+const AREAS: readonly BentoArea[] = [
+  'hero',
+  'now',
+  'status',
+  'leet',
+  'type',
+  'gh',
+  'proj',
+  'place',
+  'role',
+  'strip',
+];
 
 /** The nine data slots: every slot but the hero, each behind its own Suspense. */
 const DATA_AREAS = AREAS.filter((area) => area !== 'hero');
@@ -212,7 +242,8 @@ const BOUNDARY_LABELS = [
   'GitHub activity',
   // The tile itself says 'Latest work' or 'Featured project'; the slot names neither.
   'Project',
-  'Last place',
+  // The tile's own label (past visits only), no longer 'Last place'.
+  'Recently at',
   'Current roles',
   'Site index',
 ];
@@ -269,25 +300,85 @@ afterEach(() => {
 });
 
 describe('HomePage layout', () => {
-  it('renders the ten slots in reading order, each with its area class', async () => {
+  it('renders the ten slots in priority order, each with the slot class and its area class', async () => {
     await renderPageHtml();
 
+    expect(BENTO_AREAS).toEqual(AREAS);
     expect(slots().map((element) => element.dataset.bentoSlot)).toEqual(AREAS);
     for (const element of slots()) {
       const area = element.dataset.bentoSlot ?? '';
       expect(element).toHaveClass(styles.slot ?? '', styles[area] ?? '');
-      expect(styles[area]).toBeTruthy();
     }
   });
 
-  it('puts the slots straight into the grid, inside the bento container', async () => {
+  it('puts the slots straight into the masonry island’s grid, inside the bento container', async () => {
     await renderPageHtml();
     const grid = slots()[0]?.parentElement;
 
+    expect(grid).toHaveAttribute('data-masonry-island');
     expect(grid).toHaveClass(styles.grid ?? '');
     expect(grid?.children).toHaveLength(AREAS.length);
     expect(grid?.parentElement).toHaveClass(styles.container ?? '');
     expect(document.body.firstElementChild).toBe(grid?.parentElement);
+  });
+
+  it('gives every slot its estimated span for each tier, so the server HTML is already packed', async () => {
+    await renderPageHtml();
+
+    for (const area of AREAS) {
+      const style = slot(area).style;
+      for (const tier of BENTO_TIERS) {
+        const rows = rowsFor(BENTO_TILE_HEIGHTS_PX[area][tier] + BENTO_GAP_PX[tier]);
+        expect(style.getPropertyValue(`--rows-${tier}`), `${area} ${tier}`).toBe(String(rows));
+        expect(Number.isInteger(rows) && rows > 0, `${area} ${tier}`).toBe(true);
+      }
+      // The measured span is the island's to write, in the browser.
+      expect(style.getPropertyValue('--rows-js')).toBe('');
+    }
+  });
+
+  it('estimates the spans from the heights measured on the production build', async () => {
+    await renderPageHtml();
+    const hero = slot('hero').style;
+    const project = slot('proj').style;
+
+    // Across both lanes below 40rem, the hero's smallest height in each tier (D1): 330 px + a
+    // 12 px gap, then 268 px + 12 px; then 276 px + 16 px. In rows of 2 px.
+    expect(hero.getPropertyValue('--rows-sm')).toBe('171');
+    expect(hero.getPropertyValue('--rows-sm-wide')).toBe('140');
+    expect(hero.getPropertyValue('--rows-md')).toBe('146');
+    expect(hero.getPropertyValue('--rows-md-wide')).toBe('146');
+    expect(hero.getPropertyValue('--rows-lg')).toBe('146');
+    // The project, also across both lanes below 40rem: stacked below 30rem (251 + 12 px) and
+    // cover-left from there (121.6 + 12 px), each its tier's smallest. In one lane from 40rem its
+    // 2 : 1 cover grows with the lane, so the middle of its range: 291 and 346 px + 16 px, then
+    // 278 px + 16 px in the wide tier's 1.3fr first lane.
+    expect(project.getPropertyValue('--rows-sm')).toBe('132');
+    expect(project.getPropertyValue('--rows-sm-wide')).toBe('67');
+    expect(project.getPropertyValue('--rows-md')).toBe('154');
+    expect(project.getPropertyValue('--rows-md-wide')).toBe('181');
+    expect(project.getPropertyValue('--rows-lg')).toBe('147');
+
+    // Review finding WF2-D1-place-md-hedge: the place, across both lanes below 40rem, takes its
+    // smallest (98 + 12 px, then 106 + 12 px). In an md lane (312 to 392 px) a long name such as
+    // 'The Metropolitan Museum of Art' takes two lines (124 px, else 106), so md is the middle,
+    // 115 + 16 px. At md-wide it never wraps, and at wide the tile lands in the 1.3fr first lane,
+    // where it does not either: 106 + 16 px.
+    const place = slot('place').style;
+    expect(place.getPropertyValue('--rows-sm')).toBe('55');
+    expect(place.getPropertyValue('--rows-sm-wide')).toBe('59');
+    expect(place.getPropertyValue('--rows-md')).toBe('66');
+    expect(place.getPropertyValue('--rows-md-wide')).toBe('61');
+    expect(place.getPropertyValue('--rows-lg')).toBe('61');
+  });
+
+  it('keeps the estimates in the first flush, while every data slot is still loading', () => {
+    for (const area of DATA_AREAS) suspend(area);
+    renderFirstFlush();
+
+    for (const area of AREAS) {
+      expect(slot(area).style.getPropertyValue('--rows-sm'), area).not.toBe('');
+    }
   });
 
   it('gives each slot exactly one element: its own tile', async () => {
@@ -373,7 +464,7 @@ describe('HomePage loading and failure', () => {
       ['Typing', 'type'],
       ['GitHub activity', 'gh'],
       ['Project', 'proj'],
-      ['Last place', 'place'],
+      ['Recently at', 'place'],
       ['Current roles', 'role'],
     ];
 
@@ -395,11 +486,16 @@ describe('HomePage loading and failure', () => {
     });
   });
 
-  it('falls back to a static now-playing tile: its label, words, and a way to top tracks', async () => {
+  // Like the compact island it stands in for: a hidden h2 ('Spotify'), no visible label, and its
+  // one line not pushed to the foot of the tile.
+  it('falls back to a static now-playing tile: a hidden name, words, and a way to top tracks', async () => {
     await renderPageHtml();
     const fallback = fallbackOf('Now playing');
 
-    expect(within(fallback).getByRole('heading', { level: 2 })).toHaveTextContent('Now playing');
+    const heading = within(fallback).getByRole('heading', { level: 2 });
+    expect(heading).toHaveTextContent(/^Spotify$/);
+    expect(heading).toHaveClass('sr-only');
+    expect(fallback.querySelector('.mt-auto')).toBeNull();
     expect(within(fallback).getByText('Now playing unavailable')).toBeInTheDocument();
     const link = within(fallback).getByRole('link', { name: 'Top tracks' });
     expect(link).toHaveAttribute('href', '/spotify');
@@ -412,12 +508,27 @@ describe('HomePage loading and failure', () => {
     await renderPageHtml();
     const fallback = fallbackOf('Status');
 
-    expect(within(fallback).getByRole('heading', { level: 2 })).toHaveTextContent('Status');
+    const heading = within(fallback).getByRole('heading', { level: 2 });
+    expect(heading).toHaveTextContent(/^Site status$/);
+    expect(heading).toHaveClass('sr-only');
+    expect(fallback.querySelector('.mt-auto')).toBeNull();
     expect(within(fallback).getByText('Status unavailable')).toBeInTheDocument();
     const link = within(fallback).getByRole('link', { name: 'Status page (opens in a new tab)' });
     expect(link).toHaveAttribute('href', 'https://status.mikeodnis.dev');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  // The tile state contract (tiles/tile-states.tsx): the browser checks skip a slot whose tile is
+  // not its reference content, so a fallback must say it is the error state. The server tiles'
+  // views give their error state its data-state (server-tiles.test.tsx); the live fallbacks are
+  // this page's own.
+  it.each(['Now playing', 'Status'])('marks the %s fallback data-state="error"', async (label) => {
+    await renderPageHtml();
+    const tile = fallbackOf(label).firstElementChild;
+
+    expect(tile).toHaveAttribute('data-state', 'error');
+    expect(tile).not.toHaveAttribute('aria-busy');
   });
 });
 

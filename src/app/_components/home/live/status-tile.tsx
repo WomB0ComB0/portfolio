@@ -20,6 +20,12 @@
  * @file The home page's service status tile: the server's Better Stack snapshot first, then a
  * poll of /api/status every minute. Plain fetch through TanStack Query, no Effect.
  *
+ * A slim tile of one line: a still dot and the state in words ('All systems up'), the link to the
+ * public status page. A count follows only when some monitor is not up ('Degraded · 3/4 up'), and
+ * a second line only for an old answer ('as of Nov 5, 11:02 AM ET'). The words name the tile, so
+ * its h2 ('Site status') is for screen readers only. Nothing moves: the page's one moving thing is
+ * the now-playing equaliser.
+ *
  * Its query key is not the footer badge's ['system-status']: that query caches the whole
  * envelope, this one only `data`, and one key holding two shapes would break whichever read
  * second. Retries are the QueryClient's (shouldRetryQuery).
@@ -27,6 +33,11 @@
  * Render reads no clock: times are absolute (New York), and whether an answer is old is decided
  * on the server (the route's `stale` flag) or by a failed poll, never by comparing the browser's
  * clock with the server's. The server HTML and the hydrating client therefore agree.
+ *
+ * Its root says what it shows, for the e2e layout checks (which compare only tiles showing their
+ * reference content): data-state 'loading' (with aria-busy), 'ready' for a current answer,
+ * 'stale' plus data-stale="" whenever it says 'Last known' (with its 'as of' line), and 'error'
+ * for 'Status unavailable'.
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -37,12 +48,13 @@ import { StatusDot, type StatusTone } from '@/components/console/status-dot';
 import { Tile } from '@/components/console/tile';
 import { TileLink } from '@/components/console/tile-link';
 import {
-  monitorsLine,
+  CHECKING_STATUS,
+  isLastKnownAnswer,
   SERVICE_STATE_COPY,
   STATUS_PAGE_URL,
-  serviceCopyKey,
+  STATUS_SEPARATOR,
+  serviceStatusWords,
 } from '@/lib/status/service-state';
-import { cn } from '@/lib/utils';
 import { formatClockET, formatDay } from '../data/format';
 import type { LiveInitial } from '../data/tile-result';
 import { fetchJson, parseServiceStatus } from './live-fetch';
@@ -54,14 +66,22 @@ export const STATUS_POLL_MS = 60_000;
 /** A snapshot younger than this is not fetched again on mount or on focus. */
 const STATUS_STALE_MS = 55_000;
 
-const LABEL_CLASS = 'label-mono text-muted-foreground';
-const STATE_LINE_CLASS = 'flex gap-2 text-body font-semibold';
-/** One line tall, so the dot stays on the first line when the words wrap. */
-const DOT_SLOT_CLASS = 'flex h-[1lh] shrink-0 items-center';
-const META_CLASS = 'font-mono text-meta tabular-nums text-muted-foreground';
-/** The link reads as text in the tile and takes the brand tint while the tile is hovered. */
+export const STATUS_TILE_TITLE = 'Site status';
+
+/**
+ * The dot, then the words: one line wherever they fit. The words are the state, so they wrap
+ * rather than lose their end to an ellipsis ('All syste…' in a 320 px phone's 150 px lane,
+ * 'Degraded · 3/…' at 375 px). The dot sits in a box one line tall, so it stays beside the first.
+ */
+const STATE_LINE_CLASS = 'flex min-w-0 items-start gap-2 tile-title';
+const DOT_BOX_CLASS = 'flex h-[1lh] shrink-0 items-center';
+/**
+ * The link reads as text in the tile and takes the brand tint while the tile is hovered. Inline
+ * text, so the new-tab arrow stays glued to the last word wherever the words wrap.
+ */
 const LINK_CLASS = 'min-w-0 text-foreground group-hover/tile:text-brand-ink';
-const BAR_CLASS = 'block rounded-sm bg-surface-3 motion-safe:animate-pulse';
+const COUNT_CLASS = 'font-normal tabular-nums text-muted-foreground';
+const META_CLASS = 'tile-meta text-muted-foreground';
 
 /** What the tile shows: nothing known yet, or a state in words. */
 export type ServiceStatusView =
@@ -70,11 +90,13 @@ export type ServiceStatusView =
       readonly kind: 'status';
       /** The words, prefixed 'Last known: ' when the answer is old. */
       readonly label: string;
+      /** '3/4 up', only when some active monitor is not up. */
+      readonly count?: string;
       readonly tone: StatusTone;
-      /** Only a current 'operational' answer with active monitors breathes. */
-      readonly pulse: boolean;
-      /** '6/6 monitors up', when the answer counted active monitors. */
-      readonly monitors?: string;
+      /** The answer is old: 'Last known: ...'. */
+      readonly lastKnown: boolean;
+      /** No answer to show: 'Status unavailable', for a failed check or the route's 'unknown'. */
+      readonly unavailable: boolean;
       /** 'as of Nov 5, 11:02 AM ET', for a last known state. */
       readonly asOf?: string;
     };
@@ -91,7 +113,8 @@ const UNAVAILABLE: ServiceStatusView = {
   kind: 'status',
   label: SERVICE_STATE_COPY.unknown.label,
   tone: SERVICE_STATE_COPY.unknown.tone,
-  pulse: false,
+  lastKnown: false,
+  unavailable: true,
 };
 
 /**
@@ -107,10 +130,11 @@ function asOfLine(lastUpdated: string): string | undefined {
 /**
  * The tile's state:
  * - No data: 'Status unavailable' when the snapshot or the latest poll failed, else loading.
- * - Data: its state in words, with the monitor count; 'Monitoring paused' (idle, no count) when
- *   no monitor is active. It becomes 'Last known: ...' with 'as of <day>, <time> ET' when the
- *   route marked it stale (its cached answer after Better Stack failed) or the latest poll
- *   failed. An 'unknown' state is never 'last known'.
+ * - Data: its state in words (serviceStatusWords), with '3/4 up' when some monitor is not up;
+ *   'Monitoring paused' when no monitor is active. It becomes 'Last known: ...' with 'as of
+ *   <day>, <time> ET' when the route marked it stale (its cached answer after Better Stack
+ *   failed) or the latest poll failed (isLastKnownAnswer, which the footer badge shares). An
+ *   'unknown' state is never 'last known'; it is 'Status unavailable'.
  */
 export function serviceStatusView({
   data,
@@ -119,17 +143,15 @@ export function serviceStatusView({
 }: ServiceStatusViewInput): ServiceStatusView {
   if (!data) return isError || initialKind === 'error' ? UNAVAILABLE : { kind: 'loading' };
 
-  const copyKey = serviceCopyKey(data.state, data.monitors);
-  const copy = SERVICE_STATE_COPY[copyKey];
-  const isLastKnown = data.state !== 'unknown' && (isError || data.stale === true);
-
+  const lastKnown = isLastKnownAnswer(data.state, data.stale, isError);
+  const words = serviceStatusWords(data.state, data.monitors, lastKnown);
+  const asOf = lastKnown ? asOfLine(data.lastUpdated) : undefined;
   return {
     kind: 'status',
-    label: isLastKnown ? `Last known: ${copy.label}` : copy.label,
-    tone: copy.tone,
-    pulse: copyKey === 'operational' && !isLastKnown,
-    monitors: monitorsLine(data.monitors),
-    asOf: isLastKnown ? asOfLine(data.lastUpdated) : undefined,
+    ...words,
+    lastKnown,
+    unavailable: data.state === 'unknown',
+    ...(asOf ? { asOf } : {}),
   };
 }
 
@@ -168,39 +190,62 @@ function useServiceStatus(initial: LiveInitial<ServiceStatus>) {
   });
 }
 
+/** The root's data-state: what the tile shows (see the file header). */
+type StatusFrameState = 'loading' | 'ready' | 'stale' | 'error';
+
 interface StatusFrameProps {
   variant: 'plain' | 'linked';
-  busy?: boolean;
+  state: StatusFrameState;
   children: ReactNode;
 }
 
-function StatusFrame({ variant, busy, children }: StatusFrameProps): ReactElement {
+/** What a shown answer marks the tile: 'Status unavailable', an old answer, or a current one. */
+const frameStateOf = (view: Extract<ServiceStatusView, { kind: 'status' }>): StatusFrameState => {
+  if (view.unavailable) return 'error';
+  return view.lastKnown ? 'stale' : 'ready';
+};
+
+/**
+ * The slim tile: its hidden h2, then its line or two. It hugs them. A stale tile also carries
+ * data-stale, as every tile showing a 'Last known' or 'as of' line does.
+ */
+function StatusFrame({ variant, state, children }: StatusFrameProps): ReactElement {
   return (
-    <Tile variant={variant} className="h-full gap-2" aria-busy={busy ? 'true' : undefined}>
-      <h2 className={LABEL_CLASS}>Status</h2>
+    <Tile
+      variant={variant}
+      className="gap-1"
+      data-state={state}
+      data-stale={state === 'stale' ? '' : undefined}
+      aria-busy={state === 'loading' ? 'true' : undefined}
+    >
+      <h2 className="sr-only">{STATUS_TILE_TITLE}</h2>
       {children}
     </Tile>
   );
 }
 
-/** The tile before any answer: the real label, an idle dot and the words for what it is doing. */
+/**
+ * The tile before any answer: an idle dot and the words for what it is doing, on its one line.
+ * They are no state, so they are cut short rather than wrapped: wrapped in a 181 px lane they made
+ * the skeleton a line taller than the 'All systems up' it stands in for, and the tiles below
+ * moved when the answer landed.
+ */
 export function StatusTileSkeleton(): ReactElement {
   return (
-    <StatusFrame variant="plain" busy>
+    <StatusFrame variant="plain" state="loading">
       <p className={STATE_LINE_CLASS}>
-        <span className={DOT_SLOT_CLASS}>
+        <span className={DOT_BOX_CLASS}>
           <StatusDot tone="idle" />
         </span>
-        <span className="text-muted-foreground">Checking status…</span>
+        <span className="min-w-0 truncate text-muted-foreground">{CHECKING_STATUS}</span>
       </p>
-      <span aria-hidden="true" className={cn(BAR_CLASS, 'my-0.5 h-3.5 w-28')} />
     </StatusFrame>
   );
 }
 
 /**
  * The site's health in words, linked to the public status page. The dot beside the words only
- * decorates them; it never carries the state alone.
+ * decorates them; it never carries the state alone, and it never moves.
  *
  * @example
  * <StatusTile initial={await loadServiceStatus()} />
@@ -211,10 +256,10 @@ export function StatusTile({ initial }: { initial: LiveInitial<ServiceStatus> })
   if (view.kind === 'loading') return <StatusTileSkeleton />;
 
   return (
-    <StatusFrame variant="linked">
+    <StatusFrame variant="linked" state={frameStateOf(view)}>
       <p className={STATE_LINE_CLASS}>
-        <span className={DOT_SLOT_CLASS}>
-          <StatusDot tone={view.tone} pulse={view.pulse} />
+        <span className={DOT_BOX_CLASS}>
+          <StatusDot tone={view.tone} />
         </span>
         <TileLink
           href={STATUS_PAGE_URL}
@@ -222,11 +267,18 @@ export function StatusTile({ initial }: { initial: LiveInitial<ServiceStatus> })
           srSuffix="(service status page)"
           className={LINK_CLASS}
         >
-          {view.label}
+          <span data-status-words="">
+            {view.label}
+            {view.count && (
+              <span className={COUNT_CLASS}>
+                {STATUS_SEPARATOR}
+                {view.count}
+              </span>
+            )}
+          </span>
         </TileLink>
       </p>
-      {view.monitors && <p className={META_CLASS}>{view.monitors}</p>}
-      {view.asOf && <p className={cn(META_CLASS, 'mt-auto')}>{view.asOf}</p>}
+      {view.asOf && <p className={META_CLASS}>{view.asOf}</p>}
     </StatusFrame>
   );
 }

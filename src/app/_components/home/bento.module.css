@@ -15,22 +15,31 @@
  */
 
 /*
- * The home bento: ten named areas under three layouts, chosen by the bento's own width (a
- * container query), not the viewport's, so the rail and the shell's max width are accounted for.
+ * The home bento, Waterfall: one flat list of ten slots in priority order (the DOM order) that
+ * packs itself into the shortest lane. Tiles hug their content; the bottom is ragged.
  *
- * - narrow, below 40rem: 2 columns;
- * - medium, 40rem to 67.5rem (768 and 1024 px viewports): 6 columns;
- * - wide, from 67.5rem (1280 px and up, a 1136 px content box in the 75rem shell): 12 columns.
+ * Lanes follow the bento's own width (container queries on `bento`, never the viewport), mobile
+ * first, so a browser without container queries gets the narrow layout:
+ * - narrow, below 40rem: two lanes at 1.3 : 1. Every slot spans both but status, LeetCode and
+ *   typing, which pack into a small live cluster; from 30rem now playing joins them.
+ * - medium, 40rem to 67.5rem: two equal lanes; only the hero spans both.
+ * - wide, from 67.5rem: three lanes at 1.3 : 1 : 1; the hero spans the first two, beside a
+ *   live column.
  *
- * In every layout the areas appear in DOM order (row by row, left to right), so the reading and
- * tab order match what is seen, and the hero has the most cells. Every row is filled: no holes.
- * The hero is also the largest tile on screen: the featured project's 16:10 cover grows its tile's
- * height with its width, so the project always spans fewer columns than the hero (at 4 of 6
- * columns, as wide as the hero, it came out taller than the hero at 768 and 1024 px).
- * tests/unit/home/bento-areas.test.ts checks all of that, and project-tile.tsx's cover `sizes`
- * is worked out from these columns and gaps: change it with them (the test checks that too).
+ * Chromium and Firefox: span masonry. The grid has fine rows (--bento-row) and no row gap; each
+ * slot carries the gap as its own bottom padding and spans --rows-js rows (measured by the
+ * bento-masonry.tsx island) or, before that, its tier's estimate (--rows-sm, --rows-sm-wide from
+ * 30rem, --rows-md, --rows-md-wide from 50rem, --rows-lg; inline from bento-layout.ts). Sparse
+ * auto-placement, never dense, order or reading-flow, then drops each slot into the first lane
+ * that frees up after the slot before it, so a tile's top is never far above the previous tile's
+ * and Tab follows the reading order. The rows are minmax(row, auto): an underestimate grows them
+ * instead of overlapping tiles.
  *
- * No top padding: the shell's main already pads the page's top and bottom.
+ * Safari 26.4+ (and Chromium with its grid-lanes flag): native `display: grid-lanes` with natural
+ * heights, and the island does nothing.
+ *
+ * Nothing here transitions: a reflow is never animated. No top padding: the shell's main already
+ * pads the page's top and bottom. tests/unit/home/bento-areas.test.ts reads this file.
  */
 
 .container {
@@ -39,102 +48,131 @@
 }
 
 .grid {
+  /* Both mirror bento-layout.ts (BENTO_GAP_PX, BENTO_ROW_PX). */
+  --bento-gap: 0.75rem;
+  --bento-row: 2px;
+
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-areas:
-    "hero hero"
-    "now now"
-    "status status"
-    "leet type"
-    "gh gh"
-    "proj proj"
-    "place place"
-    "role role"
-    "strip strip";
-  gap: 0.75rem;
+
+  /*
+   * 1.3 : 1, the wide tier's first-lane proportion, so the status line ("All systems up") fits
+   * in the first lane of a 343 px bento instead of truncating.
+   */
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-auto-rows: minmax(var(--bento-row), auto);
+
+  /* No row gap: each slot pads its own bottom. */
+  gap: 0 var(--bento-gap);
+
+  /* A slot is as tall as its tile, never its rows, so measuring it cannot feed back. */
+  align-items: start;
+
+  /* The last slot in each lane carries a gap of padding; give it back. */
+  margin-block-end: calc(-1 * var(--bento-gap));
 }
 
-@container bento (width >= 40rem) {
-  .grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-auto-rows: minmax(8rem, auto);
-    grid-template-areas:
-      "hero hero hero hero now now"
-      "hero hero hero hero now now"
-      "hero hero hero hero status status"
-      "leet leet leet type type type"
-      "gh gh gh gh gh gh"
-      "proj proj proj place place place"
-      "proj proj proj role role role"
-      "strip strip strip strip strip strip";
-    gap: 1rem;
+/*
+ * A slot holds one tile, or its skeleton or error fallback, so a tile landing moves nothing.
+ * min-width: 0 lets long text clamp instead of widening the lane. The tile hugs its content.
+ */
+.slot {
+  --bento-lanes: 2;
+  --bento-rows: var(--rows-sm);
+
+  display: grid;
+  min-width: 0;
+  grid-column: span var(--bento-lanes);
+  grid-row-end: span var(--rows-js, var(--bento-rows));
+  padding-block-end: var(--bento-gap);
+}
+
+/*
+ * Every lane rule below is one class, so they all weigh the same and the later one wins: keep
+ * them in this order.
+ */
+.status,
+.leet,
+.type {
+  --bento-lanes: 1;
+}
+
+/*
+ * Wide phones: the lanes now fit the compact now-playing tile, so it heads the live cluster. The
+ * tiles change shape here too (the hero's role line fits on one line, the project turns
+ * cover-left, GitHub's sparkline moves beside its figure), so the estimates are this tier's own.
+ */
+@container bento (width >= 30rem) {
+  .slot {
+    --bento-rows: var(--rows-sm-wide);
+  }
+
+  .now {
+    --bento-lanes: 1;
   }
 }
 
-@container bento (width >= 67.5rem) {
+/* Medium: two equal lanes; only the hero spans. GitHub stays in one lane (spanning leaves a hole). */
+@container bento (width >= 40rem) {
   .grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-auto-rows: minmax(8.5rem, auto);
-    grid-template-areas:
-      "hero hero hero hero hero hero hero now now now now now"
-      "hero hero hero hero hero hero hero now now now now now"
-      "hero hero hero hero hero hero hero status status leet leet leet"
-      "type type type gh gh gh gh gh gh gh gh gh"
-      "proj proj proj proj proj place place place role role role role"
-      "proj proj proj proj proj strip strip strip strip strip strip strip";
+    --bento-gap: 1rem;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .slot {
+    --bento-lanes: 1;
+    --bento-rows: var(--rows-md);
+  }
+
+  .hero {
+    --bento-lanes: 2;
   }
 }
 
 /*
- * A slot holds one tile, or its skeleton or error fallback, in the same area, so a tile landing
- * moves nothing. min-width: 0 lets long text clamp instead of widening the column; the tile
- * fills the slot's full height, so tiles in one row line up.
+ * The rest of medium: the same lanes, but its own estimates (the project's 2 : 1 cover is taller
+ * in a wider lane, and the place's name fits on one line).
  */
-.slot {
-  display: grid;
-  min-width: 0;
+@container bento (width >= 50rem) {
+  .slot {
+    --bento-rows: var(--rows-md-wide);
+  }
 }
 
-.slot > * {
-  min-height: 100%;
+/* Wide: a wider first lane; the hero spans lanes 1 and 2, and the live tiles stack in lane 3. */
+@container bento (width >= 67.5rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr));
+  }
+
+  .slot {
+    --bento-rows: var(--rows-lg);
+  }
 }
 
-.hero {
-  grid-area: hero;
-}
+/*
+ * Native masonry: tiles keep their natural height and the gap is a real row gap. flow-tolerance
+ * is the Safari 26.4 to 27.1 name and fit-tolerance the 27.2+ name, so both are set. 2rem matches
+ * the reading-order rule: a tile's top never sits more than 2rem above the previous tile's.
+ */
+@supports (display: grid-lanes) {
+  .grid {
+    display: grid-lanes;
+    row-gap: var(--bento-gap);
+    margin-block-end: 0;
 
-.now {
-  grid-area: now;
-}
+    /* stylelint-disable property-no-unknown -- grid-lanes' tolerance, too new for the linters. */
 
-.status {
-  grid-area: status;
-}
+    /* biome-ignore lint/correctness/noUnknownProperty: grid-lanes' tolerance, Safari 26.4 to 27.1. */
+    flow-tolerance: 2rem;
 
-.leet {
-  grid-area: leet;
-}
+    /* biome-ignore lint/correctness/noUnknownProperty: the same tolerance's name from Safari 27.2. */
+    fit-tolerance: 2rem;
+    /* stylelint-enable property-no-unknown */
+  }
 
-.type {
-  grid-area: type;
-}
-
-.gh {
-  grid-area: gh;
-}
-
-.proj {
-  grid-area: proj;
-}
-
-.place {
-  grid-area: place;
-}
-
-.role {
-  grid-area: role;
-}
-
-.strip {
-  grid-area: strip;
+  .slot {
+    grid-row-end: auto;
+    padding-block-end: 0;
+  }
 }

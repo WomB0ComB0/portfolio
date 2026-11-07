@@ -15,32 +15,64 @@
  */
 
 /**
- * @file The pieces every home tile shares: its h2 label, the context line at its foot, the
- * designed empty and error notes, skeleton bars and links. Server-safe and pure (no directive, no
- * hooks, no I/O), so the server tiles, their skeletons and the error fallbacks all render them.
+ * @file The pieces every home tile shares: its h2 label, its context line, a figure with its unit,
+ * the designed empty and error notes, skeleton bars and links. Server-safe and pure (no directive,
+ * no hooks, no I/O), so the server tiles, their skeletons and the error fallbacks all render them.
+ *
+ * The type is the refined set from globals.css (tile-label, tile-meta, figure-*), each paired with
+ * a colour. Tiles hug their content: nothing here pushes itself to a tile's foot.
  *
  * Links here sit above a linked tile's stretched overlay (`relative z-10`), so a note's link stays
  * clickable inside any tile. External links open a new tab and say so to screen readers.
+ *
+ * The tile state contract, which the browser checks rely on: a tile root that is not showing its
+ * reference content (the loaded tile its skeleton and the server's estimates are measured from)
+ * says why in `data-state`: 'loading' (a skeleton, also aria-busy), 'error', 'empty' or 'stale'.
+ * A tile showing its reference content carries 'ready' or keeps a state of its own that names a
+ * designed state of the same size ('idle' for 'Not playing', a status level). A line that says
+ * when stale data was read ('as of Nov 5') carries `data-stale`.
  */
 
-import { ArrowUpRight, CircleAlert } from 'lucide-react';
+import { ArrowUpRight, CircleAlert, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 
-import { destinationOf, NEW_TAB_LABEL, SrOnlyWords } from '@/components/console';
+import { destinationOf, NEW_TAB_LABEL, numberFormatter, SrOnlyWords } from '@/components/console';
 import { cn } from '@/lib/utils';
 import { formatClockET, formatDay, type Instant } from '../data/format';
 
 /** The GitHub profile the hero and the GitHub tile link to. */
 export const GITHUB_PROFILE_URL = 'https://github.com/WomB0ComB0';
 
-/** Every tile label: the tile's h2. */
-const LABEL_CLASS = 'label-mono text-muted-foreground';
-/** The context line, pushed to the tile's foot (tiles are flex columns). */
-const META_CLASS = 'mt-auto font-mono text-meta text-muted-foreground';
-const NOTE_CLASS = 'flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-muted-foreground';
+/**
+ * Every tile label: the tile's h2, in sentence case as written ('Recently at'). A label that is a
+ * new-tab link ends in TileLink's 14px arrow, taller than the label's 13px text: on the baseline
+ * it would grow the 16px line by 2px past its skeleton's. Centred on the text, it fits.
+ */
+const LABEL_CLASS = 'tile-label text-muted-foreground [&_svg]:align-middle';
+/** The context line: dates, ages, '60 s best · 93% accuracy'. */
+const META_CLASS = 'tile-meta text-muted-foreground';
+const NOTE_CLASS = 'flex flex-wrap items-center gap-x-2 gap-y-1 tile-sub text-muted-foreground';
 const NOTE_ICON_CLASS = 'size-4 shrink-0 text-down';
-const SKELETON_CLASS = 'block rounded-md bg-surface-3 motion-safe:animate-pulse';
+/**
+ * Forced colours (Windows contrast themes) paint every background as Canvas, so a bar would
+ * vanish: an outline (forced to a system colour) keeps it a box, as SegmentBarSkeleton's. An
+ * outline takes no space, so the bar's size is the same in every mode.
+ */
+export const FORCED_COLORS_BOX_CLASS = 'forced-colors:outline';
+const SKELETON_CLASS = `block rounded-md bg-surface-3 motion-safe:animate-pulse ${FORCED_COLORS_BOX_CLASS}`;
+/**
+ * A text placeholder: a bar the size of the text it stands for. That text (data-shape) is drawn as
+ * hidden generated content, so the bar takes the loaded text's advance and wraps where it will,
+ * and the document holds none of it (without CSS it shows nothing).
+ *
+ * Hidden by visibility, never by colour: forced colours repaint transparent text in the system
+ * text colour, and the '0,000' and '88% accuracy' would read as data. `before:invisible` keeps
+ * the text's advance and line breaks, and nothing of it paints in any colour mode.
+ */
+const SHAPE_PLACEHOLDER_CLASS = `rounded-md bg-surface-3 motion-safe:animate-pulse ${FORCED_COLORS_BOX_CLASS} before:invisible before:content-[attr(data-shape)]`;
+/** Every tabular digit is as wide as any other, so a figure's shape is set in this one. */
+const SHAPE_DIGIT = '0';
 /** A text link inside a tile, above a linked tile's overlay. */
 const TEXT_LINK_CLASS =
   'relative z-10 inline-flex items-center gap-0.5 font-medium text-brand-ink underline-offset-4 hover:underline';
@@ -74,13 +106,19 @@ export interface TileMetaProps {
   className?: string;
   /** The words depend on today's date (marked data-dated). */
   dated?: boolean;
+  /** The line says when stale data was read (marked data-stale, the tile state contract). */
+  stale?: boolean;
   children: ReactNode;
 }
 
-/** One line of context at the tile's foot, e.g. 'updated 5 min ago'. */
-export function TileMeta({ className, dated, children }: TileMetaProps): ReactElement {
+/** `data-stale` for a line that says when stale data was read: 'as of Nov 5'. */
+export const staleAttribute = (stale: boolean | undefined): { 'data-stale'?: '' } =>
+  stale ? { 'data-stale': '' } : {};
+
+/** One line of context, e.g. 'Event · Aug 21'. */
+export function TileMeta({ className, dated, stale, children }: TileMetaProps): ReactElement {
   return (
-    <p className={cn(META_CLASS, className)} {...datedAttribute(dated)}>
+    <p className={cn(META_CLASS, className)} {...datedAttribute(dated)} {...staleAttribute(stale)}>
       {children}
     </p>
   );
@@ -167,6 +205,141 @@ export function SkeletonBar({ className }: { className?: string }): ReactElement
   return <span aria-hidden="true" className={cn(SKELETON_CLASS, className)} />;
 }
 
+export interface SkeletonLineProps {
+  /**
+   * The type style of the line it stands in for, e.g. 'tile-meta'. The box is one line of that
+   * style (1lh), so a skeleton line is as tall as the loaded line by construction.
+   */
+  type: string;
+  /** The bar's own size, e.g. 'h-3 w-32'. */
+  bar: string;
+  className?: string;
+}
+
+/** One line of text while it loads: a box one line of `type` tall, with a bar in it. Decorative. */
+export function SkeletonLine({ type, bar, className }: SkeletonLineProps): ReactElement {
+  return (
+    <span
+      aria-hidden="true"
+      data-skeleton-line=""
+      className={cn('flex h-[1lh] items-center', type, className)}
+    >
+      <SkeletonBar className={bar} />
+    </span>
+  );
+}
+
+/** A figure's tier, by its tile's size class and never the viewport: 28, 36 or 48 px. */
+export type FigureSize = 'sm' | 'md' | 'lg';
+
+const FIGURE_SIZE_CLASS = {
+  sm: 'figure-sm',
+  md: 'figure-md',
+  lg: 'figure-lg',
+} as const satisfies Record<FigureSize, string>;
+
+const UNIT_CLASS = 'figure-unit text-muted-foreground';
+
+export interface FigureRowProps {
+  /** The figure, formatted: '1,300'. */
+  value: string;
+  /** The words after it: 'solved', 'contributions in 12 weeks'. */
+  unit: string;
+  size: FigureSize;
+}
+
+/**
+ * A figure and its unit on one baseline (figure-row). In a narrow tile the unit wraps under the
+ * figure instead of running past the tile.
+ */
+export function FigureRow({ value, unit, size }: FigureRowProps): ReactElement {
+  return (
+    <p className="figure-row">
+      <span className={cn(FIGURE_SIZE_CLASS[size], 'text-foreground')}>{value}</span>{' '}
+      <span className={UNIT_CLASS}>{unit}</span>
+    </p>
+  );
+}
+
+export interface FigureRowSkeletonProps extends Omit<FigureRowProps, 'value'> {
+  /** How many digits the expected figure has: 4 for '1,300'. */
+  digits: number;
+}
+
+export interface ShapePlaceholderProps {
+  /** The text the bar stands for, as wide as the loaded text will be: '0,000', '60 s best · …'. */
+  shape: string;
+  /** The type it is set in, when the parent's is not the loaded text's: 'figure-lg'. */
+  className?: string;
+}
+
+/**
+ * A bar exactly as big as `shape` set in its type, wrapping where that text would. Decorative:
+ * the tile's loading note says what is loading.
+ */
+export function ShapePlaceholder({ shape, className }: ShapePlaceholderProps): ReactElement {
+  return (
+    <span
+      aria-hidden="true"
+      data-shape={shape}
+      className={cn(className, SHAPE_PLACEHOLDER_CLASS)}
+    />
+  );
+}
+
+/**
+ * The shape of a figure of `digits` digits, in zeros and grouped as the figure will be: 4 gives
+ * '0,000', exactly as wide as '1,300' in tabular figures. Only ever drawn by a ShapePlaceholder,
+ * never as text, so it never reads as a number. (Figure spaces were 13 px too wide for four digits
+ * at 48 px: Geist has no U+2007, so they came from the fallback font, and the GitHub skeleton
+ * wrapped its unit where the figure did not.)
+ */
+export const figureShape = (digits: number): string =>
+  numberFormatter()
+    .format(10 ** Math.max(0, digits - 1))
+    .replace(/\d/gu, SHAPE_DIGIT);
+
+export interface FigurePlaceholderProps {
+  /** How many digits the expected figure has: 4 for '1,300'. */
+  digits: number;
+  /** The figure's type: figure-lg, figure-md or figure-sm. */
+  className: string;
+}
+
+/** A bar exactly as big as a figure of `digits` digits in the given type. Decorative. */
+export function FigurePlaceholder({ digits, className }: FigurePlaceholderProps): ReactElement {
+  return <ShapePlaceholder shape={figureShape(digits)} className={className} />;
+}
+
+/**
+ * A FigureRow while its figure loads: the real unit beside a placeholder set in the figure's own
+ * type and as wide as the expected figure. So it has the loaded row's height and wraps the unit
+ * where the loaded row does. Decorative; the tile's loading note says what is loading.
+ */
+export function FigureRowSkeleton({ digits, unit, size }: FigureRowSkeletonProps): ReactElement {
+  return (
+    <p aria-hidden="true" className="figure-row">
+      <FigurePlaceholder digits={digits} className={FIGURE_SIZE_CLASS[size]} />{' '}
+      <span className={UNIT_CLASS}>{unit}</span>
+    </p>
+  );
+}
+
+/**
+ * The context line of data served past its deadline: a clock, then when it was read ('as of Nov 5
+ * 11:02 AM ET'). Nothing without words. Dated: the day gains its year once the year turns. Marked
+ * data-stale.
+ */
+export function StaleNote({ children }: { children: string }): ReactElement | null {
+  if (!children) return null;
+  return (
+    <TileMeta dated stale className="flex items-center gap-1.5">
+      <Clock aria-hidden="true" className="size-3.5 shrink-0" />
+      {children}
+    </TileMeta>
+  );
+}
+
 /** What a skeleton says to screen readers while its tile loads, e.g. 'Loading GitHub activity'. */
 export function LoadingNote({ children }: { children: string }): ReactElement {
   return <span className="sr-only">{children}</span>;
@@ -182,8 +355,11 @@ export function asOfText(iso: string, now: Instant): string {
   return day && clock ? `as of ${day} ${clock}` : '';
 }
 
-/** Between the parts of a context line. */
-export const META_SEPARATOR = ' · ';
+/**
+ * Between the parts of a context line. The no-break space keeps the dot on the line before it
+ * when the line wraps, so no line starts with '·'.
+ */
+export const META_SEPARATOR = ' · ';
 
 /** The parts of a context line that have words, joined by {@link META_SEPARATOR}. */
 export const joinMeta = (parts: readonly (string | null | undefined)[]): string =>

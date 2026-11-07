@@ -33,7 +33,8 @@ import 'server-only';
  * "no active resume" it would serve is stale.
  *
  * The site settings singleton has no API route and is read by the pages only. Its fields are
- * decoded one by one: an invalid field is dropped (and reported), the others are kept.
+ * decoded one by one: an invalid field is dropped (and reported), the others are kept. A blank
+ * location is the owner clearing it: absent, and not reported.
  */
 
 import { Either, Option, ParseResult, Schema } from 'effect';
@@ -291,8 +292,9 @@ function invalidFields(doc: object): ReadonlySet<PropertyKey> {
 
 /**
  * `doc` as site settings. Each field that breaks its rule is left out, so the page falls back for
- * that field alone; the document is reported once per answer, naming every bad field. Null when
- * there is no document, or what is left is still not one (no _id, another _type).
+ * that field alone (for the location, which has no built-in value, to none); the document is
+ * reported once per answer, naming every bad field. Null when there is no document, or what is
+ * left is still not one (no _id, another _type).
  */
 function decodeSiteSettings(doc: unknown): SiteSettings | null {
   const settings = decodeOne(SiteSettingsDocumentSchema, doc, SITE_SETTINGS_KEY);
@@ -304,8 +306,9 @@ function decodeSiteSettings(doc: unknown): SiteSettings | null {
 
 /**
  * The site settings, each invalid field left out; null when the document does not exist yet.
- * When Sanity fails after a good load, the last good settings and a warning; with nothing
- * cached, rejects with the getter's error.
+ * When Sanity fails after a good load, the last good settings and a warning (the latest answer,
+ * so a field the owner cleared stays cleared); with nothing cached, rejects with the getter's
+ * error.
  */
 export const loadSiteSettings = cache(
   async (): Promise<SiteSettings | null> =>

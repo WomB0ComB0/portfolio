@@ -57,7 +57,8 @@ export interface FreshnessProps {
 }
 
 /**
- * The age of a figure as a <time> element, e.g. "updated 5 min ago". Renders nothing for an
+ * The age of a figure as a <time> element, e.g. "updated 5 min ago", in the meta style (Geist
+ * 13/18 with tabular figures, so the age never jitters as it changes). Renders nothing for an
  * invalid `at`.
  *
  * @example
@@ -88,7 +89,7 @@ export function Freshness({
       ref={timeRef}
       dateTime={new Date(time).toISOString()}
       suppressHydrationWarning
-      className={cn('font-mono text-meta', className)}
+      className={cn('tile-meta', className)}
     >
       {text}
     </time>

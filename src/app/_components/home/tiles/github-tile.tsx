@@ -18,14 +18,24 @@ import 'server-only';
 
 /**
  * @file The home GitHub tile: contributions over the last twelve weeks as a figure and a
- * sparkline, and the latest public commit. A linked tile: its stretched link is the commit (or,
- * with no commit, the label, to the profile).
+ * sparkline, and the latest public commit. A linked tile: its stretched link is the commit's
+ * headline (or, with no commit, the label, to the profile).
  *
- * The sparkline is decorative, so an sr-only sentence says what it shows. Above a 40rem tile the
- * figure and commit sit left (40%) and the sparkline right (60%, taller); below, they stack.
+ * The headline reads as a visitor would say it (commitHeadline: no 'feat(home): ', no '(#604)'),
+ * while the link's name keeps it as written. The repository is a mono token, the one machine word
+ * on the tile; the SHA is left out. Fresh, the tile says nothing of its own freshness (the
+ * commit's age shows recency); stale, it says when it was read.
+ *
+ * The sparkline is decorative, so an sr-only sentence says what it shows. From a 34rem tile the
+ * figure and commit sit left (2fr) and the sparkline right (3fr, taller); below, they stack. A
+ * narrow bento from 30rem to 40rem (the 30rem estimate tier, bento.module.css) gives this tile its
+ * whole width, and there it goes side by side too. Side by side, the figure's column is never
+ * narrower than the figure's row.
+ *
+ * Tile states (tile-states.tsx): 'ready' with a commit (the reference content its skeleton
+ * holds), 'empty' without one (no commit lines) or without activity, 'stale' or 'error'.
  */
 
-import { Clock } from 'lucide-react';
 import type { ReactElement } from 'react';
 
 import { hasDestination, numberFormatter, Sparkline, Tile, TileLink } from '@/components/console';
@@ -36,46 +46,84 @@ import {
   type LatestCommit,
 } from '@/lib/api-integrations/github-activity';
 import { cn } from '@/lib/utils';
-import { formatDay, formatRelative, type Instant } from '../data/format';
+import { commitHeadline, formatDay, formatRelative, type Instant } from '../data/format';
 import { loadGitHubActivity } from '../data/loaders';
 import type { TileResult } from '../data/tile-result';
 import {
   asOfText,
+  FigureRow,
+  FigureRowSkeleton,
   GITHUB_PROFILE_URL,
-  joinMeta,
   LoadingNote,
+  META_SEPARATOR,
   SkeletonBar,
+  SkeletonLine,
+  StaleNote,
   TileEmpty,
   TileLabel,
-  TileMeta,
   TileUnavailable,
 } from './tile-states';
 
-export const GITHUB_TILE_LABEL = `GitHub · ${ACTIVITY_WEEKS} weeks`;
+export const GITHUB_TILE_LABEL = 'GitHub';
+/** After the figure: the period is part of the unit, not the label. */
+export const CONTRIBUTIONS_UNIT = `contributions in ${ACTIVITY_WEEKS} weeks`;
 
-const TILE_CLASS = 'gap-4';
-/** Stacked below a 40rem tile; figure and commit 40%, sparkline 60% above it. */
-const BODY_CLASS = 'grid gap-4 @[40rem]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @[40rem]:items-end';
-const FIGURE_CLASS = 'figure text-stat text-foreground @[40rem]:text-display';
-const UNIT_CLASS = 'ml-2 font-sans text-body-sm font-normal tracking-normal text-muted-foreground';
-/** The sparkline's height on screen: 56 px, 72 px (h-18) in the two-column layout. */
+const TILE_CLASS = 'gap-3';
+/**
+ * Stacked below a 34rem tile; figure and commit 2fr, sparkline 3fr above it. In a narrow bento
+ * (named container `bento`, 30rem to 40rem) the tile spans the bento and goes side by side too,
+ * its unit on one line (TEXT_COLUMN_CLASS). From 30rem, not 29rem: the estimate tier changes
+ * there, so each tier holds one shape.
+ *
+ * Both rules give the text column `minmax(min-content,2fr)`, never narrower than the figure's
+ * row. They match at once in a 586 to 640 px bento (the tile is 34rem there), and the built CSS
+ * orders them, not this list: with `minmax(0,2fr)` the 34rem rule came last and won, so the
+ * nowrap row ran up to 80 px into the sparkline's column (its skeleton bar painted over
+ * '12 weeks').
+ */
+const BODY_CLASS =
+  'grid gap-4 @[34rem]:grid-cols-[minmax(min-content,2fr)_minmax(0,3fr)] @[34rem]:items-end @min-[30rem]/bento:@max-[40rem]/bento:grid-cols-[minmax(min-content,2fr)_minmax(0,3fr)] @min-[30rem]/bento:@max-[40rem]/bento:items-end';
+/**
+ * The figure and the commit lines. The column is sized by its min-content wherever it sits beside
+ * the sparkline (BODY_CLASS), and that is the figure's row, never the commit's headline: the
+ * commit lines contain their inline size (COMMIT_LINES_CLASS), so a long headline is cut, not
+ * widening the column. In a 30 to 40rem bento the figure's row keeps its unit on one line and so
+ * sets the width; the skeleton has the same figure row and no headline, so the loaded tile and
+ * its skeleton split the same way. (Sized by the nowrap headline, the loaded column took 376 px
+ * and kept the unit up, while the skeleton's took 197 px and wrapped it: 24 px taller in a 600 px
+ * window.)
+ */
+const TEXT_COLUMN_CLASS =
+  'flex min-w-0 flex-col gap-3 @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:flex-nowrap @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:whitespace-nowrap';
+/** The commit lines take the column's width and never widen it: their headline is cut short. */
+const COMMIT_LINES_CLASS = 'flex min-w-0 flex-col gap-1 contain-inline-size';
+/** The sparkline's height on screen: 56 px, 72 px (h-18) side by side. */
 const SPARKLINE_HEIGHT = 56;
-const SPARKLINE_CLASS = '@[40rem]:h-18';
-/** Where the sparkline was, in the error state: its box with a dashed baseline. */
-const MISSING_TREND_CLASS = 'h-14 border-b border-dashed border-hairline @[40rem]:h-18';
+const SPARKLINE_TALL_CLASS = '@[34rem]:h-18 @min-[30rem]/bento:@max-[40rem]/bento:h-18';
+/** Where the sparkline was, without data: its box with a dashed baseline. */
+const MISSING_TREND_CLASS = 'h-14 border-b border-dashed border-hairline';
 /**
- * The commit link is a row of the clamped headline and TileLink's new-tab arrow, so the clamp
- * cuts the headline short and never the arrow after it.
+ * The commit link is a row of the truncated headline and TileLink's new-tab arrow, so the
+ * ellipsis cuts the headline short and never the arrow after it.
+ *
+ * A cut headline's ellipsis stops short of its box (by up to a glyph), and the arrow inside the
+ * 14 px icon starts 4 px in, so at 768 px a 10 to 12 px gap opened before the arrow. So:
+ * - the arrow is pulled 4 px into the headline's box (`-ml-1` for its `ml-0.5`); the icon's
+ *   empty inset covers only the box's end, never the text's ink. After a cut headline the ink gap
+ *   from the ellipsis to the arrow is then 1 px plus whatever the cut left of the box: the
+ *   ellipsis follows the last whole glyph that fits, so up to one glyph's width stays empty. That
+ *   is about 1 to 8.5 px, by the headline and the width (5 to 6.5 px at 768 px with the headline
+ *   of the day). CSS can't take that slack away: the box ends at the column's edge, not at the
+ *   ellipsis.
+ * - a 4 px spacer (the link's ::before, ordered between the headline and the arrow) keeps a whole
+ *   headline's arrow as far from its last letter (3.5 px), rather than glued to it. Its huge
+ *   flex-shrink makes it the first to give way: 4 px while the headline fits, 0 once the
+ *   headline is cut (while the spacer gives way, the headline shrinks by under a tenth of a px).
  */
-const COMMIT_LINK_CLASS = 'flex items-baseline text-foreground';
-const HEADLINE_CLASS = 'line-clamp-1 min-w-0 wrap-break-word';
-/**
- * The skeleton's text lines: boxes of the loaded lines' heights (globals.css: text-meta's
- * line-height is 1.125rem, text-body-sm's 1.375rem), each with a bar in it, so the tile does not
- * grow when it lands.
- */
-const META_LINE_CLASS = 'flex h-[1.125rem] items-center';
-const BODY_SM_LINE_CLASS = 'flex h-[1.375rem] items-center';
+const COMMIT_LINK_CLASS =
+  'flex items-baseline text-inherit group-hover/tile:text-brand-ink before:order-1 before:basis-1 before:shrink-[100000] [&>[data-new-tab-arrow]]:order-2 [&>[data-new-tab-arrow]>svg]:-ml-1';
+/** The digits of the figure the skeleton holds room for: '1,300'. */
+const FIGURE_DIGITS = 4;
 
 const formatCount = (value: number): string => numberFormatter().format(value);
 
@@ -99,58 +147,49 @@ export function contributionSummary(activity: GitHubActivity, now: Instant): str
   return `${total}; busiest week ${formatCount(top.count)} (week of ${weekOf}).`;
 }
 
-/** 'portfolio · a1b2c3d · 3 h ago', then the headline as the tile's link. */
-function CommitLine({ commit, now }: { commit: LatestCommit; now: Instant }): ReactElement {
+/** What the commit link is called: its headline as written, and where it leads. */
+export const commitLinkName = (commit: LatestCommit): string =>
+  `Latest commit: ${commit.headline}, on GitHub`;
+
+/**
+ * 'portfolio · 32 min ago' (the repository as a mono token), then the headline as the tile's
+ * link. The age is worded from now, so its line is dated.
+ */
+function CommitLines({ commit, now }: { commit: LatestCommit; now: Instant }): ReactElement {
   const repoName = commit.repo.split('/').at(-1) || commit.repo;
+  const age = formatRelative(commit.committedAt, now);
   return (
-    <div className="min-w-0">
-      <p className="truncate font-mono text-meta text-muted-foreground">
-        {joinMeta([repoName, commit.sha, formatRelative(commit.committedAt, now)])}
+    <div className={COMMIT_LINES_CLASS}>
+      <p data-dated="" className="truncate tile-meta text-muted-foreground">
+        <span className="mono-token">{repoName}</span>
+        {age ? `${META_SEPARATOR}${age}` : null}
       </p>
-      <p className="mt-1 text-body-sm">
-        <TileLink
-          href={commit.url}
-          external
-          srSuffix="(latest commit on GitHub)"
-          className={COMMIT_LINK_CLASS}
-        >
-          <span className={HEADLINE_CLASS}>{commit.headline}</span>
+      <p className="min-w-0 tile-sub text-muted-foreground">
+        <TileLink href={commit.url} external className={COMMIT_LINK_CLASS}>
+          <span aria-hidden="true" className="min-w-0 truncate">
+            {commitHeadline(commit.headline)}
+          </span>
+          <span className="sr-only">{commitLinkName(commit)}</span>
         </TileLink>
       </p>
     </div>
   );
 }
 
-interface FreshnessLineProps {
+interface ActivityViewProps {
+  activity: GitHubActivity;
   stale: boolean;
   asOf?: string;
   now: Instant;
 }
 
-/** 'updated 5 min ago', or, for stale data, 'as of Nov 5 11:02 AM ET' with a clock. */
-function FreshnessLine({ stale, asOf, now }: FreshnessLineProps): ReactElement | null {
-  if (!asOf) return null;
-  if (stale) {
-    const text = asOfText(asOf, now);
-    if (!text) return null;
-    return (
-      <TileMeta className="flex items-center gap-1.5">
-        <Clock aria-hidden="true" className="size-3.5 shrink-0" />
-        {text}
-      </TileMeta>
-    );
-  }
-  const age = formatRelative(asOf, now);
-  if (!age) return null;
-  return (
-    <TileMeta>
-      <time dateTime={asOf}>updated {age}</time>
-    </TileMeta>
-  );
-}
-
-interface ActivityViewProps extends FreshnessLineProps {
-  activity: GitHubActivity;
+/**
+ * The tile's state: stale before all else; without a commit to show, 'empty', since the tile then
+ * lacks the commit lines its skeleton (and the estimates) hold.
+ */
+function activityState(stale: boolean, commit: LatestCommit | null): 'stale' | 'empty' | 'ready' {
+  if (stale) return 'stale';
+  return commit ? 'ready' : 'empty';
 }
 
 /** The loaded tile. A commit without a link is left out, and the label links the profile. */
@@ -158,34 +197,31 @@ function ActivityView({ activity, stale, asOf, now }: ActivityViewProps): ReactE
   const latest = activity.latestCommit;
   const commit = latest && hasDestination(latest.url) ? latest : null;
   return (
-    <Tile variant="linked" className={TILE_CLASS} data-state={stale ? 'stale' : 'ready'}>
+    <Tile variant="linked" className={TILE_CLASS} data-state={activityState(stale, commit)}>
       <TileLabel>
         {commit ? (
           GITHUB_TILE_LABEL
         ) : (
-          <TileLink href={GITHUB_PROFILE_URL} external className="text-inherit">
+          <TileLink href={GITHUB_PROFILE_URL} external srSuffix="profile" className="text-inherit">
             {GITHUB_TILE_LABEL}
           </TileLink>
         )}
       </TileLabel>
       <div className={BODY_CLASS}>
-        <div className="flex min-w-0 flex-col gap-3">
-          <p className={FIGURE_CLASS}>
-            {formatCount(activity.total)}
-            <span className={UNIT_CLASS}>contributions</span>
-          </p>
-          {commit && <CommitLine commit={commit} now={now} />}
+        <div className={TEXT_COLUMN_CLASS}>
+          <FigureRow value={formatCount(activity.total)} unit={CONTRIBUTIONS_UNIT} size="lg" />
+          {commit && <CommitLines commit={commit} now={now} />}
         </div>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col justify-end">
           <Sparkline
             values={activity.weeks.map((week) => week.count)}
             height={SPARKLINE_HEIGHT}
-            className={SPARKLINE_CLASS}
+            className={SPARKLINE_TALL_CLASS}
           />
           <p className="sr-only">{contributionSummary(activity, now)}</p>
         </div>
       </div>
-      <FreshnessLine stale={stale} asOf={asOf} now={now} />
+      {stale && <StaleNote>{asOf ? asOfText(asOf, now) : ''}</StaleNote>}
     </Tile>
   );
 }
@@ -208,7 +244,6 @@ export function GitHubTileView({ result, now = Date.now() }: GitHubTileViewProps
       <TileLabel>{GITHUB_TILE_LABEL}</TileLabel>
       <div aria-hidden="true" className={MISSING_TREND_CLASS} />
       <Note
-        className="mt-auto"
         message={
           result.status === 'error' ? 'GitHub activity unavailable' : 'No public activity yet'
         }
@@ -221,33 +256,24 @@ export function GitHubTileView({ result, now = Date.now() }: GitHubTileViewProps
 }
 
 /**
- * The loading GitHub tile, line for line the loaded one: the real label, the figure's own element
- * holding a 1em bar (its type size changes with the tile), the commit's two lines, the
- * sparkline's box and the meta line. Streaming the data in moves nothing below it.
+ * The loading GitHub tile, line for line the fresh one with a commit: the real label, the figure's
+ * row with its real unit, the commit's two lines (each one line of its own type), and the
+ * sparkline's box. Streaming the data in moves nothing below it.
  */
 export function GitHubTileSkeleton(): ReactElement {
   return (
     <Tile className={TILE_CLASS} aria-busy="true" data-state="loading">
       <TileLabel>{GITHUB_TILE_LABEL}</TileLabel>
       <div className={BODY_CLASS}>
-        <div className="flex min-w-0 flex-col gap-3">
-          <p aria-hidden="true" className={FIGURE_CLASS}>
-            <SkeletonBar className="h-[1em] w-[4ch]" />
-          </p>
-          <div className="min-w-0">
-            <span className={META_LINE_CLASS}>
-              <SkeletonBar className="h-3 w-40 rounded-sm" />
-            </span>
-            <span className={cn('mt-1', BODY_SM_LINE_CLASS)}>
-              <SkeletonBar className="h-3.5 w-4/5" />
-            </span>
+        <div className={TEXT_COLUMN_CLASS}>
+          <FigureRowSkeleton digits={FIGURE_DIGITS} unit={CONTRIBUTIONS_UNIT} size="lg" />
+          <div className={COMMIT_LINES_CLASS}>
+            <SkeletonLine type="tile-meta" bar="h-3 w-32 rounded-sm" />
+            <SkeletonLine type="tile-sub" bar="h-3.5 w-4/5" />
           </div>
         </div>
-        <SkeletonBar className="h-14 w-full @[40rem]:h-18" />
+        <SkeletonBar className={cn('h-14 w-full', SPARKLINE_TALL_CLASS)} />
       </div>
-      <span className={cn('mt-auto', META_LINE_CLASS)}>
-        <SkeletonBar className="h-3 w-28 rounded-sm" />
-      </span>
       <LoadingNote>Loading GitHub activity</LoadingNote>
     </Tile>
   );

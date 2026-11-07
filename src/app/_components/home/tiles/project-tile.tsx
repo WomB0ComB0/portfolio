@@ -18,11 +18,26 @@ import 'server-only';
 
 /**
  * @file The home project tile. It follows the owner's own commits on GitHub: the project of the
- * public repository he committed to last, in the last 30 days, labelled 'Latest work' with the
- * day of that commit ('committed yesterday'). The label claims only that: the project's own
- * status (often 'Completed') stays beside it. Without one (or without GitHub), the first featured
- * project with a cover, in Studio order (owner decision 7), labelled 'Featured project'. A flush
- * linked tile whose stretched link is the title.
+ * public repository he committed to last, in the last 30 days, labelled 'Latest work' beside the
+ * day of that commit ('committed yesterday'). Without one (or without GitHub), the first featured
+ * project with a cover, in Studio order (owner decision 7), labelled 'Featured project' beside the
+ * year it started. A flush linked tile whose stretched link is the title.
+ *
+ * The title is split at its first ' - ', ' – ', ' — ' or ': ' (splitTitle): the name is the title
+ * and the rest its one description line. Nothing else: the long description, the tech chips, the
+ * category and the status stay on the project's page.
+ *
+ * The cover is 2:1, and so is its file: Sanity cuts a 2:1 window from Studio's crop, centred on
+ * the image's hotspot (@sanity/image-url's fit, with both a width and a height), so the subject
+ * stays in the file and no pixel is sent that the box would throw away. Stacked, the cover is the
+ * tile's width. From a 38rem tile the tile is a media object, cover left (half the tile, still
+ * 2:1) and text right, so a wide lane does not make the project taller than the hero; a 30rem to
+ * 40rem bento (the 30rem estimate tier, where this tile spans the bento) does the same. Below a
+ * 30rem bento (phones) it stacks. In the media object the text is one line each (label row, title,
+ * description), so it is never taller than the cover and the skeleton is exactly the tile's size.
+ * A stale project (its list served past the deadline) adds that list's day on a line of its own,
+ * never cut: it is the tile's only visible sign of staleness, and a stale tile is outside the
+ * estimates anyway (tile-states.tsx's state contract).
  *
  * The cover URL is built here, on the server (urlFor never reaches the client). A project with no
  * cover, or one whose image reference cannot be resolved, gets a typographic cover: its initials
@@ -35,14 +50,14 @@ import type { ReactElement } from 'react';
 import { hasDestination, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Project } from '@/lib/sanity/loaders';
-import { formatAsOfDay, formatRelative, type Instant } from '../data/format';
+import { formatAsOfDay, formatRelative, type Instant, splitTitle } from '../data/format';
 import { loadProjectPick } from '../data/loaders';
 import type { ProjectPick } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
 import {
-  joinMeta,
   LoadingNote,
-  SkeletonBar,
+  META_SEPARATOR,
+  SkeletonLine,
   TileEmpty,
   TileLabel,
   TileMeta,
@@ -52,34 +67,73 @@ import {
 const LABEL = 'Featured project';
 /**
  * The label when the owner's commits chose the project. It says only what the data shows (he
- * committed to it lately), so it never contradicts a 'Completed' status beside it.
+ * committed to it lately), so it never contradicts the project's own status.
  */
 const ACTIVE_LABEL = 'Latest work';
 const PROJECTS_PATH = '/projects';
 
+/** The cover file's size: 2:1, as drawn. */
 const COVER_WIDTH = 1200;
-const COVER_HEIGHT = 750;
+const COVER_HEIGHT = COVER_WIDTH / 2;
 /**
- * How wide the cover is drawn, from the bento's proj area inside the shell: the whole content
- * box below a 40rem bento (about 100vw), 3 of 6 columns up to the 67.5rem bento (half the bento
- * less 8 px: at most 47vw), then 5 of 12 columns (37vw, and 464 px once the shell stops growing
- * at 1264 px). The bento switches by its own width, which the gutters put 44 px below a 684 px
- * viewport, and the rail and gutters 128 px below a 1208 px one. bento-areas.test.ts checks this
- * against the grid at every viewport width.
+ * How wide the cover is drawn, at most, as a browser reads it before layout: the whole tile below
+ * a 30rem bento (stacked, about 100vw), half the tile in a 30rem to 40rem bento (the media object,
+ * at most 48vw), then the widest lane the tile can land in: half the bento at medium (at most
+ * 47vw), the 1.3fr first lane at wide (at most 35vw), and 436 px once the shell stops growing at
+ * 1264 px. A desktop browser's bento is about 10 px narrower than a phone's (globals.css keeps the
+ * page scrollbar's gutter), so a step comes in only where both have taken it: the media object
+ * from a 527 px window (a phone's from 517 px), the wide tier from 1218 px (a phone's from 1208
+ * px). Until then the wider cover counts. bento-areas.test.ts checks it against the grid and this
+ * tile's media object, on a phone and in a desktop browser, so it changes with them.
  */
 export const PROJECT_COVER_SIZES =
-  '(min-width: 1264px) 464px, (min-width: 1208px) 37vw, (min-width: 684px) 47vw, 100vw';
-const TECH_CHIPS_SHOWN = 4;
+  '(min-width: 1264px) 436px, (min-width: 1218px) 35vw, (min-width: 684px) 47vw, (min-width: 527px) 48vw, 100vw';
 const INITIALS_SHOWN = 2;
 
-/** The tile's border is 1px inside its radius, so the cover's corners sit 1px tighter. */
-const COVER_CLASS = 'aspect-[16/10] w-full rounded-t-[calc(var(--radius-tile)-1px)]';
-const TYPOGRAPHIC_COVER_CLASS = `${COVER_CLASS} flex flex-col justify-between bg-[linear-gradient(135deg,var(--brand-subtle),var(--surface-2)_75%)] p-5`;
-const BODY_CLASS = 'flex flex-1 flex-col gap-2 p-4 @md:p-5';
-const TITLE_CLASS = 'line-clamp-2 wrap-break-word text-title font-semibold text-foreground';
-const DESCRIPTION_CLASS = 'line-clamp-2 wrap-break-word text-body-sm text-muted-foreground';
-const CHIP_CLASS =
-  'rounded-sm border border-hairline px-1.5 py-0.5 font-mono text-label text-muted-foreground';
+/**
+ * The media object: a column (cover over text), a row from a 38rem tile, and a row in a 30rem to
+ * 40rem bento (container `bento`), where the tile spans the bento and a stacked 2:1 cover would
+ * make it nearly the hero's size. The 30rem step is the estimate tier's (bento.module.css), so
+ * each tier holds one shape. Every class is a literal, for Tailwind's scanner.
+ */
+const MEDIA_CLASS =
+  'flex min-w-0 flex-col @[38rem]:flex-row @min-[30rem]/bento:@max-[40rem]/bento:flex-row';
+/**
+ * 2:1 and full width, its top corners 1px inside the tile's (the border); as the row's left half,
+ * its right corners square and its bottom left one rounded. self-start: in the row it keeps 2:1
+ * instead of stretching to the text beside it.
+ */
+const COVER_CLASS =
+  'aspect-[2/1] w-full shrink-0 self-start rounded-t-[calc(var(--radius-tile)-1px)] bg-surface-3 @[38rem]:w-1/2 @[38rem]:rounded-tr-none @[38rem]:rounded-bl-[calc(var(--radius-tile)-1px)] @min-[30rem]/bento:@max-[40rem]/bento:w-1/2 @min-[30rem]/bento:@max-[40rem]/bento:rounded-tr-none @min-[30rem]/bento:@max-[40rem]/bento:rounded-bl-[calc(var(--radius-tile)-1px)]';
+const TYPOGRAPHIC_COVER_CLASS = `${COVER_CLASS} flex items-center justify-center bg-[linear-gradient(135deg,var(--brand-subtle),var(--surface-2)_75%)]`;
+/** The text, padded like a tile; as the row's right half, centred against the cover. */
+const BODY_CLASS =
+  'flex min-w-0 flex-col gap-1.5 p-4 @md/bento:p-5 @[38rem]:flex-1 @[38rem]:justify-center @min-[30rem]/bento:@max-[40rem]/bento:flex-1 @min-[30rem]/bento:@max-[40rem]/bento:justify-center';
+/**
+ * The label and its detail ('Featured project · 2024') as one line box on the label's 16 px line:
+ * an inline h2, then the detail, cut with an ellipsis instead of wrapping (as two items of a
+ * wrapping row, the detail broke onto a line of its own starting with '·'). In every layout: the
+ * detail fits a stacked tile's text from a 254 px column, and the media object's from about a
+ * 510 px bento, so only there is 'committed …' cut. Nothing the tile must show goes in it: a
+ * stale list's day has a line of its own. (A title here would never show: the stretched link's
+ * overlay covers the tile, so a pointer is always over the link.)
+ */
+const LABEL_ROW_CLASS = 'truncate tile-label text-muted-foreground';
+/**
+ * The h2 inside the label's line box. Its own nowrap: globals.css gives every h2 `text-wrap:
+ * balance`, which sets text-wrap-mode back to wrap, so 'Latest work' broke in two inside the
+ * truncated row and the tile grew a line.
+ */
+const LABEL_CLASS = 'inline whitespace-nowrap';
+/**
+ * The title and the description: up to two lines each stacked; one each in the media object, so
+ * its text (16 + 6 + 26 + 6 + 20 px with 40 px of padding) is never taller than its cover (from
+ * 119.5 px at a 30rem bento).
+ */
+const TITLE_CLASS =
+  'line-clamp-2 wrap-break-word tile-title-lg text-foreground @[38rem]:line-clamp-1 @min-[30rem]/bento:@max-[40rem]/bento:line-clamp-1';
+const SUBTITLE_CLASS =
+  'line-clamp-2 wrap-break-word tile-sub text-muted-foreground @[38rem]:line-clamp-1 @min-[30rem]/bento:@max-[40rem]/bento:line-clamp-1';
 
 /** Up to two initials, from the first letters of the title's first words: 'Fraud Guard' is FG. */
 export function initialsOf(title: string): string {
@@ -92,8 +146,11 @@ export function initialsOf(title: string): string {
 }
 
 /**
- * The cover's URL, or null without one. urlFor throws on an image reference it cannot parse; the
- * typographic cover stands in for it, the same as for a project with no image.
+ * The cover's URL, or null without one: a 2:1 file at the cover's width. With both a width and a
+ * height, the builder cuts a 2:1 window from Studio's crop centred on the hotspot (its `rect`),
+ * and fit=crop has Sanity serve exactly that window, so the file is the box and the subject stays
+ * in it. urlFor throws on an image reference it cannot parse; the typographic cover stands in for
+ * it, as for a project with no image.
  */
 function coverUrl(image: Project['image']): string | null {
   if (!image?.asset) return null;
@@ -113,17 +170,17 @@ function coverUrl(image: Project['image']): string | null {
 const projectHref = (project: Project): string =>
   `${PROJECTS_PATH}/${encodeURIComponent(project._id)}`;
 
-/** The year the project started, from its startDate; undefined without one. */
-const startYear = (project: Project): string | undefined =>
-  /^\d{4}/u.exec(project.startDate ?? '')?.[0];
+/** The year the project started, from its startDate; '' without one. */
+const startYear = (project: Project): string => /^\d{4}/u.exec(project.startDate ?? '')?.[0] ?? '';
 
-function Cover({ project }: { project: Project }): ReactElement {
+/** The cover is decorative: the title beside it names the project. */
+function Cover({ project, name }: { project: Project; name: string }): ReactElement {
   const url = coverUrl(project.image);
   if (url) {
     return (
       <Image
         src={url}
-        alt={project.image?.alt ?? ''}
+        alt=""
         width={COVER_WIDTH}
         height={COVER_HEIGHT}
         sizes={PROJECT_COVER_SIZES}
@@ -132,28 +189,10 @@ function Cover({ project }: { project: Project }): ReactElement {
       />
     );
   }
-  // Decorative: the title and category are in the body below.
   return (
     <div aria-hidden="true" data-cover="typographic" className={TYPOGRAPHIC_COVER_CLASS}>
-      <span className="label-mono text-brand-ink">{project.category}</span>
-      <span className="font-sans text-[4rem] font-extrabold leading-none tracking-display text-foreground">
-        {initialsOf(project.title)}
-      </span>
+      <span className="figure-lg text-foreground">{initialsOf(name)}</span>
     </div>
-  );
-}
-
-function TechChips({ technologies }: { technologies: readonly string[] }): ReactElement | null {
-  const shown = technologies.slice(0, TECH_CHIPS_SHOWN);
-  if (shown.length === 0) return null;
-  return (
-    <ul aria-label="Technologies" className="flex flex-wrap gap-1.5">
-      {shown.map((technology) => (
-        <li key={technology} className={CHIP_CLASS}>
-          {technology}
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -168,40 +207,73 @@ function committedText(pick: ProjectPick, now: Instant): string {
   return ago ? `committed ${ago}` : '';
 }
 
-interface ProjectViewProps {
-  project: Project;
-  /** 'Latest work' when the owner's commits chose it, else 'Featured project'. */
+interface LabelRowProps {
   label: string;
-  /** The project comes from the list last loaded, served past the deadline. */
-  stale: boolean;
-  /** 'committed yesterday' for his latest work, else ''. */
-  committed: string;
-  /** 'as of Nov 5' for a stale project whose list's load day is known, else ''. */
-  asOf: string;
+  /** Beside the label: 'committed yesterday' or '2024'; '' for none. */
+  detail: string;
+  /** The detail is worded from today's date. */
+  dated: boolean;
 }
 
-function ProjectView({ project, label, stale, committed, asOf }: ProjectViewProps): ReactElement {
+/**
+ * The tile's h2 with its detail beside it, so the label's own words never change with the date.
+ * One line box: the separator's no-break space (META_SEPARATOR) glues the dot to the label.
+ */
+function LabelRow({ label, detail, dated }: LabelRowProps): ReactElement {
+  return (
+    <div className={LABEL_ROW_CLASS}>
+      <TileLabel className={LABEL_CLASS}>{label}</TileLabel>
+      {detail && (
+        <span {...(dated ? { 'data-dated': '' } : {})}>
+          <span aria-hidden="true">{META_SEPARATOR}</span>
+          {detail}
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface ProjectViewProps {
+  pick: ProjectPick;
+  /** The project comes from the list last loaded, served past the deadline. */
+  stale: boolean;
+  /** 'as of Nov 5' for a stale project whose list's load day is known, else ''. */
+  asOf: string;
+  now: Instant;
+}
+
+function ProjectView({ pick, stale, asOf, now }: ProjectViewProps): ReactElement {
+  const { project } = pick;
   const href = projectHref(project);
+  const { title, subtitle } = splitTitle(project.title);
+  const committed = committedText(pick, now);
+  const isActive = pick.source === 'activity';
   return (
     <Tile
       variant={hasDestination(href) ? 'linked' : 'plain'}
       padding="none"
-      data-state={stale ? 'stale' : undefined}
+      data-state={stale ? 'stale' : 'ready'}
     >
-      <Cover project={project} />
-      <div className={BODY_CLASS}>
-        <TileLabel>{label}</TileLabel>
-        <h3 className={TITLE_CLASS}>
-          <TileLink href={href} className="text-inherit">
-            {project.title}
-          </TileLink>
-        </h3>
-        <p className={DESCRIPTION_CLASS}>{project.description}</p>
-        <TechChips technologies={project.technologies} />
-        {/* 'committed yesterday' counts from today; 'as of Nov 5' gains a year once it turns. */}
-        <TileMeta className="pt-1" dated={committed !== '' || asOf !== ''}>
-          {joinMeta([project.category, project.status, startYear(project), committed, asOf])}
-        </TileMeta>
+      <div className={MEDIA_CLASS}>
+        <Cover project={project} name={title} />
+        <div className={BODY_CLASS}>
+          <LabelRow
+            label={isActive ? ACTIVE_LABEL : LABEL}
+            detail={isActive ? committed : startYear(project)}
+            dated={committed !== ''}
+          />
+          <h3 className={TITLE_CLASS}>
+            <TileLink href={href} className="text-inherit">
+              {title}
+            </TileLink>
+          </h3>
+          {subtitle && <p className={SUBTITLE_CLASS}>{subtitle}</p>}
+          {asOf && (
+            <TileMeta dated stale>
+              {asOf}
+            </TileMeta>
+          )}
+        </div>
       </div>
     </Tile>
   );
@@ -213,30 +285,20 @@ export interface ProjectTileViewProps {
 }
 
 /**
- * The owner's latest work (with the day he last committed to it) or the featured project, or a
- * note with a way to every project. A stale one (from the list last loaded, served past the
- * deadline) says which day that list is from.
+ * The owner's latest work (with the day he last committed to it) or the featured project (with
+ * its year), or a note with a way to every project. A stale one (from the list last loaded,
+ * served past the deadline) says which day that list is from.
  */
 export function ProjectTileView({ result, now = Date.now() }: ProjectTileViewProps): ReactElement {
   if (result.status === 'ok') {
-    const { data, stale } = result;
-    const asOf = stale ? formatAsOfDay(result.asOf, now) : '';
-    return (
-      <ProjectView
-        project={data.project}
-        label={data.source === 'activity' ? ACTIVE_LABEL : LABEL}
-        stale={stale}
-        committed={committedText(data, now)}
-        asOf={asOf}
-      />
-    );
+    const asOf = result.stale ? formatAsOfDay(result.asOf, now) : '';
+    return <ProjectView pick={result.data} stale={result.stale} asOf={asOf} now={now} />;
   }
   const Note = result.status === 'error' ? TileUnavailable : TileEmpty;
   return (
     <Tile className="gap-3" data-state={result.status}>
       <TileLabel>{LABEL}</TileLabel>
       <Note
-        className="mt-auto"
         message={result.status === 'error' ? 'Projects unavailable' : 'No featured project yet'}
         href={PROJECTS_PATH}
         linkLabel="All projects"
@@ -245,17 +307,22 @@ export function ProjectTileView({ result, now = Date.now() }: ProjectTileViewPro
   );
 }
 
-/** The loading project tile: the cover's box, the real label and bars for the text. */
+/**
+ * The loading project tile, the loaded one's size: the cover's 2:1 box (in the same media object),
+ * the real label's line, and one line each of the title's and the description's type. In the
+ * media object both are the cover's height whatever the text; stacked, they match a one-line
+ * title and description.
+ */
 export function ProjectTileSkeleton(): ReactElement {
   return (
     <Tile padding="none" aria-busy="true" data-state="loading">
-      <SkeletonBar className={`${COVER_CLASS} rounded-b-none`} />
-      <div className={BODY_CLASS}>
-        <TileLabel>{LABEL}</TileLabel>
-        <SkeletonBar className="h-7 w-3/5" />
-        <SkeletonBar className="h-4 w-full" />
-        <SkeletonBar className="h-4 w-4/5" />
-        <SkeletonBar className="mt-auto h-3 w-40 rounded-sm" />
+      <div className={MEDIA_CLASS}>
+        <span aria-hidden="true" className={`${COVER_CLASS} block motion-safe:animate-pulse`} />
+        <div className={BODY_CLASS}>
+          <LabelRow label={LABEL} detail="" dated={false} />
+          <SkeletonLine type="tile-title-lg" bar="h-5 w-3/5" />
+          <SkeletonLine type="tile-sub" bar="h-3.5 w-4/5" />
+        </div>
       </div>
       <LoadingNote>Loading the featured project</LoadingNote>
     </Tile>

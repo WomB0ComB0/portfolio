@@ -37,7 +37,7 @@
  *
  * Modules outside the home folder are checked by their specifier only, not followed: this guard
  * is about what the home islands add, and the shell already ships what they share with it (for
- * example palette-hint's '@/components/cmd').
+ * example the islands' '@/components/console/tile').
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -431,10 +431,11 @@ describe('the home client islands', () => {
       expect.arrayContaining([
         `${HOME_DIR}/live/now-playing-tile.tsx`,
         `${HOME_DIR}/live/status-tile.tsx`,
-        `${HOME_DIR}/tiles/palette-hint.tsx`,
+        `${HOME_DIR}/bento-masonry.tsx`,
       ]),
     );
     expect(entries).not.toContain(`${HOME_DIR}/home-page.tsx`);
+    expect(entries).not.toContain(`${HOME_DIR}/bento-layout.ts`);
   });
 
   it('follows the islands into the local helpers they ship with', () => {
@@ -445,8 +446,23 @@ describe('the home client islands', () => {
         `${HOME_DIR}/live/live-fetch.ts`,
         `${HOME_DIR}/live/now-playing-view.ts`,
         `${HOME_DIR}/data/format.ts`,
+        // The masonry island's row maths, shared with the server's estimates.
+        `${HOME_DIR}/bento-layout.ts`,
       ]),
     );
+  });
+
+  it('keeps the masonry island to React and the plain bento-layout module', () => {
+    const island = `${HOME_DIR}/bento-masonry.tsx`;
+    const graph = clientGraph([island], readRepoFile);
+
+    expect([...graph.keys()].sort()).toEqual([`${HOME_DIR}/bento-layout.ts`, island]);
+    for (const file of graph.keys()) {
+      const packages = valueSpecifiers(readRepoFile(file) ?? '', file).filter(
+        (specifier) => repoPathOf(specifier, file) === undefined,
+      );
+      expect(packages, file).toEqual(file === island ? ['react'] : []);
+    }
   });
 
   it('load no Effect, motion, react-icons, Sanity client, API handler, loader or server-only module', () => {

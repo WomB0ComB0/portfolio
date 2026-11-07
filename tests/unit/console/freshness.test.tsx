@@ -121,7 +121,9 @@ describe('Freshness', () => {
 
     expect(time.tagName).toBe('TIME');
     expect(time).toHaveAttribute('dateTime', new Date(at).toISOString());
-    expect(time).toHaveClass('font-mono', 'text-meta', 'text-faint');
+    // The meta style: Geist 13/18 with tabular figures, so the age never jitters; not mono.
+    expect(time).toHaveClass('tile-meta', 'text-faint');
+    expect(time).not.toHaveClass('font-mono');
   });
 
   it('updates its text every 30 s', () => {

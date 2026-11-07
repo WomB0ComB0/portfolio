@@ -52,7 +52,9 @@ export interface StatusDotProps {
  * A small coloured dot for a status. Pair it with the word it stands for.
  *
  * @example
- * <span className="label-mono text-live"><StatusDot tone="live" pulse /> Live</span>
+ * <span className="tile-label inline-flex items-center gap-1.5 text-live">
+ *   <StatusDot tone="live" pulse /> Live
+ * </span>
  */
 export function StatusDot({ tone, pulse = false, className }: StatusDotProps): ReactElement {
   return (
