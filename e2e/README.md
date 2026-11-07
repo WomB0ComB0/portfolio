@@ -45,6 +45,7 @@ e2e/
 │   ├── seo.spec.ts       # Meta tags, OG, structured data
 │   └── server-render.spec.ts
 ├── visual/               # Visual regression tests
+│   ├── edge-haze.spec.ts
 │   ├── homepage.spec.ts
 │   └── shell-grid.spec.ts
 ├── fixtures/             # Playwright fixtures
@@ -115,6 +116,9 @@ Visual regression and responsive tests:
 - Homepage rendering
 - Responsive design (mobile, tablet, desktop)
 - Content visibility
+- The scroll edge haze over the page column (`edge-haze.spec.ts`): placement beside the navs, the
+  scroll fade, no hit-testing, the layer stack, and its forced-colours, reduced-transparency and
+  reduced-motion behaviour
 
 The screenshot tests in `homepage.spec.ts` are attach-only until baselines are committed: the
 repository has none yet, so each screenshot is attached to the test report for review and compared

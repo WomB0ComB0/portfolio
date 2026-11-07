@@ -432,15 +432,20 @@ const INSTANT_MS = 1;
 /**
  * Every animation or transition running on the page now, outside dev tools' shadow roots, with the
  * bento slot it runs in and the properties its keyframes set. Instant ones (INSTANT_MS) are left
- * out: they are the reduced-motion rule at work, and catching one is a matter of timing.
+ * out: they are the reduced-motion rule at work, and catching one is a matter of timing. So are
+ * scroll-driven ones (the shell's edge haze fading with the scroll): they move only when the
+ * reader scrolls, never on their own.
  */
 function runningAnimations(page: Page): Promise<RunningAnimation[]> {
   return page.evaluate(
     ({ selector, instantMs }) => {
       const bookkeeping = new Set(['offset', 'computedOffset', 'easing', 'composite']);
+      const followsScroll = (animation: Animation) =>
+        typeof ScrollTimeline !== 'undefined' && animation.timeline instanceof ScrollTimeline;
       return document.getAnimations().flatMap((animation) => {
         const effect = animation.effect;
         if (animation.playState !== 'running' || !(effect instanceof KeyframeEffect)) return [];
+        if (followsScroll(animation)) return [];
         const { activeDuration } = effect.getComputedTiming();
         if (typeof activeDuration === 'number' && activeDuration <= instantMs) return [];
         const target = effect.target;
@@ -720,6 +725,10 @@ test.describe('home bento motion', () => {
 
     const playing = slotOf(main, EQUALISER_AREA).getByRole('heading', { name: PLAYING_HEADING });
     test.skip((await playing.count()) === 0, 'nothing is playing now, so the equaliser rests');
+    // Under a band of the edge haze the bars pause (data-under-edge): look at them mid-screen.
+    const live = main.locator('[data-equaliser="live"]').first();
+    await live.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+    await expect(main.locator('[data-equaliser="live"] [data-under-edge]')).toHaveCount(0);
     const equaliser = (await runningAnimations(page)).filter(
       (animation) => animation.equaliser === 'live',
     );

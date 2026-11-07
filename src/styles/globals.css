@@ -19,6 +19,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./page-header.css";
+@import "./edge-haze.css";
 
 @custom-variant dark (&:is(.dark *));
 
