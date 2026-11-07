@@ -13,8 +13,8 @@
         "@elysiajs/server-timing": "^1.4.1",
         "@google-analytics/data": "^7.3.0",
         "@googlemaps/markerclusterer": "^2.6.2",
-        "@logtail/node": "0.5.12",
-        "@logtail/types": "0.5.12",
+        "@logtail/node": "0.6.1",
+        "@logtail/types": "0.6.0",
         "@million/lint": "^1.0.14",
         "@opentelemetry/api": "^1.10.0",
         "@opentelemetry/api-logs": "^0.223.0",
@@ -912,13 +912,13 @@
 
     "@lezer/lr": ["@lezer/lr@1.4.10", "", { "dependencies": { "@lezer/common": "^1.0.0" } }, "sha512-rnCpTIBafOx4mRp43xOxDJbFipJm/c0cia/V5TiGlhmMa+wsSdoGmUN3w5Bqrks/09Q/D4tNAmWaT8p6NRi77A=="],
 
-    "@logtail/core": ["@logtail/core@0.5.12", "", { "dependencies": { "@logtail/tools": "^0.5.12", "@logtail/types": "^0.5.12", "serialize-error": "8.1.0" } }, "sha512-2n/SuIZ0RHRSwqvgX6DyJG7dtDnl3W6qUB2KSYjf6NlQW0z2xoKYBqWnLzsyGUcZVghm9NxrEk6P3dICwS8B2A=="],
+    "@logtail/core": ["@logtail/core@0.6.1", "", { "dependencies": { "@logtail/tools": "^0.6.0", "@logtail/types": "^0.6.0", "serialize-error": "8.1.0" } }, "sha512-NzXeO8Q2lH0X9zAPWBjL0jSBmwFotLn0I5Ye9/JIonF8Cj4dpSSrTAWOHxX223gPTqH39RyI4apJ+0VOvFADuQ=="],
 
-    "@logtail/node": ["@logtail/node@0.5.12", "", { "dependencies": { "@logtail/core": "^0.5.12", "@logtail/types": "^0.5.12", "@msgpack/msgpack": "^2.5.1", "stack-trace": "0.0.10" } }, "sha512-r9c0B5Nc33zyrGkglCRasv8XkDiJXdjVzRXIoPd+KYt657rdLiyozYjVWA08MV9sevDWfCwQbRRW079PlMsgYA=="],
+    "@logtail/node": ["@logtail/node@0.6.1", "", { "dependencies": { "@logtail/core": "^0.6.1", "@logtail/types": "^0.6.0", "@msgpack/msgpack": "^2.5.1", "stack-trace": "0.0.10" } }, "sha512-q1Q7u5pM7jVfikMZ2i/y4ecfYbCZOAdSXiN+I7sR053atZpJg6I5HEf3sSk5+/HSAoR3f/+f1pBEG+6UtBMI6g=="],
 
-    "@logtail/tools": ["@logtail/tools@0.5.12", "", { "dependencies": { "@logtail/types": "^0.5.12" } }, "sha512-G3UHydeJxbhLUtRoycqp/j663J9PQMGQuUEOliH7ve5WzPQCIgby1PVuweHGP6v73TM4LcVlLkFUmAYNYoZXoQ=="],
+    "@logtail/tools": ["@logtail/tools@0.6.0", "", { "dependencies": { "@logtail/types": "^0.6.0" } }, "sha512-0UPiF5qDN8jbZHsuCedd+KKHA1hkFHTPs3PeUaol1p95BmbMzik2spg/lzeLIXK/fHQDky9dKvdmJPDKuJxXQA=="],
 
-    "@logtail/types": ["@logtail/types@0.5.12", "", {}, "sha512-0OdzpOn2ded0K6UfXlDi4nnhh9/VE2kEQr7o8nmDJCzf/dMAvYMgPDBRgKTvY+b/3WL52JyRU6q0mfqCDytZZg=="],
+    "@logtail/types": ["@logtail/types@0.6.0", "", {}, "sha512-eogDPGEVAkPLAJOtOHqs9pZ/b8vH0uuNWooUiI5KmOchKJKxKB4idcLTWh+FgtxoN5PXerfvne4AIXkGYADrQw=="],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.2", "", {}, "sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g=="],
 
