@@ -89,6 +89,7 @@ export {
   destinationOf,
   hasDestination,
   NEW_TAB_LABEL,
+  NewTabArrow,
   SrOnlyWords,
   TileLink,
   type TileLinkProps,

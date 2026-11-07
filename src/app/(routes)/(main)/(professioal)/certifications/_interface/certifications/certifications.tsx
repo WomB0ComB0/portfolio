@@ -16,73 +16,72 @@ import 'server-only';
  */
 
 /**
- * @file The /certifications page, rendered on the server: the header, then the filterable list
- * as a client island fed plain card data. A failed load is not caught here; it reaches the
- * route's error page inside the shell.
+ * @file The /certifications page as the Ledger, rendered on the server: a PageShell header with
+ * three figures, the Featured row when the owner featured certificates in Studio, then the filter
+ * island holding the server-rendered rows. The URL's filters are resolved here, so a shared link
+ * is right in the server HTML. A failed load is not caught here; it reaches the route's error
+ * page inside the shell.
  */
 
-import { Award } from 'lucide-react';
-import type { JSX } from 'react';
-import {
-  type CertificationCardData,
-  CertificationsExplorer,
-  CertificationsExplorerSkeleton,
-} from '@/app/(routes)/(main)/(professioal)/certifications/_components';
-import { PageHeader } from '@/components/custom/page-header';
+import type { ReactElement } from 'react';
+
+import { PageShell } from '@/components/console';
 import type { Certification } from '@/hooks/sanity/schemas';
-import { urlFor } from '@/lib/sanity/client';
-
-/** The badge size the cards have always requested. */
-const IMAGE_WIDTH = 800;
-const IMAGE_HEIGHT = 450;
-const PAGE_CLASS = 'container mx-auto px-4 py-12 max-w-7xl space-y-16';
-
-/** What the list's client island needs from one certification, with its image URL built here. */
-export function toCertificationCard(certification: Certification): CertificationCardData {
-  const { image } = certification;
-  return {
-    id: certification._id,
-    title: certification.title,
-    issuer: certification.issuer,
-    issueDate: certification.issueDate,
-    expiryDate: certification.expiryDate ?? null,
-    credentialId: certification.credentialId ?? null,
-    credentialUrl: certification.credentialUrl ?? null,
-    description: certification.description ?? null,
-    skills: certification.skills ?? [],
-    imageUrl: image ? urlFor(image.asset._ref).width(IMAGE_WIDTH).height(IMAGE_HEIGHT).url() : null,
-    imageAlt: image?.alt || `${certification.title} certification badge`,
-  };
-}
-
-const CertificationsHeader = (): JSX.Element => (
-  <PageHeader
-    title="My Certifications"
-    description="A collection of my professional certifications and credentials."
-    icon={<Award />}
-  />
-);
+import { FeaturedRow } from '../../_components/featured-row';
+import { EMPTY_CLASS } from '../../_components/ledger-classes';
+import { LedgerExplorer, type LedgerRowItem } from '../../_components/ledger-explorer';
+import { LEDGER_TITLE, LedgerStatStrip, sublineOf } from '../../_components/ledger-header';
+import { LedgerRow } from '../../_components/ledger-row';
+import { type RawFilters, resolveFilters } from '../../_lib/filters';
+import { buildLedger } from '../../_lib/ledger';
 
 export interface CertificationsProps {
-  readonly certifications: readonly CertificationCardData[];
+  readonly certifications: readonly Certification[];
+  /** The page's ?issuer, ?skill and ?q, as Next passes them. */
+  readonly searchParams: RawFilters;
 }
 
-/** Every certification, grouped by issuer, with search and filters kept in the URL. */
-export const Certifications = ({ certifications }: CertificationsProps): JSX.Element => (
-  <div className={PAGE_CLASS}>
-    <CertificationsHeader />
-    <CertificationsExplorer certifications={certifications} />
-  </div>
-);
-Certifications.displayName = 'Certifications';
+/** Every certificate in the Ledger, filtered by the URL. */
+export function Certifications({
+  certifications,
+  searchParams,
+}: CertificationsProps): ReactElement {
+  const ledger = buildLedger(certifications);
+  const initial = resolveFilters(searchParams, ledger);
+  const rows: LedgerRowItem[] = ledger.entries.map((entry) => ({
+    id: entry.id,
+    year: entry.year,
+    familySlug: entry.familySlug,
+    chip: entry.chip,
+    skills: entry.skills,
+    haystack: entry.haystack,
+    row: <LedgerRow entry={entry} />,
+  }));
 
-/** The page while it loads (loading.tsx): the real header over the list's skeleton. */
-export const CertificationsPageSkeleton = (): JSX.Element => (
-  <div className={PAGE_CLASS}>
-    <CertificationsHeader />
-    <CertificationsExplorerSkeleton />
-  </div>
-);
-CertificationsPageSkeleton.displayName = 'CertificationsPageSkeleton';
+  return (
+    <PageShell
+      title={LEDGER_TITLE}
+      description={sublineOf(ledger.stats.since)}
+      stats={<LedgerStatStrip stats={ledger.stats} />}
+    >
+      <FeaturedRow entries={ledger.featured} />
+      {rows.length === 0 ? (
+        <div data-state="empty" className={EMPTY_CLASS}>
+          <p className="tile-sub text-muted-foreground">No certificates are listed yet.</p>
+        </div>
+      ) : (
+        // The island follows the URL itself (Back, links, router.push), so it needs no key.
+        <LedgerExplorer
+          rows={rows}
+          chips={ledger.chips}
+          other={ledger.other}
+          index={ledger.index}
+          initial={initial}
+        />
+      )}
+    </PageShell>
+  );
+}
+Certifications.displayName = 'Certifications';
 
 export default Certifications;
