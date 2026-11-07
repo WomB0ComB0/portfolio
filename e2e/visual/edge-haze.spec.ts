@@ -388,6 +388,89 @@ for (const viewport of SHORT_SCREENS) {
   });
 }
 
+// CodeRabbit on #614: the synthetic `spec_equalise` test can pass while the build names the real
+// equaliser's keyframes differently. This one reads the name the build gave them and parks bars
+// drawn with it under the bottom band.
+test('pauses bars drawn with the real compiled equaliser keyframes under a band', async ({
+  page,
+}) => {
+  await openAt(page, '/', PHONE);
+  await scrollToY(page, Math.round((await maxScroll(page)) / 2));
+
+  const names = await page.evaluate(() =>
+    [...document.styleSheets].flatMap((sheet) => {
+      try {
+        return [...sheet.cssRules].flatMap((rule) =>
+          rule instanceof CSSKeyframesRule && /equalise/.test(rule.name) ? [rule.name] : [],
+        );
+      } catch {
+        return [];
+      }
+    }),
+  );
+  expect(names, 'the home page loads no equaliser keyframes').not.toEqual([]);
+
+  await page.evaluate(
+    ({ selector, keyframes }) => {
+      const main = document.querySelector('main');
+      const band = document.querySelector(`${selector} > .b`)?.getBoundingClientRect();
+      if (!main || !band) throw new Error('no main or bottom band');
+      const top = band.top + band.height / 2 - main.getBoundingClientRect().top;
+      // A one-class rule, as equaliser.module.css draws the real bars: an inline `animation` would
+      // outrank the pause rule, which no shipped bar does.
+      const style = document.createElement('style');
+      style.textContent = keyframes
+        .map(
+          (name, index) =>
+            `.spec-real-bar-${index} { animation: ${name} 0.9s ease-in-out infinite alternate; }`,
+        )
+        .join('\n');
+      document.head.append(style);
+      keyframes.forEach((_name, index) => {
+        const bar = document.createElement('span');
+        bar.id = `spec-real-bar-${index}`;
+        bar.className = `spec-real-bar-${index}`;
+        Object.assign(bar.style, {
+          position: 'absolute',
+          left: '50%',
+          top: `${top}px`,
+          width: '0.5rem',
+          height: '0.75rem',
+          display: 'block',
+          background: 'var(--surface-3)',
+        });
+        main.append(bar);
+      });
+    },
+    { selector: HAZE, keyframes: names },
+  );
+
+  for (const index of names.keys()) {
+    const id = `spec-real-bar-${index}`;
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            (elementId) => document.getElementById(elementId)?.hasAttribute('data-under-edge'),
+            id,
+          ),
+        `${names[index]} is not paused under the band`,
+      )
+      .toBe(true);
+    expect(
+      await page.evaluate(
+        (elementId) =>
+          document
+            .getElementById(elementId)
+            ?.getAnimations()
+            .map((animation) => animation.playState)
+            .join(),
+        id,
+      ),
+    ).toBe('paused');
+  }
+});
+
 test("/projects' sticky filter bar ends inside the top band, so its scroll-padding clears the bar too", async ({
   page,
 }) => {

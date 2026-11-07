@@ -436,8 +436,10 @@ describe('edge-haze.css', () => {
     );
     // From lg the top padding never drops under /projects' sticky FilterBar (74 px), even where a
     // short screen's band is shorter than that.
+    // The top band starts below the safe-area inset (an iPad home-screen app in landscape is lg),
+    // so the padding counts the inset too (CodeRabbit on #614).
     expect(value(rule('html', [MEDIA_LG]), 'scroll-padding-block')).toBe(
-      'max(var(--edge-haze-top), 4.625rem) var(--edge-haze-bottom)',
+      'max(calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px)), 4.625rem) var(--edge-haze-bottom)',
     );
   });
 

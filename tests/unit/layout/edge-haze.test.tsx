@@ -97,13 +97,19 @@ const SETUP_RESIZE_OBSERVER = globalThis.ResizeObserver;
 
 /** Records every ResizeObserver the code creates. */
 function recordResizeObservers() {
-  const instances: { observe: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }[] =
-    [];
+  const instances: {
+    observe: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+    /** Reports a size change, as the browser does when the observed element resizes. */
+    resize: () => void;
+  }[] = [];
   globalThis.ResizeObserver = class {
     observe = vi.fn();
     unobserve = vi.fn();
     disconnect = vi.fn();
-    constructor() {
+    resize: () => void;
+    constructor(callback: ResizeObserverCallback) {
+      this.resize = () => callback([], this as unknown as ResizeObserver);
       instances.push(this);
     }
   } as unknown as typeof ResizeObserver;
@@ -113,6 +119,7 @@ function recordResizeObservers() {
 /** A page 3000 px tall in an 800 px window, scrolled to `y`, with 100 px bands. */
 function stubLayout(initialY: number) {
   let y = initialY;
+  let pageHeight = PAGE_PX;
   const restore: (() => void)[] = [];
   const define = (target: object, key: string, get: () => number) => {
     const own = Object.getOwnPropertyDescriptor(target, key);
@@ -124,7 +131,7 @@ function stubLayout(initialY: number) {
   };
   define(window, 'scrollY', () => y);
   define(window, 'innerHeight', () => VIEWPORT_PX);
-  define(document.documentElement, 'scrollHeight', () => PAGE_PX);
+  define(document.documentElement, 'scrollHeight', () => pageHeight);
   define(HTMLElement.prototype, 'offsetHeight', function (this: HTMLElement) {
     return this.classList.contains('t') || this.classList.contains('b') ? BAND_PX : 0;
   } as () => number);
@@ -132,6 +139,10 @@ function stubLayout(initialY: number) {
     scrollTo: (next: number) => {
       y = next;
       window.dispatchEvent(new Event('scroll'));
+    },
+    /** The page grows or shrinks without a scroll (a filter, streamed content, a navigation). */
+    setPageHeight: (next: number) => {
+      pageHeight = next;
     },
     restore: () => {
       for (const undo of restore.reverse()) undo();
@@ -381,6 +392,27 @@ describe('the scroll fade fallback', () => {
     expect(observers[0]?.observe).toHaveBeenCalledWith(document.body);
     window.dispatchEvent(new Event('resize'));
     expect(frames.pending()).toBe(1);
+  });
+
+  // CodeRabbit on #614: the observer's callback must refresh the bands when the page changes
+  // height with no scroll, or the bottom band keeps the opacity of the old page.
+  it('fades the bottom band back in when the page grows under a reader at its end', () => {
+    supportsScrollTimeline(false);
+    const frames = manualFrames();
+    const observers = recordResizeObservers();
+
+    const { container } = render(<EdgeHaze path="/" />);
+    const haze = hazeOf(container);
+    act(() => layout.scrollTo(MAX_SCROLL_PX));
+    frames.run();
+    expect(opacities(haze).bottom).toBe('0');
+
+    layout.setPageHeight(PAGE_PX + 1000);
+    act(() => observers[0]?.resize());
+    expect(frames.pending()).toBe(1);
+    frames.run();
+
+    expect(opacities(haze).bottom).toBe('1');
   });
 
   it('removes its listeners, its observer and a pending frame on unmount', () => {

@@ -36,10 +36,11 @@ export const UNDER_EDGE_ATTRIBUTE = 'data-under-edge';
 
 /**
  * The animations that pause: Tailwind's pulse (every loading placeholder), ping and live-pulse
- * (live dots), and the home equaliser (equaliser.module.css's `equalise`, which the CSS module
- * prefixes with a hash). Spinners, marquees and the caret keep moving: frozen, they read as broken.
+ * (live dots), and the home equaliser (equaliser.module.css's `equalise`: Turbopack names it
+ * `<hash>_equalise`, webpack `<file>_equalise__<hash>`). Spinners, marquees and the caret keep
+ * moving: frozen, they read as broken.
  */
-const PAUSABLE_ANIMATION = /^(?:pulse|ping|live-pulse)$|(?:^|_)equalise$/;
+const PAUSABLE_ANIMATION = /^(?:pulse|ping|live-pulse)$|(?:^|_)equalise(?:__[\w-]+)?$/;
 
 /** Whether an animation of this keyframes' name pauses under the haze. */
 export function isPausableAnimation(animationName: string): boolean {

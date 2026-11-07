@@ -228,6 +228,9 @@ describe('isPausableAnimation', () => {
     'live-pulse',
     'XaKMhG_equalise',
     'equaliser-module__Xa_KMhG__equalise',
+    // A webpack build names CSS-module keyframes `[file]_[local]__[hash]` (CodeRabbit on #614).
+    'equaliser_equalise__H4sh5',
+    'equaliser_equalise__a-1_B2',
   ])('pauses %s', (name) => {
     expect(isPausableAnimation(name)).toBe(true);
   });
@@ -242,6 +245,8 @@ describe('isPausableAnimation', () => {
     'equaliser',
     'pulse-ring',
     'unequalise',
+    'equalise_slowly',
+    'equaliser_unequalise__H4sh5',
   ])('leaves %s moving', (name) => {
     expect(isPausableAnimation(name)).toBe(false);
   });

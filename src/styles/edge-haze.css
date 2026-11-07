@@ -420,7 +420,8 @@ html {
 
 @media (width >= 64rem) {
   html {
-    scroll-padding-block: max(var(--edge-haze-top), 4.625rem) var(--edge-haze-bottom);
+    scroll-padding-block: max(calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px)), 4.625rem)
+      var(--edge-haze-bottom);
   }
 }
 
