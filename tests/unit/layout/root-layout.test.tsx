@@ -15,7 +15,9 @@
  */
 
 /**
- * @file What the root layout adds to every page: no global click handling, one theme colour.
+ * @file What the root layout adds to every page: no global click handling, one theme colour, and
+ * no place named in its own <head> (the city comes only from Location in Studio, through its
+ * metadata).
  *
  * Renders the children of the root layout's `<head>` and `<body>` (everything it mounts, minus
  * the document elements) around a real page Layout, then clicks internal links the way people
@@ -29,7 +31,7 @@ import Link from 'next/link';
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import RootLayout from '@/app/layout';
+import RootLayout, { generateMetadata } from '@/app/layout';
 import Layout from '@/components/layout/layout';
 
 // Vitest would run the stylesheet through the app's Tailwind PostCSS setup; no CSS is under test.
@@ -58,6 +60,9 @@ vi.mock('@tanstack/react-query-devtools', () => ({ ReactQueryDevtools: () => nul
 // The command palette, the tile spotlight's pointer listener and the real navs are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
+// The settings cache: what Location in Studio says, as this server last loaded it.
+const loaders = vi.hoisted(() => ({ peekSiteLocation: vi.fn<() => string | null>(() => null) }));
+vi.mock('@/lib/sanity/loaders', () => loaders);
 vi.mock('@/components/layout', () => ({
   NavBar: () => <nav aria-label="Main navigation" />,
   MobileNavBar: () => <nav aria-label="Mobile navigation" />,
@@ -158,5 +163,39 @@ describe('root layout <head>', () => {
       (element) => element.type === 'meta' && element.props.name === 'theme-color',
     );
     expect(themeColorTags).toEqual([]);
+  });
+});
+
+describe('the place the root layout names', () => {
+  /** The <meta name=…> tags the layout writes into its <head> itself, by name. */
+  const ownMetaTags = async (): Promise<Record<string, unknown>> => {
+    const [head] = await documentParts(null);
+    return Object.fromEntries(
+      elementsIn(childrenOf(head))
+        .filter((element) => element.type === 'meta' && typeof element.props.name === 'string')
+        .map((element) => [element.props.name, element.props.content]),
+    );
+  };
+
+  it('writes no place into its <head> itself: only the country', async () => {
+    const tags = await ownMetaTags();
+
+    expect(tags).toMatchObject({ 'geo.region': 'US' });
+    expect(tags).not.toHaveProperty('geo.placename');
+    expect(JSON.stringify(tags)).not.toMatch(/new york|\bnyc?\b/i);
+  });
+
+  it('names the place Location gives, through its metadata', () => {
+    loaders.peekSiteLocation.mockReturnValueOnce('New York, NY');
+
+    expect(generateMetadata().other).toEqual({ 'geo.placename': 'New York, NY' });
+  });
+
+  it('names none when Location is cleared or the settings are not loaded', () => {
+    loaders.peekSiteLocation.mockReturnValueOnce(null);
+
+    const metadata = generateMetadata();
+    expect(metadata).not.toHaveProperty('other');
+    expect(JSON.stringify(metadata)).not.toMatch(/new york|\bnyc?\b/i);
   });
 });

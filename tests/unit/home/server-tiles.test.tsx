@@ -101,6 +101,7 @@ import {
 import {
   initialsOf,
   PROJECT_COVER_SIZES,
+  PROJECT_SUBTITLE_FALLBACK,
   ProjectTile,
   ProjectTileSkeleton,
   ProjectTileView,
@@ -893,6 +894,25 @@ describe('GitHubTileView', () => {
     expect(skeleton.querySelector('.figure-row')?.parentElement).toHaveClass(UNIT_OWN_LINE);
   });
 
+  // CodeRabbit finding #11: below 1,000 contributions the row fit where '1,311 contributions in
+  // 12 weeks' wraps, in a 292 to 327 px phone bento and a 640 to 688 px one, so the tile stood
+  // 24 px under its skeleton. Now the unit's line hangs on the tile's width alone: its own line in
+  // a tile whose content box is narrower than the widest four-digit row, and beside the figure from
+  // there, where any total up to four digits fits. Hinted (Linux) the digits differ: '7,777' is
+  // the widest row (297.61 px; '0,000' and '1,311' 293.61, '2,222' 289.61), so 18.36rem, just
+  // over '0,000', left '1,777' and '7,777' wrapping where '1,311' did not (review finding F1).
+  // Unhinted every four-digit row is 289.69 px.
+  it('puts the unit on its own line in a tile narrower than a four-digit row, loaded and loading', () => {
+    const NARROW_TILE = '@max-[18.61rem]:[&>.figure-row>:last-child]:basis-full';
+    for (const total of [8, 412, 1311, 1777, 7777]) {
+      const loaded = render(<GitHubTileView result={ok({ ...ACTIVITY, total })} now={NOW} />);
+      expect(loaded.container.querySelector('.figure-row')?.parentElement).toHaveClass(NARROW_TILE);
+      cleanup();
+    }
+    const skeleton = render(<GitHubTileSkeleton />).container;
+    expect(skeleton.querySelector('.figure-row')?.parentElement).toHaveClass(NARROW_TILE);
+  });
+
   it('says what the sparkline shows, for screen readers', () => {
     const { container } = render(
       <GitHubTileView result={ok(ACTIVITY, { asOf: FIVE_MIN_AGO })} now={NOW} />,
@@ -1013,7 +1033,8 @@ describe('ProjectTileView', () => {
     expect(within(tile).getByRole('heading', { level: 2 })).toHaveTextContent(/^Featured project$/);
     expect(seenText(detailOf(tile) as HTMLElement)).toBe('· 2025');
     const title = within(tile).getByRole('heading', { level: 3 });
-    expect(title).toHaveClass('tile-title-lg', 'line-clamp-2');
+    expect(title).toHaveClass('tile-title-lg', 'line-clamp-1');
+    expect(title.className).not.toContain('line-clamp-2');
     expect(within(title).getByRole('link', { name: 'Fraud Guard' })).toHaveAttribute(
       'href',
       `/projects/${encodeURIComponent(FEATURED._id)}`,
@@ -1035,13 +1056,55 @@ describe('ProjectTileView', () => {
     }
   });
 
-  it('has no description line for a title without a separator', () => {
+  /** The tile's one description line, under the title. */
+  const subtitleOf = (tile: HTMLElement): HTMLElement | null =>
+    tile.querySelector<HTMLElement>('h3 + p.tile-sub');
+
+  // CodeRabbit finding #7: a project with no separator in its title (11 of the 22) had no
+  // description line, so it stood 26 px under its skeleton when stacked. Every project now has
+  // exactly one: its own short description, from Sanity for the featured pick and the latest
+  // work alike (both are Sanity projects; GitHub's commits say only which one).
+  it.each([
+    ['the featured pick', featuredPick],
+    ['the latest work', (project: Project) => activePick(project)],
+  ])(
+    'fills the description line of %s from its own description when the title has no separator',
+    (_name, pick) => {
+      const grepo = {
+        ...FEATURED,
+        title: 'grepo',
+        description:
+          'Open-source tool that writes READMEs with AI. It also writes repo descriptions.',
+      };
+      const { container } = render(<ProjectTileView result={ok(pick(grepo))} now={NOW} />);
+      const tile = tileOf(container);
+      expect(within(tile).getByRole('link', { name: 'grepo' })).toBeInTheDocument();
+      expect(subtitleOf(tile)).toHaveTextContent(
+        /^Open-source tool that writes READMEs with AI\.$/,
+      );
+      expect(subtitleOf(tile)).toHaveClass('tile-sub', 'text-muted-foreground', 'line-clamp-1');
+      expect(tile.textContent).not.toContain('It also writes');
+    },
+  );
+
+  it.each([
+    ['a blank description: the category', { description: '  ' }, 'Machine Learning'],
+    [
+      'a blank description and category: a fixed line',
+      { description: '', category: ' ' },
+      PROJECT_SUBTITLE_FALLBACK,
+    ],
+  ])('never leaves the description line empty, with %s', (_case, fields, line) => {
     const { container } = render(
-      <ProjectTileView result={ok(featuredPick({ ...FEATURED, title: 'grepo' }))} />,
+      <ProjectTileView result={ok(featuredPick({ ...FEATURED, title: 'grepo', ...fields }))} />,
     );
-    const tile = tileOf(container);
-    expect(within(tile).getByRole('link', { name: 'grepo' })).toBeInTheDocument();
-    expect(tile.querySelector('.tile-sub')).toBeNull();
+    expect(subtitleOf(tileOf(container))).toHaveTextContent(new RegExp(`^${line}$`));
+    expect(PROJECT_SUBTITLE_FALLBACK.trim()).not.toBe('');
+  });
+
+  it('takes the split title’s description first, as written', () => {
+    const { container } = render(<ProjectTileView result={ok(featuredPick(FEATURED))} />);
+    expect(subtitleOf(tileOf(container))).toHaveTextContent(/^AI-Powered Transaction Monitoring$/);
   });
 
   /** The cover file's URL, from its next/image source. */
@@ -1098,19 +1161,29 @@ describe('ProjectTileView', () => {
 
   // Review finding project-skeleton-parity-cover-left: in the media object the description took
   // two lines and the label row wrapped, so the loaded tile stood 20 to 44 px over its skeleton.
-  it('keeps the media object’s text to one line each, so it is never taller than the cover', () => {
+  // CodeRabbit findings #4 and #7: stacked, a two-line title or description made it 20 to 26 px
+  // taller than its skeleton, so the title and the description are one line each everywhere.
+  it('keeps the title and the description to one line each, stacked and in the media object', () => {
     const { container } = render(<ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />);
     const tile = tileOf(container);
-    expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass(
-      'line-clamp-2',
-      ...inMedia('line-clamp-1'),
-    );
-    expect(within(tile).getByText('AI-Powered Transaction Monitoring')).toHaveClass(
-      'line-clamp-2',
-      ...inMedia('line-clamp-1'),
-    );
+    for (const line of [
+      within(tile).getByRole('heading', { level: 3 }),
+      within(tile).getByText('AI-Powered Transaction Monitoring'),
+    ]) {
+      expect(line).toHaveClass('line-clamp-1', 'wrap-break-word');
+      expect(line.className).not.toMatch(/line-clamp-(?!1\b)/);
+    }
     // The label row is one line at every width: its detail is cut short, never wrapped.
     expect(tile.querySelector('h2')?.parentElement).toHaveClass('truncate');
+  });
+
+  // Review finding F5: a cut title shows whole on hover, as the place's name does.
+  it('puts the whole title in the heading’s title attribute', () => {
+    const { container } = render(<ProjectTileView result={ok(activePick(FEATURED))} now={NOW} />);
+    expect(within(tileOf(container)).getByRole('heading', { level: 3 })).toHaveAttribute(
+      'title',
+      'Fraud Guard',
+    );
   });
 
   it('draws a 2:1 typographic cover of the initials without an image, never "No Image Available"', () => {
@@ -1292,10 +1365,35 @@ describe('PlaceTileView', () => {
     );
     expect(seenText(metaOf(container))).toBe('Conference · Oct 30');
     expect(metaOf(container)).toHaveClass('tile-meta');
-    expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass(
-      'tile-title',
-      'line-clamp-2',
+    expect(within(tile).getByRole('heading', { level: 3 })).toHaveClass('tile-title');
+  });
+
+  // CodeRabbit finding #6: a name that wrapped (32 of the 57 places have 26 or more characters)
+  // made the tile 18 px taller than its skeleton, and the md estimate hedged between the two.
+  it('keeps the name to one line, cut with an ellipsis, the whole name in its title and link', () => {
+    const { container } = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
+    const name = within(tileOf(container)).getByRole('heading', { level: 3 });
+    expect(name).toHaveClass('truncate');
+    expect(name.className).not.toMatch(/line-clamp/);
+    expect(name).toHaveAttribute('title', PAST_PLACE.name);
+    expect(within(name).getByRole('link', { name: PAST_PLACE.name })).toBeInTheDocument();
+  });
+
+  // Review finding F3: without a photo the text set the row, 4 px under the thumbnail's 64 px, so
+  // a place whose photos are not uploaded yet stood shorter than its skeleton and its estimate.
+  it('keeps the row the thumbnail’s 64 px with or without a photo, like its skeleton', () => {
+    const rowOf = (container: HTMLElement) =>
+      within(tileOf(container)).getByRole('heading', { level: 3 }).parentElement?.parentElement;
+    const withPhoto = render(<PlaceTileView result={ok(PAST_PLACE)} now={NOW} />);
+    const withoutPhoto = render(
+      <PlaceTileView result={ok({ ...PAST_PLACE, photos: [] })} now={NOW} />,
     );
+    expect(withoutPhoto.container.querySelector('img')).toBeNull();
+    for (const { container } of [withPhoto, withoutPhoto]) {
+      expect(rowOf(container)).toHaveClass('min-h-16', 'items-center');
+    }
+    const skeleton = render(<PlaceTileSkeleton />);
+    expect(skeleton.container.querySelector('.size-16')?.parentElement).toHaveClass('min-h-16');
   });
 
   // 'Event · Aug 21': the days say when, so no '6 d ago' or 'yesterday' after them.
@@ -1536,9 +1634,29 @@ describe('RolesTileView', () => {
     expect(screen.getAllByRole('link', { name: /more/ })).toHaveLength(1);
   });
 
-  it('shows no count when every current role is on the page', () => {
+  // CodeRabbit finding #9: with every current role on the page the count line went, and the tile
+  // stood 30 px under its skeleton. The empty state's way to every role takes its place.
+  it.each([
+    ['two roles beside the hero’s', 3],
+    ['one role beside the hero’s', 2],
+  ])(
+    'ends with a link to all experience in the count’s place, with %s and none unnamed',
+    (_case, count) => {
+      render(<RolesTileView result={ok({ roles: roles(count), total: count })} />);
+      expect(screen.queryByRole('link', { name: /more/ })).toBeNull();
+      const all = screen.getByRole('link', { name: 'All experience' });
+      expect(all).toHaveAttribute('href', '/experience');
+      expect(all).toHaveClass('self-start', 'tile-meta', 'font-medium', 'text-brand-ink');
+    },
+  );
+
+  it('styles the link to all experience as the count it stands in for', () => {
+    const counted = render(<RolesTileView result={ok({ roles: roles(3), total: 5 })} />);
+    const countClass = screen.getByRole('link', { name: '+2 more current roles' }).className;
+    counted.unmount();
+
     render(<RolesTileView result={ok({ roles: roles(3), total: 3 })} />);
-    expect(screen.queryByRole('link', { name: /more/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'All experience' }).className).toBe(countClass);
   });
 
   it('lists the roles one under the other, and side by side from a 32rem tile', () => {
@@ -1703,6 +1821,34 @@ describe('SiteIndexTileView', () => {
   it('uses the singular for one entry', () => {
     render(<SiteIndexTileView counts={{ ...COUNTS, places: 1 }} />);
     expect(screen.getByRole('link', { name: '1 place' })).toBeInTheDocument();
+  });
+
+  // CodeRabbit finding #10: 'certifications' wraps under its figure in a narrow cell, and a
+  // one-digit count let it fit where the skeleton's two digits ('00') wrapped it: 19 px apart.
+  it('holds two digits’ room for a one-digit count, right-aligned, so its name wraps as the skeleton’s does', () => {
+    render(<SiteIndexTileView counts={{ ...COUNTS, certifications: 9 }} />);
+    const count = within(screen.getByRole('link', { name: '9 certifications' })).getByText('9');
+    expect(count).toHaveClass('figure-sm', 'text-end');
+    // A hidden '00' after the digit, in its type: as wide as two digits, no taller than nothing.
+    expect(count).toHaveAttribute('data-reserve', '00');
+    expect(count).toHaveClass(
+      'after:block',
+      'after:h-0',
+      'after:overflow-hidden',
+      'after:invisible',
+      'after:content-[attr(data-reserve)]',
+    );
+    expect(count.textContent).toBe('9');
+  });
+
+  // Two digits already fill it: today's counts (22, 15, 64, 57) render exactly as before.
+  it('adds nothing to a count of two digits or more', () => {
+    render(<SiteIndexTileView counts={{ ...COUNTS, certifications: 164 }} />);
+    for (const name of ['22 projects', '15 roles', '164 certifications', '57 places']) {
+      const count = screen.getByRole('link', { name }).firstElementChild;
+      expect(count).not.toHaveAttribute('data-reserve');
+      expect(count?.className).not.toMatch(/after:|text-end/);
+    }
   });
 });
 
@@ -1929,6 +2075,21 @@ describe('skeletons', () => {
       ['tile-title', 'tile-meta'],
       ['tile-title', 'tile-meta'],
     ]);
+  });
+
+  // With every current role on the page, the link to all experience is the count's line.
+  it('Current roles holds the same rows when no role is left unnamed', () => {
+    const counted = rowTypes(
+      tileOf(render(<RolesTileView result={ok({ roles: roles(3), total: 5 })} />).container),
+    );
+    cleanup();
+    const allNamed = rowTypes(
+      tileOf(render(<RolesTileView result={ok({ roles: roles(3), total: 3 })} />).container),
+    );
+    cleanup();
+
+    expect(allNamed).toEqual(counted);
+    expect(rowTypes(tileOf(render(<RolesTileSkeleton />).container))).toEqual(allNamed);
   });
 
   it('Site index holds the loaded cells: the same grid, a figure’s place and the real name', () => {

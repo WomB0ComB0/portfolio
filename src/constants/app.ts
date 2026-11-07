@@ -161,11 +161,10 @@ export const app: Readonly<{
     'NLP',
     'Computer Vision',
 
-    /** Location  */
-    'Software Engineer NYC',
-    'Full Stack Developer New York',
-    'Founding Engineer NYC',
-    'AI Engineer New York City',
+    /**
+     * Education. No place: where Mike is comes only from Location in Studio, which the page
+     * metadata adds (src/lib/seo/site-metadata.ts), so clearing it leaves no city in any keyword.
+     */
     'Farmingdale State College',
 
     /** Experience & Aspirations  */

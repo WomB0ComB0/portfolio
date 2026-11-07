@@ -25,8 +25,8 @@ import 'server-only';
  * name.
  *
  * One row: the first photo as a 64px thumbnail (at every width; nothing in its place without one),
- * then the label, the name and 'Event · Aug 21'. A run of visits shows its first and last day
- * ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15').
+ * then the label, the name on one line and 'Event · Aug 21'. A run of visits shows its first and
+ * last day ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15').
  */
 
 import Image from 'next/image';
@@ -61,10 +61,17 @@ const THUMB_SOURCE_PX = THUMB_PX * 2;
 /** Between a span's first and last day: an en dash, as /places prints a visit's dates. */
 const SPAN_DASH = ' – ';
 
-const ROW_CLASS = 'flex min-w-0 items-center gap-3';
+/** At least the thumbnail's 64 px, so a place without a photo is as tall as one with. */
+const ROW_CLASS = 'flex min-h-16 min-w-0 items-center gap-3';
 const THUMB_CLASS = 'size-16 shrink-0 rounded-lg bg-surface-3 object-cover';
 const TEXT_CLASS = 'flex min-w-0 flex-1 flex-col gap-0.5';
-const NAME_CLASS = 'line-clamp-2 wrap-break-word tile-title text-foreground';
+/**
+ * The name: one line, cut with an ellipsis, so the tile is the same height for every place (32
+ * of the 57 names have 26 or more characters, and one that wrapped made the tile 18 px taller
+ * than its skeleton and its estimate). The whole name stays the link's name, and the heading's
+ * title shows it on hover: the stretched link's overlay belongs to the link, inside the heading.
+ */
+const NAME_CLASS = 'truncate tile-title text-foreground';
 
 const NO_PLACE: TileResult<never> = { status: 'empty' };
 
@@ -153,7 +160,7 @@ function PlaceView({ place, now, stale, asOf }: PlaceViewProps): ReactElement {
         )}
         <div className={TEXT_CLASS}>
           <TileLabel>{LABEL}</TileLabel>
-          <h3 className={NAME_CLASS}>
+          <h3 className={NAME_CLASS} title={place.name}>
             <TileLink href={href} className="text-inherit">
               {place.name}
             </TileLink>
@@ -205,9 +212,9 @@ export function PlaceTileView({ result, now = Date.now() }: PlaceTileViewProps):
 }
 
 /**
- * The loading place tile, the loaded one's size with a photo: the thumbnail's box beside the real
- * label, one line of the name's type and one of the meta's. Without a photo the loaded row is the
- * text's height, 4px under the thumbnail's.
+ * The loading place tile, the loaded one's size with or without a photo: the thumbnail's box
+ * beside the real label, one line of the name's type and one of the meta's. The row keeps the
+ * thumbnail's 64 px either way.
  */
 export function PlaceTileSkeleton(): ReactElement {
   return (

@@ -25,6 +25,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   commitHeadline,
   companyName,
+  firstSentence,
   formatAsOfDay,
   formatClockET,
   formatDay,
@@ -494,5 +495,62 @@ describe('splitTitle', () => {
     });
     expect(splitTitle('Standup at 10:30')).toEqual({ title: 'Standup at 10:30', subtitle: '' });
     expect(splitTitle('  grepo  ')).toEqual({ title: 'grepo', subtitle: '' });
+  });
+});
+
+describe('firstSentence', () => {
+  it.each([
+    [
+      'its one sentence, as written',
+      'Open-source command-line tool (@elysiumoss/grepo) that writes READMEs and repo descriptions with AI (TypeScript, Gemini).',
+      'Open-source command-line tool (@elysiumoss/grepo) that writes READMEs and repo descriptions with AI (TypeScript, Gemini).',
+    ],
+    [
+      'the first of two sentences',
+      'Trained a classifier on 7,023 MRI scans. Benchmarked it against a 3D U-Net.',
+      'Trained a classifier on 7,023 MRI scans.',
+    ],
+    [
+      'a question or an exclamation as the first sentence',
+      'Ever lost a receipt? Never again!',
+      'Ever lost a receipt?',
+    ],
+    ['the first line', 'A first line\nand a second.', 'A first line'],
+    [
+      'the first line with words',
+      '\n\n  A line after blank ones.  \nMore.',
+      'A line after blank ones.',
+    ],
+    ['a sentence with no stop', 'A tool for maps', 'A tool for maps'],
+  ])('is %s', (_case, text, sentence) => {
+    expect(firstSentence(text)).toBe(sentence);
+  });
+
+  // Dots inside a word, a version, a domain or a URL end no sentence: only one before a space.
+  it('keeps Node.js, v2.0, elysium.tools and a URL inside the sentence', () => {
+    expect(
+      firstSentence(
+        'Built on Node.js and v2.0 of its API, at elysium.tools (https://elysium.tools/docs). Then more.',
+      ),
+    ).toBe('Built on Node.js and v2.0 of its API, at elysium.tools (https://elysium.tools/docs).');
+  });
+
+  // Review finding F8: an abbreviation's dot is no sentence end, or the one description line
+  // would read 'Built for the U.S.' or 'Tools, e.g.'.
+  it.each([
+    [
+      'U.S.',
+      'Built for the U.S. market with Next.js. Then more.',
+      'Built for the U.S. market with Next.js.',
+    ],
+    ['e.g.', 'Tools, e.g. scrapers and CLIs. More.', 'Tools, e.g. scrapers and CLIs.'],
+    ['i.e.', 'One store, i.e. Postgres. More.', 'One store, i.e. Postgres.'],
+    ['vs.', 'React vs. Vue, measured. More.', 'React vs. Vue, measured.'],
+  ])('reads past %s', (_abbreviation, text, sentence) => {
+    expect(firstSentence(text)).toBe(sentence);
+  });
+
+  it.each([[''], ['   '], ['\n \n']])('is empty for %j', (text) => {
+    expect(firstSentence(text)).toBe('');
   });
 });

@@ -325,6 +325,20 @@ export function peekSiteSettings(): CachedValue<SiteSettings | null> | undefined
   return { data: decodeSiteSettings(cached.data), loadedAt: cached.loadedAt };
 }
 
+/**
+ * The location the site settings give right now, for page metadata, which must neither wait on
+ * Sanity nor name a place the owner cleared. Only settings loaded less than SANITY_CACHE_TTL_MS
+ * ago count: what {@link loadSiteSettings} would answer without asking Sanity again. Null when
+ * they give no location, when this server has not loaded them yet, and when the last load is
+ * older (a reload is due, or Sanity is failing and the pages show the last good settings). Never
+ * asks Sanity or waits.
+ */
+export function peekSiteLocation(): string | null {
+  const cached = peekSiteSettings();
+  if (!cached || Date.now() - cached.loadedAt >= SANITY_CACHE_TTL_MS) return null;
+  return cached.data?.location?.trim() || null;
+}
+
 const isYoutubeApiVideo = (doc: unknown): boolean =>
   typeof doc === 'object' && doc !== null && (doc as { source?: unknown }).source === 'youtube-api';
 

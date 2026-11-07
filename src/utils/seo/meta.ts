@@ -64,6 +64,11 @@ export interface MetadataOptions {
   readonly video?: MetadataVideo;
   /** A Twitter player for the page. Switches the card type to 'player'. */
   readonly player?: MetadataPlayer;
+  /**
+   * Where the site says Mike is, from Location in Studio: geo.placename and one more keyword.
+   * Nothing names a place without it (blank counts as none); the site builds no place in.
+   */
+  readonly location?: string | null;
 }
 
 interface PreviewImage {
@@ -89,11 +94,25 @@ const twitterCard = (player?: MetadataPlayer) =>
     : { card: 'summary_large_image' as const };
 
 /**
+ * The tags that name `location`: geo.placename and a keyword. None for no location or a blank
+ * one, so `other` is left out and a page's metadata never overrides the layout's with nothing.
+ */
+function placeTags(location: string | null | undefined): Pick<Metadata, 'other'> & {
+  readonly keywords: readonly string[];
+} {
+  const place = location?.trim() ?? '';
+  if (!place) return { keywords: [] };
+  return { other: { 'geo.placename': place }, keywords: [place] };
+}
+
+/**
  * Constructs the metadata object for web pages, including OpenGraph, Twitter, and icon data.
  *
  * Video and player tags appear only when a caller passes them, og:site_name is the site's name,
  * and og:url is the absolute URL of `path` (left out when no path is given, so pages without
- * one do not all claim the homepage). The canonical link comes from src/app/layout.tsx.
+ * one do not all claim the homepage). The canonical link comes from src/app/layout.tsx. A place
+ * is named (geo.placename, and a keyword) only from `location`: the server pages pass the one
+ * Location in Studio gives (src/lib/seo/site-metadata.ts), and nothing here names one itself.
  *
  * @function
  * @public
@@ -124,8 +143,10 @@ export function constructMetadata({
   path,
   video,
   player,
+  location,
 }: MetadataOptions = {}): Metadata {
   const ogImage = previewImage(title, description, image);
+  const place = placeTags(location);
 
   return {
     title: {
@@ -154,7 +175,8 @@ export function constructMetadata({
     category: 'technology',
     manifest: '/manifest.webmanifest',
     metadataBase: new URL(app.url),
-    keywords: [...app.keywords],
+    keywords: [...app.keywords, ...place.keywords],
+    ...(place.other && { other: place.other }),
     ...(noIndex && { robots: { index: false, follow: false } }),
   };
 }

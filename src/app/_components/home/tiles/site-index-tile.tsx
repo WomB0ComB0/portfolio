@@ -31,7 +31,7 @@ import type { ReactElement } from 'react';
 
 import { numberFormatter, Tile } from '@/components/console';
 import { loadSiteCounts, type SiteCounts } from '../data/loaders';
-import { FigurePlaceholder, LoadingNote } from './tile-states';
+import { FigurePlaceholder, figureShape, LoadingNote } from './tile-states';
 
 const TITLE = 'Site index';
 
@@ -79,10 +79,39 @@ const CELL_BODY_CLASS = 'flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 
 const CELL_LINK_CLASS = `${CELL_BODY_CLASS} text-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-2 focus-visible:-outline-offset-2`;
 const COUNT_CLASS = 'figure-sm text-foreground';
 const NAME_CLASS = 'figure-unit text-muted-foreground';
+/**
+ * A count shorter than the skeleton's two digits holds their room: a hidden '00' in its own type
+ * after it (a block of no height, so only its width counts), and the digit set at the room's end,
+ * as in a column of figures. So a one-digit count wraps its name exactly where the skeleton's
+ * '00' does: 'certifications' goes under its figure in a narrow cell, and with one digit it fit
+ * there, 19 px under the skeleton. (With hinted glyphs, on Linux, '00' is 1 px wider than '64',
+ * so at a few widths the skeleton and a one-digit count wrap where '64' does not: bento-layout.ts's
+ * strip row.) Not a 2ch box: Geist's '0' (what ch measures) is wider than
+ * its tabular digits, so 2ch would widen two-digit counts too. A count of two digits or more
+ * fills the room itself and gets none of this, so it sets exactly as it did.
+ */
+const COUNT_RESERVE_CLASS =
+  'text-end after:block after:h-0 after:overflow-hidden after:invisible after:content-[attr(data-reserve)]';
 /** The count's type, for its placeholder while the counts load. */
 const COUNT_PLACEHOLDER_CLASS = 'figure-sm';
 
 const formatCount = (value: number): string => numberFormatter().format(value);
+
+/** The digits a count holds room for, as the skeleton draws them: '00'. */
+const RESERVED_SHAPE = figureShape(SKELETON_DIGITS);
+
+/** A count's figure, holding the skeleton's two digits' room when it has fewer. */
+function Count({ value }: { value: number }): ReactElement {
+  const text = formatCount(value);
+  const short = text.replace(/\D/gu, '').length < SKELETON_DIGITS;
+  return short ? (
+    <span data-reserve={RESERVED_SHAPE} className={`${COUNT_CLASS} ${COUNT_RESERVE_CLASS}`}>
+      {text}
+    </span>
+  ) : (
+    <span className={COUNT_CLASS}>{text}</span>
+  );
+}
 
 function IndexCell({ entry, count }: { entry: IndexEntry; count: number | null }): ReactElement {
   const name = count === 1 ? entry.one : entry.other;
@@ -91,7 +120,7 @@ function IndexCell({ entry, count }: { entry: IndexEntry; count: number | null }
       <Link href={entry.href} prefetch={false} className={CELL_LINK_CLASS}>
         {count !== null && (
           <>
-            <span className={COUNT_CLASS}>{formatCount(count)}</span>{' '}
+            <Count value={count} />{' '}
           </>
         )}
         <span className={NAME_CLASS}>{name}</span>

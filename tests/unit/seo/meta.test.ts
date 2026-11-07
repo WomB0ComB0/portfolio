@@ -18,6 +18,8 @@
 /**
  * @file constructMetadata emits only real tags: no placeholder video or player, a large-image
  * Twitter card, the site name as og:site_name, and an og:url only when the caller names the path.
+ * It names a place (geo.placename, and a keyword) only from the location it is given, and builds
+ * none in.
  */
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
@@ -121,5 +123,50 @@ describe('constructMetadata', () => {
         },
       ],
     });
+  });
+});
+
+/** Any spelling of the city the site's metadata used to name on its own. */
+const CITY = /new york|\bnyc\b|\bny\b/i;
+
+// Owner decision: Location in Studio decides whether the site names a place at all. The city was
+// built into every page's keywords ('Software Engineer NYC', ...) and its geo.placename tag, so
+// clearing the setting hid it from the hero only.
+describe('constructMetadata and the location', () => {
+  it('names the place it is given, as geo.placename and as a keyword', () => {
+    const metadata = constructMetadata({ path: '/', location: 'Brooklyn, NY' });
+
+    expect(metadata.other).toEqual({ 'geo.placename': 'Brooklyn, NY' });
+    expect(metadata.keywords).toEqual([...app.keywords, 'Brooklyn, NY']);
+  });
+
+  it('trims the place it is given', () => {
+    const metadata = constructMetadata({ location: '  Brooklyn, NY \n' });
+
+    expect(metadata.other).toEqual({ 'geo.placename': 'Brooklyn, NY' });
+    expect(metadata.keywords).toContain('Brooklyn, NY');
+  });
+
+  it.each([
+    ['no location', undefined],
+    ['a null location', null],
+    ['an empty location', ''],
+    ['a location of spaces', '  \n '],
+  ])('names no place anywhere for %s', (_case, location) => {
+    const metadata = constructMetadata({ title: 'Stats', path: '/stats', location });
+
+    expect(metadata).not.toHaveProperty('other');
+    expect(metadata.keywords).toEqual([...app.keywords]);
+    expect(JSON.stringify(metadata)).not.toMatch(CITY);
+  });
+
+  it('builds no city into the keywords, the site’s own or a page’s', () => {
+    expect(app.keywords.filter((keyword) => CITY.test(keyword))).toEqual([]);
+    expect(JSON.stringify(constructMetadata())).not.toMatch(CITY);
+  });
+
+  it('keeps the college: it is in the description too, and says nothing of where he is', () => {
+    expect(app.keywords).toContain('Farmingdale State College');
+    expect(app.description).toContain('Farmingdale State College');
   });
 });

@@ -24,8 +24,10 @@ import 'server-only';
  * year it started. A flush linked tile whose stretched link is the title.
  *
  * The title is split at its first ' - ', ' – ', ' — ' or ': ' (splitTitle): the name is the title
- * and the rest its one description line. Nothing else: the long description, the tech chips, the
- * category and the status stay on the project's page.
+ * and the rest its one description line. A title with no separator takes the first sentence of
+ * the project's own description instead (projectSubtitle), so every project has exactly one
+ * description line. Nothing else: the rest of the description, the tech chips, the category and
+ * the status stay on the project's page.
  *
  * The cover is 2:1, and so is its file: Sanity cuts a 2:1 window from Studio's crop, centred on
  * the image's hotspot (@sanity/image-url's fit, with both a width and a height), so the subject
@@ -33,8 +35,10 @@ import 'server-only';
  * tile's width. From a 38rem tile the tile is a media object, cover left (half the tile, still
  * 2:1) and text right, so a wide lane does not make the project taller than the hero; a 30rem to
  * 40rem bento (the 30rem estimate tier, where this tile spans the bento) does the same. Below a
- * 30rem bento (phones) it stacks. In the media object the text is one line each (label row, title,
- * description), so it is never taller than the cover and the skeleton is exactly the tile's size.
+ * 30rem bento (phones) it stacks. The text is one line each in every layout (label row, title,
+ * description, always all three), so the tile's height depends on its width alone and the
+ * skeleton is exactly the tile's size, whatever the project; in the media object the text is
+ * never taller than the cover.
  * A stale project (its list served past the deadline) adds that list's day on a line of its own,
  * never cut: it is the tile's only visible sign of staleness, and a stale tile is outside the
  * estimates anyway (tile-states.tsx's state contract).
@@ -50,7 +54,13 @@ import type { ReactElement } from 'react';
 import { hasDestination, Tile, TileLink } from '@/components/console';
 import { urlFor } from '@/lib/sanity/client';
 import type { Project } from '@/lib/sanity/loaders';
-import { formatAsOfDay, formatRelative, type Instant, splitTitle } from '../data/format';
+import {
+  firstSentence,
+  formatAsOfDay,
+  formatRelative,
+  type Instant,
+  splitTitle,
+} from '../data/format';
 import { loadProjectPick } from '../data/loaders';
 import type { ProjectPick } from '../data/selectors';
 import type { TileResult } from '../data/tile-result';
@@ -126,14 +136,21 @@ const LABEL_ROW_CLASS = 'truncate tile-label text-muted-foreground';
  */
 const LABEL_CLASS = 'inline whitespace-nowrap';
 /**
- * The title and the description: up to two lines each stacked; one each in the media object, so
- * its text (16 + 6 + 26 + 6 + 20 px with 40 px of padding) is never taller than its cover (from
- * 119.5 px at a 30rem bento).
+ * The title and the description: one line each in every layout, cut with an ellipsis, so the
+ * tile's height is its width's alone, whatever the copy. Stacked, a two-line title or description
+ * made it 20 to 26 px taller than its skeleton and its estimate; in the media object its text
+ * (16 + 6 + 26 + 6 + 20 px with 40 px of padding) is never taller than its cover (from 119.5 px at
+ * a 30rem bento). The whole title is still the link's name, and the whole line in the DOM.
  */
-const TITLE_CLASS =
-  'line-clamp-2 wrap-break-word tile-title-lg text-foreground @[38rem]:line-clamp-1 @min-[30rem]/bento:@max-[40rem]/bento:line-clamp-1';
-const SUBTITLE_CLASS =
-  'line-clamp-2 wrap-break-word tile-sub text-muted-foreground @[38rem]:line-clamp-1 @min-[30rem]/bento:@max-[40rem]/bento:line-clamp-1';
+const TITLE_CLASS = 'line-clamp-1 wrap-break-word tile-title-lg text-foreground';
+const SUBTITLE_CLASS = 'line-clamp-1 wrap-break-word tile-sub text-muted-foreground';
+
+/**
+ * The description line when the project gives none: neither its title's description, nor a
+ * description of its own, nor a category (Studio requires the last two; all 22 projects have
+ * both). The tile always has this one line, so it is never shorter than its skeleton.
+ */
+export const PROJECT_SUBTITLE_FALLBACK = 'Details on the project page';
 
 /** Up to two initials, from the first letters of the title's first words: 'Fraud Guard' is FG. */
 export function initialsOf(title: string): string {
@@ -172,6 +189,21 @@ const projectHref = (project: Project): string =>
 
 /** The year the project started, from its startDate; '' without one. */
 const startYear = (project: Project): string => /^\d{4}/u.exec(project.startDate ?? '')?.[0] ?? '';
+
+/**
+ * The tile's one description line, never empty: the description in the project's title
+ * ('Fraud Guard - AI-Powered Transaction Monitoring'), else the first sentence of its own
+ * description in Studio (the latest work's too: it is a Sanity project, matched by its GitHub
+ * URL), else its category, else {@link PROJECT_SUBTITLE_FALLBACK}.
+ */
+export function projectSubtitle(project: Project, subtitle: string): string {
+  return (
+    subtitle ||
+    firstSentence(project.description) ||
+    project.category.trim() ||
+    PROJECT_SUBTITLE_FALLBACK
+  );
+}
 
 /** The cover is decorative: the title beside it names the project. */
 function Cover({ project, name }: { project: Project; name: string }): ReactElement {
@@ -262,12 +294,12 @@ function ProjectView({ pick, stale, asOf, now }: ProjectViewProps): ReactElement
             detail={isActive ? committed : startYear(project)}
             dated={committed !== ''}
           />
-          <h3 className={TITLE_CLASS}>
+          <h3 className={TITLE_CLASS} title={title}>
             <TileLink href={href} className="text-inherit">
               {title}
             </TileLink>
           </h3>
-          {subtitle && <p className={SUBTITLE_CLASS}>{subtitle}</p>}
+          <p className={SUBTITLE_CLASS}>{projectSubtitle(project, subtitle)}</p>
           {asOf && (
             <TileMeta dated stale>
               {asOf}
@@ -308,10 +340,9 @@ export function ProjectTileView({ result, now = Date.now() }: ProjectTileViewPro
 }
 
 /**
- * The loading project tile, the loaded one's size: the cover's 2:1 box (in the same media object),
- * the real label's line, and one line each of the title's and the description's type. In the
- * media object both are the cover's height whatever the text; stacked, they match a one-line
- * title and description.
+ * The loading project tile, the loaded one's size whatever the project: the cover's 2:1 box (in
+ * the same media object), the real label's line, and one line each of the title's and the
+ * description's type, as the loaded tile always has.
  */
 export function ProjectTileSkeleton(): ReactElement {
   return (

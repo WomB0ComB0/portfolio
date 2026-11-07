@@ -20,10 +20,20 @@ import { AnalyticsScripts, StructuredData } from '@/components/scripts';
 import '@/styles/globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import { constructMetadata, constructViewport } from '@/utils';
+import { siteMetadata } from '@/lib/seo/site-metadata';
+import { constructViewport } from '@/utils';
 
-export const metadata = constructMetadata();
+/**
+ * Every page's defaults, with geo.placename only while Location in Studio names a place (as this
+ * server last loaded it, never waiting for Sanity: src/lib/seo/site-metadata.ts). So the tag is
+ * missing on a fresh server's first request and for one request after each 5-minute cache
+ * expiry, and a change in Studio takes up to those 5 minutes to show, as the hero's does.
+ */
+export function generateMetadata(): Metadata {
+  return siteMetadata();
+}
 export const viewport = constructViewport();
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +61,8 @@ export const RootLayout = async ({ children }: { children: React.ReactNode }) =>
 
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL}${pathname}`} />
         <meta name="language" content="English" />
+        {/* The country only. geo.placename comes from generateMetadata, from Location in Studio. */}
         <meta name="geo.region" content="US" />
-        <meta name="geo.placename" content="New York, NY" />
 
         <AnalyticsScripts nonce={nonce} />
         <StructuredData nonce={nonce} />

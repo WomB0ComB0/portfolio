@@ -132,7 +132,7 @@ describe('the site settings schema in Studio', () => {
     expect(await problemsWith(rest)).toEqual([]);
     expect(await problemsWith({ ...rest, location: undefined })).toEqual([]);
     expect(siteSettingsType.fields.find(({ name }) => name === 'location')?.description).toBe(
-      'Optional. Shown after your current role at the top of the home page, in muted text, e.g. "New York, NY". Clear it to hide your location.',
+      'Optional. Shown after your current role at the top of the home page, in muted text, e.g. "New York, NY", and named in the site\'s search metadata. Clear it to hide your location from the home page and the site\'s metadata.',
     );
   });
 
@@ -224,7 +224,7 @@ describe('the site settings schema in Studio', () => {
       // The location has no built-in value to fall back to: clearing it hides it.
       expect(field.description, field.name).toMatch(
         field.name === 'location'
-          ? /^Optional\..*Clear it to hide your location\.$/
+          ? /^Optional\..*Clear it to hide your location from the home page and the site's metadata\.$/
           : /Leave it empty/,
       );
     }

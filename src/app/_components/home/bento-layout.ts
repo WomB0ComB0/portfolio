@@ -128,8 +128,10 @@ export function rowsFor(blockSizePx: number): number {
  *   30rem); at medium only the hero; at wide none (the hero spans two of three lanes).
  * - A slot in one lane gets the height that minimises its largest error across the tier: the
  *   middle of its range, so it is within half the range of every height it takes there. The range
- *   covers its content's variants as well as its widths: a place name on one line or two (106 or
- *   124 px at medium) counts as much as the lane's width. One exception, below 30rem: status and
+ *   is its widths': the tiles below keep one height per width whatever their content (the
+ *   place's name, the project's title and description, the roles' last line, a one-digit site
+ *   count and GitHub's unit; each tile's file says how), and the content that still changes a
+ *   height is listed below. One exception, below 30rem: status and
  *   typing stack in one lane of the live cluster, right before GitHub spans both lanes, so their
  *   errors add up in GitHub's top (the middles put it 18 px low at 390 and 412 px phones). There
  *   each takes the lowest height still within 16 px of every height it takes in the tier (62 and
@@ -140,24 +142,33 @@ export function rowsFor(blockSizePx: number): number {
  * the place), JavaScript on, once nothing in main was aria-busy and the masonry had settled: every
  * 8 px from 320 to 1920 px and 1 px either side of each bento breakpoint, a phone (overlay
  * scrollbar) below 768 px and a desktop browser from there. Only tiles showing their reference
- * content counted (tile-states.tsx's state contract). The place's long-name height was measured
- * apart, on the same build's CSS ('The Metropolitan Museum of Art'). Lane slots whose range is
- * wide:
+ * content counted (tile-states.tsx's state contract). Other content was measured apart on
+ * 2026-11-07, rendering the real tiles with the same build's CSS at every 2 px from 280 to 1140
+ * px of bento, with hinted and unhinted glyphs: 8 other projects of the 22 (with no description
+ * in the title, a two-line title, a two-line description), three long place names, two to four
+ * current roles, one-digit site counts and GitHub totals of 8, 100, 777, 999, 1,777, 2,424, 7,777
+ * and 9,999 (with hinted glyphs 7 is the widest digit, 2 and 4 the narrowest; GitHub every 0.25 px).
+ * Each gave its tile today's height at every width, but for what is listed last. Lane slots whose
+ * range is wide:
  * - the project at medium: 271.2 to 310.9 px (bentos 641 to 800), so up to 21 px off; at md-wide
  *   311.1 to 380.8 px (bentos 801 to 1079), up to 35 px off. Its 2 : 1 cover grows with its lane,
  *   so no one value is within 16 px of both ends: these are BENTO_ESTIMATE_GAPS (below);
- * - GitHub at medium, 244 or 268 px (its unit wraps in a lane below about 335 px);
+ * - GitHub at medium, 244 or 268 px (its unit takes its own line in a tile narrower than
+ *   18.61rem: a lane below about 340 px, a 640 to 695 px bento);
  * - the site index at medium, 117 px, or 136 px in a 640 to 641 px bento, where 'certifications'
  *   wraps under its figure;
- * - the place at medium, 106 or 124 px (a long name wraps in a lane below about 366 px);
  * - status, LeetCode and typing below 30rem, one line taller each in a 288 px bento.
+ * Content that still changes a height, so the table holds for today's: exactly one role beside
+ * the hero's (a role, 56 px, shorter stacked), a site count of three digits ('certifications'
+ * wraps under it in more cells: 19 px), a GitHub total of five digits, LeetCode's legend and the
+ * typing line by their digits, the status line by its words, and the hero by its tagline.
  * Re-measure when a tile's markup changes, then run e2e/journeys/home-bento.spec.ts -g masonry
  * against a server with every API key: it fails when a one-lane tile reserves more than 16 px
  * more or less than its height, or a tile across every lane more than 16 px above it, at any of
  * its widths (375, 390, 412, 500, 600, 700, 720, 768, 820, 900, 1024, 1440), or when a slot's top
  * moves more than 16 px once JavaScript runs. Tiles not showing their reference content are left
  * out, and so is a lane tile that one of them sent to a lane of another width. A gap
- * (BENTO_ESTIMATE_GAPS) is held to its measured range instead, and the slots after it to 48 px
+ * (BENTO_ESTIMATE_GAPS) is held to its measured range instead, and the slots after it to 41 px
  * (at 700 px, a 646 px bento, the project reserves about 20 px too much and roles moves about
  * 30 px: both are reported as annotations, not failures).
  */
@@ -177,23 +188,29 @@ export const BENTO_TILE_HEIGHTS_PX: Readonly<
   // '60 s best · 93% accuracy' on one line in a 188 px lane or wider (128 px), else two (146 px).
   // 130, not the middle (137): it shares a lane with status (see the exception above).
   type: { sm: 130, 'sm-wide': 136, md: 136, 'md-wide': 136, lg: 136 },
-  // The sparkline sits beside the figure in a 30 to 40rem bento. In a lane narrower than about
-  // 337 px the unit wraps: 268 px (a 640 to 690 px bento), else 244 px. In a wide bento the unit
-  // always wraps, by rule (github-tile.tsx's TEXT_COLUMN_CLASS), so 268 px on every platform.
+  // The sparkline sits beside the figure in a 30 to 40rem bento. Stacked, the unit takes its own
+  // line in a tile narrower than 18.61rem, by rule and for any total up to four digits
+  // (github-tile.tsx's TEXT_COLUMN_CLASS): at sm 260 px below a 332 px bento, 236 from there to a
+  // 28rem bento, 244 from 28rem; at md 268
+  // px in a lane below about 340 px (a 640 to 695 px bento), else 244. In a wide bento it always
+  // takes its own line, so 268 px on every platform.
   gh: { sm: 236, 'sm-wide': 172, md: 256, 'md-wide': 244, lg: 268 },
   // A 2 : 1 cover, so the tile grows with its lane: stacked below a 30rem bento (251 px at its
-  // smallest, 355 px at 479 px), cover-left from 30rem to 40rem (121.6 to 161.4 px).
+  // smallest, 355 px at 479 px), cover-left from 30rem to 40rem (121.6 to 161.4 px). The same for
+  // any project: its title and its description are one line each, and it always has both.
   proj: { sm: 251, 'sm-wide': 121.6, md: 291, 'md-wide': 346, lg: 278 },
-  // Across both lanes below 40rem: 98 px below a 28rem bento, 106 px from there. A name on one
-  // line is 106 px in a lane, on two 124 px: a 30-character name ('The Metropolitan Museum of
-  // Art') wraps in an md lane up to a 746 px bento, so md is the middle, 115 px. It stays on one
-  // line in every md-wide lane, and at wide the tile lands in the 1.3fr first lane (413 to 435
-  // px), where it does too (in a 1fr lane it would wrap).
-  place: { sm: 98, 'sm-wide': 106, md: 115, 'md-wide': 106, lg: 106 },
-  // Two roles side by side from a 554 px bento to 40rem: 154 px there, 202 or 210 px stacked.
+  // Across both lanes below 40rem: 98 px below a 28rem bento, 106 px from there. In a lane from
+  // 40rem, 106 px in every lane and for every place: the name is one line, cut with an ellipsis
+  // (place-tile.tsx). md used to hedge at 115 px, a long name wrapping to 124 px in an md lane.
+  place: { sm: 98, 'sm-wide': 106, md: 106, 'md-wide': 106, lg: 106 },
+  // Two roles side by side from a 554 px bento to 40rem: 154 px there, 202 or 210 px stacked. The
+  // same with any number of current roles from three: the last line is '+N more' or, with none
+  // unnamed, 'All experience'. With two (one listed) it is a role shorter stacked, 56 px.
   role: { sm: 202, 'sm-wide': 154, md: 210, 'md-wide': 210, lg: 210 },
   // 2 x 2 everywhere: 117 px, or 136 px where 'certifications' wraps (bentos below 320 px, and
-  // 640 to 641 px).
+  // 640 to 641 px). A one-digit count holds the skeleton's '00' room, so it wraps where the
+  // skeleton does. With hinted glyphs (Linux) '00' is 1 px wider than '64', so the skeleton and a
+  // one-digit count also wrap at a 314 and a 642 to 644 px bento, where '64' does not.
   strip: { sm: 117, 'sm-wide': 117, md: 126, 'md-wide': 117, lg: 117 },
 };
 
@@ -208,14 +225,17 @@ export type HeightRange = readonly [min: number, max: number];
  * windows of about 683 to 860 px), at md-wide 311.1 to 380.8 px (bentos 801 to 1079, windows to
  * about 1217 px).
  *
- * The cost: its estimate can be off by up to about 21 px at medium and 35 px at md-wide. Two
- * more misses add to it at medium. GitHub's estimate is 12 px off either way (under its tile
- * below about a 690 px bento, over it above), which moves the slot below GitHub in its lane, while
- * the project's miss grows the rows it shares with GitHub's lane. And the place's two-line hedge
- * (10 px over a one-line name) moves the site index below it. So the slots after the project
- * (place, roles, the site index) can move once the island runs: up to about 41 px (the site
- * index at a 799 px bento, about 849 to 859 px windows: GitHub 12 px over, the project 19 px
- * under and the place 10 px over), and roles and the site index swap lanes in about 1086 to 1210
+ * The ranges are the width's alone: the project's title and description are one line each and
+ * always both there, so every project gives the same heights (measured with 8 others of the 22,
+ * among them ones with no description in the title and two-line copy).
+ *
+ * The cost: its estimate can be off by up to about 21 px at medium and 35 px at md-wide. One
+ * more miss adds to it at medium: GitHub's estimate is 12 px off either way (under its tile below
+ * about a 696 px bento, over it above), which moves the slot below GitHub in its lane, while the
+ * project's miss grows the rows it shares with GitHub's lane. So the slots after the project
+ * (place, roles, the site index) can move once the island runs: up to 34 px (roles at an 800 px
+ * bento, about 850 to 860 px windows, where the project reserves 35 px more than it needs; at md
+ * 32 px, roles at a 640 px bento), and roles and the site index swap lanes in about 1086 to 1210
  * px windows. Below the fold, with no overlap. Narrowing it is the owner's call: a cover of fixed
  * height per tier would make its span independent of the width.
  *
@@ -224,7 +244,7 @@ export type HeightRange = readonly [min: number, max: number];
  * rounding, and a row more above for what it reserves), or the check fails naming the range;
  * inside it, a miss of more than 16 px is reported as an annotation instead. The
  * moves of the slots after it in the DOM are reported too, whether or not it is off at that width,
- * up to FIRST_PAINT_GAP_MOVE_MAX_PX (48 px); a larger move fails, and the slots up to it are held
+ * up to FIRST_PAINT_GAP_MOVE_MAX_PX (41 px); a larger move fails, and the slots up to it are held
  * to 16 px. tests/unit/home/bento-areas.test.ts keeps each estimate inside its range, each range
  * wider than twice the tolerance, and the list to lane slots.
  */

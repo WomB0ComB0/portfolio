@@ -93,15 +93,39 @@ const BODY_CLASS =
  * and kept the unit up, while the skeleton's took 197 px and wrapped it: 24 px taller in a 600 px
  * window.)
  *
+ * Stacked, where the line the unit takes would hang on the total's digits, it hangs on the tile's
+ * width alone (a query on the tile, loaded and loading): in a tile whose content box is narrower
+ * than 18.61rem (297.76 px) the unit takes its own line; from there it sits beside the figure.
+ * 18.61rem is just over the widest four-digit row, '7,777 contributions in 12 weeks' (297.61 px).
+ * With Linux's hinted advances the tabular digits are not all one width: 7 is 1 px wider than 0,
+ * 1, 3, 5, 6, 8 and 9 ('0,000' and '1,311': 293.61 px), and 2 and 4 are 1 px narrower ('2,424':
+ * 289.61 px); unhinted (macOS, iOS, Windows, Android) every four-digit row is 289.69 px. So from
+ * 18.61rem any total up to four digits fits on one line on every platform, and below it none is
+ * beside its unit: '8', '999', '1,311', '1,777' and '7,777' all give the skeleton's height at
+ * every width, hinted and unhinted. Before, '999' fit where '1,311' wrapped (292 to 327 px phone
+ * bentos, 640 to 688 px ones), 24 px under the skeleton; and with the line drawn just over
+ * '0,000' (18.36rem), a hinted total with more 7s than 2s and 4s still wrapped in a 328 to 331 px
+ * or 688 to 695 px bento where the skeleton did not (review finding F1).
+ *
+ * The cost, for today's total and the skeleton alike: in a content box of 293.76 to 297.76 px
+ * (a 328 to 331.75 px bento, a 687.5 to 695.5 px one: phone windows of 360 to 363 and 733 to
+ * 741 px, desktop ones of 370 to 373 and 743 to 751 px) they now take the unit's line too, 24 px
+ * taller, as in every narrower tile, hinted and unhinted. Against the layout before these rules,
+ * hinted, '1,311' wrapped from 293.61 px anyway, so that is the whole change; unhinted it fit down
+ * to 289.69 px, so there it starts at a 324 and a 679.5 px bento (phone windows of 356 and 725 px,
+ * desktop ones of 366 and 735 px). Side by side (the 34rem rule and the 30 to 40rem bento) the
+ * tile is always wider than 18.61rem, so the rule never fires there and the nowrap row keeps its
+ * min-content column.
+ *
  * In a wide bento (from 67.5rem) the unit always takes its own line, in any lane, loaded and
  * loading. GitHub's wide lane (a 1fr lane, 317.6 to 334.5 px, its text column at most 292.55 px)
- * is about 1 px narrower than a four-digit row ('0,000 contributions in 12 weeks') with Linux's
- * hinted advances and about 3 px wider unhinted (macOS, Windows). Without the rule the tile's
- * height, and so the lane roles packs into, would hang on the platform and the digit count; with
- * it the tile is 268 px everywhere.
+ * is narrower than a four-digit row with Linux's hinted advances ('0,000': about 1 px; '7,777':
+ * 5 px) and about 3 px wider unhinted (macOS, Windows). The tile rule above covers that lane too;
+ * this one also covers the 1.3fr first lane, should the tile ever land there, so the tile is
+ * 268 px in every wide lane on every platform.
  */
 const TEXT_COLUMN_CLASS =
-  'flex min-w-0 flex-col gap-3 @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:flex-nowrap @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:whitespace-nowrap @min-[67.5rem]/bento:[&>.figure-row>:last-child]:basis-full';
+  'flex min-w-0 flex-col gap-3 @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:flex-nowrap @min-[30rem]/bento:@max-[40rem]/bento:[&>.figure-row]:whitespace-nowrap @max-[18.61rem]:[&>.figure-row>:last-child]:basis-full @min-[67.5rem]/bento:[&>.figure-row>:last-child]:basis-full';
 /** The commit lines take the column's width and never widen it: their headline is cut short. */
 const COMMIT_LINES_CLASS = 'flex min-w-0 flex-col gap-1 contain-inline-size';
 /** The sparkline's height on screen: 56 px, 72 px (h-18) side by side. */

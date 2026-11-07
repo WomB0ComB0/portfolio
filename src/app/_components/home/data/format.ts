@@ -381,3 +381,37 @@ export function splitTitle(full: string): TitleParts {
   const subtitle = match?.[2]?.trim();
   return title && subtitle ? { title, subtitle } : { title: text, subtitle: '' };
 }
+
+/**
+ * A sentence's end: '.', '!' or '?' (and any closing bracket or quote after it) before a space
+ * or the end. A dot inside a word, a number, a domain or a URL is none: 'Node.js', 'v2.0'.
+ */
+const SENTENCE_STOP = /[.!?]['")\]’”]*(?=\s|$)/gu;
+
+/**
+ * Text that ends in an abbreviation's dot, which ends no sentence: letters each followed by a dot
+ * ('U.S.', 'e.g.', 'i.e.', a lone initial) or a common short form ('vs.', 'Inc.').
+ */
+const ENDS_IN_ABBREVIATION =
+  /(?:^|[\s(])(?:(?:\p{L}\.)+|vs\.|approx\.|incl\.|Inc\.|Dr\.|Mr\.|Ms\.|Mrs\.)$/u;
+
+/**
+ * The first line of `text` with words in it, cut after its first sentence, as written; '' when
+ * there are no words. For a one-line summary of a longer description.
+ *
+ * @example firstSentence('Trained a classifier on 7,023 MRI scans. Benchmarked it.')
+ * // 'Trained a classifier on 7,023 MRI scans.'
+ */
+export function firstSentence(text: string): string {
+  const line =
+    text
+      .split(/\r?\n/u)
+      .map((part) => part.trim())
+      .find(Boolean) ?? '';
+  for (const stop of line.matchAll(SENTENCE_STOP)) {
+    const throughStop = line.slice(0, stop.index + 1);
+    if (stop[0].startsWith('.') && ENDS_IN_ABBREVIATION.test(throughStop)) continue;
+    return line.slice(0, stop.index + stop[0].length);
+  }
+  return line;
+}

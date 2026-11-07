@@ -52,9 +52,8 @@
  *   than its tile fails it: from 640 to 649 px LeetCode's once did). Otherwise an annotation names
  *   the slots that kept it from running, as on any run where a tile shows an error. At md and
  *   md-wide (about 683 to 1217 px windows) the slots after the project in the DOM (place, roles,
- *   the site index) may move by its miss plus GitHub's (and, below the place, the place's
- *   two-line hedge), even where the project is within 16 px: up to 48 px
- *   (FIRST_PAINT_GAP_MOVE_MAX_PX; the worst measured is 40.8 px, the site index at a 799 px
+ *   the site index) may move by its miss plus GitHub's, even where the project is within 16 px:
+ *   up to 41 px (FIRST_PAINT_GAP_MOVE_MAX_PX; the worst measured is 34 px, roles at an 800 px
  *   bento), each listed in an annotation, and a larger move fails. Roles and the site index can
  *   swap lanes there (about 1086 to 1210 px windows). The slots up to and including the project
  *   are held to 16 px.
@@ -142,7 +141,7 @@ const LAYOUT_WIDTHS = [320, 375, 600, 700, 768, 1024, 1280, 1440] as const;
  * A tile across every lane reserves at most its smallest height in the tier, and a one-lane tile's
  * estimate holds within 16 px across its tier, except the project's at md and md-wide (its cover
  * grows with its lane: BENTO_ESTIMATE_GAPS in bento-layout.ts). That one is held to its measured
- * range, and the slots after it to 48 px of movement, where the checks report what they excuse.
+ * range, and the slots after it to 41 px of movement, where the checks report what they excuse.
  * These are common phones and the widths near the tiers' edges; 700 px keeps the 640 to 650 px
  * bento band in the first paint check.
  */
