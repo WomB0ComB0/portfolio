@@ -24,6 +24,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, screen, within } from '@testing-library/react';
+import { makeCertification } from '@tests/fixtures/sanity-docs';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -221,6 +222,27 @@ describe('the Ledger list', () => {
 
     expect(within(row).queryByRole('link')).toBeNull();
     expect(within(row).getByText('No link')).toBeInTheDocument();
+  });
+
+  // CodeRabbit on #613: an ID is still how a visitor verifies a credential by hand.
+  it('still shows the credential ID, named, when there is no URL', async () => {
+    h.loadCertifications.mockResolvedValue([
+      ...CERTS,
+      makeCertification({
+        title: 'Proctored Exam',
+        issuer: 'IBM',
+        issueDate: '2024-03-01',
+        order: 99,
+        credentialUrl: null,
+        credentialId: 'EXAM-42',
+      }),
+    ]);
+    await renderPage();
+    const row = rowFor('Proctored Exam');
+
+    expect(within(row).queryByRole('link')).toBeNull();
+    expect(within(row).getByText('No link')).toBeInTheDocument();
+    expect(row).toHaveTextContent(/Credential ID\s*EXAM-42/);
   });
 
   it('lists the split skills under the title, and the phone meta line under that', async () => {

@@ -460,8 +460,16 @@ test.describe('/certifications: the Ledger', () => {
     try {
       const page = await context.newPage();
       await page.goto(`${getTargetUrl()}${PATH}`);
-      if (javaScriptEnabled) await settle(page);
-      else await page.waitForLoadState('load');
+      if (javaScriptEnabled) {
+        await settle(page);
+        // CodeRabbit on #613: measure after hydration and the island's first effects (the
+        // toolbar reveal), or both runs could read the server layout.
+        await hydrated(page);
+        await page.evaluate(
+          () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        );
+      } else await page.waitForLoadState('load');
       await page.evaluate(() => document.fonts.ready);
       const header = page.locator(`${MAIN} header`).filter({ visible: true }).first();
       const toolbar = page

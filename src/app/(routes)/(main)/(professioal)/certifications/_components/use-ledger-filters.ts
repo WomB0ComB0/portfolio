@@ -82,13 +82,19 @@ function useTimer(): Timer {
 /** The address bar's search params, as URLSearchParams writes them. */
 const currentQuery = (): string => new URLSearchParams(window.location.search).toString();
 
-/** Calls `onEntry` whenever the history entry changes, where the browser has the Navigation API. */
-function useHistoryEntries(onEntry: () => void): void {
+/**
+ * Calls `onEntry` whenever the history entry changes, where the browser has the Navigation API,
+ * with how it changed: 'replace' for history.replaceState (the island's own writes, and Next's
+ * bookkeeping), 'push' for a navigation, 'traverse' for Back and Forward, 'reload'.
+ */
+function useHistoryEntries(onEntry: (type: NavigationType | null) => void): void {
   useEffect(() => {
     const navigation: Navigation | undefined = window.navigation;
     if (!navigation) return;
-    navigation.addEventListener('currententrychange', onEntry);
-    return () => navigation.removeEventListener('currententrychange', onEntry);
+    const listener = (event: Event): void =>
+      onEntry((event as NavigationCurrentEntryChangeEvent).navigationType ?? null);
+    navigation.addEventListener('currententrychange', listener);
+    return () => navigation.removeEventListener('currententrychange', listener);
   }, [onEntry]);
 }
 
@@ -133,13 +139,19 @@ function useUrlSync(
 
   // A navigation in the same tick as a chip's write (a script's router.push) can reach the page
   // with neither a router report nor a server render: Next folds the two and serves the page from
-  // its cache. Only the history entry changes.
+  // its cache. Only the history entry changes. The island writes with replaceState only, so any
+  // other kind of change is a navigation and wins, even to the URL the island stands for (it
+  // drops a search still waiting to be written) or to one it wrote and has not heard back about.
   useHistoryEntries(
-    useCallback(() => {
-      if (window.location.pathname.replace(/\/$/, '') !== CERTIFICATIONS_PATH) return;
-      const search = currentQuery();
-      if (search !== expected.current && !pending.current.includes(search)) adopt(search);
-    }, [adopt]),
+    useCallback(
+      (type) => {
+        if (window.location.pathname.replace(/\/$/, '') !== CERTIFICATIONS_PATH) return;
+        const search = currentQuery();
+        if (type !== 'replace' && type !== null) adopt(search);
+        else if (search !== expected.current && !pending.current.includes(search)) adopt(search);
+      },
+      [adopt],
+    ),
   );
 
   return (values) => {

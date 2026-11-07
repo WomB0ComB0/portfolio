@@ -119,6 +119,31 @@ const familySlugOf = (family: string): string => {
   return slug === ALL_SLUG || slug === OTHER_SLUG ? `${slug}-issuer` : slug;
 };
 
+/** What one issuer family is known by: its name, ignoring case (a company written two ways). */
+const familyKeyOf = (issuer: string): string => familyOf(issuer).toLowerCase();
+
+/**
+ * Each family's ?issuer slug, by family key. Names that slug alike ('C++ Institute' and
+ * 'C Institute') or not at all (a non-Latin name) stay separate issuers: the later name, in name
+ * order, takes -2, -3 and so on, so a shared link keeps its issuer as the data grows.
+ */
+function familySlugs(sources: readonly LedgerSource[]): ReadonlyMap<string, string> {
+  const keys = [...new Set(sources.map((source) => familyKeyOf(source.issuer)))].sort();
+  const taken = new Set<string>();
+  const slugs = new Map<string, string>();
+  for (const key of keys) {
+    const base = familySlugOf(key);
+    let slug = base;
+    for (let suffix = 2; taken.has(slug); suffix += 1) slug = `${base}-${suffix}`;
+    taken.add(slug);
+    slugs.set(key, slug);
+  }
+  return slugs;
+}
+
+/** The ?issuer slug of a certificate's family. */
+type SlugFor = (issuer: string) => string;
+
 const sortKey = (source: LedgerSource): string => monthOf(source.issueDate)?.iso ?? '';
 
 const descending = (a: string, b: string): number => (a === b ? 0 : a < b ? 1 : -1);
@@ -138,11 +163,14 @@ interface FamilyTally {
   readonly newest: string;
 }
 
-function tallyFamilies(sorted: readonly LedgerSource[]): ReadonlyMap<string, FamilyTally> {
+function tallyFamilies(
+  sorted: readonly LedgerSource[],
+  slugFor: SlugFor,
+): ReadonlyMap<string, FamilyTally> {
   const tallies = new Map<string, FamilyTally>();
   for (const source of sorted) {
     const family = familyOf(source.issuer);
-    const slug = familySlugOf(family);
+    const slug = slugFor(source.issuer);
     const tally = tallies.get(slug);
     tallies.set(
       slug,
@@ -154,9 +182,13 @@ function tallyFamilies(sorted: readonly LedgerSource[]): ReadonlyMap<string, Fam
   return tallies;
 }
 
-function toEntry(source: LedgerSource, chipOf: (familySlug: string) => string): LedgerEntry {
+function toEntry(
+  source: LedgerSource,
+  chipOf: (familySlug: string) => string,
+  slugFor: SlugFor,
+): LedgerEntry {
   const family = familyOf(source.issuer);
-  const familySlug = familySlugOf(family);
+  const familySlug = slugFor(source.issuer);
   const month = monthOf(source.issueDate);
   const skills = skillsOf(source);
   return {
@@ -203,10 +235,12 @@ function buildIndex(
 /** Everything /certifications shows, from the decoded documents. */
 export function buildLedger(sources: readonly LedgerSource[]): Ledger {
   const sorted = [...sources].sort(byNewest);
-  const tallies = tallyFamilies(sorted);
+  const slugs = familySlugs(sorted);
+  const slugFor: SlugFor = (issuer) => slugs.get(familyKeyOf(issuer)) ?? familySlugOf(issuer);
+  const tallies = tallyFamilies(sorted, slugFor);
   const chipOf = (familySlug: string): string =>
     (tallies.get(familySlug)?.count ?? 0) >= CHIP_MIN_COUNT ? familySlug : OTHER_SLUG;
-  const entries = sorted.map((source) => toEntry(source, chipOf));
+  const entries = sorted.map((source) => toEntry(source, chipOf, slugFor));
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
   const chips = [...tallies]

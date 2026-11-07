@@ -74,6 +74,16 @@ function CertificateTitle({ entry }: RowProps): ReactElement {
   );
 }
 
+/** The credential ID in mono, named for screen readers; nothing when there is none. */
+function CredentialId({ id }: { readonly id: string | null }): ReactElement | null {
+  if (!id) return null;
+  return (
+    <span className={ID_CLASS} title={id}>
+      <span className="sr-only">Credential ID</span> {id}
+    </span>
+  );
+}
+
 /**
  * The host links where the title does, for a pointer aimed at the column. The title is the one
  * keyboard and screen reader stop, so this copy is out of the tab order and hidden from readers,
@@ -81,7 +91,15 @@ function CertificateTitle({ entry }: RowProps): ReactElement {
  * Only the host's text truncates in a narrow column; its new-tab arrow always shows.
  */
 function Verify({ entry }: RowProps): ReactElement {
-  if (!entry.link) return <span className="text-faint">No link</span>;
+  if (!entry.link) {
+    // The ID still lets a visitor verify the credential by hand with its issuer.
+    return (
+      <span className={VERIFY_CLASS}>
+        <span className="text-faint">No link</span>
+        <CredentialId id={entry.credentialId} />
+      </span>
+    );
+  }
   return (
     <span className={VERIFY_CLASS}>
       {/* biome-ignore lint/a11y/useAnchorContent: a redundant pointer target for the row's title link (same href), kept out of the tab order and the accessibility tree on purpose so keyboard and screen reader users meet each credential once; the sr-only host after it carries the text. */}
@@ -97,11 +115,7 @@ function Verify({ entry }: RowProps): ReactElement {
         <NewTabArrow />
       </a>
       <span className="sr-only">{entry.link.host}</span>
-      {entry.credentialId && (
-        <span className={ID_CLASS} title={entry.credentialId}>
-          <span className="sr-only">Credential ID</span> {entry.credentialId}
-        </span>
-      )}
+      <CredentialId id={entry.credentialId} />
     </span>
   );
 }

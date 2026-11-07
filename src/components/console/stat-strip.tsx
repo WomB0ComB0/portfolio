@@ -89,7 +89,12 @@ const UNAVAILABLE_LABEL = 'unavailable';
 /** How many placeholder items a loading strip shows unless told. */
 const DEFAULT_PLACEHOLDERS = 4;
 
-/** Equal columns on a phone; on wide screens each item is as wide as its figure or label. */
+/**
+ * Equal columns on a phone; on wide screens each item is as wide as its figure or label. Three
+ * items fit figures of up to three digits from a 320px phone (measured on /certifications: the
+ * middle column holds a four-digit figure from about 340px). A figure never wraps, so one wider
+ * than its column runs into the next: a strip with larger figures needs fewer items.
+ */
 const STRIP_CLASS = 'grid grid-flow-col auto-cols-[minmax(0,1fr)] md:auto-cols-max';
 const ITEM_CLASS =
   'flex min-w-0 flex-col gap-1 border-l border-hairline px-3 first:border-l-0 first:pl-0 last:pr-0 md:px-6';

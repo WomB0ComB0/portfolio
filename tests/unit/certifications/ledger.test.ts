@@ -132,12 +132,20 @@ describe('credentialLinkOf', () => {
     expect(credentialLinkOf('https://api2.sololearn.com/v2/c')?.host).toBe('api2.sololearn.com');
   });
 
-  it.each([null, undefined, '', '  ', '#', 'javascript:alert(1)', 'not a url', '/relative'])(
-    'is null for %j',
-    (value) => {
-      expect(credentialLinkOf(value)).toBeNull();
-    },
-  );
+  // 'https://' passes the scheme check and fails the URL parser: the parse error is caught.
+  it.each([
+    null,
+    undefined,
+    '',
+    '  ',
+    '#',
+    'javascript:alert(1)',
+    'not a url',
+    '/relative',
+    'https://',
+  ])('is null for %j', (value) => {
+    expect(credentialLinkOf(value)).toBeNull();
+  });
 });
 
 describe('buildLedger', () => {
@@ -218,6 +226,49 @@ describe('buildLedger', () => {
     expect(titles(many.featured)).toEqual(['F5', 'F4', 'F3', 'F2']);
 
     expect(buildLedger(CERTS.map((c) => ({ ...c, featured: false }))).featured).toEqual([]);
+  });
+
+  // CodeRabbit on #613: names that slug alike ('C++ Institute', 'C Institute'), or not at all
+  // (a non-Latin name), must stay separate issuers with their own chip and ?issuer value.
+  it('keeps issuers whose names slug alike apart, each with its own chip and URL value', () => {
+    const alike = buildLedger([
+      cert({ title: 'One', issuer: 'C++ Institute', issueDate: '2024-01-01', order: 1 }),
+      cert({ title: 'Two', issuer: 'C++ Institute', issueDate: '2024-02-01', order: 2 }),
+      cert({ title: 'Three', issuer: 'C Institute', issueDate: '2024-03-01', order: 3 }),
+      cert({ title: 'Four', issuer: 'C Institute', issueDate: '2024-04-01', order: 4 }),
+      cert({ title: 'Five', issuer: '東京大学', issueDate: '2024-05-01', order: 5 }),
+      cert({ title: 'Six', issuer: '東京大学', issueDate: '2024-05-01', order: 6 }),
+      cert({ title: 'Seven', issuer: '北京大学', issueDate: '2024-06-01', order: 7 }),
+      cert({ title: 'Eight', issuer: '北京大学', issueDate: '2024-06-01', order: 8 }),
+    ]);
+
+    expect(alike.stats.issuers).toBe(4);
+    expect(alike.chips.map(({ label, count }) => [label, count]).sort()).toEqual(
+      [
+        ['C Institute', 2],
+        ['C++ Institute', 2],
+        ['北京大学', 2],
+        ['東京大学', 2],
+      ].sort(),
+    );
+    const slugs = alike.chips.map((chip) => chip.slug);
+    expect(new Set(slugs).size).toBe(4);
+    // Assigned in name order, so a shared link keeps its issuer while the data grows.
+    expect(alike.index.families['c-institute']?.label).toBe('C Institute');
+    expect(alike.index.families['c-institute-2']?.label).toBe('C++ Institute');
+    for (const entry of alike.entries) {
+      expect(alike.index.families[entry.familySlug]?.label).toBe(entry.family);
+    }
+  });
+
+  it('still folds one issuer written in different cases into one family', () => {
+    const cased = buildLedger([
+      cert({ title: 'One', issuer: 'MongoDB', issueDate: '2024-02-01', order: 1 }),
+      cert({ title: 'Two', issuer: 'Mongodb', issueDate: '2024-01-01', order: 2 }),
+    ]);
+
+    expect(cased.stats.issuers).toBe(1);
+    expect(cased.chips).toEqual([{ slug: 'mongodb', label: 'MongoDB', count: 2 }]);
   });
 
   it('copes with no certificates at all', () => {

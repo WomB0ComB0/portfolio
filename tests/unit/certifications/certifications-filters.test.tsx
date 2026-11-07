@@ -88,9 +88,14 @@ let lateReports: string[] | null = null;
 /** The Navigation API where a test installs it: jsdom has none. */
 const navigationApi = (): EventTarget | undefined =>
   (window as unknown as { navigation?: EventTarget }).navigation;
-/** What a browser with the Navigation API does on every history write. */
-const entryChanged = (): void => {
-  navigationApi()?.dispatchEvent(new Event('currententrychange'));
+/**
+ * What a browser with the Navigation API does on every history write: replaceState is a
+ * 'replace', a navigation's pushState a 'push', Back and Forward a 'traverse'.
+ */
+const entryChanged = (navigationType: NavigationType = 'replace'): void => {
+  navigationApi()?.dispatchEvent(
+    Object.assign(new Event('currententrychange'), { navigationType }),
+  );
 };
 
 /** The router reports a URL to useSearchParams (Next does after its history patch). */
@@ -222,6 +227,8 @@ describe('filters from the URL, on the server render', () => {
     expect(form.closest('search')).not.toBeNull();
     expect(form).toHaveAttribute('action', '/certifications');
     expect(form).toHaveAttribute('method', 'get');
+    // Without its name the form would submit no ?q (CodeRabbit on #613).
+    expect(screen.getByRole('searchbox')).toHaveAttribute('name', 'q');
     expect(form.querySelector('input[type="hidden"][name="issuer"]')).toHaveValue('udemy');
     expect(form.querySelector('input[type="hidden"][name="skill"]')).toHaveValue('React.js');
   });
@@ -406,11 +413,70 @@ describe('the URL is the source of truth, where the browser has the Navigation A
 
     act(() => {
       window.history.pushState(null, '', '/certifications');
-      entryChanged();
+      entryChanged('push');
     });
 
     expect(rowTitles()).toEqual(ALL_TITLES);
     expect(currentChip()?.textContent).toMatch(/^All/);
+  });
+
+  // CodeRabbit on #613: the navigation lands on the URL the island already stands for, so only
+  // the kind of history change says it was a navigation; the pending ?q must not come back.
+  it('drops a search still waiting to be written when a navigation lands on the same URL', async () => {
+    await renderPage();
+    routerReports();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'typescript' } });
+
+    act(() => {
+      window.history.pushState(null, '', '/certifications');
+      entryChanged('push');
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+
+    expect(window.location.search).toBe('');
+    expect(screen.getByRole('searchbox')).toHaveValue('');
+    expect(rowTitles()).toEqual(ALL_TITLES);
+  });
+
+  // CodeRabbit on #613: Google and Udemy are both waiting for the router's report when a
+  // navigation goes to Google's URL; that is a navigation, not the island's own write.
+  it('follows a navigation to a URL it wrote earlier and has not heard back about', async () => {
+    await renderPage();
+    routerReports();
+    lateReports = [];
+    fireEvent.click(chipNamed(/^Google/));
+    fireEvent.click(chipNamed(/^Udemy/));
+    lateReports = null;
+
+    act(() => {
+      window.history.pushState(null, '', '/certifications?issuer=google');
+      entryChanged('push');
+    });
+    expect(currentChip()?.textContent).toMatch(/^Google/);
+    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+
+    act(() => routerReports('?issuer=google'));
+    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+  });
+
+  it('follows Back to a URL it wrote itself', async () => {
+    await renderPage();
+    routerReports();
+    fireEvent.click(chipNamed(/^Google/));
+    act(() => {
+      window.history.pushState(null, '', '/certifications?issuer=udemy');
+      entryChanged('push');
+      routerReports();
+    });
+
+    act(() => {
+      window.history.replaceState(null, '', '/certifications?issuer=google');
+      // replaceState is spied to report 'replace'; a real Back is a traverse.
+      entryChanged('traverse');
+    });
+
+    expect(currentChip()?.textContent).toMatch(/^Google/);
+    expect(rowTitles()).toEqual(GOOGLE_TITLES);
   });
 
   it('still never starts over on its own writes reported late', async () => {
