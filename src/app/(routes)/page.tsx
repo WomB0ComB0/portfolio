@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
+import type { Metadata } from 'next';
 import type { JSX } from 'react';
 import { HomePage } from '@/app/_components/home';
-import { constructMetadata } from '@/utils';
+import { siteMetadata } from '@/lib/seo/site-metadata';
 
 /**
- * The root layout's defaults (the site name and description) plus og:url for '/'. The body is
- * HomePage, the server-rendered bento.
+ * The root layout's defaults (the site name and description) plus og:url for '/', and, while
+ * Location in Studio names a place, that place as a keyword (the layout adds geo.placename). The
+ * body is HomePage, the server-rendered bento, whose hero loads the settings this reads.
  */
-export const metadata = constructMetadata({ path: '/' });
+export function generateMetadata(): Metadata {
+  return siteMetadata({ path: '/' });
+}
 
 const Page = (): JSX.Element => <HomePage />;
 

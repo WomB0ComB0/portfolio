@@ -26,6 +26,8 @@
  * - When Sanity fails after a good load, the last good settings and one warning; with nothing
  *   cached, a rejection with the getter's BaseError and no report of its own.
  * - The peek answers the last settings cached, at once and without asking Sanity.
+ * - The location peek, for page metadata, answers only the location of settings loaded within the
+ *   TTL: never one from before a reload or during an outage, and never asks Sanity or waits.
  * Only the Sanity client, the env and Sentry are mocked.
  */
 
@@ -34,6 +36,7 @@ import { isBaseError } from '@/classes/error';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import {
   loadSiteSettings,
+  peekSiteLocation,
   peekSiteSettings,
   resetSanityLoaderCaches,
   SANITY_CACHE_TTL_MS,
@@ -291,5 +294,65 @@ describe('peekSiteSettings', () => {
     await loadSiteSettings();
 
     expect(peekSiteSettings()).toEqual({ data: null, loadedAt: T0 });
+  });
+});
+
+// Page metadata must never wait on Sanity, and must never name a place the owner cleared: it takes
+// the location only from settings as fresh as loadSiteSettings would answer without asking again.
+describe('peekSiteLocation', () => {
+  it('names no place, and asks Sanity nothing, before the settings were loaded', () => {
+    expect(peekSiteLocation()).toBeNull();
+    expect(sanity.sanityFetchWithToken).not.toHaveBeenCalled();
+  });
+
+  it('names the location of settings loaded within the TTL, trimmed', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, location: '  Brooklyn, NY ' });
+    await loadSiteSettings();
+
+    expect(peekSiteLocation()).toBe('Brooklyn, NY');
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS - 1);
+    expect(peekSiteLocation()).toBe('Brooklyn, NY');
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('names no place from settings older than the TTL, and asks Sanity nothing', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue(SETTINGS);
+    await loadSiteSettings();
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS);
+
+    expect(peekSiteLocation()).toBeNull();
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('names no place while Sanity fails, though the page still shows the last good settings', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
+    await loadSiteSettings();
+    sanity.sanityFetchWithToken.mockRejectedValue(sanityDown());
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS + 1);
+
+    expect(await loadSiteSettings()).toMatchObject({ location: SETTINGS.location });
+    expect(peekSiteLocation()).toBeNull();
+  });
+
+  it.each([
+    ['a cleared location', { ...SETTINGS, location: null }],
+    ['a location of spaces', { ...SETTINGS, location: '   ' }],
+    ['a location too long to keep', { ...SETTINGS, location: 'x'.repeat(41) }],
+    ['no document', null],
+  ])('names no place for %s', async (_, doc) => {
+    sanity.sanityFetchWithToken.mockResolvedValue(doc);
+    await loadSiteSettings();
+
+    expect(peekSiteLocation()).toBeNull();
+  });
+
+  it('names the new location as soon as a reload past the TTL answers it', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
+    await loadSiteSettings();
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS + 1);
+    sanity.sanityFetchWithToken.mockResolvedValueOnce({ ...SETTINGS, location: null });
+    await loadSiteSettings();
+
+    expect(peekSiteLocation()).toBeNull();
   });
 });

@@ -19,8 +19,9 @@
  * @file Every static page exports metadata whose og:url is its own absolute URL, the homepage
  * included: the root layout sets no path, so a page that exports no metadata (as the old
  * 'use client' homepage could not) has no og:url at all. The page modules are imported for real
- * and never rendered, since metadata needs no body. The Sanity loaders are mocked, and every
- * static page in the sitemap (its entries without a detail segment) has a module listed here.
+ * and never rendered, since metadata needs no body. The Sanity loaders are mocked (no settings
+ * are cached, so the homepage's generateMetadata names no place), and every static page in the
+ * sitemap (its entries without a detail segment) has a module listed here.
  */
 
 import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
@@ -76,8 +77,10 @@ afterAll(() => {
   vi.unstubAllEnvs();
 });
 
+/** A page module: its metadata as an object, or (the homepage's) as generateMetadata. */
 interface PageModule {
-  readonly metadata: Metadata;
+  readonly metadata?: Metadata;
+  readonly generateMetadata?: () => Metadata;
 }
 
 const STATIC_PAGES: Readonly<Record<string, () => Promise<PageModule>>> = {
@@ -106,7 +109,10 @@ const STATS_DESCRIPTION =
 const metadataOf = async (route: string): Promise<Metadata> => {
   const load = STATIC_PAGES[route];
   if (!load) throw new Error(`no page module listed for ${route}`);
-  return (await load()).metadata;
+  const page = await load();
+  const metadata = page.generateMetadata?.() ?? page.metadata;
+  if (!metadata) throw new Error(`no metadata exported for ${route}`);
+  return metadata;
 };
 
 describe('static page og:url', () => {

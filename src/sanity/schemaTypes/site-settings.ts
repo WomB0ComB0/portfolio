@@ -22,7 +22,9 @@
  * Every field is optional. The site reads each on its own and uses its built-in value for one
  * that is empty or breaks its rule, so a missing or half-filled document never breaks the page.
  * The location is the exception: it has no built-in value (owner decision: 'Clear the field in
- * Studio to hide it'), so clearing it hides it, and the site never shows one Studio does not set.
+ * Studio to hide it'), so clearing it hides it from the hero's role line and from the pages'
+ * metadata (geo.placename and the home page's keywords, src/lib/seo/site-metadata.ts), and the
+ * site never shows one Studio does not set.
  * Studio checks the same rules before Publish (../site-settings-rules.ts, which the site's
  * decoder imports too): a value the site would drop is an error here, never a silent no-op.
  *
@@ -78,7 +80,7 @@ export const siteSettingsType = defineType({
       title: 'Location',
       type: 'string',
       description:
-        'Optional. Shown after your current role at the top of the home page, in muted text, e.g. "New York, NY". Clear it to hide your location.',
+        'Optional. Shown after your current role at the top of the home page, in muted text, e.g. "New York, NY", and named in the site\'s search metadata. Clear it to hide your location from the home page and the site\'s metadata.',
       validation: (rule) => rule.max(SITE_LOCATION_MAX_LENGTH).custom(notBlank),
     }),
     defineField({

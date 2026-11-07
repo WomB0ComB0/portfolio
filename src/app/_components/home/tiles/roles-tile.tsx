@@ -19,9 +19,9 @@ import 'server-only';
 /**
  * @file The home current-roles tile: the owner's current roles in Studio order, but not the first,
  * which the hero's role line already names (owner decision: don't repeat it). Each is a link to its
- * page ('Elysium · since 2023'), and '+N more' counts the current roles named nowhere on the page.
- * A plain tile, because it holds several links. The roles stack, and sit side by side from a 32rem
- * tile.
+ * page ('Elysium · since 2023'), and '+N more' counts the current roles named nowhere on the page,
+ * or 'All experience' takes its line when none is. A plain tile, because it holds several links.
+ * The roles stack, and sit side by side from a 32rem tile.
  */
 
 import Link from 'next/link';
@@ -45,6 +45,8 @@ import {
 
 const LABEL = 'Current roles';
 const EXPERIENCE_PATH = '/experience';
+/** The way to every role: the empty state's link, and the last line when no role is unnamed. */
+const ALL_EXPERIENCE = 'All experience';
 /** The roles the skeleton holds room for: what the tile lists beside the hero's. */
 const SKELETON_ROLES = ['first', 'second'] as const;
 
@@ -83,12 +85,24 @@ function RoleItem({ role }: { role: Experience }): ReactElement {
   );
 }
 
-function MoreRoles({ count }: { count: number }): ReactElement | null {
-  if (count <= 0) return null;
+/**
+ * The tile's last line, always there: '+2 more' for the current roles named nowhere on the page,
+ * or, with none left unnamed, the empty state's 'All experience' in the same type. So with two
+ * roles listed the tile is its skeleton's height whatever the count (without the line it stood
+ * 30 px short). With one listed it stays a role shorter stacked (about 56 px); side by side, from
+ * a 32rem tile, the one role takes the row two would.
+ */
+function MoreRoles({ count }: { count: number }): ReactElement {
   return (
     <Link href={EXPERIENCE_PATH} prefetch={false} className={MORE_LINK_CLASS}>
-      +{count} more
-      <SrOnlyWords>current roles</SrOnlyWords>
+      {count > 0 ? (
+        <>
+          +{count} more
+          <SrOnlyWords>current roles</SrOnlyWords>
+        </>
+      ) : (
+        ALL_EXPERIENCE
+      )}
     </Link>
   );
 }
@@ -118,7 +132,7 @@ export function RolesTileView({ result, now = Date.now() }: RolesTileViewProps):
         <Note
           message={isError ? 'Roles unavailable' : emptyMessage}
           href={EXPERIENCE_PATH}
-          linkLabel="All experience"
+          linkLabel={ALL_EXPERIENCE}
         />
         {asOf && (
           <TileMeta dated stale>

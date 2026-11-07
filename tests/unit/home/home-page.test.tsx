@@ -359,15 +359,13 @@ describe('HomePage layout', () => {
     expect(project.getPropertyValue('--rows-md-wide')).toBe('181');
     expect(project.getPropertyValue('--rows-lg')).toBe('147');
 
-    // Review finding WF2-D1-place-md-hedge: the place, across both lanes below 40rem, takes its
-    // smallest (98 + 12 px, then 106 + 12 px). In an md lane (312 to 392 px) a long name such as
-    // 'The Metropolitan Museum of Art' takes two lines (124 px, else 106), so md is the middle,
-    // 115 + 16 px. At md-wide it never wraps, and at wide the tile lands in the 1.3fr first lane,
-    // where it does not either: 106 + 16 px.
+    // The place, across both lanes below 40rem, takes its smallest (98 + 12 px, then 106 + 12 px).
+    // From 40rem it is one lane's, and its name is one line in every lane (CodeRabbit finding #6:
+    // a long name used to wrap, so md hedged at 115 px between one line and two): 106 + 16 px.
     const place = slot('place').style;
     expect(place.getPropertyValue('--rows-sm')).toBe('55');
     expect(place.getPropertyValue('--rows-sm-wide')).toBe('59');
-    expect(place.getPropertyValue('--rows-md')).toBe('66');
+    expect(place.getPropertyValue('--rows-md')).toBe('61');
     expect(place.getPropertyValue('--rows-md-wide')).toBe('61');
     expect(place.getPropertyValue('--rows-lg')).toBe('61');
   });

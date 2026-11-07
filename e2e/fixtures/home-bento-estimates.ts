@@ -53,15 +53,15 @@ export const GAP_RANGE_SLACK_PX = 2;
  * How far a slot after an accepted gap, in DOM order, may move once JavaScript runs, in the gap's
  * tier: the worst move measured across md and md-wide, and a margin of about 7 px, so a regression
  * of the project or anything after it shows. Measured with every bento width from 640 to 1079 px
- * on the build's CSS (each slot's top on the server's estimates, then on its measured rows), the
- * worst is 40.8 px: the site index at a 799 px bento (about 849 to 859 px windows). There GitHub
- * reserves 12 px more than it needs, which moves the place below it; the project needs 19 px more
- * than it reserves, which grows the rows beside it by about 16 px and the place's by 3; and the
- * place's two-line hedge reserves 10 px more than a one-line name needs. Before that hedge, round
- * 2 measured 34 px (roles, at an 862 px window).
+ * on the build's CSS (each slot's top on the server's estimates, then on its measured rows), with
+ * hinted and unhinted glyphs alike, the worst is 34 px: roles at an 800 px bento (md-wide's first,
+ * about 850 to 860 px windows), where the project needs 327 px against the 362 its estimate
+ * reserves. At md it is 32 px (roles at a 640 px bento: GitHub's 12 px miss and the project's 21).
+ * Until the place's name was one line, its two-line hedge (10 px over a one-line name) made the
+ * site index's 40.8 px at a 799 px bento the worst, and this bound 48 px.
  * bento-layout.ts's BENTO_ESTIMATE_GAPS says where these moves come from.
  */
-export const FIRST_PAINT_GAP_MOVE_MAX_PX = 48;
+export const FIRST_PAINT_GAP_MOVE_MAX_PX = 41;
 
 /** Sub-pixel rounding allowed between a lane's width with and without JavaScript. */
 const LANE_TOLERANCE_PX = 1;

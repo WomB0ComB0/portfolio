@@ -640,16 +640,15 @@ describe.each([...REFERENCE_BENTOS, ...OTHER_BENTOS])('the estimated pack at %s 
   });
 });
 
-// A long place name ('The Metropolitan Museum of Art') takes two lines in a 1fr lane at wide (318
-// to 335 px) but one in the 1.3fr first lane (413 to 435 px). The place's wide estimate is the
-// one-line height because the pack puts it in the first lane; were it to land in another, wide
-// would need the two-line hedge md has (bento-layout.ts).
-it('puts the place in the wide tier’s 1.3fr first lane, where its one-line estimate holds', () => {
-  for (const bento of [BENTO_TIER_FROM_PX.lg, 1136]) {
-    const place = packAt(bento).placed.find(({ area }) => area === 'place');
-    expect(place?.lane, `${bento} px`).toBe(0);
-  }
-  expect(BENTO_TILE_HEIGHTS_PX.place.lg).toBe(BENTO_TILE_HEIGHTS_PX.place['md-wide']);
+// The place's name is one line in every lane (place-tile.tsx), so from 40rem, where the tile is
+// one lane's, it is as tall in any lane and at any width: one estimate, with no two-line hedge
+// (md used to take 115 px, between a one-line name's 106 and a two-line one's 124).
+it('gives the place one estimate wherever it is a lane slot: its name is never two lines', () => {
+  const { place } = BENTO_TILE_HEIGHTS_PX;
+  expect(place.md).toBe(place['md-wide']);
+  expect(place.lg).toBe(place['md-wide']);
+  // And the same one-line height as across both lanes from 28rem (sm-wide).
+  expect(place.md).toBe(place['sm-wide']);
 });
 
 describe.each(REFERENCE_BENTOS)('the estimated pack at the reference width %s px', (bento) => {

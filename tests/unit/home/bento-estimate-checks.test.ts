@@ -386,35 +386,47 @@ describe('the first paint check', () => {
     expect(compareFirstPaint(withScript, withoutScript(154, 540, 908))).toEqual({
       blockers: [],
       moved: [
-        'role: top 908 px without JavaScript, 848 px with it, more than the 48 px a slot after proj may move at md',
+        'role: top 908 px without JavaScript, 848 px with it, more than the 41 px a slot after proj may move at md',
       ],
       excused: [],
     });
   });
 
-  // The worst move measured with this table: at a 799 px bento GitHub reserves 12 px more than it
-  // needs, the project needs 326.8 px (a 310.8 px tile) against the 308 its estimate reserves, and
-  // the place's two-line hedge reserves 10 px more than a one-line name needs, so the site index,
-  // below the place, moves 40.8 px.
-  it('excuses the worst move measured across md and md-wide: the site index 40.8 px at 799 px', () => {
-    const topOfMedium: GridMeasure = { ...MEDIUM, width: 799, lanes: [391.5, 391.5] };
-    const settled = measureOf(topOfMedium, {
-      proj: { y: 558, natural: 326.8, width: 391.5 },
-      place: { y: 800, natural: 122, width: 391.5 },
-      strip: { y: 922, natural: 133, width: 391.5 },
+  // The bound is the worst move measured and about 7 px: a move just past it fails, even one the
+  // old bound (48 px, from the place's two-line hedge) let through.
+  it('fails a move after the gap just past the bound: roles 42 px', () => {
+    expect(compareFirstPaint(withScript, withoutScript(154, 540, 890))).toEqual({
+      blockers: [],
+      moved: [
+        'role: top 890 px without JavaScript, 848 px with it, more than the 41 px a slot after proj may move at md',
+      ],
+      excused: [],
     });
-    const firstPaint = measureOf(topOfMedium, {
-      proj: { y: 558, natural: 326.8, width: 391.5, rows: 154 },
-      place: { y: 827.5, natural: 122, width: 391.5, rows: 66 },
-      strip: { y: 962.8, natural: 133, width: 391.5, rows: 67 },
+  });
+
+  // The worst move measured with this table, on the build's CSS at every bento from 640 to 1079
+  // px: at an 800 px bento (md-wide's first, about 850 to 860 px windows) the project needs 327
+  // px (a 311 px tile) against the 362 px its md-wide estimate reserves, so roles, below it in
+  // the same lane, moves 34 px. (At md the worst is roles at a 640 px bento, 32 px. The place's
+  // two-line hedge, gone with its one-line name, had made it the site index's 40.8 px at 799.)
+  it('excuses the worst move measured across md and md-wide: roles 34 px at an 800 px bento', () => {
+    const mdWide: GridMeasure = { ...MEDIUM, width: 800, lanes: [392, 392] };
+    const settled = measureOf(mdWide, {
+      proj: { y: 558, natural: 327, width: 392 },
+      place: { y: 800, natural: 122, width: 392 },
+      role: { y: 886, natural: 226, width: 392 },
+    });
+    const firstPaint = measureOf(mdWide, {
+      proj: { y: 558, natural: 327, width: 392, rows: 181 },
+      place: { y: 800, natural: 122, width: 392, rows: 61 },
+      role: { y: 920, natural: 226, width: 392, rows: 113 },
     });
 
     expect(compareFirstPaint(settled, firstPaint)).toEqual({
       blockers: [],
       moved: [],
       excused: [
-        'place: top 827.5 px without JavaScript, 800 px with it (after proj, a gap at md)',
-        'strip: top 962.8 px without JavaScript, 922 px with it (after proj, a gap at md)',
+        'role: top 920 px without JavaScript, 886 px with it (after proj, a gap at md-wide)',
       ],
     });
   });
