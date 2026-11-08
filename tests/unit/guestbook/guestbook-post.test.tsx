@@ -52,6 +52,8 @@ const h = vi.hoisted(() => ({
   fetch: vi.fn(),
   getIdToken: vi.fn(),
   signOut: vi.fn(),
+  /** Ada's one sign-in, the same for every post here. */
+  session: { kind: 'synthetic-session' },
 }));
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: h.refresh }) }));
@@ -67,6 +69,7 @@ vi.mock('@/core/auth', () => ({
   prepareSignIn: vi.fn(),
   getIdToken: h.getIdToken,
   signOut: h.signOut,
+  currentSession: () => h.session,
 }));
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';

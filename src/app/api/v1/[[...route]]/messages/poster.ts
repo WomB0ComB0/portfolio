@@ -27,10 +27,11 @@
  * - A token Firebase rejects (invalid, expired, revoked, disabled account) is a 'rejected' poster:
  *   the route answers 401 and logs Firebase's error code, and nothing else, as an error (the
  *   production log level drops warnings; the guestbook limiter bounds how many there can be).
- *   Firebase also reports a failure to fetch Google's certificates as auth/argument-error, so an
- *   outage of those shows up in the logs as a run of these, not as a 500.
  * - Any other failure (no project id, the Admin project not the browser's one, an SDK fault) is
- *   thrown, so the route answers a 500 and reports it.
+ *   thrown, so the route answers a 500 and reports it. That includes a failure to fetch Google's
+ *   certificates: firebase-admin reports it as auth/argument-error, the code of a bad token, so it
+ *   is told apart by the SDK's wording ({@link CERT_FETCH_FAILURE}). A 401 would make the browser
+ *   sign a valid visitor out; any wording not matched still gets the 401.
  * - The poster is the token's uid, and the name the sign-in carries, checked like typed text
  *   (checkAuthorName), but only for the providers the site offers with a name (Google, GitHub). A
  *   guest (anonymous sign-in), and a sign-in the site does not offer (email and password, phone, a
@@ -70,7 +71,7 @@ const REJECTED_TOKEN_CODES: ReadonlySet<string> = new Set([
 
 /** A verified visitor: who to store the message under. */
 export interface Poster {
-  /** Firebase uid, stored on the record for moderation; never sent back. */
+  /** Firebase uid, for moderation: kept server-side, not on the public message, never sent back. */
   readonly uid: string;
   /** The name the message is shown under. */
   readonly authorName: string;
@@ -102,11 +103,23 @@ export function posterOf(token: DecodedIdToken): Poster {
   };
 }
 
+/**
+ * How firebase-admin words a failure to fetch Google's public certificates (a network error, or an
+ * answer that is not the certificates). It reports those as auth/argument-error, like a bad token.
+ */
+const CERT_FETCH_FAILURE = /^Error (?:while making request|fetching public keys)\b/;
+
 const codeOf = (error: unknown): unknown => (error as { code?: unknown } | null)?.code;
+const messageOf = (error: unknown): unknown => (error as { message?: unknown } | null)?.message;
+
+const isCertFetchFailure = (error: unknown): boolean => {
+  const message = messageOf(error);
+  return typeof message === 'string' && CERT_FETCH_FAILURE.test(message);
+};
 
 const isRejectedToken = (error: unknown): boolean => {
   const code = codeOf(error);
-  return typeof code === 'string' && REJECTED_TOKEN_CODES.has(code);
+  return typeof code === 'string' && REJECTED_TOKEN_CODES.has(code) && !isCertFetchFailure(error);
 };
 
 /**

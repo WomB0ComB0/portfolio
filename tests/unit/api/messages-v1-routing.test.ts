@@ -22,14 +22,15 @@
  * counted by the 'guestbook' limiter before routing, so a limited visitor gets 429 before the
  * token is checked or anything is written.
  *
- * The guard's verdict, verifyIdToken and Firestore's add are fakes: nothing reaches Redis,
+ * The guard's verdict, verifyIdToken and Firestore's write batch are fakes: nothing reaches Redis,
  * Firebase Auth or the real guestbook, and no upstream API is called.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
-  add: vi.fn(),
+  create: vi.fn(),
+  commit: vi.fn(),
   verifyIdToken: vi.fn(),
   guardCheck: vi.fn(),
 }));
@@ -63,11 +64,25 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
 }));
 vi.mock('@/core/firebase', () => ({ firestore: {} }));
-vi.mock('@/core/firebase-admin', () => ({
-  adminDb: { collection: () => ({ add: h.add }) },
-  getAdminAuth: () => ({ verifyIdToken: h.verifyIdToken }),
-  getServiceAccount: () => ({}),
-}));
+vi.mock('@/core/firebase-admin', () => {
+  const batch = {
+    create: (ref: { readonly path: string }, data: unknown) => {
+      h.create(ref.path, data);
+      return batch;
+    },
+    commit: h.commit,
+  };
+  return {
+    adminDb: {
+      collection: (path: string) => ({
+        doc: (id = 'new-doc') => ({ id, path: `${path}/${id}` }),
+      }),
+      batch: () => batch,
+    },
+    getAdminAuth: () => ({ verifyIdToken: h.verifyIdToken }),
+    getServiceAccount: () => ({}),
+  };
+});
 vi.mock('@/lib/security/api-guard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/security/api-guard')>()),
   apiGuard: { check: h.guardCheck },
@@ -137,7 +152,7 @@ describe('/api/v1/messages after the list route was removed', () => {
     const response = await postMessage();
 
     expect(response.status).toBe(401);
-    expect(h.add).not.toHaveBeenCalled();
+    expect(h.commit).not.toHaveBeenCalled();
   });
 
   it('counts a POST on the guestbook limiter and answers 429 before the token is checked', async () => {
@@ -153,7 +168,7 @@ describe('/api/v1/messages after the list route was removed', () => {
     expect(response.headers.get('ratelimit-limit')).toBe('5');
     expect(h.guardCheck).toHaveBeenCalledTimes(1);
     expect(h.verifyIdToken).not.toHaveBeenCalled();
-    expect(h.add).not.toHaveBeenCalled();
+    expect(h.commit).not.toHaveBeenCalled();
   });
 
   it('stores a signed-in POST the guard allows, once', async () => {
@@ -163,12 +178,19 @@ describe('/api/v1/messages after the list route was removed', () => {
       name: 'Ada Lovelace',
       firebase: { sign_in_provider: 'github.com', identities: {} },
     });
-    h.add.mockResolvedValueOnce({ id: 'new-doc' });
+    h.commit.mockResolvedValueOnce([]);
 
     const response = await postMessage(`Bearer ${TOKEN}`);
 
     expect(response.status).toBe(201);
-    expect(h.add).toHaveBeenCalledTimes(1);
-    expect(h.add).toHaveBeenCalledWith(expect.objectContaining({ uid: 'uid-ada' }));
+    expect(h.commit).toHaveBeenCalledTimes(1);
+    expect(h.create).toHaveBeenCalledWith(
+      expect.stringMatching(/\/public\/data\/message\/new-doc$/),
+      expect.not.objectContaining({ uid: expect.anything() }),
+    );
+    expect(h.create).toHaveBeenCalledWith(
+      expect.stringMatching(/\/private\/data\/messagePoster\/new-doc$/),
+      expect.objectContaining({ uid: 'uid-ada' }),
+    );
   });
 });

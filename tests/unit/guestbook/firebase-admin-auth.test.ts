@@ -91,17 +91,20 @@ describe('getAdminAuth', () => {
     expect(h.getAuth).toHaveBeenCalledWith(APP);
   });
 
-  it('shares the one app with Firestore, whichever is asked for first', async () => {
-    const { getAdminAuth, getAdminFirestore } = await load();
+  it.each(['Auth', 'Firestore'] as const)(
+    'shares the one app between Firestore and Auth when %s is asked for first',
+    async (first) => {
+      const { getAdminAuth, getAdminFirestore } = await load();
+      const pair =
+        first === 'Auth' ? [getAdminAuth, getAdminFirestore] : [getAdminFirestore, getAdminAuth];
 
-    getAdminAuth();
-    getAdminFirestore();
-    getAdminAuth();
+      for (const get of [...pair, ...pair]) get();
 
-    expect(h.initializeApp).toHaveBeenCalledTimes(1);
-    expect(h.getFirestore).toHaveBeenCalledWith(APP);
-    expect(h.getAuth).toHaveBeenCalledWith(APP);
-  });
+      expect(h.initializeApp).toHaveBeenCalledTimes(1);
+      expect(h.getFirestore).toHaveBeenCalledWith(APP);
+      expect(h.getAuth).toHaveBeenCalledWith(APP);
+    },
+  );
 
   it('reuses an app that already exists', async () => {
     h.apps = [APP];

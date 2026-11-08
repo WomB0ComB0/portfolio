@@ -17,8 +17,8 @@
 
 /**
  * @file The messages route's POST, through Elysia, with Firestore and the Admin SDK mocked
- * (verifyIdToken and the collection's add are fakes: nothing reaches the real guestbook or
- * Firebase Auth). Whatever the browser did, the server holds the rules:
+ * (verifyIdToken and the write batch are fakes: nothing reaches the real guestbook or Firebase
+ * Auth). Whatever the browser did, the server holds the rules:
  * - only a signed-in visitor posts: a request without `Authorization: Bearer <Firebase ID token>`,
  *   with a header that is not one, or with a token verifyIdToken rejects (invalid, expired) is
  *   answered 401 with one fixed JSON error, and nothing is written; only the refused token's
@@ -26,17 +26,26 @@
  * - the token is checked without the revocation lookup (one local signature check);
  * - a message over 280 characters or a missing one is refused by the body schema, before the token
  *   is even checked; a message with nothing left once markup is removed is answered 400;
- * - a good message is stored once, as checked plain text, with the poster's uid, under the name
- *   their Google or GitHub sign-in carries ('Anonymous' for a guest or a sign-in method the site
- *   does not offer, whatever name the body claims) and answered 201; when the token cannot be
- *   checked for a server-side reason (the Admin app misconfigured included) the answer is a
- *   generic, reported 500.
+ * - a good message is stored once, as checked plain text, under the name their Google or GitHub
+ *   sign-in carries ('Anonymous' for a guest or a sign-in method the site does not offer, whatever
+ *   name the body claims) and answered 201. The public message, which anyone can read, has no
+ *   uid: the poster's uid goes to a server-only document with the same id, in the same batch;
+ * - when the token cannot be checked for a server-side reason (the Admin app misconfigured, or
+ *   Google's public certificates cannot be fetched, which firebase-admin reports with the same
+ *   code as a bad token) the answer is a generic, reported 500, so the browser does not sign the
+ *   visitor out.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+interface FakeRef {
+  readonly id: string;
+  readonly path: string;
+}
+
 const h = vi.hoisted(() => ({
-  add: vi.fn(),
+  create: vi.fn(),
+  commit: vi.fn(),
   report: vi.fn(),
   verifyIdToken: vi.fn(),
   getAdminAuth: vi.fn(),
@@ -50,10 +59,24 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
 }));
 vi.mock('@/core/firebase', () => ({ firestore: {} }));
-vi.mock('@/core/firebase-admin', () => ({
-  adminDb: { collection: () => ({ add: h.add }) },
-  getAdminAuth: h.getAdminAuth,
-}));
+vi.mock('@/core/firebase-admin', () => {
+  const batch = {
+    create: (ref: FakeRef, data: unknown) => {
+      h.create(ref, data);
+      return batch;
+    },
+    commit: h.commit,
+  };
+  return {
+    adminDb: {
+      collection: (path: string) => ({
+        doc: (id = 'new-doc'): FakeRef => ({ id, path: `${path}/${id}` }),
+      }),
+      batch: () => batch,
+    },
+    getAdminAuth: h.getAdminAuth,
+  };
+});
 vi.mock('@/config', () => ({ config: { firebase: { appId: 'test-app' } } }));
 vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.report }));
 
@@ -95,10 +118,28 @@ const post = (body: unknown, authorization?: string) =>
 
 const signedIn = (body: unknown) => post(body, `Bearer ${TOKEN}`);
 
+/** The public messages, which anyone can read, and the server-only record of who posted each. */
+const MESSAGES = 'artifacts/test-app/public/data/message';
+const POSTERS = 'artifacts/test-app/private/data/messagePoster';
+
+/** What the batch creates under `collection`, in order. */
+const createdIn = (collection: string): Record<string, unknown>[] =>
+  h.create.mock.calls
+    .filter(([ref]) => (ref as FakeRef).path.startsWith(`${collection}/`))
+    .map(([, data]) => data as Record<string, unknown>);
+
+const expectNothingWritten = () => {
+  expect(h.create).not.toHaveBeenCalled();
+  expect(h.commit).not.toHaveBeenCalled();
+};
+
+/** firebase-admin's error for a token, or for a failure to check one (code and message as given). */
+const sdkError = (code: string, message: string) => Object.assign(new Error(message), { code });
+
 beforeEach(() => {
   vi.clearAllMocks();
   resetGuestbookCache();
-  h.add.mockResolvedValue({ id: 'new-doc' });
+  h.commit.mockResolvedValue([]);
   h.verifyIdToken.mockResolvedValue(GOOGLE_USER);
   h.getAdminAuth.mockReturnValue({ verifyIdToken: h.verifyIdToken });
 });
@@ -115,7 +156,7 @@ describe('POST /messages: who may post', () => {
     expect(response.headers.get('www-authenticate')).toBe('Bearer realm="guestbook"');
     await expect(response.json()).resolves.toEqual({ error: expect.stringMatching(/sign in/i) });
     expect(h.verifyIdToken).not.toHaveBeenCalled();
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   it.each([
@@ -133,7 +174,7 @@ describe('POST /messages: who may post', () => {
     expect(response.status).toBe(401);
     expect(response.headers.get('www-authenticate')).toContain('error="invalid_token"');
     expect(h.verifyIdToken).not.toHaveBeenCalled();
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   it.each([
@@ -155,7 +196,7 @@ describe('POST /messages: who may post', () => {
       expect(response.headers.get('www-authenticate')).toBe(
         'Bearer realm="guestbook", error="invalid_token"',
       );
-      expect(h.add).not.toHaveBeenCalled();
+      expectNothingWritten();
       expect(h.report).not.toHaveBeenCalled();
     },
   );
@@ -186,7 +227,7 @@ describe('POST /messages: who may post', () => {
     expect(response.status).toBe(500);
     expect(text).not.toMatch(/GCP_PROJECT_ID|NEXT_PUBLIC/);
     expect(h.verifyIdToken).not.toHaveBeenCalled();
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
     expect(h.report).toHaveBeenCalledTimes(1);
   });
 
@@ -225,30 +266,91 @@ describe('POST /messages: who may post', () => {
     expect(response.status).toBe(500);
     expect(JSON.parse(text)).toEqual({ error: expect.any(String) });
     expect(text).not.toMatch(/auth\/|secret-project-id|Cannot read/);
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
     expect(h.report).toHaveBeenCalledTimes(1);
+  });
+
+  // firebase-admin 14 reports these with auth/argument-error, the code of a bad token; only the
+  // message (theirs, verbatim) says the certificates could not be fetched.
+  it.each([
+    [
+      'a network error',
+      'Error while making request: getaddrinfo ENOTFOUND www.googleapis.com. Error code: ENOTFOUND',
+    ],
+    ['a timeout', 'Error while making request: timeout of 10000ms exceeded.'],
+    [
+      'an answer that is not the certificates',
+      'Error fetching public keys for Google certs: <html>502 Bad Gateway</html>',
+    ],
+    ['an empty failure', 'Error fetching public keys.'],
+  ])(
+    "answers a generic, reported 500 when Google's certificates cannot be fetched (%s), not a 401",
+    async (_case, message) => {
+      h.verifyIdToken.mockRejectedValueOnce(sdkError('auth/argument-error', message));
+
+      const response = await signedIn({ message: 'Hello' });
+      const text = await response.text();
+
+      expect(response.status).toBe(500);
+      expect(JSON.parse(text)).toEqual({ error: expect.any(String) });
+      expect(text).not.toMatch(/auth\/|googleapis|<html|Error while/);
+      expect(response.headers.get('www-authenticate')).toBeNull();
+      expectNothingWritten();
+      expect(h.report).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    'Firebase ID token has invalid signature. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.',
+    'Firebase ID token has "kid" claim which does not correspond to a known public key. Most likely the ID token is expired, so get a fresh token from your client app and try again.',
+    'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token.',
+  ])('still answers 401 to a token firebase-admin rejects as: %s', async (message) => {
+    h.verifyIdToken.mockRejectedValueOnce(sdkError('auth/argument-error', message));
+
+    const response = await signedIn({ message: 'Hello' });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get('www-authenticate')).toContain('error="invalid_token"');
+    expectNothingWritten();
+    expect(h.report).not.toHaveBeenCalled();
   });
 });
 
 describe('POST /messages: what is stored', () => {
-  it('stores a good message once, as checked plain text with the uid, and answers 201', async () => {
+  it('stores a good message once, as checked plain text without the uid, and answers 201', async () => {
     const response = await signedIn({ message: ' Hi   there ' });
 
     expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual({
+    const body = await response.json();
+    expect(body).toEqual({
       id: 'new-doc',
       authorName: 'Ada Lovelace',
       message: 'Hi there',
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
     });
-    expect(h.add).toHaveBeenCalledTimes(1);
-    expect(h.add).toHaveBeenCalledWith({
-      authorName: 'Ada Lovelace',
-      message: 'Hi there',
-      createdAt: expect.any(String),
-      plainText: true,
-      uid: 'uid-ada',
-    });
+    expect(createdIn(MESSAGES)).toEqual([
+      {
+        authorName: 'Ada Lovelace',
+        message: 'Hi there',
+        createdAt: body.createdAt,
+        plainText: true,
+      },
+    ]);
+    expect(h.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the poster's uid off the public message, in a server-only record with the same id", async () => {
+    const response = await signedIn({ message: 'Hello' });
+    const { createdAt } = await response.json();
+
+    expect(createdIn(MESSAGES)[0]).not.toHaveProperty('uid');
+    expect(h.create).toHaveBeenCalledWith(
+      { id: 'new-doc', path: `${POSTERS}/new-doc` },
+      { uid: 'uid-ada', createdAt },
+    );
+    // Both in the one batch: they land together or not at all.
+    expect(h.create).toHaveBeenCalledTimes(2);
+    expect(h.commit).toHaveBeenCalledTimes(1);
   });
 
   it('never sends the uid back', async () => {
@@ -261,7 +363,7 @@ describe('POST /messages: what is stored', () => {
     const response = await signedIn({ authorName: 'Someone Else', message: 'Hello' });
 
     expect(response.status).toBe(201);
-    expect(h.add).toHaveBeenCalledWith(expect.objectContaining({ authorName: 'Ada Lovelace' }));
+    expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Ada Lovelace' })]);
   });
 
   it('stores a guest as Anonymous, even with a display name set on the guest account', async () => {
@@ -270,9 +372,8 @@ describe('POST /messages: what is stored', () => {
     const response = await signedIn({ message: 'Hello from a guest' });
 
     expect(response.status).toBe(201);
-    expect(h.add).toHaveBeenCalledWith(
-      expect.objectContaining({ authorName: 'Anonymous', uid: 'uid-guest' }),
-    );
+    expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Anonymous' })]);
+    expect(createdIn(POSTERS)).toEqual([expect.objectContaining({ uid: 'uid-guest' })]);
   });
 
   it('stores the name of a GitHub sign-in', async () => {
@@ -284,9 +385,8 @@ describe('POST /messages: what is stored', () => {
 
     await signedIn({ message: 'Hello' });
 
-    expect(h.add).toHaveBeenCalledWith(
-      expect.objectContaining({ authorName: 'Grace Hopper', uid: 'uid-grace' }),
-    );
+    expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Grace Hopper' })]);
+    expect(createdIn(POSTERS)).toEqual([expect.objectContaining({ uid: 'uid-grace' })]);
   });
 
   it.each([
@@ -306,9 +406,8 @@ describe('POST /messages: what is stored', () => {
       const response = await signedIn({ message: 'Hello' });
 
       expect(response.status).toBe(201);
-      expect(h.add).toHaveBeenCalledWith(
-        expect.objectContaining({ authorName: 'Anonymous', uid: 'uid-other' }),
-      );
+      expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Anonymous' })]);
+      expect(createdIn(POSTERS)).toEqual([expect.objectContaining({ uid: 'uid-other' })]);
     },
   );
 
@@ -322,7 +421,7 @@ describe('POST /messages: what is stored', () => {
     await signedIn({ message: 'Two' });
     await signedIn({ message: 'Three' });
 
-    expect(h.add.mock.calls.map(([record]) => record.authorName)).toEqual([
+    expect(createdIn(MESSAGES).map((record) => record.authorName)).toEqual([
       'Anonymous',
       'Ada',
       'n'.repeat(80),
@@ -340,7 +439,7 @@ describe('POST /messages: what is stored', () => {
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.status).toBeLessThan(500);
     expect(h.verifyIdToken).not.toHaveBeenCalled();
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 
   it('answers 400 to a message that is only markup, stores nothing and reports nothing', async () => {
@@ -348,18 +447,19 @@ describe('POST /messages: what is stored', () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: expect.any(String) });
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
     expect(h.report).not.toHaveBeenCalled();
   });
 
-  it('answers a generic 500 when the write fails', async () => {
-    h.add.mockRejectedValueOnce(new Error('firestore down: project secret-project-id'));
+  it('answers a generic 500, and reports it, when the write fails', async () => {
+    h.commit.mockRejectedValueOnce(new Error('firestore down: project secret-project-id'));
 
     const response = await signedIn({ message: 'Hello' });
     const text = await response.text();
 
     expect(response.status).toBe(500);
     expect(text).not.toMatch(/secret-project-id/);
+    expect(h.report).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -368,6 +468,6 @@ describe('GET /messages', () => {
     const response = await messagesRoute.handle(new Request('http://localhost/messages'));
 
     expect(response.status).toBe(404);
-    expect(h.add).not.toHaveBeenCalled();
+    expectNothingWritten();
   });
 });

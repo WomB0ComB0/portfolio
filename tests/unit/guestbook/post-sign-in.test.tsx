@@ -28,7 +28,11 @@
  * - a session Firebase reports as ended but leaves signed in (auth/invalid-user-token,
  *   auth/user-not-found) is signed out too, so the card never says "sign in again" beside
  *   "Signed in as";
- * - an unsent draft survives a sign-out and comes back on the next sign-in on this page.
+ * - an unsent draft survives a sign-out and comes back on the next sign-in on this page;
+ * - a post still being sent when the visitor signs out and someone signs in (here, or in another
+ *   tab) belongs to the session that sent it: the new box stays read-only until it is answered,
+ *   it is never resent with the new session's token, and neither a refusal nor a session-ended
+ *   answer for it signs the new session out. It fails as not posted, with its text back in the box.
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -98,7 +102,12 @@ vi.mock('@/config', () => ({
 }));
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
-import { resetAuthForTests } from '@/core/auth';
+import {
+  POST_TIMEOUT_MS,
+  PostNotSentError,
+  postGuestbookMessage,
+} from '@/app/(routes)/(main)/(personal)/guestbook/_lib/post';
+import { resetAuthForTests, signIn, signOut } from '@/core/auth';
 
 /** JWT-shaped, synthetic tokens. */
 const GUEST_TOKEN = 'guest-header.guest-payload.guest-signature';
@@ -155,11 +164,52 @@ const send = async (text: string) => {
   await settle();
 };
 
+const NOT_POSTED = /wasn't posted, so it's back in the box/;
+const refused = () => answer(401, { error: 'Sign in to post a message.' });
+const sessionEnded = (code: string) => Object.assign(new Error('ended'), { code });
+
+/** The next fetch answers only when the test releases it. */
+const heldFetch = () => {
+  let release: (response: Response) => void = () => undefined;
+  h.fetch.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      }),
+  );
+  return (response: Response) => release(response);
+};
+
+/** Jane, whose token request answers only when the test settles it. */
+const janeWithHeldToken = () => {
+  let fail: (error: unknown) => void = () => undefined;
+  const token = new Promise<string>((_resolve, reject) => {
+    fail = reject;
+  });
+  h.signInWithPopup.mockImplementationOnce(async () => {
+    const jane = user('Jane Example', () => token);
+    becomes(jane);
+    return { user: jane };
+  });
+  return fail;
+};
+
+/** Signs out on the card, then signs in as a guest: another session while a post is in flight. */
+const switchToGuest = async () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+  await settle();
+  fireEvent.click(screen.getByRole('button', { name: 'Continue as guest' }));
+  await settle();
+  expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+};
+
 beforeEach(() => {
   resetAuthForTests();
   vi.clearAllMocks();
   h.auth.currentUser = null;
   h.listener = null;
+  // Answers a test queued but never needed must not answer the next test's posts.
+  h.fetch.mockReset();
   vi.stubGlobal('fetch', h.fetch);
   h.signOut.mockImplementation(async () => becomes(null));
   h.signInWithPopup.mockImplementation(async () => {
@@ -176,6 +226,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -321,4 +372,165 @@ describe('a sign-in the server no longer accepts', () => {
     await settle();
     expect(box()).toHaveValue('Half a thought');
   });
+});
+
+describe('a post still in flight when someone else signs in', () => {
+  it('keeps the new box read-only until the earlier post is answered, then puts back what failed', async () => {
+    const release = heldFetch();
+    renderBoard();
+    await signInWith(/guest/);
+    await send('First post');
+
+    await switchToGuest();
+    expect(box()).toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Posting…' })).toHaveAttribute('aria-busy', 'true');
+
+    release(answer(503, { error: 'unavailable' }));
+    await settle();
+
+    expect(box()).toHaveValue('First post');
+    expect(box()).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('alert')).toHaveTextContent(/couldn't confirm/);
+  });
+
+  it('frees the new box, empty and without an alert, when the earlier post is stored', async () => {
+    const release = heldFetch();
+    renderBoard();
+    await signInWith(/guest/);
+    await send('First post');
+
+    await switchToGuest();
+    release(
+      answer(201, {
+        id: 'new-1',
+        authorName: 'Anonymous',
+        message: 'First post',
+        createdAt: '2026-11-07T18:00:00.000Z',
+      }),
+    );
+    await settle();
+
+    expect(box()).toHaveValue('');
+    expect(box()).not.toHaveAttribute('readonly');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('never resends a refused post with the token of the session signed in since', async () => {
+    const release = heldFetch();
+    h.fetch.mockResolvedValueOnce(
+      answer(201, {
+        id: 'new-1',
+        authorName: 'Anonymous',
+        message: 'Hello again',
+        createdAt: '2026-11-07T18:00:00.000Z',
+      }),
+    );
+    renderBoard();
+    await signInWith(/Google/);
+    await send('Hello again');
+
+    await switchToGuest();
+    h.signOut.mockClear();
+    release(refused());
+    await settle();
+
+    expect(h.fetch).toHaveBeenCalledTimes(1);
+    const [, init] = h.fetch.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get('authorization')).toBe(`Bearer ${JANE_TOKEN}`);
+    expect(h.signOut).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(0);
+    expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+    expect(box()).toHaveValue('Hello again');
+    expect(screen.getByRole('alert')).toHaveTextContent(NOT_POSTED);
+  });
+
+  it('does not sign the new session out when the resent post is refused again', async () => {
+    h.fetch.mockResolvedValueOnce(refused());
+    const release = heldFetch();
+    renderBoard();
+    await signInWith(/Google/);
+    await send('Hello again');
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+
+    await switchToGuest();
+    h.signOut.mockClear();
+    release(refused());
+    await settle();
+
+    expect(h.signOut).not.toHaveBeenCalled();
+    expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+    expect(box()).toHaveValue('Hello again');
+    expect(screen.getByRole('alert')).toHaveTextContent(NOT_POSTED);
+  });
+
+  it('still asks to sign in again when the visitor only signed out while it was sent', async () => {
+    const release = heldFetch();
+    renderBoard();
+    await signInWith(/Google/);
+    await send('Hello again');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await settle();
+    release(refused());
+    await settle();
+
+    expect(h.fetch).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await settle();
+    expect(box()).toHaveValue('Hello again');
+  });
+
+  it.each(['auth/invalid-user-token', 'auth/user-not-found', 'auth/user-token-expired'])(
+    'does not sign the new session out when the earlier token request ends with %s',
+    async (code) => {
+      const fail = janeWithHeldToken();
+      renderBoard();
+      await signInWith(/Google/);
+      await send('Hello again');
+
+      await switchToGuest();
+      h.signOut.mockClear();
+      fail(sessionEnded(code));
+      await settle();
+
+      expect(h.fetch).not.toHaveBeenCalled();
+      expect(h.signOut).not.toHaveBeenCalled();
+      expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+      expect(box()).toHaveValue('Hello again');
+      expect(screen.getByRole('alert')).toHaveTextContent(NOT_POSTED);
+    },
+  );
+
+  it.each([
+    ['signs out nobody once someone else has signed in', true, 0],
+    ['still signs out the same visitor, whose session has ended', false, 1],
+  ])(
+    'after the post gave up waiting for a token, a late session-ended answer %s',
+    async (_case, switchFirst, signOuts) => {
+      const fail = janeWithHeldToken();
+      await signIn('google.com');
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const failure = postGuestbookMessage({ authorName: 'Jane Example', message: 'Hello' }).catch(
+        (error: unknown) => error,
+      );
+      await vi.advanceTimersByTimeAsync(POST_TIMEOUT_MS);
+      const error = await failure;
+      expect(error).toBeInstanceOf(PostNotSentError);
+      expect((error as PostNotSentError).signedOut).toBe(false);
+      vi.useRealTimers();
+
+      if (switchFirst) {
+        await signOut();
+        await signIn('anonymous');
+      }
+      const current = h.auth.currentUser;
+      h.signOut.mockClear();
+      fail(sessionEnded('auth/invalid-user-token'));
+      await settle();
+
+      expect(h.signOut).toHaveBeenCalledTimes(signOuts);
+      expect(h.auth.currentUser).toBe(signOuts === 0 ? current : null);
+    },
+  );
 });

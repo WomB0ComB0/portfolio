@@ -25,7 +25,8 @@
  * 3. the sign-in (./poster.ts): `Authorization: Bearer <Firebase ID token>`, verified with the
  *    Admin SDK, else 401 with one fixed body and a WWW-Authenticate challenge;
  * 4. the text itself (createMessage): nothing postable left once markup is removed, else 400.
- * Then the message is stored once, under the poster's uid and name, and answered 201.
+ * Then the message is stored once, under the poster's name (their uid in a server-only document
+ * with the same id, written in the same batch), and answered 201.
  */
 
 import { Elysia, StatusMap } from 'elysia';

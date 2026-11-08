@@ -36,9 +36,9 @@
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import { withDeadline } from '@/lib/async/deadline';
 import { logger } from '@/utils/logging';
-import type { SessionUser, SignInMethod } from './auth.types';
+import type { SessionHandle, SessionUser, SignInMethod } from './auth.types';
 
-export type { SessionUser, SignInMethod } from './auth.types';
+export type { SessionHandle, SessionUser, SignInMethod } from './auth.types';
 
 export type AuthPhase = 'signed-out' | 'preparing' | 'ready' | 'signing-in' | 'signed-in';
 
@@ -179,19 +179,35 @@ const isSessionEnded = (error: unknown): boolean => {
 };
 
 /**
+ * The signed-in session, to compare by identity (`===`) with one taken earlier: the guestbook's
+ * post checks that the session that sent it is still the one signed in before it acts on the
+ * answer. Null when nobody is signed in, or Firebase is not loaded (this never loads it).
+ */
+export function currentSession(): SessionHandle | null {
+  return firebaseAuth?.currentSession() ?? null;
+}
+
+/**
  * The signed-in visitor's Firebase ID token, for the API to verify (a fresh one: Firebase refreshes
  * it near expiry, or always with `forceRefresh`). Null when nobody is signed in, or when the
  * session has ended; then the visitor is signed out here (Firebase does that itself only for some
- * of those codes), so the card offers sign-in rather than a box that cannot post. Rejects when
- * Firebase cannot give one for another reason (offline, say). Firebase is already loaded whenever
- * someone is signed in, so this never loads it.
+ * of those codes), so the card offers sign-in rather than a box that cannot post. Only the session
+ * that asked is signed out: if someone else has signed in since (here or in another tab), theirs
+ * has not ended, so this rejects with Firebase's error and leaves them signed in, as Firebase
+ * does. Rejects too when Firebase cannot give a token for another reason (offline, say). Firebase
+ * is already loaded whenever someone is signed in, so this never loads it.
  */
 export async function getIdToken(forceRefresh = false): Promise<string | null> {
-  if (!firebaseAuth) return null;
+  const firebase = firebaseAuth;
+  if (!firebase) return null;
+  const requester = firebase.currentSession();
   try {
-    return await firebaseAuth.currentIdToken(forceRefresh);
+    return await firebase.currentIdToken(forceRefresh);
   } catch (error) {
     if (!isSessionEnded(error)) throw error;
+    const now = firebase.currentSession();
+    if (now === null) return null; // Signed out already (by Firebase, or by the visitor).
+    if (now !== requester) throw error;
     await signOut();
     return null;
   }

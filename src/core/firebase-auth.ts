@@ -45,7 +45,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { config } from '@/config';
-import type { SessionUser, SignInMethod } from './auth.types';
+import type { SessionHandle, SessionUser, SignInMethod } from './auth.types';
 
 const AUTH_EMULATOR_URL = 'http://localhost:9099';
 
@@ -125,6 +125,15 @@ export async function signInWith(method: SignInMethod): Promise<SessionUser> {
 /** Signs the visitor out. */
 export function signOutUser(): Promise<void> {
   return signOut(clientAuth());
+}
+
+/**
+ * The signed-in session: Firebase's user, which it keeps as one object through token refreshes
+ * and across tabs, and replaces when the visitor signs out or someone else signs in. Null when
+ * nobody is signed in. currentIdToken asks this same user when called in the same tick.
+ */
+export function currentSession(): SessionHandle | null {
+  return clientAuth().currentUser;
 }
 
 /**

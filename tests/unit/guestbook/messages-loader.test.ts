@@ -21,7 +21,8 @@
  * good list, marked stale, when a reload fails or runs past its deadline; a read that ends after
  * the deadline still fills the cache. A message written through the API is checked on the server
  * (validateUserInput, the 280 character limit), stored as plain text (never HTML-escaped, marked
- * plainText) with the verified poster's name and uid, and the cached list is expired, not
+ * plainText) with the verified poster's name (their uid goes to a server-only record, never on
+ * the public message), and the cached list is expired only once the write has landed, not
  * dropped: the next render reads again, and if that read fails the previous list is still served,
  * marked stale. Who may post, and the name they post under, is the route's test
  * (messages-route.test.ts). Author names stored before
@@ -39,8 +40,8 @@ const h = vi.hoisted(() => ({
   orderBy: vi.fn((field: string, direction: string) => ({ orderBy: [field, direction] })),
   query: vi.fn((...parts: unknown[]) => ({ query: parts })),
   collection: vi.fn((_db: unknown, path: string) => ({ path })),
-  add: vi.fn(),
-  adminCollection: vi.fn(),
+  create: vi.fn(),
+  commit: vi.fn(),
   report: vi.fn(),
 }));
 
@@ -52,7 +53,23 @@ vi.mock('firebase/firestore', () => ({
   query: h.query,
 }));
 vi.mock('@/core/firebase', () => ({ firestore: { kind: 'test-firestore' } }));
-vi.mock('@/core/firebase-admin', () => ({ adminDb: { collection: h.adminCollection } }));
+vi.mock('@/core/firebase-admin', () => {
+  const batch = {
+    create: (ref: { readonly path: string }, data: unknown) => {
+      h.create(ref.path, data);
+      return batch;
+    },
+    commit: h.commit,
+  };
+  return {
+    adminDb: {
+      collection: (path: string) => ({
+        doc: (id = 'new-doc') => ({ id, path: `${path}/${id}` }),
+      }),
+      batch: () => batch,
+    },
+  };
+});
 vi.mock('@/config', () => ({ config: { firebase: { appId: 'test-app' } } }));
 vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.report }));
 
@@ -111,7 +128,7 @@ const flush = async () => {
 beforeEach(() => {
   resetGuestbookCache();
   vi.clearAllMocks();
-  h.adminCollection.mockReturnValue({ add: h.add });
+  h.commit.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -308,21 +325,23 @@ describe('a post through the API and the shared cache', () => {
     expect((await readGuestbookMessages()).stale).toBe(false);
   });
 
-  it("stores a posted message as plain text with the poster's uid, then expires the cached list", async () => {
+  it("stores a posted message as plain text, the poster's uid apart, then expires the cached list", async () => {
     h.getDocs.mockResolvedValue(snapshot(docs(1)));
-    h.add.mockResolvedValueOnce({ id: 'new-doc' });
     await loadGuestbook();
 
     const saved = await createMessage({ message: "It's me & you" }, POSTER);
 
-    expect(h.adminCollection).toHaveBeenCalledWith('artifacts/test-app/public/data/message');
-    expect(h.add).toHaveBeenCalledWith({
+    expect(h.create).toHaveBeenCalledWith('artifacts/test-app/public/data/message/new-doc', {
       authorName: "D'Angelo & Co",
       message: "It's me & you",
-      createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      createdAt: saved.createdAt,
       plainText: true,
-      uid: 'uid-ada',
     });
+    expect(h.create).toHaveBeenCalledWith('artifacts/test-app/private/data/messagePoster/new-doc', {
+      uid: 'uid-ada',
+      createdAt: saved.createdAt,
+    });
+    expect(h.commit).toHaveBeenCalledTimes(1);
     expect(saved).toEqual({
       id: 'new-doc',
       authorName: "D'Angelo & Co",
@@ -335,14 +354,15 @@ describe('a post through the API and the shared cache', () => {
   });
 
   it('checks the text on the server: tags and script schemes go, whitespace collapses', async () => {
-    h.add.mockResolvedValueOnce({ id: 'new-doc' });
-
     await createMessage(
       { message: '  Hi <script>x</script>   there javascript:alert(1) ' },
       POSTER,
     );
 
-    expect(h.add).toHaveBeenCalledWith(expect.objectContaining({ message: 'Hi x there alert(1)' }));
+    expect(h.create).toHaveBeenCalledWith(
+      'artifacts/test-app/public/data/message/new-doc',
+      expect.objectContaining({ message: 'Hi x there alert(1)' }),
+    );
   });
 
   it.each([
@@ -355,14 +375,24 @@ describe('a post through the API and the shared cache', () => {
 
     await expect(createMessage({ message }, POSTER)).rejects.toBeInstanceOf(InvalidMessageError);
 
-    expect(h.add).not.toHaveBeenCalled();
+    expect(h.commit).not.toHaveBeenCalled();
+    await loadGuestbook();
+    expect(h.getDocs).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects when the write fails, and keeps the cached list', async () => {
+    h.getDocs.mockResolvedValue(snapshot(docs(1)));
+    h.commit.mockRejectedValueOnce(new Error('firestore down'));
+    await loadGuestbook();
+
+    await expect(createMessage({ message: 'Hello' }, POSTER)).rejects.toThrow('firestore down');
+
     await loadGuestbook();
     expect(h.getDocs).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the last list after a post: a failing reload serves it stale, not the error state', async () => {
     h.getDocs.mockResolvedValueOnce(snapshot(docs(2)));
-    h.add.mockResolvedValueOnce({ id: 'new-doc' });
     await loadGuestbook();
 
     await createMessage({ message: 'Hello' }, POSTER);
@@ -374,7 +404,6 @@ describe('a post through the API and the shared cache', () => {
   });
 
   it('never caches a read that started before a post as the fresh list', async () => {
-    h.add.mockResolvedValueOnce({ id: 'new-doc' });
     const answerBefore = heldRead();
     const answerAfter = heldRead();
     const before = readGuestbookMessages();

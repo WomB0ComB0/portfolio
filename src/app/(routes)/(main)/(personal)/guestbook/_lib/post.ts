@@ -24,6 +24,10 @@
  * the API stored nothing, so the post is sent once more with a token Firebase refreshes on purpose
  * (the cached one can look expired to the server when this device's clock is behind). Refused
  * again, the session is no use for posting: the visitor is signed out, so the card offers sign-in.
+ * The retry and the sign-out are only for the session that sent the post: if the visitor signed
+ * out, or someone else signed in (on this card or in another tab), before a 401 came back, the post
+ * is not resent with another session's token and nobody is signed out; it fails as a
+ * PostNotSentError, since nothing was stored.
  * When there is no token to send (nobody signed in, or the session has ended) or Firebase cannot
  * give one (offline), nothing is sent: a PostNotSentError. The answer is checked before it is shown;
  * anything but a message counts as a failure, and an answer that is not 2xx rejects with a
@@ -32,7 +36,7 @@
  * needsSignIn which ones ask the visitor to sign in again.
  */
 
-import { getIdToken, signOut } from '@/core/auth';
+import { currentSession, getIdToken, type SessionHandle, signOut } from '@/core/auth';
 import { withDeadline } from '@/lib/async/deadline';
 import type { GuestbookMessage } from '@/lib/guestbook/types';
 
@@ -70,8 +74,10 @@ export class PostFailedError extends Error {
 }
 
 /**
- * The post was never sent, for want of a sign-in token: nobody is signed in or the session has
- * ended (`signedOut`), or Firebase could not give one (offline, or it took too long).
+ * Nothing was stored, and the post was not sent (again) for want of a sign-in token: nobody is
+ * signed in or the session has ended (`signedOut`), Firebase could not give one (offline, or it
+ * took too long), or the post was refused and another session has signed in since (not
+ * `signedOut`: the post is not resent with theirs).
  */
 export class PostNotSentError extends Error {
   readonly name = 'PostNotSentError';
@@ -81,7 +87,7 @@ export class PostNotSentError extends Error {
     options?: ErrorOptions,
   ) {
     super(
-      signedOut ? 'Not signed in: nothing was sent' : 'No sign-in token: nothing was sent',
+      signedOut ? 'Not signed in: nothing was stored' : 'No sign-in token: nothing was stored',
       options,
     );
   }
@@ -139,14 +145,29 @@ async function send(draft: GuestbookDraft, forceRefresh: boolean): Promise<Respo
 }
 
 /**
+ * Gives a refused post up (a 401 stores nothing) unless `session`, the one that sent it, is still
+ * signed in: a retry would go out with another session's token, and a sign-out would end theirs.
+ */
+function stillSignedInAs(session: SessionHandle | null): void {
+  const now = currentSession();
+  if (now !== session) throw new PostNotSentError(now === null);
+}
+
+/**
  * Sends `draft`, and once more with a token refreshed on purpose if the API refused the first
- * (a 401 stores nothing). A second 401 signs the visitor out before it is answered.
+ * (a 401 stores nothing). A second 401 signs the visitor out before it is answered. Both only
+ * while the session that sent it is still the one signed in.
  */
 async function sendSignedIn(draft: GuestbookDraft): Promise<Response> {
+  // Taken in the same tick as send() asks that session for its token.
+  const session = currentSession();
   const first = await send(draft, false);
   if (first.status !== HTTP_UNAUTHORIZED) return first;
+  stillSignedInAs(session);
   const second = await send(draft, true);
-  if (second.status === HTTP_UNAUTHORIZED) await signOut();
+  if (second.status !== HTTP_UNAUTHORIZED) return second;
+  stillSignedInAs(session);
+  await signOut();
   return second;
 }
 

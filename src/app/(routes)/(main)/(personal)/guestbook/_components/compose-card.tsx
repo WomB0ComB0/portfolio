@@ -36,7 +36,9 @@
  * the session ending while a post was being sent) keeps it. A post refused for its sign-in signs
  * the visitor out (../_lib/post.ts) and says to sign in again; that line stays while they are
  * signed out, beside the sign-in choices, and goes once they are signed in again, with their text
- * back in the box.
+ * back in the box. A post still being sent outlives a sign-out too: a box shown meanwhile (the
+ * visitor, or someone else, signed in again) stays read-only until that post is answered, so its
+ * failure puts back exactly what was sent, never over newer text.
  *
  * Focus is never dropped to the page: busy buttons use aria-disabled, never disabled. When the
  * visitor signs in or out on this card, the new panel takes focus (the box, or the first choice),
@@ -202,23 +204,28 @@ interface KeptDraft {
   readonly setDraft: (draft: string) => void;
   readonly postError: PostProblem | null;
   readonly setPostError: (problem: PostProblem | null) => void;
+  /** A post is being sent: the box is read-only, whichever signed-in panel shows it. */
+  readonly sending: boolean;
+  readonly setSending: (sending: boolean) => void;
 }
 
 /**
- * The box's text and the last post failure, kept by the card rather than the signed-in panel, so
- * a sign-out (the visitor's, or Firebase's when the session has ended mid-post) loses neither.
- * Signing in clears the failure: it said to sign in, and that is done.
+ * The box's text, the last post failure and whether a post is being sent, kept by the card rather
+ * than the signed-in panel, so a sign-out (the visitor's, or Firebase's when the session has ended
+ * mid-post) loses none of them. Signing in clears the failure: it said to sign in, and that is
+ * done.
  */
 function useKeptDraft(signedIn: boolean): KeptDraft {
   const [draft, setDraft] = useState('');
   const [postError, setPostError] = useState<PostProblem | null>(null);
+  const [sending, setSending] = useState(false);
   const [wasSignedIn, setWasSignedIn] = useState(signedIn);
   // Adjusting state to a changed input during render (React's documented pattern for it).
   if (wasSignedIn !== signedIn) {
     setWasSignedIn(signedIn);
     if (signedIn) setPostError(null);
   }
-  return { draft, setDraft, postError, setPostError };
+  return { draft, setDraft, postError, setPostError, sending, setSending };
 }
 
 interface ComposerOptions {
@@ -234,11 +241,10 @@ interface ComposerOptions {
  * the box (read-only while it sends), puts the exact text back if it fails, then focuses the box.
  */
 function useComposer({ user, onPost, kept, form, field }: ComposerOptions) {
-  const { draft, setDraft, postError, setPostError } = kept;
+  const { draft, setDraft, postError, setPostError, sending, setSending } = kept;
   /** A problem with the text: drives aria-invalid. */
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
-  const [sending, setSending] = useState(false);
   /** The changed text the visitor was shown, so the next press of Post sends it. */
   const [shown, setShown] = useState<string | null>(null);
 
@@ -268,7 +274,7 @@ function useComposer({ user, onPost, kept, form, field }: ComposerOptions) {
     if (outcome.ok) setStatus(POSTED);
     else {
       // The box was read-only while sending, so it is still empty: this is exactly what was sent.
-      // Both setters are the card's, so this holds even if the session ended and the form is gone.
+      // These setters are the card's, so this holds even if the form is gone or a new one shows.
       setDraft(typed);
       setPostError({ text: outcome.error, needsSignIn: outcome.needsSignIn });
     }
