@@ -150,14 +150,30 @@ describe('shell grid', () => {
     expect(classesOf(footer)).toEqual(expect.arrayContaining(['max-w-shell', 'mx-auto', 'w-full']));
   });
 
-  it('paints the canvas and atmosphere on the root, in a box one viewport tall', () => {
+  it('paints the canvas and the two LightRays glows on the root, sized to the page as before #603', () => {
     const { root } = renderShell();
+    const classes = classesOf(root);
 
-    expect(classesOf(root)).toEqual(
-      expect.arrayContaining(['atmosphere', 'overflow-x-clip', 'bg-canvas', 'min-h-dvh']),
+    expect(classes).toEqual(
+      expect.arrayContaining(['light-glows', 'overflow-x-clip', 'bg-canvas', 'min-h-dvh']),
     );
-    // The light is placed in percent of its box: a page-tall box pushes it off the top.
-    expect(classesOf(root)).toContain('bg-size-[100%_100svh]');
+    // The glows replace the one-screen atmosphere; the page-sized box is LightRays' own.
+    expect(classes).not.toContain('atmosphere');
+    expect(classes).not.toContain('bg-size-[100%_100svh]');
+  });
+
+  it('lays the light rays first in the root, under everything else, before the skip link', () => {
+    const { root } = renderShell();
+    const rays = root.querySelectorAll('.light-rays');
+
+    // `relative isolate`: the root is the box and the stacking context the rays sit in at -1.
+    expect(classesOf(root)).toEqual(expect.arrayContaining(['relative', 'isolate']));
+    expect(rays).toHaveLength(1);
+    expect(root.firstElementChild).toBe(rays[0]);
+    expect(rays[0]).toHaveAttribute('aria-hidden', 'true');
+    expect(rays[0]?.querySelectorAll('i')).toHaveLength(5);
+    // The skip link is still the first thing to focus.
+    expect(root.querySelector('a, button, [tabindex]')).toHaveTextContent('Skip to content');
   });
 
   it('mounts the tile spotlight listener exactly once', () => {
@@ -166,7 +182,7 @@ describe('shell grid', () => {
     expect(screen.getAllByTestId('spotlight-root')).toHaveLength(1);
   });
 
-  it('no longer ships LightRays', () => {
+  it('no longer ships the client LightRays (motion/react, Math.random) from magicui', () => {
     expect(existsSync(join(MAGICUI_DIR, 'light-rays.tsx'))).toBe(false);
     expect(existsSync(join(MAGICUI_DIR, 'light-rays.types.ts'))).toBe(false);
     expect(readFileSync(join(MAGICUI_DIR, 'index.ts'), 'utf8')).not.toMatch(/light-rays/);

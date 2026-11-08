@@ -23,29 +23,47 @@
  * 71 on this desktop GPU (16 without, 1.3 paused); the equaliser the same. The haze's watcher
  * finds every such animation by its keyframes' name, as it starts (animationstart) or already
  * running when the haze mounts (document.getAnimations()): Tailwind's pulse (every loading
- * placeholder), ping and live-pulse (live dots), and the home equaliser's `equalise` (hashed by
- * its CSS module). Spinners, marquees and the caret keep moving. Two IntersectionObservers, their
- * roots shrunk to the top band and to the bottom band (on phones the bar below it too), mark an
- * element `data-under-edge` while it overlaps either; edge-haze.css pauses it. Nothing is observed
- * while the haze draws no blur (forced colours, reduced transparency); the bands are measured
- * again when the window's size or those preferences change, and everything goes on unmount.
+ * placeholder), ping and live-pulse (live dots), the home equaliser's `equalise` (hashed by its
+ * CSS module) and the shell's light rays (light-ray). Spinners, marquees and the caret keep
+ * moving. Two IntersectionObservers, their roots shrunk to the top band (reaching 64 px above the
+ * window, where a ray's blur(20px) still draws into it) and to the bottom band (on phones the bar
+ * below it too), mark an element `data-under-edge` while it overlaps a band that shows;
+ * edge-haze.css pauses it. A band at opacity 0 draws no blur, so nothing pauses under
+ * it: the top band at the top of the page (where the rays live), the bottom one at the end, both
+ * on a page too short to scroll. Nothing is observed while the haze draws no blur (forced colours,
+ * reduced transparency); the bands are measured again when the window's size or those
+ * preferences change, and everything goes on unmount.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { edgeHazeOpacity } from '@/components/layout/edge-haze';
 import {
+  bandsShowing,
   isPausableAnimation,
   pauseAnimationsUnderEdge,
   UNDER_EDGE_ATTRIBUTE,
+  UNDER_EDGE_INK_OUTSET,
 } from '@/components/layout/pause-under-edge';
 
 const ROOT = process.cwd();
 const WINDOW_PX = 844;
+/**
+ * How far above the window the top band's root reaches: a light ray's blur(20px) draws about
+ * three standard deviations (60 px) past its box, so a ray whose box ends just above the window
+ * still draws under the band.
+ */
+const INK_OUTSET_PX = 64;
 /** Where the top band ends and the bottom band starts (the bar's 72 px below it), in px. */
 const TOP_BAND_END = 93;
 const BOTTOM_BAND_START = WINDOW_PX - 72 - 93;
+/** The page's height: it scrolls PAGE_PX - WINDOW_PX px. */
+const PAGE_PX = 3000;
+/** Mid-page, where both bands show. */
+const MID_PAGE_Y = 1200;
+const END_Y = PAGE_PX - WINDOW_PX;
 
 interface FakeObserver {
   readonly callback: IntersectionObserverCallback;
@@ -95,7 +113,18 @@ const marginFor = (
   windowPx = WINDOW_PX,
   bottomStart = BOTTOM_BAND_START,
 ) =>
-  edge === 'top' ? `0px 0px ${-(windowPx - TOP_BAND_END)}px 0px` : `${-bottomStart}px 0px 0px 0px`;
+  edge === 'top'
+    ? `${INK_OUTSET_PX}px 0px ${-(windowPx - TOP_BAND_END)}px 0px`
+    : `${-bottomStart}px 0px 0px 0px`;
+
+/**
+ * Whether IntersectionObserver reports a box as overlapping an observer's root: the window, grown
+ * or shrunk at the top and bottom by the root margin (edge-adjacent counts, as in Chromium).
+ */
+function overlapsRoot(observer: FakeObserver, box: DOMRect, windowPx = WINDOW_PX): boolean {
+  const [top = 0, , bottom = 0] = observer.rootMargin.split(' ').map(Number.parseFloat);
+  return box.top <= windowPx + bottom && box.bottom >= -top;
+}
 
 /** The live observer whose root is the given band. */
 function observerFor(edge: 'top' | 'bottom'): FakeObserver {
@@ -192,6 +221,62 @@ function recordMediaQueries() {
   };
 }
 
+/** Scrolls the page to `y` (and makes it `height` px tall) as the watcher reads it. */
+function scrollPage(y: number, height = PAGE_PX) {
+  vi.stubGlobal('scrollY', y);
+  Object.defineProperty(document.documentElement, 'scrollHeight', {
+    configurable: true,
+    value: height,
+  });
+}
+
+/** Scrolls the page to `y` and tells the watcher, as the browser's scroll event does. */
+function scrollTo(y: number) {
+  scrollPage(y);
+  window.dispatchEvent(new Event('scroll'));
+}
+
+interface FakeResize {
+  readonly callback: ResizeObserverCallback;
+  readonly observed: Set<Element>;
+  disconnected: boolean;
+}
+
+let resizeObservers: FakeResize[] = [];
+
+/** A ResizeObserver that reports only when the test says the page changed size. */
+class FakeResizeObserver {
+  private readonly record: FakeResize;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.record = { callback, observed: new Set(), disconnected: false };
+    resizeObservers.push(this.record);
+  }
+
+  observe(element: Element) {
+    this.record.observed.add(element);
+  }
+
+  unobserve(element: Element) {
+    this.record.observed.delete(element);
+  }
+
+  disconnect() {
+    this.record.observed.clear();
+    this.record.disconnected = true;
+  }
+}
+
+/** Makes the page `height` px tall (content streamed in), and tells every live ResizeObserver. */
+function growPage(height: number) {
+  scrollPage(window.scrollY, height);
+  for (const observer of resizeObservers.filter((candidate) => !candidate.disconnected)) {
+    if (observer.observed.size > 0) {
+      observer.callback([], observer as unknown as ResizeObserver);
+    }
+  }
+}
+
 /** Every watcher a test started, stopped after it even when an assertion failed first. */
 const running: (() => void)[] = [];
 
@@ -205,12 +290,17 @@ function watchHaze(haze: HTMLElement): ReturnType<typeof pauseAnimationsUnderEdg
 // tests/setup/vitest.setup.ts defines a writable but non-configurable IntersectionObserver, which
 // vi.stubGlobal cannot redefine: assign it, and put the setup's back after each test.
 const SETUP_INTERSECTION_OBSERVER = globalThis.IntersectionObserver;
+const SETUP_RESIZE_OBSERVER = globalThis.ResizeObserver;
 
 beforeEach(() => {
   observers = [];
+  resizeObservers = [];
   globalThis.IntersectionObserver =
     FakeIntersectionObserver as unknown as typeof IntersectionObserver;
+  globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
   vi.stubGlobal('innerHeight', WINDOW_PX);
+  // Mid-page unless a test says otherwise: both bands show.
+  scrollPage(MID_PAGE_Y);
 });
 
 afterEach(() => {
@@ -218,7 +308,9 @@ afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(document.documentElement, 'scrollHeight');
   globalThis.IntersectionObserver = SETUP_INTERSECTION_OBSERVER;
+  globalThis.ResizeObserver = SETUP_RESIZE_OBSERVER;
 });
 
 describe('isPausableAnimation', () => {
@@ -231,6 +323,7 @@ describe('isPausableAnimation', () => {
     // A webpack build names CSS-module keyframes `[file]_[local]__[hash]` (CodeRabbit on #614).
     'equaliser_equalise__H4sh5',
     'equaliser_equalise__a-1_B2',
+    'light-ray',
   ])('pauses %s', (name) => {
     expect(isPausableAnimation(name)).toBe(true);
   });
@@ -247,22 +340,26 @@ describe('isPausableAnimation', () => {
     'unequalise',
     'equalise_slowly',
     'equaliser_unequalise__H4sh5',
+    'light-rays',
+    'light-ray-glow',
   ])('leaves %s moving', (name) => {
     expect(isPausableAnimation(name)).toBe(false);
   });
 
-  it('matches the keyframes the placeholders, live dots and equaliser are drawn with', () => {
+  it('matches the keyframes the placeholders, live dots, equaliser and light rays are drawn with', () => {
     const theme = readFileSync(join(ROOT, 'node_modules/tailwindcss/theme.css'), 'utf8');
     const globals = readFileSync(join(ROOT, 'src/styles/globals.css'), 'utf8');
     const equaliser = readFileSync(
       join(ROOT, 'src/app/_components/home/live/equaliser.module.css'),
       'utf8',
     );
+    const rays = readFileSync(join(ROOT, 'src/styles/light-rays.css'), 'utf8');
 
     expect(theme).toMatch(/--animate-pulse:\s*pulse\s/);
     expect(theme).toMatch(/--animate-ping:\s*ping\s/);
     expect(globals).toMatch(/--animate-live-pulse:\s*live-pulse\s/);
     expect(equaliser).toMatch(/@keyframes equalise\s*\{/);
+    expect(rays).toMatch(/@keyframes light-ray\s*\{/);
   });
 });
 
@@ -332,6 +429,162 @@ describe('pauseAnimationsUnderEdge', () => {
     report('top', element, true);
     expect(element.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(true);
     stop();
+  });
+
+  describe('pauses only under a band that shows: a band at opacity 0 draws no blur', () => {
+    it('leaves a light ray under the top band moving at the top of the page, where that band is hidden', () => {
+      scrollPage(0);
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+      const ray = pageElement();
+      animationStart(ray, 'light-ray');
+
+      report('top', ray, true);
+
+      expect(observerFor('top').observed.has(ray)).toBe(true);
+      expect(ray.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
+      stop();
+    });
+
+    it('pauses it once the page scrolls and the top band shows, and lets it move again back at the top', () => {
+      scrollPage(0);
+      const frames = manualFrames();
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+      const ray = pageElement();
+      animationStart(ray, 'light-ray');
+      report('top', ray, true);
+
+      // The first pixel of scroll: the band's layers are above opacity 0, so it blurs.
+      scrollTo(1);
+      frames.run();
+      expect(ray.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(true);
+
+      scrollTo(0);
+      frames.run();
+      expect(ray.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
+      stop();
+    });
+
+    it('reads the scroll position at most once per frame', () => {
+      scrollPage(0);
+      const frames = manualFrames();
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+
+      scrollTo(10);
+      scrollTo(20);
+      scrollTo(30);
+
+      expect(frames.pending()).toBe(1);
+      stop();
+    });
+
+    it('leaves an element under the bottom band moving at the end of the page, where that band is gone', () => {
+      scrollPage(END_Y);
+      const frames = manualFrames();
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+      const placeholder = pageElement();
+      animationStart(placeholder, 'pulse');
+
+      report('bottom', placeholder, true);
+      expect(placeholder.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
+
+      scrollTo(END_Y - 1);
+      frames.run();
+      expect(placeholder.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(true);
+      stop();
+    });
+
+    it('pauses nothing on a page too short to scroll, until the page grows and the bottom band shows', () => {
+      scrollPage(0, WINDOW_PX);
+      const frames = manualFrames();
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+      const placeholder = pageElement();
+      animationStart(placeholder, 'pulse');
+
+      report('bottom', placeholder, true);
+      report('top', placeholder, true);
+      expect(placeholder.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
+
+      // Streamed content arrives with no scroll and no window resize.
+      growPage(PAGE_PX);
+      frames.run();
+      expect(placeholder.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(true);
+      stop();
+    });
+
+    it("agrees with the bands' fade: a band shows exactly when edgeHazeOpacity gives it any opacity", () => {
+      const heights = { topHeight: TOP_BAND_END, bottomHeight: 93 };
+      for (const maxScroll of [-100, 0, 0.5, 40, 2156]) {
+        for (const scrollY of [
+          -8,
+          0,
+          0.5,
+          1,
+          20,
+          93,
+          1000,
+          maxScroll - 1,
+          maxScroll,
+          maxScroll + 5,
+        ]) {
+          const opacity = edgeHazeOpacity({ scrollY, maxScroll, ...heights });
+          expect(bandsShowing({ scrollY, maxScroll }), `${scrollY} of ${maxScroll}`).toEqual({
+            top: opacity.top > 0,
+            bottom: opacity.bottom > 0,
+          });
+        }
+      }
+    });
+  });
+
+  describe("reaches above the window by the light rays' blur, whose ink runs past their box", () => {
+    it('covers three standard deviations of the blur light-rays.css draws each ray with', () => {
+      const rays = readFileSync(join(ROOT, 'src/styles/light-rays.css'), 'utf8');
+      const blur = /filter:\s*blur\((\d+(?:\.\d+)?)px\)/.exec(rays)?.[1];
+
+      expect(blur, 'light-rays.css draws no blur(Npx)').toBeDefined();
+      expect(UNDER_EDGE_INK_OUTSET).toBe(INK_OUTSET_PX);
+      expect(UNDER_EDGE_INK_OUTSET).toBeGreaterThanOrEqual(3 * Number(blur));
+    });
+
+    it('pauses a ray whose box ends 30 px above the window under the shown top band, not one 100 px above', () => {
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+      const near = pageElement();
+      const far = pageElement();
+
+      // Rays 400 px long, scrolled up past the top of the window: blur(20px) draws about 60 px
+      // below each box, so the near one still draws under the band and the far one does not.
+      for (const [ray, bottom] of [
+        [near, -30],
+        [far, -100],
+      ] as const) {
+        animationStart(ray, 'light-ray');
+        report('top', ray, overlapsRoot(observerFor('top'), rect(bottom - 400, bottom)));
+      }
+
+      expect(near.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(true);
+      expect(far.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
+      stop();
+    });
+
+    it('keeps the bottom band to itself: a pulse on screen just above it keeps moving', () => {
+      const haze = mountHaze();
+      const { stop } = watchHaze(haze);
+      const placeholder = pageElement();
+      animationStart(placeholder, 'pulse');
+
+      const box = rect(BOTTOM_BAND_START - 40, BOTTOM_BAND_START - 10);
+      report('bottom', placeholder, overlapsRoot(observerFor('bottom'), box));
+      report('top', placeholder, overlapsRoot(observerFor('top'), box));
+
+      expect(placeholder.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
+      stop();
+    });
   });
 
   describe('lets go of elements that left the page (a streamed placeholder swapped for content, a route change)', () => {
@@ -509,7 +762,9 @@ describe('pauseAnimationsUnderEdge', () => {
     animationStart(element, 'pulse');
     report('top', element, true);
     window.dispatchEvent(new Event('resize'));
+    scrollTo(MID_PAGE_Y + 10);
     expect(media.count()).toBe(2);
+    expect(resizeObservers.filter((observer) => !observer.disconnected)).toHaveLength(1);
 
     stop();
 
@@ -517,8 +772,11 @@ describe('pauseAnimationsUnderEdge', () => {
     expect(element.hasAttribute(UNDER_EDGE_ATTRIBUTE)).toBe(false);
     expect(frames.pending()).toBe(0);
     expect(media.count()).toBe(0);
+    expect(resizeObservers.every((observer) => observer.disconnected)).toBe(true);
     expect(unlisten.mock.calls.map(([type]) => type)).toContain('animationstart');
-    expect(unlistenWindow.mock.calls.map(([type]) => type)).toContain('resize');
+    expect(unlistenWindow.mock.calls.map(([type]) => type)).toEqual(
+      expect.arrayContaining(['resize', 'scroll']),
+    );
     animationStart(pageElement(), 'pulse');
     expect(observers.every((observer) => observer.observed.size === 0)).toBe(true);
   });

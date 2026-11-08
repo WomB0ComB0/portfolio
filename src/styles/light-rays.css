@@ -1,0 +1,123 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The lights, restored: LightRays as it was before #603 (count 5, blur 20), rebuilt in CSS with
+ * no animation library, as the owner chose in the background lab (option 0 at its defaults,
+ * animated). The shell root (layout.tsx ROOT_CLASS) carries `light-glows isolate`, and
+ * <LightRays /> (src/components/layout/light-rays.tsx) renders first inside it.
+ * tests/unit/styles/light-rays-css.test.ts holds these values.
+ */
+
+:root {
+  /* LightRays' colour: rgba(88, 68, 188, 0.2) before #603; each layer below takes its share. */
+  --light-rays: rgb(88 68 188);
+}
+
+/*
+ * The two glows, sized to the whole page as before: they fade out before the end of a long page.
+ * 0.2 of the colour mixed to 45% and 35%, in layers at 60% opacity. Relative colours, not
+ * color-mix(): Tailwind gives color-mix() a full-strength fallback.
+ */
+.light-glows {
+  background-image:
+    radial-gradient(circle at 20% 15%, oklch(from var(--light-rays) l c h / 5.4%), transparent 70%),
+    radial-gradient(circle at 80% 10%, oklch(from var(--light-rays) l c h / 4.2%), transparent 75%);
+}
+
+/* The rays: under the content (-1 inside the isolated root), clipped to the page. */
+.light-rays {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Each 70vh long, hanging from 12% of the page's height above its top; 0.2 of the colour at 70%.
+ * One cycle is its fade and a rest of a tenth. It starts one cycle before its delay (a negative
+ * delay), so it is part way through a cycle at the first paint instead of dark until the delay
+ * ends, and the haze never pauses it before it has lit; once running, the phase is the same as
+ * motion's delay and repeatDelay gave it. Every delay is shorter than its cycle
+ * (tests/unit/layout/light-rays.test.tsx). The blur reaches about 60 px past the box:
+ * pause-under-edge.ts's UNDER_EDGE_INK_OUTSET reaches that far above the window for it.
+ */
+.light-rays > i {
+  --ray-cycle: calc(var(--ray-duration) * 1.1);
+
+  position: absolute;
+  top: -12%;
+  left: var(--ray-left);
+  width: var(--ray-width);
+  height: 70vh;
+  border-radius: 9999px;
+  background: linear-gradient(to bottom, oklch(from var(--light-rays) l c h / 14%), transparent);
+  filter: blur(20px);
+  opacity: 0;
+  translate: -50% 0;
+  rotate: var(--ray-rotate);
+  transform-origin: 50% 0;
+  animation: light-ray var(--ray-cycle) ease-in-out calc(var(--ray-delay) - var(--ray-cycle))
+    infinite;
+}
+
+/*
+ * In and out while swinging, then a rest of a tenth of the cycle (motion's repeatDelay). Opacity
+ * and rotate only, so the compositor runs it. Under a band of the edge haze that shows,
+ * pause-under-edge.ts marks the ray and edge-haze.css's `:root [data-under-edge]` pauses it.
+ */
+@keyframes light-ray {
+  0% {
+    opacity: 0;
+    rotate: calc(var(--ray-rotate) - var(--ray-swing));
+  }
+
+  45.45% {
+    opacity: var(--ray-peak);
+    rotate: calc(var(--ray-rotate) + var(--ray-swing));
+  }
+
+  90.91%,
+  100% {
+    opacity: 0;
+    rotate: calc(var(--ray-rotate) - var(--ray-swing));
+  }
+}
+
+/*
+ * Reduced motion: still rays at 60% of their peak. globals.css cuts every animation to 1 ms and
+ * one iteration, which would end each ray at its 0% frame, opacity 0; it never sets
+ * animation-name, so this `none` stands and the still opacity applies.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .light-rays > i {
+    /* biome-ignore lint/complexity/noImportantStyles: over the global reduced-motion rule's !important timing. */
+    animation-name: none !important;
+    opacity: calc(var(--ray-peak) * 0.6);
+  }
+}
+
+/* Forced colours and print: no glows, no rays. */
+@media (forced-colors: active), print {
+  .light-glows {
+    background-image: none;
+  }
+
+  .light-rays {
+    display: none;
+  }
+}

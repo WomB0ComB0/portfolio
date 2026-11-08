@@ -36,66 +36,12 @@ import {
   EDGE_HAZE_LAYERS,
   EDGE_HAZE_TOP_OPACITY,
 } from '@/components/layout/edge-haze';
+import { type CssRule, declarations, declaredValue, findRule, styleRules } from './css-rules';
 
 // Vitest runs from the repository root; under jsdom import.meta.url is not a file: URL.
 const STYLES = join(process.cwd(), 'src/styles');
 const HAZE_CSS = readFileSync(join(STYLES, 'edge-haze.css'), 'utf8');
 const GLOBALS_CSS = readFileSync(join(STYLES, 'globals.css'), 'utf8');
-
-interface CssRule {
-  /** The enclosing at-rule preludes, outermost first, whitespace collapsed. */
-  readonly conditions: readonly string[];
-  readonly selector: string;
-  readonly body: string;
-}
-
-/** Every style rule in `css` with the at-rules around it, comments removed. */
-function styleRules(css: string): CssRule[] {
-  const source = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  const rules: CssRule[] = [];
-  const visit = (block: string, conditions: readonly string[]): void => {
-    let depth = 0;
-    let headStart = 0;
-    let bodyStart = 0;
-    for (let i = 0; i < block.length; i++) {
-      if (block[i] === ';' && depth === 0) headStart = i + 1;
-      if (block[i] === '{' && depth++ === 0) bodyStart = i + 1;
-      if (block[i] === '}' && --depth === 0) {
-        const head = block
-          .slice(headStart, bodyStart - 1)
-          .replace(/\s+/g, ' ')
-          .trim();
-        const body = block.slice(bodyStart, i).replace(/\s+/g, ' ');
-        if (head.startsWith('@keyframes')) rules.push({ conditions, selector: head, body });
-        else if (head.startsWith('@')) visit(body, [...conditions, head]);
-        else rules.push({ conditions, selector: head, body });
-        headStart = i + 1;
-      }
-    }
-  };
-  visit(source, []);
-  return rules;
-}
-
-/**
- * The declarations of a rule body in order, as [property, value]. Spaces just inside parentheses
- * are dropped, as the formatter adds them when it wraps a long gradient over several lines.
- */
-function declarations(body: string): [string, string][] {
-  return body
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const colon = part.indexOf(':');
-      const value = part
-        .slice(colon + 1)
-        .replace(/\(\s+/g, '(')
-        .replace(/\s+\)/g, ')')
-        .trim();
-      return [part.slice(0, colon).trim(), value];
-    });
-}
 
 const RULES = styleRules(HAZE_CSS);
 
@@ -110,26 +56,11 @@ const NO_BACKDROP_FILTER =
 const NO_SCROLL_TIMELINE = '@supports not (animation-timeline: scroll())';
 
 /** The one rule with this selector under exactly these at-rules. */
-function rule(selector: string, conditions: readonly string[] = []): CssRule {
-  const found = RULES.filter(
-    (candidate) =>
-      candidate.selector === selector &&
-      candidate.conditions.join(' | ') === conditions.join(' | '),
-  );
-  if (found.length !== 1) {
-    throw new Error(
-      `expected one "${selector}" rule under [${conditions.join(', ')}], found ${found.length}`,
-    );
-  }
-  return found[0] as CssRule;
-}
+const rule = (selector: string, conditions: readonly string[] = []): CssRule =>
+  findRule(RULES, selector, conditions);
 
 /** A property's value in a rule (the last declaration wins, as in CSS). */
-function value(target: CssRule, property: string): string | undefined {
-  return declarations(target.body)
-    .filter(([name]) => name === property)
-    .at(-1)?.[1];
-}
+const value = declaredValue;
 
 /**
  * The canvas token at `alpha`, never a literal copy of its colour, and never color-mix(): Tailwind

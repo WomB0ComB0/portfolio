@@ -47,6 +47,7 @@ e2e/
 ├── visual/               # Visual regression tests
 │   ├── edge-haze.spec.ts
 │   ├── homepage.spec.ts
+│   ├── light-rays.spec.ts
 │   └── shell-grid.spec.ts
 ├── fixtures/             # Playwright fixtures
 │   ├── auth.setup.ts     # Auth state setup
@@ -119,6 +120,9 @@ Visual regression and responsive tests:
 - The scroll edge haze over the page column (`edge-haze.spec.ts`): placement beside the navs, the
   scroll fade, no hit-testing, the layer stack, and its forced-colours, reduced-transparency and
   reduced-motion behaviour
+- The light rays behind every page (`light-rays.spec.ts`): moving under the hidden top band at the
+  top of the page and paused under it once it shows, still at 60% of their peak under reduced
+  motion, gone in forced colours and print, and 4.5:1 for every text tier where they are brightest
 
 The screenshot tests in `homepage.spec.ts` are attach-only until baselines are committed: the
 repository has none yet, so each screenshot is attached to the test report for review and compared

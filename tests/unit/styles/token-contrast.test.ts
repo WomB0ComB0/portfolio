@@ -27,6 +27,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { LIGHT_RAYS } from '@/components/layout/light-rays';
+
 // Vitest runs from the repository root (where vitest.config.ts lives); under jsdom
 // import.meta.url is not a file: URL, so resolve from the working directory instead.
 const GLOBALS_CSS = join(process.cwd(), 'src/styles/globals.css');
@@ -291,5 +293,52 @@ describe('colour token contrast (globals.css :root)', () => {
     expect(ratio, `${tone} on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
       AA_NON_TEXT,
     );
+  });
+
+  /**
+   * The light rays (src/styles/light-rays.css) lift the bare canvas, where headings, labels and
+   * the footer sit. A reference point read from the stylesheet and the rays: the canvas under both
+   * glows at their centres and the two brightest rays crossing at full strength, unblurred
+   * (fg-faint 4.84:1), so raising a glow's or the rays' alpha, or a ray's peak, shows here. It is
+   * not a bound: up to five rays overlap at the top of a phone, so the brightest point in the
+   * build, on a page one screen tall with every ray at its peak, is a little brighter (rgb 38 32
+   * 78: fg-faint 4.63:1, brand 4.52:1). e2e/visual/light-rays.spec.ts measures that point.
+   */
+  describe('over the light rays', () => {
+    const raysCss = readFileSync(join(process.cwd(), 'src/styles/light-rays.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    );
+    const raysColour = (): LinearRgb => {
+      const match = /--light-rays:\s*rgb\((\d+) (\d+) (\d+)\)/.exec(raysCss);
+      if (!match) throw new Error('--light-rays is not an rgb() colour');
+      const channel = (value = ''): number => decode(Number(value) / 255);
+      return [channel(match[1]), channel(match[2]), channel(match[3])];
+    };
+    /** Every alpha the stylesheet lights the colour at, in order: the two glows, then a ray. */
+    const alphas = [
+      ...raysCss.matchAll(/oklch\(from var\(--light-rays\) l c h \/ ([\d.]+)%\)/g),
+    ].map(([, value]) => Number(value) / 100);
+
+    const brightest = (): LinearRgb => {
+      const [glowA = 0, glowB = 0, ray = 0] = alphas;
+      const rays = raysColour();
+      const glows = composite(rays, glowB, composite(rays, glowA, color('canvas')));
+      const peaks = LIGHT_RAYS.map(({ peak }) => peak)
+        .sort((a, b) => b - a)
+        .slice(0, 2);
+      return peaks.reduce((under, peak) => composite(rays, ray * peak, under), glows);
+    };
+
+    it('reads both glows and the ray from the stylesheet', () => {
+      expect(alphas).toHaveLength(3);
+    });
+
+    it.each(CONSOLE_TEXT)('--%s keeps 4.5:1 where the light is brightest', (text) => {
+      const ratio = contrastRatio(color(text), brightest());
+      expect(ratio, `${text} over the lit canvas is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      );
+    });
   });
 });
