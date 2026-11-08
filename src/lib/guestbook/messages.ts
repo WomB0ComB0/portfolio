@@ -17,8 +17,7 @@ import 'server-only';
  */
 
 /**
- * @file The guestbook's messages on the server, shared by the /guestbook page and the
- * /api/v1/messages GET route.
+ * @file The guestbook's messages on the server, read by the /guestbook page (the API only posts).
  *
  * - Source: the Firestore collection the guestbook has always used, read with the Firebase JS
  *   SDK's public read (no credentials), newest first.
@@ -26,8 +25,8 @@ import 'server-only';
  *   for one more than the cap, so the page can say when it shows only the newest 500 instead of
  *   silently dropping the rest (at about 500 bytes of HTML a row, 500 rows are ~250 kB before
  *   compression; raise it, with paging on the server, if the guestbook ever gets near it).
- * - Cache: one stale-on-error cache per server process (processGlobal), so the page and the API
- *   make one Firestore read per {@link GUESTBOOK_TTL_MS} on each instance. When a reload fails,
+ * - Cache: one stale-on-error cache per server process (processGlobal), so the page makes one
+ *   Firestore read per {@link GUESTBOOK_TTL_MS} on each instance. When a reload fails,
  *   the last good list is served, marked stale.
  * - Deadline: a caller waits {@link GUESTBOOK_DEADLINE_MS} for the read, then gets the last good
  *   list (stale) or, with nothing loaded yet, the error. The deadline sits outside the cache, as
@@ -35,7 +34,7 @@ import 'server-only';
  *   request. A read that never answers is given up after {@link GUESTBOOK_LOAD_TIMEOUT_MS}, so the
  *   cache can try again.
  * - `loadGuestbook` (the page) never throws: a first load that fails is the page's error state.
- *   `readGuestbookMessages` (the API) rejects then, and the route answers 500.
+ *   `readGuestbookMessages`, which it is built on, rejects then.
  * - A message posted through the API expires the cached list (expireGuestbookMessages): the next
  *   render on that instance reads Firestore again, and if that read fails the previous list is
  *   still served, marked stale. A read that started before the post is never cached as fresh.
