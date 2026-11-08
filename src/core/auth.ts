@@ -71,9 +71,19 @@ const SIGN_IN_ERRORS: Readonly<Record<string, string>> = {
     'An account already exists with this email. Sign in with the provider you used before.',
 };
 
+/** Firebase's codes for a session that has ended: the visitor must sign in again. */
+const SESSION_ENDED: ReadonlySet<string> = new Set([
+  'auth/user-token-expired',
+  'auth/user-disabled',
+  'auth/invalid-user-token',
+  'auth/user-not-found',
+]);
+
+const codeOf = (error: unknown): unknown => (error as { code?: unknown } | null)?.code;
+
 /** The sentence to show for a failed sign-in. */
 export function signInErrorMessage(error: unknown): string {
-  const code = (error as { code?: unknown } | null)?.code;
+  const code = codeOf(error);
   return (typeof code === 'string' && SIGN_IN_ERRORS[code]) || SIGN_IN_FAILED;
 }
 
@@ -160,6 +170,30 @@ export async function signOut(): Promise<void> {
   } catch (error) {
     logger.error('Sign-out error:', error);
     update({ error: SIGN_OUT_FAILED });
+  }
+}
+
+const isSessionEnded = (error: unknown): boolean => {
+  const code = codeOf(error);
+  return typeof code === 'string' && SESSION_ENDED.has(code);
+};
+
+/**
+ * The signed-in visitor's Firebase ID token, for the API to verify (a fresh one: Firebase refreshes
+ * it near expiry, or always with `forceRefresh`). Null when nobody is signed in, or when the
+ * session has ended; then the visitor is signed out here (Firebase does that itself only for some
+ * of those codes), so the card offers sign-in rather than a box that cannot post. Rejects when
+ * Firebase cannot give one for another reason (offline, say). Firebase is already loaded whenever
+ * someone is signed in, so this never loads it.
+ */
+export async function getIdToken(forceRefresh = false): Promise<string | null> {
+  if (!firebaseAuth) return null;
+  try {
+    return await firebaseAuth.currentIdToken(forceRefresh);
+  } catch (error) {
+    if (!isSessionEnded(error)) throw error;
+    await signOut();
+    return null;
   }
 }
 

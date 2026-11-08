@@ -145,20 +145,20 @@ graph TD
 
 ### v1 Endpoints (`/api/v1/*`)
 
-| Method        | Path                      | Upstream Source            | Description                                                                                                                                                |
-| :------------ | :------------------------ | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`         | `/api/v1/now-playing`     | Spotify Web API            | Current playback state, track metadata, and album art                                                                                                      |
-| `GET`         | `/api/v1/top-tracks`      | Spotify Web API            | Short-term top tracks with resilient pagination fallback                                                                                                   |
-| `GET`         | `/api/v1/top-artists`     | Spotify Web API            | Short-term top artists and genres                                                                                                                          |
-| `GET`         | `/api/v1/github-stats`    | GitHub GraphQL API         | Repositories, stars, followers, and contribution calendar                                                                                                  |
-| `GET`         | `/api/v1/github-sponsors` | GitHub GraphQL API         | Active and past GitHub Sponsors and tier metadata                                                                                                          |
-| `GET`         | `/api/v1/wakatime`        | WakaTime API               | Total coding time and language breakdown                                                                                                                   |
-| `GET`         | `/api/v1/leetcode`        | LeetCode GraphQL           | Solved problem counts by difficulty                                                                                                                        |
-| `GET`         | `/api/v1/lanyard`         | Lanyard API                | Live Discord presence and custom activities                                                                                                                |
-| `GET`         | `/api/v1/blog`            | Hashnode & Dev.to          | Merged and chronologically sorted blog articles                                                                                                            |
-| `GET`         | `/api/v1/google`          | Google Analytics / YouTube | Site pageviews and YouTube channel videos                                                                                                                  |
-| `GET`, `POST` | `/api/v1/messages`        | Firebase Admin             | Fetch and post guestbook messages                                                                                                                          |
-| `GET`         | `/api/v1/sanity/*`        | Sanity CMS                 | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
+| Method | Path                      | Upstream Source            | Description                                                                                                                                                |
+| :----- | :------------------------ | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/v1/now-playing`     | Spotify Web API            | Current playback state, track metadata, and album art                                                                                                      |
+| `GET`  | `/api/v1/top-tracks`      | Spotify Web API            | Short-term top tracks with resilient pagination fallback                                                                                                   |
+| `GET`  | `/api/v1/top-artists`     | Spotify Web API            | Short-term top artists and genres                                                                                                                          |
+| `GET`  | `/api/v1/github-stats`    | GitHub GraphQL API         | Repositories, stars, followers, and contribution calendar                                                                                                  |
+| `GET`  | `/api/v1/github-sponsors` | GitHub GraphQL API         | Active and past GitHub Sponsors and tier metadata                                                                                                          |
+| `GET`  | `/api/v1/wakatime`        | WakaTime API               | Total coding time and language breakdown                                                                                                                   |
+| `GET`  | `/api/v1/leetcode`        | LeetCode GraphQL           | Solved problem counts by difficulty                                                                                                                        |
+| `GET`  | `/api/v1/lanyard`         | Lanyard API                | Live Discord presence and custom activities                                                                                                                |
+| `GET`  | `/api/v1/blog`            | Hashnode & Dev.to          | Merged and chronologically sorted blog articles                                                                                                            |
+| `GET`  | `/api/v1/google`          | Google Analytics / YouTube | Site pageviews and YouTube channel videos                                                                                                                  |
+| `POST` | `/api/v1/messages`        | Firebase Admin             | Sign the guestbook; needs a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                    |
+| `GET`  | `/api/v1/sanity/*`        | Sanity CMS                 | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
 
 ### Rate Limits & Bans
 
@@ -175,6 +175,18 @@ Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib
 - Banned IPs and IPs inside a banned CIDR range receive `403`; clients over a limit receive `429` with `Retry-After` and `RateLimit-*` headers. Both responses are sent with `Cache-Control: no-store`.
 - Ban-list entries are sorted sets in Upstash Redis scored by their expiry time; permanent entries use a far-future score. Expired entries are ignored by the guard and deleted from every list whenever the ban API adds, removes or lists entries.
 - The ban-list read and the rate-limit counter run as one parallel Upstash round trip with a 300 ms budget. An in-process limit of 100 requests per minute per instance also applies.
+
+### Guestbook posts
+
+`POST /api/v1/messages` signs the guestbook. The `/guestbook` page lists the messages on the server, so there is no `GET`.
+
+- **Request**: `Authorization: Bearer <Firebase ID token>` (from the signed-in visitor, a guest included) and a JSON body `{ "message": "..." }` of 1 to 280 characters.
+- **Checks, in order**: the guard above (bans, then the 5-per-10-minute `guestbook` limit), the body schema (`400`), the token (`401`), then the text itself (`400` when nothing is left once markup is removed). Nothing is written until every check passes.
+- **Token**: verified with the Admin SDK's `verifyIdToken` (signature against Google's public certificates, project, issuer, expiry), without the revocation lookup. A missing, malformed, invalid or expired token gets `401` with `{ "error": "..." }` and a `WWW-Authenticate: Bearer realm="guestbook"` header; the body is the same in every case. A refused token's Firebase error code (only the code) is logged as an error. When `GCP_PROJECT_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` differ, every post gets a reported `500` instead of a silent `401`.
+- **Stored**: the checked text as plain text, the poster's `uid`, and the name their Google or GitHub sign-in carries. A guest, or a sign-in method the site does not offer, is stored as `Anonymous`. A name sent in the body is ignored. The `uid` is never returned. The name is the visitor's own Firebase profile name, which they can change, so the `uid` is what identifies a poster.
+- **In the browser**: the card sends the visitor's ID token. After a `401` it sends the post once more with a token Firebase refreshes on purpose (a `401` stores nothing); refused again, it signs the visitor out and asks them to sign in again, keeping their text.
+- **Limits of the check**: guest sign-in uses the public web config, so anyone can get a valid token; the sign-in check gives each post a `uid`, not spam resistance. The per-IP `guestbook` limit is the control against floods (while Redis is failing, the guard lets requests through and only the per-instance in-process limit applies).
+- **Firestore rules** (deployed in the Firebase console; not in this repo): the messages collection `artifacts/{appId}/public/data/message` must allow public `read` (the page loader reads it with the client SDK) and deny every client `create`, `update` and `delete`. The Admin SDK ignores rules, so the API still writes. If clients may write there, anyone can skip this API and its checks.
 
 ---
 
@@ -225,6 +237,8 @@ Validation is enforced at build and startup via [`src/env.ts`](src/env.ts) (`@t3
 | `NEXT_PUBLIC_DISCORD_ID`            | Client | Discord user ID for Lanyard presence                                                                                                                         |
 | `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | Client | Liveblocks public key                                                                                                                                        |
 | `NEXT_PUBLIC_SENTRY_DSN`            | Client | Sentry DSN for client/server error reporting                                                                                                                 |
+
+`GCP_PROJECT_ID` is also the project whose Firebase ID tokens `POST /api/v1/messages` accepts, so it must name the same Firebase project as `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. Verifying tokens needs only that project id; the other `GCP_*` values are the service account the guestbook writes with.
 
 ### Optional Integrations
 

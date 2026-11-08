@@ -126,3 +126,14 @@ export async function signInWith(method: SignInMethod): Promise<SessionUser> {
 export function signOutUser(): Promise<void> {
   return signOut(clientAuth());
 }
+
+/**
+ * The signed-in visitor's ID token, for the API to verify, or null when nobody is signed in.
+ * Firebase refreshes it first when it is about to expire, or always with `forceRefresh`. Rejects
+ * with Firebase's error; when the session has ended with auth/user-token-expired or
+ * auth/user-disabled, Firebase has signed the visitor out by then (not for the other codes).
+ */
+export function currentIdToken(forceRefresh = false): Promise<string | null> {
+  const user = clientAuth().currentUser;
+  return user ? user.getIdToken(forceRefresh) : Promise.resolve(null);
+}

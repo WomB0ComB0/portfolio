@@ -207,26 +207,11 @@ describe('API v1 Endpoints', () => {
   });
 
   describe('Messages (Guestbook) API', () => {
-    it('should fetch messages', async () => {
-      const result = await testApiEndpoint(API_ENDPOINTS.guestbook.messages);
+    // The /guestbook page lists the messages on the server; the API only takes signed-in posts.
+    it('no longer lists messages', async () => {
+      const result = await testApiEndpointRaw(API_ENDPOINTS.guestbook.messages);
 
-      console.log('📡 /api/v1/messages', {
-        status: result.status,
-        success: result.success,
-        responseTime: `${result.responseTime}ms`,
-      });
-
-      expect(result.status).toBeGreaterThanOrEqual(200);
-      expect(result.status).toBeLessThan(500);
-    }, 10000);
-
-    it('should return messages array structure', async () => {
-      const result = await testApiEndpoint(API_ENDPOINTS.guestbook.messages);
-
-      if (result.success && result.data) {
-        // Messages should be an array or object containing messages
-        expect(result.data).toBeDefined();
-      }
+      expect(result.status).toBe(404);
     }, 10000);
   });
 

@@ -32,6 +32,12 @@
  * press sends it. Errors are role=alert lines in the card; notes and success go to its role=status
  * line. Only a problem with the text marks the box invalid. Nothing uses a toast or reloads.
  *
+ * The text in the box belongs to the card, not the signed-in panel: signing out and in again (or
+ * the session ending while a post was being sent) keeps it. A post refused for its sign-in signs
+ * the visitor out (../_lib/post.ts) and says to sign in again; that line stays while they are
+ * signed out, beside the sign-in choices, and goes once they are signed in again, with their text
+ * back in the box.
+ *
  * Focus is never dropped to the page: busy buttons use aria-disabled, never disabled. When the
  * visitor signs in or out on this card, the new panel takes focus (the box, or the first choice),
  * unless they have moved focus elsewhere; a card that mounts already signed in (a client-side
@@ -183,21 +189,54 @@ function SignInPanel({
   );
 }
 
+/** Why the last post failed (network, server, rate limit, sign-in): the text itself is fine. */
+interface PostProblem {
+  readonly text: string;
+  /** The visitor has to sign in again; the card says so while they are signed out. */
+  readonly needsSignIn: boolean;
+}
+
+/** What the card keeps whether or not the visitor is signed in. */
+interface KeptDraft {
+  readonly draft: string;
+  readonly setDraft: (draft: string) => void;
+  readonly postError: PostProblem | null;
+  readonly setPostError: (problem: PostProblem | null) => void;
+}
+
+/**
+ * The box's text and the last post failure, kept by the card rather than the signed-in panel, so
+ * a sign-out (the visitor's, or Firebase's when the session has ended mid-post) loses neither.
+ * Signing in clears the failure: it said to sign in, and that is done.
+ */
+function useKeptDraft(signedIn: boolean): KeptDraft {
+  const [draft, setDraft] = useState('');
+  const [postError, setPostError] = useState<PostProblem | null>(null);
+  const [wasSignedIn, setWasSignedIn] = useState(signedIn);
+  // Adjusting state to a changed input during render (React's documented pattern for it).
+  if (wasSignedIn !== signedIn) {
+    setWasSignedIn(signedIn);
+    if (signedIn) setPostError(null);
+  }
+  return { draft, setDraft, postError, setPostError };
+}
+
+interface ComposerOptions {
+  readonly user: SessionUser;
+  readonly onPost: PostMessage;
+  readonly kept: KeptDraft;
+  readonly form: RefObject<HTMLFormElement | null>;
+  readonly field: RefObject<HTMLTextAreaElement | null>;
+}
+
 /**
  * The box's state and its submit: a draft the check would change is shown first; a post clears
  * the box (read-only while it sends), puts the exact text back if it fails, then focuses the box.
  */
-function useComposer(
-  user: SessionUser,
-  onPost: PostMessage,
-  form: RefObject<HTMLFormElement | null>,
-  field: RefObject<HTMLTextAreaElement | null>,
-) {
-  const [draft, setDraft] = useState('');
+function useComposer({ user, onPost, kept, form, field }: ComposerOptions) {
+  const { draft, setDraft, postError, setPostError } = kept;
   /** A problem with the text: drives aria-invalid. */
   const [fieldError, setFieldError] = useState<string | null>(null);
-  /** The post failed (network, server, rate limit): the text is fine. */
-  const [postError, setPostError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [sending, setSending] = useState(false);
   /** The changed text the visitor was shown, so the next press of Post sends it. */
@@ -229,8 +268,9 @@ function useComposer(
     if (outcome.ok) setStatus(POSTED);
     else {
       // The box was read-only while sending, so it is still empty: this is exactly what was sent.
+      // Both setters are the card's, so this holds even if the session ended and the form is gone.
       setDraft(typed);
-      setPostError(outcome.error);
+      setPostError({ text: outcome.error, needsSignIn: outcome.needsSignIn });
     }
     if (focusIsFree(form.current)) field.current?.focus();
   };
@@ -280,25 +320,29 @@ function SignedInAs({ user }: { readonly user: SessionUser }) {
 function ComposeForm({
   user,
   onPost,
+  kept,
   takeFocus,
 }: {
   readonly user: SessionUser;
   readonly onPost: PostMessage;
+  /** The card's text and last post failure. */
+  readonly kept: KeptDraft;
   /** The visitor just signed in on this card: the box takes focus. */
   readonly takeFocus: boolean;
 }) {
   const form = useRef<HTMLFormElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
-  const { draft, fieldError, postError, status, sending, submit, change } = useComposer(
+  const { draft, fieldError, postError, status, sending, submit, change } = useComposer({
     user,
     onPost,
+    kept,
     form,
     field,
-  );
+  });
   useEffect(() => {
     if (takeFocus && focusIsFree(form.current)) field.current?.focus();
   }, [takeFocus]);
-  const error = fieldError ?? postError;
+  const error = fieldError ?? postError?.text;
 
   return (
     <form ref={form} onSubmit={submit} noValidate className="flex flex-col gap-2">
@@ -336,7 +380,10 @@ function ComposeForm({
 export function ComposeCard({ onPost }: ComposeCardProps): ReactElement {
   const { phase, user, error } = useAuth();
   const switched = useSwitchedSinceMount(user !== null);
+  const kept = useKeptDraft(user !== null);
   const preparing = phase === 'preparing';
+  /** Signed out after a post refused for its sign-in: why, above the choices' own errors. */
+  const signInNote = !user && kept.postError?.needsSignIn ? kept.postError.text : null;
   return (
     <section
       aria-labelledby={TITLE_ID}
@@ -348,9 +395,14 @@ export function ComposeCard({ onPost }: ComposeCardProps): ReactElement {
         Sign the guestbook
       </h2>
       {user ? (
-        <ComposeForm user={user} onPost={onPost} takeFocus={switched} />
+        <ComposeForm user={user} onPost={onPost} kept={kept} takeFocus={switched} />
       ) : (
         <SignInPanel phase={phase} takeFocus={switched} />
+      )}
+      {signInNote && (
+        <p role="alert" className={ERROR_CLASS}>
+          {signInNote}
+        </p>
       )}
       {error && (
         <p role="alert" className={ERROR_CLASS}>

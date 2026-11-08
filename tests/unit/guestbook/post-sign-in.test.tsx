@@ -1,0 +1,324 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file Posting needs a sign-in the server accepts. The real auth store (src/core/auth.ts) and
+ * lazy Firebase module run here, with the Firebase SDK faked and fetch stubbed (nothing reaches
+ * Firebase or the guestbook):
+ * - every post carries the signed-in visitor's ID token, a guest's included;
+ * - when the session has ended (Firebase signs the visitor out while refreshing the token), nothing
+ *   is sent, the card offers sign-in with a line saying why, and after signing in again the text
+ *   is back in the box;
+ * - a 401 is sent once more with a token Firebase refreshes on purpose; when that is refused too,
+ *   the visitor is signed out, so the card offers sign-in with the line saying why, and signing in
+ *   again brings the text back;
+ * - a session Firebase reports as ended but leaves signed in (auth/invalid-user-token,
+ *   auth/user-not-found) is signed out too, so the card never says "sign in again" beside
+ *   "Signed in as";
+ * - an unsent draft survives a sign-out and comes back on the next sign-in on this page.
+ */
+
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+interface FakeUser {
+  readonly displayName: string | null;
+  readonly isAnonymous: boolean;
+  readonly getIdToken: (forceRefresh?: boolean) => Promise<string>;
+}
+
+const h = vi.hoisted(() => ({
+  auth: { name: 'auth', currentUser: null as FakeUser | null },
+  listener: null as ((user: FakeUser | null) => void) | null,
+  signInWithPopup: vi.fn(),
+  signInAnonymously: vi.fn(),
+  signOut: vi.fn(),
+  refresh: vi.fn(),
+  fetch: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: h.refresh }) }));
+vi.mock('firebase/app', () => ({
+  getApps: () => [],
+  initializeApp: () => ({ name: '[DEFAULT]' }),
+}));
+vi.mock('firebase/auth', () => {
+  class GoogleAuthProvider {
+    readonly providerId = 'google.com';
+    addScope(): void {}
+    setCustomParameters(): void {}
+  }
+  class GithubAuthProvider {
+    readonly providerId = 'github.com';
+    addScope(): void {}
+  }
+  return {
+    initializeAuth: () => h.auth,
+    getAuth: () => h.auth,
+    connectAuthEmulator: vi.fn(),
+    indexedDBLocalPersistence: { type: 'LOCAL' },
+    browserLocalPersistence: { type: 'LOCAL' },
+    browserPopupRedirectResolver: { resolver: true },
+    onAuthStateChanged: (_auth: unknown, listener: (user: FakeUser | null) => void) => {
+      h.listener = listener;
+      queueMicrotask(() => listener(h.auth.currentUser));
+      return () => {
+        h.listener = null;
+      };
+    },
+    signInWithPopup: h.signInWithPopup,
+    signInAnonymously: h.signInAnonymously,
+    signOut: h.signOut,
+    GoogleAuthProvider,
+    GithubAuthProvider,
+  };
+});
+vi.mock('@/config', () => ({
+  config: {
+    firebase: {
+      apiKey: 'test-key',
+      authDomain: 'test.example.com',
+      projectId: 'test-project',
+      appId: 'test-app',
+    },
+  },
+}));
+
+import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
+import { resetAuthForTests } from '@/core/auth';
+
+/** JWT-shaped, synthetic tokens. */
+const GUEST_TOKEN = 'guest-header.guest-payload.guest-signature';
+const JANE_TOKEN = 'jane-header.jane-payload.jane-signature';
+const SIGN_IN_AGAIN = /sign-in has expired.*Sign in again/;
+
+const user = (
+  displayName: string | null,
+  token: (forceRefresh?: boolean) => Promise<string>,
+): FakeUser => ({
+  displayName,
+  isAnonymous: displayName === null,
+  getIdToken: token,
+});
+
+/** Signs a user in, as Firebase does: the current user changes and listeners hear it. */
+const becomes = (next: FakeUser | null) => {
+  h.auth.currentUser = next;
+  h.listener?.(next);
+};
+
+/** A session Firebase can no longer refresh: it signs the visitor out, then rejects. */
+const endedSession = () =>
+  user('Jane Example', async () => {
+    becomes(null);
+    throw Object.assign(new Error('expired'), { code: 'auth/user-token-expired' });
+  });
+
+/** A session Firebase reports as ended (`code`) without signing the visitor out itself. */
+const unusableSession = (code: string) =>
+  user('Jane Example', async () => {
+    throw Object.assign(new Error('unusable'), { code });
+  });
+
+const answer = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+const settle = () => act(async () => {});
+const box = () => screen.getByLabelText('Your message');
+const rows = () => Array.from(document.querySelectorAll('li[data-message-row]'));
+
+const renderBoard = () =>
+  render(<GuestbookBoard knownIds={[]} listState="empty" notice={<p>No messages yet</p>} />);
+
+const signInWith = async (name: RegExp) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+  fireEvent.click(await screen.findByRole('button', { name }));
+  await settle();
+};
+
+const send = async (text: string) => {
+  fireEvent.change(box(), { target: { value: text } });
+  fireEvent.click(screen.getByRole('button', { name: 'Post message' }));
+  await settle();
+};
+
+beforeEach(() => {
+  resetAuthForTests();
+  vi.clearAllMocks();
+  h.auth.currentUser = null;
+  h.listener = null;
+  vi.stubGlobal('fetch', h.fetch);
+  h.signOut.mockImplementation(async () => becomes(null));
+  h.signInWithPopup.mockImplementation(async () => {
+    const jane = user('Jane Example', async () => JANE_TOKEN);
+    becomes(jane);
+    return { user: jane };
+  });
+  h.signInAnonymously.mockImplementation(async () => {
+    const guest = user(null, async () => GUEST_TOKEN);
+    becomes(guest);
+    return { user: guest };
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe('posting with a sign-in token', () => {
+  it("sends a guest's ID token, and only the text", async () => {
+    h.fetch.mockResolvedValueOnce(
+      answer(201, {
+        id: 'new-1',
+        authorName: 'Anonymous',
+        message: 'Hello from a guest',
+        createdAt: '2026-11-07T18:00:00.000Z',
+      }),
+    );
+    renderBoard();
+    await signInWith(/guest/);
+    expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+
+    await send('Hello from a guest');
+
+    const [url, init] = h.fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/v1/messages');
+    expect(new Headers(init.headers).get('authorization')).toBe(`Bearer ${GUEST_TOKEN}`);
+    expect(JSON.parse(String(init.body))).toEqual({ message: 'Hello from a guest' });
+    expect(screen.getByRole('status')).toHaveTextContent('Posted.');
+  });
+
+  it("sends a provider user's ID token", async () => {
+    h.fetch.mockResolvedValueOnce(answer(500, { error: 'boom' }));
+    renderBoard();
+    await signInWith(/Google/);
+
+    await send('Hello');
+
+    const [, init] = h.fetch.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get('authorization')).toBe(`Bearer ${JANE_TOKEN}`);
+  });
+});
+
+describe('a sign-in the server no longer accepts', () => {
+  it('sends nothing when the session has ended, offers sign-in, and keeps the text for it', async () => {
+    h.auth.currentUser = endedSession();
+    renderBoard();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByLabelText('Your message');
+
+    await send('Still here?');
+
+    expect(h.fetch).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(0);
+    expect(screen.queryByLabelText('Your message')).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await settle();
+
+    expect(box()).toHaveValue('Still here?');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('posts with a token refreshed on purpose when the first is refused', async () => {
+    const forced: boolean[] = [];
+    h.signInWithPopup.mockImplementationOnce(async () => {
+      const jane = user('Jane Example', async (forceRefresh) => {
+        forced.push(forceRefresh === true);
+        return forceRefresh ? 'fresh-h.fresh-p.fresh-s' : JANE_TOKEN;
+      });
+      becomes(jane);
+      return { user: jane };
+    });
+    h.fetch.mockResolvedValueOnce(answer(401, { error: 'Sign in to post a message.' }));
+    h.fetch.mockResolvedValueOnce(
+      answer(201, {
+        id: 'new-1',
+        authorName: 'Jane Example',
+        message: 'Hello again',
+        createdAt: '2026-11-07T18:00:00.000Z',
+      }),
+    );
+    renderBoard();
+    await signInWith(/Google/);
+
+    await send('Hello again');
+
+    expect(forced).toEqual([false, true]);
+    const [, retry] = h.fetch.mock.calls[1] as [string, RequestInit];
+    expect(new Headers(retry.headers).get('authorization')).toBe('Bearer fresh-h.fresh-p.fresh-s');
+    expect(screen.getByRole('status')).toHaveTextContent('Posted.');
+    expect(screen.getByText(/Signed in as Jane Example/)).toBeInTheDocument();
+  });
+
+  it('signs out after a second 401, offers sign-in with the line, and keeps the text for it', async () => {
+    h.fetch
+      .mockResolvedValueOnce(answer(401, { error: 'Sign in to post a message.' }))
+      .mockResolvedValueOnce(answer(401, { error: 'Sign in to post a message.' }));
+    renderBoard();
+    await signInWith(/Google/);
+
+    await send('Hello again');
+
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+    expect(h.signOut).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText('Your message')).toBeNull();
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await settle();
+    expect(box()).toHaveValue('Hello again');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it.each(['auth/invalid-user-token', 'auth/user-not-found'])(
+    'signs out a session Firebase reports as %s, sends nothing and offers sign-in',
+    async (code) => {
+      h.auth.currentUser = unusableSession(code);
+      renderBoard();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      await screen.findByLabelText('Your message');
+
+      await send('Still here?');
+
+      expect(h.fetch).not.toHaveBeenCalled();
+      expect(h.signOut).toHaveBeenCalledTimes(1);
+      expect(screen.queryByLabelText('Your message')).toBeNull();
+      expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+      await settle();
+      expect(box()).toHaveValue('Still here?');
+    },
+  );
+
+  it('keeps an unsent draft through a sign-out, without an alert', async () => {
+    renderBoard();
+    await signInWith(/Google/);
+    fireEvent.change(box(), { target: { value: 'Half a thought' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await settle();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue as guest' }));
+    await settle();
+    expect(box()).toHaveValue('Half a thought');
+  });
+});

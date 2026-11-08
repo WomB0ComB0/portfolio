@@ -15,14 +15,16 @@
  */
 
 /**
- * @file The guestbook's server loader and the messages API share one stale-on-error cache per
- * process. The page renders every message (up to a 500 safety cap, which it says when it hits),
- * never throws (a failed first load is the page's error state), and serves the last good list,
- * marked stale, when a reload fails or runs past its deadline; a read that ends after the
- * deadline still fills the cache. A message written through the API is checked on the server
- * (validateUserInput, the 280 and 80 character limits), stored as plain text (never HTML-escaped,
- * marked plainText) and the cached list is expired, not dropped: the next render reads again, and
- * if that read fails the previous list is still served, marked stale. Author names stored before
+ * @file The guestbook's server loader keeps one stale-on-error cache per process, which a post
+ * through the API expires. The page renders every message (up to a 500 safety cap, which it says
+ * when it hits), never throws (a failed first load is the page's error state), and serves the last
+ * good list, marked stale, when a reload fails or runs past its deadline; a read that ends after
+ * the deadline still fills the cache. A message written through the API is checked on the server
+ * (validateUserInput, the 280 character limit), stored as plain text (never HTML-escaped, marked
+ * plainText) with the verified poster's name and uid, and the cached list is expired, not
+ * dropped: the next render reads again, and if that read fails the previous list is still served,
+ * marked stale. Who may post, and the name they post under, is the route's test
+ * (messages-route.test.ts). Author names stored before
  * plain text (no marker) have the five basic entities decoded when read; message bodies and
  * plain-text records are never decoded.
  *
@@ -54,11 +56,8 @@ vi.mock('@/core/firebase-admin', () => ({ adminDb: { collection: h.adminCollecti
 vi.mock('@/config', () => ({ config: { firebase: { appId: 'test-app' } } }));
 vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.report }));
 
-import {
-  createMessage,
-  fetchMessages,
-  InvalidMessageError,
-} from '@/app/api/v1/[[...route]]/messages/handlers';
+import { createMessage, InvalidMessageError } from '@/app/api/v1/[[...route]]/messages/handlers';
+import type { Poster } from '@/app/api/v1/[[...route]]/messages/poster';
 import { AUTHOR_MAX_LENGTH, MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
 import {
   expireGuestbookMessages,
@@ -88,6 +87,9 @@ const doc = (index: number, fields: Record<string, unknown> = {}): FakeDoc => ({
 });
 
 const docs = (count: number): FakeDoc[] => Array.from({ length: count }, (_, i) => doc(i));
+
+/** A verified poster (synthetic): what the route passes to createMessage. */
+const POSTER: Poster = { uid: 'uid-ada', authorName: "D'Angelo & Co" };
 const snapshot = (list: FakeDoc[]) => ({ docs: list, size: list.length });
 
 /** A Firestore read that answers when the test says so. */
@@ -294,24 +296,24 @@ describe('loadGuestbook', () => {
   });
 });
 
-describe('the messages API shares the cache', () => {
-  it('reads once for the API and the page within the TTL', async () => {
+describe('a post through the API and the shared cache', () => {
+  it('reads once within the TTL, however many reads ask', async () => {
     h.getDocs.mockResolvedValueOnce(snapshot(docs(2)));
 
-    const api = await fetchMessages();
+    const first = await readGuestbookMessages();
     const page = await loadGuestbook();
 
     expect(h.getDocs).toHaveBeenCalledTimes(1);
-    expect(api.json.map((m) => m.id)).toEqual(page.messages.map((m) => m.id));
+    expect(first.data.messages.map((m) => m.id)).toEqual(page.messages.map((m) => m.id));
     expect((await readGuestbookMessages()).stale).toBe(false);
   });
 
-  it('stores a posted message as plain text, then expires the cached list', async () => {
+  it("stores a posted message as plain text with the poster's uid, then expires the cached list", async () => {
     h.getDocs.mockResolvedValue(snapshot(docs(1)));
     h.add.mockResolvedValueOnce({ id: 'new-doc' });
     await loadGuestbook();
 
-    const saved = await createMessage({ authorName: "D'Angelo & Co", message: "It's me & you" });
+    const saved = await createMessage({ message: "It's me & you" }, POSTER);
 
     expect(h.adminCollection).toHaveBeenCalledWith('artifacts/test-app/public/data/message');
     expect(h.add).toHaveBeenCalledWith({
@@ -319,6 +321,7 @@ describe('the messages API shares the cache', () => {
       message: "It's me & you",
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       plainText: true,
+      uid: 'uid-ada',
     });
     expect(saved).toEqual({
       id: 'new-doc',
@@ -334,24 +337,12 @@ describe('the messages API shares the cache', () => {
   it('checks the text on the server: tags and script schemes go, whitespace collapses', async () => {
     h.add.mockResolvedValueOnce({ id: 'new-doc' });
 
-    await createMessage({
-      authorName: '  <b>Ada</b>  ',
-      message: '  Hi <script>x</script>   there javascript:alert(1) ',
-    });
-
-    expect(h.add).toHaveBeenCalledWith(
-      expect.objectContaining({ authorName: 'Ada', message: 'Hi x there alert(1)' }),
+    await createMessage(
+      { message: '  Hi <script>x</script>   there javascript:alert(1) ' },
+      POSTER,
     );
-  });
 
-  it('stores an author name that is empty once checked as Anonymous, clipped to 80', async () => {
-    h.add.mockResolvedValue({ id: 'new-doc' });
-
-    await createMessage({ authorName: '<i></i>', message: 'Hello' });
-    await createMessage({ authorName: 'a'.repeat(120), message: 'Hello' });
-
-    expect(h.add.mock.calls[0]?.[0]).toMatchObject({ authorName: 'Anonymous' });
-    expect(h.add.mock.calls[1]?.[0]).toMatchObject({ authorName: 'a'.repeat(AUTHOR_MAX_LENGTH) });
+    expect(h.add).toHaveBeenCalledWith(expect.objectContaining({ message: 'Hi x there alert(1)' }));
   });
 
   it.each([
@@ -362,9 +353,7 @@ describe('the messages API shares the cache', () => {
     h.getDocs.mockResolvedValue(snapshot(docs(1)));
     await loadGuestbook();
 
-    await expect(createMessage({ authorName: 'Ada', message })).rejects.toBeInstanceOf(
-      InvalidMessageError,
-    );
+    await expect(createMessage({ message }, POSTER)).rejects.toBeInstanceOf(InvalidMessageError);
 
     expect(h.add).not.toHaveBeenCalled();
     await loadGuestbook();
@@ -376,7 +365,7 @@ describe('the messages API shares the cache', () => {
     h.add.mockResolvedValueOnce({ id: 'new-doc' });
     await loadGuestbook();
 
-    await createMessage({ authorName: 'Ada', message: 'Hello' });
+    await createMessage({ message: 'Hello' }, POSTER);
     h.getDocs.mockRejectedValueOnce(new Error('firestore down'));
     const load = await loadGuestbook();
 
@@ -391,7 +380,7 @@ describe('the messages API shares the cache', () => {
     const before = readGuestbookMessages();
     await flush();
 
-    await createMessage({ authorName: 'Ada', message: 'Hello' });
+    await createMessage({ message: 'Hello' }, POSTER);
     const after = readGuestbookMessages();
     await flush();
     answerAfter(snapshot([doc(9, { message: 'after the post' }), doc(1)]));
