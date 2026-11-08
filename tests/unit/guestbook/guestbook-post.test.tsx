@@ -33,7 +33,8 @@
  *   takes the name from the sign-in), with the visitor's Firebase ID token as a bearer token;
  * - a 401 stores nothing, so the post is sent once more with a token Firebase refreshes on
  *   purpose (a skewed clock can make the cached one look expired to the server); when that is
- *   refused too, the visitor is signed out, so the card offers sign-in as its message says;
+ *   refused too, the visitor is signed out, so the card offers sign-in as its message says (a
+ *   sign-out that never finishes is waited for only as long as the post, then the 401 is answered);
  * - when the sign-in is not accepted (401 twice, or there is no token to send) nothing is posted,
  *   the text is kept in the box and the card says to sign in again; when the token cannot be
  *   fetched (offline), nothing is sent and the card says it wasn't posted;
@@ -77,11 +78,13 @@ import { MessageRow } from '@/app/(routes)/(main)/(personal)/guestbook/_componen
 import { LIST_RECHECK_MS } from '@/app/(routes)/(main)/(personal)/guestbook/_components/use-posted-messages';
 import {
   isOutcomeUnknown,
+  POST_TIMEOUT_MS,
   PostFailedError,
   PostNotSentError,
 } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/post';
 import { GUESTBOOK_TTL_MS } from '@/lib/guestbook/limits';
 import type { GuestbookMessage } from '@/lib/guestbook/types';
+import { logger } from '@/utils/logging';
 
 /** JWT-shaped, synthetic: what the mocked auth store hands the post. */
 const TOKEN = 'test-header.test-payload.test-signature';
@@ -149,6 +152,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -502,6 +507,33 @@ describe('when the sign-in is not accepted', () => {
     expect(box()).not.toHaveAttribute('aria-invalid');
     // Refused, so nothing was stored: no list refresh now or later.
     expect(h.refresh).not.toHaveBeenCalled();
+  });
+
+  it('answers a twice-refused post even when signing out never finishes', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    h.signOut.mockImplementationOnce(() => new Promise<void>(() => {}));
+    h.fetch.mockResolvedValueOnce(answer(401, REFUSED)).mockResolvedValueOnce(answer(401, REFUSED));
+    render(board([EXISTING]));
+
+    send("It's me & you");
+    await tokenFetched();
+    await tokenFetched();
+    expect(h.signOut).toHaveBeenCalledTimes(1);
+    expect(box()).toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Posting…' })).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(POST_TIMEOUT_MS);
+    });
+
+    expect(rows()).toHaveLength(1);
+    expect(box()).toHaveValue("It's me & you");
+    expect(box()).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Post message' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+    expect(h.refresh).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('sends nothing more after a 401 when there is no fresh token, and says to sign in again', async () => {

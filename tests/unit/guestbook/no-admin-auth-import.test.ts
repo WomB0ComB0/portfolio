@@ -26,7 +26,8 @@
  * - No source file may name firebase-admin/auth (import, require or dynamic import): tokens are
  *   verified with jose (src/core/firebase-id-token.ts).
  * - jose must be bundled into the route, not left to a runtime require: it must not be in Next's
- *   built-in list of external server packages, nor in this app's serverExternalPackages.
+ *   built-in list of external server packages, nor in this app's serverExternalPackages (which,
+ *   when set, must be an inline list of package names so this check can read it).
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -57,6 +58,23 @@ const sourceFiles = (): readonly string[] => [
 
 const readSource = (file: string): string => readFileSync(join(ROOT, file), 'utf8');
 
+/** serverExternalPackages written as an inline list; its elements are captured. */
+const EXTERNALS_LITERAL = /serverExternalPackages\s*:\s*\[([^\]]*)\]/;
+/** Nothing but quoted package names, comma-separated (a trailing comma allowed). */
+const ONLY_PACKAGE_NAMES = /^\s*(?:(['"])[^'"]+\1\s*(?:,\s*)?)*$/;
+const JOSE = /['"]jose['"]/;
+
+/**
+ * Whether next.config.ts leaves jose bundled: it sets no serverExternalPackages, or sets an inline
+ * list of package names without jose. Anything a text check cannot read (a variable, a spread, a
+ * shorthand property) fails, so jose cannot hide behind it.
+ */
+const externalsKeepJoseBundled = (config: string): boolean => {
+  if (!config.includes('serverExternalPackages')) return true;
+  const elements = EXTERNALS_LITERAL.exec(config)?.[1];
+  return elements !== undefined && ONLY_PACKAGE_NAMES.test(elements) && !JOSE.test(elements);
+};
+
 describe('firebase-admin/auth stays out of the app', () => {
   it('is not imported, required or dynamically imported by any source file', () => {
     const offenders = sourceFiles().filter((file) => ADMIN_AUTH_SPECIFIER.test(readSource(file)));
@@ -83,9 +101,40 @@ describe('jose is bundled, not loaded at runtime', () => {
   });
 
   it("is not in this app's serverExternalPackages", () => {
-    const config = readSource('next.config.ts');
-    const externals = /serverExternalPackages\s*:\s*\[([^\]]*)\]/.exec(config)?.[1] ?? '';
+    expect(
+      externalsKeepJoseBundled(readSource('next.config.ts')),
+      'serverExternalPackages must be an inline list of package names, without jose',
+    ).toBe(true);
+  });
 
-    expect(externals).not.toMatch(/['"]jose['"]/);
+  it.each([
+    ['no serverExternalPackages', 'const nextConfig = { reactStrictMode: true };', true],
+    [
+      'an inline list without jose',
+      "const nextConfig = { serverExternalPackages: ['sharp'] };",
+      true,
+    ],
+    [
+      'an inline list with jose',
+      "const nextConfig = { serverExternalPackages: ['sharp', 'jose'] };",
+      false,
+    ],
+    [
+      'a list from a variable',
+      "const EXT = ['jose'];\nconst nextConfig = { serverExternalPackages: EXT };",
+      false,
+    ],
+    [
+      'a spread list',
+      "const EXT = ['jose'];\nconst nextConfig = { serverExternalPackages: [...EXT] };",
+      false,
+    ],
+    [
+      'a shorthand property',
+      "const serverExternalPackages = ['jose'];\nconst nextConfig = { serverExternalPackages };",
+      false,
+    ],
+  ])('passes only a list it can read (the guard itself works): %s', (_case, config, passes) => {
+    expect(externalsKeepJoseBundled(config)).toBe(passes);
   });
 });

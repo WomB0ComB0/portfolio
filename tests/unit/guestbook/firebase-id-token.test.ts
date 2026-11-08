@@ -284,10 +284,25 @@ describe("createGoogleIdTokenKeys: Google's key set over HTTP (a fake fetch)", (
     await expect(verify(await signer.sign())).rejects.toBeInstanceOf(Error);
   });
 
-  it('reports a timeout as jose does (ERR_JWKS_TIMEOUT)', async () => {
-    const verify = verifierOver(createGoogleIdTokenKeys(timingOut()));
+  it('gives up on a stalled fetch after five seconds, as jose reports it (ERR_JWKS_TIMEOUT)', async () => {
+    // jose aborts the fetch with AbortSignal.timeout, which fake timers do not drive: record the
+    // deadline it asks for, and hand it a real signal that fires at once.
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+    const deadline = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => realTimeout(1));
+    const stalled = vi.fn<FetchImplementation>().mockImplementation(
+      (_url, { signal }) =>
+        new Promise<Response>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        }),
+    );
+    try {
+      const verify = verifierOver(createGoogleIdTokenKeys(stalled));
 
-    await expect(verify(await signer.sign())).rejects.toMatchObject({ code: 'ERR_JWKS_TIMEOUT' });
+      await expect(verify(await signer.sign())).rejects.toMatchObject({ code: 'ERR_JWKS_TIMEOUT' });
+      expect(deadline).toHaveBeenCalledExactlyOnceWith(5_000);
+    } finally {
+      deadline.mockRestore();
+    }
   });
 });
 

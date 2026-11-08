@@ -54,6 +54,8 @@ interface FakeRef {
 }
 
 const h = vi.hoisted(() => ({
+  /** Counts the write batches a post allocates (every one is the same fake). */
+  allocateBatch: vi.fn(),
   create: vi.fn(),
   commit: vi.fn(),
   report: vi.fn(),
@@ -83,7 +85,10 @@ vi.mock('@/core/firebase-admin', () => {
       collection: (path: string) => ({
         doc: (id = 'new-doc'): FakeRef => ({ id, path: `${path}/${id}` }),
       }),
-      batch: () => batch,
+      batch: () => {
+        h.allocateBatch();
+        return batch;
+      },
     },
   };
 });
@@ -399,6 +404,7 @@ describe('POST /messages: what is stored', () => {
       { uid: 'uid-ada', createdAt },
     );
     // Both in the one batch: they land together or not at all.
+    expect(h.allocateBatch).toHaveBeenCalledTimes(1);
     expect(h.create).toHaveBeenCalledTimes(2);
     expect(h.commit).toHaveBeenCalledTimes(1);
   });

@@ -23,11 +23,12 @@
  * verifies; the body is only the text, since the API takes the name from the sign-in. A 401 means
  * the API stored nothing, so the post is sent once more with a token Firebase refreshes on purpose
  * (the cached one can look expired to the server when this device's clock is behind). Refused
- * again, the session is no use for posting: the visitor is signed out, so the card offers sign-in.
+ * again, the session is no use for posting: the visitor is signed out, so the card offers sign-in
+ * (a sign-out that stalls is waited for no longer than the post, and the 401 is answered anyway).
  * The retry and the sign-out are only for the session that sent the post: if the visitor signed
- * out, or someone else signed in (on this card or in another tab), before a 401 came back, the post
- * is not resent with another session's token and nobody is signed out; it fails as a
- * PostNotSentError, since nothing was stored.
+ * out, or someone else signed in (on this card or in another tab), before a 401 came back or while
+ * the retry's token was being refreshed, the post is not resent and nobody is signed out; it fails
+ * as a PostNotSentError, since nothing was stored.
  * When there is no token to send (nobody signed in, or the session has ended) or Firebase cannot
  * give one (offline), nothing is sent: a PostNotSentError. The answer is checked before it is shown;
  * anything but a message counts as a failure, and an answer that is not 2xx rejects with a
@@ -39,9 +40,13 @@
 import { currentSession, getIdToken, type SessionHandle, signOut } from '@/core/auth';
 import { withDeadline } from '@/lib/async/deadline';
 import type { GuestbookMessage } from '@/lib/guestbook/types';
+import { logger } from '@/utils/logging';
 
 const ENDPOINT = '/api/v1/messages';
-/** How long the API may take before the post counts as failed (getting the token has as long). */
+/**
+ * How long the API may take before the post counts as failed (getting the token, and the sign-out
+ * after a second refusal, have as long).
+ */
 export const POST_TIMEOUT_MS = 10_000;
 const HTTP_UNAUTHORIZED = 401;
 
@@ -133,9 +138,8 @@ async function signInToken(forceRefresh: boolean): Promise<string> {
   return token;
 }
 
-/** Sends `draft` once with a fresh token (refreshed first with `forceRefresh`). */
-async function send(draft: GuestbookDraft, forceRefresh: boolean): Promise<Response> {
-  const token = await signInToken(forceRefresh);
+/** Sends `draft` once with `token`. */
+function send(draft: GuestbookDraft, token: string): Promise<Response> {
   return fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
@@ -155,19 +159,27 @@ function stillSignedInAs(session: SessionHandle | null): void {
 
 /**
  * Sends `draft`, and once more with a token refreshed on purpose if the API refused the first
- * (a 401 stores nothing). A second 401 signs the visitor out before it is answered. Both only
- * while the session that sent it is still the one signed in.
+ * (a 401 stores nothing). A second 401 signs the visitor out, waiting at most POST_TIMEOUT_MS,
+ * before it is answered. Both only while the session that sent it is still the one signed in.
  */
 async function sendSignedIn(draft: GuestbookDraft): Promise<Response> {
-  // Taken in the same tick as send() asks that session for its token.
+  // Taken in the same tick as signInToken() asks that session for its token.
   const session = currentSession();
-  const first = await send(draft, false);
+  const first = await send(draft, await signInToken(false));
   if (first.status !== HTTP_UNAUTHORIZED) return first;
   stillSignedInAs(session);
-  const second = await send(draft, true);
+  const fresh = await signInToken(true);
+  // The refresh is a round trip: the visitor may have signed out, or someone else in, meanwhile.
+  stillSignedInAs(session);
+  const second = await send(draft, fresh);
   if (second.status !== HTTP_UNAUTHORIZED) return second;
   stillSignedInAs(session);
-  await signOut();
+  try {
+    // Bounded like every other step, so a stalled sign-out cannot leave the post unanswered.
+    await withDeadline(signOut(), POST_TIMEOUT_MS, 'guestbook sign-out');
+  } catch (error) {
+    logger.warn('Guestbook sign-out after a refused post did not finish in time', { error });
+  }
   return second;
 }
 
