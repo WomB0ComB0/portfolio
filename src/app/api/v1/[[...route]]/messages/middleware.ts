@@ -18,9 +18,5 @@ import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared
 
 export const cacheHeaders = createCacheHeaders('JsonOnly');
 
-export function errorHandler(error: unknown, operation: 'fetch' | 'add' = 'fetch') {
-  const handler = createErrorHandler({
-    context: operation === 'fetch' ? 'fetching messages' : 'adding message',
-  });
-  return handler(error);
-}
+/** Logs and reports a failed post (the context keeps the Sentry grouping it always had). */
+export const errorHandler = createErrorHandler({ context: 'adding message' });

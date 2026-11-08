@@ -29,7 +29,14 @@
  *   visitor to wait for before posting again;
  * - focus never drops to the page: Post stays focusable while it sends (aria-disabled, never
  *   disabled), and afterwards focus is in the box, unless the visitor moved it elsewhere;
- * - text and author go to the API exactly as typed: never HTML-escaped, and no email;
+ * - the text goes to the API exactly as typed (never HTML-escaped, no email, no author: the server
+ *   takes the name from the sign-in), with the visitor's Firebase ID token as a bearer token;
+ * - a 401 stores nothing, so the post is sent once more with a token Firebase refreshes on
+ *   purpose (a skewed clock can make the cached one look expired to the server); when that is
+ *   refused too, the visitor is signed out, so the card offers sign-in as its message says;
+ * - when the sign-in is not accepted (401 twice, or there is no token to send) nothing is posted,
+ *   the text is kept in the box and the card says to sign in again; when the token cannot be
+ *   fetched (offline), nothing is sent and the card says it wasn't posted;
  * - a draft that is empty, too long or only tags is explained and never sent; nothing cuts a
  *   long draft silently (no maxLength), and the counter turns red past 280;
  * - when the check would remove markup or a script prefix, the visitor sees what will be posted
@@ -40,7 +47,14 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ refresh: vi.fn(), fetch: vi.fn() }));
+const h = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  fetch: vi.fn(),
+  getIdToken: vi.fn(),
+  signOut: vi.fn(),
+  /** Ada's one sign-in, the same for every post here. */
+  session: { kind: 'synthetic-session' },
+}));
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: h.refresh }) }));
 vi.mock('@/core/auth', () => ({
@@ -53,6 +67,9 @@ vi.mock('@/core/auth', () => ({
   useSignIn: () => [vi.fn(), false],
   useSignOut: () => [vi.fn(), false],
   prepareSignIn: vi.fn(),
+  getIdToken: h.getIdToken,
+  signOut: h.signOut,
+  currentSession: () => h.session,
 }));
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
@@ -61,9 +78,13 @@ import { LIST_RECHECK_MS } from '@/app/(routes)/(main)/(personal)/guestbook/_com
 import {
   isOutcomeUnknown,
   PostFailedError,
+  PostNotSentError,
 } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/post';
 import { GUESTBOOK_TTL_MS } from '@/lib/guestbook/limits';
 import type { GuestbookMessage } from '@/lib/guestbook/types';
+
+/** JWT-shaped, synthetic: what the mocked auth store hands the post. */
+const TOKEN = 'test-header.test-payload.test-signature';
 
 const EXISTING: GuestbookMessage = {
   id: 'm1',
@@ -101,7 +122,10 @@ const send = (text: string) => {
 const answer = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-/** A fetch that settles when the test says so. */
+/** Lets the post get its token and reach fetch. */
+const tokenFetched = () => act(async () => {});
+
+/** A fetch that settles when the test says so (once the post has reached it). */
 function deferredFetch() {
   let settle: (response: Response | Error) => void = () => {};
   h.fetch.mockImplementationOnce(
@@ -110,12 +134,17 @@ function deferredFetch() {
         settle = (value) => (value instanceof Error ? reject(value) : resolve(value));
       }),
   );
-  return (value: Response | Error) => act(async () => settle(value));
+  return async (value: Response | Error) => {
+    await tokenFetched();
+    await act(async () => settle(value));
+  };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', h.fetch);
+  h.getIdToken.mockResolvedValue(TOKEN);
+  h.signOut.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -137,13 +166,12 @@ describe('posting a guestbook message', () => {
     expect(first).toHaveTextContent('Posting…');
     expect(box()).toHaveValue('');
 
+    await tokenFetched();
     const [url, init] = h.fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/v1/messages');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(String(init.body))).toEqual({
-      authorName: "Ada O'Brien",
-      message: "It's me & you",
-    });
+    expect(new Headers(init.headers).get('authorization')).toBe(`Bearer ${TOKEN}`);
+    expect(JSON.parse(String(init.body))).toEqual({ message: "It's me & you" });
 
     await settle(answer(201, SAVED));
 
@@ -431,11 +459,132 @@ describe('checking the list again after a post that could not be confirmed', () 
   });
 });
 
+describe('when the sign-in is not accepted', () => {
+  const SIGN_IN_AGAIN = /sign-in has expired.*Sign in again/;
+
+  const REFUSED = { error: 'Sign in to post a message.' };
+  const bearerOf = (call: number) =>
+    new Headers((h.fetch.mock.calls[call] as [string, RequestInit])[1].headers).get(
+      'authorization',
+    );
+
+  it('sends a 401 once more with a token Firebase refreshes on purpose, and posts it then', async () => {
+    h.getIdToken.mockResolvedValueOnce(TOKEN).mockResolvedValueOnce('fresh-h.fresh-p.fresh-s');
+    h.fetch.mockResolvedValueOnce(answer(401, REFUSED)).mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+
+    send("It's me & you");
+    await tokenFetched();
+    await tokenFetched();
+
+    expect(h.getIdToken.mock.calls).toEqual([[false], [true]]);
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+    expect(bearerOf(0)).toBe(`Bearer ${TOKEN}`);
+    expect(bearerOf(1)).toBe('Bearer fresh-h.fresh-p.fresh-s');
+    expect(screen.getByRole('status')).toHaveTextContent('Posted.');
+    expect(h.signOut).not.toHaveBeenCalled();
+  });
+
+  it('after a second 401, signs out, rolls back, keeps the text and says to sign in again', async () => {
+    h.fetch.mockResolvedValueOnce(answer(401, REFUSED)).mockResolvedValueOnce(answer(401, REFUSED));
+    render(board([EXISTING]));
+
+    send("It's me & you");
+    await tokenFetched();
+    await tokenFetched();
+
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+    expect(h.signOut).toHaveBeenCalledTimes(1);
+    expect(rows()).toHaveLength(1);
+    expect(box()).toHaveValue("It's me & you");
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+    expect(screen.getByRole('alert')).toHaveTextContent('your message is kept');
+    expect(box()).not.toHaveAttribute('aria-invalid');
+    // Refused, so nothing was stored: no list refresh now or later.
+    expect(h.refresh).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing more after a 401 when there is no fresh token, and says to sign in again', async () => {
+    h.getIdToken.mockResolvedValueOnce(TOKEN).mockResolvedValueOnce(null);
+    h.fetch.mockResolvedValueOnce(answer(401, REFUSED));
+    render(board([EXISTING]));
+
+    send('Hello there');
+    await tokenFetched();
+    await tokenFetched();
+
+    expect(h.fetch).toHaveBeenCalledTimes(1);
+    expect(box()).toHaveValue('Hello there');
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+    expect(h.refresh).not.toHaveBeenCalled();
+  });
+
+  it('never sends anything but a 401 twice', async () => {
+    h.fetch.mockResolvedValueOnce(answer(400, { error: 'Empty.' }));
+    render(board([EXISTING]));
+
+    send('Hello there');
+    await tokenFetched();
+
+    expect(h.fetch).toHaveBeenCalledTimes(1);
+    expect(h.getIdToken).toHaveBeenCalledTimes(1);
+    expect(h.signOut).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when there is no token, and says to sign in again', async () => {
+    h.getIdToken.mockResolvedValueOnce(null);
+    render(board([EXISTING]));
+
+    send('Hello there');
+    await tokenFetched();
+
+    expect(h.fetch).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(1);
+    expect(box()).toHaveValue('Hello there');
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+    expect(h.refresh).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when the token can't be fetched, and says it wasn't posted", async () => {
+    h.getIdToken.mockRejectedValueOnce(
+      Object.assign(new Error('offline'), { code: 'auth/network-request-failed' }),
+    );
+    render(board([EXISTING]));
+
+    send('Hello there');
+    await tokenFetched();
+
+    expect(h.fetch).not.toHaveBeenCalled();
+    expect(box()).toHaveValue('Hello there');
+    expect(screen.getByRole('alert')).toHaveTextContent("Your message wasn't posted");
+    expect(screen.getByRole('alert')).not.toHaveTextContent(SIGN_IN_AGAIN);
+    expect(h.refresh).not.toHaveBeenCalled();
+  });
+
+  it('asks for a fresh token for every post', async () => {
+    h.fetch
+      .mockResolvedValueOnce(answer(201, SAVED))
+      .mockResolvedValueOnce(answer(201, { ...SAVED, id: 'new-2', message: 'Again' }));
+    render(board([EXISTING]));
+
+    send("It's me & you");
+    await tokenFetched();
+    send('Again');
+    await tokenFetched();
+
+    expect(h.getIdToken).toHaveBeenCalledTimes(2);
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('isOutcomeUnknown', () => {
   it.each([
     ['a 400 (invalid text)', false, new PostFailedError(400)],
     ['a 422 (bad body)', false, new PostFailedError(422)],
     ['a 429 (rate limited)', false, new PostFailedError(429)],
+    ['a 401 (sign-in refused)', false, new PostFailedError(401)],
+    ['no token to send (signed out)', false, new PostNotSentError(true)],
+    ['a token that could not be fetched', false, new PostNotSentError(false)],
     ['a 500', true, new PostFailedError(500)],
     ['a 503', true, new PostFailedError(503)],
     ['a network error', true, new TypeError('Failed to fetch')],
