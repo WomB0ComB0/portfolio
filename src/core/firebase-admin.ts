@@ -22,6 +22,7 @@ import {
   initializeApp,
   type ServiceAccount,
 } from 'firebase-admin/app';
+import { type Auth, getAuth } from 'firebase-admin/auth';
 import { type Firestore, getFirestore } from 'firebase-admin/firestore';
 import { env } from '@/env';
 
@@ -41,16 +42,11 @@ export function getServiceAccount() {
   } as const;
 }
 
+let cachedApp: App | null = null;
 let cachedDb: Firestore | null = null;
 
-export function getAdminFirestore(): Firestore {
-  if (cachedDb) return cachedDb;
-
-  if (getApps().length > 0) {
-    cachedDb = getFirestore(getApp());
-    return cachedDb;
-  }
-
+/** The Admin app, with the service account when its key is a real one, else the project id alone. */
+function initializeAdminApp(): App {
   const raw = getServiceAccount();
   const { project_id: projectId, client_email: clientEmail, private_key: privateKeyEscaped } = raw;
 
@@ -61,12 +57,52 @@ export function getAdminFirestore(): Firestore {
     formattedKey.includes('-----BEGIN RSA PRIVATE KEY-----');
 
   const serviceAccount: ServiceAccount = { projectId, clientEmail, privateKey: formattedKey };
-  const app: App = isValidPrivateKey
+  return isValidPrivateKey
     ? initializeApp({ credential: cert(serviceAccount), projectId })
     : initializeApp({ projectId });
+}
 
-  cachedDb = getFirestore(app);
+/**
+ * The server's one Firebase Admin app (GCP_PROJECT_ID, plus the GCP_* service account when its key
+ * is set), shared by Firestore and Auth; an app that already exists is reused.
+ */
+export function getAdminApp(): App {
+  cachedApp ??= getApps().length > 0 ? getApp() : initializeAdminApp();
+  return cachedApp;
+}
+
+export function getAdminFirestore(): Firestore {
+  cachedDb ??= getFirestore(getAdminApp());
   return cachedDb;
+}
+
+/**
+ * The Admin app checks a token's audience and issuer against GCP_PROJECT_ID, and the browser signs
+ * visitors in to NEXT_PUBLIC_FIREBASE_PROJECT_ID. Were they different projects, every token would
+ * be refused as if it were a bad one (a 401 for every visitor, nothing reported). The message names
+ * the variables, never their values.
+ */
+export class FirebaseProjectMismatchError extends Error {
+  readonly name = 'FirebaseProjectMismatchError';
+
+  constructor() {
+    super(
+      "GCP_PROJECT_ID and NEXT_PUBLIC_FIREBASE_PROJECT_ID name different Firebase projects, so visitors' sign-in tokens cannot be verified",
+    );
+  }
+}
+
+/**
+ * Firebase Auth on the Admin app, for checking visitors' ID tokens. verifyIdToken needs only the
+ * project id (it checks the signature against Google's public certificates), so it works with or
+ * without the service-account credential. Throws a {@link FirebaseProjectMismatchError} when the
+ * Admin project is not the browser's (Firestore is unaffected).
+ */
+export function getAdminAuth(): Auth {
+  if (env.GCP_PROJECT_ID !== env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+    throw new FirebaseProjectMismatchError();
+  }
+  return getAuth(getAdminApp());
 }
 
 export const adminDb: Firestore = new Proxy({} as Firestore, {
