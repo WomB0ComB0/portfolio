@@ -22,16 +22,19 @@
  * counted by the 'guestbook' limiter before routing, so a limited visitor gets 429 before the
  * token is checked or anything is written.
  *
- * The guard's verdict, verifyIdToken and Firestore's write batch are fakes: nothing reaches Redis,
- * Firebase Auth or the real guestbook, and no upstream API is called.
+ * The guard's verdict and Firestore's write batch are fakes, and Google's securetoken keys are a
+ * local key set (the token is signed in the test, then checked by the real verifier): nothing
+ * reaches Redis, Google, Firebase Auth or the real guestbook, and no upstream API is called.
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createIdTokenSigner, type IdTokenSigner } from '@tests/setup/firebase-id-tokens';
+import type { JWTVerifyGetKey } from 'jose';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   create: vi.fn(),
   commit: vi.fn(),
-  verifyIdToken: vi.fn(),
+  keys: vi.fn(),
   guardCheck: vi.fn(),
 }));
 
@@ -43,10 +46,16 @@ vi.mock('@/app/api/_elysia/constants', () => ({
   batchSpanProcessor: undefined,
   version: '0.0.0-test',
 }));
-// t3-env validates every production variable on import.
+// t3-env validates every production variable on import. The two Firebase project ids (synthetic)
+// are the only values the post needs.
 vi.mock('@/env', () => {
+  const values: Readonly<Record<string, string>> = {
+    NODE_ENV: 'test',
+    GCP_PROJECT_ID: 'test-project',
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'test-project',
+  };
   const env = new Proxy({} as Record<string, unknown>, {
-    get: (_target, key) => (key === 'NODE_ENV' ? 'test' : undefined),
+    get: (_target, key) => (typeof key === 'string' ? values[key] : undefined),
   });
   return { env, default: env };
 });
@@ -79,10 +88,13 @@ vi.mock('@/core/firebase-admin', () => {
       }),
       batch: () => batch,
     },
-    getAdminAuth: () => ({ verifyIdToken: h.verifyIdToken }),
     getServiceAccount: () => ({}),
   };
 });
+vi.mock('@/core/firebase-id-token', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/firebase-id-token')>()),
+  googleIdTokenKeys: () => h.keys,
+}));
 vi.mock('@/lib/security/api-guard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/security/api-guard')>()),
   apiGuard: { check: h.guardCheck },
@@ -121,6 +133,13 @@ const postMessage = (authorization?: string) =>
   });
 
 const allow = () => h.guardCheck.mockResolvedValue({ kind: 'allow' });
+
+let signer: IdTokenSigner;
+
+beforeAll(async () => {
+  signer = await createIdTokenSigner();
+  h.keys.mockImplementation(((header, token) => signer.keys(header, token)) as JWTVerifyGetKey);
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -162,25 +181,34 @@ describe('/api/v1/messages after the list route was removed', () => {
         : { kind: 'allow' },
     );
 
-    const response = await postMessage(`Bearer ${TOKEN}`);
+    const response = await postMessage(`Bearer ${await signer.sign()}`);
 
     expect(response.status).toBe(429);
     expect(response.headers.get('ratelimit-limit')).toBe('5');
     expect(h.guardCheck).toHaveBeenCalledTimes(1);
-    expect(h.verifyIdToken).not.toHaveBeenCalled();
+    expect(h.keys).not.toHaveBeenCalled();
+    expect(h.commit).not.toHaveBeenCalled();
+  });
+
+  it('answers a JWT-shaped string that is not a token with 401, not a 500', async () => {
+    allow();
+
+    const response = await postMessage(`Bearer ${TOKEN}`);
+
+    expect(response.status).toBe(401);
     expect(h.commit).not.toHaveBeenCalled();
   });
 
   it('stores a signed-in POST the guard allows, once', async () => {
     allow();
-    h.verifyIdToken.mockResolvedValueOnce({
-      uid: 'uid-ada',
+    h.commit.mockResolvedValueOnce([]);
+    const token = await signer.sign({
+      sub: 'uid-ada',
       name: 'Ada Lovelace',
       firebase: { sign_in_provider: 'github.com', identities: {} },
     });
-    h.commit.mockResolvedValueOnce([]);
 
-    const response = await postMessage(`Bearer ${TOKEN}`);
+    const response = await postMessage(`Bearer ${token}`);
 
     expect(response.status).toBe(201);
     expect(h.commit).toHaveBeenCalledTimes(1);

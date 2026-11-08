@@ -16,27 +16,37 @@
  */
 
 /**
- * @file The messages route's POST, through Elysia, with Firestore and the Admin SDK mocked
- * (verifyIdToken and the write batch are fakes: nothing reaches the real guestbook or Firebase
- * Auth). Whatever the browser did, the server holds the rules:
+ * @file The messages route's POST, through Elysia, with Firestore mocked (the write batch is a
+ * fake: nothing reaches the real guestbook) and Google's securetoken keys replaced by a local key
+ * set: every token here is signed in the test with a key generated for it, and checked by the real
+ * verifier (jose). Nothing calls Google or Firebase Auth. Whatever the browser did, the server
+ * holds the rules:
  * - only a signed-in visitor posts: a request without `Authorization: Bearer <Firebase ID token>`,
- *   with a header that is not one, or with a token verifyIdToken rejects (invalid, expired) is
- *   answered 401 with one fixed JSON error, and nothing is written; only the refused token's
- *   Firebase code is logged, as an error (production drops warnings);
- * - the token is checked without the revocation lookup (one local signature check);
+ *   with a header that is not one, or with a token the verifier refuses (expired, another project,
+ *   not signed by one of the keys, no uid) is answered 401 with one fixed JSON error, and nothing
+ *   is written; only the refusal's code (and the claim it failed on) is logged, as an error
+ *   (production drops warnings);
+ * - the token is checked locally against the key set, once, with no lookup of the account;
  * - a message over 280 characters or a missing one is refused by the body schema, before the token
  *   is even checked; a message with nothing left once markup is removed is answered 400;
  * - a good message is stored once, as checked plain text, under the name their Google or GitHub
  *   sign-in carries ('Anonymous' for a guest or a sign-in method the site does not offer, whatever
  *   name the body claims) and answered 201. The public message, which anyone can read, has no
  *   uid: the poster's uid goes to a server-only document with the same id, in the same batch;
- * - when the token cannot be checked for a server-side reason (the Admin app misconfigured, or
- *   Google's public certificates cannot be fetched, which firebase-admin reports with the same
- *   code as a bad token) the answer is a generic, reported 500, so the browser does not sign the
- *   visitor out.
+ * - when the token cannot be checked for a server-side reason (the server's Firebase project is
+ *   not the browser's, or Google's keys cannot be fetched) the answer is a generic, reported 500,
+ *   so the browser does not sign the visitor out.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createIdTokenSigner,
+  type IdTokenSigner,
+  TEST_KEY_ID,
+  TEST_PROJECT_ID,
+  type TestClaims,
+} from '@tests/setup/firebase-id-tokens';
+import { errors, type JWTVerifyGetKey } from 'jose';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface FakeRef {
   readonly id: string;
@@ -47,8 +57,9 @@ const h = vi.hoisted(() => ({
   create: vi.fn(),
   commit: vi.fn(),
   report: vi.fn(),
-  verifyIdToken: vi.fn(),
-  getAdminAuth: vi.fn(),
+  keys: vi.fn(),
+  /** Synthetic: the server's and the browser's Firebase project. */
+  env: {} as Record<string, string>,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -74,9 +85,14 @@ vi.mock('@/core/firebase-admin', () => {
       }),
       batch: () => batch,
     },
-    getAdminAuth: h.getAdminAuth,
   };
 });
+// Google's key set is the local one; the verifier itself is the real one.
+vi.mock('@/core/firebase-id-token', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/firebase-id-token')>()),
+  googleIdTokenKeys: () => h.keys,
+}));
+vi.mock('@/env', () => ({ env: h.env, default: h.env }));
 vi.mock('@/config', () => ({ config: { firebase: { appId: 'test-app' } } }));
 vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.report }));
 
@@ -86,23 +102,13 @@ import { resetGuestbookCache } from '@/lib/guestbook/messages';
 /** JWT-shaped (three dot-separated base64url parts), not a real token. */
 const TOKEN = 'test-header.test-payload.test-signature';
 
-/** What verifyIdToken resolves with for a Google sign-in (synthetic). */
-const GOOGLE_USER = {
-  uid: 'uid-ada',
-  name: 'Ada Lovelace',
-  firebase: { sign_in_provider: 'google.com', identities: {} },
-};
-/** A guest who set a display name on their anonymous account. */
-const GUEST_USER = {
-  uid: 'uid-guest',
-  name: 'Mike Odnis',
-  firebase: { sign_in_provider: 'anonymous', identities: {} },
-};
+let signer: IdTokenSigner;
 
-const authError = (code: string) =>
-  Object.assign(new Error(`Firebase ID token problem (${code}). Expected "secret-project-id"`), {
-    code,
-  });
+beforeAll(async () => {
+  signer = await createIdTokenSigner();
+});
+
+const nowInSeconds = (): number => Math.floor(Date.now() / 1000);
 
 const post = (body: unknown, authorization?: string) =>
   messagesRoute.handle(
@@ -116,7 +122,16 @@ const post = (body: unknown, authorization?: string) =>
     }),
   );
 
-const signedIn = (body: unknown) => post(body, `Bearer ${TOKEN}`);
+/** Posts with a token signed for the test project: a Google sign-in, with `claims` over it. */
+const signedIn = async (body: unknown, claims: TestClaims = {}) =>
+  post(body, `Bearer ${await signer.sign(claims)}`);
+
+/** A sign-in with `provider` (left out of the token when undefined) and the given name. */
+const signInWith = (provider: string | undefined, sub: string, name?: string): TestClaims => ({
+  sub,
+  name,
+  firebase: { sign_in_provider: provider, identities: {} },
+});
 
 /** The public messages, which anyone can read, and the server-only record of who posted each. */
 const MESSAGES = 'artifacts/test-app/public/data/message';
@@ -133,15 +148,16 @@ const expectNothingWritten = () => {
   expect(h.commit).not.toHaveBeenCalled();
 };
 
-/** firebase-admin's error for a token, or for a failure to check one (code and message as given). */
-const sdkError = (code: string, message: string) => Object.assign(new Error(message), { code });
-
 beforeEach(() => {
   vi.clearAllMocks();
   resetGuestbookCache();
+  Object.assign(h.env, {
+    NODE_ENV: 'test',
+    GCP_PROJECT_ID: TEST_PROJECT_ID,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: TEST_PROJECT_ID,
+  });
   h.commit.mockResolvedValue([]);
-  h.verifyIdToken.mockResolvedValue(GOOGLE_USER);
-  h.getAdminAuth.mockReturnValue({ verifyIdToken: h.verifyIdToken });
+  h.keys.mockImplementation(((header, token) => signer.keys(header, token)) as JWTVerifyGetKey);
 });
 
 afterEach(() => {
@@ -155,7 +171,7 @@ describe('POST /messages: who may post', () => {
     expect(response.status).toBe(401);
     expect(response.headers.get('www-authenticate')).toBe('Bearer realm="guestbook"');
     await expect(response.json()).resolves.toEqual({ error: expect.stringMatching(/sign in/i) });
-    expect(h.verifyIdToken).not.toHaveBeenCalled();
+    expect(h.keys).not.toHaveBeenCalled();
     expectNothingWritten();
   });
 
@@ -173,26 +189,33 @@ describe('POST /messages: who may post', () => {
 
     expect(response.status).toBe(401);
     expect(response.headers.get('www-authenticate')).toContain('error="invalid_token"');
-    expect(h.verifyIdToken).not.toHaveBeenCalled();
+    expect(h.keys).not.toHaveBeenCalled();
     expectNothingWritten();
   });
 
   it.each([
-    ['invalid', 'auth/argument-error'],
-    ['expired', 'auth/id-token-expired'],
-    ['revoked', 'auth/id-token-revoked'],
-    ['for a disabled account', 'auth/user-disabled'],
+    ['that has expired', () => signer.sign({ exp: nowInSeconds() - 3_600 })],
+    [
+      'for another Firebase project',
+      () =>
+        signer.sign({
+          aud: 'other-project',
+          iss: 'https://securetoken.google.com/other-project',
+        }),
+    ],
+    ["signed by a key that is not Google's", () => signer.sign({}, { withStrangerKey: true })],
+    ['naming a key Google does not publish', () => signer.sign({}, { header: { kid: 'gone' } })],
+    ['with no uid', () => signer.sign({ sub: '' })],
+    ['that is only JWT-shaped', async () => TOKEN],
   ])(
-    'answers 401 to a token that is %s, without its details, and writes nothing',
-    async (_case, code) => {
-      h.verifyIdToken.mockRejectedValueOnce(authError(code));
-
-      const response = await signedIn({ message: 'Hello' });
+    'answers 401 to a token %s, without its details, and writes nothing',
+    async (_case, makeToken) => {
+      const response = await post({ message: 'Hello' }, `Bearer ${await makeToken()}`);
       const text = await response.text();
 
       expect(response.status).toBe(401);
       expect(JSON.parse(text)).toEqual({ error: expect.stringMatching(/sign in/i) });
-      expect(text).not.toMatch(/auth\/|secret-project-id|Firebase ID token/);
+      expect(text).not.toMatch(/ERR_|other-project|claim|signature/);
       expect(response.headers.get('www-authenticate')).toBe(
         'Bearer realm="guestbook", error="invalid_token"',
       );
@@ -201,118 +224,145 @@ describe('POST /messages: who may post', () => {
     },
   );
 
-  it('logs only the code of a refused token, as an error so production keeps it', async () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('logs only the code of a refused token and its claim, as an error so production keeps it', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    h.verifyIdToken.mockRejectedValueOnce(authError('auth/argument-error'));
+    const token = await signer.sign({ exp: nowInSeconds() - 3_600 });
 
-    await signedIn({ message: 'Hello' });
+    await post({ message: 'Hello' }, `Bearer ${token}`);
 
-    const logged = errors.mock.calls.flat().map(String).join(' ');
-    expect(errors).toHaveBeenCalledTimes(1);
-    expect(logged).toContain('auth/argument-error');
-    expect(logged).not.toMatch(/secret-project-id|Firebase ID token problem/);
-    expect(logged).not.toContain(TOKEN);
+    const logged = errorLog.mock.calls.flat().map(String).join(' ');
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(logged).toContain('ERR_JWT_EXPIRED');
+    expect(logged).toContain('exp');
+    expect(logged).not.toContain(token);
+    expect(logged).not.toMatch(/uid-ada|Ada Lovelace|timestamp check failed/);
     expect(warnings).not.toHaveBeenCalled();
   });
 
-  it('answers a generic 500 and reports it when the Admin app cannot check tokens at all', async () => {
-    h.getAdminAuth.mockImplementationOnce(() => {
-      throw new Error('GCP_PROJECT_ID and NEXT_PUBLIC_FIREBASE_PROJECT_ID name different projects');
-    });
+  it("answers a generic, reported 500 when the server's Firebase project is not the browser's", async () => {
+    h.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'other-project';
 
     const response = await signedIn({ message: 'Hello' });
     const text = await response.text();
 
     expect(response.status).toBe(500);
-    expect(text).not.toMatch(/GCP_PROJECT_ID|NEXT_PUBLIC/);
-    expect(h.verifyIdToken).not.toHaveBeenCalled();
+    expect(text).not.toMatch(/GCP_PROJECT_ID|NEXT_PUBLIC|other-project/);
+    expect(response.headers.get('www-authenticate')).toBeNull();
+    expect(h.keys).not.toHaveBeenCalled();
     expectNothingWritten();
     expect(h.report).toHaveBeenCalledTimes(1);
   });
 
-  it('answers the same 401 body whether the token is missing or rejected', async () => {
-    h.verifyIdToken.mockRejectedValueOnce(authError('auth/argument-error'));
-
+  it('answers the same 401 body whether the token is missing or refused', async () => {
     const missing = await (await post({ message: 'Hello' })).json();
-    const rejected = await (await signedIn({ message: 'Hello' })).json();
+    const refused = await (await signedIn({ message: 'Hello' }, { aud: 'other-project' })).json();
 
-    expect(rejected).toEqual(missing);
+    expect(refused).toEqual(missing);
   });
 
-  it('checks the token with one signature check, not the revocation lookup', async () => {
+  it("checks the token once, against Google's key set, by the key it names", async () => {
     await signedIn({ message: 'Hello' });
 
-    expect(h.verifyIdToken).toHaveBeenCalledTimes(1);
-    expect(h.verifyIdToken).toHaveBeenCalledWith(TOKEN);
+    expect(h.keys).toHaveBeenCalledTimes(1);
+    expect(h.keys).toHaveBeenCalledWith(
+      expect.objectContaining({ alg: 'RS256', kid: TEST_KEY_ID }),
+      expect.anything(),
+    );
   });
 
   it('accepts the scheme in any case', async () => {
-    const response = await post({ message: 'Hello' }, `bearer ${TOKEN}`);
+    const response = await post({ message: 'Hello' }, `bearer ${await signer.sign()}`);
 
     expect(response.status).toBe(201);
   });
 
   it.each([
-    ['the SDK has no project id', authError('auth/invalid-credential')],
-    ['the SDK fails inside', authError('auth/internal-error')],
-    ['something else throws', new TypeError('Cannot read properties of undefined')],
-  ])('answers a generic 500 when %s, reports it, and writes nothing', async (_case, error) => {
-    h.verifyIdToken.mockRejectedValueOnce(error);
-
-    const response = await signedIn({ message: 'Hello' });
-    const text = await response.text();
-
-    expect(response.status).toBe(500);
-    expect(JSON.parse(text)).toEqual({ error: expect.any(String) });
-    expect(text).not.toMatch(/auth\/|secret-project-id|Cannot read/);
-    expectNothingWritten();
-    expect(h.report).toHaveBeenCalledTimes(1);
-  });
-
-  // firebase-admin 14 reports these with auth/argument-error, the code of a bad token; only the
-  // message (theirs, verbatim) says the certificates could not be fetched.
-  it.each([
+    ['fetching them times out', () => new errors.JWKSTimeout()],
+    ['the network fails', () => new TypeError('fetch failed: getaddrinfo ENOTFOUND googleapis')],
     [
-      'a network error',
-      'Error while making request: getaddrinfo ENOTFOUND www.googleapis.com. Error code: ENOTFOUND',
+      'Google answers something other than the keys',
+      () => new errors.JOSEError('Expected 200 OK from the JSON Web Key Set HTTP response'),
     ],
-    ['a timeout', 'Error while making request: timeout of 10000ms exceeded.'],
-    [
-      'an answer that is not the certificates',
-      'Error fetching public keys for Google certs: <html>502 Bad Gateway</html>',
-    ],
-    ['an empty failure', 'Error fetching public keys.'],
+    ['the answer is not a key set', () => new errors.JWKSInvalid('JSON Web Key Set malformed')],
+    ['something else throws', () => new TypeError('Cannot read properties of undefined')],
   ])(
-    "answers a generic, reported 500 when Google's certificates cannot be fetched (%s), not a 401",
-    async (_case, message) => {
-      h.verifyIdToken.mockRejectedValueOnce(sdkError('auth/argument-error', message));
+    "answers a generic, reported 500 when Google's keys cannot be had (%s), not a 401",
+    async (_case, makeError) => {
+      h.keys.mockRejectedValueOnce(makeError());
 
       const response = await signedIn({ message: 'Hello' });
       const text = await response.text();
 
       expect(response.status).toBe(500);
       expect(JSON.parse(text)).toEqual({ error: expect.any(String) });
-      expect(text).not.toMatch(/auth\/|googleapis|<html|Error while/);
+      expect(text).not.toMatch(/googleapis|timed out|fetch failed|Expected 200|Cannot read/);
       expect(response.headers.get('www-authenticate')).toBeNull();
       expectNothingWritten();
       expect(h.report).toHaveBeenCalledTimes(1);
     },
   );
 
+  /** The 500 body for a failed write: every other server-side failure must answer exactly this. */
+  const writeFailureBody = async (): Promise<string> => {
+    h.commit.mockRejectedValueOnce(new Error('firestore down: project secret-project-id'));
+    const response = await signedIn({ message: 'Hello' });
+    expect(response.status).toBe(500);
+    return response.text();
+  };
+
+  it('answers a failed write with a fixed body that names nothing internal', async () => {
+    const body = await writeFailureBody();
+
+    expect(JSON.parse(body)).toEqual({ error: expect.any(String) });
+    expect(body).not.toMatch(
+      /secret-project-id|firestore down|GCP_PROJECT_ID|NEXT_PUBLIC|googleapis|JWKS|ERR_/,
+    );
+  });
+
   it.each([
-    'Firebase ID token has invalid signature. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.',
-    'Firebase ID token has "kid" claim which does not correspond to a known public key. Most likely the ID token is expired, so get a fresh token from your client app and try again.',
-    'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token.',
-  ])('still answers 401 to a token firebase-admin rejects as: %s', async (message) => {
-    h.verifyIdToken.mockRejectedValueOnce(sdkError('auth/argument-error', message));
+    [
+      "the server's project is not the browser's",
+      () => {
+        h.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'other-project';
+      },
+    ],
+    [
+      'the server has no project',
+      () => {
+        h.env.GCP_PROJECT_ID = '';
+      },
+    ],
+    [
+      "Google's keys time out",
+      () => {
+        h.keys.mockRejectedValueOnce(new errors.JWKSTimeout());
+      },
+    ],
+    [
+      'the network fails',
+      () => {
+        h.keys.mockRejectedValueOnce(
+          new TypeError('fetch failed: getaddrinfo ENOTFOUND googleapis'),
+        );
+      },
+    ],
+    [
+      'Google answers something other than the keys',
+      () => {
+        h.keys.mockRejectedValueOnce(
+          new errors.JOSEError('Expected 200 OK from the JSON Web Key Set HTTP response'),
+        );
+      },
+    ],
+  ])('answers the same 500 body as a failed write when %s', async (_case, arrange) => {
+    const reference = await writeFailureBody();
+    arrange();
 
     const response = await signedIn({ message: 'Hello' });
 
-    expect(response.status).toBe(401);
-    expect(response.headers.get('www-authenticate')).toContain('error="invalid_token"');
-    expectNothingWritten();
-    expect(h.report).not.toHaveBeenCalled();
+    expect(response.status).toBe(500);
+    expect(await response.text()).toBe(reference);
   });
 });
 
@@ -367,9 +417,10 @@ describe('POST /messages: what is stored', () => {
   });
 
   it('stores a guest as Anonymous, even with a display name set on the guest account', async () => {
-    h.verifyIdToken.mockResolvedValueOnce(GUEST_USER);
-
-    const response = await signedIn({ message: 'Hello from a guest' });
+    const response = await signedIn(
+      { message: 'Hello from a guest' },
+      signInWith('anonymous', 'uid-guest', 'Mike Odnis'),
+    );
 
     expect(response.status).toBe(201);
     expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Anonymous' })]);
@@ -377,13 +428,7 @@ describe('POST /messages: what is stored', () => {
   });
 
   it('stores the name of a GitHub sign-in', async () => {
-    h.verifyIdToken.mockResolvedValueOnce({
-      uid: 'uid-grace',
-      name: 'Grace Hopper',
-      firebase: { sign_in_provider: 'github.com', identities: {} },
-    });
-
-    await signedIn({ message: 'Hello' });
+    await signedIn({ message: 'Hello' }, signInWith('github.com', 'uid-grace', 'Grace Hopper'));
 
     expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Grace Hopper' })]);
     expect(createdIn(POSTERS)).toEqual([expect.objectContaining({ uid: 'uid-grace' })]);
@@ -397,13 +442,10 @@ describe('POST /messages: what is stored', () => {
   ])(
     'stores a sign-in the site does not offer (%s) as Anonymous, whatever its name',
     async (_case, provider) => {
-      h.verifyIdToken.mockResolvedValueOnce({
-        uid: 'uid-other',
-        name: 'Mike Odnis',
-        firebase: { sign_in_provider: provider, identities: {} },
-      });
-
-      const response = await signedIn({ message: 'Hello' });
+      const response = await signedIn(
+        { message: 'Hello' },
+        signInWith(provider, 'uid-other', 'Mike Odnis'),
+      );
 
       expect(response.status).toBe(201);
       expect(createdIn(MESSAGES)).toEqual([expect.objectContaining({ authorName: 'Anonymous' })]);
@@ -412,14 +454,9 @@ describe('POST /messages: what is stored', () => {
   );
 
   it('stores a signed-in visitor with no name as Anonymous, and checks a name like typed text', async () => {
-    h.verifyIdToken
-      .mockResolvedValueOnce({ ...GOOGLE_USER, name: undefined })
-      .mockResolvedValueOnce({ ...GOOGLE_USER, name: '  <b>Ada</b>  ' })
-      .mockResolvedValueOnce({ ...GOOGLE_USER, name: 'n'.repeat(120) });
-
-    await signedIn({ message: 'One' });
-    await signedIn({ message: 'Two' });
-    await signedIn({ message: 'Three' });
+    await signedIn({ message: 'One' }, { name: undefined });
+    await signedIn({ message: 'Two' }, { name: '  <b>Ada</b>  ' });
+    await signedIn({ message: 'Three' }, { name: 'n'.repeat(120) });
 
     expect(createdIn(MESSAGES).map((record) => record.authorName)).toEqual([
       'Anonymous',
@@ -438,7 +475,7 @@ describe('POST /messages: what is stored', () => {
     // The schema's own answer here (422); createElysiaApp's error handler makes it a 400.
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.status).toBeLessThan(500);
-    expect(h.verifyIdToken).not.toHaveBeenCalled();
+    expect(h.keys).not.toHaveBeenCalled();
     expectNothingWritten();
   });
 

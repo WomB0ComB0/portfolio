@@ -16,22 +16,24 @@
 
 /**
  * @file Who is signing the guestbook: the visitor's Firebase ID token, sent as
- * `Authorization: Bearer <token>` and verified with the Admin SDK before anything is written.
+ * `Authorization: Bearer <token>` and verified (src/core/firebase-id-token.ts, with jose) before
+ * anything is written.
  *
  * - A missing header, or one that is not a single JWT-shaped bearer token (at most
- *   {@link MAX_TOKEN_LENGTH} characters), is refused without calling Firebase.
- * - verifyIdToken checks the signature against Google's public certificates (fetched once and
- *   cached by the SDK), the project, the issuer and the expiry. The revocation lookup
- *   (checkRevoked) is not used: it is a call to the Auth backend on every post and needs the
- *   service-account credential, while ID tokens live an hour and posts are rate limited.
- * - A token Firebase rejects (invalid, expired, revoked, disabled account) is a 'rejected' poster:
- *   the route answers 401 and logs Firebase's error code, and nothing else, as an error (the
- *   production log level drops warnings; the guestbook limiter bounds how many there can be).
- * - Any other failure (no project id, the Admin project not the browser's one, an SDK fault) is
- *   thrown, so the route answers a 500 and reports it. That includes a failure to fetch Google's
- *   certificates: firebase-admin reports it as auth/argument-error, the code of a bad token, so it
- *   is told apart by the SDK's wording ({@link CERT_FETCH_FAILURE}). A 401 would make the browser
- *   sign a valid visitor out; any wording not matched still gets the 401.
+ *   {@link MAX_TOKEN_LENGTH} characters), is refused without checking it.
+ * - The token is checked locally, by Firebase's documented rules: an RS256 signature by one of
+ *   Google's securetoken keys (fetched on first use and cached), for this project (aud and iss),
+ *   not expired, issued and authenticated in the past, with a uid. The project is GCP_PROJECT_ID,
+ *   which must be the browser's NEXT_PUBLIC_FIREBASE_PROJECT_ID. There is no revocation lookup: it
+ *   would be a call to the Auth backend on every post, while ID tokens live an hour and posts are
+ *   rate limited.
+ * - A token that breaks a rule (invalid, expired, another project, a key Google does not publish)
+ *   is a 'rejected' poster: the route answers 401 and logs jose's error code and the claim at
+ *   fault, and nothing else, as an error (the production log level drops warnings; the guestbook
+ *   limiter bounds how many there can be).
+ * - Any other failure is thrown, so the route answers a 500 and reports it: the server's project
+ *   missing or not the browser's, or Google's keys that cannot be fetched (unreachable, slow, or
+ *   an answer that is not a key set). A 401 would make the browser sign a valid visitor out.
  * - The poster is the token's uid, and the name the sign-in carries, checked like typed text
  *   (checkAuthorName), but only for the providers the site offers with a name (Google, GitHub). A
  *   guest (anonymous sign-in), and a sign-in the site does not offer (email and password, phone, a
@@ -39,10 +41,19 @@
  *   as 'Anonymous'. A name sent in the request body is never used. The name is the visitor's own
  *   Firebase profile name, which they can change, so it says who they say they are; the uid is
  *   what identifies them.
+ * - Accepting guests is deliberate, and anyone can get a guest token with the public web config:
+ *   this check gives each post a uid to moderate by, not spam resistance. The per-IP 'guestbook'
+ *   limiter (src/lib/security/api-guard.ts) is the flood control; a per-uid limit would add
+ *   nothing to it, since a guest uid costs nothing to make.
  */
 
-import type { DecodedIdToken } from 'firebase-admin/auth';
-import { getAdminAuth } from '@/core/firebase-admin';
+import {
+  createIdTokenVerifier,
+  type FirebaseIdToken,
+  googleIdTokenKeys,
+  idTokenProjectId,
+} from '@/core/firebase-id-token';
+import { env } from '@/env';
 import { checkAuthorName } from '@/lib/guestbook/text';
 import { Logger } from '@/utils';
 
@@ -59,15 +70,6 @@ const MAX_HEADER_LENGTH = MAX_TOKEN_LENGTH + 16;
 
 /** The sign-in methods the site offers whose name a message is shown under. */
 const NAMED_PROVIDERS: ReadonlySet<string> = new Set(['google.com', 'github.com']);
-
-/** Firebase's codes for a token that is not acceptable. Anything else is a server-side failure. */
-const REJECTED_TOKEN_CODES: ReadonlySet<string> = new Set([
-  'auth/argument-error',
-  'auth/id-token-expired',
-  'auth/id-token-revoked',
-  'auth/user-disabled',
-  'auth/user-not-found',
-]);
 
 /** A verified visitor: who to store the message under. */
 export interface Poster {
@@ -93,7 +95,7 @@ export function bearerTokenOf(header: string): string | null {
 }
 
 /** The poster a verified token names: its name only for a provider in {@link NAMED_PROVIDERS}. */
-export function posterOf(token: DecodedIdToken): Poster {
+export function posterOf(token: FirebaseIdToken): Poster {
   const provider: unknown = token.firebase?.sign_in_provider;
   const isNamed = typeof provider === 'string' && NAMED_PROVIDERS.has(provider);
   const name: unknown = isNamed ? token.name : null;
@@ -104,39 +106,25 @@ export function posterOf(token: DecodedIdToken): Poster {
 }
 
 /**
- * How firebase-admin words a failure to fetch Google's public certificates (a network error, or an
- * answer that is not the certificates). It reports those as auth/argument-error, like a bad token.
- */
-const CERT_FETCH_FAILURE = /^Error (?:while making request|fetching public keys)\b/;
-
-const codeOf = (error: unknown): unknown => (error as { code?: unknown } | null)?.code;
-const messageOf = (error: unknown): unknown => (error as { message?: unknown } | null)?.message;
-
-const isCertFetchFailure = (error: unknown): boolean => {
-  const message = messageOf(error);
-  return typeof message === 'string' && CERT_FETCH_FAILURE.test(message);
-};
-
-const isRejectedToken = (error: unknown): boolean => {
-  const code = codeOf(error);
-  return typeof code === 'string' && REJECTED_TOKEN_CODES.has(code) && !isCertFetchFailure(error);
-};
-
-/**
  * The poster for a request's Authorization header, or why there is none. Rejects only when the
- * token could not be checked for a server-side reason.
+ * token could not be checked for a server-side reason (the projects differ, Google's keys cannot
+ * be fetched).
  */
 export async function verifyPoster(authorization: string | undefined): Promise<PosterCheck> {
   if (!authorization) return { ok: false, reason: 'missing' };
   const token = bearerTokenOf(authorization);
   if (!token) return { ok: false, reason: 'malformed' };
-  try {
-    return { ok: true, poster: posterOf(await getAdminAuth().verifyIdToken(token)) };
-  } catch (error) {
-    if (!isRejectedToken(error)) throw error;
-    log.error('Guestbook post refused: the sign-in token was rejected', undefined, {
-      code: codeOf(error),
-    });
-    return { ok: false, reason: 'rejected' };
-  }
+
+  const verify = createIdTokenVerifier({
+    projectId: idTokenProjectId(env.GCP_PROJECT_ID, env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+    keys: googleIdTokenKeys(),
+  });
+  const check = await verify(token);
+  if (check.ok) return { ok: true, poster: posterOf(check.token) };
+
+  log.error('Guestbook post refused: the sign-in token was rejected', undefined, {
+    code: check.code,
+    ...(check.claim === undefined ? {} : { claim: check.claim }),
+  });
+  return { ok: false, reason: 'rejected' };
 }

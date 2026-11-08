@@ -22,8 +22,9 @@
  * 1. the API guard (createElysiaApp's onRequest, before routing): bans, and the 'guestbook' rate
  *    limiter, which counts every POST, signed in or not;
  * 2. the body schema (./schema.ts): a message of 1 to 280 characters, else 400;
- * 3. the sign-in (./poster.ts): `Authorization: Bearer <Firebase ID token>`, verified with the
- *    Admin SDK, else 401 with one fixed body and a WWW-Authenticate challenge;
+ * 3. the sign-in (./poster.ts): `Authorization: Bearer <Firebase ID token>`, verified against
+ *    Google's securetoken keys (jose), else 401 with one fixed body and a WWW-Authenticate
+ *    challenge (a reported 500 when the keys cannot be fetched);
  * 4. the text itself (createMessage): nothing postable left once markup is removed, else 400.
  * Then the message is stored once, under the poster's name (their uid in a server-only document
  * with the same id, written in the same batch), and answered 201.
