@@ -16,13 +16,16 @@
 
 /**
  * @file The motion tokens have one value in CSS and JS: the `--motion-*` durations in the first
- * `:root` block of src/styles/globals.css equal DURATION_MS, and `--ease-out-expo` and
- * `--ease-standard` in `@theme static` equal EASE. Also covers the small helpers in
+ * `:root` block of src/styles/globals.css equal DURATION_MS (camelCase keys, kebab-case names),
+ * `--ease-out-expo`, `--ease-standard` and `--ease-effect` in `@theme static` equal EASE, and
+ * `--ease-spring` is motion's own `spring(0.25, 0)` written as CSS `linear()`, the curve the owner
+ * picked in the Fluid UI Lab (lane B). Also covers SPRING, SPRING_PHYSICS and the small helpers in
  * src/lib/design/motion.ts.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { spring } from 'motion';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -30,6 +33,8 @@ import {
   EASE,
   prefersReducedMotion,
   REDUCED_MOTION_QUERY,
+  SPRING,
+  SPRING_PHYSICS,
   seconds,
 } from '@/lib/design/motion';
 
@@ -38,6 +43,20 @@ import {
 const GLOBALS_CSS = join(process.cwd(), 'src/styles/globals.css');
 
 const MOTION_PREFIX = 'motion-';
+
+/**
+ * The lab's SPRING_STOPS: the hover the owner picked played these, and motion@14.9.1 prints the
+ * same for `spring(0.25, 0)`. A literal, so a motion upgrade that changes the curve fails here
+ * instead of quietly changing the hover.
+ */
+const LAB_SPRING_STOPS = [
+  0, 0.1402, 0.3764, 0.584, 0.7361, 0.838, 0.9029, 0.9428, 0.9668, 0.9809, 0.9892, 0.9939, 0.9966,
+  0.9981, 0.9989, 0.9994, 1,
+];
+
+/** A DURATION_MS key as its CSS name: `springIn` is `--motion-spring-in`. */
+const cssName = (key: string): string =>
+  `${MOTION_PREFIX}${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
 
 const withoutComments = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -64,6 +83,13 @@ function customProperties(body: string): Map<string, string> {
   return tokens;
 }
 
+/** The stops of a CSS `linear(...)` value (plain numbers; no percentages). */
+function linearStops(value: string | undefined): number[] {
+  const match = /^linear\(([^)]*)\)$/.exec(value ?? '');
+  if (!match) throw new Error(`not a linear(): ${value}`);
+  return (match[1] ?? '').split(',').map((stop) => Number(stop.trim()));
+}
+
 /** The four control points of a CSS `cubic-bezier(...)` value. */
 function bezierPoints(value: string | undefined): number[] {
   const match = /^cubic-bezier\(([^)]*)\)$/.exec(value ?? '');
@@ -78,13 +104,24 @@ const staticTheme = customProperties(blockBody(css, /^@theme\s+static\s*\{/m));
 describe('motion durations', () => {
   it('declares exactly one --motion-* token per DURATION_MS key in the first :root block', () => {
     const declared = [...rootTokens.keys()].filter((name) => name.startsWith(MOTION_PREFIX));
-    const expected = Object.keys(DURATION_MS).map((key) => `${MOTION_PREFIX}${key}`);
+    const expected = Object.keys(DURATION_MS).map(cssName);
 
     expect(declared.sort()).toEqual(expected.sort());
   });
 
-  it.each(Object.entries(DURATION_MS))('--motion-%s is %i ms', (key, ms) => {
-    expect(rootTokens.get(`${MOTION_PREFIX}${key}`)).toBe(`${ms}ms`);
+  it.each(Object.entries(DURATION_MS))('the %s token is %i ms', (key, ms) => {
+    expect(rootTokens.get(cssName(key))).toBe(`${ms}ms`);
+  });
+
+  it('names the spring durations --motion-spring-in and --motion-spring-out', () => {
+    expect(rootTokens.get('motion-spring-in')).toBe('300ms');
+    expect(rootTokens.get('motion-spring-out')).toBe('500ms');
+  });
+
+  it('springs in faster than it springs out, and within 300 ms', () => {
+    // Entering answers the pointer; leaving trails it, so the bento keeps a short wake.
+    expect(DURATION_MS.springIn).toBeLessThanOrEqual(300);
+    expect(DURATION_MS.springOut).toBeGreaterThan(DURATION_MS.springIn);
   });
 });
 
@@ -92,8 +129,78 @@ describe('motion easing', () => {
   it.each([
     ['ease-out-expo', EASE.outExpo],
     ['ease-standard', EASE.standard],
+    ['ease-effect', EASE.effect],
   ] as const)('--%s in @theme static equals EASE', (name, points) => {
     expect(bezierPoints(staticTheme.get(name))).toEqual([...points]);
+  });
+
+  it('--ease-effect is Material 3 default effects, which never overshoots', () => {
+    expect(EASE.effect).toEqual([0.34, 0.8, 0.34, 1]);
+    // y1 and y2 inside [0, 1]: the curve never leaves the 0..1 band, so a fade cannot overshoot.
+    const [, y1 = 0, , y2 = 0] = EASE.effect;
+    expect(Math.max(y1, y2)).toBeLessThanOrEqual(1);
+    expect(Math.min(y1, y2)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('the spring', () => {
+  const motionSpring = String(spring(SPRING.visualDuration, SPRING.bounce));
+
+  it('is motion’s spring(0.25, 0) with no bounce, for motion/react', () => {
+    expect(SPRING).toEqual({ type: 'spring', visualDuration: 0.25, bounce: 0 });
+  });
+
+  it('--ease-spring in @theme static is that spring as CSS linear(), as motion prints it', () => {
+    // motion prints "<settle time>ms linear(...)": the curve is the token, the time is spring-out.
+    // Whitespace aside: Biome's CSS formatter puts each stop on its own line.
+    const [settle, ...curve] = motionSpring.split(' ');
+    const withoutSpace = (value: string | undefined): string => (value ?? '').replace(/\s+/g, '');
+
+    expect(withoutSpace(staticTheme.get('ease-spring'))).toBe(withoutSpace(curve.join(' ')));
+    expect(settle).toBe(`${DURATION_MS.springOut}ms`);
+  });
+
+  it('plays the stops the owner picked in the lab', () => {
+    expect(linearStops(staticTheme.get('ease-spring'))).toEqual(LAB_SPRING_STOPS);
+  });
+
+  it('never bounces: the stops rise from 0 to 1 and never pass 1', () => {
+    const stops = linearStops(staticTheme.get('ease-spring'));
+
+    expect(stops.at(0)).toBe(0);
+    expect(stops.at(-1)).toBe(1);
+    for (const [index, stop] of stops.entries()) {
+      expect(stop).toBeLessThanOrEqual(1);
+      if (index > 0) expect(stop).toBeGreaterThanOrEqual(stops[index - 1] ?? 0);
+    }
+  });
+
+  it('SPRING_PHYSICS plays the same curve as SPRING from rest, as motion resolves both', () => {
+    // motion turns a visualDuration into stiffness and damping with a 1.2 period factor; a constant
+    // derived without it is a different, faster spring that a self-made formula would not catch.
+    const physicsSpring = String(spring({ keyframes: [0, 1], ...SPRING_PHYSICS }));
+
+    expect(SPRING_PHYSICS.type).toBe('spring');
+    expect(physicsSpring).toBe(motionSpring);
+  });
+
+  it('SPRING_PHYSICS is critically damped: no bounce, like SPRING', () => {
+    const { stiffness, damping, mass } = SPRING_PHYSICS;
+
+    expect(damping / (2 * Math.sqrt(stiffness * mass))).toBeCloseTo(1, 9);
+  });
+
+  it('SPRING_PHYSICS carries a release speed into the settle, which SPRING drops', () => {
+    // Why both exist: motion ignores inherited velocity on a time-defined (visualDuration) spring,
+    // so a flick released at speed only keeps its momentum on the physics spring.
+    const RELEASE_SPEED = 5;
+    const SAMPLE_MS = 50;
+    const at = (options: object, velocity: number): number =>
+      spring({ keyframes: [0, 1], velocity, ...options }).next(SAMPLE_MS).value;
+
+    expect(at(SPRING_PHYSICS, 0)).toBeCloseTo(at(SPRING, 0), 9);
+    expect(at(SPRING, RELEASE_SPEED)).toBeCloseTo(at(SPRING, 0), 9);
+    expect(at(SPRING_PHYSICS, RELEASE_SPEED)).toBeGreaterThan(at(SPRING, RELEASE_SPEED));
   });
 });
 

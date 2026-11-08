@@ -69,14 +69,15 @@ const COLOUR_TOKENS = {
 } as const;
 
 /**
- * Translucent tokens: [token, the colour token it lightens, alpha]. The glow, spotlight, lift,
- * hero wash, live-pulse and status badge fills read these instead of color-mix(), whose
- * no-support fallback is full strength.
+ * Translucent tokens: [token, the colour token it lightens, alpha]. The glow, the tile hover's
+ * rim and halo, the hero wash, live-pulse and status badge fills read these instead of
+ * color-mix(), whose no-support fallback is full strength.
  */
 const TRANSLUCENT_TOKENS = [
   ['brand-glow', 'brand', '9%'],
-  ['brand-spot', 'brand', '16%'],
   ['brand-edge', 'brand', '18%'],
+  ['brand-rim', 'brand', '80%'],
+  ['brand-halo', 'brand', '10%'],
   ['brand-wash', 'brand', '14%'],
   ['live-halo', 'live', '20%'],
   ['live-tint', 'live', '12%'],
@@ -95,6 +96,8 @@ const LAYOUT_AND_MOTION_TOKENS = {
   'motion-base': '240ms',
   'motion-slow': '400ms',
   'motion-tween': '600ms',
+  'motion-spring-in': '300ms',
+  'motion-spring-out': '500ms',
   'page-gutter': 'clamp(1rem, 0.5rem + 2vw, 2rem)',
   'tile-row': '7.5rem',
   'mobile-bar-h': '4.5rem',
@@ -217,6 +220,17 @@ describe('colour tokens (first :root block)', () => {
     // Same channels as the base token, so a palette change cannot leave a glow behind.
     expect(rootToken(name)).toBe(rootToken(base).replace(/\)$/, ` / ${alpha})`));
   });
+
+  it('--spot-violet is the brand hue at more chroma, a literal like the other glows', () => {
+    // tile-hover.test.tsx checks it is MagicCard's own rgb(70 33 172) drawn at 0.15 x 0.8.
+    expect(rootToken('spot-violet')).toBe('oklch(40% 0.2 285deg / 12%)');
+    expect(rootToken('spot-violet')).toContain(' 285deg ');
+  });
+
+  it('drops --brand-spot, the glow colour --spot-violet replaced', () => {
+    expect(ROOT.has('brand-spot')).toBe(false);
+    expect(CSS).not.toContain('--brand-spot');
+  });
 });
 
 describe('@theme maps and utilities', () => {
@@ -266,10 +280,13 @@ describe('@theme maps and utilities', () => {
     expect(THEME_STATIC.get(`text-${name}--line-height`)).toBe(lh);
   });
 
-  it('@theme static declares the tile radius, shell width and expo easing', () => {
+  it('@theme static declares the tile radius, shell width and the easings', () => {
     expect(THEME_STATIC.get('radius-tile')).toBe('0.75rem');
     expect(THEME_STATIC.get('container-shell')).toBe('75rem');
     expect(THEME_STATIC.get('ease-out-expo')).toBe('cubic-bezier(0.16, 1, 0.3, 1)');
+    // motion-tokens.test.ts checks their values against src/lib/design/motion.ts.
+    expect(THEME_STATIC.get('ease-spring')).toMatch(/^linear\(\s*0,.*,\s*1\s*\)$/);
+    expect(THEME_STATIC.get('ease-effect')).toBe('cubic-bezier(0.34, 0.8, 0.34, 1)');
   });
 
   it.each(['label-mono', 'spotlight', 'atmosphere'])('defines @utility %s', (name) => {
@@ -353,6 +370,8 @@ describe('the token classes compile with the repo Tailwind', () => {
       'shadow-lift',
       'ease-out-expo',
       'ease-standard',
+      'ease-spring',
+      'ease-effect',
       'animate-live-pulse',
       'label-mono',
       'atmosphere',
@@ -365,6 +384,8 @@ describe('the token classes compile with the repo Tailwind', () => {
     expect(ruleFor(css, 'max-w-shell')).toContain('max-width: var(--container-shell)');
     expect(ruleFor(css, 'rounded-tile')).toContain('border-radius: var(--radius-tile)');
     expect(ruleFor(css, 'bg-leet-hard')).toBe('background-color: var(--leet-hard);');
+    expect(ruleFor(css, 'ease-spring')).toContain('transition-timing-function: var(--ease-spring)');
+    expect(ruleFor(css, 'ease-effect')).toContain('transition-timing-function: var(--ease-effect)');
     expect(css).toMatch(/\.spotlight\s*\{[^}]*&::before\s*\{/);
   });
 
@@ -382,7 +403,7 @@ describe('the token classes compile with the repo Tailwind', () => {
     expect(glow).toMatch(/z-index:\s*-1\s*;/);
   });
 
-  it('lights the glow, spotlight, lift and live pulse with translucent tokens, not color-mix()', async () => {
+  it('lights the glow, spotlight, hover light and live pulse with translucent tokens, not color-mix()', async () => {
     // Tailwind rewrites a color-mix() over a var() into an unconditional full-strength var() with
     // the mix behind @supports, so browsers without color-mix would paint solid brand light.
     const css = await compileTokens([
@@ -394,8 +415,9 @@ describe('the token classes compile with the repo Tailwind', () => {
 
     expect(css).not.toContain('color-mix');
     expect(ruleFor(css, 'atmosphere')).toContain('var(--brand-glow)');
-    expect(css).toMatch(/\.spotlight\s*\{[^}]*&::before\s*\{[^}]*var\(--brand-spot\)/);
-    expect(THEME_INLINE.get('shadow-lift')).toContain('var(--brand-edge)');
+    expect(css).toMatch(/\.spotlight\s*\{[^}]*&::before\s*\{[^}]*var\(--spot-violet\)/);
+    expect(THEME_INLINE.get('shadow-lift')).toContain('var(--brand-rim)');
+    expect(THEME_INLINE.get('shadow-lift')).toContain('var(--brand-halo)');
     expect(css).toMatch(/@keyframes live-pulse\s*\{[^}]*var\(--live-halo\)/);
   });
 

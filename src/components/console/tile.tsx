@@ -29,7 +29,8 @@
  *   focus ring for its TileLink only.
  *
  * Only `interactive` and `linked` lift on hover and carry `data-spotlight`, which SpotlightRoot
- * reads to move the `spotlight` glow under the pointer.
+ * reads to move the `spotlight` glow under the pointer. The hover is the one the owner picked in
+ * the Fluid UI Lab (2026-11-08): lane B's spring motion with the old home cards' (#601) colours.
  */
 
 import { cva } from 'class-variance-authority';
@@ -41,12 +42,48 @@ import { destinationOf, NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/
 import { cn } from '@/lib/utils';
 
 /**
- * The hover lift shared by `interactive` and `linked`. Tailwind v4's translate utilities set the
- * `translate` property, so that (not `transform`) is what transitions. The lift shadow lives on
- * `::after` behind the tile (`-z-10` needs the tile's `isolate`) so only its opacity animates.
+ * The move of the hover shared by `interactive` and `linked`: a 3 px lift on translate only, on the
+ * no-bounce spring, entering in --motion-spring-in and leaving in --motion-spring-out (CSS runs the
+ * transition of the state being entered, so the rest rule times the way back). The hovered tile is
+ * raised over its neighbours at once, and drops back only after --motion-slow, once its light has
+ * faded; z-index steps (0 s, linear) rather than interpolating, and rests at 0, not auto, which
+ * could not take the delay. A press drops back in --motion-instant. Tailwind v4's translate
+ * utilities set the `translate` property, so that (not `transform`) is what transitions.
  */
-const LIFT_CLASS =
-  'spotlight border-hairline bg-surface-1 transition-[translate,border-color] duration-(--motion-fast) ease-out-expo hover:-translate-y-0.5 hover:border-hairline-strong active:translate-y-0 motion-reduce:hover:translate-y-0 after:pointer-events-none after:absolute after:inset-0 after:-z-10 after:rounded-[inherit] after:shadow-lift after:opacity-0 after:transition-opacity after:duration-(--motion-base) hover:after:opacity-100';
+const LIFT_MOVE_CLASS = [
+  'z-0 transition-[translate,z-index] ease-[var(--ease-spring),linear]',
+  'duration-[var(--motion-spring-out),0s] delay-[0s,var(--motion-slow)]',
+  'hover:z-1 hover:-translate-y-0.75 hover:duration-[var(--motion-spring-in),0s] hover:delay-0',
+  'active:translate-y-0 active:duration-(--motion-instant)',
+  'motion-reduce:hover:translate-y-0',
+].join(' ');
+
+/**
+ * The light of the hover: ONE `::after` layer over the tile's border box, behind its glow and
+ * content (`-z-10` needs the tile's `isolate`), carrying the brand rim and halo (--shadow-lift).
+ * Only its opacity animates, on --ease-effect: in over --motion-base, out over --motion-slow. The
+ * `spotlight` glow (::before) fades on the same timing, so lift, light and glow start together.
+ */
+const LIFT_LIGHT_CLASS = [
+  'after:pointer-events-none after:absolute after:-inset-px after:-z-10 after:rounded-[inherit]',
+  'after:shadow-lift after:opacity-0',
+  'after:transition-opacity after:ease-effect after:duration-(--motion-slow)',
+  'hover:after:opacity-100 hover:after:duration-(--motion-base)',
+].join(' ');
+
+/** The hover shared by `interactive` and `linked`. */
+const LIFT_CLASS = `spotlight border-hairline bg-surface-1 ${LIFT_MOVE_CLASS} ${LIFT_LIGHT_CLASS}`;
+
+/**
+ * Keyboard focus reaches the hover's end state at once: the light and the raise, with no
+ * animation (no lift and no glow; neither follows a keyboard). Leaving focus fades the light out
+ * like a hover does. `interactive` is focused itself; `linked` holds the focused TileLink.
+ */
+const INTERACTIVE_FOCUS_LIGHT_CLASS =
+  'focus-visible:z-1 focus-visible:delay-0 focus-visible:after:opacity-100 focus-visible:after:duration-0';
+
+const LINK_FOCUS_LIGHT_CLASS =
+  'has-[[data-tile-link]:focus-visible]:z-1 has-[[data-tile-link]:focus-visible]:delay-0 has-[[data-tile-link]:focus-visible]:after:opacity-100 has-[[data-tile-link]:focus-visible]:after:duration-0';
 
 /**
  * A `linked` tile rings itself while its TileLink (`data-tile-link`) has keyboard focus. Keyed on
@@ -76,8 +113,8 @@ export const tileVariants = cva(
       variant: {
         plain: 'border-hairline bg-surface-1',
         raised: 'border-hairline bg-surface-2 shadow-raised',
-        interactive: LIFT_CLASS,
-        linked: `${LIFT_CLASS} ${LINK_FOCUS_RING_CLASS}`,
+        interactive: `${LIFT_CLASS} ${INTERACTIVE_FOCUS_LIGHT_CLASS}`,
+        linked: `${LIFT_CLASS} ${LINK_FOCUS_LIGHT_CLASS} ${LINK_FOCUS_RING_CLASS}`,
       },
       tone: { default: '', hero: HERO_WASH_CLASS },
       padding: {
