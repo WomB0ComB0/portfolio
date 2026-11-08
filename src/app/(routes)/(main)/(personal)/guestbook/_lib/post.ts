@@ -19,6 +19,7 @@
  * retried: the API adds an entry per POST, so a retry after a timeout could post it twice. The
  * answer is checked before it is shown; anything but a message counts as a failure, and an
  * answer that is not 2xx rejects with a PostFailedError carrying its status (429: rate limited).
+ * isOutcomeUnknown says which failures may still have stored the message (all but a 4xx).
  */
 
 import type { GuestbookMessage } from '@/lib/guestbook/types';
@@ -50,6 +51,17 @@ export class PostFailedError extends Error {
   constructor(readonly status: number) {
     super(`The guestbook API answered ${status}`);
   }
+}
+
+const isClientError = (status: number): boolean => status >= 400 && status < 500;
+
+/**
+ * Whether a failed post may have been stored all the same. Only a 4xx answer (invalid text, a bad
+ * body, rate limited) means the API stored nothing. A timeout or a dropped connection does not stop
+ * the server's write, and a 5xx or an unreadable 2xx can follow one that went through.
+ */
+export function isOutcomeUnknown(error: unknown): boolean {
+  return !(error instanceof PostFailedError && isClientError(error.status));
 }
 
 /** Posts `draft`; resolves with the stored message, or rejects. */

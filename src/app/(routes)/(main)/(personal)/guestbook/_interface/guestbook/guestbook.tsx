@@ -39,10 +39,13 @@ export interface GuestbookProps {
   readonly load: GuestbookLoad;
 }
 
-/** The list's state as shown: an empty guestbook is its own state, whatever the load said. */
+/**
+ * The list's state as shown: a fresh empty list is its own state; a stale or failed load keeps
+ * its own, so an empty last good list still carries the stale warning.
+ */
 const listStateOf = (load: GuestbookLoad): BoardListState => {
-  if (load.state === 'error') return 'error';
-  return load.messages.length === 0 ? 'empty' : load.state;
+  if (load.state !== 'ready') return load.state;
+  return load.messages.length === 0 ? 'empty' : 'ready';
 };
 
 /**

@@ -17,8 +17,8 @@
 /**
  * @file A guestbook row renders the message and its author as plain text: React escapes it once,
  * nothing escapes it again, so an apostrophe shows as one and markup shows as the characters
- * typed. The row never decodes entities: legacy records are decoded once by the loader, so text
- * that a visitor typed as '&amp;' (a new post, or the row still being posted) shows as typed.
+ * typed. The row never decodes entities: legacy author names are decoded once by the loader, so
+ * text that a visitor typed as '&amp;' (a new post, or the row still being posted) shows as typed.
  * The row's meta line is the author, then the month (no time of day).
  */
 

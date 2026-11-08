@@ -22,6 +22,11 @@
  *   and once the server lists it the posted copy is not shown twice;
  * - a failure removes the row again (rollback), puts the text back in the box exactly (the box is
  *   read-only while the post is in flight) and says so, without marking the text invalid;
+ * - only an answer that refused the post (4xx) says it wasn't posted; a timeout, a dropped
+ *   connection, a 5xx or an unreadable answer may follow a stored write, so the card says the post
+ *   couldn't be confirmed (never "try again" for a stored post), the server list is refreshed at
+ *   once, and once more after the server's list cache has expired, which the card tells the
+ *   visitor to wait for before posting again;
  * - focus never drops to the page: Post stays focusable while it sends (aria-disabled, never
  *   disabled), and afterwards focus is in the box, unless the visitor moved it elsewhere;
  * - text and author go to the API exactly as typed: never HTML-escaped, and no email;
@@ -52,6 +57,12 @@ vi.mock('@/core/auth', () => ({
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
 import { MessageRow } from '@/app/(routes)/(main)/(personal)/guestbook/_components/message-row';
+import { LIST_RECHECK_MS } from '@/app/(routes)/(main)/(personal)/guestbook/_components/use-posted-messages';
+import {
+  isOutcomeUnknown,
+  PostFailedError,
+} from '@/app/(routes)/(main)/(personal)/guestbook/_lib/post';
+import { GUESTBOOK_TTL_MS } from '@/lib/guestbook/limits';
 import type { GuestbookMessage } from '@/lib/guestbook/types';
 
 const EXISTING: GuestbookMessage = {
@@ -154,13 +165,13 @@ describe('posting a guestbook message', () => {
     expect(rows().filter((row) => row.textContent?.includes("It's me & you"))).toHaveLength(1);
   });
 
-  it('rolls the row back, keeps the text and says so when the API fails', async () => {
+  it('rolls the row back, keeps the text and says it was not posted when the API refuses it', async () => {
     const settle = deferredFetch();
     render(board([EXISTING]));
 
     send("It's me & you");
     expect(rows()).toHaveLength(2);
-    await settle(answer(500, { error: 'boom' }));
+    await settle(answer(400, { error: 'Invalid message' }));
 
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).toHaveTextContent('An older note');
@@ -169,7 +180,51 @@ describe('posting a guestbook message', () => {
     expect(h.refresh).not.toHaveBeenCalled();
   });
 
-  it('rolls back on a network error and on an answer that is not a message', async () => {
+  it('says a post the API failed (500) could not be confirmed, and refreshes the list', async () => {
+    const settle = deferredFetch();
+    render(board([EXISTING]));
+
+    send("It's me & you");
+    await settle(answer(500, { error: 'boom' }));
+
+    expect(rows()).toHaveLength(1);
+    expect(box()).toHaveValue("It's me & you");
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We couldn't confirm your message was posted",
+    );
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('says a timed-out post could not be confirmed, keeps the text and refreshes the list', async () => {
+    h.fetch.mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'));
+    render(board([EXISTING]));
+
+    send('hello');
+    await act(async () => {});
+
+    expect(rows()).toHaveLength(1);
+    expect(box()).toHaveValue('hello');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We couldn't confirm your message was posted",
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent("wasn't posted");
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the visitor to wait for the list to update, never "in a moment"', async () => {
+    h.fetch.mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'));
+    render(board([EXISTING]));
+
+    send('hello');
+    await act(async () => {});
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('The list will update in about a minute');
+    expect(alert).toHaveTextContent("if your message isn't there then, post it again");
+    expect(alert).not.toHaveTextContent('in a moment');
+  });
+
+  it('rolls back on a network error and on an answer that is not a message, unconfirmed', async () => {
     h.fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     render(board([EXISTING]));
 
@@ -177,12 +232,16 @@ describe('posting a guestbook message', () => {
     await act(async () => {});
     expect(rows()).toHaveLength(1);
     expect(box()).toHaveValue('First try');
+    expect(h.refresh).toHaveBeenCalledTimes(1);
 
     h.fetch.mockResolvedValueOnce(answer(201, { unexpected: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Post message' }));
     await act(async () => {});
     expect(rows()).toHaveLength(1);
-    expect(screen.getByRole('alert')).toHaveTextContent("Your message wasn't posted");
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We couldn't confirm your message was posted",
+    );
+    expect(h.refresh).toHaveBeenCalledTimes(2);
   });
 
   it('replaces the empty state with the first message posted', async () => {
@@ -257,7 +316,7 @@ describe('the compose box while a post is in flight', () => {
     await settle(new TypeError('Failed to fetch'));
 
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent("Your message wasn't posted");
+    expect(alert).toHaveTextContent("We couldn't confirm your message was posted");
     expect(box()).not.toHaveAttribute('aria-invalid');
     expect(box().getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
   });
@@ -285,6 +344,105 @@ describe('the compose box while a post is in flight', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('a few minutes');
     expect(box()).toHaveValue('Hello there');
+    expect(h.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('checking the list again after a post that could not be confirmed', () => {
+  const timedOut = () => new DOMException('signal timed out', 'TimeoutError');
+  const wait = (ms: number) =>
+    act(async () => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('waits out the server list cache on every instance before it checks', () => {
+    expect(LIST_RECHECK_MS).toBeGreaterThan(GUESTBOOK_TTL_MS);
+    // The card says "in about a minute".
+    expect(LIST_RECHECK_MS).toBeLessThanOrEqual(90_000);
+  });
+
+  it('refreshes once more after the cache has expired, and keeps the text in the box', async () => {
+    h.fetch.mockRejectedValueOnce(timedOut());
+    render(board([EXISTING]));
+    send('hello');
+    await act(async () => {});
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+
+    await wait(GUESTBOOK_TTL_MS);
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+    await wait(LIST_RECHECK_MS - GUESTBOOK_TTL_MS);
+    expect(h.refresh).toHaveBeenCalledTimes(2);
+    await wait(LIST_RECHECK_MS * 2);
+    expect(h.refresh).toHaveBeenCalledTimes(2);
+    expect(box()).toHaveValue('hello');
+  });
+
+  it('checks once, counted from the latest unconfirmed post', async () => {
+    h.fetch.mockRejectedValueOnce(timedOut());
+    render(board([EXISTING]));
+    send('hello');
+    await act(async () => {});
+    await wait(LIST_RECHECK_MS / 2);
+
+    h.fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Post message' }));
+    await act(async () => {});
+    expect(h.refresh).toHaveBeenCalledTimes(2);
+
+    await wait(LIST_RECHECK_MS / 2);
+    expect(h.refresh).toHaveBeenCalledTimes(2);
+    await wait(LIST_RECHECK_MS / 2);
+    expect(h.refresh).toHaveBeenCalledTimes(3);
+  });
+
+  it('drops the later check when the page goes away', async () => {
+    h.fetch.mockRejectedValueOnce(timedOut());
+    const { unmount } = render(board([EXISTING]));
+    send('hello');
+    await act(async () => {});
+
+    unmount();
+    await wait(LIST_RECHECK_MS);
+
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['a confirmed post', 201, SAVED, 1],
+    ['a refused post (400)', 400, { error: 'Invalid message' }, 0],
+    ['a rate-limited post (429)', 429, { error: 'Too many requests' }, 0],
+  ])('never checks later after %s', async (_case, status, body, refreshes) => {
+    h.fetch.mockResolvedValueOnce(answer(status, body));
+    render(board([EXISTING]));
+    send('hello');
+    await act(async () => {});
+
+    await wait(LIST_RECHECK_MS * 2);
+
+    expect(h.refresh).toHaveBeenCalledTimes(refreshes);
+  });
+});
+
+describe('isOutcomeUnknown', () => {
+  it.each([
+    ['a 400 (invalid text)', false, new PostFailedError(400)],
+    ['a 422 (bad body)', false, new PostFailedError(422)],
+    ['a 429 (rate limited)', false, new PostFailedError(429)],
+    ['a 500', true, new PostFailedError(500)],
+    ['a 503', true, new PostFailedError(503)],
+    ['a network error', true, new TypeError('Failed to fetch')],
+    ['a timeout', true, new DOMException('signal timed out', 'TimeoutError')],
+    ['an answer that is not a message', true, new Error('not a message')],
+  ])('%s: may it have been stored? %s', (_case, unknown, error) => {
+    expect(isOutcomeUnknown(error)).toBe(unknown);
   });
 });
 

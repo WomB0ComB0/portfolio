@@ -24,6 +24,8 @@
 /** How much of the input validateUserInput sanitises, as a multiple of maxLength, with a floor. */
 const INPUT_BOUND_FACTOR = 4;
 const MIN_INPUT_BOUND = 256;
+/** URL schemes that can carry script, removed from typed text. */
+const SCRIPT_SCHEMES = /javascript:|data:|vbscript:/gi;
 
 const inputBound = (maxLength: number): number =>
   Math.max(maxLength * INPUT_BOUND_FACTOR, MIN_INPUT_BOUND);
@@ -66,11 +68,13 @@ export const validateUserInput = (input: string, maxLength = 500, allowHtml = fa
   // Normalize whitespace
   sanitizedInput = sanitizedInput.replaceAll(/\s+/g, ' ');
 
-  // Prevent script injections in various forms
-  sanitizedInput = sanitizedInput
-    .replaceAll(/javascript:/gi, '')
-    .replaceAll(/data:/gi, '')
-    .replaceAll(/vbscript:/gi, '');
+  // Prevent script injections in various forms. Repeated until none is left, as the tag strip is:
+  // removing one scheme can join the text around it into another (`javajavascript:script:`).
+  let previousSchemeInput: string;
+  do {
+    previousSchemeInput = sanitizedInput;
+    sanitizedInput = sanitizedInput.replaceAll(SCRIPT_SCHEMES, '');
+  } while (sanitizedInput !== previousSchemeInput);
 
   return sanitizedInput.slice(0, maxLength);
 };

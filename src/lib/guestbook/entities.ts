@@ -20,8 +20,9 @@
  * while the client escaped author names may hold `&#039;` and friends; this turns the five basic
  * entities that escaping produced back into characters, once, so they render as typed.
  *
- * Only legacy records go through it: the loader (./messages.ts) skips every record the API stored
- * as plain text (`plainText: true`), so a new message that says `&amp;` keeps saying it. The
+ * Only legacy author names go through it: the loader (./messages.ts) shows every message as
+ * stored (no client ever escaped one) and skips every name the API stored as plain text
+ * (`plainText: true`), so a message, or a new name, that says `&amp;` keeps saying it. The
  * stored data is never changed here. The result is still rendered as text, so a decoded
  * `<script>` is shown, never run. Any other entity (`&nbsp;`, `&#x27;`, upper-case `&AMP;`) is left
  * exactly as stored.

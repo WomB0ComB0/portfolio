@@ -20,8 +20,8 @@
  * the rows a visitor just posted with the same component.
  *
  * Text is rendered as text, exactly as given, so React escapes it exactly once. The row never
- * decodes entities: the loader decodes legacy records once (src/lib/guestbook/messages.ts), so a
- * visitor who types '&amp;' sees '&amp;', in the pending row and in the stored one.
+ * decodes entities: the loader decodes legacy author names once (src/lib/guestbook/messages.ts),
+ * so a visitor who types '&amp;' sees '&amp;', in the pending row and in the stored one.
  */
 
 import type { ReactElement } from 'react';

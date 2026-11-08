@@ -39,10 +39,11 @@ import 'server-only';
  * - A message posted through the API expires the cached list (expireGuestbookMessages): the next
  *   render on that instance reads Firestore again, and if that read fails the previous list is
  *   still served, marked stale. A read that started before the post is never cached as fresh.
- * - Text: records the API stored as plain text (`plainText: true`) are shown exactly as stored.
- *   Older records may hold the entities the old client's escaping produced, so those are decoded
- *   here (./entities.ts), at read time; nothing stored is changed. Both are clipped to the
- *   limits in ./limits.ts, so no stored record, however it got there, can make a row huge.
+ * - Text: every message, and every record the API stored as plain text (`plainText: true`), is
+ *   shown exactly as stored. An author name stored before that marker may hold the entities the
+ *   old client's escaping produced (it escaped names, never messages), so those are decoded here
+ *   (./entities.ts), at read time; nothing stored is changed. Both are clipped to the limits in
+ *   ./limits.ts, so no stored record, however it got there, can make a row huge.
  */
 
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
@@ -55,13 +56,19 @@ import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { createStaleCache, type StaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import { decodeBasicEntities } from './entities';
-import { ANONYMOUS_AUTHOR, AUTHOR_MAX_LENGTH, MESSAGE_MAX_LENGTH } from './limits';
+import {
+  ANONYMOUS_AUTHOR,
+  AUTHOR_MAX_LENGTH,
+  GUESTBOOK_TTL_MS,
+  MESSAGE_MAX_LENGTH,
+} from './limits';
 import type { GuestbookLoad, GuestbookMessage, GuestbookMessages } from './types';
+
+// Defined in ./limits.ts, which the page's client reads too (it waits the cache out).
+export { GUESTBOOK_TTL_MS };
 
 /** The most messages the page lists; past it, it shows the newest and says so. */
 export const GUESTBOOK_MESSAGE_CAP = 500;
-/** How long a loaded list is served before Firestore is asked again (the API's old 60 s). */
-export const GUESTBOOK_TTL_MS = 60_000;
 /** How long the page waits for Firestore before it shows the last good list, or its error state. */
 export const GUESTBOOK_DEADLINE_MS = 5_000;
 /**
@@ -91,10 +98,11 @@ export function toGuestbookMessage(
   const stored = textOf(data.message);
   const createdAt = textOf(data.createdAt);
   if (!stored?.trim() || !createdAt) return null;
-  // Plain-text records are shown as stored; older ones may hold the old client's entities.
-  const shown = data.plainText === true ? asStored : decodeBasicEntities;
-  const message = shown(stored).slice(0, MESSAGE_MAX_LENGTH);
-  const author = shown(textOf(data.authorName) ?? '').trim();
+  // A message is shown as stored: no client ever escaped one. Only an author name stored before
+  // plain text may hold the entities the old client's escapeHtml produced.
+  const message = stored.slice(0, MESSAGE_MAX_LENGTH);
+  const showAuthor = data.plainText === true ? asStored : decodeBasicEntities;
+  const author = showAuthor(textOf(data.authorName) ?? '').trim();
   const authorName = author.slice(0, AUTHOR_MAX_LENGTH).trim() || ANONYMOUS_AUTHOR;
   return { id, authorName, message, createdAt };
 }

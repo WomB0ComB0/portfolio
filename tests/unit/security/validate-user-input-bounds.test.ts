@@ -26,6 +26,8 @@ import { validateUserInput } from '@/utils/security/xss';
 
 const SEARCH_MAX_LENGTH = 100;
 const ATTACK_LENGTH = 16_000;
+/** What validateUserInput reads at its default maxLength (500): four times it. */
+const DEFAULT_INPUT_BOUND = 2000;
 /** Far above the bounded cost (well under 1 ms) and far below the unbounded one (30-130 ms). */
 const FAST_ENOUGH_MS = 20;
 const TIMING_RUNS = 3;
@@ -38,12 +40,12 @@ function unboundedReference(input: string, maxLength: number): string {
     previous = sanitized;
     sanitized = sanitized.replaceAll(/<[^>]*>/g, '');
   } while (sanitized !== previous);
-  return sanitized
-    .replaceAll(/\s+/g, ' ')
-    .replaceAll(/javascript:/gi, '')
-    .replaceAll(/data:/gi, '')
-    .replaceAll(/vbscript:/gi, '')
-    .slice(0, maxLength);
+  sanitized = sanitized.replaceAll(/\s+/g, ' ');
+  do {
+    previous = sanitized;
+    sanitized = sanitized.replaceAll(/javascript:|data:|vbscript:/gi, '');
+  } while (sanitized !== previous);
+  return sanitized.slice(0, maxLength);
 }
 
 /** The fastest of a few runs, so one garbage-collection pause can't fail the test. */
@@ -134,5 +136,32 @@ describe('validateUserInput on input a person would type', () => {
 
   it('keeps tags when HTML is allowed', () => {
     expect(validateUserInput('<b>bold</b>', 100, true)).toBe('<b>bold</b>');
+  });
+});
+
+describe('validateUserInput on nested script schemes', () => {
+  it.each([
+    ['javajavascript:script:hello', 'hello'],
+    ['javadata:script:hi', 'hi'],
+    ['JavaJAVASCRIPT:Script:go', 'go'],
+    ['vbsvbscript:cript:x', 'x'],
+    ['dadata:ta:text/html', 'text/html'],
+  ])('removes the scheme a removal leaves behind in %j', (input, expected) => {
+    expect(validateUserInput(input, 280)).toBe(expected);
+  });
+
+  // Each layer adds the scheme's length, so data: (5 characters) nests deepest: about 400 layers,
+  // one pass of the removal loop each, fit under the default bound.
+  it.each([
+    ['javascript:', 'java', 'script:'],
+    ['data:', 'da', 'ta:'],
+  ])('stays fast on %s nested as deep as the default bound lets through', (scheme, head, tail) => {
+    const depth = Math.floor((DEFAULT_INPUT_BOUND - scheme.length - 1) / scheme.length);
+    const attack = `${head.repeat(depth)}${scheme}${tail.repeat(depth)}x`;
+
+    expect(attack.length).toBeLessThanOrEqual(DEFAULT_INPUT_BOUND);
+    expect(attack.length + scheme.length).toBeGreaterThan(DEFAULT_INPUT_BOUND);
+    expect(validateUserInput(attack)).toBe('x');
+    expect(fastestRunMs(() => validateUserInput(attack))).toBeLessThan(FAST_ENOUGH_MS);
   });
 });

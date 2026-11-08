@@ -17,9 +17,14 @@
 /**
  * @file /guestbook against the live data, read-only. Nothing here hard-codes a count: each check
  * compares the page with its own header figure.
- * - Without JavaScript every message is a row in the server HTML, as many as the header states,
- *   and every row is shown (no pagination, no load-more, nothing waiting for a script).
- * - No visible text is a literal entity (&#039;, &amp;, &quot;, &lt;, &gt;).
+ * - Without JavaScript every message is a row in the server HTML, as many as the header states
+ *   (a trailing '+' there means the safety cap cut the list, and the rows are the number before
+ *   it), and every row is shown (no pagination, no load-more, nothing waiting for a script).
+ * - None of the page's own text is a literal entity (&#039;, &amp;, &quot;, &lt;, &gt;). The rows
+ *   hold visitors' words as typed, which may say `&amp;`, so they are checked only for what text
+ *   escaped twice shows and nobody types (&#039;, &amp;amp;, &amp;#039;...). The loader's legacy
+ *   decoding is unit-tested with controlled records, in entities.test.ts and
+ *   messages-loader.test.ts.
  * - A visitor who does not sign in triggers no Firebase Auth or identity request and gets no
  *   auth iframe, on a phone (390, mobile user agent) or a desktop (1280); pressing Sign in loads
  *   Firebase then, and only then offers the providers.
@@ -56,6 +61,11 @@ const MIN_TEXT_PX = 12;
 const AUTH_HOSTS =
   /(^|\.)(identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|apis\.google\.com|accounts\.google\.com|firebaseapp\.com|firestore\.googleapis\.com)$/;
 const ENTITY = /&(#0?39|amp|quot|lt|gt);/;
+/**
+ * What text escaped once too often shows (escapeHtml back in the JSX: "It&#039;s", "&amp;amp;").
+ * Nobody types it, so it fails on rows that hold visitors' words, where ENTITY can't be used.
+ */
+const DOUBLE_ESCAPED = /&#0?39;|&amp;(#0?39|amp|quot|lt|gt);/;
 
 type Viewport = 'phone' | 'desktop';
 
@@ -110,14 +120,26 @@ async function open(page: Page): Promise<Locator> {
   return main;
 }
 
-/** The header's message count, as a number (fails when the list could not load). */
+/**
+ * The header's message count, as a number (fails when the list could not load). A trailing '+'
+ * means the safety cap cut the list; the rows shown are then the number before it.
+ */
 async function statedCount(main: Locator): Promise<number> {
   const item = main
     .locator(`${TOTALS} > div`)
     .filter({ has: main.page().locator('dt', { hasText: /^messages$/ }) });
   const text = ((await item.locator('dd').textContent()) ?? '').replaceAll(',', '').trim();
-  expect(text, 'the header states a count (the list loaded)').toMatch(/^\d+$/);
-  return Number(text);
+  expect(text, 'the header states a count (the list loaded)').toMatch(/^\d+\+?$/);
+  return Number(text.replace(/\+$/, ''));
+}
+
+/** Main's text without the message rows, which hold visitors' words exactly as typed. */
+function ownText(main: Locator): Promise<string> {
+  return main.evaluate((root, row) => {
+    const copy = root.cloneNode(true) as Element;
+    for (const message of copy.querySelectorAll(row)) message.remove();
+    return copy.textContent ?? '';
+  }, ROW);
 }
 
 /** Visible text in main under 12px, or set in capitals (sr-only text is skipped). */
@@ -189,8 +211,12 @@ test.describe('/guestbook', () => {
       expect(await page.locator('h1').count()).toBe(1);
       await expect(main.locator('h1')).toHaveText('Guestbook');
       expect(await textOffenders(main)).toEqual([]);
-      // All of main's text, screen-reader-only words included: none of it may be an entity.
-      expect(await main.textContent()).not.toMatch(ENTITY);
+      // All of main's own text, screen-reader-only words included: none of it may be an entity.
+      // A message may legitimately say `&amp;` (shown as typed), so the rows are left out of that,
+      // and are only checked for the marks of text escaped twice.
+      expect(await ownText(main)).not.toMatch(ENTITY);
+      const rows = await main.locator(ROW).allTextContents();
+      expect(rows.filter((text) => DOUBLE_ESCAPED.test(text))).toEqual([]);
       await context.close();
     });
   }

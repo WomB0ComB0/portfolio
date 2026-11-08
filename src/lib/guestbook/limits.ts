@@ -16,8 +16,9 @@
 
 /**
  * @file The guestbook's text limits, shared by the compose box, the API's body schema and its
- * server-side check, and the loader's clip. Constants only (no directive, no imports), so any side
- * may use them.
+ * server-side check, and the loader's clip, and how long the server caches its list, which the
+ * page's client waits out after a post it could not confirm. Constants only (no directive, no
+ * imports), so any side may use them.
  */
 
 /** The most characters a message may have: the compose box's counter and the API's check. */
@@ -26,3 +27,8 @@ export const MESSAGE_MAX_LENGTH = 280;
 export const AUTHOR_MAX_LENGTH = 80;
 /** The name a message is posted and shown under when there is none (a guest's post). */
 export const ANONYMOUS_AUTHOR = 'Anonymous';
+/**
+ * How long a loaded list is served before Firestore is asked again (the API's old 60 s). Each
+ * server instance keeps its own copy, so a list may be this old on any of them.
+ */
+export const GUESTBOOK_TTL_MS = 60_000;

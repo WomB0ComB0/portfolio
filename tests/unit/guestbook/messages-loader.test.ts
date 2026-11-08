@@ -22,9 +22,9 @@
  * deadline still fills the cache. A message written through the API is checked on the server
  * (validateUserInput, the 280 and 80 character limits), stored as plain text (never HTML-escaped,
  * marked plainText) and the cached list is expired, not dropped: the next render reads again, and
- * if that read fails the previous list is still served, marked stale. Records stored before
- * plain text (no marker) have the five basic entities decoded when read; plain-text records are
- * never decoded.
+ * if that read fails the previous list is still served, marked stale. Author names stored before
+ * plain text (no marker) have the five basic entities decoded when read; message bodies and
+ * plain-text records are never decoded.
  *
  * Firestore and the Admin SDK are mocked: nothing here reads or writes the real guestbook.
  */
@@ -253,12 +253,14 @@ describe('loadGuestbook', () => {
     expect(h.getDocs).toHaveBeenCalledTimes(2);
   });
 
-  it('decodes the five basic entities only in records stored before plain text', async () => {
+  // The old client escaped author names (escapeHtml) and never a message body, so only a legacy
+  // name is decoded; every body is shown exactly as stored.
+  it('decodes the five basic entities only in author names stored before plain text', async () => {
     h.getDocs.mockResolvedValueOnce(
       snapshot([
         doc(1, {
           authorName: 'D&#039;Angelo &amp; Co',
-          message: '&lt;b&gt;hi&lt;/b&gt; &quot;x&quot;',
+          message: 'Write &amp;amp; for an ampersand',
         }),
         doc(2, {
           authorName: 'Tom &amp; Jerry',
@@ -270,7 +272,10 @@ describe('loadGuestbook', () => {
 
     const { messages } = await loadGuestbook();
 
-    expect(messages[0]).toMatchObject({ authorName: "D'Angelo & Co", message: '<b>hi</b> "x"' });
+    expect(messages[0]).toMatchObject({
+      authorName: "D'Angelo & Co",
+      message: 'Write &amp;amp; for an ampersand',
+    });
     expect(messages[1]).toMatchObject({
       authorName: 'Tom &amp; Jerry',
       message: 'Write &amp; for an ampersand, use &lt;br&gt;',

@@ -67,6 +67,31 @@ function StateBox({ title, text }: { readonly title: string; readonly text: stri
   );
 }
 
+/** Why the list may be out of date, worded for the rows below it, or for none. */
+function StaleNote({
+  loadedAt,
+  empty,
+}: {
+  readonly loadedAt: number;
+  /** The last good list had no messages. */
+  readonly empty: boolean;
+}): ReactElement {
+  if (empty) {
+    return (
+      <>
+        The guestbook's database isn't answering. It had no messages when it last answered,{' '}
+        <Freshness at={loadedAt} prefix="" />; newer ones may be missing.{' '}
+      </>
+    );
+  }
+  return (
+    <>
+      The guestbook's database isn't answering, so these are the messages{' '}
+      <Freshness at={loadedAt} prefix="loaded" />; newer messages may be missing.{' '}
+    </>
+  );
+}
+
 /** What the list says before its rows, or nothing when it is simply ready. */
 export function ListNotice({
   load,
@@ -90,12 +115,7 @@ export function ListNotice({
   if (!stale && !load.truncated) return null;
   return (
     <p className={LIST_NOTE_CLASS}>
-      {stale && (
-        <>
-          The guestbook's database isn't answering, so these are the messages{' '}
-          <Freshness at={load.loadedAt ?? 0} prefix="loaded" />; newer messages may be missing.{' '}
-        </>
-      )}
+      {stale && <StaleNote loadedAt={load.loadedAt ?? 0} empty={load.messages.length === 0} />}
       {load.truncated && `Showing the newest ${load.messages.length} messages.`}
     </p>
   );

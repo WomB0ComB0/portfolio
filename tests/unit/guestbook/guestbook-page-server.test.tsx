@@ -111,7 +111,7 @@ describe('guestbook page on the server', () => {
     expect(rowsOf(page)).toHaveLength(3);
   });
 
-  // The loader hands the page plain text (it decodes legacy records itself, see
+  // The loader hands the page plain text (it decodes legacy author names itself, see
   // messages-loader.test.ts); the page renders it as text, escaped once by React.
   it('renders messages and names as text, never as markup or entities', async () => {
     const page = await renderPage(
@@ -181,6 +181,23 @@ describe('guestbook page on the server', () => {
     expect(listOf(page)).toHaveAttribute('data-state', 'stale');
     expect(page.textContent).toMatch(/newer messages may be missing/i);
     expect(rowsOf(page)).toHaveLength(1);
+  });
+
+  it('keeps the stale warning when the last good list was empty', async () => {
+    const page = await renderPage({
+      state: 'stale',
+      messages: [],
+      truncated: false,
+      loadedAt: Date.now() - 5 * 60_000,
+    });
+
+    expect(listOf(page)).toHaveAttribute('data-state', 'stale');
+    expect(page.textContent).toContain(
+      "The guestbook's database isn't answering. It had no messages when it last answered, 5 min ago; newer ones may be missing.",
+    );
+    expect(page.textContent).not.toContain('these are the messages');
+    expect(page.textContent).not.toContain('No messages yet');
+    expect(rowsOf(page)).toHaveLength(0);
   });
 
   it('says when the safety cap cut the list', async () => {
