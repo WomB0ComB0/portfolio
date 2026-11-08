@@ -20,6 +20,7 @@
 @import "tw-animate-css";
 @import "./page-header.css";
 @import "./edge-haze.css";
+@import "./light-rays.css";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -61,7 +61,8 @@
  *   says so and drops the opener. The skip link, then Tab, focuses 'Email me', the hero's first
  *   link.
  * - Motion: under reduced motion nothing on the page animates. Without it, only the now playing
- *   equaliser may, by transform alone, and it does while something plays (skipped otherwise).
+ *   equaliser may, by transform alone, and it does while something plays (skipped otherwise);
+ *   behind the page, the shell's light rays fade and swing by opacity and rotate alone.
  * - Loading the page, then resizing it across the three tiers, logs no console error, page error
  *   or hydration warning, up to the moment the palette's shortcut opens it, which proves React has
  *   hydrated. Chromium reports a ResizeObserver loop error only as a window error event with no
@@ -194,6 +195,8 @@ const PLAYING_HEADING = /^playing now\b/i;
 /** The slot whose equaliser is the page's only moving element, and what it may animate. */
 const EQUALISER_AREA: BentoArea = 'now';
 const EQUALISER_PROPERTIES: ReadonlySet<string> = new Set(['transform', 'scale']);
+/** The shell's light rays (src/styles/light-rays.css), behind every page: what they may animate. */
+const LIGHT_RAY_PROPERTIES: ReadonlySet<string> = new Set(['opacity', 'rotate']);
 
 /**
  * The browser's own line for a failed request. Upstream failures are the data sources' business:
@@ -226,6 +229,8 @@ interface RunningAnimation {
    * otherwise), or null outside one.
    */
   readonly equaliser: string | null;
+  /** Whether the target is one of the shell's light rays, outside the bento. */
+  readonly lightRay: boolean;
   /** The target, as `tag.classes` plus its pseudo-element, for the failure message. */
   readonly target: string;
   /** The CSS properties its keyframes set. */
@@ -458,6 +463,7 @@ function runningAnimations(page: Page): Promise<RunningAnimation[]> {
           {
             area: target.closest(selector)?.getAttribute('data-bento-slot') ?? '',
             equaliser: target.closest('[data-equaliser]')?.getAttribute('data-equaliser') ?? null,
+            lightRay: target.closest('.light-rays') !== null,
             target: `${target.tagName.toLowerCase()}.${classes}${effect.pseudoElement ?? ''}`,
             properties: [...properties].filter((property) => !bookkeeping.has(property)),
           },
@@ -471,15 +477,21 @@ function runningAnimations(page: Page): Promise<RunningAnimation[]> {
 const describeAnimation = ({ area, target, properties }: RunningAnimation): string =>
   `${area || 'page'} ${target}: ${properties.join(', ')}`;
 
+/** Whether every property in `properties` is in `allowed`. */
+const movesOnly = (properties: readonly string[], allowed: ReadonlySet<string>): boolean =>
+  properties.every((property) => allowed.has(property));
+
 /**
- * Running animations that are not the playing equaliser's: anything outside a live equaliser
- * (elsewhere in its tile, or in one at rest), or moving more than it may.
+ * Running animations that are neither the playing equaliser's nor the shell's light rays':
+ * anything outside a live equaliser (elsewhere in its tile, or in one at rest) and outside the
+ * rays, or either moving more than it may.
  */
 const motionBesidesEqualiser = (animations: readonly RunningAnimation[]): string[] =>
   animations
     .filter(
-      ({ equaliser, properties }) =>
-        equaliser !== 'live' || properties.some((property) => !EQUALISER_PROPERTIES.has(property)),
+      ({ equaliser, lightRay, properties }) =>
+        !(equaliser === 'live' && movesOnly(properties, EQUALISER_PROPERTIES)) &&
+        !(lightRay && movesOnly(properties, LIGHT_RAY_PROPERTIES)),
     )
     .map(describeAnimation);
 
@@ -710,7 +722,9 @@ test.describe('home bento motion', () => {
     expect(moving, 'running under reduced motion').toEqual([]);
   });
 
-  test('only the now playing equaliser animates, by transform alone', async ({ page }) => {
+  test('only the now playing equaliser animates, by transform alone, and the light rays behind the page', async ({
+    page,
+  }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     const main = await openHome(page);
     await settleBento(page, main);

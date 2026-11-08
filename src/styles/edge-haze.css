@@ -266,7 +266,7 @@
 
 /*
  * Wide screens: the canvas shows beside the 1200px column, so the sides feather over 48px instead
- * of ending in a hard line over the canvas and the atmosphere glow.
+ * of ending in a hard line over the canvas and its light glows (light-rays.css).
  */
 @media (width >= 85rem) and (pointer: fine) {
   .edge-haze {
@@ -442,8 +442,9 @@ html {
 
 /*
  * An animation under a band makes the compositor blur that band again every frame.
- * src/components/layout/pause-under-edge.ts marks a pulsing placeholder, a live dot or the
- * equaliser while it overlaps a band, and it waits there until it is clear. :root raises the
+ * src/components/layout/pause-under-edge.ts marks a pulsing placeholder, a live dot, the
+ * equaliser or a light ray while it overlaps a band that shows (above opacity 0), and it waits
+ * there until it is clear or the band fades out. :root raises the
  * specificity over a one-class animation rule (a CSS module's), whatever the stylesheet order;
  * Tailwind's animate-* utilities are in a layer, which this unlayered rule beats anyway.
  */

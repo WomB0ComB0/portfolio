@@ -115,9 +115,9 @@ function useScrollFadeFallback(ref: RefObject<HTMLDivElement | null>): void {
 }
 
 /**
- * Pauses the pulsing placeholders, live dots and home equaliser that sit under a band while the
- * haze is mounted, and after each route change lets go of the ones the last route left behind
- * (an observer reports nothing for an element removed clear of the bands).
+ * Pauses the pulsing placeholders, live dots, home equaliser and light rays that sit under a band
+ * that shows while the haze is mounted, and after each route change lets go of the ones the last
+ * route left behind (an observer reports nothing for an element removed clear of the bands).
  */
 function usePauseUnderEdge(ref: RefObject<HTMLDivElement | null>, path: string): void {
   const watch = useRef<UnderEdgeWatch | null>(null);
@@ -166,8 +166,9 @@ export interface EdgeHazeProps {
  *
  * Mounted once by the shell, after the page column: fixed, so it never moves the layout;
  * pointer-events none and aria-hidden, so it never takes a click, a hover, focus, a selection or
- * a screen reader's attention. While it is mounted, pulsing placeholders, live dots and the home
- * equaliser pause under its bands, where each of their frames would blur a band again.
+ * a screen reader's attention. While it is mounted, pulsing placeholders, live dots, the home
+ * equaliser and the light rays pause under a band that shows, where each of their frames would
+ * blur it again; under a band still at opacity 0 (the top one at the top of the page) they move.
  */
 export function EdgeHaze({ path }: EdgeHazeProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);

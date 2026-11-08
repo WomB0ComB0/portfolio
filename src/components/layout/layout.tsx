@@ -23,14 +23,16 @@ import { SpotlightRoot } from '@/components/console/spotlight-root';
 import { Footer, MobileNavBar, NavBar } from '.';
 // Not through the barrel: tests stand in for the barrel's navs and footer only.
 import { EdgeHaze } from './edge-haze';
+import { LightRays } from './light-rays';
 
 /**
- * The page canvas. `atmosphere` paints a faint brand light from the top right; its gradient is
- * positioned in percent of its box, so the box is one viewport tall (100svh, which does not
- * resize as a phone's URL bar slides) instead of the whole page, where a long page would push the
- * light above the top edge. overflow-x-clip, unlike hidden, keeps position: sticky working.
+ * The page canvas, lit as it was before #603. `light-glows` (light-rays.css) paints LightRays'
+ * two faint glows, sized to the whole page as they were; `relative isolate` makes the root the box
+ * and the stacking context the rays sit in at z-index -1, over the canvas and under everything
+ * else (every portal is z-50 or above, after the root, so still above it). overflow-x-clip,
+ * unlike hidden, keeps position: sticky working.
  */
-const ROOT_CLASS = 'relative min-h-dvh overflow-x-clip bg-canvas atmosphere bg-size-[100%_100svh]';
+const ROOT_CLASS = 'light-glows relative isolate min-h-dvh overflow-x-clip bg-canvas';
 
 /**
  * The 64 px rail, from lg up. display:none below lg takes it out of the tab order. z-40 keeps its
@@ -83,8 +85,9 @@ const SkipToContent = () => (
 );
 
 /**
- * The site shell around every page: skip link, command palette, the tile spotlight's pointer
- * listener, the navs, the one `<main>`, the footer and the scroll edge haze over them.
+ * The site shell around every page: the light rays under it all, skip link, command palette, the
+ * tile spotlight's pointer listener, the navs, the one `<main>`, the footer and the scroll edge
+ * haze over them.
  *
  * Exactly one nav shows at every width: the 64 px rail from lg up, the bottom bar below it. Main
  * and the footer share one column offset by the rail, each at most max-w-shell wide and centred
@@ -103,6 +106,8 @@ export const Layout = ({
   const pathname = usePathname();
   return (
     <div className={ROOT_CLASS}>
+      {/* First, under everything (z-index -1 in the root); nothing in it takes focus or input. */}
+      <LightRays />
       <SkipToContent />
       <Palette />
       <SpotlightRoot />
