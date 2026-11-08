@@ -65,7 +65,7 @@ User journey tests that verify end-to-end flows:
   masonry's spans, estimates and first paint, links, keyboard, motion, console, and the HTML
   without JavaScript (see [The home bento](#the-home-bento) below)
 - **navigation.spec.ts** - Site navigation, routing, back/forward
-- **guestbook.spec.ts** - Guestbook viewing and posting
+- **guestbook.spec.ts** - Guestbook, read-only against the live data: every message in the server HTML (rows match the stated count, a trailing '+' when the cap cut the list), no literal entities in the page's own text (rows hold visitors' words as typed, so they are checked only for text escaped twice, such as &#039;), no Firebase Auth request until Sign in is pressed (390 mobile and 1280), no sideways scroll, refined type, the sticky compose card below the top edge haze (1280 and 1920). Every context aborts non-GET requests and the auth hosts; nothing signs in or posts
 - **dark-mode.spec.ts** - Theme toggle, persistence
 - **projects.spec.ts** - Projects page, modals, filtering
 - **experience.spec.ts** - Experience timeline, detail modals

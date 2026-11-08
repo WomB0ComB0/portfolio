@@ -139,59 +139,8 @@ export const sanitizeUrl = (
   }
 };
 
-/** How much of the input validateUserInput sanitises, as a multiple of maxLength, with a floor. */
-const INPUT_BOUND_FACTOR = 4;
-const MIN_INPUT_BOUND = 256;
-
-const inputBound = (maxLength: number): number =>
-  Math.max(maxLength * INPUT_BOUND_FACTOR, MIN_INPUT_BOUND);
-
-/**
- * Validates and sanitizes generic user input by trimming, removing HTML tags (unless allowed), normalizing whitespace,
- * and removing dangerous patterns to prevent XSS and basic injection flaws.
- *
- * @function
- * @public
- * @author Mike Odnis
- * @param {string} input User input to validate and sanitize.
- * @param {number} [maxLength=500] Maximum allowed input length. Excess will be truncated.
- * @param {boolean} [allowHtml=false] If true, HTML tags are preserved; otherwise, all tags are stripped.
- * @returns {string} Sanitized input string with length at most `maxLength`.
- * @version 1.0.0
- * @example
- * const clean = validateUserInput('<p>Hello!</p>', 50); // "Hello!"
- */
-export const validateUserInput = (input: string, maxLength = 500, allowHtml = false): string => {
-  if (!input || typeof input !== 'string') {
-    return '';
-  }
-
-  // Trim whitespace, then bound the work. The tag-strip below is quadratic on a long run of
-  // unclosed '<', and callers pass text from the URL (?q) that the server renders, so an oversized
-  // value must not reach it whole. The slack over maxLength lets tags and runs of whitespace that
-  // straddle the cut still be removed before the final slice, so typed input comes out the same.
-  let sanitizedInput = input.trim().slice(0, inputBound(maxLength));
-
-  // Remove HTML tags if not allowed
-  if (!allowHtml) {
-    let previousSanitizedInput: string;
-    do {
-      previousSanitizedInput = sanitizedInput;
-      sanitizedInput = sanitizedInput.replaceAll(/<[^>]*>/g, '');
-    } while (sanitizedInput !== previousSanitizedInput);
-  }
-
-  // Normalize whitespace
-  sanitizedInput = sanitizedInput.replaceAll(/\s+/g, ' ');
-
-  // Prevent script injections in various forms
-  sanitizedInput = sanitizedInput
-    .replaceAll(/javascript:/gi, '')
-    .replaceAll(/data:/gi, '')
-    .replaceAll(/vbscript:/gi, '');
-
-  return sanitizedInput.slice(0, maxLength);
-};
+/** Moved to ./user-input (no dependencies), so islands that only check text stay light. */
+export { validateUserInput } from './user-input';
 
 /**
  * Escapes special HTML characters in a string to their corresponding HTML entities,

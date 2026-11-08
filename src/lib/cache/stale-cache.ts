@@ -27,6 +27,9 @@
  *   request. The first request after the backoff loads again; a good load replaces the value.
  * - `peek` answers the last good value without loading or waiting, for a caller that cannot wait
  *   for a slow reload (a page tile past its deadline).
+ * - `expire` marks one key's value as out of date (after a write): the next request loads again,
+ *   while the old value stays as the stale-on-error fallback. A load that was already running is
+ *   let go: its callers still get its answer, but it is not cached, since it may predate the write.
  *
  * Whatever a successful load returns is cached, so a real empty list ([]) or a missing document
  * (null) is cached like any other value. A failure is never cached as a value: with nothing to
@@ -86,11 +89,21 @@ export interface StaleCache<T> {
    * can show the last good value; that reload keeps running and still fills the cache.
    */
   peek(key: string): CachedValue<T> | undefined;
-  /** Forgets every value. */
+  /**
+   * Marks `key`'s value as out of date, e.g. after a write: the next `get` loads again at once
+   * (any backoff is dropped), and when that load fails the old value is still served, marked
+   * stale. A load already running for `key` is let go: it still answers its callers, but its
+   * value is not cached and its failure starts no backoff. Does nothing to a key never loaded.
+   */
+  expire(key: string): void;
+  /** Forgets every value. A load already running is let go, as by `expire`. */
   clear(): void;
 }
 
-type Entry<T> = CachedValue<T>;
+interface Entry<T> extends CachedValue<T> {
+  /** Set by `expire`: served only as the fallback for a failed reload, never as fresh. */
+  readonly expired?: boolean;
+}
 
 /** A failed reload of a cached key: why, and when the upstream may be asked again. */
 interface Backoff {
@@ -115,7 +128,7 @@ export function createStaleCache<T>({
   const backoffs = new Map<string, Backoff>();
   const inFlight = new Map<string, Promise<T>>();
 
-  const isFresh = (entry: Entry<T>): boolean => now() - entry.loadedAt < ttlMs;
+  const isFresh = (entry: Entry<T>): boolean => !entry.expired && now() - entry.loadedAt < ttlMs;
 
   /** The running backoff for `key`, if its last reload failed less than `retryBackoffMs` ago. */
   const activeBackoff = (key: string): Backoff | undefined => {
@@ -140,15 +153,22 @@ export function createStaleCache<T>({
     const running = inFlight.get(key);
     if (running) return running;
 
+    // Still the key's load, i.e. not let go by expire() or clear() since it started. Only then
+    // may it fill the cache, start a backoff or end the key's in-flight entry: a load let go may
+    // predate a write, and a newer load may own the entry by the time it settles.
+    const current = (): boolean => inFlight.get(key) === started;
     // Promise.resolve().then(load) also turns a load that throws synchronously into a rejection.
-    const started = Promise.resolve()
+    const started: Promise<T> = Promise.resolve()
       .then(load)
       .then(
-        (data) => remember(key, data),
-        (error: unknown) => backOff(key, error),
+        (data) => (current() ? remember(key, data) : data),
+        (error: unknown) => {
+          if (current()) return backOff(key, error);
+          throw error;
+        },
       )
       .finally(() => {
-        inFlight.delete(key);
+        if (current()) inFlight.delete(key);
       });
     inFlight.set(key, started);
     return started;
@@ -174,6 +194,12 @@ export function createStaleCache<T>({
       const cached = entries.get(key);
       if (!cached) return undefined;
       return { data: cached.data, loadedAt: cached.loadedAt };
+    },
+    expire(key) {
+      const cached = entries.get(key);
+      if (cached) entries.set(key, { ...cached, expired: true });
+      backoffs.delete(key);
+      inFlight.delete(key);
     },
     clear() {
       entries.clear();

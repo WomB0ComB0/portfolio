@@ -14,4 +14,11 @@
  * limitations under the License.
  */
 
-export { default as GuestbookComponent } from './guestbook';
+export { type BoardListState, GuestbookBoard, type GuestbookBoardProps } from './guestbook-board';
+export {
+  GUESTBOOK_DESCRIPTION,
+  GUESTBOOK_TITLE,
+  GuestbookStatStrip,
+  ListNotice,
+} from './guestbook-header';
+export { MessageRow, type MessageRowProps } from './message-row';

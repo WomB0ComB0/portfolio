@@ -265,6 +265,7 @@ describe('store and guard together', () => {
     api: { limit: async () => ({ success: true, limit: 30, remaining: 29, reset: 0 }) },
     apiv1: { limit: async () => ({ success: true, limit: 60, remaining: 59, reset: 0 }) },
     auth: { limit: async () => ({ success: true, limit: 5, remaining: 4, reset: 0 }) },
+    guestbook: { limit: async () => ({ success: true, limit: 5, remaining: 4, reset: 0 }) },
     slow: { limit: async () => ({ success: true, limit: 1, remaining: 0, reset: 0 }) },
   };
   const guard = createApiGuard({

@@ -342,3 +342,140 @@ describe('createStaleCache.peek', () => {
     expect(cache.peek('key')).toBeUndefined();
   });
 });
+
+/** A load that settles when the test says so. */
+const held = <T>() => {
+  let settle: (value: T | Error) => void = () => undefined;
+  const promise = new Promise<T>((resolve, reject) => {
+    settle = (value) => (value instanceof Error ? reject(value) : resolve(value));
+  });
+  return { load: () => promise, settle };
+};
+
+describe('createStaleCache.expire', () => {
+  it('keeps the last good value: the next get reloads, and a failed reload serves it stale', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'before');
+    advance(10);
+    const failure = new Error('upstream down');
+
+    cache.expire('key');
+    const load = vi.fn(async (): Promise<string> => {
+      throw failure;
+    });
+
+    await expect(cache.get('key', load)).resolves.toEqual({
+      stale: true,
+      data: 'before',
+      error: failure,
+      loadedAt: 0,
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(cache.peek('key')).toEqual({ data: 'before', loadedAt: 0 });
+  });
+
+  it('reloads at once, inside the TTL and during a failed reload backoff', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'before');
+    advance(TTL_MS);
+    await cache.get('key', async () => {
+      throw new Error('down');
+    });
+
+    cache.expire('key');
+
+    await expect(cache.get('key', async () => 'after')).resolves.toEqual({
+      stale: false,
+      data: 'after',
+    });
+  });
+
+  it('does nothing to a key that was never loaded, or to the other keys', async () => {
+    const { cache } = setup<string>();
+    await cache.get('other', async () => 'kept');
+
+    cache.expire('cold');
+    const load = vi.fn(async () => 'new');
+
+    await expect(cache.get('other', load)).resolves.toEqual({ stale: false, data: 'kept' });
+    expect(load).not.toHaveBeenCalled();
+    expect(cache.peek('cold')).toBeUndefined();
+  });
+
+  it('never caches a load that started before it as fresh, even when that load ends last', async () => {
+    const { cache } = setup<string>();
+    const before = held<string>();
+    const after = held<string>();
+    const first = cache.get('key', before.load);
+    await Promise.resolve();
+
+    cache.expire('key');
+    const second = cache.get('key', after.load);
+    await after.settle('after the write');
+    await before.settle('before the write');
+    await Promise.all([first, second]);
+
+    const load = vi.fn(async () => 'third');
+    await expect(cache.get('key', load)).resolves.toEqual({
+      stale: false,
+      data: 'after the write',
+    });
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('lets the load that started before it end without ending the newer one', async () => {
+    const { cache } = setup<string>();
+    const before = held<string>();
+    const after = held<string>();
+    const first = cache.get('key', before.load).catch((error: unknown) => error);
+    await Promise.resolve();
+
+    cache.expire('key');
+    const second = cache.get('key', after.load);
+    await before.settle(new Error('old read failed'));
+    await first;
+    // The newer load is still running: a caller now joins it instead of starting a third.
+    const third = vi.fn(async () => 'third');
+    const joined = cache.get('key', third);
+    await after.settle('after the write');
+
+    await expect(Promise.all([second, joined])).resolves.toEqual([
+      { stale: false, data: 'after the write' },
+      { stale: false, data: 'after the write' },
+    ]);
+    expect(third).not.toHaveBeenCalled();
+  });
+
+  it('starts no backoff when a load from before it fails', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'good');
+    advance(TTL_MS);
+    const before = held<string>();
+    const first = cache.get('key', before.load);
+    await Promise.resolve();
+
+    cache.expire('key');
+    await before.settle(new Error('old read failed'));
+    await expect(first).resolves.toMatchObject({ stale: true, data: 'good' });
+
+    await expect(cache.get('key', async () => 'fresh')).resolves.toEqual({
+      stale: false,
+      data: 'fresh',
+    });
+  });
+});
+
+describe('createStaleCache.clear while a load runs', () => {
+  it('caches nothing from a load that started before clear()', async () => {
+    const { cache } = setup<string>();
+    const before = held<string>();
+    const first = cache.get('key', before.load);
+    await Promise.resolve();
+
+    cache.clear();
+    await before.settle('from before the clear');
+    await first;
+
+    expect(cache.peek('key')).toBeUndefined();
+  });
+});

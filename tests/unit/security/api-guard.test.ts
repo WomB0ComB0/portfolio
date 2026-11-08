@@ -61,7 +61,7 @@ type FakeLimiter = RateLimiter & {
 
 function fakeLimiters(): Record<LimiterKind, FakeLimiter> {
   const make = (): FakeLimiter => ({ limit: vi.fn(async () => ok) });
-  return { api: make(), apiv1: make(), auth: make(), slow: make() };
+  return { api: make(), apiv1: make(), auth: make(), guestbook: make(), slow: make() };
 }
 
 const request = (path: string, { ip, method = 'GET' }: { ip?: string; method?: string } = {}) =>
@@ -113,6 +113,20 @@ describe('classifyRequest', () => {
     expect(classifyRequest('GET', '/api/health')).toBeNull();
     expect(classifyRequest('GET', '/api/health/ready')).toBeNull();
     expect(classifyRequest('OPTIONS', '/api/v1/blog')).toBeNull();
+  });
+
+  it('gives a guestbook post its own, stricter limiter; reading the guestbook stays apiv1', () => {
+    const post = { checkBans: true, limiter: 'guestbook' };
+    expect(classifyRequest('POST', '/api/v1/messages')).toEqual(post);
+    expect(classifyRequest('post', '/api/v1/messages/')).toEqual(post);
+    expect(classifyRequest('GET', '/api/v1/messages')).toEqual({
+      checkBans: true,
+      limiter: 'apiv1',
+    });
+    expect(classifyRequest('POST', '/api/v1/messagesx')).toEqual({
+      checkBans: true,
+      limiter: 'apiv1',
+    });
   });
 
   it('matches whole path segments only', () => {
@@ -268,11 +282,23 @@ describe('createApiGuard: route classes and keys', () => {
   it('uses the apiv1, api and auth limiters for their route classes', async () => {
     const guard = guardWith();
     await guard.check(request('/api/v1/blog', { ip: '203.0.113.9' }));
-    expect(limiterCalls()).toEqual({ api: 0, apiv1: 1, auth: 0, slow: 0 });
+    expect(limiterCalls()).toEqual({ api: 0, apiv1: 1, auth: 0, guestbook: 0, slow: 0 });
     await guard.check(request('/api/status', { ip: '203.0.113.9' }));
-    expect(limiterCalls()).toEqual({ api: 1, apiv1: 1, auth: 0, slow: 0 });
+    expect(limiterCalls()).toEqual({ api: 1, apiv1: 1, auth: 0, guestbook: 0, slow: 0 });
     await guard.check(request('/api/admin/ban', { ip: '203.0.113.9', method: 'POST' }));
-    expect(limiterCalls()).toEqual({ api: 1, apiv1: 1, auth: 1, slow: 0 });
+    expect(limiterCalls()).toEqual({ api: 1, apiv1: 1, auth: 1, guestbook: 0, slow: 0 });
+  });
+
+  it('counts a guestbook post against the guestbook limiter only, and limits it there', async () => {
+    const guard = guardWith();
+    const post = () => request('/api/v1/messages', { ip: '203.0.113.9', method: 'POST' });
+
+    await expect(guard.check(post())).resolves.toEqual({ kind: 'allow' });
+    expect(limiterCalls()).toEqual({ api: 0, apiv1: 0, auth: 0, guestbook: 1, slow: 0 });
+    expect(limiters.guestbook.limit).toHaveBeenCalledWith('203.0.113.9');
+
+    limiters.guestbook.limit.mockResolvedValue(denied(5));
+    await expect(guard.check(post())).resolves.toEqual({ kind: 'limit', limit: 5, reset: RESET });
   });
 
   it('does not apply bans or slow mode to /api/admin, only the auth limiter', async () => {
@@ -341,7 +367,7 @@ describe('createApiGuard: exemptions', () => {
     const verdict = await guardWith({ getBackend }).check(req);
     expect(verdict).toEqual({ kind: 'allow' });
     expect(getBackend).not.toHaveBeenCalled();
-    expect(limiterCalls()).toEqual({ api: 0, apiv1: 0, auth: 0, slow: 0 });
+    expect(limiterCalls()).toEqual({ api: 0, apiv1: 0, auth: 0, guestbook: 0, slow: 0 });
   });
 
   it('allows everything when Redis is not configured', async () => {

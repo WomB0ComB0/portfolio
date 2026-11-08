@@ -20,18 +20,24 @@ import type { JSX } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSignOut } from '@/core/auth';
 
+/**
+ * Signs the visitor out through src/core/auth. While that runs it is busy but stays focusable
+ * (aria-disabled, presses ignored), so a failed sign-out leaves focus on it, not on the page.
+ */
 export const LogoutButton = (props: LogoutButtonProps): JSX.Element => {
   const { ...other } = props;
   const [signOut, inFlight] = useSignOut();
   return (
     <Button
+      type="button"
       variant={'outline'}
-      onClick={signOut}
-      disabled={inFlight}
+      onClick={inFlight ? undefined : signOut}
+      aria-disabled={inFlight || undefined}
+      aria-busy={inFlight || undefined}
       className={'w-full'}
       {...other}
     >
-      Sign Out
+      Sign out
     </Button>
   );
 };

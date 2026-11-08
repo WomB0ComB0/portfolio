@@ -15,6 +15,7 @@
  */
 
 import { t } from 'elysia';
+import { AUTHOR_MAX_LENGTH, MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
 
 export const messagesSchema = {
   'messages.get.response': t.Object({
@@ -29,9 +30,11 @@ export const messagesSchema = {
       ),
     }),
   }),
+  // The browser checks a draft first; these limits hold for any client. createMessage then checks
+  // the text itself (validateUserInput) and answers 400 when nothing postable is left.
   'messages.post.body': t.Object({
-    authorName: t.String({ minLength: 1 }),
-    message: t.String({ minLength: 1 }),
+    authorName: t.String({ minLength: 1, maxLength: AUTHOR_MAX_LENGTH }),
+    message: t.String({ minLength: 1, maxLength: MESSAGE_MAX_LENGTH }),
   }),
   'messages.post.response': t.Object({
     id: t.String(),

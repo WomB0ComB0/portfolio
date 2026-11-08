@@ -20,8 +20,8 @@
  * wins, `Allow` wins a tie, and a path no rule matches is allowed.
  *
  * Pages render their content on the server, so crawlers get the pages and the OG image route,
- * and /api/ is closed again, the content API included. The one interim exception is
- * /api/v1/messages: the guestbook still loads its messages in the browser.
+ * and /api/ is closed, the content API included. /api/v1/messages is closed too: the guestbook
+ * renders its messages on the server now, so no page reads it in the browser.
  */
 
 import type { MetadataRoute } from 'next';
@@ -57,21 +57,20 @@ function isAllowed(rule: RobotsRule, path: string): boolean {
 
 const CRAWLERS = ['Googlebot', 'Bingbot', 'Applebot', 'DuckDuckBot'] as const;
 
-/** The guestbook's messages: the only API path a page still reads in the browser. */
+/** The guestbook's messages: rendered on /guestbook's server HTML now, so closed like the rest. */
 const GUESTBOOK_MESSAGES = '/api/v1/messages';
 
-/** Pages (detail pages included), the OG image route link previews use, and the guestbook's messages. */
+/** Pages (detail pages included, /guestbook too) and the OG image route link previews use. */
 const CRAWLABLE_PATHS = [
   '/',
   '/projects',
   '/projects/project-1',
   '/experience/experience-1',
   '/places/place-1',
+  '/guestbook',
   '/sitemap.xml',
   '/api/og',
   '/api/og?title=Projects',
-  GUESTBOOK_MESSAGES,
-  `${GUESTBOOK_MESSAGES}?page=2`,
 ];
 
 /** The content API, whose data the pages now render on the server, and the service endpoints. */
@@ -91,6 +90,8 @@ const CLOSED_PATHS = [
   '/api/v1/status',
   '/api/v1/version',
   '/api/v1/info',
+  GUESTBOOK_MESSAGES,
+  `${GUESTBOOK_MESSAGES}?page=2`,
 ];
 
 describe('robots', () => {
@@ -112,20 +113,17 @@ describe('robots', () => {
   });
 
   it.each(rulesOf(config).map((rule) => [toList(rule.userAgent).join(', '), rule] as const))(
-    'the %s group allows / and /api/og, disallows /api/, and opens only the guestbook under /api/v1',
+    'the %s group allows / and /api/og, disallows /api/, and opens nothing under /api/v1',
     (_agents, rule) => {
       const allow = toList(rule.allow);
 
-      expect(allow).toEqual(expect.arrayContaining(['/', '/api/og']));
+      expect(allow).toEqual(['/', '/api/og']);
       expect(toList(rule.disallow)).toEqual(['/api/']);
-      expect(allow).not.toContain('/api/v1/');
-      expect(allow.filter((pattern) => pattern.startsWith('/api/v1'))).toEqual([
-        GUESTBOOK_MESSAGES,
-      ]);
+      expect(allow.filter((pattern) => pattern.startsWith('/api/v1'))).toEqual([]);
     },
   );
 
-  it.each(CRAWLERS)('lets %s fetch pages, the OG image and the guestbook messages', (crawler) => {
+  it.each(CRAWLERS)('lets %s fetch pages and the OG image', (crawler) => {
     const group = groupFor(config, crawler);
     expect(group).toBeDefined();
     for (const path of CRAWLABLE_PATHS) {
