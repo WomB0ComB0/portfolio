@@ -40,7 +40,7 @@ import { wakatimeRoute } from './wakatime';
  *   - /top-artists (Spotify)
  *   - /top-tracks (Spotify)
  *   - /blog
- *   - /messages (POST only: signing the guestbook, with a Firebase ID token)
+ *   - /messages (GET and POST)
  *   - /sanity/* (CMS content)
  * @type {Elysia}
  */

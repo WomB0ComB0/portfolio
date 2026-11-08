@@ -36,10 +36,3 @@ export interface SessionUser {
   readonly displayName: string | null;
   readonly isAnonymous: boolean;
 }
-
-/**
- * One sign-in, compared by identity only (`===`) and never read: the same while the visitor stays
- * signed in (through token refreshes, and across tabs), a different one once they sign out or
- * someone else signs in.
- */
-export type SessionHandle = object;
