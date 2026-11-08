@@ -132,6 +132,7 @@ const isUnder = (pathname: string, prefix: string): boolean =>
  * - CORS preflights (OPTIONS) and /api/health (and its sub-paths) are not guarded.
  * - /api/admin/* is not subject to the ban or slow lists, so an operator cannot lock themselves
  *   out of the ban API; it is still limited by the 'auth' limiter and requires its bearer token.
+ * - A POST to /api/v1/messages (signing the guestbook) uses the stricter 'guestbook' limiter.
  * - /api/v1/* uses the 'apiv1' limiter; every other /api path uses 'api'.
  *
  * @param {string} method - HTTP method.
@@ -142,6 +143,9 @@ export function classifyRequest(method: string, pathname: string): GuardPolicy |
   if (method.toUpperCase() === 'OPTIONS') return null;
   if (isUnder(pathname, '/api/health')) return null;
   if (isUnder(pathname, '/api/admin')) return { checkBans: false, limiter: 'auth' };
+  if (method.toUpperCase() === 'POST' && isUnder(pathname, '/api/v1/messages')) {
+    return { checkBans: true, limiter: 'guestbook' };
+  }
   if (isUnder(pathname, '/api/v1')) return { checkBans: true, limiter: 'apiv1' };
   return { checkBans: true, limiter: 'api' };
 }

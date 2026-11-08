@@ -15,12 +15,14 @@
  */
 
 /**
- * Represents a single guestbook message.
+ * @file The guestbook's text limits, shared by the compose box, the API's body schema and its
+ * server-side check, and the loader's clip. Constants only (no directive, no imports), so any side
+ * may use them.
  */
-export interface Message {
-  id: string;
-  message: string;
-  authorName: string;
-  createdAt: string;
-  email?: string | null;
-}
+
+/** The most characters a message may have: the compose box's counter and the API's check. */
+export const MESSAGE_MAX_LENGTH = 280;
+/** The most characters of an author name that are stored and shown. */
+export const AUTHOR_MAX_LENGTH = 80;
+/** The name a message is posted and shown under when there is none (a guest's post). */
+export const ANONYMOUS_AUTHOR = 'Anonymous';

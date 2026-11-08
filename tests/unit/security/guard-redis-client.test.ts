@@ -117,8 +117,8 @@ describe('getLimiters', () => {
 
   it('builds one sliding-window limiter per route class, without analytics or internal timeout', () => {
     const limiters = getLimiters(redisA);
-    expect(Object.keys(limiters).sort()).toEqual(['api', 'apiv1', 'auth', 'slow']);
-    expect(ratelimitConfigs).toHaveLength(4);
+    expect(Object.keys(limiters).sort()).toEqual(['api', 'apiv1', 'auth', 'guestbook', 'slow']);
+    expect(ratelimitConfigs).toHaveLength(5);
     for (const config of ratelimitConfigs) {
       expect(config).toMatchObject({ redis: redisA, analytics: false, timeout: 0 });
     }
@@ -126,6 +126,7 @@ describe('getLimiters', () => {
       { prefix: 'ratelimit:api', limiter: { tokens: 30, window: '60 s' } },
       { prefix: 'ratelimit:apiv1', limiter: { tokens: 60, window: '60 s' } },
       { prefix: 'ratelimit:auth', limiter: { tokens: 5, window: '10 s' } },
+      { prefix: 'ratelimit:guestbook', limiter: { tokens: 5, window: '600 s' } },
       { prefix: 'ratelimit:slowmode', limiter: { tokens: 1, window: '30 s' } },
     ]);
   });
@@ -140,6 +141,7 @@ describe('getLimiters', () => {
       api: { tokens: 30, window: '60 s', prefix: 'ratelimit:api' },
       apiv1: { tokens: 60, window: '60 s', prefix: 'ratelimit:apiv1' },
       auth: { tokens: 5, window: '10 s', prefix: 'ratelimit:auth' },
+      guestbook: { tokens: 5, window: '600 s', prefix: 'ratelimit:guestbook' },
       slow: { tokens: 1, window: '30 s', prefix: 'ratelimit:slowmode' },
     });
   });

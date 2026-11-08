@@ -36,8 +36,9 @@
  *   navigation shows their skeleton (with the page's own h1) at once. React always flushes that
  *   skeleton first and streams the items into a hidden element that an inline script moves into
  *   place, even when the whole response is ready within milliseconds. Crawlers get every item in
- *   the HTML; a visitor without JavaScript sees the skeleton. /certifications has no loading.tsx
- *   (owner decision), so its rows show without JavaScript (e2e/journeys/certifications.spec.ts).
+ *   the HTML; a visitor without JavaScript sees the skeleton. /certifications and /guestbook have
+ *   no loading.tsx (owner decision), so their rows show without JavaScript
+ *   (e2e/journeys/certifications.spec.ts, e2e/journeys/guestbook.spec.ts).
  * - A detail page calls notFound() with no Suspense above it, which is what makes its status a
  *   real 404. Next answers that with an empty error document plus the payload, and the browser
  *   renders "Page not found" inside the shell from it.
@@ -77,6 +78,7 @@ const SERVER_PAGES = [
   '/sponsor',
   '/stats',
   '/privacy',
+  '/guestbook',
 ] as const;
 
 /** What /resume shows when no resume is published: a state of the page, not an error. */
@@ -111,6 +113,12 @@ const CONTENT_PAGES: readonly ContentPage[] = [
     // segment while it is still hidden.
     item: (main) => main.locator('tr[data-cert-row]'),
     emptyText: 'No certificates are listed yet.',
+  },
+  {
+    path: '/guestbook',
+    // A message's row: the page loads the guestbook on the server, every message, no pagination.
+    item: (main) => main.locator('li[data-message-row]'),
+    emptyText: 'No messages yet',
   },
   {
     path: '/resume',

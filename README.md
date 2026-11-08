@@ -164,12 +164,13 @@ graph TD
 
 Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib/security/api-guard.ts`](src/lib/security/api-guard.ts)) before routing. `/api/health`, CORS preflights and the separate `/api/og` image route are not guarded. Limits are sliding windows per client IP (IPv6 clients per /64 network):
 
-| Route class      | Limit                | Ban list applies |
-| :--------------- | :------------------- | :--------------- |
-| `/api/v1/*`      | 60 requests per 60 s | Yes              |
-| `/api/admin/*`   | 5 requests per 10 s  | No               |
-| Other `/api/*`   | 30 requests per 60 s | Yes              |
-| IPs in slow mode | 1 request per 30 s   | Yes              |
+| Route class                                     | Limit                | Ban list applies |
+| :---------------------------------------------- | :------------------- | :--------------- |
+| `POST /api/v1/messages` (signing the guestbook) | 5 posts per 10 min   | Yes              |
+| Other `/api/v1/*`                               | 60 requests per 60 s | Yes              |
+| `/api/admin/*`                                  | 5 requests per 10 s  | No               |
+| Other `/api/*`                                  | 30 requests per 60 s | Yes              |
+| IPs in slow mode                                | 1 request per 30 s   | Yes              |
 
 - Banned IPs and IPs inside a banned CIDR range receive `403`; clients over a limit receive `429` with `Retry-After` and `RateLimit-*` headers. Both responses are sent with `Cache-Control: no-store`.
 - Ban-list entries are sorted sets in Upstash Redis scored by their expiry time; permanent entries use a far-future score. Expired entries are ignored by the guard and deleted from every list whenever the ban API adds, removes or lists entries.

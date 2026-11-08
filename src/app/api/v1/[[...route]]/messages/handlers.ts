@@ -14,16 +14,27 @@
  * limitations under the License.
  */
 
+/**
+ * @file The messages API's reads and writes. Reads go through the guestbook's shared server
+ * cache (src/lib/guestbook/messages.ts), so this route and the /guestbook page make one Firestore
+ * read per TTL per instance and list the same messages.
+ *
+ * Writes are checked here, whatever the browser did: the message goes through checkMessageText
+ * (trimmed, at most 280 characters, tags and script schemes removed) and the author name through
+ * checkAuthorName (at most 80, or 'Anonymous'); a message with nothing left is an
+ * InvalidMessageError, which the route answers 400. The text is stored as plain text, marked
+ * `plainText: true` so the loader never decodes it, with the Admin SDK; then the cached list is
+ * expired, never dropped.
+ */
+
 import { Schema } from 'effect';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
-import { BaseError } from '@/classes/error';
-import { config } from '@/config';
-import { adminDb, firestore } from '@/core';
-
-const APP_ID = config.firebase.appId;
-const MESSAGES_COLLECTION_PATH = `artifacts/${APP_ID}/public/data/message`;
-
-const messageCollectionRefForReads = collection(firestore, MESSAGES_COLLECTION_PATH);
+import { adminDb } from '@/core/firebase-admin';
+import {
+  expireGuestbookMessages,
+  MESSAGES_COLLECTION_PATH,
+  readGuestbookMessages,
+} from '@/lib/guestbook/messages';
+import { checkAuthorName, checkMessageText, type MessageTextProblem } from '@/lib/guestbook/text';
 
 const getMessageCollectionRefForWrites = () => adminDb.collection(MESSAGES_COLLECTION_PATH);
 
@@ -48,58 +59,42 @@ export type MessageData = Schema.Schema.Type<typeof MessageDataSchema>;
 export type Message = Schema.Schema.Type<typeof MessageSchema>;
 export type MessagesResponse = Schema.Schema.Type<typeof MessagesResponseSchema>;
 
-const CACHE_DURATION = 60 * 1000;
-let cache: { data: MessagesResponse; timestamp: number } | null = null;
-
+/**
+ * Every message, newest first (up to the guestbook's safety cap), from the shared cache: the last
+ * good list when a reload fails. Rejects only when nothing could ever be loaded.
+ */
 export async function fetchMessages(): Promise<MessagesResponse> {
-  const currentTime = Date.now();
-  if (cache && currentTime - cache.timestamp < CACHE_DURATION) {
-    return cache.data;
-  }
-
-  const messagesQuery = query(
-    messageCollectionRefForReads,
-    orderBy('createdAt', 'desc'),
-    limit(50),
-  );
-  const snapshot = await getDocs(messagesQuery);
-
-  const messages: Message[] = snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      authorName: data.authorName as string,
-      message: data.message as string,
-      createdAt: data.createdAt as string,
-    };
-  });
-
-  const result: MessagesResponse = { json: messages };
-  cache = { data: result, timestamp: Date.now() };
-  return result;
+  const { data } = await readGuestbookMessages();
+  return { json: data.messages };
 }
 
-export async function createMessage(data: {
-  authorName: string;
-  message: string;
-}): Promise<Message> {
-  const { authorName, message } = data;
+/** A posted message the guestbook cannot store: empty, too long, or only markup. */
+export class InvalidMessageError extends Error {
+  readonly name = 'InvalidMessageError';
 
-  if (!message) {
-    throw new BaseError(new Error('Message is undefined'), 'message:create', {
-      authorName,
-      hasMessage: !!message,
-    });
+  constructor(readonly problem: MessageTextProblem) {
+    super(`The message cannot be stored: ${problem}`);
   }
+}
 
-  const newMessage = { authorName, message, createdAt: new Date().toISOString() };
+/**
+ * Stores a message after checking it on the server, and answers it as stored. Rejects with an
+ * {@link InvalidMessageError} (nothing stored, cache untouched) when the text is not postable.
+ */
+export async function createMessage(data: {
+  readonly authorName: string;
+  readonly message: string;
+}): Promise<Message> {
+  const checked = checkMessageText(data.message);
+  if (!checked.ok) throw new InvalidMessageError(checked.problem);
 
-  const docRef = await getMessageCollectionRefForWrites().add(newMessage);
-
-  const addedMessage: Message = {
-    id: docRef.id,
-    ...newMessage,
+  const newMessage = {
+    authorName: checkAuthorName(data.authorName),
+    message: checked.text,
+    createdAt: new Date().toISOString(),
   };
+  const docRef = await getMessageCollectionRefForWrites().add({ ...newMessage, plainText: true });
+  expireGuestbookMessages();
 
-  return addedMessage;
+  return { id: docRef.id, ...newMessage };
 }

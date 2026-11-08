@@ -23,6 +23,8 @@ export const RATE_LIMITS = {
   api: { tokens: 30, window: '60 s', prefix: 'ratelimit:api' },
   apiv1: { tokens: 60, window: '60 s', prefix: 'ratelimit:apiv1' },
   auth: { tokens: 5, window: '10 s', prefix: 'ratelimit:auth' },
+  // Each post adds a public row to /guestbook, so a client gets a few per ten minutes.
+  guestbook: { tokens: 5, window: '600 s', prefix: 'ratelimit:guestbook' },
   slow: { tokens: 1, window: '30 s', prefix: 'ratelimit:slowmode' },
 } as const satisfies Record<
   LimiterKind,
@@ -61,6 +63,7 @@ export function getLimiters(redis: Redis): Limiters {
     api: createLimiter(redis, 'api'),
     apiv1: createLimiter(redis, 'apiv1'),
     auth: createLimiter(redis, 'auth'),
+    guestbook: createLimiter(redis, 'guestbook'),
     slow: createLimiter(redis, 'slow'),
   };
   cache.set(redis, limiters);

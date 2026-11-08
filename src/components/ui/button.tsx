@@ -29,10 +29,11 @@ import { cn } from '@/lib/utils';
 /**
  * Button classes in the console language. Focus is the one console ring (2px --focus outline,
  * offset 2px), matching the global :focus-visible rule; it replaces the old 1px box-shadow ring,
- * which also switched the outline off.
+ * which also switched the outline off. A button that is busy but must keep focus (a browser drops
+ * focus from a button that becomes `disabled`) sets aria-disabled instead, and looks the same.
  */
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {

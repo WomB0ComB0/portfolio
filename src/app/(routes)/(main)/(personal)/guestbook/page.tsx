@@ -16,6 +16,7 @@
 
 import type { JSX } from 'react';
 import { Guestbook } from '@/app/(routes)/(main)/(personal)/guestbook/_interface';
+import { loadGuestbook } from '@/lib/guestbook/messages';
 import { constructMetadata } from '@/utils';
 
 export const metadata = constructMetadata({
@@ -25,18 +26,14 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Guestbook page component.
- * Renders the guestbook interface for users to leave messages. The interface is imported directly
- * (no next/dynamic); its client island handles sign-in and the messages. The page awaits nothing,
- * so it has no loading.tsx; the island shows its own sign-in card and message skeleton while the
- * messages load.
+ * Guestbook page. Loads every message on the server (src/lib/guestbook/messages.ts: a shared
+ * stale-on-error cache with a deadline), so the list is in the HTML. The loader never throws: a
+ * failed load renders the page's own error state, with the sign-in card still there. There is no
+ * loading.tsx, as on /certifications: the page renders once the loader answers.
  *
- * @returns {JSX.Element} The guestbook page.
- * @author Mike Odnis
- * @version 1.0.0
+ * @returns {Promise<JSX.Element>} The guestbook page.
  */
-const GuestbookPage = (): JSX.Element => {
-  return <Guestbook />;
-};
-GuestbookPage.displayName = 'GuestbookPage';
-export default GuestbookPage;
+export default async function GuestbookPage(): Promise<JSX.Element> {
+  const load = await loadGuestbook();
+  return <Guestbook load={load} />;
+}

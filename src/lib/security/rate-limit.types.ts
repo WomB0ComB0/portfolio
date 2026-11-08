@@ -19,9 +19,10 @@
  * - `api`: /api/* (30 requests per 60 s)
  * - `apiv1`: /api/v1/* (60 requests per 60 s)
  * - `auth`: /api/admin/* (5 requests per 10 s)
+ * - `guestbook`: a POST to /api/v1/messages, i.e. signing the guestbook (5 posts per 10 min)
  * - `slow`: any route, for IPs on the slow list (1 request per 30 s)
  */
-export type LimiterKind = 'api' | 'apiv1' | 'auth' | 'slow';
+export type LimiterKind = 'api' | 'apiv1' | 'auth' | 'guestbook' | 'slow';
 
 /** The part of a rate-limit result the guard uses. `reset` is a Unix time in milliseconds. */
 export interface RateLimitResult {

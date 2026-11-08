@@ -14,24 +14,65 @@
  * limitations under the License.
  */
 
+/**
+ * @file The /guestbook page, rendered on the server: a PageShell header with two figures, then
+ * the client island (compose card and list) holding every message as a server-rendered row. A
+ * visitor without JavaScript, and a crawler, read the whole guestbook in the HTML.
+ */
+
 import type { JSX } from 'react';
-import { GuestbookComponent } from '@/app/(routes)/(main)/(personal)/guestbook/_components';
+
+import {
+  type BoardListState,
+  GUESTBOOK_DESCRIPTION,
+  GUESTBOOK_TITLE,
+  GuestbookBoard,
+  GuestbookStatStrip,
+  ListNotice,
+  MessageRow,
+} from '@/app/(routes)/(main)/(personal)/guestbook/_components';
+import { guestbookStats } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/format';
+import { PageShell } from '@/components/console';
+import type { GuestbookLoad } from '@/lib/guestbook/types';
+
+export interface GuestbookProps {
+  readonly load: GuestbookLoad;
+}
+
+/** The list's state as shown: an empty guestbook is its own state, whatever the load said. */
+const listStateOf = (load: GuestbookLoad): BoardListState => {
+  if (load.state === 'error') return 'error';
+  return load.messages.length === 0 ? 'empty' : load.state;
+};
 
 /**
- * Guestbook component.
- * Renders the guestbook interface where users can leave messages.
+ * The guestbook: every message, newest first, beside the card to sign it.
  *
  * @returns {JSX.Element} The guestbook view.
- * @author Mike Odnis
- * @version 1.0.0
  */
-export const Guestbook = (): JSX.Element => {
+export const Guestbook = ({ load }: GuestbookProps): JSX.Element => {
+  const listState = listStateOf(load);
   return (
-    <div className="w-full min-h-screen h-full p-8 flex flex-col items-center relative">
-      <section className="flex flex-col w-full justify-between mt-16 lg:mt-0 md:mt-0 prose mb-10">
-        <GuestbookComponent />
-      </section>
-    </div>
+    <PageShell
+      title={GUESTBOOK_TITLE}
+      description={GUESTBOOK_DESCRIPTION}
+      stats={
+        <GuestbookStatStrip
+          stats={guestbookStats(load.messages, load.truncated)}
+          available={load.state !== 'error'}
+        />
+      }
+    >
+      <GuestbookBoard
+        knownIds={load.messages.map((message) => message.id)}
+        listState={listState}
+        notice={<ListNotice load={load} listState={listState} />}
+      >
+        {load.messages.map((message) => (
+          <MessageRow key={message.id} message={message} />
+        ))}
+      </GuestbookBoard>
+    </PageShell>
   );
 };
 Guestbook.displayName = 'Guestbook';

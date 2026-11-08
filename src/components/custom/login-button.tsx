@@ -20,17 +20,26 @@ import { FaGithub, FaGoogle, FaUserSecret } from 'react-icons/fa';
 import { useSignIn } from '@/core/auth';
 import { Button } from '../ui/button';
 
-export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
+/**
+ * A provider's sign-in button. Pressing it signs in through src/core/auth, which loads Firebase
+ * on demand; while that provider's popup is open the button is busy. The page shows the outcome
+ * (the compose box, or the error), and nothing reloads.
+ *
+ * Busy or `disabled`, it stays focusable: it sets aria-disabled and ignores presses, rather than
+ * the native attribute, which would drop a keyboard user's focus to the page while a popup is open.
+ */
+export const LoginButton = ({ signInMethod, disabled, ...props }: LoginButtonProps) => {
   const [signIn, inFlight] = useSignIn(signInMethod);
+  const unavailable = inFlight || Boolean(disabled);
 
   const getIcon = () => {
     switch (signInMethod) {
       case 'google.com':
-        return <FaGoogle className="mr-2" />;
+        return <FaGoogle aria-hidden="true" />;
       case 'github.com':
-        return <FaGithub className="mr-2" />;
+        return <FaGithub aria-hidden="true" />;
       case 'anonymous':
-        return <FaUserSecret className="mr-2" />;
+        return <FaUserSecret aria-hidden="true" />;
       default:
         return null;
     }
@@ -43,7 +52,7 @@ export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
       case 'github.com':
         return 'Continue with GitHub';
       case 'anonymous':
-        return 'Continue as Guest';
+        return 'Continue as guest';
       default:
         return 'Unknown';
     }
@@ -51,10 +60,11 @@ export const LoginButton = ({ signInMethod, ...props }: LoginButtonProps) => {
 
   return (
     <Button
-      variant="default"
-      onClick={signIn}
-      disabled={inFlight}
-      className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      type="button"
+      variant="outline"
+      onClick={unavailable ? undefined : signIn}
+      aria-disabled={unavailable || undefined}
+      aria-busy={inFlight || undefined}
       {...props}
     >
       {getIcon()}

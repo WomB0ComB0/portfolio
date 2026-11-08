@@ -20,12 +20,10 @@ const SITEMAP_URL = 'https://mikeodnis.dev/sitemap.xml';
 
 /**
  * Pages render their content on the server, so a crawler needs no API to read them. Under /api/
- * only the OG image route stays open, for link previews.
- *
- * Interim: the guestbook still loads its messages in the browser from /api/v1/messages, so that
- * endpoint stays open too. Remove it once the guestbook renders its messages on the server.
+ * only the OG image route stays open, for link previews. The guestbook renders its messages on
+ * the server too, so /api/v1/messages is closed with the rest.
  */
-const ALLOW = ['/', '/api/og', '/api/v1/messages'];
+const ALLOW = ['/', '/api/og'];
 
 /**
  * The rest of /api/ stays closed: admin, status and health, the service endpoints, and the content
@@ -48,7 +46,7 @@ const crawlRules = (): { allow: string[]; disallow: string[] } => ({
  * @remarks
  * - Googlebot, Applebot and Bingbot keep their own groups, and every other crawler gets the `*`
  *   group. All of them share one set of rules.
- * - Pages, the OG image route and the guestbook's messages are allowed; the rest of /api/ is not.
+ * - Pages and the OG image route are allowed; the rest of /api/ is not.
  */
 export default function robots(): MetadataRoute.Robots {
   return {

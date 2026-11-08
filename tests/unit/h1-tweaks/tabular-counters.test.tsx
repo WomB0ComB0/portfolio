@@ -21,10 +21,8 @@
  * updates and the text around it jitters.
  */
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
-import { Effect } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // t3-env validates on import; these tests need no real configuration.
@@ -36,18 +34,18 @@ vi.mock('@/env', () => {
 });
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock('@/core/auth', () => ({
-  useCurrentUser: () => ({ displayName: 'Ada', email: 'ada@example.com' }),
+  useAuth: () => ({
+    phase: 'signed-in',
+    user: { displayName: 'Ada', isAnonymous: false },
+    method: null,
+    error: null,
+  }),
   useSignIn: () => [vi.fn(), false],
   useSignOut: () => [vi.fn(), false],
-}));
-vi.mock('@/hooks', () => ({
-  usePostMessage: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
-vi.mock('@/lib/http-clients/effect-fetcher', () => ({
-  get: () => Effect.succeed({ json: { json: [] } }),
+  prepareSignIn: vi.fn(),
 }));
 
-import { GuestbookComponent } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook';
+import { ComposeCard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/compose-card';
 import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/place-photo-viewer';
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
 import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
@@ -68,32 +66,17 @@ const LEDGER = buildLedger([
 
 const noop = (): void => undefined;
 
-function renderGuestbook() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      <GuestbookComponent />
-    </QueryClientProvider>,
-  );
-}
-
 afterEach(cleanup);
 
 describe('live counters use tabular figures', () => {
+  // The guestbook's message count is a server-rendered StatStrip figure now (figure-sm, tabular
+  // in globals.css); it no longer changes on screen, so only the character counter is live.
   it('the guestbook character counter, which updates on every keystroke', () => {
-    renderGuestbook();
+    render(<ComposeCard onPost={vi.fn()} />);
 
-    fireEvent.change(screen.getByPlaceholderText("What's on your mind?"), {
-      target: { value: 'Hello' },
-    });
+    fireEvent.change(screen.getByLabelText('Your message'), { target: { value: 'Hello' } });
 
     expect(screen.getByText('5 / 280')).toHaveClass(TABULAR);
-  });
-
-  it('the guestbook message count, which changes when a message is posted', async () => {
-    renderGuestbook();
-
-    expect(await screen.findByText('0 messages')).toHaveClass(TABULAR);
   });
 
   it("the photo viewer's position and zoom readouts", () => {

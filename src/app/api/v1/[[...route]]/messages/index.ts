@@ -16,7 +16,7 @@
 
 import { Elysia, StatusMap } from 'elysia';
 import { logger } from '@/utils';
-import { createMessage, fetchMessages } from './handlers';
+import { createMessage, fetchMessages, InvalidMessageError } from './handlers';
 import { cacheHeaders, errorHandler } from './middleware';
 import { messagesSchema } from './schema';
 
@@ -61,6 +61,11 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
         Object.assign(set.headers, cacheHeaders());
         return newMessage;
       } catch (error) {
+        // The visitor's text, not the server: answered, not reported.
+        if (error instanceof InvalidMessageError) {
+          set.status = StatusMap['Bad Request'];
+          return { error: 'The message is empty once markup is removed, or too long.' };
+        }
         const errorResponse = errorHandler(error, 'add');
         set.status = StatusMap['Internal Server Error'];
         return { error: errorResponse.error };
@@ -70,6 +75,7 @@ export const messagesRoute = new Elysia({ prefix: '/messages' })
       body: 'messages.post.body',
       response: {
         201: 'messages.post.response',
+        400: 'messages.error',
         500: 'messages.error',
       },
     },

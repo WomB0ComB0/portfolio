@@ -27,3 +27,12 @@
  * @version 1.0.0
  */
 export type SignInMethod = 'google.com' | 'github.com' | 'anonymous';
+
+/**
+ * The signed-in visitor, as the site needs them: the name they post under, and whether they
+ * signed in as a guest. Plain data, so the auth store holds it without Firebase's User object.
+ */
+export interface SessionUser {
+  readonly displayName: string | null;
+  readonly isAnonymous: boolean;
+}

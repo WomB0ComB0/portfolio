@@ -1,7 +1,5 @@
 'use client';
 
-import type { SignInMethod } from './auth.types';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -18,246 +16,199 @@ import type { SignInMethod } from './auth.types';
  * limitations under the License.
  */
 
-import type { FirebaseError } from 'firebase/app';
-import {
-  GithubAuthProvider,
-  GoogleAuthProvider,
-  getAuth,
-  signInAnonymously,
-  signInWithPopup,
-  type User,
-  type UserCredential,
-} from 'firebase/auth';
-import { atom, useAtomValue } from 'jotai';
-import { unwrap } from 'jotai/utils';
-import { atomEffect } from 'jotai-effect';
-import { useCallback, useState } from 'react';
-import { toast } from 'sonner';
-import { logger } from '@/utils';
-import { app } from './firebase';
-
 /**
- * @readonly
- * @public
- * @type {import('jotai').Atom<User | null | undefined>}
- * @description Jotai atom holding the current Firebase user, or undefined if not loaded. Used for state sync with Firebase Auth state.
- * @author Mike Odnis
- * @web
- * @see https://github.com/WomB0ComB0/portfolio
- * @version 1.0.0
+ * @file The visitor's sign-in state, without Firebase until it is asked for.
+ *
+ * This module imports no Firebase code. The SDK lives in ./firebase-auth, which `prepareSignIn`
+ * imports on demand when a visitor presses Sign in. So rendering a page that offers sign-in makes
+ * no Firebase request and loads no auth iframe, on desktop or mobile.
+ *
+ * A visitor who signed in on an earlier visit still has Firebase's saved session: pressing Sign
+ * in restores it at once, with no popup. The page does not load Firebase on its own to look for
+ * that session (after idle, say): it would cost every returning signer the SDK and a token
+ * refresh on every visit, while one press gives the same result when they actually want to post.
+ *
+ * Phases: 'signed-out' (Firebase not loaded) -> 'preparing' (loading it) -> 'ready' (choose a
+ * provider) -> 'signing-in' (the popup is open) -> 'signed-in'. Errors are kept as a sentence for
+ * the card to show; nothing reloads the page.
  */
-export const currentUserValue = atom<User | null | undefined>(undefined);
 
-/**
- * @public
- * @type {import('jotai-effect').AtomEffect}
- * @description
- * Registers a listener for Firebase Auth state changes and updates the `currentUserValue` atom whenever the user changes.
- * Cleans up the listener on unmount.
- * @author Mike Odnis
- * @web
- * @see https://firebase.google.com/docs/auth/web/start#set_an_authentication_state_observer_and_get_user_data
- * @version 1.0.0
- * @returns {void}
- */
-export const currentUserListener = atomEffect((_get, set) => {
-  return getAuth(app).onAuthStateChanged((user) => {
-    set(currentUserValue, user);
+import { useCallback, useState, useSyncExternalStore } from 'react';
+import { withDeadline } from '@/lib/async/deadline';
+import { logger } from '@/utils/logging';
+import type { SessionUser, SignInMethod } from './auth.types';
+
+export type { SessionUser, SignInMethod } from './auth.types';
+
+export type AuthPhase = 'signed-out' | 'preparing' | 'ready' | 'signing-in' | 'signed-in';
+
+export interface AuthSnapshot {
+  readonly phase: AuthPhase;
+  readonly user: SessionUser | null;
+  /** The provider whose popup is open while signing in. */
+  readonly method: SignInMethod | null;
+  /** What went wrong last, as a sentence for the visitor; cleared by the next action. */
+  readonly error: string | null;
+}
+
+type FirebaseAuthModule = typeof import('./firebase-auth');
+
+/** How long loading Firebase and reading its saved session may take before it counts as failed. */
+const PREPARE_DEADLINE_MS = 15_000;
+
+export const LOAD_FAILED = "Sign-in couldn't load. Check your connection and press Sign in again.";
+const SIGN_OUT_FAILED = "Signing out didn't work. Please try again.";
+const SIGN_IN_FAILED = "Sign-in didn't work. Please try again.";
+
+/** Firebase's error codes the visitor can act on, in their words. */
+const SIGN_IN_ERRORS: Readonly<Record<string, string>> = {
+  'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  'auth/popup-blocked':
+    'Your browser blocked the sign-in window. Allow pop-ups for this site, then try again.',
+  'auth/popup-closed-by-user': 'Sign-in cancelled.',
+  'auth/cancelled-popup-request': 'Sign-in cancelled.',
+  'auth/account-exists-with-different-credential':
+    'An account already exists with this email. Sign in with the provider you used before.',
+};
+
+/** The sentence to show for a failed sign-in. */
+export function signInErrorMessage(error: unknown): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  return (typeof code === 'string' && SIGN_IN_ERRORS[code]) || SIGN_IN_FAILED;
+}
+
+const INITIAL: AuthSnapshot = { phase: 'signed-out', user: null, method: null, error: null };
+
+let snapshot: AuthSnapshot = INITIAL;
+const listeners = new Set<() => void>();
+let firebaseAuth: FirebaseAuthModule | null = null;
+let preparing: Promise<void> | null = null;
+let unwatch: (() => void) | null = null;
+/** Bumped by every load and every failure, so a load that lost its deadline changes nothing. */
+let attempt = 0;
+
+function update(next: Partial<AuthSnapshot>): void {
+  snapshot = { ...snapshot, ...next };
+  for (const listener of listeners) listener();
+}
+
+/** Follows Firebase's user from its first answer (the saved session, or none) onwards. */
+function follow(module: FirebaseAuthModule, mine: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    unwatch = module.watchUser((user) => {
+      if (mine !== attempt) return;
+      if (user) update({ phase: 'signed-in', user, method: null });
+      else if (snapshot.phase !== 'signing-in')
+        update({ phase: 'ready', user: null, method: null });
+      resolve();
+    });
   });
-});
+}
 
 /**
- * @readonly
- * @public
- * @description
- * Jotai atom for accessing the current Firebase user asynchronously.
- * Ensures the user's auth state is loaded before returning.
- * @author Mike Odnis
- * @async
- * @web
- * @see https://firebase.google.com/docs/reference/js/auth.auth#auth.currentuser
- * @returns {Promise<User | null>} Resolves to the current Firebase user or null if not signed in.
- * @version 1.0.0
+ * Loads Firebase Auth (once) and reads the visitor's saved session: 'signed-in' when there is one,
+ * else 'ready' to choose a provider. A failure goes back to 'signed-out' with LOAD_FAILED, so the
+ * visitor can press Sign in again.
  */
-export const currentUserAsync = atom(async (get) => {
-  get(currentUserListener);
-  const user = get(currentUserValue);
+export function prepareSignIn(): Promise<void> {
+  if (preparing) return preparing;
+  attempt += 1;
+  const mine = attempt;
+  update({ phase: 'preparing', error: null });
+  const run = async () => {
+    const module = await import('./firebase-auth');
+    if (mine !== attempt) return;
+    firebaseAuth = module;
+    await follow(module, mine);
+  };
+  preparing = withDeadline(run(), PREPARE_DEADLINE_MS, 'firebase auth').catch((error: unknown) => {
+    logger.error('Firebase Auth failed to load:', error);
+    attempt += 1;
+    unwatch?.();
+    unwatch = null;
+    firebaseAuth = null;
+    preparing = null;
+    update({ phase: 'signed-out', error: LOAD_FAILED });
+  });
+  return preparing;
+}
 
-  if (user === undefined) {
-    const auth = getAuth(app);
-    await auth.authStateReady();
-    return auth.currentUser;
+/** Signs in with `method`; the card shows the result. Loads Firebase first if it is not yet. */
+export async function signIn(method: SignInMethod): Promise<void> {
+  if (snapshot.phase === 'signing-in' || snapshot.phase === 'signed-in') return;
+  await prepareSignIn();
+  if (!firebaseAuth || snapshot.phase !== 'ready') return;
+  update({ phase: 'signing-in', method, error: null });
+  try {
+    const user = await firebaseAuth.signInWith(method);
+    update({ phase: 'signed-in', user, method: null });
+  } catch (error) {
+    logger.error('Sign-in error:', error);
+    update({ phase: 'ready', method: null, error: signInErrorMessage(error) });
   }
-  return user;
-});
-
-/**
- * @readonly
- * @public
- * @description
- * Loadable Jotai wrapping `currentUserAsync` for easier UI suspense and error handling.
- * @author Mike Odnis
- * @web
- * @see https://github.com/jotai-labs/jotai-loadable
- * @version 1.0.0
- */
-export const currentUserLoadable = unwrap(
-  atom(async (get) => {
-    try {
-      const data = await get(currentUserAsync);
-      return { state: 'hasData' as const, data };
-    } catch (error) {
-      return { state: 'hasError' as const, error };
-    }
-  }),
-  () => ({ state: 'loading' as const }),
-);
-
-/**
- * React hook for accessing the current Firebase user asynchronously.
- * Triggers re-renders when the user state changes.
- * @function
- * @public
- * @web
- * @author Mike Odnis
- * @returns {User | null} Current Firebase user, or null if not signed in.
- * @see https://github.com/jotai/jotai
- * @example
- * const user = useCurrentUser();
- */
-export function useCurrentUser() {
-  return useAtomValue(currentUserAsync);
 }
 
-/**
- * React hook for accessing the loadable state of the current user atom.
- * Returns a state machine: { state: 'hasData' | 'loading' | 'hasError', data?, error? }
- * @function
- * @public
- * @web
- * @author Mike Odnis
- * @returns {import('jotai').Loadable<User | null>} Loadable representation of the user loading state.
- * @see https://github.com/jotai/jotai
- * @example
- * const userLoadable = useCurrentUserLoadable();
- */
-export function useCurrentUserLoadable() {
-  return useAtomValue(currentUserLoadable);
+/** Signs the visitor out; their saved session is cleared and the card offers the providers. */
+export async function signOut(): Promise<void> {
+  if (!firebaseAuth) {
+    update(INITIAL);
+    return;
+  }
+  try {
+    await firebaseAuth.signOutUser();
+    update({ phase: 'ready', user: null, method: null, error: null });
+  } catch (error) {
+    logger.error('Sign-out error:', error);
+    update({ error: SIGN_OUT_FAILED });
+  }
 }
 
-/**
- * React hook providing a sign-in function for Firebase Auth using Google, GitHub, or an anonymous method.
- * Returns a memoized signIn method and an inFlight boolean for progress UI feedback.
- * @function
- * @public
- * @web
- * @author Mike Odnis
- * @param {SignInMethod} signInMethod - Sign-in strategy: 'google.com', 'github.com', or 'anonymous'.
- * @returns {[() => void, boolean]} A tuple: signIn callback and inFlight loading state.
- * @throws {Error} Throws if an unsupported sign-in method is provided.
- * @example
- * const [signIn, inFlight] = useSignIn('google.com');
- * <Button onClick={signIn}>Login with Google</Button>
- * @see https://github.com/firebase/firebase-js-sdk
- * @version 1.0.0
- */
-export function useSignIn(
-  signInMethod: SignInMethod,
-): readonly [signIn: () => void, inFlight: boolean] {
-  const [inFlight, setInFlight] = useState(false);
+const subscribe = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+const getSnapshot = (): AuthSnapshot => snapshot;
+/** The server, and the first client render, always see a signed-out visitor. */
+const getServerSnapshot = (): AuthSnapshot => INITIAL;
 
-  const signIn = useCallback(() => {
-    const auth = getAuth(app);
-    let authPromise: Promise<UserCredential>;
-
-    switch (signInMethod) {
-      case 'anonymous':
-        authPromise = signInAnonymously(auth);
-        break;
-
-      case 'google.com': {
-        const provider = new GoogleAuthProvider();
-        provider.addScope('profile');
-        provider.addScope('email');
-        provider.setCustomParameters({
-          prompt: 'consent',
-        });
-        authPromise = signInWithPopup(auth, provider);
-        break;
-      }
-
-      case 'github.com': {
-        const provider = new GithubAuthProvider();
-        provider.addScope('read:user');
-        authPromise = signInWithPopup(auth, provider);
-        break;
-      }
-
-      default:
-        throw new Error(`Unsupported sign-in method: ${signInMethod satisfies never}`);
-    }
-
-    setInFlight(true);
-    authPromise
-      .then(() => {
-        toast.success('Logged in successfully! 🎉');
-        globalThis.location.reload();
-      })
-      .catch((error: FirebaseError) => {
-        logger.error('Sign-in error:', error);
-
-        const errorMessages: Record<string, string> = {
-          'auth/network-request-failed':
-            'Network error. Please check your internet connection and try again.',
-          'auth/popup-blocked': 'Pop-up blocked. Please allow pop-ups for this site.',
-          'auth/popup-closed-by-user': 'Sign-in cancelled.',
-          'auth/cancelled-popup-request': 'Sign-in cancelled.',
-          'auth/account-exists-with-different-credential':
-            'An account already exists with this email.',
-        };
-
-        const errorMessage =
-          errorMessages[error.code] ?? 'An error occurred during sign-in. Please try again.';
-        toast.error(errorMessage);
-      })
-      .finally(() => setInFlight(false));
-  }, [signInMethod]);
-
-  return [signIn, inFlight] as const;
+/** The sign-in state; re-renders when it changes. */
+export function useAuth(): AuthSnapshot {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/**
- * React hook providing a sign-out function for Firebase Auth users.
- * Returns a memoized signOut function and an inFlight boolean for progress feedback in UI.
- * @function
- * @public
- * @web
- * @author Mike Odnis
- * @returns {[() => void, boolean]} Tuple: signOut callback and inFlight loading status.
- * @example
- * const [signOut, inFlight] = useSignOut();
- * <Button onClick={signOut}>Sign out</Button>
- * @see https://firebase.google.com/docs/auth/web/manage-users#sign_out_a_user
- * @version 1.0.0
- */
+/** The signed-in visitor, or null. */
+export function useCurrentUser(): SessionUser | null {
+  return useAuth().user;
+}
+
+/** A sign-in callback for `method`, and whether its popup is open. */
+export function useSignIn(method: SignInMethod): readonly [signIn: () => void, inFlight: boolean] {
+  const { phase, method: current } = useAuth();
+  const run = useCallback(() => {
+    void signIn(method);
+  }, [method]);
+  return [run, phase === 'signing-in' && current === method] as const;
+}
+
+/** A sign-out callback, and whether it is running. */
 export function useSignOut(): readonly [signOut: () => void, inFlight: boolean] {
   const [inFlight, setInFlight] = useState(false);
-
-  const signOut = useCallback(() => {
-    const auth = getAuth(app);
+  const run = useCallback(() => {
     setInFlight(true);
-    auth
-      .signOut()
-      .then(() => {
-        toast.success('Signed out successfully! 🎉');
-        globalThis.location.reload();
-      })
-      .catch((error: FirebaseError) => {
-        logger.error('Sign-out error:', error);
-        toast.error('Failed to sign out. Please try again.');
-      })
-      .finally(() => setInFlight(false));
+    void signOut().finally(() => setInFlight(false));
   }, []);
+  return [run, inFlight] as const;
+}
 
-  return [signOut, inFlight] as const;
+/** Forgets the state and the loaded module's subscription. Tests only. */
+export function resetAuthForTests(): void {
+  unwatch?.();
+  attempt += 1;
+  snapshot = INITIAL;
+  firebaseAuth = null;
+  preparing = null;
+  unwatch = null;
+  for (const listener of listeners) listener();
 }

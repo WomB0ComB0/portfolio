@@ -1,0 +1,128 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file Firebase Auth in the browser, loaded on demand. Nothing imports this module statically:
+ * src/core/auth.ts imports it with `import()` when a visitor presses Sign in, so the Firebase SDK
+ * is its own chunk and a visitor who never signs in downloads none of it, makes no Firebase
+ * request and never gets the apis.google.com auth iframe.
+ *
+ * Auth is initialized here, once, with the popup resolver. On phones and Safari, Firebase loads
+ * its iframe as soon as Auth starts, so by the time the visitor picks a provider the popup can
+ * open inside their click (Firebase waits for the iframe before opening it, and those browsers
+ * block a popup that opens long after the click). No Firestore in the browser: messages are read
+ * on the server and posted through the API.
+ */
+
+import { getApps, initializeApp } from 'firebase/app';
+import {
+  type Auth,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  connectAuthEmulator,
+  GithubAuthProvider,
+  GoogleAuthProvider,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  onAuthStateChanged,
+  signInAnonymously,
+  signInWithPopup,
+  signOut,
+  type User,
+} from 'firebase/auth';
+import { config } from '@/config';
+import type { SessionUser, SignInMethod } from './auth.types';
+
+const AUTH_EMULATOR_URL = 'http://localhost:9099';
+
+let instance: Auth | null = null;
+
+/** The Firebase options, from the public NEXT_PUBLIC_FIREBASE_* configuration. */
+const firebaseOptions = () => ({
+  apiKey: config.firebase.apiKey,
+  authDomain: config.firebase.authDomain,
+  projectId: config.firebase.projectId,
+  storageBucket: config.firebase.storageBucket,
+  messagingSenderId: config.firebase.messagingSenderId,
+  appId: config.firebase.appId,
+  measurementId: config.firebase.measurementId,
+});
+
+/** Auth, initialized on first use; a hot reload that already initialized it reuses that one. */
+export function clientAuth(): Auth {
+  if (instance) return instance;
+  const app = getApps()[0] ?? initializeApp(firebaseOptions());
+  let auth: Auth;
+  try {
+    auth = initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch (error) {
+    if ((error as { code?: unknown }).code !== 'auth/already-initialized') throw error;
+    auth = getAuth(app);
+  }
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true'
+  ) {
+    connectAuthEmulator(auth, AUTH_EMULATOR_URL, { disableWarnings: true });
+  }
+  instance = auth;
+  return auth;
+}
+
+const toSessionUser = (user: User): SessionUser => ({
+  displayName: user.displayName,
+  isAnonymous: user.isAnonymous,
+});
+
+/**
+ * Calls `listener` with the visitor (or null) once Auth has read its saved session, then on every
+ * change. Returns the unsubscribe function.
+ */
+export function watchUser(listener: (user: SessionUser | null) => void): () => void {
+  return onAuthStateChanged(clientAuth(), (user) => listener(user ? toSessionUser(user) : null));
+}
+
+function providerFor(method: 'google.com' | 'github.com'): GoogleAuthProvider | GithubAuthProvider {
+  if (method === 'github.com') {
+    const github = new GithubAuthProvider();
+    github.addScope('read:user');
+    return github;
+  }
+  const google = new GoogleAuthProvider();
+  google.addScope('profile');
+  google.addScope('email');
+  google.setCustomParameters({ prompt: 'consent' });
+  return google;
+}
+
+/** Signs in with a provider's popup, or anonymously as a guest. Rejects with Firebase's error. */
+export async function signInWith(method: SignInMethod): Promise<SessionUser> {
+  const auth = clientAuth();
+  const credential =
+    method === 'anonymous'
+      ? await signInAnonymously(auth)
+      : await signInWithPopup(auth, providerFor(method));
+  return toSessionUser(credential.user);
+}
+
+/** Signs the visitor out. */
+export function signOutUser(): Promise<void> {
+  return signOut(clientAuth());
+}
