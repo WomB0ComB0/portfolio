@@ -17,8 +17,9 @@
 /**
  * @file Tile renders its four variants as documented: plain and raised are surfaces, interactive
  * is one link (prefetch off unless asked) or, with nowhere to go, a plain tile, linked is an
- * element that rings itself for its TileLink, and only the last two carry the spotlight. It
- * renders on the server as is. tile-focus-ring.test.tsx checks the ring's compiled CSS.
+ * element that rings itself for its TileLink, and only the last two carry the spotlight and the
+ * hover. It renders on the server as is. tile-focus-ring.test.tsx checks the ring's compiled CSS
+ * and tile-hover.test.tsx the hover's.
  *
  * jsdom applies no Tailwind CSS, so looks are checked as the classes that produce them. next/link
  * is replaced by a plain anchor that shows the prefetch it was given as data-prefetch.
@@ -54,16 +55,39 @@ vi.mock('next/link', () => ({
 // Vitest runs from the repository root; under jsdom import.meta.url is not a file: URL.
 const SOURCE = join(process.cwd(), 'src/components/console/tile.tsx');
 
+/** The hover the owner picked (Fluid UI Lab, lane B's motion with the Before colours). */
 const LIFT_CLASSES = [
   'spotlight',
+  // the move: translate (and the raise) only, on the spring
+  'z-0',
+  'hover:z-1',
+  'transition-[translate,z-index]',
+  'ease-[var(--ease-spring),linear]',
+  'duration-[var(--motion-spring-out),0s]',
+  'delay-[0s,var(--motion-slow)]',
+  'hover:-translate-y-0.75',
+  'hover:duration-[var(--motion-spring-in),0s]',
+  'hover:delay-0',
+  'active:translate-y-0',
+  'active:duration-(--motion-instant)',
+  'motion-reduce:hover:translate-y-0',
+  // the light: one ::after layer, opacity only
+  'after:shadow-lift',
+  'after:opacity-0',
+  'after:transition-opacity',
+  'after:ease-effect',
+  'after:duration-(--motion-slow)',
+  'hover:after:opacity-100',
+  'hover:after:duration-(--motion-base)',
+];
+
+/** Today's hover before the owner's pick: a snap on ease-out-expo and a border-colour step. */
+const OLD_LIFT_CLASSES = [
   'hover:-translate-y-0.5',
   'hover:border-hairline-strong',
   'transition-[translate,border-color]',
   'duration-(--motion-fast)',
   'ease-out-expo',
-  'motion-reduce:hover:translate-y-0',
-  'after:shadow-lift',
-  'hover:after:opacity-100',
 ];
 
 const LINK_RING_CLASSES = [
@@ -127,8 +151,25 @@ describe('Tile variants', () => {
     } else {
       expect(tile).not.toHaveAttribute('data-spotlight');
       expect(tile).not.toHaveClass('spotlight');
-      expect(tile).not.toHaveClass('hover:-translate-y-0.5');
+      expect(tile).not.toHaveClass('hover:-translate-y-0.75');
+      expect(tile).not.toHaveClass('hover:z-1');
     }
+    for (const oldClass of OLD_LIFT_CLASSES) expect(tile).not.toHaveClass(oldClass);
+  });
+
+  it.each([
+    ['interactive', 'focus-visible:'],
+    ['linked', 'has-[[data-tile-link]:focus-visible]:'],
+  ] as const)('%s shows the light and the raise at once under keyboard focus', (variant, focus) => {
+    const props: TileProps =
+      variant === 'interactive' ? { variant, href: '/projects' } : { variant };
+
+    expect(renderTile(props)).toHaveClass(
+      `${focus}z-1`,
+      `${focus}delay-0`,
+      `${focus}after:opacity-100`,
+      `${focus}after:duration-0`,
+    );
   });
 });
 
@@ -185,7 +226,7 @@ describe('interactive Tile', () => {
     expect(screen.queryByText('(opens in a new tab)')).not.toBeInTheDocument();
     expect(tile.tagName).toBe('DIV');
     expect(tile).toHaveClass('border-hairline', 'bg-surface-1');
-    expect(tile).not.toHaveClass('spotlight', 'hover:-translate-y-0.5');
+    expect(tile).not.toHaveClass('spotlight', 'hover:-translate-y-0.75');
     for (const attribute of ['href', 'target', 'external', 'prefetch', 'data-spotlight']) {
       expect(tile).not.toHaveAttribute(attribute);
     }

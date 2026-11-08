@@ -29,7 +29,7 @@ const twMerge = extendTailwindMerge({
       tracking: ['display', 'stat', 'label'],
       radius: ['tile'],
       shadow: ['tile', 'raised', 'lift'],
-      ease: ['out-expo', 'standard'],
+      ease: ['out-expo', 'standard', 'spring', 'effect'],
       container: ['shell'],
     },
   },

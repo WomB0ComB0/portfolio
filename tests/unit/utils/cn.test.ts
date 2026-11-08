@@ -69,9 +69,13 @@ describe('cn with the Live Console theme', () => {
     expect(cn('shadow-tile', 'shadow-lift')).toBe('shadow-lift');
   });
 
-  it('treats ease-out-expo and ease-standard as easings', () => {
+  it('treats ease-out-expo, ease-standard, ease-spring and ease-effect as easings', () => {
     expect(cn('ease-in', 'ease-out-expo')).toBe('ease-out-expo');
     expect(cn('ease-out-expo', 'ease-standard')).toBe('ease-standard');
+    expect(cn('ease-standard', 'ease-spring')).toBe('ease-spring');
+    expect(cn('ease-spring', 'ease-effect')).toBe('ease-effect');
+    // An easing, not some other utility: a caller's ease-linear replaces it.
+    expect(cn('ease-effect', 'ease-linear')).toBe('ease-linear');
   });
 
   it('treats max-w-shell as a max width', () => {

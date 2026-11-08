@@ -67,10 +67,25 @@
    * and paints the full-strength colour instead of a faint tint.
    */
   --brand-glow: oklch(65% 0.12 285deg / 9%);
-  --brand-spot: oklch(65% 0.12 285deg / 16%);
   --brand-edge: oklch(65% 0.12 285deg / 18%);
   --brand-wash: oklch(65% 0.12 285deg / 14%);
   --live-halo: oklch(80% 0.18 152deg / 20%);
+
+  /*
+   * The tile hover's light (--shadow-lift), the old home cards' colours (#601): the border at
+   * 80% brand, which reads vivid because it sits on the tile's own surface rather than mixed into
+   * grey, and their shadow-2xl tinted brand at 10%.
+   */
+  --brand-rim: oklch(65% 0.12 285deg / 80%);
+  --brand-halo: oklch(65% 0.12 285deg / 10%);
+
+  /*
+   * The tile spotlight's glow, which the owner chose for the hover on 2026-11-08: MagicCard's own
+   * rgb(70 33 172) at its 15% alpha, drawn at its 0.8 opacity (0.15 x 0.8 = 12%). It is the brand
+   * hue (285deg) at more chroma and less lightness, so it tints the surface violet where brand
+   * would only brighten it.
+   */
+  --spot-violet: oklch(40% 0.2 285deg / 12%);
 
   /*
    * Status badge fills (bg-live-tint, ...): each status colour at 12% alpha. The status text on
@@ -107,6 +122,10 @@
   --motion-base: 240ms;
   --motion-slow: 400ms;
   --motion-tween: 600ms;
+
+  /* The --ease-spring's time: a hover springs in quickly and settles back more slowly. */
+  --motion-spring-in: 300ms;
+  --motion-spring-out: 500ms;
 
   /* Layout */
   --page-gutter: clamp(1rem, 0.5rem + 2vw, 2rem);
@@ -216,8 +235,14 @@
   --font-sans: var(--font-geist, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono, ui-monospace), ui-monospace, sfmono-regular, menlo, monospace;
 
-  /* A hover lift for interactive tiles: a deep drop shadow plus a faint brand edge. */
-  --shadow-lift: 0 16px 40px -16px oklch(0% 0 0deg / 70%), 0 0 0 1px var(--brand-edge);
+  /*
+   * The light of a hovered tile, on its ::after over the whole border box: a brand halo below,
+   * then the 80% brand rim over an opaque surface-1 underlay (the first shadow paints on top).
+   * The underlay hides the hairline border, so the rim lands where the old 80% border did.
+   */
+  --shadow-lift:
+    0 25px 50px -12px var(--brand-halo), inset 0 0 0 1px var(--brand-rim),
+    inset 0 0 0 1px var(--surface-1);
 
   /* Legacy radii and animations */
   --radius-sm: calc(var(--radius) - 4px);
@@ -309,6 +334,33 @@
   --shadow-raised: inset 0 1px 0 0 oklch(100% 0 0deg / 5%), 0 8px 24px -8px oklch(0% 0 0deg / 55%);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Material 3 default effects: fades, light and colour. Never overshoots. */
+  --ease-effect: cubic-bezier(0.34, 0.8, 0.34, 1);
+
+  /*
+   * A critically damped spring (no bounce) for movement: motion's spring(0.25, 0) as linear(),
+   * whose own time is --motion-spring-out. Hover moves on it; entrances keep ease-out-expo.
+   */
+  --ease-spring: linear(
+    0,
+    0.1402,
+    0.3764,
+    0.584,
+    0.7361,
+    0.838,
+    0.9029,
+    0.9428,
+    0.9668,
+    0.9809,
+    0.9892,
+    0.9939,
+    0.9966,
+    0.9981,
+    0.9989,
+    0.9994,
+    1
+  );
   --animate-live-pulse: live-pulse 2.4s var(--ease-standard) infinite;
 
   @keyframes live-pulse {
@@ -618,10 +670,13 @@
 }
 
 /*
- * A brand glow that follows the pointer on hover. The element must be positioned; SpotlightRoot
- * sets --spot-x and --spot-y on [data-spotlight] elements. Touch devices never see it.
+ * A violet glow that follows the pointer on hover: MagicCard's colour and 200px footprint, which
+ * the owner chose for the tiles. The element must be positioned; SpotlightRoot sets --spot-x and
+ * --spot-y on [data-spotlight] elements. Touch devices never see it.
  * The element is its own stacking context, so the glow (z-index -1) paints over its background
  * but under its content, and never tints the text.
+ * It fades on the tile light's timing (tile.tsx): in over --motion-base, out over --motion-slow
+ * (the rest rule's), so glow, light and lift start on the same frame.
  */
 @utility spotlight {
   isolation: isolate;
@@ -635,16 +690,17 @@
     pointer-events: none;
     opacity: 0;
     background: radial-gradient(
-      16rem circle at var(--spot-x, 50%) var(--spot-y, -40%),
-      var(--brand-spot),
-      transparent 70%
+      12.5rem circle at var(--spot-x, 50%) var(--spot-y, -40%),
+      var(--spot-violet),
+      transparent 100%
     );
-    transition: opacity var(--motion-base) var(--ease-standard);
+    transition: opacity var(--motion-slow) var(--ease-effect);
   }
 
   @media (hover: hover) and (pointer: fine) {
     &:hover::before {
       opacity: 1;
+      transition-duration: var(--motion-base);
     }
   }
 }
