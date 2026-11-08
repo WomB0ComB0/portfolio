@@ -33,6 +33,8 @@
  *   tab) belongs to the session that sent it: the new box stays read-only until it is answered,
  *   it is never resent with the new session's token, and neither a refusal nor a session-ended
  *   answer for it signs the new session out. It fails as not posted, with its text back in the box.
+ *   A refused post is not resent at all once the session changed while its retry token was being
+ *   refreshed (Firebase still hands that token over after a sign-out).
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -192,6 +194,25 @@ const janeWithHeldToken = () => {
     return { user: jane };
   });
   return fail;
+};
+
+/**
+ * Jane, whose cached token comes at once and whose token refreshed on purpose only when the test
+ * releases it. Firebase still gives that one after she signs out: it only skips saving it.
+ */
+const janeWithHeldRefresh = () => {
+  let release: (token: string) => void = () => undefined;
+  const fresh = new Promise<string>((resolve) => {
+    release = resolve;
+  });
+  h.signInWithPopup.mockImplementationOnce(async () => {
+    const jane = user('Jane Example', (forceRefresh) =>
+      forceRefresh ? fresh : Promise.resolve(JANE_TOKEN),
+    );
+    becomes(jane);
+    return { user: jane };
+  });
+  return () => release('fresh-h.fresh-p.fresh-s');
 };
 
 /** Signs out on the card, then signs in as a guest: another session while a post is in flight. */
@@ -461,6 +482,58 @@ describe('a post still in flight when someone else signs in', () => {
     expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
     expect(box()).toHaveValue('Hello again');
     expect(screen.getByRole('alert')).toHaveTextContent(NOT_POSTED);
+  });
+
+  describe('when the session changes while the retry token is refreshed', () => {
+    const STORED_AS_JANE = {
+      id: 'new-1',
+      authorName: 'Jane Example',
+      message: 'Hello again',
+      createdAt: '2026-11-08T12:00:00.000Z',
+    };
+
+    /** Jane posts; the API refuses it, and its retry waits on the refreshed token. */
+    const refusedWhileRefreshing = async () => {
+      const refreshed = janeWithHeldRefresh();
+      h.fetch.mockResolvedValueOnce(refused()).mockResolvedValueOnce(answer(201, STORED_AS_JANE));
+      renderBoard();
+      await signInWith(/Google/);
+      await send('Hello again');
+      expect(h.fetch).toHaveBeenCalledTimes(1);
+      return refreshed;
+    };
+
+    it('does not resend a refused post when the visitor signs out meanwhile', async () => {
+      const refreshed = await refusedWhileRefreshing();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+      await settle();
+      refreshed();
+      await settle();
+
+      expect(h.fetch).toHaveBeenCalledTimes(1);
+      expect(rows()).toHaveLength(0);
+      expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_AGAIN);
+      fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+      await settle();
+      expect(box()).toHaveValue('Hello again');
+    });
+
+    it('does not resend a refused post with the old token once someone else signed in', async () => {
+      const refreshed = await refusedWhileRefreshing();
+
+      await switchToGuest();
+      h.signOut.mockClear();
+      refreshed();
+      await settle();
+
+      expect(h.fetch).toHaveBeenCalledTimes(1);
+      expect(h.signOut).not.toHaveBeenCalled();
+      expect(rows()).toHaveLength(0);
+      expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+      expect(box()).toHaveValue('Hello again');
+      expect(screen.getByRole('alert')).toHaveTextContent(NOT_POSTED);
+    });
   });
 
   it('still asks to sign in again when the visitor only signed out while it was sent', async () => {
