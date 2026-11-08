@@ -15,14 +15,25 @@
  */
 
 import { t } from 'elysia';
-import { MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
+import { AUTHOR_MAX_LENGTH, MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
 
 export const messagesSchema = {
-  // The browser checks a draft first; this limit holds for any client, and is checked before the
-  // sign-in token. createMessage then checks the text itself (validateUserInput) and answers 400
-  // when nothing postable is left. There is no author field: the name comes from the verified
-  // sign-in (./poster.ts), and Elysia drops any other field a client sends.
+  'messages.get.response': t.Object({
+    json: t.Object({
+      json: t.Array(
+        t.Object({
+          id: t.String(),
+          authorName: t.String(),
+          message: t.String(),
+          createdAt: t.String(),
+        }),
+      ),
+    }),
+  }),
+  // The browser checks a draft first; these limits hold for any client. createMessage then checks
+  // the text itself (validateUserInput) and answers 400 when nothing postable is left.
   'messages.post.body': t.Object({
+    authorName: t.String({ minLength: 1, maxLength: AUTHOR_MAX_LENGTH }),
     message: t.String({ minLength: 1, maxLength: MESSAGE_MAX_LENGTH }),
   }),
   'messages.post.response': t.Object({

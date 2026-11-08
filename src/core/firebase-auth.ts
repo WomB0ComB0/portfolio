@@ -45,7 +45,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { config } from '@/config';
-import type { SessionHandle, SessionUser, SignInMethod } from './auth.types';
+import type { SessionUser, SignInMethod } from './auth.types';
 
 const AUTH_EMULATOR_URL = 'http://localhost:9099';
 
@@ -125,24 +125,4 @@ export async function signInWith(method: SignInMethod): Promise<SessionUser> {
 /** Signs the visitor out. */
 export function signOutUser(): Promise<void> {
   return signOut(clientAuth());
-}
-
-/**
- * The signed-in session: Firebase's user, which it keeps as one object through token refreshes
- * and across tabs, and replaces when the visitor signs out or someone else signs in. Null when
- * nobody is signed in. currentIdToken asks this same user when called in the same tick.
- */
-export function currentSession(): SessionHandle | null {
-  return clientAuth().currentUser;
-}
-
-/**
- * The signed-in visitor's ID token, for the API to verify, or null when nobody is signed in.
- * Firebase refreshes it first when it is about to expire, or always with `forceRefresh`. Rejects
- * with Firebase's error; when the session has ended with auth/user-token-expired or
- * auth/user-disabled, Firebase has signed the visitor out by then (not for the other codes).
- */
-export function currentIdToken(forceRefresh = false): Promise<string | null> {
-  const user = clientAuth().currentUser;
-  return user ? user.getIdToken(forceRefresh) : Promise.resolve(null);
 }
