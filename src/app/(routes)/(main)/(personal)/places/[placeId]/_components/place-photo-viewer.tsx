@@ -373,7 +373,7 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
                     'size-2 rounded-full transition-[scale,opacity] duration-(--motion-spring-out) ease-(--ease-spring) motion-reduce:transition-opacity',
                     index === currentPhotoIndex
                       ? 'scale-x-250 bg-brand'
-                      : 'bg-faint opacity-45 group-hover:opacity-80',
+                      : 'bg-faint opacity-75 group-hover:opacity-100',
                   )}
                 />
               </button>

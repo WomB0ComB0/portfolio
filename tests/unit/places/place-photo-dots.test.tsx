@@ -60,6 +60,15 @@ describe('the photo dots', () => {
     expect(row?.className).toContain('text-center');
   });
 
+  it('keep the other dots at 3:1 or more against the card (opacity 70% or more of fg-faint)', () => {
+    render(<PlacePhotoViewer photos={PHOTOS} summary={<h2>Place</h2>} />);
+
+    // fg-faint at 70% measures 3.37:1 on surface-1 and 3.47:1 on the canvas; 45% was 2.1:1.
+    const mark = dots()[1]?.querySelector('span[aria-hidden="true"]');
+    const opacity = /(?:^|\s)opacity-(\d+)(?:\s|$)/.exec(mark?.className ?? '')?.[1];
+    expect(Number(opacity ?? 100)).toBeGreaterThanOrEqual(70);
+  });
+
   it('mark the shown photo as current and follow a click', () => {
     render(<PlacePhotoViewer photos={PHOTOS} summary={<h2>Place</h2>} />);
 
