@@ -38,6 +38,7 @@ e2e/
 │   ├── projects.spec.ts
 │   ├── experience.spec.ts
 │   ├── media.spec.ts
+│   ├── place-photo-strip.spec.ts
 │   └── stats.spec.ts
 ├── performance/          # Performance tests
 │   └── perf.spec.ts      # Load times, Core Web Vitals, caching
@@ -71,6 +72,15 @@ User journey tests that verify end-to-end flows:
 - **projects.spec.ts** - Projects page, modals, filtering
 - **experience.spec.ts** - Experience timeline, detail modals
 - **media.spec.ts** - Media page with tabs (videos, talks, blogs, podcasts)
+- **place-photo-strip.spec.ts** - The place page's photo strip, GET-only on the real past place with
+  the most photos (read from /api/v1/sanity/places, at least 8): at 1440 one centred row of named
+  thumbnails, the dim (0.55, the shown photo too) and the light and lift on the one pointed at, no
+  flash crossing a gap (with or without reduced motion), a click that shows the photo without
+  scrolling the page, the toolbar's one Tab stop with arrow, Home, End, Enter and Space keys, and
+  reduced motion without the lift; at 390 a sideways strip of 104 px thumbnails with no dimming,
+  where a tap centres the thumbnail inside the strip without scrolling the page; no layout shift in
+  the card at either width; without JavaScript the first photo and no strip. It opens its own 1440
+  and 390 contexts, so it runs in the `chromium` project only and is skipped in the others
 - **stats.spec.ts** - Stats dashboard, API integrations
 
 ### Accessibility (`e2e/accessibility/`)

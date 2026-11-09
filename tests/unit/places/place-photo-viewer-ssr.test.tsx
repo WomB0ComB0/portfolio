@@ -33,10 +33,14 @@ const HIDDEN_OPACITY = /opacity:\s*0(?![.\d])/;
 const PHOTOS: readonly ViewerPhoto[] = [
   {
     url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600',
+    thumb:
+      'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=320&h=240&fit=crop&auto=format',
     alt: 'Photo of Photographed Place',
   },
   {
     url: 'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=1600',
+    thumb:
+      'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=320&h=240&fit=crop&auto=format',
     caption: 'The stage before the keynote',
     alt: 'The stage before the keynote',
   },
@@ -45,7 +49,11 @@ const PHOTOS: readonly ViewerPhoto[] = [
 const CONTROLS = ['Zoom in', 'Zoom out', 'Enter fullscreen'] as const;
 
 const viewer = (photos: readonly ViewerPhoto[] = PHOTOS) => (
-  <PlacePhotoViewer photos={photos} summary={<h2>Photographed Place</h2>} />
+  <PlacePhotoViewer
+    photos={photos}
+    placeName="Photographed Place"
+    summary={<h2>Photographed Place</h2>}
+  />
 );
 
 /** The server HTML parsed into a detached container, so its elements can be queried. */

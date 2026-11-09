@@ -1,0 +1,240 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The photo strip under the place viewer's frame (the focus-cards pattern, our own rewrite; the
+ * owner's pick B in the lab review). CSS only; tests/unit/places/photo-strip-css.test.ts holds it
+ * to the approved look.
+ *
+ * One scrolling row at every width: the thumbnails share the row (between 4.5 and 10rem each,
+ * from --n, the photo count, set inline), centred when they don't fill it, and the row scrolls
+ * sideways when they don't fit. Phones get fixed 6.5rem (104 px) thumbnails.
+ *
+ * Each thumbnail is a button with three layers over its photo, and only their opacity moves:
+ * - ::before, the photo shown: a steady 1 px brand rim, UNDER the dim, so while the pointer is on
+ *   another thumbnail the shown one dims with its rim and only the one pointed at is bright.
+ * - ::after, the dim: a canvas-coloured layer at 0.55 over every thumbnail but the one pointed at
+ *   or focused. It comes in at once and goes 60 ms late, so crossing the gap between two
+ *   thumbnails never flashes the whole strip back to full brightness.
+ * - .light::before, the tile hover's light (--shadow-lift: the 1 px brand rim and the brand halo)
+ *   on the one pointed at or focused, over the dim. In over --motion-base, out over --motion-slow,
+ *   on --ease-effect. With a mouse the thumbnail also lifts 3 px on the house spring, as the tiles
+ *   do; keyboard focus reaches the light at once and never moves.
+ * Phones: no hover, so no dimming and no lift; the rim marks the photo shown.
+ * Reduced motion: no lift, the light and the dim switch, and the dim still lifts 60 ms late.
+ *
+ * Every layer that fades is a pseudo-element. The light is the .light span's ::before, not the
+ * span: a real element can be styled once before this stylesheet arrives (a script reading
+ * styles early), at the default opacity 1, and would then fade from full light on every
+ * thumbnail as the page loads. A pseudo-element only exists once its rule applies, so it starts
+ * at rest.
+ *
+ * The block-end margin is left to the card's space-y rhythm (a margin here would override it,
+ * since Tailwind's space-y is a zero-specificity :where()), so the caption keeps its gap below.
+ */
+
+.strip {
+  --gap: 0.625rem;
+
+  display: grid;
+  grid-auto-columns: clamp(
+    4.5rem,
+    calc((100% - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)),
+    10rem
+  );
+  grid-auto-flow: column;
+  justify-content: safe center;
+  gap: var(--gap);
+
+  /* Room inside the scroller for the lift, the focus ring and the top of the halo; the inline
+     padding sits in the margin, so the thumbnails line up with the frame's edges. */
+  margin-block-start: -0.25rem;
+  margin-inline: -0.25rem;
+  padding: 0.5rem 0.25rem 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 1rem;
+  scrollbar-color: var(--hairline-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.thumb {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--surface-1);
+  cursor: pointer;
+  transition: translate var(--motion-spring-out) var(--ease-spring);
+}
+
+.thumb:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+
+.thumb::before,
+.thumb::after,
+.light,
+.light::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.thumb::before,
+.thumb::after,
+.light::before {
+  content: "";
+  opacity: 0;
+}
+
+.thumb::before {
+  z-index: 1;
+  box-shadow: inset 0 0 0 1px var(--brand-rim);
+  transition: opacity var(--motion-slow) var(--ease-effect);
+}
+
+.thumb[aria-current="true"]::before {
+  opacity: 1;
+  transition-duration: var(--motion-base);
+}
+
+.thumb::after {
+  z-index: 2;
+  background: var(--canvas);
+  transition: opacity var(--motion-base) var(--ease-effect) 60ms;
+}
+
+.light {
+  z-index: 3;
+}
+
+.light::before {
+  box-shadow: var(--shadow-lift);
+  transition: opacity var(--motion-slow) var(--ease-effect);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .thumb:hover {
+    translate: 0 -3px;
+    transition-duration: var(--motion-spring-in);
+  }
+
+  .thumb:hover::after {
+    transition-delay: 0s;
+  }
+
+  .strip:has(.thumb:hover) .thumb:not(:hover)::after {
+    opacity: 0.55;
+    transition-delay: 0s;
+  }
+
+  .thumb:hover .light::before {
+    opacity: 1;
+    transition-duration: var(--motion-base);
+  }
+
+  .thumb:active {
+    translate: 0 0;
+    transition-duration: var(--motion-instant);
+  }
+}
+
+/* Keyboard focus reaches the same end state at once, and never moves. */
+.thumb:focus-visible::after {
+  transition-delay: 0s;
+  transition-duration: 0s;
+}
+
+.strip:has(.thumb:focus-visible) .thumb:not(:focus-visible)::after {
+  opacity: 0.55;
+  transition-delay: 0s;
+  transition-duration: 0s;
+}
+
+.thumb:focus-visible .light::before {
+  opacity: 1;
+  transition-duration: 0s;
+}
+
+/*
+ * Reduced motion: no lift, and globals.css cuts every fade to 1 ms, so the light and the dim
+ * switch. It also zeroes every ::after's delay (with !important), but the dim's 60 ms is not
+ * motion: it is what keeps the pointer crossing a gap from flashing the whole strip back to full
+ * brightness. So at rest (nothing pointed at or focused, the only state that delays) it is set
+ * again, above that rule's specificity; the dim still comes in at once.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .thumb,
+  .thumb:hover {
+    translate: none;
+  }
+
+  .strip:not(:has(.thumb:hover, .thumb:focus-visible)) .thumb::after {
+    /* biome-ignore lint/complexity/noImportantStyles: over the global reduced-motion rule's !important delay. */
+    transition-delay: 60ms !important;
+  }
+}
+
+@media (width < 40rem) {
+  .strip {
+    grid-auto-columns: 6.5rem;
+    justify-content: start;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .thumb {
+    scroll-snap-align: center;
+  }
+}
+
+/*
+ * Without JavaScript the buttons could not show a photo, so the strip is not drawn: the page
+ * shows the first photo, served whole, and no dead controls. With JavaScript the strip is in the
+ * server HTML at its final size, so hydration moves nothing.
+ */
+@media (scripting: none) {
+  .strip {
+    display: none;
+  }
+}
+
+/*
+ * Forced colours (Windows High Contrast) drop box-shadows, which carry the shown photo's rim and
+ * the light, so the photo shown gets a system-colour outline instead.
+ */
+@media (forced-colors: active) {
+  .thumb[aria-current="true"] {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}

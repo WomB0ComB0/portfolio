@@ -26,7 +26,7 @@ import { constructMetadata } from '@/utils/seo/meta';
 import { PlacePhotoViewer } from './_components/place-photo-viewer';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
-import { viewerPhotoUrl } from './_components/viewer-photo-url';
+import { stripThumbUrl, viewerPhotoUrl } from './_components/viewer-photo-url';
 import type { PlacePageProps, ViewerPhoto } from './page.types';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
@@ -93,10 +93,14 @@ export async function generateMetadata({ params }: PlacePageProps): Promise<Meta
   }
 }
 
-/** The viewer's photos: each whole (never cropped to the frame), with its alt text. */
+/**
+ * The viewer's photos: each whole (never cropped to the frame), with its strip thumbnail and its
+ * alt text.
+ */
 const viewerPhotos = (place: Place): ViewerPhoto[] =>
   (place.photos ?? []).map((photo) => ({
     url: viewerPhotoUrl(photo.asset, VIEWER_MAX_WIDTH, VIEWER_MAX_HEIGHT),
+    thumb: stripThumbUrl(photo),
     caption: photo.caption,
     alt: photo.caption || `Photo of ${place.name}`,
   }));
@@ -137,7 +141,11 @@ export default async function PlacePage({ params }: PlacePageProps): Promise<JSX
               </CardContent>
             </>
           ) : (
-            <PlacePhotoViewer photos={photos} summary={placeSummary(place, 'Close photo viewer')} />
+            <PlacePhotoViewer
+              photos={photos}
+              placeName={place.name}
+              summary={placeSummary(place, 'Close photo viewer')}
+            />
           )}
         </MagicCard>
       </div>
