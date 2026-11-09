@@ -38,6 +38,7 @@ vi.mock('@/env', () => {
 import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 import { FilterBar, type FilterConfig } from '@/components/ui/filter-bar';
+import { wideLayout } from '../console/filter-bar/wide-layout';
 
 const noop = (): void => undefined;
 
@@ -63,7 +64,14 @@ const bar = (filters: FilterConfig[]) => (
   />
 );
 
-afterEach(cleanup);
+/** Undoes the wide layout a Ledger test lays out. */
+let narrow: (() => void) | undefined;
+
+afterEach(() => {
+  cleanup();
+  narrow?.();
+  narrow = undefined;
+});
 
 describe('FilterBar select names', () => {
   // The placeholders the /projects and /places explorers pass, and the two /certifications passed
@@ -110,6 +118,8 @@ describe('FilterBar select names', () => {
         initial={{ issuer: null, skill: null, q: '' }}
       />,
     );
+    // From a 48rem page the chips sit in the bar; jsdom computes no container query.
+    narrow = wideLayout();
 
     expect(screen.queryAllByRole('combobox')).toEqual([]);
     expect(screen.getByRole('searchbox', { name: 'Search certificates' })).toBeInTheDocument();

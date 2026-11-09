@@ -21,6 +21,12 @@
  * of a joined skill string, in any case. Pure; the server and the filter island share it.
  */
 
+import {
+  firstOf,
+  ownValue as lookup,
+  normaliseQuery as normaliseSharedQuery,
+  type ParamValue,
+} from '@/lib/filters';
 import { slugOf } from './format';
 import {
   ALL_SLUG,
@@ -45,7 +51,7 @@ export interface LedgerFilters {
 }
 
 /** A search param as Next passes it. */
-export type ParamValue = string | readonly string[] | null | undefined;
+export type { ParamValue } from '@/lib/filters';
 
 export interface RawFilters {
   readonly issuer?: ParamValue;
@@ -53,17 +59,9 @@ export interface RawFilters {
   readonly q?: ParamValue;
 }
 
-const firstOf = (value: ParamValue): string =>
-  typeof value === 'string' ? value : (value?.[0] ?? '');
-
-/** A record's own value: CMS strings never reach the prototype chain. */
-const lookup = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined =>
-  Object.hasOwn(record, key) ? record[key] : undefined;
-
 /** Search text as the page reads it: the first value, single-spaced, trimmed, capped. */
-export function normaliseQuery(value: ParamValue): string {
-  return firstOf(value).replaceAll(/\s+/g, ' ').trim().slice(0, QUERY_MAX_LENGTH);
-}
+export const normaliseQuery = (value: ParamValue): string =>
+  normaliseSharedQuery(value, QUERY_MAX_LENGTH);
 
 /** A chip as a filter: its family, or every one-off issuer for Other. */
 export const chipFilter = (chip: IssuerChip): IssuerFilter => ({ ...chip, chip: chip.slug });

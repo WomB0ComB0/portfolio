@@ -111,6 +111,10 @@ describe('resolveFilters: ?skill and ?q', () => {
   it('normalises the search: trimmed, single spaces, at most the cap', () => {
     expect(normaliseQuery('  big   query ')).toBe('big query');
     expect(normaliseQuery('x'.repeat(QUERY_MAX_LENGTH + 20))).toHaveLength(QUERY_MAX_LENGTH);
+    // Normalising twice gives the same answer, even when the cap lands just after a space.
+    const cut = normaliseQuery(`${'x'.repeat(QUERY_MAX_LENGTH - 1)} tail`);
+    expect(cut).toBe('x'.repeat(QUERY_MAX_LENGTH - 1));
+    expect(normaliseQuery(cut)).toBe(cut);
     expect(normaliseQuery(undefined)).toBe('');
     expect(normaliseQuery(['a', 'b'])).toBe('a');
   });

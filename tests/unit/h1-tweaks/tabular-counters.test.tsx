@@ -51,6 +51,7 @@ import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[place
 import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 import { FilterBar } from '@/components/ui/filter-bar';
+import { wideLayout } from '../console/filter-bar/wide-layout';
 
 const TABULAR = 'tabular-nums';
 
@@ -76,7 +77,14 @@ const LEDGER = buildLedger([
 
 const noop = (): void => undefined;
 
-afterEach(cleanup);
+/** Undoes the wide layout a Ledger test lays out. */
+let narrow: (() => void) | undefined;
+
+afterEach(() => {
+  cleanup();
+  narrow?.();
+  narrow = undefined;
+});
 
 describe('live counters use tabular figures', () => {
   // The guestbook's message count is a server-rendered StatStrip figure now (figure-sm, tabular
@@ -124,6 +132,8 @@ describe('live counters use tabular figures', () => {
         initial={{ issuer: null, skill: null, q: '' }}
       />,
     );
+    // From a 48rem page the chips sit in the bar; jsdom computes no container query.
+    narrow = wideLayout();
     const chips = screen.getByRole('list', { name: 'Filter by issuer' });
 
     for (const count of within(chips).getAllByText('2')) expect(count).toHaveClass(TABULAR);

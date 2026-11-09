@@ -711,7 +711,94 @@
   background-repeat: no-repeat;
 }
 
+/*
+ * A sticky bar's canvas (the FilterBar, an IndexTable's year bar and column labels), painted only
+ * while it is stuck. At rest the page's light glow shows through, so the bar is not a darker box;
+ * stuck, rows scroll under an opaque canvas, painted at once (a fade would let them show through).
+ * --stuck-edge (a box-shadow, such as a hairline under the bar) comes and goes with the paint.
+ * A browser that cannot tell when an element is stuck paints it always. The ::before needs a
+ * positioned element (sticky is) and paints under its content (the element is a stacking context).
+ */
+@utility stuck-canvas {
+  background-color: var(--canvas);
+  box-shadow: var(--stuck-edge, none);
+
+  @supports (container-type: scroll-state) {
+    /* stylelint-disable no-invalid-position-declaration -- @utility is the style rule. */
+    container-type: scroll-state;
+    background-color: transparent;
+    box-shadow: none;
+    /* stylelint-enable no-invalid-position-declaration */
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    @container scroll-state(stuck: top) {
+      &::before {
+        background-color: var(--canvas);
+        box-shadow: var(--stuck-edge, none);
+      }
+    }
+  }
+}
+
 /* stylelint-enable at-rule-no-unknown, nesting-selector-no-missing-scoping-root */
+
+/*
+ * View transitions. The overlay never takes the pointer, so a click during one reaches the page.
+ *
+ * A FilterBar change (a chip, a token, Clear; never typing) crossfades only the results
+ * (src/components/console/filter-bar/view-transition.ts). The page itself shows its new state at
+ * once while it runs (data-filter-transition on <html>), and the results fade inside their new
+ * box, clipped to the band between the sticky bar and the bottom edge haze, so the snapshot never
+ * paints over the bar, the haze or the bottom bar. Opacity only, on the motion tokens.
+ */
+::view-transition {
+  pointer-events: none;
+}
+
+:root[data-filter-transition]::view-transition-old(root) {
+  animation: none;
+  opacity: 0;
+}
+
+:root[data-filter-transition]::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(filter-results) {
+  animation: none;
+  clip-path: inset(var(--filter-vt-top, 0) 0 var(--filter-vt-bottom, 0) 0);
+}
+
+::view-transition-image-pair(filter-results) {
+  overflow: clip;
+}
+
+::view-transition-old(filter-results) {
+  animation: filter-fade-out var(--motion-instant) var(--ease-effect) both;
+}
+
+::view-transition-new(filter-results) {
+  animation: filter-fade-in var(--motion-base) var(--ease-effect) both;
+}
+
+@keyframes filter-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes filter-fade-in {
+  from {
+    opacity: 0;
+  }
+}
 
 /* biome-ignore-start lint/complexity/noImportantStyles: reduced motion everywhere must beat utility and inline styles. */
 @media (prefers-reduced-motion: reduce) {
@@ -724,6 +811,13 @@
     transition-duration: 1ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The rule above never matches view-transition pseudo-elements, which kept running for 250ms. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 

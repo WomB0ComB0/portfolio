@@ -19,18 +19,24 @@
  * an issuer: each check compares the page with its own figures (the header's certificates, the
  * first family chip's label and count).
  * - With no filter, every certificate is a row, as many as the header counts, under year h2s
- *   (newest first) whose counts add up; the page has one h1, and the column header row shows once.
+ *   (newest first) whose counts add up; the page has one h1, and every year's bar shows the
+ *   column labels (style 1, the ruled ledger).
  * - Today's shared links still work: ?issuer=Google Cloud Skills Boost lands on the Google chip
  *   with its rows (and is filtered in the server HTML); ?skill=React.js filters on the split
- *   skills and shows a Clear link that brings every row back and hands focus to the current chip.
+ *   skills and shows a removable token that brings every row back and hands focus to the current
+ *   chip.
  * - The URL stays the truth: a chip, then leaving and coming Back, shows what the URL says; so
  *   does a navigation to the page's own URL.
+ * - A chip crossfades the results with a view transition, typing never does, and reduced motion
+ *   turns it off. A row tints on hover and nothing in it moves. (The sticky bar, the year bars
+ *   and focus under them: certifications-sticky.spec.ts.)
  * - The page never scrolls sideways at 390 or 1280 px, and is at most 6.5 phone screens
  *   (390x844) and 4.5 desktop screens (1280x800). At 1280 every chip sits on one line. A phone's
- *   first screen shows several whole titles above the bottom bar, its toolbar scrolls inside
- *   itself, and a shared link to a chip past its edge scrolls the toolbar to that chip. No visible
- *   text is under 12px and none is set in capitals. In forced colours the current chip still
- *   stands out. Hydration moves nothing: the header and toolbar sit where the server HTML put them.
+ *   first screen shows several whole titles above the bottom bar; its bar is the search and a
+ *   Filters button that opens the chips as a sheet (without JavaScript too). No visible text is
+ *   under 12px and none is set in capitals. In forced colours the current chip still stands out.
+ *   Hydration moves nothing: the header and bar sit where the server HTML put them. Without
+ *   JavaScript the search is a GET form that filters.
  *
  * Each check waits until no streamed segment is hidden and nothing in main is aria-busy (as
  * shell-grid.spec.ts does), and for the fonts, before it measures.
@@ -39,17 +45,20 @@
 import { type Browser, expect, type Locator, type Page, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
+import {
+  CURRENT_CHIP,
+  DESKTOP,
+  hydrated,
+  MAIN,
+  openAt,
+  PATH,
+  PHONE,
+  ROW,
+  settle,
+  type Viewport,
+  YEAR_HEADING,
+} from '../fixtures/ledger';
 
-const PATH = '/certifications';
-const MAIN = 'main#main-content';
-const ROW = 'tr[data-cert-row]';
-const YEAR_HEADING = 'h2[id^="certificates-"]';
-const CURRENT_CHIP = 'a[aria-current="true"]';
-/** A streamed segment not revealed yet, or a skeleton marked busy (shell-grid.spec.ts). */
-const PENDING_CONTENT = 'div[hidden][id^="S:"], main [aria-busy="true"]';
-
-const PHONE = { width: 390, height: 844 } as const;
-const DESKTOP = { width: 1280, height: 800 } as const;
 const MAX_PHONE_SCREENS = 6.5;
 const MAX_DESKTOP_SCREENS = 4.5;
 const MIN_TEXT_PX = 12;
@@ -57,30 +66,6 @@ const MIN_TEXT_PX = 12;
 const MIN_TITLES_ON_FIRST_PHONE_SCREEN = 3;
 /** Sub-pixel rounding between two renders of the same layout. */
 const SAME_PX = 1;
-
-type Viewport = { readonly width: number; readonly height: number };
-
-async function settle(page: Page): Promise<Locator> {
-  const main = page.locator(MAIN);
-  await expect(main).toBeVisible();
-  await expect(page.locator(PENDING_CONTENT)).toHaveCount(0);
-  await page.evaluate(() => document.fonts.ready);
-  return main;
-}
-
-async function openAt(page: Page, query: string, viewport: Viewport): Promise<Locator> {
-  await page.setViewportSize(viewport);
-  await page.goto(`${getTargetUrl()}${PATH}${query}`);
-  return settle(page);
-}
-
-/** Hydrated: the island's search field carries React's props. */
-async function hydrated(page: Page): Promise<void> {
-  await page.waitForFunction(() => {
-    const input = document.querySelector('main input[type="search"]');
-    return input !== null && Object.keys(input).some((key) => key.startsWith('__reactProps'));
-  });
-}
 
 interface NextWindow {
   next?: { router?: { push: (href: string) => void } };
@@ -179,7 +164,7 @@ test.describe('/certifications: the Ledger', () => {
     expect(years.reduce((sum, match) => sum + Number(match?.[2]), 0)).toBe(total);
   });
 
-  test('desktop: the column header row shows once, and every year table keeps its headers', async ({
+  test('desktop: every year’s bar shows the column labels, and every table keeps its headers', async ({
     page,
   }) => {
     const main = await openAt(page, '', DESKTOP);
@@ -188,7 +173,7 @@ test.describe('/certifications: the Ledger', () => {
       .locator('thead tr')
       .evaluateAll((rows) => rows.filter((row) => row.getBoundingClientRect().height > 2).length);
 
-    expect(shownHeaderRows).toBe(1);
+    expect(shownHeaderRows).toBe(await tables.count());
     for (const table of await tables.all()) {
       await expect(table.getByRole('columnheader')).toHaveText([
         'Certificate',
@@ -213,22 +198,25 @@ test.describe('/certifications: the Ledger', () => {
     }
   });
 
-  test('?skill=React.js filters on the split skills; Clear brings every row back and keeps focus', async ({
+  test('?skill=React.js filters on the split skills; its token brings every row back and keeps focus', async ({
     page,
   }) => {
     const main = await openAt(page, '?skill=React.js', DESKTOP);
     const total = await figure(main, 'certificates');
     const rows = main.locator(ROW);
-    const line = main.locator('p', { hasText: /^Skill: React\.js · Clear$/ });
+    const clear = main
+      .getByRole('list', { name: 'Applied filters' })
+      .getByRole('link', { name: 'Remove Skill: React.js' });
 
-    await expect(line).toBeVisible();
+    await expect(clear).toBeVisible();
+    await expect(clear).toHaveText('Skill: React.js');
     const filtered = await rows.count();
     expect(filtered).toBeGreaterThan(0);
     expect(filtered).toBeLessThan(total);
     for (const text of await rows.allInnerTexts()) expect(text).toContain('React.js');
 
     await hydrated(page);
-    await line.getByRole('link', { name: 'Clear' }).focus();
+    await clear.focus();
     await page.keyboard.press('Enter');
 
     await expect(rows).toHaveCount(total);
@@ -294,9 +282,9 @@ test.describe('/certifications: the Ledger', () => {
       await expect(page).toHaveURL(new RegExp(`/certifications\\?issuer=${family.slug}$`));
       await settle(page);
       await expect(main.locator(ROW)).toHaveCount(family.count);
-      await expect(chipList(main).locator(CURRENT_CHIP)).toHaveText(
-        new RegExp(`^${family.label} ${family.count}`),
-      );
+      await expect
+        .poll(() => currentChip(chipList(main)))
+        .toEqual({ label: family.label, count: family.count });
     });
 
     test('a chip, then a navigation to the page’s own URL: every row again', async ({ page }) => {
@@ -336,6 +324,26 @@ test.describe('/certifications: the Ledger', () => {
         (elements) => elements.filter((element) => element.checkVisibility()).length,
       );
       expect(shown).toBe(chip.count);
+    });
+
+    test('the search is a GET form that filters, and the phone sheet still opens', async ({
+      page,
+    }) => {
+      await page.setViewportSize(PHONE);
+      await page.goto(`${getTargetUrl()}${PATH}`);
+      const main = page.locator(MAIN);
+
+      await main.getByRole('searchbox', { name: 'Search certificates' }).fill('google');
+      await main.getByRole('searchbox', { name: 'Search certificates' }).press('Enter');
+      await expect(page).toHaveURL(/\/certifications\?q=google$/);
+      const rows = main.locator(ROW);
+      expect(await rows.count()).toBeGreaterThan(0);
+      for (const text of await rows.allInnerTexts()) expect(text.toLowerCase()).toContain('google');
+
+      // A native popover: the button opens the sheet with no script at all.
+      await main.getByRole('button', { name: /^Filters/ }).click();
+      await expect(chipList(main)).toBeVisible();
+      await expect(chipList(main).locator(CURRENT_CHIP)).toHaveText(/^All /);
     });
   });
 
@@ -396,10 +404,11 @@ test.describe('/certifications: the Ledger', () => {
     }
   });
 
-  test('phone: the toolbar scrolls inside itself and screen 1 shows several whole titles', async ({
+  test('phone: the bar is the search and a Filters button, and screen 1 shows several whole titles', async ({
     page,
   }) => {
     const main = await openAt(page, '', PHONE);
+    const filterBar = main.locator('[data-filter-part="bar"]');
     const visibleTitles = await main.locator(`${ROW} [data-cert-title]`).evaluateAll((titles) => {
       const bar = [...document.querySelectorAll('body *')].find((element) => {
         const box = element.getBoundingClientRect();
@@ -415,39 +424,131 @@ test.describe('/certifications: the Ledger', () => {
         return box.top >= 0 && box.bottom <= limit;
       }).length;
     });
-    const overflowX = await main
-      .locator('[data-ledger-part="toolbar"]')
-      .evaluate((element) => getComputedStyle(element).overflowX);
-
     expect(visibleTitles).toBeGreaterThanOrEqual(MIN_TITLES_ON_FIRST_PHONE_SCREEN);
-    expect(overflowX).toBe('auto');
+    await expect(filterBar.getByRole('searchbox', { name: 'Search certificates' })).toBeVisible();
+    await expect(filterBar.getByRole('button', { name: /^Filters/ })).toBeVisible();
+    // The chips wait in the sheet: a closed popover until the button opens it.
+    await expect(main.locator('[data-filter-part="chips"]')).toBeHidden();
   });
 
-  test('phone: a shared link to a chip past the screen’s edge scrolls the toolbar to it', async ({
+  test('phone: a shared link’s chip is current, and focused, in the sheet the Filters button opens', async ({
     page,
   }) => {
     let main = await openAt(page, '', PHONE);
-    const last = chipList(main).getByRole('link').last();
+    const last = main.locator('[data-filter-part="chips"] a[data-chip]').last();
     const href = (await last.getAttribute('href')) ?? '';
     const label = readChip(await last.textContent()).label;
     expect(href).toMatch(/^\/certifications\?issuer=/);
 
     main = await openAt(page, href.slice(PATH.length), PHONE);
     await hydrated(page);
-    const toolbar = main.locator('[data-ledger-part="toolbar"]');
+    const button = main.getByRole('button', { name: /^Filters/ });
+    await expect(button).toHaveText(/^Filters 1/);
+    await expect(main.getByRole('list', { name: 'Applied filters' })).toContainText(label);
 
-    await expect(chipList(main).locator(CURRENT_CHIP)).toHaveText(new RegExp(`^${label} `));
+    await button.click();
+    const sheet = page.locator('[data-filter-part="sheet"]');
+    const current = chipList(main).locator(CURRENT_CHIP);
+    await expect(sheet).toBeVisible();
+    // Read the way `label` was, not as a pattern: an issuer like "C++ Institute" is no regex.
+    await expect.poll(async () => (await currentChip(chipList(main))).label).toBe(label);
+    await expect(current).toBeFocused();
+    // It rises on translate over --motion-spring-in, then rests on the screen's bottom edge.
     await expect
-      .poll(() =>
-        toolbar.evaluate((element) => {
-          const chip = element.querySelector('a[aria-current="true"]');
-          const view = element.getBoundingClientRect();
-          const box = chip?.getBoundingClientRect();
-          return box !== undefined && box.left >= view.left && box.right <= view.right;
-        }),
-      )
-      .toBe(true);
+      .poll(async () => {
+        const box = await sheet.boundingBox();
+        return Math.round((box?.y ?? 0) + (box?.height ?? 0));
+      }, 'the sheet rests on the bottom edge')
+      .toBe(PHONE.height);
+
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
     expect(await page.evaluate(() => window.scrollX), 'the page itself scrolled sideways').toBe(0);
+  });
+
+  test('a chip crossfades the results; typing never does; reduced motion turns it off', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const counted = window as unknown as { transitions: number };
+      counted.transitions = 0;
+      const start = document.startViewTransition?.bind(document) as unknown as
+        | ((update: () => void) => unknown)
+        | undefined;
+      if (!start) return;
+      Object.defineProperty(document, 'startViewTransition', {
+        configurable: true,
+        value: (update: () => void) => {
+          counted.transitions += 1;
+          return start(update);
+        },
+      });
+    });
+    const transitions = (): Promise<number> =>
+      page.evaluate(() => (window as unknown as { transitions: number }).transitions);
+    const main = await openAt(page, '', DESKTOP);
+    await hydrated(page);
+    const rows = main.locator(ROW);
+
+    const family = await firstFamilyChip(main);
+    await family.link.click();
+    await expect(rows).toHaveCount(family.count);
+    expect(await transitions()).toBe(1);
+
+    await main.getByRole('searchbox', { name: 'Search certificates' }).fill('a');
+    await expect(page).toHaveURL(/q=a/);
+    expect(await transitions(), 'typing started a view transition').toBe(1);
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await chipList(main)
+      .getByRole('link', { name: /^All \d+/ })
+      .click();
+    await expect(page).not.toHaveURL(/issuer=/);
+    expect(await transitions(), 'a transition ran under reduced motion').toBe(1);
+  });
+
+  test('a row tints on hover, and nothing in it moves', async ({ page, hasTouch }) => {
+    test.skip(hasTouch, 'a touch screen has no hover');
+    const main = await openAt(page, '', DESKTOP);
+    const row = main.locator(ROW).nth(2);
+    const surface = await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'var(--surface-1)';
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return colour;
+    });
+    const before = await row.evaluate((element) => element.getBoundingClientRect().toJSON());
+
+    // The row itself: its title link is stretched over every cell, so that is what the pointer meets.
+    await row.hover();
+
+    await expect.poll(() => row.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(surface);
+    expect(await row.evaluate((element) => element.getBoundingClientRect().toJSON())).toEqual(
+      before,
+    );
+  });
+
+  test('Copy ID copies a credential ID, above the row’s link, and says so', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const popups: string[] = [];
+    page.on('popup', (popup) => popups.push(popup.url()));
+    const main = await openAt(page, '', DESKTOP);
+    await hydrated(page);
+    const copy = main.getByRole('button', { name: /^Copy the credential ID for / }).first();
+    const id = await copy.getAttribute('title');
+
+    await copy.click();
+
+    await expect(main.locator('[data-index-announcer]')).toHaveText(
+      /^Copied the credential ID for /,
+    );
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(id);
+    expect(popups, 'the click reached the row’s link instead').toEqual([]);
   });
 
   /** The header's height, and the toolbar's offset under the header's top. */
@@ -473,7 +574,7 @@ test.describe('/certifications: the Ledger', () => {
       await page.evaluate(() => document.fonts.ready);
       const header = page.locator(`${MAIN} header`).filter({ visible: true }).first();
       const toolbar = page
-        .locator(`${MAIN} [data-ledger-part="toolbar"]`)
+        .locator(`${MAIN} [data-filter-part="bar"]`)
         .filter({ visible: true })
         .first();
       const featured = await page.locator(`${MAIN} [data-featured]`).count();
@@ -490,7 +591,7 @@ test.describe('/certifications: the Ledger', () => {
   }
 
   for (const viewport of [PHONE, DESKTOP]) {
-    test(`${viewport.width}px: hydration keeps the header and toolbar where the server HTML put them`, async ({
+    test(`${viewport.width}px: hydration keeps the header and bar where the server HTML put them`, async ({
       browser,
     }) => {
       // Without JavaScript the page stays as the server sent it, so it can be measured as it shows.

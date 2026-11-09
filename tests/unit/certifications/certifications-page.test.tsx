@@ -58,13 +58,15 @@ const SERVER_FILES = [
   `${C_DIR}/_components/featured-row.tsx`,
   `${C_DIR}/_lib/ledger.ts`,
   `${C_DIR}/_lib/filters.ts`,
+  `${C_DIR}/_lib/certification-filters.ts`,
   `${C_DIR}/_lib/format.ts`,
+  `${C_DIR}/_components/ledger-classes.ts`,
 ];
 const ISLAND_FILE = `${C_DIR}/_components/ledger-explorer.tsx`;
-/** The island's own modules: its state hook, its toolbar and its year tables. */
+/** The island's own modules: its URL sync, the adapter to the FilterBar kit, its year tables. */
 const ISLAND_PARTS = [
   `${C_DIR}/_components/use-ledger-filters.ts`,
-  `${C_DIR}/_components/ledger-toolbar.tsx`,
+  `${C_DIR}/_components/use-ledger-model.ts`,
   `${C_DIR}/_components/ledger-years.tsx`,
 ];
 /** Text a screen reader reads: aria-hidden subtrees left out. */
@@ -129,23 +131,15 @@ describe('the Ledger list', () => {
     }
   });
 
-  it('shows the column header row once, under the first year; later tables keep it for readers', async () => {
+  it('shows the column labels in every year’s sticky bar, under its year', async () => {
     await renderPage();
-    const [first, ...later] = screen.getAllByRole('table') as HTMLElement[];
-    const headerClasses = (table: HTMLElement | undefined): string[] =>
-      Array.from(table?.querySelectorAll('th') ?? []).map((th) => th.className);
+    const tables = screen.getAllByRole('table');
 
-    for (const className of headerClasses(first)) {
-      expect(className).not.toMatch(/clip-path/);
-    }
-    expect(later).toHaveLength(3);
-    for (const table of later) {
-      for (const className of headerClasses(table)) {
-        // Visually hidden inside the table's own layout (no sr-only: an absolutely positioned
-        // cell drops out of some browsers' table models), so the column keeps its header.
-        expect(className).toMatch(/\[clip-path:inset\(50%\)\]/);
-        expect(className).toMatch(/(?:^|\s)leading-0(?:\s|$)/);
-        expect(className).not.toMatch(/(?:^|\s)(?:sr-only|hidden|absolute)(?:\s|$)/);
+    for (const table of tables) {
+      for (const header of within(table).getAllByRole('columnheader')) {
+        // Visible in every year (the old Ledger clipped all but the first year's away).
+        expect(header.className).not.toMatch(/clip-path|sr-only/);
+        expect(header).toHaveClass('sticky', 'stuck-canvas');
       }
     }
   });
@@ -164,56 +158,66 @@ describe('the Ledger list', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('shows issuer as written, the month, the host and the ID in the desktop cells', async () => {
+  it('shows issuer as written, the month, the platform and Copy ID in the desktop cells', async () => {
     await renderPage();
     const [, issuer, issued, verify] = within(rowFor('BigQuery Basics')).getAllByRole('cell');
-    const month = within(issued as HTMLElement).getByText('Jun 2023');
+    const month = (issued as HTMLElement).querySelector('time');
 
     expect(issuer).toHaveTextContent('Google Cloud Skills Boost');
-    expect(month.tagName).toBe('TIME');
+    // The month; the year bar holds the year, which screen readers still hear in the cell.
+    expect(month).toHaveTextContent('Jun 2023');
+    expect(month?.firstChild?.textContent).toBe('Jun');
     expect(month).toHaveAttribute('datetime', '2023-06');
-    expect(verify).toHaveTextContent('cloudskillsboost.google');
-    const id = within(rowFor('Complete React Developer')).getByText('UC-5ba0a391');
-    expect(id).toHaveClass('mono-token');
-    // The ID shows wherever the Verify column is wide enough for it: from a 48rem page.
-    expect(id.className).toMatch(/@min-\[48rem\]\/page:block/);
+    expect(verify).toHaveTextContent('Skills Boost');
+    const copy = within(rowFor('Complete React Developer')).getByRole('button', {
+      name: 'Copy the credential ID for Complete React Developer',
+    });
+    expect(copy).toHaveAttribute('title', 'UC-5ba0a391');
+    expect(copy).toHaveTextContent('ID');
   });
 
-  it('gives screen readers the Verify cell’s host and names the ID', async () => {
+  it('gives screen readers the Verify cell’s platform and names the ID', async () => {
     await renderPage();
     const verifyOf = (title: string): HTMLElement =>
       within(rowFor(title)).getAllByRole('cell')[3] as HTMLElement;
 
     expect(
-      within(verifyOf('BigQuery Basics')).getByText('cloudskillsboost.google', READ_ALOUD),
-    ).toHaveClass('sr-only');
+      within(verifyOf('BigQuery Basics')).getByText('Skills Boost', READ_ALOUD),
+    ).not.toHaveClass('sr-only');
     const withId = verifyOf('Complete React Developer');
-    expect(within(withId).getByText('udemy.com', READ_ALOUD)).toBeInTheDocument();
-    expect(within(withId).getByText('Credential ID', READ_ALOUD)).toHaveClass('sr-only');
+    expect(within(withId).getByText('Udemy', READ_ALOUD)).toBeInTheDocument();
+    expect(within(withId).getByText('Credential ID UC-5ba0a391', READ_ALOUD)).toHaveClass(
+      'sr-only',
+    );
   });
 
-  it('truncates a long host’s text but never its new-tab arrow', async () => {
+  it('truncates a long platform name but never its one arrow, which turns brand with the row', async () => {
     await renderPage();
     const verify = within(rowFor('BigQuery Basics')).getAllByRole('cell')[3] as HTMLElement;
-    const host = verify.querySelector('a') as HTMLAnchorElement;
-    const arrow = host.querySelector('[data-new-tab-arrow]') as HTMLElement;
-    const text = within(host).getByText('cloudskillsboost.google');
+    const text = within(verify).getByText('Skills Boost');
+    const platform = text.parentElement as HTMLElement;
+    const arrows = within(rowFor('BigQuery Basics'))
+      .getAllByRole('cell')
+      .flatMap((cell) => Array.from(cell.querySelectorAll('[data-new-tab-arrow]')));
 
-    expect(host).not.toHaveClass('truncate');
     expect(text).toHaveClass('truncate', 'min-w-0');
-    expect(arrow.parentElement).toBe(host);
-    expect(arrow).toHaveClass('shrink-0');
+    expect(arrows).toHaveLength(1);
+    expect(arrows[0]?.parentElement).toBe(platform);
+    expect(platform).toHaveClass('text-muted-foreground', 'group-hover/row:text-brand-ink');
   });
 
-  it('keeps the host link out of the tab order: the title already goes there', async () => {
+  it('has one link per row, the title, stretched over it; Verify is text and Copy ID sits above', async () => {
     await renderPage();
     const row = rowFor('Build Wireframes');
-    const host = (within(row).getAllByRole('cell')[3] as HTMLElement).querySelector('a');
+    const [link, ...others] = within(row).getAllByRole('link');
 
-    expect(host).toHaveTextContent('coursera.org');
-    expect(host).toHaveAttribute('tabindex', '-1');
-    expect(host).toHaveAttribute('aria-hidden', 'true');
-    expect(host?.getAttribute('href')).toBe(row.querySelector('a')?.getAttribute('href'));
+    expect(others).toEqual([]);
+    expect(link).toHaveAttribute('data-cert-title');
+    expect(link).toHaveClass('after:absolute', 'after:inset-0');
+    expect(within(row).getByRole('button', { name: /^Copy the credential ID/ })).toHaveClass(
+      'relative',
+      'z-[1]',
+    );
   });
 
   it('says No link, and links nothing, for a certificate without a credential URL', async () => {
@@ -245,16 +249,16 @@ describe('the Ledger list', () => {
     expect(row).toHaveTextContent(/Credential ID\s*EXAM-42/);
   });
 
-  it('lists the split skills under the title, and the phone meta line under that', async () => {
+  it('lists the split skills beside the title, and the phone meta line under it', async () => {
     await renderPage();
     const row = rowFor('Complete React Developer');
 
+    expect(within(row).getByText('Cascading Style Sheets (CSS) · Redux.js · React.js')).toHaveClass(
+      'truncate',
+    );
+    expect(within(row).getByText('Udemy · Sep · Udemy')).toBeInTheDocument();
     expect(
-      within(row).getByText('Cascading Style Sheets (CSS) · Redux.js · React.js'),
-    ).toBeInTheDocument();
-    expect(within(row).getByText('Udemy · Sep 2023 · udemy.com')).toBeInTheDocument();
-    expect(
-      within(rowFor('Perform Cloud Data Science')).getByText('Microsoft · Dec 2024'),
+      within(rowFor('Perform Cloud Data Science')).getByText('Microsoft · Dec · No link'),
     ).toBeInTheDocument();
   });
 });

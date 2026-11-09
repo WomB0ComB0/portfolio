@@ -59,6 +59,8 @@ const NO_BREAK_SPACE = ' ';
 const SKILL_SEPARATORS = /[\n•·]/;
 
 export interface Month {
+  /** 'Dec': a row inside its year's group, where the year bar already says the year. */
+  readonly name: string;
   /** 'Dec 2024': rows, tiles and chips. */
   readonly short: string;
   /**
@@ -73,9 +75,33 @@ export interface Month {
 
 export interface CredentialLink {
   readonly href: string;
-  /** The destination's host without www: what the Verify column and the phone meta show. */
+  /** The destination's host without www. */
   readonly host: string;
+  /** The platform a visitor lands on ('Coursera', 'Credly'), or the host when it is not known: what the Verify column and the phone meta show. */
+  readonly platform: string;
 }
+
+/** The platforms credentials are hosted on, by host (without www). Any other host shows as itself. */
+export const CREDENTIAL_PLATFORMS: Readonly<Record<string, string>> = {
+  'coursera.org': 'Coursera',
+  'credly.com': 'Credly',
+  'linkedin.com': 'LinkedIn',
+  'cloudskillsboost.google': 'Skills Boost',
+  'udemy.com': 'Udemy',
+  'sololearn.com': 'Sololearn',
+  'api2.sololearn.com': 'Sololearn',
+  'learn.mongodb.com': 'MongoDB',
+  'skillshop.credential.net': 'Skillshop',
+  'credsverse.com': 'Credsverse',
+  'digitalcredential.stanford.edu': 'Stanford',
+  'learn.microsoft.com': 'Microsoft Learn',
+  'university.atlassian.com': 'Atlassian',
+  'certificate.algoexpert.io': 'AlgoExpert',
+  'freecodecamp.org': 'freeCodeCamp',
+  'virtualbadge.io': 'VirtualBadge',
+  'mindluster.com': 'MindLuster',
+  'storage.googleapis.com': 'Google',
+};
 
 /** The company an issuer string belongs to: a folded family, or the trimmed string itself. */
 export function familyOf(issuer: string): string {
@@ -113,6 +139,7 @@ export function monthOf(date: string | null | undefined): Month | null {
   const long = MONTHS_LONG[Number(mm) - 1];
   if (!long) return null;
   return {
+    name: long.slice(0, 3),
     short: `${long.slice(0, 3)} ${year}`,
     long: `${long}${NO_BREAK_SPACE}${year}`,
     iso: `${year}-${mm}`,
@@ -125,7 +152,14 @@ export function credentialLinkOf(url: string | null | undefined): CredentialLink
   const trimmed = url?.trim() ?? '';
   if (!/^https?:\/\//i.test(trimmed)) return null;
   try {
-    return { href: trimmed, host: new URL(trimmed).host.replace(/^www\./, '') };
+    const host = new URL(trimmed).host.replace(/^www\./, '');
+    return {
+      href: trimmed,
+      host,
+      platform: Object.hasOwn(CREDENTIAL_PLATFORMS, host)
+        ? (CREDENTIAL_PLATFORMS[host] ?? host)
+        : host,
+    };
   } catch {
     return null;
   }

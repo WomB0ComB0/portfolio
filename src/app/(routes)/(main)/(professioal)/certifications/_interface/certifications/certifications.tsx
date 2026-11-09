@@ -26,9 +26,9 @@ import 'server-only';
 import type { ReactElement } from 'react';
 
 import { PageShell } from '@/components/console';
+import { EMPTY_CLASS } from '@/components/console/filter-bar/filter-bar-classes';
 import type { Certification } from '@/hooks/sanity/schemas';
 import { FeaturedRow } from '../../_components/featured-row';
-import { EMPTY_CLASS } from '../../_components/ledger-classes';
 import { LedgerExplorer, type LedgerRowItem } from '../../_components/ledger-explorer';
 import { LEDGER_TITLE, LedgerStatStrip, sublineOf } from '../../_components/ledger-header';
 import { LedgerRow } from '../../_components/ledger-row';
