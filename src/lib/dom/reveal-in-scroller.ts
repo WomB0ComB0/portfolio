@@ -15,8 +15,9 @@
  */
 
 /**
- * @file Brings an element into view inside a sideways scroller, and only there: the phone
- * toolbar's current chip, which a shared ?issuer link can place past the screen's edge. Unlike
+ * @file Brings an element into view inside a sideways scroller, and only there: the current chip
+ * of a FilterBar chip row that scrolls sideways, which a shared link can place past the row's
+ * edge. Moved from /certifications so every filter page shares it. Unlike
  * scrollIntoView it never scrolls the page, and it moves at once (no smooth scroll to sit through,
  * or to turn off for reduced motion).
  */

@@ -31,7 +31,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   loadCertifications: vi.fn(),
-  revealInScroller: vi.fn(),
   /** What useSearchParams reports: null until the router first reports, then its last report. */
   search: null as string | null,
   listeners: new Set<() => void>(),
@@ -45,9 +44,6 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 vi.mock('@/lib/sanity/loaders', () => ({ loadCertifications: h.loadCertifications }));
-vi.mock('@/app/(routes)/(main)/(professioal)/certifications/_lib/reveal', () => ({
-  revealInScroller: h.revealInScroller,
-}));
 vi.mock('next/navigation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next/navigation')>();
   const { useMemo, useSyncExternalStore } = await import('react');
@@ -68,6 +64,7 @@ vi.mock('next/navigation', async (importOriginal) => {
 });
 
 import CertificationsPage from '@/app/(routes)/(main)/(professioal)/certifications/page';
+import { wideLayout } from '../console/filter-bar/wide-layout';
 import {
   ALL_TITLES,
   CERTS,
@@ -114,11 +111,16 @@ function navigate(url: string): void {
 
 const chipNamed = (name: RegExp): HTMLElement => within(chips()).getByRole('link', { name });
 const status = (): HTMLElement => screen.getByRole('status');
+const applied = (): HTMLElement => screen.getByRole('list', { name: 'Applied filters' });
+const token = (name: string): HTMLElement => within(applied()).getByRole('link', { name });
+
+/** Undoes the wide layout (a 48rem page, where the chips sit in the bar) each test lays out. */
+let narrow: () => void;
 
 beforeEach(() => {
+  narrow = wideLayout();
   h.loadCertifications.mockReset();
   h.loadCertifications.mockResolvedValue(CERTS);
-  h.revealInScroller.mockReset();
   h.search = null;
   lateReports = null;
   const nativeReplaceState = window.history.replaceState.bind(window.history);
@@ -134,6 +136,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  narrow();
   replaceState.mockRestore();
 });
 
@@ -176,15 +179,20 @@ describe('filters from the URL, on the server render', () => {
     expect(currentChip()).toHaveAttribute('href', '/certifications?issuer=ibm');
   });
 
-  it('?skill filters on one part of a joined skill string and offers a Clear link', async () => {
+  it('?skill filters on one part of a joined skill string and shows it as a removable token', async () => {
     await renderPage({ skill: 'react.js', issuer: 'udemy' });
 
     expect(rowTitles()).toEqual(UDEMY_TITLES);
-    const line = screen.getByText('Skill:').closest('p') as HTMLElement;
-    expect(line).toHaveTextContent('Skill: React.js · Clear');
-    expect(within(line).getByRole('link', { name: 'Clear' })).toHaveAttribute(
+    expect(
+      within(applied())
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Issuer: Udemy', 'Skill: React.js']);
+    expect(token('Remove Skill: React.js')).toHaveAttribute('href', '/certifications?issuer=udemy');
+    expect(token('Remove Issuer: Udemy')).toHaveAttribute('href', '/certifications?skill=React.js');
+    expect(screen.getByRole('link', { name: 'Clear all' })).toHaveAttribute(
       'href',
-      '/certifications?issuer=udemy',
+      '/certifications',
     );
   });
 
@@ -272,11 +280,11 @@ describe('filtering in place with JavaScript', () => {
     );
   });
 
-  it('Clear removes the skill, and Clear filters removes everything', async () => {
+  it('the skill’s token removes the skill, and Clear filters removes everything', async () => {
     await renderPage({ skill: 'React.js', issuer: 'udemy' });
 
-    fireEvent.click(screen.getByRole('link', { name: 'Clear' }));
-    expect(screen.queryByText('Skill:')).toBeNull();
+    fireEvent.click(token('Remove Skill: React.js'));
+    expect(within(applied()).queryByRole('link', { name: /Skill/ })).toBeNull();
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications?issuer=udemy');
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'nothing like this' } });
@@ -290,15 +298,21 @@ describe('filtering in place with JavaScript', () => {
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications');
   });
 
-  it('scrolls the current chip into view inside the toolbar (a phone’s sideways row)', async () => {
-    await renderPage({ issuer: 'IBM' });
-    const toolbar = document.querySelector('[data-ledger-part="toolbar"]');
+  it('on a phone the bar is the search and a Filters button; the chips open in its sheet', async () => {
+    narrow();
+    narrow = () => undefined;
+    await renderPage({ issuer: 'udemy' });
+    const button = screen.getByRole('button', { name: /^Filters/ });
+    const sheet = document.getElementById(button.getAttribute('popovertarget') ?? '');
 
-    expect(h.revealInScroller).toHaveBeenCalledWith(toolbar, currentChip());
-
-    h.revealInScroller.mockClear();
-    fireEvent.click(chipNamed(/^Google/));
-    expect(h.revealInScroller).toHaveBeenLastCalledWith(toolbar, chipNamed(/^Google/));
+    expect(button).toHaveTextContent('Filters 1');
+    expect(sheet).toHaveAttribute('popover', 'auto');
+    // The sheet is a closed popover until the button opens it (natively, even without JS).
+    expect(screen.queryByRole('list', { name: 'Filter by issuer' })).toBeNull();
+    expect(
+      within(sheet as HTMLElement).getByRole('list', { name: 'Filter by issuer', hidden: true }),
+    ).toBeInTheDocument();
+    expect(token('Remove Issuer: Udemy')).toBeVisible();
   });
 });
 
@@ -508,9 +522,9 @@ describe('the URL is the source of truth, where the browser has the Navigation A
 });
 
 describe('focus and announcements when a filter goes away', () => {
-  it('Clear on the skill line hands focus to the current chip and says every certificate is back', async () => {
+  it('removing the last token hands focus to the current chip and says every certificate is back', async () => {
     await renderPage({ skill: 'React.js' });
-    const clear = screen.getByRole('link', { name: 'Clear' });
+    const clear = token('Remove Skill: React.js');
     clear.focus();
 
     fireEvent.click(clear);
@@ -520,12 +534,13 @@ describe('focus and announcements when a filter goes away', () => {
     expect(status()).toHaveTextContent('Showing all 7 certificates');
   });
 
-  it('with an issuer still chosen, focus lands on that issuer’s chip', async () => {
+  it('with an issuer still chosen, focus lands on that issuer’s token, the one before it', async () => {
     await renderPage({ skill: 'React.js', issuer: 'udemy' });
 
-    fireEvent.click(screen.getByRole('link', { name: 'Clear' }));
+    fireEvent.click(token('Remove Skill: React.js'));
 
-    expect(document.activeElement).toBe(chipNamed(/^Udemy/));
+    expect(document.activeElement).toBe(token('Remove Issuer: Udemy'));
+    expect(currentChip()?.textContent).toMatch(/^Udemy/);
     expect(status()).toHaveTextContent('Showing 2 of 7 certificates');
   });
 

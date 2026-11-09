@@ -95,6 +95,7 @@ describe('monthOf', () => {
 
   it('formats the month Sanity holds, never a day', () => {
     expect(monthOf('2024-12-01')).toEqual({
+      name: 'Dec',
       short: 'Dec 2024',
       long: `December${NBSP}2024`,
       iso: '2024-12',
@@ -128,8 +129,21 @@ describe('credentialLinkOf', () => {
     expect(credentialLinkOf(' https://www.credly.com/badges/x ')).toEqual({
       href: 'https://www.credly.com/badges/x',
       host: 'credly.com',
+      platform: 'Credly',
     });
     expect(credentialLinkOf('https://api2.sololearn.com/v2/c')?.host).toBe('api2.sololearn.com');
+  });
+
+  // The Verify column names the platform a visitor lands on, not its host.
+  it.each([
+    ['https://www.coursera.org/account/accomplishments/records/X', 'Coursera'],
+    ['https://www.cloudskillsboost.google/public_profiles/x', 'Skills Boost'],
+    ['https://api2.sololearn.com/v2/certificates/CT-1/image/png', 'Sololearn'],
+    ['https://learn.microsoft.com/api/credentials/share/x', 'Microsoft Learn'],
+    ['https://skillshop.credential.net/x', 'Skillshop'],
+    ['https://certs.example.org/x', 'certs.example.org'],
+  ])('names the platform of %s as %s, or its host when unknown', (url, platform) => {
+    expect(credentialLinkOf(url)?.platform).toBe(platform);
   });
 
   // 'https://' passes the scheme check and fails the URL parser: the parse error is caught.

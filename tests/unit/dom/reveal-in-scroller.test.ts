@@ -15,15 +15,15 @@
  */
 
 /**
- * @file revealInScroller: on a phone the Ledger's toolbar is one row that scrolls sideways, so a
- * shared ?issuer link whose chip sits past the screen's edge scrolls the row (never the page) to
- * show it, inside the row's padding. A chip already in view, or a row that does not scroll, is
+ * @file revealInScroller: a FilterBar chip row that scrolls sideways (`layout="scroll"`) brings
+ * a chip that sits past its edge, such as a shared link's current chip, into view by scrolling the
+ * row (never the page), inside the row's padding. A chip already in view, or a row that does not scroll, is
  * left alone.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { revealInScroller } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/reveal';
+import { revealInScroller } from '@/lib/dom/reveal-in-scroller';
 
 interface Box {
   readonly left: number;

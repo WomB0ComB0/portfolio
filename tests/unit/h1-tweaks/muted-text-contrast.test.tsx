@@ -38,13 +38,19 @@ vi.mock('@/components/magicui/magic-card', () => ({ MagicCard: passThrough }));
 import { Privacy } from '@/app/(routes)/(legal)/privacy/_interface/privacy/privacy';
 import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/place-photo-viewer';
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
+import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
 import { LedgerRow } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-row';
-import { ChipLink } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-toolbar';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
+import { wideLayout } from '../console/filter-bar/wide-layout';
 
 /** Any translucent muted text colour, e.g. `text-muted-foreground/70`. */
 const TRANSLUCENT_MUTED = /\btext-muted-foreground\/\d+/;
 
+const GOOGLE = buildLedger(
+  ['Wireframes', 'BigQuery'].map((title, order) =>
+    makeCertification({ title, issuer: 'Google', issueDate: '2024-03-01', order }),
+  ),
+);
 const [CERTIFICATION] = buildLedger([
   makeCertification({
     title: 'Azure Fundamentals',
@@ -74,7 +80,7 @@ describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
       </table>,
     );
 
-    expect(screen.getByText('Microsoft · Mar 2024 · learn.microsoft.com')).toHaveClass(
+    expect(screen.getByText('Microsoft · Mar · Microsoft Learn')).toHaveClass(
       'text-muted-foreground',
     );
     const translucent = Array.from(container.querySelectorAll('[class]')).filter((element) =>
@@ -85,20 +91,22 @@ describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
 
   it("the current issuer chip's count lifts from faint to muted on the brand-subtle fill", () => {
     // fg-faint on brand-subtle is 4.27:1; fg-muted is 5.98:1 (token-contrast.test.ts).
+    const narrow = wideLayout();
     render(
-      <ul>
-        <ChipLink
-          chip={{ slug: 'google', label: 'Google', count: 20 }}
-          current
-          href="/certifications?issuer=google"
-          onSelect={() => undefined}
-        />
-      </ul>,
+      <LedgerExplorer
+        rows={GOOGLE.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
+        chips={GOOGLE.chips}
+        other={GOOGLE.other}
+        index={GOOGLE.index}
+        initial={{ issuer: GOOGLE.index.families.google ?? null, skill: null, q: '' }}
+      />,
     );
 
-    const count = screen.getByText('20');
-    expect(count.closest('a')).toHaveAttribute('aria-current', 'true');
+    const google = screen.getByRole('link', { name: 'Google 2 certificates' });
+    const count = google.querySelector('.tabular-nums');
+    expect(google).toHaveAttribute('aria-current', 'true');
     expect(count).toHaveClass('text-faint', '[[aria-current=true]_&]:text-muted-foreground');
+    narrow();
   });
 
   it('a privacy service purpose brightens with its row on hover', () => {
