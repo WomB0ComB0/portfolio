@@ -571,7 +571,7 @@ describe('HeroTile with the site settings', () => {
     expectFirstFlushCopy(HERO_FALLBACK_COPY);
   });
 
-  it('fills the first flush from the settings last loaded, so a warm server swaps in no change', async () => {
+  it('renders the settings last loaded in the first flush on a warm server, and starts the reload', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
     vi.setSystemTime(T0);
     h.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
@@ -584,6 +584,30 @@ describe('HeroTile with the site settings', () => {
     expectFirstFlushCopy(SETTINGS_COPY);
     // The reload is under way: the next request gets what it answers.
     await vi.waitFor(() => expect(h.sanityFetchWithToken).toHaveBeenCalledTimes(2));
+  });
+
+  // Review finding (CodeRabbit, #610): past the TTL the cache waits for a reload, so a tagline
+  // streamed in after the first flush could differ from the cached one in its unreserved box and
+  // move everything below it. A warm server keeps the cached copy for the whole request.
+  it('keeps the cached tagline and links for the request once the cache is past its TTL, the new ones from the next', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(T0);
+    h.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
+    await loadHeroCopy();
+
+    vi.setSystemTime(T0 + SANITY_CACHE_TTL_MS + 1);
+    const edited = { ...SETTINGS, tagline: LONG_TAGLINE, email: 'new@example.dev', location: null };
+    h.sanityFetchWithToken.mockResolvedValue(edited);
+    await renderHeroHtml();
+
+    expect(taglineSlot().className).toBe('');
+    expectFirstFlushCopy(SETTINGS_COPY);
+    expect(screen.queryByText(LONG_TAGLINE)).toBeNull();
+    // The role line waits for the reload, so a location the owner cleared is gone at once.
+    expectRoleAlone(ROLE);
+
+    await renderHeroHtml();
+    expectCopy({ ...SETTINGS_COPY, tagline: LONG_TAGLINE, email: edited.email, location: null });
   });
 
   it("renders today's copy, and reports, when reading the cached settings throws", () => {
@@ -658,7 +682,7 @@ describe('HeroTile on a server with nothing cached yet', () => {
     expect(taglineSlot()).toHaveAttribute('data-state', 'loading');
   });
 
-  it('reserves nothing once the settings are cached: the first flush is the streamed twin', async () => {
+  it('reserves nothing once the settings are cached: the first flush already has the owner’s copy', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
     vi.setSystemTime(T0);
     h.sanityFetchWithToken.mockResolvedValueOnce({ ...SETTINGS, tagline: LONG_TAGLINE });

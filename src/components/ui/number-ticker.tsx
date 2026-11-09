@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { animate, useInView, useReducedMotion } from 'motion/react';
+import { animate, useInView } from 'motion/react';
 import {
   type RefObject,
   useCallback,
@@ -25,9 +25,11 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
+import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 
 /** How long a count takes, in seconds. */
@@ -52,6 +54,27 @@ interface CountOptions {
   formatter: Intl.NumberFormat;
   onDone: () => void;
 }
+
+/**
+ * Calls `onChange` whenever the visitor's reduced-motion setting changes. Does nothing where
+ * `matchMedia` does not exist.
+ */
+const subscribeToReducedMotion = (onChange: () => void): (() => void) => {
+  if (typeof globalThis.matchMedia !== 'function') return () => {};
+  const query = globalThis.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+
+/** Server HTML never counts, so the server snapshot says reduced. */
+const reducedMotionOnServer = (): boolean => true;
+
+/**
+ * The visitor's reduced-motion setting, re-rendering when it changes. motion's useReducedMotion
+ * reads it once, at mount, so a mounted ticker would never see it turn on.
+ */
+const useReducesMotion = (): boolean =>
+  useSyncExternalStore(subscribeToReducedMotion, prefersReducedMotion, reducedMotionOnServer);
 
 /** Shows `text` in the counting copy (its ::before draws it), skipping frames that don't change it. */
 const writeCount = (element: HTMLElement, text: string): void => {
@@ -129,17 +152,21 @@ export const NumberTicker = ({
   const finalText = formatter.format(to);
 
   const isServerHtml = useIsServerHtmlRender();
-  const prefersReducedMotion = useReducedMotion();
+  const reducesMotion = useReducesMotion();
   // Decided once, at mount. Server HTML has already painted the final value, so counting it
   // again would flash it back to the start; later value changes show at once.
   const [isCounting, setIsCounting] = useState(
     () =>
       !isServerHtml &&
-      prefersReducedMotion === false &&
+      !reducesMotion &&
       Number.isFinite(value) &&
       formatter.format(from) !== finalText,
   );
   const stopCounting = useCallback(() => setIsCounting(false), []);
+  // Turning reduced motion on ends a running count, and keeps a pending one from starting.
+  useEffect(() => {
+    if (reducesMotion) stopCounting();
+  }, [reducesMotion, stopCounting]);
 
   const countRef = useRef<HTMLSpanElement>(null);
   useCount(countRef, isCounting, { from, to, delay, formatter, onDone: stopCounting });
