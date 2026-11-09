@@ -88,7 +88,7 @@
     "deepmerge": "4.1.2",
     "esbuild": ">=0.27.2",
     "glob": ">=14.0.2",
-    "import-in-the-middle": "3.5.3",
+    "import-in-the-middle": "3.6.0",
     "js-yaml": ">=3.15.2",
     "minimatch": ">=11.0.4",
     "postcss": "^8.5.32",
