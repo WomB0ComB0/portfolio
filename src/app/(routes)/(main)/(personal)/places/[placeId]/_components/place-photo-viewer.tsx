@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { ViewerPhoto } from '../page.types';
+import { PhotoStrip } from './photo-strip';
 
 const swipeConfidenceThreshold = 10000;
 const swipePower = (offset: number, velocity: number) => {
@@ -74,16 +75,18 @@ const FRAME_SIZES =
 interface PlacePhotoViewerProps {
   /** At least one photo, with URLs built on the server. */
   photos: readonly ViewerPhoto[];
+  /** Names the photo strip ("Photos of <place>"). */
+  placeName: string;
   /** The card header's content above the "Photo n of m" line: the place's summary. */
   summary: ReactNode;
 }
 
 /**
- * The place page's photo carousel: swipe or the dots to move between photos, zoom and pan, and
- * fullscreen. It renders the card's header (the summary passed in, then the photo position) and
- * its content; the page renders the card around it.
+ * The place page's photo carousel: swipe or the photo strip to move between photos, zoom and pan,
+ * and fullscreen. It renders the card's header (the summary passed in, then the photo position)
+ * and its content; the page renders the card around it.
  */
-export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
+export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewerProps) {
   const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -110,6 +113,18 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
       }
     },
     [currentPhotoIndex, photos.length, zoom, zoomX, zoomY],
+  );
+
+  /** Shows photo `index` (the strip's pick), sliding in from its side, at 100% zoom. */
+  const goTo = useCallback(
+    (index: number) => {
+      if (index === currentPhotoIndex || index < 0 || index >= photos.length) return;
+      setPage([index, index > currentPhotoIndex ? 1 : -1]);
+      setZoom(1);
+      zoomX.set(0);
+      zoomY.set(0);
+    },
+    [currentPhotoIndex, photos.length, zoomX, zoomY],
   );
 
   const toggleFullscreen = useCallback(() => {
@@ -332,6 +347,17 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
           </AnimatePresence>
         </div>
 
+        {/* Right under the frame, above the caption: picking a captioned photo never moves the
+            strip from under the pointer. Hidden without JavaScript (photo-strip.module.css). */}
+        {photos.length > 1 && (
+          <PhotoStrip
+            photos={photos}
+            index={currentPhotoIndex}
+            onPick={goTo}
+            label={`Photos of ${placeName}`}
+          />
+        )}
+
         {currentPhoto?.caption && (
           <motion.div
             key={`caption-${currentPhotoIndex}`}
@@ -345,40 +371,6 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
               {currentPhoto.caption}
             </p>
           </motion.div>
-        )}
-
-        {photos.length > 1 && (
-          // Plain 24 x 24 buttons, each with an 8 px dot: the shared Button's size padding made them
-          // 32 x 16 pills that ran off a phone with 13 photos. Inline, so a row that doesn't fit
-          // wraps evenly (text-wrap: balance); the shown dot stretches by scale, nothing resizes.
-          <div className="pt-2 text-center leading-0 [text-wrap:balance]">
-            {photos.map((_, index) => (
-              <button
-                key={`${+index}`}
-                type="button"
-                onClick={() => {
-                  const newDirection = index > currentPhotoIndex ? 1 : -1;
-                  setPage([index, newDirection]);
-                  setZoom(1);
-                  zoomX.set(0);
-                  zoomY.set(0);
-                }}
-                className="group inline-grid size-6 place-items-center rounded-full align-top focus-visible:outline-2 focus-visible:outline-focus"
-                aria-label={`Go to photo ${index + 1}`}
-                aria-current={index === currentPhotoIndex ? 'true' : undefined}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'size-2 rounded-full transition-[scale,opacity] duration-(--motion-spring-out) ease-(--ease-spring) motion-reduce:transition-opacity',
-                    index === currentPhotoIndex
-                      ? 'scale-x-250 bg-brand'
-                      : 'bg-faint opacity-75 group-hover:opacity-100',
-                  )}
-                />
-              </button>
-            ))}
-          </div>
         )}
       </CardContent>
     </>

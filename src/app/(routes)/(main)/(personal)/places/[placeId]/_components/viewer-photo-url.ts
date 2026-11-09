@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type { SanityImageSource } from '@sanity/image-url';
 import { urlFor } from '@/lib/sanity/client';
 
 /** Sanity image asset ids end in `-<width>x<height>-<format>`. */
@@ -40,4 +41,22 @@ export function viewerPhotoUrl(asset: ImageAssetRef, maxWidth: number, maxHeight
   const sized =
     aspectRatio >= maxWidth / maxHeight ? builder.width(maxWidth) : builder.height(maxHeight);
   return sized.url();
+}
+
+/** The photo strip's thumbnail: 2x its widest drawing (160 x 120), in the strip's 4:3. */
+const STRIP_THUMB_WIDTH = 320;
+const STRIP_THUMB_HEIGHT = 240;
+
+/**
+ * A photo's thumbnail for the strip under the viewer: a 320 x 240 crop, cut around the hotspot
+ * (and inside the crop) set in Studio, so it takes the whole image, not just its asset, in the
+ * best format the browser accepts.
+ */
+export function stripThumbUrl(image: SanityImageSource): string {
+  return urlFor(image)
+    .width(STRIP_THUMB_WIDTH)
+    .height(STRIP_THUMB_HEIGHT)
+    .fit('crop')
+    .auto('format')
+    .url();
 }

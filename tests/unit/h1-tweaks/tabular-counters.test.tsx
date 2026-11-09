@@ -55,8 +55,18 @@ import { FilterBar } from '@/components/ui/filter-bar';
 const TABULAR = 'tabular-nums';
 
 const PHOTOS: readonly ViewerPhoto[] = [
-  { url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600', alt: 'Photo of A' },
-  { url: 'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=1600', alt: 'Photo of B' },
+  {
+    url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600',
+    thumb:
+      'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=320&h=240&fit=crop&auto=format',
+    alt: 'Photo of A',
+  },
+  {
+    url: 'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=1600',
+    thumb:
+      'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=320&h=240&fit=crop&auto=format',
+    alt: 'Photo of B',
+  },
 ];
 
 const LEDGER = buildLedger([
@@ -80,7 +90,7 @@ describe('live counters use tabular figures', () => {
   });
 
   it("the photo viewer's position and zoom readouts", () => {
-    render(<PlacePhotoViewer photos={PHOTOS} summary={<h2>A place</h2>} />);
+    render(<PlacePhotoViewer photos={PHOTOS} placeName="A place" summary={<h2>A place</h2>} />);
 
     expect(screen.getByText('Photo 1 of 2')).toHaveClass(TABULAR);
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));

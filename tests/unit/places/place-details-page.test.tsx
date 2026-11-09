@@ -19,7 +19,7 @@
  * the place's summary and photos come from the loaders, and the metadata names the place.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { Metadata } from 'next';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Place } from '@/hooks/sanity/schemas';
@@ -177,19 +177,46 @@ describe('place photo viewer', () => {
     expect(screen.queryByRole('heading', { name: 'No photos yet' })).not.toBeInTheDocument();
   });
 
-  it('moves to another photo with its dot, and shows that photo and its caption', async () => {
+  it('moves to another photo from the strip, and shows that photo and its caption', async () => {
     await renderPage(photographedPlace._id);
+    const strip = screen.getByRole('toolbar', { name: 'Photos of Photographed Place' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Go to photo 2' }));
+    fireEvent.click(
+      within(strip).getByRole('button', { name: 'Photo 2 of 2: The stage before the keynote' }),
+    );
 
     expect(screen.getByText('Photo 2 of 2')).toBeInTheDocument();
     // The landscape fills the width instead.
     expect(imageSrc('The stage before the keynote')).toContain('w=1600');
-    expect(screen.getByText('The stage before the keynote')).toBeInTheDocument();
+    expect(screen.getByText('The stage before the keynote', { selector: 'p' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Go to photo 1' }));
+    fireEvent.click(within(strip).getByRole('button', { name: 'Photo 1 of 2' }));
 
     expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
+  });
+
+  it("draws each photo's strip thumbnail as a 320 x 240 crop in the best format", async () => {
+    await renderPage(photographedPlace._id);
+    const strip = screen.getByRole('toolbar', { name: 'Photos of Photographed Place' });
+
+    // next/image wraps the Sanity URL in /_next/image?url=…
+    const sources = within(strip)
+      .getAllByRole('button')
+      .map((button) => {
+        const optimised = new URL(button.querySelector('img')?.getAttribute('src') ?? '', SITE);
+        return new URL(optimised.searchParams.get('url') ?? '');
+      });
+
+    expect(sources.map((source) => source.pathname)).toEqual([
+      '/images/test/test/a-3000x4000.jpg',
+      '/images/test/test/b-1600x1200.jpg',
+    ]);
+    for (const { searchParams } of sources) {
+      expect(searchParams.get('w')).toBe('320');
+      expect(searchParams.get('h')).toBe('240');
+      expect(searchParams.get('fit')).toBe('crop');
+      expect(searchParams.get('auto')).toBe('format');
+    }
   });
 
   it('zooms in and back out, within its limits', async () => {

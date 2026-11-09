@@ -39,6 +39,20 @@ vi.mock('next/font/google', () => {
   };
 });
 
+// Vite cannot load the repo's PostCSS config (Next's string-plugin form), so a CSS module in a
+// component's imports fails the whole test file. The place viewer's photo strip is rendered by
+// every viewer and place-page test, so its class names are stood in for here, once: each class
+// `name` is `name`. Its rules are read as text in tests/unit/places/photo-strip-css.test.ts.
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/photo-strip.module.css',
+  () => ({
+    default: new Proxy({} as Record<string, string>, {
+      /** Each class name read from the module is the name itself; a symbol key reads undefined. */
+      get: (_target, name) => (typeof name === 'string' ? name : undefined),
+    }),
+  }),
+);
+
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 

@@ -57,8 +57,18 @@ const [CERTIFICATION] = buildLedger([
 ]).entries;
 
 const PHOTOS: readonly ViewerPhoto[] = [
-  { url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600', alt: 'Photo of A' },
-  { url: 'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=1600', alt: 'Photo of B' },
+  {
+    url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600',
+    thumb:
+      'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=320&h=240&fit=crop&auto=format',
+    alt: 'Photo of A',
+  },
+  {
+    url: 'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=1600',
+    thumb:
+      'https://cdn.sanity.io/images/test/test/b-1600x1200.jpg?w=320&h=240&fit=crop&auto=format',
+    alt: 'Photo of B',
+  },
 ];
 
 afterEach(cleanup);
@@ -111,7 +121,7 @@ describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
   });
 
   it("the photo viewer's drag hint uses the faint text tier, not muted text at 70%", () => {
-    render(<PlacePhotoViewer photos={PHOTOS} summary={<h2>A place</h2>} />);
+    render(<PlacePhotoViewer photos={PHOTOS} placeName="A place" summary={<h2>A place</h2>} />);
 
     const hint = screen.getByText('← Drag to navigate →');
     expect(hint).toHaveClass('text-faint');

@@ -45,6 +45,7 @@ const VIEWPORT_WIDTHS = [
 
 const PHOTO: ViewerPhoto = {
   url: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=1600',
+  thumb: 'https://cdn.sanity.io/images/test/test/a-3000x4000.jpg?w=320&h=240&fit=crop&auto=format',
   alt: 'Photo of A',
 };
 
@@ -68,7 +69,7 @@ function evaluateLength(length: string, viewport: number): number {
 
 /** The widths next/image lists in the photo's srcset, smallest first. */
 const srcsetWidths = (): number[] => {
-  render(<PlacePhotoViewer photos={[PHOTO]} summary={<h2>A place</h2>} />);
+  render(<PlacePhotoViewer photos={[PHOTO]} placeName="A place" summary={<h2>A place</h2>} />);
   const srcset = screen.getByRole('img', { name: PHOTO.alt }).getAttribute('srcset') ?? '';
   return [...srcset.matchAll(/\s(\d+)w(?:,|$)/g)]
     .map(([, width = '']) => Number(width))
@@ -88,8 +89,9 @@ function evaluateSizes(sizes: string, viewport: number): number {
   throw new Error(`sizes "${sizes}" has no default entry`);
 }
 
+/** The `sizes` next/image gives the photo in a one-photo viewer; throws when it has none. */
 const photoSizes = (): string => {
-  render(<PlacePhotoViewer photos={[PHOTO]} summary={<h2>A place</h2>} />);
+  render(<PlacePhotoViewer photos={[PHOTO]} placeName="A place" summary={<h2>A place</h2>} />);
   const sizes = screen.getByRole('img', { name: PHOTO.alt }).getAttribute('sizes');
   if (!sizes) throw new Error('the photo has no sizes attribute');
   return sizes;

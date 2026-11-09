@@ -21,9 +21,12 @@ export interface PlacePageProps {
   }>;
 }
 
-/** A photo as the viewer shows it, its URL built on the server. */
+/** A photo as the viewer shows it, its URLs built on the server. */
 export interface ViewerPhoto {
+  /** The whole photo, for the frame. */
   url: string;
+  /** A 4:3 crop for the photo strip under the frame. */
+  thumb: string;
   caption?: string;
   /** The caption, or "Photo of <place>" when it has none. */
   alt: string;
