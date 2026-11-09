@@ -192,6 +192,31 @@ describe('the guestbook loads Firebase only on demand', () => {
     expect(screen.getByRole('button', { name: 'Continue with GitHub' })).toBeEnabled();
   });
 
+  it('explains a blocked popup and opens it on the next press', async () => {
+    // Firebase retries its popup helper inside the click when the early start failed; a slow
+    // retry gets the window blocked, and the next press opens it at once.
+    h.signInWithPopup
+      .mockRejectedValueOnce({ code: 'auth/popup-blocked' })
+      .mockResolvedValueOnce({ user: { displayName: 'Jane Example', isAnonymous: false } });
+    renderCard();
+    await pressSignIn();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Press the same button again');
+    expect(alert).toHaveTextContent('allow pop-ups');
+    const google = screen.getByRole('button', { name: 'Continue with Google' });
+    expect(google).toBeEnabled();
+    expect(google).not.toHaveAttribute('aria-disabled');
+
+    fireEvent.click(google);
+
+    expect(await screen.findByLabelText('Your message')).toBeInTheDocument();
+    expect(screen.getByText(/Signed in as Jane Example/)).toBeInTheDocument();
+    expect(h.signInWithPopup).toHaveBeenCalledTimes(2);
+  });
+
   it('says when sign-in could not load, and lets the visitor try again', async () => {
     h.failNextWatch = true;
     renderCard();

@@ -63,8 +63,11 @@ const SIGN_IN_FAILED = "Sign-in didn't work. Please try again.";
 /** Firebase's error codes the visitor can act on, in their words. */
 const SIGN_IN_ERRORS: Readonly<Record<string, string>> = {
   'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  // Usually a late open, not a setting: when Firebase's early start of its popup helper failed, it
+  // retries inside the click, and a slow retry gets the window blocked. The retry keeps the helper,
+  // so the next press opens at once.
   'auth/popup-blocked':
-    'Your browser blocked the sign-in window. Allow pop-ups for this site, then try again.',
+    "Your browser blocked the sign-in window. Press the same button again. If it's still blocked, allow pop-ups for this site.",
   'auth/popup-closed-by-user': 'Sign-in cancelled.',
   'auth/cancelled-popup-request': 'Sign-in cancelled.',
   'auth/account-exists-with-different-credential':
@@ -158,7 +161,11 @@ export async function signIn(method: SignInMethod): Promise<void> {
   }
 }
 
-/** Signs the visitor out; their saved session is cleared and the card offers the providers. */
+/**
+ * Signs the visitor out; their saved session is cleared and the card offers the providers. If
+ * someone has signed in again by the time Firebase is done (in another tab, say), Firebase's watcher
+ * will show them, and they stay signed in here as they are in Firebase.
+ */
 export async function signOut(): Promise<void> {
   if (!firebaseAuth) {
     update(INITIAL);
@@ -166,7 +173,10 @@ export async function signOut(): Promise<void> {
   }
   try {
     await firebaseAuth.signOutUser();
-    update({ phase: 'ready', user: null, method: null, error: null });
+    const someoneSignedIn = firebaseAuth.currentSession() !== null;
+    update(
+      someoneSignedIn ? { error: null } : { phase: 'ready', user: null, method: null, error: null },
+    );
   } catch (error) {
     logger.error('Sign-out error:', error);
     update({ error: SIGN_OUT_FAILED });
@@ -185,6 +195,16 @@ const isSessionEnded = (error: unknown): boolean => {
  */
 export function currentSession(): SessionHandle | null {
   return firebaseAuth?.currentSession() ?? null;
+}
+
+/**
+ * The signed-in visitor's Firebase uid, for state this page keeps per visitor (the guestbook's
+ * unconfirmed posts, whose requestIds only their poster reuses); never sent, since the API reads the
+ * uid from the verified token. Null when nobody is signed in, or Firebase is not loaded (this
+ * never loads it).
+ */
+export function currentUid(): string | null {
+  return firebaseAuth?.currentUid() ?? null;
 }
 
 /**

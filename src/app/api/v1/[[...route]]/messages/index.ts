@@ -27,11 +27,13 @@
  *    challenge (a reported 500 when the keys cannot be fetched);
  * 4. the text itself (createMessage): nothing postable left once markup is removed, else 400.
  * Then the message is stored once, under the poster's name (their uid in a server-only document
- * with the same id, written in the same batch), and answered 201.
+ * with the same id, written in the same batch), and answered 201. The same post sent again (its
+ * optional requestId, a UUID, with the same text) is answered 201 with the message already
+ * stored; a requestId used for other text, or whose message was removed, is answered 409.
  */
 
 import { Elysia, StatusMap } from 'elysia';
-import { createMessage, InvalidMessageError } from './handlers';
+import { ConflictingPostError, createMessage, InvalidMessageError } from './handlers';
 import { cacheHeaders, errorHandler } from './middleware';
 import { type PosterRefusal, verifyPoster } from './poster';
 import { messagesSchema } from './schema';
@@ -68,6 +70,11 @@ export const messagesRoute = new Elysia({ prefix: '/messages' }).model(messagesS
         set.status = StatusMap['Bad Request'];
         return { error: 'The message is empty once markup is removed, or too long.' };
       }
+      // A requestId reused for other text, or for a removed message: nothing stored, nothing wrong.
+      if (error instanceof ConflictingPostError) {
+        set.status = StatusMap.Conflict;
+        return { error: 'This post was already sent with other text, or its message was removed.' };
+      }
       const errorResponse = errorHandler(error);
       set.status = StatusMap['Internal Server Error'];
       return { error: errorResponse.error };
@@ -79,6 +86,7 @@ export const messagesRoute = new Elysia({ prefix: '/messages' }).model(messagesS
       201: 'messages.post.response',
       400: 'messages.error',
       401: 'messages.error',
+      409: 'messages.error',
       500: 'messages.error',
     },
   },

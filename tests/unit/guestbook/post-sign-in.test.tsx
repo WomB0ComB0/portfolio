@@ -35,6 +35,9 @@
  *   answer for it signs the new session out. It fails as not posted, with its text back in the box.
  *   A refused post is not resent at all once the session changed while its retry token was being
  *   refreshed (Firebase still hands that token over after a sign-out).
+ * - the sign-out after a second refusal is asked of Firebase in the same run as the check that the
+ *   session which sent the post is still signed in, so a sign-in from another tab that Firebase
+ *   applies right after that check is the one left signed in, on the card as in Firebase.
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -106,6 +109,7 @@ vi.mock('@/config', () => ({
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
 import {
   POST_TIMEOUT_MS,
+  PostFailedError,
   PostNotSentError,
   postGuestbookMessage,
 } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/post';
@@ -215,6 +219,29 @@ const janeWithHeldRefresh = () => {
   return () => release('fresh-h.fresh-p.fresh-s');
 };
 
+/**
+ * Another tab's sign-in, applied here (the user changes and listeners hear it) one microtask after
+ * the next read of who is signed in: the earliest any other code could run after that read.
+ */
+const otherTabSignsInRightAfterNextRead = (next: FakeUser) => {
+  let current = h.auth.currentUser;
+  let armed = true;
+  Object.defineProperty(h.auth, 'currentUser', {
+    configurable: true,
+    enumerable: true,
+    get: () => {
+      if (armed) {
+        armed = false;
+        queueMicrotask(() => becomes(next));
+      }
+      return current;
+    },
+    set: (value: FakeUser | null) => {
+      current = value;
+    },
+  });
+};
+
 /** Signs out on the card, then signs in as a guest: another session while a post is in flight. */
 const switchToGuest = async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
@@ -227,7 +254,13 @@ const switchToGuest = async () => {
 beforeEach(() => {
   resetAuthForTests();
   vi.clearAllMocks();
-  h.auth.currentUser = null;
+  // A plain field again, whatever a test made of it.
+  Object.defineProperty(h.auth, 'currentUser', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: null,
+  });
   h.listener = null;
   // Answers a test queued but never needed must not answer the next test's posts.
   h.fetch.mockReset();
@@ -252,7 +285,7 @@ afterEach(() => {
 });
 
 describe('posting with a sign-in token', () => {
-  it("sends a guest's ID token, and only the text", async () => {
+  it("sends a guest's ID token, and only the text and its request id", async () => {
     h.fetch.mockResolvedValueOnce(
       answer(201, {
         id: 'new-1',
@@ -270,7 +303,10 @@ describe('posting with a sign-in token', () => {
     const [url, init] = h.fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/v1/messages');
     expect(new Headers(init.headers).get('authorization')).toBe(`Bearer ${GUEST_TOKEN}`);
-    expect(JSON.parse(String(init.body))).toEqual({ message: 'Hello from a guest' });
+    expect(JSON.parse(String(init.body))).toEqual({
+      message: 'Hello from a guest',
+      requestId: expect.stringMatching(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/),
+    });
     expect(screen.getByRole('status')).toHaveTextContent('Posted.');
   });
 
@@ -534,6 +570,39 @@ describe('a post still in flight when someone else signs in', () => {
       expect(box()).toHaveValue('Hello again');
       expect(screen.getByRole('alert')).toHaveTextContent(NOT_POSTED);
     });
+  });
+
+  it('signs out only the refused session when another tab signs in right after the check', async () => {
+    await signIn('google.com');
+    renderBoard();
+    expect(screen.getByText(/Signed in as Jane Example/)).toBeInTheDocument();
+    const jane = h.auth.currentUser;
+    const guest = user(null, async () => GUEST_TOKEN);
+    const endedWhileCurrent: Array<FakeUser | null> = [];
+    h.signOut.mockImplementationOnce(async () => {
+      endedWhileCurrent.push(h.auth.currentUser);
+      becomes(null);
+    });
+    h.fetch.mockResolvedValueOnce(refused()).mockImplementationOnce(async () => {
+      otherTabSignsInRightAfterNextRead(guest);
+      return refused();
+    });
+
+    let error: unknown;
+    await act(async () => {
+      error = await postGuestbookMessage({
+        authorName: 'Jane Example',
+        message: 'Hello',
+      }).catch((failure: unknown) => failure);
+    });
+
+    expect(error).toBeInstanceOf(PostFailedError);
+    expect((error as PostFailedError).status).toBe(401);
+    expect(endedWhileCurrent).toEqual([jane]);
+    expect(h.auth.currentUser).toBe(guest);
+    // The page follows Firebase: the guest is signed in here too, not offered the sign-in choices.
+    expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+    expect(box()).toBeInTheDocument();
   });
 
   it('still asks to sign in again when the visitor only signed out while it was sent', async () => {

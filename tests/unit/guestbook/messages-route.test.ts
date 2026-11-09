@@ -35,7 +35,17 @@
  *   uid: the poster's uid goes to a server-only document with the same id, in the same batch;
  * - when the token cannot be checked for a server-side reason (the server's Firebase project is
  *   not the browser's, or Google's keys cannot be fetched) the answer is a generic, reported 500,
- *   so the browser does not sign the visitor out.
+ *   so the browser does not sign the visitor out;
+ * - a post is stored once however often it is sent (the fake batch fails with ALREADY_EXISTS, as
+ *   Firestore's create() does, when a document is there): the same requestId and text from the
+ *   same poster is answered 201 with the stored message; the same requestId with other text (as
+ *   stored, not as the list clips it), or after its message was removed, is an unreported 409;
+ *   ALREADY_EXISTS is known as the Admin SDK's gax errors carry it over gRPC and over REST (built
+ *   here with gax's own parsers, nothing sent); another poster's same requestId is their
+ *   own entry; a write that went through but whose answer was lost (the Admin SDK's retry finds
+ *   it) is answered with the stored message, not a 500; a post without a requestId (a page loaded
+ *   before it existed) gets an automatic id, as before; a requestId that is not a UUID is refused
+ *   before the token is checked. The public id is a hash, never the uid.
  */
 
 import {
@@ -45,24 +55,52 @@ import {
   TEST_PROJECT_ID,
   type TestClaims,
 } from '@tests/setup/firebase-id-tokens';
+// What the Admin SDK's Firestore client (@google-cloud/firestore) rejects a commit with: gax's
+// errors, over gRPC or REST. Used only to build those errors here, never to reach Firestore.
+import { GoogleError, grpc, type ServiceError } from 'google-gax';
 import { errors, type JWTVerifyGetKey } from 'jose';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+interface FakeSnapshot {
+  readonly id: string;
+  readonly exists: boolean;
+  readonly data: () => Record<string, unknown> | undefined;
+}
 
 interface FakeRef {
   readonly id: string;
   readonly path: string;
+  readonly get: () => Promise<FakeSnapshot>;
 }
 
-const h = vi.hoisted(() => ({
-  /** Counts the write batches a post allocates (every one is the same fake). */
-  allocateBatch: vi.fn(),
-  create: vi.fn(),
-  commit: vi.fn(),
-  report: vi.fn(),
-  keys: vi.fn(),
-  /** Synthetic: the server's and the browser's Firebase project. */
-  env: {} as Record<string, string>,
-}));
+type FakeWrite = readonly [FakeRef, Record<string, unknown>];
+
+const h = vi.hoisted(() => {
+  /** The fake Firestore's documents, by path. */
+  const stored = new Map<string, Record<string, unknown>>();
+  /** What the Admin SDK rejects with when a create() finds its document (gRPC ALREADY_EXISTS). */
+  const alreadyExists = (): Error =>
+    Object.assign(new Error('6 ALREADY_EXISTS: Document already exists'), { code: 6 });
+  return {
+    /** Counts the write batches a post allocates. */
+    allocateBatch: vi.fn(),
+    create: vi.fn(),
+    /** Commits a batch's writes; by default as Firestore does (see applyCreates). */
+    commit: vi.fn(),
+    report: vi.fn(),
+    keys: vi.fn(),
+    /** Synthetic: the server's and the browser's Firebase project. */
+    env: {} as Record<string, string>,
+    stored,
+    autoIds: { count: 0 },
+    alreadyExists,
+    /** A batch of create()s: all of them, or none and ALREADY_EXISTS when a document exists. */
+    applyCreates: async (writes: readonly FakeWrite[]): Promise<void> => {
+      if (writes.some(([ref]) => stored.has(ref.path))) throw alreadyExists();
+      for (const [ref, data] of writes) stored.set(ref.path, data);
+    },
+  };
+});
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -73,20 +111,34 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@/core/firebase', () => ({ firestore: {} }));
 vi.mock('@/core/firebase-admin', () => {
-  const batch = {
-    create: (ref: FakeRef, data: unknown) => {
-      h.create(ref, data);
-      return batch;
-    },
-    commit: h.commit,
+  const refOf = (collection: string, id: string): FakeRef => {
+    const path = `${collection}/${id}`;
+    return {
+      id,
+      path,
+      get: async () => ({ id, exists: h.stored.has(path), data: () => h.stored.get(path) }),
+    };
+  };
+  const nextAutoId = (): string => {
+    h.autoIds.count += 1;
+    return `auto-${h.autoIds.count}`;
   };
   return {
     adminDb: {
       collection: (path: string) => ({
-        doc: (id = 'new-doc'): FakeRef => ({ id, path: `${path}/${id}` }),
+        doc: (id?: string): FakeRef => refOf(path, id ?? nextAutoId()),
       }),
       batch: () => {
         h.allocateBatch();
+        const writes: FakeWrite[] = [];
+        const batch = {
+          create: (ref: FakeRef, data: Record<string, unknown>) => {
+            h.create(ref, data);
+            writes.push([ref, data]);
+            return batch;
+          },
+          commit: () => h.commit(writes),
+        };
         return batch;
       },
     },
@@ -102,6 +154,7 @@ vi.mock('@/config', () => ({ config: { firebase: { appId: 'test-app' } } }));
 vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.report }));
 
 import { messagesRoute } from '@/app/api/v1/[[...route]]/messages';
+import { MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
 import { resetGuestbookCache } from '@/lib/guestbook/messages';
 
 /** JWT-shaped (three dot-separated base64url parts), not a real token. */
@@ -161,7 +214,9 @@ beforeEach(() => {
     GCP_PROJECT_ID: TEST_PROJECT_ID,
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: TEST_PROJECT_ID,
   });
-  h.commit.mockResolvedValue([]);
+  h.stored.clear();
+  h.autoIds.count = 0;
+  h.commit.mockImplementation(h.applyCreates);
   h.keys.mockImplementation(((header, token) => signer.keys(header, token)) as JWTVerifyGetKey);
 });
 
@@ -378,7 +433,7 @@ describe('POST /messages: what is stored', () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body).toEqual({
-      id: 'new-doc',
+      id: 'auto-1',
       authorName: 'Ada Lovelace',
       message: 'Hi there',
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
@@ -400,7 +455,7 @@ describe('POST /messages: what is stored', () => {
 
     expect(createdIn(MESSAGES)[0]).not.toHaveProperty('uid');
     expect(h.create).toHaveBeenCalledWith(
-      { id: 'new-doc', path: `${POSTERS}/new-doc` },
+      expect.objectContaining({ id: 'auto-1', path: `${POSTERS}/auto-1` }),
       { uid: 'uid-ada', createdAt },
     );
     // Both in the one batch: they land together or not at all.
@@ -504,6 +559,187 @@ describe('POST /messages: what is stored', () => {
     expect(text).not.toMatch(/secret-project-id/);
     expect(h.report).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('POST /messages: a post sent again', () => {
+  /** Synthetic: what the browser sends with one draft, and again when it posts the same text. */
+  const REQUEST_ID = '6f1c2a4e-8b3d-4c5e-9f7a-0b1c2d3e4f5a';
+  const GRACE = signInWith('github.com', 'uid-grace', 'Grace Hopper');
+
+  /** The stored documents under `collection`. */
+  const docsIn = (collection: string): string[] =>
+    [...h.stored.keys()].filter((path) => path.startsWith(`${collection}/`));
+
+  /**
+   * The next commit stores its writes and still fails with `error` (ALREADY_EXISTS), as the Admin
+   * SDK's retry of one whose answer was lost.
+   */
+  const loseNextAnswer = (error: () => Error = h.alreadyExists) => {
+    h.commit.mockImplementationOnce(async (writes: readonly FakeWrite[]) => {
+      await h.applyCreates(writes);
+      throw error();
+    });
+  };
+  /** Synthetic: Firestore's detail for a create() whose document exists. */
+  const EXISTS_DETAILS =
+    'Document already exists: projects/test-project/databases/(default)/documents/message/x';
+
+  it('answers the same post sent again with the stored message, and stores it once', async () => {
+    const first = await signedIn({ message: 'Hello', requestId: REQUEST_ID });
+    const stored = await first.json();
+
+    const again = await signedIn({ message: 'Hello', requestId: REQUEST_ID });
+
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(201);
+    expect(await again.json()).toEqual(stored);
+    expect(docsIn(MESSAGES)).toEqual([`${MESSAGES}/${stored.id}`]);
+    expect(docsIn(POSTERS)).toEqual([`${POSTERS}/${stored.id}`]);
+    expect(h.report).not.toHaveBeenCalled();
+  });
+
+  it('refuses the same request with other text (409), changing nothing and reporting nothing', async () => {
+    const { id } = await (await signedIn({ message: 'Hello', requestId: REQUEST_ID })).json();
+
+    const response = await signedIn({ message: 'Something else', requestId: REQUEST_ID });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: expect.any(String) });
+    expect(docsIn(MESSAGES)).toEqual([`${MESSAGES}/${id}`]);
+    expect(h.stored.get(`${MESSAGES}/${id}`)).toEqual(
+      expect.objectContaining({ message: 'Hello' }),
+    );
+    expect(h.report).not.toHaveBeenCalled();
+  });
+
+  it("stores another poster's post with the same request id as their own entry", async () => {
+    const ada = await (await signedIn({ message: 'Hello', requestId: REQUEST_ID })).json();
+
+    const response = await signedIn({ message: 'Hello', requestId: REQUEST_ID }, GRACE);
+    const grace = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(grace.id).not.toBe(ada.id);
+    expect(grace.authorName).toBe('Grace Hopper');
+    expect(docsIn(MESSAGES)).toHaveLength(2);
+    expect(createdIn(POSTERS).map((record) => record.uid)).toEqual(['uid-ada', 'uid-grace']);
+  });
+
+  it.each([
+    ['with a request id', { requestId: REQUEST_ID }],
+    ['without one', {}],
+  ])(
+    'answers 201 with the stored message when the write went through but its answer was lost (%s)',
+    async (_case, extra) => {
+      loseNextAnswer();
+
+      const response = await signedIn({ message: 'Hello', ...extra });
+      const body = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(body).toEqual({
+        id: expect.any(String),
+        authorName: 'Ada Lovelace',
+        message: 'Hello',
+        createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      });
+      expect(docsIn(MESSAGES)).toEqual([`${MESSAGES}/${body.id}`]);
+      expect(h.report).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      'gRPC, its default transport',
+      // grpc-js's error for the call's status (its callErrorFromStatus). gax rejects with that same
+      // object, adding only details decoded from grpc-status-details-bin metadata (none here).
+      (): ServiceError =>
+        Object.assign(
+          new Error(`${grpc.status.ALREADY_EXISTS} ALREADY_EXISTS: ${EXISTS_DETAILS}`),
+          {
+            code: grpc.status.ALREADY_EXISTS,
+            details: EXISTS_DETAILS,
+            metadata: new grpc.Metadata(),
+          },
+        ),
+    ],
+    [
+      'REST (preferRest)',
+      // Firestore's JSON error body, as gax's REST transport turns it into an error.
+      () =>
+        GoogleError.parseHttpError({
+          error: { code: 409, message: EXISTS_DETAILS, status: 'ALREADY_EXISTS' },
+        }),
+    ],
+  ])('knows ALREADY_EXISTS as the Admin SDK rejects with it over %s', async (_case, sdkError) => {
+    loseNextAnswer(sdkError);
+
+    const response = await signedIn({ message: 'Hello', requestId: REQUEST_ID });
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({ authorName: 'Ada Lovelace', message: 'Hello' }),
+    );
+    expect(docsIn(MESSAGES)).toHaveLength(1);
+    expect(h.report).not.toHaveBeenCalled();
+  });
+
+  it('compares the text as stored, not as the list clips it', async () => {
+    const text = 'a'.repeat(MESSAGE_MAX_LENGTH);
+    const { id } = await (await signedIn({ message: text, requestId: REQUEST_ID })).json();
+    // Synthetic: the stored text has since changed past what the list shows, which still matches.
+    const path = `${MESSAGES}/${id}`;
+    h.stored.set(path, { ...h.stored.get(path), message: `${text} (edited)` });
+
+    const response = await signedIn({ message: text, requestId: REQUEST_ID });
+
+    expect(response.status).toBe(409);
+    expect(h.report).not.toHaveBeenCalled();
+  });
+
+  it('refuses a request whose message was removed while its poster record remains (409)', async () => {
+    const { id } = await (await signedIn({ message: 'Hello', requestId: REQUEST_ID })).json();
+    h.stored.delete(`${MESSAGES}/${id}`);
+
+    const response = await signedIn({ message: 'Hello', requestId: REQUEST_ID });
+
+    expect(response.status).toBe(409);
+    expect(docsIn(MESSAGES)).toEqual([]);
+    expect(h.report).not.toHaveBeenCalled();
+  });
+
+  it('stores every post without a request id as its own entry, as a page loaded before it did', async () => {
+    await signedIn({ message: 'Hello' });
+    await signedIn({ message: 'Hello' });
+
+    expect(docsIn(MESSAGES)).toEqual([`${MESSAGES}/auto-1`, `${MESSAGES}/auto-2`]);
+  });
+
+  it('keeps the uid out of the public id, which is a plain Firestore id', async () => {
+    const { id } = await (await signedIn({ message: 'Hello', requestId: REQUEST_ID })).json();
+
+    expect(id).not.toContain('uid-ada');
+    expect(id).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it.each([
+    ['not a UUID', 'abc'],
+    ['empty', ''],
+    ['a path', '../x'],
+    ['far too long', 'a'.repeat(2_000)],
+    ['a number', 42],
+  ])(
+    'refuses a request id that is %s before checking the token or storing anything',
+    async (_case, requestId) => {
+      const response = await signedIn({ message: 'Hello', requestId });
+
+      // The schema's own answer here (422); createElysiaApp's error handler makes it a 400.
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(h.keys).not.toHaveBeenCalled();
+      expectNothingWritten();
+    },
+  );
 });
 
 describe('GET /messages', () => {

@@ -20,7 +20,8 @@
  * every v1 route, as route.ts builds it). The list route is gone: GET answers the app's 404, while
  * the other v1 routes still answer and POST is still mounted (401 without a sign-in). A POST is
  * counted by the 'guestbook' limiter before routing, so a limited visitor gets 429 before the
- * token is checked or anything is written.
+ * token is checked or anything is written, and the same post sent again (its requestId) is
+ * counted like any other.
  *
  * The guard's verdict and Firestore's write batch are fakes, and Google's securetoken keys are a
  * local key set (the token is signed in the test, then checked by the real verifier): nothing
@@ -122,14 +123,14 @@ const call = (path: string, init: RequestInit = {}) =>
     }),
   );
 
-const postMessage = (authorization?: string) =>
+const postMessage = (authorization?: string, body: unknown = { message: 'Hello' }) =>
   call('/api/v1/messages', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       ...(authorization ? { authorization } : {}),
     },
-    body: JSON.stringify({ message: 'Hello' }),
+    body: JSON.stringify(body),
   });
 
 const allow = () => h.guardCheck.mockResolvedValue({ kind: 'allow' });
@@ -188,6 +189,30 @@ describe('/api/v1/messages after the list route was removed', () => {
     expect(h.guardCheck).toHaveBeenCalledTimes(1);
     expect(h.keys).not.toHaveBeenCalled();
     expect(h.commit).not.toHaveBeenCalled();
+  });
+
+  it('counts the same post sent again (its requestId) on the guestbook limiter like any post', async () => {
+    // The first post is allowed; the guestbook limiter is spent by the time it is sent again.
+    h.guardCheck
+      .mockResolvedValueOnce({ kind: 'allow' })
+      .mockImplementationOnce(async (request: Request) =>
+        classifyRequest(request.method, new URL(request.url).pathname)?.limiter === 'guestbook'
+          ? { kind: 'limit', limit: 5, reset: Date.now() + 60_000 }
+          : { kind: 'allow' },
+      );
+    h.commit.mockResolvedValueOnce([]);
+    // Synthetic: the browser's id for one draft, sent again with the same text.
+    const body = { message: 'Hello', requestId: '6f1c2a4e-8b3d-4c5e-9f7a-0b1c2d3e4f5a' };
+    const authorization = `Bearer ${await signer.sign({ sub: 'uid-ada' })}`;
+
+    const first = await postMessage(authorization, body);
+    const again = await postMessage(authorization, body);
+
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(429);
+    expect(h.guardCheck).toHaveBeenCalledTimes(2);
+    expect(h.keys).toHaveBeenCalledTimes(1);
+    expect(h.commit).toHaveBeenCalledTimes(1);
   });
 
   it('answers a JWT-shaped string that is not a token with 401, not a 500', async () => {

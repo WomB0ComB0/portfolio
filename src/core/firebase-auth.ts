@@ -23,8 +23,13 @@
  * Auth is initialized here, once, with the popup resolver. On phones and Safari, Firebase loads
  * its iframe as soon as Auth starts, so by the time the visitor picks a provider the popup can
  * open inside their click (Firebase waits for the iframe before opening it, and those browsers
- * block a popup that opens long after the click). No Firestore in the browser: messages are read
- * on the server and posted through the API.
+ * block a popup that opens long after the click). If that early start fails, Firebase ignores the
+ * failure and retries inside the click; a slow retry gets the popup blocked, and the next press
+ * opens it, since the retry kept the iframe (src/core/auth.ts says so for auth/popup-blocked).
+ * Firebase has no public way to check or redo the early start, and signInWithRedirect is no
+ * fallback: with a firebaseapp.com auth domain it breaks under Safari's storage partitioning, and
+ * the page would lose the draft. No Firestore in the browser: messages are read on the server and
+ * posted through the API.
  */
 
 import { getApps, initializeApp } from 'firebase/app';
@@ -134,6 +139,11 @@ export function signOutUser(): Promise<void> {
  */
 export function currentSession(): SessionHandle | null {
   return clientAuth().currentUser;
+}
+
+/** The signed-in visitor's uid, or null when nobody is signed in. */
+export function currentUid(): string | null {
+  return clientAuth().currentUser?.uid ?? null;
 }
 
 /**
