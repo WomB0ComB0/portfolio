@@ -30,16 +30,26 @@ const SOURCE_FILE = /\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/;
 
 const isWhitespace = (char: string) => char.trim() === '';
 const isLineBreak = (char: string) => char === '\n' || char === '\r';
+/**
+ * Any ECMAScript LineTerminator. U+2028/2029 are legal inside string literals, so stringLiteralEnd
+ * keeps isLineBreak.
+ */
+const isLineTerminator = (char: string) =>
+  isLineBreak(char) || char === '\u2028' || char === '\u2029';
 
-/** First index at or after `start` that is not whitespace or a comment; -1 if a comment is open. */
+/**
+ * First index at or after `start` that is not whitespace or a comment; -1 if a comment is open.
+ * A line comment ends at any line terminator (LF, CR, U+2028 or U+2029).
+ */
 function skipTrivia(source: string, start: number): number {
   let index = start;
   while (index < source.length) {
     if (isWhitespace(source.charAt(index))) {
       index += 1;
     } else if (source.startsWith('//', index)) {
-      const end = source.indexOf('\n', index);
-      if (end === -1) return source.length;
+      let end = index + 2;
+      while (end < source.length && !isLineTerminator(source.charAt(end))) end += 1;
+      if (end === source.length) return source.length;
       index = end + 1;
     } else if (source.startsWith('/*', index)) {
       const end = source.indexOf('*/', index + 2);
@@ -52,7 +62,10 @@ function skipTrivia(source: string, start: number): number {
   return index;
 }
 
-/** Index just past the string literal that opens at `start`, or -1 if it is not closed. */
+/**
+ * Index just past the string literal that opens at `start`, or -1 if it is not closed. A backslash
+ * before CRLF is one line continuation.
+ */
 function stringLiteralEnd(source: string, start: number): number {
   const quote = source.charAt(start);
   let index = start + 1;
@@ -60,21 +73,26 @@ function stringLiteralEnd(source: string, start: number): number {
     const char = source.charAt(index);
     if (char === quote) return index + 1;
     if (isLineBreak(char)) return -1;
-    index += char === '\\' ? 2 : 1;
+    if (char !== '\\') {
+      index += 1;
+    } else {
+      index += source.startsWith('\r\n', index + 1) ? 3 : 2;
+    }
   }
   return -1;
 }
 
 /**
  * Where the next statement may start after a string literal that ends at `start`, or -1 when the
- * literal is part of a longer expression. The literal is a whole statement when `;`, a line break
- * (a line comment or a block comment spanning lines counts) or the end of the file follows.
+ * literal is part of a longer expression. The literal is a whole statement when `;`, a line
+ * terminator (LF, CR, U+2028, U+2029; a line comment or a block comment spanning lines counts) or
+ * the end of the file follows.
  */
 function directiveEnd(source: string, start: number): number {
   let index = start;
   while (index < source.length) {
     const char = source.charAt(index);
-    if (char === ';' || isLineBreak(char)) return index + 1;
+    if (char === ';' || isLineTerminator(char)) return index + 1;
     if (isWhitespace(char)) {
       index += 1;
     } else if (source.startsWith('//', index)) {
@@ -83,7 +101,7 @@ function directiveEnd(source: string, start: number): number {
       const close = source.indexOf('*/', index + 2);
       if (close === -1) return -1;
       const comment = source.slice(index + 2, close);
-      if (comment.includes('\n') || comment.includes('\r')) return close + 2;
+      if ([...comment].some(isLineTerminator)) return close + 2;
       index = close + 2;
     } else {
       return -1;
@@ -156,6 +174,38 @@ describe('Sentry helpers in other modules', () => {
       'use strict',
       'use server',
     ]);
+  });
+
+  it('ends a statement or a comment at any line terminator outside a string', () => {
+    expect(directivePrologue("'use strict'\u2028'use server';")).toEqual([
+      'use strict',
+      'use server',
+    ]);
+    expect(directivePrologue("'use strict'\u2029'use server';")).toEqual([
+      'use strict',
+      'use server',
+    ]);
+    expect(directivePrologue("// licence\r'use server';\nexport const a = 1;")).toEqual([
+      'use server',
+    ]);
+    expect(directivePrologue("// licence\u2028'use server';")).toEqual(['use server']);
+    expect(directivePrologue("'use strict' /*\u2029*/ 'use server';")).toEqual([
+      'use strict',
+      'use server',
+    ]);
+    expect(directivePrologue("// licence\r\n'use server';")).toEqual(['use server']);
+    expect(directivePrologue('// only a comment')).toEqual([]);
+  });
+
+  it('keeps U+2028 and U+2029 inside a string literal, where they are legal', () => {
+    expect(directivePrologue("'a\u2028b';\n'use server';")).toEqual(['a\u2028b', 'use server']);
+    expect(directivePrologue("'a\u2029b';\n'use server';")).toEqual(['a\u2029b', 'use server']);
+  });
+
+  it('skips a backslash before CRLF as one line continuation', () => {
+    expect(directivePrologue("'a\\\r\nb';\n'use server';")).toEqual(['a\\\r\nb', 'use server']);
+    expect(directivePrologue("'a\\\nb';\n'use server';")).toEqual(['a\\\nb', 'use server']);
+    expect(directivePrologue("'a\\\\';\n'use server';")).toEqual(['a\\\\', 'use server']);
   });
 
   it('stops at the first statement that is not a lone string literal', () => {

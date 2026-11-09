@@ -33,12 +33,12 @@ import 'server-only';
  *
  * The positioning line and the contact links come from the site settings in Sanity, each falling
  * back to its built-in value ({@link HERO_FALLBACK_COPY}) when it is empty or invalid, or the
- * settings fail to load. The tagline and the links never hold the first flush:
- * each sits in its own Suspense boundary whose fallback is the same markup, filled from the
- * settings this server last loaded (the built-in values before any). So the first flush always
- * has the words and all four links, and on a warm server the content that streams in is the
- * fallback's twin: nothing moves. A new server has nothing cached to match: its first visitors
- * get the built-in copy first, the tagline in a box as tall as Studio's longest tagline at the
+ * settings fail to load. The tagline and the links never hold the first flush, so it always has
+ * the words and all four links. On a warm server they are rendered from the settings this server
+ * last loaded, as they are, outside Suspense: the reload the role line starts once those are past
+ * their TTL shows from the next request, so nothing streams in and nothing moves. A new server
+ * has nothing cached: its first visitors get the built-in copy first, each in a Suspense boundary
+ * the owner's copy streams into, the tagline in a box as tall as Studio's longest tagline at the
  * tile's width (five lines on a phone, three from a 24rem tile), so the owner's longer tagline
  * streaming in moves nothing either. (Loading the settings at startup would not help:
  * instrumentation's register() is awaited before an instance serves any route, so every cold
@@ -118,7 +118,8 @@ interface InitialCopy {
   readonly copy: HeroCopy;
   /**
    * False before this server ever loaded the settings (or when reading them failed): the copy
-   * streaming in may then differ from the built-in copy shown first.
+   * then streams in, and may differ from the built-in copy shown first. True once loaded: the copy
+   * is shown as is for the whole request, even past the cache's TTL.
    */
   readonly loaded: boolean;
 }
@@ -297,6 +298,25 @@ function CopySlot({
 }
 
 /**
+ * `view` in the first flush. On a server that has loaded the settings, with those settings as
+ * they are, outside Suspense: past the cache's TTL the reload waits for Sanity, so streaming its
+ * answer in could swap a tagline of another length into a box that reserves nothing. The reload
+ * {@link HeroRoleLine} starts (through loadHeroCopy) shows from the next request instead. Before
+ * any load, streamed in through {@link CopySlot}, where only the tagline has a reserved box.
+ */
+function SettingsCopy({
+  initial,
+  loaded,
+  view: View,
+}: {
+  readonly initial: HeroCopy;
+  readonly loaded: boolean;
+  readonly view: CopyView;
+}): ReactElement {
+  return loaded ? <View copy={initial} /> : <CopySlot initial={initial} view={View} />;
+}
+
+/**
  * The dominant tile of the bento, and the only large one. It hugs its content: the avatar beside
  * the name (the name wraps under it when they do not fit), the role and positioning lines, then
  * the links. The h1 never takes the brand colour.
@@ -331,10 +351,10 @@ export function HeroTile(): ReactElement {
           data-state={loaded ? undefined : 'loading'}
           className={loaded ? undefined : TAGLINE_SLOT_RESERVED_CLASS}
         >
-          <CopySlot initial={initial} view={HeroTagline} />
+          <SettingsCopy initial={initial} loaded={loaded} view={HeroTagline} />
         </div>
       </div>
-      <CopySlot initial={initial} view={HeroLinks} />
+      <SettingsCopy initial={initial} loaded={loaded} view={HeroLinks} />
     </Tile>
   );
 }

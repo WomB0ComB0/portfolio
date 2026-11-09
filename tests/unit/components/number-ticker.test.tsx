@@ -20,13 +20,14 @@
  * The value a ticker rests on must be real text from the first render (server HTML, screen
  * readers, crawlers), never counted with reduced motion, and counted once, in about a second,
  * when it scrolls into view. jsdom has no IntersectionObserver or media queries, so `useInView`
- * and `useReducedMotion` are stubbed; `animate` is the real one, watched by a spy.
+ * is stubbed and `matchMedia` is a fake OS setting that can change while a ticker is mounted;
+ * `animate` is the real one, watched by a spy.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
-import { animate, useInView, useReducedMotion } from 'motion/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { animate, useInView } from 'motion/react';
 import { renderToString } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('motion/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('motion/react')>();
@@ -34,11 +35,34 @@ vi.mock('motion/react', async (importOriginal) => {
     ...actual,
     animate: vi.fn(actual.animate),
     useInView: vi.fn(() => false),
-    useReducedMotion: vi.fn(() => false),
   };
 });
 
 import { NumberTicker } from '@/components/ui/number-ticker';
+
+/** The fake OS setting: every reduced-motion query reads it and hears its changes. */
+const os = { reduced: false, listeners: new Set<() => void>() };
+
+/** A MediaQueryList for `query`; only the literal reduced-motion query follows the fake setting. */
+const fakeMatchMedia = (query: string) => {
+  const isMotionQuery = query === '(prefers-reduced-motion: reduce)';
+  const listen = (_type: string, listener: () => void) => {
+    if (isMotionQuery) os.listeners.add(listener);
+  };
+  const unlisten = (_type: string, listener: () => void) => os.listeners.delete(listener);
+  return {
+    get matches() {
+      return isMotionQuery && os.reduced;
+    },
+    media: query,
+    onchange: null,
+    addListener: (listener: () => void) => listen('change', listener),
+    removeListener: (listener: () => void) => unlisten('change', listener),
+    addEventListener: listen,
+    removeEventListener: unlisten,
+    dispatchEvent: () => false,
+  };
+};
 
 /** The count drawn while counting; hidden from assistive tech, null once the ticker rests. */
 const countingCopy = (container: HTMLElement): HTMLElement | null =>
@@ -46,14 +70,27 @@ const countingCopy = (container: HTMLElement): HTMLElement | null =>
 
 const setMotion = ({ inView, reduced }: { inView: boolean; reduced: boolean }) => {
   vi.mocked(useInView).mockReturnValue(inView);
-  vi.mocked(useReducedMotion).mockReturnValue(reduced);
+  os.reduced = reduced;
+};
+
+/** Turns the OS setting on or off and fires 'change' at every listener, as the browser does. */
+const changeReducedMotion = (reduced: boolean) => {
+  act(() => {
+    os.reduced = reduced;
+    for (const listener of [...os.listeners]) listener();
+  });
 };
 
 const COUNT_TIMEOUT = { timeout: 2000 };
 
 beforeEach(() => {
+  vi.stubGlobal('matchMedia', fakeMatchMedia);
   setMotion({ inView: false, reduced: false });
   vi.mocked(animate).mockClear();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('NumberTicker server HTML', () => {
@@ -139,6 +176,30 @@ describe('NumberTicker with reduced motion', () => {
 
     expect(screen.getByText('20')).toBeInTheDocument();
     expect(screen.queryByText('10')).not.toBeInTheDocument();
+  });
+
+  it('ends a running count when reduced motion turns on', () => {
+    setMotion({ inView: true, reduced: false });
+    const { container } = render(<NumberTicker value={1234} delay={5} />);
+    expect(countingCopy(container)).not.toBeNull();
+
+    changeReducedMotion(true);
+
+    expect(countingCopy(container)).toBeNull();
+    expect(screen.getByText('1,234')).toBeInTheDocument();
+  });
+
+  it('does not start counting when reduced motion turns on before the ticker scrolls into view', () => {
+    const { container, rerender } = render(<NumberTicker value={1234} />);
+    expect(countingCopy(container)).not.toBeNull();
+
+    changeReducedMotion(true);
+    vi.mocked(useInView).mockReturnValue(true);
+    rerender(<NumberTicker value={1234} />);
+
+    expect(animate).not.toHaveBeenCalled();
+    expect(countingCopy(container)).toBeNull();
+    expect(screen.getByText('1,234')).toBeInTheDocument();
   });
 });
 
