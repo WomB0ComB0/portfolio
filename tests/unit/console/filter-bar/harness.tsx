@@ -31,10 +31,13 @@ type State = FilterState<'category' | 'tech'>;
 export interface HarnessProps {
   /** The URL the page starts from, e.g. '?category=tools'. */
   readonly initial?: string;
+  /** What is filtered: the fixture's five projects unless a test needs other counts. */
+  readonly items?: readonly Project[];
   readonly children: (results: readonly Project[]) => ReactNode;
 }
 
-export function Harness({ initial = '', children }: HarnessProps): ReactNode {
+/** Holds the filters in React state and provides the model built from them to its children. */
+export function Harness({ initial = '', items = PROJECTS, children }: HarnessProps): ReactNode {
   const [state, setState] = useState<State>(() => projects.parse(initial));
   const [touched, setTouched] = useState(false);
   const change = (next: State): void => {
@@ -44,7 +47,7 @@ export function Harness({ initial = '', children }: HarnessProps): ReactNode {
   const active = { ...state, q: state.q.replaceAll(/\s+/g, ' ').trim() };
   const { model, results } = buildFilterModel({
     schema: projects,
-    items: PROJECTS,
+    items,
     draft: state,
     active,
     touched,
@@ -76,8 +79,15 @@ export function ResultList({ results }: { readonly results: readonly Project[] }
   );
 }
 
+export interface FullBarProps {
+  /** The URL the page starts from, e.g. '?category=tools'. */
+  readonly initial?: string;
+  /** How many Technology options show before Show all; the Picker's own default when unset. */
+  readonly pickerLimit?: number;
+}
+
 /** The whole family, composed as /projects will compose it. */
-export function FullBar({ initial = '' }: { readonly initial?: string }): ReactNode {
+export function FullBar({ initial = '', pickerLimit }: FullBarProps): ReactNode {
   return (
     <Harness initial={initial}>
       {(results) => (
@@ -86,7 +96,11 @@ export function FullBar({ initial = '' }: { readonly initial?: string }): ReactN
             <FilterBar.Search />
             <FilterBar.Facets>
               <FilterBar.Chips facet="category" />
-              <FilterBar.Picker facet="tech" searchLabel="Filter technologies" />
+              <FilterBar.Picker
+                facet="tech"
+                searchLabel="Filter technologies"
+                limit={pickerLimit}
+              />
             </FilterBar.Facets>
           </FilterBar.Root>
           <div>

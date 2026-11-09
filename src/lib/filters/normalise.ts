@@ -34,9 +34,12 @@ export const firstOf = (value: ParamValue): string =>
 export const allOf = (value: ParamValue): readonly string[] =>
   typeof value === 'string' ? [value] : (value ?? []);
 
-/** Search text as a page reads it: the first value, single-spaced, trimmed, capped. */
+/**
+ * Search text as a page reads it: the first value, single-spaced, trimmed, capped, and trimmed
+ * again so a cap that lands just after a space leaves none (normalising twice changes nothing).
+ */
 export function normaliseQuery(value: ParamValue, maxLength = DEFAULT_QUERY_MAX_LENGTH): string {
-  return firstOf(value).replaceAll(/\s+/g, ' ').trim().slice(0, maxLength);
+  return firstOf(value).replaceAll(/\s+/g, ' ').trim().slice(0, maxLength).trimEnd();
 }
 
 /** A record's own value for `key`, never one inherited from Object.prototype. */

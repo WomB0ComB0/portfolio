@@ -26,8 +26,11 @@
  * view transitions or refuses one. The results carry their name only for the transition, and
  * the root's own crossfade is turned off for it (`data-filter-transition` on <html>).
  *
- * If the results start above the bar's bottom (the visitor had scrolled into them), they are
- * brought back under the bar first, at once, so the old and new results line up.
+ * Every discrete change lands on the new results' top: if they start above the bar's bottom (the
+ * visitor had scrolled into them), the page is brought back under the bar first, at once (never
+ * animated). With a transition this lines the old and new results up; without one the scroll and
+ * the change paint together, so a phone (whose chips live in the sheet), reduced motion and older
+ * browsers land in the same place as everyone else.
  */
 
 import { prefersReducedMotion } from '@/lib/design/motion';
@@ -88,12 +91,36 @@ function clipToClearBand(results: HTMLElement, bar: HTMLElement | null): void {
   root.setProperty(CLIP_BOTTOM, `${Math.max(0, box.bottom - coverBottom())}px`);
 }
 
+/** Takes the results' name, the root's flag and the clip insets off again. */
 function release(results: HTMLElement): void {
   results.style.viewTransitionName = '';
   const root = document.documentElement;
   root.removeAttribute(ROOT_FLAG);
   root.style.removeProperty(CLIP_TOP);
   root.style.removeProperty(CLIP_BOTTOM);
+}
+
+/** One filter change's transition, by the results it named. */
+interface TransitionOwner {
+  readonly results: HTMLElement;
+}
+
+/** The latest filter change's transition: only its end may release the root's flag and clip. */
+let latestOwner: TransitionOwner | null = null;
+
+/**
+ * Releases a transition's name, flag and clip, unless a later change's transition owns them now:
+ * starting one skips the one before, whose end must not strip the newer one before it captures.
+ * A skipped change on another bar still takes the name off its own results, or the next capture
+ * would find the name twice and be skipped.
+ */
+function releaseIfLatest(owner: TransitionOwner): void {
+  if (owner === latestOwner) {
+    latestOwner = null;
+    release(owner.results);
+    return;
+  }
+  if (owner.results !== latestOwner?.results) owner.results.style.viewTransitionName = '';
 }
 
 /** document.startViewTransition, bound to the document, or null where the browser has none. */
@@ -124,6 +151,8 @@ export function runFilterChange(apply: () => void, { results, bar }: FilterChang
     applied = true;
     apply();
   };
+  const owner: TransitionOwner = { results };
+  latestOwner = owner;
   results.style.viewTransitionName = RESULTS_TRANSITION_NAME;
   document.documentElement.setAttribute(ROOT_FLAG, '');
   try {
@@ -131,13 +160,15 @@ export function runFilterChange(apply: () => void, { results, bar }: FilterChang
       applyOnce();
       clipToClearBand(results, bar);
     });
-    // `finished` rejects when the browser skips the transition (another one starts, the tab
-    // hides): the change has applied either way, so both outcomes only release the name.
+    // `finished` settles however the transition ends (it runs, the browser skips it because a
+    // newer one starts or the tab hides): the change has applied either way, so each outcome only
+    // releases, and a skipped one leaves the newer one's name and flag in place for its capture
+    // (releaseIfLatest).
     Promise.resolve(transition?.finished)
       .catch(() => undefined)
-      .finally(() => release(results));
+      .finally(() => releaseIfLatest(owner));
   } catch {
-    release(results);
+    releaseIfLatest(owner);
     applyOnce();
   }
 }

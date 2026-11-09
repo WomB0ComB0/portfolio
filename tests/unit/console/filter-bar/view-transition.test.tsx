@@ -25,6 +25,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { stubPageScroll } from '../../dom/page-scroll';
 import { FullBar } from './harness';
 import { wideLayout } from './wide-layout';
 
@@ -116,6 +117,64 @@ describe('discrete changes crossfade the results', () => {
     expect(results().map((item) => item.textContent)).toEqual(['Epsilon bot']);
     expect(chip(/^Tools/)).toHaveAttribute('aria-current', 'true');
   });
+
+  // Starting a transition skips the one still running, whose `finished` then settles before the
+  // newer one captures: its end must not strip the newer one's name and root flag.
+  it('a later change keeps its name when the earlier transition it skipped ends', async () => {
+    const ends: Array<() => void> = [];
+    start.mockImplementation((update) => {
+      update();
+      return { finished: new Promise<void>((resolve) => ends.push(resolve)) };
+    });
+    render(<FullBar />);
+
+    fireEvent.click(chip(/^Tools/));
+    fireEvent.click(chip(/^Apps/));
+    ends[0]?.();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(resultsName()).toBe('filter-results');
+    expect(document.documentElement).toHaveAttribute('data-filter-transition');
+    ends[1]?.();
+    await vi.waitFor(() => expect(resultsName()).toBe(''));
+    expect(document.documentElement).not.toHaveAttribute('data-filter-transition');
+  });
+
+  // With two bars on a page, each change names its own results. A skipped change's results must
+  // not keep the name: a capture that finds one name twice is skipped, and so would every later one.
+  it('a change skipped by another bar’s change gives up its own results’ name', async () => {
+    const ends: Array<() => void> = [];
+    start.mockImplementation((update) => {
+      update();
+      return { finished: new Promise<void>((resolve) => ends.push(resolve)) };
+    });
+    const first = render(<FullBar />).container;
+    const second = render(<FullBar />).container;
+    /** A kind chip in one bar's tree. */
+    const kindChip = (root: HTMLElement, name: RegExp): HTMLElement =>
+      within(within(root).getByRole('list', { name: 'Filter by kind' })).getByRole('link', {
+        name,
+      });
+    /** The view-transition-name on one bar's results. */
+    const nameIn = (root: HTMLElement): string | undefined =>
+      root.querySelector<HTMLElement>('[data-filter-part="results"]')?.style.viewTransitionName;
+
+    fireEvent.click(kindChip(first, /^Tools/));
+    fireEvent.click(kindChip(second, /^Apps/));
+    ends[0]?.();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(nameIn(first)).toBe('');
+    expect(nameIn(second)).toBe('filter-results');
+    expect(document.documentElement).toHaveAttribute('data-filter-transition');
+    ends[1]?.();
+    await vi.waitFor(() => expect(nameIn(second)).toBe(''));
+    expect(document.documentElement).not.toHaveAttribute('data-filter-transition');
+  });
 });
 
 describe('never while typing, and never when motion is unwelcome', () => {
@@ -138,6 +197,30 @@ describe('never while typing, and never when motion is unwelcome', () => {
 
     expect(start).not.toHaveBeenCalled();
     expect(results()).toHaveLength(2);
+  });
+
+  // Where a change lands is not motion: an instant scroll in the same handler as the change paints
+  // once, so a phone (chips in the sheet) and reduced motion land on the results' top too.
+  it('under reduced motion a change made while scrolled into the results still lands on their top', () => {
+    setReducedMotion(true);
+    const page = stubPageScroll(3000);
+    render(<FullBar />);
+    /** A box with only its top and bottom edges, which is all the alignment reads. */
+    const box = (top: number, bottom: number) => () => ({ top, bottom }) as DOMRect;
+    const resultsBox = document.querySelector<HTMLElement>('[data-filter-part="results"]');
+    const barBox = document.querySelector<HTMLElement>('[data-filter-part="bar"]');
+    if (resultsBox) resultsBox.getBoundingClientRect = box(-500, 3500);
+    if (barBox) barBox.getBoundingClientRect = box(0, 64);
+
+    try {
+      fireEvent.click(chip(/^Tools/));
+
+      expect(start).not.toHaveBeenCalled();
+      expect(page.scrollTo).toHaveBeenCalledWith({ top: 3000 - 500 - 64 - 8, behavior: 'instant' });
+      expect(results()).toHaveLength(2);
+    } finally {
+      page.restore();
+    }
   });
 
   it('where the browser has no view transitions the change applies at once', () => {

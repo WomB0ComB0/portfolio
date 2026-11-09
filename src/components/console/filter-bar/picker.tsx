@@ -105,6 +105,16 @@ function visibleOptions({ options, chosen, query, limited, limit }: VisibleInput
   });
 }
 
+/**
+ * How many options the collapsed list shows: every chosen one, then up to `limit` live others.
+ * Show all is offered whenever that leaves any option out, zero-count ones included.
+ */
+const collapsedCount = (shown: readonly Shown[], limit: number): number => {
+  const chosen = shown.filter(({ checked }) => checked).length;
+  const live = shown.filter(({ option, checked }) => !checked && option.count > 0).length;
+  return chosen + Math.min(limit, live);
+};
+
 /** Notes the chosen values each time the panel opens, for the order. */
 function usePinnedOnOpen(panelId: string, chosen: readonly string[]): readonly string[] {
   const [pinned, setPinned] = useState(chosen);
@@ -149,7 +159,8 @@ export function FilterBarPicker({
     limited: hydrated && !showAll,
     limit,
   });
-  const live = shown.filter(({ option, checked }) => option.count > 0 || checked).length;
+  const total = shown.length;
+  const collapsible = total > collapsedCount(shown, limit);
   const showing = shown.filter(({ visible }) => visible).length;
   const word = view.label.toLowerCase();
 
@@ -189,7 +200,7 @@ export function FilterBarPicker({
                 />
               </label>
               <p aria-live="polite" className={PICKER_SHOWN_CLASS}>
-                {showing} of {live} shown
+                {showing} of {total} shown
               </p>
             </div>
           )}
@@ -215,13 +226,13 @@ export function FilterBarPicker({
           </div>
         </fieldset>
         <div className={PICKER_FOOT_CLASS}>
-          {hydrated && !query && live > limit && (
+          {hydrated && !query && collapsible && (
             <button
               type="button"
               className={TEXT_BUTTON_CLASS}
               onClick={() => setShowAll(!showAll)}
             >
-              {showAll ? `Show the top ${limit}` : `Show all ${live}`}
+              {showAll ? `Show the top ${limit}` : `Show all ${total}`}
             </button>
           )}
           <noscript>

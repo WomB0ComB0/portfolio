@@ -61,18 +61,20 @@ export interface IndexCopyButtonProps {
   readonly children?: ReactNode;
 }
 
-/** Copies `value`, and says so. */
+/** Copies `value`, and says so. Each copy shows the check for a full 1.6s, a repeat one too. */
 export function IndexCopyButton({
   value,
   label,
   children = 'ID',
 }: IndexCopyButtonProps): ReactElement {
-  const [done, setDone] = useState(false);
+  // Counted, not a flag: a copy while the check shows still changes state, so its timer restarts.
+  const [copies, setCopies] = useState(0);
+  const done = copies > 0;
   useEffect(() => {
-    if (!done) return;
-    const timer = window.setTimeout(() => setDone(false), DONE_MS);
+    if (copies === 0) return;
+    const timer = window.setTimeout(() => setCopies(0), DONE_MS);
     return () => window.clearTimeout(timer);
-  }, [done]);
+  }, [copies]);
 
   /**
    * Copies the value, shows the check and announces it. Never rejects: where the clipboard is
@@ -81,7 +83,7 @@ export function IndexCopyButton({
   const copy = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(value);
-      setDone(true);
+      setCopies((count) => count + 1);
       announce(`Copied ${label}`);
     } catch {
       // A blocked clipboard is no failure of the page: the value is read out instead.

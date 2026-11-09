@@ -45,6 +45,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -245,6 +246,60 @@ describe('the Copy ID action', () => {
     expect(document.querySelector('[data-index-announcer]')).toHaveTextContent(
       'The credential ID for Alpha is ABC-123',
     );
+  });
+
+  describe('the check after a copy', () => {
+    /** Clicks the button and lets the clipboard promise settle. */
+    const copy = async (button: HTMLElement): Promise<void> => {
+      await act(async () => {
+        fireEvent.click(button);
+      });
+    };
+    /** Moves the fake clock on by `ms`. */
+    const wait = async (ms: number): Promise<void> => {
+      await act(async () => {
+        vi.advanceTimersByTime(ms);
+      });
+    };
+    /** A lone Copy button whose clipboard always accepts, on a fake clock. */
+    const renderButton = (): HTMLElement => {
+      vi.useFakeTimers();
+      vi.stubGlobal('navigator', {
+        ...navigator,
+        clipboard: { writeText: () => Promise.resolve() },
+      });
+      render(<IndexCopyButton value="ABC-123" label="the credential ID for Alpha" />);
+      return screen.getByRole('button');
+    };
+
+    it('returns to the word 1.6s after one copy', async () => {
+      const button = renderButton();
+      await copy(button);
+      await wait(1599);
+      expect(button).toHaveAttribute('data-done', '');
+      await wait(1);
+      expect(button).not.toHaveAttribute('data-done');
+      expect(button).toHaveTextContent('ID');
+    });
+
+    it('keeps the check a full 1.6s after a second copy made while it shows', async () => {
+      const button = renderButton();
+      await copy(button);
+      await wait(1500);
+      await copy(button);
+      await wait(200);
+      expect(button).toHaveAttribute('data-done', '');
+      await wait(1400);
+      expect(button).not.toHaveAttribute('data-done');
+    });
+
+    it('leaves no timer behind once it unmounts', async () => {
+      const button = renderButton();
+      await copy(button);
+      await copy(button);
+      cleanup();
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });
 

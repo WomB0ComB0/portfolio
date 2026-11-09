@@ -178,4 +178,38 @@ describe('FilterBar.Picker', () => {
     expect(panel().querySelector('noscript')).not.toBeNull();
     expect(within(panel()).queryByRole('button', { name: 'Apply' })).toBeNull();
   });
+
+  describe('Show all', () => {
+    /** The picker's polite "N of M shown" line. */
+    const shownLine = (): HTMLElement | null => panel().querySelector('[aria-live="polite"]');
+
+    it('keeps zero-count options one Show all away when few are live', () => {
+      render(<FullBar initial="?category=tools" />);
+
+      expect(options()).toEqual(['Cobra 1', 'Go 1', 'Python 1']);
+      expect(shownLine()).toHaveTextContent('3 of 6 shown');
+      fireEvent.click(within(panel()).getByRole('button', { name: 'Show all 6' }));
+
+      expect(options()).toEqual(
+        expect.arrayContaining(['React 0', 'Tailwind CSS 0', 'TypeScript 0']),
+      );
+      expect(shownLine()).toHaveTextContent('6 of 6 shown');
+    });
+
+    it('counts every option it reveals, zero-count ones too', () => {
+      render(<FullBar initial="?category=tools" pickerLimit={2} />);
+
+      fireEvent.click(within(panel()).getByRole('button', { name: 'Show all 6' }));
+
+      expect(options()).toHaveLength(6);
+      expect(shownLine()).toHaveTextContent('6 of 6 shown');
+    });
+
+    it('is not offered when every option already shows', () => {
+      render(<FullBar initial="?tech=go" pickerLimit={5} />);
+
+      expect(options()).toHaveLength(6);
+      expect(within(panel()).queryByRole('button', { name: /^Show all/ })).toBeNull();
+    });
+  });
 });

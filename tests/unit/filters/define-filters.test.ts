@@ -63,6 +63,8 @@ describe('reading the URL', () => {
     expect(projects.parse('?q=%20%20alpha%20%20%20cli%20').q).toBe('alpha cli');
     expect(projects.parse({ q: ['first', 'second'] }).q).toBe('first');
     expect(projects.parse({ q: 'x'.repeat(80) }).q).toHaveLength(40);
+    // A cap that lands just after a space leaves no trailing space.
+    expect(projects.parse({ q: `${'x'.repeat(39)} tail` }).q).toBe('x'.repeat(39));
   });
 
   it('ignores keys it does not know, and never reads the prototype chain', () => {
@@ -231,7 +233,13 @@ describe('hrefs', () => {
   });
 
   it('round-trips: what it writes reads back as the same state', () => {
-    for (const search of ['', '?q=a%20b', '?tech=react&tech=go', '?category=websites&q=x%26y']) {
+    for (const search of [
+      '',
+      '?q=a%20b',
+      '?tech=react&tech=go',
+      '?category=websites&q=x%26y',
+      `?q=${'x'.repeat(39)}%20tail`,
+    ]) {
       const read = projects.parse(search);
       expect(projects.parse(projects.serialize(read).replace('/projects', ''))).toEqual(read);
     }

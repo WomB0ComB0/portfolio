@@ -66,23 +66,30 @@ interface ChipItem {
   readonly current: boolean;
 }
 
-/** Sets the pill's clip to the current chip's box; `instant` places it without sliding. */
-function placePill(
-  list: HTMLElement,
-  pill: HTMLElement,
-  chip: HTMLElement,
-  instant: boolean,
-): void {
+/** The pill's clip as the custom properties it reads, each with its value. */
+type PillClip = ReadonlyArray<readonly [property: string, value: string]>;
+
+/** The clip that draws the pill over `chip`, measured now. */
+function clipFor(list: HTMLElement, pill: HTMLElement, chip: HTMLElement): PillClip {
   const track = list.scrollWidth;
   const height = pill.offsetHeight || list.clientHeight;
-  const right = Math.max(0, track - chip.offsetLeft - chip.offsetWidth);
-  const bottom = Math.max(0, height - chip.offsetTop - chip.offsetHeight);
+  return [
+    ['--pill-track', `${track}px`],
+    ['--pill-t', `${chip.offsetTop}px`],
+    ['--pill-l', `${chip.offsetLeft}px`],
+    ['--pill-r', `${Math.max(0, track - chip.offsetLeft - chip.offsetWidth)}px`],
+    ['--pill-b', `${Math.max(0, height - chip.offsetTop - chip.offsetHeight)}px`],
+  ];
+}
+
+/** Whether the pill already holds this clip: it sits there, or is sliding there. */
+const holds = (pill: HTMLElement, clip: PillClip): boolean =>
+  clip.every(([property, value]) => pill.style.getPropertyValue(property) === value);
+
+/** Writes the pill's clip; `instant` places it without sliding. */
+function writeClip(pill: HTMLElement, clip: PillClip, instant: boolean): void {
   if (instant) pill.dataset.instant = '';
-  pill.style.setProperty('--pill-track', `${track}px`);
-  pill.style.setProperty('--pill-t', `${chip.offsetTop}px`);
-  pill.style.setProperty('--pill-l', `${chip.offsetLeft}px`);
-  pill.style.setProperty('--pill-r', `${right}px`);
-  pill.style.setProperty('--pill-b', `${bottom}px`);
+  for (const [property, value] of clip) pill.style.setProperty(property, value);
   pill.dataset.on = '';
   if (!instant) return;
   // Commit the instant position before transitions come back on, or it would slide from 0.
@@ -92,12 +99,29 @@ function placePill(
 }
 
 /**
- * Keeps the pill on the current chip: placed at once the first time and on any resize (the row
- * wraps differently, the sheet opens), slid when the current chip changes. True once placed.
+ * After a resize, puts the pill on the chip that is current now, at once, if its box moved. A
+ * box that did not move is left alone: placing it at once turns transitions off, which would
+ * cancel a slide to that chip (an observer reports every target on its first frame, and a
+ * removed chip as resized to nothing).
+ */
+function followResize(list: HTMLElement, pill: HTMLElement): void {
+  const chip = list.querySelector<HTMLElement>('a[aria-current="true"]');
+  if (!chip) return;
+  const clip = clipFor(list, pill, chip);
+  if (!holds(pill, clip)) writeClip(pill, clip, true);
+}
+
+/**
+ * Keeps the pill on the current chip: placed at once the first time, slid when the current chip
+ * changes, and placed at once on a resize of the row or a chip that moves the current chip's box
+ * (a count narrows a chip, a late font swaps in, the row wraps differently, the sheet opens).
+ * `chips` names the chips in order; a new set (a stand-in in its group's place) is observed
+ * afresh. True once placed.
  */
 function usePill(
   list: RefObject<HTMLUListElement | null>,
   current: string,
+  chips: string,
   layout: ChipsLayout,
 ): boolean {
   const [ready, setReady] = useState(false);
@@ -108,15 +132,26 @@ function usePill(
     const pill = element?.querySelector<HTMLElement>('[data-filter-part="pill"]');
     const chip = element?.querySelector<HTMLElement>('a[aria-current="true"]');
     if (!element || !pill || !chip) return;
-    placePill(element, pill, chip, !placed.current);
+    writeClip(pill, clipFor(element, pill, chip), !placed.current);
     placed.current = true;
     setReady(true);
     if (layout === 'scroll') revealInScroller(element, chip);
-    if (typeof ResizeObserver !== 'function') return;
-    const observer = new ResizeObserver(() => placePill(element, pill, chip, true));
-    observer.observe(element);
-    return () => observer.disconnect();
   }, [list, current, layout]);
+  // Its own effect, so a change of current chip makes no new observer whose first report would
+  // land in the slide's first frame.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `chips` is the trigger: a new chip set must be observed, and the effect reads the chips from the DOM.
+  useLayoutEffect(() => {
+    const element = list.current;
+    const pill = element?.querySelector<HTMLElement>('[data-filter-part="pill"]');
+    if (!element || !pill || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(() => followResize(element, pill));
+    observer.observe(element);
+    // A count can change a chip's width, and so the current chip's box, without resizing the row.
+    for (const each of element.querySelectorAll<HTMLElement>('[data-filter-part="chip"]')) {
+      observer.observe(each);
+    }
+    return () => observer.disconnect();
+  }, [list, chips]);
   return ready;
 }
 
@@ -135,8 +170,9 @@ export function FilterBarChips({
     ...options.map((option) => ({ ...option, current: chosen.includes(option.slug) })),
   ];
   const current = items.find((item) => item.current)?.slug ?? '';
+  const chipSet = items.map((item) => item.slug ?? '').join(' ');
   const listRef = useRef<HTMLUListElement>(null);
-  const pillReady = usePill(listRef, current, layout);
+  const pillReady = usePill(listRef, current, chipSet, layout);
   /** The noun a screen reader hears after a chip's count: "1 certificate", "20 certificates". */
   const nounOf = (count: number): string => (count === 1 ? model.noun.one : model.noun.many);
 

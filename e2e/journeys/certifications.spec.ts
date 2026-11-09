@@ -282,9 +282,9 @@ test.describe('/certifications: the Ledger', () => {
       await expect(page).toHaveURL(new RegExp(`/certifications\\?issuer=${family.slug}$`));
       await settle(page);
       await expect(main.locator(ROW)).toHaveCount(family.count);
-      await expect(chipList(main).locator(CURRENT_CHIP)).toHaveText(
-        new RegExp(`^${family.label} ${family.count}`),
-      );
+      await expect
+        .poll(() => currentChip(chipList(main)))
+        .toEqual({ label: family.label, count: family.count });
     });
 
     test('a chip, then a navigation to the page’s own URL: every row again', async ({ page }) => {
@@ -450,7 +450,8 @@ test.describe('/certifications: the Ledger', () => {
     const sheet = page.locator('[data-filter-part="sheet"]');
     const current = chipList(main).locator(CURRENT_CHIP);
     await expect(sheet).toBeVisible();
-    await expect(current).toHaveText(new RegExp(`^${label} `));
+    // Read the way `label` was, not as a pattern: an issuer like "C++ Institute" is no regex.
+    await expect.poll(async () => (await currentChip(chipList(main))).label).toBe(label);
     await expect(current).toBeFocused();
     // It rises on translate over --motion-spring-in, then rests on the screen's bottom edge.
     await expect
