@@ -48,6 +48,7 @@ const PHOTOS: readonly ViewerPhoto[] = [
 
 const CONTROLS = ['Zoom in', 'Zoom out', 'Enter fullscreen'] as const;
 
+/** The viewer for "Photographed Place" with `photos` (the two above by default). */
 const viewer = (photos: readonly ViewerPhoto[] = PHOTOS) => (
   <PlacePhotoViewer
     photos={photos}

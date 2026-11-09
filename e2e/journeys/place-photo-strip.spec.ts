@@ -376,6 +376,11 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
     });
   }
 
+  /**
+   * Moves the mouse from thumbnail 5 across the gap to 6 (with `reducedMotion`), sampling every
+   * thumbnail's dim each frame: none of the others may brighten on the way. Leaving the strip,
+   * the dim lifts after its 60 ms delay.
+   */
   async function crossTheGap(
     browser: Browser,
     reducedMotion: 'no-preference' | 'reduce',
@@ -397,6 +402,7 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
       const record = window as unknown as { __dims: number[][]; __sampling: boolean };
       record.__dims = [];
       record.__sampling = true;
+      /** Samples every thumbnail's dim (::after opacity) once a frame until __sampling is off. */
       const tick = () => {
         if (!record.__sampling) return;
         record.__dims.push(buttons.map((b) => Number(getComputedStyle(b, '::after').opacity)));
@@ -471,9 +477,11 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
       page.evaluate((selector) => Boolean(document.activeElement?.closest(selector)), STRIP);
 
     // After the frame's own controls, the strip is one stop: the photo shown.
+    // Which thumbnail has the focus, not its name: a caption on the first photo extends the name,
+    // and the first test already checks every name.
     await page.getByRole('button', { name: 'Enter fullscreen' }).focus();
     await page.keyboard.press('Tab');
-    expect(await focusedName()).toBe(`Photo 1 of ${count}`);
+    await expect(thumbs(strip).nth(0)).toBeFocused();
     expect((await layers(strip)).filter((layer) => layer.tabIndex === 0)).toHaveLength(1);
 
     await page.keyboard.press('ArrowRight');
@@ -526,7 +534,7 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
     await page.keyboard.press('Tab');
     expect(await inStrip()).toBe(false);
     await page.keyboard.press('Shift+Tab');
-    expect(await focusedName()).toBe(`Photo 1 of ${count}`);
+    await expect(thumbs(strip).nth(0)).toBeFocused();
     await context.close();
   });
 

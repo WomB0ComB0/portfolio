@@ -47,8 +47,16 @@ const STRIP_CSS = readFileSync(STRIP_CSS_PATH, 'utf8').replace(/\/\*[\s\S]*?\*\/
 const GLOBALS_CSS = readFileSync(join(process.cwd(), 'src/styles/globals.css'), 'utf8');
 
 const RULES = styleRules(STRIP_CSS);
+/**
+ * The stylesheet's rule with `selector` under exactly the at-rules `conditions` (none by default);
+ * throws unless there is exactly one.
+ */
 const rule = (selector: string, conditions: readonly string[] = []): CssRule =>
   findRule(RULES, selector, conditions);
+/**
+ * What `property` is declared as in that rule (the last declaration wins); undefined when it isn't
+ * declared there.
+ */
 const value = (selector: string, property: string, conditions: readonly string[] = []) =>
   declaredValue(rule(selector, conditions), property);
 
@@ -59,6 +67,11 @@ const NO_SCRIPT = '@media (scripting: none)';
 const FORCED_COLOURS = '@media (forced-colors: active)';
 
 const DIM = '0.55';
+/** The pointer's dim: every thumbnail but the one pointed at and the one with keyboard focus. */
+const HOVER_DIM = '.strip:has(.thumb:hover) .thumb:not(:hover, :focus-visible)::after';
+/** The one pointed at while another has keyboard focus, out from under the focus's dim. */
+const POINTED_UNDER_FOCUS =
+  '.strip:has(.thumb:focus-visible) .thumb:hover:not(:focus-visible)::after';
 /** The focus ring: a 2 px outline 2 px out. */
 const RING_PX = 4;
 const LIFT_PX = 3;
@@ -127,18 +140,23 @@ describe('photo-strip.module.css: the shown photo, the dim and the light', () =>
 
   it('dims every thumbnail but the one pointed at, the shown one too, under a canvas layer', () => {
     expect(value('.thumb::after', 'background')).toBe('var(--canvas)');
-    expect(value('.strip:has(.thumb:hover) .thumb:not(:hover)::after', 'opacity', [MOUSE])).toBe(
-      DIM,
-    );
+    expect(value(HOVER_DIM, 'opacity', [MOUSE])).toBe(DIM);
+  });
+
+  it('keeps both bright when the pointer rests on one thumbnail and keyboard focus is on another', () => {
+    // Clicking a thumbnail and then pressing an arrow key leaves the pointer on one and keyboard
+    // focus on the next: each dim then covered the other's thumbnail, and the whole strip dimmed.
+    expect(HOVER_DIM).toContain(':not(:hover, :focus-visible)');
+    expect(value(POINTED_UNDER_FOCUS, 'opacity', [MOUSE])).toBe('0');
+    // It fades on the hover's timing, as the light it sits under does.
+    expect(value(POINTED_UNDER_FOCUS, 'transition-duration', [MOUSE])).toBe('var(--motion-base)');
   });
 
   it('dims at once and lifts the dim 60 ms late, so crossing a gap never flashes the strip', () => {
     expect(value('.thumb::after', 'transition')).toBe(
       'opacity var(--motion-base) var(--ease-effect) 60ms',
     );
-    expect(
-      value('.strip:has(.thumb:hover) .thumb:not(:hover)::after', 'transition-delay', [MOUSE]),
-    ).toBe('0s');
+    expect(value(HOVER_DIM, 'transition-delay', [MOUSE])).toBe('0s');
     expect(value('.thumb:hover::after', 'transition-delay', [MOUSE])).toBe('0s');
   });
 

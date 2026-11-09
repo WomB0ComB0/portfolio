@@ -152,9 +152,16 @@
     transition-delay: 0s;
   }
 
-  .strip:has(.thumb:hover) .thumb:not(:hover)::after {
+  .strip:has(.thumb:hover) .thumb:not(:hover, :focus-visible)::after {
     opacity: 0.55;
     transition-delay: 0s;
+  }
+
+  /* The one pointed at stays bright while another has keyboard focus (more specific than the
+     focus's dim below). */
+  .strip:has(.thumb:focus-visible) .thumb:hover:not(:focus-visible)::after {
+    opacity: 0;
+    transition-duration: var(--motion-base);
   }
 
   .thumb:hover .light::before {

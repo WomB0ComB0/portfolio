@@ -30,6 +30,10 @@ import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[place
 
 const PLACE = 'Photographed Place';
 
+/**
+ * Viewer photo `n` (1-based): its frame URL and its strip thumbnail. A `caption`, when given, is
+ * also its alt text; otherwise the alt is "Photo of <PLACE>".
+ */
 const photo = (n: number, caption?: string): ViewerPhoto => ({
   url: `https://cdn.sanity.io/images/test/test/p${n}-1600x1200.jpg?w=1600&fit=max`,
   thumb: `https://cdn.sanity.io/images/test/test/p${n}-1600x1200.jpg?w=320&h=240&fit=crop&auto=format`,
@@ -41,6 +45,7 @@ const PHOTOS: readonly ViewerPhoto[] = Array.from({ length: 13 }, (_, index) =>
   photo(index + 1, index === 12 ? 'The stage before the keynote' : undefined),
 );
 
+/** The viewer for PLACE with `photos` (the 13 above by default, the last one captioned). */
 const viewer = (photos: readonly ViewerPhoto[] = PHOTOS) => (
   <PlacePhotoViewer photos={photos} placeName={PLACE} summary={<h2>{PLACE}</h2>} />
 );

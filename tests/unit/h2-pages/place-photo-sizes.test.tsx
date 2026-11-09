@@ -89,6 +89,7 @@ function evaluateSizes(sizes: string, viewport: number): number {
   throw new Error(`sizes "${sizes}" has no default entry`);
 }
 
+/** The `sizes` next/image gives the photo in a one-photo viewer; throws when it has none. */
 const photoSizes = (): string => {
   render(<PlacePhotoViewer photos={[PHOTO]} placeName="A place" summary={<h2>A place</h2>} />);
   const sizes = screen.getByRole('img', { name: PHOTO.alt }).getAttribute('sizes');

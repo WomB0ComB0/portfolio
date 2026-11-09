@@ -83,15 +83,25 @@ function centreInStrip(strip: HTMLElement, item: HTMLElement): void {
   strip.scrollBy({ left: delta, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }
 
+/**
+ * The thumbnail toolbar under the place viewer. `index` (0-based) is the photo shown: aria-current,
+ * and the Tab stop until the arrow keys move it. A click reports its thumbnail to `onPick`, and the
+ * parent moves `index`. A new `index`, or a tap on the photo already shown, scrolls the strip
+ * (never the page) to centre that thumbnail.
+ */
 export function PhotoStrip({ photos, index, onPick, label }: PhotoStripProps): ReactElement {
   const stripRef = useRef<HTMLDivElement>(null);
   const shownIndex = useRef(index);
   /** The roving Tab stop while the keyboard is in the strip; null follows the photo shown. */
   const [roving, setRoving] = useState<number | null>(null);
-  const stop = roving ?? index;
+  // Held to the last thumbnail: a refresh that removes the focused one never runs onBlur (React
+  // ignores DOM events while it commits), and the viewer does not clamp `index` when photos go.
+  const stop = Math.min(roving ?? index, photos.length - 1);
 
-  // A new photo shown (from the strip, a swipe or the keyboard) is brought to the strip's middle.
-  // The first render keeps the server's scroll position: the first photo, at the start.
+  /**
+   * A new photo shown (from the strip, a swipe or the keyboard) is brought to the strip's middle.
+   * The first render keeps the server's scroll position: the first photo, at the start.
+   */
   useEffect(() => {
     if (shownIndex.current === index) return;
     shownIndex.current = index;
@@ -100,6 +110,11 @@ export function PhotoStrip({ photos, index, onPick, label }: PhotoStripProps): R
     if (strip && current) centreInStrip(strip, current);
   }, [index]);
 
+  /**
+   * Left, Right, Home and End move the roving Tab stop and the focus (not the photo shown), and
+   * centre that thumbnail in the strip. Other keys, and any key held with Alt, Ctrl or Meta, are
+   * left to the browser.
+   */
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     // Alt+Left and Cmd+Left are the browser's back; any modified key stays the browser's.
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -112,6 +127,17 @@ export function PhotoStrip({ photos, index, onPick, label }: PhotoStripProps): R
     if (!strip || !button) return;
     button.focus({ preventScroll: true });
     centreInStrip(strip, button);
+  };
+
+  /**
+   * A click (or Enter or Space) shows thumbnail `i`. The photo already shown, tapped again, has no
+   * new index for the effect above to centre, so it is centred here.
+   */
+  const pick = (i: number, button: HTMLElement): void => {
+    setRoving(null);
+    const strip = stripRef.current;
+    if (i === index && strip) centreInStrip(strip, button);
+    onPick(i);
   };
 
   /** Leaving the strip hands the Tab stop back to the photo shown. */
@@ -139,10 +165,7 @@ export function PhotoStrip({ photos, index, onPick, label }: PhotoStripProps): R
           tabIndex={i === stop ? 0 : -1}
           aria-current={i === index ? 'true' : undefined}
           aria-label={`Photo ${i + 1} of ${photos.length}${photo.caption ? `: ${photo.caption}` : ''}`}
-          onClick={() => {
-            setRoving(null);
-            onPick(i);
-          }}
+          onClick={(event) => pick(i, event.currentTarget)}
         >
           <Image
             src={photo.thumb}

@@ -47,6 +47,7 @@ vi.mock(
   '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/photo-strip.module.css',
   () => ({
     default: new Proxy({} as Record<string, string>, {
+      /** Each class name read from the module is the name itself; a symbol key reads undefined. */
       get: (_target, name) => (typeof name === 'string' ? name : undefined),
     }),
   }),

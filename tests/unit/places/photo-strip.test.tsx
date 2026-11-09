@@ -44,6 +44,7 @@ const LABEL = 'Photos of Photographed Place';
 
 const strip = (): HTMLElement => screen.getByRole('toolbar', { name: LABEL });
 const thumbs = (): HTMLElement[] => within(strip()).getAllByRole('button');
+/** Thumbnail `index` (0-based) in the strip; throws when the strip has no such thumbnail. */
 const thumb = (index: number): HTMLElement => {
   const found = thumbs()[index];
   if (!found) throw new Error(`no thumbnail ${index}`);
@@ -54,6 +55,10 @@ const tabStops = (): number[] =>
     .map((button, index) => (button.tabIndex === 0 ? index : -1))
     .filter((index) => index >= 0);
 
+/**
+ * Renders the strip of `photos` on photo `index`, with a spy `onPick`; `rerender(next)` renders it
+ * again on photo `next`, with the same photos and spy.
+ */
 function renderStrip(index = 0, photos: readonly StripPhoto[] = PHOTOS) {
   const onPick = vi.fn<(index: number) => void>();
   const view = render(<PhotoStrip photos={photos} index={index} onPick={onPick} label={LABEL} />);
@@ -245,6 +250,34 @@ describe('PhotoStrip: one Tab stop', () => {
 
     expect(tabStops()).toEqual([2]);
   });
+
+  it('keeps one Tab stop when a refresh removes the focused thumbnail', () => {
+    const onPick = vi.fn<(index: number) => void>();
+    const view = render(<PhotoStrip photos={PHOTOS} index={0} onPick={onPick} label={LABEL} />);
+    thumb(0).focus();
+    fireEvent.keyDown(thumb(0), { key: 'End' });
+    expect(document.activeElement).toBe(thumb(6));
+
+    // React ignores DOM events while it commits, so the removed button's blur never reaches the
+    // strip's onBlur, and the roving stop is left past the end.
+    view.rerender(
+      <PhotoStrip photos={PHOTOS.slice(0, 4)} index={0} onPick={onPick} label={LABEL} />,
+    );
+
+    expect(document.activeElement).toBe(document.body);
+    expect(tabStops()).toEqual([3]);
+  });
+
+  it('keeps one Tab stop when the photo shown is past the end', () => {
+    const onPick = vi.fn<(index: number) => void>();
+    const view = render(<PhotoStrip photos={PHOTOS} index={5} onPick={onPick} label={LABEL} />);
+
+    view.rerender(
+      <PhotoStrip photos={PHOTOS.slice(0, 4)} index={5} onPick={onPick} label={LABEL} />,
+    );
+
+    expect(tabStops()).toEqual([3]);
+  });
 });
 
 describe('PhotoStrip: picking a photo', () => {
@@ -323,6 +356,45 @@ describe('PhotoStrip: keeping the thumbnail in view', () => {
     const scrollBy = overflowing(strip(), { scrollWidth: 1086, clientWidth: 1086 });
 
     rerender(5);
+
+    expect(scrollBy).not.toHaveBeenCalled();
+  });
+
+  it('centres the photo shown when it is tapped again after the strip was scrolled', () => {
+    const { onPick } = renderStrip(2);
+    const scrollBy = overflowing(strip());
+    placeAt(strip(), 16, 360);
+    // Swiped until the shown thumbnail is cut off at the strip's left edge.
+    placeAt(thumb(2), -40, 104);
+
+    fireEvent.click(thumb(2));
+
+    expect(onPick).toHaveBeenCalledWith(2);
+    // Centre 12 to the strip's 196.
+    expect(scrollBy).toHaveBeenCalledWith({ left: -184, behavior: 'smooth' });
+    expect(pageScroll).not.toHaveBeenCalled();
+  });
+
+  it('scrolls once, not twice, when a different thumbnail is tapped', () => {
+    const { onPick, rerender } = renderStrip(0);
+    const scrollBy = overflowing(strip());
+    placeAt(strip(), 16, 360);
+    placeAt(thumb(5), 616, 104);
+
+    fireEvent.click(thumb(5));
+    // The click leaves the scroll to the new photo shown, so two smooth scrolls never stack.
+    expect(scrollBy).not.toHaveBeenCalled();
+    rerender(onPick.mock.calls.at(-1)?.[0] ?? 0);
+
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(scrollBy).toHaveBeenCalledWith({ left: 472, behavior: 'smooth' });
+  });
+
+  it('does not scroll a strip with room for every thumbnail when the shown one is tapped', () => {
+    renderStrip(2);
+    const scrollBy = overflowing(strip(), { scrollWidth: 1086, clientWidth: 1086 });
+
+    fireEvent.click(thumb(2));
 
     expect(scrollBy).not.toHaveBeenCalled();
   });
