@@ -348,10 +348,14 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
         )}
 
         {photos.length > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-2">
+          // Plain 24 x 24 buttons, each with an 8 px dot: the shared Button's size padding made them
+          // 32 x 16 pills that ran off a phone with 13 photos. Inline, so a row that doesn't fit
+          // wraps evenly (text-wrap: balance); the shown dot stretches by scale, nothing resizes.
+          <div className="pt-2 text-center leading-0 [text-wrap:balance]">
             {photos.map((_, index) => (
-              <Button
+              <button
                 key={`${+index}`}
+                type="button"
                 onClick={() => {
                   const newDirection = index > currentPhotoIndex ? 1 : -1;
                   setPage([index, newDirection]);
@@ -359,14 +363,20 @@ export function PlacePhotoViewer({ photos, summary }: PlacePhotoViewerProps) {
                   zoomX.set(0);
                   zoomY.set(0);
                 }}
-                className={cn(
-                  'h-2 rounded-full transition-all',
-                  index === currentPhotoIndex
-                    ? 'w-8 bg-primary'
-                    : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
-                )}
+                className="group inline-grid size-6 place-items-center rounded-full align-top focus-visible:outline-2 focus-visible:outline-focus"
                 aria-label={`Go to photo ${index + 1}`}
-              />
+                aria-current={index === currentPhotoIndex ? 'true' : undefined}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'size-2 rounded-full transition-[scale,opacity] duration-(--motion-spring-out) ease-(--ease-spring) motion-reduce:transition-opacity',
+                    index === currentPhotoIndex
+                      ? 'scale-x-250 bg-brand'
+                      : 'bg-faint opacity-45 group-hover:opacity-80',
+                  )}
+                />
+              </button>
             ))}
           </div>
         )}
