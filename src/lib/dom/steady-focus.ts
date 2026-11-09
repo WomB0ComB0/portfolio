@@ -60,6 +60,10 @@ export function holdScrollOnFocus(element: HTMLElement): () => void {
   const release = (): void => {
     pressing = false;
   };
+  /**
+   * Puts the page back where the last scroll event left it, unless a press brought focus or
+   * nothing moved; if the control would be off screen there, the browser's scroll stands.
+   */
   const onFocusIn = (event: Event): void => {
     const moved = view.scrollY;
     if (pressing || moved === settled || !(event.target instanceof Element)) return;

@@ -48,6 +48,7 @@ function renderAt(search: string): { onUrlUpdate: UrlSpy; model: () => FilterMod
       <Probe />
     </NuqsTestingAdapter>,
   );
+  /** The model the Probe rendered last, read when called; throws if no Probe has rendered. */
   const model = (): FilterModel => {
     if (!latest) throw new Error('not rendered');
     return latest.model;

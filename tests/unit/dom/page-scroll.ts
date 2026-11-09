@@ -51,6 +51,7 @@ export function stubPageScroll(start = 0): PageScroll {
     jump: (next) => {
       y = next;
     },
+    /** Ends the spy and puts back window's own scrollY, if it had one before the stub. */
     restore: () => {
       spy.mockRestore();
       if (original) Object.defineProperty(window, 'scrollY', original);

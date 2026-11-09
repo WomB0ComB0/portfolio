@@ -90,11 +90,13 @@ const focusInBar = (page: Page): Promise<boolean> =>
  */
 function readSticky(page: Page) {
   return page.evaluate((clear) => {
+    /** The colour an element paints: its own background, else its ::before's; `clear` if none. */
     const paint = (element: Element | null): string => {
       if (!element) return clear;
       const own = getComputedStyle(element).backgroundColor;
       return own === clear ? getComputedStyle(element, '::before').backgroundColor : own;
     };
+    /** An element's viewport edges as plain numbers (a DOMRect does not serialise), or null. */
     const edges = (element: Element | null) => {
       const box = element?.getBoundingClientRect();
       return box ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right } : null;

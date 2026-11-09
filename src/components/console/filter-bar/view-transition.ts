@@ -96,6 +96,7 @@ function release(results: HTMLElement): void {
   root.style.removeProperty(CLIP_BOTTOM);
 }
 
+/** document.startViewTransition, bound to the document, or null where the browser has none. */
 const startOf = (): StartViewTransition | null => {
   const start = (document as unknown as { startViewTransition?: StartViewTransition })
     .startViewTransition;
@@ -113,8 +114,11 @@ export function runFilterChange(apply: () => void, { results, bar }: FilterChang
     apply();
     return;
   }
-  // Applied once whatever happens: a browser that refuses after calling back must not apply twice.
   let applied = false;
+  /**
+   * Applies the change once whatever happens: a browser that refuses after calling back must not
+   * apply it twice.
+   */
   const applyOnce = (): void => {
     if (applied) return;
     applied = true;

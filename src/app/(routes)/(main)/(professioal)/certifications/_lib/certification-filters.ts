@@ -72,6 +72,7 @@ export function certificationFilters<T extends CertificationItem = Certification
   lookups: CertificationLookups,
 ): CertificationSchema<T> {
   const { chips, other, index } = lookups;
+  /** A skill as the ledger first writes it (its index is keyed in lower case), else as given. */
   const skillOf = (skill: string): string => ownValue(index.skills, skill.toLowerCase()) ?? skill;
   return defineFilters<T, CertificationFacet>({
     path: CERTIFICATIONS_PATH,
@@ -80,14 +81,16 @@ export function certificationFilters<T extends CertificationItem = Certification
     facets: {
       issuer: {
         label: 'Issuer',
-        // A one-off issuer is itself and Other, so both ?issuer=ibm and ?issuer=other keep it.
+        /** A one-off issuer is itself and Other, so both ?issuer=ibm and ?issuer=other keep it. */
         valuesOf: (entry) =>
           entry.chip === OTHER_SLUG ? [entry.familySlug, OTHER_SLUG] : [entry.familySlug],
+        /** Other's chip label ('Other' when the ledger has none), a family's label, or the slug. */
         labelOf: (slug) =>
           slug === OTHER_SLUG
             ? (other?.label ?? 'Other')
             : (ownValue(index.families, slug)?.label ?? slug),
         values: [...chips.map((chip) => chip.slug), ...(other ? [OTHER_SLUG] : [])],
+        /** The chip a family shows under: its own, or Other for a one-off issuer (?issuer=ibm). */
         groupOf: (slug) => ownValue(index.families, slug)?.chip ?? null,
         resolve: (raw) => resolveIssuer(raw, lookups),
         scope: (labels) => `from ${labels.join(' or ')}`,
@@ -96,6 +99,7 @@ export function certificationFilters<T extends CertificationItem = Certification
         label: 'Skill',
         valuesOf: (entry) => entry.skills.map(skillOf),
         labelOf: (skill) => skill,
+        /** ?skill in any case, as the ledger writes it; a skill no certificate has is dropped. */
         resolve: (raw) => ownValue(index.skills, raw.toLowerCase()) ?? null,
         scope: (labels) => `with ${labels.join(' or ')}`,
       },

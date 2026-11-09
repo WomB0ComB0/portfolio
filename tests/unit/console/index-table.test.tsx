@@ -81,6 +81,7 @@ function Table({ variant }: { readonly variant?: 'ledger' | 'open' }): ReactElem
   );
 }
 
+/** An element's class tokens; none for a missing element or class attribute. */
 const classesOf = (element: Element | null | undefined): string[] =>
   (element?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 

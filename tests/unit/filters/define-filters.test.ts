@@ -183,10 +183,14 @@ describe('a chosen value shown under its group', () => {
     facets: {
       issuer: {
         label: 'Issuer',
+        /** A one-off issuer is itself and Other, as on /certifications. */
         valuesOf: (c) => (c.chip === 'other' ? [c.family, 'other'] : [c.family]),
+        /** A known slug's label, else the slug. */
         labelOf: (slug) => LABELS[slug] ?? slug,
         values: ['google', 'other'],
+        /** The one-off issuers show under Other; the rest under nothing. */
         groupOf: (slug) => (slug === 'ibm' || slug === 'aws' ? 'other' : null),
+        /** Any slug with a label, today's or one-off; anything else is dropped. */
         resolve: (raw) => (Object.hasOwn(LABELS, raw) ? raw : null),
       },
     },

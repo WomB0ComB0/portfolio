@@ -125,6 +125,10 @@ export function buildFilterModel<T, K extends string>({
     choose: (key, slug) => actions.choose(key as K, slug),
     toggle: (key, slug) => actions.toggle(key as K, slug),
     clearAll: actions.clearAll,
+    /**
+     * The page's own link writer when it gives one; otherwise the schema's, over the facets as
+     * chosen and the search as it filters (normalised), not as typed.
+     */
     hrefFor: (patch) =>
       hrefFor
         ? hrefFor(patch as FilterPatch<K>)

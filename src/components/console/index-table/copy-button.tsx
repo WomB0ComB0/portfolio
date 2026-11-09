@@ -74,6 +74,10 @@ export function IndexCopyButton({
     return () => window.clearTimeout(timer);
   }, [done]);
 
+  /**
+   * Copies the value, shows the check and announces it. Never rejects: where the clipboard is
+   * blocked, the polite line reads the value out instead.
+   */
   const copy = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(value);

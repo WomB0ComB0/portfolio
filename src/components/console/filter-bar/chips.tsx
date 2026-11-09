@@ -137,6 +137,7 @@ export function FilterBarChips({
   const current = items.find((item) => item.current)?.slug ?? '';
   const listRef = useRef<HTMLUListElement>(null);
   const pillReady = usePill(listRef, current, layout);
+  /** The noun a screen reader hears after a chip's count: "1 certificate", "20 certificates". */
   const nounOf = (count: number): string => (count === 1 ? model.noun.one : model.noun.many);
 
   return (

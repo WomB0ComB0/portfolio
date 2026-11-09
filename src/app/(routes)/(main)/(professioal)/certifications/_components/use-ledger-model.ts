@@ -67,6 +67,11 @@ export function useLedgerModel(
     q: query,
   };
 
+  /**
+   * Sets one facet through the Ledger's hook and keeps the other facet as it is. An issuer slug
+   * becomes the hook's IssuerFilter (a family, or Other's chip); All, or a slug the ledger cannot
+   * place (Other on a ledger without one), becomes null.
+   */
   const choose = (key: CertificationFacet, slug: string | null): void =>
     key === 'issuer'
       ? filters.choose({
@@ -85,9 +90,14 @@ export function useLedgerModel(
       setQuery: filters.search,
       submit: filters.submit,
       choose,
+      /** Both facets are single-select: the current value clears, any other replaces it. */
       toggle: (key, slug) => choose(key, draft[key].includes(slug) ? null : slug),
       clearAll: filters.clearAll,
     },
+    /**
+     * Links in the Ledger's own format (filtersHref): the patch over the current choices and the
+     * normalised search, so a chip's href matches the URL the hook writes.
+     */
     hrefFor: (patch) =>
       filtersHref({
         issuer: patched(patch, 'issuer', choices.issuer?.slug ?? null),

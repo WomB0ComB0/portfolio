@@ -67,10 +67,12 @@ const TECH_KEYS: Readonly<Record<string, string>> = {
   tailwindcss: 'tailwind',
 };
 
+/** A record's own value for `key`, or null (never one from Object.prototype). */
 const own = (record: Readonly<Record<string, string>>, key: string): string | null =>
   Object.hasOwn(record, key) ? (record[key] ?? null) : null;
 const techKey = (raw: string): string | null =>
   own(TECH_KEYS, raw.toLowerCase().replaceAll(/[^a-z0-9]+/g, ''));
+/** ?category as a kind: today's slug, an old free-text category's kind, or null to drop it. */
 const kindOf = (raw: string): string | null =>
   Object.hasOwn(KIND_LABELS, raw) ? raw : own(LEGACY_KIND, raw);
 
@@ -82,6 +84,7 @@ export const projects = defineFilters<Project, 'category' | 'tech'>({
     category: {
       label: 'Kind',
       valuesOf: (p) => [p.kind],
+      /** A kind's label, else the slug. */
       labelOf: (slug) => KIND_LABELS[slug] ?? slug,
       values: ['tools', 'apps', 'hackathons', 'websites'],
       resolve: kindOf,
@@ -91,6 +94,7 @@ export const projects = defineFilters<Project, 'category' | 'tech'>({
       label: 'Technology',
       multiple: true,
       valuesOf: (p) => p.techs,
+      /** A technology's label, else the slug. */
       labelOf: (slug) => TECH_LABELS[slug] ?? slug,
       resolve: techKey,
       scope: (labels) => `with ${labels.join(' or ')}`,

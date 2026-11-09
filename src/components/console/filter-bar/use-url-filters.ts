@@ -44,7 +44,7 @@ export function useUrlFilters<T, K extends string>(
 ): BuiltFilterModel<T> {
   const [raw, setRaw] = useQueryStates(schema.parsers, URL_OPTIONS);
   const [touched, setTouched] = useState(false);
-  // The facets resolved (aliases, unknowns dropped); the search as typed, capped.
+  /** The facets resolved (aliases, unknowns dropped); the search as typed, capped. */
   const draft = useMemo<FilterState<K>>(
     () => ({ ...schema.resolve(raw), q: (raw.q ?? '').slice(0, schema.maxLength) }),
     [schema, raw],
@@ -55,6 +55,11 @@ export function useUrlFilters<T, K extends string>(
     [draft, deferredQuery, schema],
   );
 
+  /**
+   * Writes a state to the URL, empty values left out, and marks the page touched, so a list with
+   * no filter left is announced ("Showing all 5 projects") rather than kept quiet. nuqs updates
+   * its state at once; the URL write is not awaited.
+   */
   const write = (next: FilterState<K>): void => {
     setTouched(true);
     void setRaw({

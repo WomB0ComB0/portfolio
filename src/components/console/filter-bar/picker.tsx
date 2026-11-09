@@ -115,6 +115,7 @@ function usePinnedOnOpen(panelId: string, chosen: readonly string[]): readonly s
   useEffect(() => {
     const panel = document.getElementById(panelId);
     if (!panel) return;
+    /** Pins the values chosen at the moment the panel opens; closing it changes nothing. */
     const onToggle = (event: Event): void => {
       if ((event as ToggleEvent).newState === 'open') setPinned(latest.current);
     };
@@ -139,6 +140,7 @@ export function FilterBarPicker({
   const chosen = model.draft[facet] ?? [];
   const pinned = usePinnedOnOpen(panelId, chosen);
   const options = model.options[facet]?.options;
+  /** The options, chosen-at-open first; none when the model has none for this facet. */
   const sorted = useMemo(() => ordered(options ?? [], pinned), [options, pinned]);
   const shown = visibleOptions({
     options: sorted,

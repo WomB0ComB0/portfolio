@@ -117,6 +117,7 @@ describe('FilterBar.Applied', () => {
 
 describe('FilterBar.Picker', () => {
   const trigger = (): HTMLElement => screen.getByRole('button', { name: /^Technology/ });
+  /** The popover the Technology button targets, found by its popovertarget id. */
   const panel = (): HTMLElement =>
     document.getElementById(trigger().getAttribute('popovertarget') ?? '') as HTMLElement;
   const options = (): string[] =>

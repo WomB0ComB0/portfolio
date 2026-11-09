@@ -196,6 +196,10 @@ function useFocusOnOpen(sheet: RefObject<HTMLDivElement | null>): void {
   useEffect(() => {
     const element = sheet.current;
     if (!element) return;
+    /**
+     * Fires on close too, so it acts only on open: the current chip, else the sheet's first link
+     * or control, else the bar's fallback takes focus in place (no scroll while it is on screen).
+     */
     const onToggle = (event: Event): void => {
       if ((event as ToggleEvent).newState !== 'open') return;
       const target =

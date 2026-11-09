@@ -96,6 +96,10 @@ export interface FilterSchema<T, K extends string> {
   readonly statusText: (input: StatusInput<K>) => string;
 }
 
+/**
+ * Whether parse() was given a URL source for the nuqs loader (a search string, URLSearchParams,
+ * a URL, or a Request where the runtime has one) rather than values already read.
+ */
 const isLoaderInput = (input: unknown): input is LoaderInput =>
   typeof input === 'string' ||
   input instanceof URLSearchParams ||
@@ -129,6 +133,7 @@ function facetOptions<T>(
   chosen: readonly string[],
 ): FacetOptions {
   const counts = countSlugs(base, spec);
+  /** A slug as an option: its label, its count in `base` (0 if none carry it), whether chosen. */
   const optionOf = (slug: string): FacetOption => ({
     slug,
     label: spec.labelOf(slug),
@@ -192,6 +197,10 @@ export function defineFilters<T, K extends string>(
     build(normaliseQuery(raw.q, maxLength), (key) => resolveFacet(key, raw[key]));
 
   const haystacks = new WeakMap<object, string>();
+  /**
+   * An item's search text in lower case, worked out once per object item (the WeakMap lets it go
+   * with the item); a primitive item cannot key a WeakMap, so it is lowered on every call.
+   */
   const haystackOf = (item: T): string => {
     if (typeof item !== 'object' || item === null) return input.search.haystack(item).toLowerCase();
     const known = haystacks.get(item);
@@ -201,6 +210,10 @@ export function defineFilters<T, K extends string>(
     return text;
   };
 
+  /**
+   * Whether an item passes the search and every facet (AND across facets, OR within one). The
+   * facet named by `except` is skipped, which is how its own options are counted disjunctively.
+   */
   const match = (item: T, state: FilterState<K>, except?: K): boolean =>
     (state.q === '' || haystackOf(item).includes(state.q.toLowerCase())) &&
     keys.every((key) => {
@@ -212,6 +225,10 @@ export function defineFilters<T, K extends string>(
       );
     });
 
+  /**
+   * A new state with the patch's keys replaced: a string is one value, null or undefined clears,
+   * and a key the patch does not name keeps its values. ?q takes the first value given.
+   */
   const patch = (state: FilterState<K>, change: FilterPatch<K>): FilterState<K> => {
     /** The values the patch gives a key, or undefined when it leaves the key alone. */
     const changedValues = (key: K | 'q'): readonly string[] | undefined => {
@@ -241,9 +258,11 @@ export function defineFilters<T, K extends string>(
   const only = (key: K, value: string | readonly string[] | null): FilterPatch<K> =>
     ({ [key]: value }) as unknown as FilterPatch<K>;
 
+  /** Whether the search or any facet narrows the items. */
   const isFiltered = (state: FilterState<K>): boolean =>
     state.q !== '' || keys.some((key) => state[key].length > 0);
 
+  /** How the empty state names a facet's chosen values: its own scope(), else "in A or B". */
   const scopeOf = (state: FilterState<K>, key: K): string => {
     const spec = facets[key];
     return (spec.scope ?? defaultScope)(state[key].map((slug) => spec.labelOf(slug)));
@@ -258,6 +277,7 @@ export function defineFilters<T, K extends string>(
     parsers,
     load: (source) => loader(source) as RawFilterValues<K>,
     resolve,
+    /** A URL source goes through the loader first; values already read go straight to resolve(). */
     parse: (source) =>
       resolve(isLoaderInput(source) ? (loader(source) as RawFilterValues<K>) : source),
     empty: () => build('', () => []),
@@ -276,6 +296,10 @@ export function defineFilters<T, K extends string>(
     serialize,
     hrefFor: (state, change) => serialize(patch(state, change)),
     choose: (state, key, slug) => patch(state, only(key, slug)),
+    /**
+     * A chosen slug is removed; any other is added to a multi-select facet's values, or replaces
+     * a single-select facet's one.
+     */
     toggle: (state, key, slug) => {
       const chosen = state[key];
       const next = chosen.includes(slug)
