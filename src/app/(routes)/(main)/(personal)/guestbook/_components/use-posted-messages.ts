@@ -29,15 +29,17 @@
  * all the same, so the card says it couldn't be confirmed, and that posting it again as it is
  * won't add it twice: that post keeps its requestId, and the next post of the same text by the
  * same visitor (their uid) is sent with it, so the API answers the message it stored, if it did,
- * instead of storing another. The requestId is kept until a post with it is confirmed or refused
- * as already used (409), through other texts posted meanwhile, through answers that stored nothing
- * (a 429, say) and through other visitors' posts on this page. A post that went without a
- * requestId (no crypto.randomUUID) has nothing to make a repeat safe, so the card says to check
- * the list before posting it again instead. The list is refreshed at once and once more after
- * {@link LIST_RECHECK_MS}: each server instance caches its list for GUESTBOOK_TTL_MS and a post
- * expires it only on the instance that handled it, and after a timeout the write may still be
- * running, so the first refresh can miss a stored message. The board hides a posted row once the
- * server list includes its id.
+ * instead of storing another. Each such requestId (the latest {@link UNCONFIRMED_KEPT}, one per
+ * visitor and text) is kept until a post with it is confirmed or refused as already used (409),
+ * through other texts posted meanwhile (unconfirmed ones too), through answers that stored nothing
+ * and through other visitors' posts on this page. A rate-limited repeat (429) stored nothing, but
+ * the post before it may be stored, so the card says it couldn't be confirmed, not that it wasn't
+ * posted. A post that went without a requestId (no crypto.randomUUID) has nothing to make a repeat
+ * safe, so the card says to check the list before posting it again instead. Whenever a failed post
+ * may be stored, the list is refreshed at once and once more after {@link LIST_RECHECK_MS}: each
+ * server instance caches its list for GUESTBOOK_TTL_MS and a post expires it only on the instance
+ * that handled it, and after a timeout the write may still be running, so the first refresh can
+ * miss a stored message. The board hides a posted row once the server list includes its id.
  */
 
 import { useRouter } from 'next/navigation';
@@ -69,10 +71,15 @@ export const POST_UNCONFIRMED =
 /** May be stored, and was sent without a requestId: posting it again could store it twice. */
 export const POST_UNCONFIRMED_CHECK_LIST =
   "We couldn't confirm your message was posted. It's back in the box. The list will update in about a minute; if your message isn't there then, post it again.";
+/** A repeat was rate limited (stored nothing), but the post before it may be stored. */
+export const POST_RATE_LIMITED_UNCONFIRMED =
+  "We couldn't confirm your message was posted, and there have been a few from here just now. It's back in the box. The list will update in about a minute; if your message isn't there then, try again in a few minutes.";
 
 /** The API has this post's requestId already, for other text or a message since removed. */
 const HTTP_CONFLICT = 409;
 const HTTP_TOO_MANY_REQUESTS = 429;
+/** How many posts that may have been stored are remembered; past that, the oldest is forgotten. */
+const UNCONFIRMED_KEPT = 5;
 /** Past the server's list cache, for a write that lands late and a reload that takes a moment. */
 const RECHECK_MARGIN_MS = 5_000;
 /**
@@ -82,13 +89,19 @@ const RECHECK_MARGIN_MS = 5_000;
 export const LIST_RECHECK_MS = GUESTBOOK_TTL_MS + RECHECK_MARGIN_MS;
 
 /**
- * What the card says for a post that failed with `error`. One that may be stored says a repeat is
- * stored once only when it was sent with a requestId.
+ * What the card says for a post that failed with `error`; `mayBeStored` when this post, or an
+ * earlier one of the same text by the same visitor, may have been stored. One that may be stored
+ * says a repeat is stored once only when it was sent with a requestId; a rate-limited repeat of one
+ * says it couldn't be confirmed, not that it wasn't posted.
  */
-const failureMessage = (error: unknown, requestId: string | undefined): string => {
+const failureMessage = (
+  error: unknown,
+  requestId: string | undefined,
+  mayBeStored: boolean,
+): string => {
   if (needsSignIn(error)) return POST_SIGNED_OUT;
   if (error instanceof PostFailedError && error.status === HTTP_TOO_MANY_REQUESTS) {
-    return POST_RATE_LIMITED;
+    return mayBeStored ? POST_RATE_LIMITED_UNCONFIRMED : POST_RATE_LIMITED;
   }
   if (!isOutcomeUnknown(error)) return POST_FAILED;
   return requestId === undefined ? POST_UNCONFIRMED_CHECK_LIST : POST_UNCONFIRMED;
@@ -104,30 +117,38 @@ interface UnconfirmedPost {
   readonly requestId: string | undefined;
 }
 
-/**
- * The requestId for `uid` to post `text` with: the unconfirmed post's when it is theirs and has
- * that text, else a new one. Another visitor never gets it, so their post can't clear it.
- */
-const requestIdFor = (
-  unconfirmed: UnconfirmedPost | null,
-  uid: string | null,
-  text: string,
-): string | undefined =>
-  unconfirmed?.uid === uid && unconfirmed.text === text ? unconfirmed.requestId : newRequestId();
+/** Whether `a` and `b` are the same visitor's post of the same text. */
+const samePost = (a: UnconfirmedPost, b: UnconfirmedPost): boolean =>
+  a.uid === b.uid && a.text === b.text;
 
 /**
- * The unconfirmed post to keep once `sent` failed with `error`: `sent` when it may have been
- * stored; none when the API refused its requestId as already used (409, so the next post gets a
- * new one); else the one kept before, since nothing was stored.
+ * The requestId for `uid` to post `text` with: the one their unconfirmed post of that text was
+ * sent with, else a new one. Another visitor never gets it, so their post can't clear it.
+ */
+function requestIdFor(
+  unconfirmed: readonly UnconfirmedPost[],
+  uid: string | null,
+  text: string,
+): string | undefined {
+  const earlier = unconfirmed.find((post) => post.uid === uid && post.text === text);
+  return earlier ? earlier.requestId : newRequestId();
+}
+
+/**
+ * The unconfirmed posts to keep once `sent` failed with `error`: with `sent` first when it may
+ * have been stored (at most {@link UNCONFIRMED_KEPT}); without its text when the API refused its
+ * requestId as already used (409, so the next post gets a new one); else as they were, since
+ * nothing was stored.
  */
 function unconfirmedAfter(
-  kept: UnconfirmedPost | null,
+  kept: readonly UnconfirmedPost[],
   sent: UnconfirmedPost,
   error: unknown,
-): UnconfirmedPost | null {
-  if (isOutcomeUnknown(error)) return sent;
+): readonly UnconfirmedPost[] {
+  const others = kept.filter((post) => !samePost(post, sent));
+  if (isOutcomeUnknown(error)) return [sent, ...others].slice(0, UNCONFIRMED_KEPT);
   const spent = error instanceof PostFailedError && error.status === HTTP_CONFLICT;
-  return spent && kept?.requestId === sent.requestId ? null : kept;
+  return spent ? others : kept;
 }
 
 /** A message posted from this page; `key` stays the same when the stored message arrives. */
@@ -192,8 +213,8 @@ export function usePostedMessages(): PostedMessages {
   const { now: refreshNow, nowAndLater: refreshNowAndLater } = useListRefresh();
   const [rows, setRows] = useState<readonly PostedRow[]>([]);
   const posts = useRef(0);
-  /** The last post that may have been stored; posting its text again reuses its requestId. */
-  const unconfirmed = useRef<UnconfirmedPost | null>(null);
+  /** Posts that may have been stored, newest first; posting one's text again reuses its requestId. */
+  const unconfirmed = useRef<readonly UnconfirmedPost[]>([]);
 
   const post = useCallback<PostMessage>(
     async (draft) => {
@@ -213,7 +234,7 @@ export function usePostedMessages(): PostedMessages {
       ]);
       try {
         const saved = await postGuestbookMessage(draft, sent.requestId);
-        if (unconfirmed.current?.requestId === sent.requestId) unconfirmed.current = null;
+        unconfirmed.current = unconfirmed.current.filter((kept) => !samePost(kept, sent));
         setRows((current) =>
           current.map((row) => (row.key === key ? { key, pending: false, message: saved } : row)),
         );
@@ -222,12 +243,14 @@ export function usePostedMessages(): PostedMessages {
       } catch (error) {
         logger.error('Guestbook post failed:', error);
         unconfirmed.current = unconfirmedAfter(unconfirmed.current, sent, error);
+        // This post, or an earlier one of this text by this visitor, may be stored.
+        const mayBeStored = unconfirmed.current.some((kept) => samePost(kept, sent));
         setRows((current) => current.filter((row) => row.key !== key));
         // It may be stored all the same, or be stored a little later: the list shows it if it is.
-        if (isOutcomeUnknown(error)) refreshNowAndLater();
+        if (mayBeStored) refreshNowAndLater();
         return {
           ok: false,
-          error: failureMessage(error, sent.requestId),
+          error: failureMessage(error, sent.requestId, mayBeStored),
           needsSignIn: needsSignIn(error),
         };
       }

@@ -30,8 +30,9 @@
  *   expired;
  * - every post carries a requestId (a UUID), which the API stores once per poster: the same
  *   visitor posting the same text again after an unconfirmed outcome sends the same one (kept
- *   through other texts, through answers that stored nothing, such as a 429 or a 401's resend,
- *   and through someone else's posts on this page), and a confirmed post, a changed text or a 409
+ *   through other texts, unconfirmed ones included, through answers that stored nothing, such as a
+ *   429 or a 401's resend, and through someone else's posts on this page; a rate-limited repeat
+ *   still says the post couldn't be confirmed), and a confirmed post, a changed text or a 409
  *   (the API had that requestId for other text) gets a new one; a browser without
  *   crypto.randomUUID posts without one;
  * - focus never drops to the page: Post stays focusable while it sends (aria-disabled, never
@@ -393,6 +394,7 @@ describe('the compose box while a post is in flight', () => {
     send('Hello there');
     await act(async () => {});
 
+    expect(screen.getByRole('alert')).toHaveTextContent("Your message wasn't posted");
     expect(screen.getByRole('alert')).toHaveTextContent('a few minutes');
     expect(box()).toHaveValue('Hello there');
     expect(h.refresh).not.toHaveBeenCalled();
@@ -704,6 +706,43 @@ describe('posting the same text again, which the API stores once', () => {
 
     expect(requestIdOf(1)).not.toBe(requestIdOf(0));
     expect(requestIdOf(2)).toBe(requestIdOf(0));
+  });
+
+  it('keeps each unconfirmed post’s request id when another text is unconfirmed too', async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(201, { ...SAVED, message: 'hello' }))
+      .mockResolvedValueOnce(answer(201, { ...SAVED, id: 'new-2', message: 'Something else' }));
+    render(board([EXISTING]));
+    await sendNow('hello');
+    await sendNow('Something else');
+
+    await sendNow('hello');
+    await sendNow('Something else');
+
+    expect(requestIdOf(1)).not.toBe(requestIdOf(0));
+    expect(requestIdOf(2)).toBe(requestIdOf(0));
+    expect(requestIdOf(3)).toBe(requestIdOf(1));
+  });
+
+  it('still says a rate-limited repeat of an unconfirmed post may be posted', async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(429, { error: 'Too many requests' }));
+    render(board([EXISTING]));
+    await sendNow('hello');
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+
+    await postAgain();
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent("We couldn't confirm your message was posted");
+    expect(alert).toHaveTextContent('a few minutes');
+    expect(alert).not.toHaveTextContent("wasn't posted");
+    expect(box()).toHaveValue('hello');
+    // The list is checked again, so it shows the message if the first post stored it.
+    expect(h.refresh).toHaveBeenCalledTimes(2);
   });
 
   it('keeps the request id through a rate-limited repeat, which stored nothing', async () => {

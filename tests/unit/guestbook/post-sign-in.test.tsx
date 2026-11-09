@@ -37,7 +37,7 @@
  *   refreshed (Firebase still hands that token over after a sign-out).
  * - the sign-out after a second refusal is asked of Firebase in the same run as the check that the
  *   session which sent the post is still signed in, so a sign-in from another tab that Firebase
- *   applies right after that check is the one left signed in.
+ *   applies right after that check is the one left signed in, on the card as in Firebase.
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -574,6 +574,8 @@ describe('a post still in flight when someone else signs in', () => {
 
   it('signs out only the refused session when another tab signs in right after the check', async () => {
     await signIn('google.com');
+    renderBoard();
+    expect(screen.getByText(/Signed in as Jane Example/)).toBeInTheDocument();
     const jane = h.auth.currentUser;
     const guest = user(null, async () => GUEST_TOKEN);
     const endedWhileCurrent: Array<FakeUser | null> = [];
@@ -586,15 +588,21 @@ describe('a post still in flight when someone else signs in', () => {
       return refused();
     });
 
-    const error = await postGuestbookMessage({
-      authorName: 'Jane Example',
-      message: 'Hello',
-    }).catch((failure: unknown) => failure);
+    let error: unknown;
+    await act(async () => {
+      error = await postGuestbookMessage({
+        authorName: 'Jane Example',
+        message: 'Hello',
+      }).catch((failure: unknown) => failure);
+    });
 
     expect(error).toBeInstanceOf(PostFailedError);
     expect((error as PostFailedError).status).toBe(401);
     expect(endedWhileCurrent).toEqual([jane]);
     expect(h.auth.currentUser).toBe(guest);
+    // The page follows Firebase: the guest is signed in here too, not offered the sign-in choices.
+    expect(screen.getByText(/Signed in as Anonymous/)).toBeInTheDocument();
+    expect(box()).toBeInTheDocument();
   });
 
   it('still asks to sign in again when the visitor only signed out while it was sent', async () => {
