@@ -15,14 +15,17 @@
  */
 
 /**
- * @file Posting a guestbook message to /api/v1/messages from the browser. Never retried after a
- * timeout, an error or any answer but a 401: the API adds an entry per POST, so a retry could post
- * it twice.
+ * @file Posting a guestbook message to /api/v1/messages from the browser. Never retried on its own
+ * after a timeout, an error or any answer but a 401. Each post carries a requestId (a UUID): the
+ * API stores one entry per poster and requestId and answers a repeat with the stored message, so
+ * the card sends the same requestId when the visitor posts the same text again after an outcome
+ * it couldn't confirm (use-posted-messages.ts), and that post is stored once.
  *
  * The post carries the visitor's Firebase ID token (`Authorization: Bearer`), which the API
- * verifies; the body is only the text, since the API takes the name from the sign-in. A 401 means
- * the API stored nothing, so the post is sent once more with a token Firebase refreshes on purpose
- * (the cached one can look expired to the server when this device's clock is behind). Refused
+ * verifies; the body is the text and the requestId, since the API takes the name from the
+ * sign-in. A 401 means the API stored nothing, so the post is sent once more (the same requestId)
+ * with a token Firebase refreshes on purpose (the cached one can look expired to the server when
+ * this device's clock is behind). Refused
  * again, the session is no use for posting: the visitor is signed out, so the card offers sign-in
  * (a sign-out that stalls is waited for no longer than the post, and the 401 is answered anyway).
  * The retry and the sign-out are only for the session that sent the post: if the visitor signed
@@ -102,9 +105,9 @@ const isClientError = (status: number): boolean => status >= 400 && status < 500
 
 /**
  * Whether a failed post may have been stored all the same. A post never sent, and a 4xx answer
- * (invalid text, a bad body, a refused sign-in, rate limited), mean the API stored nothing. A
- * timeout or a dropped connection does not stop the server's write, and a 5xx or an unreadable 2xx
- * can follow one that went through.
+ * (invalid text, a bad body, a refused sign-in, a requestId already used for other text, rate
+ * limited), mean the API stored nothing. A timeout or a dropped connection does not stop the
+ * server's write, and a 5xx or an unreadable 2xx can follow one that went through.
  */
 export function isOutcomeUnknown(error: unknown): boolean {
   if (error instanceof PostNotSentError) return false;
@@ -138,12 +141,27 @@ async function signInToken(forceRefresh: boolean): Promise<string> {
   return token;
 }
 
-/** Sends `draft` once with `token`. */
-function send(draft: GuestbookDraft, token: string): Promise<Response> {
+/**
+ * A new requestId for a post (a UUID), or undefined where the browser has no
+ * crypto.randomUUID (a page not served over HTTPS or from localhost): that post goes without one,
+ * and the API gives it an id of its own, as before requestIds.
+ */
+export function newRequestId(): string | undefined {
+  const { crypto } = globalThis;
+  return typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : undefined;
+}
+
+/** Sends `draft` once with `token`, and `requestId` when there is one. */
+function send(
+  draft: GuestbookDraft,
+  token: string,
+  requestId: string | undefined,
+): Promise<Response> {
   return fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ message: draft.message }),
+    // JSON leaves an undefined requestId out.
+    body: JSON.stringify({ message: draft.message, requestId }),
     signal: AbortSignal.timeout(POST_TIMEOUT_MS),
   });
 }
@@ -158,20 +176,24 @@ function stillSignedInAs(session: SessionHandle | null): void {
 }
 
 /**
- * Sends `draft`, and once more with a token refreshed on purpose if the API refused the first
- * (a 401 stores nothing). A second 401 signs the visitor out, waiting at most POST_TIMEOUT_MS,
- * before it is answered. Both only while the session that sent it is still the one signed in.
+ * Sends `draft`, and once more (the same `requestId`) with a token refreshed on purpose if the API
+ * refused the first (a 401 stores nothing). A second 401 signs the visitor out, waiting at most
+ * POST_TIMEOUT_MS, before it is answered. Both only while the session that sent it is still the
+ * one signed in.
  */
-async function sendSignedIn(draft: GuestbookDraft): Promise<Response> {
+async function sendSignedIn(
+  draft: GuestbookDraft,
+  requestId: string | undefined,
+): Promise<Response> {
   // Taken in the same tick as signInToken() asks that session for its token.
   const session = currentSession();
-  const first = await send(draft, await signInToken(false));
+  const first = await send(draft, await signInToken(false), requestId);
   if (first.status !== HTTP_UNAUTHORIZED) return first;
   stillSignedInAs(session);
   const fresh = await signInToken(true);
   // The refresh is a round trip: the visitor may have signed out, or someone else in, meanwhile.
   stillSignedInAs(session);
-  const second = await send(draft, fresh);
+  const second = await send(draft, fresh, requestId);
   if (second.status !== HTTP_UNAUTHORIZED) return second;
   stillSignedInAs(session);
   try {
@@ -183,9 +205,16 @@ async function sendSignedIn(draft: GuestbookDraft): Promise<Response> {
   return second;
 }
 
-/** Posts `draft` as the signed-in visitor; resolves with the stored message, or rejects. */
-export async function postGuestbookMessage(draft: GuestbookDraft): Promise<GuestbookMessage> {
-  const response = await sendSignedIn(draft);
+/**
+ * Posts `draft` as the signed-in visitor, with `requestId` (from {@link newRequestId}, or the one
+ * an unconfirmed post of the same text was sent with); resolves with the stored message, which is
+ * the one stored before when the API has that requestId already, or rejects.
+ */
+export async function postGuestbookMessage(
+  draft: GuestbookDraft,
+  requestId?: string,
+): Promise<GuestbookMessage> {
+  const response = await sendSignedIn(draft, requestId);
   if (!response.ok) throw new PostFailedError(response.status);
   const saved = parsePostedMessage(await response.json());
   if (!saved) throw new Error('The guestbook API answered something other than a message');

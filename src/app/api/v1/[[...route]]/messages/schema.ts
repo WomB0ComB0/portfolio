@@ -21,9 +21,13 @@ export const messagesSchema = {
   // The browser checks a draft first; this limit holds for any client, and is checked before the
   // sign-in token. createMessage then checks the text itself (validateUserInput) and answers 400
   // when nothing postable is left. There is no author field: the name comes from the verified
-  // sign-in (./poster.ts), and Elysia drops any other field a client sends.
+  // sign-in (./poster.ts), and Elysia drops any other field a client sends. requestId is the
+  // browser's id for one draft, sent again when the same text is posted again after an outcome it
+  // couldn't confirm, so the post is stored once (./handlers.ts). It is optional: a page loaded
+  // before it existed still posts.
   'messages.post.body': t.Object({
     message: t.String({ minLength: 1, maxLength: MESSAGE_MAX_LENGTH }),
+    requestId: t.Optional(t.String({ format: 'uuid' })),
   }),
   'messages.post.response': t.Object({
     id: t.String(),

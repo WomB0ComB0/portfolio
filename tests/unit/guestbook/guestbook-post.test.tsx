@@ -24,13 +24,21 @@
  *   read-only while the post is in flight) and says so, without marking the text invalid;
  * - only an answer that refused the post (4xx) says it wasn't posted; a timeout, a dropped
  *   connection, a 5xx or an unreadable answer may follow a stored write, so the card says the post
- *   couldn't be confirmed (never "try again" for a stored post), the server list is refreshed at
- *   once, and once more after the server's list cache has expired, which the card tells the
- *   visitor to wait for before posting again;
+ *   couldn't be confirmed (never "try again" for a stored post) and that posting it again as it is
+ *   won't add it twice (or, for a post sent without a requestId, to check the list before posting
+ *   again), the server list is refreshed at once, and once more after the server's list cache has
+ *   expired;
+ * - every post carries a requestId (a UUID), which the API stores once per poster: the same
+ *   visitor posting the same text again after an unconfirmed outcome sends the same one (kept
+ *   through other texts, through answers that stored nothing, such as a 429 or a 401's resend,
+ *   and through someone else's posts on this page), and a confirmed post, a changed text or a 409
+ *   (the API had that requestId for other text) gets a new one; a browser without
+ *   crypto.randomUUID posts without one;
  * - focus never drops to the page: Post stays focusable while it sends (aria-disabled, never
  *   disabled), and afterwards focus is in the box, unless the visitor moved it elsewhere;
  * - the text goes to the API exactly as typed (never HTML-escaped, no email, no author: the server
- *   takes the name from the sign-in), with the visitor's Firebase ID token as a bearer token;
+ *   takes the name from the sign-in), with its requestId and the visitor's Firebase ID token as a
+ *   bearer token;
  * - a 401 stores nothing, so the post is sent once more with a token Firebase refreshes on
  *   purpose (a skewed clock can make the cached one look expired to the server); when that is
  *   refused too, the visitor is signed out, so the card offers sign-in as its message says (a
@@ -55,6 +63,8 @@ const h = vi.hoisted(() => ({
   signOut: vi.fn(),
   /** Ada's one sign-in, the same for every post here. */
   session: { kind: 'synthetic-session' },
+  /** Synthetic: the signed-in visitor's uid, which a test may switch to someone else's. */
+  uid: { current: 'uid-ada' },
 }));
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: h.refresh }) }));
@@ -71,6 +81,7 @@ vi.mock('@/core/auth', () => ({
   getIdToken: h.getIdToken,
   signOut: h.signOut,
   currentSession: () => h.session,
+  currentUid: () => h.uid.current,
 }));
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
@@ -88,6 +99,8 @@ import { logger } from '@/utils/logging';
 
 /** JWT-shaped, synthetic: what the mocked auth store hands the post. */
 const TOKEN = 'test-header.test-payload.test-signature';
+/** A version 4 UUID, as crypto.randomUUID() gives: the post's requestId. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const EXISTING: GuestbookMessage = {
   id: 'm1',
@@ -148,6 +161,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', h.fetch);
   h.getIdToken.mockResolvedValue(TOKEN);
   h.signOut.mockResolvedValue(undefined);
+  h.uid.current = 'uid-ada';
 });
 
 afterEach(() => {
@@ -176,7 +190,10 @@ describe('posting a guestbook message', () => {
     expect(url).toBe('/api/v1/messages');
     expect(init.method).toBe('POST');
     expect(new Headers(init.headers).get('authorization')).toBe(`Bearer ${TOKEN}`);
-    expect(JSON.parse(String(init.body))).toEqual({ message: "It's me & you" });
+    expect(JSON.parse(String(init.body))).toEqual({
+      message: "It's me & you",
+      requestId: expect.stringMatching(UUID),
+    });
 
     await settle(answer(201, SAVED));
 
@@ -244,7 +261,7 @@ describe('posting a guestbook message', () => {
     expect(h.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('tells the visitor to wait for the list to update, never "in a moment"', async () => {
+  it('says posting it again as it is will not add it twice, and that the list will update', async () => {
     h.fetch.mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'));
     render(board([EXISTING]));
 
@@ -252,8 +269,9 @@ describe('posting a guestbook message', () => {
     await act(async () => {});
 
     const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent("posting it again as it is won't add it twice");
     expect(alert).toHaveTextContent('The list will update in about a minute');
-    expect(alert).toHaveTextContent("if your message isn't there then, post it again");
+    expect(alert).not.toHaveTextContent("if your message isn't there then");
     expect(alert).not.toHaveTextContent('in a moment');
   });
 
@@ -606,6 +624,184 @@ describe('when the sign-in is not accepted', () => {
 
     expect(h.getIdToken).toHaveBeenCalledTimes(2);
     expect(h.fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('posting the same text again, which the API stores once', () => {
+  const timedOut = () => new DOMException('signal timed out', 'TimeoutError');
+  /** The requestId the post sent with fetch call `call`. */
+  const requestIdOf = (call: number): unknown =>
+    JSON.parse(String((h.fetch.mock.calls[call] as [string, RequestInit])[1].body)).requestId;
+  const postAgain = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Post message' }));
+    await act(async () => {});
+  };
+  const sendNow = async (text: string) => {
+    send(text);
+    await act(async () => {});
+  };
+
+  it.each([
+    ['a timeout', () => h.fetch.mockRejectedValueOnce(timedOut())],
+    ['a dropped connection', () => h.fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))],
+    ['a 500', () => h.fetch.mockResolvedValueOnce(answer(500, { error: 'boom' }))],
+    [
+      'an answer that is not a message',
+      () => h.fetch.mockResolvedValueOnce(answer(201, { unexpected: true })),
+    ],
+  ])('sends the same request id with the same text after %s', async (_case, failFirst) => {
+    failFirst();
+    h.fetch.mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+    await sendNow("It's me & you");
+    expect(box()).toHaveValue("It's me & you");
+
+    await postAgain();
+
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+    expect(requestIdOf(0)).toMatch(UUID);
+    expect(requestIdOf(1)).toBe(requestIdOf(0));
+    expect(screen.getByRole('status')).toHaveTextContent('Posted.');
+  });
+
+  it('sends a new request id for every post once the last one is confirmed', async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(201, SAVED))
+      .mockResolvedValueOnce(answer(201, { ...SAVED, id: 'new-2' }));
+    render(board([EXISTING]));
+    await sendNow("It's me & you");
+    await postAgain();
+
+    await sendNow("It's me & you");
+
+    expect(requestIdOf(1)).toBe(requestIdOf(0));
+    expect(requestIdOf(2)).toMatch(UUID);
+    expect(requestIdOf(2)).not.toBe(requestIdOf(0));
+  });
+
+  it('sends a new request id when the text was changed', async () => {
+    h.fetch.mockRejectedValueOnce(timedOut()).mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+    await sendNow('hello');
+
+    await sendNow('hello there');
+
+    expect(requestIdOf(1)).toMatch(UUID);
+    expect(requestIdOf(1)).not.toBe(requestIdOf(0));
+  });
+
+  it('keeps the unconfirmed post’s request id while other text is posted', async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(201, { ...SAVED, id: 'new-2', message: 'Something else' }))
+      .mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+    await sendNow('hello');
+    await sendNow('Something else');
+
+    await sendNow('hello');
+
+    expect(requestIdOf(1)).not.toBe(requestIdOf(0));
+    expect(requestIdOf(2)).toBe(requestIdOf(0));
+  });
+
+  it('keeps the request id through a rate-limited repeat, which stored nothing', async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(429, { error: 'Too many requests' }))
+      .mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+    await sendNow('hello');
+    await postAgain();
+    expect(screen.getByRole('alert')).toHaveTextContent('a few minutes');
+
+    await postAgain();
+
+    expect(requestIdOf(0)).toMatch(UUID);
+    expect(requestIdOf(1)).toBe(requestIdOf(0));
+    expect(requestIdOf(2)).toBe(requestIdOf(0));
+  });
+
+  it('says a refused repeat (409) was not posted, and sends a new request id next time', async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(409, { error: 'Already sent with other text.' }))
+      .mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+    await sendNow('hello');
+    await postAgain();
+
+    expect(screen.getByRole('alert')).toHaveTextContent("Your message wasn't posted");
+    expect(box()).toHaveValue('hello');
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+
+    await postAgain();
+
+    expect(requestIdOf(1)).toBe(requestIdOf(0));
+    expect(requestIdOf(2)).toMatch(UUID);
+    expect(requestIdOf(2)).not.toBe(requestIdOf(0));
+  });
+
+  it('sends a post refused for its sign-in (401) once more with the same request id', async () => {
+    h.getIdToken.mockResolvedValueOnce(TOKEN).mockResolvedValueOnce('fresh-h.fresh-p.fresh-s');
+    h.fetch
+      .mockResolvedValueOnce(answer(401, { error: 'Sign in to post a message.' }))
+      .mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+
+    send("It's me & you");
+    await tokenFetched();
+    await tokenFetched();
+
+    expect(h.fetch).toHaveBeenCalledTimes(2);
+    expect(requestIdOf(0)).toMatch(UUID);
+    expect(requestIdOf(1)).toBe(requestIdOf(0));
+  });
+
+  it("keeps a visitor's unconfirmed request id to them when someone else signs in on this page", async () => {
+    h.fetch
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(answer(201, { ...SAVED, id: 'new-grace', message: 'hello' }))
+      .mockResolvedValueOnce(answer(201, { ...SAVED, message: 'hello' }));
+    render(board([EXISTING]));
+    await sendNow('hello');
+
+    h.uid.current = 'uid-grace';
+    await sendNow('hello');
+    h.uid.current = 'uid-ada';
+    await sendNow('hello');
+
+    expect(requestIdOf(0)).toMatch(UUID);
+    expect(requestIdOf(1)).toMatch(UUID);
+    expect(requestIdOf(1)).not.toBe(requestIdOf(0));
+    expect(requestIdOf(2)).toBe(requestIdOf(0));
+  });
+
+  it("doesn't promise a repeat is stored once when the post went without a request id", async () => {
+    vi.stubGlobal('crypto', {});
+    h.fetch.mockRejectedValueOnce(timedOut());
+    render(board([EXISTING]));
+
+    await sendNow('hello');
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent("We couldn't confirm your message was posted");
+    expect(alert).toHaveTextContent("if your message isn't there then, post it again");
+    expect(alert).not.toHaveTextContent("won't add it twice");
+    expect(box()).toHaveValue('hello');
+  });
+
+  it('posts without a request id where the browser cannot make one (not a secure context)', async () => {
+    vi.stubGlobal('crypto', {});
+    h.fetch.mockResolvedValueOnce(answer(201, SAVED));
+    render(board([EXISTING]));
+
+    await sendNow("It's me & you");
+
+    const [, init] = h.fetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ message: "It's me & you" });
+    expect(screen.getByRole('status')).toHaveTextContent('Posted.');
   });
 });
 
