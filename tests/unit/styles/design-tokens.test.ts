@@ -443,6 +443,12 @@ describe('files the Live Console replaced', () => {
     expect(existsSync(fromRoot('src/lib/og/fonts/OFL.txt'))).toBe(true);
   });
 
+  it('deletes the last Kodchasan files and their licence', () => {
+    for (const file of ['Kodchasan-Bold.ttf', 'Kodchasan-Regular.ttf', 'OFL.txt']) {
+      expect(existsSync(fromRoot(`public/assets/fonts/${file}`)), file).toBe(false);
+    }
+  });
+
   it('renders the error pages in Geist, without LightRays', () => {
     const errorLayout = read('src/app/_client/errors/error-layout.tsx');
     expect(errorLayout).not.toContain('Kodchasan');
