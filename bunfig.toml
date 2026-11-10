@@ -28,8 +28,9 @@ peer = true
 production = false
 
 # Lockfile behavior
-# Write human-readable bun.lock instead of bun.lockb (optional)
-saveTextLockfile = false
+# Write the text bun.lock, which is committed (see .gitignore). Bun's default since 1.2, set
+# explicitly so a fresh install or Renovate lock file maintenance never writes bun.lockb.
+saveTextLockfile = true
 
 # No-op installs for validation in CI (off by default)
 dryRun = false
