@@ -57,18 +57,40 @@ export interface GuestbookStats {
   readonly firstMonth: string | null;
 }
 
-/** The count and the first message's month, for the header's stat strip. */
-export function guestbookStats(
-  messages: readonly GuestbookMessage[],
-  truncated: boolean,
-): GuestbookStats {
+/** The month of the earliest readable date among `messages`, or null when there is none. */
+function earliestMonth(messages: readonly GuestbookMessage[]): string | null {
   let first: number | null = null;
   for (const { createdAt } of messages) {
     const time = timeOf(createdAt);
     if (time !== null && (first === null || time < first)) first = time;
   }
+  return first === null ? null : MONTH.format(first);
+}
+
+/** The count and the first message's month, for the header's stat strip. */
+export function guestbookStats(
+  messages: readonly GuestbookMessage[],
+  truncated: boolean,
+): GuestbookStats {
   return {
     count: truncated ? `${messages.length}+` : messages.length,
-    firstMonth: first === null ? null : MONTH.format(first),
+    firstMonth: earliestMonth(messages),
+  };
+}
+
+/**
+ * The header's figures with `posted` counted too: stored messages posted on this page that the
+ * server list doesn't have yet. The count goes up by their number, unless the list was capped
+ * ('500+' stays as it is), and the first month comes from them only when the list had none. With
+ * nothing posted, `stats` itself.
+ */
+export function withPosted(
+  stats: GuestbookStats,
+  posted: readonly GuestbookMessage[],
+): GuestbookStats {
+  if (posted.length === 0) return stats;
+  return {
+    count: typeof stats.count === 'number' ? stats.count + posted.length : stats.count,
+    firstMonth: stats.firstMonth ?? earliestMonth(posted),
   };
 }

@@ -21,8 +21,9 @@
  *
  * The rows themselves are server-rendered and arrive as `children`, so every message is in the
  * page's HTML and nothing here fetches, paginates or animates. The island only adds what a
- * visitor posts on this page, at the top of the same <ol>, and drops a posted row once the
- * refreshed server list (`knownIds`) includes it.
+ * visitor posts on this page (from PostedMessagesProvider, which the header's count reads too), at
+ * the top of the same <ol>, and drops a posted row once the refreshed server list (`knownIds`)
+ * includes it.
  *
  * `data-state` on the list follows the site's contract: ready, stale (the last good list after a
  * failed reload), empty or error; the first message posted into an empty guestbook makes it ready.
@@ -41,7 +42,8 @@ import {
   LIST_TITLE_CLASS,
 } from './guestbook-classes';
 import { MessageRow } from './message-row';
-import { usePostedMessages } from './use-posted-messages';
+import { usePostedMessagesContext } from './posted-messages';
+import { unlisted } from './use-posted-messages';
 
 /** The server list's state as the page shows it. */
 export type BoardListState = 'ready' | 'stale' | 'empty' | 'error';
@@ -56,16 +58,16 @@ export interface GuestbookBoardProps {
   readonly children?: ReactNode;
 }
 
-/** The compose card and the list of messages. */
+/** The compose card and the list of messages; renders inside PostedMessagesProvider. */
 export function GuestbookBoard({
   knownIds,
   listState,
   notice,
   children,
 }: GuestbookBoardProps): ReactElement {
-  const { rows, post } = usePostedMessages();
+  const { rows, post } = usePostedMessagesContext();
   const known = useMemo(() => new Set(knownIds), [knownIds]);
-  const posted = rows.filter((row) => !known.has(row.message.id));
+  const posted = unlisted(rows, known);
   const firstPost = listState === 'empty' && posted.length > 0;
   const hasRows = posted.length > 0 || knownIds.length > 0;
 

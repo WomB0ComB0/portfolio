@@ -17,7 +17,8 @@
 /**
  * @file The /guestbook page, rendered on the server: a PageShell header with two figures, then
  * the client island (compose card and list) holding every message as a server-rendered row. A
- * visitor without JavaScript, and a crawler, read the whole guestbook in the HTML.
+ * visitor without JavaScript, and a crawler, read the whole guestbook in the HTML. Both sit in
+ * PostedMessagesProvider, so a message posted here is counted in the header once it is stored.
  */
 
 import type { JSX } from 'react';
@@ -27,9 +28,10 @@ import {
   GUESTBOOK_DESCRIPTION,
   GUESTBOOK_TITLE,
   GuestbookBoard,
-  GuestbookStatStrip,
+  GuestbookLiveStats,
   ListNotice,
   MessageRow,
+  PostedMessagesProvider,
 } from '@/app/(routes)/(main)/(personal)/guestbook/_components';
 import { guestbookStats } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/format';
 import { PageShell } from '@/components/console';
@@ -55,27 +57,31 @@ const listStateOf = (load: GuestbookLoad): BoardListState => {
  */
 export const Guestbook = ({ load }: GuestbookProps): JSX.Element => {
   const listState = listStateOf(load);
+  const knownIds = load.messages.map((message) => message.id);
   return (
-    <PageShell
-      title={GUESTBOOK_TITLE}
-      description={GUESTBOOK_DESCRIPTION}
-      stats={
-        <GuestbookStatStrip
-          stats={guestbookStats(load.messages, load.truncated)}
-          available={load.state !== 'error'}
-        />
-      }
-    >
-      <GuestbookBoard
-        knownIds={load.messages.map((message) => message.id)}
-        listState={listState}
-        notice={<ListNotice load={load} listState={listState} />}
+    <PostedMessagesProvider>
+      <PageShell
+        title={GUESTBOOK_TITLE}
+        description={GUESTBOOK_DESCRIPTION}
+        stats={
+          <GuestbookLiveStats
+            stats={guestbookStats(load.messages, load.truncated)}
+            knownIds={knownIds}
+            available={load.state !== 'error'}
+          />
+        }
       >
-        {load.messages.map((message) => (
-          <MessageRow key={message.id} message={message} />
-        ))}
-      </GuestbookBoard>
-    </PageShell>
+        <GuestbookBoard
+          knownIds={knownIds}
+          listState={listState}
+          notice={<ListNotice load={load} listState={listState} />}
+        >
+          {load.messages.map((message) => (
+            <MessageRow key={message.id} message={message} />
+          ))}
+        </GuestbookBoard>
+      </PageShell>
+    </PostedMessagesProvider>
   );
 };
 Guestbook.displayName = 'Guestbook';

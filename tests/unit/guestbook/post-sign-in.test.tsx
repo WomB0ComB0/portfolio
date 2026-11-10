@@ -107,6 +107,7 @@ vi.mock('@/config', () => ({
 }));
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
+import { PostedMessagesProvider } from '@/app/(routes)/(main)/(personal)/guestbook/_components/posted-messages';
 import {
   POST_TIMEOUT_MS,
   PostFailedError,
@@ -156,7 +157,11 @@ const box = () => screen.getByLabelText('Your message');
 const rows = () => Array.from(document.querySelectorAll('li[data-message-row]'));
 
 const renderBoard = () =>
-  render(<GuestbookBoard knownIds={[]} listState="empty" notice={<p>No messages yet</p>} />);
+  render(
+    <PostedMessagesProvider>
+      <GuestbookBoard knownIds={[]} listState="empty" notice={<p>No messages yet</p>} />
+    </PostedMessagesProvider>,
+  );
 
 const signInWith = async (name: RegExp) => {
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));

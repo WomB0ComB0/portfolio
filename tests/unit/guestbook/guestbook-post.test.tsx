@@ -18,8 +18,8 @@
  * @file Posting from the guestbook's client island, with the API mocked (fetch is stubbed; nothing
  * reaches the real guestbook):
  * - the message shows at the top of the list at once, marked as posting, and the box clears;
- * - the API's answer confirms it (its date replaces "Posting…"), the server list is refreshed,
- *   and once the server lists it the posted copy is not shown twice;
+ * - the API's answer confirms it (its date replaces "Posting…"), the server list is refreshed
+ *   once, and once the server lists it the posted copy is not shown twice;
  * - a failure removes the row again (rollback), puts the text back in the box exactly (the box is
  *   read-only while the post is in flight) and says so, without marking the text invalid;
  * - only an answer that refused the post (4xx) says it wasn't posted; a timeout, a dropped
@@ -87,6 +87,7 @@ vi.mock('@/core/auth', () => ({
 
 import { GuestbookBoard } from '@/app/(routes)/(main)/(personal)/guestbook/_components/guestbook-board';
 import { MessageRow } from '@/app/(routes)/(main)/(personal)/guestbook/_components/message-row';
+import { PostedMessagesProvider } from '@/app/(routes)/(main)/(personal)/guestbook/_components/posted-messages';
 import { LIST_RECHECK_MS } from '@/app/(routes)/(main)/(personal)/guestbook/_components/use-posted-messages';
 import {
   isOutcomeUnknown,
@@ -117,15 +118,17 @@ const SAVED: GuestbookMessage = {
 };
 
 const board = (messages: readonly GuestbookMessage[], listState: 'ready' | 'empty' = 'ready') => (
-  <GuestbookBoard
-    knownIds={messages.map((m) => m.id)}
-    listState={listState}
-    notice={listState === 'empty' ? <p>No messages yet</p> : null}
-  >
-    {messages.map((m) => (
-      <MessageRow key={m.id} message={m} />
-    ))}
-  </GuestbookBoard>
+  <PostedMessagesProvider>
+    <GuestbookBoard
+      knownIds={messages.map((m) => m.id)}
+      listState={listState}
+      notice={listState === 'empty' ? <p>No messages yet</p> : null}
+    >
+      {messages.map((m) => (
+        <MessageRow key={m.id} message={m} />
+      ))}
+    </GuestbookBoard>
+  </PostedMessagesProvider>
 );
 
 const box = () => screen.getByLabelText('Your message');

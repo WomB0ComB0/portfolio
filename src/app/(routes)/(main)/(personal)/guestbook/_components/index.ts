@@ -15,10 +15,6 @@
  */
 
 export { type BoardListState, GuestbookBoard, type GuestbookBoardProps } from './guestbook-board';
-export {
-  GUESTBOOK_DESCRIPTION,
-  GUESTBOOK_TITLE,
-  GuestbookStatStrip,
-  ListNotice,
-} from './guestbook-header';
+export { GUESTBOOK_DESCRIPTION, GUESTBOOK_TITLE, ListNotice } from './guestbook-header';
 export { MessageRow, type MessageRowProps } from './message-row';
+export { GuestbookLiveStats, PostedMessagesProvider } from './posted-messages';
