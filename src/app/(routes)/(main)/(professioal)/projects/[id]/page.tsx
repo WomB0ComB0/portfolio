@@ -27,6 +27,7 @@ import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 import { ProjectDetail } from '@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail/project-detail';
 import { reportApiFailure } from '@/lib/observability/report';
+import { OG_IMAGE_SIZE } from '@/lib/og/constants';
 import { urlFor } from '@/lib/sanity/client';
 import { loadProjectById } from '@/lib/sanity/loaders';
 import { constructMetadata, logger } from '@/utils';
@@ -34,10 +35,12 @@ import { constructMetadata, logger } from '@/utils';
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build project page metadata';
 
-/** The Open Graph image: Sanity's image at the size link previews use. */
-const OG_IMAGE_WIDTH = 1200;
-const OG_IMAGE_HEIGHT = 630;
-const DEFAULT_OG_IMAGE = '/opengraph-image.png';
+/**
+ * The Open Graph image: Sanity's image at the size link previews use. A project without one gets
+ * its own page card (constructMetadata's default), with its title and description.
+ */
+const OG_IMAGE_WIDTH = OG_IMAGE_SIZE.width;
+const OG_IMAGE_HEIGHT = OG_IMAGE_SIZE.height;
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>;
@@ -68,7 +71,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
 
     const imageUrl = project.image
       ? urlFor(project.image).width(OG_IMAGE_WIDTH).height(OG_IMAGE_HEIGHT).url()
-      : DEFAULT_OG_IMAGE;
+      : undefined;
 
     return constructMetadata({
       title: project.title,

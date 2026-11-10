@@ -65,6 +65,8 @@ import packageJson from '../../package.json' with { type: 'json' };
  * - url: Canonical portfolio url
  * - email: Primary contact email
  * - description: Short site summary with the age when the module loaded (server metadata only)
+ * - tagline: The home hero's built-in positioning line (owner decision 7), which the link-preview
+ *   card and the web app manifest repeat. Studio's tagline replaces it on the hero only.
  * - version: Current application/package version from package.json
  * - keywords: Array of branding, technology, and experience keywords for SEO/metadata
  * - logo: Root-level logo image URL
@@ -77,6 +79,7 @@ export const app: Readonly<{
   url: string;
   email: string;
   description: string;
+  tagline: string;
   version: string;
   keywords: string[];
   logo: URL;
@@ -84,6 +87,7 @@ export const app: Readonly<{
   name: 'Mike Odnis',
   url: baseUrl,
   email: 'mike@mikeodnis.dev',
+  tagline: 'Building web software end to end.',
   description: `Explore Mike Odnis' portfolio, an innovative, ${ageOn(new Date())} year-old Computer Science student at Farmingdale State College, passionate about software development and technology.`,
   version: packageJson.version,
   keywords: [

@@ -63,6 +63,7 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map', () => ({
 // The homepage's client component.
 vi.mock('@/app/_components/home', () => ({ HomePage: () => null }));
 
+import manifest from '@/app/manifest';
 import Sitemap from '@/app/sitemap';
 import { app } from '@/constants';
 import { constructMetadata } from '@/utils/seo/meta';
@@ -150,6 +151,28 @@ describe('static page og:url', () => {
     expect(openGraph).toEqual({ ...layoutOpenGraph, url: 'https://mikeodnis.dev/' });
     expect(rest.description).toBe(app.description);
     expect(openGraph).toMatchObject({ title: app.name });
+  });
+
+  it('previews the homepage with the site card and every other page with its own page card', async () => {
+    const [home] = [(await metadataOf('/')).openGraph?.images].flat();
+    expect(home).toMatchObject({ url: '/opengraph-image', width: 1200, height: 630 });
+
+    for (const route of Object.keys(STATIC_PAGES).filter((path) => path !== '/')) {
+      const metadata = await metadataOf(route);
+      const [image] = [metadata.openGraph?.images].flat();
+      expect(image, route).toMatchObject({ width: 1200, height: 630, type: 'image/png' });
+      expect(String((image as { url: string }).url), route).toMatch(/^\/api\/og\?title=/);
+    }
+  });
+
+  it("gives every manifest shortcut its page's own description", async () => {
+    const shortcuts = manifest().shortcuts ?? [];
+
+    expect(shortcuts.length).toBeGreaterThan(0);
+    for (const shortcut of shortcuts) {
+      const metadata = await metadataOf(shortcut.url);
+      expect(shortcut.description, shortcut.url).toBe(metadata.description);
+    }
   });
 
   it('describes /stats with the same sentence as its page header, keeping the title', async () => {
