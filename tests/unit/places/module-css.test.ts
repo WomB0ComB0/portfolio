@@ -24,7 +24,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { evaluateCss } from './css-calc';
-import { losingReducedMotionResets, specificity, styleRules, subjectOf } from './module-css';
+import {
+  losingReducedMotionResets,
+  nonCompositorTransitions,
+  specificity,
+  styleRules,
+  subjectOf,
+} from './module-css';
 
 const HOVER = `
   @media (hover: hover) and (pointer: fine) {
@@ -67,6 +73,19 @@ describe('losingReducedMotionResets', () => {
 
   it('leaves a resting transform alone: only a hover, press or focus has to hold still', () => {
     expect(losingReducedMotionResets(styleRules('.sliver { transform: scale(0.5); }'))).toEqual([]);
+  });
+});
+
+describe('nonCompositorTransitions', () => {
+  it("reads a cubic-bezier's commas as part of the timing, not as more properties", () => {
+    const css =
+      '.card { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms ease; }';
+    expect(nonCompositorTransitions(styleRules(css))).toEqual([]);
+  });
+
+  it('still flags a layout property beside it', () => {
+    const css = '.card { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), width 200ms; }';
+    expect(nonCompositorTransitions(styleRules(css))).toEqual(['.card: width']);
   });
 });
 

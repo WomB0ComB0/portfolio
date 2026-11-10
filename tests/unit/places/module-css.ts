@@ -75,7 +75,8 @@ export const hoverOutsideFinePointer = (rules: readonly CssRule[]): string[] =>
 
 /**
  * Every property named in a transition or transition-property, by rule, that is not a
- * compositor property ('none' and 'all' count as offenders except 'none').
+ * compositor property ('none' and 'all' count as offenders except 'none'). Only top-level commas
+ * separate transitions: a cubic-bezier()'s own commas stay inside it.
  */
 export function nonCompositorTransitions(rules: readonly CssRule[]): string[] {
   const offenders: string[] = [];
@@ -83,7 +84,7 @@ export function nonCompositorTransitions(rules: readonly CssRule[]): string[] {
     for (const [name, value] of declarations(rule.body)) {
       if (name !== 'transition' && name !== 'transition-property') continue;
       if (value === 'none') continue;
-      for (const part of value.split(',')) {
+      for (const part of splitTopLevel(value, /,/)) {
         const property = part.trim().split(/\s+/)[0] ?? '';
         if (!COMPOSITOR_PROPERTIES.has(property)) offenders.push(`${rule.selector}: ${property}`);
       }

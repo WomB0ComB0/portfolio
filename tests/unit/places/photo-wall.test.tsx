@@ -121,6 +121,20 @@ describe('LiveWall', () => {
     expect(vi.mocked(animate)).toHaveBeenCalled();
   });
 
+  it('leaves an arrow held with Alt, Ctrl, Meta or Shift to the browser (Alt+Left is back)', () => {
+    stubDevice({ fine: true });
+    const { wall } = renderWall();
+
+    for (const modifier of ['altKey', 'ctrlKey', 'metaKey', 'shiftKey'] as const) {
+      // fireEvent returns false when a handler called preventDefault.
+      expect(fireEvent.keyDown(wall, { key: 'ArrowLeft', [modifier]: true }), modifier).toBe(true);
+    }
+    expect(document.querySelector('[data-active="true"]')).toBeNull();
+
+    expect(fireEvent.keyDown(wall, { key: 'ArrowLeft' })).toBe(false);
+    expect(cardAt(-1, 0)).toHaveAttribute('data-active', 'true');
+  });
+
   it('opens the active photo with Enter or Space', () => {
     stubDevice({ fine: true });
     const { wall, onOpen } = renderWall();

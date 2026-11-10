@@ -427,9 +427,12 @@ describe('/places client islands', () => {
     'photos/_components/photos-explorer.tsx',
     '[placeId]/_components/place-photo-viewer.tsx',
   ];
-  /** Imports that would put @sanity/client (and the image URL builder) in the browser bundle. */
+  /**
+   * Imports, static or lazy, that would put @sanity/client (and the image URL builder) in the
+   * browser bundle.
+   */
   const SERVER_SIDE_IMPORT =
-    /from '(@\/lib\/sanity\/client|@\/lib\/sanity\/loaders|@\/hooks\/sanity\/schemas|[^']*viewer-photo-url)'/;
+    /(?:from |import\()'(@\/lib\/sanity\/client|@\/lib\/sanity\/loaders|@\/hooks\/sanity\/schemas|[^']*viewer-photo-url)'/;
   /** Static imports and lazy ones (`import('./x')`), so a lazily loaded part is checked too. */
   const PLACES_IMPORT =
     /(?:from |import\()'(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+|@\/lib\/places\/[^']+)'/g;
@@ -452,6 +455,13 @@ describe('/places client islands', () => {
     }
     return graph;
   }
+
+  it('guards a lazy import of a server-side module as well as a static one', () => {
+    expect("import { urlFor } from '@/lib/sanity/client';").toMatch(SERVER_SIDE_IMPORT);
+    expect("const { urlFor } = await import('@/lib/sanity/client');").toMatch(SERVER_SIDE_IMPORT);
+    expect("await import('../_lib/viewer-photo-url');").toMatch(SERVER_SIDE_IMPORT);
+    expect("await import('./photo-wall-live');").not.toMatch(SERVER_SIDE_IMPORT);
+  });
 
   it.each(ISLANDS)('%s is a client module that never builds Sanity URLs', (island) => {
     const file = path.join(PLACES_DIR, island);

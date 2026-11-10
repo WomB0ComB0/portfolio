@@ -257,7 +257,13 @@ export function useWallInput({
     onOpenCell(cell);
   };
 
+  /**
+   * The arrows move the active photo and centre it; Enter or Space opens it. Other keys, and any
+   * key held with Alt, Ctrl, Meta or Shift, are left to the browser.
+   */
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    // Alt+Left and Cmd+Left are the browser's back; any modified key stays the browser's.
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const step = STEPS[event.key];
     if (step) {
       event.preventDefault();
