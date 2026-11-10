@@ -321,6 +321,20 @@ describe('the Sanity tiles', () => {
     },
   );
 
+  it('count only past places, as /places does, so the two figures never differ', async () => {
+    // NOW is Nov 5 in New York: a visit on Nov 5, a run still on, one to come and an undated
+    // place are all left out of the count.
+    sanity.loadPlaces.mockResolvedValue([
+      ...places,
+      makePlace({ startDate: '2026-11-05' }),
+      makePlace({ startDate: '2026-11-01', endDate: '2026-11-09' }),
+      makePlace({ startDate: '2026-12-01' }),
+      makePlace({ startDate: null }),
+    ]);
+
+    await expect(loadSiteCounts()).resolves.toMatchObject({ places: places.length });
+  });
+
   it('are empty when every place is dated but none has ended before the cutoff day', async () => {
     // NOW is Nov 5 in New York: a visit on Nov 5 and a run from Nov 1 to Nov 9 are both on.
     sanity.loadPlaces.mockResolvedValue([
@@ -710,6 +724,16 @@ describe('the server tiles past their deadline', () => {
     expect(counts).toEqual({ projects: 2, roles: 3, certifications: null, places: 2 });
     expect(placeTile).toMatchObject({ status: 'ok', data: places[0], stale: true });
     expect(sanity.peekCertifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('count only past places in the list last loaded, too', async () => {
+    sanity.loadPlaces.mockReturnValue(never());
+    sanity.peekPlaces.mockReturnValue({
+      data: [...places, makePlace({ startDate: '2026-12-01' }), makePlace({ startDate: null })],
+      loadedAt: LOADED_AT,
+    });
+
+    await expect(pastDeadline(loadSiteCounts)).resolves.toMatchObject({ places: places.length });
   });
 
   it('show the LeetCode stats last fetched, stale, dated when they were fetched', async () => {

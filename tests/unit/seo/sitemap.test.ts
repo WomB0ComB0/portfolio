@@ -35,7 +35,7 @@ import {
   makeResume,
 } from '@tests/fixtures/sanity-docs';
 import type { MetadataRoute } from 'next';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
   // app.url is read from this variable when the constants module loads.
@@ -200,6 +200,30 @@ describe('sitemap order', () => {
     const urls = (await Sitemap()).map((entry) => entry.url);
 
     expect(new Set(urls).size).toBe(urls.length);
+  });
+});
+
+describe('sitemap and the places opsec rule (past visits only)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('lists no place that may still be on, and dates /places by past places only', async () => {
+    // 13:00 ET on Nov 10, 2026: Nov 9 is over, Nov 10 is not.
+    vi.useFakeTimers({ now: Date.UTC(2026, 10, 10, 18, 0), toFake: ['Date'] });
+    const today = makePlace({ startDate: '2026-11-10', _updatedAt: at('2026-11-10') });
+    const toCome = makePlace({ startDate: '2026-12-01', _updatedAt: at('2026-11-10') });
+    const undated = makePlace({ startDate: null, _updatedAt: at('2026-11-09') });
+    loaders.loadPlaces.mockResolvedValue([...PLACES, today, toCome, undated]);
+
+    const entries = await Sitemap();
+    const urls = entries.map((entry) => entry.url);
+
+    for (const place of [today, toCome, undated]) {
+      expect(urls).not.toContain(`${ORIGIN}/places/${place._id}`);
+    }
+    for (const place of PLACES) expect(urls).toContain(`${ORIGIN}/places/${place._id}`);
+    expect(entryAt(entries, '/places')?.lastModified).toBe('2026-09-30');
   });
 });
 

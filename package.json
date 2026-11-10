@@ -46,7 +46,7 @@
     "scripts:audit": "bun run ./scripts/audit.ts",
     "scripts:check-unused": "bun run ./scripts/check-unused.ts",
     "scripts:copyright": "bun run ./scripts/copyright.ts",
-    "scripts:copyright:check": "bun run ./scripts/copyright.ts --check",
+    "scripts:copyright:check": "bun run ./scripts/copyright.ts --check --exclude src/generated/graphql.ts",
     "scripts:fix-directives": "bun run ./scripts/fix-directives.ts",
     "scripts:img-to-b64": "bun run ./scripts/img-to-b64.ts",
     "scripts:lighthouse": "bun run ./scripts/light-house.ts",

@@ -15,12 +15,12 @@
  */
 
 import { Elysia } from 'elysia';
+import { readPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import {
   readArticles,
   readCertifications,
   readExperiences,
   readFeaturedProjects,
-  readPlaces,
   readPresentations,
   readProjects,
   readResume,
@@ -58,10 +58,11 @@ const certifications = sanityRoute({
   context: 'fetch certifications from Sanity',
   read: readCertifications,
 });
+// Past visits only (the owner's rule): the public JSON never names a visit that may still be on.
 const places = sanityRoute({
   key: 'places',
   context: 'fetch places from Sanity',
-  read: readPlaces,
+  read: readPastPlaces,
 });
 const presentations = sanityRoute({
   key: 'presentations',

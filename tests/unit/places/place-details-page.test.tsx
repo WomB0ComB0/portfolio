@@ -21,7 +21,7 @@
 
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { Metadata } from 'next';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Place } from '@/hooks/sanity/schemas';
 import { makePlace } from '../../fixtures/sanity-docs';
 
@@ -136,6 +136,40 @@ describe('place page', () => {
     h.loadPlaceById.mockRejectedValue(outage);
 
     await expect(PlacePage(paramsOf(quietPlace._id))).rejects.toBe(outage);
+  });
+
+  describe('past visits only (the owner’s opsec rule)', () => {
+    // 13:00 ET on Nov 10, 2026: Nov 9 is over, Nov 10 is not.
+    const NOW = Date.UTC(2026, 10, 10, 18, 0);
+    const notOverYet = [
+      ['a visit today', makePlace({ name: 'Today', startDate: '2026-11-10' })],
+      ['a visit to come', makePlace({ name: 'Soon', startDate: '2026-12-01' })],
+      ['an undated place', makePlace({ name: 'Undated', startDate: null })],
+    ] as const;
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each(notOverYet)('answers 404 for %s, as for an unknown id', async (_label, place) => {
+      vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+      h.loadPlaceById.mockResolvedValue(place);
+
+      await expect(PlacePage(paramsOf(place._id))).rejects.toMatchObject({
+        digest: NOT_FOUND_DIGEST,
+      });
+    });
+
+    it.each(notOverYet)('names nothing in the metadata for %s', async (_label, place) => {
+      vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+      h.loadPlaceById.mockResolvedValue(place);
+
+      const metadata = await generateMetadata(paramsOf(place._id));
+
+      expect(titleOf(metadata)).toBe('Place Not Found');
+      expect(ogUrlOf(metadata)).toBeUndefined();
+      expect(JSON.stringify(metadata)).not.toContain(place.name);
+    });
   });
 
   it('shows a place without photos in full, with an empty state instead of the viewer', async () => {

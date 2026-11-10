@@ -16,148 +16,133 @@
  * limitations under the License.
  */
 
-import { Building2 } from 'lucide-react';
-import { parseAsString, throttle, useQueryStates } from 'nuqs';
-import { type JSX, useMemo } from 'react';
-import { FiMapPin } from 'react-icons/fi';
-import { MagicCard } from '@/components/magicui/magic-card';
-import { Card, CardContent } from '@/components/ui/card';
-import { FilterBar } from '@/components/ui/filter-bar';
-import { useDebounce } from '@/hooks/use-debounce';
+/**
+ * @file The /places list's one client island, composed from the shared FilterBar kit: a sticky
+ * <search> in 'bar' density (the search and the six category chips on a tile; on a phone the
+ * search and a Filters button, the chips in a bottom sheet), the results header (the count, then
+ * the chosen category as a removable token), the status line, the map, and every matching
+ * place's card or the empty state that names what removed everything.
+ *
+ * Its filters live in the URL (?q, ?category) through useUrlFilters (nuqs: history replace,
+ * shallow, no scroll), so the server HTML of a shared link is already filtered, the chips and
+ * the token are links and the search is a GET form. The route has no loading.tsx, so without
+ * JavaScript every place is in the first HTML. With JavaScript typing filters the cards and the
+ * map at once (no debounce). The map sits outside the results' box: a chip crossfades only the
+ * cards, the map updates at once. Both are given one array per set of results (useShownPlaces),
+ * and the grid is memoised on it, so a keystroke's urgent render (the search as typed, the list
+ * not yet) re-renders no card, and neither does typing that matches the same places.
+ */
+
+import { type JSX, memo } from 'react';
+
+import {
+  FILTER_SCOPE_CLASS,
+  FilterBar,
+  RESULTS_HEAD_CLASS,
+  useUrlFilters,
+} from '@/components/console/filter-bar';
+import { cn } from '@/lib/utils';
 import type { PlaceItem } from '@/types/places';
-import { validateUserInput } from '@/utils/security/xss';
+import { placeFilters } from '../_lib/place-filters';
 import { GoogleMaps } from './map';
 import { PlaceCard } from './place-card';
+import { useShownPlaces } from './use-shown-places';
 
-/** The category select's "every category" value, which leaves the URL without `category`. */
-const ALL_CATEGORIES = 'all';
-/** How long typing settles before the list and map filter, and the longest the URL lags behind. */
-const SEARCH_SETTLE_MS = 300;
-/** The longest search the filter reads. */
-const MAX_QUERY_LENGTH = 100;
-/** Same classes as PlacesPageSkeleton's grid, so the cards land where the skeleton's were. */
-const PLACE_GRID_CLASS =
-  'grid gap-6 justify-center grid-cols-[repeat(auto-fit,minmax(220px,280px))]';
-
+/** The island's root: the bar, the results header, the map, then the cards. */
+const LIST_CLASS = 'mx-auto flex w-full max-w-7xl flex-col gap-6';
 /**
- * The filters, in the URL so a filtered list can be shared and Back returns to it. Each change
- * replaces the history entry, and stays shallow: the server already sent every place.
+ * The map's tile, which sets its height (the map fills it). A surface tile like the bar's, so
+ * the two read as one set of controls over the cards.
  */
-const FILTER_PARSERS = {
-  q: parseAsString.withDefault(''),
-  category: parseAsString.withDefault(ALL_CATEGORIES),
-};
-const FILTER_OPTIONS = { history: 'replace', shallow: true } as const;
-const SEARCH_UPDATE_OPTIONS = { limitUrlUpdates: throttle(SEARCH_SETTLE_MS) } as const;
-
-/** Each category once, sorted. */
-const categoriesOf = (places: readonly PlaceItem[]): string[] =>
-  Array.from(new Set(places.map((place) => place.category))).sort();
-
-/** The places in `category` (or all) whose name or description contains `query`. */
-function filterPlaces(places: readonly PlaceItem[], category: string, query: string): PlaceItem[] {
-  const sanitizedQuery = validateUserInput(query, MAX_QUERY_LENGTH).toLowerCase();
-  return places.filter((place) => {
-    const matchesCategory = category === ALL_CATEGORIES || place.category === category;
-    const matchesSearch =
-      sanitizedQuery === '' ||
-      place.name.toLowerCase().includes(sanitizedQuery) ||
-      place.description.toLowerCase().includes(sanitizedQuery);
-    return matchesCategory && matchesSearch;
-  });
-}
-
-/** Stands in for the grid when no place matches (or there are none). */
-const NoPlaces = (): JSX.Element => (
-  <MagicCard className="backdrop-blur-sm border-border/50">
-    <CardContent className="py-20">
-      <div className="text-center space-y-4">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-muted/50">
-          <FiMapPin className="text-3xl text-muted-foreground" />
-        </div>
-        <div className="space-y-2">
-          <p className="text-foreground font-medium">No places found</p>
-          <p className="text-muted-foreground text-sm">
-            There are currently no locations to display.
-          </p>
-        </div>
-      </div>
-    </CardContent>
-  </MagicCard>
-);
+const MAP_TILE_CLASS =
+  'relative h-[400px] overflow-hidden rounded-tile border border-hairline bg-surface-1 shadow-tile md:h-[500px]';
+/** Without JavaScript the map is an empty box; this line says why, over it. */
+const NO_SCRIPT_NOTE_CLASS =
+  'absolute inset-0 z-[1] flex items-center justify-center p-6 text-center tile-sub text-muted-foreground';
+/**
+ * The cards fill the column the bar and the map tiles share, edge to edge with them: as many
+ * columns of at least 16rem as fit (one at 390, two at 768, three at 1024, four at 1440), each
+ * stretched to share the width; a column narrower than 16rem takes the whole width.
+ */
+const PLACE_GRID_CLASS =
+  'grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] @min-[48rem]/page:gap-5';
+/** A dataset with no places at all: no bar and no map, only this. */
+const NO_PLACES_CLASS =
+  'mx-auto w-full max-w-7xl rounded-tile border border-dashed border-hairline-strong px-5 py-8 tile-sub text-muted-foreground';
 
 interface PlacesExplorerProps {
-  /** Every place, with photo URLs built on the server. */
-  places: readonly PlaceItem[];
+  /** Every past place, in the server's order, with photo URLs built on the server. */
+  readonly places: readonly PlaceItem[];
+}
+
+/** The map's tile: the map, given exactly the places the cards show. */
+function MapTile({ places }: { readonly places: PlaceItem[] }): JSX.Element {
+  return (
+    <div data-places-part="map" className={MAP_TILE_CLASS}>
+      <noscript>
+        <p className={NO_SCRIPT_NOTE_CLASS}>
+          The map needs JavaScript. Every place is listed below.
+        </p>
+      </noscript>
+      <GoogleMaps placesToDisplay={places} />
+    </div>
+  );
 }
 
 /**
- * The places list's interactive part: the search and category filters (kept in the URL as `q`
- * and `category`), the map, and every matching place's card. A category that no place has counts
- * as all of them.
+ * Every matching place's card, in the server's order. Memoised on its array (useShownPlaces
+ * keeps one per set of results), so a render that leaves the set alone re-renders no card.
+ */
+const PlaceGrid = memo(function PlaceGrid({
+  places,
+}: {
+  readonly places: readonly PlaceItem[];
+}): JSX.Element {
+  return (
+    <ul aria-label="Places" className={PLACE_GRID_CLASS}>
+      {places.map((place) => (
+        <li key={place.id} data-place-card="" className="h-full w-full">
+          <PlaceCard place={place} />
+        </li>
+      ))}
+    </ul>
+  );
+});
+
+/**
+ * The places list's interactive part: the filters, the map and the matching cards. With no
+ * places at all it says so, with no bar and no map.
  */
 export function PlacesExplorer({ places }: PlacesExplorerProps): JSX.Element {
-  const [{ q, category }, setFilters] = useQueryStates(FILTER_PARSERS, FILTER_OPTIONS);
-  const debouncedQuery = useDebounce(q, SEARCH_SETTLE_MS);
+  const { model, results } = useUrlFilters(placeFilters, places);
+  const shown = useShownPlaces(places, results);
 
-  const categories = useMemo(() => categoriesOf(places), [places]);
-  const activeCategory = categories.includes(category) ? category : ALL_CATEGORIES;
-
-  const filteredPlaces = useMemo(
-    () => filterPlaces(places, activeCategory, debouncedQuery),
-    [places, activeCategory, debouncedQuery],
-  );
-
-  const hasActiveFilters = q !== '' || activeCategory !== ALL_CATEGORIES;
+  if (places.length === 0) return <p className={NO_PLACES_CLASS}>No places found</p>;
 
   return (
-    <>
-      <div className="w-full max-w-7xl mx-auto">
-        <FilterBar
-          searchQuery={q}
-          onSearchChange={(value) => void setFilters({ q: value }, SEARCH_UPDATE_OPTIONS)}
-          searchPlaceholder="Search places..."
-          filters={[
-            {
-              value: activeCategory,
-              onChange: (value) => void setFilters({ category: value }),
-              options: categories,
-              placeholder: 'All Categories',
-              icon: <Building2 className="h-4 w-4" />,
-            },
-          ]}
-          onClear={() => void setFilters({ q: null, category: null })}
-          hasActiveFilters={hasActiveFilters}
-          resultsCount={filteredPlaces.length}
-          totalCount={places.length}
-          entityName="places"
-        />
-      </div>
-
-      <div className="w-full max-w-7xl mx-auto">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden shadow-xl rounded-2xl">
-          <CardContent className="p-0">
-            <div className="w-full h-[400px] md:h-[500px] relative">
-              <GoogleMaps placesToDisplay={filteredPlaces} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="w-full max-w-7xl mx-auto">
-        {filteredPlaces.length > 0 ? (
-          <div className={PLACE_GRID_CLASS}>
-            {filteredPlaces.map((place) => (
-              <div key={place.id} className="h-full w-full">
-                <PlaceCard place={place} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <NoPlaces />
-        )}
-      </div>
-    </>
+    <div
+      data-filter-scope=""
+      data-places-part="list"
+      className={cn(LIST_CLASS, FILTER_SCOPE_CLASS)}
+    >
+      <FilterBar.Provider model={model}>
+        <FilterBar.Root sticky density="bar">
+          <FilterBar.Search placeholder="Search places" />
+          <FilterBar.Facets>
+            <FilterBar.Chips facet="category" layout="scroll" />
+          </FilterBar.Facets>
+        </FilterBar.Root>
+        <div className={RESULTS_HEAD_CLASS}>
+          <FilterBar.Count />
+          <FilterBar.Applied />
+        </div>
+        <FilterBar.Status />
+        <MapTile places={shown} />
+        <FilterBar.Results>
+          {shown.length > 0 ? <PlaceGrid places={shown} /> : <FilterBar.Empty />}
+        </FilterBar.Results>
+      </FilterBar.Provider>
+    </div>
   );
 }
 

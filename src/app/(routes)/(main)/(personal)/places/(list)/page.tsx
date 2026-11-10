@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
+/**
+ * @file /places. There is no loading.tsx (owner: "Drop it on both"), so every place is in the
+ * first HTML and shows without JavaScript. The page stays in the (list) route group so list-only
+ * files never wrap /places/[placeId], whose notFound() must still answer 404. The URL's filters
+ * (?q, ?category) are read by the island through nuqs, which the dynamic root layout gives the
+ * search params during the server render.
+ */
+
 import type { JSX } from 'react';
 import {
   Places,
   toPlaceItem,
 } from '@/app/(routes)/(main)/(personal)/places/_interface/places/places';
-import { loadPlaces } from '@/lib/sanity/loaders';
+import { loadPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import { constructMetadata } from '@/utils/seo/meta';
 
 export const metadata = constructMetadata({
@@ -29,9 +37,12 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Every place, rendered on the server. When Sanity fails with nothing cached, loadPlaces rejects
- * and the shell's error boundary takes over the page.
+ * Every past place, rendered on the server (loadPastPlaces): a visit that may still be on (its
+ * last day is placeCutoffDay or later, or it has no day) or is still to come never reaches the
+ * page, so the cards, the map and every count leave it out. When Sanity fails with nothing
+ * cached, the loader rejects and the shell's error boundary takes over the page.
  */
 export default async function PlacesPage(): Promise<JSX.Element> {
-  return <Places places={(await loadPlaces()).map(toPlaceItem)} />;
+  const places = await loadPastPlaces();
+  return <Places places={places.map(toPlaceItem)} />;
 }

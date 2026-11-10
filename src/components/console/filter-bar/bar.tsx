@@ -43,7 +43,6 @@ import { cn } from '@/lib/utils';
 import { fallbackFocus, useFilterBar } from './context';
 import {
   BAR_CLASS,
-  BAR_STICKY_CLASS,
   BUTTON_COUNT_CLASS,
   FILTERS_BUTTON_CLASS,
   FORM_ROW_CLASS,
@@ -54,6 +53,7 @@ import {
   SHEET_CLASS,
   SHEET_DONE_CLASS,
   SHEET_FOOT_CLASS,
+  stickyClassFor,
 } from './filter-bar-classes';
 import { ChevronIcon, SearchIcon } from './icons';
 import { chosenCount } from './model';
@@ -97,7 +97,10 @@ function useHoldScroll(bar: RefObject<HTMLElement | null>, sticky: boolean): voi
   }, [bar, sticky]);
 }
 
-/** The landmark and the GET form every part sits in. */
+/**
+ * The landmark and the GET form every part sits in. Sticky, it holds the top edge in its
+ * density's band: the row's, or the slimmer one around the `bar` tile (stickyClassFor).
+ */
 export function FilterBarRoot({
   label,
   sticky = false,
@@ -128,7 +131,7 @@ export function FilterBarRoot({
       data-filter-part="bar"
       data-density={density}
       data-sticky={sticky ? '' : undefined}
-      className={cn(BAR_CLASS, sticky && BAR_STICKY_CLASS, className)}
+      className={cn(BAR_CLASS, sticky && stickyClassFor(density), className)}
     >
       <form
         action={model.path}

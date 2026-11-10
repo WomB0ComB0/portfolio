@@ -27,7 +27,8 @@
  * and in forced colours, the current chip draws its own. In `scroll` layout the chips wrap in the
  * sheet; from 48rem the row scrolls sideways inside itself, fades over each end that has chips
  * past it (data-overflow: the cue that it scrolls, with no scrollbar), keeps the current chip in
- * view, and scrolls it back into view once focus has passed through and left the row.
+ * view, scrolls each chip the keyboard focuses into view, and scrolls the current chip back into
+ * view once focus has passed through and left the row; a chip it reveals sits clear of the fades.
  */
 
 import {
@@ -47,6 +48,7 @@ import {
   CHIP_CLASS,
   CHIP_COUNT_CLASS,
   CHIP_CURRENT_FILL_CLASS,
+  CHIP_EDGE_FADE_REM,
   CHIP_LABEL_CLASS,
   CHIP_LIST_CLASS,
   CHIP_LIST_SCROLL_CLASS,
@@ -144,7 +146,7 @@ function usePill(
     writeClip(pill, clipFor(element, pill, chip), !placed.current);
     placed.current = true;
     setReady(true);
-    if (layout === 'scroll') revealInScroller(element, chip);
+    if (layout === 'scroll') revealChip(element, chip);
   }, [list, current, layout]);
   // Its own effect, so a change of current chip makes no new observer whose first report would
   // land in the slide's first frame.
@@ -208,12 +210,41 @@ function useOverflowCue(
   }, [list, layout, chips]);
 }
 
+/** The root font size when the page reports none (jsdom). */
+const DEFAULT_ROOT_PX = 16;
+
+/** Each end's fade (CHIP_EDGE_FADE_REM), in px at the page's root font size. */
+function edgeFadeOf(list: HTMLElement): number {
+  const root = Number.parseFloat(getComputedStyle(list.ownerDocument.documentElement).fontSize);
+  return CHIP_EDGE_FADE_REM * (root > 0 ? root : DEFAULT_ROOT_PX);
+}
+
+/**
+ * Scrolls a sideways row so `chip`, and the ring it draws when focused, sit clear of the fade
+ * over each end; at either end of the row, where no fade is left, it reaches the edge.
+ */
+const revealChip = (list: HTMLElement, chip: HTMLElement): void =>
+  revealInScroller(list, chip, edgeFadeOf(list));
+
+/**
+ * When focus reaches a chip from the keyboard (or a screen reader), scrolls the row so the chip
+ * and its ring show. The browser's own focus scroll cannot be relied on: Chrome leaves a chip
+ * that is partly in view where it is, under the end fade. Focus a press brings (no
+ * :focus-visible) is left alone: scrolling between the press and the release would send the click
+ * to another chip.
+ */
+function revealFocusedChip(event: FocusEvent<HTMLUListElement>): void {
+  const { target, currentTarget: list } = event;
+  if (!(target instanceof HTMLElement) || target === list) return;
+  if (target.matches(':focus-visible')) revealChip(list, target);
+}
+
 /** Once focus leaves a sideways row, scrolls its current chip back into view (the state shows). */
 function revealCurrentOnLeave(event: FocusEvent<HTMLUListElement>): void {
   const list = event.currentTarget;
   if (event.relatedTarget instanceof Node && list.contains(event.relatedTarget)) return;
   const current = list.querySelector<HTMLElement>('a[aria-current="true"]');
-  if (current) revealInScroller(list, current);
+  if (current) revealChip(list, current);
 }
 
 /** One facet's chips: All, then each option. */
@@ -253,6 +284,7 @@ export function FilterBarChips({
         data-filter-part="chips"
         data-pill={pillReady ? 'on' : undefined}
         className={layout === 'scroll' ? CHIP_LIST_SCROLL_CLASS : CHIP_LIST_CLASS}
+        onFocus={layout === 'scroll' ? revealFocusedChip : undefined}
         onBlur={layout === 'scroll' ? revealCurrentOnLeave : undefined}
       >
         {items.map((item) => (

@@ -29,13 +29,13 @@
  */
 
 import type { MetadataRoute } from 'next';
+import { loadPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import { app } from '@/constants/app';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
   isSanityDocumentId,
   loadCertifications,
   loadExperiences,
-  loadPlaces,
   loadProjects,
   loadResume,
 } from '@/lib/sanity/loaders';
@@ -154,7 +154,8 @@ export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
   const [projects, experiences, places, certifications, resume] = await Promise.all([
     loadProjects(),
     loadExperiences(),
-    loadPlaces(),
+    // Past visits only (the owner's rule): a visit still on has no page, URL or date here.
+    loadPastPlaces(),
     loadDateSource(loadCertifications, 'certifications'),
     loadDateSource(loadResume, 'resume'),
   ]);

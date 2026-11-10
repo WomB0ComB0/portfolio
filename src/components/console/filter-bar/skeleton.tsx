@@ -26,7 +26,6 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import {
   BAR_CLASS,
-  BAR_STICKY_CLASS,
   CHIP_LIST_CLASS,
   CHIPS_SLOT_CLASS,
   FILTERS_BUTTON_CLASS,
@@ -34,6 +33,7 @@ import {
   FORM_TILE_CLASS,
   SEARCH_SLOT_CLASS,
   SKELETON_BOX_CLASS,
+  stickyClassFor,
 } from './filter-bar-classes';
 
 /** Chip widths that read as words of different lengths. */
@@ -59,7 +59,7 @@ export function FilterBarSkeleton({
       aria-label="Loading filters"
       role="status"
       data-filter-part="bar"
-      className={cn(BAR_CLASS, sticky && BAR_STICKY_CLASS)}
+      className={cn(BAR_CLASS, sticky && stickyClassFor(density))}
     >
       <div className={density === 'bar' ? FORM_TILE_CLASS : FORM_ROW_CLASS}>
         <div className={cn(SEARCH_SLOT_CLASS, 'rounded-lg border border-hairline bg-surface-1')} />

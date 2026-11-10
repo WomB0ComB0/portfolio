@@ -51,9 +51,31 @@ export const BAR_STICKY_CLASS =
 /** The form: one row. From 48rem the search keeps its width and the chips take the rest. */
 export const FORM_ROW_CLASS =
   'flex min-w-0 items-center gap-2 @min-[48rem]/page:items-start @min-[48rem]/page:gap-4';
-/** `bar` density (/places): the same row on a surface-1 tile. */
+/**
+ * Sticky in `bar` density (/places): the same bar in a slimmer band, the same at every width, so
+ * the stuck tile ends inside the edge haze's top band and html's scroll-padding (77px and 74px at
+ * 1024x640). From 48rem: 4 + a 1px border + 8 + the 44px row (the scroll chips' slot) + 8 + 1 + 4
+ * = 70px. Below 48rem the row is the 40px field, so 66px.
+ * - Stuck, the band paints the canvas only, no line: the tile's own border is the edge (row
+ *   density's hairline would run square under the tile's rounded corners, a second line).
+ * - Under 550px of height (a landscape phone, a page zoomed to 200-400%) it stays in the page:
+ *   there the top band is 14svh (54.6px at 390px tall), shorter than the stuck tile, so a card
+ *   focused from the keyboard would scroll in under it, and the bar with the bottom bar would
+ *   cover a third of the screen or more. From 550px the band is at least 77px.
+ */
+export const BAR_STICKY_TILE_CLASS =
+  'sticky top-[env(safe-area-inset-top,0px)] z-30 stuck-canvas py-1 [@media(height<34.375rem)]:static';
+
+/**
+ * The sticky band for a density: the slimmer one around the `bar` tile, else the row's. Row
+ * density (/certifications, /projects) keeps BAR_STICKY_CLASS exactly.
+ */
+export const stickyClassFor = (density: 'row' | 'bar'): string =>
+  density === 'bar' ? BAR_STICKY_TILE_CLASS : BAR_STICKY_CLASS;
+
+/** `bar` density (/places): the same row on a surface-1 tile, 8px inside it at every width. */
 export const FORM_TILE_CLASS =
-  'flex min-w-0 items-center gap-2 rounded-tile border border-hairline bg-surface-1 p-2 shadow-tile @min-[48rem]/page:items-start @min-[48rem]/page:gap-3 @min-[48rem]/page:p-3';
+  'flex min-w-0 items-center gap-2 rounded-tile border border-hairline bg-surface-1 p-2 shadow-tile @min-[48rem]/page:items-start @min-[48rem]/page:gap-3';
 
 export const SEARCH_SLOT_CLASS =
   'h-10 min-w-0 flex-1 @min-[48rem]/page:min-w-40 @min-[48rem]/page:flex-[0_1_12rem]';
@@ -93,6 +115,11 @@ export const CHIP_LIST_CLASS = 'relative isolate flex flex-wrap gap-1.5';
  * scrolls is a fade over each end that has chips past it (data-overflow, set by FilterBar.Chips):
  * a mask, so alpha only, never a colour.
  */
+/**
+ * The width of each end's fade in CHIP_LIST_SCROLL_CLASS (its 1.5rem), so FilterBar.Chips can
+ * reveal a chip clear of it. chips-scroll.test.tsx checks the two match.
+ */
+export const CHIP_EDGE_FADE_REM = 1.5;
 export const CHIP_LIST_SCROLL_CLASS =
   'relative isolate flex flex-wrap gap-1.5 [scrollbar-width:none] @min-[48rem]/page:-m-0.5 @min-[48rem]/page:flex-nowrap @min-[48rem]/page:overflow-x-auto @min-[48rem]/page:p-1 data-[overflow=end]:[mask-image:linear-gradient(to_right,#000_calc(100%_-_1.5rem),transparent)] data-[overflow=start]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem)] data-[overflow=both]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem,#000_calc(100%_-_1.5rem),transparent)]';
 

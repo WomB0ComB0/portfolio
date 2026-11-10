@@ -28,8 +28,8 @@
  * - the owner's stack: 8 layers of 1 to 6 px blur, or 7 up to 5 px under a coarse pointer;
  * - forced colours draw nothing, reduced transparency drops every blur for a plain scrim, and
  *   reduced motion leaves the scroll fade as it is (nothing in the haze runs on the clock);
- * - an element scrolled into view stops clear of both bands (scroll-padding), and /projects'
- *   sticky filter bar ends inside the top band, so that padding clears it too;
+ * - an element scrolled into view stops clear of both bands (scroll-padding), and the sticky
+ *   filter bars of /projects and /places end inside the top band, so that padding clears them;
  * - a pulsing placeholder or an equaliser pauses while it sits under a band (each of its frames
  *   would blur the band again) and moves again mid-screen; a spinner keeps moving; after a client
  *   navigation no placeholder the last route removed is still observed;
@@ -471,33 +471,36 @@ test('pauses bars drawn with the real compiled equaliser keyframes under a band'
   }
 });
 
-test("/projects' sticky filter bar ends inside the top band, so its scroll-padding clears the bar too", async ({
-  page,
-}) => {
-  // The shortest lg screen gives the shortest band: 77 px.
-  await openAt(page, '/projects', { width: 1024, height: 640 });
-  await scrollToY(page, Math.round((await maxScroll(page)) / 2));
+// /projects' row bar, and /places' slimmer band around its 'bar' tile.
+for (const path of ['/projects', '/places'] as const) {
+  test(`${path}' sticky filter bar ends inside the top band, so its scroll-padding clears the bar too`, async ({
+    page,
+  }) => {
+    // The shortest lg screen gives the shortest band: 77 px.
+    await openAt(page, path, { width: 1024, height: 640 });
+    await scrollToY(page, Math.round((await maxScroll(page)) / 2));
 
-  const edges = await page.evaluate((selector) => {
-    // The kit's sticky bar, which must come first: the year bars and labels stick under it.
-    const bar = document.querySelector('main [data-filter-part="bar"]');
-    const firstSticky = [...document.querySelectorAll('main *')].find(
-      (element) => getComputedStyle(element).position === 'sticky',
-    );
-    return {
-      barIsFirstSticky: bar !== null && firstSticky === bar,
-      barTop: bar?.getBoundingClientRect().top ?? null,
-      barBottom: bar?.getBoundingClientRect().bottom ?? null,
-      bandEnd: document.querySelector(`${selector} > .t`)?.getBoundingClientRect().bottom ?? 0,
-      paddingTop: Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
-    };
-  }, HAZE);
-  if (edges.barTop === null || edges.barBottom === null) throw new Error('no sticky filter bar');
-  expect(edges.barIsFirstSticky, 'a year bar sticks before the filter bar').toBe(true);
-  expect(edges.barTop, 'the filter bar is not stuck to the top').toBeGreaterThanOrEqual(0);
-  expect(edges.barBottom).toBeLessThanOrEqual(edges.bandEnd);
-  expect(edges.barBottom).toBeLessThanOrEqual(edges.paddingTop);
-});
+    const edges = await page.evaluate((selector) => {
+      // The kit's sticky bar, which must come first: the year bars and labels stick under it.
+      const bar = document.querySelector('main [data-filter-part="bar"]');
+      const firstSticky = [...document.querySelectorAll('main *')].find(
+        (element) => getComputedStyle(element).position === 'sticky',
+      );
+      return {
+        barIsFirstSticky: bar !== null && firstSticky === bar,
+        barTop: bar?.getBoundingClientRect().top ?? null,
+        barBottom: bar?.getBoundingClientRect().bottom ?? null,
+        bandEnd: document.querySelector(`${selector} > .t`)?.getBoundingClientRect().bottom ?? 0,
+        paddingTop: Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
+      };
+    }, HAZE);
+    if (edges.barTop === null || edges.barBottom === null) throw new Error('no sticky filter bar');
+    expect(edges.barIsFirstSticky, 'another element sticks before the filter bar').toBe(true);
+    expect(edges.barTop, 'the filter bar is not stuck to the top').toBeGreaterThanOrEqual(0);
+    expect(edges.barBottom).toBeLessThanOrEqual(edges.bandEnd);
+    expect(edges.barBottom).toBeLessThanOrEqual(edges.paddingTop);
+  });
+}
 
 test.describe('the layer stack and its fallbacks', () => {
   for (const viewport of VIEWPORTS) {
