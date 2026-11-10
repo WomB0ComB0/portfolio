@@ -32,13 +32,14 @@
  * `next dev`, its route is compiled) before the browser loads it.
  *
  * Two limits are by design, so the no-JavaScript checks assert presence, not display:
- * - The list pages (/projects, /experience, /places, /resume) keep a loading.tsx, so a client
- *   navigation shows their skeleton (with the page's own h1) at once. React always flushes that
- *   skeleton first and streams the items into a hidden element that an inline script moves into
- *   place, even when the whole response is ready within milliseconds. Crawlers get every item in
- *   the HTML; a visitor without JavaScript sees the skeleton. /certifications and /guestbook have
- *   no loading.tsx (owner decision), so their rows show without JavaScript
- *   (e2e/journeys/certifications.spec.ts, e2e/journeys/guestbook.spec.ts).
+ * - The list pages with a loading.tsx (/experience, /places, /resume) show their skeleton (with
+ *   the page's own h1) at once on a client navigation. React always flushes that skeleton first
+ *   and streams the items into a hidden element that an inline script moves into place, even
+ *   when the whole response is ready within milliseconds. Crawlers get every item in the HTML; a
+ *   visitor without JavaScript sees the skeleton. /certifications, /guestbook and /projects have
+ *   no loading.tsx (owner decisions; for /projects "Drop it on both"), so their rows show
+ *   without JavaScript (e2e/journeys/certifications.spec.ts, e2e/journeys/guestbook.spec.ts,
+ *   e2e/journeys/projects-index.spec.ts).
  * - A detail page calls notFound() with no Suspense above it, which is what makes its status a
  *   real 404. Next answers that with an empty error document plus the payload, and the browser
  *   renders "Page not found" inside the shell from it.

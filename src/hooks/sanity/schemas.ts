@@ -136,6 +136,12 @@ export const ProjectSchema = Schema.Struct({
   technologies: Schema.Array(Schema.String),
   status: Schema.String, // Allow any string for flexible status combinations
   featured: Schema.Boolean,
+  /**
+   * The Studio "Featured rank": puts the project in the Featured group at the top of /projects,
+   * lowest first. Documents written before the field existed have no value, and GROQ answers
+   * null for them: both decode as absent, so no project is dropped for lacking one.
+   */
+  featuredRank: Schema.optionalWith(Schema.Number, { nullable: true }),
   liveUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   githubUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   startDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),

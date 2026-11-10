@@ -18,18 +18,9 @@
 // components import from this folder.
 export { default as DraggableGallery } from './draggable-gallery';
 export { default as PinnedRepos } from './pinned-repos';
-export {
-  PROJECT_GRID_CLASS,
-  ProjectCard,
-  type ProjectCardData,
-  type ProjectCardProps,
-  projectHref,
-} from './project-card';
-export {
-  type ProjectFilterOptions,
-  type ProjectFilters,
-  ProjectsExplorer,
-  type ProjectsExplorerProps,
-} from './projects-explorer';
-export { ProjectsListSkeleton, ProjectsPageFrame } from './projects-skeleton';
+export { type GroupedRow, ProjectGroups } from './project-groups';
+export { PROJECTS_DESCRIPTION, PROJECTS_TITLE, ProjectsStatStrip } from './project-header';
+export { LIST_CLASS, PROJECT_COLUMNS } from './project-index-classes';
+export { ProjectRow } from './project-row';
+export { type ProjectRowItem, ProjectsIndex, type ProjectsIndexProps } from './projects-index';
 export { default as Repository } from './repository';

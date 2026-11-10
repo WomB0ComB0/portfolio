@@ -73,11 +73,11 @@ const SETTLE_MS = 200;
 const PHONE = { width: 375, height: 667 } as const;
 const LAPTOP = { width: 1366, height: 768 } as const;
 
-/** Far enough down /projects at phone size that a non-sticky filter bar is well out of view. */
+/** Far enough down /projects at phone size that a non-sticky filter bar would be out of view. */
 const FILTER_BAR_SCROLL_PX = 1400;
 
-/** FilterBar's search field on /projects (projects-explorer.tsx). */
-const PROJECTS_SEARCH_PLACEHOLDER = 'Search projects...';
+/** The shared FilterBar kit's sticky <search> on /projects (search and the Filters button). */
+const PROJECTS_FILTER_BAR = '[data-filter-part="bar"]';
 
 interface Viewport {
   readonly width: number;
@@ -255,17 +255,13 @@ async function heightAfterScrollingToEnd(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollHeight);
 }
 
-/**
- * The bottom edge of the filter bar's lowest control (on a phone its search field and menus
- * stack). The controls move with the bar's sticky wrapper, so this needs no hook into its markup.
- */
-async function filterBarBottom(main: Locator): Promise<number> {
-  const controls = [
-    main.getByPlaceholder(PROJECTS_SEARCH_PLACEHOLDER),
-    ...(await main.getByRole('combobox').all()),
-  ];
-  const boxes = await Promise.all(controls.map(boxOf));
-  return Math.max(...boxes.map((box) => box.y + box.height));
+/** The top band's end (the edge haze's top strip), or html's scroll-padding-top without one. */
+async function topBandEnd(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const band = document.querySelector('.edge-haze > .t');
+    const padding = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+    return band ? band.getBoundingClientRect().bottom : padding;
+  });
 }
 
 /**
@@ -380,12 +376,15 @@ test.describe('page height on /', () => {
 });
 
 test.describe('filter bar on /projects', () => {
-  // From lg up the bar may stay pinned (a desktop screen has the height to spare); a phone does not.
-  test(`${PHONE.width}x${PHONE.height}: the filter bar scrolls away with the page`, async ({
+  // The owner's pick for the shared kit: "Sticky (Recommended)". On a phone the bar is one row,
+  // the search and a Filters button (the kinds and technologies open in a bottom sheet), so it
+  // stays pinned inside the top band at every width.
+  test(`${PHONE.width}x${PHONE.height}: the one-row filter bar stays pinned in the top band`, async ({
     page,
   }) => {
     const main = await openAt(page, '/projects', PHONE);
-    await expect(main.getByPlaceholder(PROJECTS_SEARCH_PLACEHOLDER)).toBeVisible();
+    const bar = main.locator(PROJECTS_FILTER_BAR);
+    await expect(bar).toBeVisible();
 
     await scrollToY(page, FILTER_BAR_SCROLL_PX);
     const scrolled = await page.evaluate(() => window.scrollY);
@@ -394,9 +393,11 @@ test.describe('filter bar on /projects', () => {
       `/projects is too short to scroll ${FILTER_BAR_SCROLL_PX} px`,
     ).toBeGreaterThanOrEqual(FILTER_BAR_SCROLL_PX - TOLERANCE_PX);
 
-    expect(
-      await filterBarBottom(main),
-      'the filter bar stays pinned over the projects on a phone',
-    ).toBeLessThan(0);
+    const box = await boxOf(bar);
+    expect(box.y, 'the filter bar is not pinned to the top').toBeGreaterThanOrEqual(-TOLERANCE_PX);
+    expect(box.y, 'the filter bar scrolled away').toBeLessThanOrEqual(TOLERANCE_PX);
+    expect(box.y + box.height, 'the filter bar ends past the top band').toBeLessThanOrEqual(
+      (await topBandEnd(page)) + TOLERANCE_PX,
+    );
   });
 });

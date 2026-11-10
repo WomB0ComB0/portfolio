@@ -1,0 +1,114 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The /projects hover preview's card (the hover-image-links pattern, our own rewrite; the
+ * owner's "Keep A + no lean"). Palette tokens only: the card is surface-2 with the brand halo
+ * and a 1px brand rim over the photo; a project without a cover gets the typographic card
+ * (brand wash and glow over surface-3), as the home project tile's typographic cover.
+ *
+ * Only transform and opacity move, set by motion on the element (x and y on the house spring,
+ * the fades on --ease-effect's curve). will-change is set only while the card is shown
+ * ([data-active]), never at rest. The global reduced-motion rule clamps the CSS fades here.
+ */
+
+/* Fixed to the window, above the edge haze (z 20), under the rail (z 40). */
+.card {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  width: 18rem;
+  height: 10.125rem;
+  border-radius: 0.75rem;
+  background: var(--surface-2);
+  box-shadow:
+    0 25px 50px -12px var(--brand-halo),
+    0 0 32px 0 var(--brand-halo);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.card[data-active] {
+  will-change: transform, opacity;
+}
+
+/* The brand rim, over the photo. */
+.card::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--brand-rim);
+  pointer-events: none;
+}
+
+.layers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/*
+ * One layer per project seen. The one shown comes in on top over --motion-base; the one before
+ * it stays whole underneath until then, so a crossfade never dips to the card's surface.
+ */
+.layer {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-effect);
+}
+
+.layer[data-state="shown"] {
+  z-index: 2;
+  opacity: 1;
+}
+
+.layer[data-state="previous"] {
+  z-index: 1;
+  opacity: 1;
+  transition: opacity 0s linear var(--motion-base);
+}
+
+.cover {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-effect);
+}
+
+.cover[data-loaded="true"] {
+  opacity: 1;
+}
+
+/* No cover in Sanity yet: the kind and the title, as the home project tile's typographic cover. */
+.typographic {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem;
+  background:
+    linear-gradient(160deg, var(--brand-wash), transparent 60%),
+    radial-gradient(18rem 10rem at 100% 0%, var(--brand-glow), transparent 70%), var(--surface-3);
+}

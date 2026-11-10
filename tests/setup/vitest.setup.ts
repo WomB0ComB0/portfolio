@@ -40,17 +40,24 @@ vi.mock('next/font/google', () => {
 });
 
 // Vite cannot load the repo's PostCSS config (Next's string-plugin form), so a CSS module in a
-// component's imports fails the whole test file. The place viewer's photo strip is rendered by
-// every viewer and place-page test, so its class names are stood in for here, once: each class
-// `name` is `name`. Its rules are read as text in tests/unit/places/photo-strip-css.test.ts.
+// component's imports fails the whole test file. The CSS modules of components many tests render
+// are stood in for here, once: each class `name` is `name`. Their rules are read as text where a
+// test checks them (tests/unit/places/photo-strip-css.test.ts, the /projects preview test).
+const cssModuleNames = vi.hoisted(() => () => ({
+  default: new Proxy({} as Record<string, string>, {
+    /** Each class name read from the module is the name itself; a symbol key reads undefined. */
+    get: (_target, name) => (typeof name === 'string' ? name : undefined),
+  }),
+}));
+// The place viewer's photo strip: every viewer and place-page test renders it.
 vi.mock(
   '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/photo-strip.module.css',
-  () => ({
-    default: new Proxy({} as Record<string, string>, {
-      /** Each class name read from the module is the name itself; a symbol key reads undefined. */
-      get: (_target, name) => (typeof name === 'string' ? name : undefined),
-    }),
-  }),
+  cssModuleNames,
+);
+// The /projects hover preview's card: the projects page and preview tests render it.
+vi.mock(
+  '@/app/(routes)/(main)/(professioal)/projects/_components/project-preview.module.css',
+  cssModuleNames,
 );
 
 // Mock environment variables for tests

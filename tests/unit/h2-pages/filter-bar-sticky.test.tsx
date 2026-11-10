@@ -19,14 +19,14 @@
  * broke position: sticky), which switched on the bar's old `sticky top-24`: on a phone the
  * 163 px bar stayed on screen with the bottom bar and left a few hundred pixels for the list.
  * Below lg the bar is static now; from lg it sticks 1rem from the top, and the results count
- * that hangs under it (over the cards while it sticks) is an opaque chip, not bare text. The
- * /projects loading skeleton repeats the bar's box, so it must not drift from the real one.
- * Whether the bar really scrolls away is a layout question for the browser checks.
+ * that hangs under it (over the cards while it sticks) is an opaque chip, not bare text.
+ * Whether the bar really scrolls away is a layout question for the browser checks. (/places
+ * still uses this bar; /projects moved to the shared console FilterBar kit, sticky at every
+ * width by the owner's pick, and has no loading skeleton any more.)
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ProjectsListSkeleton } from '@/app/(routes)/(main)/(professioal)/projects/_components/projects-skeleton';
 import { FilterBar } from '@/components/ui/filter-bar';
 
 const noop = (): void => undefined;
@@ -101,18 +101,5 @@ describe("FilterBar's results count", () => {
 
     expect(chipOf()).toHaveClass('text-muted-foreground');
     expect(screen.getByText('Showing 2 of 15 projects')).toHaveClass('tabular-nums');
-  });
-});
-
-describe('the /projects loading skeleton', () => {
-  it("uses the filter bar's own outer box, so loading never sticks where the bar does not", () => {
-    const barClass = renderBar(false).className;
-    cleanup();
-
-    render(<ProjectsListSkeleton />);
-    const status = screen.getByRole('status', { name: 'Loading projects' });
-    const skeletonBar = status.firstElementChild;
-
-    expect(skeletonBar?.className).toBe(barClass);
   });
 });

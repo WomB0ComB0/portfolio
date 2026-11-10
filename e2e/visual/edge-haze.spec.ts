@@ -479,17 +479,21 @@ test("/projects' sticky filter bar ends inside the top band, so its scroll-paddi
   await scrollToY(page, Math.round((await maxScroll(page)) / 2));
 
   const edges = await page.evaluate((selector) => {
-    const sticky = [...document.querySelectorAll('main *')].find(
+    // The kit's sticky bar, which must come first: the year bars and labels stick under it.
+    const bar = document.querySelector('main [data-filter-part="bar"]');
+    const firstSticky = [...document.querySelectorAll('main *')].find(
       (element) => getComputedStyle(element).position === 'sticky',
     );
     return {
-      barTop: sticky?.getBoundingClientRect().top ?? null,
-      barBottom: sticky?.getBoundingClientRect().bottom ?? null,
+      barIsFirstSticky: bar !== null && firstSticky === bar,
+      barTop: bar?.getBoundingClientRect().top ?? null,
+      barBottom: bar?.getBoundingClientRect().bottom ?? null,
       bandEnd: document.querySelector(`${selector} > .t`)?.getBoundingClientRect().bottom ?? 0,
       paddingTop: Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
     };
   }, HAZE);
   if (edges.barTop === null || edges.barBottom === null) throw new Error('no sticky filter bar');
+  expect(edges.barIsFirstSticky, 'a year bar sticks before the filter bar').toBe(true);
   expect(edges.barTop, 'the filter bar is not stuck to the top').toBeGreaterThanOrEqual(0);
   expect(edges.barBottom).toBeLessThanOrEqual(edges.bandEnd);
   expect(edges.barBottom).toBeLessThanOrEqual(edges.paddingTop);

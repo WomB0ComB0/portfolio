@@ -22,6 +22,7 @@
  * role="grid", never an onClick on a <tr>: the title is the row's one link.
  */
 
+import Link from 'next/link';
 import type { HTMLAttributes, ReactElement, ReactNode } from 'react';
 
 import { NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
@@ -107,28 +108,56 @@ export function IndexRow({ className, children, ...rest }: IndexRowProps): React
   );
 }
 
-export interface IndexTitleLinkProps {
+interface IndexTitleLinkBase {
   readonly href: string;
-  /** Opens in a new tab, said as the site says it: "(opens in a new tab)". */
-  readonly external?: boolean;
   readonly className?: string;
   readonly children: ReactNode;
   readonly [data: `data-${string}`]: string | undefined;
 }
 
-/** The row's one link, stretched over the whole row. */
+/** Where the title goes: another site in a new tab, a page of this site, or a plain link. */
+type IndexTitleLinkTarget =
+  | {
+      /** Opens in a new tab, said as the site says it: "(opens in a new tab)". */
+      readonly external?: boolean;
+      readonly internal?: never;
+    }
+  | {
+      /**
+       * A page of this site, through next/link (never prefetched): soft navigation keeps the
+       * island and its URL state for Back, and a LinkPending inside shows while it loads.
+       */
+      readonly internal: true;
+      readonly external?: never;
+    };
+
+export type IndexTitleLinkProps = IndexTitleLinkBase & IndexTitleLinkTarget;
+
+/**
+ * The row's one link, stretched over the whole row: next/link for an internal page, else a
+ * plain <a> (a new tab when external). Both carry the same class and data attributes.
+ */
 export function IndexTitleLink({
   href,
   external = false,
+  internal,
   className,
   children,
   ...data
 }: IndexTitleLinkProps): ReactElement {
+  const linkClass = cn(INDEX_TITLE_LINK_CLASS, className);
+  if (internal) {
+    return (
+      <Link href={href} prefetch={false} data-index-link="" className={linkClass} {...data}>
+        {children}
+      </Link>
+    );
+  }
   return (
     <a
       href={href}
       data-index-link=""
-      className={cn(INDEX_TITLE_LINK_CLASS, className)}
+      className={linkClass}
       {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       {...data}
     >

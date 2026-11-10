@@ -15,14 +15,16 @@
  */
 
 /**
- * @file /projects renders on the server: every project is a link in the first HTML, with no
- * pagination, no loader and nothing hidden behind an entrance animation. The filters live in the
- * URL (?q, ?category, ?tech) and the client island reads and writes them there; an unknown
- * category or technology in the URL shows everything. Only the loaders are mocked; image URLs
- * come from the real Sanity URL builder.
+ * @file /projects as the open Index, rendered on the server: every project is a row link in
+ * the first HTML (the Featured group, then the years newest first, then Undated), with no
+ * loading.tsx, no loader and nothing hidden behind an entrance. The filters live in the URL
+ * (?q, ?category for the Kind, repeated ?tech for the Technology) through the shared kit's
+ * useUrlFilters, so a shared link is filtered in the server HTML and hydrates without a
+ * mismatch, and old links (?category=Web Development, a single ?tech=Python) still work. Only
+ * the loaders are mocked; cover URLs come from the real Sanity URL builder.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { makeProject } from '@tests/fixtures/sanity-docs';
@@ -30,8 +32,10 @@ import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/test
 import type { ReactElement } from 'react';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '@/hooks/sanity/schemas';
+import { FINE_POINTER } from '@/hooks/use-fine-pointer';
+import { wideLayout } from '../console/filter-bar/wide-layout';
 
 const loaders = vi.hoisted(() => ({ loadProjects: vi.fn() }));
 
@@ -56,41 +60,58 @@ const PROJECTS_DIR = path.resolve(
   '../../../src/app/(routes)/(main)/(professioal)/projects',
 );
 
-const categoryOf = (index: number): string => {
-  if (index < 4) return 'Web';
-  if (index < 8) return 'Mobile';
-  return 'Machine Learning';
-};
-
-const imageOf = (index: number): Project['image'] => ({
-  _type: 'image',
-  asset: { _ref: `image-shot${index}-1600x900-png`, _type: 'reference' },
-  alt: `Screenshot of project ${index + 1}`,
-});
+/** [category, technologies, featured, startDate] per project, synthetic. */
+const SHAPES: readonly (readonly [string, readonly string[], boolean, string | null])[] = [
+  ['Web Development', ['TypeScript', 'React'], true, '2023-02-01'],
+  ['Web Development', ['TypeScript', 'React'], true, '2025-06-01'],
+  ['Web Development', ['TypeScript', 'React'], false, '2025-09-01'],
+  ['Web Development', ['TypeScript', 'React'], false, '2024-03-01'],
+  ['Mobile / Full-Stack', ['TypeScript', 'React Native'], false, '2025-01-01'],
+  ['Mobile / Full-Stack', ['TypeScript', 'React Native'], false, '2024-05-01'],
+  ['Mobile / Full-Stack', ['TypeScript', 'React Native'], false, '2024-11-01'],
+  ['Mobile / Full-Stack', ['TypeScript', 'React Native'], false, null],
+  ['Machine Learning', ['Python', 'TensorFlow'], false, '2023-07-01'],
+  ['Machine Learning', ['Python', 'TensorFlow'], false, '2025-03-01'],
+  ['Machine Learning', ['Python', 'TensorFlow'], false, '2024-01-01'],
+  ['Machine Learning', ['Go'], false, '2022-08-01'],
+];
 
 /**
- * Twelve projects, more than the old first page of nine: four per category, the last one alone
- * in Python, the tenth the only one about a needle, and the first without an image.
+ * Twelve projects, more than the old first page of nine: two switched to Featured (no rank
+ * yet), years from 2022 to 2025 and one undated, the tenth the only one about a needle, the
+ * first without an image.
  */
-const PROJECTS: readonly Project[] = Array.from({ length: 12 }, (_, index) =>
-  makeProject({
-    title: `Project ${index + 1}`,
-    description:
-      index === 9 ? 'Finds a needle in the haystack.' : `What project ${index + 1} does.`,
-    category: categoryOf(index),
-    technologies: index === 11 ? ['Python'] : ['TypeScript', 'React'],
-    image: index === 0 ? null : imageOf(index),
-  }),
+const PROJECTS: readonly Project[] = SHAPES.map(
+  ([category, technologies, featured, startDate], index) =>
+    makeProject({
+      title: `Project ${index + 1}`,
+      description:
+        index === 9 ? 'Finds a needle in the haystack.' : `What project ${index + 1} does.`,
+      category,
+      technologies: [...technologies],
+      featured,
+      order: index + 1,
+      startDate,
+      image:
+        index === 0
+          ? null
+          : {
+              _type: 'image',
+              asset: { _ref: `image-shot${index}-1600x900-png`, _type: 'reference' },
+            },
+    }),
 );
 
-const hrefOf = (project: Project): string => `/projects/${project._id}`;
+/** Page order: Featured by display order, then 2025, 2024, 2023, 2022 (newer first), Undated. */
+const PAGE_ORDER = [0, 1, 2, 9, 4, 6, 5, 3, 10, 8, 11, 7];
 
-/** The fixture at `index`, which the list above always has. */
-const projectAt = (index: number): Project => {
-  const project = PROJECTS[index];
-  if (!project) throw new Error(`no fixture project at ${index}`);
-  return project;
-};
+const hrefOf = (project: Project): string => `/projects/${encodeURIComponent(project._id)}`;
+const hrefsAt = (indexes: readonly number[]): string[] =>
+  indexes.map((index) => {
+    const project = PROJECTS[index];
+    if (!project) throw new Error(`no fixture project at ${index}`);
+    return hrefOf(project);
+  });
 
 async function renderPage(
   searchParams = '',
@@ -98,23 +119,24 @@ async function renderPage(
 ): Promise<ReturnType<typeof render>> {
   const page: ReactElement = await ProjectsPage();
   return render(
-    <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate}>
+    <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate} hasMemory>
       {page}
     </NuqsTestingAdapter>,
   );
 }
 
-/** The hrefs of every project card on the page, in order. */
-const projectLinks = (): string[] =>
-  screen
-    .queryAllByRole('link')
-    .map((link) => link.getAttribute('href') ?? '')
-    .filter((href) => href.startsWith('/projects/'));
+/** The hrefs of every project's title link, in order. */
+const projectLinks = (root: ParentNode = document): string[] =>
+  Array.from(root.querySelectorAll('a[data-project-title]')).map(
+    (link) => link.getAttribute('href') ?? '',
+  );
 
-const cardOf = (project: Project): HTMLElement => {
-  const card = document.querySelector<HTMLElement>(`a[href="${hrefOf(project)}"]`);
-  if (!card) throw new Error(`no card links to ${hrefOf(project)}`);
-  return card;
+/** The count as a screen reader reads it (the animated copy left out). */
+const countText = (): string => {
+  const count = document.querySelector('[data-filter-part="count"]')?.cloneNode(true);
+  if (!(count instanceof HTMLElement)) return '';
+  for (const hidden of count.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+  return (count.textContent ?? '').replaceAll(/\s+/g, ' ').trim();
 };
 
 beforeEach(() => {
@@ -123,70 +145,83 @@ beforeEach(() => {
 });
 
 describe('/projects on the server', () => {
-  it('links every project, including those past the old first page of nine', async () => {
+  it('links every project in page order: Featured, the years newest first, then Undated', async () => {
     await renderPage();
 
-    expect(projectLinks()).toEqual(PROJECTS.map(hrefOf));
-    for (const project of PROJECTS.slice(9)) {
-      expect(within(cardOf(project)).getByRole('heading', { level: 3 })).toHaveTextContent(
-        project.title,
-      );
+    expect(projectLinks()).toEqual(hrefsAt(PAGE_ORDER));
+    expect(screen.getByRole('heading', { level: 1, name: 'Projects' })).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual([
+      'Featured, 2 projects',
+      '2025, 3 projects',
+      '2024, 4 projects',
+      '2023, 1 project',
+      '2022, 1 project',
+      'Undated, 1 project',
+    ]);
+    for (const table of screen.getAllByRole('table')) {
+      expect(table).toHaveAttribute('data-variant', 'open');
     }
-    expect(screen.getByRole('heading', { level: 1, name: 'My Projects' })).toBeInTheDocument();
+    expect(countText()).toBe('12 projects');
   });
 
-  it('puts every card in the server HTML, visible, with no loader or skeleton', async () => {
+  it('puts every row in the server HTML, visible, with no loader or skeleton', async () => {
     const html = renderToString(<NuqsTestingAdapter>{await ProjectsPage()}</NuqsTestingAdapter>);
 
-    for (const project of PROJECTS) {
-      expect(html).toContain(`href="${hrefOf(project)}"`);
-      expect(html).toContain(project.title);
-    }
-    // An entrance animation serialises opacity:0 into the HTML; a hover gradient's 0.8 is fine.
+    for (const href of hrefsAt(PAGE_ORDER)) expect(html).toContain(`href="${href}"`);
+    // An entrance animation serialises opacity:0 into the HTML.
     expect(html).not.toMatch(/opacity:\s*0(?![.\d])/);
     expect(html).not.toContain('loader-ring-title');
-    expect(html).not.toContain('Loading more projects');
+    expect(html).not.toContain('Loading projects');
     expect(html).not.toContain('Load More Projects');
   });
 
-  it('shows a placeholder for a project without an image and the image for the others', async () => {
+  it('keeps no loading.tsx above the list or the detail page, so rows render without JavaScript', () => {
+    const present = ['', '(list)', '[id]'].flatMap((dir) =>
+      ['loading.tsx', 'loading.ts', 'loading.jsx', 'loading.js']
+        .map((file) => path.join(dir, file))
+        .filter((file) => existsSync(path.join(PROJECTS_DIR, file))),
+    );
+
+    expect(present).toEqual([]);
+  });
+
+  it('says there are no projects yet only when the list is empty, with no toolbar', async () => {
+    loaders.loadProjects.mockResolvedValue([]);
     await renderPage();
 
-    const withoutImage = cardOf(projectAt(0));
-    expect(withoutImage.querySelector('[data-slot="project-image-placeholder"]')).not.toBeNull();
-    expect(withoutImage.querySelector('img')).toBeNull();
-
-    const image = within(cardOf(projectAt(1))).getByRole('img', {
-      name: 'Screenshot of project 2',
-    });
-    expect(decodeURIComponent(image.getAttribute('src') ?? '')).toContain(
-      'cdn.sanity.io/images/test/test/shot1-1600x900.png?w=800&h=450',
-    );
+    expect(screen.getByText('No projects yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
   });
 });
 
 describe('/projects filters in the URL', () => {
-  it('shows only the category in ?category, with the count', async () => {
-    await renderPage('?category=Web');
+  it('reads an old ?category link as its kind, with the count', async () => {
+    await renderPage('?category=Web%20Development');
 
-    expect(projectLinks()).toEqual(PROJECTS.slice(0, 4).map(hrefOf));
-    expect(screen.getByText('Showing 4 of 12 projects')).toBeInTheDocument();
+    expect(projectLinks()).toEqual(hrefsAt([0, 1, 2, 3]));
+    expect(countText()).toBe('4 of 12 projects');
   });
 
-  it('server-renders the count and Clear for a filter in the URL, visible without JavaScript', async () => {
+  it('server-renders a shared ?category link already filtered, with its token', async () => {
     const html = renderToString(
-      <NuqsTestingAdapter searchParams="?category=Web">{await ProjectsPage()}</NuqsTestingAdapter>,
+      <NuqsTestingAdapter searchParams="?category=web-development">
+        {await ProjectsPage()}
+      </NuqsTestingAdapter>,
     );
 
-    expect(html).toContain('Showing <!-- -->4<!-- --> of <!-- -->12<!-- --> <!-- -->projects');
-    expect(html).toContain('Clear');
-    // An entrance serialises opacity:0 into the HTML; MagicCard's hover gradient's 0.8 is fine.
+    expect(html).toContain(`href="${hrefsAt([3])[0]}"`);
+    expect(html).not.toContain(`href="${hrefsAt([4])[0]}"`);
+    expect(html).toContain('Clear all');
     expect(html).not.toMatch(/opacity:\s*0(?![.\d])/);
   });
 
   it('hydrates a filtered server render without a mismatch', async () => {
     const tree = (
-      <NuqsTestingAdapter searchParams="?category=Web">{await ProjectsPage()}</NuqsTestingAdapter>
+      <NuqsTestingAdapter searchParams="?category=web-development&tech=react">
+        {await ProjectsPage()}
+      </NuqsTestingAdapter>
     );
     const container = document.createElement('div');
     container.innerHTML = renderToString(tree);
@@ -201,76 +236,164 @@ describe('/projects filters in the URL', () => {
 
     expect(onRecoverableError).not.toHaveBeenCalled();
     expect(consoleError).not.toHaveBeenCalled();
-    expect(within(container).getAllByRole('heading', { level: 3 })).toHaveLength(4);
+    expect(container.querySelectorAll('tr[data-project-row]')).toHaveLength(4);
     act(() => root?.unmount());
     container.remove();
     consoleError.mockRestore();
   });
 
-  it('shows every project for a category no project has', async () => {
+  it('shows every project, with nothing applied, for values no project has', async () => {
     await renderPage('?category=bogus&tech=COBOL');
 
-    expect(projectLinks()).toEqual(PROJECTS.map(hrefOf));
-    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    expect(projectLinks()).toEqual(hrefsAt(PAGE_ORDER));
+    expect(countText()).toBe('12 projects');
+    expect(document.querySelector('[data-filter-part="applied"]')).toBeNull();
   });
 
-  it('shows only the projects using ?tech', async () => {
-    await renderPage('?tech=Python');
+  it('reads an old single ?tech=Python, and ORs repeated ?tech keys', async () => {
+    const single = await renderPage('?tech=Python');
 
-    expect(projectLinks()).toEqual([hrefOf(projectAt(11))]);
-    expect(screen.getByText('Showing 1 of 12 projects')).toBeInTheDocument();
+    expect(projectLinks()).toEqual(hrefsAt([9, 10, 8]));
+    expect(countText()).toBe('3 of 12 projects');
+    single.unmount();
+
+    await renderPage('?tech=python&tech=go');
+    expect(projectLinks()).toEqual(hrefsAt([9, 10, 8, 11]));
   });
 
-  it('writes the search to ?q, replacing the history entry, and filters as it is typed', async () => {
+  it('writes the search to ?q as it is typed: replace, shallow, no scroll', async () => {
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
     await renderPage('', onUrlUpdate);
 
-    fireEvent.change(screen.getByPlaceholderText('Search projects...'), {
-      target: { value: 'NEEDLE' },
-    });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'NEEDLE' } });
 
-    expect(projectLinks()).toEqual([hrefOf(projectAt(9))]);
+    await waitFor(() => expect(projectLinks()).toEqual(hrefsAt([9])));
     await waitFor(() =>
       expect(onUrlUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           queryString: '?q=NEEDLE',
-          options: expect.objectContaining({ history: 'replace', shallow: true }),
+          options: expect.objectContaining({ history: 'replace', shallow: true, scroll: false }),
         }),
       ),
     );
   });
 
-  it('offers to clear filters that match nothing, and clearing empties the URL', async () => {
+  it('filters in place from a Kind chip and writes its slug to ?category', async () => {
+    // jsdom hides every popover; from a 48rem page the chips sit in the bar.
+    const narrow = wideLayout();
+    try {
+      const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+      await renderPage('', onUrlUpdate);
+      const chips = screen.getByRole('list', { name: 'Filter by kind' });
+
+      fireEvent.click(within(chips).getByRole('link', { name: /^Machine Learning/ }));
+
+      await waitFor(() => expect(projectLinks()).toEqual(hrefsAt([9, 10, 8, 11])));
+      await waitFor(() =>
+        expect(onUrlUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({ queryString: '?category=machine-learning' }),
+        ),
+      );
+    } finally {
+      narrow();
+    }
+  });
+
+  it('shows the designed empty state for filters that match nothing, and clears them', async () => {
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
-    await renderPage('?category=Web&tech=Python', onUrlUpdate);
+    await renderPage('?category=web-development&tech=python', onUrlUpdate);
 
     expect(projectLinks()).toEqual([]);
-    expect(screen.getByRole('heading', { name: 'No matches found' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'No projects match' })).toBeInTheDocument();
+    const clear = screen.getByRole('link', { name: 'Clear filters' });
+    expect(clear).toHaveAttribute('href', '/projects');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+    fireEvent.click(clear);
 
     await waitFor(() =>
       expect(onUrlUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ queryString: '' })),
     );
   });
+});
 
-  it('says there are no projects yet only when the list is empty', async () => {
-    loaders.loadProjects.mockResolvedValue([]);
+describe('/projects hover preview on the page', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('hides at once on any filter or URL change, even one that keeps every row', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === FINE_POINTER,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
     await renderPage();
+    const card = (): Element | null => document.querySelector('[data-preview-card]');
+    await waitFor(() => expect(card()).not.toBeNull());
+    const title = document.querySelector('a[data-project-title]') as HTMLElement;
+    fireEvent.pointerMove(title, { pointerType: 'mouse', clientX: 300, clientY: 10 });
+    expect(card()?.getAttribute('data-shown')).not.toBe('');
 
-    expect(screen.getByRole('heading', { name: 'No projects yet' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument();
+    // Every synthetic description says "project": the same rows stay, but the URL changes.
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'project' } });
+
+    await waitFor(() => expect(card()).toHaveAttribute('data-shown', ''));
+    expect(projectLinks()).toEqual(hrefsAt(PAGE_ORDER));
   });
 });
 
-describe('/projects client island', () => {
-  it.each(['_components/project-card.tsx', '_components/projects-explorer.tsx'])(
-    '%s never imports the Sanity client or motion',
-    (file) => {
-      const source = readFileSync(path.join(PROJECTS_DIR, file), 'utf8');
+describe('/projects module boundaries', () => {
+  const INDEX_FILES = [
+    '_lib/project-text.ts',
+    '_lib/project-order.ts',
+    '_lib/project-filters.ts',
+    '_lib/project-index.ts',
+    '_components/project-index-classes.ts',
+    '_components/project-row.tsx',
+    '_components/project-groups.tsx',
+    '_components/project-header.tsx',
+    '_components/projects-index.tsx',
+    '_components/project-preview-geometry.ts',
+  ];
+  const PREVIEW_FILES = [
+    '_components/project-preview.tsx',
+    '_components/project-preview-live.tsx',
+    '_components/project-preview-card.tsx',
+  ];
 
-      expect(source).not.toMatch(/from ['"]@\/lib\/sanity/);
-      expect(source).not.toMatch(/from ['"](motion|framer-motion)/);
-    },
-  );
+  it.each([...INDEX_FILES, ...PREVIEW_FILES])('%s never imports the Sanity client', (file) => {
+    const source = readFileSync(path.join(PROJECTS_DIR, file), 'utf8');
+
+    expect(source).not.toMatch(/from ['"]@\/lib\/sanity/);
+  });
+
+  it.each(INDEX_FILES)('%s leaves motion to the preview files', (file) => {
+    const source = readFileSync(path.join(PROJECTS_DIR, file), 'utf8');
+
+    expect(source).not.toMatch(/from ['"](motion|framer-motion)/);
+  });
+
+  it('loads the preview’s card, listeners and motion lazily: none of it is in the first load', () => {
+    const wrapper = readFileSync(
+      path.join(PROJECTS_DIR, '_components/project-preview.tsx'),
+      'utf8',
+    );
+
+    expect(wrapper).not.toMatch(/from ['"](motion|framer-motion)/);
+    expect(wrapper).not.toMatch(/from ['"]\.\/project-preview-(live|card)['"]/);
+    expect(wrapper).toMatch(/import\(['"]\.\/project-preview-live['"]\)/);
+    for (const file of INDEX_FILES) {
+      const source = readFileSync(path.join(PROJECTS_DIR, file), 'utf8');
+      expect(source, file).not.toMatch(/from ['"]\.\/project-preview-(live|card)['"]/);
+    }
+  });
+
+  it('builds covers on the server only', () => {
+    const body = readFileSync(
+      path.join(PROJECTS_DIR, '_interface/projects-index/projects-index.tsx'),
+      'utf8',
+    );
+
+    expect(body).toMatch(/^import 'server-only';/m);
+    expect(body).toMatch(/from ['"]@\/lib\/sanity\/client['"]/);
+  });
 });

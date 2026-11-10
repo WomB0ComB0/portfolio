@@ -36,6 +36,8 @@ e2e/
 │   ├── guestbook.spec.ts
 │   ├── dark-mode.spec.ts
 │   ├── projects.spec.ts
+│   ├── projects-index.spec.ts
+│   ├── projects-index-preview.spec.ts
 │   ├── experience.spec.ts
 │   ├── media.spec.ts
 │   ├── place-photo-strip.spec.ts
@@ -70,6 +72,18 @@ User journey tests that verify end-to-end flows:
 - **guestbook.spec.ts** - Guestbook, read-only against the live data: every message in the server HTML (rows match the stated count, a trailing '+' when the cap cut the list), no literal entities in the page's own text (rows hold visitors' words as typed, so they are checked only for text escaped twice, such as &#039;), no Firebase Auth request until Sign in is pressed (390 mobile and 1280), no sideways scroll, refined type, the sticky compose card below the top edge haze (1280 and 1920). Every context aborts non-GET requests and the auth hosts; nothing signs in or posts
 - **dark-mode.spec.ts** - Theme toggle, persistence
 - **projects.spec.ts** - Projects page, modals, filtering
+- **projects-index.spec.ts** - /projects as the open Index (table style 2), against the live data
+  and compared with its own figures: every project a row under Featured, then the years, then
+  Undated; old links (?category=Web Development, a whole combined old category, ?category=bogus,
+  a single ?tech=Python); a chip and the Technology picker filter in place and rewrite the URL
+  (repeated ?tech keys); a chip, a project, then Back shows what the URL names; without
+  JavaScript the rows are in the first HTML (no loading.tsx), a shared link is filtered, the
+  search is a GET form and the picker's Apply submits; no sideways scroll at 390 and 1440 with
+  60 and 64 px rows; the tint hover on the motion tokens with nothing moving
+- **projects-index-preview.spec.ts** - The /projects hover preview (variant A, no lean): under
+  the hovered row and right of the pointer, inside the window, never over the row or the stuck
+  filter bar; a glide between rows; keyboard focus and reduced motion pin it with a fade only;
+  a filter change hides it at once; palette colours; on touch no card and no cover requests
 - **experience.spec.ts** - Experience timeline, detail modals
 - **media.spec.ts** - Media page with tabs (videos, talks, blogs, podcasts)
 - **place-photo-strip.spec.ts** - The place page's photo strip, GET-only on the real past place with
@@ -129,7 +143,11 @@ Visual regression and responsive tests:
 - Content visibility
 - The scroll edge haze over the page column (`edge-haze.spec.ts`): placement beside the navs, the
   scroll fade, no hit-testing, the layer stack, and its forced-colours, reduced-transparency and
-  reduced-motion behaviour
+  reduced-motion behaviour; /projects' kit filter bar is the first sticky element in main and
+  ends inside the top band at 1024x640
+- The shell grid (`shell-grid.spec.ts`): nothing past the page edges, the end of the page clear
+  of the bottom bar, and on a 375x667 phone /projects' one-row filter bar (the search and a
+  Filters button) stays pinned inside the top band, the owner's "Sticky" pick
 - The light rays behind every page (`light-rays.spec.ts`): moving under the hidden top band at the
   top of the page and paused under it once it shows, still at 60% of their peak under reduced
   motion, gone in forced colours and print, and 4.5:1 for every text tier where they are brightest

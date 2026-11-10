@@ -21,8 +21,9 @@
  *
  * Two styles share the markup, keyed by the table's data-variant:
  * - `ledger` (style 1, /certifications): hairline rules between rows, 40px rows.
- * - `open` (style 2, /projects): no rules between rows and 64px rows for a second line; the year
- *   bar carries the only rule and the hover tint tracks the row.
+ * - `open` (style 2, /projects): no rules between rows and 64px rows for a second line under
+ *   the title (INDEX_SUB_CLASS); the year bar carries the only rule and the hover tint tracks
+ *   the row.
  * On a page under 40rem every style is one cell and a meta line, 60px a row.
  *
  * The year bar is the h2 (sticky under the filter bar's --filter-bar-h) and the column labels
@@ -116,6 +117,9 @@ export const INDEX_ROW_INK_CLASS =
 /** The phone's meta line under the title. */
 export const INDEX_META_CLASS =
   'mt-0.5 block truncate tile-meta text-muted-foreground @min-[40rem]/page:hidden';
+/** An open row's second line under the title (a summary): from a 40rem page, one line. */
+export const INDEX_SUB_CLASS =
+  'mt-0.5 hidden truncate tile-meta text-muted-foreground @min-[40rem]/page:block';
 
 /** A <col>'s classes. */
 export const indexColClass = ({ priority = 0, width = '' }: IndexColumn): string =>
