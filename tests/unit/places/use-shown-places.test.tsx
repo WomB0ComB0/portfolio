@@ -34,7 +34,8 @@ const place = (id: string): PlaceItem => ({
   latitude: 40.7,
   longitude: -74,
   category: 'Event',
-  photos: [],
+  photoCount: 0,
+  slivers: [],
 });
 
 const PLACES = [place('a'), place('b'), place('c'), place('d')];

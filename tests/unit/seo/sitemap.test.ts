@@ -92,6 +92,7 @@ const STATIC_PATHS = [
   '/experience',
   '/guestbook',
   '/places',
+  '/places/photos',
 ];
 
 /** A Sanity timestamp on `day`, at an hour that is still the previous day in US time zones. */
@@ -164,6 +165,7 @@ describe('sitemap entries', () => {
     expect(entryAt(entries, '/projects')?.lastModified).toBe('2026-07-04');
     expect(entryAt(entries, '/experience')?.lastModified).toBe('2026-03-15');
     expect(entryAt(entries, '/places')?.lastModified).toBe('2026-09-30');
+    expect(entryAt(entries, '/places/photos')?.lastModified).toBe('2026-09-30');
     expect(entryAt(entries, '/certifications')?.lastModified).toBe('2026-08-08');
     expect(entryAt(entries, '/resume')?.lastModified).toBe('2026-10-02');
   });
@@ -224,6 +226,7 @@ describe('sitemap and the places opsec rule (past visits only)', () => {
     }
     for (const place of PLACES) expect(urls).toContain(`${ORIGIN}/places/${place._id}`);
     expect(entryAt(entries, '/places')?.lastModified).toBe('2026-09-30');
+    expect(entryAt(entries, '/places/photos')?.lastModified).toBe('2026-09-30');
   });
 });
 

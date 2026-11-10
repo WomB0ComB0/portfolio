@@ -1,0 +1,173 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The endless photo wall (the infinite-card-grid pattern, our own rewrite). The server's empty
+ * frame and the live wall share these boxes, so the wall never shifts the page when its code
+ * arrives. Everything that moves moves by transform: the pan is one transform per card, a hover
+ * lifts by `translate` on the house spring and fades the tile's light by opacity.
+ */
+
+.wall {
+  display: flex;
+  flex-direction: column;
+}
+
+/* In the touch screen's full-screen sheet the wall fills the space under the sheet's bar. */
+.wall-sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.viewport {
+  --card-w: 15rem;
+  --card-h: 11.25rem;
+
+  position: relative;
+  overflow: hidden;
+  height: clamp(26rem, 68vh, 44rem);
+  border-radius: 0.75rem;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  cursor: grab;
+
+  /* In the page a finger swiping up or down scrolls the page; only a sideways drag pans. */
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* In the full-screen sheet there is no page to scroll: every drag pans. */
+.viewport-sheet {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+  touch-action: none;
+}
+
+.viewport[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.viewport:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+
+.card {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.625rem;
+  background: var(--surface-1);
+  box-shadow: 0 0 0 1px var(--hairline);
+  transition: translate var(--motion-spring-out) var(--ease-spring);
+}
+
+.card-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.card-img {
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* The light: the tile hover's rim and halo, by opacity only. */
+.card::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px var(--brand-rim),
+    0 25px 50px -12px var(--brand-halo),
+    0 0 28px 0 var(--brand-halo);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-slow) var(--ease-effect);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .viewport:not([data-dragging="true"]) .card:hover {
+    translate: 0 -3px;
+    transition-duration: var(--motion-spring-in);
+  }
+
+  .viewport:not([data-dragging="true"]) .card:hover::after {
+    opacity: 1;
+    transition-duration: var(--motion-base);
+  }
+}
+
+/* The keyboard's photo: light on at once, and the focus ring. */
+.viewport:focus-visible .card[data-active="true"] {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.viewport:focus-visible .card[data-active="true"]::after {
+  opacity: 1;
+  transition-duration: 0s;
+}
+
+/* The card that is flying open is drawn by the open view until it lands back. */
+.card[data-flying="true"] {
+  visibility: hidden;
+}
+
+.hint {
+  margin: 0.75rem 0 0;
+  color: var(--fg-faint);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.wall-sheet .hint {
+  margin: 0;
+  padding: 0.75rem 1rem calc(env(safe-area-inset-bottom) + 0.75rem);
+  border-top: 1px solid var(--hairline);
+}
+
+/*
+ * Reduced motion: a hovered card stays put. The reset repeats the hover rule's selector, :not()
+ * and all, so it is as specific and later and wins (a shorter one loses on specificity).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .viewport:not([data-dragging="true"]) .card:hover {
+    translate: none;
+  }
+}
+
+/* Forced colours (Windows High Contrast) drop box-shadows: the frame's hairline is an outline. */
+@media (forced-colors: active) {
+  .viewport {
+    outline: 1px solid CanvasText;
+  }
+}

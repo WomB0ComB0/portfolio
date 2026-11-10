@@ -67,6 +67,7 @@ const STATIC_ROUTES = [
   '/experience',
   '/guestbook',
   '/places',
+  '/places/photos',
 ] as const;
 
 type StaticRoute = (typeof STATIC_ROUTES)[number];
@@ -164,6 +165,8 @@ export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
     '/projects': newestDay(projects),
     '/experience': newestDay(experiences),
     '/places': newestDay(places),
+    // The photos of the same past places: dated as their list is.
+    '/places/photos': newestDay(places),
     '/certifications': certifications ? newestDay(certifications) : undefined,
     '/resume': resume ? dayOf(resume) : undefined,
   };

@@ -98,10 +98,14 @@ const STATIC_PAGES: Readonly<Record<string, () => Promise<PageModule>>> = {
   '/spotify': () => import('@/app/(routes)/(main)/(personal)/spotify/page'),
   '/guestbook': () => import('@/app/(routes)/(main)/(personal)/guestbook/page'),
   '/places': () => import('@/app/(routes)/(main)/(personal)/places/(list)/page'),
+  '/places/photos': () => import('@/app/(routes)/(main)/(personal)/places/photos/page'),
 };
 
-/** A page per Sanity document: /projects/<id>, /experience/<id> or /places/<id>. */
-const DETAIL_PATH = /^\/(?:projects|experience|places)\/[^/]+$/;
+/**
+ * A page per Sanity document: /projects/<id>, /experience/<id> or /places/<id>, but not the
+ * static /places/photos.
+ */
+const DETAIL_PATH = /^\/(?:projects|experience|places)\/(?!photos$)[^/]+$/;
 
 const STATS_DESCRIPTION =
   "What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours.";

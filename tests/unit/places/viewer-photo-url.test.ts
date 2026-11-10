@@ -26,7 +26,7 @@ vi.mock('@/lib/sanity/client', async () => {
 import {
   stripThumbUrl,
   viewerPhotoUrl,
-} from '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/viewer-photo-url';
+} from '@/app/(routes)/(main)/(personal)/places/_lib/viewer-photo-url';
 
 const asset = (width: number, height: number) => ({
   _type: 'reference' as const,

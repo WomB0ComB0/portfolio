@@ -1,0 +1,116 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The wall's full-screen sheet on a touch screen: the canvas edge to edge, a bar with the title
+ * and Done, the wall below. Above the page's isolated root like every portal (z-50); the open
+ * photo's portal comes later in the document, so it stacks on top. It fades in by opacity on the
+ * effect curve. Done is a 3rem target with a press that moves by transform only.
+ */
+
+.overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  background: var(--canvas);
+}
+
+.sheet {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top);
+  background: var(--canvas);
+  animation: sheet-in var(--motion-base) var(--ease-effect);
+}
+
+.sheet:focus {
+  outline: none;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+}
+
+.sub {
+  color: var(--fg-faint);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.125rem;
+}
+
+.done {
+  display: grid;
+  place-items: center;
+  min-width: 5rem;
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+.done:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.done:active {
+  transform: scale(0.96);
+  transition-duration: var(--motion-instant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .done:active {
+    transform: none;
+  }
+}
+
+/* Forced colours (Windows High Contrast) drop box-shadows: Done keeps a button's border. */
+@media (forced-colors: active) {
+  .done {
+    border: 1px solid ButtonBorder;
+  }
+}

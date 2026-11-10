@@ -25,7 +25,8 @@
  *
  * Its filters live in the URL (?q, ?category) through useUrlFilters (nuqs: history replace,
  * shallow, no scroll), so the server HTML of a shared link is already filtered, the chips and
- * the token are links and the search is a GET form. The route has no loading.tsx, so without
+ * the token are links and the search is a GET form. The results header ends with the "Places |
+ * Photos" links, which carry the same filters to /places/photos. The route has no loading.tsx, so without
  * JavaScript every place is in the first HTML. With JavaScript typing filters the cards and the
  * map at once (no debounce). The map sits outside the results' box: a chip crossfades only the
  * cards, the map updates at once. Both are given one array per set of results (useShownPlaces),
@@ -46,6 +47,7 @@ import type { PlaceItem } from '@/types/places';
 import { placeFilters } from '../_lib/place-filters';
 import { GoogleMaps } from './map';
 import { PlaceCard } from './place-card';
+import { PlacesViewNav } from './places-view-nav';
 import { useShownPlaces } from './use-shown-places';
 
 /** The island's root: the bar, the results header, the map, then the cards. */
@@ -135,6 +137,7 @@ export function PlacesExplorer({ places }: PlacesExplorerProps): JSX.Element {
         <div className={RESULTS_HEAD_CLASS}>
           <FilterBar.Count />
           <FilterBar.Applied />
+          <PlacesViewNav current="places" />
         </div>
         <FilterBar.Status />
         <MapTile places={shown} />

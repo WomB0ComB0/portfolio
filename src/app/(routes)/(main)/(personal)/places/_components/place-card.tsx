@@ -15,12 +15,12 @@
  */
 
 import Link from 'next/link';
-import { FiExternalLink, FiImage, FiInfo, FiMapPin } from 'react-icons/fi';
-import { LinkPending } from '@/components/data/link-pending';
+import { FiExternalLink, FiMapPin } from 'react-icons/fi';
 import { MagicCard } from '@/components/magicui';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { PlaceItem } from '@/types/places';
 import { googleMapsUrl } from './google-maps-url';
+import { PhotoFolder } from './photo-folder';
 import { PlaceCategoryBadge } from './place-category-badge';
 import { PlaceDateRange } from './place-date-range';
 
@@ -29,12 +29,11 @@ interface PlaceCardProps {
 }
 
 /**
- * A place in the /places list. The header opens the location in Google Maps. The footer opens the
- * place page: its photos, or, for places without any, the full description the card cuts off.
+ * A place in the /places list. The header opens the location in Google Maps. The footer's quiet
+ * photo folder opens the place page: its photos, or, for places without any, the full
+ * description the card cuts off ("Details").
  */
 export function PlaceCard({ place }: PlaceCardProps) {
-  const photoCount = place.photos?.length ?? 0;
-
   return (
     <MagicCard className="backdrop-blur-sm border-border/50 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group h-full">
       <div className="flex flex-col h-full">
@@ -65,30 +64,13 @@ export function PlaceCard({ place }: PlaceCardProps) {
             </div>
           </Link>
         </CardHeader>
-        <CardContent className="pt-0 pb-5 px-6 mt-auto">
-          <Link
+        <CardContent className="mt-auto border-t border-hairline px-6 pt-3 pb-4">
+          <PhotoFolder
             href={`/places/${place.id}`}
-            className="relative w-full px-4 py-2.5 rounded-xl border border-border/50 bg-secondary/50 hover:bg-secondary hover:border-primary/30 text-foreground transition-colors duration-300 flex items-center justify-center gap-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            {photoCount > 0 ? (
-              <>
-                <FiImage className="h-4 w-4" aria-hidden="true" />
-                View Photos ({photoCount})
-              </>
-            ) : (
-              <>
-                <FiInfo className="h-4 w-4" aria-hidden="true" />
-                View Details
-              </>
-            )}
-            {/* Every card has this link; the place's name tells them apart in a links list
-                ("View Details for Antler NYC"). A word, not punctuation, because browsers add
-                a space before this absolutely positioned span when they build the name. */}{' '}
-            <span className="sr-only">for {place.name}</span>
-            {/* The place page has no loading.tsx (it answers real 404s), so this is the click
-                feedback. Absolute, so the centred label does not move. */}
-            <LinkPending className="absolute right-4 top-1/2 -translate-y-1/2" />
-          </Link>
+            count={place.photoCount}
+            slivers={place.slivers}
+            placeName={place.name}
+          />
         </CardContent>
       </div>
     </MagicCard>

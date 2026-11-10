@@ -313,6 +313,11 @@ test.describe('/places: search and category chips', () => {
       const order: string[] = [];
       for (const _ of chips) {
         await page.keyboard.press('Tab');
+        // The row's data-overflow is re-marked on its scroll event, a frame after the reveal.
+        await page.evaluate(
+          () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        );
         const fit = await focusedChipFit(page);
         order.push(fit.slug);
         expect(fit.ringLeft, `${fit.slug}'s ring starts inside the row`).toBeGreaterThanOrEqual(
@@ -485,5 +490,50 @@ test.describe('/places: search and category chips', () => {
       readChip((await main.locator(`${CHIPS} ${CURRENT_CHIP}`).textContent()) ?? '').label,
     ).toBe('All');
     await expect(page.locator(MAP)).toBeVisible();
+  });
+});
+
+test.describe('/places: the quiet photo folder and the "Places | Photos" links', () => {
+  test('each card opens its place page by the folder: "N photos of <place>" or "Details of <place>"', async ({
+    page,
+  }) => {
+    const main = await openAt(page, '', WIDE);
+    const names = await main
+      .locator(`${CARD} a[href^="/places/"]`)
+      .evaluateAll((links) =>
+        links.map((link) => (link.textContent ?? '').replace(/\s+/g, ' ').trim()),
+      );
+    expect(names).toHaveLength(await headerFigure(main));
+    for (const name of names) expect(name).toMatch(/^(?:\d+ photos?|Details) of \S/);
+    const slivers = await main
+      .locator(`${CARD} [data-photo-folder]`)
+      .evaluateAll((folders) => folders.map((folder) => folder.querySelectorAll('img').length));
+    expect(slivers.every((count) => count >= 1 && count <= 3)).toBe(true);
+  });
+
+  test('the links carry q and category both ways, the current page marked', async ({ page }) => {
+    const main = await openAt(page, '?category=Hackathon', WIDE);
+    const nav = main.getByRole('navigation', { name: 'Places views' });
+
+    await expect(nav.getByRole('link', { name: 'Places' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Photos' })).toHaveAttribute(
+      'href',
+      '/places/photos?category=hackathon',
+    );
+    await hydrated(page);
+    await main.getByRole('searchbox').fill(await searchWord(page));
+    await expect.poll(() => urlKeys(page).includes('q')).toBe(true);
+    const photosHref = (await nav.getByRole('link', { name: 'Photos' }).getAttribute('href')) ?? '';
+    const carried = new URL(photosHref, getTargetUrl()).searchParams;
+    expect(carried.get('category')).toBe('hackathon');
+    expect(carried.get('q')).toBe(new URL(page.url()).searchParams.get('q'));
+
+    await nav.getByRole('link', { name: 'Photos' }).click();
+    await page.waitForURL(/\/places\/photos\?/);
+    expect(urlKeys(page).every((key) => URL_KEYS.has(key))).toBe(true);
+    expect(await page.locator(MAIN).textContent()).not.toMatch(LIVE_WORDS);
+    await page.goBack();
+    await page.waitForURL(/\/places\?/);
+    expect(new URL(page.url()).searchParams.get('category')).toBe('hackathon');
   });
 });

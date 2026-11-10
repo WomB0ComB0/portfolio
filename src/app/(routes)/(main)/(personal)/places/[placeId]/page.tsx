@@ -24,10 +24,10 @@ import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils/seo/meta';
 import { loadPastPlaceById } from '../_lib/past-place-loaders';
+import { stripThumbUrl, viewerPhotoUrl } from '../_lib/viewer-photo-url';
 import { PlacePhotoViewer } from './_components/place-photo-viewer';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
-import { stripThumbUrl, viewerPhotoUrl } from './_components/viewer-photo-url';
 import type { PlacePageProps, ViewerPhoto } from './page.types';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */

@@ -40,6 +40,35 @@ const FILES = [
   `${PLACES}/_interface/places/places.tsx`,
   `${PLACES}/(list)/page.tsx`,
   'lib/places/categories.ts',
+  // /places part 2: the card's quiet folder, the "Places | Photos" links and /places/photos.
+  `${PLACES}/_components/photo-folder.tsx`,
+  `${PLACES}/_components/photo-folder.module.css`,
+  `${PLACES}/_components/places-view-nav.tsx`,
+  `${PLACES}/_components/places-view-nav.module.css`,
+  `${PLACES}/_lib/place-photo-urls.ts`,
+  `${PLACES}/photos/page.tsx`,
+  `${PLACES}/photos/_lib/photo-index.ts`,
+  `${PLACES}/photos/_lib/photo-order.ts`,
+  `${PLACES}/photos/_lib/photo-labels.ts`,
+  `${PLACES}/photos/_lib/wall-geometry.ts`,
+  `${PLACES}/photos/_lib/wall-glide.ts`,
+  `${PLACES}/photos/_lib/photo-flight.ts`,
+  `${PLACES}/photos/_lib/card-placeholder.ts`,
+  `${PLACES}/photos/_components/photos-explorer.tsx`,
+  `${PLACES}/photos/_components/photos-view.tsx`,
+  `${PLACES}/photos/_components/photos-view.module.css`,
+  `${PLACES}/photos/_components/photo-grid.tsx`,
+  `${PLACES}/photos/_components/photo-grid.module.css`,
+  `${PLACES}/photos/_components/photo-wall.tsx`,
+  `${PLACES}/photos/_components/photo-wall-live.tsx`,
+  `${PLACES}/photos/_components/use-wall-input.ts`,
+  `${PLACES}/photos/_components/photo-wall.module.css`,
+  `${PLACES}/photos/_components/wall-sheet.tsx`,
+  `${PLACES}/photos/_components/wall-sheet.module.css`,
+  `${PLACES}/photos/_components/photo-dialog.tsx`,
+  `${PLACES}/photos/_components/photo-dialog-live.tsx`,
+  `${PLACES}/photos/_components/photo-dialog.module.css`,
+  `${PLACES}/photos/_components/photo-types.ts`,
 ];
 
 /** A file's text without its comments (a licence or doc comment may name a colour). */
@@ -66,8 +95,9 @@ describe.each(FILES)('%s', (file) => {
     );
   });
 
-  it('uses no glass, no opacity modifier on a palette colour and no literal SVG colour', () => {
-    expect(code).not.toMatch(/backdrop-blur/);
+  it('uses no glass, no gradient, no opacity modifier on a palette colour and no literal SVG colour', () => {
+    expect(code).not.toMatch(/backdrop-blur|backdrop-filter|\bblur\(/);
+    expect(code).not.toMatch(/\b(?:linear|radial|conic)-gradient\(|\bbg-gradient-/);
     expect(code).not.toMatch(
       /\b(?:bg|text|border|ring|fill|stroke|outline|shadow)-(?:primary|secondary|foreground|muted|accent|card|border|surface-\d|canvas)\/\d+/,
     );

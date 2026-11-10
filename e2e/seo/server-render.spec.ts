@@ -108,7 +108,21 @@ const CONTENT_PAGES: readonly ContentPage[] = [
     item: detailLinks('/experience'),
     emptyText: 'No work experience listed at the moment.',
   },
-  { path: '/places', item: detailLinks('/places'), emptyText: 'No places found' },
+  {
+    path: '/places',
+    // The cards' links only: the "Places | Photos" nav also links under /places/.
+    item: (main) => main.locator('li[data-place-card] a[href^="/places/"]'),
+    emptyText: 'No places found',
+  },
+  {
+    path: '/places/photos',
+    // A photo: its grid link (touch, and the first HTML), or a card of the wall a mouse gets.
+    item: (main) =>
+      main.locator(
+        'ul[aria-label="Photos"] a[href^="/places/"], [aria-roledescription="photo wall"] [data-cell]',
+      ),
+    emptyText: 'No photos yet',
+  },
   {
     path: '/certifications',
     // A certificate's row in the Ledger. A CSS locator, because role queries skip a streamed

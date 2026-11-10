@@ -21,21 +21,20 @@ import { FiMapPin } from 'react-icons/fi';
 import { PlacesExplorer } from '@/app/(routes)/(main)/(personal)/places/_components/places-explorer';
 import { PageHeader } from '@/components/custom/page-header';
 import type { Place } from '@/hooks/sanity/schemas';
-import { urlFor } from '@/lib/sanity/client';
-import type { PhotoItem, PlaceItem } from '@/types/places';
+import type { PlaceItem } from '@/types/places';
+import { sliverUrl, usablePhotos } from '../../_lib/place-photo-urls';
 
 /** The page's h1. */
 const PLACES_TITLE = "Places I've Visited";
-/** The list card's photo size. The cards show only the count; the place page has its own URLs. */
-const CARD_PHOTO_WIDTH = 800;
-const CARD_PHOTO_HEIGHT = 600;
+/** The card's folder holds this many slivers at most. */
+const SLIVERS_SHOWN = 3;
 
-/** A Sanity place as the list's client island takes it, with its photo URLs already built. */
+/**
+ * A Sanity place as the list's client island takes it: its usable photos counted, and the first
+ * three as the folder's 96 x 64 slivers, built here on the server. No other photo URL is sent.
+ */
 export function toPlaceItem(place: Place): PlaceItem {
-  const photos: PhotoItem[] = (place.photos ?? []).map((photo) => ({
-    url: urlFor(photo).width(CARD_PHOTO_WIDTH).height(CARD_PHOTO_HEIGHT).url(),
-    caption: photo.caption,
-  }));
+  const photos = usablePhotos(place);
 
   return {
     id: place._id,
@@ -46,7 +45,8 @@ export function toPlaceItem(place: Place): PlaceItem {
     category: place.category,
     startDate: place.startDate,
     endDate: place.endDate,
-    photos,
+    photoCount: photos.length,
+    slivers: photos.slice(0, SLIVERS_SHOWN).map(sliverUrl),
   };
 }
 

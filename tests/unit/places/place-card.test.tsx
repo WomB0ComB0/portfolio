@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import { PlaceCard } from '@/app/(routes)/(main)/(personal)/places/_components/place-card';
 import type { PlaceItem } from '@/types/places';
 
-const place = (photos: PlaceItem['photos']): PlaceItem => ({
+const SLIVER = (n: number) =>
+  `https://cdn.sanity.io/images/test/test/s${n}-1600x1200.jpg?w=96&h=64`;
+
+const place = (photoCount: number, slivers: readonly string[] = []): PlaceItem => ({
   id: 'p1',
   name: 'Test Place',
   description: 'A description long enough that the card cuts it off after two lines.',
@@ -27,56 +30,53 @@ const place = (photos: PlaceItem['photos']): PlaceItem => ({
   longitude: -74,
   category: 'Hackathon',
   startDate: '2026-05-12',
-  photos,
+  photoCount,
+  slivers,
 });
 
-describe('PlaceCard', () => {
-  it('links to the photos when the place has some', () => {
-    render(
-      <PlaceCard
-        place={place([
-          { url: 'https://cdn.sanity.io/images/a.jpg' },
-          { url: 'https://cdn.sanity.io/images/b.jpg' },
-        ])}
-      />,
-    );
+const spinnersIn = (link: HTMLElement) =>
+  Array.from(link.querySelectorAll('span[aria-hidden="true"]')).filter((span) =>
+    span.className.includes('data-[pending]'),
+  );
 
-    expect(screen.getByRole('link', { name: 'View Photos (2) for Test Place' })).toHaveAttribute(
+afterEach(cleanup);
+
+describe('PlaceCard', () => {
+  it('links to the photos through the quiet folder when the place has some', () => {
+    const { container } = render(<PlaceCard place={place(2, [SLIVER(1), SLIVER(2)])} />);
+
+    expect(screen.getByRole('link', { name: '2 photos of Test Place' })).toHaveAttribute(
       'href',
       '/places/p1',
     );
-    expect(screen.queryByRole('link', { name: /View Details/ })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('[data-photo-folder] img')).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: /^Details/ })).not.toBeInTheDocument();
   });
 
   it('still links to the place page without photos, where the full description is', () => {
-    render(<PlaceCard place={place([])} />);
+    const { container } = render(<PlaceCard place={place(0)} />);
 
-    expect(screen.getByRole('link', { name: 'View Details for Test Place' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Details of Test Place' })).toHaveAttribute(
       'href',
       '/places/p1',
     );
-    expect(screen.queryByRole('link', { name: /View Photos/ })).not.toBeInTheDocument();
+    expect(container.querySelector('[data-photo-folder]')).toBeNull();
+    expect(screen.queryByRole('link', { name: /photos? of/ })).not.toBeInTheDocument();
   });
 
   it('puts a pending spinner inside the place page link, and none in the Maps link', () => {
-    render(<PlaceCard place={place([])} />);
+    render(<PlaceCard place={place(0)} />);
 
-    const spinnersIn = (link: HTMLElement) =>
-      Array.from(link.querySelectorAll('span[aria-hidden="true"]')).filter((span) =>
-        span.className.includes('data-[pending]'),
-      );
-    expect(
-      spinnersIn(screen.getByRole('link', { name: 'View Details for Test Place' })),
-    ).toHaveLength(1);
+    expect(spinnersIn(screen.getByRole('link', { name: 'Details of Test Place' }))).toHaveLength(1);
     expect(spinnersIn(screen.getByRole('link', { name: /^Test Place/ }))).toHaveLength(0);
   });
 
-  it('opens the location in Google Maps from the card header', () => {
-    render(<PlaceCard place={place([])} />);
+  it('opens the location in Google Maps from the card header, with the title and description', () => {
+    render(<PlaceCard place={place(1, [SLIVER(1)])} />);
+    const maps = screen.getByRole('link', { name: /^Test Place/ });
 
-    expect(screen.getByRole('link', { name: /^Test Place/ })).toHaveAttribute(
-      'href',
-      'https://maps.google.com/?q=40.7,-74',
-    );
+    expect(maps).toHaveAttribute('href', 'https://maps.google.com/?q=40.7,-74');
+    expect(maps).toHaveTextContent('A description long enough');
+    expect(screen.getByRole('link', { name: '1 photo of Test Place' })).toBeInTheDocument();
   });
 });

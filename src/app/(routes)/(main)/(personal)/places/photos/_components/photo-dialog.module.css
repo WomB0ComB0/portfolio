@@ -1,0 +1,358 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The open view of a photo. Only opacity, transform and clip-path move (photo-dialog-live.tsx);
+ * the overlay is the canvas at 70%, with no blur. Palette tokens only. Nothing is lost when text
+ * is zoomed or reflowed (WCAG 1.4.4, 1.4.10):
+ * - Wide windows: a panel whose frame takes the photo's own shape (--ratio, set inline), as wide
+ *   as fits 52rem, the window less 2rem a side, and the photo's height budget (72vh, 45rem at
+ *   most, less the caption), but never narrower than 26rem, so the caption always has room. A
+ *   tall photo is drawn whole, centred in the panel at its own shape (the flight needs that).
+ *   Below 30rem of panel the caption stacks, and the photo's budget leaves room for it.
+ * - The panel is capped at the window's height; if the caption still runs long (a long name,
+ *   a zoomed window) the caption scrolls, inside the dialog where the scroll lock allows it,
+ *   never the photo.
+ * - Phones and short windows (COMPACT_QUERY in ../_lib/dialog-layout.ts): the canvas full
+ *   screen, the photo contained with a floor under it, the caption scrolling, Done at the bottom.
+ */
+
+.overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  background: var(--canvas);
+  opacity: 0;
+}
+
+.layer {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  pointer-events: none;
+}
+
+.panel {
+  --ratio: 1.3333;
+
+  /* The photo's height budget: 72vh (45rem at most) less the caption in a row. */
+  --frame-max-h: calc(min(72vh, 45rem) - 6.25rem);
+
+  /* The narrowest panel: room for the caption, but never wider than the window less 2rem a side. */
+  --panel-min: min(26rem, calc(100vw - 4rem));
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  width: min(
+    52rem,
+    calc(100vw - 4rem),
+    max(var(--panel-min), calc(var(--frame-max-h) * var(--ratio) + 1rem))
+  );
+  max-height: calc(100dvh - 4rem);
+  padding: 0.5rem 0.5rem 0;
+  pointer-events: auto;
+}
+
+.panel:focus {
+  outline: none;
+}
+
+.surface {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background: var(--surface-1);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-raised);
+  opacity: 0;
+}
+
+/* The photo at its own shape, centred when the panel is wider (a tall photo); it never scrolls. */
+.frame {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  overflow: hidden;
+  width: min(100%, calc(var(--frame-max-h) * var(--ratio)));
+  margin-inline: auto;
+  aspect-ratio: var(--ratio);
+  border-radius: 0.5rem;
+  background: var(--surface-2);
+  transform-origin: 0 0;
+}
+
+.placeholder,
+.full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity var(--motion-base) var(--ease-effect);
+}
+
+.full {
+  opacity: 0;
+}
+
+.full[data-loaded="true"] {
+  opacity: 1;
+}
+
+/* The full photo has landed over the card's image: the card's image goes. */
+.frame:has(.full[data-loaded="true"]) .placeholder {
+  opacity: 0;
+}
+
+/*
+ * The caption, the panel's one scroll area when it runs long. Centred only while it fits
+ * (safe), so a long caption scrolls from its first line instead of losing its top.
+ */
+.caption {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: safe center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 5.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem 1.25rem;
+  opacity: 0;
+}
+
+.caption-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.meta {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.125rem;
+}
+
+.words {
+  margin: 0;
+  color: var(--fg);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.open-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  margin-right: -0.75rem;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--brand-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .open-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
+.close {
+  position: absolute;
+  z-index: 2;
+  top: 1.125rem;
+  right: 1.125rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--fg);
+  cursor: pointer;
+  opacity: 0;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .close:hover {
+    background: var(--surface-3);
+  }
+}
+
+.done {
+  display: none;
+}
+
+.close:focus-visible,
+.done:focus-visible,
+.open-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.close:active,
+.done:active,
+.open-link:active {
+  transform: scale(0.96);
+  transition-duration: var(--motion-instant);
+}
+
+/* A narrow panel (a tall photo, a zoomed window): the caption stacks, the photo leaving room. */
+@container (width < 30rem) {
+  .frame {
+    --frame-max-h: calc(min(72vh, 45rem) - 8.75rem);
+  }
+
+  .caption {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .open-link {
+    margin: 0 0 0 -0.75rem;
+  }
+}
+
+/* Phones and short windows: COMPACT_QUERY in ../_lib/dialog-layout.ts. */
+@media (width < 40rem), (height < 32rem) {
+  .layer {
+    padding: 0;
+  }
+
+  .panel {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    padding: calc(env(safe-area-inset-top) + 1rem) 1rem calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .surface {
+    border-radius: 0;
+    background: var(--canvas);
+    box-shadow: none;
+  }
+
+  /*
+   * The whole photo, as tall as the screen allows, crossfaded in, and never less than its floor:
+   * on a short or zoomed window the caption scrolls instead.
+   */
+  .frame {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: min(40dvh, 12rem);
+    aspect-ratio: auto;
+    border-radius: 0.75rem;
+    background: transparent;
+  }
+
+  .placeholder,
+  .full {
+    object-fit: contain;
+  }
+
+  /*
+   * The text sits 0.25rem in from the panel's padding, as before; the box reaches 0.75rem further
+   * out, so the scroll area does not clip Open place's focus ring (its -0.75rem margin).
+   */
+  .caption {
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: 0;
+    margin-inline: -0.75rem;
+    padding: 1rem;
+  }
+
+  .open-link {
+    margin: 0 0 0 -0.75rem;
+  }
+
+  .close {
+    display: none;
+  }
+
+  .done {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    flex: none;
+    place-items: center;
+    min-height: 3rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+    color: var(--fg);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    opacity: 0;
+    transition: transform var(--motion-spring-out) var(--ease-spring);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .close:active,
+  .done:active,
+  .open-link:active {
+    transform: none;
+  }
+}
+
+/*
+ * Forced colours (Windows High Contrast) drop box-shadows and turn the overlay into the canvas:
+ * the panel keeps its edge as an outline, and Close and Done keep a button's border.
+ */
+@media (forced-colors: active) {
+  .surface {
+    outline: 1px solid CanvasText;
+  }
+
+  .close,
+  .done {
+    border: 1px solid ButtonBorder;
+  }
+}

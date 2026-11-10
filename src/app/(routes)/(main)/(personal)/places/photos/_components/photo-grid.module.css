@@ -1,0 +1,201 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The photos grid: 4:3 cards of the whole photo cropped by object-fit around its focus, the place
+ * and its dates under each. Palette only. The tile hover's light (the wall's rim and halo, drawn
+ * outside the photo's clip) fades in by opacity with a fine pointer; keyboard focus rings the
+ * frame and lights it at once; a press is a transform on the house spring. Without script,
+ * "Show all" is hidden and a note says how to see the rest.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+  gap: 1.25rem 1rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width < 40rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 0.75rem;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+
+  /* Replaces the base link's colour fade: only the press moves. */
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+.card:focus-visible {
+  outline: none;
+}
+
+.card:active {
+  transform: scale(0.98);
+  transition-duration: var(--motion-instant);
+}
+
+/* No overflow clip here: it would cut off the light's halo. The photo has its own clip. */
+.frame {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 0.625rem;
+  background: var(--surface-1);
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+
+.clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.thumb {
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* The light: the tile hover's rim and halo (the wall's own), by opacity only. */
+.light {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px var(--brand-rim),
+    0 25px 50px -12px var(--brand-halo),
+    0 0 28px 0 var(--brand-halo);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-slow) var(--ease-effect);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .light {
+    opacity: 1;
+    transition-duration: var(--motion-base);
+  }
+}
+
+.card:focus-visible .frame {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.card:focus-visible .light {
+  opacity: 1;
+  transition-duration: 0s;
+}
+
+/* The card that is flying open is drawn by the open view until it lands back. */
+.frame[data-flying="true"] {
+  visibility: hidden;
+}
+
+/* Clamped to two lines by the line-clamp-2 utility. */
+.name {
+  color: var(--fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.meta {
+  color: var(--fg-faint);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.125rem;
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--fg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .more:hover {
+    background: var(--surface-2);
+  }
+}
+
+.more:active {
+  transform: scale(0.97);
+  transition-duration: var(--motion-instant);
+}
+
+.no-script-note {
+  display: none;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@media (scripting: none) {
+  .more {
+    display: none;
+  }
+
+  .no-script-note {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:active,
+  .more:active {
+    transform: none;
+  }
+}
+
+/* Forced colours (Windows High Contrast) drop box-shadows: Show all keeps a button's border. */
+@media (forced-colors: active) {
+  .more {
+    border: 1px solid ButtonBorder;
+  }
+}

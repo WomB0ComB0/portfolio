@@ -25,23 +25,35 @@
  *   100 characters are counted after trimming: padding is never part of a value.
  * - ?q over each place's name and description (not its category: the chips do that), matched as
  *   a substring ignoring case, at most 100 characters.
- * The URL carries nothing else. The schema is a module constant: the client island imports it
- * and it never crosses the server/client boundary (it holds functions).
+ * The URL carries nothing else. /places/photos reads the very same URL (placePhotoFilters, built
+ * from the same input on its own path), so the photos follow the same chips and search and the
+ * "Places | Photos" links carry them both ways. The schemas are module constants: the client
+ * islands import them and they never cross the server/client boundary (they hold functions).
  */
 
-import { defineFilters, type FilterSchema, type FilterState } from '@/lib/filters';
+import {
+  defineFilters,
+  type FilterSchema,
+  type FilterSchemaInput,
+  type FilterState,
+} from '@/lib/filters';
 import {
   PLACE_CATEGORY_SLUGS,
   placeCategoryLabel,
   placeCategorySlug,
 } from '@/lib/places/categories';
-import type { PlaceItem } from '@/types/places';
+import type { PhotoPlace, PlaceItem } from '@/types/places';
 
 export type PlaceFacet = 'category';
 export type PlaceState = FilterState<PlaceFacet>;
 export type PlaceSchema = FilterSchema<PlaceItem, PlaceFacet>;
+export type PlacePhotoSchema = FilterSchema<PhotoPlace, PlaceFacet>;
+/** What the filters read from a place: the same on /places and /places/photos. */
+export type FilterablePlace = Pick<PlaceItem, 'id' | 'name' | 'description' | 'category'>;
 
 export const PLACES_PATH = '/places';
+/** The photos of the same past places, filtered by the same URL. */
+export const PLACE_PHOTOS_PATH = '/places/photos';
 /** The longest search read, as the old filter capped it. */
 export const QUERY_MAX_LENGTH = 100;
 /**
@@ -69,23 +81,56 @@ export function resolvePlaceCategory(raw: string): string | null {
   return placeCategoryLabel(slug) === null ? null : slug;
 }
 
-/** The /places filter schema. */
-export const placeFilters: PlaceSchema = defineFilters<PlaceItem, PlaceFacet>({
-  path: PLACES_PATH,
-  noun: { one: 'place', many: 'places' },
-  search: {
-    haystack: (place) => `${place.name} ${place.description}`,
-    maxLength: QUERY_MAX_LENGTH,
-  },
-  facets: {
-    category: {
-      label: 'Category',
-      valuesOf: (place) => [placeCategorySlug(place.category)],
-      /** The Studio label for a slug; a slug no category has shows as it is. */
-      labelOf: (slug) => placeCategoryLabel(slug) ?? slug,
-      values: PLACE_CATEGORY_SLUGS,
-      resolve: resolvePlaceCategory,
-      scope: (labels) => `in ${labels.join(' or ')}`,
+/**
+ * The places filter at `path`: ?q over the name and description, ?category as one of the six
+ * chips. /places and /places/photos share it, so a link reads the same on either.
+ */
+export function placeFilterInput<T extends FilterablePlace>(
+  path: string,
+): FilterSchemaInput<T, PlaceFacet> {
+  return {
+    path,
+    noun: { one: 'place', many: 'places' },
+    search: {
+      haystack: (place) => `${place.name} ${place.description}`,
+      maxLength: QUERY_MAX_LENGTH,
     },
-  },
+    facets: {
+      category: {
+        label: 'Category',
+        valuesOf: (place) => [placeCategorySlug(place.category)],
+        /** The Studio label for a slug; a slug no category has shows as it is. */
+        labelOf: (slug) => placeCategoryLabel(slug) ?? slug,
+        values: PLACE_CATEGORY_SLUGS,
+        resolve: resolvePlaceCategory,
+        scope: (labels) => `in ${labels.join(' or ')}`,
+      },
+    },
+  };
+}
+
+/** What a link to either view reads from the FilterBar's model: the search and the category. */
+interface ActiveFilters {
+  readonly q: string;
+  readonly category?: readonly string[];
+}
+
+/**
+ * The places state out of the FilterBar's generic one, for a link to either view: the search
+ * and the category, nothing else (a missing category is none chosen).
+ *
+ * @example
+ * placeFilters.serialize(placeStateOf(model.active)) // '/places?category=hackathon&q=antler'
+ */
+export const placeStateOf = (active: ActiveFilters): PlaceState => ({
+  q: active.q,
+  category: active.category ?? [],
 });
+
+/** The /places filter schema. */
+export const placeFilters: PlaceSchema = defineFilters(placeFilterInput<PlaceItem>(PLACES_PATH));
+
+/** The /places/photos filter schema: the same URL, over the places that have photos. */
+export const placePhotoFilters: PlacePhotoSchema = defineFilters(
+  placeFilterInput<PhotoPlace>(PLACE_PHOTOS_PATH),
+);
