@@ -46,6 +46,10 @@ const OUTPUT_DIR = `${process.cwd()}/scripts/out`;
 
 /**
  * Fetches the unpacked size of a given package from the npm registry.
+ *
+ * @param packageName - A dependency name from package.json.
+ * @returns The name and its `dist.unpackedSize` in bytes (0 when the parsed value is falsy), or
+ *   null after logging the error when `npm view` fails or its output does not parse as JSON.
  */
 const getPackageSize = async (
   packageName: string,
@@ -87,8 +91,10 @@ for (let i = 0; i < allDependencies.length; i += BATCH_SIZE) {
 
 const sortedPackageSizes = results.toSorted((a, b) => b.size - a.size);
 
-const LOW_THRESHOLD = 1_000_000; // 1 MB
-const MEDIUM_THRESHOLD = 10_000_000; // 10 MB
+/** Largest unpacked size, in bytes, still counted as low (1 MB = 1,000,000 bytes). */
+const LOW_THRESHOLD = 1_000_000;
+/** Largest unpacked size, in bytes, still counted as medium (10 MB); anything above is high. */
+const MEDIUM_THRESHOLD = 10_000_000;
 
 const categorizedPackages = {
   high: sortedPackageSizes.filter((pkg) => pkg.size > MEDIUM_THRESHOLD),
@@ -104,7 +110,9 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 const TIERS = ['high', 'medium', 'low'] as const;
 const reportFile = (tier: (typeof TIERS)[number]): string => `${OUTPUT_DIR}/${tier}.json`;
 
-// Write results, then format them with Biome: `bun run lint` checks these tracked files with
+// Write each tier's package names, largest first, to scripts/out/<tier>.json. next.config.ts
+// reads high.json and medium.json into experimental.optimizePackageImports; low.json is only a
+// report. Then format them with Biome: `bun run lint` checks these tracked files with
 // `biome ci`, which joins any array short enough to fit on one line.
 for (const tier of TIERS) {
   writeFileSync(reportFile(tier), `${Stringify(categorizedPackages[tier].map((e) => e.name))}\n`, {
@@ -115,8 +123,8 @@ formatWithBiome(TIERS.map(reportFile), process.cwd());
 
 console.log('\n📦 Package Size Summary:');
 console.log(`   🔴 High (> 10 MB): ${categorizedPackages.high.length} packages`);
-console.log(`   🟡 Medium (1-10 MB): ${categorizedPackages.medium.length} packages`);
-console.log(`   🟢 Low (< 1 MB): ${categorizedPackages.low.length} packages`);
+console.log(`   🟡 Medium (> 1 MB, <= 10 MB): ${categorizedPackages.medium.length} packages`);
+console.log(`   🟢 Low (<= 1 MB): ${categorizedPackages.low.length} packages`);
 console.log(
   `\n📊 Total size: ${(sortedPackageSizes.reduce((sum, pkg) => sum + pkg.size, 0) / 1_000_000).toFixed(2)} MB`,
 );
