@@ -438,10 +438,8 @@ describe('files the Live Console replaced', () => {
     expect(existsSync(fromRoot('src/styles/fonts.css'))).toBe(false);
   });
 
-  it('deletes the last Kodchasan files and their licence: the link-preview cards draw in Geist', () => {
-    for (const file of ['Kodchasan-Bold.ttf', 'Kodchasan-Regular.ttf', 'OFL.txt']) {
-      expect(existsSync(fromRoot(`public/assets/fonts/${file}`)), file).toBe(false);
-    }
+  it('draws the link-preview cards in Geist, with its licence, never Kodchasan', () => {
+    expect(read('src/lib/og/fonts.ts')).not.toContain('Kodchasan');
     expect(existsSync(fromRoot('src/lib/og/fonts/OFL.txt'))).toBe(true);
   });
 
