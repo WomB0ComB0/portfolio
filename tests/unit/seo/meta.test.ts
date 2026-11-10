@@ -18,10 +18,15 @@
 /**
  * @file constructMetadata emits only real tags: no placeholder video or player, a large-image
  * Twitter card, the site name as og:site_name, and an og:url only when the caller names the path.
+ * Its preview image is the site card for the site's own tags, a page card (/api/og) for a page
+ * without an image of its own, or the page's image; its icons are the palette set in public/.
  * It names a place (geo.placename, and a keyword) only from the location it is given, and builds
  * none in.
  */
 
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { publicImageInfo } from '@tests/fixtures/image-size';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -30,6 +35,7 @@ vi.hoisted(() => {
 });
 
 import { app } from '@/constants';
+import { siteCardAlt } from '@/lib/og/constants';
 import { constructMetadata } from '@/utils/seo/meta';
 
 afterAll(() => {
@@ -87,8 +93,48 @@ describe('constructMetadata', () => {
       url: '/api/og?title=Stats&description=Live%20stats',
       width: 1200,
       height: 630,
+      type: 'image/png',
       alt: 'Stats',
     });
+  });
+
+  it("shows the site card (the opengraph-image and twitter-image routes) for the site's own tags", () => {
+    const metadata = constructMetadata();
+    const card = { width: 1200, height: 630, type: 'image/png', alt: siteCardAlt() };
+
+    expect(metadata.openGraph?.images).toEqual([{ url: '/opengraph-image', ...card }]);
+    expect(metadata.twitter).toMatchObject({ images: [{ url: '/twitter-image', ...card }] });
+    expect(siteCardAlt()).toContain(app.name);
+  });
+
+  it('keeps the site card for a page titled with the site name, whatever its description', () => {
+    const metadata = constructMetadata({ description: 'Another sentence.' });
+
+    expect(metadata.openGraph?.images).toEqual([
+      expect.objectContaining({ url: '/opengraph-image' }),
+    ]);
+  });
+
+  it('points no page at the old static purple card', () => {
+    for (const metadata of [constructMetadata(), statsMetadata()]) {
+      expect(JSON.stringify(metadata)).not.toMatch(/opengraph-image\.png|twitter-image\.png/);
+    }
+  });
+
+  it('declares the palette favicon, SVG icon and apple-touch icon, which exist in public/', () => {
+    const { icons } = constructMetadata();
+
+    expect(icons).toEqual({
+      icon: [
+        { url: '/favicon.ico', sizes: '16x16 32x32 48x48' },
+        { url: '/pwa/icon.svg', type: 'image/svg+xml' },
+      ],
+      apple: [{ url: '/pwa/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    });
+    expect(publicImageInfo('/pwa/apple-touch-icon.png')).toMatchObject({ width: 180, height: 180 });
+    for (const file of ['favicon.ico', 'pwa/icon.svg']) {
+      expect(existsSync(join(process.cwd(), 'public', file)), file).toBe(true);
+    }
   });
 
   it('keeps a caller-supplied image as is, without guessing its size', () => {

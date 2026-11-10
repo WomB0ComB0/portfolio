@@ -59,8 +59,11 @@ import { loadCurrentRoles } from '../data/loaders';
 import { settle, type TileResult } from '../data/tile-result';
 import { ExternalAnchor, GITHUB_PROFILE_URL, META_SEPARATOR, SkeletonBar } from './tile-states';
 
-/** The hero's one positioning line (owner decision 7), unless the site settings give a tagline. */
-export const HERO_POSITIONING = 'Building web software end to end.';
+/**
+ * The hero's one positioning line (owner decision 7), unless the site settings give a tagline.
+ * Kept in app.tagline, which the link-preview card and the web app manifest repeat.
+ */
+export const HERO_POSITIONING = app.tagline;
 
 export const HERO_TITLE_ID = 'home-title';
 

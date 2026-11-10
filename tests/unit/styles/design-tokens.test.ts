@@ -438,11 +438,9 @@ describe('files the Live Console replaced', () => {
     expect(existsSync(fromRoot('src/styles/fonts.css'))).toBe(false);
   });
 
-  it('keeps the two Kodchasan files the OG image route still reads, and the licence', () => {
-    for (const file of ['Kodchasan-Bold.ttf', 'Kodchasan-Regular.ttf', 'OFL.txt']) {
-      expect(existsSync(fromRoot(`public/assets/fonts/${file}`)), file).toBe(true);
-    }
-    expect(existsSync(fromRoot('public/assets/fonts/Kodchasan-SemiBoldItalic.ttf'))).toBe(false);
+  it('draws the link-preview cards in Geist, with its licence, never Kodchasan', () => {
+    expect(read('src/lib/og/fonts.ts')).not.toContain('Kodchasan');
+    expect(existsSync(fromRoot('src/lib/og/fonts/OFL.txt'))).toBe(true);
   });
 
   it('renders the error pages in Geist, without LightRays', () => {

@@ -16,9 +16,28 @@
 
 import type { Metadata, Viewport } from 'next';
 import { app } from '@/constants';
+import {
+  OG_CONTENT_TYPE,
+  OG_IMAGE_SIZE,
+  PAGE_CARD_PATH,
+  SITE_CARD_PATH,
+  SITE_TWITTER_CARD_PATH,
+  siteCardAlt,
+} from '@/lib/og/constants';
 
-/** The size of the card src/app/api/og/route.tsx renders. */
-const OG_IMAGE_SIZE = { width: 1_200, height: 630 } as const;
+/**
+ * The favicon (16, 32 and 48 px in one file), the scalable icon and the apple-touch icon: the
+ * wolf mark in the palette (src/lib/og/wolf-mark.tsx), in public/. A new object per page, so no
+ * page's metadata shares one with another. The web app manifest (src/app/manifest.ts) lists the
+ * install icons.
+ */
+const siteIcons = (): NonNullable<Metadata['icons']> => ({
+  icon: [
+    { url: '/favicon.ico', sizes: '16x16 32x32 48x48' },
+    { url: '/pwa/icon.svg', type: 'image/svg+xml' },
+  ],
+  apple: [{ url: '/pwa/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+});
 
 /**
  * The browser chrome and PWA colour: the page background (`--background`, equal to the Live
@@ -50,12 +69,13 @@ export interface MetadataOptions {
   readonly title?: string;
   /** The page description. Defaults to app.description. */
   readonly description?: string;
-  /** The preview image URL. Defaults to the card /api/og renders for the title and description. */
+  /**
+   * The preview image URL. Defaults to the site card for the site's own title (the site name),
+   * or the page card /api/og draws for any other title and its description.
+   */
   readonly image?: string;
-  /** The Twitter card image URL. Defaults to the preview image. */
+  /** The Twitter card image URL. Defaults to the preview image (the site card's X twin). */
   readonly twitter?: string;
-  /** The favicon URL. */
-  readonly icons?: string;
   /** When true, asks search engines not to index or follow the page. */
   readonly noIndex?: boolean;
   /** The page's path on the site, e.g. '/stats'. Sets og:url; without it og:url is left out. */
@@ -75,18 +95,37 @@ interface PreviewImage {
   readonly url: string;
   readonly width?: number;
   readonly height?: number;
+  readonly type?: string;
   readonly alt?: string;
 }
 
-/** The caller's image as given, or the generated /api/og card with its known size. */
-const previewImage = (title: string, description: string, image?: string): PreviewImage =>
-  image
-    ? { url: image }
-    : {
-        url: `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
-        ...OG_IMAGE_SIZE,
-        alt: title,
-      };
+/** A page's preview images: the og:image, and the twitter:image beside it. */
+interface PreviewImages {
+  readonly openGraph: PreviewImage;
+  readonly twitter: PreviewImage;
+}
+
+/** What every generated card declares: its 1200x630 size and PNG type. */
+const CARD = { ...OG_IMAGE_SIZE, type: OG_CONTENT_TYPE } as const;
+
+/**
+ * The preview images for a page: the caller's image as given (no size guessed), the site card
+ * (/opengraph-image, and /twitter-image for X) when the title is the site's own, or the page card
+ * /api/og draws from the title and description, with their known size.
+ */
+function previewImages(title: string, description: string, image?: string): PreviewImages {
+  if (image) return { openGraph: { url: image }, twitter: { url: image } };
+  if (title === app.name) {
+    const alt = siteCardAlt();
+    return {
+      openGraph: { url: SITE_CARD_PATH, ...CARD, alt },
+      twitter: { url: SITE_TWITTER_CARD_PATH, ...CARD, alt },
+    };
+  }
+  const query = `title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`;
+  const page = { url: `${PAGE_CARD_PATH}?${query}`, ...CARD, alt: title };
+  return { openGraph: page, twitter: page };
+}
 
 const twitterCard = (player?: MetadataPlayer) =>
   player
@@ -114,6 +153,10 @@ function placeTags(location: string | null | undefined): Pick<Metadata, 'other'>
  * is named (geo.placename, and a keyword) only from `location`: the server pages pass the one
  * Location in Studio gives (src/lib/seo/site-metadata.ts), and nothing here names one itself.
  *
+ * The preview image is the caller's, or a card in the Live Console look (src/lib/og): the site
+ * card for the site's own title (the home page and the layout's defaults), a page card for any
+ * other. Every page sets its own, so Next never adds the opengraph-image file's tag itself.
+ *
  * @function
  * @public
  * @author Mike Odnis
@@ -138,14 +181,13 @@ export function constructMetadata({
   description = `${app.description}`,
   image,
   twitter,
-  icons = '/assets/svgs/logo.svg',
   noIndex = false,
   path,
   video,
   player,
   location,
 }: MetadataOptions = {}): Metadata {
-  const ogImage = previewImage(title, description, image);
+  const preview = previewImages(title, description, image);
   const place = placeTags(location);
 
   return {
@@ -161,17 +203,17 @@ export function constructMetadata({
       siteName: app.name,
       type: 'website',
       locale: 'en_US',
-      images: [{ ...ogImage }],
+      images: [{ ...preview.openGraph }],
       ...(video && { videos: [{ ...video }] }),
     },
     twitter: {
       ...twitterCard(player),
       title,
       description,
-      images: [twitter ? { url: twitter } : { ...ogImage }],
+      images: [twitter ? { url: twitter } : { ...preview.twitter }],
       creator: '@mike_odnis',
     },
-    icons: [{ url: icons, href: icons }],
+    icons: siteIcons(),
     category: 'technology',
     manifest: '/manifest.webmanifest',
     metadataBase: new URL(app.url),

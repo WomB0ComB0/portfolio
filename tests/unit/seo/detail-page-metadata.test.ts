@@ -134,6 +134,31 @@ describe('project detail metadata', () => {
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
+  it('keeps the project image as its preview, cropped to 1200x630', async () => {
+    const covered = makeProject({
+      title: 'Covered',
+      image: { _type: 'image', asset: { _ref: 'image-cover-1600x900-png', _type: 'reference' } },
+    });
+    sanityApi.getProjects.mockResolvedValue([covered]);
+
+    const metadata = await projectMetadata(paramsFor(covered._id));
+    const images = JSON.stringify(metadata.openGraph?.images);
+
+    expect(images).toContain('/cover-1600x900.png?');
+    expect(images).toMatch(/w=1200&h=630/);
+  });
+
+  it('gives a project without an image its own page card, not the old static purple card', async () => {
+    sanityApi.getProjects.mockResolvedValue([grepo]);
+
+    const metadata = await projectMetadata(paramsFor(grepo._id));
+
+    expect(metadata.openGraph?.images).toEqual(
+      constructMetadata({ title: 'grepo', description: 'Search your repos.' }).openGraph?.images,
+    );
+    expect(JSON.stringify(metadata)).not.toContain('opengraph-image.png');
+  });
+
   it('still says "Not Found" for an id Sanity really does not have', async () => {
     sanityApi.getProjects.mockResolvedValue([grepo]);
 
