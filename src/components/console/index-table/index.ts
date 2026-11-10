@@ -37,6 +37,7 @@ export {
   INDEX_GROUPS_CLASS,
   INDEX_META_CLASS,
   INDEX_ROW_INK_CLASS,
+  INDEX_SUB_CLASS,
   INDEX_TITLE_TEXT_CLASS,
   type IndexAlign,
   type IndexColumn,

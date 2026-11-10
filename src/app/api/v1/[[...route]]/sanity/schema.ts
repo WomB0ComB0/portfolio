@@ -83,6 +83,8 @@ export const projectSchema = t.Object({
   githubUrl: t.Optional(t.Union([t.String(), t.Null()])),
   liveUrl: t.Optional(t.Union([t.String(), t.Null()])),
   featured: t.Boolean(),
+  /** The Studio "Featured rank" for /projects (lowest first); null until the owner sets one. */
+  featuredRank: t.Optional(t.Union([t.Number(), t.Null()])),
   category: t.String(),
   startDate: t.Union([t.String(), t.Null()]),
   endDate: t.Optional(t.Union([t.String(), t.Null()])),

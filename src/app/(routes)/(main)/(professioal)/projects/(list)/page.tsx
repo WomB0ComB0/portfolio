@@ -15,15 +15,15 @@
  */
 
 /**
- * @file /projects. It lives in the (list) route group so that its loading.tsx wraps this page
- * only: a skeleton above /projects/[id] would stream a 200 before that page's notFound() runs.
+ * @file /projects as the open Index. There is no loading.tsx (owner: "Drop it on both"), so the
+ * rows are in the first HTML and show without JavaScript. The page stays in the (list) route
+ * group so list-only files never wrap /projects/[id], whose notFound() must still answer 404.
+ * The URL's filters (?q, ?category, ?tech) are read by the island through nuqs, which the
+ * dynamic root layout gives the search params during the server render.
  */
 
 import type { JSX } from 'react';
-import {
-  ProjectsList,
-  toProjectCard,
-} from '@/app/(routes)/(main)/(professioal)/projects/_interface/projects-list';
+import { Projects } from '@/app/(routes)/(main)/(professioal)/projects/_interface/projects-index';
 import { loadProjects } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils';
 
@@ -34,10 +34,10 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Every project, rendered on the server. A Sanity outage with nothing cached rejects here and
- * reaches the (routes) error view inside the shell.
+ * Every project in the Index, rendered on the server. A Sanity outage with nothing cached
+ * rejects here and reaches the (routes) error view inside the shell.
  */
 export default async function ProjectsPage(): Promise<JSX.Element> {
   const projects = await loadProjects();
-  return <ProjectsList projects={projects.map(toProjectCard)} />;
+  return <Projects projects={projects} />;
 }

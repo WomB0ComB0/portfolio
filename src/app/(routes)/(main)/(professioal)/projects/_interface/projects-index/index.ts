@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Mike Odnis
+ * Copyright 2026 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,4 @@
  * limitations under the License.
  */
 
-/**
- * @file /projects while its projects load. Inside the (list) group on purpose: a loading.tsx in
- * projects/ would also wrap /projects/[id] and answer 200 before its notFound() could 404.
- */
-
-import type { JSX } from 'react';
-import { ProjectsListSkeleton } from '@/app/(routes)/(main)/(professioal)/projects/_components/projects-skeleton';
-
-export default function ProjectsLoading(): JSX.Element {
-  return <ProjectsListSkeleton />;
-}
+export { Projects, type ProjectsProps } from './projects-index';

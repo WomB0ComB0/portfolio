@@ -24,11 +24,20 @@
  *
  * Once it has measured, one aria-hidden pill draws the current chip's fill and slides to the next
  * current chip on clip-path (--motion-spring-in, --ease-spring); before that, without JavaScript
- * and in forced colours, the current chip draws its own. In `scroll` layout the row scrolls
- * sideways inside itself and keeps the current chip in view.
+ * and in forced colours, the current chip draws its own. In `scroll` layout the chips wrap in the
+ * sheet; from 48rem the row scrolls sideways inside itself, fades over each end that has chips
+ * past it (data-overflow: the cue that it scrolls, with no scrollbar), keeps the current chip in
+ * view, and scrolls it back into view once focus has passed through and left the row.
  */
 
-import { type ReactElement, type RefObject, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type FocusEvent,
+  type ReactElement,
+  type RefObject,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { onPlainClick } from '@/lib/dom/plain-click';
 import { revealInScroller } from '@/lib/dom/reveal-in-scroller';
@@ -155,6 +164,58 @@ function usePill(
   return ready;
 }
 
+/** Which ends of a sideways scroller have content past them, or null when it all shows. */
+function overflowEdges(list: HTMLElement): 'start' | 'end' | 'both' | null {
+  const hidden = list.scrollWidth - list.clientWidth;
+  if (hidden <= 1) return null;
+  const before = list.scrollLeft > 1;
+  const after = list.scrollLeft < hidden - 1;
+  if (before && after) return 'both';
+  return before ? 'start' : 'end';
+}
+
+/**
+ * In `scroll` layout, keeps data-overflow on the row naming the ends with chips past them, so the
+ * row fades there. Re-measured on a scroll and on a resize of the row or a chip (a count narrows
+ * a chip; the page crosses 48rem and the row stops wrapping). `chips` names the chips in order.
+ */
+function useOverflowCue(
+  list: RefObject<HTMLUListElement | null>,
+  layout: ChipsLayout,
+  chips: string,
+): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `chips` is the trigger: a new chip set must be observed, and the effect reads the chips from the DOM.
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (layout !== 'scroll' || !element) return;
+    /** Writes the row's overflowing ends, or removes the mark when every chip shows. */
+    const mark = (): void => {
+      const edges = overflowEdges(element);
+      if (edges) element.dataset.overflow = edges;
+      else delete element.dataset.overflow;
+    };
+    mark();
+    element.addEventListener('scroll', mark, { passive: true });
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(mark) : null;
+    observer?.observe(element);
+    for (const each of element.querySelectorAll<HTMLElement>('[data-filter-part="chip"]')) {
+      observer?.observe(each);
+    }
+    return () => {
+      element.removeEventListener('scroll', mark);
+      observer?.disconnect();
+    };
+  }, [list, layout, chips]);
+}
+
+/** Once focus leaves a sideways row, scrolls its current chip back into view (the state shows). */
+function revealCurrentOnLeave(event: FocusEvent<HTMLUListElement>): void {
+  const list = event.currentTarget;
+  if (event.relatedTarget instanceof Node && list.contains(event.relatedTarget)) return;
+  const current = list.querySelector<HTMLElement>('a[aria-current="true"]');
+  if (current) revealInScroller(list, current);
+}
+
 /** One facet's chips: All, then each option. */
 export function FilterBarChips({
   facet,
@@ -173,6 +234,7 @@ export function FilterBarChips({
   const chipSet = items.map((item) => item.slug ?? '').join(' ');
   const listRef = useRef<HTMLUListElement>(null);
   const pillReady = usePill(listRef, current, chipSet, layout);
+  useOverflowCue(listRef, layout, chipSet);
   /** The noun a screen reader hears after a chip's count: "1 certificate", "20 certificates". */
   const nounOf = (count: number): string => (count === 1 ? model.noun.one : model.noun.many);
 
@@ -191,6 +253,7 @@ export function FilterBarChips({
         data-filter-part="chips"
         data-pill={pillReady ? 'on' : undefined}
         className={layout === 'scroll' ? CHIP_LIST_SCROLL_CLASS : CHIP_LIST_CLASS}
+        onBlur={layout === 'scroll' ? revealCurrentOnLeave : undefined}
       >
         {items.map((item) => (
           <li key={item.slug ?? ''}>

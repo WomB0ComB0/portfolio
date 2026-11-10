@@ -85,9 +85,16 @@ export const CHIPS_SLOT_CLASS =
   'flex flex-col gap-2 @min-[48rem]/page:min-w-0 @min-[48rem]/page:flex-1 @min-[48rem]/page:py-1';
 /** Chips that wrap (the sheet, and the bar from 48rem). */
 export const CHIP_LIST_CLASS = 'relative isolate flex flex-wrap gap-1.5';
-/** Chips on one line that scrolls sideways inside itself (`bar` density). */
+/**
+ * Chips that wrap in the sheet and, from 48rem, sit on one line that scrolls sideways inside
+ * itself (`scroll` layout, /projects). The scroller clips at its padding box, so it keeps 4px on
+ * every side for a focused chip's ring (a 2px outline at a 2px offset), with a matching negative
+ * margin so the chips sit where 2px of padding put them. With no scrollbar, the cue that it
+ * scrolls is a fade over each end that has chips past it (data-overflow, set by FilterBar.Chips):
+ * a mask, so alpha only, never a colour.
+ */
 export const CHIP_LIST_SCROLL_CLASS =
-  'relative isolate flex gap-1.5 overflow-x-auto p-0.5 [scrollbar-width:none]';
+  'relative isolate flex flex-wrap gap-1.5 [scrollbar-width:none] @min-[48rem]/page:-m-0.5 @min-[48rem]/page:flex-nowrap @min-[48rem]/page:overflow-x-auto @min-[48rem]/page:p-1 data-[overflow=end]:[mask-image:linear-gradient(to_right,#000_calc(100%_-_1.5rem),transparent)] data-[overflow=start]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem)] data-[overflow=both]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem,#000_calc(100%_-_1.5rem),transparent)]';
 
 /**
  * A chip, a link. Current: the brand-subtle fill with the brand edge, until the pill has

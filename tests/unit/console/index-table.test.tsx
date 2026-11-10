@@ -34,6 +34,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   INDEX_ACTION_CLASS,
+  INDEX_SUB_CLASS,
   IndexAnnouncer,
   type IndexColumn,
   IndexCopyButton,
@@ -42,6 +43,20 @@ import {
   IndexTitleLink,
   indexCellClass,
 } from '@/components/console/index-table';
+
+/** Every next/link the kit renders, by its props: the real link still renders. */
+const nextLinks = vi.hoisted(() => ({ props: [] as Record<string, unknown>[] }));
+vi.mock('next/link', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/link')>();
+  const RealLink = actual.default;
+  return {
+    ...actual,
+    default: (props: Parameters<typeof RealLink>[0]) => {
+      nextLinks.props.push(props as unknown as Record<string, unknown>);
+      return <RealLink {...props} />;
+    },
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -199,6 +214,77 @@ describe('a row', () => {
     expect(INDEX_ACTION_CLASS.split(' ')).toEqual(expect.arrayContaining(['relative', 'z-[1]']));
     expect(classesOf(screen.getByRole('button'))).toEqual(
       expect.arrayContaining(['relative', 'z-[1]']),
+    );
+  });
+});
+
+/** One row whose title is an internal link, beside an external one for comparison. */
+function InternalRow(): ReactElement {
+  return (
+    <table>
+      <tbody>
+        <IndexRow data-project-row="">
+          <td>
+            <IndexTitleLink href="/projects/a%20b" internal data-project-title="">
+              Alpha
+            </IndexTitleLink>
+          </td>
+          <td>
+            <IndexTitleLink href="https://example.com/b" external>
+              Beta
+            </IndexTitleLink>
+          </td>
+        </IndexRow>
+      </tbody>
+    </table>
+  );
+}
+
+describe('an internal title link (style 2 on /projects)', () => {
+  it('is a next/link (soft navigation, never prefetched) with the same class and data', () => {
+    nextLinks.props.length = 0;
+    render(<InternalRow />);
+    const internal = screen.getByRole('link', { name: 'Alpha' });
+    const external = screen.getByRole('link', { name: 'Beta (opens in a new tab)' });
+
+    expect(nextLinks.props).toHaveLength(1);
+    expect(nextLinks.props[0]).toMatchObject({ href: '/projects/a%20b', prefetch: false });
+    expect(internal).toHaveAttribute('href', '/projects/a%20b');
+    expect(internal).not.toHaveAttribute('target');
+    expect(internal).not.toHaveAttribute('rel');
+    expect(internal).toHaveAttribute('data-index-link', '');
+    expect(internal).toHaveAttribute('data-project-title', '');
+    expect(classesOf(internal)).toEqual(classesOf(external));
+  });
+
+  it('keeps an external or plain title link a plain <a>, as the Ledger has it', () => {
+    nextLinks.props.length = 0;
+    render(<Table />);
+
+    expect(nextLinks.props).toHaveLength(0);
+  });
+
+  it('cannot be internal and external at once', () => {
+    const both = (
+      // @ts-expect-error internal and external are exclusive
+      <IndexTitleLink href="/x" internal external>
+        X
+      </IndexTitleLink>
+    );
+
+    expect(both).toBeDefined();
+  });
+
+  it('has a second line for an open row: hidden on a phone, one truncated quiet line', () => {
+    const tokens = INDEX_SUB_CLASS.split(' ');
+
+    expect(tokens).toEqual(
+      expect.arrayContaining([
+        'hidden',
+        'truncate',
+        'text-muted-foreground',
+        '@min-[40rem]/page:block',
+      ]),
     );
   });
 });

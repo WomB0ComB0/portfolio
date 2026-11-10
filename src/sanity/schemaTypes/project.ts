@@ -114,6 +114,14 @@ export const projectType = defineType({
       initialValue: false,
     }),
     defineField({
+      name: 'featuredRank',
+      title: 'Featured rank',
+      type: 'number',
+      validation: (Rule) => Rule.integer().min(1).max(99),
+      description:
+        'Puts this project in the Featured group at the top of /projects, lowest number first (1, 2, 3 …). Leave it empty to keep the project under its year. While no project has a rank, /projects features the first four projects switched to Featured, in display order. Ranked projects are not capped. The home page always uses the Featured switch.',
+    }),
+    defineField({
       name: 'liveUrl',
       title: 'Live URL',
       type: 'url',

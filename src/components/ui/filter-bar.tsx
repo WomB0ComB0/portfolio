@@ -59,8 +59,7 @@ const ALL_VALUE = 'all';
  * stack) stayed on screen with the bottom bar and left a phone a few hundred pixels of content,
  * and there is no top nav for an offset to clear. From lg it sticks 1rem from the top; z-30 keeps
  * it under the rail's z-40 flyouts. `relative` anchors the results count to the bar at every
- * width. projects-skeleton.tsx repeats this string (a server file cannot import a constant from
- * this client module); filter-bar-sticky.test.tsx checks the two match.
+ * width.
  */
 const FRAME_CLASS = 'relative -mx-4 px-4 md:mx-0 md:px-0 lg:sticky lg:top-4 lg:z-30';
 
