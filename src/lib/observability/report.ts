@@ -24,6 +24,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
+import type { SignInMethod } from '@/core/auth.types';
 
 type CaptureContext = Parameters<typeof Sentry.captureException>[1];
 
@@ -110,6 +111,58 @@ export function reportApiFailure(
     fingerprint: ['api', context, '{{ default }}'],
   });
   return true;
+}
+
+/** A failed sign-in as reportSignInFailure logs it: nothing that says who the visitor is. */
+export interface SignInFailure {
+  /** Firebase's error code, e.g. 'auth/popup-closed-by-user', or 'unknown'. */
+  readonly code: string;
+  /** The provider pressed: 'google.com', 'github.com' or 'anonymous'. */
+  readonly method: SignInMethod;
+  /** From the press to the failure, in ms. */
+  readonly elapsedMs: number;
+}
+
+/**
+ * Logs a failed sign-in to Sentry Logs at warn level. The browser's own console logging is off in
+ * production, and a breadcrumb would travel only with a later error. Only the code, the provider
+ * and the timing are sent: never the error's message or customData (which can hold an email), a
+ * name or a uid.
+ *
+ * Firebase raises 'auth/popup-closed-by-user' only from its 8 s timer, started when it finds the
+ * popup's tab closed (it checks every 2 s). So for that code elapsedMs is the time the tab was open
+ * plus 8-10 s, whatever closed it: on its own it cannot tell a visitor who gave up from a sign-in
+ * that was still finishing. reportSignInAfterClosedPopup records the second case.
+ */
+export function reportSignInFailure({ code, method, elapsedMs }: SignInFailure): void {
+  Sentry.logger.warn('Sign-in failed', { code, method, elapsedMs });
+}
+
+/** A user Firebase reported soon after a closed popup, as reportSignInAfterClosedPopup logs it. */
+export interface SignInAfterClosedPopup {
+  /** The provider whose popup Firebase reported closed. */
+  readonly method: SignInMethod;
+  /** From that error to Firebase reporting a user, in ms. */
+  readonly gapMs: number;
+  /**
+   * Whether a newer sign-in was under way (the store's phase was 'signing-in') when Firebase
+   * reported the user: a provider's popup, or a guest sign-in, which opens no popup.
+   */
+  readonly signingIn: boolean;
+}
+
+/**
+ * Logs, at info level, that Firebase reported a user soon after it said a popup closed. With no
+ * sign-in under way, Firebase finished the closed popup on its own (or another tab signed in): the
+ * closed error came while sign-in was still finishing. With one under way the visitor had pressed
+ * again, so either sign-in may have done it. Only the provider, the gap and that flag are sent.
+ */
+export function reportSignInAfterClosedPopup({
+  method,
+  gapMs,
+  signingIn,
+}: SignInAfterClosedPopup): void {
+  Sentry.logger.info('Signed in after a closed-popup error', { method, gapMs, signingIn });
 }
 
 /** Forgets the per-context, per-level cooldowns. Tests only. */

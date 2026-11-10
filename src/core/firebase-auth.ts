@@ -104,6 +104,13 @@ export function watchUser(listener: (user: SessionUser | null) => void): () => v
   return onAuthStateChanged(clientAuth(), (user) => listener(user ? toSessionUser(user) : null));
 }
 
+/**
+ * The popup provider for `method`. GitHub asks for read:user, which grants read access to all of
+ * the account's profile data, not only the public profile. Google asks for the profile and email,
+ * and opens on its account chooser (prompt: 'select_account'): the visitor chooses which Google
+ * account to sign in with, and one who has already allowed the site goes straight back without the
+ * consent screen, so the popup tab stays open for less time.
+ */
 function providerFor(method: 'google.com' | 'github.com'): GoogleAuthProvider | GithubAuthProvider {
   if (method === 'github.com') {
     const github = new GithubAuthProvider();
@@ -113,7 +120,7 @@ function providerFor(method: 'google.com' | 'github.com'): GoogleAuthProvider | 
   const google = new GoogleAuthProvider();
   google.addScope('profile');
   google.addScope('email');
-  google.setCustomParameters({ prompt: 'consent' });
+  google.setCustomParameters({ prompt: 'select_account' });
   return google;
 }
 

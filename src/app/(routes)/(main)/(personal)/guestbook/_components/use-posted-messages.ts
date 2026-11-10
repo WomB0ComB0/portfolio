@@ -39,7 +39,10 @@
  * may be stored, the list is refreshed at once and once more after {@link LIST_RECHECK_MS}: each
  * server instance caches its list for GUESTBOOK_TTL_MS and a post expires it only on the instance
  * that handled it, and after a timeout the write may still be running, so the first refresh can
- * miss a stored message. The board hides a posted row once the server list includes its id.
+ * miss a stored message. A confirmed post refreshes the list once: the board hides a posted row
+ * only once the server list includes its id ({@link unlisted}), and the header counts the stored
+ * ones until then, so a refresh that lands on an instance whose cached list predates the post
+ * leaves the count right.
  */
 
 import { useRouter } from 'next/navigation';
@@ -176,6 +179,12 @@ export interface PostedMessages {
   readonly post: PostMessage;
 }
 
+/** The posted rows the server list (`known`, its ids) doesn't have yet, newest first. */
+export const unlisted = (
+  rows: readonly PostedRow[],
+  known: ReadonlySet<string>,
+): readonly PostedRow[] => rows.filter((row) => !known.has(row.message.id));
+
 interface ListRefresh {
   /** Refreshes the server list. */
   readonly now: () => void;
@@ -238,6 +247,7 @@ export function usePostedMessages(): PostedMessages {
         setRows((current) =>
           current.map((row) => (row.key === key ? { key, pending: false, message: saved } : row)),
         );
+        // Once: a refresh that misses the post leaves its row shown and counted (see unlisted).
         refreshNow();
         return { ok: true };
       } catch (error) {
