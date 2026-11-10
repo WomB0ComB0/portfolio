@@ -146,6 +146,9 @@ describe('manifest icons', () => {
       expect(icon.src).not.toMatch(/^\/pwa\/(windows11|ios|android)\//);
       expect(icon.src).not.toMatch(/^\/assets\/svgs\//);
     }
+    for (const dir of ['pwa/windows11', 'pwa/ios', 'pwa/android', 'pwa/browserconfig.xml']) {
+      expect(existsSync(join(process.cwd(), 'public', dir)), dir).toBe(false);
+    }
   });
 });
 
@@ -218,6 +221,9 @@ describe('manifest screenshots', () => {
   it('replaces the old pre-redesign screenshots', () => {
     for (const shot of screenshots) {
       expect(shot.src).not.toMatch(/\/assets\/images\/screen-shot-(narrow|wide)\.png$/);
+    }
+    for (const old of ['screen-shot-narrow.png', 'screen-shot-wide.png']) {
+      expect(existsSync(fromPublic(`/assets/images/${old}`)), old).toBe(false);
     }
   });
 });
