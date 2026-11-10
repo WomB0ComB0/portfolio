@@ -54,6 +54,37 @@ vi.mock(
   '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/photo-strip.module.css',
   cssModuleNames,
 );
+// The place card's photo folder: every /places list test renders it.
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/_components/photo-folder.module.css',
+  cssModuleNames,
+);
+// The "Places | Photos" switch: both explorers render it.
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/_components/places-view-nav.module.css',
+  cssModuleNames,
+);
+// /places/photos: the view, the grid, the wall, the touch sheet and the open photo.
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/photos/_components/photos-view.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-grid.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-wall.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/photos/_components/wall-sheet.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-dialog.module.css',
+  cssModuleNames,
+);
 // The /projects hover preview's card: the projects page and preview tests render it.
 vi.mock(
   '@/app/(routes)/(main)/(professioal)/projects/_components/project-preview.module.css',

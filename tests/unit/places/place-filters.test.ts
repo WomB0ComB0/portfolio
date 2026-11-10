@@ -26,10 +26,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  PLACE_PHOTOS_PATH,
+  PLACES_PATH,
   placeFilters,
+  placePhotoFilters,
+  placeStateOf,
   resolvePlaceCategory,
 } from '@/app/(routes)/(main)/(personal)/places/_lib/place-filters';
-import type { PlaceItem } from '@/types/places';
+import type { PhotoPlace, PlaceItem } from '@/types/places';
 
 /** A synthetic place; only the fields the schema reads matter. */
 const place = (
@@ -46,7 +50,8 @@ const place = (
   category,
   startDate: '2026-08-11',
   endDate: null,
-  photos: [],
+  photoCount: 0,
+  slivers: [],
 });
 
 const PLACES: readonly PlaceItem[] = [
@@ -189,5 +194,84 @@ describe('placeFilters', () => {
     expect(placeFilters.noMatchSentence(placeFilters.parse('?category=research'))).toMatch(
       /in Research/,
     );
+  });
+});
+
+describe('placePhotoFilters', () => {
+  /** A synthetic photo place; only the fields the schema reads matter. */
+  const photoPlace = (
+    id: string,
+    category: string,
+    name = `Venue ${id}`,
+    description = `What happened at ${id}.`,
+  ): PhotoPlace => ({
+    id,
+    name,
+    description,
+    category,
+    startDate: '2026-08-11',
+    endDate: null,
+    photoCount: 2,
+  });
+  const PHOTO_PLACES: readonly PhotoPlace[] = [
+    photoPlace('a', 'Hackathon', 'Antler NYC', 'A weekend build.'),
+    photoPlace('c', 'Event', 'Founders Dinner', 'Talked about hackathon judging.'),
+    photoPlace('d', 'Tech Office'),
+  ];
+
+  it('lives at /places/photos, beside /places', () => {
+    expect(PLACES_PATH).toBe('/places');
+    expect(PLACE_PHOTOS_PATH).toBe('/places/photos');
+    expect(placePhotoFilters.path).toBe('/places/photos');
+    expect(placeFilters.path).toBe('/places');
+  });
+
+  it('reads the same URL as /places: only q and category', () => {
+    expect(Object.keys(placePhotoFilters.parsers).sort()).toEqual(['category', 'q']);
+    expect(placePhotoFilters.keys).toEqual(['category']);
+  });
+
+  it.each([
+    ['?category=Hackathon', 'hackathon'],
+    ['?category=Tech%20Office', 'tech-office'],
+    ['?category=Tech+Office', 'tech-office'],
+    ['?category=HACKATHON', 'hackathon'],
+    ['?category=tech-office', 'tech-office'],
+  ])('resolves the old link %s to %s, as /places does', (search, slug) => {
+    expect(placePhotoFilters.parse(search).category).toEqual([slug]);
+    expect(placeFilters.parse(search).category).toEqual([slug]);
+  });
+
+  it.each(['?category=all', '?category=bogus', '?category='])(
+    'shows everything for %s',
+    (search) => {
+      expect(placePhotoFilters.parse(search).category).toEqual([]);
+    },
+  );
+
+  it('searches the name and the description, as /places does', () => {
+    const shown = (search: string): string[] =>
+      placePhotoFilters
+        .filter(PHOTO_PLACES, placePhotoFilters.parse(search))
+        .map((item) => item.id);
+
+    expect(shown('?q=hackathon')).toEqual(['c']);
+    expect(shown('?q=antler')).toEqual(['a']);
+  });
+
+  it('writes the same q and category onto either path', () => {
+    const state = placeFilters.parse('?q=antler&category=Hackathon');
+
+    expect(placePhotoFilters.serialize(state)).toBe('/places/photos?category=hackathon&q=antler');
+    expect(placeFilters.serialize(state)).toBe('/places?category=hackathon&q=antler');
+    expect(placePhotoFilters.serialize(placePhotoFilters.empty())).toBe('/places/photos');
+  });
+
+  it("reads the places state out of the FilterBar's generic one, for a link to either view", () => {
+    expect(placeStateOf({ q: 'antler', category: ['hackathon'] })).toEqual({
+      q: 'antler',
+      category: ['hackathon'],
+    });
+    expect(placeFilters.serialize(placeStateOf({ q: '' }))).toBe('/places');
   });
 });

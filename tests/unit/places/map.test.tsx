@@ -100,7 +100,8 @@ const place = (id: string, name: string): PlaceItem => ({
   latitude: 40.7,
   longitude: -74,
   category: 'Hackathon',
-  photos: [],
+  photoCount: 0,
+  slivers: [],
 });
 
 const PLACES = [place('p1', 'First Place'), place('p2', 'Second Place')];
@@ -163,7 +164,8 @@ describe('places map', () => {
   it('links the card to the place page, with or without photos', () => {
     const photoPlace = {
       ...place('p3', 'Photo Place'),
-      photos: [{ url: 'https://cdn.sanity.io/images/a.jpg' }],
+      photoCount: 1,
+      slivers: ['https://cdn.sanity.io/images/a.jpg'],
     };
     render(<GoogleMaps placesToDisplay={[...PLACES, photoPlace]} />);
 

@@ -45,15 +45,22 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map', () => ({
   default: () => null,
 }));
 
-import { placeFilters } from '@/app/(routes)/(main)/(personal)/places/_lib/place-filters';
+import {
+  placeFilters,
+  placePhotoFilters,
+} from '@/app/(routes)/(main)/(personal)/places/_lib/place-filters';
 import { metadata } from '@/app/(routes)/(main)/(personal)/places/(list)/page';
+import { metadata as photosMetadata } from '@/app/(routes)/(main)/(personal)/places/photos/page';
 
 const SRC_DIR = path.resolve(__dirname, '../../../src');
 const PLACES_DIR = path.join(SRC_DIR, 'app/(routes)/(main)/(personal)/places');
 
-/** The places modules, the categories, the filter libraries and the FilterBar kit. */
+/**
+ * The places modules, the categories, the filter libraries and the FilterBar kit, imported
+ * statically or lazily (`import('./x')`, as the photos view loads its wall and open view).
+ */
 const FOLLOWED_IMPORT =
-  /from '(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+|@\/lib\/places\/[^']+|@\/lib\/filters|@\/components\/console\/filter-bar[^']*)'/g;
+  /(?:from |import\()'(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+|@\/lib\/places\/[^']+|@\/lib\/filters|@\/components\/console\/filter-bar[^']*)'/g;
 const MODULE_SUFFIXES = ['.tsx', '.ts', '/index.ts'];
 
 /** Where an import resolves, or undefined for a package or a file this scan does not follow. */
@@ -90,9 +97,15 @@ function filesUnder(folder: string): string[] {
 }
 
 const SCANNED = [
-  ...graphOf(path.join(PLACES_DIR, '_components/places-explorer.tsx')),
-  path.join(PLACES_DIR, '(list)/page.tsx'),
-  path.join(PLACES_DIR, '_interface/places/places.tsx'),
+  ...new Set([
+    ...graphOf(path.join(PLACES_DIR, '_components/places-explorer.tsx')),
+    ...graphOf(path.join(PLACES_DIR, 'photos/_components/photos-explorer.tsx')),
+    path.join(PLACES_DIR, '(list)/page.tsx'),
+    path.join(PLACES_DIR, '_interface/places/places.tsx'),
+    path.join(PLACES_DIR, 'photos/page.tsx'),
+    path.join(PLACES_DIR, 'photos/_lib/photo-index.ts'),
+    path.join(PLACES_DIR, '_lib/place-photo-urls.ts'),
+  ]),
 ];
 
 describe('/places opsec', () => {
@@ -105,6 +118,24 @@ describe('/places opsec', () => {
         'app/(routes)/(main)/(personal)/places/_components/map.tsx',
         'lib/places/categories.ts',
         'components/console/filter-bar/use-url-filters.ts',
+      ]),
+    );
+  });
+
+  it('scans the photos island, down to the parts it loads lazily', () => {
+    const names = SCANNED.map((file) => path.relative(PLACES_DIR, file));
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'photos/_components/photos-view.tsx',
+        'photos/_components/photo-grid.tsx',
+        'photos/_components/photo-wall-live.tsx',
+        'photos/_components/use-wall-input.ts',
+        'photos/_components/wall-sheet.tsx',
+        'photos/_components/photo-dialog-live.tsx',
+        '_components/places-view-nav.tsx',
+        'photos/page.tsx',
+        'photos/_lib/photo-index.ts',
+        '_lib/place-photo-urls.ts',
       ]),
     );
   });
@@ -124,9 +155,17 @@ describe('/places opsec', () => {
     expect(placeFilters.keys).toEqual(['category']);
   });
 
-  it('names no location in the metadata', () => {
-    expect(metadata.other).toBeUndefined();
-    expect(JSON.stringify(metadata)).not.toMatch(/geo\.|placename|latitude|longitude/i);
+  it('keeps /places/photos to the same URL: q and category, no view, photo or position', () => {
+    expect(Object.keys(placePhotoFilters.parsers).sort()).toEqual(['category', 'q']);
+    expect(placePhotoFilters.keys).toEqual(['category']);
+  });
+
+  it.each([
+    ['/places', metadata],
+    ['/places/photos', photosMetadata],
+  ])('names no location in the metadata of %s', (_path, pageMetadata) => {
+    expect(pageMetadata.other).toBeUndefined();
+    expect(JSON.stringify(pageMetadata)).not.toMatch(/geo\.|placename|latitude|longitude/i);
   });
 
   it('reads places everywhere only through the past-only loaders', () => {

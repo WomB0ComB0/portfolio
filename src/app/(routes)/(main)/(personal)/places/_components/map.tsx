@@ -270,10 +270,10 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
             {/* With or without photos, the place page has the full description. */}
             <Button asChild size="sm" className="w-full">
               <Link href={`/places/${activeMarker.id}`}>
-                {activeMarker.photos && activeMarker.photos.length > 0 ? (
+                {activeMarker.photoCount > 0 ? (
                   <>
                     <FiCamera className="h-4 w-4" aria-hidden="true" />
-                    View Photos ({activeMarker.photos.length})
+                    View Photos ({activeMarker.photoCount})
                   </>
                 ) : (
                   <>

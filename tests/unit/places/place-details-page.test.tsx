@@ -56,6 +56,7 @@ vi.mock('@/lib/sanity/client', async () => {
   return { urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source) };
 });
 
+import { usablePhotos } from '@/app/(routes)/(main)/(personal)/places/_lib/place-photo-urls';
 import PlacePage, {
   generateMetadata,
 } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
@@ -251,6 +252,23 @@ describe('place photo viewer', () => {
       expect(searchParams.get('fit')).toBe('crop');
       expect(searchParams.get('auto')).toBe('format');
     }
+  });
+
+  it('leaves out a photo the URL builder cannot read, as the card count does', async () => {
+    const place = makePlace({
+      name: 'Partly Broken Place',
+      photos: [image('good', 'image-good-1600x1200-jpg'), image('bad', 'image-x')],
+    });
+    h.loadPlaceById.mockResolvedValue(place);
+
+    await renderPage(place._id);
+
+    // The card counts one photo, so the viewer shows one: no counter and no strip.
+    expect(usablePhotos(place)).toHaveLength(1);
+    expect(screen.getAllByRole('img', { name: 'Photo of Partly Broken Place' })).toHaveLength(1);
+    expect(imageSrc('Photo of Partly Broken Place')).toContain('/good-1600x1200.jpg');
+    expect(screen.queryByText(/^Photo \d+ of \d+$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
   });
 
   it('zooms in and back out, within its limits', async () => {

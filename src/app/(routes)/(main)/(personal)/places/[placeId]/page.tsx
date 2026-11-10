@@ -24,10 +24,11 @@ import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils/seo/meta';
 import { loadPastPlaceById } from '../_lib/past-place-loaders';
+import { usablePhotos } from '../_lib/place-photo-urls';
+import { stripThumbUrl, viewerPhotoUrl } from '../_lib/viewer-photo-url';
 import { PlacePhotoViewer } from './_components/place-photo-viewer';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
-import { stripThumbUrl, viewerPhotoUrl } from './_components/viewer-photo-url';
 import type { PlacePageProps, ViewerPhoto } from './page.types';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
@@ -96,10 +97,10 @@ export async function generateMetadata({ params }: PlacePageProps): Promise<Meta
 
 /**
  * The viewer's photos: each whole (never cropped to the frame), with its strip thumbnail and its
- * alt text.
+ * alt text. Only the usable ones, as the card counts them: a malformed asset id would throw.
  */
 const viewerPhotos = (place: Place): ViewerPhoto[] =>
-  (place.photos ?? []).map((photo) => ({
+  usablePhotos(place).map((photo) => ({
     url: viewerPhotoUrl(photo.asset, VIEWER_MAX_WIDTH, VIEWER_MAX_HEIGHT),
     thumb: stripThumbUrl(photo),
     caption: photo.caption,

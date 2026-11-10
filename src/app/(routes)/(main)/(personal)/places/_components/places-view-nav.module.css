@@ -1,0 +1,89 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * "Places | Photos": a segmented pair of links at the end of the results header. Palette only:
+ * a surface-1 track with a hairline, the current page on brand-subtle with a brand-edge rim.
+ * The label colour flips at once; only a press moves (transform, on the house spring). Hover
+ * only with a fine pointer; focus takes the site's one ring.
+ */
+
+.nav {
+  display: inline-flex;
+  flex: none;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+  padding: 0.25rem;
+  border-radius: 0.625rem;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 0.4375rem;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+  text-decoration: none;
+
+  /* Replaces the base link's colour fade: colour flips at once, only the press moves. */
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+.link[aria-current="page"] {
+  background: var(--brand-subtle);
+  box-shadow: inset 0 0 0 1px var(--brand-edge);
+  color: var(--fg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    color: var(--fg);
+  }
+}
+
+.link:active {
+  transform: scale(0.96);
+  transition-duration: var(--motion-instant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link:active {
+    transform: none;
+  }
+}
+
+/*
+ * Forced colours (Windows High Contrast) drop the background and box-shadow that mark the
+ * current view: it takes the system highlight, and each link keeps a button's border.
+ */
+@media (forced-colors: active) {
+  .link {
+    border: 1px solid ButtonBorder;
+  }
+
+  .link[aria-current="page"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}

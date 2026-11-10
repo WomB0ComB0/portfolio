@@ -105,8 +105,8 @@ const PLACES: readonly Place[] = Array.from({ length: PLACE_COUNT }, (_, index) 
   }),
 );
 
-/** Each card's link to its place page ("View Details for …" / "View Photos (n) for …"). */
-const placePageLinks = () => screen.queryAllByRole('link', { name: /^View (Details|Photos)/ });
+/** Each card's link to its place page ("Details of …" / "5 photos of …"). */
+const placePageLinks = () => screen.queryAllByRole('link', { name: /^(\d+ photos?|Details) of / });
 /** The ids the cards link to, in order. */
 const cardIds = (): string[] =>
   placePageLinks().map((link) => (link.getAttribute('href') ?? '').replace('/places/', ''));
@@ -149,17 +149,44 @@ describe('/places', () => {
     expect(document.querySelectorAll('li[data-place-card]')).toHaveLength(PLACE_COUNT);
   });
 
-  it('builds the photo URLs on the server', async () => {
+  it("builds the folder's slivers on the server: up to three 96 x 64 crops", async () => {
     await renderPlaces();
 
-    const [first] = h.mapPlaces;
+    const [first, second] = h.mapPlaces;
     expect(first?.name).toBe('Antler NYC');
-    expect(first?.photos).toHaveLength(1);
-    expect(first?.photos[0]?.url).toMatch(/^https:\/\/cdn\.sanity\.io\/images\/test\/test\//);
-    expect(screen.getByRole('link', { name: 'View Photos (1) for Antler NYC' })).toHaveAttribute(
+    expect(first?.photoCount).toBe(1);
+    expect(first?.slivers).toHaveLength(1);
+    const sliver = new URL(first?.slivers[0] ?? '');
+    expect(sliver.href).toMatch(/^https:\/\/cdn\.sanity\.io\/images\/test\/test\//);
+    expect(sliver.searchParams.get('w')).toBe('96');
+    expect(sliver.searchParams.get('h')).toBe('64');
+    expect(second).toMatchObject({ photoCount: 0, slivers: [] });
+    expect(first).not.toHaveProperty('photos');
+    expect(screen.getByRole('link', { name: '1 photo of Antler NYC' })).toHaveAttribute(
       'href',
       `/places/${PLACES[0]?._id}`,
     );
+  });
+
+  it('caps the slivers at three, from the first usable photos', async () => {
+    const photo = (n: number) => ({
+      _type: 'image' as const,
+      asset: { _type: 'reference' as const, _ref: `image-s${n}-1600x1200-jpg` },
+    });
+    const broken = { _type: 'image' as const, asset: { _type: 'reference' as const, _ref: '' } };
+    h.loadPlaces.mockResolvedValue([
+      makePlace({ name: 'Many', photos: [broken, photo(1), photo(2), photo(3), photo(4)] }),
+    ]);
+    await renderPlaces();
+
+    const [many] = h.mapPlaces;
+    expect(many?.photoCount).toBe(4);
+    expect(many?.slivers.map((url) => new URL(url).pathname)).toEqual([
+      '/images/test/test/s1-1600x1200.jpg',
+      '/images/test/test/s2-1600x1200.jpg',
+      '/images/test/test/s3-1600x1200.jpg',
+    ]);
+    expect(screen.getByRole('link', { name: '4 photos of Many' })).toBeInTheDocument();
   });
 
   it("uses the kit's sticky bar on a tile, with the search and the category chips", async () => {
@@ -397,13 +424,18 @@ describe('/places client islands', () => {
   const PLACES_DIR = path.join(SRC_DIR, 'app/(routes)/(main)/(personal)/places');
   const ISLANDS = [
     '_components/places-explorer.tsx',
+    'photos/_components/photos-explorer.tsx',
     '[placeId]/_components/place-photo-viewer.tsx',
   ];
-  /** Imports that would put @sanity/client (and the image URL builder) in the browser bundle. */
+  /**
+   * Imports, static or lazy, that would put @sanity/client (and the image URL builder) in the
+   * browser bundle.
+   */
   const SERVER_SIDE_IMPORT =
-    /from '(@\/lib\/sanity\/client|@\/lib\/sanity\/loaders|@\/hooks\/sanity\/schemas|[^']*viewer-photo-url)'/;
+    /(?:from |import\()'(@\/lib\/sanity\/client|@\/lib\/sanity\/loaders|@\/hooks\/sanity\/schemas|[^']*viewer-photo-url)'/;
+  /** Static imports and lazy ones (`import('./x')`), so a lazily loaded part is checked too. */
   const PLACES_IMPORT =
-    /from '(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+|@\/lib\/places\/[^']+)'/g;
+    /(?:from |import\()'(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+|@\/lib\/places\/[^']+)'/g;
   const MODULE_SUFFIXES = ['.tsx', '.ts', '/index.ts'];
 
   const resolveImport = (from: string, specifier: string): string | undefined => {
@@ -424,6 +456,13 @@ describe('/places client islands', () => {
     return graph;
   }
 
+  it('guards a lazy import of a server-side module as well as a static one', () => {
+    expect("import { urlFor } from '@/lib/sanity/client';").toMatch(SERVER_SIDE_IMPORT);
+    expect("const { urlFor } = await import('@/lib/sanity/client');").toMatch(SERVER_SIDE_IMPORT);
+    expect("await import('../_lib/viewer-photo-url');").toMatch(SERVER_SIDE_IMPORT);
+    expect("await import('./photo-wall-live');").not.toMatch(SERVER_SIDE_IMPORT);
+  });
+
   it.each(ISLANDS)('%s is a client module that never builds Sanity URLs', (island) => {
     const file = path.join(PLACES_DIR, island);
 
@@ -435,6 +474,21 @@ describe('/places client islands', () => {
         SERVER_SIDE_IMPORT,
       );
     }
+  });
+
+  it("reaches the photos view's lazily loaded wall and open view through its island", () => {
+    const graph = [
+      ...placesGraph(path.join(PLACES_DIR, 'photos/_components/photos-explorer.tsx')),
+    ].map((file) => path.relative(PLACES_DIR, file));
+
+    expect(graph).toEqual(
+      expect.arrayContaining([
+        'photos/_components/photo-wall-live.tsx',
+        'photos/_components/wall-sheet.tsx',
+        'photos/_components/photo-dialog-live.tsx',
+        '_lib/place-filters.ts',
+      ]),
+    );
   });
 
   it('reaches the filter schema and the map input through the island', () => {
