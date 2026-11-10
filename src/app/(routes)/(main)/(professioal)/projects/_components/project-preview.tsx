@@ -26,14 +26,35 @@
  * a request for that code or a cover, and /projects' first load carries none of it.
  */
 
-import { lazy, type ReactElement, type ReactNode, Suspense, useRef } from 'react';
+import {
+  type ComponentType,
+  lazy,
+  type ReactElement,
+  type ReactNode,
+  Suspense,
+  useRef,
+} from 'react';
 
 import { useFinePointer } from '@/hooks/use-fine-pointer';
 import type { PreviewItem } from '../_lib/project-index';
+import type { LivePreviewProps } from './project-preview-live';
 
-/** The card and its listeners, fetched the first time a fine pointer is seen. */
-const LivePreview = lazy(() =>
-  import('./project-preview-live').then((module) => ({ default: module.LivePreview })),
+/** What renders when the preview's code can't load: nothing, so the rows carry on without it. */
+function NoPreview(): null {
+  return null;
+}
+
+/**
+ * The card and its listeners, fetched the first time a fine pointer is seen. lazy() rethrows a
+ * rejected import during render and Suspense doesn't catch errors, so a chunk that fails to load
+ * (a deploy skew, a dropped connection, a blocked request) resolves to {@link NoPreview} instead
+ * of taking the index down to the route's error view.
+ */
+const LivePreview = lazy<ComponentType<LivePreviewProps>>(() =>
+  import('./project-preview-live').then(
+    (module) => ({ default: module.LivePreview }),
+    () => ({ default: NoPreview }),
+  ),
 );
 
 export interface ProjectPreviewProps {

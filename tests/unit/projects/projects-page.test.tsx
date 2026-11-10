@@ -372,6 +372,10 @@ describe('/projects module boundaries', () => {
     expect(source).not.toMatch(/from ['"](motion|framer-motion)/);
   });
 
+  /** A static value import of the preview's live half or card (not `import type`, which is erased). */
+  const STATIC_PREVIEW_IMPORT =
+    /^import (?!type\b)[^;]*from ['"]\.\/project-preview-(live|card)['"]/m;
+
   it('loads the preview’s card, listeners and motion lazily: none of it is in the first load', () => {
     const wrapper = readFileSync(
       path.join(PROJECTS_DIR, '_components/project-preview.tsx'),
@@ -379,11 +383,12 @@ describe('/projects module boundaries', () => {
     );
 
     expect(wrapper).not.toMatch(/from ['"](motion|framer-motion)/);
-    expect(wrapper).not.toMatch(/from ['"]\.\/project-preview-(live|card)['"]/);
+    // A value import would pull the live half into the first load; `import type` is erased.
+    expect(wrapper).not.toMatch(STATIC_PREVIEW_IMPORT);
     expect(wrapper).toMatch(/import\(['"]\.\/project-preview-live['"]\)/);
     for (const file of INDEX_FILES) {
       const source = readFileSync(path.join(PROJECTS_DIR, file), 'utf8');
-      expect(source, file).not.toMatch(/from ['"]\.\/project-preview-(live|card)['"]/);
+      expect(source, file).not.toMatch(STATIC_PREVIEW_IMPORT);
     }
   });
 
