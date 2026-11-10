@@ -61,7 +61,10 @@ vi.mock('@googlemaps/markerclusterer', () => ({
     addMarkers = vi.fn((markers: unknown[]) => {
       h.clusteredMarkers.push(...markers);
     });
-    clearMarkers = vi.fn();
+    // The clusterer then holds no markers, as the real one does.
+    clearMarkers = vi.fn(() => {
+      h.clusteredMarkers.length = 0;
+    });
     constructor(options: Record<string, unknown>) {
       h.clustererOptions = options;
     }
@@ -267,6 +270,139 @@ describe('places map', () => {
       fireEvent.keyDown(filter, { key: 'Escape' });
 
       expect(screen.getByTestId('info-window')).toBeInTheDocument();
+    });
+  });
+
+  describe('when the places it is given change', () => {
+    // The list filters as you type, so the map is given new arrays often. A marker is built once
+    // per place and kept; the open card stays open while its place is still on the map.
+    const THIRD = place('p3', 'Third Place');
+
+    it('builds no new markers and keeps the card open for a new array of the same places', () => {
+      const { rerender } = render(<GoogleMaps placesToDisplay={PLACES} />);
+      clickMarker(0);
+      const built = [...h.markers];
+
+      rerender(<GoogleMaps placesToDisplay={[...PLACES]} />);
+
+      expect(h.markers).toEqual(built);
+      expect(h.clusteredMarkers).toEqual(built);
+      expect(screen.getByRole('heading', { name: 'First Place' })).toBeInTheDocument();
+    });
+
+    it('keeps the card and its marker while the open place stays, dropping only the others', () => {
+      const { rerender } = render(<GoogleMaps placesToDisplay={[...PLACES, THIRD]} />);
+      clickMarker(0);
+      const [first, , third] = h.markers;
+
+      rerender(<GoogleMaps placesToDisplay={[PLACES[0] as PlaceItem, THIRD]} />);
+
+      expect(h.markers).toHaveLength(3);
+      expect(h.clusteredMarkers).toEqual([first, third]);
+      expect(screen.getByRole('heading', { name: 'First Place' })).toBeInTheDocument();
+    });
+
+    it('closes the card once its place is no longer on the map', () => {
+      const { rerender } = render(<GoogleMaps placesToDisplay={PLACES} />);
+      clickMarker(0);
+
+      rerender(<GoogleMaps placesToDisplay={[PLACES[1] as PlaceItem]} />);
+
+      expect(screen.queryByTestId('info-window')).not.toBeInTheDocument();
+      expect(h.clusteredMarkers).toEqual([h.markers[1]]);
+    });
+
+    it('builds a marker only for a place it has not shown before, and reuses the rest', () => {
+      const { rerender } = render(<GoogleMaps placesToDisplay={[PLACES[0] as PlaceItem]} />);
+      expect(h.markers).toHaveLength(1);
+
+      rerender(<GoogleMaps placesToDisplay={[...PLACES, THIRD]} />);
+
+      expect(h.markers).toHaveLength(3);
+      expect(h.clusteredMarkers).toEqual(h.markers);
+      expect(h.markers.map((marker) => marker.options.title)).toEqual([
+        'First Place',
+        'Second Place',
+        'Third Place',
+      ]);
+    });
+
+    it('builds a new marker for a place that comes back as a new object', () => {
+      const { rerender } = render(<GoogleMaps placesToDisplay={PLACES} />);
+
+      rerender(<GoogleMaps placesToDisplay={[{ ...(PLACES[0] as PlaceItem), name: 'Renamed' }]} />);
+
+      expect(h.markers).toHaveLength(3);
+      expect(h.clusteredMarkers).toEqual([h.markers[2]]);
+      expect(h.markers[2]?.options.title).toBe('Renamed');
+    });
+  });
+
+  it('lets the page scroll past the map: two fingers or Ctrl/Cmd + wheel move it', () => {
+    render(<GoogleMaps placesToDisplay={PLACES} />);
+
+    // Greedy handling turned every swipe and wheel turn over the map into a pan or zoom, and the
+    // map fills most of a short screen under the sticky bar.
+    expect(h.mapProps).toMatchObject({ gestureHandling: 'cooperative' });
+  });
+
+  describe('on the palette only (no white alphas, no glass)', () => {
+    /** Off-palette pieces the markers and the card used to carry. */
+    const OFF_PALETTE =
+      /\b(?:text|bg|border|ring|fill|stroke)-(?:white|black|neutral(?:-\d+)?)\b|backdrop-blur|\b(?:bg|text|border)-[a-z-]+\/\d+|font-bold/;
+    const classesOf = (element: Element | null | undefined): string =>
+      element?.getAttribute('class') ?? '';
+    const renderCluster = (): FakeAdvancedMarker => {
+      const renderer = h.clustererOptions?.renderer as {
+        render: (cluster: unknown, stats: unknown, map: unknown) => FakeAdvancedMarker;
+      };
+      return renderer.render(
+        { count: 3, position: { lat: 40.5, lng: -74 }, bounds: undefined },
+        {},
+        h.fakeMap,
+      );
+    };
+
+    it('draws a place marker as a brand disc with a canvas ring and a pin in its ink', () => {
+      render(<GoogleMaps placesToDisplay={PLACES} />);
+      const content = h.markers[0]?.options.content as HTMLElement;
+
+      expect(classesOf(content)).not.toMatch(OFF_PALETTE);
+      expect(classesOf(content).split(' ')).toEqual(
+        expect.arrayContaining(['bg-primary', 'text-primary-foreground', 'border-canvas']),
+      );
+      expect(content.querySelector('svg')?.getAttribute('fill')).toBe('currentColor');
+    });
+
+    it('draws a cluster the same way, its count in the brand ink', () => {
+      render(<GoogleMaps placesToDisplay={PLACES} />);
+      const content = renderCluster().options.content as HTMLElement;
+
+      expect(content.textContent).toBe('3');
+      expect(classesOf(content)).not.toMatch(OFF_PALETTE);
+      expect(classesOf(content).split(' ')).toEqual(
+        expect.arrayContaining(['bg-primary', 'text-primary-foreground', 'border-canvas']),
+      );
+    });
+
+    it('puts the card on a surface tile, its text in the foreground tiers', () => {
+      render(<GoogleMaps placesToDisplay={PLACES} />);
+      clickMarker(0);
+      const card = document.querySelector('.places-card');
+      const close = screen.getByRole('button', { name: 'Close' });
+
+      expect(classesOf(card)).not.toMatch(OFF_PALETTE);
+      expect(classesOf(card).split(' ')).toEqual(
+        expect.arrayContaining(['bg-surface-1', 'text-foreground', 'rounded-tile']),
+      );
+      // Google caps its panel at the room the map leaves (220px on a 390 phone) and clips past
+      // it, so the card narrows to the panel instead of keeping 16rem.
+      expect(classesOf(card).split(' ')).toEqual(expect.arrayContaining(['w-64', 'max-w-full']));
+      expect(classesOf(close)).not.toMatch(OFF_PALETTE);
+      expect(classesOf(close)).toContain('text-faint');
+      for (const line of card?.querySelectorAll('p') ?? []) {
+        expect(classesOf(line)).toContain('text-muted-foreground');
+      }
     });
   });
 

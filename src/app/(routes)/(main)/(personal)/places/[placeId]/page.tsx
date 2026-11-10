@@ -21,8 +21,9 @@ import { MagicCard } from '@/components/magicui/magic-card';
 import { CardContent, CardHeader } from '@/components/ui/card';
 import { reportApiFailure } from '@/lib/observability/report';
 import { urlFor } from '@/lib/sanity/client';
-import { loadPlaceById, type Place } from '@/lib/sanity/loaders';
+import type { Place } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils/seo/meta';
+import { loadPastPlaceById } from '../_lib/past-place-loaders';
 import { PlacePhotoViewer } from './_components/place-photo-viewer';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
 import { PlaceSummary } from './_components/place-summary';
@@ -65,8 +66,8 @@ const previewImage = (place: Place): string | undefined => {
 };
 
 /**
- * The place's title, description and first photo. An unknown id gets "Place Not Found" without
- * og:url (the page answers 404). If Sanity is down with nothing cached, whether the id exists is
+ * The place's title, description and first photo. An unknown id, and a visit that may still be
+ * on (loadPastPlaceById), get "Place Not Found" without og:url (the page answers 404). If Sanity is down with nothing cached, whether the id exists is
  * unknown, so the page keeps generic metadata (and its og:url) and the outage is reported.
  */
 export async function generateMetadata({ params }: PlacePageProps): Promise<Metadata> {
@@ -74,7 +75,7 @@ export async function generateMetadata({ params }: PlacePageProps): Promise<Meta
   const path = `/places/${encodeURIComponent(placeId)}`;
 
   try {
-    const place = await loadPlaceById(placeId);
+    const place = await loadPastPlaceById(placeId);
     if (!place) {
       return constructMetadata({
         title: 'Place Not Found',
@@ -119,12 +120,12 @@ const placeSummary = (place: Place, closeLabel: string): JSX.Element => (
 
 /**
  * A place in full: its summary, then its photos, or an empty state with a map link when it has
- * none. An unknown id answers 404, and a Sanity outage with nothing cached reaches the shell's
- * error boundary.
+ * none. An unknown id answers 404, as does a visit that may still be on (the owner's rule: past
+ * visits only), and a Sanity outage with nothing cached reaches the shell's error boundary.
  */
 export default async function PlacePage({ params }: PlacePageProps): Promise<JSX.Element> {
   const { placeId } = await params;
-  const place = await loadPlaceById(placeId);
+  const place = await loadPastPlaceById(placeId);
   if (!place) notFound();
 
   const photos = viewerPhotos(place);

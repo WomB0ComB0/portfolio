@@ -1,22 +1,40 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /*
  * Google's InfoWindow wraps the place card in its own panel: a white, padded box (.gm-style-iw-c),
  * a scroll wrapper (.gm-style-iw-d) and a white tail (.gm-style-iw-tc::after). For the place card
- * (.places-card, map.tsx) the card is the panel, so the box turns transparent, the wrapper stops
- * scrolling and the tail takes the card's color. Google's shadow and 8px radius stay; they match
- * the card's rounded-lg. :has() limits this to our card, so Google's own point-of-interest info
- * windows on the same map keep their normal look.
+ * (.places-card, map.tsx) the card is the panel, so the box turns transparent, takes the card's
+ * radius and drops Google's shadow (the card has its own), the wrapper stops scrolling and the
+ * tail takes the card's surface. :has() limits this to our card, so Google's own
+ * point-of-interest info windows on the same map keep their normal look.
  *
  * These class names are not a public Maps API. Recheck this file after a Maps JS major version.
  */
 .places-map {
-  /* The card and the tail share this color. */
-  --places-infowindow-bg: color-mix(in oklab, var(--color-neutral-900, #171717) 92%, transparent);
+  /* The card and the tail share this surface. */
+  --places-infowindow-bg: var(--surface-1);
 }
 
 .places-map .gm-style .gm-style-iw-c:has(.places-card) {
   /* biome-ignore lint/complexity/noImportantStyles: Maps sets padding-top inline on this element. */
   padding: 0 !important;
+  border-radius: var(--radius-tile);
   background-color: transparent;
+  box-shadow: none;
 }
 
 .places-map .gm-style .gm-style-iw-d:has(.places-card) {

@@ -22,14 +22,19 @@
  * or to turn off for reduced motion).
  */
 
-/** Scrolls `scroller` sideways so `target` sits inside its padding; a no-op when already there. */
-export function revealInScroller(scroller: HTMLElement, target: HTMLElement): void {
-  if (scroller.scrollWidth <= scroller.clientWidth) return;
+/**
+ * Scrolls `scroller` sideways so `target` sits inside its padding and `inset` px more (room for a
+ * fade over that end); a no-op when already there. Never past either end of the scroller (a
+ * left-to-right row), so the first and last items reach its edges, where no fade is left.
+ */
+export function revealInScroller(scroller: HTMLElement, target: HTMLElement, inset = 0): void {
+  const max = scroller.scrollWidth - scroller.clientWidth;
+  if (max <= 0) return;
   const view = scroller.getBoundingClientRect();
   const box = target.getBoundingClientRect();
   const style = getComputedStyle(scroller);
-  const start = view.left + (Number.parseFloat(style.paddingLeft) || 0);
-  const end = view.right - (Number.parseFloat(style.paddingRight) || 0);
-  if (box.left < start) scroller.scrollLeft += box.left - start;
-  else if (box.right > end) scroller.scrollLeft += box.right - end;
+  const start = view.left + (Number.parseFloat(style.paddingLeft) || 0) + inset;
+  const end = view.right - (Number.parseFloat(style.paddingRight) || 0) - inset;
+  const by = box.left < start ? box.left - start : Math.max(0, box.right - end);
+  if (by !== 0) scroller.scrollLeft = Math.min(max, Math.max(0, scroller.scrollLeft + by));
 }

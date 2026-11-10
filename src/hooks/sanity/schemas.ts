@@ -23,6 +23,7 @@
  */
 
 import { Schema } from 'effect';
+import { PLACE_CATEGORIES } from '@/lib/places/categories';
 import {
   hasText,
   isSiteEmail,
@@ -212,14 +213,8 @@ export const PlaceSchema = Schema.Struct({
   _rev: Schema.String,
   name: Schema.String,
   description: Schema.String,
-  category: Schema.Literal(
-    'Hackathon',
-    'Conference',
-    'Research',
-    'Tech Office',
-    'Mentorship',
-    'Event',
-  ),
+  // The six categories have one source, which the /places chips read too.
+  category: Schema.Literal(...PLACE_CATEGORIES),
   latitude: Schema.Number,
   longitude: Schema.Number,
   startDate: Schema.optional(LenientSanityDateSchema),

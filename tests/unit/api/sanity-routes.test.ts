@@ -215,6 +215,54 @@ describe('a failing Sanity with nothing cached', () => {
   });
 });
 
+describe('GET /sanity/places', () => {
+  // T0 is 07:00 ET on Nov 5, 2026, before noon, so the cutoff is Nov 4: Nov 3 is over, Nov 4 not.
+  const rawPlace = (id: string, startDate?: string, endDate?: string) => ({
+    _id: id,
+    _type: 'place',
+    name: `Place ${id}`,
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
+  });
+
+  it('answers past places only: never a visit that may still be on, or an undated one', async () => {
+    const past = rawPlace('place-past', '2026-11-03');
+    const older = rawPlace('place-older', '2026-06-01', '2026-06-03');
+    sanity.sanityFetchWithToken.mockResolvedValue([
+      rawPlace('place-on-the-cutoff', '2026-11-04'),
+      past,
+      rawPlace('place-running', '2026-11-01', '2026-11-08'),
+      rawPlace('place-to-come', '2026-12-01'),
+      rawPlace('place-undated'),
+      older,
+    ]);
+    const get = await loadApp();
+
+    const res = await get('/places');
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe(FRESH_CACHE_CONTROL);
+    expect(await res.json()).toEqual([past, older]);
+  });
+
+  it('keeps the past-only rule on a stale answer', async () => {
+    const past = rawPlace('place-past', '2026-11-03');
+    sanity.sanityFetchWithToken.mockResolvedValueOnce([
+      past,
+      rawPlace('place-to-come', '2026-12-01'),
+    ]);
+    const get = await loadApp();
+    await get('/places');
+
+    sanity.sanityFetchWithToken.mockRejectedValueOnce(sanityDown());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const res = await get('/places');
+
+    expect(res.headers.get('cache-control')).toBe(STALE_CACHE_CONTROL);
+    expect(await res.json()).toEqual([past]);
+  });
+});
+
 describe('GET /sanity/resume', () => {
   const resume = {
     _id: 'resume-1',

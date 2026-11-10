@@ -18,20 +18,25 @@
  * @file FilterBar.Chips in `scroll` layout (/projects' Kind chips). From a 48rem page it is one
  * line that scrolls sideways inside itself, with a visible cue wherever chips sit past an end
  * (the row fades there: data-overflow start, end or both), room inside its clip for a focused
- * chip's ring, and the current chip scrolled back into view once focus leaves the row. Below
+ * chip's ring, each chip the keyboard focuses scrolled into view clear of the fades (never on a
+ * press, so a click lands where it was aimed), and the current chip scrolled back into view once
+ * focus leaves the row. Below
  * 48rem (the phone sheet) its chips wrap like every other chip set.
  *
  * jsdom has no layout, so the row's scroll box is stubbed: five 100px chips side by side in a
  * row 300px wide, each chip's box moving left as the row scrolls.
  */
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { FilterBar } from '@/components/console/filter-bar';
 import type { ChipsLayout } from '@/components/console/filter-bar/chips';
-import { CHIP_LIST_SCROLL_CLASS } from '@/components/console/filter-bar/filter-bar-classes';
+import {
+  CHIP_EDGE_FADE_REM,
+  CHIP_LIST_SCROLL_CLASS,
+} from '@/components/console/filter-bar/filter-bar-classes';
 import { Harness } from './harness';
 import { wideLayout } from './wide-layout';
 
@@ -142,6 +147,13 @@ describe('the scroll layout’s classes', () => {
     expect(classes).toContain('@min-[48rem]/page:-m-0.5');
   });
 
+  it('fades each end over CHIP_EDGE_FADE_REM, the width a revealed chip keeps clear', () => {
+    const masks = CHIP_LIST_SCROLL_CLASS.split(' ').filter((name) => name.includes('mask-image:'));
+    const widths = masks.flatMap((mask) => mask.match(/\d+(?:\.\d+)?rem/g) ?? []);
+    expect(widths.length).toBeGreaterThan(0);
+    expect(new Set(widths)).toEqual(new Set([`${CHIP_EDGE_FADE_REM}rem`]));
+  });
+
   it('fades each end that has chips past it (a mask: alpha only, no colour)', () => {
     for (const edge of ['start', 'end', 'both']) {
       expect(classes.some((name) => name.startsWith(`data-[overflow=${edge}]:[mask-image:`))).toBe(
@@ -174,6 +186,64 @@ describe('the overflow cue', () => {
     render(<Bar layout="wrap" />);
 
     expect(row()).not.toHaveAttribute('data-overflow');
+  });
+});
+
+describe('a chip as keyboard focus reaches it', () => {
+  /** The end fade's width: 1.5rem at jsdom's (unset) 16px root size. */
+  const FADE = 1.5 * 16;
+  const chipAt = (index: number): HTMLElement =>
+    within(row()).getAllByRole('link')[index] as HTMLElement;
+
+  it('scrolls a chip half past the end into view, clear of the fade over that end', () => {
+    render(<Bar layout="scroll" />);
+    // The fourth chip (300 to 400) sits past the row's 300px end; one more chip lies beyond it.
+    const fourth = chipAt(3);
+
+    act(() => fourth.focus());
+
+    expect(row().scrollLeft).toBe(400 - (ROW_WIDTH - FADE));
+    expect(fourth.getBoundingClientRect().right).toBe(ROW_WIDTH - FADE);
+  });
+
+  it('scrolls to the very end for the last chip, where no fade is left', () => {
+    render(<Bar layout="scroll" />);
+
+    act(() => chipAt(4).focus());
+    fireEvent.scroll(row());
+
+    expect(row().scrollLeft).toBe(5 * CHIP_WIDTH - ROW_WIDTH);
+    expect(row()).toHaveAttribute('data-overflow', 'start');
+  });
+
+  it('leaves a chip already clear of the fades where it is', () => {
+    render(<Bar layout="scroll" />);
+
+    act(() => chipAt(1).focus());
+
+    expect(row().scrollLeft).toBe(0);
+  });
+
+  it('leaves the row still when a press brings focus, so the click lands on that chip', () => {
+    render(<Bar layout="scroll" />);
+    const fourth = chipAt(3);
+    const matches = fourth.matches.bind(fourth);
+    // A mouse, pen or touch press focuses a link without :focus-visible.
+    Object.defineProperty(fourth, 'matches', {
+      value: (selector: string) => selector !== ':focus-visible' && matches(selector),
+    });
+
+    act(() => fourth.focus());
+
+    expect(row().scrollLeft).toBe(0);
+  });
+
+  it('scrolls nothing in the wrap layout', () => {
+    render(<Bar layout="wrap" />);
+
+    act(() => chipAt(3).focus());
+
+    expect(row().scrollLeft).toBe(0);
   });
 });
 

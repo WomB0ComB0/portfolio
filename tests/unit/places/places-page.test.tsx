@@ -15,27 +15,37 @@
  */
 
 /**
- * @file /places renders every place on the server: no pagination, the header counts them all,
- * and the filters live in the URL (`q`, `category`) and narrow the cards and the map together.
- * The client islands never build Sanity image URLs themselves.
+ * @file /places renders every past place on the server: no pagination, the header counts them
+ * all, and the filters live in the URL (`q`, `category`) through the shared FilterBar kit in its
+ * sticky 'bar' density, narrowing the cards and the map together. Typing filters at once (no
+ * debounce); a chip writes ?category=<slug>; old links (the Studio label, any case, its %20 form)
+ * still land on their chip, and a bogus one shows everything. A visit today, still to come or
+ * undated never shows. The map and the cards are given one array until the results change, so
+ * typing that matches the same places re-renders no card. The client islands never build Sanity
+ * image URLs themselves.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { NuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Place } from '@/hooks/sanity/schemas';
 import type { PlaceItem } from '@/types/places';
 import { makePlace } from '../../fixtures/sanity-docs';
+import { wideLayout } from '../console/filter-bar/wide-layout';
 
 const PLACE_COUNT = 57;
 /** Every third place is a hackathon: 19 of the 57. */
 const HACKATHON_COUNT = 19;
+/** As many are Tech Office visits. */
+const TECH_OFFICE_COUNT = 19;
 
 const h = vi.hoisted(() => ({
   loadPlaces: vi.fn<() => Promise<readonly unknown[]>>(),
   mapPlaces: [] as readonly PlaceItem[],
+  /** How many times a place card has rendered. */
+  cardRenders: 0,
 }));
 
 // t3-env validates on import; these tests need no real configuration.
@@ -61,13 +71,33 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map', () => {
   return { GoogleMaps, default: GoogleMaps };
 });
 
-import PlacesLoading from '@/app/(routes)/(main)/(personal)/places/(list)/loading';
+// The real card, counted, so a test can tell when typing re-renders the grid.
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/_components/place-card',
+  async (importOriginal) => {
+    const real =
+      await importOriginal<
+        typeof import('@/app/(routes)/(main)/(personal)/places/_components/place-card')
+      >();
+    const PlaceCard = (props: Parameters<typeof real.PlaceCard>[0]) => {
+      h.cardRenders += 1;
+      return <real.PlaceCard {...props} />;
+    };
+    return { ...real, PlaceCard };
+  },
+);
+
 import PlacesPage from '@/app/(routes)/(main)/(personal)/places/(list)/page';
+
+/** The category of place `index`: hackathons, conferences and Tech Office visits in turn. */
+const categoryOf = (index: number): Place['category'] =>
+  (['Hackathon', 'Conference', 'Tech Office'] as const)[index % 3] ?? 'Event';
 
 const PLACES: readonly Place[] = Array.from({ length: PLACE_COUNT }, (_, index) =>
   makePlace({
     name: index === 0 ? 'Antler NYC' : `Visited ${index}`,
-    category: index % 3 === 0 ? 'Hackathon' : 'Conference',
+    category: categoryOf(index),
+    startDate: '2026-05-19',
     photos:
       index === 0
         ? [{ _type: 'image', asset: { _ref: 'image-c-1600x1200-jpg', _type: 'reference' } }]
@@ -77,6 +107,12 @@ const PLACES: readonly Place[] = Array.from({ length: PLACE_COUNT }, (_, index) 
 
 /** Each card's link to its place page ("View Details for …" / "View Photos (n) for …"). */
 const placePageLinks = () => screen.queryAllByRole('link', { name: /^View (Details|Photos)/ });
+/** The ids the cards link to, in order. */
+const cardIds = (): string[] =>
+  placePageLinks().map((link) => (link.getAttribute('href') ?? '').replace('/places/', ''));
+const mapIds = (): string[] => h.mapPlaces.map((place) => place.id);
+const searchField = () => screen.getByRole('searchbox', { name: 'Search places' });
+const chips = () => screen.getByRole('list', { name: 'Filter by category' });
 
 async function renderPlaces(searchParams = '', onUrlUpdate?: (event: UrlUpdateEvent) => void) {
   const page = await PlacesPage();
@@ -87,10 +123,19 @@ async function renderPlaces(searchParams = '', onUrlUpdate?: (event: UrlUpdateEv
   );
 }
 
+let narrow: () => void;
+
 beforeEach(() => {
+  narrow = wideLayout();
   h.mapPlaces = [];
   h.loadPlaces.mockReset();
   h.loadPlaces.mockResolvedValue(PLACES);
+});
+
+afterEach(() => {
+  cleanup();
+  narrow();
+  vi.useRealTimers();
 });
 
 describe('/places', () => {
@@ -101,6 +146,7 @@ describe('/places', () => {
     expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(h.mapPlaces).toHaveLength(PLACE_COUNT);
+    expect(document.querySelectorAll('li[data-place-card]')).toHaveLength(PLACE_COUNT);
   });
 
   it('builds the photo URLs on the server', async () => {
@@ -116,6 +162,25 @@ describe('/places', () => {
     );
   });
 
+  it("uses the kit's sticky bar on a tile, with the search and the category chips", async () => {
+    await renderPlaces();
+
+    // jsdom's role table predates <search>; browsers map it to the search landmark.
+    const bar = document.querySelector('search[data-filter-part="bar"]');
+    expect(bar).toHaveAttribute('data-density', 'bar');
+    expect(bar).toHaveAttribute('data-sticky', '');
+    expect(bar).toContainElement(searchField());
+    expect(searchField()).toHaveAttribute('placeholder', 'Search places');
+    expect(
+      within(chips())
+        .getAllByRole('link')
+        .map((chip) => chip.dataset.chip),
+    ).toEqual(['all', 'conference', 'event', 'hackathon', 'mentorship', 'research', 'tech-office']);
+    expect(bar?.closest('[data-filter-scope]')).toContainElement(
+      document.querySelector('[data-places-part="map"]') as HTMLElement,
+    );
+  });
+
   it('counts every place in the header, even with a category in the URL', async () => {
     await renderPlaces('?category=Hackathon');
 
@@ -123,17 +188,37 @@ describe('/places', () => {
     expect(placePageLinks()).toHaveLength(HACKATHON_COUNT);
     expect(h.mapPlaces).toHaveLength(HACKATHON_COUNT);
     expect(h.mapPlaces.every((place) => place.category === 'Hackathon')).toBe(true);
-    expect(
-      screen.getByText(`Showing ${HACKATHON_COUNT} of ${PLACE_COUNT} places`),
-    ).toBeInTheDocument();
+    expect(document.querySelector('[data-filter-part="count"]')).toHaveTextContent(
+      `${HACKATHON_COUNT} of ${PLACE_COUNT} places`,
+    );
   });
 
-  it('treats a category no place has as all of them', async () => {
+  it.each([
+    ['?category=hackathon', HACKATHON_COUNT],
+    ['?category=Hackathon', HACKATHON_COUNT],
+    ['?category=Tech%20Office', TECH_OFFICE_COUNT],
+    ['?category=Tech+Office', TECH_OFFICE_COUNT],
+  ])('lands %s on its chip, with the cards and the map in step', async (search, count) => {
+    await renderPlaces(search);
+
+    expect(cardIds()).toHaveLength(count);
+    expect(mapIds()).toEqual(cardIds());
+    const current = within(chips()).getByRole('link', { current: true });
+    expect(current).toHaveTextContent(new RegExp(`${count} places$`));
+    expect(current.getAttribute('href')).toMatch(/^\/places\?category=[a-z-]+$/);
+  });
+
+  it('treats a category it does not know as all of them', async () => {
     await renderPlaces('?category=Bogus');
 
     expect(placePageLinks()).toHaveLength(PLACE_COUNT);
     expect(h.mapPlaces).toHaveLength(PLACE_COUNT);
-    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Applied filters' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Clear all' })).not.toBeInTheDocument();
+    expect(within(chips()).getByRole('link', { current: true })).toHaveAttribute(
+      'data-chip',
+      'all',
+    );
   });
 
   it('searches names and descriptions from ?q, for the cards and the map', async () => {
@@ -141,14 +226,83 @@ describe('/places', () => {
 
     expect(placePageLinks()).toHaveLength(1);
     expect(h.mapPlaces.map((place) => place.name)).toEqual(['Antler NYC']);
-    expect(screen.getByPlaceholderText('Search places...')).toHaveValue('antler');
+    expect(searchField()).toHaveValue('antler');
   });
 
-  it('shows the empty state when nothing matches', async () => {
+  it('filters the cards and the map on each keystroke, with no timer to wait for', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    await renderPlaces();
+
+    await act(async () => {
+      fireEvent.change(searchField(), { target: { value: 'antler' } });
+    });
+
+    expect(placePageLinks()).toHaveLength(1);
+    expect(h.mapPlaces.map((place) => place.name)).toEqual(['Antler NYC']);
+  });
+
+  it('gives the map the same array while the results stay the same', async () => {
+    await renderPlaces('?q=antler');
+    const before = h.mapPlaces;
+
+    // A trailing space changes what is typed, not what matches.
+    await act(async () => {
+      fireEvent.change(searchField(), { target: { value: 'antler ' } });
+    });
+
+    expect(searchField()).toHaveValue('antler ');
+    expect(h.mapPlaces).toBe(before);
+  });
+
+  it('re-renders no card while what is typed still matches the same places', async () => {
+    await renderPlaces();
+    h.cardRenders = 0;
+
+    // A space changes what is typed, not what matches; nor does a word every place contains.
+    await act(async () => {
+      fireEvent.change(searchField(), { target: { value: ' ' } });
+    });
+    await act(async () => {
+      fireEvent.change(searchField(), { target: { value: ' place' } });
+    });
+    expect(h.cardRenders).toBe(0);
+
+    await act(async () => {
+      fireEvent.change(searchField(), { target: { value: 'antler' } });
+    });
+    expect(placePageLinks()).toHaveLength(1);
+    expect(h.cardRenders).toBeGreaterThan(0);
+  });
+
+  it('lays the cards out to fill the column, edge to edge with the bar and the map', async () => {
+    await renderPlaces();
+    const grid = screen.getByRole('list', { name: 'Places' });
+    const classes = (grid.getAttribute('class') ?? '').split(' ');
+
+    expect(classes).toEqual(
+      expect.arrayContaining(['grid', 'grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]']),
+    );
+    expect(classes).not.toContain('justify-center');
+    expect(classes.some((name) => /minmax\(220px,280px\)/.test(name))).toBe(false);
+  });
+
+  it('shows the empty state, with Clear filters, when nothing matches', async () => {
     await renderPlaces('?q=nowhere-at-all');
 
     expect(placePageLinks()).toHaveLength(0);
+    expect(h.mapPlaces).toHaveLength(0);
+    expect(screen.getByRole('heading', { name: 'No places match' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Clear filters' })).toHaveAttribute('href', '/places');
+  });
+
+  it('says there are no places, with no bar and no map, when there are none at all', async () => {
+    h.loadPlaces.mockResolvedValue([]);
+    await renderPlaces();
+
     expect(screen.getByText('No places found')).toBeInTheDocument();
+    expect(document.querySelector('search')).toBeNull();
+    expect(document.querySelector('[data-places-part="map"]')).toBeNull();
+    expect(screen.getByText('0 locations visited')).toBeInTheDocument();
   });
 
   it('writes the search to the URL, replacing the history entry', async () => {
@@ -156,9 +310,7 @@ describe('/places', () => {
     await renderPlaces('', onUrlUpdate);
 
     await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('Search places...'), {
-        target: { value: 'antler' },
-      });
+      fireEvent.change(searchField(), { target: { value: 'antler' } });
     });
 
     await vi.waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
@@ -166,8 +318,25 @@ describe('/places', () => {
     expect(last?.searchParams.get('q')).toBe('antler');
     expect(last?.options.history).toBe('replace');
     expect(last?.options.shallow).toBe(true);
-    // The list follows once typing settles.
-    await vi.waitFor(() => expect(placePageLinks()).toHaveLength(1));
+    expect(placePageLinks()).toHaveLength(1);
+  });
+
+  it('writes a chip to the URL as its slug, replacing the history entry, and filters in place', async () => {
+    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+    await renderPlaces('', onUrlUpdate);
+
+    await act(async () => {
+      fireEvent.click(within(chips()).getByRole('link', { name: /^Tech Office/ }));
+    });
+
+    await vi.waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    const last = onUrlUpdate.mock.calls.at(-1)?.[0];
+    expect(last?.queryString).toBe('?category=tech-office');
+    expect(last?.options.history).toBe('replace');
+    expect(last?.options.shallow).toBe(true);
+    expect(cardIds()).toHaveLength(TECH_OFFICE_COUNT);
+    expect(mapIds()).toEqual(cardIds());
+    expect(screen.getByRole('link', { name: 'Remove Category: Tech Office' })).toBeInTheDocument();
   });
 
   it('clears both filters from the URL', async () => {
@@ -175,12 +344,12 @@ describe('/places', () => {
     await renderPlaces('?q=antler&category=Hackathon', onUrlUpdate);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      fireEvent.click(screen.getByRole('link', { name: 'Clear all' }));
     });
 
     await vi.waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
-    await vi.waitFor(() => expect(placePageLinks()).toHaveLength(PLACE_COUNT));
+    expect(placePageLinks()).toHaveLength(PLACE_COUNT);
   });
 
   it('lets a Sanity outage reach the error boundary instead of showing no places', async () => {
@@ -191,38 +360,35 @@ describe('/places', () => {
   });
 });
 
-describe('/places loading skeleton', () => {
-  // Without JavaScript, a cold load shows only this skeleton: the page streams into a hidden
-  // element that only a script reveals. The header must already be the page's own, h1 included.
-  it("shows the page's own header, with only the count line as a placeholder", async () => {
-    const { unmount } = await renderPlaces();
-    const loadedTitle = screen.getByRole('heading', { level: 1 }).textContent;
-    expect(loadedTitle).toBeTruthy();
-    unmount();
+describe('/places past visits only', () => {
+  // 13:00 ET on Nov 10, 2026: from noon, Nov 10 is the cutoff, so Nov 9 is over and Nov 10 is not.
+  const NOW = Date.UTC(2026, 10, 10, 18, 0);
+  const PAST = makePlace({ name: 'Over', startDate: '2026-11-09' });
+  const TODAY = makePlace({ name: 'Today', startDate: '2026-11-10' });
+  const RUNNING = makePlace({ name: 'Running', startDate: '2026-11-08', endDate: '2026-11-20' });
+  const UNDATED = makePlace({ name: 'Undated', startDate: null });
 
-    render(<PlacesLoading />);
+  it('shows no visit that may still be on, anywhere: cards, map, header or chips', async () => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+    h.loadPlaces.mockResolvedValue([TODAY, RUNNING, PAST]);
+    await renderPlaces();
 
-    const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toHaveTextContent(loadedTitle ?? '');
-    expect(heading.closest('.page-header')).not.toBeNull();
-    // The header is the page's, not part of what is loading; the count needs the data.
-    expect(screen.getByRole('status', { name: 'Loading places' })).not.toContainElement(heading);
-    expect(screen.queryByText(/locations? visited/)).not.toBeInTheDocument();
+    expect(cardIds()).toEqual([PAST._id]);
+    expect(mapIds()).toEqual([PAST._id]);
+    expect(screen.getByText('1 location visited')).toBeInTheDocument();
+    expect(within(chips()).getByRole('link', { name: /^All/ })).toHaveTextContent('All 1 place');
+    expect(screen.queryByText('Today')).not.toBeInTheDocument();
+    expect(screen.queryByText('Running')).not.toBeInTheDocument();
   });
 
-  it('lays its cards out in the same grid as the loaded page', async () => {
-    const { unmount } = await renderPlaces();
-    const loadedClass = placePageLinks()[0]?.closest('.grid')?.className;
-    expect(loadedClass).toBeTruthy();
-    unmount();
+  it('drops an undated place: with no day it may still be on', async () => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+    h.loadPlaces.mockResolvedValue([PAST, UNDATED]);
+    await renderPlaces();
 
-    render(<PlacesLoading />);
-    const skeletonGrid = screen
-      .getByRole('status', { name: 'Loading places' })
-      .querySelector('.grid');
-
-    expect(skeletonGrid?.className).toBe(loadedClass);
-    expect(skeletonGrid?.children.length).toBeGreaterThan(0);
+    expect(cardIds()).toEqual([PAST._id]);
+    expect(mapIds()).toEqual([PAST._id]);
+    expect(screen.queryByText('Undated')).not.toBeInTheDocument();
   });
 });
 
@@ -235,9 +401,9 @@ describe('/places client islands', () => {
   ];
   /** Imports that would put @sanity/client (and the image URL builder) in the browser bundle. */
   const SERVER_SIDE_IMPORT =
-    /from '(@\/lib\/sanity\/client|@\/lib\/sanity\/loaders|[^']*viewer-photo-url)'/;
+    /from '(@\/lib\/sanity\/client|@\/lib\/sanity\/loaders|@\/hooks\/sanity\/schemas|[^']*viewer-photo-url)'/;
   const PLACES_IMPORT =
-    /from '(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+)'/g;
+    /from '(\.{1,2}\/[^']+|@\/app\/\(routes\)\/\(main\)\/\(personal\)\/places\/[^']+|@\/lib\/places\/[^']+)'/g;
   const MODULE_SUFFIXES = ['.tsx', '.ts', '/index.ts'];
 
   const resolveImport = (from: string, specifier: string): string | undefined => {
@@ -269,5 +435,19 @@ describe('/places client islands', () => {
         SERVER_SIDE_IMPORT,
       );
     }
+  });
+
+  it('reaches the filter schema and the map input through the island', () => {
+    const graph = [...placesGraph(path.join(PLACES_DIR, ISLANDS[0] as string))].map((file) =>
+      path.relative(SRC_DIR, file),
+    );
+
+    expect(graph).toEqual(
+      expect.arrayContaining([
+        'app/(routes)/(main)/(personal)/places/_lib/place-filters.ts',
+        'app/(routes)/(main)/(personal)/places/_components/use-shown-places.ts',
+        'lib/places/categories.ts',
+      ]),
+    );
   });
 });

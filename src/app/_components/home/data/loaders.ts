@@ -39,6 +39,10 @@ import 'server-only';
  */
 
 import { cache } from 'react';
+import {
+  loadPastPlaces,
+  peekPastPlaces,
+} from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import { handleStatusCheck, peekServiceStatus } from '@/app/api/[[...route]]/status/handlers';
 import type { ServiceStatus } from '@/app/api/[[...route]]/status/schema';
 import {
@@ -72,13 +76,11 @@ import {
   type Experience,
   loadCertifications,
   loadExperiences,
-  loadPlaces,
   loadProjects,
   type Place,
   type Project,
   peekCertifications,
   peekExperiences,
-  peekPlaces,
   peekProjects,
 } from '@/lib/sanity/loaders';
 import {
@@ -227,8 +229,8 @@ export const loadCurrentRoles = cache(
  */
 export const loadLatestPlace = cache(
   (): Promise<TileResult<Place>> =>
-    settle('place', async () => placeTile(await loadPlaces()), {
-      onDeadline: () => lastGood(peekPlaces(), placeTile),
+    settle('place', async () => placeTile(await loadPastPlaces()), {
+      onDeadline: () => lastGood(peekPastPlaces(), placeTile),
     }),
 );
 
@@ -278,7 +280,8 @@ export const loadSiteCounts = cache(async (): Promise<SiteCounts> => {
     countOf(loadProjects, peekProjects),
     countOf(loadExperiences, peekExperiences),
     countOf(loadCertifications, peekCertifications),
-    countOf(loadPlaces, peekPlaces),
+    // Past places only, as /places counts them, so the two figures never differ.
+    countOf(loadPastPlaces, peekPastPlaces),
   ]);
   return { projects, roles, certifications, places };
 });

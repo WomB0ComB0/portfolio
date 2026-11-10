@@ -63,6 +63,26 @@ describe('revealInScroller', () => {
     expect(scroller.scrollLeft).toBe(300 + (-120 - 16));
   });
 
+  it('keeps an inset clear inside the padding, for a fade over the end', () => {
+    const right = setup({ left: 979, right: 1042 });
+    revealInScroller(right.scroller, right.chip, 24);
+    expect(right.scroller.scrollLeft).toBe(1042 - (390 - 16 - 24));
+
+    const left = setup({ left: -120, right: -60 }, { scrollLeft: 300 });
+    revealInScroller(left.scroller, left.chip, 24);
+    expect(left.scroller.scrollLeft).toBe(300 + (-120 - 16 - 24));
+  });
+
+  it('never scrolls past either end of the row', () => {
+    const last = setup({ left: 1040, right: 1100 }, { scrollWidth: 1100 });
+    revealInScroller(last.scroller, last.chip, 24);
+    expect(last.scroller.scrollLeft).toBe(1100 - 390);
+
+    const first = setup({ left: 2, right: 60 }, { scrollLeft: 10 });
+    revealInScroller(first.scroller, first.chip, 24);
+    expect(first.scroller.scrollLeft).toBe(0);
+  });
+
   it('leaves a chip already in view, and a row that does not scroll, alone', () => {
     const inView = setup({ left: 100, right: 180 }, { scrollLeft: 40 });
     revealInScroller(inView.scroller, inView.chip);
