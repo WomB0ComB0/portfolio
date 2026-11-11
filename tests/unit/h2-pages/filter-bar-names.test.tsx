@@ -15,16 +15,14 @@
  */
 
 /**
- * @file Every FilterBar select has an accessible name. Radix renders the trigger as a button with
- * role="combobox", and a combobox is not named by its text (that text is its value), so axe
- * reported each one on /projects, /certifications and /places as an unnamed button. The name
- * comes from the placeholder ("All Categories" gives "Filter by categories") unless the filter
- * passes its own label, and it is in the server HTML as well as after hydration.
+ * @file Every filter control on /certifications has an accessible name. The old select bar
+ * (src/components/ui/filter-bar.tsx) rendered Radix comboboxes that axe reported as unnamed
+ * buttons; the FilterBar family that replaced it names its search and its chip list, and
+ * tests/unit/console/filter-bar/server-html.test.tsx checks those names are in the server HTML.
  */
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
-import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // t3-env validates on import; these tests need no real configuration.
@@ -37,32 +35,7 @@ vi.mock('@/env', () => {
 
 import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
-import { FilterBar, type FilterConfig } from '@/components/ui/filter-bar';
 import { wideLayout } from '../console/filter-bar/wide-layout';
-
-const noop = (): void => undefined;
-
-const filterWith = (placeholder: string, label?: string): FilterConfig => ({
-  value: 'all',
-  onChange: noop,
-  options: ['One', 'Two'],
-  placeholder,
-  icon: <span aria-hidden="true">#</span>,
-  ...(label === undefined ? {} : { label }),
-});
-
-const bar = (filters: FilterConfig[]) => (
-  <FilterBar
-    searchQuery=""
-    onSearchChange={noop}
-    filters={filters}
-    onClear={noop}
-    hasActiveFilters={false}
-    resultsCount={1}
-    totalCount={1}
-    entityName="things"
-  />
-);
 
 /** Undoes the wide layout a Ledger test lays out. */
 let narrow: (() => void) | undefined;
@@ -73,40 +46,7 @@ afterEach(() => {
   narrow = undefined;
 });
 
-describe('FilterBar select names', () => {
-  // The placeholders the /projects and /places explorers pass, and the two /certifications passed
-  // before the Ledger replaced its selects with issuer chips.
-  it.each([
-    ['All Categories', 'Filter by categories'],
-    ['All Technologies', 'Filter by technologies'],
-    ['All Issuers', 'Filter by issuers'],
-    ['All Skills', 'Filter by skills'],
-  ])('names the %s select "%s"', (placeholder, name) => {
-    render(bar([filterWith(placeholder)]));
-
-    expect(screen.getByRole('combobox', { name })).toBeInTheDocument();
-  });
-
-  it("uses a filter's own label when it passes one", () => {
-    render(bar([filterWith('All Categories', 'Project category')]));
-
-    expect(screen.getByRole('combobox', { name: 'Project category' })).toBeInTheDocument();
-  });
-
-  it('names each select of a bar separately', () => {
-    render(bar([filterWith('All Categories'), filterWith('All Technologies')]));
-
-    const names = screen.getAllByRole('combobox').map((box) => box.getAttribute('aria-label'));
-    expect(names).toEqual(['Filter by categories', 'Filter by technologies']);
-  });
-
-  it('is in the server HTML, before hydration', () => {
-    const container = document.createElement('div');
-    container.innerHTML = renderToString(bar([filterWith('All Issuers')]));
-
-    expect(within(container).getByRole('combobox', { name: 'Filter by issuers' })).toBeTruthy();
-  });
-
+describe('FilterBar names on /certifications', () => {
   it('leaves nothing unnamed on /certifications: a named search and a named chip list', () => {
     const ledger = buildLedger([makeCertification({ issuer: 'Amazon Web Services' })]);
     render(

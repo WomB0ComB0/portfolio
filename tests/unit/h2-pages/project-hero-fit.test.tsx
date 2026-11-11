@@ -176,4 +176,13 @@ describe('/projects/[id] hero', () => {
 
     expect(readGeometry().overlapPx).toBeGreaterThan(0);
   });
+
+  it('runs the border beam round the screenshot in the brand periwinkle, not the old purple', () => {
+    const { container } = render(<ProjectDetail project={PROJECT} />);
+    const beam = container.querySelector<HTMLElement>('.aspect-video [style*="--color-from"]');
+
+    expect(beam?.style.getPropertyValue('--color-from')).toBe('var(--brand)');
+    expect(beam?.style.getPropertyValue('--color-to')).toBe('var(--brand-ink)');
+    expect(container.innerHTML).not.toMatch(/#7209b7|#d6b3f0/i);
+  });
 });

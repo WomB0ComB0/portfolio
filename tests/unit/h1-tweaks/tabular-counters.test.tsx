@@ -50,7 +50,7 @@ import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[place
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
 import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
-import { FilterBar } from '@/components/ui/filter-bar';
+import { FullBar } from '../console/filter-bar/harness';
 import { wideLayout } from '../console/filter-bar/wide-layout';
 
 const TABULAR = 'tabular-nums';
@@ -74,8 +74,6 @@ const LEDGER = buildLedger([
   makeCertification({ issuer: 'Amazon Web Services', issueDate: '2025-01-01' }),
   makeCertification({ issuer: 'Amazon Web Services', issueDate: '2024-01-01' }),
 ]);
-
-const noop = (): void => undefined;
 
 /** Undoes the wide layout a Ledger test lays out. */
 let narrow: (() => void) | undefined;
@@ -105,21 +103,14 @@ describe('live counters use tabular figures', () => {
     expect(screen.getByText('120%')).toHaveClass(TABULAR);
   });
 
-  it("FilterBar's results count", () => {
-    render(
-      <FilterBar
-        searchQuery="cloud"
-        onSearchChange={noop}
-        filters={[]}
-        onClear={noop}
-        hasActiveFilters
-        resultsCount={2}
-        totalCount={15}
-        entityName="projects"
-      />,
-    );
+  it("FilterBar's results count, whose shown figure follows the filters", () => {
+    render(<FullBar initial="?category=tools" />);
+    const count = document.querySelector('[data-filter-part="count"]');
 
-    expect(screen.getByText('Showing 2 of 15 projects')).toHaveClass(TABULAR);
+    expect(count).toHaveTextContent('2 of 5 projects');
+    // tile-meta sets tabular figures itself (globals.css); the live figure sets its own.
+    expect(count).toHaveClass('tile-meta');
+    expect(count?.querySelector('span')).toHaveClass(TABULAR);
   });
 
   it('the certifications chip counts and year counts, which follow the filters', () => {

@@ -17,10 +17,8 @@
 // Never re-export the _interface modules here: they are server-only (urlFor), and client
 // components import from this folder.
 export { default as DraggableGallery } from './draggable-gallery';
-export { default as PinnedRepos } from './pinned-repos';
 export { type GroupedRow, ProjectGroups } from './project-groups';
 export { PROJECTS_DESCRIPTION, PROJECTS_TITLE, ProjectsStatStrip } from './project-header';
 export { LIST_CLASS, PROJECT_COLUMNS } from './project-index-classes';
 export { ProjectRow } from './project-row';
 export { type ProjectRowItem, ProjectsIndex, type ProjectsIndexProps } from './projects-index';
-export { default as Repository } from './repository';

@@ -211,8 +211,21 @@ describe('constructMetadata and the location', () => {
     expect(JSON.stringify(constructMetadata())).not.toMatch(CITY);
   });
 
-  it('keeps the college: it is in the description too, and says nothing of where he is', () => {
+  it('keeps the college as a keyword: it says where he studied, nothing of where he is', () => {
     expect(app.keywords).toContain('Farmingdale State College');
-    expect(app.description).toContain('Farmingdale State College');
+    expect('Farmingdale State College').not.toMatch(CITY);
+  });
+
+  it('describes the site as the hero and the manifest do, with no age, school or place', () => {
+    const heroLine = app.tagline.replace(/\.$/, '').toLowerCase();
+
+    expect(app.description).toMatch(new RegExp(`^${app.name} is a software engineer ${heroLine}`));
+    expect(app.description).toContain(
+      'projects, experience, certifications, places and live stats',
+    );
+    expect(app.description).not.toMatch(/\d|year-old|student|college|Farmingdale/i);
+    expect(app.description).not.toMatch(CITY);
+    // About what a search result shows before it cuts the snippet.
+    expect(app.description.length).toBeLessThanOrEqual(160);
   });
 });

@@ -168,8 +168,8 @@ const ProjectHero = ({ project }: ProjectDetailProps): JSX.Element => (
         size={400}
         duration={10}
         delay={9}
-        colorFrom="#7209b7"
-        colorTo="#d6b3f0"
+        colorFrom="var(--brand)"
+        colorTo="var(--brand-ink)"
         borderWidth={2}
       />
     </div>
