@@ -28,6 +28,10 @@ import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  BAR_STICKY_CLASS,
+  BAR_STICKY_TILE_CLASS,
+} from '@/components/console/filter-bar/filter-bar-classes';
 import Layout from '@/components/layout/layout';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/projects' }));
@@ -122,21 +126,14 @@ describe('shell grid', () => {
     // A z-index class at any breakpoint: z-40, lg:z-30.
     const zIndexOf = (classes: readonly string[]): number =>
       Number(/(?:^|:)z-(\d+)$/.exec(classes.find((name) => /(?:^|:)z-\d+$/.test(name)) ?? '')?.[1]);
-    // FilterBar's sticky wrapper (projects, certifications, places) shares the root stacking
-    // context with the rail now that main is not a stacking context. Its class string is found
-    // by its sticky class at any breakpoint, in the source with comments (and their apostrophes)
-    // removed.
-    const filterBarCode = readFileSync(
-      join(process.cwd(), 'src/components/ui/filter-bar.tsx'),
-      'utf8',
-    ).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-    const stickyClasses =
-      [...filterBarCode.matchAll(/'([^'\n]*)'/g)]
-        .map(([, literal = '']) => literal.split(/\s+/))
-        .find((classes) => classes.some((name) => /(?:^|:)sticky$/.test(name))) ?? [];
-
+    // FilterBar's sticky band (projects and certifications in row density, places in bar density)
+    // shares the root stacking context with the rail now that main is not a stacking context.
     const railZ = zIndexOf(classesOf(rail));
-    expect(railZ).toBeGreaterThan(zIndexOf(stickyClasses));
+    for (const sticky of [BAR_STICKY_CLASS, BAR_STICKY_TILE_CLASS]) {
+      const stickyClasses = sticky.split(/\s+/);
+      expect(stickyClasses).toContain('sticky');
+      expect(railZ).toBeGreaterThan(zIndexOf(stickyClasses));
+    }
     expect(railZ).toBeLessThan(50);
   });
 

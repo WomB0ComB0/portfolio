@@ -434,15 +434,20 @@ test.describe('/places: search and category chips', () => {
     await hydrated(page);
     test.skip(!(await mapDrawn(page)), 'Google Maps is not configured or did not load here');
     await showWholeWorld(page);
-    await expectMarkersFor(page, await main.locator(CARD).count());
+    const total = await main.locator(CARD).count();
+    await expectMarkersFor(page, total);
 
     const chip = await narrowingChip(main);
     await main.locator(`${CHIPS} a[data-chip="${chip.slug}"]`).click();
     await expect(main.locator(CARD)).toHaveCount(chip.count);
     await expectMarkersFor(page, chip.count);
 
+    // The word is picked from every card, so wait for Clear all to bring them all back first.
     await main.getByRole('link', { name: 'Clear all' }).click();
+    await expect(main.locator(CARD)).toHaveCount(total);
     await main.getByRole('searchbox').fill(await searchWord(page));
+    // fill returns before the list re-renders: read the count only once the search has narrowed it.
+    await expect.poll(() => main.locator(CARD).count()).toBeLessThan(total);
     await expectMarkersFor(page, await main.locator(CARD).count());
   });
 

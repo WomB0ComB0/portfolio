@@ -19,8 +19,13 @@
  * (src/lib/og/cards.tsx), for every page without an image of its own (constructMetadata links
  * it). Without a title it draws the site card, as /opengraph-image does. The text is read and
  * clipped to the card by readPageCard; Satori draws it as text, never as markup.
+ *
+ * Each distinct query is a fresh render, so the API guard runs first: the per-IP sliding window
+ * and ban lists /api uses (src/lib/security/api-guard.ts), with its 429 and 403 answers. The
+ * prerendered /opengraph-image and /twitter-image do not pass through here.
  */
 
+import { apiGuardHook } from '@/app/api/_elysia/shared/guard';
 import { PageCard, SiteCard } from '@/lib/og/cards';
 import { renderOgCard } from '@/lib/og/render';
 import { type PageCardText, readPageCard } from '@/lib/og/text';
@@ -33,8 +38,33 @@ export const runtime = 'nodejs';
 const cardFor = (page: PageCardText | null) =>
   page ? <PageCard title={page.title} description={page.description} /> : <SiteCard />;
 
-/** The card the query asks for as a PNG, or a 500 if it cannot be drawn. */
+/**
+ * The API guard's refusal of `request`, or null to draw the card. The guard answers 403 to a
+ * banned client and 429 with Retry-After to one over its limit, both `no-store` so the CDN never
+ * serves them to anyone else. It fails open: the guard itself allows when Upstash is unset, slow
+ * or failing, and anything it throws here draws the card too.
+ */
+async function guardRefusal(request: Request): Promise<Response | null> {
+  const set: { status?: number; headers: Record<string, string | number> } = { headers: {} };
+  try {
+    const body = await apiGuardHook({ request, set });
+    if (body === undefined) return null;
+    const headers = Object.fromEntries(
+      Object.entries(set.headers).map(([name, value]) => [name, String(value)]),
+    );
+    return Response.json(body, { status: set.status, headers });
+  } catch (error) {
+    logger.warn('The OG guard failed; drawing the card', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/** The card the query asks for as a PNG, a 403 or 429 from the guard, or a 500 if it cannot be drawn. */
 export async function GET(request: Request): Promise<Response> {
+  const refusal = await guardRefusal(request);
+  if (refusal) return refusal;
   const page = readPageCard(new URL(request.url).searchParams);
   try {
     return await renderOgCard(cardFor(page));
