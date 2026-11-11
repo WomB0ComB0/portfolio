@@ -23,21 +23,80 @@ const ingestingEndpoint = env.BETTERSTACK_INGESTING_HOST?.trim()
   : undefined;
 
 /**
- * Better Stack (Logtail) logger instance
- * Used for structured logging and error tracking.
- * Only ships logs to Better Stack Telemetry when BETTERSTACK_SOURCE_TOKEN is configured
- * (BETTERSTACK_API_KEY is an Uptime API token and cannot authenticate against Logtail ingestion).
+ * The logging calls this module makes, which both Logtail and the console fallback answer.
  */
-export const logger = new Logtail(sourceToken || env.BETTERSTACK_API_KEY, {
-  ...(ingestingEndpoint ? { endpoint: ingestingEndpoint } : {}),
-  // Send logs in batches for better performance
-  batchSize: 100,
-  batchInterval: 1000,
-  // Include context automatically
-  sendLogsToConsoleOutput: env.NODE_ENV === 'development',
-  sendLogsToBetterStack: Boolean(sourceToken),
-  ignoreExceptions: true,
-});
+export interface BetterStackLogger {
+  debug(message: string, context?: LogContext): unknown;
+  info(message: string, context?: LogContext): unknown;
+  warn(message: string, context?: LogContext): unknown;
+  error(message: string, context?: LogContext): unknown;
+  flush(): Promise<unknown>;
+}
+
+/**
+ * Writes one level to the console method of the same name, with the context only when given.
+ */
+const toConsole =
+  (level: LogLevel) =>
+  (message: string, context?: LogContext): void => {
+    if (context) console[level](message, context);
+    else console[level](message);
+  };
+
+/** Logs to the console, for when logs are not sent to Better Stack. */
+const consoleLogger: BetterStackLogger = {
+  debug: toConsole('debug'),
+  info: toConsole('info'),
+  warn: toConsole('warn'),
+  error: toConsole('error'),
+  flush: async () => {},
+};
+
+/**
+ * Builds the logger at module load without ever throwing: every /api/v1 route imports this
+ * module, so a throw here takes the whole API down.
+ *
+ * - Sends to Better Stack only when both BETTERSTACK_SOURCE_TOKEN and BETTERSTACK_INGESTING_HOST
+ *   are set, since @logtail/node 0.6 throws when asked to send without an endpoint.
+ *   (BETTERSTACK_API_KEY is an Uptime API token and cannot authenticate Logtail ingestion.)
+ * - Otherwise logs to the console, warning once which variables are missing, by name only.
+ * - Falls back to the console the same way if Logtail throws for any other reason.
+ */
+function createLogger(): BetterStackLogger {
+  if (!sourceToken || !ingestingEndpoint) {
+    const missing = [
+      sourceToken ? null : 'BETTERSTACK_SOURCE_TOKEN',
+      ingestingEndpoint ? null : 'BETTERSTACK_INGESTING_HOST',
+    ].filter((name) => name !== null);
+    console.warn(
+      `[better-stack] Log sending is off: ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} not set. Logging to the console.`,
+    );
+    return consoleLogger;
+  }
+
+  try {
+    return new Logtail(sourceToken, {
+      endpoint: ingestingEndpoint,
+      // Send logs in batches for better performance
+      batchSize: 100,
+      batchInterval: 1000,
+      sendLogsToConsoleOutput: env.NODE_ENV === 'development',
+      sendLogsToBetterStack: true,
+      ignoreExceptions: true,
+    });
+  } catch (error) {
+    console.warn(
+      `[better-stack] Log sending is off: the Logtail client failed to start (${error instanceof Error ? error.message : 'unknown error'}). Logging to the console.`,
+    );
+    return consoleLogger;
+  }
+}
+
+/**
+ * Better Stack (Logtail) logger, used for structured logging and error tracking.
+ * Ships logs to Better Stack Telemetry when it is fully configured and to the console otherwise.
+ */
+export const logger: BetterStackLogger = createLogger();
 
 /**
  * Log levels for Better Stack
