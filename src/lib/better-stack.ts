@@ -43,14 +43,30 @@ const toConsole =
     else console[level](message);
   };
 
-/** Logs to the console, for when logs are not sent to Better Stack. */
-const consoleLogger: BetterStackLogger = {
-  debug: toConsole('debug'),
-  info: toConsole('info'),
-  warn: toConsole('warn'),
-  error: toConsole('error'),
-  flush: async () => {},
-};
+/** Drops a log line, for levels too chatty for a deployed server's console. */
+const ignore = (): void => {};
+
+/**
+ * Logs to the console, for when logs are not sent to Better Stack. In development every level is
+ * shown; elsewhere only warnings and errors, so a deployment's logs don't get a line per request
+ * (the Logtail client it replaces showed nothing there).
+ */
+const consoleLogger: BetterStackLogger =
+  env.NODE_ENV === 'development'
+    ? {
+        debug: toConsole('debug'),
+        info: toConsole('info'),
+        warn: toConsole('warn'),
+        error: toConsole('error'),
+        flush: async () => {},
+      }
+    : {
+        debug: ignore,
+        info: ignore,
+        warn: toConsole('warn'),
+        error: toConsole('error'),
+        flush: async () => {},
+      };
 
 /**
  * Builds the logger at module load without ever throwing: every /api/v1 route imports this
@@ -59,10 +75,13 @@ const consoleLogger: BetterStackLogger = {
  * - Sends to Better Stack only when both BETTERSTACK_SOURCE_TOKEN and BETTERSTACK_INGESTING_HOST
  *   are set, since @logtail/node 0.6 throws when asked to send without an endpoint.
  *   (BETTERSTACK_API_KEY is an Uptime API token and cannot authenticate Logtail ingestion.)
- * - Otherwise logs to the console, warning once which variables are missing, by name only.
- * - Falls back to the console the same way if Logtail throws for any other reason.
+ * - Otherwise logs to the console. When exactly one of the two is set (a half-finished setup) it
+ *   warns once, naming the missing variable only; with neither set, Better Stack simply isn't in
+ *   use, so it stays quiet.
+ * - Falls back to the console, with a warning, if Logtail throws for any other reason.
  */
 function createLogger(): BetterStackLogger {
+  if (!sourceToken && !ingestingEndpoint) return consoleLogger;
   if (!sourceToken || !ingestingEndpoint) {
     const missing = [
       sourceToken ? null : 'BETTERSTACK_SOURCE_TOKEN',

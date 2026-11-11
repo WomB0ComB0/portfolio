@@ -109,10 +109,25 @@ describe('the Better Stack logger', () => {
     await expect(mod.flushLogs()).resolves.toBeUndefined();
   });
 
-  it('writes to the console while sending is off', async () => {
+  it('stays quiet in production when Better Stack is not set up at all, but still shows errors', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const mod = await load({});
+
+    mod.logAPIRequest({ method: 'GET', path: '/api/v1/health', statusCode: 200, duration: 3 });
+    mod.logError(new Error('boom'));
+
+    // Neither variable set is a deliberate setup, not a half-finished one: no warning per cold
+    // start, and no line per request in the host's logs (the old client dropped them too).
+    expect(warn).not.toHaveBeenCalled();
+    expect(info).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith('boom', expect.objectContaining({ name: 'Error' }));
+  });
+
+  it('writes every level to the console in development while sending is off', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const mod = await load({ NODE_ENV: 'development' });
 
     mod.logAPIRequest({ method: 'GET', path: '/api/v1/health', statusCode: 200, duration: 3 });
     mod.logError(new Error('boom'));
@@ -122,9 +137,6 @@ describe('the Better Stack logger', () => {
       expect.objectContaining({ path: '/api/v1/health', statusCode: 200 }),
     );
     expect(error).toHaveBeenCalledWith('boom', expect.objectContaining({ name: 'Error' }));
-    expect(warn).toHaveBeenCalledOnce();
-    expect(warn.mock.calls.flat().join(' ')).toMatch(
-      /BETTERSTACK_SOURCE_TOKEN.*BETTERSTACK_INGESTING_HOST/,
-    );
+    expect(warn).not.toHaveBeenCalled();
   });
 });
