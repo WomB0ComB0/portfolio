@@ -21,7 +21,7 @@
  * left alone.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { revealInScroller } from '@/lib/dom/reveal-in-scroller';
 
@@ -30,11 +30,24 @@ interface Box {
   readonly right: number;
 }
 
-/** A sideways scroller 390 px wide with 16 px padding, holding a target at `target`. */
+/** The scrollers a test attached, removed after it. */
+const attached: HTMLElement[] = [];
+
+afterEach(() => {
+  for (const element of attached.splice(0)) element.remove();
+});
+
+/**
+ * A sideways scroller 390 px wide with 16 px padding, holding a target at `target`. It is attached
+ * to the document, as the chip row always is when it scrolls: a detached element has no computed
+ * style (jsdom 31, like browsers), so its padding would read as 0.
+ */
 function setup(target: Box, { scrollWidth = 1100, scrollLeft = 0 } = {}) {
   const scroller = document.createElement('div');
   const chip = document.createElement('a');
   scroller.append(chip);
+  document.body.append(scroller);
+  attached.push(scroller);
   scroller.style.paddingLeft = '16px';
   scroller.style.paddingRight = '16px';
   Object.defineProperty(scroller, 'clientWidth', { value: 390 });
