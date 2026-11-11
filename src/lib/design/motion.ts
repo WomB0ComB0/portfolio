@@ -52,7 +52,10 @@ export const EASE = {
 
 /**
  * The no-bounce spring for motion/react: motion's `spring(0.25, 0)`, which the CSS
- * `--ease-spring` writes out as `linear()`, so CSS and JS move alike. It feels like about 250 ms.
+ * `--ease-spring` writes out as `linear()`, so CSS and JS move alike from rest. It feels like
+ * about 250 ms. Since motion 14.12 it keeps the velocity it inherits, so a value interrupted
+ * mid-flight carries on smoothly instead of restarting from a standstill; being critically damped,
+ * it still never passes a target it turns back to. (A CSS transition has no velocity to keep.)
  */
 export const SPRING = { type: 'spring', visualDuration: 0.25, bounce: 0 } as const;
 
@@ -67,9 +70,9 @@ const SPRING_ANGULAR_FREQUENCY =
   (2 * Math.PI) / (SPRING.visualDuration * MOTION_PERIOD_PER_VISUAL_DURATION);
 
 /**
- * A physics spring for drags and flicks: the same curve as SPRING from rest (stiffness about
- * 438.6, damping about 41.9, critically damped, unit mass), but it carries the release speed into
- * the settle, which motion drops for a visualDuration spring.
+ * SPRING written as physics, for drags, flicks and useSpring: stiffness about 438.6, damping about
+ * 41.9, critically damped, unit mass. It plays the same curve as SPRING from rest and, since motion
+ * 14.12 keeps inherited velocity on a visualDuration spring too, the same curve in motion.
  */
 export const SPRING_PHYSICS = {
   type: 'spring',

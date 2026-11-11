@@ -190,17 +190,39 @@ describe('the spring', () => {
     expect(damping / (2 * Math.sqrt(stiffness * mass))).toBeCloseTo(1, 9);
   });
 
-  it('SPRING_PHYSICS carries a release speed into the settle, which SPRING drops', () => {
-    // Why both exist: motion ignores inherited velocity on a time-defined (visualDuration) spring,
-    // so a flick released at speed only keeps its momentum on the physics spring.
+  it('SPRING carries a release speed into the settle, exactly as SPRING_PHYSICS does', () => {
+    // Since motion 14.12 a visualDuration spring keeps the velocity it inherits (14.9 dropped it),
+    // so a value interrupted mid-flight keeps its momentum on SPRING too, not only on the physics
+    // spring; from rest the two still play the same curve.
     const RELEASE_SPEED = 5;
     const SAMPLE_MS = 50;
     const at = (options: object, velocity: number): number =>
       spring({ keyframes: [0, 1], velocity, ...options }).next(SAMPLE_MS).value;
 
     expect(at(SPRING_PHYSICS, 0)).toBeCloseTo(at(SPRING, 0), 9);
-    expect(at(SPRING, RELEASE_SPEED)).toBeCloseTo(at(SPRING, 0), 9);
-    expect(at(SPRING_PHYSICS, RELEASE_SPEED)).toBeGreaterThan(at(SPRING, RELEASE_SPEED));
+    expect(at(SPRING, RELEASE_SPEED)).toBeGreaterThan(at(SPRING, 0));
+    expect(at(SPRING, RELEASE_SPEED)).toBeCloseTo(at(SPRING_PHYSICS, RELEASE_SPEED), 9);
+  });
+
+  it('SPRING interrupted mid-flight carries on without a hitch and never passes a target it turns back to', () => {
+    // What a photo flight closed while opening, a re-shown preview or a held arrow key on the
+    // photo wall does: motion restarts SPRING from where the value is, at the speed it has.
+    // Interrupted where it is fastest (about 1 / omega in), the same target carries on along the
+    // original curve, and a reversal drifts on briefly, then turns back without overshooting,
+    // because the spring is critically damped.
+    const INTERRUPT_MS = 48;
+    const flight = spring({ keyframes: [0, 1], ...SPRING });
+    const position = flight.next(INTERRUPT_MS).value;
+    // Units per second, by a central difference over 1 ms on each side.
+    const speed =
+      ((flight.next(INTERRUPT_MS + 1).value - flight.next(INTERRUPT_MS - 1).value) / 2) * 1000;
+    const onward = spring({ keyframes: [position, 1], velocity: speed, ...SPRING });
+    const back = spring({ keyframes: [position, 0], velocity: speed, ...SPRING });
+    const backPath = Array.from({ length: 121 }, (_, step) => back.next(step * 5).value);
+
+    expect(onward.next(60).value).toBeCloseTo(flight.next(INTERRUPT_MS + 60).value, 3);
+    expect(Math.max(...backPath)).toBeGreaterThan(position);
+    expect(Math.min(...backPath)).toBeGreaterThanOrEqual(0);
   });
 });
 
