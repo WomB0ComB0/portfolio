@@ -47,6 +47,8 @@ export interface FilterBarRegistry {
   search: HTMLInputElement | null;
   results: HTMLElement | null;
   applied: HTMLElement | null;
+  /** The phone's Filters button (FilterBar.Facets): shown only while the chips are in the sheet. */
+  filtersButton: HTMLElement | null;
   readonly chipLists: Map<string, HTMLElement>;
 }
 
@@ -77,9 +79,18 @@ export function useFilterBar(): FilterBarContextValue {
   return value;
 }
 
-/** Whether a box shows: false inside a closed sheet (display: none) or a hidden ancestor. */
-const shows = (element: HTMLElement): boolean =>
-  typeof element.checkVisibility === 'function' ? element.checkVisibility() : true;
+/**
+ * Whether a box shows: false inside a closed sheet (display: none) or a hidden ancestor. Where the
+ * browser has no checkVisibility, by each box's own display, up to the root.
+ */
+export function shows(element: Element): boolean {
+  if (typeof element.checkVisibility === 'function') return element.checkVisibility();
+  const view = element.ownerDocument.defaultView;
+  for (let box: Element | null = element; box; box = box.parentElement) {
+    if (view?.getComputedStyle(box).display === 'none') return false;
+  }
+  return true;
+}
 
 /** The current chip of the first chip set that shows. */
 export function currentChipOf(registry: FilterBarRegistry): HTMLElement | null {
@@ -89,6 +100,12 @@ export function currentChipOf(registry: FilterBarRegistry): HTMLElement | null {
   }
   return null;
 }
+
+/** The Filters button while it shows (a phone: the chips are in the closed sheet); else null. */
+export const shownFiltersButton = (registry: FilterBarRegistry): HTMLElement | null => {
+  const button = registry.filtersButton;
+  return button?.isConnected && shows(button) ? button : null;
+};
 
 /** Where focus goes when the element a visitor acted on is gone: the current chip, else search. */
 export const fallbackFocus = (registry: FilterBarRegistry): HTMLElement | null =>
@@ -106,6 +123,7 @@ export function FilterBarProvider({ model, children }: FilterBarProviderProps): 
     search: null,
     results: null,
     applied: null,
+    filtersButton: null,
     chipLists: new Map(),
   });
   const sheetId = useId();

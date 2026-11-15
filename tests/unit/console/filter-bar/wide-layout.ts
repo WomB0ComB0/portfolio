@@ -31,3 +31,16 @@ export function wideLayout(): () => void {
   document.head.append(style);
   return () => style.remove();
 }
+
+/**
+ * Hides the phone's Filters button, as a 48rem page does, so the kit reads the chips as sitting
+ * in the bar. Without it, jsdom shows the button and the kit treats the page as a phone's (the
+ * chips in the sheet). Returns the undo.
+ */
+export function hideFiltersButton(): () => void {
+  const style = document.createElement('style');
+  style.dataset.testLayout = 'no-filters-button';
+  style.textContent = '[data-filter-part="filters"]{display:none!important}';
+  document.head.append(style);
+  return () => style.remove();
+}
