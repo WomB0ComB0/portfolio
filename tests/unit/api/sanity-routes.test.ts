@@ -129,8 +129,8 @@ beforeEach(() => {
   sanity.sanityFetchWithToken.mockReset();
   youtube.fetchChannelVideos.mockReset();
   youtube.fetchYouTubeVideoMetadataBatch.mockReset();
+  // The videos and the talks' durations both use the server key; the public Firebase key never.
   envValues.YOUTUBE_SERVER_API_KEY = undefined;
-  // loadTalks reads its YouTube key from here.
   envValues.NEXT_PUBLIC_FIREBASE_API_KEY = undefined;
 });
 
@@ -379,7 +379,7 @@ describe('GET /sanity/talks', () => {
     ['/live/', `https://www.youtube.com/live/${VIDEO_ID}?si=x`],
     ['no scheme', `youtu.be/${VIDEO_ID}?si=x`],
   ])('reads the video ID from a %s link', async (_form, videoUrl) => {
-    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'yt-key-example';
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     sanity.sanityFetchWithToken.mockResolvedValue([talk('t1', videoUrl)]);
     youtube.fetchYouTubeVideoMetadataBatch.mockImplementation(metadataFor);
     const get = await loadApp();
@@ -394,7 +394,7 @@ describe('GET /sanity/talks', () => {
   });
 
   it('asks YouTube about no ID for links that are not YouTube videos', async () => {
-    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'yt-key-example';
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     sanity.sanityFetchWithToken.mockResolvedValue([
       talk('t1', 'https://www.youtube.com/@mikeodnis'),
       talk('t2', `https://notyoutube.com/watch?v=${VIDEO_ID}`),

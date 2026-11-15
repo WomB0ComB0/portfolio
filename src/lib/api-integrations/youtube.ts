@@ -17,11 +17,17 @@
 /**
  * @fileoverview YouTube Data API integration for fetching video metadata
  * @module lib/api-integrations/youtube
+ *
+ * The API key rides in the X-Goog-Api-Key request header, never in a URL: a failed request's
+ * error names its URL (and the dev server logs every fetched URL), so a key in the query string
+ * would reach error text, the error tracker and logs. Every query value is percent-encoded.
  */
 
 import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
 import { get } from '@/lib/http-clients/effect-fetcher';
+
+const YOUTUBE_API = 'https://www.googleapis.com/youtube/v3';
 
 // ============================================================================
 // Effect Schemas for YouTube API v3 Responses
@@ -183,6 +189,31 @@ function formatDuration(isoDuration: string): string {
   return parts.join(':');
 }
 
+/**
+ * One GET to the API's `endpoint`, its answer checked against `schema`. The query is
+ * percent-encoded (URLSearchParams), and the key goes in the X-Goog-Api-Key header, so neither a
+ * failure's message nor a logged URL ever carries it.
+ */
+function youtubeGet<T, I>(
+  endpoint: string,
+  query: Readonly<Record<string, string>>,
+  schema: Schema.Schema<T, I, never>,
+  apiKey: string,
+): Promise<T> {
+  const url = `${YOUTUBE_API}/${endpoint}?${new URLSearchParams(query).toString()}`;
+  return Effect.runPromise(
+    pipe(
+      get<T>(url, {
+        schema,
+        retries: 2,
+        timeout: 10_000,
+        headers: { 'X-Goog-Api-Key': apiKey },
+      }),
+      Effect.provide(FetchHttpClient.layer),
+    ),
+  );
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -197,18 +228,12 @@ export async function fetchYouTubeVideoMetadata(
   videoId: string,
   apiKey: string,
 ): Promise<YouTubeVideoMetadata> {
-  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${apiKey}`;
-
-  const effect = pipe(
-    get(url, {
-      schema: VideosResponseSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
+  const data = await youtubeGet(
+    'videos',
+    { part: 'snippet,contentDetails', id: videoId },
+    VideosResponseSchema,
+    apiKey,
   );
-
-  const data = await Effect.runPromise(effect);
 
   if (!data.items || data.items.length === 0) {
     throw new Error(`YouTube video not found: ${videoId}`);
@@ -253,18 +278,12 @@ export async function fetchYouTubeVideoMetadataBatch(
     throw new Error('Cannot fetch more than 50 videos in a single batch');
   }
 
-  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoIds.join(',')}&key=${apiKey}`;
-
-  const effect = pipe(
-    get(url, {
-      schema: VideosResponseSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
+  const data = await youtubeGet(
+    'videos',
+    { part: 'snippet,contentDetails', id: videoIds.join(',') },
+    VideosResponseSchema,
+    apiKey,
   );
-
-  const data = await Effect.runPromise(effect);
 
   const metadataMap = new Map<string, YouTubeVideoMetadata>();
 
@@ -296,18 +315,12 @@ export async function fetchYouTubeVideoMetadataBatch(
 export async function resolveChannelHandle(handle: string, apiKey: string): Promise<string> {
   const cleanHandle = handle.startsWith('@') ? handle : `@${handle}`;
 
-  const url = `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${encodeURIComponent(cleanHandle)}&key=${apiKey}`;
-
-  const effect = pipe(
-    get(url, {
-      schema: ChannelIdResponseSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
+  const data = await youtubeGet(
+    'channels',
+    { part: 'id', forHandle: cleanHandle },
+    ChannelIdResponseSchema,
+    apiKey,
   );
-
-  const data = await Effect.runPromise(effect);
 
   if (!data.items || data.items.length === 0) {
     throw new Error(`YouTube channel not found: ${cleanHandle}`);
@@ -328,18 +341,12 @@ export async function resolveChannelHandle(handle: string, apiKey: string): Prom
  * @returns {Promise<string>} Uploads playlist ID
  */
 async function getUploadsPlaylistId(channelId: string, apiKey: string): Promise<string> {
-  const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
-
-  const effect = pipe(
-    get(url, {
-      schema: ChannelResponseSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
+  const data = await youtubeGet(
+    'channels',
+    { part: 'contentDetails', id: channelId },
+    ChannelResponseSchema,
+    apiKey,
   );
-
-  const data = await Effect.runPromise(effect);
 
   if (!data.items || data.items.length === 0) {
     throw new Error(`YouTube channel not found: ${channelId}`);
@@ -378,18 +385,16 @@ export async function fetchChannelVideos(
   const uploadsPlaylistId = await getUploadsPlaylistId(channelId, apiKey);
 
   // Fetch playlist items (video IDs and basic info)
-  const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${Math.min(maxResults, 50)}&key=${apiKey}`;
-
-  const effect = pipe(
-    get(playlistUrl, {
-      schema: PlaylistItemsResponseSchema,
-      retries: 2,
-      timeout: 10_000,
-    }),
-    Effect.provide(FetchHttpClient.layer),
+  const playlistData = await youtubeGet(
+    'playlistItems',
+    {
+      part: 'snippet',
+      playlistId: uploadsPlaylistId,
+      maxResults: String(Math.min(maxResults, 50)),
+    },
+    PlaylistItemsResponseSchema,
+    apiKey,
   );
-
-  const playlistData = await Effect.runPromise(effect);
 
   if (!playlistData.items || playlistData.items.length === 0) {
     return [];
