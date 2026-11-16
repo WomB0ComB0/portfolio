@@ -151,6 +151,16 @@ function Poster({ videoId }: { readonly videoId: string }): ReactElement {
   );
 }
 
+/** Only the fixed player origin (or an unnamed frame refusal) can block this player. */
+function isPlayerFrameUri(uri: string): boolean {
+  if (uri === '') return true;
+  try {
+    return new URL(uri).origin === EMBED_FRAME_SRC;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Whether the page CSP refused the player's frame while open. The violation is queued as a task,
  * so a listener added in a layout effect (before the frame starts loading) always hears it.
@@ -166,7 +176,7 @@ function useFrameBlocked(open: boolean, videoId: string): boolean {
       const directive = event.effectiveDirective || event.violatedDirective || '';
       const isFrame = directive.startsWith('frame-src') || directive.startsWith('child-src');
       const uri = event.blockedURI ?? '';
-      if (isFrame && (uri === '' || uri.includes('youtube-nocookie.com'))) setBlocked(true);
+      if (isFrame && isPlayerFrameUri(uri)) setBlocked(true);
     };
     document.addEventListener('securitypolicyviolation', onViolation);
     return () => document.removeEventListener('securitypolicyviolation', onViolation);

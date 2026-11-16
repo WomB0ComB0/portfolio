@@ -124,28 +124,60 @@ describe('media-play=embed', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('says the frame is blocked, with the link out, when the CSP refuses it', async () => {
+  it.each([
+    'https://www.youtube-nocookie.com.attacker.example/embed/video',
+    'https://attacker.example/youtube-nocookie.com',
+    'https://www.youtube-nocookie.com@attacker.example/',
+    'http://www.youtube-nocookie.com',
+    'youtube-nocookie.com',
+  ])('ignores a CSP refusal for an unrelated frame: %s', async (blockedURI) => {
     renderFeed('embed');
     fireEvent.click(titleLink());
-    await screen.findByRole('dialog');
-
+    const dialog = await screen.findByRole('dialog');
     act(() => {
       document.dispatchEvent(
         Object.assign(new Event('securitypolicyviolation'), {
-          violatedDirective: 'frame-src',
           effectiveDirective: 'frame-src',
-          blockedURI: 'https://www.youtube-nocookie.com',
+          blockedURI,
         }),
       );
     });
-
-    expect(await screen.findByText("This video can't play here yet.")).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /watch it on YouTube/ })).toHaveAttribute(
-      'href',
-      'https://www.youtube.com/watch?v=cloud000001',
+    expect(dialog.querySelector('iframe')).toHaveAttribute(
+      'src',
+      'https://www.youtube-nocookie.com/embed/cloud000001?autoplay=1&rel=0',
     );
-    expect(screen.queryByText(/frame-src/)).not.toBeInTheDocument();
+    expect(screen.queryByText("This video can't play here yet.")).not.toBeInTheDocument();
   });
+
+  it.each([
+    'https://www.youtube-nocookie.com',
+    'https://www.youtube-nocookie.com/embed/cloud000001',
+    '',
+  ])(
+    'says the frame is blocked when the CSP refuses its origin or an unnamed frame: %s',
+    async (blockedURI) => {
+      renderFeed('embed');
+      fireEvent.click(titleLink());
+      await screen.findByRole('dialog');
+
+      act(() => {
+        document.dispatchEvent(
+          Object.assign(new Event('securitypolicyviolation'), {
+            violatedDirective: 'frame-src',
+            effectiveDirective: 'frame-src',
+            blockedURI,
+          }),
+        );
+      });
+
+      expect(await screen.findByText("This video can't play here yet.")).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /watch it on YouTube/ })).toHaveAttribute(
+        'href',
+        'https://www.youtube.com/watch?v=cloud000001',
+      );
+      expect(screen.queryByText(/frame-src/)).not.toBeInTheDocument();
+    },
+  );
 
   it('does not promise playback once blocked, and ends its sentence without a stray space', async () => {
     renderFeed('embed');
