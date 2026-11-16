@@ -21,13 +21,18 @@
  * - With Sanity down and nothing cached, the metadata falls back to the page's defaults (with its
  *   own og:url, since the id may well exist) instead of crashing the page or claiming "Not
  *   Found", and the failure reaches Sentry as one warning.
- * - A real miss, or an id Sanity could never have issued, still says "Not Found", with no og:url
- *   and nothing sent to Sentry.
+ * - A real miss, or an id Sanity could never have issued, gets the site's 404 metadata
+ *   (NOT_FOUND_METADATA, the same object the 404 view exports), with no og:url and nothing sent
+ *   to Sentry. The server HTML of a 404 carries the not-found module's title, and the page's own
+ *   metadata replaced it after hydration ('Mike Odnis - 404', then '... - Project Not Found'), so
+ *   both must be the one 404 title. It asks for no robots tag: Next writes the one noindex itself.
  * Only the getters, the Sanity client (with the real image URL builder), YouTube, the env and
  * Sentry are mocked; the loaders, their cache and per-document decoding are real.
  */
 
 import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
+import type { Metadata } from 'next';
+import { resolveTitle } from 'next/dist/lib/metadata/resolvers/resolve-title';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -75,10 +80,25 @@ vi.mock('@sentry/nextjs', () => sentry);
 import { generateMetadata as placeMetadata } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
 import { generateMetadata as experienceMetadata } from '@/app/(routes)/(main)/(professioal)/experience/[id]/page';
 import { generateMetadata as projectMetadata } from '@/app/(routes)/(main)/(professioal)/projects/[id]/page';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
+import { app } from '@/constants';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { resetSanityLoaderCaches } from '@/lib/sanity/loaders';
 import { logger } from '@/utils';
 import { constructMetadata } from '@/utils/seo/meta';
+
+/** The tab title Next serves for `metadata` under the root layout's template (Next's resolver). */
+const LAYOUT_TEMPLATE = resolveTitle(constructMetadata().title, null).template;
+const servedTitle = (metadata: Metadata): string | null =>
+  resolveTitle(metadata.title, LAYOUT_TEMPLATE).absolute;
+
+/** A miss gets the 404 view's own metadata: one title before and after hydration, no og:url. */
+const expectSiteNotFound = (metadata: Metadata) => {
+  expect(metadata).toEqual(NOT_FOUND_METADATA);
+  expect(servedTitle(metadata)).toBe(`${app.name} - 404`);
+  expect(metadata).not.toHaveProperty('robots');
+  expect(metadata.openGraph?.url).toBeUndefined();
+};
 
 const paramsFor = (id: string) => ({ params: Promise.resolve({ id }) });
 const placeParamsFor = (placeId: string) => ({ params: Promise.resolve({ placeId }) });
@@ -159,20 +179,19 @@ describe('project detail metadata', () => {
     expect(JSON.stringify(metadata)).not.toContain('opengraph-image.png');
   });
 
-  it('still says "Not Found" for an id Sanity really does not have', async () => {
+  it("gives an id Sanity really does not have the site's 404 metadata", async () => {
     sanityApi.getProjects.mockResolvedValue([grepo]);
 
     const metadata = await projectMetadata(paramsFor('no-such-project'));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Project Not Found' });
-    expect(metadata.openGraph?.url).toBeUndefined();
+    expectSiteNotFound(metadata);
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
-  it('says "Not Found" for a malformed id without asking Sanity', async () => {
+  it("gives a malformed id the site's 404 metadata without asking Sanity", async () => {
     const metadata = await projectMetadata(paramsFor(MALFORMED_ID));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Project Not Found' });
+    expectSiteNotFound(metadata);
     expect(sanityApi.getProjects).not.toHaveBeenCalled();
   });
 });
@@ -207,13 +226,13 @@ describe('experience detail metadata', () => {
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
-  it('still says "Not Found" for an id Sanity really does not have', async () => {
+  // experience/[id]/page.tsx is the Experience fixer's file; it takes the same export.
+  it("gives an id Sanity really does not have the site's 404 metadata", async () => {
     sanityApi.getExperiences.mockResolvedValue([role]);
 
     const metadata = await experienceMetadata(paramsFor('no-such-experience'));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Experience Not Found' });
-    expect(metadata.openGraph?.url).toBeUndefined();
+    expectSiteNotFound(metadata);
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 });
@@ -246,20 +265,19 @@ describe('place detail metadata', () => {
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
-  it('says "Place Not Found" without og:url, and reports nothing, for an unknown id', async () => {
+  it("gives an unknown id the site's 404 metadata, and reports nothing", async () => {
     sanityApi.getPlaces.mockResolvedValue([summit]);
 
     const metadata = await placeMetadata(placeParamsFor('no-such-place'));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Place Not Found' });
-    expect(metadata.openGraph?.url).toBeUndefined();
+    expectSiteNotFound(metadata);
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
-  it('says "Place Not Found" for a malformed id without asking Sanity', async () => {
+  it("gives a malformed id the site's 404 metadata without asking Sanity", async () => {
     const metadata = await placeMetadata(placeParamsFor(MALFORMED_ID));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Place Not Found' });
+    expectSiteNotFound(metadata);
     expect(sanityApi.getPlaces).not.toHaveBeenCalled();
   });
 

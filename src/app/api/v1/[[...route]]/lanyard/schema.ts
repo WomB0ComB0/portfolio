@@ -40,6 +40,8 @@ export const lanyardSchema = {
       }),
     ),
     discord_status: t.String(),
+    /** When the server read this presence from Lanyard (epoch ms). */
+    read_at: t.Optional(t.Number()),
   }),
   'lanyard.error': t.Object({
     error: t.String(),

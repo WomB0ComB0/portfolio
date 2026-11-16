@@ -17,14 +17,12 @@
  */
 
 import { useKBar, VisualState } from 'kbar';
-import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import { memo, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { IconType } from 'react-icons';
 import { FiBriefcase, FiCode, FiCommand, FiHome, FiShield, FiUser } from 'react-icons/fi';
 import { usePaletteShortcut } from '@/components/cmd';
 import { NavbarItems } from '@/constants/index';
-import { DURATION_MS, EASE, seconds } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 
 export type NavGroupId = 'professional' | 'developer' | 'personal' | 'legal';
@@ -98,6 +96,19 @@ const isWithinPage = (slug: string, path: string): boolean =>
 export const isGroupActive = (group: NavGroupData, path: string): boolean =>
   group.items.some((item) => isWithinPage(item.slug, path));
 
+/** A nav link's aria-current: its own page, its section (on a detail page under it), or none. */
+export type NavLinkCurrent = 'page' | 'true' | undefined;
+
+/**
+ * How a nav link is marked on `path`: 'page' on its own page, 'true' on one of its detail pages
+ * (the section, as the rail's trigger marks it), nothing elsewhere. Every nav that lists the
+ * pages marks them by this one rule, for sight and for assistive tech alike.
+ */
+export const navLinkCurrent = (slug: string, path: string): NavLinkCurrent => {
+  if (path === slug) return 'page';
+  return isWithinPage(slug, path) ? 'true' : undefined;
+};
+
 /** The id of a group's flyout panel, which its trigger names in aria-controls. */
 export const navFlyoutId = (id: NavGroupId): string => `nav-flyout-${id}`;
 
@@ -131,12 +142,30 @@ const FLYOUT_LINK =
   'flex items-center gap-3 rounded-md px-2.5 py-2 text-body-sm transition-colors duration-(--motion-fast) ease-standard';
 const FLYOUT_LINK_IDLE = 'text-foreground hover:bg-surface-3';
 const FLYOUT_LINK_CURRENT = 'bg-brand-subtle font-medium text-brand-ink';
+/** The section of a detail page: brand-ink, without the page's own fill. */
+const FLYOUT_LINK_SECTION = 'text-brand-ink hover:bg-surface-3';
 
-/** A flyout slides this far in from the rail as it fades in, in px. */
-const FLYOUT_OFFSET_PX = -6;
-const FLYOUT_HIDDEN = { opacity: 0, x: FLYOUT_OFFSET_PX } as const;
-const FLYOUT_SHOWN = { opacity: 1, x: 0 } as const;
-const FLYOUT_TRANSITION = { duration: seconds(DURATION_MS.fast), ease: EASE.outExpo } as const;
+const FLYOUT_LINK_STATE = {
+  page: FLYOUT_LINK_CURRENT,
+  true: FLYOUT_LINK_SECTION,
+} as const;
+
+/**
+ * A group's flyout panel, beside its trigger. It is always in the HTML, open or closed, so its
+ * links are plain `<a href>` in every page's server HTML: a crawler presses no button.
+ * Visibility is in the transition, so a closing panel stays visible until its fade ends.
+ */
+const FLYOUT_PANEL =
+  'absolute top-0 left-full z-50 ml-4 min-w-52 rounded-tile border border-hairline bg-surface-2 p-1.5 shadow-raised transition-[opacity,translate,visibility] duration-(--motion-fast) ease-out-expo';
+
+/** Open: faded in and slid the last 6 px in from the rail. */
+const FLYOUT_OPEN = 'visible translate-x-0 opacity-100';
+
+/**
+ * Closed: `invisible` (visibility: hidden) takes the panel and its links out of the tab order,
+ * the accessibility tree and hit testing while they stay in the HTML; the panel is `inert` too.
+ */
+const FLYOUT_CLOSED = 'invisible -translate-x-1.5 opacity-0';
 
 interface FlyoutDismissOptions {
   readonly isOpen: boolean;
@@ -192,16 +221,25 @@ const useFlyoutDismiss = ({
 
 interface NavFlyoutLinkProps {
   readonly item: NavItem;
-  readonly isCurrent: boolean;
+  /** The page itself, its section (a detail page under it), or neither. */
+  readonly current: NavLinkCurrent;
+  /** Whether the link's flyout is open. A closed flyout's links are hidden, but still laid out. */
+  readonly isShown: boolean;
   readonly onNavigate: () => void;
 }
 
-const NavFlyoutLink = ({ item, isCurrent, onNavigate }: NavFlyoutLinkProps) => (
+/**
+ * A page's link in a flyout. Next prefetches a link once its box is in the viewport, whether or
+ * not it is visible, so a closed flyout's link opts out: the route is prefetched when the
+ * flyout opens, as it was when the link was only mounted then.
+ */
+const NavFlyoutLink = ({ item, current, isShown, onNavigate }: NavFlyoutLinkProps) => (
   <Link
     href={item.slug}
+    prefetch={isShown ? undefined : false}
     onClick={onNavigate}
-    aria-current={isCurrent ? 'page' : undefined}
-    className={cn(FLYOUT_LINK, isCurrent ? FLYOUT_LINK_CURRENT : FLYOUT_LINK_IDLE)}
+    aria-current={current}
+    className={cn(FLYOUT_LINK, current ? FLYOUT_LINK_STATE[current] : FLYOUT_LINK_IDLE)}
   >
     <item.icon size={FLYOUT_ICON_SIZE} className="shrink-0" aria-hidden />
     <span>{item.name}</span>
@@ -218,7 +256,7 @@ export interface NavGroupProps {
 
 /**
  * One rail group: an icon trigger and the flyout of its pages. The rail keeps which group is open,
- * so only one flyout shows at a time.
+ * so only one flyout shows at a time. Every flyout is rendered, open or not (see FLYOUT_PANEL).
  */
 export const NavGroup = memo(({ group, path, isOpen, onToggle, onClose }: NavGroupProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -238,35 +276,36 @@ export const NavGroup = memo(({ group, path, isOpen, onToggle, onClose }: NavGro
         onClick={() => onToggle(group.id)}
         className={cn(RAIL_ITEM, railItemState(isActive, isOpen))}
         aria-label={`${group.label} section`}
+        // Marked for sight (fill and brand bar) whenever the page is in the group; this says so to
+        // assistive tech, which a closed flyout's links never reach.
+        aria-current={isActive ? 'true' : undefined}
         aria-expanded={isOpen}
         aria-controls={panelId}
       >
         <Icon size={RAIL_ICON_SIZE} strokeWidth={isActive ? 2.5 : 2} aria-hidden />
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            id={panelId}
-            initial={FLYOUT_HIDDEN}
-            animate={FLYOUT_SHOWN}
-            exit={FLYOUT_HIDDEN}
-            transition={FLYOUT_TRANSITION}
-            className="absolute top-0 left-full z-50 ml-4 min-w-52 rounded-tile border border-hairline bg-surface-2 p-1.5 shadow-raised"
-          >
-            <div id={labelId} className="label-mono px-2.5 pt-2 pb-1 text-faint">
-              {group.label}
-            </div>
-            <ul aria-labelledby={labelId} className="flex flex-col gap-0.5">
-              {group.items.map((item) => (
-                <li key={item.slug}>
-                  <NavFlyoutLink item={item} isCurrent={path === item.slug} onNavigate={onClose} />
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div
+        id={panelId}
+        inert={!isOpen}
+        className={cn(FLYOUT_PANEL, isOpen ? FLYOUT_OPEN : FLYOUT_CLOSED)}
+      >
+        <div id={labelId} className="label-mono px-2.5 pt-2 pb-1 text-faint">
+          {group.label}
+        </div>
+        <ul aria-labelledby={labelId} className="flex flex-col gap-0.5">
+          {group.items.map((item) => (
+            <li key={item.slug}>
+              <NavFlyoutLink
+                item={item}
+                current={navLinkCurrent(item.slug, path)}
+                isShown={isOpen}
+                onNavigate={onClose}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 });

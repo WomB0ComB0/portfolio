@@ -307,8 +307,8 @@ describe('Tile options', () => {
     expect(spanned).toHaveClass(
       'col-span-2',
       '@xl/tiles:col-span-3',
-      '@4xl/tiles:col-span-6',
-      '@4xl/tiles:row-span-2',
+      '@[70rem]/tiles:col-span-6',
+      '@[70rem]/tiles:row-span-2',
     );
 
     render(<Tile>Unspanned</Tile>);
@@ -402,7 +402,7 @@ describe('Tile on the server', () => {
     expect(html).toMatch(/^<a /);
     expect(html).toContain('href="/places"');
     expect(html).toContain('data-spotlight=""');
-    expect(html).toContain('@4xl/tiles:col-span-6');
+    expect(html).toContain('@[70rem]/tiles:col-span-6');
     expect(html).toContain('Places');
   });
 

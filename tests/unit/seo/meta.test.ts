@@ -27,6 +27,8 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { publicImageInfo } from '@tests/fixtures/image-size';
+import type { Metadata } from 'next';
+import { resolveTitle } from 'next/dist/lib/metadata/resolvers/resolve-title';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -49,6 +51,16 @@ describe('constructMetadata', () => {
   it('emits no example.com placeholder anywhere when no video or player is passed', () => {
     expect(JSON.stringify(constructMetadata())).not.toContain('example.com');
     expect(JSON.stringify(statsMetadata())).not.toContain('example.com');
+  });
+
+  // The noIndex option is gone: on a 404 it doubled the noindex Next writes itself
+  // (tests/unit/seo/not-found-robots.test.ts), and no page passed it any more.
+  it('never asks for a robots tag, even when an old caller still passes noIndex', () => {
+    const oldCall = { title: '404', noIndex: true } as Parameters<typeof constructMetadata>[0];
+
+    expect(constructMetadata(oldCall)).not.toHaveProperty('robots');
+    expect(statsMetadata()).not.toHaveProperty('robots');
+    expect(constructMetadata()).not.toHaveProperty('robots');
   });
 
   it('emits no og:video and no Twitter player by default', () => {
@@ -169,6 +181,34 @@ describe('constructMetadata', () => {
         },
       ],
     });
+  });
+});
+
+// The root layout's metadata is constructMetadata() and every page's is constructMetadata({...})
+// (src/app/layout.tsx, src/app/(routes)/page.tsx and the section pages). Next titles a page with
+// the layout's template: resolveTitle is Next's own resolver, so this is the served <title>.
+describe('constructMetadata and the page title', () => {
+  const layoutTemplate = resolveTitle(constructMetadata().title, null).template;
+  const servedTitle = (page: Metadata): string => resolveTitle(page.title, layoutTemplate).absolute;
+
+  it('says the site name once on the home page, never "Mike Odnis - Mike Odnis"', () => {
+    expect(servedTitle(constructMetadata({ path: '/' }))).toBe(app.name);
+    expect(servedTitle(constructMetadata({ title: app.name }))).toBe(app.name);
+  });
+
+  it('titles the layout itself with the site name alone', () => {
+    expect(resolveTitle(constructMetadata().title, null).absolute).toBe(app.name);
+  });
+
+  it("puts a page's own title after the site name", () => {
+    expect(servedTitle(statsMetadata())).toBe(`${app.name} - Stats`);
+    expect(servedTitle(constructMetadata({ title: '404' }))).toBe(`${app.name} - 404`);
+  });
+
+  it('keeps the og:title and twitter:title the bare page or site name', () => {
+    expect(constructMetadata({ path: '/' }).openGraph).toMatchObject({ title: app.name });
+    expect(constructMetadata({ path: '/' }).twitter).toMatchObject({ title: app.name });
+    expect(statsMetadata().openGraph).toMatchObject({ title: 'Stats' });
   });
 });
 

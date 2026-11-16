@@ -60,11 +60,74 @@ describe('Footer', () => {
   it('keeps the copyright line centred on phones, with no rail offset at any width', () => {
     render(<Footer />);
 
-    const line = classesOf(screen.getByText(/2024-present/));
+    const line = classesOf(screen.getByText(/2024–present/));
     const leftPadding = line.filter((name) => /^(?:[a-z0-9-]+:)?(?:pl|ps|px)-/.test(name));
 
     expect(leftPadding).toEqual([]);
-    expect(line).toEqual(expect.arrayContaining(['text-center', 'sm:text-left']));
+    expect(line).toEqual(expect.arrayContaining(['text-center', '@min-[52rem]/footer:text-left']));
+  });
+
+  it('writes the year range with an en dash', () => {
+    render(<Footer />);
+
+    expect(screen.getByRole('contentinfo').textContent).toContain('2024–present');
+    expect(screen.getByRole('contentinfo').textContent).not.toContain('2024-present');
+  });
+
+  // The shell's other nav landmarks are named ("Main navigation", "Mobile navigation", "All
+  // pages"), so a screen reader's landmark list must not show this one as a bare "navigation".
+  it('names its links landmark "Legal", for the three legal pages it holds', () => {
+    render(<Footer />);
+
+    const legal = screen.getByRole('navigation', { name: 'Legal' });
+    const links = [...legal.querySelectorAll('a')].map((link) => [
+      link.textContent,
+      link.getAttribute('href'),
+    ]);
+
+    expect(links).toEqual([
+      ['Licenses', '/licenses'],
+      ['Privacy Policy', '/privacy'],
+      ['Cookie Policy', '/cookies'],
+    ]);
+  });
+
+  it('says the external profile link opens in a new tab', () => {
+    render(<Footer />);
+
+    const profile = screen.getByRole('link', { name: 'Mike Odnis (opens in a new tab)' });
+
+    expect(profile).toHaveAttribute('target', '_blank');
+    expect(profile).toHaveAttribute('href', 'https://github.com/WomB0ComB0');
+  });
+
+  // A separator shows only where its row cannot wrap, so none can end a line or sit alone.
+  it('shows the separators only from the width that keeps the links on one line', () => {
+    render(<Footer />);
+
+    const footer = screen.getByRole('contentinfo');
+    const nav = classesOf(footer.querySelector('nav'));
+    const separators = [...footer.querySelectorAll('span[aria-hidden="true"]')].map(classesOf);
+
+    expect(classesOf(footer)).toContain('@container/footer');
+    expect(nav).toEqual(expect.arrayContaining(['flex-wrap', '@min-[34rem]/footer:flex-nowrap']));
+    expect(separators).toHaveLength(3);
+    for (const separator of separators) {
+      expect(separator).toEqual(expect.arrayContaining(['hidden', '@min-[34rem]/footer:inline']));
+      expect(separator.filter((name) => name.startsWith('sm:'))).toEqual([]);
+    }
+  });
+
+  // The status pill shows its word at every width now, so on a phone the links and the pill no
+  // longer fit one line: the pill wraps below the links, centred, instead of squeezing them.
+  it('lets the status pill wrap below the links, centred, where they do not fit one line', () => {
+    render(<Footer />);
+
+    const row = screen.getByRole('contentinfo').querySelector('nav')?.parentElement ?? null;
+
+    expect(classesOf(row)).toEqual(
+      expect.arrayContaining(['flex', 'flex-wrap', 'justify-center', 'items-center']),
+    );
   });
 
   it('spans the page column, centred, with the page gutter inside', () => {

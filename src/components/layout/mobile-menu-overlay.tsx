@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import type React from 'react';
-import { memo, type RefObject, useEffect, useRef, useState } from 'react';
+import { memo, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiCommand, FiX } from 'react-icons/fi';
 import { DURATION_MS, EASE, seconds } from '@/lib/design/motion';
@@ -55,8 +55,14 @@ const MENU_ITEM_CURRENT = 'bg-brand-subtle font-medium text-brand-ink';
 
 /** The sheet rises this far as it fades in, in px. */
 const SHEET_OFFSET_PX = 24;
+const BACKDROP_HIDDEN = { opacity: 0 } as const;
+const BACKDROP_SHOWN = { opacity: 1 } as const;
+const SHEET_HIDDEN = { opacity: 0, y: SHEET_OFFSET_PX } as const;
+const SHEET_SHOWN = { opacity: 1, y: 0 } as const;
 const BACKDROP_TRANSITION = { duration: seconds(DURATION_MS.fast), ease: EASE.outExpo } as const;
 const SHEET_TRANSITION = { duration: seconds(DURATION_MS.base), ease: EASE.outExpo } as const;
+/** Under reduced motion nothing plays: the backdrop and the sheet are where they end at once. */
+const INSTANT = { duration: 0 } as const;
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -201,6 +207,107 @@ export const MobileNavSection = ({ group, pathname, onNavigate }: MobileNavSecti
   );
 };
 
+interface MenuSheetProps {
+  readonly dialogRef: RefObject<HTMLDivElement | null>;
+  readonly onClose: () => void;
+  readonly children: ReactNode;
+}
+
+/**
+ * The backdrop and the sheet that holds the menu. With motion allowed the backdrop fades in and
+ * the sheet fades in as it rises. Under reduced motion neither plays, as with every other overlay
+ * in the shell: motion animates them in JavaScript, which the CSS reduced-motion rule cannot
+ * reach, and the app's MotionConfig reducedMotion="user" drops the rise but not the fades. Both
+ * then start where they end (`initial={false}`), since a zero-length animation from the hidden
+ * state still drew one frame hidden. It mounts with each opening, so motion's useReducedMotion
+ * (read once, at mount) is always current. AnimatePresence tells its children apart by key, so
+ * each carries its own; without them React logged a duplicate-key error on every opening.
+ */
+const MenuSheet = ({ dialogRef, onClose, children }: MenuSheetProps) => {
+  const isReduced = useReducedMotion() === true;
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="backdrop"
+        initial={isReduced ? false : BACKDROP_HIDDEN}
+        animate={BACKDROP_SHOWN}
+        exit={BACKDROP_HIDDEN}
+        transition={isReduced ? INSTANT : BACKDROP_TRANSITION}
+        className="fixed inset-0 z-9998 bg-canvas/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      <motion.div
+        key="sheet"
+        ref={dialogRef}
+        initial={isReduced ? false : SHEET_HIDDEN}
+        animate={SHEET_SHOWN}
+        exit={SHEET_HIDDEN}
+        transition={isReduced ? INSTANT : SHEET_TRANSITION}
+        className="fixed inset-x-0 bottom-0 z-9999 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-tile border-t border-hairline bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-raised"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={MOBILE_MENU_TITLE_ID}
+        id={MOBILE_MENU_DIALOG_ID}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+/** The sheet's sticky heading, with the Close button. */
+const MenuHeader = ({ onClose }: { readonly onClose: () => void }) => (
+  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-hairline bg-surface-1/90 py-3 pr-3 pl-6 backdrop-blur-md">
+    <h2 id={MOBILE_MENU_TITLE_ID} className="text-body font-semibold text-foreground">
+      {MOBILE_MENU_TITLE}
+    </h2>
+    <button
+      type="button"
+      className="inline-flex size-11 items-center justify-center rounded-full border border-hairline bg-surface-2 text-muted-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-3 hover:text-foreground"
+      onClick={onClose}
+      aria-label="Close menu"
+    >
+      <FiX size={CLOSE_ICON_SIZE} aria-hidden />
+    </button>
+  </div>
+);
+
+type MenuPagesProps = Pick<MobileMenuOverlayProps, 'onClose' | 'pathname' | 'query'>;
+
+/** Home, every nav group with all of its pages, then the command menu button. */
+const MenuPages = ({ onClose, pathname, query }: MenuPagesProps) => (
+  <nav className="px-3 pt-3 pb-6" aria-label="Site pages">
+    {HOME_NAV_ITEM && (
+      <MobileNavLink
+        item={HOME_NAV_ITEM}
+        isCurrent={pathname === HOME_NAV_ITEM.slug}
+        onNavigate={onClose}
+      />
+    )}
+
+    {NAV_GROUPS.map((group) => (
+      <MobileNavSection key={group.id} group={group} pathname={pathname} onNavigate={onClose} />
+    ))}
+
+    <div className="mt-4 border-t border-hairline pt-3">
+      <button
+        type="button"
+        className={cn(MENU_ITEM, MENU_ITEM_IDLE)}
+        onClick={() => {
+          query.toggle();
+          onClose();
+        }}
+        aria-label="Open command menu"
+      >
+        <FiCommand size={ITEM_ICON_SIZE} className="shrink-0" aria-hidden />
+        <span>Command menu</span>
+      </button>
+    </div>
+  </nav>
+);
+
 export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
   ({ isOpen, onClose, pathname, query, triggerRef }) => {
     const [mounted, setMounted] = useState(false);
@@ -217,82 +324,13 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
 
     if (!mounted || !isOpen) return null;
 
-    const content = (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={BACKDROP_TRANSITION}
-          className="fixed inset-0 z-9998 bg-canvas/70 backdrop-blur-sm"
-          onClick={onClose}
-        />
-
-        <motion.div
-          ref={dialogRef}
-          initial={{ opacity: 0, y: SHEET_OFFSET_PX }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: SHEET_OFFSET_PX }}
-          transition={SHEET_TRANSITION}
-          className="fixed inset-x-0 bottom-0 z-9999 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-tile border-t border-hairline bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-raised"
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={MOBILE_MENU_TITLE_ID}
-          id={MOBILE_MENU_DIALOG_ID}
-        >
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-hairline bg-surface-1/90 py-3 pr-3 pl-6 backdrop-blur-md">
-            <h2 id={MOBILE_MENU_TITLE_ID} className="text-body font-semibold text-foreground">
-              {MOBILE_MENU_TITLE}
-            </h2>
-            <button
-              type="button"
-              className="inline-flex size-11 items-center justify-center rounded-full border border-hairline bg-surface-2 text-muted-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-3 hover:text-foreground"
-              onClick={onClose}
-              aria-label="Close menu"
-            >
-              <FiX size={CLOSE_ICON_SIZE} aria-hidden />
-            </button>
-          </div>
-
-          <nav className="px-3 pt-3 pb-6" aria-label="Site pages">
-            {HOME_NAV_ITEM && (
-              <MobileNavLink
-                item={HOME_NAV_ITEM}
-                isCurrent={pathname === HOME_NAV_ITEM.slug}
-                onNavigate={onClose}
-              />
-            )}
-
-            {NAV_GROUPS.map((group) => (
-              <MobileNavSection
-                key={group.id}
-                group={group}
-                pathname={pathname}
-                onNavigate={onClose}
-              />
-            ))}
-
-            <div className="mt-4 border-t border-hairline pt-3">
-              <button
-                type="button"
-                className={cn(MENU_ITEM, MENU_ITEM_IDLE)}
-                onClick={() => {
-                  query.toggle();
-                  onClose();
-                }}
-                aria-label="Open command menu"
-              >
-                <FiCommand size={ITEM_ICON_SIZE} className="shrink-0" aria-hidden />
-                <span>Command menu</span>
-              </button>
-            </div>
-          </nav>
-        </motion.div>
-      </AnimatePresence>
+    return createPortal(
+      <MenuSheet dialogRef={dialogRef} onClose={onClose}>
+        <MenuHeader onClose={onClose} />
+        <MenuPages onClose={onClose} pathname={pathname} query={query} />
+      </MenuSheet>,
+      document.body,
     );
-
-    return createPortal(content, document.body);
   },
 );
 MobileMenuOverlay.displayName = 'MobileMenuOverlay';

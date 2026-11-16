@@ -62,9 +62,8 @@ const stubFetch = (reply: (url: string) => Response) => {
 };
 
 /**
- * Every test loads fresh copies (Lanyard caches in module state, and the report cooldowns reset
- * too). The GitHub and WakaTime caches live on globalThis, so a fresh import alone no longer
- * empties them; their resets do.
+ * Every test loads fresh copies (the report cooldowns reset too). The GitHub, WakaTime and
+ * Lanyard caches live on globalThis, so a fresh import alone does not empty them; their resets do.
  */
 const loadHandlers = async () => {
   vi.resetModules();
@@ -75,10 +74,11 @@ const loadHandlers = async () => {
   ]);
   github.resetGitHubStatsCache();
   wakatime.resetWakaTimeCache();
+  lanyard.resetLanyardCache();
   return {
     getGitHubStats: github.getGitHubStats,
     getWakaTimeData: wakatime.getWakaTimeData,
-    getLanyardData: lanyard.getLanyardData,
+    getLanyardSnapshot: lanyard.getLanyardSnapshot,
   };
 };
 
@@ -166,42 +166,78 @@ describe('getWakaTimeData', () => {
   });
 });
 
-describe('getLanyardData', () => {
+describe('getLanyardSnapshot when Lanyard fails', () => {
   const presence = {
     discord_user: { username: 'tester', discriminator: '0', avatar: 'abc123', id: '42' },
     activities: [{ name: 'Visual Studio Code', type: 0, details: 'Editing stats.tsx' }],
     discord_status: 'online',
   };
+  /** The presence a snapshot carries, without its read time. */
+  const loadReadPresence = async () => {
+    const { getLanyardSnapshot } = await loadHandlers();
+    return async () => (await getLanyardSnapshot()).data;
+  };
   const loadAfterGoodFetch = async () => {
     const fetchMock = stubFetch(() => jsonResponse({ success: true, data: presence }));
-    const { getLanyardData } = await loadHandlers();
-    await expect(getLanyardData()).resolves.toEqual(presence);
+    const readPresence = await loadReadPresence();
+    await expect(readPresence()).resolves.toEqual(presence);
     fetchMock.mockImplementation(async () => upstreamDown());
-    return getLanyardData;
+    return readPresence;
   };
 
   it('serves presence up to 5 minutes old when Lanyard fails', async () => {
-    const getLanyardData = await loadAfterGoodFetch();
+    const readPresence = await loadAfterGoodFetch();
 
     vi.setSystemTime(T0 + 2 * MINUTE);
-    await expect(getLanyardData()).resolves.toEqual(presence);
+    await expect(readPresence()).resolves.toEqual(presence);
     vi.setSystemTime(T0 + 5 * MINUTE - 1);
-    await expect(getLanyardData()).resolves.toEqual(presence);
+    await expect(readPresence()).resolves.toEqual(presence);
     expectWarning('lanyard:fetch', 'fetching Lanyard data');
   });
 
   it('throws once the cached presence is 5 minutes old', async () => {
-    const getLanyardData = await loadAfterGoodFetch();
+    const readPresence = await loadAfterGoodFetch();
 
     vi.setSystemTime(T0 + 5 * MINUTE);
 
-    await expect(getLanyardData()).rejects.toMatchObject({ command: 'lanyard:fetch' });
+    await expect(readPresence()).rejects.toMatchObject({ command: 'lanyard:fetch' });
   });
 
   it('throws when Lanyard fails and nothing is cached', async () => {
     stubFetch(upstreamDown);
-    const { getLanyardData } = await loadHandlers();
+    const readPresence = await loadReadPresence();
 
-    await expect(getLanyardData()).rejects.toMatchObject({ command: 'lanyard:fetch' });
+    await expect(readPresence()).rejects.toMatchObject({ command: 'lanyard:fetch' });
+  });
+});
+
+describe('getLanyardSnapshot', () => {
+  const presence = {
+    discord_user: { username: 'tester', discriminator: '0', avatar: 'abc123', id: '42' },
+    activities: [],
+    discord_status: 'idle',
+  };
+
+  it('dates the presence by when Lanyard was read: fresh, cached and on the stale fallback', async () => {
+    const fetchMock = stubFetch(() => jsonResponse({ success: true, data: presence }));
+    const { getLanyardSnapshot } = await loadHandlers();
+
+    await expect(getLanyardSnapshot()).resolves.toEqual({ data: presence, readAt: T0 });
+    // Inside the minute the cached copy answers, still dated by its read.
+    vi.setSystemTime(T0 + 30_000);
+    await expect(getLanyardSnapshot()).resolves.toEqual({ data: presence, readAt: T0 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Lanyard down: the fallback keeps the old read time, never the time of the failed try.
+    fetchMock.mockImplementation(async () => upstreamDown());
+    vi.setSystemTime(T0 + 2 * MINUTE);
+    await expect(getLanyardSnapshot()).resolves.toEqual({ data: presence, readAt: T0 });
+
+    fetchMock.mockImplementation(async () => jsonResponse({ success: true, data: presence }));
+    vi.setSystemTime(T0 + 3 * MINUTE);
+    await expect(getLanyardSnapshot()).resolves.toEqual({
+      data: presence,
+      readAt: T0 + 3 * MINUTE,
+    });
   });
 });

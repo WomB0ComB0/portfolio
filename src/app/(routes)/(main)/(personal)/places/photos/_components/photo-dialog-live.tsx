@@ -30,6 +30,10 @@
  * - Crossing the layout while open (a phone rotated, a window zoomed) hides the button with
  *   focus, so focus moves to the one now shown instead of falling out of the dialog.
  * The card's own image (a same-origin /_next/image URL) shows until the full photo loads.
+ *
+ * Its caption and its link are the places' by default (the place's category and dates, 'Open
+ * place' to /places/<id>); another page (the /projects Screens view) passes its own words and
+ * link, and the look and motion stay the same.
  */
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -56,6 +60,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DURATION_MS, EASE, prefersReducedMotion, SPRING, seconds } from '@/lib/design/motion';
+import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { formatDateRange } from '@/utils/date';
 import { sameOriginImage } from '../_lib/card-placeholder';
 import { COMPACT_QUERY } from '../_lib/dialog-layout';
@@ -76,10 +81,47 @@ const FRAME_RADIUS = 8;
 /** The frame's width at its widest; on a phone, the screen less its padding. */
 const FULL_SIZES = '(max-width: 639px) calc(-2rem + 100vw), 52rem';
 
-export interface LivePhotoDialogProps {
+/** What the caption says under the title (the place's name), and the full photo's alt. */
+export interface PhotoCaption {
+  /** The line under the title, as shown: 'Hackathon · May 19 – 20, 2026'. */
+  readonly meta: string;
+  /** The same line as a screen reader hears it ('Hackathon, May 19 to 20, 2026'). */
+  readonly heard: string;
+  /** The words under it: the photo's own caption, or null. */
+  readonly words: string | null;
+  /** The full photo's alt text. */
+  readonly alt: string;
+}
+
+/** The open view's words and link, each optional: the places' own by default. */
+export interface DialogWords {
+  /** Where the caption's link goes; the photo's place page by default. */
+  readonly openHref?: (photo: WallPhoto) => string;
+  /** The link's words; 'Open place' by default. */
+  readonly openLabel?: string;
+  /** The caption's words; placeCaption by default. */
+  readonly caption?: (photo: WallPhoto, place: PhotoPlace) => PhotoCaption;
+}
+
+export interface LivePhotoDialogProps extends DialogWords {
   readonly opened: OpenRequest;
   /** It has closed and landed: the view forgets the photo. */
   readonly onClosed: () => void;
+}
+
+/** A photo's place page: the caption's own link. */
+const placeHref = (photo: WallPhoto): string => `/places/${encodeURIComponent(photo.placeId)}`;
+
+/** The places' caption: the category and the visit's dates, the photo's caption, its alt. */
+export function placeCaption(photo: WallPhoto, place: PhotoPlace): PhotoCaption {
+  const shownDates = formatDateRange(place.startDate, place.endDate);
+  const heardDates = spokenDates(place.startDate, place.endDate);
+  return {
+    meta: shownDates ? `${place.category} · ${shownDates}` : place.category,
+    heard: heardDates ? `${place.category}, ${heardDates}` : place.category,
+    words: photo.caption,
+    alt: photoAlt(photo, place),
+  };
 }
 
 /** An element's box on screen, or null when it is gone or has no size. */
@@ -134,9 +176,145 @@ function useCompactLayout(
   return { compact, compactNow };
 }
 
+interface FlightRefs {
+  readonly frame: RefObject<HTMLDivElement | null>;
+  readonly overlay: RefObject<HTMLDivElement | null>;
+  /** The surface, the caption and the buttons: they fade, they never fly. */
+  readonly chrome: () => HTMLElement[];
+}
+
+interface FlightOptions {
+  readonly opened: OpenRequest;
+  /** A crossfade both ways: reduced motion, or the full-screen layout when it opens. */
+  readonly still: boolean;
+  readonly compactNow: RefObject<boolean>;
+  readonly register: (close: () => void) => void;
+  readonly onClosed: () => void;
+}
+
+/** Flies the frame back into its card (or fades it), then calls onClosed once. */
+function closeFrame(
+  frame: HTMLElement,
+  back: Box | null,
+  frameBox: Box | null,
+  options: FlightOptions,
+): void {
+  const { source, photo } = options.opened;
+  let landed = false;
+  const land = (): void => {
+    if (landed) return;
+    landed = true;
+    if (source) delete source.dataset.flying;
+    options.onClosed();
+  };
+  if (back && frameBox) {
+    // From wherever the flight is now: motion carries the values it is animating.
+    const target = flightFrom(back, frameBox, photo.focus, CARD_RADIUS, FRAME_RADIUS);
+    animate(
+      frame,
+      { x: target.x, y: target.y, scale: target.scale, clipPath: clipPathOf(target.clip) },
+      SPRING,
+    ).then(land, land);
+    window.setTimeout(land, CLOSE_SETTLE_MS);
+  } else {
+    animate(frame, { opacity: 0 }, FADE_OUT).then(land, land);
+  }
+}
+
+/** Starts the frame at its card's box and springs it to its own (the open flight). */
+function flyOut(frame: HTMLElement, from: Box, frameBox: Box, opened: OpenRequest): void {
+  if (opened.source) opened.source.dataset.flying = 'true';
+  const start = flightFrom(from, frameBox, opened.photo.focus, CARD_RADIUS, FRAME_RADIUS);
+  const startClip = clipPathOf(start.clip);
+  frame.style.transform = `translate(${start.x}px, ${start.y}px) scale(${start.scale})`;
+  frame.style.clipPath = startClip;
+  animate(
+    frame,
+    {
+      x: [start.x, 0],
+      y: [start.y, 0],
+      scale: [start.scale, 1],
+      clipPath: [startClip, clipPathOf(identityFlight(FRAME_RADIUS).clip)],
+    },
+    SPRING,
+  );
+}
+
+/** Opens by flying from the card (or fading), and registers the close that flies back. */
+function runFlight(refs: FlightRefs, options: FlightOptions): (() => void) | undefined {
+  const frame = refs.frame.current;
+  if (!frame) return undefined;
+  const { source } = options.opened;
+  /** The frame's layout box, measured before it first moves. */
+  const frameBox = boxOf(frame);
+  const from = options.still ? null : boxOf(source);
+  const flies = Boolean(from && frameBox);
+  if (from && frameBox) {
+    flyOut(frame, from, frameBox, options.opened);
+  } else {
+    frame.style.opacity = '0';
+    animate(frame, { opacity: [0, 1] }, FADE_IN);
+  }
+  const overlay = refs.overlay.current;
+  if (overlay) animate(overlay, { opacity: [0, BACKDROP_OPACITY] }, FADE_IN);
+  const delay = flies ? seconds(DURATION_MS.instant) : 0;
+  animate(refs.chrome(), { opacity: [0, 1] }, { ...FADE_IN, delay });
+
+  let closing = false;
+  options.register(() => {
+    if (closing) return;
+    closing = true;
+    // Only back into the card from the layout it flew out into: a window that has since
+    // become full screen measures another frame.
+    const back = options.still || options.compactNow.current ? null : boxOf(source);
+    animate(refs.chrome(), { opacity: 0 }, FADE_OUT);
+    // The backdrop lifts with the photo: over the flight back, or with the crossfade.
+    if (overlay) animate(overlay, { opacity: 0 }, back && frameBox ? FADE_IN : FADE_OUT);
+    closeFrame(frame, back, frameBox, options);
+  });
+  return () => {
+    if (source) delete source.dataset.flying;
+  };
+}
+
+interface CaptionProps {
+  readonly place: PhotoPlace;
+  readonly words: PhotoCaption;
+  readonly href: string;
+  readonly label: string;
+  readonly captionRef: RefObject<HTMLDivElement | null>;
+}
+
+/** The caption: the place's name, the line under it, the photo's words, then its link. */
+function DialogCaption({ place, words, href, label, captionRef }: CaptionProps): ReactElement {
+  return (
+    <div ref={captionRef} className={styles.caption}>
+      <div className={styles['caption-text']}>
+        <DialogTitle className={styles.title}>{place.name}</DialogTitle>
+        <DialogDescription className={styles.meta}>
+          <span aria-hidden="true">{words.meta}</span>
+          <span className="sr-only">{words.heard}</span>
+        </DialogDescription>
+        {words.words ? <p className={styles.words}>{words.words}</p> : null}
+      </div>
+      <Link href={href} prefetch={false} className={styles['open-link']}>
+        {label}
+        <FiArrowRight aria-hidden="true" className="size-4" />
+      </Link>
+    </div>
+  );
+}
+
 /** The overlay and the panel, mounted inside the portal so their layout effect sees them laid out. */
-function FlyingPanel({ opened, register, onClosed }: PanelProps): ReactElement {
-  const { photo, place, source } = opened;
+function FlyingPanel({
+  opened,
+  register,
+  onClosed,
+  openHref = placeHref,
+  openLabel = 'Open place',
+  caption = placeCaption,
+}: PanelProps): ReactElement {
+  const { photo, place } = opened;
   const [placeholder] = useState(() => sameOriginImage(opened.placeholder, window.location.origin));
   const frameRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -150,85 +328,26 @@ function FlyingPanel({ opened, register, onClosed }: PanelProps): ReactElement {
   callbacks.current = { register, onClosed };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: one flight per mount (keyed by photo).
-  useLayoutEffect(() => {
-    const frame = frameRef.current;
-    if (!frame) return undefined;
-    /** The full-screen layout or reduced motion when it opens: a crossfade both ways. */
-    const still = prefersReducedMotion() || compact;
-    const chrome = (): HTMLElement[] => present([surfaceRef, captionRef, closeRef, doneRef]);
-    /** The frame's layout box, measured before it first moves. */
-    const frameBox = boxOf(frame);
-    const from = still ? null : boxOf(source);
-    const flies = Boolean(from && frameBox);
-
-    if (from && frameBox) {
-      if (source) source.dataset.flying = 'true';
-      const start = flightFrom(from, frameBox, photo.focus, CARD_RADIUS, FRAME_RADIUS);
-      const startClip = clipPathOf(start.clip);
-      frame.style.transform = `translate(${start.x}px, ${start.y}px) scale(${start.scale})`;
-      frame.style.clipPath = startClip;
-      animate(
-        frame,
+  useLayoutEffect(
+    () =>
+      runFlight(
         {
-          x: [start.x, 0],
-          y: [start.y, 0],
-          scale: [start.scale, 1],
-          clipPath: [startClip, clipPathOf(identityFlight(FRAME_RADIUS).clip)],
+          frame: frameRef,
+          overlay: overlayRef,
+          chrome: () => present([surfaceRef, captionRef, closeRef, doneRef]),
         },
-        SPRING,
-      );
-    } else {
-      frame.style.opacity = '0';
-      animate(frame, { opacity: [0, 1] }, FADE_IN);
-    }
-    if (overlayRef.current)
-      animate(overlayRef.current, { opacity: [0, BACKDROP_OPACITY] }, FADE_IN);
-    animate(
-      chrome(),
-      { opacity: [0, 1] },
-      { ...FADE_IN, delay: flies ? seconds(DURATION_MS.instant) : 0 },
-    );
+        {
+          opened,
+          still: prefersReducedMotion() || compact,
+          compactNow,
+          register: (close) => callbacks.current.register(close),
+          onClosed: () => callbacks.current.onClosed(),
+        },
+      ),
+    [],
+  );
 
-    let closing = false;
-    callbacks.current.register(() => {
-      if (closing) return;
-      closing = true;
-      // Only back into the card from the layout it flew out into: a window that has since
-      // become full screen measures another frame.
-      const back = still || compactNow.current ? null : boxOf(source);
-      animate(chrome(), { opacity: 0 }, FADE_OUT);
-      // The backdrop lifts with the photo: over the flight back, or with the crossfade.
-      if (overlayRef.current) {
-        animate(overlayRef.current, { opacity: 0 }, back && frameBox ? FADE_IN : FADE_OUT);
-      }
-      let landed = false;
-      const land = (): void => {
-        if (landed) return;
-        landed = true;
-        if (source) delete source.dataset.flying;
-        callbacks.current.onClosed();
-      };
-      if (back && frameBox) {
-        // From wherever the flight is now: motion carries the values it is animating.
-        const target = flightFrom(back, frameBox, photo.focus, CARD_RADIUS, FRAME_RADIUS);
-        animate(
-          frame,
-          { x: target.x, y: target.y, scale: target.scale, clipPath: clipPathOf(target.clip) },
-          SPRING,
-        ).then(land, land);
-        window.setTimeout(land, CLOSE_SETTLE_MS);
-      } else {
-        animate(frame, { opacity: 0 }, FADE_OUT).then(land, land);
-      }
-    });
-
-    return () => {
-      if (source) delete source.dataset.flying;
-    };
-  }, []);
-
-  const shownDates = formatDateRange(place.startDate, place.endDate);
-  const heardDates = spokenDates(place.startDate, place.endDate);
+  const words = caption(photo, place);
   return (
     <>
       <DialogPrimitive.Overlay ref={overlayRef} className={styles.overlay} />
@@ -257,7 +376,7 @@ function FlyingPanel({ opened, register, onClosed }: PanelProps): ReactElement {
             ) : null}
             <Image
               src={photo.full}
-              alt={photoAlt(photo, place)}
+              alt={words.alt}
               fill
               sizes={FULL_SIZES}
               loading="eager"
@@ -267,28 +386,13 @@ function FlyingPanel({ opened, register, onClosed }: PanelProps): ReactElement {
               }}
             />
           </div>
-          <div ref={captionRef} className={styles.caption}>
-            <div className={styles['caption-text']}>
-              <DialogTitle className={styles.title}>{place.name}</DialogTitle>
-              <DialogDescription className={styles.meta}>
-                <span aria-hidden="true">
-                  {shownDates ? `${place.category} · ${shownDates}` : place.category}
-                </span>
-                <span className="sr-only">
-                  {heardDates ? `${place.category}, ${heardDates}` : place.category}
-                </span>
-              </DialogDescription>
-              {photo.caption ? <p className={styles.words}>{photo.caption}</p> : null}
-            </div>
-            <Link
-              href={`/places/${encodeURIComponent(photo.placeId)}`}
-              prefetch={false}
-              className={styles['open-link']}
-            >
-              Open place
-              <FiArrowRight aria-hidden="true" className="size-4" />
-            </Link>
-          </div>
+          <DialogCaption
+            place={place}
+            words={words}
+            href={openHref(photo)}
+            label={openLabel}
+            captionRef={captionRef}
+          />
           <DialogClose ref={closeRef} className={styles.close} aria-label="Close">
             <FiX aria-hidden="true" className="size-4" />
           </DialogClose>
@@ -302,7 +406,11 @@ function FlyingPanel({ opened, register, onClosed }: PanelProps): ReactElement {
 }
 
 /** The open photo, in a modal Radix dialog that closes by flying (or fading) back. */
-export function LivePhotoDialog({ opened, onClosed }: LivePhotoDialogProps): ReactElement {
+export function LivePhotoDialog({
+  opened,
+  onClosed,
+  ...words
+}: LivePhotoDialogProps): ReactElement {
   const closeRoutine = useRef<(() => void) | null>(null);
   const register = useCallback((close: () => void) => {
     closeRoutine.current = close;
@@ -322,6 +430,7 @@ export function LivePhotoDialog({ opened, onClosed }: LivePhotoDialogProps): Rea
           opened={opened}
           register={register}
           onClosed={onClosed}
+          {...words}
         />
       </DialogPortal>
     </Dialog>

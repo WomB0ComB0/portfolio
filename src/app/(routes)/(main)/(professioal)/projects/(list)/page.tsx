@@ -15,17 +15,21 @@
  */
 
 /**
- * @file /projects as the open Index. There is no loading.tsx (owner: "Drop it on both"), so the
- * rows are in the first HTML and show without JavaScript. The page stays in the (list) route
+ * @file /projects in three views: Stories (the default, Folio chapters with a lead story each),
+ * Index (?view=index, a contents page in words) and Screens (?view=screens, every project's
+ * images as the /places photo wall). There is no loading.tsx (owner: "Drop it on both"), so every
+ * project is in the first HTML and shows without JavaScript. The page stays in the (list) route
  * group so list-only files never wrap /projects/[id], whose notFound() must still answer 404.
- * The URL's filters (?q, ?category, ?tech) are read by the island through nuqs, which the
- * dynamic root layout gives the search params during the server render.
+ * The view is read here; the URL's filters (?q, ?category, ?tech) are read by the island through
+ * nuqs, which the dynamic root layout gives the search params during the server render. The
+ * canonical URL stays /projects for every view.
  */
 
 import type { JSX } from 'react';
 import { Projects } from '@/app/(routes)/(main)/(professioal)/projects/_interface/projects-index';
 import { loadProjects } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils';
+import { parseProjectView, VIEW_PARAM } from '../_lib/project-views';
 
 export const metadata = constructMetadata({
   title: 'Projects',
@@ -33,11 +37,17 @@ export const metadata = constructMetadata({
   path: '/projects',
 });
 
+interface ProjectsPageProps {
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
 /**
- * Every project in the Index, rendered on the server. A Sanity outage with nothing cached
- * rejects here and reaches the (routes) error view inside the shell.
+ * Every project in the view the URL names, rendered on the server. A Sanity outage with nothing
+ * cached rejects here and reaches the (routes) error view inside the shell.
  */
-export default async function ProjectsPage(): Promise<JSX.Element> {
-  const projects = await loadProjects();
-  return <Projects projects={projects} />;
+export default async function ProjectsPage({
+  searchParams,
+}: ProjectsPageProps = {}): Promise<JSX.Element> {
+  const [projects, params] = await Promise.all([loadProjects(), searchParams]);
+  return <Projects projects={projects} view={parseProjectView(params?.[VIEW_PARAM])} />;
 }

@@ -23,6 +23,9 @@
  * Radix dialog: focus starts on Done and is trapped, Escape or Done closes it, and focus goes
  * back to the Wall button. A photo opened from it stacks the open view on top (Escape closes only
  * that). It fades in by opacity.
+ *
+ * Its title and the wall's words are the places' by default ('266 photos from 51 past visits');
+ * another page (the /projects Screens view) passes its own.
  */
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -32,10 +35,16 @@ import { Dialog, DialogClose, DialogPortal, DialogTitle } from '@/components/ui/
 import type { WallPhoto } from '@/types/places';
 import { photoCountLabel, visitCountLabel } from '../_lib/photo-labels';
 import type { OpenPhoto, PlacesById } from './photo-types';
-import { LiveWall } from './photo-wall-live';
+import { LiveWall, type WallWords } from './photo-wall-live';
 import styles from './wall-sheet.module.css';
 
-export interface LiveWallSheetProps {
+/** The sheet's title: the count, then a quieter line ('266 photos' / 'from 51 past visits'). */
+export interface SheetTitle {
+  readonly lead: string;
+  readonly sub: string;
+}
+
+export interface LiveWallSheetProps extends WallWords {
   readonly photos: readonly WallPhoto[];
   readonly places: PlacesById;
   readonly placeCount: number;
@@ -44,6 +53,8 @@ export interface LiveWallSheetProps {
   readonly onClose: () => void;
   /** Focus goes back here on close: the view's Wall button. */
   readonly returnFocus: RefObject<HTMLElement | null>;
+  /** The title; the photos and the visits they come from by default. */
+  readonly title?: SheetTitle;
 }
 
 /** The wall full screen, with its title and Done. */
@@ -54,8 +65,14 @@ export function LiveWallSheet({
   onOpen,
   onClose,
   returnFocus,
+  title,
+  ...words
 }: LiveWallSheetProps): ReactElement {
   const doneRef = useRef<HTMLButtonElement>(null);
+  const { lead, sub } = title ?? {
+    lead: photoCountLabel(photos.length),
+    sub: `from ${visitCountLabel(placeCount)}`,
+  };
   return (
     <Dialog
       open
@@ -80,14 +97,15 @@ export function LiveWallSheet({
         >
           <div className={styles.bar}>
             <DialogTitle className={styles.title}>
-              {photoCountLabel(photos.length)}
-              <span className={styles.sub}>from {visitCountLabel(placeCount)}</span>
+              {lead}
+              <span className={styles.sub}>{sub}</span>
             </DialogTitle>
             <DialogClose ref={doneRef} className={styles.done}>
               Done
             </DialogClose>
           </div>
           <LiveWall
+            {...words}
             photos={photos}
             places={places}
             placeCount={placeCount}

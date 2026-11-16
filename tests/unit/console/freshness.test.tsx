@@ -17,8 +17,9 @@
 /**
  * @file formatAge words an age in whole units ('just now', 'N min ago', 'N h ago', 'N d ago') and
  * gives up ('') on invalid or future moments. Freshness shows it in a <time> that keeps up with
- * the clock every 30 s, stops its timer on unmount, and after hydration shows the browser's age
- * rather than the server's, without a hydration error. formatAge lives in a module with no
+ * the clock every 30 s, counts a new moment from the current time rather than its last tick,
+ * stops its timer on unmount, and after hydration shows the browser's age rather than the
+ * server's, without a hydration error. formatAge lives in a module with no
  * directive, so server components can call it, and the console barrel exports that copy.
  *
  * Timers and the system clock are faked, so "now" is fixed until a test moves it.
@@ -140,6 +141,37 @@ describe('Freshness', () => {
     expect(screen.getByText('updated 3 min ago')).toBeInTheDocument();
   });
 
+  it('counts a new moment from the current time, not from its last 30 s tick', () => {
+    const { rerender } = render(<Freshness at={NOW} />);
+    // 20 s on, between two ticks, a new figure arrives that was read 10 min and 1 s before.
+    act(() => {
+      vi.advanceTimersByTime(20 * SECOND);
+    });
+    rerender(<Freshness at={NOW + 20 * SECOND - 10 * MINUTE - SECOND} />);
+    expect(screen.getByText('updated 10 min ago')).toBeInTheDocument();
+
+    // One read 46 s before it arrived is a minute old, not 'just now'.
+    act(() => {
+      vi.advanceTimersByTime(5 * SECOND);
+    });
+    rerender(<Freshness at={NOW + 25 * SECOND - 46 * SECOND} />);
+    expect(screen.getByText('updated 1 min ago')).toBeInTheDocument();
+
+    // It keeps ticking every 30 s from then on, with one timer: at 120 s the figure is 141 s old.
+    act(() => {
+      vi.advanceTimersByTime(100 * SECOND);
+    });
+    expect(screen.getByText('updated 2 min ago')).toBeInTheDocument();
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('settles on nothing for an invalid moment given again', () => {
+    const { container, rerender } = render(<Freshness at="not a date" />);
+    rerender(<Freshness at={Number.NaN} />);
+    rerender(<Freshness at="still not a date" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('stops its timer on unmount', () => {
     const { unmount } = render(<Freshness at={NOW} />);
     expect(vi.getTimerCount()).toBe(1);
@@ -191,4 +223,35 @@ describe('Freshness', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it.each([
+    ['behind', -5 * MINUTE],
+    ['ahead', 5 * MINUTE],
+  ])(
+    'hydrates without an error by a clock 5 min %s, then counts a new moment from now',
+    async (_, skew) => {
+      const at = NOW - 30 * SECOND;
+      const container = document.createElement('div');
+      container.innerHTML = renderToString(<Freshness at={at} />);
+      document.body.append(container);
+
+      vi.setSystemTime(NOW + skew);
+      const onRecoverableError = vi.fn();
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const root = await act(async () =>
+        hydrateRoot(container, <Freshness at={at} />, { onRecoverableError }),
+      );
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+
+      // 20 s later, between ticks, a figure read 3 min before (by this clock) arrives.
+      await act(async () => {
+        vi.advanceTimersByTime(20 * SECOND);
+      });
+      await act(async () => root.render(<Freshness at={NOW + skew + 20 * SECOND - 3 * MINUTE} />));
+      expect(container.textContent).toBe('updated 3 min ago');
+      act(() => root.unmount());
+      container.remove();
+    },
+  );
 });

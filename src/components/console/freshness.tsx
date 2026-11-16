@@ -22,7 +22,9 @@
  * The server and the browser read the clock at different moments, so the text can differ on
  * hydration. The <time> element suppresses that one warning and holds nothing but its text; keep
  * it a leaf. React leaves a suppressed mismatch unpatched, so a layout effect brings the text up
- * to the browser's clock right after hydration. It re-reads the clock every 30 s.
+ * to the browser's clock right after hydration. It re-reads the clock every 30 s, and whenever
+ * the moment changes, so a figure that has just arrived is aged from now rather than from the
+ * last tick (a read 10 min old read '9 min ago' for up to 30 s).
  *
  * The wording lives in format-age.ts, which has no directive, so server code can call formatAge.
  */
@@ -37,16 +39,33 @@ const REFRESH_MS = 30_000;
 
 const DEFAULT_PREFIX = 'updated';
 
-/** The current time, re-read every `intervalMs`. */
-function useNow(intervalMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
+/** The clock as last read, and the moment it was read for. */
+interface ClockReading {
+  readonly moment: number;
+  readonly now: number;
+}
+
+/**
+ * The current time, read when `moment` first renders, again whenever `moment` changes, and every
+ * `intervalMs` in between. A new moment is stored during the render that brings it (React's way
+ * to follow a prop: it renders again before committing), so the first render, and the one that
+ * hydrates the server's HTML, read the clock exactly as before. Moments compare with Object.is,
+ * so an invalid one (NaN) given again is no change.
+ */
+function useNow(moment: number, intervalMs: number): number {
+  const [reading, setReading] = useState<ClockReading>(() => ({ moment, now: Date.now() }));
+  const current = Object.is(reading.moment, moment) ? reading : { moment, now: Date.now() };
+  if (current !== reading) setReading(current);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    const timer = setInterval(
+      () => setReading((last) => ({ moment: last.moment, now: Date.now() })),
+      intervalMs,
+    );
     return () => clearInterval(timer);
   }, [intervalMs]);
 
-  return now;
+  return current.now;
 }
 
 export interface FreshnessProps {
@@ -69,9 +88,9 @@ export function Freshness({
   prefix = DEFAULT_PREFIX,
   className,
 }: FreshnessProps): ReactElement | null {
-  const now = useNow(REFRESH_MS);
-  const timeRef = useRef<HTMLTimeElement>(null);
   const time = toTime(at);
+  const now = useNow(time, REFRESH_MS);
+  const timeRef = useRef<HTMLTimeElement>(null);
   const age = formatAge(time, now);
   // One string, so the <time> holds a single text node for suppressHydrationWarning to cover.
   const text = age && prefix ? `${prefix} ${age}` : age;

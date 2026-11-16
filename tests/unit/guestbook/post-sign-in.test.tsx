@@ -159,7 +159,7 @@ const rows = () => Array.from(document.querySelectorAll('li[data-message-row]'))
 const renderBoard = () =>
   render(
     <PostedMessagesProvider>
-      <GuestbookBoard knownIds={[]} listState="empty" notice={<p>No messages yet</p>} />
+      <GuestbookBoard knownIds={[]} listState="empty" />
     </PostedMessagesProvider>,
   );
 

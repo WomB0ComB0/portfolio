@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-// Never re-export the _interface modules here: they are server-only (urlFor), and client
-// components import from this folder.
 export { default as DraggableGallery } from './draggable-gallery';
-export { type GroupedRow, ProjectGroups } from './project-groups';
-export { PROJECTS_DESCRIPTION, PROJECTS_TITLE, ProjectsStatStrip } from './project-header';
-export { LIST_CLASS, PROJECT_COLUMNS } from './project-index-classes';
-export { ProjectRow } from './project-row';
-export { type ProjectRowItem, ProjectsIndex, type ProjectsIndexProps } from './projects-index';
+// Never re-export the _interface modules here: they are server-only (urlFor), and client
+// components import from this folder. The project page's own parts (its case study in
+// _components/detail/) are imported by path, not through here, so the project page can change
+// them on its own.
+export { LeadStory, type LeadStoryProps } from './lead-story';
+export { type BriefLayout, ProjectBrief, type ProjectBriefProps } from './project-brief';
+export { ProjectContents, type ProjectContentsProps } from './project-contents';
+export { PROJECTS_DESCRIPTION, PROJECTS_TITLE, ProjectsByline } from './project-header';
+export { ProjectScreens, type ProjectScreensProps } from './project-screens';
+export { ProjectStories, type ProjectStoriesProps } from './project-stories';
+export { ProjectsIndex, type ProjectsIndexProps } from './projects-index';
+export { StoryActions, StoryCover, type StoryCoverProps, StoryLink } from './story-parts';
