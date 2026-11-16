@@ -26,7 +26,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { KBarProvider } from 'kbar';
 import { compile } from 'tailwindcss';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -134,7 +134,9 @@ const openPalette = async (): Promise<HTMLElement> => {
   act(() => {
     fireEvent.keyDown(document.body, { key: 'k', code: 'KeyK', ctrlKey: true });
   });
-  await screen.findByRole('combobox');
+  const search = await screen.findByRole('combobox');
+  // The search mounts during animatingIn; expanded means KBar's timer has settled to showing.
+  await waitFor(() => expect(search).toHaveAttribute('aria-expanded', 'true'));
   const scrollBox = screen.getByRole('listbox').parentElement;
   if (!scrollBox) throw new Error('kbar rendered no scroll box around the results');
   return scrollBox;
