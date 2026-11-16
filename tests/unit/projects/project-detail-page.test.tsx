@@ -28,7 +28,8 @@
  * - a project with no image gets its description as the plate and no Screens section; one with
  *   only a cover has no Screens section either;
  * The real loaders run; only the Sanity client (with the real URL builder), the env, Sentry,
- * and YouTube are mocked. Media links will be connected by the separate Media extraction.
+ * and YouTube are mocked. The related-media loader is stubbed here; its pairing/deadline/cache
+ * behavior has separate Media tests. This file verifies the final page wiring and safe links.
  */
 
 import { render, screen, within } from '@testing-library/react';
@@ -37,6 +38,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '@/hooks/sanity/schemas';
 
 const sanity = vi.hoisted(() => ({ sanityFetchWithToken: vi.fn() }));
+const media = vi.hoisted(() => ({ loadProjectMedia: vi.fn() }));
+vi.mock('@/app/(routes)/(dev)/media/_lib/load-project-media', () => media);
 
 // t3-env validates every variable on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -132,6 +135,7 @@ beforeEach(() => {
   resetSanityLoaderCaches();
   sanity.sanityFetchWithToken.mockReset();
   sanity.sanityFetchWithToken.mockResolvedValue([GREPO, EARLIER, LATER, NO_IMAGE, COVER_ONLY, DUO]);
+  media.loadProjectMedia.mockReset().mockResolvedValue([]);
   vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 });
 
@@ -141,6 +145,7 @@ describe('/projects/[id] status', () => {
       digest: expect.stringMatching(NOT_FOUND_DIGEST),
     });
     expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
+    expect(media.loadProjectMedia).not.toHaveBeenCalled();
   });
 
   it('rejects a malformed id with a 404 without asking Sanity', async () => {
@@ -157,6 +162,50 @@ describe('/projects/[id] status', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(String((error as { digest?: unknown }).digest ?? '')).not.toMatch(NOT_FOUND_DIGEST);
+  });
+});
+
+describe('/projects/[id] related Media', () => {
+  it('loads the confirmed items for this project and renders See also before the return link', async () => {
+    media.loadProjectMedia.mockResolvedValue([
+      {
+        id: 'video-grepo',
+        kind: 'video',
+        title: 'grepo demo',
+        href: 'https://www.youtube.com/watch?v=example1234',
+      },
+      {
+        id: 'post-grepo',
+        kind: 'post',
+        title: 'Building grepo',
+        href: 'https://example.com/building-grepo',
+      },
+    ]);
+    render(await pageFor(GREPO._id));
+
+    expect(media.loadProjectMedia).toHaveBeenCalledWith(GREPO._id);
+    const related = screen.getByRole('complementary', { name: 'See also' });
+    expect(within(related).getAllByRole('listitem')).toHaveLength(2);
+    const video = within(related).getByRole('link', { name: /Video: grepo demo/ });
+    expect(video).toHaveAttribute('href', 'https://www.youtube.com/watch?v=example1234');
+    expect(video).toHaveAttribute('target', '_blank');
+    expect(video).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(within(related).getByRole('link', { name: /All writing and video/ })).toHaveAttribute(
+      'href',
+      '/media',
+    );
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    const back = screen.getByRole('link', { name: 'Back to all projects' });
+    expect(related.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('omits See also when the loader has no related items, including its unavailable-data fallback', async () => {
+    render(await pageFor(NO_IMAGE._id));
+
+    expect(media.loadProjectMedia).toHaveBeenCalledWith(NO_IMAGE._id);
+    expect(screen.queryByRole('complementary', { name: 'See also' })).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'LinkThing' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to all projects' })).toBeTruthy();
   });
 });
 

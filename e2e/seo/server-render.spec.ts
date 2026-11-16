@@ -15,42 +15,30 @@
  */
 
 /**
- * @file Server rendering, checked the way a crawler that runs no JavaScript sees the site:
- * - every page answers 200 with its h1 shown in the server HTML, inside the shell's one
- *   main#main-content, and never the full-screen wolf Loader;
- * - each Sanity page puts a real item in that HTML, not only its header: a link to a detail
- *   page, a certification, or the resume (its PDF frame, or the note that none is published);
- * - an unknown URL answers a real 404 inside the shell (nav plus "Page not found");
- * - an unknown detail id answers a real 404 with noindex.
- * With JavaScript, each Sanity page shows its items on a hard load, an unknown detail id shows
- * "Page not found" inside the shell, and a client navigation keeps the shell mounted with no
- * Loader.
+ * @file Server rendering as a visitor without JavaScript sees the final portfolio:
+ * - Folio Projects (Stories, Index and Screens), Certifications, Experience Story and Guestbook
+ *   Wall must render readable content inside the shell, not in hidden streamed segments;
+ * - Media, Spotify, Sponsor and Stats must render their actual sections, figures or honest
+ *   source-specific empty/error states, not just a page heading;
+ * - every page answers 200 with its visible h1, one main and no full-screen wolf Loader;
+ * - unknown URLs and detail IDs preserve real 404/noindex behavior;
+ * - hard loads with JavaScript retain the same content, and client navigation keeps the shell.
  *
- * A page whose list is empty (a dataset with no documents) skips its content checks.
- *
- * Each check first requests its page once, so the page's loaders are cached (and, under
- * `next dev`, its route is compiled) before the browser loads it.
- *
- * Two limits are by design, so the no-JavaScript checks assert presence, not display:
- * - The list pages with a loading.tsx (/experience, /resume) show their skeleton (with the
- *   page's own h1) at once on a client navigation. React always flushes that skeleton first and
- *   streams the items into a hidden element that an inline script moves into place, even when
- *   the whole response is ready within milliseconds. Crawlers get every item in the HTML; a
- *   visitor without JavaScript sees the skeleton. /certifications, /guestbook, /places and
- *   /projects have no loading.tsx (owner decisions; for /places and /projects "Drop it on
- *   both"), so their items show without JavaScript (e2e/journeys/certifications.spec.ts,
- *   e2e/journeys/guestbook.spec.ts, e2e/journeys/places-filters.spec.ts,
- *   e2e/journeys/projects-index.spec.ts).
- * - A detail page calls notFound() with no Suspense above it, which is what makes its status a
- *   real 404. Next answers that with an empty error document plus the payload, and the browser
- *   renders "Page not found" inside the shell from it.
- * /stats, /spotify, /media and /sponsor have no loading.tsx: they render their header at once and
- * stream each section behind its own Suspense, so for them the h1 is the check.
+ * Empty lists assert their real empty label instead of skipping. Resume alone retains its
+ * existing loading.tsx exception: the PDF/note must be in the response HTML, but may be in a
+ * hidden streamed segment without JavaScript. Detail notFound() still sends an empty error
+ * document without JavaScript so that its status remains 404; the JS case checks its shell UI.
+ * All browser traffic is GET/HEAD only and service workers are blocked. A GET warm-up fills
+ * bounded loader caches before each content check; it never signs in or posts a note.
  */
 
 import { type APIRequestContext, expect, type Locator, type Page, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
+import { readOnly } from '../fixtures/console-routes';
+
+test.use({ serviceWorkers: 'block' });
+test.beforeEach(async ({ page }) => readOnly(page));
 
 /** The shell's one `<main>` (src/components/animations/pages/page-transition.tsx). */
 const MAIN = 'main#main-content';
@@ -71,9 +59,12 @@ const NAV_PANEL_TIMEOUT_MS = 2_000;
 const SERVER_PAGES = [
   '/',
   '/projects',
+  '/projects?view=index',
+  '/projects?view=screens',
   '/experience',
   '/certifications',
   '/places',
+  '/places/photos',
   '/resume',
   '/media',
   '/spotify',
@@ -86,63 +77,103 @@ const SERVER_PAGES = [
 /** What /resume shows when no resume is published: a state of the page, not an error. */
 const NO_RESUME_TEXT = 'No resume is published right now';
 
-/** A page with Sanity content and one real item of it that the loaded page shows. */
+/** A content view and the real rows or section it must render. */
 interface ContentPage {
   readonly path: string;
-  /** The page's items, found inside the shell's main. */
   readonly item: (main: Locator) => Locator;
-  /** What the page shows when Sanity has no documents; the check is skipped then. */
-  readonly emptyText?: string;
+  /** The server's grid, where JavaScript may replace it with a virtual photo wall. */
+  readonly serverItem?: (main: Locator) => Locator;
+  readonly emptyText?: string | RegExp;
+  /** Only Resume still streams its content behind a loading boundary. */
+  readonly streamedWithoutScript?: boolean;
+  readonly details?: (page: Page, main: Locator) => Promise<void>;
 }
 
-/** Links to the list's detail pages, e.g. /projects/<id>. */
 const detailLinks =
   (path: string) =>
   (main: Locator): Locator =>
     main.locator(`a[href^="${path}/"]`);
 
+const projectGrid = (main: Locator): Locator =>
+  detailLinks('/projects')(main.getByRole('list', { name: 'Images', exact: true }));
+const placeGrid = (main: Locator): Locator =>
+  detailLinks('/places')(main.getByRole('list', { name: 'Photos', exact: true }));
+
+/** Selectors are shared with the route journeys: Folio entries, Story stops and Wall notes. */
 const CONTENT_PAGES: readonly ContentPage[] = [
-  { path: '/projects', item: detailLinks('/projects'), emptyText: 'No projects yet' },
+  {
+    path: '/projects',
+    item: (main) => main.locator('a[data-story-link]'),
+    emptyText: 'No projects yet.',
+  },
+  {
+    path: '/projects?view=index',
+    item: (main) => main.locator('[data-project-entry] a[data-story-link]'),
+    emptyText: 'No projects yet.',
+  },
+  {
+    path: '/projects?view=screens',
+    item: (main) =>
+      projectGrid(main).or(main.locator('[aria-roledescription="image wall"] [data-cell]')),
+    serverItem: projectGrid,
+    emptyText: /^(No projects yet\.|No images match)$/,
+  },
   {
     path: '/experience',
-    item: detailLinks('/experience'),
-    emptyText: 'No work experience listed at the moment.',
+    item: (main) => main.locator('[data-role-row] a[data-role-page]'),
+    emptyText: 'No roles listed yet',
   },
   {
     path: '/places',
-    // The cards' links only: the "Places | Photos" nav also links under /places/.
     item: (main) => main.locator('li[data-place-card] a[href^="/places/"]'),
     emptyText: 'No places found',
   },
   {
     path: '/places/photos',
-    // A photo: its grid link (touch, and the first HTML), or a card of the wall a mouse gets.
     item: (main) =>
-      main.locator(
-        'ul[aria-label="Photos"] a[href^="/places/"], [aria-roledescription="photo wall"] [data-cell]',
-      ),
+      placeGrid(main).or(main.locator('[aria-roledescription="photo wall"] [data-cell]')),
+    serverItem: placeGrid,
     emptyText: 'No photos yet',
   },
   {
     path: '/certifications',
-    // A certificate's row in the Ledger. A CSS locator, because role queries skip a streamed
-    // segment while it is still hidden.
-    item: (main) => main.locator('tr[data-cert-row]'),
+    item: (main) => main.locator('[data-cert-item]'),
     emptyText: 'No certificates are listed yet.',
   },
   {
     path: '/guestbook',
-    // A message's row: the page loads the guestbook on the server, every message, no pagination.
     item: (main) => main.locator('li[data-message-row]'),
-    emptyText: 'No messages yet',
+    emptyText: /^(No messages yet|Messages couldn't load)$/,
   },
   {
     path: '/resume',
-    // The PDF's frame, or the note that none is published: either one is the page's content.
     item: (main) =>
       main
         .locator('iframe[title="Resume PDF"]')
         .or(main.getByText(NO_RESUME_TEXT, { exact: true })),
+    streamedWithoutScript: true,
+  },
+  {
+    path: '/media',
+    item: (main) => main.locator('[data-feed-row]'),
+    emptyText: 'Nothing published yet',
+    details: expectMediaContent,
+  },
+  {
+    path: '/spotify',
+    item: (main) => main.locator('[data-spotify-track]'),
+    emptyText: /^(No top tracks yet|Couldn't load top tracks)$/,
+    details: expectSpotifyContent,
+  },
+  {
+    path: '/sponsor',
+    item: (main) => main.locator('[data-sponsor-ways] li'),
+    details: expectSponsorContent,
+  },
+  {
+    path: '/stats',
+    item: (main) => main.locator('[data-stats-tile]'),
+    details: expectStatsContent,
   },
 ];
 
@@ -151,11 +182,6 @@ const MISSING_DETAILS = ['/projects/__nope__', '/experience/__nope__', '/places/
 
 /** A URL no route matches: the root not-found renders in full on the server. */
 const UNMATCHED_URL = '/no-such-page';
-
-/** Whether the page lists no items, so its content checks have nothing to find. */
-async function isEmptyList(page: Page, emptyText: string | undefined): Promise<boolean> {
-  return emptyText !== undefined && (await page.getByText(emptyText, { exact: true }).count()) > 0;
-}
 
 const urlOf = (path: string): string => `${getTargetUrl()}${path}`;
 
@@ -207,6 +233,159 @@ async function expectServerHeading(page: Page): Promise<Locator> {
 const shownNav = (page: Page): Locator =>
   page.getByRole('navigation', { name: /^(Main|Mobile) navigation$/ }).first();
 
+/** Every non-Resume view must expose its real content inside main, visibly and opaquely. */
+async function expectContent(
+  page: Page,
+  content: ContentPage,
+  withoutScript: boolean,
+): Promise<void> {
+  const main = page.locator(MAIN);
+  await expect(main).toHaveCount(1);
+  await expectServerHeading(page);
+  if (withoutScript && content.streamedWithoutScript) {
+    const item = content.item(page.locator('body')).first();
+    await expect(item).toBeAttached();
+    expect(
+      await item.evaluate((element) => {
+        for (let node: Element | null = element; node; node = node.parentElement) {
+          if (node instanceof HTMLElement && node.style.opacity === '0') return true;
+        }
+        return false;
+      }),
+    ).toBe(false);
+    return;
+  }
+  const items = (withoutScript ? (content.serverItem ?? content.item) : content.item)(main);
+  // Hydration can replace the grid before the lazy wall has mounted its cells. Wait for real
+  // content or an explicit source state before deciding which branch the page is showing.
+  const empty = content.emptyText ? main.getByText(content.emptyText, { exact: true }) : undefined;
+  await expect(firstShown(empty ? items.or(empty) : items)).toBeVisible();
+  if (await items.count()) {
+    await expectShown(firstShown(items), `${content.path}'s first content item`);
+    if (withoutScript) {
+      const hidden = await items.evaluateAll(
+        (elements) =>
+          elements.filter((element) => {
+            if (!element.checkVisibility()) return true;
+            for (let node: Element | null = element; node; node = node.parentElement) {
+              if (getComputedStyle(node).opacity === '0') return true;
+            }
+            return false;
+          }).length,
+      );
+      expect(hidden, `${content.path} has hidden server-rendered content`).toBe(0);
+    }
+  } else {
+    expect(
+      content.emptyText,
+      `${content.path} must render its data, not only its header`,
+    ).toBeDefined();
+    await expectShown(
+      main.getByText(content.emptyText as string | RegExp, { exact: true }),
+      `${content.path}'s source state`,
+    );
+  }
+  await content.details?.(page, main);
+}
+
+/** Media's rows are actual titled pieces; an empty feed must state that it has nothing published. */
+async function expectMediaContent(_page: Page, main: Locator): Promise<void> {
+  const rows = main.locator('[data-feed-row]');
+  await expect(main.getByRole('tablist')).toHaveCount(0);
+  if (await rows.count()) {
+    const title = rows.first().locator('[data-feed-title]');
+    await expectShown(title, 'the first media title');
+    await expect(title).not.toBeEmpty();
+    await expect(title).toHaveAttribute('href', /\S/);
+  }
+}
+
+/** Spotify must expose both ranked lists and a readable first now-playing state. */
+async function expectSpotifyContent(_page: Page, main: Locator): Promise<void> {
+  const hero = main.locator('[data-spotify-hero]');
+  await expectShown(hero, 'the Spotify hero');
+  await expect(hero).toHaveAttribute(
+    'data-state',
+    /^(playing|playing-unknown|recent|nothing|unreachable)$/,
+  );
+  const tracks = main.locator('[data-spotify-track]');
+  if (await tracks.count()) {
+    const ranks = await tracks.locator('[data-rank]').allTextContents();
+    expect(ranks.length).toBeLessThanOrEqual(20);
+    expect(ranks.map((rank) => Number(rank.trim()))).toEqual(ranks.map((_, index) => index + 1));
+    await expectShown(main.getByRole('table', { name: /Top tracks/ }), 'the ranked tracks');
+  }
+  const artists = main.locator('[data-spotify-artist]');
+  if (await artists.count()) {
+    expect(await artists.count()).toBeLessThanOrEqual(10);
+    await expectShown(artists.first(), 'the first top artist');
+  } else {
+    await expectShown(
+      main.getByRole('heading', { name: /^(No top artists yet|Couldn't load top artists)$/ }),
+      'the artist source state',
+    );
+  }
+}
+
+/** Four real sponsor destinations and the thank-you section must render without a client fetch. */
+async function expectSponsorContent(_page: Page, main: Locator): Promise<void> {
+  await expect(main.locator('a').first()).toContainText('Sponsor on GitHub');
+  const ways = main.locator('[data-sponsor-ways]');
+  await expect(ways.locator('li')).toHaveCount(4);
+  await expect(ways.getByRole('heading', { level: 3 })).toHaveText([
+    /GitHub Sponsors/,
+    /Open Collective/,
+    /Ko-fi/,
+    /Buy Me a Coffee/,
+  ]);
+  const thanks = main.locator('[data-sponsor-thanks-section]');
+  await expectShown(
+    thanks.getByRole('heading', { name: 'Thank you', exact: true }),
+    'the sponsor thanks heading',
+  );
+  await expectShown(
+    thanks
+      .locator('[data-sponsor-thanks]')
+      .or(thanks.getByRole('heading', { name: /^(No sponsors yet|Couldn't load sponsors)$/ })),
+    'the sponsor data or source state',
+  );
+}
+
+/** All five Stats sources must contain real figures or their named unavailable/empty states. */
+async function expectStatsContent(_page: Page, main: Locator): Promise<void> {
+  const names = ['github', 'discord', 'leetcode', 'typing', 'coding'];
+  await expect(main.locator('[data-stats-tile]')).toHaveCount(names.length);
+  for (const name of names) {
+    const tile = main.locator(`[data-stats-tile="${name}"]`);
+    await expectShown(tile, `the ${name} source`);
+    await expect(tile.locator('h2')).toHaveCount(1);
+    await expect(tile).toHaveAttribute('data-state', /^(ready|stale|partial|error|idle|empty)$/);
+    const state = await tile.getAttribute('data-state');
+    if (name === 'discord') {
+      await expect(tile).toContainText(
+        /Online|Idle|Do not disturb|Offline|Discord status unavailable|Discord didn.t answer in time/,
+      );
+    } else if (['ready', 'stale', 'partial'].includes(state ?? '')) {
+      await expect(tile).toContainText(/\d/);
+    } else {
+      await expect(tile).toContainText(
+        /unavailable|No solved problems yet|No 60 s test yet|No coding time yet/,
+      );
+    }
+  }
+  const repos = main.locator('[data-stats-repo]');
+  if (await repos.count()) {
+    expect(await repos.count()).toBeLessThanOrEqual(6);
+    await expectShown(repos.first(), 'the first repository');
+  } else {
+    await expectShown(
+      main.getByRole('heading', { name: /^(Repositories unavailable|No repositories yet)$/ }),
+      'the repository source state',
+    );
+  }
+  await expect(main.locator('[data-gauge]')).toHaveCount(0);
+}
+
 test.describe('server HTML without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -225,27 +404,15 @@ test.describe('server HTML without JavaScript', () => {
     });
   }
 
-  for (const { path, item, emptyText } of CONTENT_PAGES) {
-    test(`${path} puts its items in the server HTML`, async ({ page, request }) => {
-      await warmLoaders(request, path);
-      await page.goto(urlOf(path));
-      test.skip(await isEmptyList(page, emptyText), `${path} lists no items here`);
-
-      // Anywhere in the document: a streamed list sits in a hidden element after the shell's main.
-      const firstItem = item(page.locator('body')).first();
-      await expect(firstItem).toBeAttached();
-
-      // Without JavaScript nothing can change an inline style, so this check can't race an
-      // animation: no entrance may leave the item, or an ancestor, serialized at opacity 0.
-      const isSerializedTransparent = await firstItem.evaluate((element) => {
-        for (let node: Element | null = element; node; node = node.parentElement) {
-          if (node instanceof HTMLElement && node.style.opacity === '0') return true;
-        }
-        return false;
-      });
-      expect(isSerializedTransparent, `${path}'s first item is serialized at opacity 0`).toBe(
-        false,
-      );
+  for (const content of CONTENT_PAGES) {
+    test(`${content.path} renders readable server content${content.streamedWithoutScript ? ' (Resume streaming exception)' : ''}`, async ({
+      page,
+      request,
+    }) => {
+      await warmLoaders(request, content.path);
+      const response = await page.goto(urlOf(content.path));
+      expect(response?.status()).toBe(200);
+      await expectContent(page, content, true);
     });
   }
 
@@ -270,14 +437,12 @@ test.describe('server HTML without JavaScript', () => {
 });
 
 test.describe('server-rendered pages with JavaScript', () => {
-  for (const { path, item, emptyText } of CONTENT_PAGES) {
-    test(`${path} shows its items on a hard load`, async ({ page, request }) => {
-      await warmLoaders(request, path);
-      await page.goto(urlOf(path));
-      test.skip(await isEmptyList(page, emptyText), `${path} lists no items here`);
-
-      // The page fades in only on client navigations, so a hard load must be opaque at once.
-      await expectShown(firstShown(item(page.locator(MAIN))), `${path}'s first item`);
+  for (const content of CONTENT_PAGES) {
+    test(`${content.path} shows its content on a hard load`, async ({ page, request }) => {
+      await warmLoaders(request, content.path);
+      const response = await page.goto(urlOf(content.path));
+      expect(response?.status()).toBe(200);
+      await expectContent(page, content, false);
     });
   }
 
