@@ -60,6 +60,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -73,6 +74,7 @@ import {
   useUrlFilters,
 } from '@/components/console/filter-bar';
 import { isPlainClick } from '@/lib/dom/plain-click';
+import { focusInPlace } from '@/lib/dom/steady-focus';
 import { cn } from '@/lib/utils';
 import type { FeedKind } from '../_lib/media-feed';
 import {
@@ -272,7 +274,15 @@ interface FilterLinksProps {
  * for `change`.
  */
 function FilterLinks({ root, follow }: FilterLinksProps): null {
-  const { change } = useFilterBar();
+  const { change, model } = useFilterBar();
+  const [focusPending, setFocusPending] = useState(false);
+  // Clearing a search can commit the new series before useDeferredValue reveals all its rows.
+  // Wait for that final list: its first upload may have been excluded by the old search.
+  useLayoutEffect(() => {
+    if (!focusPending || model.active.q !== model.draft.q) return;
+    setFocusPending(false);
+    focusInPlace(root.current?.querySelector<HTMLElement>(FIRST_TITLE));
+  }, [focusPending, model.active.q, model.draft.q, root]);
   useEffect(() => {
     const element = root.current;
     if (!element) return undefined;
@@ -286,8 +296,11 @@ function FilterLinks({ root, follow }: FilterLinksProps): null {
       // Every such link turns on a series or a topic, which only the results header shows: the
       // page goes straight to it, in one move.
       change(
-        () => follow(link.href),
-        () => element.querySelector<HTMLElement>(FIRST_TITLE),
+        () => {
+          setFocusPending(true);
+          follow(link.href);
+        },
+        undefined,
         { head: true },
       );
     };
