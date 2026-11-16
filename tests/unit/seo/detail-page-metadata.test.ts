@@ -75,6 +75,7 @@ vi.mock('@sentry/nextjs', () => sentry);
 import { generateMetadata as placeMetadata } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
 import { generateMetadata as experienceMetadata } from '@/app/(routes)/(main)/(professioal)/experience/[id]/page';
 import { generateMetadata as projectMetadata } from '@/app/(routes)/(main)/(professioal)/projects/[id]/page';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { resetSanityLoaderCaches } from '@/lib/sanity/loaders';
 import { logger } from '@/utils';
@@ -207,12 +208,12 @@ describe('experience detail metadata', () => {
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
-  it('still says "Not Found" for an id Sanity really does not have', async () => {
+  it('uses the site 404 metadata for an experience Sanity does not have', async () => {
     sanityApi.getExperiences.mockResolvedValue([role]);
 
     const metadata = await experienceMetadata(paramsFor('no-such-experience'));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Experience Not Found' });
+    expect(metadata).toEqual(NOT_FOUND_METADATA);
     expect(metadata.openGraph?.url).toBeUndefined();
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
