@@ -37,12 +37,14 @@ import {
   effectiveCspMode,
   sentryCspReportEndpoint,
 } from './lib/security/csp';
+import { SLASH, trimEnd } from './lib/text/trim';
 
-/** Canonical path for the layout's <link rel="canonical">: no trailing slash except the root. */
-function canonicalPath(pathname: string): string {
-  const trimmed = pathname.replace(/\/+$/, '');
-  return trimmed === '' ? '/' : trimmed;
-}
+/**
+ * Canonical path for the layout's <link rel="canonical">: no trailing slash except the root. The
+ * slashes are dropped by a loop, not '/\/+$/', whose time grows with the square of a slash run in
+ * the path, and the request line is the client's to write.
+ */
+const canonicalPath = (pathname: string): string => trimEnd(pathname, SLASH) || '/';
 
 /**
  * Builds the CSP and forwards it on the REQUEST as well as the response: App Router reads the
@@ -110,13 +112,33 @@ export function proxy(request: NextRequest): NextResponse {
  * Static files are excluded by name, not by "contains a dot" or by extension: dynamic pages such
  * as /places/[placeId] also render HTML for URLs like /places/a.b or /places/x.png, and those
  * documents must still get the CSP. Keep this list in sync with public/ and the metadata routes.
+ *
+ * Both matchers take the same source (Next reads `config` statically, so it is written twice, not
+ * shared through a constant). The proxy runs when either matches, so it is skipped only for a
+ * request with a prefetch header and `RSC: 1`, which is what the router sends for a prefetch
+ * (a flight payload, never a document). Next answers a flight payload only when RSC is exactly
+ * '1'; any other value gets the HTML document, so the RSC clause names that value. Skipping on the
+ * prefetch header alone, or on any RSC value, let a page load that sent them get HTML with no CSP,
+ * its own x-url in the canonical link and its own x-nonce on the scripts
+ * (tests/unit/seo/proxy-headers.test.ts).
+ *
+ * The prefetch clause names the values the router sends and Next treats as a prefetch: '1', '2'
+ * and '3' (next/dist/server/route-modules/app-page/parse-request-headers.js). For any other value
+ * Next renders the full payload, which must carry the proxy's own x-url and x-nonce, not the
+ * client's. Next reads a `value` as a pattern anchored at both ends (`^[123]$`, matchHas in
+ * next/dist/shared/lib/router/utils/prepare-destination.js), and an empty header as missing.
  */
 export const config = {
   matcher: [
     {
       source:
         '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
-      missing: [{ type: 'header', key: 'next-router-prefetch' }],
+      missing: [{ type: 'header', key: 'next-router-prefetch', value: '[123]' }],
+    },
+    {
+      source:
+        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
+      missing: [{ type: 'header', key: 'rsc', value: '1' }],
     },
   ],
 };
