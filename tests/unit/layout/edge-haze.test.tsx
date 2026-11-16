@@ -509,6 +509,18 @@ describe('the scroll fade fallback', () => {
     bar.remove();
   });
 
+  it('resets the bar shift on navigation without a scroll or size change', () => {
+    supportsScrollTimeline(false);
+    manualFrames();
+    recordResizeObservers();
+    const bar = stubStickyBar(0);
+    const { container, rerender } = render(<EdgeHaze path="/places" />);
+    expect(barShift(hazeOf(container))).toBe('30px');
+    bar.remove();
+    rerender(<EdgeHaze path="/" />);
+    expect(barShift(hazeOf(container))).toBe('0px');
+  });
+
   it('keeps the band down on a page without a sticky bar', () => {
     supportsScrollTimeline(false);
     manualFrames();
