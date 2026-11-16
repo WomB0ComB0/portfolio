@@ -244,6 +244,13 @@ describe('coverName among the other covers on a page', () => {
 });
 
 describe('phraseUnits and twoLineUnits', () => {
+  it.each(['\u00a0', '\u2007', '\u202f'])(
+    'keeps nonbreaking spaces in a single measured run: %j',
+    (space) => {
+      const title = ['New', 'York', 'City', 'New', 'York', 'City'].join(space);
+      expect(twoLineUnits(title)).toBe(wordUnits(title));
+    },
+  );
   it('measures a one-line phrase by its words and its spaces', () => {
     expect(phraseUnits('Brain Tumor')).toBe(wordUnits('Brain') + 0.5 + wordUnits('Tumor'));
     expect(phraseUnits('')).toBe(2);
