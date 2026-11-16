@@ -200,9 +200,14 @@ describe('MessageRow', () => {
     const text = 'Just use my LinkTree (http://linktr.ee/mikeodnis) \n- Mike';
     const note = renderRow(message({ message: text })).querySelector('li p');
     // What sits between the break opportunities, as the note can wrap.
-    const pieces = (note?.innerHTML ?? '')
-      .split('<wbr>')
-      .map((html) => html.replace(/<[^>]+>/g, '').replaceAll('&amp;', '&'));
+    if (!note) throw new Error('message row has no note');
+    const pieces = [''];
+    const walker = document.createTreeWalker(note, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.nodeName === 'WBR') pieces.push('');
+      else if (node.nodeType === Node.TEXT_NODE)
+        pieces[pieces.length - 1] += node.textContent ?? '';
+    }
     const words = Array.from(note?.children ?? []);
 
     expect(note?.textContent).toBe(text);
