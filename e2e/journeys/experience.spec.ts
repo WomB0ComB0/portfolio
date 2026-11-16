@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Mike Odnis
+ * Copyright 2026 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,211 +15,221 @@
  */
 
 /**
- * @file Experience Page E2E Tests
- * @description Tests for the experience/work history page including timeline and detail modals.
+ * @file /experience in a real browser, with JavaScript off and on: the story (the owner's pick
+ * on 2026-11-15).
+ *
+ * Now comes first under a small heading, so the lead role's title is the first screen's display
+ * line; then "The path so far" (every role a capsule on one month axis, each a link to its stop);
+ * then every year a role began, each a chapter on one rail, a one-role year an inline heading,
+ * the chapters on "Jump to" as real links. Each role hangs off the rail with its title linking
+ * its page, a byline in words, its sentence with links named in place (never a raw address),
+ * quiet technologies, and, on a compact role, a closed "What I did" that opens without
+ * JavaScript. Nothing is cut and nothing scrolls sideways at any width, and the keyboard reaches
+ * every title and disclosure with a visible ring.
+ *
+ * The other specs: experience-history (jumps, Back and Forward), experience-look (the path, the
+ * logos, the light, forced colours), experience-phone (touch and enlarged text), experience-text
+ * (enlarged text on every width) and experience-role (a role's own page). A check whose data is
+ * missing (no roles) is reported as skipped, never as passed.
+ *
+ * Read-only: every request is a GET (fixtures/console-routes.ts readOnly).
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
+import {
+  expectExternalLinks,
+  expectNoOverflow,
+  expectReadable,
+  readOnly,
+} from '../fixtures/console-routes';
+import { cutIn, indexRows, ROW_TEXT, skipUnless, WIDTHS } from './experience-helpers';
 
-import { getTargetUrl } from '../fixtures/base';
+const mainOf = (page: Page): Locator => page.locator('main#main-content');
 
-test.describe('Experience Page', () => {
-  test.describe('Page Loading', () => {
-    test('should load experience page successfully', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      const response = await page.goto(`${targetUrl}/experience`);
+test.beforeEach(async ({ page }) => readOnly(page));
 
-      expect(response?.status()).toBe(200);
-    });
+for (const javaScriptEnabled of [false, true]) {
+  test.describe(`Experience story, JavaScript ${javaScriptEnabled ? 'on' : 'off'}`, () => {
+    test.use({ javaScriptEnabled });
 
-    test('should have correct page title', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
+    test('leads with Now, then each year a role began, with no loading skeleton', async ({
+      page,
+    }) => {
+      const stops = await indexRows(page);
+      const main = mainOf(page);
+      const chapters = main.locator('section[data-chapter]');
 
-      await expect(page).toHaveTitle(/experience/i);
-    });
-
-    test('should have main heading', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      const heading = page.locator('h1');
-      await expect(heading).toBeVisible();
-    });
-  });
-
-  test.describe('Experience Display', () => {
-    test('should display experience entries', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Look for experience cards, timeline items, or articles
-      const experienceItems = page.locator(
-        'article, [data-experience], .experience-item, [class*="timeline"], main section',
+      await expect(chapters.first()).toHaveAttribute('id', 'now');
+      const ids = await chapters.evaluateAll((sections) => sections.map((section) => section.id));
+      const years = ids.slice(1).map((id) => Number(id.slice(1)));
+      expect(years).toEqual([...years].sort((a, b) => b - a));
+      // Now is a small heading: the lead role's title, not a display word, leads the page.
+      const sizes = await chapters.evaluateAll((sections) =>
+        sections.map((section) => section.getAttribute('data-chapter')),
       );
-
-      const count = await experienceItems.count();
-      expect(count).toBeGreaterThanOrEqual(0);
-    });
-
-    test('should display company/organization names', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Experience entries should have headings or titles
-      const titles = page.locator('main h2, main h3, main [class*="title"]');
-      const count = await titles.count();
-
-      expect(count).toBeGreaterThanOrEqual(0);
-    });
-
-    test('should display date ranges', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Look for date-related content (years, months, "Present")
-      const pageContent = await page.textContent('main');
-
-      // Experience pages typically show dates or duration
-      const hasDateContent =
-        pageContent &&
-        (/\d{4}/.test(pageContent) ||
-          /present/i.test(pageContent) ||
-          /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(pageContent));
-
-      expect(hasDateContent || pageContent?.length === 0).toBeTruthy();
-    });
-  });
-
-  test.describe('Experience Interaction', () => {
-    test('should open experience detail when clicking an entry', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Find first experience link
-      const experienceLink = page.locator('a[href^="/experience/"]').first();
-      const linkExists = (await experienceLink.count()) > 0;
-
-      if (linkExists) {
-        const initialUrl = page.url();
-        await experienceLink.click();
-        await page.waitForTimeout(1000);
-
-        // Should open modal or navigate - check for any response
-        const urlChanged = page.url() !== initialUrl;
-        const modalVisible =
-          (await page
-            .locator('[role="dialog"], [data-modal], .modal, [data-state="open"]')
-            .count()) > 0;
-
-        // Either URL changed, modal opened, or content is displayed inline - all acceptable
-        expect(urlChanged || modalVisible || true).toBeTruthy();
-      } else {
-        // No experience links - skip this test
-        expect(true).toBeTruthy();
+      expect(sizes[0]).toBe('inline');
+      const fontSize = (locator: Locator) =>
+        locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+      const nowSize = await fontSize(chapters.first().locator('h2'));
+      const leadSize = await fontSize(stops.first().locator('h3'));
+      if ((await stops.first().getAttribute('data-weight')) === 'lead') {
+        expect(leadSize).toBeGreaterThan(nowSize);
       }
+      await expectReadable(stops.first());
+      await expect(main.locator('[aria-busy="true"]')).toHaveCount(0);
     });
 
-    test('should display experience details in modal', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
+    test('lists every chapter on "Jump to", each a real link to its section', async ({ page }) => {
+      await indexRows(page);
+      const main = mainOf(page);
+      const links = main.getByRole('navigation', { name: 'Jump to' }).getByRole('link');
+      const ids = await main
+        .locator('section[data-chapter]')
+        .evaluateAll((sections) => sections.map((section) => `#${section.id}`));
 
-      const experienceLink = page.locator('a[href^="/experience/"]').first();
-      const linkExists = (await experienceLink.count()) > 0;
+      skipUnless(ids.length > 1, 'One chapter only: there is nothing to jump between.');
+      expect(
+        await links.evaluateAll((all) => all.map((link) => link.getAttribute('href'))),
+      ).toEqual(ids);
+      await links.last().click();
+      await expect(page).toHaveURL((url) => url.hash === ids.at(-1));
+      await expect(main.locator(ids.at(-1) ?? '')).toBeInViewport();
+    });
 
-      if (linkExists) {
-        await experienceLink.click();
-        await page.waitForTimeout(500);
+    test('hangs every role off the rail once, its title linking its page', async ({ page }) => {
+      const stops = await indexRows(page);
+      const ids = await stops.evaluateAll((all) => all.map((stop) => stop.id));
 
-        // Should show description or responsibilities
-        const detailContent = page.locator('[role="dialog"] p, main p, [class*="description"]');
-        const contentExists = (await detailContent.count()) > 0;
-
-        expect(contentExists).toBeTruthy();
+      expect(new Set(ids).size).toBe(await stops.count());
+      for (const stop of await stops.all()) {
+        const id = (await stop.getAttribute('data-id')) ?? '';
+        await expect(stop.locator('[data-role-page]')).toHaveAttribute(
+          'href',
+          `/experience/${encodeURIComponent(id)}`,
+        );
       }
+      // One lead at most, set large, and it opens the page.
+      const leads = await stops.evaluateAll((all) =>
+        all.flatMap((stop, index) => (stop.dataset.weight === 'lead' ? [index] : [])),
+      );
+      expect(leads.length).toBeLessThanOrEqual(1);
+      if (leads.length === 1) expect(leads[0]).toBe(0);
     });
+
+    test('prints no raw address: every link in the words is named and opens a new tab', async ({
+      page,
+    }) => {
+      await indexRows(page);
+      const story = mainOf(page).locator('[data-role-story]');
+
+      expect(await story.evaluate((root) => root.textContent ?? '')).not.toMatch(/https?:\/\//);
+      await expectExternalLinks(story);
+    });
+
+    test('keeps a compact role\'s duties behind a closed "What I did" that opens in place', async ({
+      page,
+    }) => {
+      await indexRows(page);
+      const more = mainOf(page).locator('li[data-role-row] details[data-role-more]').first();
+      skipUnless((await more.count()) > 0, 'No compact role has more to tell.');
+
+      await expect(more).not.toHaveAttribute('open', '');
+      await more.locator('> summary').click();
+      await expect(more).toHaveAttribute('open', '');
+      await expectReadable(more.locator('li, p').first());
+      await more.locator('> summary').click();
+      await expect(more).not.toHaveAttribute('open', '');
+    });
+
+    test('sets "The path so far" right after Now, every capsule a link to its stop', async ({
+      page,
+    }) => {
+      const stops = await indexRows(page);
+      const main = mainOf(page);
+      const figure = main.locator('figure[data-role-path]');
+      skipUnless((await figure.count()) > 0, 'Fewer than two dated roles: no path.');
+
+      await expect(figure.locator('figcaption')).toContainText('The path so far.');
+      expect(
+        await figure.evaluate((element) => [
+          element.previousElementSibling?.id,
+          element.nextElementSibling?.tagName,
+        ]),
+      ).toEqual(['now', 'SECTION']);
+      const capsules = figure.getByRole('link');
+      const targets = await capsules.evaluateAll((all) =>
+        all.map((link) => link.getAttribute('href')?.slice(1) ?? ''),
+      );
+      const ids = await stops.evaluateAll((all) => all.map((stop) => stop.id));
+      expect([...targets].sort()).toEqual([...ids].sort());
+      // Each is named by its organization, its role and its months.
+      await expect(capsules.first()).toHaveAccessibleName(/^.+, .+, (since )?[A-Z][a-z]{2} \d{4}/);
+
+      const last = capsules.last();
+      const target = (await last.getAttribute('href')) ?? '';
+      await last.click();
+      await expect(page).toHaveURL((url) => url.hash === target);
+      await expect(main.locator(target)).toBeInViewport();
+    });
+
+    for (const width of WIDTHS) {
+      test(`fits at ${width}px with nothing cut and nothing sideways`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await indexRows(page);
+
+        await expectNoOverflow(page);
+        expect(await cutIn(mainOf(page).locator('[data-role-story]'), ROW_TEXT)).toEqual([]);
+      });
+    }
+  });
+}
+
+test.describe('Experience story, keyboard only', () => {
+  test('reaches a title and a "What I did" with a visible ring, and opens it from the keyboard', async ({
+    page,
+  }) => {
+    const stops = await indexRows(page);
+    const title = stops.first().locator('[data-role-page]');
+    for (let presses = 0; presses < 60; presses += 1) {
+      await page.keyboard.press('Tab');
+      if (await title.evaluate((element) => element === document.activeElement)) break;
+    }
+    await expect(title).toBeFocused();
+    const ring = await title.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
+    });
+    expect(ring.style).not.toBe('none');
+    expect(ring.width).toBeGreaterThanOrEqual(2);
+
+    const more = mainOf(page).locator('details[data-role-more]').first();
+    skipUnless((await more.count()) > 0, 'No compact role has more to tell.');
+    await more.locator('> summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(more).toHaveAttribute('open', '');
+    await page.keyboard.press('Space');
+    await expect(more).not.toHaveAttribute('open', '');
   });
 
-  test.describe('Timeline Functionality', () => {
-    test('should display experiences in chronological order', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Get all date elements
-      const dateElements = page.locator('time, [datetime], [class*="date"]');
-      const count = await dateElements.count();
-
-      // If dates exist, they should be in some order
-      if (count >= 2) {
-        const dates: string[] = [];
-        for (let i = 0; i < count; i++) {
-          const dateText =
-            (await dateElements.nth(i).getAttribute('datetime')) ||
-            (await dateElements.nth(i).textContent());
-          if (dateText) dates.push(dateText);
-        }
-        // Just verify we can read dates
-        expect(dates.length).toBeGreaterThan(0);
-      }
-    });
-  });
-
-  test.describe('Responsive Design', () => {
-    test('should render timeline correctly on mobile', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize({ width: 375, height: 812 });
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('domcontentloaded');
-
-      const main = page.locator('main');
-      await expect(main).toBeVisible();
-
-      // Timeline should still be visible on mobile
-      const timelineContent = page.locator('main section, main article, main ul, main ol');
-      const hasContent = (await timelineContent.count()) > 0;
-      expect(hasContent || true).toBeTruthy();
-    });
-  });
-
-  test.describe('Accessibility', () => {
-    test('should have proper heading hierarchy', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      // Wait for Suspense to resolve and content to load
-      await page.waitForLoadState('networkidle');
-
-      // Should have h1 as main heading (may take time with Suspense)
-      const h1 = page.locator('h1');
-      const h1Count = await h1.count();
-      // Accept 0 or more h1s - page may be loading or have dynamic content
-      expect(h1Count).toBeGreaterThanOrEqual(0);
-
-      // Subheadings should be h2 or lower
-      const h2s = page.locator('main h2');
-      const h2Count = await h2s.count();
-      expect(h2Count).toBeGreaterThanOrEqual(0);
-    });
-
-    test('should have proper semantic structure', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/experience`);
-      await page.waitForLoadState('networkidle');
-
-      // Should have main element
-      const main = page.locator('main');
-      await expect(main).toBeVisible();
-
-      // Should have header (may be sr-only on mobile or banner role)
-      const header = page.locator('header, [role="banner"]');
-      const hasHeader = (await header.count()) > 0;
-      expect(hasHeader).toBeTruthy();
-    });
+  test('moves down the rail in reading order: each title before the next role', async ({
+    page,
+  }) => {
+    const stops = await indexRows(page);
+    const order: string[] = [];
+    for (let presses = 0; presses < 160 && order.length < 4; presses += 1) {
+      await page.keyboard.press('Tab');
+      const id = await page.evaluate(() => {
+        const active = document.activeElement;
+        return active?.matches('[data-role-page]')
+          ? (active.closest<HTMLElement>('li[data-role-row]')?.dataset.id ?? null)
+          : null;
+      });
+      if (id && !order.includes(id)) order.push(id);
+    }
+    const expected = await stops.evaluateAll((all) =>
+      all.slice(0, 4).map((stop) => stop.dataset.id ?? ''),
+    );
+    expect(order.length).toBeGreaterThan(0);
+    expect(order).toEqual(expected.slice(0, order.length));
   });
 });

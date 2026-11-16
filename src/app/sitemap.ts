@@ -17,8 +17,9 @@
 /**
  * @file /sitemap.xml: every public page, then every project, experience and place page.
  *
- * It renders on request from the loaders the pages use, so it lists the detail pages that answer
- * 200 right now, and `next build` never asks Sanity. The loaders keep each collection in memory
+ * It renders on request from the loaders the pages use, and with the rules the pages use (past
+ * places only, roles from their first month), so it lists the detail pages that answer 200
+ * right now, and `next build` never asks Sanity. The loaders keep each collection in memory
  * for a few minutes, so a crawler's fetch costs no Sanity request in the steady state.
  *
  * When Sanity fails with nothing cached for projects, experiences or places, that loader rejects
@@ -29,7 +30,9 @@
  */
 
 import type { MetadataRoute } from 'next';
+import { nyToday } from '@/app/_components/home/data/format';
 import { loadPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
+import { listedExperiences } from '@/app/(routes)/(main)/(professioal)/experience/_lib/listed-role';
 import { app } from '@/constants/app';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
@@ -152,7 +155,7 @@ async function loadDateSource<T>(
  *   /certifications or /resume undated.
  */
 export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [projects, experiences, places, certifications, resume] = await Promise.all([
+  const [projects, allExperiences, places, certifications, resume] = await Promise.all([
     loadProjects(),
     loadExperiences(),
     // Past visits only (the owner's rule): a visit still on has no page, URL or date here.
@@ -160,6 +163,9 @@ export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
     loadDateSource(loadCertifications, 'certifications'),
     loadDateSource(loadResume, 'resume'),
   ]);
+  // The roles /experience lists on New York's day: a role yet to begin has a page that answers
+  // 404 (experience/[id]/page.tsx), so it has no URL or date here until its first month.
+  const experiences = listedExperiences(allExperiences, nyToday());
 
   const lastModifiedOf: Partial<Record<StaticRoute, string>> = {
     '/projects': newestDay(projects),
