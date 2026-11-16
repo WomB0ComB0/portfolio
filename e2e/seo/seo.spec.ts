@@ -201,36 +201,32 @@ test.describe('SEO', () => {
       await page.goto(targetUrl);
 
       const jsonLd = page.locator('script[type="application/ld+json"]');
-      const count = await jsonLd.count();
 
-      // Should have at least one JSON-LD script
-      expect(count).toBeGreaterThanOrEqual(0);
-
-      if (count > 0) {
-        const content = await jsonLd.first().textContent();
-        if (content) {
-          // Should be valid JSON
-          expect(() => JSON.parse(content)).not.toThrow();
-        }
-      }
+      // The root layout renders one block on every page (e2e/seo/server-render.spec.ts checks
+      // that it is in the server HTML, not added by a script).
+      expect(await jsonLd.count()).toBeGreaterThanOrEqual(1);
+      const content = (await jsonLd.first().textContent()) ?? '';
+      expect(() => JSON.parse(content)).not.toThrow();
     });
 
     test('homepage structured data should have required fields', async ({ page }) => {
       const targetUrl = getTargetUrl();
       await page.goto(targetUrl);
 
-      const jsonLd = page.locator('script[type="application/ld+json"]');
-      const count = await jsonLd.count();
+      const content = await page
+        .locator('script[type="application/ld+json"]')
+        .first()
+        .textContent();
+      const data = JSON.parse(content ?? '') as {
+        '@context'?: string;
+        '@graph'?: Array<{ '@type'?: string; '@id'?: string }>;
+      };
 
-      if (count > 0) {
-        const content = await jsonLd.first().textContent();
-        if (content) {
-          const data = JSON.parse(content);
-          // Should have @context and @type at minimum
-          expect(data['@context']).toBeTruthy();
-          expect(data['@type']).toBeTruthy();
-        }
-      }
+      // One graph of typed nodes, each with an id the others can point at.
+      expect(data['@context']).toBe('https://schema.org');
+      const nodes = data['@graph'] ?? [];
+      expect(nodes.map((node) => node['@type'])).toEqual(['Person', 'WebSite']);
+      for (const node of nodes) expect(node['@id']).toBeTruthy();
     });
   });
 

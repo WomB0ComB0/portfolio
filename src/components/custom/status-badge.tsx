@@ -21,13 +21,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
 import Link from 'next/link';
 import { memo } from 'react';
+import { StatusDot, type StatusTone } from '@/components/console/status-dot';
+import { NEW_TAB_LABEL } from '@/components/console/tile-link';
 import { get } from '@/lib/http-clients/effect-fetcher';
 import {
   CHECKING_STATUS,
   isLastKnownAnswer,
   SERVICE_STATE_COPY,
-  type ServiceCopyKey,
-  serviceCopyKey,
   serviceStatusWords,
   statusSentence,
 } from '@/lib/status/service-state';
@@ -58,19 +58,14 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-/** The dot's colour for what an answer says; paused and unknown share the neutral one. */
-const STATUS_COLOR = {
-  operational: 'bg-emerald-500',
-  degraded: 'bg-amber-500',
-  down: 'bg-red-500',
-  unknown: 'bg-zinc-400',
-  paused: 'bg-zinc-400',
-} as const satisfies Record<ServiceCopyKey, string>;
-
-/** What the badge shows: its words (the link's name) and its dot's colour. */
+/**
+ * What the badge shows: its words (in the link's name and title) and its dot's tone, the home
+ * status tile's for the same answer, painted by the console kit's StatusDot with the palette's
+ * live, ongoing, down and faint tokens.
+ */
 export interface StatusBadgeView {
   readonly label: string;
-  readonly color: string;
+  readonly tone: StatusTone;
 }
 
 /**
@@ -84,23 +79,21 @@ export interface StatusBadgeView {
  *   kept after a later poll failed (`isError`), says 'Last known: ...', exactly as the tile does
  *   (isLastKnownAnswer). An 'unknown' state is never 'last known'.
  *
- * The dot never moves: the home page's one moving thing is the now-playing equaliser.
+ * The dot never moves: the home page's one moving thing is the now-playing equaliser. Paused and
+ * unknown answers, and no answer yet, share the neutral (idle) dot.
  *
- * @example statusBadgeView(undefined) // { label: 'Checking status…', color: 'bg-zinc-400' }
+ * @example statusBadgeView(undefined) // { label: 'Checking status…', tone: 'idle' }
  */
 export function statusBadgeView(data: StatusData | undefined, isError = false): StatusBadgeView {
   if (!data) {
     return {
       label: isError ? SERVICE_STATE_COPY.unknown.label : CHECKING_STATUS,
-      color: STATUS_COLOR.unknown,
+      tone: SERVICE_STATE_COPY.unknown.tone,
     };
   }
   const lastKnown = isLastKnownAnswer(data.state, data.stale, isError);
   const words = serviceStatusWords(data.state, data.monitors, lastKnown);
-  return {
-    label: statusSentence(words),
-    color: STATUS_COLOR[serviceCopyKey(data.state, data.monitors)],
-  };
+  return { label: statusSentence(words), tone: words.tone };
 }
 
 /**
@@ -126,8 +119,12 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
     refetchInterval: 1000 * 60, // Refetch every minute
   });
 
-  // The link's name and its title are the same words in every state.
-  const { label, color } = statusBadgeView(statusData?.data, isError);
+  /**
+   * The title is the state's words. The name starts with the visible word 'Status', shown at every
+   * width (label in name, so voice control's "click Status" finds the link), then the same words,
+   * then the new-tab cue every other external link carries.
+   */
+  const { label, tone } = statusBadgeView(statusData?.data, isError);
 
   return (
     <Link
@@ -138,11 +135,11 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
         'inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
         className,
       )}
-      aria-label={label}
+      aria-label={`Status: ${label} ${NEW_TAB_LABEL}`}
       title={label}
     >
-      <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', color)} />
-      <span className="hidden sm:inline">Status</span>
+      <StatusDot tone={tone} />
+      <span>Status</span>
     </Link>
   );
 });
