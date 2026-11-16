@@ -1,0 +1,368 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * 'Where it sits' (where-it-sits.tsx), the band between the project page's header and its case
+ * study: the named neighbours either side of one time line, with this project's dot on it.
+ * Palette tokens only. The three-column layout opens where the page container (@container/page in
+ * the shell) holds 48rem, so enlarged text keeps the phone layout. Hover moves only transform and
+ * opacity on the house spring; focus reaches the same end state at once; under reduced motion
+ * nothing moves and the light alone shows it.
+ */
+
+/* Where it sits: the neighbours either side of the line; the line on its own row on a phone. */
+.sits {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  padding-block: 1.25rem;
+  border-block: 1px solid var(--hairline);
+}
+
+.axis {
+  /* How far a ring sits from this project's dot at least: the dot, its glow and half a ring. */
+  --ring-gap: 1rem;
+
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  height: 4rem;
+  margin-inline: 0.5rem;
+}
+
+.earlier {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.later {
+  grid-column: 2;
+  grid-row: 2;
+  justify-items: end;
+  text-align: end;
+}
+
+/*
+ * A very narrow page (enlarged text on a phone): the neighbours stack, so a name keeps its line,
+ * and only the first and last years are labelled, so the labels never run together.
+ */
+@container page (width < 18rem) {
+  .sits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .later {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .year:not([data-edge]) {
+    visibility: hidden;
+  }
+}
+
+@container page (width >= 48rem) {
+  .sits {
+    grid-template-columns: 12rem minmax(0, 1fr) 12rem;
+    align-items: center;
+    gap: 2.5rem;
+  }
+
+  .axis {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .earlier,
+  .later {
+    grid-row: 1;
+  }
+
+  .earlier {
+    grid-column: 1;
+  }
+
+  .later {
+    grid-column: 3;
+  }
+}
+
+/* Its rows keep their own height when the other side is taller, so both sides read from the top. */
+.neighbour {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.125rem;
+  margin: -0.5rem -0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  color: var(--fg);
+  text-decoration: none;
+  isolation: isolate;
+}
+
+.neighbour::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  opacity: 0;
+  transition: opacity var(--motion-slow) var(--ease-effect);
+}
+
+.neighbour-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--fg-faint);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.later .neighbour-side {
+  justify-content: flex-end;
+}
+
+.arrow {
+  width: 0.875rem;
+  height: 0.875rem;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+.neighbour-name {
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.011em;
+  overflow-wrap: break-word;
+}
+
+.neighbour-month {
+  color: var(--fg-faint);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .neighbour:hover::before {
+    opacity: 1;
+    transition-duration: var(--motion-base);
+  }
+
+  .earlier.neighbour:hover .arrow {
+    transform: translateX(-3px);
+    transition-duration: var(--motion-spring-in);
+  }
+
+  .later.neighbour:hover .arrow {
+    transform: translateX(3px);
+    transition-duration: var(--motion-spring-in);
+  }
+}
+
+.neighbour:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+}
+
+.neighbour:focus-visible::before {
+  opacity: 1;
+  transition: none;
+}
+
+/*
+ * The line: a hairline, a tick at each year with its label under it, a small ring for each named
+ * neighbour, and this project as a brand dot with its month above it.
+ */
+.axis-line {
+  position: absolute;
+  top: 2rem;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--hairline-strong);
+}
+
+.tick {
+  position: absolute;
+  top: 1.625rem;
+  width: 1px;
+  height: 0.75rem;
+  background: var(--hairline-strong);
+}
+
+.year {
+  position: absolute;
+  top: 2.625rem;
+  color: var(--fg-faint);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.year[data-anchor="start"] {
+  transform: none;
+}
+
+.year[data-anchor="end"] {
+  transform: translateX(-100%);
+}
+
+/*
+ * A neighbour's ring. While its link is pointed at or focused, the ring grows on the house spring
+ * and lights in the brand ink, so the name at the side and its place on the line read as one.
+ */
+.mark {
+  position: absolute;
+  top: 2rem;
+  left: var(--at);
+  width: 0;
+  height: 0;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+/*
+ * A neighbour from the same month (or a few days off) would hide under this project's dot, so its
+ * ring is nudged to the dot's side it is on, the earlier one left and the later one right, just
+ * clear of the dot and its glow, never further out than the line's own margin. A ring already
+ * clear of the dot stays at its day (--at); this project's place is --me.
+ */
+.mark[data-mark="earlier"] {
+  left: max(-0.5rem, min(var(--at), calc(var(--me) - var(--ring-gap))));
+}
+
+.mark[data-mark="later"] {
+  left: min(calc(100% + 0.5rem), max(var(--at), calc(var(--me) + var(--ring-gap))));
+}
+
+.mark::before,
+.mark::after {
+  content: "";
+  position: absolute;
+  top: -0.3125rem;
+  left: -0.3125rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+}
+
+.mark::before {
+  background: var(--canvas);
+  box-shadow: inset 0 0 0 1px var(--fg-faint);
+}
+
+.mark::after {
+  box-shadow: inset 0 0 0 1.5px var(--brand-ink);
+  opacity: 0;
+  transition: opacity var(--motion-slow) var(--ease-effect);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sits:has(.earlier.neighbour:hover) .mark[data-mark="earlier"]::after,
+  .sits:has(.later.neighbour:hover) .mark[data-mark="later"]::after {
+    opacity: 1;
+    transition-duration: var(--motion-base);
+  }
+}
+
+/* The ring grows only when motion is welcome; under reduced motion the light alone shows it. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .sits:has(.earlier.neighbour:hover) .mark[data-mark="earlier"],
+  .sits:has(.later.neighbour:hover) .mark[data-mark="later"] {
+    transform: scale(1.4);
+    transition-duration: var(--motion-spring-in);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sits:has(.earlier.neighbour:focus-visible) .mark[data-mark="earlier"],
+  .sits:has(.later.neighbour:focus-visible) .mark[data-mark="later"] {
+    transform: scale(1.4);
+  }
+}
+
+.sits:has(.earlier.neighbour:focus-visible) .mark[data-mark="earlier"]::after,
+.sits:has(.later.neighbour:focus-visible) .mark[data-mark="later"]::after {
+  opacity: 1;
+  transition: none;
+}
+
+.me {
+  position: absolute;
+  z-index: 1;
+  top: 2rem;
+  left: var(--me);
+  width: 0;
+}
+
+.me::before {
+  content: "";
+  position: absolute;
+  top: -0.375rem;
+  left: -0.375rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 4px var(--brand-glow);
+}
+
+.me-label {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0;
+  color: var(--brand-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.me-label[data-anchor="start"] {
+  transform: translateX(-0.375rem);
+}
+
+.me-label[data-anchor="end"] {
+  transform: translateX(calc(-100% + 0.375rem));
+}
+
+@media (forced-colors: active) {
+  .me::before {
+    background: CanvasText;
+  }
+
+  .mark::before {
+    outline: 1px solid CanvasText;
+  }
+}
+
+/* Reduced motion: the arrows stay put on hover; the plate's light alone shows it. */
+@media (prefers-reduced-motion: reduce) {
+  .earlier.neighbour:hover .arrow,
+  .later.neighbour:hover .arrow {
+    transform: none;
+  }
+}

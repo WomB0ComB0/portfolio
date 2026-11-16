@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Mike Odnis
+ * Copyright 2026 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-export interface DraggableGalleryProps {
-  images: Array<{
-    url: string;
-    alt: string;
-  }>;
-  className?: string;
-}
+/**
+ * @file The project page's door to the one rule for a link Studio holds (a live site or source
+ * code): kept only when it is a real http or https address. The rule lives in
+ * _lib/project-links.ts, which /projects builds its Live and Code links with, so the list and the
+ * page never disagree. No CSS or React here, so any server or client module can import it.
+ */
+
+export { safeHref, webUrl } from '../../_lib/project-links';
