@@ -319,7 +319,7 @@ describe('an internal title link (style 2 on /projects)', () => {
 });
 
 describe('a table that wraps instead of cutting (opt-in)', () => {
-  const SHORT_SCREEN = '[@media(max-height:30rem)]:static';
+  const SHORT_SCREEN = '[@media(max-height:30rem)]:relative';
   const GROW = [
     '@max-[40rem]/page:h-auto',
     '@max-[40rem]/page:min-h-10',
@@ -343,6 +343,14 @@ describe('a table that wraps instead of cutting (opt-in)', () => {
 
   it('stops pinning the year bar and the column labels on a short screen when asked', () => {
     render(<LongHeadingGroup pin="tall-screens" />);
+    for (const bar of document.querySelectorAll('.stuck-canvas')) {
+      expect(bar.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          '[@media(max-height:30rem)]:top-auto',
+          '[@media(max-height:30rem)]:z-auto',
+        ]),
+      );
+    }
 
     expect(classesOf(document.getElementById('top'))).toEqual(
       expect.arrayContaining(['sticky', SHORT_SCREEN]),

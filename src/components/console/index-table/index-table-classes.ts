@@ -28,7 +28,7 @@
  *
  * The year bar is the h2 (sticky under the filter bar's --filter-bar-h) and the column labels
  * (sticky 2.5rem lower, the h2's own height), both above the edge haze (z-20) and under the filter
- * bar (z-30), painted on the canvas only while stuck (globals.css stuck-canvas). The labels'
+ * bar (z-30), painted on a translucent backplate only while stuck (globals.css stuck-canvas). The labels'
  * sticky box is the table and the h2's is the section, so at a year's end the labels start to
  * leave 2rem before the h2 does: one z lower (24 to 25), they slide under the year bar instead of
  * over its year, and both leave with the last row.
@@ -88,10 +88,12 @@ export const INDEX_YEAR_GROW_CLASS =
   '@max-[40rem]/page:h-auto @max-[40rem]/page:min-h-10 @max-[40rem]/page:flex-wrap @max-[40rem]/page:gap-y-0.5 @max-[40rem]/page:pt-[calc(0.625rem-1px)]';
 /**
  * On a short screen (a phone on its side) a pinned year bar and column labels, under the filter
- * bar and over the bottom bar, leave under half the screen for the rows. With IndexGroup's
+ * bar and over the bottom bar, leave under half the screen for the rows. Relative positioning
+ * still contains the backplate; top-auto and z-auto restore normal-flow offsets and layering. With IndexGroup's
  * `pin="tall-screens"` both scroll with the rows there; the class goes on the h2 and on each th.
  */
-export const INDEX_UNPIN_SHORT_CLASS = '[@media(max-height:30rem)]:static';
+export const INDEX_UNPIN_SHORT_CLASS =
+  '[@media(max-height:30rem)]:relative [@media(max-height:30rem)]:top-auto [@media(max-height:30rem)]:z-auto';
 export const INDEX_YEAR_NUMBER_CLASS = 'tile-title-lg tabular-nums text-foreground';
 export const INDEX_YEAR_COUNT_CLASS = 'tile-meta text-faint';
 

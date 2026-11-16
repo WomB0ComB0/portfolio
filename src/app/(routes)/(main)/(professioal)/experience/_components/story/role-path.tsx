@@ -15,8 +15,8 @@
  */
 
 /**
- * @file "The path so far", the Story mock's map of every role on one month axis, set after the
- * Now chapter (never first on the page). Server-safe (no directive, no hooks): every role is a
+ * @file "The path so far", the story's opening map of every role on one month axis, before the
+ * chapter links and role cards. Server-safe (no directive, no hooks): every role is a
  * real link to its stop on the rail, named by its organization, role and months, so the figure
  * reads and works without JavaScript. Palette tokens only: brand for a role that still runs,
  * the quiet surface and hairline for one that ended, the ongoing dot beside "Now".

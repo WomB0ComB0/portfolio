@@ -212,6 +212,19 @@ describe('colour token contrast (globals.css :root)', () => {
     expect(ratio, `${name} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
+  it.each(['fg', 'fg-muted', 'fg-faint'] as const)(
+    '--%s remains readable on the translucent sticky canvas even over a white image',
+    (text) => {
+      const fill = tokens.get('sticky-canvas');
+      expect(fill).toBeDefined();
+      const { opaque, alpha } = splitAlpha(fill ?? '');
+      expect(alpha).toBeGreaterThan(0);
+      expect(alpha).toBeLessThan(1);
+      const brightestBackdrop = composite(clip(oklchToLinearSrgb(opaque)), alpha, [1, 1, 1]);
+      expect(contrastRatio(color(text), brightestBackdrop)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    },
+  );
+
   it('muted-foreground on accent falls below 4.5:1, so a hover:bg-accent row must lift its muted text', () => {
     // A known failure, kept visible: rows that hover to bg-accent switch muted labels to
     // foreground, which the pairs above check.

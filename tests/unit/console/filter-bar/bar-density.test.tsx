@@ -100,7 +100,13 @@ describe("FilterBar.Root density='bar'", () => {
   it('stops sticking on a screen under 550px tall, where it would outgrow the scroll padding', () => {
     // Under 550px of height the top band (and html's scroll-padding) is 14svh: 54.6px at 390px
     // tall, less than the 66-70px stuck tile, so a focused card would scroll in under it.
-    expect(classesOf(renderBar('bar'))).toContain('[@media(height<34.375rem)]:static');
+    expect(classesOf(renderBar('bar'))).toEqual(
+      expect.arrayContaining([
+        '[@media(height<34.375rem)]:relative',
+        '[@media(height<34.375rem)]:top-auto',
+        '[@media(height<34.375rem)]:z-auto',
+      ]),
+    );
     expect(BAR_STICKY_CLASS).not.toContain('34.375rem');
   });
 

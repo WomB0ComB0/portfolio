@@ -18,10 +18,10 @@
  * @file /experience in a real browser, with JavaScript off and on: the story (the owner's pick
  * on 2026-11-15).
  *
- * Now comes first under a small heading, so the lead role's title is the first screen's display
- * line; then "The path so far" (every role a capsule on one month axis, each a link to its stop);
- * then every year a role began, each a chapter on one rail, a one-role year an inline heading,
- * the chapters on "Jump to" as real links. Each role hangs off the rail with its title linking
+ * "The path so far" follows the page header (every role a capsule on one month axis, each a link
+ * to its stop), then the chapters on "Jump to" as real links. Now opens the cards under a small
+ * heading, then every year a role began, each a chapter on one rail, a one-role year an inline
+ * heading. Each role hangs off the rail with its title linking
  * its page, a byline in words, its sentence with links named in place (never a raw address),
  * quiet technologies, and, on a compact role, a closed "What I did" that opens without
  * JavaScript. Nothing is cut and nothing scrolls sideways at any width, and the keyboard reaches
@@ -52,7 +52,7 @@ for (const javaScriptEnabled of [false, true]) {
   test.describe(`Experience story, JavaScript ${javaScriptEnabled ? 'on' : 'off'}`, () => {
     test.use({ javaScriptEnabled });
 
-    test('leads with Now, then each year a role began, with no loading skeleton', async ({
+    test('orders the chapters Now, then each year a role began, with no loading skeleton', async ({
       page,
     }) => {
       const stops = await indexRows(page);
@@ -141,7 +141,7 @@ for (const javaScriptEnabled of [false, true]) {
       await expect(more).not.toHaveAttribute('open', '');
     });
 
-    test('sets "The path so far" right after Now, every capsule a link to its stop', async ({
+    test('sets "The path so far" below the header before jumps and cards, every capsule a link to its stop', async ({
       page,
     }) => {
       const stops = await indexRows(page);
@@ -151,11 +151,21 @@ for (const javaScriptEnabled of [false, true]) {
 
       await expect(figure.locator('figcaption')).toContainText('The path so far.');
       expect(
-        await figure.evaluate((element) => [
-          element.previousElementSibling?.id,
-          element.nextElementSibling?.tagName,
-        ]),
-      ).toEqual(['now', 'SECTION']);
+        await figure.evaluate((element) => element.parentElement?.firstElementChild === element),
+      ).toBe(true);
+      const jumps = main.getByRole('navigation', { name: 'Jump to' });
+      const boxes = await Promise.all([
+        main.locator('header').first().boundingBox(),
+        figure.boundingBox(),
+        jumps.boundingBox(),
+        main.locator('section[data-chapter]').first().boundingBox(),
+      ]);
+      for (const box of boxes) expect(box).not.toBeNull();
+      for (let index = 1; index < boxes.length; index++) {
+        const before = boxes[index - 1];
+        const after = boxes[index];
+        if (before && after) expect(after.y).toBeGreaterThanOrEqual(before.y + before.height - 1);
+      }
       const capsules = figure.getByRole('link');
       const targets = await capsules.evaluateAll((all) =>
         all.map((link) => link.getAttribute('href')?.slice(1) ?? ''),

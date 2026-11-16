@@ -15,12 +15,8 @@
  */
 
 /**
- * @file The stuck-canvas utility in src/styles/globals.css, which the FilterBar and an IndexTable's
- * year bar and column labels stick with. Painted on the canvas at rest, they read as darker boxes
- * over the page's light glow; so where the browser can tell a sticky element is stuck
- * (container-type: scroll-state), they are clear at rest and painted (with an optional edge,
- * --stuck-edge) only while stuck, at once, so no row ever shows through a half-painted bar. Where
- * it cannot, they are always painted, as before.
+ * @file Sticky controls keep sharp foregrounds above a translucent background-only blur.
+ * Unsupported blur and accessibility transparency preferences retain opaque surfaces.
  */
 
 import { readFileSync } from 'node:fs';
@@ -35,6 +31,7 @@ const RULES = styleRules(CSS);
 const UTILITY = '@utility stuck-canvas';
 const SUPPORTS = '@supports (container-type: scroll-state)';
 const STUCK = '@container scroll-state(stuck: top)';
+const GLASS = '@supports (backdrop-filter: blur(1px))';
 
 /** The body of the block `prelude` opens in `source`, its braces balanced. */
 function blockBody(source: string, prelude: string): string {
@@ -60,36 +57,55 @@ function ownDeclarations(body: string): Record<string, string> {
 }
 
 describe('stuck-canvas', () => {
-  it('paints the canvas, with its edge, where a browser cannot tell it is stuck', () => {
-    expect(ownDeclarations(blockBody(SOURCE, UTILITY))).toEqual({
-      'background-color': 'var(--canvas)',
-      'box-shadow': 'var(--stuck-edge, none)',
-    });
+  it('keeps filters and labels unfiltered, with a separate non-interactive backplate', () => {
+    const root = ownDeclarations(blockBody(SOURCE, UTILITY));
+    expect(root['background-color']).toBe('transparent');
+    expect(root).not.toHaveProperty('opacity');
+    expect(root).not.toHaveProperty('filter');
+    expect(root).not.toHaveProperty('backdrop-filter');
+    const backplate = findRule(RULES, '&::before', [UTILITY]);
+    expect(declaredValue(backplate, 'pointer-events')).toBe('none');
+    expect(declaredValue(backplate, 'z-index')).toBe('-1');
+    expect(declaredValue(backplate, 'backdrop-filter')).toBe('var(--stuck-backdrop)');
   });
 
-  it('is clear at rest where a browser can tell, with a ::before ready to paint it', () => {
-    const before = findRule(RULES, '&::before', [UTILITY, SUPPORTS]);
-
-    expect(ownDeclarations(blockBody(blockBody(SOURCE, UTILITY), SUPPORTS))).toEqual({
-      'container-type': 'scroll-state',
-      'background-color': 'transparent',
-      'box-shadow': 'none',
-    });
-    expect(Object.fromEntries(declarations(before.body))).toEqual({
-      content: '""',
-      position: 'absolute',
-      inset: '0',
-      'z-index': '-1',
-      'pointer-events': 'none',
-    });
+  it('uses a translucent palette fill only when background blur is supported', () => {
+    const root = ownDeclarations(blockBody(SOURCE, UTILITY));
+    expect(root['--stuck-fill']).toBe('var(--canvas)');
+    expect(root['--stuck-backdrop']).toBe('none');
+    const glass = ownDeclarations(blockBody(blockBody(SOURCE, UTILITY), GLASS));
+    expect(glass['--stuck-fill']).toBe('var(--sticky-canvas)');
+    expect(glass['--stuck-backdrop']).toMatch(/^blur\([1-9][\d.]*px\)$/);
   });
 
-  it('paints the canvas and its edge only while stuck, at once', () => {
+  it('keeps the backplate clear at rest and paints it only while pinned', () => {
+    const rest = findRule(RULES, '&::before', [UTILITY, SUPPORTS]);
     const stuck = findRule(RULES, '&::before', [UTILITY, SUPPORTS, STUCK]);
-
-    expect(declaredValue(stuck, 'background-color')).toBe('var(--canvas)');
+    expect(declaredValue(rest, 'background-color')).toBe('transparent');
+    expect(declaredValue(rest, 'backdrop-filter')).toBe('none');
+    expect(declaredValue(stuck, 'background-color')).toBe('var(--stuck-fill)');
+    expect(declaredValue(stuck, 'backdrop-filter')).toBe('var(--stuck-backdrop)');
     expect(declaredValue(stuck, 'box-shadow')).toBe('var(--stuck-edge, none)');
-    // A fade would let rows show through a half-painted bar.
-    expect(blockBody(SOURCE, UTILITY)).not.toMatch(/transition|animation/);
+  });
+
+  it('lets the Places form transmit the backplate while pinned instead of covering it', () => {
+    const selector = '&[data-density="bar"] > form';
+    const rest = findRule(RULES, selector, [UTILITY, SUPPORTS]);
+    const pinned = findRule(RULES, selector, [UTILITY, SUPPORTS, STUCK]);
+    expect(declaredValue(rest, 'background-color')).toBe('var(--surface-1)');
+    expect(declaredValue(pinned, 'background-color')).toBe('var(--stuck-tile-fill)');
+  });
+
+  it('honors reduced transparency and forced colours with opaque unblurred surfaces', () => {
+    for (const media of [
+      '@media (prefers-reduced-transparency: reduce)',
+      '@media (forced-colors: active)',
+    ]) {
+      const rule = ownDeclarations(blockBody(blockBody(SOURCE, UTILITY), media));
+      expect(rule['--stuck-backdrop']).toBe('none');
+      expect(rule['--stuck-fill']).toBe(
+        media.includes('forced-colors') ? 'Canvas' : 'var(--canvas)',
+      );
+    }
   });
 });

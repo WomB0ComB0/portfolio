@@ -18,12 +18,10 @@ import 'server-only';
 
 /**
  * @file /experience as a story (the owner's pick, 2026-11-15: "for experience i'd pick story"):
- * the PageShell header with one sentence written from the figures, a "Jump to" row of the
- * chapters, then Now (a small heading: the lead role is the first screen's one display line),
- * "The path so far" (every role as a capsule on one month axis, role-path.tsx), and every year a
- * role began, each role hung off one rail (role-chapter.tsx, role-stop.tsx). The path comes
- * after Now, never first on the page; it took the place of the "Roles at once" stack, which drew
- * the same months again.
+ * the PageShell header with one sentence written from the figures, then "The path so far"
+ * (every role as a capsule on one month axis, role-path.tsx). A "Jump to" row leads to Now
+ * and every year a role began, each role hung off one rail (role-chapter.tsx, role-stop.tsx).
+ * The timeline opens the story; the current-role cards follow the overview and jump links.
  *
  * Rendered on the server with no loading.tsx above it, so every role, sentence, duty and link
  * is in the first HTML and reads without JavaScript. The one client part is the cross-lighting
@@ -53,7 +51,7 @@ const EMPTY_TITLE = 'No roles listed yet';
 /** The chapters follow the jump row after a long rest; the first one sets no gap of its own. */
 const CHAPTERS_CLASS = 'mt-[clamp(2.5rem,1.75rem+2.5vw,4.5rem)] flex min-w-0 flex-col';
 
-/** The chapters, with "The path so far" right after the first (Now, when a role runs now). */
+/** The role cards: Now when a role runs now, then the years. */
 function StoryChapters({ story }: { readonly story: Story }): ReactElement {
   const [first, ...rest] = story.chapters;
   const chapter = (item: Story['chapters'][number], place: number): ReactElement => (
@@ -66,7 +64,6 @@ function StoryChapters({ story }: { readonly story: Story }): ReactElement {
   return (
     <div className={CHAPTERS_CLASS}>
       {first ? chapter(first, 0) : null}
-      <RolePathFigure path={story.path} axis={story.axis} peak={story.clock.peak} />
       {rest.map((item, index) => chapter(item, index + 1))}
     </div>
   );
@@ -80,7 +77,7 @@ export interface RoleStoryProps {
   readonly gutter?: boolean;
 }
 
-/** Every role, as the path that led here: Now first, then each year a role began. */
+/** The timeline overview, chapter links, then Now and each year a role began. */
 export function RoleStory({ experiences, today, gutter = true }: RoleStoryProps): ReactElement {
   const story = buildRoleStory(experiences, { today, logoOf: roleLogoOf });
   // Now's link has no count: the opening sentence says how many roles run now, once.
@@ -106,6 +103,12 @@ export function RoleStory({ experiences, today, gutter = true }: RoleStoryProps)
           className="flex min-w-0 flex-col"
           style={axisStyle(story.axis)}
         >
+          <RolePathFigure
+            path={story.path}
+            axis={story.axis}
+            peak={story.clock.peak}
+            className="mt-0 mb-6"
+          />
           <ChapterJumps chapters={jumps} label={JUMP_LABEL} noun={ROLE_NOUN} />
           <StoryChapters story={story} />
           <RoleCrosslight />

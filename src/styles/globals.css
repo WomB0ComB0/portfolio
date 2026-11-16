@@ -42,6 +42,10 @@
   --surface-1: oklch(20% 0.02 285deg);
   --surface-2: oklch(23.5% 0.025 285deg);
   --surface-3: oklch(27% 0.028 285deg);
+
+  /* Background-only sticky glass: faint labels retain 4.5:1 even over a white photograph. */
+  --sticky-canvas: oklch(16% 0.016 285deg / 89%);
+  --sticky-tile: oklch(20% 0.02 285deg / 24%);
   --hairline: oklch(30% 0.03 285deg);
   --hairline-strong: oklch(40% 0.04 285deg);
 
@@ -718,40 +722,83 @@
 }
 
 /*
- * A sticky bar's canvas (the FilterBar, an IndexTable's year bar and column labels), painted only
- * while it is stuck. At rest the page's light glow shows through, so the bar is not a darker box;
- * stuck, rows scroll under an opaque canvas, painted at once (a fade would let them show through).
- * --stuck-edge (a box-shadow, such as a hairline under the bar) comes and goes with the paint.
- * A browser that cannot tell when an element is stuck paints it always. The ::before needs a
- * positioned element (sticky is) and paints under its content (the element is a stacking context).
+ * Sticky controls stay above the edge haze with sharp text. Their separate backplate transmits
+ * the softened page instead of covering it with a solid rectangle. Filtering only ::before
+ * avoids filtering the controls or creating a containing block for their fixed-position UI.
+ * A browser without scroll-state queries keeps the plate visible. Without backdrop filtering,
+ * or with reduced transparency, the fallback is opaque. No transition exposes unblurred rows.
  */
+/* stylelint-disable no-invalid-position-declaration -- Tailwind expands this @utility to a style rule before nested feature and media conditions. */
 @utility stuck-canvas {
-  background-color: var(--canvas);
-  box-shadow: var(--stuck-edge, none);
+  --stuck-fill: var(--canvas);
+  --stuck-tile-fill: var(--surface-1);
+  --stuck-backdrop: none;
+
+  background-color: transparent;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: var(--stuck-fill);
+    box-shadow: var(--stuck-edge, none);
+    backdrop-filter: var(--stuck-backdrop);
+    pointer-events: none;
+  }
+
+  /* The Places tile must not put an opaque second layer over the shared plate. */
+  &[data-density="bar"] > form {
+    background-color: var(--stuck-tile-fill);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    --stuck-fill: var(--sticky-canvas);
+    --stuck-tile-fill: var(--sticky-tile);
+    --stuck-backdrop: blur(12px);
+  }
 
   @supports (container-type: scroll-state) {
-    /* stylelint-disable no-invalid-position-declaration -- @utility is the style rule. */
     container-type: scroll-state;
-    background-color: transparent;
-    box-shadow: none;
-    /* stylelint-enable no-invalid-position-declaration */
 
     &::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      pointer-events: none;
+      background-color: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    &[data-density="bar"] > form {
+      background-color: var(--surface-1);
     }
 
     @container scroll-state(stuck: top) {
       &::before {
-        background-color: var(--canvas);
+        background-color: var(--stuck-fill);
         box-shadow: var(--stuck-edge, none);
+        backdrop-filter: var(--stuck-backdrop);
+      }
+
+      &[data-density="bar"] > form {
+        background-color: var(--stuck-tile-fill);
       }
     }
   }
+
+  @media (prefers-reduced-transparency: reduce) {
+    --stuck-fill: var(--canvas);
+    --stuck-tile-fill: var(--surface-1);
+    --stuck-backdrop: none;
+  }
+
+  @media (forced-colors: active) {
+    --stuck-fill: Canvas;
+    --stuck-tile-fill: Canvas;
+    --stuck-backdrop: none;
+  }
 }
+
+/* stylelint-enable no-invalid-position-declaration */
 
 /* stylelint-enable at-rule-no-unknown, nesting-selector-no-missing-scoping-root */
 
