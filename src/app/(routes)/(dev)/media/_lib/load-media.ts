@@ -16,29 +16,20 @@ import 'server-only';
  */
 
 /**
- * @file The data behind each /media tab, loaded on the server. The Sanity collections come from
- * the shared loaders (one stale-on-error cache per collection, shared with /api/v1/sanity/*); the
- * blog gets its own stale-on-error cache here, since Hashnode's feed, its post pages and dev.to
- * are slow to ask and change rarely.
+ * @file The blog posts behind /media and the project pages' "See also", loaded on the server.
+ * The blog gets its own stale-on-error cache here, since Hashnode's feed, its post pages and
+ * dev.to are slow to ask and change rarely. The Sanity collections come from the shared loaders
+ * in '@/lib/sanity/loaders' (one stale-on-error cache per collection, shared with
+ * /api/v1/sanity/*).
  */
 
 import { cache } from 'react';
 import { type Blog, fetchBlogs } from '@/app/api/v1/[[...route]]/blog/handlers';
 import { ensureBaseError } from '@/classes/error';
-import { createStaleCache } from '@/lib/cache/stale-cache';
+import { withDeadline } from '@/lib/async/deadline';
+import { backgroundRefresh } from '@/lib/cache/keep-alive';
+import { type CachedValue, createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
-
-export type { Blog } from '@/app/api/v1/[[...route]]/blog/handlers';
-export {
-  type Article,
-  type ListedVideo,
-  loadArticles,
-  loadPresentations,
-  loadTalks,
-  loadVideos,
-  type Presentation,
-  type Talk,
-} from '@/lib/sanity/loaders';
 
 /** How long the blog list is served from memory before the sources are asked again. */
 export const BLOG_CACHE_TTL_MS = 30 * 60_000;
@@ -52,17 +43,52 @@ const blogCache = createStaleCache<readonly Blog[]>({
 });
 
 /**
- * Every blog post, newest first. When both sources fail after a good load, the last good list is
- * served and a warning is sent; with nothing cached, this rejects with fetchBlogs' error, which
- * the panel's section boundary shows.
+ * The longest the One feed waits on the blog sources (Hashnode's feed, its post pages for covers,
+ * dev.to) before it serves the last good list instead, or none. The other feed sources answer
+ * within 8 s (YouTube) or from Sanity's cache, so this keeps the blog from being the slowest.
  */
-export const loadBlogPosts = cache(async (): Promise<readonly Blog[]> => {
-  const result = await blogCache.get(BLOG_CACHE_KEY, fetchBlogs);
-  if (result.stale) {
-    reportApiFailure(ensureBaseError(result.error, 'blog:posts'), {
-      context: 'load blog for pages',
-      level: 'warning',
-    });
-  }
+export const BLOG_LOAD_DEADLINE_MS = 6_000;
+
+/** The sources failed but the last good list is served: the page still works, so a warning. */
+function reportStalePosts(error: unknown): void {
+  reportApiFailure(ensureBaseError(error, 'blog:posts'), {
+    context: 'load blog for pages',
+    level: 'warning',
+  });
+}
+
+/** The list from a cache answer, after a warning when it is the last good one. */
+function postsOf(result: StaleCacheResult<readonly Blog[]>): readonly Blog[] {
+  if (result.stale) reportStalePosts(result.error);
   return result.data;
-});
+}
+
+/** The blog sources, failing once {@link BLOG_LOAD_DEADLINE_MS} passes (the late answer is not cached). */
+const fetchBlogsWithinDeadline = (): Promise<readonly Blog[]> =>
+  withDeadline(fetchBlogs(), BLOG_LOAD_DEADLINE_MS, 'blog posts');
+
+/**
+ * Every blog post, newest first, for /media and the project pages. No page waits on a reload:
+ * once the TTL is up the cached list answers at once while one reload runs in the background
+ * (kept alive past the response, a failure reported once as a warning). Only a server that never
+ * loaded the posts waits, and a load past {@link BLOG_LOAD_DEADLINE_MS} counts as failed: with
+ * nothing cached this then rejects with a DeadlineError, and the late answer is not cached.
+ */
+export const loadFeedPosts = cache(
+  async (): Promise<readonly Blog[]> =>
+    postsOf(
+      await blogCache.getOrRefresh(
+        BLOG_CACHE_KEY,
+        fetchBlogsWithinDeadline,
+        backgroundRefresh(reportStalePosts),
+      ),
+    ),
+);
+
+/**
+ * The posts last cached and when they were loaded (epoch ms), however old; undefined when the
+ * blog sources never answered in this process. Never asks them, never waits and reports no
+ * staleness: for a page that cannot wait on a slow reload (a project page's "See also").
+ */
+export const peekFeedPosts = (): CachedValue<readonly Blog[]> | undefined =>
+  blogCache.peek(BLOG_CACHE_KEY);
