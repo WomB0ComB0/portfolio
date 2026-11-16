@@ -599,6 +599,7 @@ describe('/projects module boundaries', () => {
     '_lib/project-text.ts',
     '_lib/project-words.ts',
     '_lib/project-order.ts',
+    '_lib/project-schema.ts',
     '_lib/project-index.ts',
     '_lib/project-images.ts',
     '_lib/project-chapters.ts',

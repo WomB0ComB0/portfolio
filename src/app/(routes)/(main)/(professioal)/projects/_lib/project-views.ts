@@ -22,7 +22,7 @@
  */
 
 import { parseView, viewHref } from '@/components/console/folio/view-href';
-import { PROJECTS_PATH } from './project-filters';
+import { PROJECTS_PATH } from './project-schema';
 
 export const PROJECT_VIEWS = [
   { value: 'stories', label: 'Stories' },
