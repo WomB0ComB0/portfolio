@@ -67,7 +67,7 @@ function earliestMonth(messages: readonly GuestbookMessage[]): string | null {
   return first === null ? null : MONTH.format(first);
 }
 
-/** The count and the first message's month, for the header's stat strip. */
+/** The count and the first message's month, for the header's count line. */
 export function guestbookStats(
   messages: readonly GuestbookMessage[],
   truncated: boolean,

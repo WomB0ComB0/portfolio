@@ -22,6 +22,7 @@
  * handler's 404/500 bodies: one JSON object, with nothing taken from the thrown error.
  */
 
+import type { Context } from 'elysia';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -82,6 +83,26 @@ const app = buildApp();
 const get = (path: string) => app.handle(new Request(`http://localhost${path}`));
 
 describe('createElysiaApp', () => {
+  it('parses request cookies and serializes response cookies with Elysia', async () => {
+    const cookies = createElysiaApp({ prefix: '/api' }).get(
+      '/cookies',
+      ({ cookie }: Pick<Context, 'cookie'>) => {
+        const incoming = cookie.session?.value;
+        cookie.session?.set({ value: 'next value', httpOnly: true, sameSite: 'lax', path: '/' });
+        return { incoming };
+      },
+    );
+    const res = await cookies.handle(
+      new Request('http://localhost/api/cookies', { headers: { cookie: 'session=hello%20world' } }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ incoming: 'hello world' });
+    expect(res.headers.get('set-cookie')).toContain('session=next%20value');
+    expect(res.headers.get('set-cookie')).toContain('HttpOnly');
+    expect(res.headers.get('set-cookie')).toContain('SameSite=Lax');
+  });
+
   it('leaves the security headers to next.config.ts', async () => {
     const res = await get('/api/ping');
     expect(res.status).toBe(200);

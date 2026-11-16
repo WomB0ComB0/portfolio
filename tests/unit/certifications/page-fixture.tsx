@@ -16,8 +16,9 @@
 
 /**
  * @file The /certifications page tests' dataset and helpers: certificates with the real data's
- * shapes, the page rendered for a set of search params, and readers for its rows, chips and year
- * headings. Not a test file itself; each test file mocks the loaders and @/env before using it.
+ * shapes, the page rendered for a set of search params, and readers for its certificates, chips
+ * and year headings. Not a test file itself; each test file mocks the loaders and @/env before
+ * using it.
  */
 
 import { render, screen, within } from '@testing-library/react';
@@ -114,14 +115,18 @@ export async function renderPage(params: Params = {}, at: string = urlOf(params)
   return render(await CertificationsPage({ searchParams: Promise.resolve(params) }));
 }
 
-export const rowsOf = (root: ParentNode = document): HTMLElement[] =>
-  Array.from(root.querySelectorAll<HTMLElement>('tr[data-cert-row]'));
-export const rowTitles = (): string[] =>
-  rowsOf().map((row) => row.querySelector('[data-cert-title]')?.firstChild?.textContent ?? '');
-export const rowFor = (title: string): HTMLElement => {
-  const row = rowsOf().find((each) => each.textContent?.includes(title));
-  if (!row) throw new Error(`no row for ${title}`);
-  return row;
+/** Every certificate in the record, in page order: set large in a thin year, or in a group. */
+export const itemsOf = (root: ParentNode = document): HTMLElement[] =>
+  Array.from(root.querySelectorAll<HTMLElement>('[data-cert-item]'));
+/** A certificate's title as shown: its title element's first text, before any screen-reader words. */
+const titleOf = (item: HTMLElement): string =>
+  item.querySelector('[data-cert-title]')?.firstChild?.textContent ?? '';
+/** Each certificate's title as shown, in page order. */
+export const itemTitles = (root: ParentNode = document): string[] => itemsOf(root).map(titleOf);
+export const itemFor = (title: string): HTMLElement => {
+  const item = itemsOf().find((each) => titleOf(each) === title);
+  if (!item) throw new Error(`no certificate titled ${title}`);
+  return item;
 };
 export const chips = (): HTMLElement => screen.getByRole('list', { name: 'Filter by issuer' });
 export const currentChip = (): HTMLElement | undefined =>

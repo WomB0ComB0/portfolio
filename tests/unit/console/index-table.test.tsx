@@ -188,6 +188,23 @@ describe('a row', () => {
     expect(classes.join(' ')).not.toMatch(/hover:(?:-?translate|scale|shadow|border-l)/);
   });
 
+  it('merges a caller’s classes onto the year bar, keeping the kit’s own', () => {
+    render(
+      <IndexGroup
+        id="custom-bar"
+        year="Top"
+        count="by stars"
+        columns={[{ id: 'name', label: 'Name' }]}
+        headerClassName="flex-wrap"
+      >
+        <tr />
+      </IndexGroup>,
+    );
+    const bar = classesOf(document.getElementById('custom-bar'));
+
+    expect(bar).toEqual(expect.arrayContaining(['sticky', 'stuck-canvas', 'flex-wrap']));
+  });
+
   it('scrolls a focused link or button clear of the sticky bars, not just the row', () => {
     render(<Table />);
     const row = classesOf(document.querySelector('tr[data-index-row]'));

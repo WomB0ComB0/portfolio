@@ -18,9 +18,9 @@
  * @file Brand-bordered MagicCards keep their border on hover. H2 gave MagicCard a default
  * hover:border-hairline-strong, which tailwind-merge keeps beside a caller's border-primary (a
  * different variant), and `.hover\:border-hairline-strong:hover` outranks `.border-primary`. So
- * the résumé viewer (hovered the whole time the PDF iframe is read) and the sponsor page's
- * Monthly Support card turned from purple to grey on hover: less emphasis on cards you cannot
- * click. Each now names the same colour for hover as at rest.
+ * the résumé viewer (hovered the whole time the PDF iframe is read) turned from purple to grey
+ * on hover. It now names the same colour for hover as at rest. The retired Sponsor Monthly
+ * Support card is replaced by the Ways-first view, covered by sponsor-view.test.tsx.
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -35,9 +35,7 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 
-import { SponsorLists } from '@/app/(routes)/(dev)/sponsor/_components/sponsor-lists';
 import { Resume } from '@/app/(routes)/(main)/(professioal)/resume/_interface/resume/resume';
-import type { GitHubSponsorsData } from '@/lib/api-integrations/github-sponsors';
 
 /** border, border-2, border-t, border-x-4, border-[3px] and the styles: not colours. */
 const WIDTH_OR_STYLE =
@@ -65,23 +63,6 @@ const cardAround = (element: Element): Element => {
   return card;
 };
 
-const SPONSORS: GitHubSponsorsData = {
-  sponsors: [
-    {
-      login: 'octocat',
-      name: 'The Octocat',
-      avatarUrl: 'https://avatars.githubusercontent.com/u/583231',
-      url: 'https://github.com/octocat',
-      tier: { name: '$5 a month', monthlyPriceInDollars: 5 },
-      createdAt: '2025-01-01T00:00:00Z',
-      isActive: true,
-      type: 'User',
-    },
-  ],
-  totalCount: 1,
-  totalMonthlyIncome: 5,
-};
-
 const RESUME = makeResume({
   pdfFile: { _type: 'file', asset: { _ref: 'file-0123abcd-pdf', _type: 'reference' } },
 });
@@ -95,15 +76,6 @@ describe('brand-bordered cards on hover', () => {
     const { rest, hover } = borderColours(cardAround(screen.getByTitle('Resume PDF')));
 
     expect(rest).toEqual(['border-primary']);
-    expect(hover).toEqual(rest);
-  });
-
-  it("the sponsor page's Monthly Support card keeps its faint brand border", () => {
-    render(<SponsorLists sponsors={SPONSORS} />);
-
-    const { rest, hover } = borderColours(cardAround(screen.getByText('Monthly Support')));
-
-    expect(rest).toEqual(['border-primary/20']);
     expect(hover).toEqual(rest);
   });
 });

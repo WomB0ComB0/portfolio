@@ -26,11 +26,41 @@ const SITEMAP_URL = 'https://mikeodnis.dev/sitemap.xml';
 const ALLOW = ['/', '/api/og'];
 
 /**
+ * The list pages whose filter bar takes free text in `?q=` and prints it back in the page (a
+ * filter schema from src/lib/filters; /places/photos shares /places' schema). Their other
+ * filters (?kind=, ?tech=, ?year=) choose among the site's own values and stay crawlable;
+ * each page's canonical link is the page without its query either way.
+ * tests/unit/seo/robots.test.ts fails when a route gains a filter schema and is not listed here.
+ */
+const SEARCHABLE_LIST_PAGES = [
+  '/media',
+  '/projects',
+  '/certifications',
+  '/places',
+  '/places/photos',
+] as const;
+
+/**
+ * A list page's search results: `q` as the first parameter, or after any others, on the page as
+ * it is linked and with a trailing slash. The site answers /media/?q=x with the same page and no
+ * redirect (skipTrailingSlashRedirect, next.config.ts), so the slash form needs its own rules.
+ * Every rule starts with the page's exact path and its `?`, so it matches that page alone, never
+ * a detail page under it. A blanket `/*?q=` or `/*&q=` would also block
+ * /_next/image?url=...&w=...&q=75, where `q` is the quality.
+ */
+const searchRulesFor = (page: string): string[] =>
+  [page, `${page}/`].flatMap((form) => [`${form}?q=`, `${form}?*&q=`]);
+
+/**
  * The rest of /api/ stays closed: admin, status and health, the service endpoints, and the content
  * API, whose data the pages now put in their server HTML. Crawlers use the longest matching rule,
- * so the allows above beat `/api/`.
+ * so the allows above beat `/api/`, and the search rules beat `Allow: /`.
+ *
+ * A search URL answers 200 with whatever was typed printed in it, so anyone can mint an indexable
+ * page of their own words on this domain. Google's URL guide says to block "URLs that generate
+ * search results" in robots.txt.
  */
-const DISALLOW = ['/api/'];
+const DISALLOW = ['/api/', ...SEARCHABLE_LIST_PAGES.flatMap(searchRulesFor)];
 
 /** The rules every user-agent group shares; each group gets its own copy. */
 const crawlRules = (): { allow: string[]; disallow: string[] } => ({
@@ -47,6 +77,7 @@ const crawlRules = (): { allow: string[]; disallow: string[] } => ({
  * - Googlebot, Applebot and Bingbot keep their own groups, and every other crawler gets the `*`
  *   group. All of them share one set of rules.
  * - Pages and the OG image route are allowed; the rest of /api/ is not.
+ * - A list page's search results (`?q=`, with or without a trailing slash) are not: see DISALLOW.
  */
 export default function robots(): MetadataRoute.Robots {
   return {

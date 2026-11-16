@@ -16,9 +16,9 @@
 
 /**
  * @file The header's count agrees with the list after a post. The whole page renders here (the
- * header's figures, the compose card and the list), with the auth store mocked as signed in and
+ * header's count line, the compose tile and the wall), with the auth store mocked as signed in and
  * fetch stubbed (nothing reaches the real guestbook):
- * - a stored post the server list doesn't have yet is counted: 28 rows under "28", also when the
+ * - a stored post the server list doesn't have yet is counted: 28 notes under "28 notes", also when the
  *   refresh lands on a server instance whose list cache predates the post;
  * - once the server list has it, it is counted once (28, not 29);
  * - a post still sending, or one that failed, never moves the count;
@@ -78,12 +78,9 @@ const ready = (messages: readonly GuestbookMessage[]): GuestbookLoad => ({
   loadedAt: null,
 });
 
-/** A header figure by its label, as shown. */
-const figure = (label: string): string | undefined =>
-  Array.from(document.querySelectorAll('dl[aria-label="Guestbook totals"] > div'))
-    .find((item) => item.querySelector('dt')?.textContent === label)
-    ?.querySelector('dd')
-    ?.textContent?.trim();
+/** The header's count line, as shown: "27 notes · since Oct 2025". */
+const countLine = (): string | undefined =>
+  document.querySelector('header [data-byline]')?.textContent?.replace(/\s+/g, ' ').trim();
 
 const rows = () => document.querySelectorAll('li[data-message-row]');
 
@@ -124,22 +121,21 @@ describe('the header after a post', () => {
   it('counts a stored post the server list does not have yet, but not one still sending', async () => {
     const settle = heldFetch();
     const { rerender } = render(<Guestbook load={ready(SERVER_27)} />);
-    expect(figure('messages')).toBe('27');
+    expect(countLine()).toBe('27 notes · since Oct 2025');
 
     post(TEXT);
     expect(rows()).toHaveLength(28);
-    expect(figure('messages')).toBe('27');
+    expect(countLine()).toBe('27 notes · since Oct 2025');
 
     await settle(answer(201, SAVED));
     expect(rows()).toHaveLength(28);
-    expect(figure('messages')).toBe('28');
+    expect(countLine()).toBe('28 notes · since Oct 2025');
 
     // The refresh landed on a server instance whose list cache predates the post.
     rerender(<Guestbook load={ready(SERVER_27)} />);
     expect(h.refresh).toHaveBeenCalled();
     expect(rows()).toHaveLength(28);
-    expect(figure('messages')).toBe('28');
-    expect(figure('first message')).toBe('Oct 2025');
+    expect(countLine()).toBe('28 notes · since Oct 2025');
   });
 
   it('counts the post once when the server list has it', async () => {
@@ -151,7 +147,7 @@ describe('the header after a post', () => {
     rerender(<Guestbook load={ready([SAVED, ...SERVER_27])} />);
 
     expect(rows()).toHaveLength(28);
-    expect(figure('messages')).toBe('28');
+    expect(countLine()).toBe('28 notes · since Oct 2025');
   });
 
   it('leaves the count alone when the post fails', async () => {
@@ -162,19 +158,18 @@ describe('the header after a post', () => {
     await settle(answer(400, { error: 'Invalid message' }));
 
     expect(rows()).toHaveLength(27);
-    expect(figure('messages')).toBe('27');
+    expect(countLine()).toBe('27 notes · since Oct 2025');
   });
 
   it('gives the first post into an empty guestbook the count 1 and its month', async () => {
     h.fetch.mockResolvedValueOnce(answer(201, SAVED));
     render(<Guestbook load={ready([])} />);
-    expect(figure('messages')).toBe('0');
+    expect(countLine()).toBe('0 notes');
 
     post(TEXT);
     await act(async () => {});
 
     expect(rows()).toHaveLength(1);
-    expect(figure('messages')).toBe('1');
-    expect(figure('first message')).toBe('Nov 2026');
+    expect(countLine()).toBe('1 note · since Nov 2026');
   });
 });

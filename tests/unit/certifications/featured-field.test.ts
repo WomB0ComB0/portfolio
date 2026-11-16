@@ -60,11 +60,11 @@ describe('the Featured field in Studio', () => {
     expect(featuredField?.initialValue).toBe(false);
   });
 
-  it('says it puts the certificate in the Featured row, up to four, in display order', () => {
+  it('says it puts the certificate in the Featured chapter, up to four, in display order', () => {
     const description = String(featuredField?.description ?? '');
 
     expect(MAX_FEATURED).toBe(4);
-    expect(description).toContain('Featured row');
+    expect(description).toContain('Featured chapter');
     expect(description).toContain('/certifications');
     expect(description).toMatch(/up to four/i);
     expect(description).toMatch(/display order/i);

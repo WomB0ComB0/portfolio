@@ -32,6 +32,7 @@ import { type BuiltFilterModel, buildFilterModel } from '@/components/console/fi
 import type { FilterPatch } from '@/lib/filters';
 import {
   type CertificationFacet,
+  type CertificationItem,
   type CertificationLookups,
   type CertificationState,
   certificationFilters,
@@ -39,7 +40,6 @@ import {
   ledgerStateOf,
 } from '../_lib/certification-filters';
 import { filtersHref, type LedgerFilters, normaliseQuery } from '../_lib/filters';
-import type { LedgerRowItem } from './ledger-years';
 import { useLedgerFilters } from './use-ledger-filters';
 
 /** A patch's value for one key: its first value, null to clear, or the current one. */
@@ -54,13 +54,13 @@ function patched(
 }
 
 /** The FilterModel for /certifications, on the Ledger's URL sync, and the rows it keeps. */
-export function useLedgerModel(
-  rows: readonly LedgerRowItem[],
+export function useLedgerModel<T extends CertificationItem>(
+  rows: readonly T[],
   lookups: CertificationLookups,
   initial: LedgerFilters,
-): BuiltFilterModel<LedgerRowItem> {
+): BuiltFilterModel<T> {
   const filters = useLedgerFilters(lookups, initial);
-  const schema = useMemo(() => certificationFilters<LedgerRowItem>(lookups), [lookups]);
+  const schema = useMemo(() => certificationFilters<T>(lookups), [lookups]);
   const { choices, query } = filters;
   const draft: CertificationState = {
     ...ledgerStateOf({ ...choices, q: '' }),
