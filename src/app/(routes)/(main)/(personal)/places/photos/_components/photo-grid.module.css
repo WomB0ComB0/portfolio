@@ -20,6 +20,17 @@
  * outside the photo's clip) fades in by opacity with a fine pointer; keyboard focus rings the
  * frame and lights it at once; a press is a transform on the house spring. Without script,
  * "Show all" is hidden and a note says how to see the rest.
+ *
+ * A name and the line under it wrap at their spaces and are never clipped: each is set at its
+ * size, or smaller when its widest word (--name-fit, --fit, in word-measure units) is wider than
+ * the card, but never below its normal size (14px and 13px, or the root's 0.875rem and 0.8125rem
+ * when smaller), so only enlarged text shrinks, and a word too wide even at the normal size breaks.
+ * The line is never larger than the name. Untracked, as here, a unit runs to about 0.61em in
+ * Geist 600 ('FinPlanner', 8.9 units, is 5.43em), so a unit is given 0.68em, room for a wide
+ * letter word-measure counts as one ('@', '&'). With runs (data-runs), a run's later cards
+ * show their number in place of the name, and from a 40rem window the cards are a justified
+ * contact sheet: each tile at its own shape (--r), every tile in a row one height, the last row
+ * at the sheet's row height.
  */
 
 .root {
@@ -46,7 +57,28 @@
   }
 }
 
+/*
+ * Each card is the size container its words fit to. A card's cell sets its name's widest word
+ * (--name-fit) and a run's card its shape (--r) inline, and the line under the name its own
+ * (--fit); these are the defaults.
+ */
+.cell {
+  --name-fit: 8;
+  --fit: 8;
+  --r: 1.3333;
+
+  min-width: 0;
+  container-type: inline-size;
+}
+
 .card {
+  /*
+   * The name's size, which the line under it never exceeds: up to 14px (0.875rem) at the default
+   * size and smaller for a word wider than the card, but never below the normal 14px (or the
+   * root's 0.875rem when smaller). Resolved where it is used, against the cell.
+   */
+  --name-size: max(min(0.875rem, 100cqi / (var(--name-fit) * 0.68)), min(0.875rem, 14px));
+
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -126,19 +158,67 @@
   visibility: hidden;
 }
 
-/* Clamped to two lines by the line-clamp-2 utility. */
+/* The whole name, at most as wide as the card per word down to 14px: 14px over 20px by default. */
 .name {
   color: var(--fg);
-  font-size: 0.875rem;
+  font-size: var(--name-size);
   font-weight: 600;
-  line-height: 1.25rem;
+  line-height: 1.4286;
+  overflow-wrap: break-word;
 }
 
+/* 13px over 18px at the default size; never below 13px (or 0.8125rem), never above the name. */
 .meta {
+  color: var(--fg-faint);
+  font-size: min(
+    max(min(0.8125rem, 100cqi / (var(--fit) * 0.68)), min(0.8125rem, 13px)),
+    var(--name-size)
+  );
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3846;
+  overflow-wrap: break-word;
+}
+
+/* A run's later card: its number, quiet, as the project page numbers its figures. */
+.fig {
   color: var(--fg-faint);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.125rem;
+}
+
+/*
+ * The contact sheet: a row's tiles grow in proportion to their shapes, so they share its height
+ * (--row, up to about --row-max as they grow), and nothing is left as a hole. The last row keeps
+ * the sheet's row height: an empty filler after the last tile takes that row's slack (its growth
+ * dwarfs the tiles'), so a short last row ends early, left-aligned, rather than growing taller
+ * than the rows above. Its margin gives back the column gap before it (1rem, .grid's), so it
+ * always fits on the last row and never opens one of its own.
+ */
+@media (width >= 40rem) {
+  .grid[data-runs] {
+    --row: clamp(7rem, 3rem + 6vw, 9rem);
+    --row-max: calc(var(--row) * 1.7);
+
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .grid[data-runs] > .cell {
+    max-width: calc(var(--r) * var(--row-max));
+    flex: calc(var(--r) * 100) 1 calc(var(--r) * var(--row));
+  }
+
+  .grid[data-runs]::after {
+    content: "";
+    flex: 1000000 1 0;
+    margin-inline-start: -1rem;
+  }
+
+  .grid[data-runs] .frame {
+    aspect-ratio: var(--r);
+  }
 }
 
 .more {

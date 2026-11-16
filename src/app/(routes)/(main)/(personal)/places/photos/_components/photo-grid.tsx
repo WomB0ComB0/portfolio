@@ -23,14 +23,37 @@
  * place). Each link is named by its place, category, dates and its number there, so no two read
  * the same. The first GRID_FIRST show; "Show all" reveals the rest (without script, a note says
  * how to see them instead).
+ *
+ * The links, the line under each name, the hidden end of each link's name, how many show first
+ * and the list's name are the places' by default; another page (the /projects Screens view, whose
+ * pictures link to their projects and are all listed) passes its own. That page also names each
+ * project once per run of its pictures (`runs`): the first card of a run carries the name and the
+ * line under it, the rest only their figure number ('Fig. 2'), whose link names start with that
+ * number, as shown, and go on with the name; from a 40rem window those cards sit in a justified
+ * contact sheet, each at its own shape, as the project page shows its screens.
+ *
+ * A name (and the line under it) is never cut: it wraps at its spaces, a short name with a hyphen
+ * or slash ('(PG-FMS)') moves whole to the next line whenever it fits there (whole-words.tsx),
+ * and enlarged text is set smaller only down to the normal size, so a word wider than the card
+ * even then breaks (its width estimated from its letters, word-measure). The line under a name is
+ * never larger than the name.
  */
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { type MouseEvent, type ReactElement, useEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  Fragment,
+  type MouseEvent,
+  type ReactElement,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
-import { cn } from '@/lib/utils';
-import type { WallPhoto } from '@/types/places';
+import { widestWordUnits } from '@/components/console/folio/word-measure';
+import { WholeWords } from '@/components/console/photo/whole-words';
+import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { PlaceDateRange } from '../../_components/place-date-range';
 import { placeholderOf } from '../_lib/card-placeholder';
 import { focusPosition, gridLinkSuffix } from '../_lib/photo-labels';
@@ -41,6 +64,18 @@ import type { OpenPhoto, PlacesById } from './photo-types';
 export const GRID_FIRST = 48;
 /** Two columns on a phone, 240 px cards wider (the source covers 480 x 360). */
 const THUMB_SIZES = '(max-width: 639px) 50vw, 240px';
+/** A contact sheet's tile grows to about 400 px (a wide shot on a 1440 window). */
+const RUN_SIZES = '(max-width: 639px) 50vw, 400px';
+/**
+ * A tile's shape in the contact sheet: its picture's own, kept between these. A run's first
+ * picture is never narrower than 5:4, so the name under it has room; a phone screenshot after it
+ * may be as narrow as 3:5.
+ */
+const LEAD_RATIO = { min: 1.25, max: 2 } as const;
+const FIG_RATIO = { min: 0.6, max: 2 } as const;
+
+/** A photo's place page: the grid's own link. */
+const placeHref = (photo: WallPhoto): string => `/places/${encodeURIComponent(photo.placeId)}`;
 
 export interface PhotoGridProps {
   readonly photos: readonly WallPhoto[];
@@ -48,6 +83,92 @@ export interface PhotoGridProps {
   readonly onOpen: OpenPhoto;
   /** Whether a plain click opens the view; false once its code failed to load. */
   readonly enhance: boolean;
+  /** Where a photo's link goes; its place's page by default. */
+  readonly hrefOf?: (photo: WallPhoto) => string;
+  /**
+   * The line under the name, as parts joined by a dot only the eye sees; the place's category
+   * and dates by default.
+   */
+  readonly metaOf?: (place: PhotoPlace) => readonly string[];
+  /** The hidden end of a link's name (', photo 3 of 5: …'); gridLinkSuffix by default. */
+  readonly suffixOf?: (photo: WallPhoto, place: PhotoPlace) => string;
+  /** How many show before "Show all"; GRID_FIRST by default. */
+  readonly first?: number;
+  /** The list's name; 'Photos' by default. */
+  readonly label?: string;
+  /**
+   * Name a place once per run of its photos, the rest of the run numbered, in a justified
+   * contact sheet from a 40rem window (see the file comment). Off by default.
+   */
+  readonly runs?: boolean;
+}
+
+/** A card in a run: its run's first (named) or a later one (numbered); null outside runs. */
+type RunPart = 'lead' | 'fig' | null;
+
+/** The text's widest word as word-measure units, for a fit size in CSS. */
+const unitsOf = (text: string): string => String(widestWordUnits(text));
+
+/** The line under a name: its own widest word (`--fit`). */
+const fitOf = (text: string): CSSProperties => ({ '--fit': unitsOf(text) }) as CSSProperties;
+
+/**
+ * A card's own values for CSS, on its cell: its name's widest word (`--name-fit`), which sizes the
+ * name and caps the line under it, and in a run its tile's shape for the contact sheet (`--r`),
+ * its picture's own within the run's bounds.
+ */
+function cellStyle(photo: WallPhoto, place: PhotoPlace, part: RunPart): CSSProperties {
+  const nameFit = { '--name-fit': unitsOf(place.name) };
+  if (part === null) return nameFit as CSSProperties;
+  const { min, max } = part === 'lead' ? LEAD_RATIO : FIG_RATIO;
+  const ratio = Number.isFinite(photo.ratio) && photo.ratio > 0 ? photo.ratio : 4 / 3;
+  return { ...nameFit, '--r': String(Math.min(max, Math.max(min, ratio))) } as CSSProperties;
+}
+
+/** Each photo's part in its run: the first of a place's consecutive photos leads. */
+const runParts = (photos: readonly WallPhoto[], runs: boolean): RunPart[] =>
+  photos.map((photo, at) => {
+    if (!runs) return null;
+    return photos[at - 1]?.placeId === photo.placeId ? 'fig' : 'lead';
+  });
+
+/** The line under a card's name: the parts given, or the place's category and dates. */
+function CardMeta({
+  place,
+  metaOf,
+}: {
+  readonly place: PhotoPlace;
+  readonly metaOf: PhotoGridProps['metaOf'];
+}): ReactElement {
+  if (metaOf) {
+    const parts = metaOf(place);
+    return (
+      <span className={styles.meta} style={fitOf(parts.join(' '))}>
+        {parts.map((part, at) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a short fixed list whose parts may read the same.
+          <Fragment key={at}>
+            {at > 0 ? (
+              <>
+                <span aria-hidden="true">{' · '}</span>{' '}
+              </>
+            ) : null}
+            {part}
+          </Fragment>
+        ))}
+      </span>
+    );
+  }
+  return (
+    <span className={styles.meta} style={fitOf(place.category)}>
+      {place.category}
+      {place.startDate ? (
+        <>
+          <span aria-hidden="true">{' · '}</span>{' '}
+          <PlaceDateRange startDate={place.startDate} endDate={place.endDate} />
+        </>
+      ) : null}
+    </span>
+  );
 }
 
 /** Whether a click is a plain left click, the only one the open view takes over. */
@@ -59,21 +180,96 @@ const isPlainClick = (event: MouseEvent): boolean =>
   !event.shiftKey &&
   !event.altKey;
 
-/** Every photo's link, the first GRID_FIRST at once and the rest behind "Show all". */
-export function PhotoGrid({ photos, places, onOpen, enhance }: PhotoGridProps): ReactElement {
-  const [all, setAll] = useState(false);
-  const listRef = useRef<HTMLUListElement>(null);
-  const shown = all ? photos : photos.slice(0, GRID_FIRST);
-  const hidden = photos.length - shown.length;
+/**
+ * The card's words: the name over the line under it; in a run's later card only its number
+ * shows ('Fig. 2'). Its link's name starts with that number, as a voice user says what they see,
+ * then goes on with the name and the line, read only ('Fig. 2, ResQ Viz …').
+ */
+function CardWords({
+  place,
+  metaOf,
+  fig,
+}: {
+  readonly place: PhotoPlace;
+  readonly metaOf: PhotoGridProps['metaOf'];
+  /** The photo's number among its place's, for a run's later card; else null. */
+  readonly fig: number | null;
+}): ReactElement {
+  const words = (
+    <>
+      <span className={styles.name}>
+        <WholeWords text={place.name} />
+      </span>{' '}
+      <CardMeta place={place} metaOf={metaOf} />
+    </>
+  );
+  if (fig === null) return words;
+  return (
+    <>
+      <span className={styles.fig}>Fig. {fig}</span>
+      <span className="sr-only">, {words}</span>
+    </>
+  );
+}
 
-  // "Show all" leaves the page: hand focus to the first photo it revealed.
-  useEffect(() => {
-    if (!all) return;
-    listRef.current?.querySelectorAll<HTMLAnchorElement>('a')[GRID_FIRST]?.focus();
-  }, [all]);
+interface GridCardProps
+  extends Required<Pick<PhotoGridProps, 'hrefOf' | 'suffixOf'>>,
+    Pick<PhotoGridProps, 'metaOf'> {
+  readonly photo: WallPhoto;
+  readonly place: PhotoPlace;
+  readonly part: RunPart;
+  readonly onClick: (event: MouseEvent<HTMLAnchorElement>, photo: WallPhoto) => void;
+}
 
-  /** Opens the photo in the view on a plain left click; any other click is the link's own. */
-  const openOnClick = (event: MouseEvent<HTMLAnchorElement>, photo: WallPhoto): void => {
+/** One photo's card: a real link, its picture, the name, the line under it and its hidden end. */
+function GridCard({
+  photo,
+  place,
+  part,
+  onClick,
+  hrefOf,
+  metaOf,
+  suffixOf,
+}: GridCardProps): ReactElement {
+  return (
+    <li className={styles.cell} style={cellStyle(photo, place, part)} data-run={part ?? undefined}>
+      <Link
+        href={hrefOf(photo)}
+        prefetch={false}
+        className={styles.card}
+        onClick={(event) => onClick(event, photo)}
+        data-photo-key={photo.key}
+      >
+        <span className={styles.frame} data-grid-frame="">
+          {/* The photo is clipped to the rounded frame here, not by the frame itself,
+              so the light beside it can draw its halo outside the frame. */}
+          <span className={styles.clip}>
+            <Image
+              src={photo.thumb}
+              alt=""
+              fill
+              sizes={part === null ? THUMB_SIZES : RUN_SIZES}
+              className={styles.thumb}
+              style={{ objectPosition: focusPosition(photo) }}
+              draggable={false}
+            />
+          </span>
+          <span className={styles.light} />
+        </span>
+        <CardWords place={place} metaOf={metaOf} fig={part === 'fig' ? photo.index : null} />
+        <span className="sr-only">{suffixOf(photo, place)}</span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * The click handler every card shares: a plain left click opens the photo in the view (when it
+ * can), handing it the card's frame to fly from; any other click is the link's own.
+ */
+const openerFor =
+  (enhance: boolean, onOpen: OpenPhoto) =>
+  (event: MouseEvent<HTMLAnchorElement>, photo: WallPhoto): void => {
     if (!enhance || !isPlainClick(event)) return;
     const link = event.currentTarget;
     const frame = link.querySelector<HTMLElement>('[data-grid-frame]');
@@ -86,63 +282,76 @@ export function PhotoGrid({ photos, places, onOpen, enhance }: PhotoGridProps): 
     });
   };
 
+/** "Show all", and the note that stands in for it without script. */
+function ShowAll({
+  total,
+  first,
+  onShow,
+}: {
+  readonly total: number;
+  readonly first: number;
+  readonly onShow: () => void;
+}): ReactElement {
+  return (
+    <>
+      <button type="button" className={styles.more} onClick={onShow}>
+        Show all {total} photos
+      </button>
+      <p className={styles['no-script-note']}>
+        Showing {first} of {total}. Open a place for all of its photos, or narrow the list with the
+        filters.
+      </p>
+    </>
+  );
+}
+
+/** Every photo's link, the first GRID_FIRST at once and the rest behind "Show all". */
+export function PhotoGrid({
+  photos,
+  places,
+  onOpen,
+  enhance,
+  hrefOf = placeHref,
+  metaOf,
+  suffixOf = gridLinkSuffix,
+  first = GRID_FIRST,
+  label = 'Photos',
+  runs = false,
+}: PhotoGridProps): ReactElement {
+  const [all, setAll] = useState(false);
+  const listRef = useRef<HTMLUListElement>(null);
+  const shown = all ? photos : photos.slice(0, first);
+  const parts = runParts(shown, runs);
+  const openOnClick = openerFor(enhance, onOpen);
+
+  // "Show all" leaves the page: hand focus to the first photo it revealed.
+  useEffect(() => {
+    if (!all) return;
+    listRef.current?.querySelectorAll<HTMLAnchorElement>('a')[first]?.focus();
+  }, [all, first]);
+
   return (
     <div className={styles.root}>
-      <ul ref={listRef} aria-label="Photos" className={styles.grid}>
-        {shown.map((photo) => {
+      <ul ref={listRef} aria-label={label} className={styles.grid} data-runs={runs || undefined}>
+        {shown.map((photo, at) => {
           const place = places.get(photo.placeId);
           if (!place) return null;
           return (
-            <li key={photo.key}>
-              <Link
-                href={`/places/${encodeURIComponent(photo.placeId)}`}
-                prefetch={false}
-                className={styles.card}
-                onClick={(event) => openOnClick(event, photo)}
-                data-photo-key={photo.key}
-              >
-                <span className={styles.frame} data-grid-frame="">
-                  {/* The photo is clipped to the rounded frame here, not by the frame itself,
-                      so the light beside it can draw its halo outside the frame. */}
-                  <span className={styles.clip}>
-                    <Image
-                      src={photo.thumb}
-                      alt=""
-                      fill
-                      sizes={THUMB_SIZES}
-                      className={styles.thumb}
-                      style={{ objectPosition: focusPosition(photo) }}
-                      draggable={false}
-                    />
-                  </span>
-                  <span className={styles.light} />
-                </span>
-                <span className={cn(styles.name, 'line-clamp-2')}>{place.name}</span>{' '}
-                <span className={styles.meta}>
-                  {place.category}
-                  {place.startDate ? (
-                    <>
-                      <span aria-hidden="true">{' · '}</span>{' '}
-                      <PlaceDateRange startDate={place.startDate} endDate={place.endDate} />
-                    </>
-                  ) : null}
-                </span>
-                <span className="sr-only">{gridLinkSuffix(photo, place)}</span>
-              </Link>
-            </li>
+            <GridCard
+              key={photo.key}
+              photo={photo}
+              place={place}
+              part={parts[at] ?? null}
+              onClick={openOnClick}
+              hrefOf={hrefOf}
+              metaOf={metaOf}
+              suffixOf={suffixOf}
+            />
           );
         })}
       </ul>
-      {hidden > 0 ? (
-        <>
-          <button type="button" className={styles.more} onClick={() => setAll(true)}>
-            Show all {photos.length} photos
-          </button>
-          <p className={styles['no-script-note']}>
-            Showing {GRID_FIRST} of {photos.length}. Open a place for all of its photos, or narrow
-            the list with the filters.
-          </p>
-        </>
+      {photos.length > shown.length ? (
+        <ShowAll total={photos.length} first={first} onShow={() => setAll(true)} />
       ) : null}
     </div>
   );

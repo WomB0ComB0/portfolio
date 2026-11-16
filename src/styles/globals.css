@@ -385,6 +385,12 @@
    */
   :root {
     --mobile-bar-total: calc(var(--mobile-bar-h) + env(safe-area-inset-bottom));
+
+    /*
+     * Folio's fine white noise (feTurbulence on a 180px tile), under the quiet stage's light and a
+     * type cover's words (the Folio utilities below). A data URI: CSP img-src allows data:.
+     */
+    --folio-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   *,
@@ -748,6 +754,253 @@
 }
 
 /* stylelint-enable at-rule-no-unknown, nesting-selector-no-missing-scoping-root */
+
+/*
+ * Folio: the editorial primitives the list and project pages share (src/components/console/folio).
+ * Palette only: every colour is a house token or a translucent one, and the grain is white noise
+ * at a few percent. Display sizes are the smallest of a rem clamp, a share of the screen's height
+ * and their own box's width over their widest word (--folio-fit, in word-measure.ts units at 0.6em
+ * each), so text enlarged to 200% never lets a numeral or a cover word eat the screen or break.
+ * The grain is --folio-grain, in the @layer base :root block above (one base layer only).
+ *
+ * A phone's text scaling (text-size-adjust, Chrome on Android) multiplies a font size after every
+ * unit is resolved, so no fit in cqi, rem or em can see it: a display numeral or a cover's name
+ * came out twice its box ('2025' 147px in a 288px column at 320px). The display numerals (lead
+ * and step, never under 3rem, so still well over enlarged body text) and the type cover (an
+ * image stand-in, aria-hidden) keep text-size-adjust at 100%, so their fit holds there too. The
+ * browser's text size (the root font) and zoom still scale them. The inline heading keeps the
+ * phone's scaling: held at 100% it would fall under enlarged body text.
+ */
+
+/* stylelint-disable at-rule-no-unknown, nesting-selector-no-missing-scoping-root, property-no-vendor-prefix, declaration-block-no-duplicate-properties -- Tailwind v4 @utility blocks; each first font-size is the fallback where cqi or svh is unknown. */
+
+/*
+ * A chapter's title on the page's first chapter (ChapterOpener size="lead"): a year or a word at
+ * display size, Geist 600 with tabular figures, in a gradient from fg to fg-faint. Its cell is an
+ * inline-size container. The box is 1.1 lines tall so descenders stay inside the gradient's clip;
+ * the negative margins take the extra space back.
+ */
+@utility folio-numeral {
+  font-family: var(--font-sans);
+  font-size: clamp(4rem, 1rem + 6vw, 7rem);
+  font-size: min(
+    clamp(4rem, 1rem + 20cqi, 10rem),
+    22svh,
+    calc(100cqi / (var(--folio-fit, 4) * 0.6))
+  );
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: -0.06em;
+  margin-block: -0.1em -0.14em;
+  color: transparent;
+  background-image: linear-gradient(180deg, var(--fg) 35%, var(--fg-faint) 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  @media (forced-colors: active) {
+    /* stylelint-disable-next-line no-invalid-position-declaration -- @utility is the style rule. */
+    background-image: none;
+  }
+}
+
+/* Every later chapter's title (size="step"): stepped down to about 6rem, so it never repeats. */
+@utility folio-numeral-step {
+  font-family: var(--font-sans);
+  font-size: clamp(3rem, 1rem + 3vw, 4.5rem);
+  font-size: min(
+    clamp(3rem, 0.5rem + 12cqi, 6rem),
+    14svh,
+    calc(100cqi / (var(--folio-fit, 4) * 0.6))
+  );
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+  margin-block: -0.06em -0.1em;
+}
+
+/* A one-item chapter's title (size="inline"): a heading on the rule, not a display numeral. */
+@utility folio-numeral-inline {
+  font-family: var(--font-sans);
+  font-size: 1.75rem;
+  font-size: min(
+    clamp(1.75rem, 1.25rem + 2cqi, 2.25rem),
+    calc(100cqi / (var(--folio-fit, 4) * 0.6))
+  );
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+/*
+ * The pause a screen reader hears between a Byline's parts: an empty pseudo-element whose
+ * alternative text is ', ' (CSS generated-content alt text), so 'Public Safety · Apr 2026' is
+ * read 'Public Safety, Apr 2026'. Nothing is drawn and nothing joins textContent. A browser
+ * without alt text drops the declaration, so no pseudo-element is made and the real space between
+ * the parts remains.
+ */
+@utility byline-pause {
+  &::after {
+    content: "" / ", ";
+  }
+}
+
+/*
+ * The designed cover of a project with no image (TypeCover): surface-2, a brand wash from the
+ * lower left and fine grain under the words. A size container (named, so the quiet line asks
+ * the cover itself), so its words follow its box.
+ */
+@utility type-cover {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  container-type: size;
+  container-name: type-cover;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 90% at 0% 100%, var(--brand-wash), transparent 60%), var(--surface-2);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: var(--folio-grain);
+    background-size: 11.25rem;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+  }
+}
+
+/*
+ * The words' box inside a cover: set from the lower left, padded by the cover's own size. It
+ * holds the name's size (--type-cover-name, resolved against the cover's box where it is used),
+ * so the quiet line can stay below it.
+ */
+@utility type-cover-face {
+  --type-cover-name: min(22cqi, 44cqh, 9rem, calc(86cqi / (var(--folio-fit, 4) * 0.6)));
+
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3cqh;
+  padding: 8cqh 7cqi;
+}
+
+/*
+ * The cover's name (one or two words, type-cover-words.ts): the smallest of 22% of the cover's
+ * width, 44% of its height, 9rem (so on a lead plate it stays a quiet cover rather than a second
+ * headline) and its line over the whole name (--folio-fit, its words and spaces). One line, line
+ * height 1 and no shift, so it never breaks or clips.
+ */
+@utility type-cover-lead {
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-size: var(--type-cover-name);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  white-space: nowrap;
+}
+
+/*
+ * The rest of the short name, under the name: readable or not there. Sized so it fits on two
+ * lines (--folio-rest-fit is the longer line of its most even split), so the two-line clamp never
+ * cuts a word with an ellipsis, nor a long word ('Classification') in a small cover. It stays
+ * under the name: 0.62 of it, but never under 10px for that (a 13px name over a 10px line still
+ * reads as name and note), so 200% text in a small cover never sets it over the name.
+ *
+ * A line under 10px reads as texture, not words ('Enterprise' was 7.2px on a phone's 88px row
+ * cover), so it is left out: below a 100px cover always, and wherever its fit alone would set it
+ * under 10px (max-height is 0 below 9.5px, else far past its two lines).
+ */
+@utility type-cover-rest {
+  --type-cover-rest: min(
+    clamp(0.6875rem, 6cqi, 1.375rem),
+    calc(86cqi / (var(--folio-rest-fit, 8) * 0.6)),
+    max(calc(var(--type-cover-name) * 0.62), 10px)
+  );
+
+  display: -webkit-box;
+  overflow: hidden;
+  max-height: max(0px, calc((var(--type-cover-rest) - 9.5px) * 1000));
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-size: var(--type-cover-rest);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+
+  @container type-cover (width < 100px) {
+    /* stylelint-disable-next-line no-invalid-position-declaration -- @utility is the style rule. */
+    display: none;
+  }
+}
+
+/*
+ * The project page's backdrop for media (QuietStage), in place of the washed blur: a surface-1
+ * fade, the violet spotlight and a little brand light from above, and fine grain. Every light is
+ * an ellipse that reaches transparent before the stage's sides and bottom, and the top fades in
+ * over 2.5rem, so no edge shows anywhere: not the hairline seam the judges saw behind the Folio
+ * cover, nor the sides of the 75rem page column on a wide window. --quiet-stage-hang leaves the
+ * stage's bottom unlit, so a cover hangs onto the canvas.
+ */
+@utility quiet-stage {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: -2;
+    inset: 0 0 var(--quiet-stage-hang, 0%);
+    pointer-events: none;
+    background:
+      radial-gradient(60% 90% at 50% 0%, var(--spot-violet), transparent 72%),
+      radial-gradient(24% 50% at 78% 0%, var(--brand-glow), transparent 70%),
+      radial-gradient(70% 100% at 50% 0%, var(--surface-1), transparent 70%);
+    mask-image: linear-gradient(180deg, transparent, black 2.5rem);
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 0 var(--quiet-stage-hang, 0%);
+    pointer-events: none;
+    background-image: var(--folio-grain);
+    background-size: 11.25rem;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    mask-image:
+      linear-gradient(180deg, transparent, black 2.5rem, black 35%, transparent 90%),
+      linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
+    mask-composite: intersect;
+  }
+
+  @media (forced-colors: active) {
+    &::before,
+    &::after {
+      display: none;
+    }
+  }
+}
+
+/* stylelint-enable at-rule-no-unknown, nesting-selector-no-missing-scoping-root, property-no-vendor-prefix, declaration-block-no-duplicate-properties */
 
 /*
  * View transitions. The overlay never takes the pointer, so a click during one reaches the page.

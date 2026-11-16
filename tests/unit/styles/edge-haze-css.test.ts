@@ -31,12 +31,19 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { FILTER_SCOPE_CLASS } from '@/components/console/filter-bar';
+import { PINNED_BAR_HEIGHT_PROPERTY } from '@/components/console/filter-bar/bar';
 import {
+  EDGE_HAZE_BAR_SHIFT,
   EDGE_HAZE_BOTTOM_OPACITY,
   EDGE_HAZE_LAYERS,
   EDGE_HAZE_TOP_OPACITY,
+  STICKY_FILTER_BAR,
 } from '@/components/layout/edge-haze';
 import { type CssRule, declarations, declaredValue, findRule, styleRules } from './css-rules';
+
+/** The sticky FilterBar's view timeline, which the top band follows. */
+const BAR_TIMELINE = '--filter-bar';
 
 // Vitest runs from the repository root; under jsdom import.meta.url is not a file: URL.
 const STYLES = join(process.cwd(), 'src/styles');
@@ -315,21 +322,20 @@ describe('edge-haze.css', () => {
   it('fades the top band in over the first band height of scroll and the bottom one out over the last', () => {
     const top = declarations(rule('.edge-haze > .t > i').body);
     const bottom = declarations(rule('.edge-haze > .b > i').body);
-    const names = (list: [string, string][]) => list.map(([name]) => name);
-
-    // The animation shorthand resets animation-timeline, so the timeline must come after it.
-    expect(names(top)).toEqual(['animation', 'animation-timeline', 'animation-range']);
-    expect(names(bottom)).toEqual(['animation', 'animation-timeline', 'animation-range']);
-    expect(top.map(([, v]) => v)).toEqual([
-      'edge-haze-in linear both',
-      'scroll(root block)',
-      '0 var(--edge-haze-top)',
-    ]);
-    expect(bottom.map(([, v]) => v)).toEqual([
-      'edge-haze-out linear both',
-      'scroll(root block)',
-      'calc(100% - var(--edge-haze-bottom)) 100%',
-    ]);
+    // Longhands only: a minifier with recent browser targets (the dev server's) folds the
+    // timeline into an `animation` shorthand, which Chromium then drops whole, so the bands never
+    // showed in development. With no shorthand there is nothing to fold into.
+    const fade = (name: string, range: string): [string, string][] => [
+      ['animation-name', name],
+      ['animation-duration', 'auto'],
+      ['animation-timing-function', 'linear'],
+      ['animation-fill-mode', 'both'],
+      ['animation-timeline', 'scroll(root block)'],
+      ['animation-range', range],
+    ];
+    expect(top).toEqual(fade('edge-haze-in', '0 var(--edge-haze-top)'));
+    expect(bottom).toEqual(fade('edge-haze-out', 'calc(100% - var(--edge-haze-bottom)) 100%'));
+    expect(RULES.filter((candidate) => declaredValue(candidate, 'animation'))).toEqual([]);
     expect(rule('@keyframes edge-haze-in').body).toMatch(
       /from \{ opacity: 0; \} to \{ opacity: 1; \}/,
     );
@@ -342,8 +348,8 @@ describe('edge-haze.css', () => {
     const top = rule('.edge-haze > .t > i', [NO_SCROLL_TIMELINE]);
     const bottom = rule('.edge-haze > .b > i', [NO_SCROLL_TIMELINE]);
 
-    expect(value(top, 'animation')).toBe('none');
-    expect(value(bottom, 'animation')).toBe('none');
+    expect(value(top, 'animation-name')).toBe('none');
+    expect(value(bottom, 'animation-name')).toBe('none');
     // Until the script runs, the first paint is at the top of the page: the top band hidden and
     // the bottom one shown, so it does not snap on at hydration (the script hides it on a page
     // too short to scroll).
@@ -352,13 +358,95 @@ describe('edge-haze.css', () => {
   });
 
   it('runs no animation on time: every one follows the scroll, so reduced motion has nothing to stop', () => {
+    // The page's scroll, or a sticky FilterBar's view timeline (which follows the scroll too).
+    const scrollDriven = new Set(['scroll(root block)', BAR_TIMELINE]);
     const timed = RULES.filter((candidate) => {
-      const animation = value(candidate, 'animation');
+      const animation = value(candidate, 'animation-name');
       if (!animation || animation === 'none') return false;
-      return value(candidate, 'animation-timeline') !== 'scroll(root block)';
+      const names = animation.split(',');
+      const timelines = (value(candidate, 'animation-timeline') ?? '').split(',');
+      return names.some((_name, index) => !scrollDriven.has(timelines[index]?.trim() ?? ''));
     });
     expect(timed.map((candidate) => candidate.selector)).toEqual([]);
     expect(HAZE_CSS).not.toMatch(/transition/);
+  });
+
+  describe('under a pinned FilterBar', () => {
+    const SUPPORTS_BAR_TIMELINE = `@supports (timeline-scope: ${BAR_TIMELINE})`;
+    const NO_BAR_TIMELINE = `@supports not (timeline-scope: ${BAR_TIMELINE})`;
+    /** The top layers, only on a page that has a sticky bar. */
+    const UNDER_BAR_LAYERS = `:root:has(${STICKY_FILTER_BAR}) .edge-haze > .t > i`;
+
+    it('gives the rise and the return only to a page with a sticky bar, so other pages list neither', () => {
+      // Without a bar the timeline is inactive: the two would move nothing, yet every top layer
+      // on home and the project pages would list them as running (home-bento.spec.ts).
+      const carriers = RULES.filter((candidate) =>
+        /edge-haze-(?:rise|return)/.test(value(candidate, 'animation-name') ?? ''),
+      );
+      expect(carriers.map((candidate) => candidate.selector)).toEqual([UNDER_BAR_LAYERS]);
+      // The plain fade stays on every page.
+      expect(value(rule('.edge-haze > .t > i'), 'animation-name')).toBe('edge-haze-in');
+    });
+
+    it("exposes the sticky bar's own view timeline, its range inset to the top band", () => {
+      expect(value(rule(':root'), 'timeline-scope')).toBe(BAR_TIMELINE);
+      const bar = rule(STICKY_FILTER_BAR);
+      expect(value(bar, 'view-timeline-name')).toBe(BAR_TIMELINE);
+      expect(value(bar, 'view-timeline-axis')).toBe('block');
+      // From the safe-area inset to the band's end: the range is the band itself.
+      expect(value(bar, 'view-timeline-inset')).toBe(
+        'env(safe-area-inset-top, 0) calc(100% - var(--edge-haze-top) - env(safe-area-inset-top, 0px))',
+      );
+    });
+
+    it("rises by the band's height less the bar's, never below 0, the shortest bar's before it measures", () => {
+      expect(value(rule('.edge-haze > .t'), '--edge-haze-rise')).toBe(
+        `max(0px, var(--edge-haze-top) - var(${PINNED_BAR_HEIGHT_PROPERTY}, 3.5rem))`,
+      );
+      // 3.5rem is the phone bar (a 40px field and 8px above and below), the shortest there is.
+      expect(FILTER_SCOPE_CLASS).toContain('[--filter-bar-h:3.5rem]');
+    });
+
+    it('raises the layers with the bar, holds them while it is pinned and lowers them as it leaves', () => {
+      const layers = rule(UNDER_BAR_LAYERS, [SUPPORTS_BAR_TIMELINE]);
+
+      expect(value(layers, 'animation-name')).toBe(
+        'edge-haze-in, edge-haze-rise, edge-haze-return',
+      );
+      expect(value(layers, 'animation-timeline')).toBe(
+        `scroll(root block), ${BAR_TIMELINE}, ${BAR_TIMELINE}`,
+      );
+      // The fade as before; the rise while the bar's lower edge crosses the band; the return as
+      // the bar leaves at the end of its sticky travel.
+      expect(value(layers, 'animation-range')).toBe(
+        '0 var(--edge-haze-top), contain 0% contain var(--edge-haze-rise), exit 0% exit 100%',
+      );
+      expect(value(layers, 'animation-composition')).toBe('replace, replace, add');
+      expect(rule('@keyframes edge-haze-rise').body).toMatch(
+        /from \{ translate: 0 0; \} to \{ translate: 0 calc\(-1 \* var\(--edge-haze-rise\)\); \}/,
+      );
+      expect(rule('@keyframes edge-haze-return').body).toMatch(
+        /from \{ translate: 0 0; \} to \{ translate: 0 var\(--edge-haze-rise\); \}/,
+      );
+    });
+
+    it("lets the component's script raise the layers where there is no view timeline", () => {
+      expect(value(rule('.edge-haze > .t > i', [NO_BAR_TIMELINE]), 'translate')).toBe(
+        `0 calc(-1 * var(${EDGE_HAZE_BAR_SHIFT}, 0px))`,
+      );
+    });
+
+    it('moves the layers, never the haze or a band, so nothing cuts the blur off in any engine', () => {
+      const wrappers = new Set(['.edge-haze', '.edge-haze > div', '.edge-haze > .t']);
+      const moving = /^(?:translate|transform|rotate|scale|animation-name|animation)$/;
+      const offenders = RULES.filter((candidate) => wrappers.has(candidate.selector)).flatMap(
+        (candidate) =>
+          declarations(candidate.body)
+            .filter(([property]) => moving.test(property))
+            .map(([property]) => `${candidate.selector} ${property}`),
+      );
+      expect(offenders).toEqual([]);
+    });
   });
 
   it('keeps focus, find-in-page and #hash targets clear of both bands', () => {

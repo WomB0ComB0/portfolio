@@ -45,6 +45,9 @@
    */
   --edge-haze-top: clamp(min(77px, 14svh), 11svh, 132px);
   --edge-haze-bottom: clamp(min(77px, 14svh), 11svh, 132px);
+
+  /* A sticky FilterBar's view timeline, which the top band follows (under a pinned bar, below). */
+  timeline-scope: --filter-bar;
 }
 
 /*
@@ -92,6 +95,12 @@
     transparent 100%
   );
   --edge-haze-fade-end: linear-gradient(to top, transparent 0%, #000 50%, #000 100%, #000 100%);
+
+  /*
+   * How far the band's layers rise under a pinned FilterBar: the band's height less the bar's,
+   * never below 0. The bar writes its height (bar.tsx); before it has, the shortest bar's 3.5rem.
+   */
+  --edge-haze-rise: max(0px, var(--edge-haze-top) - var(--filter-bar-pinned-h, 3.5rem));
 
   top: env(safe-area-inset-top, 0);
   height: var(--edge-haze-top);
@@ -297,15 +306,25 @@
  * page; the bottom one leaves over the last, so the footer is sharp at the end. They follow the
  * scroll position, never the clock: under reduced motion nothing moves on its own. On a page too
  * short to scroll the timeline is inactive and both stay hidden.
+ *
+ * Longhands only, never the `animation` shorthand: a CSS minifier with recent browser targets
+ * (the dev server's) folds the timeline into the shorthand, which Chromium then drops whole, so
+ * the bands never showed. With no shorthand there is nothing to fold into, whatever the targets.
  */
 .edge-haze > .t > i {
-  animation: edge-haze-in linear both;
+  animation-name: edge-haze-in;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
   animation-timeline: scroll(root block);
   animation-range: 0 var(--edge-haze-top);
 }
 
 .edge-haze > .b > i {
-  animation: edge-haze-out linear both;
+  animation-name: edge-haze-out;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
   animation-timeline: scroll(root block);
   animation-range: calc(100% - var(--edge-haze-bottom)) 100%;
 }
@@ -338,13 +357,85 @@
  */
 @supports not (animation-timeline: scroll()) {
   .edge-haze > .t > i {
-    animation: none;
+    animation-name: none;
     opacity: var(--edge-haze-top-opacity, 0);
   }
 
   .edge-haze > .b > i {
-    animation: none;
+    animation-name: none;
     opacity: var(--edge-haze-bottom-opacity, 1);
+  }
+}
+
+/*
+ * Under a pinned FilterBar (/places, /places/photos, /projects, /certifications, /media). The bar
+ * holds the top edge over the haze, opaque, but is shorter than the band, whose lower part would
+ * reach past it and blur the first row under it. So while a sticky bar is in the band, the band's
+ * layers rise with it: 1:1 as the bar comes up, so the band ends at the bar's lower edge, then
+ * held there while the bar is pinned, and back down as the bar leaves at the end of its list.
+ * Under the bar the haze is as before (the bar covers it; beside it on wide screens it shows),
+ * and the band's settings never change. With no sticky bar on the page nothing moves.
+ *
+ * The bar's own view timeline drives it, so it follows the scroll on the compositor, frame for
+ * frame, and never the clock: reduced motion keeps it, as it keeps the fades. The bar's view range
+ * is inset to the band: the layers start to rise as the bar's lower edge meets the band's
+ * (contain 0%), and have risen the whole way (--edge-haze-rise) as the bar reaches the top. A
+ * sticky subject's range runs on to the end of its sticky travel, so `exit` is the bar leaving.
+ * The layers rise, never the band: a transform on the element that blurs is safe in every engine,
+ * one on its parent is not promised to be (Safari), and the band's own box stays where
+ * pause-under-edge.ts measures it.
+ *
+ * Only a page with a sticky bar carries the rise and the return (the :has() below). Without one
+ * the bar's timeline is inactive, so they would move nothing, yet they would still be listed by
+ * document.getAnimations() as running on all ten top layers: home, project pages and every other
+ * page keep exactly the animations they had before.
+ */
+[data-filter-part="bar"][data-sticky] {
+  view-timeline-name: --filter-bar;
+  view-timeline-axis: block;
+  view-timeline-inset: env(safe-area-inset-top, 0)
+    calc(100% - var(--edge-haze-top) - env(safe-area-inset-top, 0px));
+}
+
+@supports (timeline-scope: --filter-bar) {
+  :root:has([data-filter-part="bar"][data-sticky]) .edge-haze > .t > i {
+    animation-name: edge-haze-in, edge-haze-rise, edge-haze-return;
+    animation-timeline: scroll(root block), --filter-bar, --filter-bar;
+    animation-range:
+      0 var(--edge-haze-top),
+      contain 0% contain var(--edge-haze-rise),
+      exit 0% exit 100%;
+    animation-composition: replace, replace, add;
+  }
+}
+
+@keyframes edge-haze-rise {
+  from {
+    translate: 0 0;
+  }
+
+  to {
+    translate: 0 calc(-1 * var(--edge-haze-rise));
+  }
+}
+
+@keyframes edge-haze-return {
+  from {
+    translate: 0 0;
+  }
+
+  to {
+    translate: 0 var(--edge-haze-rise);
+  }
+}
+
+/*
+ * Without view timelines (Firefox; Safari before 26), the component sets how far the layers rise
+ * from the bar's position, once per frame as the page scrolls (edge-haze.tsx, underBarShift).
+ */
+@supports not (timeline-scope: --filter-bar) {
+  .edge-haze > .t > i {
+    translate: 0 calc(-1 * var(--edge-haze-bar-shift, 0px));
   }
 }
 
@@ -423,6 +514,18 @@ html {
     scroll-padding-block: max(calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px)), 4.625rem)
       var(--edge-haze-bottom);
   }
+}
+
+/*
+ * While focus is inside a sticky FilterBar (src/components/console/filter-bar), the top padding
+ * goes: the stuck bar sits inside the top band by design, so the browser would scroll the page to
+ * bring the caret below the padding after every keystroke (75px each), and, without JavaScript,
+ * Tab into the bar would jump the page by most of a screen. The bar is on screen wherever it is
+ * stuck, so nothing focused in it needs the padding. :has() takes its argument's specificity, so
+ * this wins over both screen paddings; print sets 0 anyway.
+ */
+html:has([data-filter-part="bar"][data-sticky]:focus-within) {
+  scroll-padding-top: 0;
 }
 
 /*
