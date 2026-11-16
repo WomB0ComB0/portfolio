@@ -26,7 +26,7 @@
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FilterBar } from '@/components/console/filter-bar';
 import { FilterBarSkeleton } from '@/components/console/filter-bar/skeleton';
@@ -224,6 +224,96 @@ describe('FilterBar.Facets: the phone sheet', () => {
     expect(sheet?.contains(kinds())).toBe(true);
     const done = within(sheet as HTMLElement).getByRole('button', { name: 'Show 2 projects' });
     expect(done).toHaveAttribute('popovertargetaction', 'hide');
+  });
+
+  /**
+   * The sheet is a popover over a dimmed backdrop that is not a hit target: the browser closes it
+   * on the press's pointerup, and the press's click then lands on whatever the backdrop dimmed.
+   */
+  describe('a press that starts outside the open sheet only closes it', () => {
+    let open = false;
+    let landed = vi.fn();
+
+    /**
+     * The bar beside a link elsewhere on the page, its sheet open. jsdom has no popovers, so the
+     * sheet answers :popover-open from `open`.
+     */
+    const renderOpenSheet = (): { readonly link: HTMLElement; readonly button: HTMLElement } => {
+      render(<FullBar extra={<a href="/elsewhere">Elsewhere</a>} />);
+      const button = screen.getByRole('button', { name: /^Filters/ });
+      const sheet = document.getElementById(button.getAttribute('popovertarget') ?? '');
+      if (!sheet) throw new Error('no sheet');
+      const matches = sheet.matches.bind(sheet);
+      open = true;
+      vi.spyOn(sheet, 'matches').mockImplementation((selector) =>
+        selector === ':popover-open' ? open : matches(selector),
+      );
+      const link = screen.getByRole('link', { name: 'Elsewhere' });
+      landed = vi.fn();
+      link.addEventListener('click', landed);
+      return { link, button };
+    };
+
+    /**
+     * A finger's press on `target`: its pointerdown, the browser's light dismiss, then its
+     * mousedown and click. Each says whether it went through (false: cancelled).
+     */
+    const press = (
+      target: HTMLElement,
+    ): { readonly mousedown: boolean; readonly click: boolean } => {
+      fireEvent.pointerDown(target);
+      open = false;
+      const mousedown = fireEvent.mouseDown(target, { detail: 1 });
+      return { mousedown, click: fireEvent.click(target, { detail: 1 }) };
+    };
+
+    it('cancels that press’s click, so the link under the finger never opens', () => {
+      const { link } = renderOpenSheet();
+
+      const { mousedown, click } = press(link);
+
+      expect(click).toBe(false);
+      expect(landed).not.toHaveBeenCalled();
+      // Nor does focus move to the link: the sheet hands it back to the Filters button.
+      expect(mousedown).toBe(false);
+    });
+
+    it('lets the next press through, the sheet closed', () => {
+      const { link } = renderOpenSheet();
+      press(link);
+
+      expect(press(link)).toEqual({ mousedown: true, click: true });
+      expect(landed).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a press inside the sheet alone: a chip still filters', () => {
+      renderOpenSheet();
+      const tools = chip(/^Tools/);
+
+      fireEvent.pointerDown(tools);
+      fireEvent.click(tools, { detail: 1 });
+
+      expect(count()).toHaveTextContent('2 of 5 projects');
+    });
+
+    it('leaves the Filters button alone, whose own click closes the sheet', () => {
+      const { button } = renderOpenSheet();
+
+      expect(press(button).click).toBe(true);
+    });
+
+    it('forgets a press that turned into a scroll, and never holds a click from the keyboard', () => {
+      const { link } = renderOpenSheet();
+
+      fireEvent.pointerDown(link);
+      fireEvent.pointerCancel(link);
+      expect(fireEvent.click(link, { detail: 1 })).toBe(true);
+
+      fireEvent.pointerDown(link);
+      // Enter on a focused link: a click with no press behind it (detail 0).
+      expect(fireEvent.click(link, { detail: 0 })).toBe(true);
+      expect(landed).toHaveBeenCalledTimes(2);
+    });
   });
 });
 
