@@ -56,6 +56,17 @@ describe('splitTitle', () => {
     );
     expect(splitTitle('Grepo', 'Searches repos fast').summary).toBe('Searches repos fast');
   });
+
+  it('reads a long run of spaces once, and still splits after one', () => {
+    // A title has no length cap. Scanned from every space, 40,000 of them took about a second.
+    const run = ' '.repeat(40_000);
+    const started = performance.now();
+    const unsplit = splitTitle(`Grepo${run}Search`, 'Searches repos.');
+
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(unsplit.summary).toBe('Searches repos.');
+    expect(splitTitle(`Grepo${run}- Search`, 'x')).toEqual({ title: 'Grepo', summary: 'Search' });
+  });
 });
 
 describe('kindsOf and kindSlug', () => {

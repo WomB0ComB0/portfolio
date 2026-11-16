@@ -39,6 +39,7 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/photos/_components/photo-dialog
   throw new Error('Loading chunk photo-dialog-live failed');
 });
 
+import { PhotoDialog } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-dialog';
 import { PhotosView } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photos-view';
 import { byId, photoData, stubDevice } from './photo-fixtures';
 
@@ -73,6 +74,28 @@ afterEach(() => {
 });
 
 describe('a lazy part that fails to load', () => {
+  it('uses the project destination when Screens supplies its own fallback link', async () => {
+    const photo = photos[0];
+    const place = places[0];
+    if (!photo || !place) throw new Error('missing photo fixture');
+    const unavailable = vi.fn();
+    render(
+      <PhotoDialog
+        opened={{ photo, place, source: null, placeholder: '', returnFocus: null }}
+        onClosed={vi.fn()}
+        onUnavailable={unavailable}
+        openHref={() => '/projects/example-project'}
+      />,
+    );
+
+    await settle(
+      () => import('@/app/(routes)/(main)/(personal)/places/photos/_components/photo-dialog-live'),
+    );
+
+    expect(unavailable).toHaveBeenCalledOnce();
+    expect(h.push).toHaveBeenCalledWith('/projects/example-project');
+  });
+
   it('leaves the grid, with no Wall option, when the wall fails on a mouse', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     stubDevice({ fine: true });
