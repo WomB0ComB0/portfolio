@@ -15,56 +15,69 @@
  */
 
 /**
- * @file The guestbook's words and figures: the h1, the subline, the two-figure stat strip
- * (messages, and the month of the first one) and the notes above the list for its empty, error,
- * stale and capped states. Server-safe (no directive, no hooks).
+ * @file The guestbook's words: the h1, the subline and its count line ("28 notes · since Oct
+ * 2025", a Folio Byline where the two big figures were), the words of the empty and error states
+ * (the wall's first chapter says them, over the compose tile), and the note above the wall for a
+ * stale or capped list. Server-safe (no directive, no hooks).
  */
 
 import type { ReactElement } from 'react';
 
-import { Freshness, StatStrip } from '@/components/console';
+import { Freshness } from '@/components/console';
+import { Byline, type BylinePart, countOf } from '@/components/console/folio';
 import type { GuestbookLoad } from '@/lib/guestbook/types';
 import type { GuestbookStats } from '../_lib/format';
 import type { BoardListState } from './guestbook-board';
-import {
-  LIST_NOTE_CLASS,
-  STATE_BOX_CLASS,
-  STATE_TEXT_CLASS,
-  STATE_TITLE_CLASS,
-} from './guestbook-classes';
+import { LIST_NOTE_CLASS } from './guestbook-classes';
 
 export const GUESTBOOK_TITLE = 'Guestbook';
 export const GUESTBOOK_DESCRIPTION =
   'Notes from people who stopped by, newest first. Sign in to leave yours.';
-const STATS_LABEL = 'Guestbook totals';
+/** The notes region's name, for a screen reader (the year headings say the rest). */
+export const NOTES_LABEL = 'Notes, newest first';
+export const NOTE_NOUN = { one: 'note', many: 'notes' } as const;
+const COUNT_UNAVAILABLE = 'Note count unavailable';
 
-/** Two figures, so "Oct 2025" keeps a column of its own from a 320px phone. */
-export function GuestbookStatStrip({
+/** What the wall's first chapter says when there is no note to show. */
+export interface StateWords {
+  readonly title: string;
+  readonly text?: string;
+}
+
+export const EMPTY_STATE: StateWords = {
+  title: 'No messages yet',
+  text: 'Be the first to sign the guestbook.',
+};
+export const ERROR_STATE: StateWords = {
+  title: "Messages couldn't load",
+  text: "The guestbook's database didn't answer. Reload the page in a moment to read them; you can still sign it.",
+};
+/** A stale list that was empty: the note above the wall says why, so the chapter only names. */
+export const STALE_EMPTY_STATE: StateWords = { title: 'Notes' };
+
+/** "28 notes", "500+ notes" (the safety cap cut the list) or "1 note". */
+const countWords = (count: number | string): string =>
+  typeof count === 'number' ? countOf(count, NOTE_NOUN) : `${count} ${NOTE_NOUN.many}`;
+
+/** The count line's parts: the count, then the month of the first note, when there is one. */
+export function countLineParts(stats: GuestbookStats, available: boolean): BylinePart[] {
+  if (!available) return [COUNT_UNAVAILABLE];
+  return [countWords(stats.count), stats.firstMonth ? `since ${stats.firstMonth}` : null];
+}
+
+/**
+ * The header's count, one quiet line under the subline (inside its paragraph, so a span). The
+ * counts sit in a byline, never in stat tiles: the notes lead the page.
+ */
+export function GuestbookCountLine({
   stats,
   available,
 }: {
   readonly stats: GuestbookStats;
-  /** False when the list could not load: both figures show as unavailable. */
+  /** False when the list could not load: the count is unavailable. */
   readonly available: boolean;
-}): ReactElement {
-  return (
-    <StatStrip
-      aria-label={STATS_LABEL}
-      items={[
-        { label: 'messages', value: available ? stats.count : null },
-        { label: 'first message', value: available ? stats.firstMonth : null },
-      ]}
-    />
-  );
-}
-
-function StateBox({ title, text }: { readonly title: string; readonly text: string }) {
-  return (
-    <div className={STATE_BOX_CLASS}>
-      <p className={STATE_TITLE_CLASS}>{title}</p>
-      <p className={STATE_TEXT_CLASS}>{text}</p>
-    </div>
-  );
+}): ReactElement | null {
+  return <Byline as="span" className="mt-2 block" parts={countLineParts(stats, available)} />;
 }
 
 /** Why the list may be out of date, worded for the rows below it, or for none. */
@@ -92,7 +105,11 @@ function StaleNote({
   );
 }
 
-/** What the list says before its rows, or nothing when it is simply ready. */
+/**
+ * What the wall says above its chapters: why a stale list may be out of date, and when the
+ * safety cap cut the list; else nothing. The empty and error states are the first chapter's own
+ * words (EMPTY_STATE, ERROR_STATE), so they sit right over the compose tile.
+ */
 export function ListNotice({
   load,
   listState,
@@ -100,17 +117,6 @@ export function ListNotice({
   readonly load: GuestbookLoad;
   readonly listState: BoardListState;
 }): ReactElement | null {
-  if (listState === 'empty') {
-    return <StateBox title="No messages yet" text="Be the first to sign the guestbook." />;
-  }
-  if (listState === 'error') {
-    return (
-      <StateBox
-        title="Messages couldn't load"
-        text="The guestbook's database didn't answer. Reload the page in a moment to read them; you can still sign it."
-      />
-    );
-  }
   const stale = listState === 'stale' && load.loadedAt !== null;
   if (!stale && !load.truncated) return null;
   return (
