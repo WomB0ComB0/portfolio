@@ -22,7 +22,7 @@
  */
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { KBarProvider } from 'kbar';
+import { KBarProvider, useKBar, VisualState } from 'kbar';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NavBar } from '@/components/layout/nav';
@@ -35,9 +35,21 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 
+/** The real provider's settled state, including its asynchronous animation timer. */
+function PaletteState() {
+  const { visualState } = useKBar((state) => ({ visualState: state.visualState }));
+  return <output data-testid="palette-state">{visualState}</output>;
+}
+
+/** KBar does not cancel its animation timer on unmount; let it settle while still mounted. */
+const expectPaletteState = async (state: VisualState): Promise<void> => {
+  await waitFor(() => expect(screen.getByTestId('palette-state')).toHaveTextContent(state));
+};
+
 /** The rail beside some page content and a page field. */
 const rail = (path: string) => (
   <KBarProvider>
+    <PaletteState />
     <p>Page content</p>
     <NavBar path={path} />
     <label>
@@ -173,6 +185,7 @@ describe('NavBar flyouts', () => {
     });
 
     await expectClosed('Personal');
+    await expectPaletteState(VisualState.showing);
   });
 
   it('marks the current page in the open flyout', () => {
@@ -239,6 +252,7 @@ describe('NavBar flyouts and keyboard focus', () => {
 
     await expectClosed('Developer');
     expect(pageField()).toHaveFocus();
+    await expectPaletteState(VisualState.hidden);
   });
 
   it('closes on Escape from one of its links and returns focus to the trigger', async () => {
@@ -249,5 +263,6 @@ describe('NavBar flyouts and keyboard focus', () => {
 
     await expectClosed('Developer');
     expect(trigger('Developer')).toHaveFocus();
+    await expectPaletteState(VisualState.hidden);
   });
 });

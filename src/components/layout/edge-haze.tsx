@@ -141,7 +141,8 @@ function writeBarShift(haze: HTMLElement, top: HTMLElement): void {
  * once per frame, and again when the page or the window changes size (a client navigation, a
  * filter). Effects never run on the server.
  */
-function useScrollFallback(ref: RefObject<HTMLDivElement | null>): void {
+function useScrollFallback(ref: RefObject<HTMLDivElement | null>, path: string): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: navigation can replace a bar without changing scroll or body size.
   useEffect(() => {
     const haze = ref.current;
     if (!haze) return;
@@ -173,7 +174,7 @@ function useScrollFallback(ref: RefObject<HTMLDivElement | null>): void {
       resize.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [ref]);
+  }, [ref, path]);
 }
 
 /**
@@ -236,7 +237,7 @@ export interface EdgeHazeProps {
  */
 export function EdgeHaze({ path }: EdgeHazeProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
-  useScrollFallback(ref);
+  useScrollFallback(ref, path);
   usePauseUnderEdge(ref, path);
 
   return (

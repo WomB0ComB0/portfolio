@@ -107,7 +107,10 @@ const press = (init: KeyboardEventInit): boolean => {
 /** Opens the palette with Ctrl+K, which stays the way in. */
 const openPalette = async () => {
   press({ key: 'k', code: 'KeyK', ctrlKey: true });
-  return screen.findByRole('combobox');
+  const search = await screen.findByRole('combobox');
+  // Mount happens during animatingIn; wait until KBar's opening timer has settled.
+  await waitFor(() => expect(search).toHaveAttribute('aria-expanded', 'true'));
+  return search;
 };
 
 /** Every letter the old palette bound as a bare, page-wide shortcut. */
@@ -159,6 +162,7 @@ describe('Page shortcuts with the palette open', () => {
     press({ key: '©', code: 'KeyG', altKey: true });
 
     expect(push).toHaveBeenCalledExactlyOnceWith('/guestbook');
+    await waitFor(() => expect(screen.queryByRole('combobox')).not.toBeInTheDocument());
   });
 
   it.each([
@@ -173,6 +177,7 @@ describe('Page shortcuts with the palette open', () => {
     press({ ...keys, altKey: true });
 
     expect(push).toHaveBeenCalledExactlyOnceWith(href);
+    await waitFor(() => expect(screen.queryByRole('combobox')).not.toBeInTheDocument());
   });
 
   it('leave Option+L to the search box on a Polish Mac, where it types "ł"', async () => {
@@ -229,6 +234,7 @@ describe('Page shortcuts with the palette open', () => {
 
     expect(push).toHaveBeenCalledExactlyOnceWith('/guestbook');
     expect(location.pathname).toBe(START_PATH);
+    await waitFor(() => expect(screen.queryByRole('combobox')).not.toBeInTheDocument());
   });
 
   it('name the search box', async () => {
