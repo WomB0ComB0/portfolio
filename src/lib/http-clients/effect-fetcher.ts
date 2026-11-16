@@ -27,7 +27,7 @@ export interface FetcherOptions<T = unknown> {
   retries?: number;
   /** Delay in milliseconds between retries */
   retryDelay?: number;
-  /** Optional callback invoked on error */
+  /** Called once when the request fails (after its last attempt), with the error it fails with. */
   onError?: (error: unknown) => void;
   /** Timeout in milliseconds for the request */
   timeout?: number;
@@ -62,8 +62,32 @@ export type Headers = Schema.Schema.Type<typeof Headers>;
 
 const EMPTY = '';
 
-/** Upper bound on the response body kept in a parse error's data, so HTML pages can't flood logs. */
+/**
+ * Upper bound on the body an error keeps (a non-2xx response's, one that failed to parse, or one
+ * its schema rejected) and on its schema problems, so a large body can't flood memory or logs.
+ */
 const MAX_ERROR_BODY_CHARS = 2_000;
+
+/** `text` whole, or its first `chars`, copied (a V8 slice keeps the whole text), and `more`. */
+const cut = (text: string, chars: number, more = (_rest: number): string => ''): string =>
+  text.length > chars ? `${[...text.slice(0, chars)].join('')}${more(text.length - chars)}` : text;
+
+/**
+ * What an error keeps of a body (a non-2xx one, or a 2xx one its schema rejects), never more
+ * than {@link MAX_ERROR_BODY_CHARS} of it, as the parse failure keeps: a JSON body that short as
+ * parsed, any other body's start as text (`responseText`), nothing of an empty or unread body.
+ */
+const keptErrorBody = (json: unknown, text: string | null): unknown => {
+  if (!text) return undefined;
+  if (json !== undefined && text.length <= MAX_ERROR_BODY_CHARS) return json;
+  return { responseText: cut(text, MAX_ERROR_BODY_CHARS) };
+};
+
+/** The most of a body an error's message quotes: messages are logged and sent to Sentry. */
+const MESSAGE_BODY_CHARS = 200;
+
+/** `text` as a message quotes it: whole, or its first {@link MESSAGE_BODY_CHARS} and '...'. */
+const messageSnippet = (text: string): string => cut(text, MESSAGE_BODY_CHARS, () => '...');
 
 /**
  * Get the base URL for API requests.
@@ -178,6 +202,7 @@ export class ValidationError extends Error {
     super(message);
     this.name = 'ValidationError';
     Object.setPrototypeOf(this, ValidationError.prototype);
+    void this.stack; // Formatted now: V8's unformatted stack keeps its frames, and a body, alive.
   }
 
   [Symbol.toStringTag] = 'ValidationError';
@@ -221,6 +246,7 @@ export class FetcherError extends Error {
     super(message);
     this.name = 'FetcherError';
     Object.setPrototypeOf(this, FetcherError.prototype);
+    void this.stack; // Formatted now: V8's unformatted stack keeps its frames, and a body, alive.
   }
 
   [Symbol.toStringTag] = 'FetcherError';
@@ -442,17 +468,13 @@ export function fetcher<T = unknown>(
     const result = Schema.decodeUnknownEither(schema)(data);
 
     if (result._tag === 'Left') {
-      const problems = ParseResult.TreeFormatter.formatIssueSync(result.left.issue);
-      const validationError = new ValidationError(
-        'Response validation failed',
-        url,
-        problems,
-        data,
-        attempt,
+      const issues = ParseResult.TreeFormatter.formatIssueSync(result.left.issue);
+      const problems = cut(issues, MAX_ERROR_BODY_CHARS, (rest) => `… (${rest} more characters)`);
+      const responseData = keptErrorBody(data, JSON.stringify(data));
+      // onError hears of it once, where the request's failure is handled below.
+      return Effect.fail(
+        new ValidationError('Response validation failed', url, problems, responseData, attempt),
       );
-
-      if (onError) onError(validationError);
-      return Effect.fail(validationError);
     }
 
     return Effect.succeed(result.right as T);
@@ -484,6 +506,8 @@ export function fetcher<T = unknown>(
                 attempt,
               ),
           ),
+          // It fails before the request runs, so outside the handling below: tell onError here.
+          Effect.tapError((error) => Effect.sync(() => onError?.(error))),
         );
       }
     }
@@ -556,19 +580,26 @@ export function fetcher<T = unknown>(
 
         const responseText = yield* pipe(
           response.text,
-          Effect.catchAll(() => Effect.succeed('Request failed')),
+          Effect.catchAll(() => Effect.succeed(null)),
         );
 
-        // Enhanced error handling for 429 Rate Limit responses
+        // Enhanced error handling for 429 Rate Limit responses. Otherwise the status and the start
+        // of the body: nothing from the request (its headers carry keys and tokens) is quoted.
         const errorMessage =
           response.status === 429
             ? `Rate limit exceeded (429). Please slow down requests to ${url}`
-            : `HTTP ${response.status}: ${responseText}`;
+            : `HTTP ${response.status}: ${messageSnippet(responseText ?? 'Request failed')}`;
 
-        const error = new FetcherError(errorMessage, url, response.status, errorData, attempt);
-
-        if (onError) onError(error);
-        return yield* Effect.fail(error);
+        // onError hears of it once, after the last attempt, where the failure is handled below.
+        return yield* Effect.fail(
+          new FetcherError(
+            errorMessage,
+            url,
+            response.status,
+            keptErrorBody(errorData, responseText),
+            attempt,
+          ),
+        );
       }
 
       // Parse response data as JSON. @effect/platform caches the body text, so when JSON parsing
@@ -592,8 +623,7 @@ export function fetcher<T = unknown>(
             Effect.flatMap((text) => {
               // Effect normalises header names to lower case.
               const contentType = response.headers['content-type'] || 'unknown';
-              const snippet = `${text.slice(0, 200)}${text.length > 200 ? '...' : ''}`;
-              const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${contentType}, Body: ${snippet}`;
+              const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${contentType}, Body: ${messageSnippet(text)}`;
               // Text only: the platform's error keeps the request headers, credentials included.
               const originalError = error instanceof Error ? error.message : String(error);
               return Effect.fail(
@@ -601,7 +631,7 @@ export function fetcher<T = unknown>(
                   errorMessage,
                   url,
                   response.status,
-                  { originalError, responseText: text.slice(0, MAX_ERROR_BODY_CHARS) },
+                  { originalError, responseText: cut(text, MAX_ERROR_BODY_CHARS) },
                   attempt,
                 ),
               );
@@ -616,7 +646,8 @@ export function fetcher<T = unknown>(
       return validatedData;
     });
 
-    // Run the request with retry and error handling
+    // Run the request with retry. The one place onError hears of a request that failed, once,
+    // after its last attempt (a body that fails to serialise is told where it fails, above).
     return yield* pipe(
       executeRequest,
       Effect.retry(retrySchedule),
