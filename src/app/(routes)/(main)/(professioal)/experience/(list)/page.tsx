@@ -15,27 +15,36 @@
  */
 
 /**
- * @file /experience. It lives in the (list) route group so that its loading.tsx wraps this page
- * only: a loading boundary above /experience/[id] would answer 200 before notFound() runs.
+ * @file /experience as a story: Now first, then every year a role began, each role hung off one
+ * rail (the owner's pick on 2026-11-15). There is no loading.tsx (owner: "Yes, like the
+ * others"), so every role is in the first HTML and reads without JavaScript, as on
+ * /certifications and /projects. The page stays in the (list) route group so list-only files
+ * never wrap /experience/[id], whose notFound() must still answer 404.
  */
 
 import type { JSX } from 'react';
-import { ExperienceList } from '@/app/(routes)/(main)/(professioal)/experience/_interface/experience-list';
+import { nyToday } from '@/app/_components/home/data/format';
+import { RoleStory } from '@/app/(routes)/(main)/(professioal)/experience/_interface/role-story/role-story';
 import { loadExperiences } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils';
 
 export const metadata = constructMetadata({
   title: 'Experience',
-  description: 'Explore my professional work experience and career journey',
+  description: 'Where I work now and where I worked before: roles, organizations and dates.',
   path: '/experience',
 });
 
 /**
- * Renders every experience on the server. A Sanity failure with nothing cached rejects here and
- * reaches the shell's error boundary, rather than showing an empty timeline.
+ * Every role, rendered on the server as the story, on a clock that ends in today's month in New
+ * York. The roles answer from the process's stale cache (5 min fresh; Sanity asked with a 4 s
+ * timeout and one retry), so a slow Sanity never holds the page past about 8 s, and a Sanity
+ * failure with nothing cached rejects here and reaches the shell's error boundary, not an empty
+ * page. The technologies are quiet words here (each role's page links them into /projects), so
+ * the projects are not loaded.
  */
 const ExperiencePage = async (): Promise<JSX.Element> => {
-  return <ExperienceList experiences={await loadExperiences()} />;
+  const experiences = await loadExperiences();
+  return <RoleStory experiences={experiences} today={nyToday()} />;
 };
 ExperiencePage.displayName = 'ExperiencePage';
 export default ExperiencePage;

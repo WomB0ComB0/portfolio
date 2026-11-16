@@ -15,11 +15,11 @@
  */
 
 /**
- * @file /experience and /experience/[id] render on the server from the D1 loaders. The list has
- * every experience in its HTML (no pagination, nothing hidden at opacity 0), each linking to its
- * page with a pending spinner inside the link. The detail page calls notFound() itself, so an
- * unknown id answers a real 404 instead of a 200 that a client component turns into one, and a
- * Sanity failure reaches the error boundary instead of an empty page.
+ * @file How /experience/[id] answers as a route (the list is role-story-page.test.tsx's). The
+ * detail route calls notFound() itself, so an unknown id answers a real 404 before anything else
+ * is loaded, a Sanity failure reaches the error boundary instead of an empty page, and its
+ * metadata names the role as the list does, without raw addresses. What the page shows is
+ * covered in role-detail-page.test.tsx.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -37,12 +37,14 @@ vi.hoisted(() => {
 const h = vi.hoisted(() => ({
   loadExperiences: vi.fn(),
   loadExperienceById: vi.fn(),
+  loadProjects: vi.fn(),
   reportApiFailure: vi.fn(),
 }));
 
 vi.mock('@/lib/sanity/loaders', () => ({
   loadExperiences: h.loadExperiences,
   loadExperienceById: h.loadExperienceById,
+  loadProjects: h.loadProjects,
 }));
 vi.mock('@/lib/observability/report', () => ({ reportApiFailure: h.reportApiFailure }));
 // client.ts require()s '@/env' at load; the pages only need the image URL builder.
@@ -52,57 +54,60 @@ vi.mock('@/lib/sanity/client', async () => {
   return { urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source) };
 });
 
-import ExperienceLoading from '@/app/(routes)/(main)/(professioal)/experience/(list)/loading';
-import ExperiencePage from '@/app/(routes)/(main)/(professioal)/experience/(list)/page';
 import ExperienceDetailPage, {
   generateMetadata,
 } from '@/app/(routes)/(main)/(professioal)/experience/[id]/page';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { logger } from '@/utils';
 import { constructMetadata } from '@/utils/seo/meta';
 
 const E_DIR = 'src/app/(routes)/(main)/(professioal)/experience';
-const LIST_FILE = `${E_DIR}/_interface/experience-list/experience-list.tsx`;
-const DETAIL_FILE = `${E_DIR}/_interface/experience-detail/experience-detail.tsx`;
+const STORY_FILE = `${E_DIR}/_interface/role-story/role-story.tsx`;
+const DETAIL_FILE = `${E_DIR}/_interface/role-detail/role-detail.tsx`;
 
 const NOT_FOUND_DIGEST = 'NEXT_HTTP_ERROR_FALLBACK;404';
 /** An inline opacity of exactly 0 (not 0.8): what a motion entrance leaves in server HTML. */
 const ZERO_OPACITY = /opacity:\s*0(?![.\d])/;
+/** A Suspense boundary's streamed segment: what loading.tsx leaves hidden without JavaScript. */
+const STREAMED_SEGMENT = /<div hidden id="S:/;
 
 const LOGO = {
   _type: 'image' as const,
   asset: { _ref: 'image-logo-200x200-png', _type: 'reference' as const },
 };
-const LOGO_URL = 'https://cdn.sanity.io/images/test/test/logo-200x200.png?w=56&h=56';
 
-/** 15 experiences, as many as Sanity holds: more than the old first page of 10. */
-const EXPERIENCES = Array.from({ length: 15 }, (_, index) =>
-  index === 0
-    ? makeExperience({
-        logo: LOGO,
-        current: true,
-        endDate: null,
-        location: 'New York, NY',
-        responsibilities: ['Ran the platform team'],
-        technologies: ['Go', 'Kubernetes'],
-      })
-    : makeExperience(),
-);
+/** 15 experiences, as many as Sanity holds: the first current, the second current by no end date. */
+const EXPERIENCES = Array.from({ length: 15 }, (_, index) => {
+  if (index === 0) {
+    return makeExperience({
+      logo: LOGO,
+      current: true,
+      endDate: null,
+      company: 'Platform Co, Inc.',
+      companyUrl: 'https://platform.example',
+      location: 'New York, NY',
+      description: 'Ran the platform (https://platform.example/docs) for a while. Then more.',
+      responsibilities: ['Ran the platform team'],
+      technologies: ['Go', 'Kubernetes'],
+    });
+  }
+  if (index === 1) return makeExperience({ current: false, endDate: null });
+  return makeExperience();
+});
 
 const FIRST = EXPERIENCES[0];
 if (!FIRST) throw new Error('the fixtures have no experiences');
 
 const paramsFor = (id: string) => ({ params: Promise.resolve({ id }) });
-const detailHrefs = (): string[] =>
-  screen
-    .getAllByRole('link', { name: 'View Details' })
-    .map((link) => link.getAttribute('href') ?? '');
 const sourceOf = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8');
 
 beforeEach(() => {
   h.loadExperiences.mockReset();
   h.loadExperienceById.mockReset();
+  h.loadProjects.mockReset();
   h.reportApiFailure.mockReset();
   h.loadExperiences.mockResolvedValue(EXPERIENCES);
+  h.loadProjects.mockResolvedValue([]);
   h.loadExperienceById.mockImplementation(
     async (id: string) => EXPERIENCES.find((experience) => experience._id === id) ?? null,
   );
@@ -110,93 +115,54 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
-describe('/experience', () => {
-  it('links every experience to its page, with no pagination', async () => {
-    render(await ExperiencePage());
-
-    const expected = EXPERIENCES.map(({ _id }) => `/experience/${encodeURIComponent(_id)}`);
-    expect([...new Set(detailHrefs())].sort()).toEqual([...expected].sort());
-    expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument();
-  });
-
-  it('puts a pending spinner inside every detail link', async () => {
-    render(await ExperiencePage());
-
-    for (const link of screen.getAllByRole('link', { name: 'View Details' })) {
-      const spinners = Array.from(link.querySelectorAll('span[aria-hidden="true"]')).filter(
-        (span) => span.className.includes('data-[pending]'),
-      );
-      expect(spinners).toHaveLength(1);
-    }
-  });
-
-  it('has every experience in the server HTML, with no entrance hiding it', async () => {
-    const html = renderToString(await ExperiencePage());
-
-    for (const experience of EXPERIENCES) {
-      expect(html).toContain(experience.position);
-      expect(html).toContain(`href="/experience/${experience._id}"`);
-    }
-    expect(html).not.toMatch(ZERO_OPACITY);
-    expect(html).not.toContain('scale(0)');
-  });
-
-  it("builds a logo on the server from Sanity's image CDN", async () => {
-    render(await ExperiencePage());
-
-    const [logo] = screen.getAllByRole('img', { name: `${FIRST.company} logo` });
-    expect(decodeURIComponent(logo?.getAttribute('src') ?? '')).toContain(LOGO_URL);
-  });
-
-  it('shows the empty state when Sanity has no experiences', async () => {
-    h.loadExperiences.mockResolvedValue([]);
-
-    render(await ExperiencePage());
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Work Experience' })).toBeInTheDocument();
-    expect(screen.getByText('No work experience listed at the moment.')).toBeInTheDocument();
-  });
-
-  it('lets a Sanity failure reach the error boundary instead of showing an empty timeline', async () => {
-    const outage = new Error('Sanity answered 503');
-    h.loadExperiences.mockRejectedValue(outage);
-
-    await expect(ExperiencePage()).rejects.toBe(outage);
-  });
-
-  it('shows a skeleton under the real page header while the list loads', () => {
-    render(<ExperienceLoading />);
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Work Experience' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading work experience');
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-  });
-});
-
 describe('/experience/[id]', () => {
-  it('answers 404 for an id Sanity does not have', async () => {
+  it('answers 404 for an id Sanity does not have, before loading anything else', async () => {
     await expect(ExperienceDetailPage(paramsFor('__nope__'))).rejects.toMatchObject({
       digest: NOT_FOUND_DIGEST,
     });
     expect(h.loadExperienceById).toHaveBeenCalledWith('__nope__');
+    expect(h.loadExperiences).not.toHaveBeenCalled();
+    expect(h.loadProjects).not.toHaveBeenCalled();
   });
 
-  it('renders a known experience with exactly one h1', async () => {
+  it('renders a known experience with its position as the one h1', async () => {
     render(await ExperienceDetailPage(paramsFor(FIRST._id)));
 
     const headings = screen.getAllByRole('heading', { level: 1 });
     expect(headings).toHaveLength(1);
     expect(headings[0]).toHaveTextContent(FIRST.position);
-    expect(screen.getByRole('heading', { level: 2, name: FIRST.company })).toBeInTheDocument();
-    expect(screen.getByText('Ran the platform team')).toBeInTheDocument();
-    expect(screen.getByText('Kubernetes')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Experience' })).toHaveAttribute(
+    // Every role, the lead included, leads back to its own stop on the list's rail.
+    expect(screen.getByRole('link', { name: /All experience/ })).toHaveAttribute(
       'href',
-      '/experience',
+      `/experience#role-${FIRST._id}`,
     );
+  });
+
+  it('renders on the server with no entrance or loading boundary hiding it', async () => {
+    const html = renderToString(await ExperienceDetailPage(paramsFor(FIRST._id)));
+
+    expect(html).toContain(FIRST.position);
+    expect(html).not.toMatch(ZERO_OPACITY);
+    expect(html).not.toMatch(STREAMED_SEGMENT);
+  });
+
+  it('answers 404 for a role that has not begun: the list leaves it out until its first month', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // Noon in New York on 13 November 2026; the role begins in December.
+    vi.setSystemTime(new Date('2026-11-13T17:00:00Z'));
+    const upcoming = makeExperience({ startDate: '2026-12-01', endDate: null, current: true });
+    h.loadExperienceById.mockResolvedValue(upcoming);
+
+    await expect(ExperienceDetailPage(paramsFor(upcoming._id))).rejects.toMatchObject({
+      digest: NOT_FOUND_DIGEST,
+    });
+    const metadata = await generateMetadata(paramsFor(upcoming._id));
+    expect(metadata).toEqual(NOT_FOUND_METADATA);
+    expect(metadata.openGraph?.url).toBeUndefined();
   });
 
   it('lets a Sanity failure reach the error boundary instead of answering 404', async () => {
@@ -206,39 +172,40 @@ describe('/experience/[id]', () => {
     await expect(ExperienceDetailPage(paramsFor(FIRST._id))).rejects.toBe(outage);
   });
 
-  it('shows an entry the CMS lists twice both times, without a duplicate key', async () => {
-    const repeated = makeExperience({
-      responsibilities: ['Shipped releases', 'Shipped releases'],
-      technologies: ['Go', 'Go'],
-    });
-    h.loadExperienceById.mockResolvedValue(repeated);
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  it('lets a failure of the list reach the error boundary too', async () => {
+    const outage = new Error('Sanity answered 503');
+    h.loadExperiences.mockRejectedValue(outage);
 
-    render(await ExperienceDetailPage(paramsFor(repeated._id)));
-
-    expect(screen.getAllByText('Shipped releases')).toHaveLength(2);
-    expect(screen.getAllByText('Go')).toHaveLength(2);
-    expect(consoleError).not.toHaveBeenCalled();
+    await expect(ExperienceDetailPage(paramsFor(FIRST._id))).rejects.toBe(outage);
   });
 });
 
 describe('/experience/[id] metadata', () => {
-  it('names an unknown id "404", without og:url', async () => {
-    const metadata = await generateMetadata(paramsFor('__nope__'));
+  it("gives an unknown id the site's own 404 title, without og:url", async () => {
+    const result = await generateMetadata(paramsFor('__nope__'));
 
-    expect(metadata.openGraph).toMatchObject({ title: '404' });
-    expect(metadata.openGraph?.url).toBeUndefined();
+    // The title the server sends with the 404 ("404"), so hydration never swaps it for another.
+    expect(result).toEqual(NOT_FOUND_METADATA);
+    expect(result.title).toMatchObject({ default: '404' });
+    expect(result.openGraph?.url).toBeUndefined();
     expect(h.reportApiFailure).not.toHaveBeenCalled();
   });
 
   it('describes a known experience with its own og:url', async () => {
-    const metadata = await generateMetadata(paramsFor(FIRST._id));
+    const result = await generateMetadata(paramsFor(FIRST._id));
 
-    expect(metadata.openGraph).toMatchObject({
-      title: `${FIRST.position} at ${FIRST.company}`,
-      description: FIRST.description,
+    expect(result.openGraph).toMatchObject({
+      title: `${FIRST.position} at Platform Co`,
       url: `https://mikeodnis.dev/experience/${FIRST._id}`,
     });
+  });
+
+  it('names the organization as the list does, and leaves raw addresses out of the description', async () => {
+    const result = await generateMetadata(paramsFor(FIRST._id));
+
+    expect(String(result.title)).not.toContain('Inc.');
+    expect(result.description).toBe('Ran the platform for a while. Then more.');
+    expect(result.openGraph?.description).toBe('Ran the platform for a while. Then more.');
   });
 
   it("keeps the page's defaults and reports a warning when Sanity fails", async () => {
@@ -246,9 +213,9 @@ describe('/experience/[id] metadata', () => {
     h.loadExperienceById.mockRejectedValue(outage);
     vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
-    const metadata = await generateMetadata(paramsFor('exp-1'));
+    const result = await generateMetadata(paramsFor('exp-1'));
 
-    expect(metadata).toEqual(
+    expect(result).toEqual(
       constructMetadata({
         title: 'Experience',
         description: 'View professional experience details',
@@ -263,7 +230,7 @@ describe('/experience/[id] metadata', () => {
 });
 
 describe('experience modules', () => {
-  it.each([LIST_FILE, DETAIL_FILE])(
+  it.each([STORY_FILE, DETAIL_FILE])(
     '%s is a server module with no client data hooks or motion',
     (file) => {
       const source = sourceOf(file);
@@ -276,9 +243,9 @@ describe('experience modules', () => {
     },
   );
 
-  it('has no loading boundary above /experience/[id]', () => {
+  it('has no loading boundary anywhere on /experience, so rows render without JavaScript', () => {
     expect(existsSync(join(process.cwd(), E_DIR, 'loading.tsx'))).toBe(false);
     expect(existsSync(join(process.cwd(), E_DIR, '[id]', 'loading.tsx'))).toBe(false);
-    expect(existsSync(join(process.cwd(), E_DIR, '(list)', 'loading.tsx'))).toBe(true);
+    expect(existsSync(join(process.cwd(), E_DIR, '(list)', 'loading.tsx'))).toBe(false);
   });
 });

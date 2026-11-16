@@ -24,6 +24,7 @@
  * page later sorts its list another way. Studio order is the `order` field, ascending.
  */
 
+import { nowExperiences } from '@/app/(routes)/(main)/(professioal)/experience/_lib/listed-role';
 import type { Experience, Place, Project } from '@/hooks/sanity/schemas';
 import type { CommittedRepo } from '@/lib/api-integrations/github-activity';
 import type { MonkeytypeProfile } from '@/lib/api-integrations/monkeytype';
@@ -139,9 +140,18 @@ interface Visit {
 const byLatestVisit = (a: Visit, b: Visit): number =>
   newerFirst(a.day, b.day) || a.place.order - b.place.order;
 
-/** The current roles in Studio order: the first {@link ROLES_SHOWN}, and how many there are. */
-export function selectCurrentRoles(experiences: readonly Experience[]): CurrentRoles {
-  const current = experiences.filter((experience) => experience.current).sort(byStudioOrder);
+/**
+ * The current roles in Studio order: the first {@link ROLES_SHOWN}, and how many there are. The
+ * roles that run now on `today` (YYYY-MM-DD, New York's by default) by the rule /experience
+ * reads too (listed-role.ts isNowRole): listed, so the hero never names, and the roles tile never
+ * links to, a role whose page answers 404 because it has not begun; and current by Studio's flag
+ * or for want of a readable end date, so both pages count the same roles.
+ */
+export function selectCurrentRoles(
+  experiences: readonly Experience[],
+  today: string = nyToday(),
+): CurrentRoles {
+  const current = nowExperiences(experiences, today).sort(byStudioOrder);
   return { roles: current.slice(0, ROLES_SHOWN), total: current.length };
 }
 
