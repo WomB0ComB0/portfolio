@@ -24,6 +24,7 @@
  * graph.
  */
 
+export * from './folio';
 export { formatAge, type Timestamp } from './format-age';
 export { Freshness, type FreshnessProps } from './freshness';
 export { LiveNumber, type LiveNumberProps } from './live-number';

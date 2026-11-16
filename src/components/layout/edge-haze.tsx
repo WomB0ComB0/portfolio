@@ -65,35 +65,98 @@ export function edgeHazeOpacity({
   return { top: ramp(scrollY, topHeight), bottom: ramp(maxScroll - scrollY, bottomHeight) };
 }
 
-const supportsScrollTimeline = (): boolean =>
-  typeof CSS !== 'undefined' &&
-  typeof CSS.supports === 'function' &&
-  CSS.supports('animation-timeline: scroll()');
+/** How far the fallback raises the top band's layers under a pinned FilterBar, in px. */
+export const EDGE_HAZE_BAR_SHIFT = '--edge-haze-bar-shift';
+
+/** A sticky FilterBar: the top band ends at its lower edge while it is pinned (edge-haze.css). */
+export const STICKY_FILTER_BAR = '[data-filter-part="bar"][data-sticky]';
+
+/** Where a sticky bar and the top band are, in px, as the window shows them now. */
+export interface UnderBarGeometry {
+  readonly barTop: number;
+  readonly barHeight: number;
+  /** The band's top (under the safe-area inset) and its height, before any rise. */
+  readonly bandTop: number;
+  readonly bandHeight: number;
+}
 
 /**
- * Only where the browser has no scroll-driven animations (Firefox; Safari before 26): fades the
- * bands from the scroll position, at most once per frame, and again when the page or the window
- * changes size (a client navigation, a filter). Effects never run on the server.
+ * How far the top band's layers rise under a sticky bar, in px: what edge-haze.css's view timeline
+ * computes. Coming up, they rise with the bar, px for px, once its lower edge is inside the band,
+ * so the band ends at that edge; with the bar pinned at the band's top, the whole way (the band's
+ * height less the bar's); as the bar leaves above it, back down over the bar's height. Never below
+ * 0, and 0 under a bar as tall as the band.
  */
-function useScrollFadeFallback(ref: RefObject<HTMLDivElement | null>): void {
+export function underBarShift({
+  barTop,
+  barHeight,
+  bandTop,
+  bandHeight,
+}: UnderBarGeometry): number {
+  const rise = Math.max(0, bandHeight - barHeight);
+  if (rise === 0) return 0;
+  const offset = barTop - bandTop;
+  if (offset >= 0) return Math.min(rise, Math.max(0, rise - offset));
+  return rise * Math.max(0, 1 + offset / barHeight);
+}
+
+const supports = (condition: string): boolean =>
+  typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports(condition);
+
+const supportsScrollTimeline = (): boolean => supports('animation-timeline: scroll()');
+
+/** Whether CSS can follow the sticky bar itself (a view timeline that the haze can see). */
+const supportsBarTimeline = (): boolean => supports('timeline-scope: --filter-bar');
+
+/** Sets both bands' opacity from the scroll position (edgeHazeOpacity). */
+function writeFade(haze: HTMLElement, top: HTMLElement, bottom: HTMLElement): void {
+  const opacity = edgeHazeOpacity({
+    scrollY: window.scrollY,
+    maxScroll: document.documentElement.scrollHeight - window.innerHeight,
+    topHeight: top.offsetHeight,
+    bottomHeight: bottom.offsetHeight,
+  });
+  haze.style.setProperty(EDGE_HAZE_TOP_OPACITY, String(opacity.top));
+  haze.style.setProperty(EDGE_HAZE_BOTTOM_OPACITY, String(opacity.bottom));
+}
+
+/** Sets how far the top band's layers rise under the page's sticky bar, 0 with none (underBarShift). */
+function writeBarShift(haze: HTMLElement, top: HTMLElement): void {
+  const box = document.querySelector(STICKY_FILTER_BAR)?.getBoundingClientRect();
+  const shift = box
+    ? underBarShift({
+        barTop: box.top,
+        barHeight: box.height,
+        bandTop: top.offsetTop,
+        bandHeight: top.offsetHeight,
+      })
+    : 0;
+  haze.style.setProperty(EDGE_HAZE_BAR_SHIFT, `${shift}px`);
+}
+
+/**
+ * Only where the browser lacks what edge-haze.css needs: without scroll-driven animations
+ * (Firefox; Safari before 26) it fades the bands from the scroll position, and without view
+ * timelines it raises the top band's layers under a pinned FilterBar. One loop does both, at most
+ * once per frame, and again when the page or the window changes size (a client navigation, a
+ * filter). Effects never run on the server.
+ */
+function useScrollFallback(ref: RefObject<HTMLDivElement | null>, path: string): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: navigation can replace a bar without changing scroll or body size.
   useEffect(() => {
     const haze = ref.current;
-    if (!haze || supportsScrollTimeline()) return;
+    if (!haze) return;
+    const fade = !supportsScrollTimeline();
+    const follow = !supportsBarTimeline();
     const top = haze.querySelector<HTMLElement>('.t');
     const bottom = haze.querySelector<HTMLElement>('.b');
-    if (!top || !bottom) return;
+    if ((!fade && !follow) || !top || !bottom) return;
 
     let frame = 0;
     const update = (): void => {
       frame = 0;
-      const opacity = edgeHazeOpacity({
-        scrollY: window.scrollY,
-        maxScroll: document.documentElement.scrollHeight - window.innerHeight,
-        topHeight: top.offsetHeight,
-        bottomHeight: bottom.offsetHeight,
-      });
-      haze.style.setProperty(EDGE_HAZE_TOP_OPACITY, String(opacity.top));
-      haze.style.setProperty(EDGE_HAZE_BOTTOM_OPACITY, String(opacity.bottom));
+      if (fade) writeFade(haze, top, bottom);
+      if (follow) writeBarShift(haze, top);
     };
     const schedule = (): void => {
       if (frame === 0) frame = requestAnimationFrame(update);
@@ -111,7 +174,7 @@ function useScrollFadeFallback(ref: RefObject<HTMLDivElement | null>): void {
       resize.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [ref]);
+  }, [ref, path]);
 }
 
 /**
@@ -169,10 +232,12 @@ export interface EdgeHazeProps {
  * a screen reader's attention. While it is mounted, pulsing placeholders, live dots, the home
  * equaliser and the light rays pause under a band that shows, where each of their frames would
  * blur it again; under a band still at opacity 0 (the top one at the top of the page) they move.
+ * Under a pinned FilterBar the top band ends at the bar's lower edge, so the first row under the
+ * bar stays sharp (edge-haze.css; underBarShift where CSS cannot follow the bar).
  */
 export function EdgeHaze({ path }: EdgeHazeProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
-  useScrollFadeFallback(ref);
+  useScrollFallback(ref, path);
   usePauseUnderEdge(ref, path);
 
   return (

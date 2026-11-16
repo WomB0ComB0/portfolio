@@ -19,7 +19,12 @@
  * is a real link to its past place's page (so it works with no script), upgraded to the open
  * view on a plain left click only; a modified or middle click still opens the place. Each link
  * has a name of its own. The first 48 show, then "Show all" reveals the rest and focuses the 49th.
- * Thumbnails are lazy, sized for two columns on a phone and 240 px cards wider.
+ * Thumbnails are lazy, sized for two columns on a phone and 240 px cards wider. A name (on its
+ * cell) and its line carry their widest word, so CSS shrinks a word wider than the card instead of
+ * cutting it; a hyphenated word in a name ('(PG-FMS)') is held whole, the name's text unchanged.
+ * In runs (the /projects Screens view) a place is named once per run, the rest numbered, each
+ * such link's name starting with the number it shows, then the place in full, each tile carrying
+ * its shape for the contact sheet.
  */
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -27,6 +32,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PhotoGrid } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-grid';
+import { widestWordUnits } from '@/components/console/folio/word-measure';
 import { byId, makePhotoPlace, photoData, photosOf, sourceOf } from './photo-fixtures';
 
 const GRID_FIRST = 48;
@@ -134,5 +140,114 @@ describe('PhotoGrid', () => {
     expect(links()).toHaveLength(20);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByText(/Showing 48 of/)).not.toBeInTheDocument();
+  });
+
+  it('names the place on every card by default, with no figure numbers', () => {
+    render(<PhotoGrid photos={photos.slice(0, 5)} places={PLACES} onOpen={vi.fn()} enhance />);
+
+    expect(screen.getAllByText('Antler NYC')).toHaveLength(5);
+    expect(screen.queryByText(/^Fig\. /)).not.toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Photos' })).not.toHaveAttribute('data-runs');
+  });
+
+  it('sizes a name and its line by their widest word, so a long word shrinks rather than being cut', () => {
+    const long = { ...makePhotoPlace(7, 1), id: 'long', name: 'Supercalifragilistic Hall' };
+    render(<PhotoGrid photos={photosOf([long])} places={byId([long])} onOpen={vi.fn()} enhance />);
+    const name = screen.getByText('Supercalifragilistic Hall');
+    const line = name.nextElementSibling as HTMLElement;
+    const cell = name.closest('li') as HTMLElement;
+
+    // The name's fit is on its cell, where the line under it reads it too (never larger).
+    expect(cell.style.getPropertyValue('--name-fit')).toBe(
+      String(widestWordUnits('Supercalifragilistic')),
+    );
+    expect(line).toHaveTextContent(long.category);
+    expect(line.style.getPropertyValue('--fit')).toBe(String(widestWordUnits(long.category)));
+  });
+
+  it('holds a hyphenated word in a name whole, the name itself unchanged', () => {
+    const named = {
+      ...makePhotoPlace(8, 1),
+      id: 'pgfms',
+      name: 'Purple Geckos File Management System (PG-FMS)',
+    };
+    render(
+      <PhotoGrid photos={photosOf([named])} places={byId([named])} onOpen={vi.fn()} enhance />,
+    );
+    const link = links()[0] as HTMLElement;
+    const name = link.querySelectorAll(':scope > span')[1] as HTMLElement;
+
+    expect(name).toHaveTextContent(/^Purple Geckos File Management System \(PG-FMS\)$/);
+    expect(Array.from(name.querySelectorAll('span'), (span) => span.textContent)).toEqual([
+      '(PG-FMS)',
+    ]);
+    expect(link).toHaveAccessibleName(/^Purple Geckos File Management System \(PG-FMS\) /);
+  });
+
+  it('leaves a name with nothing to hold as one piece of text', () => {
+    render(<PhotoGrid photos={photos.slice(0, 1)} places={PLACES} onOpen={vi.fn()} enhance />);
+    const name = screen.getByText('Antler NYC');
+
+    expect(name.children).toHaveLength(0);
+  });
+});
+
+describe('PhotoGrid in runs (the /projects Screens view)', () => {
+  const run = [makePhotoPlace(0, 3), makePhotoPlace(1, 1), makePhotoPlace(2, 2)];
+  const runPhotos = photosOf(run);
+  const renderRuns = () =>
+    render(<PhotoGrid photos={runPhotos} places={byId(run)} onOpen={vi.fn()} enhance runs />);
+  /** The words a card shows, leaving out what only a screen reader hears. */
+  const shownWords = (link: HTMLElement): string =>
+    Array.from(link.querySelectorAll(':scope > span:not(.sr-only)'))
+      .map((part) => (part.textContent ?? '').trim())
+      .filter((text) => text !== '')
+      .join(' / ');
+
+  it('names a place once per run of its photos; the rest of the run show their number', () => {
+    renderRuns();
+
+    expect(links().map(shownWords)).toEqual([
+      expect.stringMatching(/^Antler NYC \/ Hackathon/),
+      'Fig. 2',
+      'Fig. 3',
+      expect.stringMatching(/^Visited 1 \/ Conference/),
+      expect.stringMatching(/^Visited 2 \/ Tech Office/),
+      'Fig. 2',
+    ]);
+  });
+
+  it('starts a numbered card’s link name with the number it shows, then names it in full', () => {
+    renderRuns();
+
+    // A voice user says what they see ('Fig. 2'), so the link's name starts with it (WCAG 2.5.3).
+    expect(links()[1]).toHaveAccessibleName(/^Fig\. 2 ?, Antler NYC Hackathon .*photo 2 of 3$/);
+    expect(links()[2]).toHaveAccessibleName(/^Fig\. 3 ?, Antler NYC Hackathon .*photo 3 of 3$/);
+    expect(links()[5]).toHaveAccessibleName(/^Fig\. 2 ?, Visited 2 Tech Office .*photo 2 of 2$/);
+    // A run's first card shows its name, which its link's name starts with; it has no number.
+    for (const at of [0, 3, 4]) {
+      expect(links()[at]).toHaveAccessibleName(/^(Antler NYC|Visited \d) /);
+      expect(links()[at]).not.toHaveAccessibleName(/Fig\./);
+    }
+  });
+
+  it('gives each tile its picture’s shape for the contact sheet, a lead never narrower than 5:4', () => {
+    const portrait = runPhotos.map((photo, at) => (at === 3 ? { ...photo, ratio: 0.5 } : photo));
+    render(<PhotoGrid photos={portrait} places={byId(run)} onOpen={vi.fn()} enhance runs />);
+    const shapes = links().map((link) => {
+      const cell = link.closest('li') as HTMLElement;
+      return [cell.dataset.run, Number(cell.style.getPropertyValue('--r')).toFixed(2)];
+    });
+
+    // Photo 2 of a place is 3:4 in the fixtures; the portrait lead (Visited 1) is cut to 5:4.
+    expect(shapes).toEqual([
+      ['lead', '1.33'],
+      ['fig', '0.75'],
+      ['fig', '1.33'],
+      ['lead', '1.25'],
+      ['lead', '1.33'],
+      ['fig', '0.75'],
+    ]);
+    expect(screen.getByRole('list', { name: 'Photos' })).toHaveAttribute('data-runs');
   });
 });

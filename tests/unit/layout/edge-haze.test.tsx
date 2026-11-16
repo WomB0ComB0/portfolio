@@ -18,9 +18,11 @@
  * @file The scroll edge haze: its markup contract with src/styles/edge-haze.css, its place in the
  * shell, and the scroll fade's script fallback.
  *
- * The CSS fades each band with a scroll-driven animation. Only where the browser has no
- * `animation-timeline` (Firefox, Safari before 26) does the component set the two opacity
- * properties itself, once per frame, and it removes every listener and observer on unmount.
+ * The CSS fades each band with a scroll-driven animation, and raises the top band's layers under a
+ * pinned FilterBar on the bar's view timeline. Only where the browser has no `animation-timeline`
+ * (Firefox, Safari before 26) does the component set the two opacity properties itself, and only
+ * where it has no view timeline the layers' rise (underBarShift), in one loop, once per frame; it
+ * removes every listener and observer on unmount.
  * jsdom lays nothing out, so the page's scroll size and the bands' heights are stubbed here;
  * e2e/visual/edge-haze.spec.ts measures the real thing.
  */
@@ -30,11 +32,13 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  EDGE_HAZE_BAR_SHIFT,
   EDGE_HAZE_BOTTOM_OPACITY,
   EDGE_HAZE_LAYERS,
   EDGE_HAZE_TOP_OPACITY,
   EdgeHaze,
   edgeHazeOpacity,
+  underBarShift,
 } from '@/components/layout/edge-haze';
 import Layout from '@/components/layout/layout';
 import { pauseAnimationsUnderEdge } from '@/components/layout/pause-under-edge';
@@ -328,6 +332,64 @@ describe('edgeHazeOpacity', () => {
   });
 });
 
+describe('underBarShift', () => {
+  /** The owner's band at 1440 x 900 (99 px) over /places' 70 px bar, at the top of the window. */
+  const at = (barTop: number, { bandTop = 0, bandHeight = 99, barHeight = 70 } = {}) =>
+    underBarShift({ barTop, barHeight, bandTop, bandHeight });
+
+  it('leaves the band alone while the bar is clear of it, down to its lower edge meeting the band end', () => {
+    expect(at(400)).toBe(0);
+    expect(at(29)).toBe(0);
+  });
+
+  it('rises with the bar px for px as it comes up, so the band always ends at the bar', () => {
+    expect(at(28)).toBe(1);
+    expect(at(15)).toBe(14);
+    for (let barTop = 0; barTop <= 200; barTop += 1) {
+      expect(99 - at(barTop), `bar at ${barTop}`).toBe(Math.min(99, barTop + 70));
+    }
+  });
+
+  it('holds the whole way, the band height less the bar, while the bar is pinned', () => {
+    expect(at(0)).toBe(29);
+    // Under a notch: the band and the stuck bar both start below the safe-area inset.
+    expect(at(47, { bandTop: 47 })).toBe(29);
+    expect(at(57, { bandTop: 47 })).toBe(19);
+  });
+
+  it('comes back down over the bar height as the bar leaves at the end of its list', () => {
+    expect(at(-35)).toBe(14.5);
+    expect(at(-70)).toBe(0);
+    expect(at(-400)).toBe(0);
+  });
+
+  it('never rises under a bar as tall as the band or taller (a short screen)', () => {
+    for (const barTop of [-30, 0, 10, 80]) {
+      expect(at(barTop, { bandHeight: 54.6, barHeight: 66 })).toBe(0);
+      expect(at(barTop, { bandHeight: 70, barHeight: 70 })).toBe(0);
+    }
+  });
+});
+
+/** A sticky FilterBar in the page, 70 px tall, at `top` px in the window (a test may move it). */
+function stubStickyBar(initialTop: number) {
+  let top = initialTop;
+  const bar = document.createElement('search');
+  bar.setAttribute('data-filter-part', 'bar');
+  bar.setAttribute('data-sticky', '');
+  bar.getBoundingClientRect = () =>
+    ({ top, bottom: top + 70, height: 70, left: 0, right: 300, width: 300 }) as DOMRect;
+  document.body.append(bar);
+  return {
+    moveTo: (next: number) => {
+      top = next;
+    },
+    remove: () => bar.remove(),
+  };
+}
+
+const barShift = (haze: HTMLElement) => haze.style.getPropertyValue(EDGE_HAZE_BAR_SHIFT);
+
 describe('the scroll fade fallback', () => {
   let layout: ReturnType<typeof stubLayout>;
 
@@ -350,7 +412,9 @@ describe('the scroll fade fallback', () => {
     frames.run();
 
     expect(supports).toHaveBeenCalledWith('animation-timeline: scroll()');
+    expect(supports).toHaveBeenCalledWith('timeline-scope: --filter-bar');
     expect(opacities(hazeOf(container))).toEqual({ top: '', bottom: '' });
+    expect(barShift(hazeOf(container))).toBe('');
     expect(listen.mock.calls.map(([type]) => type)).not.toEqual(expect.arrayContaining(['scroll']));
     expect(observers).toHaveLength(0);
     expect(frames.pending()).toBe(0);
@@ -413,6 +477,58 @@ describe('the scroll fade fallback', () => {
     frames.run();
 
     expect(opacities(haze).bottom).toBe('1');
+  });
+
+  it('raises the top band under a sticky bar where CSS fades it but has no view timeline, in the same loop', () => {
+    vi.spyOn(CSS, 'supports').mockImplementation(
+      (condition: string) => condition === 'animation-timeline: scroll()',
+    );
+    const frames = manualFrames();
+    const observers = recordResizeObservers();
+    const bar = stubStickyBar(0);
+
+    const { container } = render(<EdgeHaze path="/places" />);
+    const haze = hazeOf(container);
+
+    // Pinned at the top: the 100 px band rises by 30 px to end at the bar's 70 px edge. CSS still
+    // fades the bands, so the script sets no opacity.
+    expect(barShift(haze)).toBe('30px');
+    expect(opacities(haze)).toEqual({ top: '', bottom: '' });
+
+    bar.moveTo(20);
+    act(() => layout.scrollTo(500));
+    expect(frames.pending()).toBe(1);
+    frames.run();
+    expect(barShift(haze)).toBe('10px');
+
+    bar.moveTo(400);
+    act(() => layout.scrollTo(100));
+    frames.run();
+    expect(barShift(haze)).toBe('0px');
+    expect(observers).toHaveLength(1);
+    bar.remove();
+  });
+
+  it('resets the bar shift on navigation without a scroll or size change', () => {
+    supportsScrollTimeline(false);
+    manualFrames();
+    recordResizeObservers();
+    const bar = stubStickyBar(0);
+    const { container, rerender } = render(<EdgeHaze path="/places" />);
+    expect(barShift(hazeOf(container))).toBe('30px');
+    bar.remove();
+    rerender(<EdgeHaze path="/" />);
+    expect(barShift(hazeOf(container))).toBe('0px');
+  });
+
+  it('keeps the band down on a page without a sticky bar', () => {
+    supportsScrollTimeline(false);
+    manualFrames();
+    recordResizeObservers();
+
+    const { container } = render(<EdgeHaze path="/" />);
+
+    expect(barShift(hazeOf(container))).toBe('0px');
   });
 
   it('removes its listeners, its observer and a pending frame on unmount', () => {

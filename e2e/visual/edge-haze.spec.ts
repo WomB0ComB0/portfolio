@@ -20,9 +20,9 @@
  * - the shell mounts it once, fixed beside the page column: it ends at the phone bottom bar's
  *   top, starts at the rail's edge (64 px) from lg, its bands as wide as main and centred like it;
  * - the bands fade with the scroll position: at the top of the page the top band is hidden and
- *   the bottom one shown, mid-page both show, at the end the bottom one is gone (the built CSS
- *   keeps the scroll timeline after the animation shorthand, or the bands would sit at full
- *   strength);
+ *   the bottom one shown, mid-page both show, at the end the bottom one is gone (the fades are
+ *   written in longhands, so no CSS build can fold the scroll timeline into a shorthand the
+ *   browser drops);
  * - it never takes input: at points inside both bands the page under it is hit, as it is with
  *   the haze removed;
  * - the owner's stack: 8 layers of 1 to 6 px blur, or 7 up to 5 px under a coarse pointer;
@@ -30,6 +30,9 @@
  *   reduced motion leaves the scroll fade as it is (nothing in the haze runs on the clock);
  * - an element scrolled into view stops clear of both bands (scroll-padding), and the sticky
  *   filter bars of /projects and /places end inside the top band, so that padding clears them;
+ * - under a pinned filter bar (/places, /places/photos, /projects, /certifications) the top band
+ *   ends at the bar's lower edge, coming up with it px for px, so the row under the bar is sharp;
+ *   on a page with no sticky bar it keeps its full height;
  * - a pulsing placeholder or an equaliser pauses while it sits under a band (each of its frames
  *   would blur the band again) and moves again mid-screen; a spinner keeps moving; after a client
  *   navigation no placeholder the last route removed is still observed;
@@ -142,6 +145,20 @@ async function openAt(page: Page, path: string, viewport: Viewport): Promise<voi
   await expect(page.locator(PENDING_CONTENT)).toHaveCount(0);
   if (path === '/') await settleBento(page, main);
   await page.evaluate(() => document.fonts.ready);
+  // Hydrated: a sticky filter bar writes its height on <html> once React has committed. A test
+  // that parks an element in main before then sees React's hydration take it out again (a dev
+  // server hydrates seconds after load).
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            !document.querySelector('main [data-filter-part="bar"][data-sticky]') ||
+            document.documentElement.style.getPropertyValue('--filter-bar-pinned-h') !== '',
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
 }
 
 /** Two frames: scroll timelines are sampled once per frame. */
@@ -501,6 +518,107 @@ for (const path of ['/projects', '/places'] as const) {
     expect(edges.barBottom).toBeLessThanOrEqual(edges.paddingTop);
   });
 }
+
+/** The pages with a sticky FilterBar, which the top band ends under while it is pinned. */
+const STICKY_BAR_PATHS = ['/places', '/places/photos', '/projects', '/certifications'] as const;
+const STICKY_BAR = 'main [data-filter-part="bar"][data-sticky]';
+
+/** Where the top band draws now, from its highest part to its lowest (its layers rise, not it). */
+function drawnTopBand(page: Page): Promise<{ top: number; bottom: number }> {
+  return page.evaluate((selector) => {
+    const boxes = [...document.querySelectorAll(`${selector} > .t > i:not(.cap)`)]
+      .filter((part) => getComputedStyle(part).display !== 'none')
+      .map((part) => part.getBoundingClientRect());
+    return {
+      top: Math.min(...boxes.map((box) => box.top)),
+      bottom: Math.max(...boxes.map((box) => box.bottom)),
+    };
+  }, HAZE);
+}
+
+function stickyBarBox(page: Page): Promise<{ top: number; bottom: number; height: number }> {
+  return page.evaluate((selector) => {
+    const box = document.querySelector(selector)?.getBoundingClientRect();
+    if (!box) throw new Error('no sticky filter bar');
+    return { top: box.top, bottom: box.bottom, height: box.height };
+  }, STICKY_BAR);
+}
+
+for (const path of STICKY_BAR_PATHS) {
+  for (const viewport of VIEWPORTS) {
+    const size = `${viewport.width}x${viewport.height}`;
+
+    test(`${path} at ${size}: the top band ends at the pinned filter bar, so the row under it stays sharp`, async ({
+      page,
+    }) => {
+      // openAt waits for the bar to write its height; the band rises by the band less that.
+      await openAt(page, path, viewport);
+      const natural = await page.evaluate(
+        (selector) =>
+          (document.querySelector(selector)?.getBoundingClientRect().top ?? 0) + window.scrollY,
+        STICKY_BAR,
+      );
+      const full = bandHeight(viewport.height);
+
+      // At the top of the page the bar is clear of the band, which keeps its full height.
+      await scrollToY(page, 0);
+      expect(Math.abs((await drawnTopBand(page)).bottom - full)).toBeLessThanOrEqual(
+        EDGE_TOLERANCE_PX,
+      );
+
+      // Pinned: the band ends at the bar's lower edge and still covers everything under the bar.
+      await scrollToY(page, Math.min(natural + 300, await maxScroll(page)));
+      const pinned = await stickyBarBox(page);
+      expect(pinned.top, 'the filter bar is not pinned').toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
+      const band = await drawnTopBand(page);
+      expect(Math.abs(band.bottom - pinned.bottom)).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
+      expect(band.top).toBeLessThanOrEqual(pinned.top);
+
+      // Coming up, halfway through the rise, the band already ends at the bar: no jump when it pins.
+      const rise = full - pinned.height;
+      if (rise > 2) {
+        await scrollToY(page, natural - Math.round(rise / 2));
+        const coming = await stickyBarBox(page);
+        expect(coming.top).toBeGreaterThan(EDGE_TOLERANCE_PX);
+        expect(Math.abs((await drawnTopBand(page)).bottom - coming.bottom)).toBeLessThanOrEqual(
+          EDGE_TOLERANCE_PX,
+        );
+      }
+    });
+  }
+}
+
+test('under reduced motion the top band still ends at the pinned bar: it follows the scroll, never the clock', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openAt(page, '/places', PHONE);
+  const natural = await page.evaluate(
+    (selector) =>
+      (document.querySelector(selector)?.getBoundingClientRect().top ?? 0) + window.scrollY,
+    STICKY_BAR,
+  );
+
+  await scrollToY(page, Math.min(natural + 300, await maxScroll(page)));
+  const pinned = await stickyBarBox(page);
+  expect(Math.abs((await drawnTopBand(page)).bottom - pinned.bottom)).toBeLessThanOrEqual(
+    EDGE_TOLERANCE_PX,
+  );
+  await scrollToY(page, 0);
+  expect(
+    Math.abs((await drawnTopBand(page)).bottom - bandHeight(PHONE.height)),
+  ).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
+});
+
+test('on a page without a sticky filter bar the top band keeps its full height', async ({
+  page,
+}) => {
+  await openAt(page, '/', LAPTOP);
+  await scrollToY(page, Math.round((await maxScroll(page)) / 2));
+
+  const band = await drawnTopBand(page);
+  expect(Math.abs(band.bottom - bandHeight(LAPTOP.height))).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
+});
 
 test.describe('the layer stack and its fallbacks', () => {
   for (const viewport of VIEWPORTS) {
