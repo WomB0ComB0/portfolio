@@ -30,7 +30,7 @@ import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { reportApiFailure } from '@/lib/observability/report';
 import { OG_IMAGE_SIZE } from '@/lib/og/constants';
 import { urlFor } from '@/lib/sanity/client';
-import { loadProjectById } from '@/lib/sanity/loaders';
+import { loadProjectById, loadProjects } from '@/lib/sanity/loaders';
 import { constructMetadata, logger } from '@/utils';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
@@ -93,5 +93,5 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const project = await loadProjectById(id);
   if (!project) notFound();
-  return <ProjectDetail project={project} />;
+  return <ProjectDetail project={project} projects={await loadProjects()} />;
 }

@@ -1,0 +1,473 @@
+/*
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The shared viewer's open view (photo-viewer-live.tsx), in the /places photo dialog's look: the
+ * canvas over the page, a surface-1 panel with a stage, the image's frame centred on it at the
+ * image's own shape (--ratio, set inline), the caption under it, then the thumbnails. Palette
+ * tokens only; only opacity and transform move, so the global reduced-motion rule stills it all.
+ * - One size for the whole set: the panel and its stage are sized from the set's widest and
+ *   narrowest shapes (--ratio-wide, --ratio-narrow, set inline), so stepping never resizes the
+ *   panel and Previous and Next stay under the pointer. Each image sits whole on the stage.
+ * - Wide windows: the panel is as wide as fits 64rem, the window less 2rem a side, and the
+ *   widest image's height budget, but never narrower than 26rem, so the caption has room. Its top
+ *   stays where a centred panel of the set's size starts, so a longer caption grows downwards; a
+ *   set of one (data-set-single), which never steps, is simply centred.
+ * - Phones and short windows (COMPACT_QUERY in photo-viewer-step.ts): the canvas full screen, the
+ *   image contained with a floor under it, the caption, the thumbnails and Done at the bottom;
+ *   Previous and Next sit on the caption's lower edge, which never moves.
+ * - A capture taller than a phone (data-tall) scrolls inside its frame, never the page.
+ */
+
+.overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  background: var(--canvas);
+  opacity: 0.88;
+  animation: viewer-fade var(--motion-base) var(--ease-effect) both;
+}
+
+.layer {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding: 2rem;
+  pointer-events: none;
+}
+
+.panel {
+  /* The shown image's shape, and the widest and narrowest shapes in its set (all set inline). */
+  --ratio: 1.7778;
+  --ratio-wide: 1.7778;
+  --ratio-narrow: 1.7778;
+
+  /* The image's height budget: 80vh (50rem at most) less the caption and the thumbnails. */
+  --frame-max-h: calc(min(80vh, 50rem) - 12rem);
+  --panel-min: min(26rem, calc(100vw - 4rem));
+
+  /* A set with a tall capture reads it as a page column: the panel is at least a page wide. */
+  --tall-w: 0rem;
+  --panel-w: min(
+    64rem,
+    calc(100vw - 4rem),
+    max(var(--panel-min), calc(var(--frame-max-h) * var(--ratio-wide) + 1rem), var(--tall-w))
+  );
+
+  /* The stage: as tall as the narrowest image needs at the panel's width, within the budget. */
+  --stage-h: min(var(--frame-max-h), calc((var(--panel-w) - 1rem) / var(--ratio-narrow)));
+
+  /* The top of a centred panel of the set's usual height (the stage, a caption line, thumbnails). */
+  --panel-top: max(0rem, calc((100dvh - 4rem - var(--stage-h) - 9.5rem) / 2));
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: var(--panel-w);
+  max-height: calc(100dvh - 4rem - var(--panel-top));
+  margin-top: var(--panel-top);
+  padding: 0.5rem 0.5rem 0;
+  pointer-events: auto;
+  animation: viewer-rise var(--motion-slow) var(--ease-out-expo) both;
+}
+
+.panel[data-set-tall] {
+  --tall-w: 40rem;
+  --stage-h: var(--frame-max-h);
+}
+
+/*
+ * A set of one has no thumbnails and never steps, so there is nothing to hold still: it is
+ * centred in the window, however long its caption.
+ */
+.panel[data-set-single] {
+  --panel-top: 0rem;
+
+  align-self: center;
+}
+
+.panel:focus {
+  outline: none;
+}
+
+.surface {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background: var(--surface-1);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-raised);
+}
+
+/* The stage: one size for the whole set, the shown image's frame centred on it. */
+.stage {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  height: var(--stage-h);
+}
+
+/* The image at its own shape, as large as the stage allows. */
+.frame {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, calc(var(--stage-h) * var(--ratio)));
+  aspect-ratio: var(--ratio);
+  border-radius: 0.5rem;
+  background: var(--surface-2);
+  animation: viewer-fade var(--motion-base) var(--ease-effect) both;
+}
+
+.image,
+.copy {
+  object-fit: contain;
+}
+
+/* The page's own copy, drawn at once; the whole image fades in over it once it has loaded. */
+.copy {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--motion-base) var(--ease-effect);
+}
+
+.image[data-has-copy="true"] {
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-effect);
+}
+
+.image[data-loaded="true"] {
+  opacity: 1;
+}
+
+.frame:has(.image[data-loaded="true"]) .copy {
+  opacity: 0;
+}
+
+/* A capture taller than a phone: a column as tall as the stage, scrolled by the visitor. */
+.frame[data-tall="true"] {
+  width: min(100%, 40rem);
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.scroll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.tall-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.caption {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: safe center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.875rem 0.75rem;
+}
+
+.words {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.figure {
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.text {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* On the caption's top edge, which stays put (the panel's top and stage do), however long the words. */
+.steps {
+  display: flex;
+  flex: none;
+  align-self: flex-start;
+  gap: 0.375rem;
+}
+
+.step,
+.close {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--fg);
+  cursor: pointer;
+  transition: transform var(--motion-spring-out) var(--ease-spring);
+}
+
+.close {
+  position: absolute;
+  z-index: 2;
+  top: 1.125rem;
+  right: 1.125rem;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .step:hover,
+  .close:hover {
+    background: var(--surface-3);
+  }
+}
+
+/*
+ * The thumbnails: one row, the shown one ringed. Scrolls sideways inside the panel when long; the
+ * shown one is scrolled into view with room for its ring (the scroll padding).
+ */
+.strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: safe center;
+  overflow-x: auto;
+  margin: 0;
+  padding: 0.25rem 0.5rem 0.75rem;
+  list-style: none;
+  scroll-padding-inline: 0.75rem;
+  scrollbar-width: thin;
+}
+
+.strip-item {
+  flex: none;
+}
+
+.thumb {
+  position: relative;
+  display: block;
+  width: 4.5rem;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--hairline);
+  cursor: pointer;
+  opacity: 0.55;
+  transition:
+    opacity var(--motion-base) var(--ease-effect),
+    transform var(--motion-spring-out) var(--ease-spring);
+}
+
+.thumb-image {
+  object-fit: cover;
+  object-position: top;
+}
+
+.thumb[aria-current="true"] {
+  opacity: 1;
+  box-shadow:
+    0 0 0 1px var(--brand-rim),
+    0 0 0 4px var(--brand-glow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .thumb:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+    transition-duration: var(--motion-base), var(--motion-spring-in);
+  }
+}
+
+.done {
+  display: none;
+}
+
+.step:focus-visible,
+.close:focus-visible,
+.done:focus-visible,
+.thumb:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.step:active,
+.close:active,
+.done:active {
+  transform: scale(0.96);
+  transition-duration: var(--motion-instant);
+}
+
+/* Phones and short windows: COMPACT_QUERY in photo-viewer-step.ts. */
+@media (width < 40rem), (height < 32rem) {
+  .layer {
+    padding: 0;
+  }
+
+  .panel {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin-top: 0;
+    padding: calc(env(safe-area-inset-top) + 1rem) 1rem calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .surface {
+    border-radius: 0;
+    background: var(--canvas);
+    box-shadow: none;
+  }
+
+  /* The stage takes the room the caption, the thumbnails and Done leave; the image fills it. */
+  .stage {
+    flex: 1 1 0;
+    height: auto;
+    min-height: min(40dvh, 12rem);
+  }
+
+  .frame,
+  .frame[data-tall="true"] {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    background: transparent;
+  }
+
+  .caption {
+    min-height: 0;
+    padding: 0.875rem 0.25rem;
+  }
+
+  /* On the caption's lower edge, which stays put (the thumbnails and Done are fixed below it). */
+  .steps {
+    align-self: flex-end;
+  }
+
+  .close {
+    top: calc(env(safe-area-inset-top) + 1.5rem);
+    right: 1.5rem;
+  }
+
+  .done {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    flex: none;
+    place-items: center;
+    min-height: 3rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+    color: var(--fg);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform var(--motion-spring-out) var(--ease-spring);
+  }
+}
+
+@keyframes viewer-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes viewer-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+/* Reduced motion: nothing moves on hover or press (the global rule already stills the fades). */
+@media (prefers-reduced-motion: reduce) {
+  .thumb:hover,
+  .step:active,
+  .close:active,
+  .done:active {
+    transform: none;
+  }
+}
+
+/*
+ * Forced colours (Windows High Contrast) drop box-shadows: the panel keeps its edge as an outline,
+ * the buttons a button's border, and the shown thumbnail a thicker outline.
+ */
+@media (forced-colors: active) {
+  .surface {
+    outline: 1px solid CanvasText;
+  }
+
+  .step,
+  .close,
+  .done,
+  .thumb {
+    border: 1px solid ButtonBorder;
+  }
+
+  .thumb[aria-current="true"] {
+    outline: 3px solid Highlight;
+  }
+}

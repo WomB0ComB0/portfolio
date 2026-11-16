@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-export { default as DraggableGallery } from './draggable-gallery';
 // Never re-export the _interface modules here: they are server-only (urlFor), and client
 // components import from this folder. The project page's own parts (its case study in
 // _components/detail/) are imported by path, not through here, so the project page can change

@@ -14,9 +14,20 @@
  * limitations under the License.
  */
 
+import type { ReactNode } from 'react';
 import type { Project } from '@/hooks/sanity/schemas';
+import type { LineProject } from '../../_components/detail/case-line';
+import type { OrderableProject } from '../../_lib/project-order';
 
 export interface ProjectDetailProps {
   /** The project the page found; an unknown id 404s in the page before this renders. */
   project: Project;
+  /**
+   * Every project, for 'Where it sits' (its place on the time line and its named neighbours) and
+   * for whether /projects lists it as Featured (the breadcrumb then leads there): the page's own
+   * list, already loaded for the lookup. Without it the band shows the project alone on its line.
+   */
+  projects?: readonly (LineProject & OrderableProject)[];
+  /** Shown after the case study, above "Back to all projects": the page's See also. */
+  children?: ReactNode;
 }
