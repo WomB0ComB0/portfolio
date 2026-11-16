@@ -16,9 +16,11 @@
 
 # mikeodnis.dev
 
-Personal portfolio, telemetry dashboard, and API hub for **Mike Odnis** ([WomB0ComB0](https://github.com/WomB0ComB0)), live at [mikeodnis.dev](https://mikeodnis.dev).
+Portfolio, project case studies, writing and live activity for **Mike Odnis**
+([WomB0ComB0](https://github.com/WomB0ComB0)). Built with Next.js and deployed at
+[mikeodnis.dev](https://mikeodnis.dev).
 
-![Version](https://img.shields.io/badge/version-3.0.0-emerald)
+[![Release](https://img.shields.io/github/v/release/WomB0ComB0/portfolio)](https://github.com/WomB0ComB0/portfolio/releases)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-149eca?logo=react)
 ![Bun](https://img.shields.io/badge/Runtime-Bun-f9f9f9?logo=bun)
@@ -35,65 +37,62 @@ Personal portfolio, telemetry dashboard, and API hub for **Mike Odnis** ([WomB0C
 - [Quick Start](#quick-start)
 - [Environment Variables](#environment-variables)
 - [Scripts & Tooling](#scripts--tooling)
-- [Scope & Architecture Decisions](#scope--architecture-decisions)
+- [Verification](#verification)
+- [Development Notes](#development-notes)
 - [License](#license)
 
 ---
 
 ## Architecture
 
-The application runs as a single Next.js 16 deployment on Vercel, splitting UI rendering from external API orchestration:
+The site runs as one Next.js App Router application on Vercel. Server Components load and render the
+main lists, while client components add filtering, dialogs, authentication and live playback or
+presence updates.
 
-1. **Presentation Layer (`src/app/(routes)`)**: React 19 Server and Client Components styled with Tailwind CSS v4 and Radix UI primitives. Client data fetching uses a custom [`DataLoader`](src/providers/server/effect-data-loader.tsx) built on `@effect/platform`, `effect/Schema`, and `@tanstack/react-query` (`useSuspenseQuery`).
-2. **API Layer (`src/app/api`)**: Two Elysia.js routers mounted inside Next.js App Router catch-all handlers (`/api/[[...route]]` and `/api/v1/[[...route]]`). Before routing, each request passes a guard that checks the client IP against the IP/CIDR ban list and per-route rate limits kept in Upstash Redis (see [Rate Limits & Bans](#rate-limits--bans)); routes also set security headers and validate input at runtime.
-3. **Content & Persistence**:
-   - **Sanity CMS v6**: Structured content for projects, work experience, certifications, places, talks, presentations, articles, and resume metadata.
-   - **Upstash Redis**: API rate-limit counters and the IP/CIDR ban list, keyed by client IP address, for abuse prevention.
-   - **Firebase v13**: Authentication and real-time storage for the `/guestbook` route.
-4. **Observability**: OpenTelemetry instrumentation (`src/instrumentation.ts`), Sentry error tracking, and Better Stack uptime monitoring and log ingestion.
+- **Pages and shared UI**: route groups live in [`src/app/(routes)`](<src/app/(routes)>). The
+  [console components](src/components/console) provide Folio headings, bylines, view switches,
+  filter bars, tables and empty states. Projects offers Stories, Index and Screens views, with
+  filter state carried in the URL.
+- **Server data**: [Sanity loaders](src/lib/sanity/loaders.ts) supply portfolio content.
+  [Media](<src/app/(routes)/(dev)/media/_lib/load-feed.ts>) and
+  [Stats](<src/app/(routes)/(dev)/stats/_lib/console-loaders.ts>) combine sources with deadlines and
+  cached fallbacks. Stats reports source freshness, while Media names unavailable source sections
+  separately from empty results. Project case studies load confirmed related Media items through a
+  separate bounded loader.
+- **HTTP API and client queries**: Elysia routers under `/api/*` and `/api/v1/*` expose integration
+  endpoints. Browser requests use [Effect DataLoader](src/providers/server/effect-data-loader.tsx),
+  TanStack Query and typed clients. Server pages also call loaders directly, without an HTTP round
+  trip through their own API.
+- **Storage and authentication**: Sanity holds projects, roles, credentials, places and media
+  metadata. Firebase handles visitor sign-in and Firestore stores guestbook messages. Upstash Redis
+  holds API rate limits and IP/CIDR bans.
+- **Observability**: OpenTelemetry, Sentry and Better Stack report requests, errors and uptime.
+  Server-rendered navigation links and JSON-LD support crawlers and navigation before hydration.
 
 ```mermaid
 graph TD
-    subgraph "Client & Edge"
-        Browser["Browser / PWA Service Worker"]
-        DataLoader["Effect DataLoader + TanStack Query"]
-    end
+    Browser["Browser"]
+    Pages["Next.js Server Components"]
+    Loaders["Server loaders, deadlines and caches"]
+    Client["Client components / Effect / TanStack Query"]
+    API["Elysia: /api/* and /api/v1/*"]
+    Sanity[("Sanity content")]
+    Firebase[("Firebase Auth / Firestore")]
+    Redis[("Upstash rate limits and bans")]
+    Services["GitHub, Spotify, YouTube, writing and activity sources"]
 
-    subgraph "Next.js 16 App Router"
-        RSC["Server Components & Route Groups"]
-        CoreAPI["Elysia Core (/api/*)"]
-        V1API["Elysia v1 (/api/v1/*)"]
-    end
-
-    subgraph "State & Storage"
-        Upstash[("Upstash Redis")]
-        Sanity[("Sanity CMS v6")]
-        Firebase[("Firebase Auth & DB")]
-    end
-
-    subgraph "Upstream Providers"
-        Spotify{{"Spotify Web API"}}
-        GitHub{{"GitHub GraphQL API"}}
-        WakaTime{{"WakaTime & LeetCode"}}
-        Lanyard{{"Discord / Lanyard"}}
-        Writing{{"Hashnode & Dev.to"}}
-        Google{{"GA4 & YouTube Data API"}}
-    end
-
-    Browser --> RSC
-    Browser --> DataLoader
-    DataLoader --> CoreAPI
-    DataLoader --> V1API
-    CoreAPI --> Upstash
-    V1API --> Upstash
-    V1API --> Sanity
-    V1API --> Firebase
-    V1API --> Spotify
-    V1API --> GitHub
-    V1API --> WakaTime
-    V1API --> Lanyard
-    V1API --> Writing
-    V1API --> Google
+    Browser --> Pages
+    Browser --> Client
+    Pages --> Loaders
+    Loaders --> Sanity
+    Loaders --> Firebase
+    Loaders --> Services
+    Client --> API
+    Client --> Firebase
+    API --> Redis
+    API --> Sanity
+    API --> Firebase
+    API --> Services
 ```
 
 ---
@@ -102,7 +101,7 @@ graph TD
 
 | Category                       | Technology                                                                | Usage                                                                                     |
 | :----------------------------- | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------- |
-| **Runtime & Package Manager**  | Bun (`>=1.0.0`), Node.js (`>=24.15.0`)                                    | Dependency management, script execution, and local dev runtime                            |
+| **Runtime & Package Manager**  | Bun (`>=1.4.0`), Node.js (`>=24.15.0`)                                    | Dependency management, script execution, and local dev runtime                            |
 | **Framework**                  | Next.js 16, React 19                                                      | App Router, Server Components, dynamic code splitting, and PWA support                    |
 | **API Engine**                 | Elysia.js 1.4, `@elysiajs/eden`                                           | Type-safe REST handlers, OpenTelemetry spans, Server-Timing headers, and CORS             |
 | **Data Pipeline & Validation** | Effect (`@effect/platform`, `effect/Schema`), Zod 4, ArkType              | Typed HTTP client pipelines, retry policies, and strict schema decoding                   |
@@ -116,20 +115,25 @@ graph TD
 
 ## Routes & Pages
 
-| Route                               | Source                                                 | Description                                                                                                          |
-| :---------------------------------- | :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
-| `/`                                 | `src/app/(routes)/page.tsx`                            | Home view with interactive canvas, command palette (`Cmd+K`), and quick links                                        |
-| `/projects`, `/projects/[id]`       | `src/app/(routes)/(main)/(professioal)/projects`       | Full project catalog and individual project case studies from Sanity                                                 |
-| `/experience`, `/experience/[id]`   | `src/app/(routes)/(main)/(professioal)/experience`     | Career timeline and role details                                                                                     |
-| `/certifications`                   | `src/app/(routes)/(main)/(professioal)/certifications` | Technical certifications and credentials                                                                             |
-| `/resume`                           | `src/app/(routes)/(main)/(professioal)/resume`         | Interactive PDF resume viewer with Sanity-backed metadata                                                            |
-| `/media`                            | `src/app/(routes)/(dev)/media`                         | Unified feed of Hashnode and Dev.to blog posts, talks, presentations, and YouTube videos                             |
-| `/stats`                            | `src/app/(routes)/(dev)/stats`                         | Live engineering telemetry: GitHub contributions, WakaTime hours, LeetCode stats, Discord status, and site analytics |
-| `/spotify`                          | `src/app/(routes)/(main)/(personal)/spotify`           | Real-time Spotify playback, top tracks, and top artists                                                              |
-| `/places`, `/places/[placeId]`      | `src/app/(routes)/(main)/(personal)/places`            | Curated map and directory of favorite locations using `@vis.gl/react-google-maps`                                    |
-| `/guestbook`                        | `src/app/(routes)/(main)/(personal)/guestbook`         | Authenticated visitor messages backed by Firebase                                                                    |
-| `/sponsor`                          | `src/app/(routes)/(dev)/sponsor`                       | GitHub Sponsors tiers, current backers, and contribution links                                                       |
-| `/privacy`, `/cookies`, `/licenses` | `src/app/(routes)/(legal)`                             | Legal and open-source license disclosures                                                                            |
+| Route                               | Description                                                                                                                             |
+| :---------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                 | Home overview with project previews, current roles, activity and the command palette (`Cmd/Ctrl+K`).                                    |
+| `/projects`                         | Stories, Index and Screens views of the project catalog, with search, kind and technology filters.                                      |
+| `/projects/[id]`                    | Story case studies, project facts, screenshot galleries and confirmed related writing or videos.                                        |
+| `/experience`, `/experience/[id]`   | Current roles, a career timeline and individual role stories.                                                                           |
+| `/certifications`                   | Featured credentials, year chapters and issuer groups, with credential links and ID copy controls.                                      |
+| `/resume`                           | PDF resume viewer and metadata from Sanity.                                                                                             |
+| `/media`                            | Writing, Video and Streams sections with search, series filters, related items and project links. Playback opens externally by default. |
+| `/stats`                            | A responsive console for GitHub, coding time, LeetCode, typing and Discord activity, with source freshness and fallback states.         |
+| `/spotify`                          | A listening hero, ranked track ledger and artist strip, with live playback updates after hydration.                                     |
+| `/places`, `/places/[placeId]`      | A map and place directory with detail pages and photo strips.                                                                           |
+| `/places/photos`                    | A photo gallery drawn from the places collection.                                                                                       |
+| `/guestbook`                        | Visitor notes arranged in a wall by year, with authenticated posting through the API.                                                   |
+| `/sponsor`                          | Ways to support the work, followed by current and past supporter acknowledgements.                                                      |
+| `/privacy`, `/cookies`, `/licenses` | Privacy, cookie and open-source license disclosures.                                                                                    |
+
+Route-local components and loaders sit beside each page under `src/app/(routes)`. The `professioal`
+directory spelling is part of the existing source layout.
 
 ---
 
@@ -145,24 +149,35 @@ graph TD
 
 ### v1 Endpoints (`/api/v1/*`)
 
-| Method | Path                      | Upstream Source            | Description                                                                                                                                                |
-| :----- | :------------------------ | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/api/v1/now-playing`     | Spotify Web API            | Current playback state, track metadata, and album art                                                                                                      |
-| `GET`  | `/api/v1/top-tracks`      | Spotify Web API            | Short-term top tracks with resilient pagination fallback                                                                                                   |
-| `GET`  | `/api/v1/top-artists`     | Spotify Web API            | Short-term top artists and genres                                                                                                                          |
-| `GET`  | `/api/v1/github-stats`    | GitHub GraphQL API         | Repositories, stars, followers, and contribution calendar                                                                                                  |
-| `GET`  | `/api/v1/github-sponsors` | GitHub GraphQL API         | Active and past GitHub Sponsors and tier metadata                                                                                                          |
-| `GET`  | `/api/v1/wakatime`        | WakaTime API               | Total coding time and language breakdown                                                                                                                   |
-| `GET`  | `/api/v1/leetcode`        | LeetCode GraphQL           | Solved problem counts by difficulty                                                                                                                        |
-| `GET`  | `/api/v1/lanyard`         | Lanyard API                | Live Discord presence and custom activities                                                                                                                |
-| `GET`  | `/api/v1/blog`            | Hashnode & Dev.to          | Merged and chronologically sorted blog articles                                                                                                            |
-| `GET`  | `/api/v1/google`          | Google Analytics / YouTube | Site pageviews and YouTube channel videos                                                                                                                  |
-| `POST` | `/api/v1/messages`        | Firebase Admin             | Sign the guestbook; needs a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                    |
-| `GET`  | `/api/v1/sanity/*`        | Sanity CMS                 | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
+| Method | Path                      | Upstream Source    | Description                                                                                                                                                |
+| :----- | :------------------------ | :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/v1/now-playing`     | Spotify Web API    | Current playback state, track metadata, and album art                                                                                                      |
+| `GET`  | `/api/v1/top-tracks`      | Spotify Web API    | Short-term top tracks with resilient pagination fallback                                                                                                   |
+| `GET`  | `/api/v1/top-artists`     | Spotify Web API    | Short-term top artists and genres                                                                                                                          |
+| `GET`  | `/api/v1/github-stats`    | GitHub REST API    | Repository counts, stars, followers, top languages and top repositories                                                                                    |
+| `GET`  | `/api/v1/github-sponsors` | GitHub GraphQL API | Active and past GitHub Sponsors and tier metadata                                                                                                          |
+| `GET`  | `/api/v1/wakatime`        | WakaTime API       | Total coding time as text, digital, decimal and seconds values                                                                                             |
+| `GET`  | `/api/v1/leetcode`        | LeetCode GraphQL   | Solved problem counts by difficulty                                                                                                                        |
+| `GET`  | `/api/v1/lanyard`         | Lanyard API        | Live Discord presence and custom activities                                                                                                                |
+| `GET`  | `/api/v1/blog`            | Hashnode & Dev.to  | Merged and chronologically sorted blog articles                                                                                                            |
+| `GET`  | `/api/v1/google`          | Google Analytics   | Total site pageviews                                                                                                                                       |
+| `POST` | `/api/v1/messages`        | Firebase Admin     | Sign the guestbook with a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                      |
+| `GET`  | `/api/v1/sanity/*`        | Sanity CMS         | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
+
+The v1 router also exposes `/api/v1/`, `/api/v1/health`, `/api/v1/status`, `/api/v1/version` and
+`/api/v1/info` through its [utility module](src/app/api/v1/[[...route]]/utility/index.ts). `/info`
+currently contains placeholder contact and documentation values. `/api/v1/github-sponsors/active`
+returns the active sponsorship list.
+
+The Media page composes its feed on the server from the blog, Sanity and YouTube loaders. It does
+not have a separate `/api/v1/media` endpoint.
 
 ### Rate Limits & Bans
 
-Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib/security/api-guard.ts`](src/lib/security/api-guard.ts)) before routing. `/api/health`, CORS preflights and the separate `/api/og` image route are not guarded. Limits are sliding windows per client IP (IPv6 clients per /64 network):
+Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard
+([`src/lib/security/api-guard.ts`](src/lib/security/api-guard.ts)) before routing. `/api/health`,
+CORS preflights and the separate `/api/og` image route are not guarded. Limits are sliding windows
+per client IP (IPv6 clients per /64 network):
 
 | Route class                                     | Limit                | Ban list applies |
 | :---------------------------------------------- | :------------------- | :--------------- |
@@ -172,22 +187,59 @@ Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib
 | Other `/api/*`                                  | 30 requests per 60 s | Yes              |
 | IPs in slow mode                                | 1 request per 30 s   | Yes              |
 
-- Banned IPs and IPs inside a banned CIDR range receive `403`; clients over a limit receive `429` with `Retry-After` and `RateLimit-*` headers. Both responses are sent with `Cache-Control: no-store`.
-- Ban-list entries are sorted sets in Upstash Redis scored by their expiry time; permanent entries use a far-future score. Expired entries are ignored by the guard and deleted from every list whenever the ban API adds, removes or lists entries.
-- The ban-list read and the rate-limit counter run as one parallel Upstash round trip with a 300 ms budget. An in-process limit of 100 requests per minute per instance also applies.
+- Banned IPs and IPs inside a banned CIDR range receive `403`. Clients over a limit receive `429`
+  with `Retry-After` and `RateLimit-*` headers. Both responses are sent with
+  `Cache-Control: no-store`.
+- Ban-list entries are sorted sets in Upstash Redis scored by their expiry time. Permanent entries
+  use a far-future score. Expired entries are ignored by the guard and deleted from every list
+  whenever the ban API adds, removes or lists entries.
+- The ban-list read and the rate-limit counter run as one parallel Upstash round trip with a 300 ms
+  budget. An in-process limit of 100 requests per minute per instance also applies.
 
 ### Guestbook posts
 
-`POST /api/v1/messages` signs the guestbook. The `/guestbook` page lists the messages on the server, so there is no `GET`.
+`POST /api/v1/messages` signs the guestbook. The `/guestbook` page lists the messages on the server,
+so there is no `GET`.
 
-- **Request**: `Authorization: Bearer <Firebase ID token>` (from the signed-in visitor, a guest included) and a JSON body `{ "message": "..." }` of 1 to 280 characters.
-- **Checks, in order**: the guard above (bans, then the 5-per-10-minute `guestbook` limit), the body schema (`400`), the token (`401`), then the text itself (`400` when nothing is left once markup is removed). Nothing is written until every check passes.
-- **Token**: verified on the server with [`jose`](https://github.com/panva/jose), by [Firebase's rules for third-party JWT libraries](https://firebase.google.com/docs/auth/admin/verify-id-tokens#verify_id_tokens_using_a_third-party_jwt_library): an `RS256` signature by one of Google's securetoken keys (named by the token's `kid`, fetched from Google's public JSON Web Key Set and cached), `aud` the project id, `iss` `https://securetoken.google.com/<project id>`, `exp` in the future, `iat` and `auth_time` in the past (10 s of clock skew allowed), and a non-empty `sub` (the uid). There is no revocation lookup. A missing, malformed, invalid or expired token gets `401` with `{ "error": "..." }` and a `WWW-Authenticate: Bearer realm="guestbook"` header; the body is the same in every case. A refused token's error code and the claim at fault (nothing else) are logged as an error. When `GCP_PROJECT_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` differ, every post gets a reported `500` instead of a silent `401`. So does a failure to fetch Google's keys (unreachable, a timeout, or an answer that is not a key set), so the browser does not sign a valid visitor out.
-- **Why not `firebase-admin/auth`**: Next loads `firebase-admin` at runtime, outside the bundle, and its auth entry `require()`s `jose` (an ES module) through `jwks-rsa`. A Node runtime without `require(esm)` cannot load that, and because the whole `/api/v1` app shares one module with `firebase-admin`, every v1 route (and `/stats`) then answers `500`. `jose` imported directly is bundled into the route. `firebase-admin` is still used for the Firestore writes. A unit test fails if any source file names `firebase-admin/auth`.
-- **Stored**: the checked text as plain text, and the name their Google or GitHub sign-in carries. A guest, or a sign-in method the site does not offer, is stored as `Anonymous`. A name sent in the body is ignored. The name is the visitor's own Firebase profile name, which they can change, so the `uid` is what identifies a poster. The message collection is publicly readable, so the `uid` is not on the message: it is kept in a server-only document with the same id under `artifacts/{appId}/private/data/messagePoster`, written in the same batch, and never returned.
-- **In the browser**: the card sends the visitor's ID token. After a `401` it sends the post once more with a token Firebase refreshes on purpose (a `401` stores nothing); refused again, it signs the visitor out and asks them to sign in again, keeping their text.
-- **Limits of the check**: guest sign-in uses the public web config, so anyone can get a valid token; the sign-in check gives each post a `uid`, not spam resistance. The per-IP `guestbook` limit is the control against floods (while Redis is failing, the guard lets requests through and only the per-instance in-process limit applies).
-- **Firestore rules** (deployed in the Firebase console; not in this repo): the messages collection `artifacts/{appId}/public/data/message` must allow public `read` (the page loader reads it with the client SDK) and deny every client `create`, `update` and `delete`. Every other path, `messagePoster` included, must deny clients both reads and writes. The Admin SDK ignores rules, so the API still writes. If clients may write there, anyone can skip this API and its checks.
+- **Request**: `Authorization: Bearer <Firebase ID token>` (from the signed-in visitor, a guest
+  included) and a JSON body `{ "message": "..." }` of 1 to 280 characters.
+- **Checks, in order**: the guard above (bans, then the 5-per-10-minute `guestbook` limit), the body
+  schema (`400`), the token (`401`), then the text itself (`400` when nothing is left once markup is
+  removed). Nothing is written until every check passes.
+- **Token**: verified on the server with [`jose`](https://github.com/panva/jose), by
+  [Firebase's rules for third-party JWT libraries](https://firebase.google.com/docs/auth/admin/verify-id-tokens#verify_id_tokens_using_a_third-party_jwt_library):
+  an `RS256` signature by one of Google's securetoken keys (named by the token's `kid`, fetched from
+  Google's public JSON Web Key Set and cached), `aud` the project id, `iss`
+  `https://securetoken.google.com/<project id>`, `exp` in the future, `iat` and `auth_time` in the
+  past (10 s of clock skew allowed), and a non-empty `sub` (the uid). There is no revocation lookup.
+  A missing, malformed, invalid or expired token gets `401` with `{ "error": "..." }` and a
+  `WWW-Authenticate: Bearer realm="guestbook"` header. The body is the same in every case. A refused
+  token's error code and the claim at fault (nothing else) are logged as an error. When
+  `GCP_PROJECT_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` differ, every post gets a reported `500`
+  instead of a silent `401`. So does a failure to fetch Google's keys (unreachable, a timeout, or an
+  answer that is not a key set), so the browser does not sign a valid visitor out.
+- **Auth module boundary**: token verification imports `jose` directly. `firebase-admin` remains
+  responsible for Firestore writes. A regression test prevents importing `firebase-admin/auth` into
+  the shared API module, which previously caused module-loading failures on runtimes without
+  `require(esm)` support.
+- **Stored**: the checked text as plain text, and the name their Google or GitHub sign-in carries. A
+  guest, or a sign-in method the site does not offer, is stored as `Anonymous`. A name sent in the
+  body is ignored. The name is the visitor's own Firebase profile name, which they can change, so
+  the `uid` is what identifies a poster. The message collection is publicly readable, so the `uid`
+  is not on the message: it is kept in a server-only document with the same id under
+  `artifacts/{appId}/private/data/messagePoster`, written in the same batch, and never returned.
+- **In the browser**: the card sends the visitor's ID token. After a `401` it sends the post once
+  more with a token Firebase refreshes on purpose (a `401` stores nothing); refused again, it signs
+  the visitor out and asks them to sign in again, keeping their text.
+- **Limits of the check**: guest sign-in uses the public web config, so anyone can get a valid
+  token; the sign-in check gives each post a `uid`, not spam resistance. The per-IP `guestbook`
+  limit is the control against floods (while Redis is failing, the guard lets requests through and
+  only the per-instance in-process limit applies).
+- **Firestore rules** (deployed in the Firebase console; not in this repo): the messages collection
+  `artifacts/{appId}/public/data/message` must allow public `read` (the page loader reads it with
+  the client SDK) and deny every client `create`, `update` and `delete`. Every other path,
+  `messagePoster` included, must deny clients both reads and writes. The Admin SDK ignores rules, so
+  the API still writes. If clients may write there, anyone can skip this API and its checks.
 
 ---
 
@@ -195,7 +247,7 @@ Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib
 
 ### Prerequisites
 
-- **Bun** `>= 1.0.0`
+- **Bun** `>= 1.4.0` (CI uses `1.4.4`)
 - **Node.js** `>= 24.15.0`
 
 ### Setup
@@ -203,11 +255,15 @@ Requests to `/api/*` and `/api/v1/*` pass an Elysia `onRequest` guard ([`src/lib
 ```bash
 git clone https://github.com/WomB0ComB0/portfolio.git
 cd portfolio
-bun install
+bun install --frozen-lockfile
 cp .env.example .env.local
 ```
 
-Populate the required keys in `.env.local` (see [Environment Variables](#environment-variables)), then start the development server:
+Bun 1.4 or newer is required for the version-scoped dependency overrides in `package.json`. Keep the
+committed `bun.lock` when setting up the project.
+
+Populate the required values in `.env.local` (see [Environment Variables](#environment-variables)),
+then start the development server:
 
 ```bash
 bun dev
@@ -221,7 +277,8 @@ bun dev
 
 ## Environment Variables
 
-Validation is enforced at build and startup via [`src/env.ts`](src/env.ts) (`@t3-oss/env-nextjs`). Copy [`.env.example`](.env.example) to `.env.local`.
+Validation is enforced at build and startup via [`src/env.ts`](src/env.ts) (`@t3-oss/env-nextjs`).
+Copy [`.env.example`](.env.example) to `.env.local`.
 
 ### Required Variables
 
@@ -239,20 +296,22 @@ Validation is enforced at build and startup via [`src/env.ts`](src/env.ts) (`@t3
 | `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | Client | Liveblocks public key                                                                                                                                        |
 | `NEXT_PUBLIC_SENTRY_DSN`            | Client | Sentry DSN for client/server error reporting                                                                                                                 |
 
-`GCP_PROJECT_ID` is also the project whose Firebase ID tokens `POST /api/v1/messages` accepts, so it must name the same Firebase project as `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. Verifying tokens needs only that project id; the other `GCP_*` values are the service account the guestbook writes with.
+`GCP_PROJECT_ID` is also the project whose Firebase ID tokens `POST /api/v1/messages` accepts, so it
+must name the same Firebase project as `NEXT_PUBLIC_FIREBASE_PROJECT_ID`. Verifying tokens needs
+only that project id. The other `GCP_*` values are the service account the guestbook writes with.
 
 ### Optional Integrations
 
-| Variable                                                              | Scope  | Description                                                                            |
-| :-------------------------------------------------------------------- | :----- | :------------------------------------------------------------------------------------- |
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` | Server | OAuth credentials for `/api/v1/now-playing`, `/top-tracks`, and `/top-artists`         |
-| `GITHUB_TOKEN`                                                        | Server | GitHub PAT (`read:user`, `read:org`) for `/api/v1/github-stats` and `/github-sponsors` |
-| `WAKA_TIME_API_KEY`                                                   | Server | WakaTime API key for coding telemetry                                                  |
-| `SANITY_API_TOKEN`                                                    | Server | Sanity read token for private datasets or draft previews                               |
-| `YOUTUBE_SERVER_API_KEY`                                              | Server | YouTube Data API v3 key                                                                |
-| `BETTERSTACK_STATUS_PAGE_ID`                                          | Server | Optional specific Better Stack status page ID                                          |
-| `BETTERSTACK_SOURCE_TOKEN`, `BETTERSTACK_INGESTING_HOST`              | Server | Optional Better Stack Telemetry (Logtail) source token and host for log shipping       |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID`   | Client | Google Maps credentials for `/places`                                                  |
+| Variable                                                              | Scope  | Description                                                                                                 |
+| :-------------------------------------------------------------------- | :----- | :---------------------------------------------------------------------------------------------------------- |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` | Server | OAuth credentials for `/api/v1/now-playing`, `/top-tracks`, and `/top-artists`                              |
+| `GITHUB_TOKEN`                                                        | Server | GitHub PAT (`read:user`, `read:org`) for `/api/v1/github-stats` and `/github-sponsors`                      |
+| `WAKA_TIME_API_KEY`                                                   | Server | WakaTime API key for coding telemetry                                                                       |
+| `SANITY_API_TOKEN`                                                    | Server | Sanity read token for server-side content queries                                                           |
+| `YOUTUBE_SERVER_API_KEY`                                              | Server | YouTube Data API v3 key for channel uploads and talk durations, sent in the `X-Goog-Api-Key` request header |
+| `BETTERSTACK_STATUS_PAGE_ID`                                          | Server | Optional specific Better Stack status page ID                                                               |
+| `BETTERSTACK_SOURCE_TOKEN`, `BETTERSTACK_INGESTING_HOST`              | Server | Optional Better Stack Telemetry (Logtail) source token and host for log shipping                            |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID`   | Client | Google Maps credentials for `/places`                                                                       |
 
 ---
 
@@ -276,22 +335,77 @@ bun run e2e:ci                 # Run Playwright E2E test suite on Chromium
 bun run analyze                # Build with @next/bundle-analyzer and report bundle sizes
 bun run scripts:package-cost   # Measure dependency size impact
 bun run scripts:check-unused   # Detect unused files and exports
-bun run scripts:copyright      # Apply or verify Apache 2.0 license headers
+bun run gen                    # Regenerate GitHub schema types from the installed schema package
+bun run scripts:copyright      # Add or repair source license headers
+bun run scripts:copyright:check # Check headers without writing
+
+# Sanity Studio
+bun run sanity:dev             # Start the standalone content studio
+bun run sanity:build           # Build the studio
 ```
 
 ---
 
-## Scope & Architecture Decisions
+## Verification
 
-To keep initial page loads fast and avoid client bundle bloat, several previously listed roadmap items have been completed or intentionally excluded:
+Run static checks and the unit suite with the scripts defined in [package.json](package.json):
 
-- **[x] Blog & Media Engine (Completed)**: Live at [`/media`](src/app/(routes)/(dev)/media/page.tsx), [`/api/v1/blog`](src/app/api/v1/[[...route]]/blog/handlers.ts), and [`/api/v1/sanity/*`](src/app/api/v1/[[...route]]/sanity/index.ts). Posts are fetched concurrently from Hashnode (`blog.mikeodnis.dev`) and Dev.to (`mikeodnis`), alongside talks, presentations, and videos from Sanity and YouTube. An in-repo MDX compiler (`@next/mdx`, `shiki`) was skipped to keep server bundles small.
-- **[x] Sponsorship Page (Completed)**: Live at [`/sponsor`](src/app/(routes)/(dev)/sponsor/page.tsx) with GitHub GraphQL integration at [`/api/v1/github-sponsors`](src/app/api/v1/[[...route]]/github-sponsors/handlers.ts).
-- **\[ \] Interactive 3D Stats via Three.js / React Three Fiber (Excluded for Performance)**: [`/stats`](src/app/(routes)/(dev)/stats/page.tsx) renders telemetry with 2D SVG and Recharts components. Pulling in `three` and `@react-three/fiber` adds ~150–250 KB of gzipped client JavaScript plus WebGL context overhead, degrading Largest Contentful Paint (LCP) and Total Blocking Time (TBT) on mobile devices.
-- **\[ \] Internationalization / i18n (Excluded for Performance)**: All portfolio content and technical articles are authored in English. Adding i18n routing middleware introduces per-request edge latency, duplicates route trees (`/[locale]/...`), increases client dictionary payloads, and fragments Redis/CDN cache keys.
+```bash
+bun run type
+bun run lint
+bun run test
+```
+
+Use `bun run test`, which starts Vitest. `bun test` invokes Bun's own runner and does not use the
+repository's Vitest setup. For a focused regression check:
+
+```bash
+bunx vitest run tests/unit/console/folio --no-ui --no-api
+```
+
+Run browser checks with Playwright:
+
+```bash
+bun run e2e:ci
+# Or run a focused set after installing Chromium:
+bunx playwright install chromium
+bunx playwright test e2e/seo/server-render.spec.ts e2e/journeys/media.spec.ts --project=chromium
+```
+
+The default [Playwright config](playwright.config.ts) starts a development server on port 3000 and
+reuses an existing server locally. Journey tests cover desktop and phone layouts, URL filters,
+keyboard focus and reduced motion. The server-render suite checks content without JavaScript,
+structured navigation and real 404 responses. Resume retains its streamed loading exception. The
+guestbook and console-route fixtures block writes during their live-data checks.
+
+The screenshot tests attach images for review when no matching baseline exists. Visual comparison
+begins only after a baseline has been deliberately created and reviewed. See
+[the E2E guide](e2e/README.md) for report and baseline handling. A Chromium run does not establish
+Safari or physical-device coverage.
+
+## Development Notes
+
+- **Content**: edit Sanity documents through the standalone Studio. Configure the site with a
+  read-only `SANITY_API_TOKEN`, keeping editor credentials separate from runtime content queries.
+- **Data failures**: Media and Stats use bounded source loads and stale cache fallbacks. Preserve
+  their error and empty states when changing a loader, along with Stats freshness labels and Media
+  source-availability notices.
+- **Rendering**: keep primary content and navigation in server HTML. Projects and Media encode
+  filters in the URL, and their controls support normal links or GET forms before JavaScript takes
+  over.
+- **Dependency updates**: keep the cookie override compatible with Elysia and the GraphQL tools
+  override scoped by version. After changing GraphQL codegen dependencies, run `bun run gen` and
+  inspect `src/generated/graphql.ts` as well as the normal type and build checks.
+- **Framework changes**: read the documentation shipped in `node_modules/next/dist/docs/` before
+  changing Next.js routing, caching or metadata behavior.
+- **Current scope**: writing comes from external feeds and Sanity, and the site uses English
+  content. Stats uses DOM/SVG charts. There is no repository MDX publishing pipeline, locale routing
+  or Three.js stats scene.
 
 ---
 
 ## License
 
-Licensed under the **Apache License, Version 2.0**. See the license headers in source files or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0) for full terms.
+Licensed under the **Apache License, Version 2.0**. See the license headers in source files or
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0) for full
+terms.
