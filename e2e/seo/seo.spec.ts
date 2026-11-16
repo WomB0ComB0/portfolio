@@ -26,7 +26,7 @@ import { getTargetUrl } from '../fixtures/base';
 
 const PAGES_TO_TEST = [
   { path: '/', name: 'Homepage' },
-  { path: '/about', name: 'About' },
+  { path: '/certifications', name: 'Certifications' },
   { path: '/projects', name: 'Projects' },
   { path: '/experience', name: 'Experience' },
   { path: '/media', name: 'Media' },
@@ -78,6 +78,16 @@ test.describe('SEO', () => {
   });
 
   test.describe('Open Graph Tags', () => {
+    test('unmapped About URL returns a non-indexable 404', async ({ page }) => {
+      const response = await page.goto(`${getTargetUrl()}/about`);
+
+      expect(response?.status()).toBe(404);
+      const robots = page.locator('meta[name="robots"]');
+      await expect(robots).toHaveCount(1);
+      await expect(robots).toHaveAttribute('content', 'noindex');
+      await expect(page.locator('meta[property="og:url"]')).toHaveCount(0);
+    });
+
     for (const pageInfo of PAGES_TO_TEST.slice(0, 4)) {
       test(`${pageInfo.name} should have Open Graph title`, async ({ page }) => {
         const targetUrl = getTargetUrl();
@@ -411,12 +421,14 @@ test.describe('SEO', () => {
         const href = await link.getAttribute('href');
 
         if (href && href !== '#') {
-          const targetId = href.substring(1);
-          const targetElement = page.locator(`#${CSS.escape(targetId)}`);
-          const targetExists = (await targetElement.count()) > 0;
+          const targetId = decodeURIComponent(href.substring(1));
+          const targetExists = await page.evaluate(
+            (id) => document.getElementById(id) !== null,
+            targetId,
+          );
 
           // Anchor should point to existing element
-          expect(targetExists).toBeTruthy();
+          expect(targetExists, `Anchor ${href} must resolve to an element`).toBe(true);
         }
       }
     });
