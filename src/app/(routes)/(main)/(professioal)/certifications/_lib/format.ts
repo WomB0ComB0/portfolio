@@ -77,11 +77,24 @@ export interface CredentialLink {
   readonly href: string;
   /** The destination's host without www. */
   readonly host: string;
-  /** The platform a visitor lands on ('Coursera', 'Credly'), or the host when it is not known: what the Verify column and the phone meta show. */
+  /**
+   * The platform a visitor lands on ('Coursera', 'Credly'), the host when it is not known, or the
+   * store's name ('Google Cloud Storage') for a file host.
+   */
   readonly platform: string;
+  /**
+   * Whether the destination can vouch for the certificate: false for a host that only stores a
+   * file someone uploaded (FILE_HOSTS), which the page offers as 'View certificate' and never as
+   * 'Verify on ...'.
+   */
+  readonly verifies: boolean;
 }
 
-/** The platforms credentials are hosted on, by host (without www). Any other host shows as itself. */
+/**
+ * The platforms credentials are hosted on, by host (without www): each shows the issuer's or the
+ * credential service's own record, so the page says 'Verify on <platform>'. Any other host shows
+ * as itself. api2.sololearn.com is Sololearn's own server, looked up by the certificate's ID.
+ */
 export const CREDENTIAL_PLATFORMS: Readonly<Record<string, string>> = {
   'coursera.org': 'Coursera',
   'credly.com': 'Credly',
@@ -100,8 +113,27 @@ export const CREDENTIAL_PLATFORMS: Readonly<Record<string, string>> = {
   'freecodecamp.org': 'freeCodeCamp',
   'virtualbadge.io': 'VirtualBadge',
   'mindluster.com': 'MindLuster',
-  'storage.googleapis.com': 'Google',
 };
+
+/**
+ * Hosts that only store a file someone uploaded (a PDF of the certificate): the link shows it,
+ * but nobody there vouches for it, so the page never says 'Verify on' for them. Today one
+ * certificate's PDF sits on Google Cloud Storage; the others are the usual places an upload lands.
+ */
+export const FILE_HOSTS: Readonly<Record<string, string>> = {
+  'storage.googleapis.com': 'Google Cloud Storage',
+  'firebasestorage.googleapis.com': 'Firebase Storage',
+  'drive.google.com': 'Google Drive',
+  'dropbox.com': 'Dropbox',
+};
+
+/** The name a host shows as, and whether it can vouch for what it shows. */
+function platformOf(host: string): Pick<CredentialLink, 'platform' | 'verifies'> {
+  const file = Object.hasOwn(FILE_HOSTS, host) ? FILE_HOSTS[host] : undefined;
+  if (file) return { platform: file, verifies: false };
+  const known = Object.hasOwn(CREDENTIAL_PLATFORMS, host) ? CREDENTIAL_PLATFORMS[host] : undefined;
+  return { platform: known ?? host, verifies: true };
+}
 
 /** The company an issuer string belongs to: a folded family, or the trimmed string itself. */
 export function familyOf(issuer: string): string {
@@ -153,13 +185,7 @@ export function credentialLinkOf(url: string | null | undefined): CredentialLink
   if (!/^https?:\/\//i.test(trimmed)) return null;
   try {
     const host = new URL(trimmed).host.replace(/^www\./, '');
-    return {
-      href: trimmed,
-      host,
-      platform: Object.hasOwn(CREDENTIAL_PLATFORMS, host)
-        ? (CREDENTIAL_PLATFORMS[host] ?? host)
-        : host,
-    };
+    return { href: trimmed, host, ...platformOf(host) };
   } catch {
     return null;
   }

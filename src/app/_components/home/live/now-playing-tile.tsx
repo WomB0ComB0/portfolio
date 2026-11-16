@@ -41,7 +41,7 @@ import { Tile } from '@/components/console/tile';
 import { TileLink } from '@/components/console/tile-link';
 import { cn } from '@/lib/utils';
 import type { LiveInitial } from '../data/tile-result';
-import styles from './equaliser.module.css';
+import { Equaliser } from './equaliser';
 import { fetchJson, parseNowPlaying } from './live-fetch';
 import {
   type NowPlayingView,
@@ -50,7 +50,7 @@ import {
   type PlayingTrackView,
 } from './now-playing-view';
 
-/** Its own key: /spotify and the Discord card poll the same endpoint into other shapes. */
+/** Shared with the /spotify hero; the Discord fallback keeps its separate query. */
 export const NOW_PLAYING_QUERY_KEY = ['home', 'now-playing'] as const;
 const NOW_PLAYING_URL = '/api/v1/now-playing';
 /** How often the tile asks Spotify again while the tab is visible. */
@@ -120,40 +120,6 @@ function useNowPlaying(initial: LiveInitial<NowPlayingResponse>) {
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
-}
-
-/** The bars in order: each one's rest pose and speed (equaliser.module.css). */
-const BAR_POSES = ['low', 'high', 'mid'] as const;
-
-interface EqualiserProps {
-  /** 'inline' before the artist (12px), or 'glyph' in the art's place (20px). */
-  size: 'inline' | 'glyph';
-  /** Moving, in the live colour; otherwise still and faint. */
-  live: boolean;
-}
-
-/** Three bars: the live cue while a track plays, a still glyph otherwise. Decorative. */
-function Equaliser({ size, live }: EqualiserProps): ReactElement {
-  const isGlyph = size === 'glyph';
-  return (
-    <span
-      aria-hidden="true"
-      data-equaliser={live ? 'live' : 'still'}
-      className={cn(styles.bars, isGlyph && styles.glyph)}
-    >
-      {BAR_POSES.map((pose) => (
-        <span
-          key={pose}
-          className={cn(
-            styles.bar,
-            isGlyph && styles.thick,
-            live ? styles.live : styles.still,
-            styles[pose],
-          )}
-        />
-      ))}
-    </span>
-  );
 }
 
 /** The art's box holding the large bars, so every state keeps the same shape. */

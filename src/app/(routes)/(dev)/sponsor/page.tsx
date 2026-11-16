@@ -18,20 +18,11 @@ import type { ReactElement } from 'react';
 
 import { constructMetadata } from '@/utils';
 
-import { Sponsor } from './_interface/sponsor';
+import { SponsorView } from './_components/sponsor-view';
+import { loadSponsors } from './_lib/load-sponsors';
+import { DEFAULT_SPONSOR_OPTIONS } from './_lib/options';
 
-/**
- * Metadata configuration for the Sponsor page.
- * This object is used by Next.js to provide SEO information, define the browser title,
- * and set the page description for search engines and social media shares.
- *
- * @type {import("next").Metadata}
- * @readonly
- * @web
- * @author Mike Odnis
- * @version 1.0.0
- * @see {@link https://nextjs.org/docs/app/building-your-application/optimizing/metadata}
- */
+/** The page's title, description and canonical path for search engines and shared links. */
 export const metadata = constructMetadata({
   title: 'Sponsor',
   description:
@@ -40,10 +31,13 @@ export const metadata = constructMetadata({
 });
 
 /**
- * /sponsor. Not async on purpose: the header, benefits, platforms and contact card render at
- * once, and only the sponsors block waits on GitHub, behind its own Suspense boundary and within
- * a deadline (see Sponsors). The block has its own skeleton, so the route needs no loading.tsx.
+ * /sponsor as "Ways first", rendered whole on the server like /certifications: the page awaits
+ * its sponsors first (served from getGitHubSponsors' cache, or within SPONSORS_DEADLINE_MS), with
+ * no Suspense boundary and no loading.tsx, so the ways and the thank-you row are in the first
+ * HTML, readable with JS off and by crawlers. A GitHub failure costs only the thank-you row,
+ * which says so in one line; the ways never depend on it. Ships the owner's open decisions at
+ * their defaults (no benefits copy, no amounts).
  */
-export default function SponsorPage(): ReactElement {
-  return <Sponsor />;
+export default async function SponsorPage(): Promise<ReactElement> {
+  return <SponsorView sponsors={await loadSponsors()} options={DEFAULT_SPONSOR_OPTIONS} />;
 }
