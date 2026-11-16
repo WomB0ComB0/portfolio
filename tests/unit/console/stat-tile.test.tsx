@@ -28,9 +28,10 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
+import { compile } from 'tailwindcss';
 import { describe, expect, it, vi } from 'vitest';
 
 import { StatTile, type StatTileProps, StatTileSkeleton } from '@/components/console/stat-tile';
@@ -184,6 +185,51 @@ describe('StatTile ready', () => {
     renderStat({ value: 3, updatedAt: Date.now(), meta: '60 s personal best' });
     expect(screen.getByText('60 s personal best')).toBeInTheDocument();
     expect(screen.queryByText(/^updated/)).toBeNull();
+  });
+
+  it('rests the figure on the context line by default, or right under the label on request', () => {
+    const resting = rowsOf(renderStat({ value: 5 }))[1];
+    expect(resting).toHaveClass('justify-end');
+    expect(resting).not.toHaveClass('justify-start');
+    cleanup();
+
+    const top = rowsOf(renderStat({ value: 5, align: 'start' }))[1];
+    expect(top).toHaveClass('justify-start');
+    expect(top).not.toHaveClass('justify-end');
+  });
+
+  it('keeps the context line on the tile floor by default, or right under the figure on request', () => {
+    const floor = renderStat({ value: 5 }).firstElementChild;
+    expect(floor).toHaveClass('grid-rows-[auto_1fr_auto]');
+    expect(floor).not.toHaveClass('grid-rows-none', 'content-start');
+    cleanup();
+
+    // A tile stretched to its row's height leaves the spare room under its context line.
+    const packed = renderStat({ value: 5, align: 'start' }).firstElementChild;
+    expect(packed).toHaveClass('grid', 'h-full', 'grid-rows-none', 'content-start');
+    expect(packed).not.toHaveClass('grid-rows-[auto_1fr_auto]');
+  });
+
+  it('sizes a fit figure by its tile: the md style, a fifth of the tile, 24px to 36px', () => {
+    const fit = 'text-[length:clamp(1.5rem,20cqi,2.25rem)]';
+    const ready = figureOf(renderStat({ value: 10238, unit: 'hours', size: 'fit' }));
+
+    // The weight, tracking and line height stay the md tier's; only the size follows the tile.
+    expect(ready).toHaveClass('figure-row', 'figure-md', fit);
+    cleanup();
+
+    // The loading placeholder is sized by the figure's font size, so both states keep one height.
+    expect(figureOf(renderStat({ state: 'loading', size: 'fit' }))).toHaveClass('figure-md', fit);
+    cleanup();
+
+    // The error dash only holds the figure's place: the md tier, not sized by the tile.
+    const dash = figureOf(renderStat({ state: 'error', size: 'fit' }));
+    expect(dash).toHaveClass('figure-md');
+    expect(dash).not.toHaveClass(fit);
+    cleanup();
+
+    // md itself stays a fixed 36px.
+    expect(figureOf(renderStat({ value: 5 }))).not.toHaveClass(fit);
   });
 
   it('renders children after the figure, outside its paragraph', () => {
@@ -492,7 +538,7 @@ describe('StatTile root', () => {
     );
     const tile = screen.getByRole('listitem', { name: LABEL });
 
-    expect(tile).toHaveClass('bg-surface-2', '@4xl/tiles:col-span-6', 'x');
+    expect(tile).toHaveClass('bg-surface-2', '@[70rem]/tiles:col-span-6', 'x');
   });
 
   it('does not name a div root, which ARIA forbids', () => {
@@ -557,5 +603,46 @@ describe('StatusDot', () => {
 
     expect(live).toHaveClass(PULSE_CLASS);
     expect(ongoing).not.toHaveClass(PULSE_CLASS);
+  });
+
+  // Forced colours (Windows Contrast themes) repaint every background as Canvas, and the dot is a
+  // background only: it vanished beside 'Now' and 'Live'. It opts out and takes the system text
+  // colour, so every tone is the one dot the theme can show; the word beside it says which.
+  it.each(['live', 'ongoing', 'down', 'info', 'idle'] as const)(
+    'a %s dot stays visible under forced colours, in the system text colour',
+    (tone: StatusTone) => {
+      const { container } = render(<StatusDot tone={tone} />);
+
+      expect(container.firstElementChild).toHaveClass(
+        'forced-colors:[forced-color-adjust:none]',
+        'forced-colors:bg-[color:CanvasText]',
+      );
+    },
+  );
+
+  it('compiles the system colour after the tone, and stills the pulse under forced colours', async () => {
+    const { container } = render(<StatusDot tone="live" pulse />);
+    const classes = (container.firstElementChild?.getAttribute('class') ?? '').split(/\s+/);
+    // Opted out of forced colours, the pulse's ring would be drawn in the author's green.
+    expect(classes).toContain('forced-colors:animate-none');
+
+    const { build } = await compile(
+      '@theme { --color-live: green; --animate-live-pulse: live-pulse 2.4s infinite; }\n@tailwind utilities;',
+    );
+    const css = build(classes);
+    const forcedAt = css.indexOf('@media (forced-colors: active)');
+    const forced = css.slice(forcedAt);
+
+    expect(forcedAt).toBeGreaterThan(-1);
+    expect(forced).toMatch(/forced-color-adjust:\s*none/);
+    expect(forced).toMatch(/background-color:\s*CanvasText/);
+    expect(forced).toMatch(/animation:\s*none/);
+    // Equal specificity, so order decides: the tone and the pulse come before what replaces them.
+    const toneAt = css.indexOf('background-color: var(--color-live)');
+    const pulseAt = css.indexOf('animation: var(--animate-live-pulse)');
+    expect(toneAt).toBeGreaterThan(-1);
+    expect(pulseAt).toBeGreaterThan(-1);
+    expect(toneAt).toBeLessThan(forcedAt);
+    expect(pulseAt).toBeLessThan(forcedAt);
   });
 });

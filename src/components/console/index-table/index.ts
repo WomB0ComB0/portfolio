@@ -26,6 +26,7 @@ export {
   IndexAnnouncer,
   IndexGroup,
   type IndexGroupProps,
+  type IndexPin,
   IndexRow,
   type IndexRowProps,
   IndexTitleLink,

@@ -36,10 +36,19 @@ const TONE_CLASS = {
   idle: 'bg-faint',
 } as const satisfies Record<StatusTone, string>;
 
-const DOT_CLASS = 'inline-block size-2 shrink-0 rounded-full';
+/**
+ * Forced colours (Windows Contrast themes) repaint every background as Canvas, and the dot is a
+ * background only, so there it opts out and takes the system text colour: one dot for every tone,
+ * which the word beside it names.
+ */
+const DOT_CLASS =
+  'inline-block size-2 shrink-0 rounded-full forced-colors:[forced-color-adjust:none] forced-colors:bg-[color:CanvasText]';
 
-/** The ring that breathes around a live dot; the global reduced-motion rule also stills it. */
-const PULSE_CLASS = 'motion-safe:animate-live-pulse';
+/**
+ * The ring that breathes around a live dot; the global reduced-motion rule also stills it. Under
+ * forced colours it is off: opted out of them, the ring would be drawn in the site's own green.
+ */
+const PULSE_CLASS = 'motion-safe:animate-live-pulse forced-colors:animate-none';
 
 export interface StatusDotProps {
   tone: StatusTone;

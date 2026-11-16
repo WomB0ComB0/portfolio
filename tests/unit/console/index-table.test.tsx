@@ -101,6 +101,18 @@ function Table({ variant }: { readonly variant?: 'ledger' | 'open' }): ReactElem
 const classesOf = (element: Element | null | undefined): string[] =>
   (element?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 
+/** A group whose heading is longer than a year, with the kit's opt-in bar options. */
+function LongHeadingGroup(props: {
+  readonly wrapHeading?: boolean;
+  readonly pin?: 'always' | 'tall-screens';
+}): ReactElement {
+  return (
+    <IndexGroup id="top" year="Top repositories" count="by stars" columns={COLUMNS} {...props}>
+      <tr />
+    </IndexGroup>
+  );
+}
+
 describe('a year group', () => {
   it('is a section with its h2, and a real table named by it', () => {
     render(<Table />);
@@ -213,7 +225,7 @@ describe('a row', () => {
 
     // Focus scrolling reads the focused element's own scroll-margin, never its row's.
     expect(row).toContain(clearance);
-    expect(row).toContain(`[&_:is(a,button)]:${clearance}`);
+    expect(row).toContain(`[&_:is(a,button,summary)]:${clearance}`);
   });
 
   it('is the stretched title link’s box, with secondary actions above it', () => {
@@ -302,6 +314,86 @@ describe('an internal title link (style 2 on /projects)', () => {
         'text-muted-foreground',
         '@min-[40rem]/page:block',
       ]),
+    );
+  });
+});
+
+describe('a table that wraps instead of cutting (opt-in)', () => {
+  const SHORT_SCREEN = '[@media(max-height:30rem)]:static';
+  const GROW = [
+    '@max-[40rem]/page:h-auto',
+    '@max-[40rem]/page:min-h-10',
+    '@max-[40rem]/page:flex-wrap',
+    '@max-[40rem]/page:gap-y-0.5',
+    // The fixed bar's room above, less the phone bar's 1px bottom border that h-auto adds on.
+    '@max-[40rem]/page:pt-[calc(0.625rem-1px)]',
+  ];
+
+  it('lets a heading too long for a phone page wrap, in a bar that grows with it', () => {
+    render(<LongHeadingGroup wrapHeading />);
+    const bar = classesOf(document.getElementById('top'));
+
+    // The kit's 40px bar is sized for a year; this one is at least that and keeps the room above.
+    expect(bar).toEqual(expect.arrayContaining(['sticky', 'h-10', ...GROW]));
+    cleanup();
+
+    render(<LongHeadingGroup />);
+    expect(classesOf(document.getElementById('top')).join(' ')).not.toContain('h-auto');
+  });
+
+  it('stops pinning the year bar and the column labels on a short screen when asked', () => {
+    render(<LongHeadingGroup pin="tall-screens" />);
+
+    expect(classesOf(document.getElementById('top'))).toEqual(
+      expect.arrayContaining(['sticky', SHORT_SCREEN]),
+    );
+    for (const label of screen.getAllByRole('columnheader')) {
+      expect(classesOf(label)).toEqual(expect.arrayContaining(['sticky', SHORT_SCREEN]));
+    }
+    cleanup();
+
+    // By default both stay pinned whatever the screen's height, as on /certifications.
+    render(<LongHeadingGroup />);
+    expect(classesOf(document.getElementById('top'))).not.toContain(SHORT_SCREEN);
+    for (const label of screen.getAllByRole('columnheader')) {
+      expect(classesOf(label)).not.toContain(SHORT_SCREEN);
+    }
+  });
+
+  it('wraps the title link when asked: as wide as its words, never cut', () => {
+    render(
+      <IndexTitleLink href="https://example.com/a" external wrap>
+        a-forty-character-repository-name-abcdef
+      </IndexTitleLink>,
+    );
+    const wrapped = classesOf(screen.getByRole('link'));
+
+    expect(wrapped).toEqual(
+      expect.arrayContaining(['min-w-0', 'max-w-full', 'self-start', 'whitespace-normal']),
+    );
+    expect(wrapped).not.toContain('truncate');
+    // Still the row's stretched link, brand ink with its row.
+    expect(wrapped).toEqual(
+      expect.arrayContaining(['after:absolute', 'after:inset-0', 'group-hover/row:text-brand-ink']),
+    );
+    cleanup();
+
+    render(<IndexTitleLink href="https://example.com/a">Alpha</IndexTitleLink>);
+    expect(classesOf(screen.getByRole('link'))).toContain('truncate');
+    expect(classesOf(screen.getByRole('link'))).not.toContain('whitespace-normal');
+  });
+
+  it('wraps a column’s cells when the column says so, breaking only a word longer than its line', () => {
+    const about = { id: 'about', label: 'About', wrap: true } as const satisfies IndexColumn;
+    const wrapped = indexCellClass(about).split(' ');
+
+    expect(wrapped).toEqual(
+      expect.arrayContaining(['whitespace-normal', '[overflow-wrap:anywhere]', 'tile-sub']),
+    );
+    expect(wrapped).not.toContain('whitespace-nowrap');
+    // Every other column stays one clipped line, in the same words as before.
+    expect(indexCellClass(TITLE)).toBe(
+      'overflow-hidden text-ellipsis whitespace-nowrap border-b border-hairline px-2 py-0 align-middle tile-sub text-muted-foreground [[data-variant=open]_&]:border-b-0 @min-[40rem]/page:px-3 text-left',
     );
   });
 });

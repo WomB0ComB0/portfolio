@@ -49,10 +49,14 @@ import { cn } from '@/lib/utils';
 export type StatTileState = 'ready' | 'loading' | 'idle' | 'error' | 'stale';
 /**
  * The figure's tier, by the tile's size class and never the viewport: sm 28px (a slim tile such
- * as the site index), md 36px (an S stat tile, the default), lg 48px (an M tile).
+ * as the site index), md 36px (an S stat tile, the default), lg 48px (an M tile). `fit` is md
+ * for a tile that can be narrow (half a phone row, a quarter of a tablet grid): a fifth of the
+ * tile's width, md's 36px wherever the tile has the room and never under 24px, so five digits
+ * and their unit stay on one line.
  */
-export type StatTileSize = 'sm' | 'md' | 'lg';
+export type StatTileSize = 'sm' | 'md' | 'lg' | 'fit';
 export type StatTileLabelElement = 'p' | 'h2' | 'h3';
+export type StatTileAlign = 'end' | 'start';
 
 /** A change to show beside the figure, e.g. +12 this week. */
 export interface StatDelta {
@@ -87,8 +91,15 @@ interface StatTileContentProps {
   live?: boolean;
   /** Glides a number to each new value (LiveNumber). Use it in client islands that refetch. */
   tween?: boolean;
-  /** The figure's tier: sm 28px, md 36px (default), lg 48px. */
+  /** The figure's tier: sm 28px, md 36px (default), lg 48px, or fit (md, sized by the tile). */
   size?: StatTileSize;
+  /**
+   * Where the figure sits in the room between the label and the context line: 'end' (default)
+   * rests it on the context line, which stays on the tile's floor; 'start' puts it right under
+   * the label with the context line right under it, so a row of tiles whose context lines wrap
+   * differently still lines its figures up, and a stretched tile keeps its spare room below.
+   */
+  align?: StatTileAlign;
   /** The label's element. Use a heading when the tile is a section of the page. */
   labelAs?: StatTileLabelElement;
   /** The label's id, which the tile root points at with aria-labelledby. Generated if left out. */
@@ -137,9 +148,24 @@ const FIGURE_SIZE_CLASS = {
   sm: 'figure-sm',
   md: 'figure-md',
   lg: 'figure-lg',
+  fit: 'figure-md',
 } as const satisfies Record<StatTileSize, string>;
 
+/**
+ * The fit tier's size, beside figure-md (which keeps the weight, tracking and line height): a
+ * fifth of the tile's width (the tile is an inline-size container), 24px to 36px. A fifth keeps
+ * six characters ('10,238') inside the tile even at twice the text size. It goes on the figure
+ * row only; the error dash holds the figure's place at the tier's own size.
+ */
+const FIGURE_FIT_CLASS = 'text-[length:clamp(1.5rem,20cqi,2.25rem)]';
+
 const ROWS_CLASS = 'grid h-full grid-rows-[auto_1fr_auto] gap-3';
+/**
+ * align 'start': the rows pack to the top (tailwind-merge drops the template for grid-rows-none),
+ * so the context line sits right under the figure and a tile stretched to its row's height keeps
+ * the spare room below it.
+ */
+const ROWS_START_CLASS = 'grid-rows-none content-start';
 const HEAD_CLASS = 'flex items-start justify-between gap-3';
 const HEAD_END_CLASS = 'flex shrink-0 items-center gap-2';
 /** Sentence case as written ("LeetCode", "Typing"), never transformed to capitals. */
@@ -148,7 +174,11 @@ const LIVE_BADGE_CLASS = 'tile-label inline-flex shrink-0 items-center gap-1.5 t
 /** The new-tab cue of an external tile link; it nudges toward where it leads while hovered. */
 const NEW_TAB_ARROW_CLASS =
   'size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-(--motion-fast) ease-out-expo group-hover/tile:text-foreground motion-safe:group-hover/tile:translate-x-0.5 motion-safe:group-hover/tile:-translate-y-0.5';
-const BODY_CLASS = 'flex min-w-0 flex-col justify-end gap-3';
+const BODY_CLASS = 'flex min-w-0 flex-col gap-3';
+const BODY_ALIGN_CLASS = {
+  end: 'justify-end',
+  start: 'justify-start',
+} as const satisfies Record<StatTileAlign, string>;
 /**
  * The value and its unit as a wrapping row (figure-row): '692' and 'solved' have no break
  * opportunity between them, so in a narrow tile the unit drops under the number instead of
@@ -241,10 +271,11 @@ interface FigureProps {
 /** Row 2. The placeholder sits in the same figure element as the value, so the height matches. */
 function Figure({ state, shown, unit, format, tween, size, idleText }: FigureProps): ReactElement {
   const sizeClass = FIGURE_SIZE_CLASS[size];
+  const rowClass = cn(FIGURE_CLASS, sizeClass, size === 'fit' && FIGURE_FIT_CLASS);
 
   if (state === 'loading') {
     return (
-      <p className={cn(FIGURE_CLASS, sizeClass)}>
+      <p className={rowClass}>
         <span aria-hidden="true" className={VALUE_PLACEHOLDER_CLASS} />
         <span className="sr-only">{LOADING_LABEL}</span>
       </p>
@@ -261,7 +292,7 @@ function Figure({ state, shown, unit, format, tween, size, idleText }: FigurePro
   if (state === 'idle' || shown === null) return <p className={IDLE_CLASS}>{idleText}</p>;
 
   return (
-    <p className={cn(FIGURE_CLASS, sizeClass)}>
+    <p className={rowClass}>
       {tween && typeof shown === 'number' ? (
         <LiveNumber value={shown} format={format} />
       ) : (
@@ -317,7 +348,9 @@ function ContextLine({
       return (
         <>
           <Clock aria-hidden="true" className={ICON_CLASS} />
-          <span>{hasContent(note) ? `${STALE_LABEL} ·` : STALE_LABEL}</span>
+          <span className={hasContent(note) ? 'mr-[calc(0.25em-0.5rem)]' : undefined}>
+            {hasContent(note) ? `${STALE_LABEL} ·` : STALE_LABEL}
+          </span>
           {note}
           {deltaText}
         </>
@@ -342,6 +375,7 @@ interface StatTileBodyProps {
   showLive: boolean;
   /** The whole tile is a link that opens a new tab: the head shows the arrow that says so. */
   opensNewTab: boolean;
+  align: StatTileAlign;
   figure: FigureProps;
   context: ContextLineProps;
   children?: ReactNode;
@@ -353,12 +387,13 @@ function StatTileBody({
   labelId,
   showLive,
   opensNewTab,
+  align,
   figure,
   context,
   children,
 }: StatTileBodyProps): ReactElement {
   return (
-    <div className={ROWS_CLASS}>
+    <div className={cn(ROWS_CLASS, align === 'start' && ROWS_START_CLASS)}>
       <div className={HEAD_CLASS}>
         <Label id={labelId} className={LABEL_CLASS}>
           {label}
@@ -376,7 +411,7 @@ function StatTileBody({
           </span>
         )}
       </div>
-      <div className={BODY_CLASS}>
+      <div className={cn(BODY_CLASS, BODY_ALIGN_CLASS[align])}>
         <Figure {...figure} />
         {children}
       </div>
@@ -462,6 +497,7 @@ export function StatTile(props: StatTileProps): ReactElement {
     live = false,
     tween = false,
     size = 'md',
+    align = 'end',
     labelAs = 'p',
     id,
     children,
@@ -484,6 +520,7 @@ export function StatTile(props: StatTileProps): ReactElement {
       labelId={labelId}
       showLive={live && resolved === 'ready'}
       opensNewTab={opensNewTab}
+      align={align}
       figure={{ state: resolved, shown, unit, format, tween, size, idleText }}
       context={{ state: resolved, meta, updatedAt, delta, format, errorText, action }}
     >

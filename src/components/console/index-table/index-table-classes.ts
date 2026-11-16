@@ -50,6 +50,11 @@ export interface IndexColumn {
   readonly width?: string;
   /** Sortable, and how: kept as data for a later sortable style; no header sorts yet. */
   readonly sort?: 'text' | 'date' | 'number';
+  /**
+   * Lets the column's cells wrap instead of ending in an ellipsis; a word breaks inside only
+   * when it is longer than its line. For text that must be read whole (a name, a description).
+   */
+  readonly wrap?: boolean;
 }
 
 const COL_PRIORITY: Readonly<Record<IndexPriority, string>> = {
@@ -72,6 +77,21 @@ export const INDEX_GROUP_CLASS = 'flex min-w-0 flex-col';
 /** The year bar's first line: the year (20px/600) and its count. */
 export const INDEX_YEAR_CLASS =
   'sticky top-[calc(env(safe-area-inset-top,0px)+var(--filter-bar-h,0px))] z-[25] flex h-10 items-end gap-2.5 stuck-canvas px-2 pb-1 @max-[40rem]/page:border-b @max-[40rem]/page:border-hairline-strong @min-[40rem]/page:px-3';
+/**
+ * For a heading longer than a year ("Top repositories", with a qualifier): on a phone page the
+ * bar grows to fit, the count wrapping under the heading, and keeps the room above it that the
+ * fixed 40px bar has (its top padding is a pixel short of 10px, for the phone bar's bottom border
+ * that h-auto adds on, so a one-line heading is 40px too). From a 40rem page it is the fixed bar
+ * again. Opt-in (IndexGroup's `wrapHeading`): a year never needs it.
+ */
+export const INDEX_YEAR_GROW_CLASS =
+  '@max-[40rem]/page:h-auto @max-[40rem]/page:min-h-10 @max-[40rem]/page:flex-wrap @max-[40rem]/page:gap-y-0.5 @max-[40rem]/page:pt-[calc(0.625rem-1px)]';
+/**
+ * On a short screen (a phone on its side) a pinned year bar and column labels, under the filter
+ * bar and over the bottom bar, leave under half the screen for the rows. With IndexGroup's
+ * `pin="tall-screens"` both scroll with the rows there; the class goes on the h2 and on each th.
+ */
+export const INDEX_UNPIN_SHORT_CLASS = '[@media(max-height:30rem)]:static';
 export const INDEX_YEAR_NUMBER_CLASS = 'tile-title-lg tabular-nums text-foreground';
 export const INDEX_YEAR_COUNT_CLASS = 'tile-meta text-faint';
 
@@ -88,15 +108,20 @@ export const INDEX_TH_CLASS =
  * nothing moves, nothing is coloured. Keyboard focus anywhere in the row tints it too. A row
  * scrolled into view stops clear of the sticky bars: html's scroll-padding already clears the edge
  * haze, so the margin adds only what the filter bar, year bar and labels cover past it. A Tab or
- * Shift+Tab scrolls by the focused link's or button's own margin, never its row's, so they carry
- * it too.
+ * Shift+Tab scrolls by the focused link's, button's or summary's own margin, never its row's, so
+ * they carry it too.
  */
 export const INDEX_ROW_CLASS =
-  'group/row relative [transform:translate(0)] h-10 scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))] [&_:is(a,button)]:scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))] transition-[background-color] duration-(--motion-base) ease-effect hover:bg-surface-1 hover:duration-(--motion-instant) focus-within:bg-surface-1 [[data-variant=open]_&]:h-16 @max-[40rem]/page:h-15 @max-[40rem]/page:[[data-variant=open]_&]:h-15';
+  'group/row relative [transform:translate(0)] h-10 scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))] [&_:is(a,button,summary)]:scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))] transition-[background-color] duration-(--motion-base) ease-effect hover:bg-surface-1 hover:duration-(--motion-instant) focus-within:bg-surface-1 [[data-variant=open]_&]:h-16 @max-[40rem]/page:h-15 @max-[40rem]/page:[[data-variant=open]_&]:h-15';
 
-/** Every cell: one line, never wrapping; ledger rows are ruled, open ones are not. */
-const CELL_CLASS =
-  'overflow-hidden text-ellipsis whitespace-nowrap border-b border-hairline px-2 py-0 align-middle tile-sub text-muted-foreground [[data-variant=open]_&]:border-b-0 @min-[40rem]/page:px-3';
+/**
+ * Every cell: one clipped line unless its column wraps (IndexColumn's `wrap`); ledger rows are
+ * ruled, open ones are not.
+ */
+const CELL_LINE_CLASS = 'whitespace-nowrap';
+const CELL_WRAP_CLASS = 'whitespace-normal [overflow-wrap:anywhere]';
+const cellClass = (wrap: boolean): string =>
+  `overflow-hidden text-ellipsis ${wrap ? CELL_WRAP_CLASS : CELL_LINE_CLASS} border-b border-hairline px-2 py-0 align-middle tile-sub text-muted-foreground [[data-variant=open]_&]:border-b-0 @min-[40rem]/page:px-3`;
 
 /** A secondary action (Copy ID, Code, Live): above the stretched link, so it keeps its own click. */
 export const INDEX_ACTION_CLASS =
@@ -106,9 +131,16 @@ export const INDEX_ACTION_CLASS =
 export const INDEX_COPY_CLASS =
   'relative z-[1] inline-flex h-7 w-9 items-center justify-center rounded-md mono-token text-faint transition-[color,background-color] duration-(--motion-fast) ease-effect hover:bg-surface-2 hover:text-foreground data-done:text-brand-ink';
 
-/** The title link: stretched over its row, brand-ink while the row is hovered. */
-export const INDEX_TITLE_LINK_CLASS =
-  "min-w-0 truncate font-medium text-foreground transition-colors duration-(--motion-base) ease-effect after:absolute after:inset-0 after:content-[''] group-hover/row:text-brand-ink group-hover/row:duration-(--motion-instant)";
+/** What every title link shares: stretched over its row, brand-ink while the row is hovered. */
+const TITLE_LINK_INK_CLASS =
+  "font-medium text-foreground transition-colors duration-(--motion-base) ease-effect after:absolute after:inset-0 after:content-[''] group-hover/row:text-brand-ink group-hover/row:duration-(--motion-instant)";
+/** The title link: one line, cut with an ellipsis. */
+export const INDEX_TITLE_LINK_CLASS = `min-w-0 truncate ${TITLE_LINK_INK_CLASS}`;
+/**
+ * The same link for a title that must be read whole (IndexTitleLink's `wrap`): as wide as its
+ * words (so a new-tab arrow stays with the last one) and wrapping instead of being cut.
+ */
+export const INDEX_TITLE_LINK_WRAP_CLASS = `min-w-0 max-w-full self-start whitespace-normal ${TITLE_LINK_INK_CLASS}`;
 /** A title without a link. */
 export const INDEX_TITLE_TEXT_CLASS = 'min-w-0 truncate font-medium text-foreground';
 /** Quiet text that turns brand-ink with its row (the Verify platform). */
@@ -130,5 +162,9 @@ export const indexHeaderClass = ({ align = 'start', priority = 0 }: IndexColumn)
   [INDEX_TH_CLASS, ALIGN[align], CELL_PRIORITY[priority]].filter(Boolean).join(' ');
 
 /** A body cell's classes for its column. */
-export const indexCellClass = ({ align = 'start', priority = 0 }: IndexColumn): string =>
-  [CELL_CLASS, ALIGN[align], CELL_PRIORITY[priority]].filter(Boolean).join(' ');
+export const indexCellClass = ({
+  align = 'start',
+  priority = 0,
+  wrap = false,
+}: IndexColumn): string =>
+  [cellClass(wrap), ALIGN[align], CELL_PRIORITY[priority]].filter(Boolean).join(' ');

@@ -33,14 +33,20 @@ import {
   INDEX_TABLE_CLASS,
   INDEX_THEAD_CLASS,
   INDEX_TITLE_LINK_CLASS,
+  INDEX_TITLE_LINK_WRAP_CLASS,
+  INDEX_UNPIN_SHORT_CLASS,
   INDEX_YEAR_CLASS,
   INDEX_YEAR_COUNT_CLASS,
+  INDEX_YEAR_GROW_CLASS,
   INDEX_YEAR_NUMBER_CLASS,
   type IndexColumn,
   type IndexVariant,
   indexColClass,
   indexHeaderClass,
 } from './index-table-classes';
+
+/** When the year bar and the column labels stay pinned while their rows scroll. */
+export type IndexPin = 'always' | 'tall-screens';
 
 export interface IndexGroupProps {
   /** The h2's id, which names the table. */
@@ -51,7 +57,18 @@ export interface IndexGroupProps {
   readonly count: string;
   readonly columns: readonly IndexColumn[];
   readonly variant?: IndexVariant;
-  /** Extra classes for the heading bar, without changing the default table layout. */
+  /**
+   * For a heading longer than a year: on a phone page the bar grows with it and the count wraps
+   * under it, instead of overflowing the fixed 40px bar.
+   */
+  readonly wrapHeading?: boolean;
+  /**
+   * `always` (default) keeps the year bar and the column labels pinned while their rows scroll.
+   * `tall-screens` lets both scroll with the rows on a screen under 30rem tall (a phone on its
+   * side), where pinned bars leave little room for the rows.
+   */
+  readonly pin?: IndexPin;
+  /** Merged onto the year bar (the h2), for what the options above do not cover. */
   readonly headerClassName?: string;
   /** The rows (<tr>, usually server-rendered IndexRow). */
   readonly children: ReactNode;
@@ -67,12 +84,27 @@ export function IndexGroup({
   count,
   columns,
   variant = 'ledger',
+  wrapHeading = false,
+  pin = 'always',
   headerClassName,
   children,
 }: IndexGroupProps): ReactElement {
+  const unpin = pin === 'tall-screens' && INDEX_UNPIN_SHORT_CLASS;
+  /** A column label's classes; the default string is the kit's own, untouched. */
+  const labelClass = (column: IndexColumn): string =>
+    unpin ? `${indexHeaderClass(column)} ${unpin}` : indexHeaderClass(column);
   return (
     <section data-index-part="group" className={INDEX_GROUP_CLASS}>
-      <h2 id={id} data-index-part="year" className={cn(INDEX_YEAR_CLASS, headerClassName)}>
+      <h2
+        id={id}
+        data-index-part="year"
+        className={cn(
+          INDEX_YEAR_CLASS,
+          wrapHeading && INDEX_YEAR_GROW_CLASS,
+          unpin,
+          headerClassName,
+        )}
+      >
         <span className={INDEX_YEAR_NUMBER_CLASS}>{year}</span>
         <span className="sr-only">,</span> <span className={INDEX_YEAR_COUNT_CLASS}>{count}</span>
       </h2>
@@ -85,7 +117,7 @@ export function IndexGroup({
         <thead className={INDEX_THEAD_CLASS}>
           <tr>
             {columns.map((column) => (
-              <th key={column.id} scope="col" className={indexHeaderClass(column)}>
+              <th key={column.id} scope="col" className={labelClass(column)}>
                 {column.label}
               </th>
             ))}
@@ -113,6 +145,8 @@ export function IndexRow({ className, children, ...rest }: IndexRowProps): React
 
 interface IndexTitleLinkBase {
   readonly href: string;
+  /** Wraps a title that must be read whole instead of cutting it to one line. */
+  readonly wrap?: boolean;
   readonly className?: string;
   readonly children: ReactNode;
   readonly [data: `data-${string}`]: string | undefined;
@@ -144,11 +178,12 @@ export function IndexTitleLink({
   href,
   external = false,
   internal,
+  wrap = false,
   className,
   children,
   ...data
 }: IndexTitleLinkProps): ReactElement {
-  const linkClass = cn(INDEX_TITLE_LINK_CLASS, className);
+  const linkClass = cn(wrap ? INDEX_TITLE_LINK_WRAP_CLASS : INDEX_TITLE_LINK_CLASS, className);
   if (internal) {
     return (
       <Link href={href} prefetch={false} data-index-link="" className={linkClass} {...data}>
