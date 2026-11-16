@@ -494,7 +494,7 @@ describe('loadVideos', () => {
 
 describe('loadTalks', () => {
   it('drops only a YouTube talk whose videoUrl is not a string and enriches the others', async () => {
-    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'firebase-key-example';
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     const onYoutube = makeTalk({
       videoFormat: 'youtube',
       videoUrl: 'https://youtu.be/talkVideo01',
@@ -510,12 +510,24 @@ describe('loadTalks', () => {
     expect(talks).toEqual([{ ...onYoutube, duration: '12:34' }]);
     expect(youtube.fetchYouTubeVideoMetadataBatch).toHaveBeenCalledWith(
       ['talkVideo01'],
-      'firebase-key-example',
+      'yt-key-example',
     );
     expectOneReport('warning', 'decode talks');
     expect(sentry.captureException.mock.calls[0]?.[0]).toMatchObject({
       metadata: { invalid: [{ id: malformed._id }] },
     });
+  });
+
+  it('never sends the public Firebase browser key to YouTube: without the server key, the stored durations stay', async () => {
+    envValues.NEXT_PUBLIC_FIREBASE_API_KEY = 'firebase-key-example';
+    const onYoutube = makeTalk({
+      videoFormat: 'youtube',
+      videoUrl: 'https://youtu.be/talkVideo01',
+    });
+    sanity.sanityFetchWithToken.mockResolvedValue([onYoutube]);
+
+    expect(await loadTalks()).toEqual([onYoutube]);
+    expect(youtube.fetchYouTubeVideoMetadataBatch).not.toHaveBeenCalled();
   });
 });
 
