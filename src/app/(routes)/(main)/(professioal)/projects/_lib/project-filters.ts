@@ -15,62 +15,32 @@
  */
 
 /**
- * @file /projects on the shared filter schema (src/lib/filters), pure and server-safe:
- * - ?category, the Kind: one at a time, as chips. The most used kinds get a chip and the rest
- *   fold under Other (the /certifications recipe). It still reads every old shared link: a
- *   kind's slug, its label in any case, or a whole old free-text category, even one no project
- *   has any more (its first kind that is still known).
- * - ?tech, the Technology: several at once (OR within the facet, AND with the Kind), as
- *   repeated keys, so an old single ?tech=Python still parses; spellings fold by techKey.
- * - ?q over each project's search text.
- * A facet value longer than any real spelling is dropped before any pattern reads it.
- * The lookups are plain JSON built on the server from the projects; the client island builds
- * the schema from them (the schema holds functions, so it never crosses that boundary).
+ * @file /projects filters, the server's side: buildProjectLookups turns the projects into the
+ * plain-JSON lookups the filter schema reads (every kind and technology, labelled by its most
+ * used spelling). It picks the Kind chips here: the most used kinds while they fit the bar's
+ * widest row (kind-chip-budget.ts), the rest folded under Other. Pure and server-safe.
+ *
+ * Only the server imports this module (the page's index, project-index.ts), so the chip-width
+ * estimate never reaches the browser. The client island imports the schema itself from
+ * project-schema.ts, which this module re-exports for its server importers.
  */
 
-import { defineFilters, type FilterSchema, type FilterState, ownValue } from '@/lib/filters';
-import { kindSlug, kindsOf, PROJECT_NOUN, techKey } from './project-text';
+import { kindChipCount } from './kind-chip-budget';
+import { OTHER_KIND, type ProjectLookups } from './project-schema';
+import { kindSlug, kindsOf, techKey } from './project-text';
 
-export type ProjectFacet = 'category' | 'tech';
-export type ProjectState = FilterState<ProjectFacet>;
-export type ProjectSchema<T extends ProjectFilterItem = ProjectFilterItem> = FilterSchema<
-  T,
-  ProjectFacet
->;
-
-export const PROJECTS_PATH = '/projects';
-export const QUERY_MAX_LENGTH = 100;
-/**
- * The longest ?category or ?tech value read; a longer one is dropped unread. The live data's
- * longest technology is 58 characters and its longest category 49 (a GET snapshot).
- */
-export const FACET_VALUE_MAX_LENGTH = 100;
-/**
- * Kinds with a chip of their own. Five, so every chip (Other, the biggest group, included)
- * fits the bar's one line at 1440 with the live kinds; the rest fold under Other.
- */
-export const MAX_KIND_CHIPS = 5;
-export const OTHER_KIND = 'other';
-const ALL_KIND = 'all';
-
-/** What the schema reads of a row. */
-export interface ProjectFilterItem {
-  readonly kindSlugs: readonly string[];
-  readonly techKeys: readonly string[];
-  readonly haystack: string;
-}
-
-/** What the schema is built from: plain JSON, built on the server. */
-export interface ProjectLookups {
-  /** Every kind's label, by slug. */
-  readonly kinds: Readonly<Record<string, string>>;
-  /** The kinds with a chip, most used first (ties A to Z). */
-  readonly kindOrder: readonly string[];
-  /** The kinds under Other. */
-  readonly folded: readonly string[];
-  /** Every technology's label (its most used spelling), by key. */
-  readonly techs: Readonly<Record<string, string>>;
-}
+export {
+  FACET_VALUE_MAX_LENGTH,
+  OTHER_KIND,
+  PROJECTS_PATH,
+  type ProjectFacet,
+  type ProjectFilterItem,
+  type ProjectLookups,
+  type ProjectSchema,
+  type ProjectState,
+  projectFilters,
+  QUERY_MAX_LENGTH,
+} from './project-schema';
 
 /** What the lookups are built from: each project's category and technologies. */
 export interface LookupSource {
@@ -107,6 +77,7 @@ export function buildProjectLookups(sources: readonly LookupSource[]): ProjectLo
   }
   const kinds = Object.fromEntries([...kindTally].map(([slug, tally]) => [slug, mostUsed(tally)]));
   // A kind literally called "Other" is folded too, so it never stands beside the Other chip.
+  const otherKind = Object.hasOwn(kinds, OTHER_KIND);
   const ranked = Object.keys(kinds)
     .filter((slug) => slug !== OTHER_KIND)
     .sort(
@@ -114,77 +85,17 @@ export function buildProjectLookups(sources: readonly LookupSource[]): ProjectLo
         uses(kindTally.get(b)) - uses(kindTally.get(a)) ||
         (kinds[a] ?? a).localeCompare(kinds[b] ?? b),
     );
+  // As many of the most used as fit the bar's widest row beside All and Other (every project
+  // counted once under All, so its count is the number of projects).
+  const chips = kindChipCount(
+    ranked.map((slug) => ({ label: kinds[slug] ?? slug, uses: uses(kindTally.get(slug)) })),
+    sources.length,
+    otherKind,
+  );
   return {
     kinds,
-    kindOrder: ranked.slice(0, MAX_KIND_CHIPS),
-    folded: [
-      ...ranked.slice(MAX_KIND_CHIPS),
-      ...(Object.hasOwn(kinds, OTHER_KIND) ? [OTHER_KIND] : []),
-    ],
+    kindOrder: ranked.slice(0, chips),
+    folded: [...ranked.slice(chips), ...(otherKind ? [OTHER_KIND] : [])],
     techs: Object.fromEntries([...techTally].map(([key, tally]) => [key, mostUsed(tally)])),
   };
-}
-
-/**
- * ?category as a kind, first match wins: too long, blank or 'all' is no filter; a known kind's
- * slug or label (any case); 'other' while Other exists; a whole old free-text category's first
- * kind that is still known (so a link made before a category was re-spelt keeps its kind);
- * else null, which drops the value (every project shows, as an unknown value always has).
- */
-function resolveKind(raw: string, { kinds, folded }: ProjectLookups): string | null {
-  if (raw.length > FACET_VALUE_MAX_LENGTH) return null;
-  const slug = kindSlug(raw);
-  if (slug === '' || slug === ALL_KIND) return null;
-  if (ownValue(kinds, slug) !== undefined) return slug;
-  if (slug === OTHER_KIND && folded.length > 0) return OTHER_KIND;
-  const known = kindsOf(raw)
-    .map(kindSlug)
-    .find((each) => ownValue(kinds, each) !== undefined);
-  return known ?? null;
-}
-
-/** ?tech as a technology's key: any spelling a project has; too long or unknown is null. */
-function resolveTech(raw: string, { techs }: ProjectLookups): string | null {
-  if (raw.length > FACET_VALUE_MAX_LENGTH) return null;
-  const key = techKey(raw);
-  return ownValue(techs, key) === undefined ? null : key;
-}
-
-/** The filter schema on a view's path, keeping that view in chip links, search and Clear. */
-export function projectFilters<T extends ProjectFilterItem = ProjectFilterItem>(
-  lookups: ProjectLookups,
-  path = PROJECTS_PATH,
-): ProjectSchema<T> {
-  const folded = new Set(lookups.folded);
-  return defineFilters<T, ProjectFacet>({
-    path,
-    noun: PROJECT_NOUN,
-    search: { haystack: (item) => item.haystack, maxLength: QUERY_MAX_LENGTH },
-    facets: {
-      category: {
-        label: 'Kind',
-        /** A project with a folded kind is that kind and Other, so ?category=other keeps it. */
-        valuesOf: (item) =>
-          item.kindSlugs.some((slug) => folded.has(slug))
-            ? [...item.kindSlugs, OTHER_KIND]
-            : item.kindSlugs,
-        /** 'Other', a kind's label, or the slug. */
-        labelOf: (slug) =>
-          slug === OTHER_KIND ? 'Other' : (ownValue(lookups.kinds, slug) ?? slug),
-        values: [...lookups.kindOrder, ...(folded.size > 0 ? [OTHER_KIND] : [])],
-        /** A folded kind from a link shows in Other's place, under its own name. */
-        groupOf: (slug) => (folded.has(slug) ? OTHER_KIND : null),
-        resolve: (raw) => resolveKind(raw, lookups),
-        scope: (labels) => `in ${labels.join(' or ')}`,
-      },
-      tech: {
-        label: 'Technology',
-        multiple: true,
-        valuesOf: (item) => item.techKeys,
-        labelOf: (key) => ownValue(lookups.techs, key) ?? key,
-        resolve: (raw) => resolveTech(raw, lookups),
-        scope: (labels) => `with ${labels.join(' or ')}`,
-      },
-    },
-  });
 }

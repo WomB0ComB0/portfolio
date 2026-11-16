@@ -55,8 +55,8 @@ import { viewHref, viewLinks } from '@/components/console/folio/view-href';
 import { ViewSwitch } from '@/components/console/folio/view-switch';
 import { cn } from '@/lib/utils';
 import { storyChapters, yearChapters } from '../_lib/project-chapters';
-import { type ProjectLookups, projectFilters } from '../_lib/project-filters';
 import type { ProjectEntry } from '../_lib/project-index';
+import { type ProjectLookups, projectFilters } from '../_lib/project-schema';
 import { PROJECT_NOUN } from '../_lib/project-text';
 import {
   DEFAULT_PROJECT_VIEW,
