@@ -86,6 +86,22 @@ vi.mock(
   cssModuleNames,
 );
 
+// Project detail pages import these styles even when a test reads only their metadata.
+// Keep Next's PostCSS-only config out of Vitest while retaining the real components.
+vi.mock(
+  '@/app/(routes)/(main)/(professioal)/projects/_components/detail/case-hero.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(professioal)/projects/_components/detail/case-body.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(professioal)/projects/_components/detail/where-it-sits.module.css',
+  cssModuleNames,
+);
+vi.mock('@/components/console/photo/photo-viewer.module.css', cssModuleNames);
+
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
