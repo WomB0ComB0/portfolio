@@ -18,8 +18,8 @@
  * @file Muted text that the darker H1 muted token (74% L, was 80%) pushed below WCAG AA's 4.5:1.
  * Ratios from the token-contrast test's OKLCH math, with translucent layers composited in sRGB:
  * - certification detail labels at text-muted-foreground/70 on the bg-card/40 card: 4.54:1, and
- *   4.44:1 under the hover spotlight (plain muted text: 8.16:1). The Ledger replaced those cards;
- *   its rows keep every muted line opaque;
+ *   4.44:1 under the hover spotlight (plain muted text: 8.16:1). The Folio record replaced those
+ *   cards; it keeps every muted line opaque;
  * - the privacy service rows' purpose on the bg-accent hover fill: 4.14:1 (foreground: 8.02:1);
  * - the photo viewer's drag hint, muted text at opacity-70 on the card: 4.49:1 (text-faint: 5.69:1).
  */
@@ -38,8 +38,8 @@ vi.mock('@/components/magicui/magic-card', () => ({ MagicCard: passThrough }));
 import { Privacy } from '@/app/(routes)/(legal)/privacy/_interface/privacy/privacy';
 import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/place-photo-viewer';
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
+import { BigCredential } from '@/app/(routes)/(main)/(professioal)/certifications/_components/credential';
 import { LedgerExplorer } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-explorer';
-import { LedgerRow } from '@/app/(routes)/(main)/(professioal)/certifications/_components/ledger-row';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 import { wideLayout } from '../console/filter-bar/wide-layout';
 
@@ -80,19 +80,15 @@ const PHOTOS: readonly ViewerPhoto[] = [
 afterEach(cleanup);
 
 describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
-  it('a certification row in the Ledger sets no translucent muted text', () => {
+  it('a certificate set large on /certifications sets no translucent muted text', () => {
     if (!CERTIFICATION) throw new Error('no certification built');
     const { container } = render(
-      <table>
-        <tbody>
-          <LedgerRow entry={CERTIFICATION} />
-        </tbody>
-      </table>,
+      <ul>
+        <BigCredential entry={CERTIFICATION} />
+      </ul>,
     );
 
-    expect(screen.getByText('Microsoft · Mar · Microsoft Learn')).toHaveClass(
-      'text-muted-foreground',
-    );
+    expect(screen.getByText('Azure').closest('[data-cert-skills]')).toHaveClass('text-faint');
     const translucent = Array.from(container.querySelectorAll('[class]')).filter((element) =>
       TRANSLUCENT_MUTED.test(element.getAttribute('class') ?? ''),
     );

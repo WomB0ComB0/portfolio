@@ -70,9 +70,9 @@ import {
   CERTS,
   chips,
   currentChip,
+  itemsOf,
+  itemTitles,
   renderPage,
-  rowsOf,
-  rowTitles,
 } from './page-fixture';
 
 const GOOGLE_TITLES = ['Build Wireframes', 'BigQuery Basics'];
@@ -160,21 +160,21 @@ describe('filters from the URL, on the server render', () => {
   it('?issuer takes a family slug', async () => {
     await renderPage({ issuer: 'google' });
 
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Google/);
   });
 
   it('?issuer=Google Cloud Skills Boost lands on Google, as today’s shared links do', async () => {
     await renderPage({ issuer: 'Google Cloud Skills Boost' });
 
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Google 2/);
   });
 
   it('?issuer=IBM filters to IBM, and the Other chip takes its name', async () => {
     await renderPage({ issuer: 'IBM' });
 
-    expect(rowTitles()).toEqual(['Qiskit Global Summer School 2025']);
+    expect(itemTitles()).toEqual(['Qiskit Global Summer School 2025']);
     expect(currentChip()?.textContent).toBe('IBM 1 certificate');
     expect(currentChip()).toHaveAttribute('href', '/certifications?issuer=ibm');
   });
@@ -182,7 +182,7 @@ describe('filters from the URL, on the server render', () => {
   it('?skill filters on one part of a joined skill string and shows it as a removable token', async () => {
     await renderPage({ skill: 'react.js', issuer: 'udemy' });
 
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
     expect(
       within(applied())
         .getAllByRole('link')
@@ -199,7 +199,7 @@ describe('filters from the URL, on the server render', () => {
   it('?q matches titles, issuers and skills, ignoring case, and fills the search field', async () => {
     await renderPage({ q: 'REDUX' });
 
-    expect(rowTitles()).toEqual(['Complete React Developer']);
+    expect(itemTitles()).toEqual(['Complete React Developer']);
     expect(screen.getByRole('searchbox', { name: 'Search certificates' })).toHaveValue('REDUX');
   });
 
@@ -209,7 +209,7 @@ describe('filters from the URL, on the server render', () => {
       .getByRole('heading', { name: 'No certificates match' })
       .closest('[data-state]');
 
-    expect(rowsOf()).toEqual([]);
+    expect(itemsOf()).toEqual([]);
     expect(empty).toHaveAttribute('data-state', 'empty');
     expect(empty).toHaveTextContent(
       'Nothing matches “quantum computing”. Clear the filters to see all 7.',
@@ -249,7 +249,7 @@ describe('filtering in place with JavaScript', () => {
     const prevented = !fireEvent.click(chipNamed(/^Udemy/));
 
     expect(prevented).toBe(true);
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Udemy/);
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications?issuer=udemy');
     expect(status()).toHaveTextContent('Showing 2 of 7 certificates');
@@ -261,7 +261,7 @@ describe('filtering in place with JavaScript', () => {
     const prevented = !fireEvent.click(chipNamed(/^Udemy/), { ctrlKey: true });
 
     expect(prevented).toBe(false);
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
     expect(replaceState).not.toHaveBeenCalled();
   });
 
@@ -270,7 +270,7 @@ describe('filtering in place with JavaScript', () => {
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'typescript' } });
 
-    await waitFor(() => expect(rowTitles()).toEqual(['Udemy TypeScript']));
+    await waitFor(() => expect(itemTitles()).toEqual(['Udemy TypeScript']));
     await waitFor(() =>
       expect(replaceState).toHaveBeenLastCalledWith(
         null,
@@ -288,12 +288,12 @@ describe('filtering in place with JavaScript', () => {
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications?issuer=udemy');
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'nothing like this' } });
-    await waitFor(() => expect(rowsOf()).toEqual([]));
+    await waitFor(() => expect(itemsOf()).toEqual([]));
     await act(async () => {
       fireEvent.click(screen.getByRole('link', { name: 'Clear filters' }));
     });
 
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
     expect(screen.getByRole('searchbox')).toHaveValue('');
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications');
   });
@@ -321,18 +321,18 @@ describe('the URL is the source of truth', () => {
     // Next restored the payload rendered with no filter; the URL says Google.
     await renderPage({}, '/certifications?issuer=google');
 
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Google/);
   });
 
   it('starts over when a navigation lands on the URL it first rendered', async () => {
     await renderPage();
     fireEvent.click(chipNamed(/^Google/));
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
 
     navigate('/certifications');
 
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
     expect(currentChip()?.textContent).toMatch(/^All/);
   });
 
@@ -343,13 +343,13 @@ describe('the URL is the source of truth', () => {
     routerReports();
     lateReports = [];
     fireEvent.click(chipNamed(/^Google/));
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
     lateReports = null;
 
     window.history.pushState(null, '', '/certifications');
     rerender(await CertificationsPage({ searchParams: Promise.resolve({}) }));
 
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
     expect(currentChip()?.textContent).toMatch(/^All/);
   });
 
@@ -360,7 +360,7 @@ describe('the URL is the source of truth', () => {
     rerender(await CertificationsPage({ searchParams: Promise.resolve({ issuer: 'udemy' }) }));
 
     expect(screen.getByRole('searchbox')).toHaveValue('type');
-    await waitFor(() => expect(rowTitles()).toEqual(['Udemy TypeScript']));
+    await waitFor(() => expect(itemTitles()).toEqual(['Udemy TypeScript']));
   });
 
   it('brings back the filters it had cleared when a navigation asks for them again', async () => {
@@ -368,11 +368,11 @@ describe('the URL is the source of truth', () => {
     fireEvent.click(chipNamed(/^All/));
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
     fireEvent.submit(screen.getByRole('searchbox'));
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
 
     navigate('/certifications?issuer=google&q=big');
 
-    expect(rowTitles()).toEqual(['BigQuery Basics']);
+    expect(itemTitles()).toEqual(['BigQuery Basics']);
     expect(currentChip()?.textContent).toMatch(/^Google/);
     expect(screen.getByRole('searchbox')).toHaveValue('big');
   });
@@ -386,7 +386,7 @@ describe('the URL is the source of truth', () => {
 
     expect(window.location.search).toBe('?issuer=udemy');
     expect(screen.getByRole('searchbox')).toHaveValue('');
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
   });
 
   it('never starts over on its own writes, even when the router reports them late', async () => {
@@ -400,11 +400,11 @@ describe('the URL is the source of truth', () => {
     lateReports = null;
     act(() => routerReports(first));
 
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Udemy/);
 
     act(() => routerReports(second));
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
   });
 });
 
@@ -430,7 +430,7 @@ describe('the URL is the source of truth, where the browser has the Navigation A
       entryChanged('push');
     });
 
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
     expect(currentChip()?.textContent).toMatch(/^All/);
   });
 
@@ -449,7 +449,7 @@ describe('the URL is the source of truth, where the browser has the Navigation A
 
     expect(window.location.search).toBe('');
     expect(screen.getByRole('searchbox')).toHaveValue('');
-    expect(rowTitles()).toEqual(ALL_TITLES);
+    expect(itemTitles()).toEqual(ALL_TITLES);
   });
 
   // CodeRabbit on #613: Google and Udemy are both waiting for the router's report when a
@@ -467,10 +467,10 @@ describe('the URL is the source of truth, where the browser has the Navigation A
       entryChanged('push');
     });
     expect(currentChip()?.textContent).toMatch(/^Google/);
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
 
     act(() => routerReports('?issuer=google'));
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
   });
 
   it('follows Back to a URL it wrote itself', async () => {
@@ -490,7 +490,7 @@ describe('the URL is the source of truth, where the browser has the Navigation A
     });
 
     expect(currentChip()?.textContent).toMatch(/^Google/);
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
   });
 
   it('still never starts over on its own writes reported late', async () => {
@@ -503,10 +503,10 @@ describe('the URL is the source of truth, where the browser has the Navigation A
     const [first, second] = lateReports;
     lateReports = null;
     act(() => routerReports(first));
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
 
     act(() => routerReports(second));
-    expect(rowTitles()).toEqual(UDEMY_TITLES);
+    expect(itemTitles()).toEqual(UDEMY_TITLES);
   });
 
   it('ignores the history entry of a navigation away from the page', async () => {
@@ -517,7 +517,7 @@ describe('the URL is the source of truth, where the browser has the Navigation A
       entryChanged();
     });
 
-    expect(rowTitles()).toEqual(GOOGLE_TITLES);
+    expect(itemTitles()).toEqual(GOOGLE_TITLES);
   });
 });
 

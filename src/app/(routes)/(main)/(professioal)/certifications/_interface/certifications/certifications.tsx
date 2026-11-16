@@ -16,11 +16,11 @@ import 'server-only';
  */
 
 /**
- * @file The /certifications page as the Ledger, rendered on the server: a PageShell header with
- * three figures, the Featured row when the owner featured certificates in Studio, then the filter
- * island holding the server-rendered rows. The URL's filters are resolved here, so a shared link
- * is right in the server HTML. A failed load is not caught here; it reaches the route's error
- * page inside the shell.
+ * @file The /certifications page as a Folio record, rendered on the server: a PageShell header
+ * with its counts as one small byline, the Featured chapter when the owner featured certificates
+ * in Studio, then the filter island with the year chapters. The URL's filters are resolved here,
+ * so a shared link is right in the server HTML. A failed load is not caught here; it reaches the
+ * route's error page inside the shell.
  */
 
 import type { ReactElement } from 'react';
@@ -28,10 +28,9 @@ import type { ReactElement } from 'react';
 import { PageShell } from '@/components/console';
 import { EMPTY_CLASS } from '@/components/console/filter-bar/filter-bar-classes';
 import type { Certification } from '@/hooks/sanity/schemas';
-import { FeaturedRow } from '../../_components/featured-row';
-import { LedgerExplorer, type LedgerRowItem } from '../../_components/ledger-explorer';
-import { LEDGER_TITLE, LedgerStatStrip, sublineOf } from '../../_components/ledger-header';
-import { LedgerRow } from '../../_components/ledger-row';
+import { FeaturedChapter } from '../../_components/featured-chapter';
+import { LedgerExplorer } from '../../_components/ledger-explorer';
+import { LEDGER_TITLE, LedgerByline, sublineOf } from '../../_components/ledger-header';
 import { type RawFilters, resolveFilters } from '../../_lib/filters';
 import { buildLedger } from '../../_lib/ledger';
 
@@ -41,42 +40,34 @@ export interface CertificationsProps {
   readonly searchParams: RawFilters;
 }
 
-/** Every certificate in the Ledger, filtered by the URL. */
+/** Every certificate as year chapters, filtered by the URL. */
 export function Certifications({
   certifications,
   searchParams,
 }: CertificationsProps): ReactElement {
   const ledger = buildLedger(certifications);
   const initial = resolveFilters(searchParams, ledger);
-  const rows: LedgerRowItem[] = ledger.entries.map((entry) => ({
-    id: entry.id,
-    year: entry.year,
-    familySlug: entry.familySlug,
-    chip: entry.chip,
-    skills: entry.skills,
-    haystack: entry.haystack,
-    row: <LedgerRow entry={entry} />,
-  }));
 
   return (
     <PageShell
       title={LEDGER_TITLE}
       description={sublineOf(ledger.stats.since)}
-      stats={<LedgerStatStrip stats={ledger.stats} />}
+      stats={<LedgerByline stats={ledger.stats} />}
     >
-      <FeaturedRow entries={ledger.featured} />
-      {rows.length === 0 ? (
+      <FeaturedChapter entries={ledger.featured} />
+      {ledger.entries.length === 0 ? (
         <div data-state="empty" className={EMPTY_CLASS}>
           <p className="tile-sub text-muted-foreground">No certificates are listed yet.</p>
         </div>
       ) : (
         // The island follows the URL itself (Back, links, router.push), so it needs no key.
         <LedgerExplorer
-          rows={rows}
+          rows={ledger.entries}
           chips={ledger.chips}
           other={ledger.other}
           index={ledger.index}
           initial={initial}
+          leadTaken={ledger.featured.length > 0}
         />
       )}
     </PageShell>

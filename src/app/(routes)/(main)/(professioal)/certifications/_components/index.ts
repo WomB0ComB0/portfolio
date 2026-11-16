@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-export { FeaturedRow, type FeaturedRowProps } from './featured-row';
 export {
-  LedgerExplorer,
-  type LedgerExplorerProps,
-  type LedgerRowItem,
-} from './ledger-explorer';
-export { LEDGER_TITLE, LedgerStatStrip, sublineOf } from './ledger-header';
-export { LedgerRow } from './ledger-row';
+  BigCredential,
+  BigCredentials,
+  CredentialCopy,
+  type CredentialEntry,
+} from './credential';
+export { FEATURED_ID, FeaturedChapter, type FeaturedChapterProps } from './featured-chapter';
+export { type BriefEntry, IssuerGroups } from './issuer-group';
+export { LedgerExplorer, type LedgerExplorerProps } from './ledger-explorer';
+export { headerParts, LEDGER_TITLE, LedgerByline, sublineOf } from './ledger-header';
+export { RecordYears, type RecordYearsProps } from './record-years';

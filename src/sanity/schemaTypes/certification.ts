@@ -87,7 +87,7 @@ export const certificationType = defineType({
       title: 'Featured',
       type: 'boolean',
       description:
-        'Puts this certificate in the Featured row at the top of /certifications. The row shows up to four featured certificates, in display order (lowest first); with none featured, the page has no Featured row.',
+        'Puts this certificate in the Featured chapter at the top of /certifications, set large. It shows up to four featured certificates, in display order (lowest first); with none featured, the page has no Featured chapter.',
       initialValue: false,
     }),
     defineField({
