@@ -89,7 +89,7 @@ describe('buildRoleStory: the chapters', () => {
   });
 
   it('sets Now as a small inline heading, and the years by the chapter system', () => {
-    // The person leads the first screen, not a display word: Now is inline whatever its count,
+    // The person leads the current-role cards, not a display word: Now is inline whatever its count,
     // a one-role year is inline, and the years with more step down from the numerals.
     expect(story().chapters.map((each) => each.size)).toEqual(['inline', 'inline', 'step', 'step']);
   });
@@ -278,7 +278,7 @@ describe('buildRoleStory: the path', () => {
 describe('storyLede', () => {
   it('writes the figures in words: how many, since when and how many still go', () => {
     expect(storyLede(story())).toBe(
-      'Ten roles since 2023, three of them still going. Where I am now comes first, then the path that led here, by the year each role began.',
+      'Ten roles since 2023, three of them still going. Current roles and the work that led here, by the year each role began.',
     );
   });
 

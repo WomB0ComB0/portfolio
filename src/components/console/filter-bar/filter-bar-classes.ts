@@ -18,7 +18,7 @@
  * @file Every visual decision of the FilterBar family, as whole Tailwind class strings (Tailwind
  * reads class names from source). No directive, so a server skeleton imports these instead of
  * copying them. Palette only: surfaces, hairlines, the three text tiers, brand-subtle and
- * --brand-edge for the current chip, brand-ink for Clear. No glass, no white alphas, no red, no
+ * --brand-edge for the current chip, brand-ink for Clear. The shared sticky backplate is translucent; controls keep solid palette fills. No red or
  * per-kind colours. Refined type (tile-*): no capitals, weights at most 600, nothing under 12px.
  *
  * Sizes answer to the shell's `page` container, never the viewport. Below a 48rem page the bar
@@ -42,7 +42,7 @@ export const BAR_CLASS = 'block min-w-0';
 /**
  * Sticky: under the top edge, above the edge haze (z-20) and below the rail's flyouts (z-40). The
  * column's width, as the year bars and labels under it are, so stuck they read as one bar. Painted
- * (the canvas and a hairline under it) only while stuck (globals.css stuck-canvas): at rest the
+ * (a translucent backplate and a hairline under it) only while stuck (globals.css stuck-canvas): at rest the
  * page's glow shows through.
  */
 export const BAR_STICKY_CLASS =
@@ -56,15 +56,16 @@ export const FORM_ROW_CLASS =
  * the stuck tile ends inside the edge haze's top band and html's scroll-padding (77px and 74px at
  * 1024x640). From 48rem: 4 + a 1px border + 8 + the 44px row (the scroll chips' slot) + 8 + 1 + 4
  * = 70px. Below 48rem the row is the 40px field, so 66px.
- * - Stuck, the band paints the canvas only, no line: the tile's own border is the edge (row
+ * - Stuck, the band paints its translucent backplate, no line: the tile's own border is the edge (row
  *   density's hairline would run square under the tile's rounded corners, a second line).
  * - Under 550px of height (a landscape phone, a page zoomed to 200-400%) it stays in the page:
+ *   relative positioning still contains its backplate, without a sticky offset or raised layer;
  *   there the top band is 14svh (54.6px at 390px tall), shorter than the stuck tile, so a card
  *   focused from the keyboard would scroll in under it, and the bar with the bottom bar would
  *   cover a third of the screen or more. From 550px the band is at least 77px.
  */
 export const BAR_STICKY_TILE_CLASS =
-  'sticky top-[env(safe-area-inset-top,0px)] z-30 stuck-canvas py-1 [@media(height<34.375rem)]:static';
+  'sticky top-[env(safe-area-inset-top,0px)] z-30 stuck-canvas py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
 
 /**
  * The sticky band for a density: the slimmer one around the `bar` tile, else the row's. Row

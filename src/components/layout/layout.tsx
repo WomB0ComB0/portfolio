@@ -25,6 +25,7 @@ import { Footer, MobileNavBar, NavBar } from '.';
 import { EdgeHaze } from './edge-haze';
 import { LightRays } from './light-rays';
 import { NoScriptNav } from './noscript-nav';
+import { ScrollToTop } from './scroll-to-top';
 
 /**
  * The page canvas, lit as it was before #603. `light-glows` (light-rays.css) paints LightRays'
@@ -121,6 +122,7 @@ export const Layout = ({
         {/* Without JavaScript only (one <noscript>): every nav page as a link. Removable alone. */}
         <NoScriptNav path={pathname ?? ''} />
         <Footer />
+        <ScrollToTop path={pathname ?? ''} />
       </div>
       {/* Fixed over the column at z-20, under the FilterBar, the rail, the bar and overlays. */}
       <EdgeHaze path={pathname ?? ''} />

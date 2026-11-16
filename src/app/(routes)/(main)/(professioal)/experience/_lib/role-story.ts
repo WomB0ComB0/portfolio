@@ -28,12 +28,12 @@
  * - Weight is earned: the lead is set large, each year's longest role (Studio order breaks a
  *   tie) is its chapter's major entry, and every other role is compact. A one-role chapter has
  *   no major entry: the folio chapter system gives it an inline heading, not an opener.
- * - Now is a small inline heading, whatever its count: the person leads the first screen (the
+ * - Now is a small inline heading, whatever its count: the person leads the current-role cards (the
  *   lead role's title is the page's one display line), and the years keep the numerals.
  * - Each role's words keep their addresses as named links (linked-text.ts), each address
  *   linked once. A compact role shows its opening sentences; the rest of its description and
  *   its duties wait behind "What I did".
- * - "The path so far" (role-path.ts) puts every role on one month axis, after Now.
+ * - "The path so far" (role-path.ts) puts every role on one month axis, before the chapters.
  */
 
 import { type ChapterSize, chapterId, chapterSize } from '@/components/console/folio/chapter';
@@ -94,7 +94,7 @@ export interface RoleStory {
   readonly firstYear: number | null;
   readonly clock: RoleClock;
   readonly axis: ClockAxis;
-  /** Every role on one month axis, for the figure after Now. */
+  /** Every role on one month axis, for the opening figure. */
   readonly path: RolePath;
 }
 
@@ -312,7 +312,7 @@ function stillGoing(total: number, current: number): string {
 
 /**
  * The page's opening sentence, from the figures: 'Fifteen roles since 2023, five of them still
- * going. Where I am now comes first, then the path that led here, by the year each role began.'
+ * going. Current roles and the work that led here, by the year each role began.'
  * '' with no roles.
  */
 export function storyLede({
@@ -325,7 +325,7 @@ export function storyLede({
   const since = firstYear === null ? count : `${count} since ${firstYear}`;
   const order =
     current > 0
-      ? 'Where I am now comes first, then the path that led here, by the year each role began.'
+      ? 'Current roles and the work that led here, by the year each role began.'
       : 'The path so far, by the year each role began.';
   return `${since}${stillGoing(total, current)} ${order}`;
 }

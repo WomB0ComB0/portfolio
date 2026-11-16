@@ -15,8 +15,8 @@
  */
 
 /**
- * @file /experience as a story: Now first, then every year a role began, each role hung off one
- * rail (the owner's pick on 2026-11-15). There is no loading.tsx (owner: "Yes, like the
+ * @file /experience as a story: the timeline overview, then Now and every year a role began,
+ * each role hung off one rail. There is no loading.tsx (owner: "Yes, like the
  * others"), so every role is in the first HTML and reads without JavaScript, as on
  * /certifications and /projects. The page stays in the (list) route group so list-only files
  * never wrap /experience/[id], whose notFound() must still answer 404.

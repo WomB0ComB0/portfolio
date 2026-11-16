@@ -411,8 +411,11 @@ for (const javaScriptEnabled of [false, true]) {
       const main = await openConsolePage(page, '/stats', 'Stats');
       const bar = main.locator('#stats-top-repositories');
       if (await bar.count()) {
-        await expect(bar).toHaveCSS('position', 'static');
-        await expect(main.locator('table th').first()).toHaveCSS('position', 'static');
+        await expect(bar).toHaveCSS('position', 'relative');
+        await expect(bar).toHaveCSS('top', '0px');
+        await expect(bar).toHaveCSS('z-index', 'auto');
+        await expect(main.locator('table th').first()).toHaveCSS('position', 'relative');
+        await expect(main.locator('table th').first()).toHaveCSS('top', '0px');
       }
       await expectNoOverflow(page);
       expect(await tileEscapes(main)).toEqual([]);

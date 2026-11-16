@@ -90,7 +90,7 @@ describe('/experience: the server HTML', () => {
     expect(screen.getByText('Work')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Five roles since 2023, three of them still going. Where I am now comes first, then the path that led here, by the year each role began.',
+        'Five roles since 2023, three of them still going. Current roles and the work that led here, by the year each role began.',
       ),
     ).toBeInTheDocument();
   });
@@ -279,14 +279,30 @@ describe('/experience: "The path so far"', () => {
     return figure;
   };
 
-  it('comes right after Now, before the years, never first on the page', async () => {
-    const { container } = render(await ExperiencePage());
-    const figure = pathOf(container);
+  it.each([true, false])(
+    'comes directly after the page header and before chapter jumps and cards (current roles: %s)',
+    async (hasCurrent) => {
+      if (!hasCurrent) {
+        h.loadExperiences.mockResolvedValue(
+          ROLES.map((role) => ({ ...role, current: false, endDate: '2026-09-30' })),
+        );
+      }
+      const { container } = render(await ExperiencePage());
+      const figure = pathOf(container);
+      const story = container.querySelector('[data-role-story]');
+      const jumps = screen.getByRole('navigation', { name: 'Jump to' });
+      const firstChapter = container.querySelector('section[data-chapter]');
 
-    expect(figure.closest('section')).toBeNull();
-    expect(figure.previousElementSibling?.id).toBe('now');
-    expect(figure.nextElementSibling?.id).toBe('y2026');
-  });
+      expect(story?.previousElementSibling).toBe(container.querySelector('header'));
+      expect(story?.firstElementChild).toBe(figure);
+      expect(figure.closest('section')).toBeNull();
+      expect(figure.nextElementSibling).toBe(jumps);
+      expect(firstChapter).not.toBeNull();
+      expect(jumps.compareDocumentPosition(firstChapter as Element)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    },
+  );
 
   it('links every role, oldest first, to its stop, named by organization, role and months', async () => {
     const { container } = render(await ExperiencePage());

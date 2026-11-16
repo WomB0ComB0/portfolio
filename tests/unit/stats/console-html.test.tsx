@@ -709,7 +709,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
     const section = root.querySelector('section[aria-label="Top repositories"]');
     const bar = section?.querySelector('[data-index-part="year"]');
 
-    const unpinned = '[@media(max-height:30rem)]:static';
+    const unpinned = '[@media(max-height:30rem)]:relative';
     // The kit's pin="tall-screens": the bar and each of the five labels carry it themselves.
     expect(classOf(bar)).toContain(unpinned);
     expect(section?.querySelectorAll(`th[class~="${unpinned}"]`)).toHaveLength(5);
