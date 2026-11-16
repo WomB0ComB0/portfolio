@@ -14,42 +14,62 @@
  * limitations under the License.
  */
 
-import { type JSX, Suspense } from 'react';
-import { MediaPanel, MediaPanelSkeleton } from '@/app/(routes)/(dev)/media/_components/media-panel';
-import { MediaView } from '@/app/(routes)/(dev)/media/_interface/media/media';
-import { MEDIA_SECTION_LABELS, parseMediaTab } from '@/app/(routes)/(dev)/media/_lib/media-tabs';
-import { SectionBoundary } from '@/components/data/section-boundary';
+import { permanentRedirect } from 'next/navigation';
+import type { JSX } from 'react';
+import {
+  MEDIA_TITLE,
+  MediaFeedView,
+} from '@/app/(routes)/(dev)/media/_interface/media-feed/media-feed';
+import { loadMediaFeed } from '@/app/(routes)/(dev)/media/_lib/load-feed';
+import { legacyTabHref, MEDIA_PATH } from '@/app/(routes)/(dev)/media/_lib/media-filters';
+import {
+  DEFAULT_LAYOUT,
+  DEFAULT_PARTS,
+  DEFAULT_PLAY,
+} from '@/app/(routes)/(dev)/media/_lib/media-options';
+import { JsonLd } from '@/components/scripts/structured-data';
+import { collectionPageJsonLd } from '@/lib/seo/json-ld';
 import { constructMetadata } from '@/utils';
 
+/**
+ * The description names what the page's sections hold today (Writing, Video, Streams). A kind
+ * with nothing published (talks, presentations, articles) is not promised to a search result.
+ */
 export const metadata = constructMetadata({
   title: 'Media',
-  description:
-    'Explore my blog posts, presentations, talks, videos, and articles on technology, software development, and more',
+  description: 'Writing, videos and streams on technology and software, newest first.',
   path: '/media',
 });
 
 interface MediaPageProps {
+  /** ?kind, ?series and ?q: the page's filters, so a shared link renders filtered. */
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 /**
- * /media, rendered on the server: the header and tab bar at once, and the active tab's panel
- * (only that tab's data is loaded) streamed in behind its skeleton. The Suspense and the section
- * boundary are keyed by the tab, so switching tabs shows the new panel's skeleton and clears an
- * earlier tab's error, while the header and the tab bar stay.
+ * /media in sections (Writing, Video, Streams: one list per kind that has items), rendered on
+ * the server: every source is awaited first (each within its deadline, behind its stale cache),
+ * so every row is in the first HTML with no loading.tsx. An old ?tab= link redirects (308) to
+ * the ?kind= it now means. When every source fails, the load rejects and
+ * src/app/(routes)/error.tsx shows the error inside the shell.
+ *
+ * Its JSON-LD is the page alone, a CollectionPage named as the h1 names it: the rows link to
+ * pieces on other sites, so none gets a node of its own (src/lib/seo/json-ld.ts).
  */
 export default async function MediaPage({ searchParams }: MediaPageProps): Promise<JSX.Element> {
-  const active = parseMediaTab((await searchParams).tab);
+  const legacy = legacyTabHref(await searchParams);
+  if (legacy !== null) permanentRedirect(legacy);
+  const feed = await loadMediaFeed();
   return (
-    <MediaView
-      active={active}
-      panel={
-        <Suspense key={active} fallback={<MediaPanelSkeleton tab={active} />}>
-          <SectionBoundary label={MEDIA_SECTION_LABELS[active]}>
-            <MediaPanel tab={active} />
-          </SectionBoundary>
-        </Suspense>
-      }
-    />
+    <>
+      <JsonLd data={collectionPageJsonLd({ path: MEDIA_PATH, name: MEDIA_TITLE })} />
+      <MediaFeedView
+        feed={feed}
+        layout={DEFAULT_LAYOUT}
+        parts={DEFAULT_PARTS}
+        play={DEFAULT_PLAY}
+        path={MEDIA_PATH}
+      />
+    </>
   );
 }
