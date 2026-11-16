@@ -24,6 +24,7 @@
  * graph.
  */
 
+export { EmptyState, type EmptyStateAction, type EmptyStateProps } from './empty-state';
 export * from './folio';
 export { formatAge, type Timestamp } from './format-age';
 export { Freshness, type FreshnessProps } from './freshness';

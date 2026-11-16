@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Mike Odnis
+ * Copyright 2026 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,4 +14,9 @@
  * limitations under the License.
  */
 
-export { default, Sponsor } from './sponsor';
+/** The production view keeps benefits hidden by default and never exposes amounts. */
+export interface SponsorViewOptions {
+  readonly benefits: 'drop' | 'keep';
+}
+
+export const DEFAULT_SPONSOR_OPTIONS: SponsorViewOptions = { benefits: 'drop' };

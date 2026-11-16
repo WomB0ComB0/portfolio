@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Mike Odnis
+ * Copyright 2026 Mike Odnis
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,24 +15,22 @@
  */
 
 /**
- * @file The /sponsor sponsors block as an async server component. It is the only part of the page
- * that waits on GitHub, so the page renders it behind its own Suspense boundary and the static
- * sections stream at once.
+ * @file Loads /sponsor's sponsors on the server, bounded by a deadline. getGitHubSponsors serves
+ * its cache stale while it refreshes, so after the first load this answers at once; only a cold
+ * process waits on GitHub, and never past SPONSORS_DEADLINE_MS. A failure is reported and turned
+ * into null, which the page shows as one worded line while the ways render as usual.
  */
 
 import 'server-only';
 
-import type { ReactElement } from 'react';
-
-import { SponsorLists } from '@/app/(routes)/(dev)/sponsor/_components/sponsor-lists';
 import { type GitHubSponsorsData, getGitHubSponsors } from '@/lib/api-integrations/github-sponsors';
 import { DeadlineError, withDeadline } from '@/lib/async/deadline';
 import { reportApiFailure } from '@/lib/observability/report';
 
 /**
- * How long the block waits for GitHub before it shows its error. getGitHubSponsors retries a
- * timed-out call twice, so a hanging GitHub would otherwise hold the stream for about 33 s. The
- * fetch is not cancelled: a late answer still fills the shared cache for the next visit.
+ * How long the page waits for GitHub. getGitHubSponsors retries a timed-out call twice, so a
+ * hanging GitHub would otherwise hold the page for about 33 s. The fetch is not cancelled: a late
+ * answer still fills the shared cache for the next visit.
  */
 export const SPONSORS_DEADLINE_MS = 3_000;
 
@@ -41,11 +39,11 @@ const SPONSORS_REPORT_CONTEXT = 'load sponsors for page';
 
 /**
  * The sponsors, or null when GitHub failed with no list cached, or missed the deadline. Never
- * throws, so only the sponsors block shows an error. getGitHubSponsors reports a failed GitHub
- * load itself (reporting the same error here again is a no-op); a missed deadline is reported
- * here, as a warning, since the fetch keeps running and fills the cache for the next visit.
+ * throws. getGitHubSponsors reports a failed GitHub load itself (reporting the same error here
+ * again is a no-op); a missed deadline is reported here, as a warning, since the fetch keeps
+ * running and fills the cache for the next visit.
  */
-async function loadSponsors(): Promise<GitHubSponsorsData | null> {
+export async function loadSponsors(): Promise<GitHubSponsorsData | null> {
   try {
     return await withDeadline(getGitHubSponsors(), SPONSORS_DEADLINE_MS, 'github sponsors');
   } catch (error) {
@@ -55,18 +53,4 @@ async function loadSponsors(): Promise<GitHubSponsorsData | null> {
     });
     return null;
   }
-}
-
-/**
- * The current and past sponsors from GitHub Sponsors, in the server HTML.
- *
- * @example
- * <SectionBoundary label="sponsors">
- *   <Suspense fallback={<SponsorListsSkeleton />}>
- *     <Sponsors />
- *   </Suspense>
- * </SectionBoundary>
- */
-export async function Sponsors(): Promise<ReactElement> {
-  return <SponsorLists sponsors={await loadSponsors()} />;
 }
