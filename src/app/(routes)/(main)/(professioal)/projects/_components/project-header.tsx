@@ -15,31 +15,32 @@
  */
 
 /**
- * @file The /projects header's words and figures: the h1 (as the other PageShell pages name
- * theirs: "Certifications", "Projects"), the description, and the three-figure stat strip
- * (projects, technologies after folding spellings, and how many have a live demo). Server-safe.
+ * @file The /projects header's words: the h1 (as the other PageShell pages name theirs:
+ * "Certifications", "Projects"), the description, and the counts as one small byline ('32 projects
+ * · 20 with a live demo'), where the stat tiles were: the work leads, the numbers follow.
+ * Server-safe.
  */
 
 import type { ReactElement } from 'react';
 
-import { StatStrip } from '@/components/console';
+import { Byline } from '@/components/console/folio/byline';
+import { countOf } from '@/components/console/folio/byline-items';
 import type { ProjectStats } from '../_lib/project-index';
+import { PROJECT_NOUN } from '../_lib/project-text';
 
 export const PROJECTS_TITLE = 'Projects';
 export const PROJECTS_DESCRIPTION =
   'A showcase of my work spanning web development, mobile apps, and machine learning.';
-const STATS_LABEL = 'Totals';
 
-/** The header's three figures. */
-export function ProjectsStatStrip({ stats }: { readonly stats: ProjectStats }): ReactElement {
+/** The header's counts, in words. */
+export function ProjectsByline({ stats }: { readonly stats: ProjectStats }): ReactElement | null {
   return (
-    <StatStrip
-      aria-label={STATS_LABEL}
-      items={[
-        { label: 'projects', value: stats.projects },
-        { label: 'technologies', value: stats.technologies },
-        { label: 'with a live demo', value: stats.withLive },
+    <Byline
+      parts={[
+        countOf(stats.projects, PROJECT_NOUN),
+        stats.withLive > 0 ? `${stats.withLive} with a live demo` : null,
       ]}
+      className="md:text-end"
     />
   );
 }

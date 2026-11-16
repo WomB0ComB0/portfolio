@@ -66,6 +66,7 @@ export const FilterBar = {
 
 export type { FilterBarDensity, FilterBarRootProps, FilterBarSearchProps } from './bar';
 export type { ChipsLayout, FilterBarChipsProps } from './chips';
+export { useFilterBar } from './context';
 export { FILTER_SCOPE_CLASS, RESULTS_HEAD_CLASS } from './filter-bar-classes';
 export {
   type BuildFilterModelInput,

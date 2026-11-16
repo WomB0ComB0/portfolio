@@ -24,8 +24,11 @@
  * - the start month in UTC, the detail href and the countable noun.
  */
 
-/** "Name - what it is": a spaced hyphen, en dash or em dash. */
-const TITLE_SPLIT = /\s+[-–—]\s+/u;
+/**
+ * "Name - what it is": a spaced hyphen, en dash or em dash. It starts only where a run of spaces
+ * starts, so a long run in a title (no length cap) is read once, with the same splits.
+ */
+const TITLE_SPLIT = /(?<!\s)\s+[-–—]\s+/u;
 const FIRST_SENTENCE = /^(.+?[.!?])(?:\s|$)/u;
 /** A slash with a space before it and after it (or an end): never the slash inside AI/ML. */
 const KIND_SPLIT = /(?:^|\s)\/(?=\s|$)/u;
