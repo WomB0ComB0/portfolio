@@ -182,6 +182,95 @@ describe('StatStrip', () => {
   });
 });
 
+describe('StatStrip sized by the page container', () => {
+  const PAD = 'clamp(0.75rem,2.5cqi,1.5rem)';
+  const classOf = (element: Element | null | undefined): string[] =>
+    (element?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+
+  function renderSized(loading = false): HTMLElement {
+    const { container } = render(
+      <StatStrip
+        items={ITEMS}
+        loading={loading}
+        placeholderCount={3}
+        sizing="container"
+        aria-label="Totals"
+        className="mt-2"
+      />,
+    );
+    const list = container.querySelector('dl');
+    if (!list) throw new Error('no dl rendered');
+    return list;
+  }
+
+  it('is a wrapping row of equal parts, none narrower than its figure or its longest word', () => {
+    const list = renderSized();
+
+    expect(classOf(list)).toEqual(expect.arrayContaining(['flex', 'flex-wrap', 'gap-y-3']));
+    expect(classOf(list)).not.toContain('grid');
+    for (const group of Array.from(list.children)) {
+      // Equal parts across the row, with a min-content floor: a figure never crosses its divider.
+      expect(classOf(group)).toEqual(
+        expect.arrayContaining(['flex-[1_1_0]', 'min-w-min', 'flex-col', `px-[${PAD}]`]),
+      );
+      expect(classOf(group)).not.toContain('min-w-0');
+      expect(classOf(group).join(' ')).not.toMatch(/(?:^|\s)md:/);
+    }
+  });
+
+  it('makes each item as wide as its words once the page is 29 lines of its text wide', () => {
+    for (const group of Array.from(renderSized().children)) {
+      expect(classOf(group)).toContain('@min-[29lh]/page:flex-none');
+    }
+  });
+
+  it('keeps every item’s divider and clips the one that starts a row', () => {
+    const list = renderSized();
+    const [first] = Array.from(list.children);
+
+    // The first item keeps its divider and padding; the row is pulled left by both under a
+    // clipping wrapper, so a wrapped row never opens with a stray rule either.
+    expect(classOf(first)).toContain('border-l');
+    expect(classOf(first)).not.toContain('first:border-l-0');
+    expect(classOf(first)).not.toContain('first:pl-0');
+    expect(classOf(list)).toContain(`-ml-[calc(${PAD}+1px)]`);
+    expect(list.parentElement?.tagName).toBe('DIV');
+    expect(classOf(list.parentElement)).toEqual(['overflow-x-clip']);
+  });
+
+  it('balances a label that wraps, and keeps the caller’s classes and name on the list', () => {
+    const list = renderSized();
+
+    for (const label of list.querySelectorAll('dt')) {
+      expect(classOf(label)).toContain('text-balance');
+    }
+    expect(list).toHaveAttribute('aria-label', 'Totals');
+    expect(classOf(list)).toContain('mt-2');
+    expect(classOf(list.parentElement)).not.toContain('mt-2');
+  });
+
+  it('gives a loading placeholder the loaded item’s box', () => {
+    const list = renderSized(true);
+    const placeholders = list.querySelectorAll('[data-placeholder]');
+
+    expect(placeholders).toHaveLength(3);
+    for (const placeholder of placeholders) {
+      expect(classOf(placeholder)).toEqual(expect.arrayContaining(['flex-[1_1_0]', 'min-w-min']));
+    }
+  });
+
+  it('is opt-in: the default strip is the list alone, in equal phone columns', () => {
+    const { container } = render(<StatStrip items={ITEMS} aria-label="Totals" />);
+    const list = container.firstElementChild;
+
+    expect(list?.tagName).toBe('DL');
+    expect(classOf(list)).toEqual(expect.arrayContaining(['grid', 'grid-flow-col']));
+    expect(classOf(list?.firstElementChild)).toEqual(
+      expect.arrayContaining(['min-w-0', 'first:border-l-0', 'first:pl-0', 'md:px-6']),
+    );
+  });
+});
+
 describe('presentValue', () => {
   it.each([
     [0, 0],

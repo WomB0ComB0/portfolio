@@ -100,6 +100,29 @@ const ITEM_CLASS =
   'flex min-w-0 flex-col gap-1 border-l border-hairline px-3 first:border-l-0 first:pl-0 last:pr-0 md:px-6';
 const VALUE_CLASS = 'order-1 figure-sm text-foreground';
 const LABEL_CLASS = 'order-2 figure-unit text-muted-foreground';
+
+/**
+ * What the strip's layout answers to:
+ * - `viewport` (the default): the equal phone columns above, content-sized from the md viewport.
+ * - `container`: a wrapping row keyed to the page container. Under the title it is equal parts
+ *   across the row whose items cannot shrink below their narrowest (the figure, or the label's
+ *   longest word): a figure never crosses its divider, a long label wraps (balanced) inside its
+ *   own part, and only when the items cannot fit at their narrowest (enlarged text, a far longer
+ *   figure) does the last one take a new row. Once the page is 29 lines of its own text wide
+ *   (PageShell's `container` step) each item is as wide as its words. The padding between items
+ *   grows with the page (12px on a phone, 24px from 60rem).
+ *
+ *   Every item keeps its divider and padding, the first included, and the row is pulled left by
+ *   both under a clipping wrapper: whichever item starts a row has its divider cut off, so a
+ *   wrapped row never opens with a stray rule.
+ */
+export type StatStripSizing = 'viewport' | 'container';
+
+const FLUID_CLIP_CLASS = 'overflow-x-clip';
+const FLUID_STRIP_CLASS = 'flex flex-wrap gap-y-3 -ml-[calc(clamp(0.75rem,2.5cqi,1.5rem)+1px)]';
+const FLUID_ITEM_CLASS =
+  'flex min-w-min flex-[1_1_0] flex-col gap-1 border-l border-hairline px-[clamp(0.75rem,2.5cqi,1.5rem)] last:pr-0 @min-[29lh]/page:flex-none';
+const FLUID_LABEL_CLASS = 'text-balance';
 const UNIT_CLASS = 'ml-0.5 figure-unit text-muted-foreground';
 const BAR_CLASS = 'block rounded-sm bg-surface-3 motion-safe:animate-pulse forced-colors:outline';
 
@@ -123,6 +146,12 @@ export interface StatStripProps {
   loading?: boolean;
   /** How many placeholders loading shows (4 unless given): as many as the loaded strip's items. */
   placeholderCount?: number;
+  /**
+   * What the layout answers to: the md `viewport` (default), or the page `container` as a
+   * wrapping row (see StatStripSizing). `container` adds a clipping wrapper around the list;
+   * `className` and the label stay on the list.
+   */
+  sizing?: StatStripSizing;
   className?: string;
   'aria-label'?: string;
 }
@@ -157,9 +186,9 @@ function StripValue({ label, value, unit, href }: StatStripItem): ReactNode {
 }
 
 /** A figure bar (the figure's 28px line) over a label bar inside the label's 20px line. */
-function PlaceholderItem(): ReactElement {
+function PlaceholderItem({ className }: { readonly className: string }): ReactElement {
   return (
-    <div aria-hidden="true" data-placeholder="" className={ITEM_CLASS}>
+    <div aria-hidden="true" data-placeholder="" className={className}>
       <dt className="order-2 py-[3px]">
         <span className={cn(BAR_CLASS, 'h-3.5 w-16')} />
       </dt>
@@ -181,23 +210,26 @@ export function StatStrip({
   items,
   loading = false,
   placeholderCount = DEFAULT_PLACEHOLDERS,
+  sizing = 'viewport',
   className,
   'aria-label': ariaLabel,
 }: StatStripProps): ReactElement {
-  return (
+  const fluid = sizing === 'container';
+  const itemClass = fluid ? FLUID_ITEM_CLASS : ITEM_CLASS;
+  const list = (
     <dl
       aria-label={ariaLabel}
       aria-busy={loading || undefined}
-      className={cn(STRIP_CLASS, className)}
+      className={cn(fluid ? FLUID_STRIP_CLASS : STRIP_CLASS, className)}
     >
       {loading
         ? Array.from({ length: placeholderCount }, (_, index) => (
             // The placeholders are identical and never reorder, so the index is their identity.
-            <PlaceholderItem key={`placeholder-${Number(index)}`} />
+            <PlaceholderItem key={`placeholder-${Number(index)}`} className={itemClass} />
           ))
         : items.map((item) => (
-            <div key={item.label} className={ITEM_CLASS}>
-              <dt className={LABEL_CLASS}>{item.label}</dt>
+            <div key={item.label} className={itemClass}>
+              <dt className={cn(LABEL_CLASS, fluid && FLUID_LABEL_CLASS)}>{item.label}</dt>
               <dd className={VALUE_CLASS}>
                 <StripValue {...item} />
               </dd>
@@ -205,4 +237,6 @@ export function StatStrip({
           ))}
     </dl>
   );
+  // The wrapper clips the divider of whichever item starts a row (see StatStripSizing).
+  return fluid ? <div className={FLUID_CLIP_CLASS}>{list}</div> : list;
 }
