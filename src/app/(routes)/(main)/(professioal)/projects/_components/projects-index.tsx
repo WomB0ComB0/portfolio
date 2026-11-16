@@ -41,12 +41,14 @@ import {
   useUrlFilters,
 } from '@/components/console/filter-bar';
 import { cn } from '@/lib/utils';
+import type { PreviewItem } from '../_lib/project-index';
+// The schema only: the lookups (and the chip-width estimate that picks the Kind chips) are
+// built on the server in project-filters.ts, which never reaches the browser.
 import {
   type ProjectFilterItem,
   type ProjectLookups,
   projectFilters,
-} from '../_lib/project-filters';
-import type { PreviewItem } from '../_lib/project-index';
+} from '../_lib/project-schema';
 import { ProjectGroups } from './project-groups';
 import { LIST_CLASS } from './project-index-classes';
 import { ProjectPreview } from './project-preview';

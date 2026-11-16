@@ -25,9 +25,9 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { MAX_KIND_CHIPS } from '@/app/(routes)/(main)/(professioal)/projects/_lib/kind-chip-budget';
 import {
   buildProjectLookups,
-  MAX_KIND_CHIPS,
   OTHER_KIND,
   type ProjectFilterItem,
   projectFilters,
@@ -80,16 +80,10 @@ describe('buildProjectLookups', () => {
     expect(JSON.parse(JSON.stringify(lookups))).toEqual(lookups);
   });
 
-  it(`gives the ${MAX_KIND_CHIPS} most used kinds a chip (ties A to Z) and folds the rest`, () => {
-    // Five, so every chip shows on one line at 1440 with the live kinds (a sixth hid Other).
-    expect(MAX_KIND_CHIPS).toBe(5);
-    expect(lookups.kindOrder).toEqual([
-      'web-development',
-      'ai-ml',
-      'cli-tool',
-      'education',
-      'financial-technology',
-    ]);
+  it('gives the most used kinds a chip while they fit the widest row (ties A to Z), folding the rest', () => {
+    // Financial Technology, fifth, would take the row past its width: it folds under Other.
+    expect(lookups.kindOrder).toEqual(['web-development', 'ai-ml', 'cli-tool', 'education']);
+    expect(lookups.folded).toContain('financial-technology');
     expect(lookups.folded).toContain('full-stack');
     expect(lookups.folded).toContain('blockchain');
     expect(lookups.folded).toContain('hackathon');
@@ -100,6 +94,76 @@ describe('buildProjectLookups', () => {
     expect(lookups.techs.react).toBe('React');
     expect(lookups.techs.python).toBe('Python');
     expect(lookups.techs[techKey('Tailwind CSS')]).toBe('Tailwind CSS');
+  });
+});
+
+/** One project per use of each kind: [label, uses], most used first. */
+const projectsOf = (kinds: readonly (readonly [string, number])[]) =>
+  kinds.flatMap(([category, uses]) =>
+    Array.from({ length: uses }, () => ({ category, technologies: [] as string[] })),
+  );
+
+describe('the Kind chips fit the bar’s widest row, whatever the kinds are called', () => {
+  // Today's most used kinds (a GET of the site's projects): Financial Technology's chip is the
+  // widest, and with it the row ran 19px past its edge at every desktop width from 1280.
+  const today = buildProjectLookups(
+    projectsOf([
+      ['Web Development', 8],
+      ['CLI Tool', 5],
+      ['Developer Tools', 4],
+      ['AI/ML', 3],
+      ['Financial Technology', 3],
+      ['Full-Stack', 3],
+      ['Education', 2],
+    ]),
+  );
+
+  it('gives today’s kinds Web Development, CLI Tool, Developer Tools and AI/ML, then Other', () => {
+    const schema = projectFilters(today);
+
+    expect(today.kindOrder).toEqual(['web-development', 'cli-tool', 'developer-tools', 'ai-ml']);
+    expect(today.folded).toContain('financial-technology');
+    expect(schema.facets.category.values).toEqual([...today.kindOrder, OTHER_KIND]);
+  });
+
+  it('still selects a folded kind from an old link, in Other’s place under its own name', () => {
+    const schema = projectFilters<ProjectFilterItem & { readonly id: number }>(today);
+    const items = projectsOf([
+      ['Web Development', 1],
+      ['Financial Technology', 2],
+    ]).map(({ category }, id) => ({
+      id,
+      kindSlugs: kindsOf(category).map(kindSlug),
+      techKeys: [],
+      haystack: category,
+    }));
+    const state = schema.parse('?category=financial-technology');
+    const { options } = schema.options(items, state).category;
+
+    expect(state.category).toEqual(['financial-technology']);
+    expect(schema.filter(items, state).map(({ id }) => id)).toEqual([1, 2]);
+    expect(options.find(({ current }) => current)).toMatchObject({
+      slug: 'financial-technology',
+      label: 'Financial Technology',
+      count: 2,
+    });
+    expect(options.map(({ slug }) => slug)).not.toContain(OTHER_KIND);
+  });
+
+  it(`gives five short kinds a chip each, and a sixth never (at most ${MAX_KIND_CHIPS})`, () => {
+    const short = buildProjectLookups(
+      projectsOf([
+        ['Web', 9],
+        ['CLI Tool', 8],
+        ['AI/ML', 7],
+        ['Games', 6],
+        ['Education', 5],
+        ['Robotics', 4],
+      ]),
+    );
+
+    expect(short.kindOrder).toEqual(['web', 'cli-tool', 'ai-ml', 'games', 'education']);
+    expect(short.folded).toEqual(['robotics']);
   });
 });
 
@@ -152,7 +216,17 @@ describe('?category, the Kind', () => {
   );
 
   it('keeps a project with a folded kind under Other', () => {
-    expect(shown('?category=other')).toEqual(['p03', 'p04', 'p06', 'p09', 'p10', 'p13', 'p14']);
+    expect(shown('?category=other')).toEqual([
+      'p03',
+      'p04',
+      'p06',
+      'p09',
+      'p10',
+      'p11',
+      'p12',
+      'p13',
+      'p14',
+    ]);
   });
 
   it('shows a folded kind from a link in Other’s place, under its own name', () => {
