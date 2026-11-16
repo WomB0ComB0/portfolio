@@ -19,35 +19,47 @@
  *
  * The grid answers to its own width, not the viewport's: a wrapper is the `tiles` container
  * (an element cannot container-query itself) and the grid steps from 2 columns to 6 at `@xl`
- * (36rem) and to 12 at `@4xl` (56rem). Every span class is written out in a literal map so
- * Tailwind's scanner finds it; never build one from a template string.
+ * (36rem) and to 12 at 70rem. The 12-column tier starts that late so that a dominant tile's 8
+ * columns hold a wide layout (about 46rem; at 56rem they were 37rem, too narrow for a figure
+ * beside a chart, and the tile fell back to its phone layout next to a stretched neighbour).
+ * Every span class is written out in a literal map so Tailwind's scanner finds it; never build
+ * one from a template string.
  */
 
 import type { AriaAttributes, AriaRole, ReactElement, ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-type BaseSpan = 1 | 2;
+type BaseSpan = 1 | 2 | 'pair';
 type MdSpan = 1 | 2 | 3 | 4 | 5 | 6;
 type LgSpan = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 type RowSpan = 1 | 2 | 3;
 
 /** How many grid tracks a tile covers at each grid width. */
 export interface TileSpan {
-  /** Columns of 2 below `@xl` (phones). */
+  /**
+   * Columns of 2 below `@xl` (phones). `'pair'` is for two tiles that share a phone row only
+   * while each half holds its words: a row each until the grid is 13.5 lines of its own text wide
+   * (351px at the default size), then a half each. The step is in lh, so text a phone enlarges
+   * without changing rem puts the row each back.
+   */
   base?: BaseSpan;
   /** Columns of 6 from `@xl` (36rem of grid). */
   md?: MdSpan;
-  /** Columns of 12 from `@4xl` (56rem of grid). */
+  /** Columns of 12 from a 70rem grid. */
   lg?: LgSpan;
-  /** Rows from `@4xl`, each at least `--tile-row` tall. Unset spans one row. */
+  /** Rows from a 70rem grid, each at least `--tile-row` tall. Unset spans one row. */
   rows?: RowSpan;
 }
 
 /** The span a key falls back to when a TileSpan leaves it out: full width, then a half, a quarter. */
 export const DEFAULT_TILE_SPAN = { base: 2, md: 3, lg: 3 } as const satisfies TileSpan;
 
-const BASE_SPAN = { 1: 'col-span-1', 2: 'col-span-2' } as const satisfies Record<BaseSpan, string>;
+const BASE_SPAN = {
+  1: 'col-span-1',
+  2: 'col-span-2',
+  pair: 'col-span-2 @min-[13.5lh]/tiles:@max-xl/tiles:col-span-1',
+} as const satisfies Record<BaseSpan, string>;
 
 const MD_SPAN = {
   1: '@xl/tiles:col-span-1',
@@ -59,30 +71,30 @@ const MD_SPAN = {
 } as const satisfies Record<MdSpan, string>;
 
 const LG_SPAN = {
-  1: '@4xl/tiles:col-span-1',
-  2: '@4xl/tiles:col-span-2',
-  3: '@4xl/tiles:col-span-3',
-  4: '@4xl/tiles:col-span-4',
-  5: '@4xl/tiles:col-span-5',
-  6: '@4xl/tiles:col-span-6',
-  7: '@4xl/tiles:col-span-7',
-  8: '@4xl/tiles:col-span-8',
-  9: '@4xl/tiles:col-span-9',
-  10: '@4xl/tiles:col-span-10',
-  11: '@4xl/tiles:col-span-11',
-  12: '@4xl/tiles:col-span-12',
+  1: '@[70rem]/tiles:col-span-1',
+  2: '@[70rem]/tiles:col-span-2',
+  3: '@[70rem]/tiles:col-span-3',
+  4: '@[70rem]/tiles:col-span-4',
+  5: '@[70rem]/tiles:col-span-5',
+  6: '@[70rem]/tiles:col-span-6',
+  7: '@[70rem]/tiles:col-span-7',
+  8: '@[70rem]/tiles:col-span-8',
+  9: '@[70rem]/tiles:col-span-9',
+  10: '@[70rem]/tiles:col-span-10',
+  11: '@[70rem]/tiles:col-span-11',
+  12: '@[70rem]/tiles:col-span-12',
 } as const satisfies Record<LgSpan, string>;
 
 const ROW_SPAN = {
-  1: '@4xl/tiles:row-span-1',
-  2: '@4xl/tiles:row-span-2',
-  3: '@4xl/tiles:row-span-3',
+  1: '@[70rem]/tiles:row-span-1',
+  2: '@[70rem]/tiles:row-span-2',
+  3: '@[70rem]/tiles:row-span-3',
 } as const satisfies Record<RowSpan, string>;
 
 const GRID_CLASS =
-  'grid grid-cols-2 gap-3 @xl/tiles:grid-cols-6 @4xl/tiles:grid-cols-12 @4xl/tiles:auto-rows-[minmax(var(--tile-row),auto)] @4xl/tiles:gap-4';
+  'grid grid-cols-2 gap-3 @xl/tiles:grid-cols-6 @[70rem]/tiles:grid-cols-12 @[70rem]/tiles:auto-rows-[minmax(var(--tile-row),auto)] @[70rem]/tiles:gap-4';
 
-const DENSE_CLASS = '@4xl/tiles:grid-flow-row-dense';
+const DENSE_CLASS = '@[70rem]/tiles:grid-flow-row-dense';
 
 /**
  * The column and row classes for `span`. Keys it leaves out take DEFAULT_TILE_SPAN; rows are added
@@ -90,7 +102,7 @@ const DENSE_CLASS = '@4xl/tiles:grid-flow-row-dense';
  *
  * @example
  * tileSpanClass({ base: 2, md: 3, lg: 6, rows: 2 });
- * // 'col-span-2 @xl/tiles:col-span-3 @4xl/tiles:col-span-6 @4xl/tiles:row-span-2'
+ * // 'col-span-2 @xl/tiles:col-span-3 @[70rem]/tiles:col-span-6 @[70rem]/tiles:row-span-2'
  */
 export function tileSpanClass(span?: TileSpan): string {
   const rows = span?.rows === undefined ? [] : [ROW_SPAN[span.rows]];
@@ -111,7 +123,7 @@ export interface TileGridProps extends AriaAttributes {
   /** Defaults to 'list' on a `ul` (see TileGrid); anything given here wins. */
   role?: AriaRole;
   /**
-   * Back-fills holes with later tiles from `@4xl`. This moves tiles away from their DOM order, so
+   * Back-fills holes with later tiles from 70rem. This moves tiles away from their DOM order, so
    * focus order no longer follows what is on screen: use it only when that does not matter (no
    * links in the moved tiles).
    */
@@ -123,8 +135,8 @@ export interface TileGridProps extends AriaAttributes {
 }
 
 /**
- * A container-query grid for tiles: 2 columns, 6 from `@xl`, 12 from `@4xl`, rows at least
- * `--tile-row` tall from `@4xl`. Give each tile a `span` (see TileSpan).
+ * A container-query grid for tiles: 2 columns, 6 from `@xl`, 12 from 70rem, rows at least
+ * `--tile-row` tall from 70rem. Give each tile a `span` (see TileSpan).
  *
  * A bento needs one dominant tile (`lg` of 6 or more with `rows: 2`); equal tiles read as a
  * spreadsheet, not a console.

@@ -98,7 +98,7 @@ const specifierOf = (node: ts.Node): string | undefined => {
 };
 
 /** Where the rules' fixtures sit: six folders under src, like the stats page's interface. */
-const FIXTURE_FILE = 'src/app/(routes)/(dev)/stats/_interface/stats/stats.tsx';
+const FIXTURE_FILE = 'src/app/(routes)/(dev)/stats/_interface/stats-console/stats-console.tsx';
 const UP_TO_SRC = '../../../../../..';
 
 describe('no page-level Layout', () => {
