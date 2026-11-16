@@ -30,9 +30,9 @@
  *   filtered, the search is a GET form, and the picker's Apply submits repeated keys.
  * - At 390 and 1440: no sideways scroll, 60px and 64px rows, the phone's meta line. A row tints
  *   on hover over the motion tokens, and nothing in it moves.
- * - The Kind chips: at 1440 every chip shows; wherever the row scrolls it fades over the clipped
- *   end (data-overflow); a focused chip's ring has room inside the row's clip; on a phone the
- *   sheet's chips wrap, every one inside the sheet.
+ * - The Kind chips: at 1280 and 1440 every chip shows (at 1440 without JavaScript too); wherever
+ *   the row scrolls it fades over the clipped end (data-overflow); a focused chip's ring has room
+ *   inside the row's clip; on a phone the sheet's chips wrap, every one inside the sheet.
  * GET only, on the built server (127.0.0.1:3107); nothing signs in or writes.
  */
 
@@ -56,6 +56,7 @@ import {
   settle,
   TITLE,
   tokenColour,
+  type Viewport,
   WIDE,
 } from '../fixtures/project-index';
 
@@ -67,6 +68,8 @@ const RETIRED_KIND = 'Retired Kind';
 const SAME_PX = 1;
 /** A focused chip's ring: a 2px outline at a 2px offset. */
 const RING_PX = 4;
+/** A 1280px laptop: about where the bar reaches its widest (the 1200px shell beside the rail). */
+const LAPTOP: Viewport = { width: 1280, height: 800 };
 
 type Box = { left: number; right: number; top: number; bottom: number };
 
@@ -253,6 +256,21 @@ test.describe('/projects: the open Index', () => {
       expect(await rows.count()).toBe(chip.count);
     });
 
+    test('at 1440 every Kind chip shows whole on the one line', async ({ page }) => {
+      await page.setViewportSize(WIDE);
+      await page.goto(`${getTargetUrl()}${PATH}`);
+      const main = page.locator(MAIN);
+      await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
+      await page.evaluate(() => document.fonts.ready);
+      const row = await chipRow(main);
+
+      expect(row.chips.map(({ label }) => label).join(' | ')).toMatch(/Other \d+ projects?$/);
+      for (const { label, box } of row.chips) {
+        expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
+      }
+      expect(row.overflows).toBe(false);
+    });
+
     test('the search is a GET form, and the picker’s Apply submits repeated keys', async ({
       page,
     }) => {
@@ -311,6 +329,20 @@ test.describe('/projects: the open Index', () => {
       const row = await chipRow(main);
 
       expect(row.chips.map(({ label }) => label).join(' | ')).toMatch(/Other \d+ projects?$/);
+      for (const { label, box } of row.chips) {
+        expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
+      }
+      expect(row.overflows).toBe(false);
+      expect(row.overflow).toBeNull();
+    });
+
+    test('at 1280, where the bar is first at its widest, every chip shows too', async ({
+      page,
+    }) => {
+      const main = await openAt(page, '', LAPTOP);
+      await hydrated(page);
+      const row = await chipRow(main);
+
       for (const { label, box } of row.chips) {
         expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
       }
