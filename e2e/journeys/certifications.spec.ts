@@ -15,34 +15,43 @@
  */
 
 /**
- * @file /certifications as the Ledger, against the live data. Nothing here hard-codes a count or
- * an issuer: each check compares the page with its own figures (the header's certificates, the
- * first family chip's label and count).
- * - With no filter, every certificate is a row, as many as the header counts, under year h2s
- *   (newest first) whose counts add up; the page has one h1, and every year's bar shows the
- *   column labels (style 1, the ruled ledger).
+ * @file /certifications as a Folio record, against the live data. Nothing here hard-codes a count
+ * or an issuer: each check compares the page with its own figures (the header's byline, the year
+ * jumps' counts, the first family chip's label and count).
+ * - With no filter, every certificate is in the record, as many as the header counts, under year
+ *   chapters (newest first) whose jump counts add up; there is no table; every credential link
+ *   opens in a new tab, as many as the header says can be verified. A busy year is grouped under
+ *   issuer names (the biggest set largest), a thin one sets each certificate large with 'Verify
+ *   on <platform>' at body size, at least 24px tall. A jump link lands its chapter clear of the
+ *   pinned bar.
  * - Today's shared links still work: ?issuer=Google Cloud Skills Boost lands on the Google chip
- *   with its rows (and is filtered in the server HTML); ?skill=React.js filters on the split
- *   skills and shows a removable token that brings every row back and hands focus to the current
- *   chip.
+ *   with its certificates; ?skill=React.js filters on the split skills and shows a removable token
+ *   that brings every certificate back and hands focus to the current chip.
  * - The URL stays the truth: a chip, then leaving and coming Back, shows what the URL says; so
  *   does a navigation to the page's own URL.
+ * - The header's byline is the one count; a results line appears, and is said, only once a filter
+ *   narrows the list. A PDF on a file host is linked, never counted as verifiable or 'Verify on'.
  * - A chip crossfades the results with a view transition, typing never does, and reduced motion
- *   turns it off. A row tints on hover and nothing in it moves. (The sticky bar, the year bars
- *   and focus under them: certifications-sticky.spec.ts.)
- * - The page never scrolls sideways at 390 or 1280 px, and is at most 6.5 phone screens
- *   (390x844) and 4.5 desktop screens (1280x800). At 1280 every chip sits on one line. A phone's
- *   first screen shows several whole titles above the bottom bar; its bar is the search and a
- *   Filters button that opens the chips as a sheet (without JavaScript too). No visible text is
- *   under 12px and none is set in capitals. In forced colours the current chip still stands out.
- *   Hydration moves nothing: the header and bar sit where the server HTML put them. Without
- *   JavaScript the search is a GET form that filters.
+ *   turns it off. A grouped title draws no arrow at rest; the hover and keyboard focus reach one
+ *   end state (brand ink, the arrow drawn and stepped out, the margin lifted, Copy ID shown) and
+ *   nothing moves. (The sticky bar, the pinned issuer names and focus under them:
+ *   certifications-sticky.spec.ts.)
+ * - The page never scrolls sideways at 390 or 1280 px, and is at most 8 phone screens (390x844)
+ *   and 6.5 desktop screens (1280x800). At 1280 every chip sits on one line. A phone's first
+ *   screen shows the first year and a whole certificate above the bottom bar; its bar is the
+ *   search and a Filters button that opens the chips as a sheet (without JavaScript too). No
+ *   visible text is under 12px and none is set in capitals; with the browser's text at 200% in a
+ *   320px window nothing scrolls sideways and no word in a title, name or skill breaks. A grouped
+ *   certificate's skills (three at most, then '+N') sit in the margin beside its title at 1280
+ *   and under it on a phone. In forced colours the current chip still stands out. Without
+ *   JavaScript the search is a GET form that filters. (That hydration keeps the header and bar
+ *   where the server HTML put them: certifications-sticky.spec.ts.)
  *
  * Each check waits until no streamed segment is hidden and nothing in main is aria-busy (as
  * shell-grid.spec.ts does), and for the fonts, before it measures.
  */
 
-import { type Browser, expect, type Locator, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
 import {
@@ -53,19 +62,18 @@ import {
   openAt,
   PATH,
   PHONE,
-  ROW,
   settle,
-  type Viewport,
-  YEAR_HEADING,
+  WIDE,
 } from '../fixtures/ledger';
 
-const MAX_PHONE_SCREENS = 6.5;
-const MAX_DESKTOP_SCREENS = 4.5;
+/** A certificate in the record: set large in a thin year, or in an issuer group. */
+const ITEM = '[data-cert-item]';
+const CHAPTER = 'section[data-chapter]';
+const MAX_PHONE_SCREENS = 8;
+const MAX_DESKTOP_SCREENS = 6.5;
 const MIN_TEXT_PX = 12;
-/** Whole titles a phone's first screen should show above the bottom bar. */
-const MIN_TITLES_ON_FIRST_PHONE_SCREEN = 3;
-/** Sub-pixel rounding between two renders of the same layout. */
-const SAME_PX = 1;
+/** WCAG 2.5.8's minimum target height. */
+const MIN_TARGET_PX = 24;
 
 interface NextWindow {
   next?: { router?: { push: (href: string) => void } };
@@ -79,15 +87,16 @@ async function routerPush(page: Page, href: string): Promise<void> {
   }, href);
 }
 
-/** A header figure by its label ('certificates'), as a number. */
-async function figure(main: Locator, label: string): Promise<number> {
-  const item = main
-    .locator('dl[aria-label="Totals"] > div')
-    .filter({ has: main.page().locator('dt', { hasText: new RegExp(`^${label}$`) }) });
-  return Number(((await item.locator('dd').textContent()) ?? '').replaceAll(',', ''));
+/** A count from the header's byline ('64 certificates', '62 you can verify'), as a number. */
+async function headerCount(main: Locator, words: string): Promise<number> {
+  const byline = (await main.locator('header [data-byline]').first().textContent()) ?? '';
+  const match = new RegExp(`([\\d,]+) ${words}`).exec(byline);
+  if (!match) throw new Error(`no "${words}" in the header byline: ${byline}`);
+  return Number((match[1] ?? '').replaceAll(',', ''));
 }
 
 const chipList = (main: Locator): Locator => main.getByRole('list', { name: 'Filter by issuer' });
+const yearJumps = (main: Locator): Locator => main.getByRole('navigation', { name: 'By year' });
 
 interface Chip {
   readonly label: string;
@@ -114,9 +123,22 @@ async function firstFamilyChip(main: Locator): Promise<Chip & { link: Locator; s
   return { ...chip, link, slug };
 }
 
+/** The year jumps as { year, count }, from what each link holds ('2024, 26 certificates26'). */
+async function jumpYears(main: Locator): Promise<{ year: string; count: number }[]> {
+  const names = await yearJumps(main)
+    .getByRole('link')
+    .evaluateAll((links) => links.map((link) => link.textContent ?? ''));
+  return names.map((name) => {
+    const match = /^(\S+?), (\d+) certificates?/.exec(name.replace(/\s+/g, ' ').trim());
+    if (!match) throw new Error(`unreadable jump: ${name}`);
+    return { year: match[1] ?? '', count: Number(match[2]) };
+  });
+}
+
 /**
  * Visible text in main under 12px, or set in capitals, as 'text: reason'. Text only a screen
- * reader reads (sr-only: a box of 1px or less) is skipped.
+ * reader reads (sr-only: a box of 1px or less) is skipped, as is text faded out (Copy ID before
+ * the hover).
  */
 function textOffenders(main: Locator): Promise<string[]> {
   return main.evaluate((root, minimum) => {
@@ -139,49 +161,158 @@ function textOffenders(main: Locator): Promise<string[]> {
   }, MIN_TEXT_PX);
 }
 
-test.describe('/certifications: the Ledger', () => {
-  test('every certificate is a row, as many as the header counts, under year headings', async ({
+/** Words in titles, issuer names, year numerals and skills that a line break cuts in two. */
+function brokenWords(main: Locator): Promise<string[]> {
+  return main.evaluate((root) => {
+    const broken: string[] = [];
+    // Each skill is a span of its own (the line opens with a screen-reader-only label).
+    const selector =
+      '[data-cert-title], [data-issuer-group] h3, section[data-chapter] h2, [data-cert-skills] > span:not(.sr-only)';
+    for (const element of root.querySelectorAll(selector)) {
+      const node = element.firstChild;
+      if (!(node instanceof Text)) continue;
+      // A hyphen is a fair place to break, so its halves count as words of their own.
+      for (const match of node.data.matchAll(/[^\s-]+/g)) {
+        const range = document.createRange();
+        range.setStart(node, match.index ?? 0);
+        range.setEnd(node, (match.index ?? 0) + match[0].length);
+        const lines = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+        if (lines.size > 1) broken.push(match[0]);
+      }
+    }
+    return broken;
+  });
+}
+
+/**
+ * Each grouped certificate's skills line: how many names it shows, and whether it sits in the
+ * margin to its title's right or under the title, flush with it.
+ */
+function skillsLayout(main: Locator) {
+  return main.locator('[data-cert-size="brief"]:has([data-cert-skills])').evaluateAll((items) =>
+    items.map((item) => {
+      const title = (item.querySelector('[data-cert-title]') as Element).getBoundingClientRect();
+      const skills = item.querySelector('[data-cert-skills]') as Element;
+      const box = skills.getBoundingClientRect();
+      const shown = skills.cloneNode(true) as Element;
+      for (const hidden of shown.querySelectorAll('.sr-only')) hidden.remove();
+      const words = (shown.textContent ?? '').replace(/\s+/g, ' ').trim();
+      return {
+        words,
+        names: words.replace(/\s\+\d+$/, '').split(' · ').length,
+        beside: box.left >= title.right - 1,
+        under: box.top >= title.bottom - 1 && Math.abs(box.left - title.left) <= 1,
+      };
+    }),
+  );
+}
+
+test.describe('/certifications: the Folio record', () => {
+  test('every certificate is in the record, as many as the header counts, under year chapters', async ({
     page,
   }) => {
     const main = await openAt(page, '', DESKTOP);
-    const total = await figure(main, 'certificates');
+    const total = await headerCount(main, 'certificates?');
 
     expect(total).toBeGreaterThan(0);
-    await expect(main.locator(ROW)).toHaveCount(total);
+    await expect(main.locator(ITEM)).toHaveCount(total);
     expect((await currentChip(chipList(main))).count).toBe(total);
+    await expect(main.locator('table')).toHaveCount(0);
+    // The header's byline is the one count: no results line repeats it under the bar.
+    await expect(main.locator('[data-filter-part="count"]')).toHaveCount(0);
 
     expect(await page.evaluate(() => document.querySelectorAll('h1').length)).toBe(1);
     await expect(main.locator('h1')).toHaveText('Certifications');
 
-    // "2024, 26 certificates": the comma is for screen readers, so the two numbers do not run on.
-    const years = (await main.locator(YEAR_HEADING).allTextContents()).map((text) =>
-      /^(\d{4}), (\d+) certificates?$/.exec(text.trim()),
-    );
-    expect(years.length).toBeGreaterThan(0);
-    expect(years.every(Boolean), 'each year h2 reads "YYYY, N certificates"').toBe(true);
-    const yearNumbers = years.map((match) => Number(match?.[1]));
-    expect(yearNumbers).toEqual([...yearNumbers].sort((a, b) => b - a));
-    expect(years.reduce((sum, match) => sum + Number(match?.[2]), 0)).toBe(total);
+    const years = await jumpYears(main);
+    const numbers = years.map((year) => Number(year.year));
+    expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
+    expect(years.reduce((sum, year) => sum + year.count, 0)).toBe(total);
+    const chapters = await main
+      .locator(`${CHAPTER} > header h2`)
+      .evaluateAll((headings) => headings.map((heading) => heading.textContent));
+    expect(chapters).toEqual(years.map((year) => year.year));
   });
 
-  test('desktop: every year’s bar shows the column labels, and every table keeps its headers', async ({
+  test('every credential link opens in a new tab, as many as the header says can be verified', async ({
     page,
   }) => {
     const main = await openAt(page, '', DESKTOP);
-    const tables = main.getByRole('table');
-    const shownHeaderRows = await main
-      .locator('thead tr')
-      .evaluateAll((rows) => rows.filter((row) => row.getBoundingClientRect().height > 2).length);
+    const verifiable = await headerCount(main, 'you can verify');
+    const links = main.locator(`${ITEM} a[href^="http"]`);
 
-    expect(shownHeaderRows).toBe(await tables.count());
-    for (const table of await tables.all()) {
-      await expect(table.getByRole('columnheader')).toHaveText([
-        'Certificate',
-        'Issuer',
-        'Issued',
-        'Verify',
-      ]);
+    // A PDF on a file host is linked, but never counted as one you can verify, nor says so.
+    await expect(main.locator(`${ITEM} a[href^="http"]:not([data-cert-file])`)).toHaveCount(
+      verifiable,
+    );
+    for (const link of await links.all()) {
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', /noopener/);
     }
+    for (const file of await main.locator(`${ITEM}:has(a[data-cert-file])`).all()) {
+      await expect(file).not.toContainText('Verify on');
+      await expect(file).toContainText(/View certificate|Certificate file/);
+    }
+  });
+
+  test('a busy year is grouped under issuer names, the biggest set largest', async ({ page }) => {
+    const main = await openAt(page, '', WIDE);
+    const [busiest] = (await jumpYears(main)).sort((a, b) => b.count - a.count);
+    expect(busiest?.count ?? 0, 'a year busier than four').toBeGreaterThan(4);
+    const year = main.locator(`${CHAPTER}#y${busiest?.year}`);
+    const names = year.locator('[data-issuer-group] h3');
+
+    expect(await names.count()).toBeGreaterThan(1);
+    const sizes = await names.evaluateAll((headings) =>
+      headings.map((heading) => Number.parseFloat(getComputedStyle(heading).fontSize)),
+    );
+    expect(sizes[0] ?? 0, 'the top issuer is the group’s visual').toBeGreaterThan(sizes[1] ?? 0);
+    await expect(year.locator(ITEM)).toHaveCount(busiest?.count ?? 0);
+    // Months in the margin: one per stack, each a <time>.
+    expect(await year.locator('[data-month-stack] > span time').count()).toBeGreaterThan(0);
+  });
+
+  test('a thin year sets each certificate large, Verify on its platform at body size, 24px tall', async ({
+    page,
+  }) => {
+    const main = await openAt(page, '', WIDE);
+    const thin = (await jumpYears(main)).find((year) => year.count > 1 && year.count <= 4);
+    test.skip(!thin, 'no year of two to four certificates in the data');
+    const year = main.locator(`${CHAPTER}#y${thin?.year}`);
+    const big = year.locator('[data-cert-size="big"]');
+
+    await expect(big).toHaveCount(thin?.count ?? 0);
+    await expect(year.locator('[data-issuer-group]')).toHaveCount(0);
+    const verify = year.getByRole('link', { name: /^Verify on / }).first();
+    const metrics = await verify.evaluate((link) => ({
+      height: link.getBoundingClientRect().height,
+      size: Number.parseFloat(getComputedStyle(link).fontSize),
+    }));
+    expect(metrics.height).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(metrics.size).toBeGreaterThanOrEqual(16);
+    const title = await big
+      .first()
+      .locator('h3')
+      .evaluate((heading) => Number.parseFloat(getComputedStyle(heading).fontSize));
+    expect(title, 'the title is set at headline size').toBeGreaterThanOrEqual(24);
+  });
+
+  test('a jump link lands its chapter clear of the pinned bar', async ({ page }) => {
+    const main = await openAt(page, '', DESKTOP);
+    await hydrated(page);
+    const last = (await jumpYears(main)).at(-1);
+
+    await yearJumps(main).getByRole('link').last().click();
+    await expect(page).toHaveURL(new RegExp(`#y${last?.year}$`));
+    await expect
+      .poll(() =>
+        page.evaluate((id) => {
+          const bar = document.querySelector('[data-filter-part="bar"]') as HTMLElement;
+          const top = (document.getElementById(id) as HTMLElement).getBoundingClientRect().top;
+          return top >= bar.getBoundingClientRect().bottom - 1 && top < window.innerHeight / 2;
+        }, `y${last?.year}`),
+      )
+      .toBe(true);
   });
 
   test('?issuer=Google Cloud Skills Boost lands on Google, as shared links always did', async ({
@@ -192,34 +323,39 @@ test.describe('/certifications: the Ledger', () => {
 
     expect(chip.label).toBe('Google');
     expect(chip.count).toBeGreaterThan(0);
-    await expect(main.locator(ROW)).toHaveCount(chip.count);
-    for (const issuer of await main.locator(`${ROW} > td:nth-child(2)`).allInnerTexts()) {
-      expect(issuer).toMatch(/^Google/);
+    await expect(main.locator(ITEM)).toHaveCount(chip.count);
+    for (const name of await main.locator('[data-issuer-group] h3').allTextContents()) {
+      expect(name).toBe('Google');
     }
+    const bylines = main.locator('[data-cert-size="big"] [data-byline]');
+    for (const byline of await bylines.allTextContents()) expect(byline).toMatch(/^Google/);
   });
 
-  test('?skill=React.js filters on the split skills; its token brings every row back and keeps focus', async ({
+  test('?skill=React.js filters on the split skills; its token brings every certificate back and keeps focus', async ({
     page,
   }) => {
     const main = await openAt(page, '?skill=React.js', DESKTOP);
-    const total = await figure(main, 'certificates');
-    const rows = main.locator(ROW);
+    const total = await headerCount(main, 'certificates?');
+    const items = main.locator(ITEM);
     const clear = main
       .getByRole('list', { name: 'Applied filters' })
       .getByRole('link', { name: 'Remove Skill: React.js' });
 
     await expect(clear).toBeVisible();
     await expect(clear).toHaveText('Skill: React.js');
-    const filtered = await rows.count();
+    const filtered = await items.count();
     expect(filtered).toBeGreaterThan(0);
     expect(filtered).toBeLessThan(total);
-    for (const text of await rows.allInnerTexts()) expect(text).toContain('React.js');
+    // A certificate set large lists its skills.
+    for (const text of await main.locator('[data-cert-size="big"]').allInnerTexts()) {
+      expect(text).toContain('React.js');
+    }
 
     await hydrated(page);
     await clear.focus();
     await page.keyboard.press('Enter');
 
-    await expect(rows).toHaveCount(total);
+    await expect(items).toHaveCount(total);
     await expect(page).not.toHaveURL(/skill=/);
     // The link Enter pressed is gone: focus goes to the now-current chip, not the page.
     await expect(chipList(main).locator(CURRENT_CHIP)).toBeFocused();
@@ -239,33 +375,40 @@ test.describe('/certifications: the Ledger', () => {
     });
     page.on('pageerror', (error) => errors.push(error.message));
     const main = await openAt(page, '', DESKTOP);
+    const total = await headerCount(main, 'certificates?');
     await hydrated(page);
     await page.evaluate(() => {
-      (window as unknown as { ledgerMarker: boolean }).ledgerMarker = true;
+      (window as unknown as { recordMarker: boolean }).recordMarker = true;
     });
-    const rows = main.locator(ROW);
+    const items = main.locator(ITEM);
 
     const family = await firstFamilyChip(main);
     await family.link.click();
-    await expect(rows).toHaveCount(family.count);
+    await expect(items).toHaveCount(family.count);
     await expect(page).toHaveURL(new RegExp(`/certifications\\?issuer=${family.slug}$`));
     expect((await currentChip(chipList(main))).label).toBe(family.label);
+    // Narrowed, the results line appears with what the filter keeps of the whole, and is said.
+    // Its figure counts up in an aria-hidden copy beside a screen-reader twin that holds the value.
+    const countLine = main.locator('[data-filter-part="count"]');
+    await expect(countLine).toContainText(` of ${total} certificates`);
+    await expect(countLine.locator('.sr-only')).toHaveText(String(family.count));
+    await expect(main.locator('p[role="status"]')).toHaveText(
+      `Showing ${family.count} of ${total} certificates`,
+    );
 
     await chipList(main)
       .getByRole('link', { name: /^All \d+/ })
       .click();
     await main.getByRole('searchbox', { name: 'Search certificates' }).fill('react');
     await expect(page).toHaveURL(/\/certifications\?q=react$/);
-    const found = await rows.count();
-    expect(found).toBeGreaterThan(0);
-    for (const text of await rows.allInnerTexts()) expect(text.toLowerCase()).toContain('react');
+    expect(await items.count()).toBeGreaterThan(0);
 
-    expect(await page.evaluate(() => 'ledgerMarker' in window), 'the page navigated').toBe(true);
+    expect(await page.evaluate(() => 'recordMarker' in window), 'the page navigated').toBe(true);
     expect(errors).toEqual([]);
   });
 
   test.describe('the URL stays the truth', () => {
-    test('a chip, a navigation away, then Back: the rows are the ones the URL names', async ({
+    test('a chip, a navigation away, then Back: the record is the one the URL names', async ({
       page,
     }) => {
       const main = await openAt(page, '', DESKTOP);
@@ -276,30 +419,32 @@ test.describe('/certifications: the Ledger', () => {
 
       await routerPush(page, '/projects');
       await expect(page).toHaveURL(/\/projects$/);
-      await expect(main.locator(ROW)).toHaveCount(0);
+      await expect(main.locator(ITEM)).toHaveCount(0);
       await page.goBack();
 
       await expect(page).toHaveURL(new RegExp(`/certifications\\?issuer=${family.slug}$`));
       await settle(page);
-      await expect(main.locator(ROW)).toHaveCount(family.count);
+      await expect(main.locator(ITEM)).toHaveCount(family.count);
       await expect
         .poll(() => currentChip(chipList(main)))
         .toEqual({ label: family.label, count: family.count });
     });
 
-    test('a chip, then a navigation to the page’s own URL: every row again', async ({ page }) => {
+    test('a chip, then a navigation to the page’s own URL: every certificate again', async ({
+      page,
+    }) => {
       const main = await openAt(page, '', DESKTOP);
-      const total = await figure(main, 'certificates');
+      const total = await headerCount(main, 'certificates?');
       await hydrated(page);
       const family = await firstFamilyChip(main);
       await family.link.click();
-      await expect(main.locator(ROW)).toHaveCount(family.count);
+      await expect(main.locator(ITEM)).toHaveCount(family.count);
 
       // What the nav's Certifications link and the command palette do.
       await routerPush(page, PATH);
 
       await expect(page).toHaveURL(/\/certifications$/);
-      await expect(main.locator(ROW)).toHaveCount(total);
+      await expect(main.locator(ITEM)).toHaveCount(total);
       await expect(chipList(main).locator(CURRENT_CHIP)).toHaveText(/^All \d+/);
     });
   });
@@ -307,9 +452,9 @@ test.describe('/certifications: the Ledger', () => {
   test.describe('without JavaScript', () => {
     test.use({ javaScriptEnabled: false });
 
-    // The route has no loading.tsx (owner decision, 2026-11-07), so the Ledger arrives inside the
-    // shell's main, not in a hidden streamed segment: a visitor without JavaScript sees the rows.
-    test('a shared ?issuer link shows its filtered rows', async ({ page }) => {
+    // The route has no loading.tsx (owner decision, 2026-11-07), so the record arrives inside the
+    // shell's main, not in a hidden streamed segment: a visitor without JavaScript sees it all.
+    test('a shared ?issuer link shows its filtered record', async ({ page }) => {
       await page.setViewportSize(DESKTOP);
       await page.goto(`${getTargetUrl()}${PATH}?issuer=Google%20Cloud%20Skills%20Boost`);
 
@@ -318,9 +463,9 @@ test.describe('/certifications: the Ledger', () => {
       expect(chip.label).toBe('Google');
       await expect(main.locator('h1')).toHaveText('Certifications');
       await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
-      const rows = main.locator(ROW);
-      expect(await rows.count()).toBe(chip.count);
-      const shown = await rows.evaluateAll(
+      const items = main.locator(ITEM);
+      expect(await items.count()).toBe(chip.count);
+      const shown = await items.evaluateAll(
         (elements) => elements.filter((element) => element.checkVisibility()).length,
       );
       expect(shown).toBe(chip.count);
@@ -336,9 +481,7 @@ test.describe('/certifications: the Ledger', () => {
       await main.getByRole('searchbox', { name: 'Search certificates' }).fill('google');
       await main.getByRole('searchbox', { name: 'Search certificates' }).press('Enter');
       await expect(page).toHaveURL(/\/certifications\?q=google$/);
-      const rows = main.locator(ROW);
-      expect(await rows.count()).toBeGreaterThan(0);
-      for (const text of await rows.allInnerTexts()) expect(text.toLowerCase()).toContain('google');
+      expect(await main.locator(ITEM).count()).toBeGreaterThan(0);
 
       // A native popover: the button opens the sheet with no script at all.
       await main.getByRole('button', { name: /^Filters/ }).click();
@@ -351,7 +494,7 @@ test.describe('/certifications: the Ledger', () => {
     ['phone', PHONE, MAX_PHONE_SCREENS],
     ['desktop', DESKTOP, MAX_DESKTOP_SCREENS],
   ] as const) {
-    test(`${name} ${viewport.width}x${viewport.height}: no sideways scroll, at most ${maxScreens} screens, no small or capital text`, async ({
+    test(`${name} ${viewport.width}x${viewport.height}: no sideways scroll, at most ${maxScreens} screens, no small or capital text, skills ${name === 'phone' ? 'under' : 'beside'} their titles`, async ({
       page,
     }) => {
       const main = await openAt(page, '', viewport);
@@ -369,8 +512,33 @@ test.describe('/certifications: the Ledger', () => {
         maxScreens,
       );
       expect(await textOffenders(main)).toEqual([]);
+      // A grouped certificate's skills: three at most, in the margin at 1280, under it on a phone.
+      const skills = await skillsLayout(main);
+      expect(skills.length, 'a busy year lists skills').toBeGreaterThan(0);
+      for (const each of skills) {
+        expect(each.names, each.words).toBeLessThanOrEqual(3);
+        expect(name === 'phone' ? each.under : each.beside, each.words).toBe(true);
+      }
     });
   }
+
+  test('320px with the browser’s text at 200%: no sideways scroll, no word broken in two', async ({
+    page,
+    context,
+  }) => {
+    // The browser's own text size setting: its default font size, 16px at 100%.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Page.enable');
+    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 26 } });
+    const main = await openAt(page, '', { width: 320, height: 640 });
+    const widths = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }));
+
+    expect(widths.scroll, 'the page scrolls sideways').toBeLessThanOrEqual(widths.client);
+    expect(await brokenWords(main)).toEqual([]);
+  });
 
   test('desktop 1280: every chip sits on one line', async ({ page }) => {
     const main = await openAt(page, '', DESKTOP);
@@ -404,12 +572,12 @@ test.describe('/certifications: the Ledger', () => {
     }
   });
 
-  test('phone: the bar is the search and a Filters button, and screen 1 shows several whole titles', async ({
+  test('phone: the bar is the search and a Filters button; screen 1 shows the first year and a whole certificate', async ({
     page,
   }) => {
     const main = await openAt(page, '', PHONE);
     const filterBar = main.locator('[data-filter-part="bar"]');
-    const visibleTitles = await main.locator(`${ROW} [data-cert-title]`).evaluateAll((titles) => {
+    const seen = await main.evaluate((root) => {
       const bar = [...document.querySelectorAll('body *')].find((element) => {
         const box = element.getBoundingClientRect();
         return (
@@ -419,12 +587,19 @@ test.describe('/certifications: the Ledger', () => {
         );
       });
       const limit = bar ? bar.getBoundingClientRect().top : window.innerHeight;
-      return titles.filter((title) => {
-        const box = title.getBoundingClientRect();
-        return box.top >= 0 && box.bottom <= limit;
-      }).length;
+      const whole = (element: Element | null): boolean => {
+        const box = element?.getBoundingClientRect();
+        return box !== undefined && box.top >= 0 && box.bottom <= limit;
+      };
+      const titles = [...root.querySelectorAll('[data-cert-item] [data-cert-title]')];
+      return {
+        year: whole(root.querySelector('section[data-chapter] > header h2')),
+        titles: titles.filter(whole).length,
+      };
     });
-    expect(visibleTitles).toBeGreaterThanOrEqual(MIN_TITLES_ON_FIRST_PHONE_SCREEN);
+
+    expect(seen.year, 'the first year shows whole').toBe(true);
+    expect(seen.titles).toBeGreaterThanOrEqual(1);
     await expect(filterBar.getByRole('searchbox', { name: 'Search certificates' })).toBeVisible();
     await expect(filterBar.getByRole('button', { name: /^Filters/ })).toBeVisible();
     // The chips wait in the sheet: a closed popover until the button opens it.
@@ -488,11 +663,11 @@ test.describe('/certifications: the Ledger', () => {
       page.evaluate(() => (window as unknown as { transitions: number }).transitions);
     const main = await openAt(page, '', DESKTOP);
     await hydrated(page);
-    const rows = main.locator(ROW);
+    const items = main.locator(ITEM);
 
     const family = await firstFamilyChip(main);
     await family.link.click();
-    await expect(rows).toHaveCount(family.count);
+    await expect(items).toHaveCount(family.count);
     expect(await transitions()).toBe(1);
 
     await main.getByRole('searchbox', { name: 'Search certificates' }).fill('a');
@@ -507,33 +682,71 @@ test.describe('/certifications: the Ledger', () => {
     expect(await transitions(), 'a transition ran under reduced motion').toBe(1);
   });
 
-  test('a row tints on hover, and nothing in it moves', async ({ page, hasTouch }) => {
+  test('a grouped title: hover and keyboard focus reach one end state, and nothing moves', async ({
+    page,
+    hasTouch,
+  }) => {
     test.skip(hasTouch, 'a touch screen has no hover');
     const main = await openAt(page, '', DESKTOP);
-    const row = main.locator(ROW).nth(2);
-    const surface = await page.evaluate(() => {
-      const probe = document.createElement('div');
-      probe.style.backgroundColor = 'var(--surface-1)';
+    await hydrated(page);
+    const item = main
+      .locator('[data-cert-size="brief"]:has(button):has([data-cert-margin])')
+      .first();
+    const anchor = item.locator('a[data-cert-title]');
+    await item.scrollIntoViewIfNeeded();
+    const read = () =>
+      item.evaluate((element) => {
+        const link = element.querySelector('a') as HTMLElement;
+        const arrow = link.querySelector('[data-new-tab-arrow] svg') as Element;
+        const slot = element.querySelector('button')?.parentElement as Element;
+        const margin = element.querySelector('[data-cert-margin] > *') as Element;
+        const box = element.getBoundingClientRect();
+        return {
+          box: [box.top + window.scrollY, box.left, box.width, box.height],
+          colour: getComputedStyle(link).color,
+          arrow: getComputedStyle(arrow).opacity,
+          step: getComputedStyle(arrow).translate,
+          copy: getComputedStyle(slot).opacity,
+          margin: getComputedStyle(margin).color,
+        };
+      });
+    const brand = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--brand-ink)';
       document.body.append(probe);
-      const colour = getComputedStyle(probe).backgroundColor;
+      const colour = getComputedStyle(probe).color;
       probe.remove();
       return colour;
     });
-    const before = await row.evaluate((element) => element.getBoundingClientRect().toJSON());
+    const before = await read();
+    /** The hovered or focused look: brand ink, the arrow out and drawn, the margin lifted. */
+    const lit = async (): Promise<void> => {
+      await expect.poll(async () => (await read()).colour).toBe(brand);
+      await expect.poll(async () => (await read()).arrow).toBe('1');
+      await expect.poll(async () => (await read()).step).not.toBe(before.step);
+      await expect.poll(async () => (await read()).margin).not.toBe(before.margin);
+      expect((await read()).box).toEqual(before.box);
+    };
 
-    // The row itself: its title link is stretched over every cell, so that is what the pointer meets.
-    await row.hover();
+    // At rest a busy year reads as titles: no arrow drawn, Copy ID waiting.
+    expect(before.arrow).toBe('0');
+    expect(before.copy).toBe('0');
 
-    await expect.poll(() => row.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(surface);
-    expect(await row.evaluate((element) => element.getBoundingClientRect().toJSON())).toEqual(
-      before,
-    );
+    await anchor.hover();
+    await lit();
+    await expect.poll(async () => (await read()).copy).toBe('1');
+
+    await page.mouse.move(0, 0);
+    await expect.poll(async () => (await read()).colour).toBe(before.colour);
+    // Back onto the title from the keyboard, so it matches :focus-visible.
+    await anchor.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(anchor).toBeFocused();
+    await lit();
   });
 
-  test('Copy ID copies a credential ID, above the row’s link, and says so', async ({
-    page,
-    context,
-  }) => {
+  test('Copy ID copies a credential ID, and opens nothing', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     const popups: string[] = [];
     page.on('popup', (popup) => popups.push(popup.url()));
@@ -548,65 +761,6 @@ test.describe('/certifications: the Ledger', () => {
       /^Copied the credential ID for /,
     );
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(id);
-    expect(popups, 'the click reached the row’s link instead').toEqual([]);
+    expect(popups, 'the click reached a credential link instead').toEqual([]);
   });
-
-  /** The header's height, and the toolbar's offset under the header's top. */
-  async function footprint(
-    browser: Browser,
-    viewport: Viewport,
-    javaScriptEnabled: boolean,
-  ): Promise<{ header: number; toolbar: number | null }> {
-    const context = await browser.newContext({ viewport, javaScriptEnabled });
-    try {
-      const page = await context.newPage();
-      await page.goto(`${getTargetUrl()}${PATH}`);
-      if (javaScriptEnabled) {
-        await settle(page);
-        // CodeRabbit on #613: measure after hydration and the island's first effects (the
-        // toolbar reveal), or both runs could read the server layout.
-        await hydrated(page);
-        await page.evaluate(
-          () =>
-            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-        );
-      } else await page.waitForLoadState('load');
-      await page.evaluate(() => document.fonts.ready);
-      const header = page.locator(`${MAIN} header`).filter({ visible: true }).first();
-      const toolbar = page
-        .locator(`${MAIN} [data-filter-part="bar"]`)
-        .filter({ visible: true })
-        .first();
-      const featured = await page.locator(`${MAIN} [data-featured]`).count();
-      const headerBox = await header.boundingBox();
-      const toolbarBox = featured === 0 ? await toolbar.boundingBox() : null;
-      if (!headerBox) throw new Error('no visible header');
-      return {
-        header: headerBox.height,
-        toolbar: toolbarBox ? toolbarBox.y - headerBox.y : null,
-      };
-    } finally {
-      await context.close();
-    }
-  }
-
-  for (const viewport of [PHONE, DESKTOP]) {
-    test(`${viewport.width}px: hydration keeps the header and bar where the server HTML put them`, async ({
-      browser,
-    }) => {
-      // Without JavaScript the page stays as the server sent it, so it can be measured as it shows.
-      const server = await footprint(browser, viewport, false);
-      const hydrated = await footprint(browser, viewport, true);
-
-      expect(Math.abs(server.header - hydrated.header), 'header height').toBeLessThanOrEqual(
-        SAME_PX,
-      );
-      // The toolbar is measured only without a Featured row (footprint returns null with one).
-      if (hydrated.toolbar !== null && server.toolbar !== null) {
-        expect(Math.abs(server.toolbar - hydrated.toolbar), 'toolbar top').toBeLessThanOrEqual(
-          SAME_PX,
-        );
-      }
-    });
-  }
 });
