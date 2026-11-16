@@ -129,10 +129,14 @@ async function withYoutubeDurations(talks: Talk[], apiKey: string): Promise<Talk
   }
 }
 
-/** All talks, with YouTube durations where a key is set. Throws when Sanity fails. */
+/**
+ * All talks, with YouTube durations where the server key is set. Throws when Sanity fails. The
+ * public Firebase browser key is never used here: it is in every visitor's bundle, so it is not
+ * a key to spend server-side YouTube quota on.
+ */
 export async function loadTalks(): Promise<Talk[]> {
   const talks = await getTalks();
-  const apiKey = env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const apiKey = env.YOUTUBE_SERVER_API_KEY;
   return apiKey ? withYoutubeDurations(talks, apiKey) : talks;
 }
 
