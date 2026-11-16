@@ -364,21 +364,82 @@ export interface TitleParts {
   readonly subtitle: string;
 }
 
-/** The first ' - ', ' – ', ' — ' or ': ' in a title, with the text on either side of it. */
-const TITLE_SEPARATOR = /^(.+?)(?:\s+[-–—]\s+|:\s+)(.+)$/u;
+/*
+ * The title split and the sentence end below read a project's text once, with loops rather than
+ * the patterns they replaced ('^(.+?)(?:\s+[-–—]\s+|:\s+)(.+)$' and an abbreviation test over the
+ * whole line at every full stop), whose time grew with the square of a run of spaces or of full
+ * stops, on every render of the home page. They give the patterns' answers for every input
+ * (tests/unit/home/format-linear.test.ts keeps the patterns as the oracle).
+ */
+
+/** A space as a pattern's \s reads one: line ends included, the set String#trim takes off. */
+const SPACE = /\s/u;
+/**
+ * A line end, which a pattern's '.' does not match: no part of a split title holds one. Zl and Zp
+ * are the line and paragraph separators, U+2028 and U+2029, the only characters in each.
+ */
+const LINE_END = /[\n\r\p{Zl}\p{Zp}]/u;
+const DASHES: ReadonlySet<string> = new Set(['-', '–', '—']);
+
+const isSpace = (char: string): boolean => SPACE.test(char);
+
+/** The end of the run of spaces that starts at `from`; `from` itself when there is none. */
+function spacesEnd(text: string, from: number): number {
+  let end = from;
+  while (end < text.length && isSpace(text.charAt(end))) end += 1;
+  return end;
+}
+
+/** Where the last line end in `text` is; -1 when it has none. */
+function lastLineEnd(text: string): number {
+  let index = text.length - 1;
+  while (index >= 0 && !LINE_END.test(text.charAt(index))) index -= 1;
+  return index;
+}
 
 /**
- * A project title split at its first separator into the name and its description, each as
- * written (only the owner knows which words are names).
+ * Where the description begins after a separator at `at`, or -1 when none is there: a colon and
+ * spaces (': '), or the spaces, dash and spaces of ' - ', ' – ' or ' — ' when `at` starts a run.
+ */
+function descriptionStart(text: string, at: number): number {
+  if (text.charAt(at) === ':') {
+    const end = spacesEnd(text, at + 1);
+    return end > at + 1 ? end : -1;
+  }
+  if (!isSpace(text.charAt(at)) || isSpace(text.charAt(at - 1))) return -1;
+  const dash = spacesEnd(text, at);
+  if (!DASHES.has(text.charAt(dash))) return -1;
+  const end = spacesEnd(text, dash + 1);
+  return end > dash + 1 ? end : -1;
+}
+
+/**
+ * The first separator in a trimmed title: where it starts and where the description after it
+ * begins. The name before it holds no line end, and neither does the description.
+ */
+function firstSeparator(text: string): { readonly at: number; readonly rest: number } | null {
+  const firstLineEnd = text.search(LINE_END);
+  const nameEnd = firstLineEnd === -1 ? text.length - 1 : firstLineEnd;
+  const descriptionFrom = lastLineEnd(text) + 1;
+  for (let at = 1; at <= nameEnd; at += 1) {
+    const rest = descriptionStart(text, at);
+    if (rest >= descriptionFrom) return { at, rest };
+  }
+  return null;
+}
+
+/**
+ * A project title split at its first separator (' - ', ' – ', ' — ' or ': ') into the name and its
+ * description, each as written (only the owner knows which words are names).
  *
  * @example splitTitle('Fraud Guard - AI-Powered Transaction Monitoring')
  * // { title: 'Fraud Guard', subtitle: 'AI-Powered Transaction Monitoring' }
  */
 export function splitTitle(full: string): TitleParts {
   const text = full.trim();
-  const match = TITLE_SEPARATOR.exec(text);
-  const title = match?.[1]?.trim();
-  const subtitle = match?.[2]?.trim();
+  const separator = firstSeparator(text);
+  const title = separator ? text.slice(0, separator.at).trim() : '';
+  const subtitle = separator ? text.slice(separator.rest).trim() : '';
   return title && subtitle ? { title, subtitle } : { title: text, subtitle: '' };
 }
 
@@ -388,13 +449,52 @@ export function splitTitle(full: string): TitleParts {
  */
 const SENTENCE_STOP = /[.!?]['")\]’”]*(?=\s|$)/gu;
 
+/** What may come before an abbreviation: a space, or an opening bracket or quote. */
+const ABBREVIATION_OPENER = /[\s(["'‘“]/u;
+/** Short forms that end in a dot without ending a sentence, written as they must appear. */
+const SHORT_FORMS = ['vs.', 'approx.', 'incl.', 'Inc.', 'Dr.', 'Mr.', 'Ms.', 'Mrs.'] as const;
+const LETTER = /^\p{L}$/u;
+
+/** Whether an abbreviation may start at `start`: the line's start, or after an opener. */
+const opensAt = (line: string, start: number): boolean =>
+  start === 0 || ABBREVIATION_OPENER.test(line.charAt(start - 1));
+
+/** Where the character that ends just before `end` starts: two code units for a surrogate pair. */
+function characterStart(line: string, end: number): number {
+  const low = line.charCodeAt(end - 1);
+  const high = line.charCodeAt(end - 2);
+  const isPair = low >= 0xdc00 && low <= 0xdfff && high >= 0xd800 && high <= 0xdbff;
+  return isPair ? end - 2 : end - 1;
+}
+
 /**
- * Text that ends in an abbreviation's dot, which ends no sentence: letters each followed by a dot
- * ('U.S.', 'e.g.', 'i.e.', a lone initial) or a common short form ('vs.', 'Inc.'), after a
- * space, the start, or an opening bracket or quote ('“U.S.”', '("e.g."', '[i.e.').
+ * Where the letters each followed by a dot that end `line.slice(0, end)` start ('U.S.', 'e.g.',
+ * a lone initial); `end` when it ends in none. Read back from the end, so each is read once.
  */
-const ENDS_IN_ABBREVIATION =
-  /(?:^|[\s(["'‘“])(?:(?:\p{L}\.)+|vs\.|approx\.|incl\.|Inc\.|Dr\.|Mr\.|Ms\.|Mrs\.)$/u;
+function initialsStart(line: string, end: number): number {
+  let start = end;
+  while (start >= 2 && line.charAt(start - 1) === '.') {
+    const letter = characterStart(line, start - 1);
+    if (!LETTER.test(line.slice(letter, start - 1))) break;
+    start = letter;
+  }
+  return start;
+}
+
+/**
+ * Whether `line.slice(0, end)`, which ends in a dot, ends in an abbreviation's dot, which ends no
+ * sentence: letters each followed by a dot ('U.S.', 'e.g.', 'i.e.', a lone initial) or a common
+ * short form ('vs.', 'Inc.'), after a space, the start, or an opening bracket or quote ('“U.S.”',
+ * '("e.g."', '[i.e.').
+ */
+function endsInAbbreviation(line: string, end: number): boolean {
+  const initials = initialsStart(line, end);
+  if (initials < end && opensAt(line, initials)) return true;
+  return SHORT_FORMS.some((form) => {
+    const start = end - form.length;
+    return start >= 0 && line.startsWith(form, start) && opensAt(line, start);
+  });
+}
 
 /**
  * The first line of `text` with words in it, cut after its first sentence, as written; '' when
@@ -410,8 +510,7 @@ export function firstSentence(text: string): string {
       .map((part) => part.trim())
       .find(Boolean) ?? '';
   for (const stop of line.matchAll(SENTENCE_STOP)) {
-    const throughStop = line.slice(0, stop.index + 1);
-    if (stop[0].startsWith('.') && ENDS_IN_ABBREVIATION.test(throughStop)) continue;
+    if (stop[0].startsWith('.') && endsInAbbreviation(line, stop.index + 1)) continue;
     return line.slice(0, stop.index + stop[0].length);
   }
   return line;
