@@ -130,6 +130,7 @@ describe('credentialLinkOf', () => {
       href: 'https://www.credly.com/badges/x',
       host: 'credly.com',
       platform: 'Credly',
+      verifies: true,
     });
     expect(credentialLinkOf('https://api2.sololearn.com/v2/c')?.host).toBe('api2.sololearn.com');
   });
@@ -143,7 +144,17 @@ describe('credentialLinkOf', () => {
     ['https://skillshop.credential.net/x', 'Skillshop'],
     ['https://certs.example.org/x', 'certs.example.org'],
   ])('names the platform of %s as %s, or its host when unknown', (url, platform) => {
-    expect(credentialLinkOf(url)?.platform).toBe(platform);
+    expect(credentialLinkOf(url)).toMatchObject({ platform, verifies: true });
+  });
+
+  // A host that only stores an uploaded file vouches for nothing: never 'Verify on Google'.
+  it.each([
+    ['https://storage.googleapis.com/programminghub/certificate%2F1.pdf', 'Google Cloud Storage'],
+    ['https://firebasestorage.googleapis.com/v0/b/x/o/c.pdf', 'Firebase Storage'],
+    ['https://drive.google.com/file/d/x/view', 'Google Drive'],
+    ['https://www.dropbox.com/s/x/c.pdf', 'Dropbox'],
+  ])('marks %s as a stored file on %s', (url, platform) => {
+    expect(credentialLinkOf(url)).toMatchObject({ platform, verifies: false });
   });
 
   // 'https://' passes the scheme check and fails the URL parser: the parse error is caught.
@@ -183,9 +194,22 @@ describe('buildLedger', () => {
     expect(ledger.stats).toEqual({
       certificates: 11,
       issuers: 7,
-      withLink: 9,
+      verifiable: 9,
       since: `July${NBSP}2022`,
     });
+  });
+
+  it('links a stored PDF but never counts it among the certificates you can verify', () => {
+    const stored = cert({
+      title: 'C++',
+      issuer: 'Programming Hub',
+      issueDate: '2023-01-01',
+      credentialUrl: 'https://storage.googleapis.com/programminghub/certificate%2F1.pdf',
+    });
+    const { stats, entries } = buildLedger([...CERTS, stored]);
+
+    expect(stats).toMatchObject({ certificates: 12, verifiable: 9 });
+    expect(entries.find((entry) => entry.title === 'C++')?.link?.verifies).toBe(false);
   });
 
   it('makes a chip of every family with two or more, biggest first, then newest', () => {
@@ -310,7 +334,7 @@ describe('buildLedger', () => {
     const empty = buildLedger([]);
 
     expect(empty.entries).toEqual([]);
-    expect(empty.stats).toEqual({ certificates: 0, issuers: 0, withLink: 0, since: null });
+    expect(empty.stats).toEqual({ certificates: 0, issuers: 0, verifiable: 0, since: null });
     expect(empty.chips).toEqual([]);
     expect(empty.other).toBeNull();
   });
