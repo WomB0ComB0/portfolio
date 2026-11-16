@@ -35,10 +35,17 @@ vi.mock('@/env', () => {
 
 import { lanyardSchema } from '@/app/api/v1/[[...route]]/lanyard/schema';
 
-/** The handler caches Lanyard's reply for a minute, so each test loads a fresh copy of it. */
-const loadGetLanyardData = async () => {
+/**
+ * The presence the handler decoded, without its read time. The handler caches Lanyard's reply for
+ * a minute on globalThis, so each test loads a fresh copy of it and empties that cache.
+ */
+const loadReadPresence = async () => {
   vi.resetModules();
-  return (await import('@/app/api/v1/[[...route]]/lanyard/handlers')).getLanyardData;
+  const { getLanyardSnapshot, resetLanyardCache } = await import(
+    '@/app/api/v1/[[...route]]/lanyard/handlers'
+  );
+  resetLanyardCache();
+  return async () => (await getLanyardSnapshot()).data;
 };
 
 const lanyardReply = (data: unknown) =>
@@ -102,9 +109,45 @@ describe('lanyard.response', () => {
       { name: 'Visual Studio Code', type: 0, assets: {} },
     ]);
   });
+
+  it('keeps read_at, when the server read the presence (epoch ms), and still accepts none', async () => {
+    const presence = { discord_user: discordUser, activities: [], discord_status: 'online' };
+
+    const dated = await serve({ ...presence, read_at: 1_763_000_000_000 });
+    expect(dated.status).toBe(200);
+    expect((await dated.json()).read_at).toBe(1_763_000_000_000);
+
+    const undated = await serve(presence);
+    expect(undated.status).toBe(200);
+    expect(await undated.json()).not.toHaveProperty('read_at');
+  });
 });
 
-describe('getLanyardData', () => {
+describe('GET /lanyard', () => {
+  it('sends the presence with read_at, so a CDN copy keeps the true read time', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_763_000_000_000);
+    vi.stubGlobal(
+      'fetch',
+      lanyardReply({ discord_user: discordUser, activities: [], discord_status: 'idle' }),
+    );
+    vi.resetModules();
+    const { lanyardRoute } = await import('@/app/api/v1/[[...route]]/lanyard');
+
+    const res = await lanyardRoute.handle(new Request('http://localhost/lanyard/'));
+    vi.useRealTimers();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      discord_user: discordUser,
+      activities: [],
+      discord_status: 'idle',
+      read_at: 1_763_000_000_000,
+    });
+  });
+});
+
+describe('getLanyardSnapshot decoding', () => {
   it("keeps the assets from Lanyard's reply and drops null asset fields", async () => {
     vi.stubGlobal(
       'fetch',
@@ -118,9 +161,9 @@ describe('getLanyardData', () => {
         listening_to_spotify: true,
       }),
     );
-    const getLanyardData = await loadGetLanyardData();
+    const readPresence = await loadReadPresence();
 
-    const data = await getLanyardData();
+    const data = await readPresence();
 
     expect(data.activities).toEqual([spotifyActivity, { name: 'Some Game', type: 0, assets: {} }]);
   });
@@ -134,9 +177,9 @@ describe('getLanyardData', () => {
         discord_status: 'online',
       }),
     );
-    const getLanyardData = await loadGetLanyardData();
+    const readPresence = await loadReadPresence();
 
-    expect((await getLanyardData()).activities).toEqual([{ name: 'Some Game', type: 0 }]);
+    expect((await readPresence()).activities).toEqual([{ name: 'Some Game', type: 0 }]);
   });
 
   it('accepts a null assets object from Lanyard', async () => {
@@ -148,9 +191,9 @@ describe('getLanyardData', () => {
         discord_status: 'online',
       }),
     );
-    const getLanyardData = await loadGetLanyardData();
+    const readPresence = await loadReadPresence();
 
-    expect((await getLanyardData()).activities).toEqual([{ name: 'Some Game', type: 0 }]);
+    expect((await readPresence()).activities).toEqual([{ name: 'Some Game', type: 0 }]);
   });
 
   it("passes the example reply from Lanyard's README through the handler and the route", async () => {
@@ -216,9 +259,9 @@ describe('getLanyardData', () => {
         active_on_discord_web: false,
       }),
     );
-    const getLanyardData = await loadGetLanyardData();
+    const readPresence = await loadReadPresence();
 
-    const res = await serve(await getLanyardData());
+    const res = await serve(await readPresence());
 
     expect(res.status).toBe(200);
     expect((await res.json()).activities).toEqual([

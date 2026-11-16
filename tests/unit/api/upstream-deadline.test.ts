@@ -18,7 +18,7 @@
 /**
  * @file A hanging upstream must not hold a /stats handler past its card's own timeout, or the
  * stale fallback never reaches the browser. The LeetCode, GitHub and WakaTime cards give up after
- * 10 s, so those handlers answer within 8 s. The Discord card's DataLoader waits 30 s, so Lanyard
+ * 10 s, so those handlers answer within 8 s. The Discord tile asks again every 30 s, so Lanyard
  * answers within 20 s. A deadline hit takes the same path as any other failure: the cached value
  * and a warning when there is one, an error otherwise.
  */
@@ -45,7 +45,7 @@ const MINUTE = 60 * 1_000;
 const HOUR = 60 * MINUTE;
 /** Comfortably inside the 10 s the LeetCode, GitHub and WakaTime cards wait. */
 const CARD_BUDGET_MS = 8_000;
-/** Comfortably inside the 30 s the Discord card's DataLoader waits. */
+/** Comfortably inside the 30 s between the Discord tile's polls. */
 const LANYARD_BUDGET_MS = 20_000;
 
 const jsonResponse = (body: unknown) =>
@@ -161,8 +161,12 @@ const cases: HandlerCase[] = [
     context: 'fetching WakaTime data',
   },
   {
-    name: 'getLanyardData',
-    load: async () => (await import('@/app/api/v1/[[...route]]/lanyard/handlers')).getLanyardData,
+    name: 'getLanyardSnapshot',
+    load: async () => {
+      const handlers = await import('@/app/api/v1/[[...route]]/lanyard/handlers');
+      handlers.resetLanyardCache();
+      return handlers.getLanyardSnapshot;
+    },
     reply: () => jsonResponse(lanyardReply),
     // Past the 60 s cache, well inside the 5-minute stale bound.
     refreshAfterMs: MINUTE,
@@ -173,8 +177,8 @@ const cases: HandlerCase[] = [
 ];
 
 /**
- * Every test loads a fresh copy (Lanyard caches in module state, and the report cooldowns reset
- * too); each case's load empties the caches that live on globalThis.
+ * Every test loads a fresh copy (the report cooldowns reset too); each case's load empties the
+ * cache its handler keeps on globalThis.
  */
 const loadHandler = async (handlerCase: HandlerCase) => {
   vi.resetModules();

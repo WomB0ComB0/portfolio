@@ -19,6 +19,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
+import type { CachedValue } from '@/lib/cache/stale-cache';
 import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 import { wakaTimeAuthorization } from './auth';
@@ -70,6 +71,12 @@ const sharedState = (): WakaTimeState =>
 /** Forgets the cached totals and any running refresh. Tests only. */
 export function resetWakaTimeCache(): void {
   resetProcessGlobal(STATE_NAME);
+}
+
+/** Reads the last successful totals and their source timestamp without making an upstream call. */
+export function peekWakaTimeData(): CachedValue<WakaTimeData> | undefined {
+  const cached = sharedState().cache;
+  return cached ? { data: cached.data, loadedAt: cached.timestamp } : undefined;
 }
 
 const isFresh = (cache: CachedTotals | null): cache is CachedTotals =>

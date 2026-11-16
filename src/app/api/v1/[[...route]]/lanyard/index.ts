@@ -15,7 +15,7 @@
  */
 
 import { Elysia, StatusMap } from 'elysia';
-import { getLanyardData } from './handlers';
+import { getLanyardSnapshot } from './handlers';
 import { cacheHeaders, errorHandler } from './middleware';
 import { lanyardSchema } from './schema';
 
@@ -23,11 +23,11 @@ export const lanyardRoute = new Elysia({ prefix: '/lanyard' }).model(lanyardSche
   '/',
   async ({ set }) => {
     try {
-      // Since the data shape is dynamic, we cast to any here and let schema validation handle it later (I was lazy)
-      const data = (await getLanyardData()) as any;
+      const { data, readAt } = await getLanyardSnapshot();
       Object.assign(set.headers, cacheHeaders());
-      // Return raw data for validation, superjson will be applied in transform
-      return data;
+      // read_at sits in the body, so a CDN-cached copy keeps the time the presence was read. The
+      // decoded activities are a readonly array; the response model types a mutable one.
+      return { ...data, activities: [...data.activities], read_at: readAt };
     } catch (error) {
       const errorResponse = errorHandler(error);
       set.status = StatusMap['Internal Server Error'];

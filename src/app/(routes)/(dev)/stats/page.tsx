@@ -15,8 +15,10 @@
  */
 
 import type { ReactElement } from 'react';
-import { Stats } from '@/app/(routes)/(dev)/stats/_interface/stats';
+import env from '@/env';
 import { constructMetadata } from '@/utils';
+import { StatsConsole } from './_interface/stats-console/stats-console';
+import { loadStatsConsole } from './_lib/console-loaders';
 
 /**
  * @readonly
@@ -37,11 +39,10 @@ export const metadata = constructMetadata({
 });
 
 /**
- * The /stats page. A server component: the GitHub, LeetCode, Dev Stats and Monkeytype numbers
- * are loaded on the server and stream into the HTML card by card; only the live Discord card
- * fetches in the browser. The route has no loading.tsx on purpose: nothing above the cards is
- * awaited and each card has its own Suspense skeleton (see `_interface/stats/stats.tsx`).
+ * Awaits the bounded, parallel source loaders before rendering so the figures and Discord's
+ * first state are readable without JavaScript. There is intentionally no loading.tsx or hidden
+ * streamed card. Discord alone continues polling after hydration.
  */
-export default function StatsPage(): ReactElement {
-  return <Stats />;
+export default async function StatsPage(): Promise<ReactElement> {
+  return <StatsConsole data={await loadStatsConsole()} profileId={env.NEXT_PUBLIC_DISCORD_ID} />;
 }

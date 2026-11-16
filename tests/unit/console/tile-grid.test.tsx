@@ -31,7 +31,7 @@ import { TileGrid, type TileGridProps, tileSpanClass } from '@/components/consol
 // Vitest runs from the repository root; under jsdom import.meta.url is not a file: URL.
 const SOURCE = join(process.cwd(), 'src/components/console/tile-grid.tsx');
 
-const DEFAULT_SPAN_CLASS = 'col-span-2 @xl/tiles:col-span-3 @4xl/tiles:col-span-3';
+const DEFAULT_SPAN_CLASS = 'col-span-2 @xl/tiles:col-span-3 @[70rem]/tiles:col-span-3';
 
 const range = (to: number): number[] => Array.from({ length: to }, (_, index) => index + 1);
 
@@ -46,7 +46,7 @@ function renderGrid(props: TileGridProps = {}): { wrapper: Element; grid: Elemen
 describe('tileSpanClass', () => {
   it('builds one class per breakpoint and the row span', () => {
     expect(tileSpanClass({ base: 2, md: 3, lg: 6, rows: 2 })).toBe(
-      'col-span-2 @xl/tiles:col-span-3 @4xl/tiles:col-span-6 @4xl/tiles:row-span-2',
+      'col-span-2 @xl/tiles:col-span-3 @[70rem]/tiles:col-span-6 @[70rem]/tiles:row-span-2',
     );
   });
 
@@ -57,10 +57,28 @@ describe('tileSpanClass', () => {
 
   it('fills in only the keys a partial span leaves out', () => {
     expect(tileSpanClass({ lg: 12 })).toBe(
-      'col-span-2 @xl/tiles:col-span-3 @4xl/tiles:col-span-12',
+      'col-span-2 @xl/tiles:col-span-3 @[70rem]/tiles:col-span-12',
     );
     expect(tileSpanClass({ base: 1, rows: 3 })).toBe(
-      'col-span-1 @xl/tiles:col-span-3 @4xl/tiles:col-span-3 @4xl/tiles:row-span-3',
+      'col-span-1 @xl/tiles:col-span-3 @[70rem]/tiles:col-span-3 @[70rem]/tiles:row-span-3',
+    );
+  });
+
+  it('starts the 12-column spans at a 70rem grid, where 8 columns hold a hero’s wide layout', () => {
+    const wide = tileSpanClass({ lg: 8, rows: 2 }).split(' ');
+
+    expect(wide).toEqual(
+      expect.arrayContaining(['@[70rem]/tiles:col-span-8', '@[70rem]/tiles:row-span-2']),
+    );
+    // Not at 56rem, where 8 of 12 columns are about 37rem and a hero falls back to its phone layout.
+    expect(wide.join(' ')).not.toContain('@4xl/');
+  });
+
+  it('pairs two tiles on a phone row only once the grid holds two halves of text', () => {
+    // A row each until the grid is 13.5 lines of its own text wide, then halves until the
+    // 6-column tier. The step is in lh, so text a phone enlarges puts the row each back.
+    expect(tileSpanClass({ base: 'pair', md: 3, lg: 4 })).toBe(
+      'col-span-2 @min-[13.5lh]/tiles:@max-xl/tiles:col-span-1 @xl/tiles:col-span-3 @[70rem]/tiles:col-span-4',
     );
   });
 
@@ -68,10 +86,11 @@ describe('tileSpanClass', () => {
     const source = readFileSync(SOURCE, 'utf8');
 
     const literals = [
+      "'col-span-2 @min-[13.5lh]/tiles:@max-xl/tiles:col-span-1'",
       ...range(2).map((n) => `'col-span-${n}'`),
       ...range(6).map((n) => `'@xl/tiles:col-span-${n}'`),
-      ...range(12).map((n) => `'@4xl/tiles:col-span-${n}'`),
-      ...range(3).map((n) => `'@4xl/tiles:row-span-${n}'`),
+      ...range(12).map((n) => `'@[70rem]/tiles:col-span-${n}'`),
+      ...range(3).map((n) => `'@[70rem]/tiles:row-span-${n}'`),
     ];
 
     for (const literal of literals) expect(source).toContain(literal);
@@ -94,14 +113,14 @@ describe('TileGrid', () => {
       'grid',
       'grid-cols-2',
       '@xl/tiles:grid-cols-6',
-      '@4xl/tiles:grid-cols-12',
-      '@4xl/tiles:auto-rows-[minmax(var(--tile-row),auto)]',
+      '@[70rem]/tiles:grid-cols-12',
+      '@[70rem]/tiles:auto-rows-[minmax(var(--tile-row),auto)]',
     );
   });
 
   it('back-fills holes only when dense', () => {
-    expect(renderGrid().grid).not.toHaveClass('@4xl/tiles:grid-flow-row-dense');
-    expect(renderGrid({ dense: true }).grid).toHaveClass('@4xl/tiles:grid-flow-row-dense');
+    expect(renderGrid().grid).not.toHaveClass('@[70rem]/tiles:grid-flow-row-dense');
+    expect(renderGrid({ dense: true }).grid).toHaveClass('@[70rem]/tiles:grid-flow-row-dense');
   });
 
   it('renders the grid as the requested element with its label and classes', () => {

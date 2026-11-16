@@ -90,6 +90,7 @@ const wakaTimeReply = () =>
 interface HandlerCopy {
   handler: () => Promise<unknown>;
   reset: () => void;
+  peek: () => { readonly data: unknown; readonly loadedAt: number } | undefined;
 }
 
 interface HandlerCase {
@@ -118,7 +119,11 @@ const cases: HandlerCase[] = [
     name: 'getGitHubStats',
     loadCopy: async () => {
       const copy = await import('@/app/api/v1/[[...route]]/github-stats/handlers');
-      return { handler: copy.getGitHubStats, reset: copy.resetGitHubStatsCache };
+      return {
+        handler: copy.getGitHubStats,
+        reset: copy.resetGitHubStatsCache,
+        peek: copy.peekGitHubStats,
+      };
     },
     // The profile, personal repos and org repos.
     stubUpstream: stubFetchUpstream(gitHubReply, 3),
@@ -127,7 +132,11 @@ const cases: HandlerCase[] = [
     name: 'getLeetCodeStats',
     loadCopy: async () => {
       const copy = await import('@/app/api/v1/[[...route]]/leetcode/handlers');
-      return { handler: copy.getLeetCodeStats, reset: copy.resetLeetCodeCache };
+      return {
+        handler: copy.getLeetCodeStats,
+        reset: copy.resetLeetCodeCache,
+        peek: copy.peekLeetCodeStats,
+      };
     },
     stubUpstream: stubFetchUpstream(leetCodeReply, 1),
   },
@@ -135,7 +144,11 @@ const cases: HandlerCase[] = [
     name: 'getWakaTimeData',
     loadCopy: async () => {
       const copy = await import('@/app/api/v1/[[...route]]/wakatime/handlers');
-      return { handler: copy.getWakaTimeData, reset: copy.resetWakaTimeCache };
+      return {
+        handler: copy.getWakaTimeData,
+        reset: copy.resetWakaTimeCache,
+        peek: copy.peekWakaTimeData,
+      };
     },
     stubUpstream: stubFetchUpstream(wakaTimeReply, 1),
   },
@@ -143,7 +156,11 @@ const cases: HandlerCase[] = [
     name: 'getGoogleAnalytics',
     loadCopy: async () => {
       const copy = await import('@/app/api/v1/[[...route]]/google/handlers');
-      return { handler: copy.getGoogleAnalytics, reset: copy.resetGoogleAnalyticsCache };
+      return {
+        handler: copy.getGoogleAnalytics,
+        reset: copy.resetGoogleAnalyticsCache,
+        peek: copy.peekGoogleAnalytics,
+      };
     },
     stubUpstream: (released) => {
       analytics.getAnalytics.mockImplementation(async () => {
@@ -184,11 +201,31 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   for (const handlerCase of cases) (await handlerCase.loadCopy()).reset();
 });
 
 describe.each(cases)('$name shared by every bundled copy', (handlerCase) => {
+  it('exposes the original load timestamp across copies without making another request', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const loadedAt = Date.parse('2026-11-10T10:00:00Z');
+    vi.setSystemTime(loadedAt);
+    const loads = handlerCase.stubUpstream(Promise.resolve());
+    const first = await loadColdCopy(handlerCase);
+    expect(first.peek()).toBeUndefined();
+    expect(loads()).toBe(0);
+    const data = await first.handler();
+    expect(first.peek()).toEqual({ data, loadedAt });
+
+    vi.setSystemTime(loadedAt + 2 * 60 * 60_000);
+    const second = await loadSecondCopy(handlerCase);
+    expect(second.peek()).toEqual({ data, loadedAt });
+    expect(loads()).toBe(1);
+    first.reset();
+    expect(second.peek()).toBeUndefined();
+  });
+
   it("serves the first copy's cached value from a second copy without asking again", async () => {
     const loads = handlerCase.stubUpstream(Promise.resolve());
     const first = await loadColdCopy(handlerCase);
@@ -254,5 +291,64 @@ describe('getGoogleAnalytics with a stalled report', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('getGoogleAnalytics when Analytics fails after a good report', () => {
+  const T0 = new Date('2026-11-13T12:00:00Z').getTime();
+  const HOUR = 60 * 60_000;
+
+  /** A fresh handler copy with one real count cached at T0, then the clock past its hour. */
+  async function withHeldCount() {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(T0);
+    const handlers = await import('@/app/api/v1/[[...route]]/google/handlers');
+    handlers.resetGoogleAnalyticsCache();
+    analytics.getAnalytics.mockResolvedValueOnce({
+      analytics: { total_pageviews: 2615 },
+      response: {},
+    });
+    await handlers.getGoogleAnalytics();
+    vi.setSystemTime(T0 + HOUR + 1);
+    return handlers;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('answers the count it still holds when Analytics throws, keeping its original date', async () => {
+    const { getGoogleAnalytics, peekGoogleAnalytics } = await withHeldCount();
+    analytics.getAnalytics.mockRejectedValueOnce(new Error('Analytics down'));
+
+    await expect(getGoogleAnalytics()).resolves.toEqual({ total_pageviews: 2615 });
+    expect(peekGoogleAnalytics()).toEqual({ data: { total_pageviews: 2615 }, loadedAt: T0 });
+  });
+
+  it.each([
+    ['without a report', undefined],
+    ['with a report of no page views', { analytics: { total_pageviews: 0 }, response: {} }],
+  ])(
+    'never caches a zero for an answer %s, and answers the held count instead',
+    async (_case, answer) => {
+      const { getGoogleAnalytics, peekGoogleAnalytics } = await withHeldCount();
+      analytics.getAnalytics.mockResolvedValueOnce(answer);
+
+      await expect(getGoogleAnalytics()).resolves.toEqual({ total_pageviews: 2615 });
+      expect(peekGoogleAnalytics()).toEqual({ data: { total_pageviews: 2615 }, loadedAt: T0 });
+    },
+  );
+
+  it('answers the uncached zero only when it never held a count', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(T0);
+    const { getGoogleAnalytics, peekGoogleAnalytics, resetGoogleAnalyticsCache } = await import(
+      '@/app/api/v1/[[...route]]/google/handlers'
+    );
+    resetGoogleAnalyticsCache();
+    analytics.getAnalytics.mockResolvedValueOnce(undefined);
+
+    await expect(getGoogleAnalytics()).resolves.toEqual({ total_pageviews: 0 });
+    expect(peekGoogleAnalytics()).toBeUndefined();
   });
 });

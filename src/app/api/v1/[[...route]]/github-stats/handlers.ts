@@ -17,18 +17,13 @@
 /**
  * GitHub Statistics API Handler
  *
- * Fetches combined GitHub statistics from:
- * - Personal repositories (WomB0ComB0) - includes private repos if GITHUB_TOKEN is set
+ * Fetches combined GitHub statistics from every page of:
+ * - Personal repositories (WomB0ComB0) - public repos
  * - Organization repositories (ElysiumOSS) - public repos
  *
  * Authentication:
- * Set the GITHUB_TOKEN environment variable to include private repositories.
- * Without authentication, only public repositories will be counted.
- *
- * To create a GitHub token:
- * 1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
- * 2. Generate new token with 'repo' scope (for private repo access)
- * 3. Add to .env.local: GITHUB_TOKEN=your_token_here
+ * GITHUB_TOKEN, when set, raises the rate limit (60 to 5,000 requests an hour). The counts are of
+ * public repositories either way.
  */
 
 import { FetchHttpClient } from '@effect/platform';
@@ -36,6 +31,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
+import type { CachedValue } from '@/lib/cache/stale-cache';
 import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
@@ -95,10 +91,11 @@ interface CachedStats {
 
 /**
  * What getGitHubStats keeps between calls. Next bundles this module once for the /stats page
- * (whose prefetch calls getGitHubStats directly) and once for /api/v1, so module state would give
- * each its own cache. Kept in processGlobal instead, a prefetch that misses its deadline still
- * fills the cache the card's fallback request to /api/v1/github-stats reads, or that request joins
- * the load still running, rather than asking GitHub a second time.
+ * (whose loaders in console-loaders.ts call getGitHubStats directly) and once for the /api/v1
+ * route, so module state would give each its own cache. Kept in processGlobal instead, a /stats
+ * load that misses its deadline (and carries on in the background) still fills the cache a request
+ * to /api/v1/github-stats reads, or that request joins the load still running, rather than asking
+ * GitHub a second time.
  */
 interface GitHubStatsState {
   /** The last good stats and when they were fetched. */
@@ -107,7 +104,12 @@ interface GitHubStatsState {
   inFlight: Promise<GitHubStatsData> | null;
 }
 
-const STATE_NAME = 'github-stats.cache';
+/**
+ * Versioned: v2 sums every page of repositories. A process still holding the one-page totals (a
+ * dev server across a reload) starts a cache of its own instead of serving the undercount for up
+ * to an hour.
+ */
+const STATE_NAME = 'github-stats.cache.v2';
 
 /** Looked up on every call, so a reset in a test takes effect without reloading this module. */
 const sharedState = (): GitHubStatsState =>
@@ -118,17 +120,92 @@ export function resetGitHubStatsCache(): void {
   resetProcessGlobal(STATE_NAME);
 }
 
+/** Reads the last successful answer and its source timestamp without refreshing or requesting. */
+export function peekGitHubStats(): CachedValue<GitHubStatsData> | undefined {
+  const cached = sharedState().cache;
+  return cached ? { data: cached.data, loadedAt: cached.timestamp } : undefined;
+}
+
 const isFresh = (cache: CachedStats | null): cache is CachedStats =>
   cache !== null && Date.now() - cache.timestamp < CACHE_DURATION;
 
 /**
- * Upstream time budget. The GitHub card's fetch gives up after 10 s, so the stale fallback (or the
- * 500) has to be ready well before that: one retry of a 3.5 s attempt fits in the deadline.
+ * Upstream time budget. The /stats loaders (console-loaders.ts) stop waiting after their own short
+ * deadline and let the load carry on, and the /api/v1 route answers what it settles to, so the
+ * stale fallback (or the 500) has to be ready soon: one retry of a 3.5 s attempt fits in the
+ * deadline.
  */
 const ATTEMPT_TIMEOUT_MS = 3_500;
 const RETRY_DELAY_MS = 500;
-/** Caps the three parallel calls together, retries and body reads included. */
+/** Caps the profile and both lists together, every page, retry and body read included. */
 const UPSTREAM_DEADLINE_MS = 8_000;
+
+/** GitHub's largest page of repositories. */
+const PER_PAGE = 100;
+/**
+ * The most pages read of one list: 1,000 repositories. A list still full at its last page fails
+ * the refresh (the last good stats are served) rather than sum part of it, which is the very
+ * undercount paging fixes.
+ */
+const MAX_PAGES = 10;
+
+/**
+ * The public lists, so the stars are summed over the very repositories the count names (the
+ * profile's public count plus the org's public repos) and no private name reaches the top ten.
+ * The token, when set, still rides along for its rate limit. (The token's own /user/repos list,
+ * private repos included, ran past 300 repos at 1 to 3 s a page: past the deadline.)
+ *
+ * In name order: stable, so a push between two page reads can't move a repository off one page
+ * and onto none (the top ten is picked by stars, not by this order).
+ */
+const LIST_QUERY = `per_page=${PER_PAGE}&sort=full_name`;
+const PERSONAL_REPOS_URL = `https://api.github.com/users/WomB0ComB0/repos?${LIST_QUERY}&type=owner`;
+const ORG_REPOS_URL = `https://api.github.com/orgs/ElysiumOSS/repos?${LIST_QUERY}&type=public`;
+
+interface RequestOptions {
+  readonly retries: number;
+  readonly retryDelay: number;
+  readonly timeout: number;
+  readonly headers: Record<string, string>;
+}
+
+const readPage = (listUrl: string, page: number, options: RequestOptions) =>
+  get(`${listUrl}&page=${page}`, { ...options, schema: GitHubReposArraySchema });
+
+/**
+ * How many pages to read at once: as many as `expected` repositories fill (at least one, at most
+ * {@link MAX_PAGES}). Without a count, one.
+ */
+const pagesFor = (expected: number | undefined): number =>
+  Math.min(MAX_PAGES, Math.max(1, Math.ceil((expected ?? 0) / PER_PAGE)));
+
+/**
+ * Every repository in a list. The pages `expected` (a count GitHub gave) implies are read in
+ * parallel; while the last page read is full, the next is read, one at a time, until one comes
+ * back short (an empty page ends a list whose last page was full), so a count that lags the list
+ * still loses nothing. Any page that fails, a rate limit included, fails the list; so does a list
+ * still full after {@link MAX_PAGES} pages.
+ */
+const fetchEveryRepo = (listUrl: string, options: RequestOptions, expected?: number) =>
+  Effect.gen(function* () {
+    const first = pagesFor(expected);
+    const pages = yield* Effect.all(
+      Array.from({ length: first }, (_, index) => readPage(listUrl, index + 1, options)),
+      { concurrency: 'unbounded' },
+    );
+    let repos: readonly GitHubRepo[] = pages.flat();
+    let last = pages.at(-1) ?? [];
+    for (let page = first + 1; last.length === PER_PAGE; page += 1) {
+      if (page > MAX_PAGES) {
+        return yield* Effect.fail(
+          new FetcherError(`More than ${MAX_PAGES * PER_PAGE} repositories in one list`, listUrl),
+        );
+      }
+      last = yield* readPage(listUrl, page, options);
+      repos = [...repos, ...last];
+    }
+    return repos;
+  });
 
 function gitHubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -142,32 +219,32 @@ function gitHubHeaders(): Record<string, string> {
 }
 
 /**
- * The profile, personal repos and org repos, fetched in parallel. The first failure, or the
- * deadline, interrupts the other calls and fails the whole effect.
+ * The profile, then every page of the personal repos (as many at once as its public count
+ * fills), alongside every page of the org's. The first failure, or the deadline, interrupts the
+ * rest and fails the whole effect, so a total is never summed from part of a list.
  */
 function fetchGitHubSources() {
-  const options = {
+  const options: RequestOptions = {
     retries: 1,
     retryDelay: RETRY_DELAY_MS,
     timeout: ATTEMPT_TIMEOUT_MS,
     headers: gitHubHeaders(),
   };
-  const personalReposUrl = env.GITHUB_TOKEN
-    ? 'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner'
-    : 'https://api.github.com/users/WomB0ComB0/repos?per_page=100&sort=updated';
+  const profileAndRepos = pipe(
+    get('https://api.github.com/users/WomB0ComB0', { ...options, schema: GitHubUserSchema }),
+    Effect.flatMap((me) =>
+      pipe(
+        fetchEveryRepo(PERSONAL_REPOS_URL, options, me.public_repos),
+        Effect.map((personalRepos) => [me, personalRepos] as const),
+      ),
+    ),
+  );
 
   return pipe(
-    Effect.all(
-      [
-        get('https://api.github.com/users/WomB0ComB0', { ...options, schema: GitHubUserSchema }),
-        get(personalReposUrl, { ...options, schema: GitHubReposArraySchema }),
-        get('https://api.github.com/orgs/ElysiumOSS/repos?per_page=100&sort=updated', {
-          ...options,
-          schema: GitHubReposArraySchema,
-        }),
-      ],
-      { concurrency: 'unbounded' },
-    ),
+    Effect.all([profileAndRepos, fetchEveryRepo(ORG_REPOS_URL, options)], {
+      concurrency: 'unbounded',
+    }),
+    Effect.map(([[me, personalRepos], orgRepos]) => [me, personalRepos, orgRepos] as const),
     Effect.timeoutFail({
       duration: UPSTREAM_DEADLINE_MS,
       onTimeout: () =>
@@ -178,6 +255,22 @@ function fetchGitHubSources() {
     }),
     Effect.provide(FetchHttpClient.layer),
   );
+}
+
+/** How many languages the stats name. */
+const TOP_LANGUAGES = 5;
+
+/**
+ * Every language the repositories use, the most used first (by how many repositories); a tie
+ * keeps the order the languages first appear in. Without the ranking, the lists' name order (which
+ * paging needs) would make the first five a matter of the alphabet.
+ */
+function rankLanguages(repos: readonly GitHubRepo[]): string[] {
+  const counts = new Map<string, number>();
+  for (const { language } of repos) {
+    if (language !== null) counts.set(language, (counts.get(language) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(([, a], [, b]) => b - a).map(([language]) => language);
 }
 
 function toStatsData(
@@ -197,11 +290,6 @@ function toStatsData(
   // Calculate total stars from all repos (personal + org)
   const totalStars = allRepos.reduce((acc, curr) => acc + curr.stargazers_count, 0);
 
-  // Get unique languages from all repos
-  const languages = new Set(
-    allRepos.map((repo) => repo.language).filter((lang): lang is string => lang !== null),
-  );
-
   return {
     user: {
       repos: me.public_repos + orgRepos.length, // Include org repos in count
@@ -210,7 +298,7 @@ function toStatsData(
     },
     stats: {
       totalStars,
-      topLanguages: Array.from(languages).slice(0, 5),
+      topLanguages: rankLanguages(allRepos).slice(0, TOP_LANGUAGES),
     },
     topRepos: topRepos.map((repo) => ({
       name: repo.name,
@@ -255,7 +343,7 @@ export async function getGitHubStats(): Promise<GitHubStatsData> {
     return state.cache.data;
   }
 
-  // One refresh at a time: a late prefetch and the card's own request share GitHub's answer.
+  // One refresh at a time: a /stats load and a request to the /api/v1 route share GitHub's answer.
   state.inFlight ??= refreshGitHubStats(state).finally(() => {
     state.inFlight = null;
   });
