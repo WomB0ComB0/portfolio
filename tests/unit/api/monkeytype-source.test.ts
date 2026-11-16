@@ -16,7 +16,7 @@
  */
 
 /**
- * @file The server's one Monkeytype source (/stats prefetch and the home page). It decodes the
+ * @file The server's one Monkeytype source (/stats and the home page). It decodes the
  * profile leniently (a missing 60 s best still decodes), rejects a reply that does not match,
  * serves the last good profile for an hour, and after a failed reload serves it stale with one
  * Sentry warning. peekMonkeytypeProfile answers the last profile without asking Monkeytype. Only
@@ -36,7 +36,6 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 
-import { MONKEYTYPE_PROFILE_URL as BROWSER_PROFILE_URL } from '@/app/(routes)/(dev)/stats/_lib/stats-queries';
 import {
   getMonkeytypeProfile,
   MONKEYTYPE_CACHE_TTL_MS,
@@ -86,12 +85,12 @@ afterEach(() => {
 });
 
 describe('Monkeytype server source', () => {
-  it('asks the same profile URL the /stats card fetches in the browser', async () => {
+  it("asks Monkeytype's profile API once, at the URL it exports", async () => {
     const fetchMock = stubFetch(() => jsonResponse(profileReply({ '60': [] })));
 
     await getMonkeytypeProfile();
 
-    expect(MONKEYTYPE_PROFILE_URL).toBe(BROWSER_PROFILE_URL);
+    expect(new URL(MONKEYTYPE_PROFILE_URL).origin).toBe('https://api.monkeytype.com');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(MONKEYTYPE_PROFILE_URL);
   });

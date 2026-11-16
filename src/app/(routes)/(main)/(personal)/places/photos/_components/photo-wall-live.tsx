@@ -24,6 +24,10 @@
  * while panning and React re-renders a card only when it wraps to a new cell. Input is
  * use-wall-input.ts. The wall is one Tab stop (role="application") with a polite live region of
  * its own, inside the wall so a modal sheet around it doesn't hide it.
+ *
+ * Its words are the places' by default ('266 photos from 51 past visits'); another page whose
+ * pictures aren't photos of visits (the /projects Screens view) passes its own label, role
+ * description, hint and spoken sentence, and nothing else changes.
  */
 
 import { type MotionValue, motion, useMotionValue, useTransform } from 'motion/react';
@@ -42,7 +46,7 @@ import {
 } from 'react';
 
 import { cn } from '@/lib/utils';
-import type { WallPhoto } from '@/types/places';
+import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { placeholderOf } from '../_lib/card-placeholder';
 import {
   focusPosition,
@@ -73,7 +77,19 @@ const CARD_SIZES = '(max-width: 639px) 152px, 240px';
 /** A live region repeats only on a change: it is cleared first, then filled this much later. */
 const ANNOUNCE_GAP_MS = 60;
 
-export interface LiveWallProps {
+/** The wall's words, each optional: the places' own by default. */
+export interface WallWords {
+  /** The wall's name: '266 photos from 51 past visits' by default. */
+  readonly label?: string;
+  /** What the wall is called: 'photo wall' by default. */
+  readonly roleDescription?: string;
+  /** The line under the wall: WALL_HINTS[mode] by default. */
+  readonly hint?: string;
+  /** What the live region says for a photo: wallAnnouncement by default. */
+  readonly describe?: (photo: WallPhoto, place: PhotoPlace) => string;
+}
+
+export interface LiveWallProps extends WallWords {
   readonly photos: readonly WallPhoto[];
   readonly places: PlacesById;
   readonly placeCount: number;
@@ -207,6 +223,79 @@ function useWallGeometry(
   return g;
 }
 
+interface CellActionsOptions {
+  readonly viewportRef: RefObject<HTMLDivElement | null>;
+  readonly geometry: Geometry | null;
+  readonly photos: readonly WallPhoto[];
+  readonly places: PlacesById;
+  readonly describe: (photo: WallPhoto, place: PhotoPlace) => string;
+  readonly say: (text: string) => void;
+  readonly onOpen: OpenPhoto;
+}
+
+/** What the wall does with a cell: say what it holds, or open it from its card. */
+function cellActions({
+  viewportRef,
+  geometry,
+  photos,
+  places,
+  describe: sentenceOf,
+  say,
+  onOpen,
+}: CellActionsOptions): { announce: (cell: Cell) => void; openCell: (cell: Cell) => void } {
+  const photoIn = (cell: Cell): WallPhoto | undefined => {
+    const index = geometry ? photoAt(cell, geometry, photos.length) : null;
+    return index === null ? undefined : photos[index];
+  };
+  return {
+    announce: (cell) => {
+      const photo = photoIn(cell);
+      const place = photo ? places.get(photo.placeId) : undefined;
+      if (photo && place) say(sentenceOf(photo, place));
+    },
+    openCell: (cell) => {
+      const viewport = viewportRef.current;
+      const card = viewport?.querySelector<HTMLElement>(`[data-cell="${cell.c}:${cell.r}"]`);
+      const photo = photoIn(cell);
+      if (!viewport || !card || !photo) return;
+      onOpen({ photo, source: card, placeholder: placeholderOf(card), returnFocus: viewport });
+    },
+  };
+}
+
+interface WallSlotsProps {
+  readonly g: Geometry | null;
+  readonly panX: MotionValue<number>;
+  readonly panY: MotionValue<number>;
+  readonly photos: readonly WallPhoto[];
+  readonly active: Cell | null;
+}
+
+/** The pool of cards, once the wall is measured; hidden from assistive tech (the wall speaks). */
+function WallSlots({ g, panX, panY, photos, active }: WallSlotsProps): ReactElement {
+  const slots = g
+    ? Array.from({ length: poolSize(g) }, (_, k) => ({ i: k % g.cols, j: Math.floor(k / g.cols) }))
+    : [];
+  return (
+    <div aria-hidden="true">
+      {g
+        ? slots.map(({ i, j }) => (
+            <WallSlot
+              key={`${g.width}x${g.height}:${i}:${j}`}
+              i={i}
+              j={j}
+              g={g}
+              panX={panX}
+              panY={panY}
+              photos={photos}
+              active={active}
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
 /** The endless wall of every photo given, with its keyboard model and live region. */
 export function LiveWall({
   photos,
@@ -214,6 +303,10 @@ export function LiveWall({
   placeCount,
   mode,
   onOpen,
+  label,
+  roleDescription = 'photo wall',
+  hint,
+  describe = wallAnnouncement,
 }: LiveWallProps): ReactElement {
   const hintId = useId();
   const [announcement, say] = useAnnouncer();
@@ -221,26 +314,15 @@ export function LiveWall({
   const panX = useMotionValue(0);
   const panY = useMotionValue(0);
   const g = useWallGeometry(viewportRef, panX, panY, photos.length);
-
-  const photoIn = (cell: Cell): WallPhoto | undefined => {
-    const index = g ? photoAt(cell, g, photos.length) : null;
-    return index === null ? undefined : photos[index];
-  };
-
-  const announce = (cell: Cell): void => {
-    const photo = photoIn(cell);
-    const place = photo ? places.get(photo.placeId) : undefined;
-    if (photo && place) say(wallAnnouncement(photo, place));
-  };
-
-  const openCell = (cell: Cell): void => {
-    const viewport = viewportRef.current;
-    const card = viewport?.querySelector<HTMLElement>(`[data-cell="${cell.c}:${cell.r}"]`);
-    const photo = photoIn(cell);
-    if (!viewport || !card || !photo) return;
-    onOpen({ photo, source: card, placeholder: placeholderOf(card), returnFocus: viewport });
-  };
-
+  const { announce, openCell } = cellActions({
+    viewportRef,
+    geometry: g,
+    photos,
+    places,
+    describe,
+    say,
+    onOpen,
+  });
   const { active, handlers } = useWallInput({
     viewportRef,
     geometry: g,
@@ -249,10 +331,6 @@ export function LiveWall({
     onOpenCell: openCell,
     onAnnounce: announce,
   });
-
-  const slots = g
-    ? Array.from({ length: poolSize(g) }, (_, k) => ({ i: k % g.cols, j: Math.floor(k / g.cols) }))
-    : [];
   const sizeVars = g
     ? ({ '--card-w': `${g.cardW}px`, '--card-h': `${g.cardH}px` } as CSSProperties)
     : undefined;
@@ -264,33 +342,18 @@ export function LiveWall({
         className={cn(styles.viewport, mode === 'sheet' && styles['viewport-sheet'])}
         style={sizeVars}
         role="application"
-        aria-roledescription="photo wall"
-        aria-label={photosFromVisits(photos.length, placeCount)}
+        aria-roledescription={roleDescription}
+        aria-label={label ?? photosFromVisits(photos.length, placeCount)}
         aria-describedby={hintId}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: role="application" is a widget with its own keyboard model (one Tab stop, arrow keys inside); Biome counts it as non-interactive.
         tabIndex={0}
         data-photo-wall={mode}
         {...handlers}
       >
-        <div aria-hidden="true">
-          {g
-            ? slots.map(({ i, j }) => (
-                <WallSlot
-                  key={`${g.width}x${g.height}:${i}:${j}`}
-                  i={i}
-                  j={j}
-                  g={g}
-                  panX={panX}
-                  panY={panY}
-                  photos={photos}
-                  active={active}
-                />
-              ))
-            : null}
-        </div>
+        <WallSlots g={g} panX={panX} panY={panY} photos={photos} active={active} />
       </div>
       <p id={hintId} className={styles.hint}>
-        {WALL_HINTS[mode]}
+        {hint ?? WALL_HINTS[mode]}
       </p>
       <p className="sr-only" aria-live="polite" data-wall-announce="">
         {announcement}

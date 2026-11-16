@@ -85,11 +85,6 @@ vi.mock(
   '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-dialog.module.css',
   cssModuleNames,
 );
-// The /projects hover preview's card: the projects page and preview tests render it.
-vi.mock(
-  '@/app/(routes)/(main)/(professioal)/projects/_components/project-preview.module.css',
-  cssModuleNames,
-);
 
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';

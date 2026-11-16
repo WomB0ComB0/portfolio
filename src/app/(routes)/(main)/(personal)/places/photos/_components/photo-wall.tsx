@@ -65,12 +65,19 @@ const LiveSheetChunk = lazy<ComponentType<LiveWallSheetProps & Unavailable>>(() 
   ),
 );
 
-/** The wall's box with no cards: the server's HTML and the Suspense fallback alike. */
-export function WallFrame(): ReactElement {
+/**
+ * The wall's box with no cards: the server's HTML and the Suspense fallback alike. It shows the
+ * hint the live wall will show, so the words don't change when the wall loads.
+ */
+export function WallFrame({
+  hint = WALL_HINTS.page,
+}: {
+  readonly hint?: string;
+} = {}): ReactElement {
   return (
     <div className={styles.wall} data-wall-frame="">
       <div className={styles.viewport} />
-      <p className={styles.hint}>{WALL_HINTS.page}</p>
+      <p className={styles.hint}>{hint}</p>
     </div>
   );
 }
@@ -84,9 +91,9 @@ export interface PhotoWallProps extends Omit<LiveWallProps, 'mode'>, Unavailable
 
 /** The wall in the page: its frame, then the live wall once it is wanted and loaded. */
 export function PhotoWall({ load, resetKey, ...wall }: PhotoWallProps): ReactElement {
-  if (!load) return <WallFrame />;
+  if (!load) return <WallFrame hint={wall.hint} />;
   return (
-    <Suspense fallback={<WallFrame />}>
+    <Suspense fallback={<WallFrame hint={wall.hint} />}>
       <LiveWallChunk key={resetKey} {...wall} mode="page" />
     </Suspense>
   );

@@ -18,7 +18,12 @@ import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared
 
 export const cacheHeaders = createCacheHeaders('Medium');
 
+/**
+ * A cold failure answers one fixed message. The upstream's own text stays out of the response
+ * (GitHub's rate-limit message names the caller's IP, and a failure can name the fetched
+ * address); the whole error still goes to the logs and the error tracker under this context.
+ */
 export const errorHandler = createErrorHandler({
   context: 'fetching GitHub stats',
-  includeErrorDetails: true,
+  customMessage: () => 'Failed to fetch GitHub stats',
 });
