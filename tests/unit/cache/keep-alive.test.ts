@@ -26,10 +26,37 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const next = vi.hoisted(() => ({ after: vi.fn() }));
 vi.mock('next/server', () => next);
 
-import { keepAlive } from '@/lib/cache/keep-alive';
+import { backgroundRefresh, keepAlive } from '@/lib/cache/keep-alive';
 
 afterEach(() => {
   next.after.mockReset();
+});
+
+describe('backgroundRefresh', () => {
+  it('keeps every handed-over refresh alive, and reports a failed one once', async () => {
+    const report = vi.fn();
+    const { onRefresh } = backgroundRefresh(report);
+    const outage = new Error('upstream down');
+    const refresh = Promise.reject(outage);
+
+    // Three requests answered early hand over the same running refresh.
+    onRefresh?.(refresh);
+    onRefresh?.(refresh);
+    onRefresh?.(refresh);
+    await Promise.all(next.after.mock.calls.map(([kept]) => kept));
+
+    expect(next.after).toHaveBeenCalledTimes(3);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith(outage);
+  });
+
+  it('reports nothing for a refresh that succeeds', async () => {
+    const report = vi.fn();
+    backgroundRefresh(report).onRefresh?.(Promise.resolve('fresh'));
+    await Promise.all(next.after.mock.calls.map(([kept]) => kept));
+
+    expect(report).not.toHaveBeenCalled();
+  });
 });
 
 describe('keepAlive', () => {

@@ -17,6 +17,8 @@
 import { FetchHttpClient, HttpClient, type HttpClientError } from '@effect/platform';
 import { type Cause, Duration, Effect, Either, Schedule, Schema } from 'effect';
 import { XMLParser } from 'fast-xml-parser';
+import { SLASH, trimEdges } from '@/lib/text/trim';
+import { youtubeIdsIn } from '@/lib/youtube/video-id';
 import { logger } from '@/utils';
 
 /**
@@ -34,6 +36,11 @@ const FEED_TIMEOUT = Duration.seconds(10);
 const FEED_RETRIES = 2;
 const FEED_RETRY_BASE_DELAY = Duration.millis(500);
 const DEFAULT_LIMIT = 10;
+/**
+ * The longest excerpt kept. Hashnode's are a few sentences; a longer one is cut here, before
+ * /media reads its links and summary, so one oversized feed item cannot slow every feed build.
+ */
+const EXCERPT_MAX = 5_000;
 
 /**
  * @readonly
@@ -47,6 +54,8 @@ export const BlogSchema = Schema.Struct({
   publishedAt: Schema.String,
   excerpt: Schema.String,
   imageUrl: Schema.optional(Schema.String),
+  /** The YouTube videos the post's body embeds or links, in order; absent when there are none. */
+  videoIds: Schema.optional(Schema.Array(Schema.String)),
 });
 
 /**
@@ -62,6 +71,8 @@ const FeedItemSchema = Schema.Struct({
   link: Schema.String,
   pubDate: Schema.String,
   description: Schema.optional(Schema.String),
+  // The post's body. Read only for the YouTube ids in it; anything but a string is ignored.
+  'content:encoded': Schema.optional(Schema.Unknown),
 });
 
 type FeedItem = Schema.Schema.Type<typeof FeedItemSchema>;
@@ -77,22 +88,29 @@ const feedParser = new XMLParser({
   isArray: (tagName) => tagName === 'item',
 });
 
-/** Maps a feed item to a blog entry, or `null` when it has no title, usable link or valid date. */
+/**
+ * Maps a feed item to a blog entry, or `null` when it has no title, usable link or valid date. The
+ * slug is the link's path without its edge slashes, trimmed by a loop: with '/^\/+|\/+$/', a slash
+ * run inside the path took time that grew with the run's square.
+ */
 function toBlog(item: FeedItem): Blog | null {
   const title = item.title.trim();
   const published = new Date(item.pubDate);
   let slug: string;
   try {
-    slug = new URL(item.link).pathname.replace(/^\/+|\/+$/g, '');
+    slug = trimEdges(new URL(item.link).pathname, SLASH);
   } catch {
     return null;
   }
   if (!title || !slug || Number.isNaN(published.getTime())) return null;
+  const body = item['content:encoded'];
+  const videoIds = typeof body === 'string' ? youtubeIdsIn(body) : [];
   return {
     title,
     slug,
     publishedAt: published.toISOString(),
-    excerpt: item.description?.trim() ?? '',
+    excerpt: item.description?.trim().slice(0, EXCERPT_MAX) ?? '',
+    ...(videoIds.length > 0 ? { videoIds } : {}),
   };
 }
 
@@ -105,7 +123,8 @@ function toBlog(item: FeedItem): Blog | null {
  * @param xml - The RSS document.
  * @param limit - Maximum number of entries to return.
  * @returns Blog entries sorted by `publishedAt`, newest first. `imageUrl` is never set: the feed
- *   carries no cover images (`addHashnodeCovers` reads them from each post page).
+ *   carries no cover images (`addHashnodeCovers` reads them from each post page). `videoIds` is
+ *   set only for a post whose body (`content:encoded`) embeds or links a YouTube video.
  * @throws {Error} If the document is not an RSS feed, for example an HTML error or redirect page.
  * @public
  */

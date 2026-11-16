@@ -33,6 +33,8 @@ export const BlogSchema = Schema.Struct({
   imageUrl: Schema.optional(Schema.String),
   source: Schema.optional(Schema.Union(Schema.Literal('hashnode'), Schema.Literal('devto'))),
   url: Schema.optional(Schema.String),
+  /** The YouTube videos the post embeds or links (/media pairs a post with its video by them). */
+  videoIds: Schema.optional(Schema.Array(Schema.String)),
 });
 
 export type Blog = Schema.Schema.Type<typeof BlogSchema>;

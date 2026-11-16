@@ -30,6 +30,8 @@ import {
 } from '@/lib/api-integrations/youtube';
 import { withDeadline } from '@/lib/async/deadline';
 import { getTalks, getYoutubeVideos } from '@/lib/sanity/api';
+import { YOUTUBE_CHANNEL_HANDLE } from '@/lib/youtube/channel';
+import { youtubeVideoIdOf } from '@/lib/youtube/video-id';
 import { logger } from '@/utils';
 
 /**
@@ -39,64 +41,31 @@ import { logger } from '@/utils';
  */
 export const YOUTUBE_ENRICHMENT_DEADLINE_MS = 4_000;
 
-/** The channel whose uploads are listed next to the videos stored in Sanity. */
-const YOUTUBE_CHANNEL_HANDLE = '@mikeodnis';
-/** The most uploads one YouTube API page answers. */
-const CHANNEL_VIDEO_LIMIT = 50;
 /** Channel videos sort after Sanity's own in `order`. */
 const CHANNEL_ORDER_OFFSET = 100;
-/** A YouTube video ID: 11 characters of letters, digits, '-' and '_'. */
-const YOUTUBE_VIDEO_ID = /^[\w-]{11}$/;
-/** youtube.com paths whose next segment is the video ID, e.g. /embed/ID or /shorts/ID. */
-const YOUTUBE_ID_PATHS = new Set(['embed', 'shorts', 'live', 'v']);
-const HAS_SCHEME = /^[a-z][a-z\d+.-]*:\/\//i;
 
 /** A video in the /videos answer, tagged with where it came from. */
 export type ListedVideo = YoutubeVideo & { readonly source: 'sanity' | 'youtube-api' };
 
+/** The videos list, and whether it holds every upload its sources have. */
+export interface VideoListing {
+  /** Sanity's videos plus the channel's uploads, newest first. */
+  readonly videos: YoutubeVideo[];
+  /**
+   * False when the channel has more uploads than were read (CHANNEL_UPLOADS_CAP in youtube.ts):
+   * the list then holds the newest uploads only, so a page must not state its count as a total.
+   * True when every upload was read, and without a YouTube key (Sanity's list is all there is).
+   */
+  readonly complete: boolean;
+}
+
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/** Parses `value` as a URL, taking a link pasted without its scheme as https. */
-function parseUrl(value: string): URL | null {
-  const trimmed = value.trim();
-  try {
-    return new URL(HAS_SCHEME.test(trimmed) ? trimmed : `https://${trimmed}`);
-  } catch {
-    return null;
-  }
-}
-
-const isYoutubeHost = (host: string): boolean =>
-  host === 'youtube.com' ||
-  host.endsWith('.youtube.com') ||
-  host === 'youtube-nocookie.com' ||
-  host.endsWith('.youtube-nocookie.com');
-
-/** The ID candidate in a youtu.be or youtube.com URL, before it is checked. */
-function videoIdCandidate(url: URL): string | null | undefined {
-  const host = url.hostname.toLowerCase();
-  const [first, second] = url.pathname.split('/').filter(Boolean);
-  if (host === 'youtu.be') return first;
-  if (!isYoutubeHost(host)) return null;
-  if (first === 'watch') return url.searchParams.get('v');
-  return first !== undefined && YOUTUBE_ID_PATHS.has(first) ? second : null;
-}
-
 /**
- * The video ID in a YouTube link: youtube.com/watch?v=ID, youtu.be/ID, and youtube.com's
- * /embed/, /shorts/, /live/ and /v/ paths. Query strings (?si=, ?t=, &list=) and fragments are
- * not part of the ID. Answers null for any other link, or one whose ID is not a YouTube ID.
- */
-export function youtubeVideoIdOf(link: string): string | null {
-  const url = parseUrl(link);
-  const candidate = url ? videoIdCandidate(url) : null;
-  return candidate && YOUTUBE_VIDEO_ID.test(candidate) ? candidate : null;
-}
-
-/**
- * The talk's YouTube video ID. Documents are not decoded yet, so a `videoUrl` that is not a
- * string answers null here and the talk is left for the decoder to drop, alone.
+ * The talk's YouTube video ID, read by the site's one link parser (src/lib/youtube/video-id.ts).
+ * Documents are not decoded yet, so a `videoUrl` that is not a string answers null here and the
+ * talk is left for the decoder to drop, alone.
  */
 const youtubeIdOfTalk = (talk: Talk): string | null =>
   talk.videoFormat === 'youtube' && typeof talk.videoUrl === 'string'
@@ -157,15 +126,16 @@ const toChannelVideo = (video: YouTubeVideoMetadata, index: number): ListedVideo
 });
 
 /**
- * The channel's uploads. They are most of the list, so a failure fails the route (which then
- * serves its last good list) rather than answering a list that silently lost them.
+ * The channel's uploads (up to CHANNEL_UPLOADS_CAP, page by page), and whether that was all of
+ * them. They are most of the list, so a failure fails the route (which then serves its last good
+ * list) rather than answering a list that silently lost them.
  */
-async function loadChannelVideos(apiKey: string): Promise<ListedVideo[]> {
+async function loadChannelVideos(
+  apiKey: string,
+): Promise<{ readonly videos: ListedVideo[]; readonly complete: boolean }> {
   try {
-    const videos = await fetchChannelVideos(YOUTUBE_CHANNEL_HANDLE, apiKey, {
-      maxResults: CHANNEL_VIDEO_LIMIT,
-    });
-    return videos.map(toChannelVideo);
+    const { videos, complete } = await fetchChannelVideos(YOUTUBE_CHANNEL_HANDLE, apiKey);
+    return { videos: videos.map(toChannelVideo), complete };
   } catch (error) {
     throw ensureBaseError(error, 'youtube:channel-videos', { channel: YOUTUBE_CHANNEL_HANDLE });
   }
@@ -217,18 +187,18 @@ function mergeVideos(sanityVideos: YoutubeVideo[], channelVideos: ListedVideo[])
 }
 
 /**
- * The videos stored in Sanity plus the channel's uploads. With no Sanity videos that is the
- * channel alone, and with no YouTube key it is Sanity's list alone (possibly empty). Throws when
- * Sanity or the channel listing fails.
+ * The videos stored in Sanity plus the channel's uploads, and whether that is every upload. With
+ * no Sanity videos that is the channel alone, and with no YouTube key it is Sanity's list alone
+ * (possibly empty). Throws when Sanity or the channel listing fails.
  */
-export async function loadYoutubeVideos(): Promise<YoutubeVideo[]> {
+export async function loadVideoListing(): Promise<VideoListing> {
   const sanityVideos = await getYoutubeVideos();
   const apiKey = env.YOUTUBE_SERVER_API_KEY;
-  if (!apiKey) return sanityVideos;
+  if (!apiKey) return { videos: sanityVideos, complete: true };
 
-  const [channelVideos, enrichedVideos] = await Promise.all([
+  const [channel, enrichedVideos] = await Promise.all([
     loadChannelVideos(apiKey),
     withYoutubeMetadata(sanityVideos, apiKey),
   ]);
-  return mergeVideos(enrichedVideos, channelVideos);
+  return { videos: mergeVideos(enrichedVideos, channel.videos), complete: channel.complete };
 }

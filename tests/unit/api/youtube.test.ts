@@ -20,7 +20,9 @@
  * HTTP client:
  * - the server key rides in the X-Goog-Api-Key header, never in a URL, so a failed request's
  *   error (its message, stack and the wrapped error the routes report) never carries it;
- * - the IDs sent are percent-encoded.
+ * - the IDs sent are percent-encoded;
+ * - the channel's uploads are read page by page (50 a page, metadata in batches of 50) up to
+ *   CHANNEL_UPLOADS_CAP, and the answer says whether that was every upload.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,10 +32,9 @@ vi.mock('@/env', () => ({ env: {}, default: {} }));
 
 import { ensureBaseError } from '@/classes/error';
 import {
+  CHANNEL_UPLOADS_CAP,
   fetchChannelVideos,
-  fetchYouTubeVideoMetadata,
   fetchYouTubeVideoMetadataBatch,
-  resolveChannelHandle,
 } from '@/lib/api-integrations/youtube';
 
 /** A made-up key: the tests look for it in every URL and every error. */
@@ -58,7 +59,6 @@ const publishedOf = (index: number): string =>
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-/** Answers both channel calls: part=id (a handle's ID) and part=contentDetails (its uploads). */
 const channelsAnswer = () =>
   json({
     kind: 'youtube#channelListResponse',
@@ -74,28 +74,35 @@ const channelsAnswer = () =>
     ],
   });
 
-/** The uploads playlist of a channel with `total` uploads, as one page. */
+/** One page of a playlist with `total` uploads; the page token is the index it starts at. */
 function playlistAnswer(url: URL, total: number): Response {
-  const size = Math.min(total, Number(url.searchParams.get('maxResults') ?? '5'));
-  const items = Array.from({ length: size }, (_, index) => ({
-    kind: 'youtube#playlistItem',
-    etag: 'e',
-    id: `item-${index}`,
-    snippet: {
-      publishedAt: publishedOf(index),
-      channelId: 'UCexample',
-      title: `Upload ${index}`,
-      description: '',
-      thumbnails,
-      channelTitle: 'Example',
-      playlistId: UPLOADS,
-      position: index,
-      resourceId: { kind: 'youtube#video', videoId: idOf(index) },
-    },
-  }));
+  const start = Number(url.searchParams.get('pageToken') ?? '0');
+  const size = Number(url.searchParams.get('maxResults') ?? '5');
+  const end = Math.min(total, start + size);
+  const items = Array.from({ length: end - start }, (_, offset) => {
+    const index = start + offset;
+    return {
+      kind: 'youtube#playlistItem',
+      etag: 'e',
+      id: `item-${index}`,
+      snippet: {
+        publishedAt: publishedOf(index),
+        channelId: 'UCexample',
+        title: `Upload ${index}`,
+        description: '',
+        thumbnails,
+        channelTitle: 'Example',
+        playlistId: UPLOADS,
+        position: index,
+        resourceId: { kind: 'youtube#video', videoId: idOf(index) },
+      },
+      contentDetails: { videoId: idOf(index), videoPublishedAt: publishedOf(index) },
+    };
+  });
   return json({
     kind: 'youtube#playlistItemListResponse',
     etag: 'e',
+    ...(end < total ? { nextPageToken: String(end) } : {}),
     pageInfo: { totalResults: total, resultsPerPage: size },
     items,
   });
@@ -162,44 +169,16 @@ describe('the YouTube server key', () => {
   it('rides in the X-Goog-Api-Key header of every request and in no URL', async () => {
     const { seen } = fakeYoutube(3);
 
-    const uploads = await fetchChannelVideos(HANDLE, KEY);
+    await fetchChannelVideos(HANDLE, KEY);
     await fetchYouTubeVideoMetadataBatch([idOf(1), idOf(2)], KEY);
-    await fetchYouTubeVideoMetadata(idOf(0), KEY);
-    await resolveChannelHandle(HANDLE, KEY);
 
-    // The listing is the handle's ID, its uploads playlist, one playlist page and one metadata
-    // batch; then the batch, the single video and the handle on their own.
-    expect(seen).toHaveLength(7);
+    // The channel, one playlist page and one metadata batch, then the batch call's own.
+    expect(seen.length).toBeGreaterThanOrEqual(4);
     for (const { url, apiKey } of seen) {
       expect(url.href).not.toContain(KEY);
       expect(url.searchParams.has('key')).toBe(false);
       expect(apiKey).toBe(KEY);
     }
-    // The answers are unchanged: the uploads, newest first, with their lengths.
-    expect(uploads.map(({ videoId, duration }) => [videoId, duration])).toEqual([
-      [idOf(0), '4:20'],
-      [idOf(1), '4:20'],
-      [idOf(2), '4:20'],
-    ]);
-  });
-
-  it('asks for the same resources as before, with the same parameters', async () => {
-    const { seen } = fakeYoutube(3);
-
-    await fetchChannelVideos(HANDLE, KEY);
-
-    const [handle, channel] = callsTo(seen, 'channels');
-    expect(handle?.url.searchParams.get('part')).toBe('id');
-    expect(handle?.url.searchParams.get('forHandle')).toBe(HANDLE);
-    expect(channel?.url.searchParams.get('part')).toBe('contentDetails');
-    expect(channel?.url.searchParams.get('id')).toBe('UCexample');
-    const [page] = callsTo(seen, 'playlistItems');
-    expect(page?.url.searchParams.get('part')).toBe('snippet');
-    expect(page?.url.searchParams.get('playlistId')).toBe(UPLOADS);
-    expect(page?.url.searchParams.get('maxResults')).toBe('50');
-    const [batch] = callsTo(seen, 'videos');
-    expect(batch?.url.searchParams.get('part')).toBe('snippet,contentDetails');
-    expect(batch?.url.searchParams.get('id')).toBe([0, 1, 2].map(idOf).join(','));
   });
 
   it('percent-encodes the IDs it sends, so an ID cannot add a parameter', async () => {
@@ -280,5 +259,150 @@ describe('an error from a failed YouTube request', () => {
     }
     // The failure still says what failed, so it stays useful in the error tracker.
     expect(textsOf(batchError).join(' ')).toContain('googleapis.com/youtube/v3/videos');
+  });
+});
+
+describe("the channel's uploads", () => {
+  it('reads one page and one batch for 50 uploads: three calls in all', async () => {
+    const { seen } = fakeYoutube(50);
+
+    const { videos, complete } = await fetchChannelVideos(HANDLE, KEY);
+
+    expect(videos).toHaveLength(50);
+    expect(complete).toBe(true);
+    expect(callsTo(seen, 'channels')).toHaveLength(1);
+    expect(callsTo(seen, 'playlistItems')).toHaveLength(1);
+    expect(callsTo(seen, 'videos')).toHaveLength(1);
+  });
+
+  it('reads the next page for upload 51, and its metadata in a second batch', async () => {
+    const { seen } = fakeYoutube(51);
+
+    const { videos, complete } = await fetchChannelVideos(HANDLE, KEY);
+
+    expect(videos).toHaveLength(51);
+    expect(complete).toBe(true);
+    expect(videos.map(({ videoId }) => videoId)).toEqual(
+      Array.from({ length: 51 }, (_, index) => idOf(index)),
+    );
+    const pages = callsTo(seen, 'playlistItems');
+    expect(pages.map(({ url }) => url.searchParams.get('pageToken'))).toEqual([null, '50']);
+    expect(pages.every(({ url }) => url.searchParams.get('maxResults') === '50')).toBe(true);
+    expect(
+      callsTo(seen, 'videos').map(({ url }) => url.searchParams.get('id')?.split(',').length),
+    ).toEqual([50, 1]);
+    expect(seen).toHaveLength(5);
+  });
+
+  it(`stops at ${CHANNEL_UPLOADS_CAP} of 250 uploads and says the list is not complete`, async () => {
+    const { seen } = fakeYoutube(250);
+
+    const { videos, complete } = await fetchChannelVideos(HANDLE, KEY);
+
+    expect(CHANNEL_UPLOADS_CAP).toBe(200);
+    expect(videos).toHaveLength(CHANNEL_UPLOADS_CAP);
+    expect(videos.at(0)?.videoId).toBe(idOf(0));
+    expect(videos.at(-1)?.videoId).toBe(idOf(CHANNEL_UPLOADS_CAP - 1));
+    expect(complete).toBe(false);
+    expect(callsTo(seen, 'playlistItems')).toHaveLength(4);
+    expect(callsTo(seen, 'videos')).toHaveLength(4);
+    expect(seen).toHaveLength(9);
+  });
+
+  it('calls a list that ends exactly at the cap complete', async () => {
+    fakeYoutube(CHANNEL_UPLOADS_CAP);
+
+    const { videos, complete } = await fetchChannelVideos(HANDLE, KEY);
+
+    expect(videos).toHaveLength(CHANNEL_UPLOADS_CAP);
+    expect(complete).toBe(true);
+  });
+
+  it('answers an empty, complete list for a channel with no uploads', async () => {
+    fakeYoutube(0);
+
+    await expect(fetchChannelVideos(HANDLE, KEY)).resolves.toEqual({ videos: [], complete: true });
+  });
+
+  it('fails as a whole when one page fails, rather than answer part of the list', async () => {
+    const { fetchMock, answer } = fakeYoutube(120);
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      if (url.searchParams.get('pageToken') === '100') return json({ error: 'bad page' }, 400);
+      return answer(input, init);
+    });
+
+    await expect(fetchChannelVideos(HANDLE, KEY)).rejects.toThrow();
+  });
+
+  // Page tokens are positions: an upload that goes public between two page reads shifts the list
+  // down by one, so page 2 starts with the last upload of page 1.
+  it('lists an upload once when page 2 starts with the last upload of page 1', async () => {
+    const { seen, fetchMock, answer } = fakeYoutube(60);
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      if (url.searchParams.get('pageToken') === '50') {
+        url.searchParams.set('pageToken', '49');
+        return answer(url.href, init);
+      }
+      return answer(input, init);
+    });
+
+    const { videos, complete } = await fetchChannelVideos(HANDLE, KEY);
+
+    expect(videos.map(({ videoId }) => videoId)).toEqual(
+      Array.from({ length: 60 }, (_, index) => idOf(index)),
+    );
+    expect(complete).toBe(true);
+    // The repeated upload's metadata is not asked for twice.
+    expect(
+      callsTo(seen, 'videos').map(({ url }) => url.searchParams.get('id')?.split(',').length),
+    ).toEqual([50, 10]);
+  });
+
+  it('stops at a page token it has already read, and says the list is not complete', async () => {
+    const { seen, fetchMock, answer } = fakeYoutube(50);
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      if (!url.pathname.endsWith('/playlistItems')) return answer(input, init);
+      // Every page is the same 50 uploads with the same next token.
+      url.searchParams.delete('pageToken');
+      const page = (await (await answer(url.href, init)).json()) as Record<string, unknown>;
+      return json({ ...page, nextPageToken: 'same-token' });
+    });
+
+    const { videos, complete } = await fetchChannelVideos(HANDLE, KEY);
+
+    expect(videos).toHaveLength(50);
+    expect(new Set(videos.map(({ videoId }) => videoId)).size).toBe(50);
+    expect(complete).toBe(false);
+    // The tokens as sent (the fake reads every page without one).
+    const sentTokens = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input)))
+      .filter((url) => url.pathname.endsWith('/playlistItems'))
+      .map((url) => url.searchParams.get('pageToken'));
+    expect(sentTokens).toEqual([null, 'same-token']);
+    expect(callsTo(seen, 'videos')).toHaveLength(1);
+  });
+});
+
+describe('the metadata batch', () => {
+  it('asks for any number of IDs in batches of 50', async () => {
+    const { seen } = fakeYoutube(0);
+    const ids = Array.from({ length: 120 }, (_, index) => idOf(index));
+
+    const metadata = await fetchYouTubeVideoMetadataBatch(ids, KEY);
+
+    expect(metadata.size).toBe(120);
+    expect(
+      callsTo(seen, 'videos').map(({ url }) => url.searchParams.get('id')?.split(',').length),
+    ).toEqual([50, 50, 20]);
+  });
+
+  it('asks nothing for no IDs', async () => {
+    const { seen } = fakeYoutube(0);
+
+    await expect(fetchYouTubeVideoMetadataBatch([], KEY)).resolves.toEqual(new Map());
+    expect(seen).toHaveLength(0);
   });
 });

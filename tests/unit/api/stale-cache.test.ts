@@ -465,6 +465,143 @@ describe('createStaleCache.expire', () => {
   });
 });
 
+describe('createStaleCache.getOrRefresh', () => {
+  it('serves a fresh value like get: no load, no refresh', async () => {
+    const { cache } = setup<string>();
+    await cache.get('key', async () => 'fresh');
+    const load = vi.fn(async () => 'never');
+    const onRefresh = vi.fn();
+
+    await expect(cache.getOrRefresh('key', load, { onRefresh })).resolves.toEqual({
+      stale: false,
+      data: 'fresh',
+    });
+    expect(load).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('answers an expired value at once and starts one refresh, which the next request reads', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'old');
+    advance(TTL_MS);
+    const reload = held<string>();
+    const load = vi.fn(reload.load);
+    const onRefresh = vi.fn();
+
+    const answers = await Promise.all(
+      [1, 2, 3].map(() => cache.getOrRefresh('key', load, { onRefresh })),
+    );
+
+    expect(answers).toEqual([1, 2, 3].map(() => ({ stale: false, data: 'old' })));
+    expect(load).toHaveBeenCalledTimes(1);
+    // Every early answer hands over the same running refresh, so each request can keep it alive.
+    expect(onRefresh).toHaveBeenCalledTimes(3);
+    expect(new Set(onRefresh.mock.calls.map(([refresh]) => refresh)).size).toBe(1);
+
+    await reload.settle('new');
+    await onRefresh.mock.calls[0]?.[0];
+    await expect(cache.getOrRefresh('key', load, { onRefresh })).resolves.toEqual({
+      stale: false,
+      data: 'new',
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('joins a reload that get() already started instead of starting another', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'old');
+    advance(TTL_MS);
+    const reload = held<string>();
+    const load = vi.fn(reload.load);
+
+    const waiting = cache.get('key', load);
+    const early = await cache.getOrRefresh('key', load);
+    await reload.settle('new');
+
+    expect(early).toEqual({ stale: false, data: 'old' });
+    await expect(waiting).resolves.toEqual({ stale: false, data: 'new' });
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the load when nothing was ever cached, and rejects with its error', async () => {
+    const { cache } = setup<string>();
+    const reload = held<string>();
+    const onRefresh = vi.fn();
+    let settled = false;
+
+    const pending = cache.getOrRefresh('key', reload.load, { onRefresh }).finally(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    await reload.settle('first');
+    await expect(pending).resolves.toEqual({ stale: false, data: 'first' });
+
+    const outage = new Error('upstream down');
+    await expect(
+      cache.getOrRefresh('cold', async () => {
+        throw outage;
+      }),
+    ).rejects.toBe(outage);
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('waits for the reload after expire(), never answering the value a write made out of date', async () => {
+    const { cache } = setup<string>();
+    await cache.get('key', async () => 'before the write');
+    cache.expire('key');
+    const onRefresh = vi.fn();
+
+    await expect(
+      cache.getOrRefresh('key', async () => 'after the write', { onRefresh }),
+    ).resolves.toEqual({ stale: false, data: 'after the write' });
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('hands a failed refresh over to be reported, then serves the old value stale during the backoff', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'good');
+    advance(TTL_MS);
+    const outage = new Error('upstream down');
+    const load = vi.fn(async (): Promise<string> => {
+      throw outage;
+    });
+    const onRefresh = vi.fn();
+
+    await expect(cache.getOrRefresh('key', load, { onRefresh })).resolves.toEqual({
+      stale: false,
+      data: 'good',
+    });
+    await expect(onRefresh.mock.calls[0]?.[0]).rejects.toBe(outage);
+
+    await expect(cache.getOrRefresh('key', load, { onRefresh })).resolves.toEqual({
+      stale: true,
+      data: 'good',
+      error: outage,
+      loadedAt: 0,
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves no unhandled rejection when nobody takes the failed refresh', async () => {
+    const { cache, advance } = setup<string>();
+    await cache.get('key', async () => 'good');
+    advance(TTL_MS);
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      await cache.getOrRefresh('key', async () => {
+        throw new Error('upstream down');
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+});
+
 describe('createStaleCache.clear while a load runs', () => {
   it('caches nothing from a load that started before clear()', async () => {
     const { cache } = setup<string>();

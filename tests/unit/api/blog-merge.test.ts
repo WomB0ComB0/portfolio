@@ -249,6 +249,28 @@ describe('mergeBlogSources', () => {
     expect(merged[0]?.imageUrl).toBe(second.imageUrl);
   });
 
+  // The canonical path's slashes were trimmed by '/^\/+|\/+$/', whose '\/+$' half takes time that
+  // grows with the square of a slash run inside the path; dev.to's canonical_url is outside data.
+  it('reads a canonical_url whose path holds a 100,000-slash run fast', () => {
+    const run = '/'.repeat(100_000);
+    const inside = devto('Other', 'other-1', CHAT_HN.publishedAt, {
+      canonicalUrl: `${HASHNODE_BLOG_URL}/a${run}b`,
+    });
+    const atEnds = devto('Another', 'another-1', CHAT_HN.publishedAt, {
+      canonicalUrl: `${HASHNODE_BLOG_URL}${run}${CHAT_HN.slug}${run}`,
+    });
+    const start = performance.now();
+    const merged = mergeBlogSources([CHAT_HN], [inside, atEnds]);
+    const elapsed = performance.now() - start;
+
+    expect(elapsed).toBeLessThan(250);
+    // The second copy names the Hashnode post once its edge slashes go; the first names no post.
+    expect(merged.map((b) => [b.source, b.slug])).toEqual([
+      ['hashnode', CHAT_HN.slug],
+      ['devto', 'other-1'],
+    ]);
+  });
+
   it('works with only one source', () => {
     expect(mergeBlogSources([], [CHAT_DT]).map((b) => b.source)).toEqual(['devto']);
     expect(mergeBlogSources([CHAT_HN], []).map((b) => b.source)).toEqual(['hashnode']);

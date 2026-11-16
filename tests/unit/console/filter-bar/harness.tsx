@@ -84,25 +84,37 @@ export interface FullBarProps {
   readonly initial?: string;
   /** How many Technology options show before Show all; the Picker's own default when unset. */
   readonly pickerLimit?: number;
+  /**
+   * Leaves the Technology picker out of the bar and names only Kind as the sheet's facet: the
+   * technology filter is then one the bar has no control for (as a series link is on /media).
+   */
+  readonly kindOnly?: boolean;
   /** More inside the Provider, after the results (a control that calls the bar's change). */
   readonly extra?: ReactNode;
 }
 
 /** The whole family, composed as /projects will compose it. */
-export function FullBar({ initial = '', pickerLimit, extra }: FullBarProps): ReactNode {
+export function FullBar({
+  initial = '',
+  pickerLimit,
+  kindOnly = false,
+  extra,
+}: FullBarProps): ReactNode {
   return (
     <Harness initial={initial}>
       {(results) => (
         <>
           <FilterBar.Root sticky>
             <FilterBar.Search />
-            <FilterBar.Facets>
+            <FilterBar.Facets facets={kindOnly ? ['category'] : undefined}>
               <FilterBar.Chips facet="category" />
-              <FilterBar.Picker
-                facet="tech"
-                searchLabel="Filter technologies"
-                limit={pickerLimit}
-              />
+              {!kindOnly && (
+                <FilterBar.Picker
+                  facet="tech"
+                  searchLabel="Filter technologies"
+                  limit={pickerLimit}
+                />
+              )}
             </FilterBar.Facets>
           </FilterBar.Root>
           <div>

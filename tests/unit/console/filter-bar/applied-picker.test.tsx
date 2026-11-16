@@ -74,6 +74,19 @@ describe('FilterBar.Applied', () => {
     expect(screen.getByRole('link', { name: 'Clear all' })).toHaveAttribute('href', '/projects');
   });
 
+  it('grows with a value longer than its row instead of spilling out of a fixed-height pill', () => {
+    render(<FullBar initial="?category=tools" />);
+    const classes = (token('Remove Kind: Tools').getAttribute('class') ?? '').split(' ');
+
+    // At least the 28px of one line and as tall as its words: a long value wraps inside the pill.
+    expect(classes).toContain('min-h-7');
+    expect(classes).not.toContain('h-7');
+    expect(classes).toContain('py-[0.1875rem]');
+    // 14px corners: the full pill at one line, a rounded box at two.
+    expect(classes).toContain('rounded-[0.875rem]');
+    expect(classes).not.toContain('rounded-full');
+  });
+
   it('moves focus to the next token, then the previous one, then the current chip', () => {
     render(<FullBar initial="?category=tools&tech=go&tech=python" />);
 
@@ -112,6 +125,43 @@ describe('FilterBar.Applied', () => {
     expect(results()).toHaveLength(5);
     expect(screen.getByRole('searchbox', { name: 'Search projects' })).toHaveValue('');
     expect(document.activeElement).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+// On a phone the chips are in the closed sheet, so the current chip cannot take focus. The search
+// field would (and a focused text field opens the on-screen keyboard): the Filters button takes it.
+describe('FilterBar.Applied on a phone', () => {
+  beforeEach(() => {
+    narrow();
+    narrow = () => undefined;
+  });
+
+  const filtersButton = (): HTMLElement => screen.getByRole('button', { name: /^Filters/ });
+
+  it('hands focus to the Filters button once the last token goes, never to the search', () => {
+    render(<FullBar initial="?category=tools" />);
+
+    fireEvent.click(token('Remove Kind: Tools'));
+
+    expect(results()).toHaveLength(5);
+    expect(document.activeElement).toBe(filtersButton());
+  });
+
+  it('hands focus to the Filters button after Clear all, never to the search', () => {
+    render(<FullBar initial="?category=tools&tech=python&q=bot" />);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Clear all' }));
+
+    expect(results()).toHaveLength(5);
+    expect(document.activeElement).toBe(filtersButton());
+  });
+
+  it('still moves focus to the next token while one is left', () => {
+    render(<FullBar initial="?category=tools&tech=go" />);
+
+    fireEvent.click(token('Remove Kind: Tools'));
+
+    expect(document.activeElement).toBe(token('Remove Technology: Go'));
   });
 });
 

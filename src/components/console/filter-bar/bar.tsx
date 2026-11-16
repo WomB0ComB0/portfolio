@@ -232,6 +232,11 @@ export function FilterBarSearch({
 export interface FilterBarFacetsProps {
   /** The phone button's word. */
   readonly label?: string;
+  /**
+   * The facets the sheet holds; all by default. The button counts only these, so a filter chosen
+   * elsewhere on the page (a series link, say) never reads as one waiting inside the sheet.
+   */
+  readonly facets?: readonly string[];
   readonly children: ReactNode;
 }
 
@@ -393,12 +398,14 @@ function useOutsidePressCloses(sheet: RefObject<HTMLDivElement | null>): void {
 }
 
 /**
- * The facets: on a phone, a Filters button (counting the values in use) and the bottom sheet it
- * opens, which ends with a button showing how many results there are; from a 48rem page the
- * sheet's children sit in the bar and the button is gone.
+ * The facets: on a phone, a Filters button (counting the values in use, of the sheet's own facets
+ * when `facets` names them) and the bottom sheet it opens, which ends with a button showing how
+ * many results there are; from a 48rem page the sheet's children sit in the bar and the button
+ * is gone.
  */
 export function FilterBarFacets({
   label = 'Filters',
+  facets,
   children,
 }: FilterBarFacetsProps): ReactElement {
   const { model, registry, sheetId } = useFilterBar();
@@ -407,14 +414,15 @@ export function FilterBarFacets({
   useOutsidePressCloses(sheetRef);
   useOtherLayerCloses(sheetRef);
   useLayoutStep(sheetRef);
-  const chosen = chosenCount(model);
+  const chosen = chosenCount(model, facets);
   const noun = model.shown === 1 ? model.noun.one : model.noun.many;
   return (
     <>
       <button
         ref={(element) => {
-          // While it shows, the chips are in the sheet (shownFiltersButton).
+          // While it shows, the chips are in the sheet; the bar holds these facets' controls.
           registry.current.filtersButton = element;
+          registry.current.barFacets = element ? (facets ?? 'all') : [];
         }}
         type="button"
         popoverTarget={sheetId}

@@ -19,6 +19,7 @@
  * appears once. Pure: no I/O, and the inputs are never modified.
  */
 
+import { SLASH, trimEdges } from '@/lib/text/trim';
 import { type Blog, HASHNODE_BLOG_URL } from './blogs';
 import type { DevToBlog } from './devto';
 
@@ -31,6 +32,8 @@ export interface BlogPost {
   readonly imageUrl?: string;
   readonly source: 'hashnode' | 'devto';
   readonly url: string;
+  /** The YouTube videos the post's body embeds or links; only read for Hashnode posts. */
+  readonly videoIds?: readonly string[];
 }
 
 const HASHNODE_HOST = new URL(HASHNODE_BLOG_URL).hostname;
@@ -57,14 +60,16 @@ export function normalizeTitle(title: string): string {
 
 /**
  * The Hashnode slug a dev.to `canonical_url` points at, or `undefined` when it points anywhere
- * other than a post on the Hashnode blog (dev.to sets it to the article itself by default).
+ * other than a post on the Hashnode blog (dev.to sets it to the article itself by default). Its
+ * edge slashes are trimmed by a loop: a canonical_url is dev.to's data, and with '/^\/+|\/+$/' a
+ * slash run inside the path took time that grew with the run's square.
  */
 function canonicalHashnodeSlug(canonicalUrl: string | undefined): string | undefined {
   if (!canonicalUrl) return undefined;
   try {
     const url = new URL(canonicalUrl);
     if (url.hostname !== HASHNODE_HOST) return undefined;
-    return url.pathname.replace(/^\/+|\/+$/g, '') || undefined;
+    return trimEdges(url.pathname, SLASH) || undefined;
   } catch {
     return undefined;
   }
@@ -117,6 +122,7 @@ function toPost(
     ...(imageUrl ? { imageUrl } : {}),
     source,
     url,
+    ...(post.videoIds && post.videoIds.length > 0 ? { videoIds: post.videoIds } : {}),
   };
 }
 

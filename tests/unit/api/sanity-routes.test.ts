@@ -134,6 +134,9 @@ beforeEach(() => {
   envValues.NEXT_PUBLIC_FIREBASE_API_KEY = undefined;
 });
 
+/** fetchChannelVideos' answer: the uploads, and whether that is every one of them. */
+const channelListing = (videos: unknown[], complete = true) => ({ videos, complete });
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -377,7 +380,13 @@ describe('GET /sanity/talks', () => {
     ['/embed/', `https://www.youtube.com/embed/${VIDEO_ID}?start=10`],
     ['/shorts/', `https://youtube.com/shorts/${VIDEO_ID}?feature=share`],
     ['/live/', `https://www.youtube.com/live/${VIDEO_ID}?si=x`],
+    ['/v/', `https://www.youtube.com/v/${VIDEO_ID}`],
+    ['privacy-enhanced embed', `https://www.youtube-nocookie.com/embed/${VIDEO_ID}`],
+    ['protocol-relative embed', `//www.youtube.com/embed/${VIDEO_ID}`],
     ['no scheme', `youtu.be/${VIDEO_ID}?si=x`],
+    ['no scheme, www', `www.youtube.com/watch?v=${VIDEO_ID}`],
+    ['upper-case scheme and host', `HTTPS://WWW.YOUTUBE.COM/watch?v=${VIDEO_ID}`],
+    ['space-padded', `  https://youtu.be/${VIDEO_ID}  `],
   ])('reads the video ID from a %s link', async (_form, videoUrl) => {
     envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     sanity.sanityFetchWithToken.mockResolvedValue([talk('t1', videoUrl)]);
@@ -402,6 +411,12 @@ describe('GET /sanity/talks', () => {
       talk('t4', 'not a url at all'),
       talk('t5', `https://vimeo.com/${VIDEO_ID}`, 'vimeo'),
       talk('t6', null),
+      talk('t7', ''),
+      talk('t8', '   '),
+      talk('t9', 'https://www.youtube.com/watch'),
+      talk('t10', `https://www.youtube.com/playlist?list=${VIDEO_ID}`),
+      talk('t11', `https://youtube.com.example.org/watch?v=${VIDEO_ID}`),
+      talk('t12', `https://www.youtube.com/watch?v=${VIDEO_ID}x`),
     ]);
     const get = await loadApp();
 
@@ -432,10 +447,12 @@ describe('GET /sanity/videos', () => {
   it('answers only the channel videos when Sanity has none', async () => {
     envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     sanity.sanityFetchWithToken.mockResolvedValue([]);
-    youtube.fetchChannelVideos.mockResolvedValue([
-      channelVideo('chanOld0001', '2025-06-01T00:00:00Z'),
-      channelVideo('chanNew0002', '2026-02-01T00:00:00Z'),
-    ]);
+    youtube.fetchChannelVideos.mockResolvedValue(
+      channelListing([
+        channelVideo('chanOld0001', '2025-06-01T00:00:00Z'),
+        channelVideo('chanNew0002', '2026-02-01T00:00:00Z'),
+      ]),
+    );
     youtube.fetchYouTubeVideoMetadataBatch.mockImplementation(async (ids: string[]) => {
       return new Map(ids.map((id) => [id, channelVideo(id, '2020-01-01T00:00:00Z')]));
     });
@@ -465,10 +482,12 @@ describe('GET /sanity/videos', () => {
       order: 1,
     };
     sanity.sanityFetchWithToken.mockResolvedValue([sanityVideo]);
-    youtube.fetchChannelVideos.mockResolvedValue([
-      channelVideo('sanityVid01', '2026-03-01T00:00:00Z'),
-      channelVideo('chanOnly001', '2026-01-15T00:00:00Z'),
-    ]);
+    youtube.fetchChannelVideos.mockResolvedValue(
+      channelListing([
+        channelVideo('sanityVid01', '2026-03-01T00:00:00Z'),
+        channelVideo('chanOnly001', '2026-01-15T00:00:00Z'),
+      ]),
+    );
     youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValue(
       new Map([['sanityVid01', { ...channelVideo('sanityVid01', ''), title: 'Live title' }]]),
     );
@@ -498,9 +517,9 @@ describe('GET /sanity/videos', () => {
     envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     sanity.sanityFetchWithToken.mockResolvedValue([]);
     youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValue(new Map());
-    youtube.fetchChannelVideos.mockResolvedValueOnce([
-      channelVideo('chanVideo01', '2026-02-01T00:00:00Z'),
-    ]);
+    youtube.fetchChannelVideos.mockResolvedValueOnce(
+      channelListing([channelVideo('chanVideo01', '2026-02-01T00:00:00Z')]),
+    );
     const get = await loadApp();
     await get('/videos');
 

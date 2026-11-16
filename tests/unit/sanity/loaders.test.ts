@@ -59,11 +59,13 @@ import {
   loadProjects,
   loadResume,
   loadTalks,
+  loadVideoList,
   loadVideos,
   peekCertifications,
   peekExperiences,
   peekPlaces,
   peekProjects,
+  peekVideos,
   resetSanityLoaderCaches,
   SANITY_CACHE_TTL_MS,
   YOUTUBE_LOAD_DEADLINE_MS,
@@ -77,7 +79,13 @@ const youtube = vi.hoisted(() => ({
   fetchYouTubeVideoMetadataBatch: vi.fn(),
 }));
 const envValues = vi.hoisted((): Record<string, string | undefined> => ({ NODE_ENV: 'test' }));
+/** Next's after(): what a page hands over to keep running once its response has ended. */
+const next = vi.hoisted(() => ({ after: vi.fn() }));
 
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: next.after,
+}));
 vi.mock('@sentry/nextjs', () => sentry);
 vi.mock('@/lib/sanity/client', () => sanity);
 vi.mock('@/lib/api-integrations/youtube', () => youtube);
@@ -133,6 +141,7 @@ beforeEach(() => {
   sanity.sanityFetchWithToken.mockReset();
   youtube.fetchChannelVideos.mockReset();
   youtube.fetchYouTubeVideoMetadataBatch.mockReset();
+  next.after.mockReset();
   envValues.YOUTUBE_SERVER_API_KEY = undefined;
   envValues.NEXT_PUBLIC_FIREBASE_API_KEY = undefined;
   resetSanityLoaderCaches();
@@ -469,19 +478,49 @@ describe('loadVideos', () => {
     expect(await loadVideos()).toEqual([{ ...storedVideo, source: 'sanity' }]);
   });
 
+  // A dev server keeps globalThis across a reload: the cache an older copy of this module made
+  // (without getOrRefresh, holding the bare videos list) must not reach the new code.
+  it('start a cache of their own when the process still holds the one an older version made', async () => {
+    const store = globalThis as Record<symbol, unknown>;
+    const OLD_KEY = Symbol.for('portfolio.sanity.readers');
+    const before = store[OLD_KEY];
+    store[OLD_KEY] = { get: vi.fn(), peek: vi.fn(), expire: vi.fn(), clear: vi.fn() };
+    try {
+      const copy = await loadModuleCopy();
+      copy.resetSanityLoaderCaches();
+      sanity.sanityFetchWithToken.mockResolvedValue([storedVideo]);
+
+      expect(await copy.loadVideos()).toEqual([{ ...storedVideo, source: 'sanity' }]);
+    } finally {
+      store[OLD_KEY] = before;
+    }
+  });
+
+  /** A channel upload as fetchChannelVideos lists it. */
+  const upload = (videoId: string, publishedAt = '2026-04-01T00:00:00Z') => ({
+    videoId,
+    title: `Upload ${videoId}`,
+    description: 'From the channel',
+    duration: '4:20',
+    publishedAt,
+  });
+
   it('keeps where each video came from once the channel is merged in', async () => {
     envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
     sanity.sanityFetchWithToken.mockResolvedValue([storedVideo]);
     youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValue(new Map());
-    youtube.fetchChannelVideos.mockResolvedValue([
-      {
-        videoId: 'channelVid1',
-        title: 'Channel video',
-        description: 'From the channel',
-        duration: '4:20',
-        publishedAt: '2026-04-01T00:00:00Z',
-      },
-    ]);
+    youtube.fetchChannelVideos.mockResolvedValue({
+      videos: [
+        {
+          videoId: 'channelVid1',
+          title: 'Channel video',
+          description: 'From the channel',
+          duration: '4:20',
+          publishedAt: '2026-04-01T00:00:00Z',
+        },
+      ],
+      complete: true,
+    });
 
     const videos = await loadVideos();
 
@@ -489,6 +528,115 @@ describe('loadVideos', () => {
       { _id: 'yt-channel-channelVid1', source: 'youtube-api' },
       { _id: 'video-stored', source: 'sanity' },
     ]);
+  });
+
+  it('says the list is not complete once the channel had more uploads than were read', async () => {
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    youtube.fetchChannelVideos.mockResolvedValue({
+      videos: [upload('newest00001')],
+      complete: false,
+    });
+
+    const list = await loadVideoList();
+
+    expect(list.complete).toBe(false);
+    expect(list.videos.map(({ videoId }) => videoId)).toEqual(['newest00001']);
+    // The API route still answers the bare list, as before.
+    const res = await apiGet('/videos');
+    expect((await res.json()).map((video: { videoId: string }) => video.videoId)).toEqual([
+      'newest00001',
+    ]);
+  });
+
+  it('calls a list complete when every upload was read, or when there is no channel to read', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([storedVideo]);
+    expect((await loadVideoList()).complete).toBe(true);
+
+    resetSanityLoaderCaches();
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
+    youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValue(new Map());
+    youtube.fetchChannelVideos.mockResolvedValue({
+      videos: [upload('only0000001')],
+      complete: true,
+    });
+    expect((await loadVideoList()).complete).toBe(true);
+  });
+
+  it('answers an expired list at once with the old videos and starts one refresh, kept alive past the response', async () => {
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    youtube.fetchChannelVideos.mockResolvedValueOnce({
+      videos: [upload('oldUpload01')],
+      complete: true,
+    });
+    const before = await loadVideos();
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const reload = deferredAnswer<{ videos: unknown[]; complete: boolean }>();
+    youtube.fetchChannelVideos.mockReturnValueOnce(reload.promise);
+
+    const answers = await Promise.all([loadVideos(), loadVideos(), loadVideoList()]);
+
+    expect(answers).toEqual([before, before, { videos: before, complete: true }]);
+    expect(youtube.fetchChannelVideos).toHaveBeenCalledTimes(2);
+    expect(next.after).toHaveBeenCalled();
+
+    reload.resolve({ videos: [upload('newUpload01')], complete: true });
+    await Promise.all(next.after.mock.calls.map(([kept]) => kept));
+    expect((await loadVideos()).map(({ videoId }) => videoId)).toEqual(['newUpload01']);
+    expect(youtube.fetchChannelVideos).toHaveBeenCalledTimes(2);
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('drops a stored video whose title or description is longer than YouTube allows, with the decode warning', async () => {
+    const text = (length: number) => 'x'.repeat(length);
+    sanity.sanityFetchWithToken.mockResolvedValue([
+      { ...storedVideo, _id: 'at-limit', title: text(300), description: text(5_000) },
+      { ...storedVideo, _id: 'long-title', videoId: 'longTitle01', title: text(301) },
+      { ...storedVideo, _id: 'long-text', videoId: 'longText001', description: text(5_001) },
+    ]);
+
+    expect((await loadVideos()).map(({ _id }) => _id)).toEqual(['at-limit']);
+    expectOneReport('warning', 'decode videos');
+    expect(sentry.captureException.mock.calls[0]?.[0]).toMatchObject({
+      metadata: { invalid: [{ id: 'long-title' }, { id: 'long-text' }] },
+    });
+  });
+
+  it('peekVideos answers nothing, and asks nothing, before the videos were loaded', () => {
+    expect(peekVideos()).toBeUndefined();
+    expect(sanity.sanityFetchWithToken).not.toHaveBeenCalled();
+    expect(youtube.fetchChannelVideos).not.toHaveBeenCalled();
+  });
+
+  // A project page's "See also" reads this when the reload past the TTL outlasts its deadline.
+  it('peekVideos answers the last list at once, tagged like loadVideos, however old and without asking again', async () => {
+    envValues.YOUTUBE_SERVER_API_KEY = 'yt-key-example';
+    sanity.sanityFetchWithToken.mockResolvedValue([storedVideo]);
+    youtube.fetchYouTubeVideoMetadataBatch.mockResolvedValue(new Map());
+    youtube.fetchChannelVideos.mockResolvedValue({
+      videos: [
+        {
+          videoId: 'channelVid1',
+          title: 'Channel video',
+          description: 'From the channel',
+          duration: '4:20',
+          publishedAt: '2026-04-01T00:00:00Z',
+        },
+      ],
+      complete: true,
+    });
+    const videos = await loadVideos();
+    const asked = sanity.sanityFetchWithToken.mock.calls.length;
+    vi.setSystemTime(T0 + AFTER_TTL);
+
+    const peeked = peekVideos();
+
+    expect(peeked).toEqual({ data: videos, loadedAt: T0 });
+    expect(peeked?.data.map(({ source }) => source)).toEqual(['youtube-api', 'sanity']);
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(asked);
+    expect(youtube.fetchChannelVideos).toHaveBeenCalledTimes(1);
+    expect(sentry.captureException).not.toHaveBeenCalled();
   });
 });
 
@@ -611,9 +759,29 @@ describe('talks and videos when YouTube hangs', () => {
     expect(outcome).toEqual({ error: expect.any(DeadlineError) });
   });
 
+  it('make a page wait for the videos when nothing was ever cached, up to the deadline and no longer', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    youtube.fetchChannelVideos.mockReturnValue(hanging());
+    let settled = false;
+    const pending = loadVideos();
+    pending.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(YOUTUBE_LOAD_DEADLINE_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).rejects.toBeInstanceOf(DeadlineError);
+  });
+
   it('serve the last good videos to pages within the deadline, with one warning', async () => {
     sanity.sanityFetchWithToken.mockResolvedValue([]);
-    youtube.fetchChannelVideos.mockResolvedValueOnce([channelVideo]);
+    youtube.fetchChannelVideos.mockResolvedValueOnce({ videos: [channelVideo], complete: true });
     const videos = await loadVideos();
     expect(videos.map(({ _id }) => _id)).toEqual(['yt-channel-channelVid1']);
 

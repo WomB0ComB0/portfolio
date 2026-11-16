@@ -27,6 +27,7 @@ import 'server-only';
  */
 
 import { after } from 'next/server';
+import type { RefreshOptions } from './stale-cache';
 
 const settledQuietly = (): undefined => undefined;
 
@@ -42,4 +43,25 @@ export function keepAlive(task: Promise<unknown>): void {
     // Outside a request scope there is no response to outlive: the task already runs and still
     // settles (and reports) on its own, so only the keep-alive is skipped.
   }
+}
+
+/** Each refresh with its failure reported, so every request handing it over shares one report. */
+const reportedRefreshes = new WeakMap<Promise<unknown>, Promise<unknown>>();
+
+/**
+ * Options for a stale cache's `getOrRefresh`: each background refresh it hands over is kept
+ * alive past the response, and its failure goes to `report` once, however many requests that
+ * were answered early hand over the same refresh.
+ */
+export function backgroundRefresh(report: (error: unknown) => void): RefreshOptions {
+  return {
+    onRefresh: (refresh) => {
+      let reported = reportedRefreshes.get(refresh);
+      if (!reported) {
+        reported = refresh.catch(report);
+        reportedRefreshes.set(refresh, reported);
+      }
+      keepAlive(reported);
+    },
+  };
 }
