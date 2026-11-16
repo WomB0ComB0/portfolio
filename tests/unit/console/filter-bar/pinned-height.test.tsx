@@ -119,15 +119,15 @@ describe('a sticky FilterBar and the edge haze', () => {
     expect(pinnedHeight()).toBe('');
   });
 
-  it("takes its value away on unmount, but leaves a newer bar's", () => {
+  it.each([56, 70])("leaves a newer bar's %ipx value when the old bar unmounts", (height) => {
     heights.set('Old', 70);
-    heights.set('New', 56);
+    heights.set('New', height);
     const old = render(<Bar label="Old" />);
     const fresh = render(<Bar label="New" />);
-    expect(pinnedHeight()).toBe('56px');
+    expect(pinnedHeight()).toBe(`${height}px`);
 
     old.unmount();
-    expect(pinnedHeight()).toBe('56px');
+    expect(pinnedHeight()).toBe(`${height}px`);
 
     fresh.unmount();
     expect(pinnedHeight()).toBe('');
