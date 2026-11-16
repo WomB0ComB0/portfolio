@@ -594,12 +594,14 @@ export function fetcher<T = unknown>(
               const contentType = response.headers['content-type'] || 'unknown';
               const snippet = `${text.slice(0, 200)}${text.length > 200 ? '...' : ''}`;
               const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${contentType}, Body: ${snippet}`;
+              // Text only: the platform's error keeps the request headers, credentials included.
+              const originalError = error instanceof Error ? error.message : String(error);
               return Effect.fail(
                 new FetcherError(
                   errorMessage,
                   url,
                   response.status,
-                  { originalError: error, responseText: text.slice(0, MAX_ERROR_BODY_CHARS) },
+                  { originalError, responseText: text.slice(0, MAX_ERROR_BODY_CHARS) },
                   attempt,
                 ),
               );

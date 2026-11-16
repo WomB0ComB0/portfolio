@@ -84,10 +84,12 @@ export interface FullBarProps {
   readonly initial?: string;
   /** How many Technology options show before Show all; the Picker's own default when unset. */
   readonly pickerLimit?: number;
+  /** More inside the Provider, after the results (a control that calls the bar's change). */
+  readonly extra?: ReactNode;
 }
 
 /** The whole family, composed as /projects will compose it. */
-export function FullBar({ initial = '', pickerLimit }: FullBarProps): ReactNode {
+export function FullBar({ initial = '', pickerLimit, extra }: FullBarProps): ReactNode {
   return (
     <Harness initial={initial}>
       {(results) => (
@@ -109,6 +111,7 @@ export function FullBar({ initial = '', pickerLimit }: FullBarProps): ReactNode 
           </div>
           <FilterBar.Status />
           <ResultList results={results} />
+          {extra}
         </>
       )}
     </Harness>

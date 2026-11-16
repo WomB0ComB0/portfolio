@@ -240,7 +240,9 @@ describe('proxy matcher', () => {
     }
   });
 
-  it('skips router prefetches', () => {
-    expect(matcher.missing).toEqual([{ type: 'header', key: 'next-router-prefetch' }]);
+  it('skips router prefetches: the three values the router sends, and no other', () => {
+    expect(matcher.missing).toEqual([
+      { type: 'header', key: 'next-router-prefetch', value: '[123]' },
+    ]);
   });
 });
