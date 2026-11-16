@@ -359,6 +359,15 @@ export const ArticleSchema = Schema.Struct({
 });
 
 /**
+ * The longest video title and description decoded. YouTube allows 100 characters and 5,000 bytes,
+ * so every real upload fits; a longer one (a mistaken or tampered CMS entry) is dropped with the
+ * decode warning, because /media's title and description matching takes time that grows with
+ * the square of the text and would slow every page that builds the feed.
+ */
+const YOUTUBE_TITLE_MAX = 300;
+const YOUTUBE_DESCRIPTION_MAX = 5_000;
+
+/**
  * Sanity YouTube Video Schema with Effect Schema validation
  */
 export const YoutubeVideoSchema = Schema.Struct({
@@ -367,8 +376,8 @@ export const YoutubeVideoSchema = Schema.Struct({
   _createdAt: Schema.String,
   _updatedAt: Schema.String,
   _rev: Schema.String,
-  title: Schema.String,
-  description: Schema.String,
+  title: Schema.String.pipe(Schema.maxLength(YOUTUBE_TITLE_MAX)),
+  description: Schema.String.pipe(Schema.maxLength(YOUTUBE_DESCRIPTION_MAX)),
   videoId: Schema.String,
   publishedDate: Schema.String,
   thumbnail: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),

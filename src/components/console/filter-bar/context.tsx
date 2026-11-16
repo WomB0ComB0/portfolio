@@ -22,6 +22,11 @@
  * focus and the crossfade), the sheet's id, and `change`, which runs a discrete change (a chip,
  * a token, a checkbox, Clear) synchronously inside the guarded view transition and then hands
  * focus to whatever the part asks for. Typing never goes through `change`.
+ *
+ * It also knows whether the bar shows the filters: not on a phone (the Filters button shows, the
+ * chips are in the sheet) and not for a filter whose control the bar does not hold. There a change
+ * lands on the results header (view-transition.ts), and focus with nowhere to go takes the Filters
+ * button rather than the search.
  */
 
 import {
@@ -49,11 +54,22 @@ export interface FilterBarRegistry {
   applied: HTMLElement | null;
   /** The phone's Filters button (FilterBar.Facets): shown only while the chips are in the sheet. */
   filtersButton: HTMLElement | null;
+  /** The facets whose controls the bar holds from 48rem (FilterBar.Facets' `facets`), or all. */
+  barFacets: readonly string[] | 'all';
   readonly chipLists: Map<string, HTMLElement>;
 }
 
 /** Picks the element to focus once a change has rendered; nothing keeps focus where it was. */
 export type FocusPick = () => HTMLElement | null | undefined;
+
+/** What a part may say about a change it makes. */
+export interface ChangeOptions {
+  /**
+   * The change turns on a filter the bar has no control for (a series link on /media), so it
+   * lands on the results header, which alone shows that filter.
+   */
+  readonly head?: boolean;
+}
 
 /**
  * A discrete change, given the model as it is when the change applies. A view transition applies
@@ -67,7 +83,7 @@ export interface FilterBarContextValue {
   readonly registry: RefObject<FilterBarRegistry>;
   /** The phone sheet's id, for the Filters button. */
   readonly sheetId: string;
-  readonly change: (update: FilterChange, focus?: FocusPick) => void;
+  readonly change: (update: FilterChange, focus?: FocusPick, options?: ChangeOptions) => void;
 }
 
 const FilterBarContext = createContext<FilterBarContextValue | null>(null);
@@ -107,9 +123,29 @@ export const shownFiltersButton = (registry: FilterBarRegistry): HTMLElement | n
   return button?.isConnected && shows(button) ? button : null;
 };
 
-/** Where focus goes when the element a visitor acted on is gone: the current chip, else search. */
+/**
+ * Where focus goes when the element a visitor acted on is gone: the current chip, else the
+ * Filters button (a phone, whose chips are in the closed sheet: never the search, whose focus
+ * opens the on-screen keyboard), else the search.
+ */
 export const fallbackFocus = (registry: FilterBarRegistry): HTMLElement | null =>
-  currentChipOf(registry) ?? registry.search;
+  currentChipOf(registry) ?? shownFiltersButton(registry) ?? registry.search;
+
+/** Whether a filter is on whose control the bar does not hold (a series link's, on /media). */
+function offBarFilterOn(registry: FilterBarRegistry, model: FilterModel): boolean {
+  const held = registry.barFacets;
+  if (held === 'all') return false;
+  return model.facets.some(
+    (facet) => (model.draft[facet.key]?.length ?? 0) > 0 && !held.includes(facet.key),
+  );
+}
+
+/**
+ * Whether the results header must show for the bar to say which filters are on: the chips are in
+ * the sheet (a phone), or a filter is on that the bar has no control for.
+ */
+const headerSpeaks = (registry: FilterBarRegistry, model: FilterModel): boolean =>
+  shownFiltersButton(registry) !== null || offBarFilterOn(registry, model);
 
 export interface FilterBarProviderProps {
   readonly model: FilterModel;
@@ -124,6 +160,7 @@ export function FilterBarProvider({ model, children }: FilterBarProviderProps): 
     results: null,
     applied: null,
     filtersButton: null,
+    barFacets: [],
     chipLists: new Map(),
   });
   const sheetId = useId();
@@ -137,7 +174,7 @@ export function FilterBarProvider({ model, children }: FilterBarProviderProps): 
       model,
       registry,
       sheetId,
-      change: (update, focus) =>
+      change: (update, focus, options) =>
         runFilterChange(
           () => {
             flushSync(() => update(latest.current));
@@ -145,7 +182,13 @@ export function FilterBarProvider({ model, children }: FilterBarProviderProps): 
             // a plain focus() would scroll the page to them past html's scroll-padding.
             focusInPlace(focus?.());
           },
-          { results: registry.current.results, bar: registry.current.bar },
+          {
+            results: registry.current.results,
+            bar: registry.current.bar,
+            // A filter the bar does not show now is one the change most likely keeps.
+            toHead: options?.head === true || headerSpeaks(registry.current, latest.current),
+            headMustShow: () => headerSpeaks(registry.current, latest.current),
+          },
         ),
     }),
     [model, sheetId],

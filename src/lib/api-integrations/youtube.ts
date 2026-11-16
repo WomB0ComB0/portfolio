@@ -28,6 +28,13 @@ import { Effect, pipe, Schema } from 'effect';
 import { get } from '@/lib/http-clients/effect-fetcher';
 
 const YOUTUBE_API = 'https://www.googleapis.com/youtube/v3';
+/** The most IDs one videos call takes, and the most items one playlist page answers. */
+const PAGE_SIZE = 50;
+/**
+ * The most uploads read from a channel: four playlist pages. A channel with more says so
+ * ({@link ChannelUploads.complete}), so a page never states a total for a cut list.
+ */
+export const CHANNEL_UPLOADS_CAP = 200;
 
 // ============================================================================
 // Effect Schemas for YouTube API v3 Responses
@@ -86,13 +93,14 @@ const ChannelItemSchema = Schema.Struct({
   contentDetails: Schema.optional(
     Schema.Struct({
       relatedPlaylists: Schema.Struct({
-        likes: Schema.String,
+        likes: Schema.optional(Schema.String),
         uploads: Schema.String,
       }),
     }),
   ),
 });
 
+/** `items` is left out when no channel matches (an unknown handle). */
 const ChannelResponseSchema = Schema.Struct({
   kind: Schema.String,
   etag: Schema.String,
@@ -100,50 +108,18 @@ const ChannelResponseSchema = Schema.Struct({
     totalResults: Schema.Number,
     resultsPerPage: Schema.Number,
   }),
-  items: Schema.Array(ChannelItemSchema),
+  items: Schema.optional(Schema.Array(ChannelItemSchema)),
 });
 
-const ChannelIdResponseSchema = Schema.Struct({
-  items: Schema.optional(
-    Schema.Array(
-      Schema.Struct({
-        id: Schema.String,
-      }),
-    ),
-  ),
-});
-
-const PlaylistItemSnippetSchema = Schema.Struct({
-  publishedAt: Schema.String,
-  channelId: Schema.String,
-  title: Schema.String,
-  description: Schema.String,
-  thumbnails: ThumbnailsSchema,
-  channelTitle: Schema.String,
-  playlistId: Schema.String,
-  position: Schema.Number,
-  resourceId: Schema.Struct({
-    kind: Schema.String,
-    videoId: Schema.String,
-  }),
-});
-
-const PlaylistItemSchema = Schema.Struct({
-  kind: Schema.String,
-  etag: Schema.String,
-  id: Schema.String,
-  snippet: PlaylistItemSnippetSchema,
-});
-
-const PlaylistItemsResponseSchema = Schema.Struct({
-  kind: Schema.String,
-  etag: Schema.String,
+/**
+ * One page of a playlist read with part=contentDetails: each item's video ID only (the videos
+ * call answers the rest), and the token of the next page while there is one.
+ */
+const PlaylistPageSchema = Schema.Struct({
   nextPageToken: Schema.optional(Schema.String),
-  pageInfo: Schema.Struct({
-    totalResults: Schema.Number,
-    resultsPerPage: Schema.Number,
-  }),
-  items: Schema.Array(PlaylistItemSchema),
+  items: Schema.optional(
+    Schema.Array(Schema.Struct({ contentDetails: Schema.Struct({ videoId: Schema.String }) })),
+  ),
 });
 
 // ============================================================================
@@ -161,6 +137,16 @@ export const YouTubeVideoMetadataSchema = Schema.Struct({
 });
 
 export type YouTubeVideoMetadata = Schema.Schema.Type<typeof YouTubeVideoMetadataSchema>;
+
+/** A channel's uploads, newest first, and whether that is every one of them. */
+export interface ChannelUploads {
+  readonly videos: YouTubeVideoMetadata[];
+  /**
+   * False when the channel has more uploads than were read ({@link CHANNEL_UPLOADS_CAP}, or the
+   * caller's `maxResults`): the list is the newest ones only, so a count of it is no total.
+   */
+  readonly complete: boolean;
+}
 
 // ============================================================================
 // Helper Functions
@@ -214,204 +200,181 @@ function youtubeGet<T, I>(
   );
 }
 
-// ============================================================================
-// API Functions
-// ============================================================================
+type VideoItem = Schema.Schema.Type<typeof VideoItemSchema>;
 
-/**
- * Fetch YouTube video metadata using the YouTube Data API v3
- * @param {string} videoId - YouTube video ID
- * @param {string} apiKey - YouTube Data API key
- * @returns {Promise<YouTubeVideoMetadata>} Video metadata including duration
- */
-export async function fetchYouTubeVideoMetadata(
-  videoId: string,
-  apiKey: string,
-): Promise<YouTubeVideoMetadata> {
-  const data = await youtubeGet(
-    'videos',
-    { part: 'snippet,contentDetails', id: videoId },
-    VideosResponseSchema,
-    apiKey,
-  );
+const toMetadata = (video: VideoItem): YouTubeVideoMetadata => ({
+  videoId: video.id,
+  title: video.snippet.title,
+  description: video.snippet.description,
+  duration: formatDuration(video.contentDetails.duration),
+  durationIso: video.contentDetails.duration,
+  publishedAt: video.snippet.publishedAt,
+  thumbnailUrl:
+    video.snippet.thumbnails.maxres?.url ??
+    video.snippet.thumbnails.standard?.url ??
+    video.snippet.thumbnails.high.url,
+});
 
-  if (!data.items || data.items.length === 0) {
-    throw new Error(`YouTube video not found: ${videoId}`);
-  }
-
-  const video = data.items[0];
-  if (!video) {
-    throw new Error(`YouTube video not found: ${videoId}`);
-  }
-
-  const duration = formatDuration(video.contentDetails.duration);
-
-  return {
-    videoId,
-    title: video.snippet.title,
-    description: video.snippet.description,
-    duration,
-    durationIso: video.contentDetails.duration,
-    publishedAt: video.snippet.publishedAt,
-    thumbnailUrl:
-      video.snippet.thumbnails.maxres?.url ??
-      video.snippet.thumbnails.standard?.url ??
-      video.snippet.thumbnails.high.url,
-  };
-}
-
-/**
- * Fetch metadata for multiple YouTube videos in a single batch request
- * @param {string[]} videoIds - Array of YouTube video IDs (max 50)
- * @param {string} apiKey - YouTube Data API key
- * @returns {Promise<Map<string, YouTubeVideoMetadata>>} Map of videoId to metadata
- */
-export async function fetchYouTubeVideoMetadataBatch(
-  videoIds: string[],
+/** The metadata of at most {@link PAGE_SIZE} videos, in one call. */
+async function fetchMetadataPage(
+  videoIds: readonly string[],
   apiKey: string,
 ): Promise<Map<string, YouTubeVideoMetadata>> {
-  if (videoIds.length === 0) {
-    return new Map();
-  }
-
-  if (videoIds.length > 50) {
-    throw new Error('Cannot fetch more than 50 videos in a single batch');
-  }
-
   const data = await youtubeGet(
     'videos',
     { part: 'snippet,contentDetails', id: videoIds.join(',') },
     VideosResponseSchema,
     apiKey,
   );
-
-  const metadataMap = new Map<string, YouTubeVideoMetadata>();
-
-  for (const video of data.items) {
-    const duration = formatDuration(video.contentDetails.duration);
-    metadataMap.set(video.id, {
-      videoId: video.id,
-      title: video.snippet.title,
-      description: video.snippet.description,
-      duration,
-      durationIso: video.contentDetails.duration,
-      publishedAt: video.snippet.publishedAt,
-      thumbnailUrl:
-        video.snippet.thumbnails.maxres?.url ??
-        video.snippet.thumbnails.standard?.url ??
-        video.snippet.thumbnails.high.url,
-    });
-  }
-
-  return metadataMap;
+  return new Map(data.items.map((video) => [video.id, toMetadata(video)]));
 }
 
-/**
- * Resolve a YouTube channel handle (e.g., @mikeodnis) to a channel ID
- * @param {string} handle - YouTube channel handle (with or without @)
- * @param {string} apiKey - YouTube Data API key
- * @returns {Promise<string>} Channel ID
- */
-export async function resolveChannelHandle(handle: string, apiKey: string): Promise<string> {
-  const cleanHandle = handle.startsWith('@') ? handle : `@${handle}`;
-
-  const data = await youtubeGet(
-    'channels',
-    { part: 'id', forHandle: cleanHandle },
-    ChannelIdResponseSchema,
-    apiKey,
+/** `items` cut into runs of `size`. */
+const chunksOf = <T>(items: readonly T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
+    items.slice(index * size, (index + 1) * size),
   );
 
-  if (!data.items || data.items.length === 0) {
-    throw new Error(`YouTube channel not found: ${cleanHandle}`);
-  }
-
-  const channelId = data.items[0]?.id;
-  if (!channelId) {
-    throw new Error(`YouTube channel not found: ${cleanHandle}`);
-  }
-
-  return channelId;
+/**
+ * `promise`, with its rejection already handled: for a call started now and awaited later, so it
+ * never counts as unhandled while earlier steps run. Awaiting it still rejects.
+ */
+function startedEarly<T>(promise: Promise<T>): Promise<T> {
+  promise.catch(() => undefined);
+  return promise;
 }
 
-/**
- * Get the uploads playlist ID for a YouTube channel
- * @param {string} channelId - YouTube channel ID
- * @param {string} apiKey - YouTube Data API key
- * @returns {Promise<string>} Uploads playlist ID
- */
-async function getUploadsPlaylistId(channelId: string, apiKey: string): Promise<string> {
-  const data = await youtubeGet(
-    'channels',
-    { part: 'contentDetails', id: channelId },
-    ChannelResponseSchema,
-    apiKey,
-  );
+const byNewest = (a: YouTubeVideoMetadata, b: YouTubeVideoMetadata): number =>
+  new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
 
-  if (!data.items || data.items.length === 0) {
-    throw new Error(`YouTube channel not found: ${channelId}`);
+/** The pages' metadata as one list, newest first, each video once (its first page's copy). */
+function joinPages(pages: readonly Map<string, YouTubeVideoMetadata>[]): YouTubeVideoMetadata[] {
+  const byId = new Map<string, YouTubeVideoMetadata>();
+  for (const page of pages) {
+    for (const [videoId, video] of page) {
+      if (!byId.has(videoId)) byId.set(videoId, video);
+    }
   }
+  return [...byId.values()].sort(byNewest);
+}
 
-  const uploadsPlaylistId = data.items[0]?.contentDetails?.relatedPlaylists.uploads;
+// ============================================================================
+// API Functions
+// ============================================================================
+
+/**
+ * Fetch metadata for any number of YouTube videos, {@link PAGE_SIZE} per call (the API's most),
+ * the calls at once. A video YouTube does not answer for (private, deleted) is left out. One
+ * failed call fails the whole lookup.
+ * @param {string[]} videoIds - YouTube video IDs
+ * @param {string} apiKey - YouTube Data API key
+ * @returns {Promise<Map<string, YouTubeVideoMetadata>>} Map of videoId to metadata
+ */
+export async function fetchYouTubeVideoMetadataBatch(
+  videoIds: readonly string[],
+  apiKey: string,
+): Promise<Map<string, YouTubeVideoMetadata>> {
+  const pages = await Promise.all(
+    chunksOf(videoIds, PAGE_SIZE).map((ids) => fetchMetadataPage(ids, apiKey)),
+  );
+  return new Map(pages.flatMap((page) => [...page]));
+}
+
+/** `@name` for a handle given with or without its @. */
+const handleOf = (handle: string): string => (handle.startsWith('@') ? handle : `@${handle}`);
+
+/** True for a channel given by handle rather than by its UC… ID. */
+const isHandle = (channel: string): boolean => channel.startsWith('@') || !channel.startsWith('UC');
+
+/**
+ * The uploads playlist of a channel given by handle (@name) or ID, in one call: channels.list
+ * answers it for a handle as well as for an ID.
+ */
+async function uploadsPlaylistOf(channel: string, apiKey: string): Promise<string> {
+  const query: Readonly<Record<string, string>> = isHandle(channel)
+    ? { part: 'contentDetails', forHandle: handleOf(channel) }
+    : { part: 'contentDetails', id: channel };
+  const data = await youtubeGet('channels', query, ChannelResponseSchema, apiKey);
+
+  const item = data.items?.[0];
+  if (!item) {
+    throw new Error(`YouTube channel not found: ${channel}`);
+  }
+  const uploadsPlaylistId = item.contentDetails?.relatedPlaylists.uploads;
   if (!uploadsPlaylistId) {
-    throw new Error(`Uploads playlist not found for channel: ${channelId}`);
+    throw new Error(`Uploads playlist not found for channel: ${channel}`);
   }
-
   return uploadsPlaylistId;
 }
 
+/** One page of a playlist: up to `size` video IDs, and the next page's token if there is one. */
+async function readPlaylistPage(
+  playlistId: string,
+  apiKey: string,
+  size: number,
+  pageToken: string | undefined,
+): Promise<{ readonly ids: readonly string[]; readonly next: string | undefined }> {
+  const page = await youtubeGet(
+    'playlistItems',
+    {
+      part: 'contentDetails',
+      playlistId,
+      maxResults: String(size),
+      ...(pageToken === undefined ? {} : { pageToken }),
+    },
+    PlaylistPageSchema,
+    apiKey,
+  );
+  const ids = (page.items ?? []).map((item) => item.contentDetails.videoId).filter(Boolean);
+  return { ids, next: page.nextPageToken };
+}
+
 /**
- * Fetch all videos from a YouTube channel
+ * Fetch a YouTube channel's uploads, newest first: its uploads playlist page by page
+ * ({@link PAGE_SIZE} a page), each page's metadata asked for while the next page is read, up to
+ * `maxResults` ({@link CHANNEL_UPLOADS_CAP} at most, the default). One refresh of 50 uploads is
+ * three calls (channel, one page, one batch); 200 or more, nine. Any failed call fails the whole
+ * listing, so a part of the list is never answered as all of it.
+ *
+ * Page tokens are positions, so an upload made public between two page reads shifts the list and
+ * the next page repeats the last one's end: each video is listed (and asked for) once. A page
+ * token already read stops the reading, and the list is then not called complete.
  * @param {string} channelHandleOrId - YouTube channel handle (@username) or channel ID
  * @param {string} apiKey - YouTube Data API key
  * @param {object} options - Fetch options
- * @param {number} options.maxResults - Maximum number of videos to fetch (default: 50)
- * @returns {Promise<YouTubeVideoMetadata[]>} Array of video metadata
+ * @param {number} options.maxResults - Most uploads to read (default and cap: CHANNEL_UPLOADS_CAP)
+ * @returns {Promise<ChannelUploads>} The uploads, and whether they are all of them
  */
 export async function fetchChannelVideos(
   channelHandleOrId: string,
   apiKey: string,
   options: { maxResults?: number } = {},
-): Promise<YouTubeVideoMetadata[]> {
-  const { maxResults = 50 } = options;
+): Promise<ChannelUploads> {
+  const limit = Math.max(
+    1,
+    Math.min(options.maxResults ?? CHANNEL_UPLOADS_CAP, CHANNEL_UPLOADS_CAP),
+  );
+  const playlistId = await uploadsPlaylistOf(channelHandleOrId, apiKey);
 
-  // Resolve handle to channel ID if needed
-  let channelId = channelHandleOrId;
-  if (channelHandleOrId.startsWith('@') || !channelHandleOrId.startsWith('UC')) {
-    channelId = await resolveChannelHandle(channelHandleOrId, apiKey);
+  const batches: Promise<Map<string, YouTubeVideoMetadata>>[] = [];
+  const listed = new Set<string>();
+  const tokensRead = new Set<string>();
+  let read = 0;
+  let next: string | undefined;
+  let cut = false;
+  for (let page = 0; page < Math.ceil(limit / PAGE_SIZE); page += 1) {
+    const size = Math.min(PAGE_SIZE, limit - read);
+    const { ids, next: token } = await readPlaylistPage(playlistId, apiKey, size, next);
+    const taken = ids.slice(0, size);
+    cut = taken.length < ids.length;
+    read += taken.length;
+    const fresh = [...new Set(taken)].filter((id) => !listed.has(id));
+    for (const id of fresh) listed.add(id);
+    if (fresh.length > 0) batches.push(startedEarly(fetchMetadataPage(fresh, apiKey)));
+    if (next !== undefined) tokensRead.add(next);
+    next = token;
+    if (next === undefined || read >= limit || tokensRead.has(next)) break;
   }
 
-  // Get the uploads playlist ID
-  const uploadsPlaylistId = await getUploadsPlaylistId(channelId, apiKey);
-
-  // Fetch playlist items (video IDs and basic info)
-  const playlistData = await youtubeGet(
-    'playlistItems',
-    {
-      part: 'snippet',
-      playlistId: uploadsPlaylistId,
-      maxResults: String(Math.min(maxResults, 50)),
-    },
-    PlaylistItemsResponseSchema,
-    apiKey,
-  );
-
-  if (!playlistData.items || playlistData.items.length === 0) {
-    return [];
-  }
-
-  // Extract video IDs
-  const videoIds = playlistData.items
-    .map((item) => item.snippet.resourceId.videoId)
-    .filter(Boolean);
-
-  // Fetch full video metadata (including duration)
-  const metadataMap = await fetchYouTubeVideoMetadataBatch(videoIds, apiKey);
-
-  // Convert to array and sort by publish date (newest first)
-  const videos = Array.from(metadataMap.values()).sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
-
-  return videos;
+  return { videos: joinPages(await Promise.all(batches)), complete: next === undefined && !cut };
 }

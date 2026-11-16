@@ -191,9 +191,14 @@ export const COUNT_NUMBER_CLASS = 'font-semibold text-foreground';
 export const APPLIED_CLASS = 'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5';
 export const APPLIED_LABEL_CLASS = 'tile-meta text-faint';
 export const APPLIED_LIST_CLASS = 'flex min-w-0 flex-wrap items-center gap-1.5';
-/** A removable token: surface-2, the × faint until hovered. */
+/**
+ * A removable token: surface-2, the × faint until hovered. At least one 28px line and as tall as
+ * its words: a value wider than its row (a series' title on a phone) wraps inside the pill
+ * instead of spilling over a fixed height. 14px corners: the full pill at one line, a rounded box
+ * at two.
+ */
 export const TOKEN_CLASS =
-  'group/token inline-flex h-7 items-center gap-1.5 rounded-full border border-hairline bg-surface-2 pr-1.5 pl-2.5 tile-meta text-foreground transition-[border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong';
+  'group/token inline-flex min-h-7 items-center gap-1.5 rounded-[0.875rem] border border-hairline bg-surface-2 py-[0.1875rem] pr-1.5 pl-2.5 tile-meta text-foreground transition-[border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong';
 export const TOKEN_KEY_CLASS = 'text-muted-foreground';
 export const TOKEN_X_CLASS =
   'size-3.5 text-faint transition-colors duration-(--motion-fast) ease-effect group-hover/token:text-foreground';

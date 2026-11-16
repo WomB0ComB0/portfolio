@@ -226,6 +226,41 @@ describe('FilterBar.Facets: the phone sheet', () => {
     expect(done).toHaveAttribute('popovertargetaction', 'hide');
   });
 
+  /** A bar whose sheet holds the Kind chips only; Technology is chosen elsewhere on the page. */
+  const renderKindSheet = (initial: string): HTMLElement => {
+    render(
+      <Harness initial={initial}>
+        {(shown) => (
+          <>
+            <FilterBar.Root>
+              <FilterBar.Search />
+              <FilterBar.Facets facets={['category']}>
+                <FilterBar.Chips facet="category" />
+              </FilterBar.Facets>
+            </FilterBar.Root>
+            <ResultList results={shown} />
+          </>
+        )}
+      </Harness>,
+    );
+    return screen.getByRole('button', { name: /^Filters/ });
+  };
+
+  it('counts only the facets its sheet holds when told which', () => {
+    const button = renderKindSheet('?category=tools&tech=go&tech=python');
+
+    expect(button).toHaveTextContent('Filters 1');
+    expect(button).toHaveAttribute('data-active', '');
+  });
+
+  it('shows no count while the only filters in use are outside its sheet', () => {
+    const button = renderKindSheet('?tech=go&tech=python');
+
+    expect(button).toHaveTextContent(/^Filters$/);
+    expect(button).not.toHaveAttribute('data-active');
+    expect(within(button).queryByText('applied')).toBeNull();
+  });
+
   /**
    * The sheet is a popover over a dimmed backdrop that is not a hit target: the browser closes it
    * on the press's pointerup, and the press's click then lands on whatever the backdrop dimmed.

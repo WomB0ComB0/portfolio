@@ -147,6 +147,11 @@ export function facetOf(model: FilterModel, key: string): FilterFacetView {
   return facet;
 }
 
-/** How many facet values are chosen: the Filters button's count. */
-export const chosenCount = (model: FilterModel): number =>
-  model.facets.reduce((sum, facet) => sum + (model.draft[facet.key]?.length ?? 0), 0);
+/**
+ * How many facet values are chosen: the Filters button's count. With `keys`, only those facets
+ * count: the ones a sheet holds, when a page chooses its other facets elsewhere.
+ */
+export const chosenCount = (model: FilterModel, keys?: readonly string[]): number =>
+  model.facets
+    .filter((facet) => !keys || keys.includes(facet.key))
+    .reduce((sum, facet) => sum + (model.draft[facet.key]?.length ?? 0), 0);

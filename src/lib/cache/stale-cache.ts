@@ -27,6 +27,10 @@
  *   request. The first request after the backoff loads again; a good load replaces the value.
  * - `peek` answers the last good value without loading or waiting, for a caller that cannot wait
  *   for a slow reload (a page tile past its deadline).
+ * - `getOrRefresh` is `get` for a page that must not wait on a reload: a value past the TTL is
+ *   answered at once while one reload runs in the background (the same shared load `get` runs),
+ *   handed to the caller to keep alive and report. Only a key never loaded (or expired by a
+ *   write) is waited for.
  * - `expire` marks one key's value as out of date (after a write): the next request loads again,
  *   while the old value stays as the stale-on-error fallback. A load that was already running is
  *   let go: its callers still get its answer, but it is not cached, since it may predate the write.
@@ -69,6 +73,16 @@ export interface StaleResult<T> {
 
 export type StaleCacheResult<T> = FreshResult<T> | StaleResult<T>;
 
+export interface RefreshOptions {
+  /**
+   * Called with the background reload whenever `getOrRefresh` answers before it: to keep it
+   * alive past the response (Next's after()) and to report its failure. Every early answer gets
+   * the reload that is running, so several requests may hand over the same one. It may reject;
+   * the cache has already handled that, so ignoring it leaves no unhandled rejection.
+   */
+  readonly onRefresh?: (refresh: Promise<unknown>) => void;
+}
+
 /** The last value a load returned for a key, and when. */
 export interface CachedValue<T> {
   readonly data: T;
@@ -83,6 +97,18 @@ export interface StaleCache<T> {
    * earlier value exists.
    */
   get(key: string, load: () => Promise<T>): Promise<StaleCacheResult<T>>;
+  /**
+   * Like `get`, but a value past the TTL is answered at once, unmarked, while one reload runs
+   * in the background (started here, or the one already running) and is handed to
+   * `options.onRefresh`. It waits for the load only when there is nothing to answer: a key never
+   * loaded, or one `expire` marked after a write. A backoff after a failed reload answers the
+   * last good value marked stale, as `get` does.
+   */
+  getOrRefresh(
+    key: string,
+    load: () => Promise<T>,
+    options?: RefreshOptions,
+  ): Promise<StaleCacheResult<T>>;
   /**
    * The last value loaded for `key` and when, however old, or undefined when none was. Never
    * loads and never waits, so a caller whose deadline ran out while `get` was still reloading
@@ -174,21 +200,36 @@ export function createStaleCache<T>({
     return started;
   };
 
+  const get = async (key: string, load: () => Promise<T>): Promise<StaleCacheResult<T>> => {
+    const cached = entries.get(key);
+    if (cached && isFresh(cached)) return { stale: false, data: cached.data };
+
+    const backoff = activeBackoff(key);
+    if (cached && backoff) return staleResult(cached, backoff.error);
+
+    try {
+      return { stale: false, data: await loadShared(key, load) };
+    } catch (error) {
+      const lastGood = entries.get(key);
+      if (!lastGood) throw error;
+      return staleResult(lastGood, error);
+    }
+  };
+
   return {
-    async get(key, load) {
+    get,
+    async getOrRefresh(key, load, { onRefresh } = {}) {
       const cached = entries.get(key);
-      if (cached && isFresh(cached)) return { stale: false, data: cached.data };
-
-      const backoff = activeBackoff(key);
-      if (cached && backoff) return staleResult(cached, backoff.error);
-
-      try {
-        return { stale: false, data: await loadShared(key, load) };
-      } catch (error) {
-        const lastGood = entries.get(key);
-        if (!lastGood) throw error;
-        return staleResult(lastGood, error);
+      // Nothing to answer yet, a value a write made out of date, a fresh value or a backoff:
+      // exactly what get answers.
+      if (!cached || cached.expired || isFresh(cached) || activeBackoff(key)) {
+        return get(key, load);
       }
+      const refresh = loadShared(key, load);
+      // A failed refresh already started the backoff; the caller reports it through onRefresh.
+      refresh.catch(() => undefined);
+      onRefresh?.(refresh);
+      return { stale: false, data: cached.data };
     },
     peek(key) {
       const cached = entries.get(key);

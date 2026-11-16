@@ -92,7 +92,10 @@ function youtubeAnswer(url: URL): Response {
       position: 0,
       resourceId,
     };
-    return json({ ...page, items: [{ ...page, id: 'item-0', snippet: item }] });
+    return json({
+      ...page,
+      items: [{ ...page, id: 'item-0', snippet: item, contentDetails: { videoId: VIDEO_ID } }],
+    });
   }
   const contentDetails = {
     duration: 'PT12M34S',

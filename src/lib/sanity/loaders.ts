@@ -25,6 +25,11 @@ import 'server-only';
  *   and reported) and are React-cache()d per request.
  * - Peeks (`peekProjects`, ...) answer the last list cached, decoded the same way, at once and
  *   however old, without asking Sanity: for a home tile whose deadline ran out mid-reload.
+ * - The /media sources (videos, talks, presentations, articles) never make a page wait on a
+ *   reload: once their TTL is up, the page loaders answer the cached list at once and refresh it
+ *   in the background (one shared reload, kept alive past the response with Next's after(), its
+ *   failure reported once). Only a server that never loaded the list waits for it. The API
+ *   readers and every other page loader still reload in the foreground.
  *
  * When Sanity fails after a good load, both get the last good answer and the loaders send a
  * warning. When it fails with nothing cached, the loaders reject with the getter's error and
@@ -63,6 +68,7 @@ import {
   YoutubeVideoSchema,
 } from '@/hooks/sanity/schemas';
 import { withDeadline } from '@/lib/async/deadline';
+import { backgroundRefresh } from '@/lib/cache/keep-alive';
 import {
   type CachedValue,
   createStaleCache,
@@ -82,7 +88,12 @@ import {
   getSiteSettings,
 } from './api';
 import { decodeEach, decodeOne, resetDecodeMemo } from './decode';
-import { loadTalks as fetchTalks, type ListedVideo, loadYoutubeVideos } from './enrich';
+import {
+  loadTalks as fetchTalks,
+  type ListedVideo,
+  loadVideoListing,
+  type VideoListing,
+} from './enrich';
 
 export type {
   Article,
@@ -108,8 +119,12 @@ export type SanityReader<T> = () => Promise<StaleCacheResult<T>>;
  * Next's bundler loads this module once for route handlers and once for pages, even in one Node
  * process, so module state would give each its own cache. The readers' cache lives on globalThis
  * under this registry key instead, and every copy of the module finds the same one.
+ *
+ * Versioned: v2 has getOrRefresh and keeps the videos as a listing. A process still holding the
+ * v1 cache (a dev server across a reload keeps globalThis) starts a cache of its own instead of
+ * calling methods the old one lacks; each collection then loads once more.
  */
-const SHARED_READERS_KEY = Symbol.for('portfolio.sanity.readers');
+const SHARED_READERS_KEY = Symbol.for('portfolio.sanity.readers.v2');
 
 type ProcessGlobal = typeof globalThis & { [SHARED_READERS_KEY]?: StaleCache<unknown> };
 
@@ -168,13 +183,23 @@ const withinYoutubeDeadline =
   () =>
     withDeadline(load(), YOUTUBE_LOAD_DEADLINE_MS, `sanity ${key} with YouTube data`);
 
+const loadTalksWithDurations = withinYoutubeDeadline('talks', fetchTalks);
 /** Talks with YouTube durations where a key is set. */
-export const readTalks = cachedReader<Talk[]>('talks', withinYoutubeDeadline('talks', fetchTalks));
-/** Sanity's videos plus the channel's uploads, each tagged with its `source` when a key is set. */
-export const readVideos = cachedReader<YoutubeVideo[]>(
-  'videos',
-  withinYoutubeDeadline('videos', loadYoutubeVideos),
-);
+export const readTalks = cachedReader<Talk[]>('talks', loadTalksWithDurations);
+
+/** The videos are cached as a listing: the list, and whether it holds every upload. */
+const VIDEOS_KEY = 'videos';
+const loadVideosWithChannel = withinYoutubeDeadline('videos', loadVideoListing);
+const readVideoListing = cachedReader<VideoListing>(VIDEOS_KEY, loadVideosWithChannel);
+
+/**
+ * Sanity's videos plus the channel's uploads, each tagged with its `source` when a key is set:
+ * the list alone, as the API route has always answered it.
+ */
+export const readVideos: SanityReader<YoutubeVideo[]> = async () => {
+  const result = await readVideoListing();
+  return { ...result, data: result.data.videos };
+};
 
 /**
  * Forgets every collection's answer, for every copy of this module in the process, and this
@@ -192,6 +217,29 @@ function reportStale(key: string, error: unknown): void {
     level: 'warning',
   });
 }
+
+/**
+ * A page's reader for collection `key`: like {@link cachedReader}, but a list past its TTL is
+ * answered at once while one reload (shared with the API reader's) runs in the background, kept
+ * alive past the response and reported once as stale if it fails. Waits only when nothing was
+ * ever cached.
+ */
+const refreshingReader =
+  <T>(key: string, load: () => Promise<T>): SanityReader<T> =>
+  () =>
+    sharedCache.getOrRefresh(
+      key,
+      load,
+      backgroundRefresh((error) => reportStale(key, error)),
+    ) as Promise<StaleCacheResult<T>>;
+
+const readTalksForPages = refreshingReader<Talk[]>('talks', loadTalksWithDurations);
+const readPresentationsForPages = refreshingReader<Presentation[]>(
+  'presentations',
+  getPresentations,
+);
+const readArticlesForPages = refreshingReader<Article[]>('articles', getArticles);
+const readVideoListingForPages = refreshingReader<VideoListing>(VIDEOS_KEY, loadVideosWithChannel);
 
 /** The answer's data, after reporting that it is stale if it is. */
 function dataOf<T>(result: StaleCacheResult<T>, key: string): T {
@@ -253,15 +301,18 @@ export const loadCertifications = cache(
 export const loadPlaces = cache(
   (): Promise<readonly Place[]> => loadList(readPlaces, PlaceSchema, 'places'),
 );
+/** Past their TTL, answered at once while they refresh in the background (see the file comment). */
 export const loadPresentations = cache(
   (): Promise<readonly Presentation[]> =>
-    loadList(readPresentations, PresentationSchema, 'presentations'),
+    loadList(readPresentationsForPages, PresentationSchema, 'presentations'),
 );
+/** Past their TTL, answered at once while they refresh in the background (see the file comment). */
 export const loadArticles = cache(
-  (): Promise<readonly Article[]> => loadList(readArticles, ArticleSchema, 'articles'),
+  (): Promise<readonly Article[]> => loadList(readArticlesForPages, ArticleSchema, 'articles'),
 );
+/** Past their TTL, answered at once while they refresh in the background (see the file comment). */
 export const loadTalks = cache(
-  (): Promise<readonly Talk[]> => loadList(readTalks, TalkSchema, 'talks'),
+  (): Promise<readonly Talk[]> => loadList(readTalksForPages, TalkSchema, 'talks'),
 );
 
 /**
@@ -357,11 +408,52 @@ function withSources(
   }));
 }
 
-/** Sanity's videos and the channel's uploads, each tagged with where it came from. */
-export const loadVideos = cache(async (): Promise<readonly ListedVideo[]> => {
-  const raw = await readData(readVideos, 'videos');
-  return withSources(decodeEach(YoutubeVideoSchema, raw, 'videos'), raw);
+/** The videos for a page, decoded and tagged, and whether they are every upload. */
+export interface LoadedVideos {
+  readonly videos: readonly ListedVideo[];
+  /**
+   * False when the channel has more uploads than the site reads (CHANNEL_UPLOADS_CAP): the list
+   * is the newest ones only, so a page must not state its count, or a place in it, as a total.
+   */
+  readonly complete: boolean;
+}
+
+const loadedVideos = ({ videos, complete }: VideoListing): LoadedVideos => ({
+  videos: withSources(decodeEach(YoutubeVideoSchema, videos, 'videos'), videos),
+  complete,
 });
+
+const isVideoListing = (data: unknown): data is VideoListing =>
+  typeof data === 'object' &&
+  data !== null &&
+  Array.isArray((data as { videos?: unknown }).videos) &&
+  typeof (data as { complete?: unknown }).complete === 'boolean';
+
+/**
+ * Sanity's videos and the channel's uploads, each tagged with where it came from, and whether
+ * that is every upload. Past the TTL, answered at once while it refreshes in the background.
+ */
+export const loadVideoList = cache(
+  async (): Promise<LoadedVideos> =>
+    loadedVideos(await readData(readVideoListingForPages, 'videos')),
+);
+
+/** Sanity's videos and the channel's uploads, each tagged with where it came from. */
+export const loadVideos = cache(
+  async (): Promise<readonly ListedVideo[]> => (await loadVideoList()).videos,
+);
+
+/**
+ * The videos last cached, decoded and tagged like {@link loadVideos}'s, and when they were loaded
+ * (epoch ms), however old; undefined when they were never loaded in this process. Never asks
+ * Sanity or YouTube, never waits and reports no staleness: for a page that cannot wait on a slow
+ * reload (a project page's "See also").
+ */
+export function peekVideos(): CachedValue<readonly ListedVideo[]> | undefined {
+  const cached = sharedCache.peek(VIDEOS_KEY);
+  if (!cached || !isVideoListing(cached.data)) return undefined;
+  return { data: loadedVideos(cached.data).videos, loadedAt: cached.loadedAt };
+}
 
 const SANITY_DOCUMENT_ID = /^[A-Za-z0-9._-]{1,128}$/;
 

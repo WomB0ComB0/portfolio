@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -16,37 +14,40 @@
  * limitations under the License.
  */
 
-import Script from 'next/script';
-import { app } from '@/constants';
-import { generateSchema, Stringify } from '@/utils';
-
 /**
- * Generates and injects JSON-LD structured data for SEO.
- * It creates a `WebPage` schema that includes nested `Organization` data.
+ * @file JSON-LD as native script elements, rendered on the server.
  *
- * @returns {JSX.Element} A script tag containing the JSON-LD data.
+ * Not next/script: that component injects its script in the browser, so the JSON-LD was in no
+ * page's server HTML and a crawler that runs no JavaScript never saw it. A JSON-LD block is
+ * data, which no browser executes, so it needs no loading strategy. No client directive either:
+ * these are server components and add nothing to the client bundle.
  */
-export function StructuredData({ nonce }: Readonly<{ nonce: string | undefined }>) {
-  const structuredData = generateSchema({
-    type: 'Organization',
-    name: app.name,
-    url: app.url,
-    thumbnailUrl: app.logo,
-    logo: app.logo,
-    sameAs: [
-      'https://mikeodnis.dev',
-      'https://news.mikeodnis.dev',
-      'https://blog.mikeodnis.dev',
-      'https://linkedin.com/in/mikeodnis',
-      'https://instagram.com/mikeodnis.dev',
-      'https://x.com/@mike_odnis',
-      'https://bsky.app/profile/mikeodnis.dev',
-    ],
-  });
 
+import type { JSX } from 'react';
+import { type JsonLdDocument, serializeJsonLd, siteJsonLd } from '@/lib/seo/json-ld';
+
+export interface JsonLdProps {
+  /** The JSON-LD to write, built in src/lib/seo/json-ld.ts. */
+  readonly data: JsonLdDocument;
+  readonly id?: string;
+  /** The request's CSP nonce, when the layout has one. */
+  readonly nonce?: string;
+}
+
+/** One JSON-LD block. React would HTML-escape the quotes of a text child, so the JSON is raw. */
+export function JsonLd({ data, id, nonce }: JsonLdProps): JSX.Element {
   return (
-    <Script id="structured-data" type="application/ld+json" nonce={nonce}>
-      {Stringify(structuredData)}
-    </Script>
+    <script
+      id={id}
+      type="application/ld+json"
+      nonce={nonce}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: the text is JSON.stringify output of the site's own constants with every "<" escaped (serializeJsonLd), as Next's JSON-LD guide shows.
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }}
+    />
   );
+}
+
+/** Every page's JSON-LD: the Person the site is about and the WebSite, for the root layout. */
+export function StructuredData({ nonce }: Readonly<{ nonce: string | undefined }>): JSX.Element {
+  return <JsonLd id="structured-data" data={siteJsonLd()} nonce={nonce} />;
 }
