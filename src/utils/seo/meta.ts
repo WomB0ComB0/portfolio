@@ -76,8 +76,6 @@ export interface MetadataOptions {
   readonly image?: string;
   /** The Twitter card image URL. Defaults to the preview image (the site card's X twin). */
   readonly twitter?: string;
-  /** When true, asks search engines not to index or follow the page. */
-  readonly noIndex?: boolean;
   /** The page's path on the site, e.g. '/stats'. Sets og:url; without it og:url is left out. */
   readonly path?: string;
   /** An og:video for the page. */
@@ -127,6 +125,17 @@ function previewImages(title: string, description: string, image?: string): Prev
   return { openGraph: page, twitter: page };
 }
 
+/**
+ * A page's title and the template Next titles the segments under it with. Next puts a page's
+ * title into the root layout's template ('Mike Odnis - %s'), so the site's own title (the home
+ * page, and the layout's default) is `absolute`: through the template it read
+ * 'Mike Odnis - Mike Odnis'.
+ */
+function pageTitle(title: string): NonNullable<Metadata['title']> {
+  const template = `${title} - %s`;
+  return title === app.name ? { absolute: title, template } : { default: title, template };
+}
+
 const twitterCard = (player?: MetadataPlayer) =>
   player
     ? { card: 'player' as const, players: [{ ...player }] }
@@ -157,6 +166,9 @@ function placeTags(location: string | null | undefined): Pick<Metadata, 'other'>
  * card for the site's own title (the home page and the layout's defaults), a page card for any
  * other. Every page sets its own, so Next never adds the opengraph-image file's tag itself.
  *
+ * It writes no robots tag. Next writes the one `noindex` on every 404 itself, and the noIndex
+ * option this had gave each 404 a second tag (tests/unit/seo/not-found-robots.test.ts).
+ *
  * @function
  * @public
  * @author Mike Odnis
@@ -181,7 +193,6 @@ export function constructMetadata({
   description = `${app.description}`,
   image,
   twitter,
-  noIndex = false,
   path,
   video,
   player,
@@ -191,10 +202,7 @@ export function constructMetadata({
   const place = placeTags(location);
 
   return {
-    title: {
-      default: title,
-      template: `${title} - %s`,
-    },
+    title: pageTitle(title),
     description,
     openGraph: {
       title,
@@ -219,7 +227,6 @@ export function constructMetadata({
     metadataBase: new URL(app.url),
     keywords: [...app.keywords, ...place.keywords],
     ...(place.other && { other: place.other }),
-    ...(noIndex && { robots: { index: false, follow: false } }),
   };
 }
 

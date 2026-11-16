@@ -17,8 +17,7 @@
 /**
  * SEO & Metadata
  *
- * Utilities for SEO metadata and structured data (schema.org)
+ * Utilities for SEO metadata (structured data lives in src/lib/seo/json-ld.ts)
  */
 
 export * from './meta';
-export * from './speculation-schema';

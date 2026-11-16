@@ -17,6 +17,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { MagicCard } from '@/components/magicui/magic-card';
 import { CardContent, CardHeader } from '@/components/ui/card';
 import { reportApiFailure } from '@/lib/observability/report';
@@ -77,12 +78,7 @@ export async function generateMetadata({ params }: PlacePageProps): Promise<Meta
 
   try {
     const place = await loadPastPlaceById(placeId);
-    if (!place) {
-      return constructMetadata({
-        title: 'Place Not Found',
-        description: 'The requested place could not be found',
-      });
-    }
+    if (!place) return NOT_FOUND_METADATA;
     return constructMetadata({
       title: place.name,
       description: metaDescription(place.description),

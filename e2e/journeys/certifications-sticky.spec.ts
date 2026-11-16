@@ -16,40 +16,44 @@
 
 /**
  * @file /certifications' sticky parts, and focus under and into them, against the live data:
- * - The filter bar sticks above the edge haze, with each year's bar and its column labels under
- *   it. All three are one width (the table's), and they are painted only while stuck: at rest the
- *   page's glow shows through them (where the browser has scroll-state queries); stuck, they are
- *   opaque, so no row shows through.
- * - At a year's end the column labels slide under the year bar, which stays readable until it
- *   leaves with the year's last row.
- * - Shift+Tab back up the rows never leaves the focused link or button under the bar, the year
- *   bar or the labels (WCAG 2.2, 2.4.11 Focus Not Obscured).
+ * - The filter bar sticks above the edge haze, as wide as the record under it, and is painted only
+ *   while stuck: at rest the page's glow shows through it (where the browser has scroll-state
+ *   queries); stuck, it is opaque, so nothing shows through.
+ * - From a 48rem page, an issuer's name stays pinned under the bar while its group scrolls past,
+ *   and leaves with the group's last certificate.
+ * - Shift+Tab back up the certificates never leaves the focused link or button under the bar or a
+ *   pinned name (WCAG 2.2, 2.4.11 Focus Not Obscured).
  * - Focus moving into the stuck bar keeps the page where it is: from a script (a screen reader's
  *   jump), from Shift+Tab, after the only token goes, and when the phone sheet opens and closes.
  *   html's scroll-padding (the edge haze's band) used to make the browser scroll a stuck bar's
  *   control "into view" by hundreds of pixels.
+ * - Hydration moves nothing: the header and the bar sit where the server HTML put them.
  */
 
-import { expect, type Page, test } from '@playwright/test';
+import { type Browser, expect, type Page, test } from '@playwright/test';
 
+import { getTargetUrl } from '../fixtures/base';
 import {
   CURRENT_CHIP,
   DESKTOP,
   hydrated,
+  MAIN,
   openAt,
   PATH,
   PHONE,
-  ROW,
+  settle,
+  type Viewport,
   WIDE,
 } from '../fixtures/ledger';
 
 const BAR = '[data-filter-part="bar"]';
+/** Sub-pixel rounding between two renders of the same layout. */
+const SAME_PX = 1;
+const ITEM = '[data-cert-item]';
 const CLEAR = 'rgba(0, 0, 0, 0)';
-/** How far the labels have slid into the year bar's band at a year's end. */
-const SLID_PX = 16;
-/** More focus stops than the list has links and buttons. */
+/** More focus stops than the record has links and buttons. */
 const MAX_STOPS = 400;
-/** Enough stops to have crossed several rows and a year boundary. */
+/** Enough stops to have crossed several certificates and a group or year boundary. */
 const MIN_STOPS = 20;
 
 const scrollY = (page: Page): Promise<number> => page.evaluate(() => window.scrollY);
@@ -83,141 +87,114 @@ async function scrollToStuck(page: Page, share: number): Promise<number> {
 const focusInBar = (page: Page): Promise<boolean> =>
   page.evaluate(() => Boolean(document.activeElement?.closest('[data-filter-part="bar"]')));
 
-/**
- * The bar, a year bar and its first column label: their boxes and what they paint (their own
- * background, or the ::before that paints them only while stuck). The year is the one stuck right
- * under the bar, else the first.
- */
-function readSticky(page: Page) {
+/** The bar: its box, its z-index against the haze's, and what it paints (itself or ::before). */
+function readBar(page: Page) {
   return page.evaluate((clear) => {
-    /** The colour an element paints: its own background, else its ::before's; `clear` if none. */
-    const paint = (element: Element | null): string => {
-      if (!element) return clear;
-      const own = getComputedStyle(element).backgroundColor;
-      return own === clear ? getComputedStyle(element, '::before').backgroundColor : own;
-    };
-    /** An element's viewport edges as plain numbers (a DOMRect does not serialise), or null. */
-    const edges = (element: Element | null) => {
-      const box = element?.getBoundingClientRect();
-      return box ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right } : null;
-    };
     const bar = document.querySelector('[data-filter-part="bar"]') as HTMLElement;
-    const barBottom = bar.getBoundingClientRect().bottom;
-    const years = [...document.querySelectorAll('section[data-index-part="group"] > h2')];
-    const year =
-      years.find((h2) => Math.abs(h2.getBoundingClientRect().top - barBottom) <= 1) ?? years[0];
-    const label = year?.nextElementSibling?.querySelector('thead th') ?? null;
-    // A phone hides the <thead>; its cells still compute display: table-cell.
-    const labelShows = label?.checkVisibility() ?? false;
+    const own = getComputedStyle(bar).backgroundColor;
+    const paint = own === clear ? getComputedStyle(bar, '::before').backgroundColor : own;
+    const box = bar.getBoundingClientRect();
+    const record = document.querySelector('[data-record]')?.getBoundingClientRect();
     const haze = document.querySelector('.edge-haze');
     return {
       scrollState: CSS.supports('container-type', 'scroll-state'),
       barZ: Number(getComputedStyle(bar).zIndex),
       hazeZ: haze ? Number(getComputedStyle(haze).zIndex) : 0,
-      bar: { box: edges(bar), paint: paint(bar) },
-      year: { box: edges(year ?? null), paint: paint(year ?? null) },
-      label: labelShows ? { box: edges(label), paint: paint(label) } : null,
-      table: edges(year?.nextElementSibling ?? null),
+      paint,
+      left: box.left,
+      right: box.right,
+      recordLeft: record?.left ?? Number.NaN,
+      recordRight: record?.right ?? Number.NaN,
     };
   }, CLEAR);
 }
 
-test.describe('/certifications: the sticky bar and the year bars', () => {
+/** Marks the tallest issuer group (the one scrolled through longest) and returns its page top. */
+function markTallestGroup(page: Page): Promise<number | null> {
+  return page.evaluate(() => {
+    const groups = [...document.querySelectorAll<HTMLElement>('[data-issuer-group]')];
+    const tallest = groups.sort((a, b) => b.offsetHeight - a.offsetHeight)[0];
+    tallest?.setAttribute('data-probe', '');
+    return tallest ? Math.round(tallest.getBoundingClientRect().top + window.scrollY) : null;
+  });
+}
+
+/** The bar's bottom, and the marked group's name and edges, in the viewport. */
+function readPinned(page: Page) {
+  return page.evaluate(() => {
+    const bar = document.querySelector('[data-filter-part="bar"]') as HTMLElement;
+    const group = document.querySelector('[data-probe]') as HTMLElement;
+    const name = group.querySelector('h3') as HTMLElement;
+    return {
+      barBottom: bar.getBoundingClientRect().bottom,
+      nameTop: name.getBoundingClientRect().top,
+      headBottom: name.parentElement?.getBoundingClientRect().bottom ?? 0,
+      groupBottom: group.getBoundingClientRect().bottom,
+    };
+  });
+}
+
+test.describe('/certifications: the sticky bar and the pinned issuer names', () => {
   for (const viewport of [PHONE, DESKTOP, WIDE]) {
-    test(`${viewport.width}px: one width, above the haze, painted only while stuck`, async ({
+    test(`${viewport.width}px: as wide as the record, above the haze, painted only while stuck`, async ({
       page,
     }) => {
       await openAt(page, '', viewport);
       await hydrated(page);
 
-      const rest = await readSticky(page);
+      const rest = await readBar(page);
       if (rest.scrollState) {
-        expect(rest.bar.paint, 'the bar at rest is a darker band over the glow').toBe(CLEAR);
-        expect(rest.year.paint, 'a year bar at rest is a darker band').toBe(CLEAR);
-        if (rest.label) expect(rest.label.paint, 'labels at rest are a darker band').toBe(CLEAR);
+        expect(rest.paint, 'the bar at rest is a darker band over the glow').toBe(CLEAR);
       }
 
       await scrollToStuck(page, 0.4);
       // A scroll-state query answers on the frame after the scroll that made it true.
       await frames(page);
-      const stuck = await readSticky(page);
-      const bar = stuck.bar.box;
-      const year = stuck.year.box;
+      const stuck = await readBar(page);
 
       expect(stuck.barZ).toBeGreaterThan(stuck.hazeZ);
-      expect(stuck.bar.paint, 'rows show through the stuck bar').not.toBe(CLEAR);
-      expect(stuck.year.paint, 'rows show through the stuck year bar').not.toBe(CLEAR);
-      expect(Math.abs((year?.top ?? 0) - (bar?.bottom ?? 0)), 'year under the bar').toBeLessThan(1);
-      // One extent: the bar, the year bar and the table line up on both edges.
-      expect(Math.abs((bar?.left ?? 0) - (year?.left ?? 0)), 'left edges').toBeLessThan(1);
-      expect(Math.abs((bar?.right ?? 0) - (year?.right ?? 0)), 'right edges').toBeLessThan(1);
-      expect(Math.abs((stuck.table?.left ?? 0) - (year?.left ?? 0)), 'table edge').toBeLessThan(1);
-      if (stuck.label) {
-        expect(stuck.label.paint, 'rows show through the stuck labels').not.toBe(CLEAR);
-        expect(Math.abs((stuck.label.box?.top ?? 0) - (year?.bottom ?? 0))).toBeLessThan(1);
-      }
+      expect(stuck.paint, 'the record shows through the stuck bar').not.toBe(CLEAR);
+      expect(Math.abs(stuck.left - stuck.recordLeft), 'left edges').toBeLessThan(1);
+      expect(Math.abs(stuck.right - stuck.recordRight), 'right edges').toBeLessThan(1);
     });
   }
 
   for (const viewport of [DESKTOP, WIDE]) {
-    test(`${viewport.width}px: at a year's end its labels slide under the year bar, which stays readable`, async ({
+    test(`${viewport.width}px: an issuer's name stays pinned under the bar, and leaves with its group`, async ({
       page,
     }) => {
       await openAt(page, '', viewport);
       await hydrated(page);
-      // The first year (with another after it) whose end comes after the bar has stuck.
-      const target = await page.evaluate((slid) => {
-        const bar = document.querySelector('[data-filter-part="bar"]') as HTMLElement;
-        const barTop = bar.getBoundingClientRect().top + window.scrollY;
-        const barHeight = bar.getBoundingClientRect().height;
-        const groups = [...document.querySelectorAll('section[data-index-part="group"]')];
-        for (const [index, group] of groups.slice(0, -1).entries()) {
-          const h2 = group.querySelector('h2') as HTMLElement;
-          const table = group.querySelector('table') as HTMLElement;
-          const th = table.querySelector('thead th') as HTMLElement;
-          const end = table.getBoundingClientRect().bottom + window.scrollY;
-          const y = Math.round(end - (barHeight + h2.offsetHeight + th.offsetHeight) + slid);
-          if (y > barTop + h2.offsetHeight) return { index, y };
-        }
-        return null;
-      }, SLID_PX);
-      expect(target, 'a year that ends below the stuck bar').not.toBeNull();
+      const top = await markTallestGroup(page);
+      expect(top, 'a busy year with issuer groups').not.toBeNull();
 
-      await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), target?.y ?? 0);
+      // Into the group: the name holds just under the bar.
+      await page.evaluate((y) => window.scrollTo({ top: y + 240, behavior: 'instant' }), top ?? 0);
       await frames(page);
-      const seen = await page.evaluate((index) => {
-        const group = document.querySelectorAll('section[data-index-part="group"]')[index];
-        const h2 = group?.querySelector('h2') as HTMLElement;
-        const th = group?.querySelector('thead th') as HTMLElement;
-        // The year's middle, and the foot of its glyphs, where the labels arrive first.
-        const year = (h2.firstElementChild ?? h2).getBoundingClientRect();
-        const hits = [year.top + year.height / 2, year.bottom - 4].map((y) =>
-          document.elementFromPoint(year.left + year.width / 2, y),
-        );
-        const covering = hits.find((hit) => hit === null || !h2.contains(hit));
-        return {
-          labelsTop: th.getBoundingClientRect().top,
-          yearBottom: h2.getBoundingClientRect().bottom,
-          inYear: covering === undefined,
-          hit: covering
-            ? `${covering.tagName} ${(covering.textContent ?? '').trim().slice(0, 30)}`
-            : '',
-        };
-      }, target?.index ?? 0);
+      const inside = await readPinned(page);
+      expect(inside.nameTop, 'the name is under the bar').toBeGreaterThanOrEqual(inside.barBottom);
+      expect(inside.nameTop - inside.barBottom, 'and pinned close under it').toBeLessThan(40);
 
-      expect(seen.labelsTop, 'the labels have reached the year bar').toBeLessThan(seen.yearBottom);
-      expect(seen.inYear, `the year number is under ${seen.hit}`).toBe(true);
+      // Near the group's end: the name leaves with it, never over the next group.
+      await page.evaluate(() => {
+        const group = document.querySelector('[data-probe]') as HTMLElement;
+        const end = group.getBoundingClientRect().bottom + window.scrollY;
+        window.scrollTo({ top: end - 120, behavior: 'instant' });
+      });
+      await frames(page);
+      const leaving = await readPinned(page);
+      expect(leaving.headBottom).toBeLessThanOrEqual(leaving.groupBottom + 1);
     });
   }
 
   for (const viewport of [PHONE, DESKTOP, WIDE]) {
-    test(`${viewport.width}px: Shift+Tab up the rows never leaves focus under the sticky bars`, async ({
+    test(`${viewport.width}px: Shift+Tab up the certificates never leaves focus under the sticky parts`, async ({
       page,
     }) => {
       const main = await openAt(page, '', viewport);
       await hydrated(page);
-      // The last control that shows (a phone hides the cells beyond the title).
-      await main.locator(`${ROW} :is(a, button)`).filter({ visible: true }).last().focus();
+      // The last control that shows (a phone keeps Copy ID out of the groups).
+      await main.locator(`${ITEM} :is(a, button)`).filter({ visible: true }).last().focus();
 
       const hidden: string[] = [];
       let stops = 0;
@@ -225,13 +202,13 @@ test.describe('/certifications: the sticky bar and the year bars', () => {
         await page.keyboard.press('Shift+Tab');
         const stop = await page.evaluate(() => {
           const element = document.activeElement;
-          if (!(element instanceof HTMLElement) || !element.closest('tr[data-cert-row]')) {
+          if (!(element instanceof HTMLElement) || !element.closest('[data-cert-item]')) {
             return null;
           }
           const box = element.getBoundingClientRect();
           const hit = document.elementFromPoint(
             box.left + Math.min(box.width / 2, 40),
-            box.top + box.height / 2,
+            box.top + Math.min(box.height / 2, 12),
           );
           const shows =
             hit !== null && (hit === element || element.contains(hit) || hit.contains(element));
@@ -242,8 +219,8 @@ test.describe('/certifications: the sticky bar and the year bars', () => {
         if (stop !== '') hidden.push(stop);
       }
 
-      expect(stops, 'Shift+Tab went up through several rows').toBeGreaterThan(MIN_STOPS);
-      expect(hidden, 'focused controls hidden under the sticky bars').toEqual([]);
+      expect(stops, 'Shift+Tab went up through several certificates').toBeGreaterThan(MIN_STOPS);
+      expect(hidden, 'focused controls hidden under the sticky parts').toEqual([]);
     });
   }
 
@@ -276,19 +253,21 @@ test.describe('/certifications: the sticky bar and the year bars', () => {
       await measure(`script focus: ${second}`, () =>
         page.evaluate((s) => (document.querySelector(`main ${s}`) as HTMLElement).focus(), second),
       );
-      await measure('Shift+Tab from the first row', async () => {
+      // The year jumps are the first controls after the bar.
+      await measure('Shift+Tab from the first year jump', async () => {
         await main
-          .locator(`${ROW} a`)
+          .getByRole('navigation', { name: 'By year' })
+          .getByRole('link')
           .first()
           .evaluate((link) => (link as HTMLElement).focus({ preventScroll: true }));
         await page.keyboard.press('Shift+Tab');
-        expect(await focusInBar(page), 'Shift+Tab from the first row reaches the bar').toBe(true);
+        expect(await focusInBar(page), 'Shift+Tab from the first jump reaches the bar').toBe(true);
       });
 
       expect(jumps).toEqual({
         'script focus: search': 0,
         [`script focus: ${second}`]: 0,
-        'Shift+Tab from the first row': 0,
+        'Shift+Tab from the first year jump': 0,
       });
     });
 
@@ -344,4 +323,57 @@ test.describe('/certifications: the sticky bar and the year bars', () => {
     await frames(page);
     expect(await scrollY(page), 'closing the sheet moved the page').toBe(y);
   });
+
+  /** The header's height, and the bar's offset under the header's top. */
+  async function footprint(
+    browser: Browser,
+    viewport: Viewport,
+    javaScriptEnabled: boolean,
+  ): Promise<{ header: number; toolbar: number | null }> {
+    const context = await browser.newContext({ viewport, javaScriptEnabled });
+    try {
+      const page = await context.newPage();
+      await page.goto(`${getTargetUrl()}${PATH}`);
+      if (javaScriptEnabled) {
+        await settle(page);
+        // CodeRabbit on #613: measure after hydration and the island's first effects (the
+        // toolbar reveal), or both runs could read the server layout.
+        await hydrated(page);
+        await frames(page);
+      } else await page.waitForLoadState('load');
+      await page.evaluate(() => document.fonts.ready);
+      const header = page.locator(`${MAIN} header`).filter({ visible: true }).first();
+      const toolbar = page.locator(`${MAIN} ${BAR}`).filter({ visible: true }).first();
+      const featured = await page.locator(`${MAIN} [data-featured]`).count();
+      const headerBox = await header.boundingBox();
+      const toolbarBox = featured === 0 ? await toolbar.boundingBox() : null;
+      if (!headerBox) throw new Error('no visible header');
+      return {
+        header: headerBox.height,
+        toolbar: toolbarBox ? toolbarBox.y - headerBox.y : null,
+      };
+    } finally {
+      await context.close();
+    }
+  }
+
+  for (const viewport of [PHONE, DESKTOP]) {
+    test(`${viewport.width}px: hydration keeps the header and bar where the server HTML put them`, async ({
+      browser,
+    }) => {
+      // Without JavaScript the page stays as the server sent it, so it can be measured as it shows.
+      const server = await footprint(browser, viewport, false);
+      const hydrated = await footprint(browser, viewport, true);
+
+      expect(Math.abs(server.header - hydrated.header), 'header height').toBeLessThanOrEqual(
+        SAME_PX,
+      );
+      // The bar is measured only without a Featured chapter (footprint returns null with one).
+      if (hydrated.toolbar !== null && server.toolbar !== null) {
+        expect(Math.abs(server.toolbar - hydrated.toolbar), 'toolbar top').toBeLessThanOrEqual(
+          SAME_PX,
+        );
+      }
+    });
+  }
 });

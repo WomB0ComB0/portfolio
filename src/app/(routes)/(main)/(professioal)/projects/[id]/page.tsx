@@ -26,6 +26,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 import { ProjectDetail } from '@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail/project-detail';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { reportApiFailure } from '@/lib/observability/report';
 import { OG_IMAGE_SIZE } from '@/lib/og/constants';
 import { urlFor } from '@/lib/sanity/client';
@@ -62,12 +63,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   try {
     const project = await loadProjectById(id);
 
-    if (!project) {
-      return constructMetadata({
-        title: 'Project Not Found',
-        description: 'The requested project could not be found',
-      });
-    }
+    if (!project) return NOT_FOUND_METADATA;
 
     const imageUrl = project.image
       ? urlFor(project.image).width(OG_IMAGE_WIDTH).height(OG_IMAGE_HEIGHT).url()

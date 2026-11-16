@@ -128,7 +128,8 @@ describe('live counters use tabular figures', () => {
     const chips = screen.getByRole('list', { name: 'Filter by issuer' });
 
     for (const count of within(chips).getAllByText('2')) expect(count).toHaveClass(TABULAR);
-    // tile-meta sets tabular figures itself (globals.css).
-    expect(screen.getAllByText('1 certificate')[0]).toHaveClass('tile-meta');
+    // The year jumps' counts: tile-meta sets tabular figures itself (globals.css).
+    const years = screen.getByRole('navigation', { name: 'By year' });
+    for (const count of within(years).getAllByText('1')) expect(count).toHaveClass('tile-meta');
   });
 });

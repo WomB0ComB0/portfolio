@@ -17,7 +17,8 @@
  */
 
 /**
- * @file The guestbook's compose card: sign in, then write.
+ * @file The guestbook's compose card: sign in, then write. It is the wall's dashed "Your note
+ * here" tile, the first tile of the newest year (guestbook-board.tsx keeps it mounted there).
  *
  * Signed out, it is one line and a Sign in button, and Firebase is not loaded. Pressing Sign in
  * loads it (src/core/auth): a visitor with a saved session goes straight to the box, anyone else
@@ -86,10 +87,13 @@ import {
   STATUS_CLASS,
   TEXT_BUTTON_CLASS,
   TEXTAREA_CLASS,
+  TOUCH_BUTTON_CLASS,
 } from './guestbook-classes';
 import type { PostMessage } from './use-posted-messages';
 
 const TITLE_ID = 'guestbook-compose';
+/** The tile's heading: the wall's next note is yours (an h3 under its year's h2). */
+const TITLE = 'Your note here';
 const FIELD_ID = 'guestbook-message';
 const COUNTER_ID = 'guestbook-message-count';
 const ERROR_ID = 'guestbook-message-error';
@@ -165,7 +169,12 @@ function SignInPanel({
           <p className={CARD_TEXT_CLASS}>{CHOOSE}</p>
           <div className={PROVIDERS_CLASS}>
             {METHODS.map((method) => (
-              <LoginButton key={method} signInMethod={method} disabled={phase === 'signing-in'} />
+              <LoginButton
+                key={method}
+                signInMethod={method}
+                disabled={phase === 'signing-in'}
+                className={TOUCH_BUTTON_CLASS}
+              />
             ))}
           </div>
         </>
@@ -178,6 +187,7 @@ function SignInPanel({
               onClick={start}
               aria-disabled={preparing || undefined}
               aria-busy={preparing || undefined}
+              className={TOUCH_BUTTON_CLASS}
             >
               {preparing ? 'Preparing sign-in…' : 'Sign in'}
             </Button>
@@ -306,6 +316,7 @@ function ComposeFoot({ draft, sending }: { readonly draft: string; readonly send
         type="submit"
         aria-disabled={unavailable || undefined}
         aria-busy={sending || undefined}
+        className={TOUCH_BUTTON_CLASS}
       >
         {sending ? 'Posting…' : 'Post message'}
       </Button>
@@ -397,9 +408,9 @@ export function ComposeCard({ onPost }: ComposeCardProps): ReactElement {
       aria-busy={preparing || undefined}
       className={CARD_CLASS}
     >
-      <h2 id={TITLE_ID} className={CARD_TITLE_CLASS}>
-        Sign the guestbook
-      </h2>
+      <h3 id={TITLE_ID} className={CARD_TITLE_CLASS}>
+        {TITLE}
+      </h3>
       {user ? (
         <ComposeForm user={user} onPost={onPost} kept={kept} takeFocus={switched} />
       ) : (
