@@ -15,7 +15,7 @@
  */
 
 /**
- * @file Both 404 files export one metadata object: a "404" title, kept out of search indexes.
+ * @file Both 404 files export one metadata object: a "404" title (Next adds the noindex itself).
  *
  * Next takes a 404's metadata from the deepest not-found module, so src/app/(routes)/not-found.tsx
  * replaces the root's. Without an export of its own, a notFound() thrown under (routes) during a
@@ -43,8 +43,10 @@ describe('404 metadata', () => {
     expect(routeGroupMetadata.description).toBe('This page does not exist');
   });
 
-  it('keeps the 404 out of search indexes', () => {
-    expect(routeGroupMetadata.robots).toEqual({ index: false, follow: false });
+  // Next writes <meta name="robots" content="noindex"> on every 404 itself; a robots field here
+  // gave each 404 a second tag (tests/unit/seo/not-found-robots.test.ts).
+  it('asks for no robots tag of its own: Next keeps every 404 out of search indexes', () => {
+    expect(routeGroupMetadata).not.toHaveProperty('robots');
   });
 
   it('is the same object the root not-found exports', () => {

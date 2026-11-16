@@ -223,10 +223,10 @@ describe('/experience/[id]', () => {
 });
 
 describe('/experience/[id] metadata', () => {
-  it('names an unknown id "Experience Not Found", without og:url', async () => {
+  it('names an unknown id "404", without og:url', async () => {
     const metadata = await generateMetadata(paramsFor('__nope__'));
 
-    expect(metadata.openGraph).toMatchObject({ title: 'Experience Not Found' });
+    expect(metadata.openGraph).toMatchObject({ title: '404' });
     expect(metadata.openGraph?.url).toBeUndefined();
     expect(h.reportApiFailure).not.toHaveBeenCalled();
   });

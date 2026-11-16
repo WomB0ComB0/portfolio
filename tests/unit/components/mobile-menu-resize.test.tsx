@@ -20,6 +20,7 @@
  * only at the default 16 px. jsdom has no layout, so a fake matchMedia evaluates rem min-width
  * queries against a viewport the tests resize, and fires `change` when a result flips, as browsers
  * do. Each resize also sets innerWidth and fires `resize`, so a pixel check would be caught too.
+ * It also answers motion's reduced-motion query (motion allowed), which is not a width query.
  */
 
 import { render } from '@testing-library/react';
@@ -61,7 +62,24 @@ const parseMinWidthRem = (media: string): number => {
   return Number(match[1]);
 };
 
+/** The reduced-motion query motion asks once (useReducedMotion in the menu's sheet). */
+const REDUCED_MOTION_MEDIA = /^\(prefers-reduced-motion(?:: reduce)?\)$/;
+
+/** This visitor never asked for less motion; the answer is not a width query, so is not counted. */
+const motionAllowed = (media: string): MediaQueryList =>
+  ({
+    media,
+    matches: false,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }) as unknown as MediaQueryList;
+
 const fakeMatchMedia = (media: string): MediaQueryList => {
+  if (REDUCED_MOTION_MEDIA.test(media)) return motionAllowed(media);
   const query: FakeQuery = {
     media,
     minWidthRem: parseMinWidthRem(media),
