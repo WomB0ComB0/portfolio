@@ -71,6 +71,18 @@ describe('WholeWords', () => {
     );
   });
 
+  it('renders every word separately even when none needs a wrapper', () => {
+    const text = ' Firebase  React\tNext.js ';
+    const { container } = render(<WholeWords text={text} renderWord={(word) => <b>{word}</b>} />);
+    expect([...container.querySelectorAll('b')].map((word) => word.textContent)).toEqual([
+      'Firebase',
+      'React',
+      'Next.js',
+    ]);
+    expect(container.textContent).toBe(text);
+    expect(heldIn(container)).toEqual([]);
+  });
+
   it('holds the words a caller picks, each drawn by the caller', () => {
     const { container } = render(
       <WholeWords
