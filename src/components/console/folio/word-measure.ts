@@ -54,19 +54,23 @@ export function wordUnits(word: string): number {
   return Math.max(MIN_UNITS, Math.round(units * 10) / 10);
 }
 
+// Keep nonbreaking spaces and the word-joining BOM inside the run CSS must fit.
+const WRAPPING_SPACES = /[^\S\u00a0\u2007\u202f\ufeff]+/u;
+
 /**
  * The widest word of a text that may wrap at its spaces: the width a line must hold so no word
  * ever breaks inside itself.
  */
 export function widestWordUnits(text: string): number {
-  const words = text.split(/\s+/u).filter((word) => word.length > 0);
+  const words = text.split(WRAPPING_SPACES).filter((word) => word.length > 0);
   return words.reduce((widest, word) => Math.max(widest, wordUnits(word)), MIN_UNITS);
 }
 
 /** A space between words, in units: Geist's is about 0.25em, so 0.5 units leaves room to spare. */
 const SPACE_UNITS = 0.5;
 
-const wordsOf = (text: string): string[] => text.split(/\s+/u).filter((word) => word.length > 0);
+const wordsOf = (text: string): string[] =>
+  text.split(WRAPPING_SPACES).filter((word) => word.length > 0);
 
 /**
  * A phrase's width on one line: its words and the spaces between them, never under two units.
