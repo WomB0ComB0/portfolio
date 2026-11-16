@@ -19,6 +19,8 @@
  * @file The sitemap lists every public page, then every project, experience and place page, from
  * the loaders the pages use:
  * - each detail page once, dated by the day its document last changed;
+ * - only the roles /experience lists: one that has not begun by New York's month, or a current
+ *   one with no readable start, has a page that answers 404, so it is left out;
  * - the list pages and /resume dated by their newest document, the other pages not dated at all;
  * - never a partial list: when the projects, experiences or places loader rejects (Sanity down,
  *   nothing cached), so does the sitemap;
@@ -227,6 +229,47 @@ describe('sitemap and the places opsec rule (past visits only)', () => {
     for (const place of PLACES) expect(urls).toContain(`${ORIGIN}/places/${place._id}`);
     expect(entryAt(entries, '/places')?.lastModified).toBe('2026-09-30');
     expect(entryAt(entries, '/places/photos')?.lastModified).toBe('2026-09-30');
+  });
+});
+
+describe('sitemap and the experience rule (listed roles only)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('lists no role that has not begun in New York, and dates /experience by listed roles only', async () => {
+    // 00:30 ET on Dec 1, 2026 (05:30 UTC): December has begun in New York, January has not.
+    vi.useFakeTimers({ now: Date.UTC(2026, 11, 1, 5, 30), toFake: ['Date'] });
+    const thisMonth = makeExperience({
+      current: true,
+      startDate: '2026-12-01',
+      endDate: null,
+      _updatedAt: at('2026-11-20'),
+    });
+    const toCome = makeExperience({
+      current: true,
+      startDate: '2027-01-04',
+      endDate: null,
+      _updatedAt: at('2026-11-30'),
+    });
+    const noStart = makeExperience({
+      current: true,
+      startDate: '',
+      endDate: null,
+      _updatedAt: at('2026-11-29'),
+    });
+    loaders.loadExperiences.mockResolvedValue([...EXPERIENCES, thisMonth, toCome, noStart]);
+
+    const entries = await Sitemap();
+    const urls = entries.map((entry) => entry.url);
+
+    // The role pages that answer 404 (experience/[id]/page.tsx) are not asked to be crawled.
+    expect(urls).not.toContain(`${ORIGIN}/experience/${toCome._id}`);
+    expect(urls).not.toContain(`${ORIGIN}/experience/${noStart._id}`);
+    for (const role of [...EXPERIENCES, thisMonth]) {
+      expect(urls).toContain(`${ORIGIN}/experience/${role._id}`);
+    }
+    expect(entryAt(entries, '/experience')?.lastModified).toBe('2026-11-20');
   });
 });
 
