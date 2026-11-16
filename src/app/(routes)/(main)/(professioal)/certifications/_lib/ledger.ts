@@ -85,8 +85,11 @@ export interface LedgerStats {
   readonly certificates: number;
   /** Companies, after folding issuer strings into families. */
   readonly issuers: number;
-  /** Certificates with a credential URL that can be linked. */
-  readonly withLink: number;
+  /**
+   * Certificates whose credential URL leads to a record that vouches for them; a PDF on a file
+   * host is linked but not counted.
+   */
+  readonly verifiable: number;
   /** The earliest issue month ('July 2022'), or null when no date can be read. */
   readonly since: string | null;
 }
@@ -274,7 +277,7 @@ export function buildLedger(sources: readonly LedgerSource[]): Ledger {
     stats: {
       certificates: entries.length,
       issuers: tallies.size,
-      withLink: entries.filter((entry) => entry.link !== null).length,
+      verifiable: entries.filter((entry) => entry.link?.verifies === true).length,
       since: earliest?.long ?? null,
     },
     chips,

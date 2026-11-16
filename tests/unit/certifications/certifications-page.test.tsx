@@ -15,10 +15,13 @@
  */
 
 /**
- * @file /certifications as the Ledger, rendered on the server from loadCertifications(): a header
- * with three figures, a Featured row only when the owner featured something, then one table per
- * year with a row per certificate. The one client island holds the filters; everything else is
- * server code without the old card kit. (The URL filters: certifications-filters.test.tsx.)
+ * @file /certifications as a Folio record, rendered on the server from loadCertifications(): a
+ * header whose counts are one byline, a Featured chapter only when the owner featured something,
+ * then one chapter per year. A thin year sets each certificate large with 'Verify on <platform>';
+ * a busy year groups them under the issuer's name, months in the margin, each title its
+ * credential's link. No table anywhere. The one client island holds the filters; everything else
+ * is server code without the old card kit. (The URL filters: certifications-filters.test.tsx; the
+ * grouping rules: record.test.ts.)
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -43,10 +46,10 @@ import CertificationsPage from '@/app/(routes)/(main)/(professioal)/certificatio
 import {
   ALL_TITLES,
   CERTS,
+  itemFor,
+  itemTitles,
   NEW_TAB,
   renderPage,
-  rowFor,
-  rowTitles,
   yearHeadings,
 } from './page-fixture';
 
@@ -54,27 +57,117 @@ const C_DIR = 'src/app/(routes)/(main)/(professioal)/certifications';
 const SERVER_FILES = [
   `${C_DIR}/page.tsx`,
   `${C_DIR}/_interface/certifications/certifications.tsx`,
-  `${C_DIR}/_components/ledger-row.tsx`,
-  `${C_DIR}/_components/featured-row.tsx`,
+  `${C_DIR}/_components/credential.tsx`,
+  `${C_DIR}/_components/featured-chapter.tsx`,
+  `${C_DIR}/_components/issuer-group.tsx`,
+  `${C_DIR}/_components/ledger-header.tsx`,
+  `${C_DIR}/_components/record-classes.ts`,
+  `${C_DIR}/_components/record-years.tsx`,
   `${C_DIR}/_lib/ledger.ts`,
   `${C_DIR}/_lib/filters.ts`,
   `${C_DIR}/_lib/certification-filters.ts`,
   `${C_DIR}/_lib/format.ts`,
-  `${C_DIR}/_components/ledger-classes.ts`,
+  `${C_DIR}/_lib/record.ts`,
 ];
 const ISLAND_FILE = `${C_DIR}/_components/ledger-explorer.tsx`;
-/** The island's own modules: its URL sync, the adapter to the FilterBar kit, its year tables. */
+/** The island's own modules: its URL sync and the adapter to the FilterBar kit. */
 const ISLAND_PARTS = [
   `${C_DIR}/_components/use-ledger-filters.ts`,
   `${C_DIR}/_components/use-ledger-model.ts`,
-  `${C_DIR}/_components/ledger-years.tsx`,
 ];
-/** Text a screen reader reads: aria-hidden subtrees left out. */
-const READ_ALOUD = { ignore: '[aria-hidden="true"], [aria-hidden="true"] *, script, style' };
+/** The old Ledger's table and tile parts, gone with the record. */
+const RETIRED = ['ledger-row.tsx', 'ledger-years.tsx', 'ledger-classes.ts', 'featured-row.tsx'];
 
-/** What the chrome's type and the old cards used: none of it belongs on the Ledger. */
+/** What the chrome's type and the old cards used: none of it belongs on the page. */
 const FORBIDDEN_TYPE =
   /(?:^|[\s:])!?(?:label-mono|font-mono|uppercase|tracking-label|text-(?:label|stat|display|hero|xs|\[1[01]px\])|font-bold|font-extrabold|font-black)!?(?=[\s/]|$)/;
+
+const SOLO = 'https://www.sololearn.com/certificates/CT-';
+/** A busy 2023 (seven, so it is grouped by issuer) and a thin 2024 of one. */
+const BUSY = [
+  makeCertification({
+    title: 'Azure Fundamentals',
+    issuer: 'Microsoft',
+    issueDate: '2024-06-01',
+    credentialUrl: 'https://learn.microsoft.com/x',
+  }),
+  ...[
+    ['Java', '2023-07'],
+    ['Python', '2023-07'],
+    ['C#', '2023-06'],
+  ].map(([title, month], index) =>
+    makeCertification({
+      title,
+      issuer: 'Sololearn',
+      issueDate: `${month}-01`,
+      order: index,
+      credentialUrl: `${SOLO}${index}`,
+      credentialId: `CT-${index}`,
+    }),
+  ),
+  makeCertification({
+    title: 'Go Beyond the Numbers',
+    issuer: 'Google',
+    issueDate: '2023-05-01',
+    credentialUrl: 'https://www.coursera.org/account/accomplishments/records/X',
+  }),
+  makeCertification({
+    title: 'Baseline: Infrastructure',
+    issuer: 'Google Cloud Skills Boost',
+    issueDate: '2023-03-01',
+    credentialUrl: 'https://www.cloudskillsboost.google/public_profiles/x/badges/1',
+  }),
+  makeCertification({
+    title: 'Algoexpert',
+    issuer: 'AlgoExpert',
+    issueDate: '2023-08-01',
+    credentialUrl: 'https://certificate.algoexpert.io/AE-1',
+  }),
+  makeCertification({
+    title: 'Postman Student Expert',
+    issuer: 'Postman',
+    issueDate: '2023-04-01',
+  }),
+];
+
+const chapter = (name: string): HTMLElement => screen.getByRole('region', { name });
+const chapterSizes = (): (string | undefined)[] =>
+  Array.from(document.querySelectorAll<HTMLElement>('section[data-chapter]')).map(
+    (section) => section.dataset.chapter,
+  );
+/** The first byline inside `root`, as one line of text. */
+const bylineOf = (root: Element): string =>
+  (root.querySelector('[data-byline]')?.textContent ?? '').replace(/\s+/g, ' ').trim();
+/** What an element shows: its text without the words only screen readers hear. */
+const shownText = (element: Element | null): string => {
+  const copy = element?.cloneNode(true) as Element | undefined;
+  for (const hidden of copy?.querySelectorAll('.sr-only') ?? []) hidden.remove();
+  return (copy?.textContent ?? '').replace(/\s+/g, ' ').trim();
+};
+/** What a screen reader hears of it: its text without what is hidden from them. */
+const spokenText = (element: Element | null): string => {
+  const copy = element?.cloneNode(true) as Element | undefined;
+  for (const hidden of copy?.querySelectorAll('[aria-hidden="true"]') ?? []) hidden.remove();
+  return (copy?.textContent ?? '').replace(/\s+/g, ' ').trim();
+};
+/** A certificate whose link is a PDF in a storage bucket, as Programming Hub's is. */
+const STORED = makeCertification({
+  title: 'C++',
+  issuer: 'Programming Hub',
+  issueDate: '2023-01-01',
+  credentialUrl: 'https://storage.googleapis.com/programminghub/certificate%2F1.pdf',
+});
+/** A chapter opener's sentence: the paragraph in its own header that is not its byline. */
+const sentenceOf = (section: HTMLElement): string =>
+  section.querySelector(':scope > header p:not([data-byline])')?.textContent ?? '';
+/** A chapter opener's own byline as one line of text, or null when it has none. */
+const yearBylineOf = (section: HTMLElement): string | null => {
+  const byline = section.querySelector(':scope > header [data-byline]');
+  return byline ? (byline.textContent ?? '').replace(/\s+/g, ' ').trim() : null;
+};
+/** An issuer group's own byline (under its name), as one line of text. */
+const groupBylineOf = (name: string): string =>
+  bylineOf(screen.getByRole('list', { name }).closest('section') as HTMLElement);
 
 beforeEach(() => {
   h.loadCertifications.mockReset();
@@ -84,72 +177,119 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('/certifications header', () => {
-  it('has one h1, the earliest month as its subline, and figures from the data', async () => {
+  it('has one h1, the earliest month as its subline, and its counts as one byline', async () => {
     const { container } = await renderPage();
-    // A description list has no ARIA role to query by; it is named by its aria-label.
-    const totals = container.querySelector<HTMLElement>('dl[aria-label="Totals"]') as HTMLElement;
-    const figure = (label: string): string | null =>
-      within(totals).getByText(label).parentElement?.querySelector('dd')?.textContent ?? null;
+    const header = container.querySelector('header') as HTMLElement;
 
     expect(screen.getAllByRole('heading', { level: 1 }).map((x) => x.textContent)).toEqual([
       'Certifications',
     ]);
     expect(screen.getByText('Courses and certificates since July 2022.')).toBeInTheDocument();
-    expect(figure('certificates')).toBe('7');
     // Google and Google Cloud Skills Boost are one company, Microsoft and its ambassadors another.
-    expect(figure('issuers')).toBe('4');
-    expect(figure('with a link')).toBe('6');
+    expect(bylineOf(header)).toBe('7 certificates · 4 issuers · 6 you can verify');
+    // Counts sit in a byline, never in stat tiles.
+    expect(container.querySelector('dl[aria-label="Totals"]')).toBeNull();
   });
 });
 
-describe('the Ledger list', () => {
-  it('renders every certificate as a row, grouped by year, newest first', async () => {
-    await renderPage();
+describe('the count under the bar', () => {
+  it('is left out with no filter, so the header byline is the one count', async () => {
+    const { container } = await renderPage();
 
-    expect(rowTitles()).toEqual(ALL_TITLES);
-    expect(yearHeadings()).toEqual([
-      '2025, 1 certificate',
-      '2024, 2 certificates',
-      '2023, 3 certificates',
-      '2022, 1 certificate',
-    ]);
+    expect(container.querySelector('[data-filter-part="count"]')).toBeNull();
+    // The status line is still there, empty, ready to speak after a change.
+    expect(container.querySelector('p[role="status"]')).toBeInTheDocument();
   });
 
-  it('is a real table per year, named by its heading with a pause between the two numbers', async () => {
-    await renderPage();
-    const tables = screen.getAllByRole('table');
+  it('shows what a filter keeps of the whole, with the filter as a removable token', async () => {
+    const { container } = await renderPage({ issuer: 'google' });
+    const count = container.querySelector('[data-filter-part="count"]') as HTMLElement;
 
-    expect(tables).toHaveLength(4);
-    expect(tables[1]).toHaveAccessibleName('2024, 2 certificates');
-    expect(screen.getByRole('heading', { level: 2, name: '2024, 2 certificates' })).toBeVisible();
-    for (const table of tables) {
-      expect(
-        within(table)
-          .getAllByRole('columnheader')
-          .map((th) => th.textContent),
-      ).toEqual(['Certificate', 'Issuer', 'Issued', 'Verify']);
+    // The figure is a screen-reader twin beside an aria-hidden copy that counts up.
+    expect(spokenText(count)).toBe('2 of 7 certificates');
+    expect(screen.getByRole('link', { name: 'Remove Issuer: Google' })).toBeInTheDocument();
+  });
+
+  it('leads each kept certificate’s skills with the ?skill filter’s skill', async () => {
+    await renderPage({ skill: 'react.js' });
+
+    expect(shownText(itemFor('Complete React Developer').querySelector('[data-cert-skills]'))).toBe(
+      'React.js · CSS · Redux.js',
+    );
+    expect(shownText(itemFor('Udemy TypeScript').querySelector('[data-cert-skills]'))).toBe(
+      'React.js · TypeScript',
+    );
+  });
+});
+
+describe('the year chapters', () => {
+  it('gives every year a chapter named by its year, newest first, every certificate once', async () => {
+    await renderPage();
+
+    expect(yearHeadings()).toEqual(['2025', '2024', '2023', '2022']);
+    for (const year of ['2025', '2024', '2023', '2022']) {
+      expect(chapter(year)).toHaveAttribute('id', `y${year}`);
     }
+    expect(itemTitles()).toEqual(ALL_TITLES);
+    expect(screen.queryAllByRole('table')).toEqual([]);
   });
 
-  it('shows the column labels in every year’s sticky bar, under its year', async () => {
+  it('sizes the years by one system: a year of one is a heading on the rule', async () => {
     await renderPage();
-    const tables = screen.getAllByRole('table');
-
-    for (const table of tables) {
-      for (const header of within(table).getAllByRole('columnheader')) {
-        // Visible in every year (the old Ledger clipped all but the first year's away).
-        expect(header.className).not.toMatch(/clip-path|sr-only/);
-        expect(header).toHaveClass('sticky', 'stuck-canvas');
-      }
-    }
+    // 2025 and 2022 hold one certificate each; 2024 and 2023 more, after the first chapter.
+    expect(chapterSizes()).toEqual(['inline', 'step', 'step', 'inline']);
   });
 
-  it('links a title to its credential in a new tab, as the site words new-tab links', async () => {
+  it('makes the first year of more than one the page’s one display numeral', async () => {
+    h.loadCertifications.mockResolvedValue(CERTS.filter((c) => c.issueDate.startsWith('2024')));
     await renderPage();
-    const link = within(rowFor('Build Wireframes')).getByRole('link', {
-      name: `Build Wireframes${NEW_TAB}`,
-    });
 
+    expect(chapterSizes()).toEqual(['lead']);
+  });
+
+  it('says each year in a sentence, and no count its jump link or sentence already gives', async () => {
+    await renderPage();
+    const y2023 = chapter('2023');
+
+    // Names in the year's own order: both December, Microsoft's first in Studio.
+    expect(sentenceOf(chapter('2024'))).toBe('Microsoft and Google.');
+    expect(sentenceOf(y2023)).toBe('Udemy, Google and Microsoft.');
+    // Its jump link says '2023, 3 certificates' and the sentence names all three issuers.
+    expect(yearBylineOf(y2023)).toBeNull();
+    // A year of one needs neither: its certificate says it.
+    expect(yearBylineOf(chapter('2025'))).toBeNull();
+  });
+
+  it('lists the years as jump links with their counts, each landing on its chapter', async () => {
+    await renderPage();
+    const jumps = screen.getByRole('navigation', { name: 'By year' });
+
+    expect(
+      within(jumps)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['#y2025', '#y2024', '#y2023', '#y2022']);
+    expect(within(jumps).getByRole('link', { name: '2024, 2 certificates' })).toBeInTheDocument();
+  });
+});
+
+describe('a thin year: each certificate set large', () => {
+  it('sets the title as a heading, the issuer and month as its byline', async () => {
+    await renderPage();
+    const wireframes = itemFor('Build Wireframes');
+
+    expect(within(wireframes).getByRole('heading', { level: 3 })).toHaveTextContent(
+      'Build Wireframes',
+    );
+    expect(bylineOf(wireframes)).toBe('Google · Dec 2024');
+  });
+
+  it('links Verify on its platform in a new tab, its name starting with the words it shows', async () => {
+    await renderPage();
+    const link = within(itemFor('Build Wireframes')).getByRole('link');
+
+    expect(link).toHaveAccessibleName(`Verify on Coursera, Build Wireframes${NEW_TAB}`);
+    expect(link).toHaveTextContent(/^Verify on Coursera/);
     expect(link).toHaveAttribute(
       'href',
       'https://www.coursera.org/account/accomplishments/records/W5LT6G2556LY',
@@ -158,112 +298,183 @@ describe('the Ledger list', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('shows issuer as written, the month, the platform and Copy ID in the desktop cells', async () => {
+  it('says No public link, and links nothing, for a certificate without a credential URL', async () => {
     await renderPage();
-    const [, issuer, issued, verify] = within(rowFor('BigQuery Basics')).getAllByRole('cell');
-    const month = (issued as HTMLElement).querySelector('time');
+    const azure = itemFor('Perform Cloud Data Science with Azure Machine Learning');
 
-    expect(issuer).toHaveTextContent('Google Cloud Skills Boost');
-    // The month; the year bar holds the year, which screen readers still hear in the cell.
-    expect(month).toHaveTextContent('Jun 2023');
-    expect(month?.firstChild?.textContent).toBe('Jun');
-    expect(month).toHaveAttribute('datetime', '2023-06');
-    expect(verify).toHaveTextContent('Skills Boost');
-    const copy = within(rowFor('Complete React Developer')).getByRole('button', {
-      name: 'Copy the credential ID for Complete React Developer',
-    });
-    expect(copy).toHaveAttribute('title', 'UC-5ba0a391');
-    expect(copy).toHaveTextContent('ID');
+    expect(within(azure).getByText('No public link')).toBeInTheDocument();
+    expect(within(azure).queryByRole('link')).toBeNull();
   });
 
-  it('gives screen readers the Verify cell’s platform and names the ID', async () => {
+  it('offers Copy ID with the ID named for screen readers, and lists the split skills', async () => {
     await renderPage();
-    const verifyOf = (title: string): HTMLElement =>
-      within(rowFor(title)).getAllByRole('cell')[3] as HTMLElement;
+    const react = itemFor('Complete React Developer');
 
     expect(
-      within(verifyOf('BigQuery Basics')).getByText('Skills Boost', READ_ALOUD),
-    ).not.toHaveClass('sr-only');
-    const withId = verifyOf('Complete React Developer');
-    expect(within(withId).getByText('Udemy', READ_ALOUD)).toBeInTheDocument();
-    expect(within(withId).getByText('Credential ID UC-5ba0a391', READ_ALOUD)).toHaveClass(
-      'sr-only',
-    );
-  });
-
-  it('truncates a long platform name but never its one arrow, which turns brand with the row', async () => {
-    await renderPage();
-    const verify = within(rowFor('BigQuery Basics')).getAllByRole('cell')[3] as HTMLElement;
-    const text = within(verify).getByText('Skills Boost');
-    const platform = text.parentElement as HTMLElement;
-    const arrows = within(rowFor('BigQuery Basics'))
-      .getAllByRole('cell')
-      .flatMap((cell) => Array.from(cell.querySelectorAll('[data-new-tab-arrow]')));
-
-    expect(text).toHaveClass('truncate', 'min-w-0');
-    expect(arrows).toHaveLength(1);
-    expect(arrows[0]?.parentElement).toBe(platform);
-    expect(platform).toHaveClass('text-muted-foreground', 'group-hover/row:text-brand-ink');
-  });
-
-  it('has one link per row, the title, stretched over it; Verify is text and Copy ID sits above', async () => {
-    await renderPage();
-    const row = rowFor('Build Wireframes');
-    const [link, ...others] = within(row).getAllByRole('link');
-
-    expect(others).toEqual([]);
-    expect(link).toHaveAttribute('data-cert-title');
-    expect(link).toHaveClass('after:absolute', 'after:inset-0');
-    expect(within(row).getByRole('button', { name: /^Copy the credential ID/ })).toHaveClass(
-      'relative',
-      'z-[1]',
-    );
-  });
-
-  it('says No link, and links nothing, for a certificate without a credential URL', async () => {
-    await renderPage();
-    const row = rowFor('Perform Cloud Data Science');
-
-    expect(within(row).queryByRole('link')).toBeNull();
-    expect(within(row).getByText('No link')).toBeInTheDocument();
-  });
-
-  // CodeRabbit on #613: an ID is still how a visitor verifies a credential by hand.
-  it('still shows the credential ID, named, when there is no URL', async () => {
-    h.loadCertifications.mockResolvedValue([
-      ...CERTS,
-      makeCertification({
-        title: 'Proctored Exam',
-        issuer: 'IBM',
-        issueDate: '2024-03-01',
-        order: 99,
-        credentialUrl: null,
-        credentialId: 'EXAM-42',
+      within(react).getByRole('button', {
+        name: 'Copy the credential ID for Complete React Developer',
       }),
-    ]);
-    await renderPage();
-    const row = rowFor('Proctored Exam');
-
-    expect(within(row).queryByRole('link')).toBeNull();
-    expect(within(row).getByText('No link')).toBeInTheDocument();
-    expect(row).toHaveTextContent(/Credential ID\s*EXAM-42/);
+    ).toHaveAttribute('title', 'UC-5ba0a391');
+    expect(within(react).getByText('Credential ID UC-5ba0a391')).toHaveClass('sr-only');
+    const skills = react.querySelector('[data-cert-skills]') as HTMLElement;
+    // Short forms where the credential gives one; screen readers hear a list.
+    expect(shownText(skills)).toBe('CSS · Redux.js · React.js');
+    expect(spokenText(skills)).toBe('Skills: CSS, Redux.js, React.js');
   });
 
-  it('lists the split skills beside the title, and the phone meta line under it', async () => {
-    await renderPage();
-    const row = rowFor('Complete React Developer');
+  it('offers a PDF on a file host as View certificate, never as verified by its host', async () => {
+    h.loadCertifications.mockResolvedValue([...CERTS, STORED]);
+    const { container } = await renderPage();
+    const link = within(itemFor('C++')).getByRole('link');
 
-    expect(within(row).getByText('Cascading Style Sheets (CSS) · Redux.js · React.js')).toHaveClass(
-      'truncate',
+    expect(link).toHaveTextContent(/^View certificate/);
+    expect(link).toHaveAccessibleName(`View certificate, C++${NEW_TAB}`);
+    expect(within(itemFor('C++')).queryByText(/Verify on/)).toBeNull();
+    // Linked, but not one you can verify: the header still counts six.
+    expect(bylineOf(container.querySelector('header') as HTMLElement)).toBe(
+      '8 certificates · 5 issuers · 6 you can verify',
     );
-    expect(within(row).getByText('Udemy · Sep · Udemy')).toBeInTheDocument();
-    expect(
-      within(rowFor('Perform Cloud Data Science')).getByText('Microsoft · Dec · No link'),
-    ).toBeInTheDocument();
   });
 });
 
-describe('the Featured row', () => {
+describe('a busy year: grouped under the issuer, months in the margin', () => {
+  beforeEach(() => {
+    h.loadCertifications.mockResolvedValue(BUSY);
+  });
+
+  it('groups by issuer family, biggest first, the one-certificate issuers last', async () => {
+    await renderPage();
+    const y2023 = chapter('2023');
+
+    expect(
+      within(y2023)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Sololearn', 'Google', 'One each']);
+    // 'Mostly Sololearn and Google: 5 of 7.' leaves two issuers unnamed; the jump link counts 7.
+    expect(sentenceOf(y2023)).toBe('Mostly Sololearn and Google: 5 of 7.');
+    expect(yearBylineOf(y2023)).toBe('4 issuers');
+  });
+
+  it('says each count once around an opening: a group the sentence counts leaves its count out', async () => {
+    const more = ['Go', 'Kotlin'].map((title, index) =>
+      makeCertification({
+        title,
+        issuer: 'Sololearn',
+        issueDate: '2023-02-01',
+        order: 10 + index,
+        credentialUrl: `${SOLO}${10 + index}`,
+      }),
+    );
+    h.loadCertifications.mockResolvedValue([...BUSY, ...more]);
+    await renderPage();
+    const y2023 = chapter('2023');
+    const jumps = screen.getByRole('navigation', { name: 'By year' });
+
+    expect(within(jumps).getByRole('link', { name: '2023, 9 certificates' })).toBeInTheDocument();
+    expect(sentenceOf(y2023)).toBe('Mostly Sololearn: 5 of 9.');
+    expect(yearBylineOf(y2023)).toBe('4 issuers');
+    // Sololearn's five are in the sentence; Google's two and One each's two are said only here.
+    expect(groupBylineOf('Sololearn')).toBe('Verify on Sololearn');
+    expect(groupBylineOf('Google')).toBe('2 certificates');
+    expect(groupBylineOf('One each')).toBe('2 certificates');
+    // No opener repeats its year's count.
+    for (const section of document.querySelectorAll<HTMLElement>('section[data-chapter]')) {
+      expect(yearBylineOf(section) ?? '').not.toMatch(/certificates?/);
+    }
+  });
+
+  it('stacks each month once in the margin, the list named by its issuer', async () => {
+    await renderPage();
+    const sololearn = screen.getByRole('list', { name: 'Sololearn' });
+    const stacks = Array.from(sololearn.querySelectorAll<HTMLElement>('[data-month-stack]'));
+
+    expect(stacks.map((stack) => stack.querySelector('time')?.getAttribute('dateTime'))).toEqual([
+      '2023-07',
+      '2023-06',
+    ]);
+    expect(stacks.map((stack) => itemTitles(stack))).toEqual([['Java', 'Python'], ['C#']]);
+    // The year stays with the month for screen readers: 'Jul 2023'.
+    expect(stacks[0]?.querySelector('time')).toHaveTextContent('Jul 2023');
+  });
+
+  it('makes each title its credential’s link, the group’s platform said once', async () => {
+    await renderPage();
+    const group = screen.getByRole('list', { name: 'Sololearn' }).closest('section') as HTMLElement;
+
+    expect(bylineOf(group)).toBe('3 certificates · Verify on Sololearn');
+    expect(
+      within(group).getByRole('link', { name: `Java, verify on Sololearn${NEW_TAB}` }),
+    ).toHaveAttribute('href', `${SOLO}0`);
+    expect(
+      within(group).getByRole('button', { name: 'Copy the credential ID for Java' }),
+    ).toBeInTheDocument();
+  });
+
+  it('notes only what the group does not say: another issuer string, another platform', async () => {
+    await renderPage();
+
+    expect(bylineOf(itemFor('Baseline: Infrastructure'))).toBe(
+      'Google Cloud Skills Boost · Verify on Skills Boost',
+    );
+    expect(bylineOf(itemFor('Go Beyond the Numbers'))).toBe('Verify on Coursera');
+    expect(bylineOf(itemFor('Algoexpert'))).toBe('AlgoExpert');
+    expect(bylineOf(itemFor('Postman Student Expert'))).toBe('Postman · No public link');
+    expect(within(itemFor('Postman Student Expert')).queryByRole('link')).toBeNull();
+  });
+
+  it('puts the note and up to three skills in the title’s margin, the rest counted', async () => {
+    h.loadCertifications.mockResolvedValue(
+      BUSY.map((c) =>
+        c.title === 'C#'
+          ? { ...c, skills: ['C#', 'Object-Oriented Programming (OOP)', '.NET', 'LINQ', 'xUnit'] }
+          : c,
+      ),
+    );
+    await renderPage();
+    const margin = itemFor('C#').querySelector('[data-cert-margin]') as HTMLElement;
+    const skills = margin.querySelector('[data-cert-skills]') as HTMLElement;
+
+    expect(shownText(skills)).toBe('C# · OOP · .NET +2');
+    expect(spokenText(skills)).toBe('Skills: C#, OOP, .NET and 2 more');
+    // A certificate the group already speaks for, with no skills, has no margin at all.
+    expect(itemFor('Java').querySelector('[data-cert-margin]')).toBeNull();
+    expect(
+      itemFor('Baseline: Infrastructure').querySelector('[data-cert-margin] [data-byline]'),
+    ).toHaveTextContent('Google Cloud Skills Boost · Verify on Skills Boost');
+  });
+
+  it('says the count once when a filter leaves a busy year one issuer: in its sentence', async () => {
+    const more = ['Go', 'Kotlin', 'SQL'].map((title, index) =>
+      makeCertification({
+        title,
+        issuer: 'Sololearn',
+        issueDate: '2023-02-01',
+        order: 10 + index,
+        credentialUrl: `${SOLO}${10 + index}`,
+      }),
+    );
+    h.loadCertifications.mockResolvedValue([...BUSY, ...more]);
+    await renderPage({ issuer: 'sololearn' });
+    const y2023 = chapter('2023');
+
+    // Then its burst: three of the six in February.
+    expect(sentenceOf(y2023)).toBe('All six from Sololearn. Three of them in February.');
+    expect(y2023.querySelector(':scope > header [data-byline]')).toBeNull();
+    const group = screen.getByRole('list', { name: 'Sololearn' }).closest('section') as HTMLElement;
+    expect(bylineOf(group)).toBe('Verify on Sololearn');
+  });
+
+  it('notes a stored PDF as a certificate file, its link claiming no platform', async () => {
+    h.loadCertifications.mockResolvedValue([...BUSY, { ...STORED, issueDate: '2023-01-01' }]);
+    await renderPage();
+
+    expect(bylineOf(itemFor('C++'))).toBe('Programming Hub · Certificate file');
+    expect(within(itemFor('C++')).getByRole('link')).toHaveAccessibleName(`C++${NEW_TAB}`);
+  });
+});
+
+describe('the Featured chapter', () => {
   it('is left out entirely when nothing is featured', async () => {
     const { container } = await renderPage();
 
@@ -271,41 +482,35 @@ describe('the Featured row', () => {
     expect(container.querySelector('[data-featured]')).toBeNull();
   });
 
-  it('shows up to four featured certificates in display order', async () => {
+  it('opens the page with up to four featured certificates, set large, in display order', async () => {
     h.loadCertifications.mockResolvedValue(
       CERTS.map((c) => ({ ...c, featured: c.title !== 'Build Wireframes' })),
     );
     await renderPage();
-    const section = screen.getByRole('region', { name: 'Featured' });
-    const tiles = within(section).getAllByRole('listitem');
+    const featured = chapter('Featured');
 
-    expect(tiles.map((tile) => within(tile).getByRole('heading', { level: 3 }))).toHaveLength(4);
-    expect(
-      tiles.map((tile) => {
-        const heading = within(tile).getByRole('heading', { level: 3 });
-        return heading.querySelector('a, span')?.firstChild?.textContent;
-      }),
-    ).toEqual([
+    expect(itemTitles(featured)).toEqual([
       'Qiskit Global Summer School 2025',
       'Perform Cloud Data Science with Azure Machine Learning',
       'Complete React Developer',
       'BigQuery Basics',
     ]);
-    const qiskit = tiles[0] as HTMLElement;
-    expect(within(qiskit).getByText('IBM')).toBeInTheDocument();
-    expect(within(qiskit).getByText('Aug 2025')).toBeInTheDocument();
-    expect(within(qiskit).getByText('credly.com')).toBeInTheDocument();
-    expect(
-      within(qiskit).getByRole('link', { name: `Qiskit Global Summer School 2025${NEW_TAB}` }),
-    ).toHaveAttribute('href', 'https://www.credly.com/badges/abc/linked_in_profile');
+    expect(featured).toHaveAttribute('data-chapter', 'lead');
+    expect(bylineOf(within(featured).getAllByRole('listitem')[0] as HTMLElement)).toBe(
+      'IBM · Aug 2025',
+    );
+    // Above the filters, and unfiltered by them; the years after it step down.
+    const after = featured.compareDocumentPosition(screen.getByRole('searchbox'));
+    expect(after & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chapter('2024')).toHaveAttribute('data-chapter', 'step');
   });
 });
 
 describe('server rendering and module boundaries', () => {
   // Owner decision (2026-11-07): no skeleton for this route. With a loading.tsx React streams the
-  // rows into a hidden segment behind it, so visitors without JavaScript, crawlers and link
-  // previews saw only the skeleton, and a Featured row the skeleton cannot predict would jump.
-  it('has no loading.tsx, so the whole Ledger is in the HTML as it arrives', () => {
+  // record into a hidden segment behind it, so visitors without JavaScript, crawlers and link
+  // previews saw only the skeleton, and a Featured chapter the skeleton cannot predict would jump.
+  it('has no loading.tsx, so the whole record is in the HTML as it arrives', () => {
     const present = ['loading.tsx', 'loading.ts', 'loading.jsx', 'loading.js'].filter((file) =>
       existsSync(join(process.cwd(), C_DIR, file)),
     );
@@ -313,13 +518,16 @@ describe('server rendering and module boundaries', () => {
     expect(present).toEqual([]);
   });
 
-  it('server-renders every title, the filters applied, nothing hidden at opacity 0', async () => {
+  it('server-renders every title and verify link, filters applied, nothing at opacity 0', async () => {
     const all = renderToString(await CertificationsPage({ searchParams: Promise.resolve({}) }));
     const google = renderToString(
       await CertificationsPage({ searchParams: Promise.resolve({ issuer: 'google' }) }),
     );
 
     for (const title of ALL_TITLES) expect(all).toContain(title);
+    for (const { credentialUrl } of CERTS) {
+      if (credentialUrl) expect(all).toContain(`href="${credentialUrl}"`);
+    }
     expect(all).not.toMatch(/opacity:\s*0(?![.\d])/);
     expect(google).toContain('BigQuery Basics');
     expect(google).not.toContain('Udemy TypeScript');
@@ -334,19 +542,22 @@ describe('server rendering and module boundaries', () => {
     );
   });
 
-  it('says so when there are no certificates at all, with no toolbar', async () => {
+  it('says so when there are no certificates at all, with no toolbar and no counts', async () => {
     h.loadCertifications.mockResolvedValue([]);
-    await renderPage();
+    const { container } = await renderPage();
     const empty = screen.getByText('No certificates are listed yet.');
 
     // The designed empty state, under the tile state contract like the filtered one.
     expect(empty.closest('[data-state="empty"]')).not.toBeNull();
     expect(screen.queryByRole('searchbox')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Certifications');
+    expect(container.querySelector('header [data-byline]')).toBeNull();
   });
 
   it('sets no upper case, mono face (but the IDs) or bold weight anywhere on the page', async () => {
-    h.loadCertifications.mockResolvedValue(CERTS.map((c) => ({ ...c, featured: true })));
+    h.loadCertifications.mockResolvedValue(
+      [...CERTS, ...BUSY].map((c) => ({ ...c, featured: true })),
+    );
     const { container } = await renderPage({ skill: 'SQL' });
     const offending = Array.from(container.querySelectorAll('[class]'))
       .map((element) => element.getAttribute('class') ?? '')
@@ -375,7 +586,10 @@ describe('server rendering and module boundaries', () => {
     for (const file of SERVER_FILES) {
       const source = readFileSync(join(process.cwd(), file), 'utf8');
       expect(source, file).not.toMatch(/['"]use client['"]/);
-      expect(source, file).not.toMatch(/magic-card|next\/image|from 'nuqs'/);
+      expect(source, file).not.toMatch(/magic-card|next\/image|from 'nuqs'|IndexGroup|<table/);
+    }
+    for (const file of RETIRED) {
+      expect(existsSync(join(process.cwd(), C_DIR, '_components', file)), file).toBe(false);
     }
   });
 });
