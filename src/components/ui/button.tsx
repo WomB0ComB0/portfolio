@@ -31,16 +31,23 @@ import { cn } from '@/lib/utils';
  * offset 2px), matching the global :focus-visible rule; it replaces the old 1px box-shadow ring,
  * which also switched the outline off. A button that is busy but must keep focus (a browser drops
  * focus from a button that becomes `disabled`) sets aria-disabled instead, and looks the same.
+ *
+ * The default, secondary and destructive variants are drawn by their background alone, which
+ * forced colours (Windows High Contrast) remove, leaving bare words. There they get a 1px border
+ * in the system colour, so they still read as buttons; at the usual colours they have none and
+ * keep their size. Outline has its border always; ghost and link read as text by design.
  */
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+        default:
+          'bg-primary text-primary-foreground shadow hover:bg-primary/90 forced-colors:border',
+        destructive:
+          'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 forced-colors:border',
         outline: 'border border-hairline bg-surface-1 hover:bg-surface-3 hover:text-foreground',
-        secondary: 'bg-surface-3 text-foreground hover:bg-surface-3/80',
+        secondary: 'bg-surface-3 text-foreground hover:bg-surface-3/80 forced-colors:border',
         ghost: 'hover:bg-surface-3 hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },

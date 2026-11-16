@@ -25,6 +25,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 import { ExperienceDetail } from '@/app/(routes)/(main)/(professioal)/experience/_interface/experience-detail';
+import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { reportApiFailure } from '@/lib/observability/report';
 import { loadExperienceById } from '@/lib/sanity/loaders';
 import { constructMetadata, logger } from '@/utils';
@@ -52,12 +53,7 @@ export async function generateMetadata({ params }: ExperienceDetailPageProps): P
   try {
     const experience = await loadExperienceById(id);
 
-    if (!experience) {
-      return constructMetadata({
-        title: 'Experience Not Found',
-        description: 'The requested experience item could not be found',
-      });
-    }
+    if (!experience) return NOT_FOUND_METADATA;
 
     return constructMetadata({
       title: `${experience.position} at ${experience.company}`,

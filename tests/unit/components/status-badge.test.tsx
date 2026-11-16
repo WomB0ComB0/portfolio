@@ -88,9 +88,15 @@ function stubStatus(...responses: (() => Response | Promise<Response>)[]) {
   return fetchMock;
 }
 
-/** The link's name and its title: always the same words. */
+/**
+ * The link's name: the visible word 'Status' first (label in name, so "click Status" finds it),
+ * the state's words, then the new-tab cue every other external link carries.
+ */
+const linkName = (words: string): string => `Status: ${words} (opens in a new tab)`;
+
+/** The state's words are in the link's name and are its whole title, the same in every state. */
 function expectWords(link: HTMLElement, words: string) {
-  expect(link).toHaveAccessibleName(words);
+  expect(link).toHaveAccessibleName(linkName(words));
   expect(link).toHaveAttribute('title', words);
 }
 
@@ -108,53 +114,53 @@ describe('statusBadgeView', () => {
         lastUpdated: LAST_UPDATED,
         monitors: { up: 0, total: 0 },
       }),
-    ).toEqual({ label: 'Monitoring paused', color: 'bg-zinc-400' });
+    ).toEqual({ label: 'Monitoring paused', tone: 'idle' });
   });
 
   // The tile's words, in sentence case: 'All Systems Operational' and 'Service Outage' are gone.
   it.each([
-    ['operational', { up: 3, total: 3 }, 'All systems up', 'bg-emerald-500'],
-    ['operational', undefined, 'All systems up', 'bg-emerald-500'],
-    ['degraded', { up: 1, total: 2 }, `Degraded${SEP}1/2 up`, 'bg-amber-500'],
-    ['down', { up: 0, total: 2 }, `Outage${SEP}0/2 up`, 'bg-red-500'],
-    ['unknown', undefined, 'Status unavailable', 'bg-zinc-400'],
+    ['operational', { up: 3, total: 3 }, 'All systems up', 'live'],
+    ['operational', undefined, 'All systems up', 'live'],
+    ['degraded', { up: 1, total: 2 }, `Degraded${SEP}1/2 up`, 'ongoing'],
+    ['down', { up: 0, total: 2 }, `Outage${SEP}0/2 up`, 'down'],
+    ['unknown', undefined, 'Status unavailable', 'idle'],
   ] as const)(
     'says the %s state with %o monitors as the tile does',
-    (state, monitors, label, color) => {
+    (state, monitors, label, tone) => {
       expect(statusBadgeView({ state, lastUpdated: LAST_UPDATED, monitors })).toEqual({
         label,
-        color,
+        tone,
       });
     },
   );
 
   // Loading is no failure: the tile says 'Checking status…' then, and so does the badge.
   it("says 'Checking status…' before any answer, with the neutral dot", () => {
-    expect(statusBadgeView(undefined)).toEqual({ label: CHECKING_STATUS, color: 'bg-zinc-400' });
+    expect(statusBadgeView(undefined)).toEqual({ label: CHECKING_STATUS, tone: 'idle' });
     expect(statusBadgeView(undefined, false)).toEqual({
       label: 'Checking status…',
-      color: 'bg-zinc-400',
+      tone: 'idle',
     });
   });
 
   it("says 'Status unavailable' only once the check failed with no answer", () => {
     expect(statusBadgeView(undefined, true)).toEqual({
       label: 'Status unavailable',
-      color: 'bg-zinc-400',
+      tone: 'idle',
     });
   });
 
   it.each([
-    ['operational', { up: 3, total: 3 }, 'Last known: All systems up', 'bg-emerald-500'],
-    ['degraded', { up: 3, total: 4 }, `Last known: Degraded${SEP}3/4 up`, 'bg-amber-500'],
-    ['down', { up: 1, total: 2 }, `Last known: Outage${SEP}1/2 up`, 'bg-red-500'],
-    ['operational', { up: 0, total: 0 }, 'Last known: Monitoring paused', 'bg-zinc-400'],
+    ['operational', { up: 3, total: 3 }, 'Last known: All systems up', 'live'],
+    ['degraded', { up: 3, total: 4 }, `Last known: Degraded${SEP}3/4 up`, 'ongoing'],
+    ['down', { up: 1, total: 2 }, `Last known: Outage${SEP}1/2 up`, 'down'],
+    ['operational', { up: 0, total: 0 }, 'Last known: Monitoring paused', 'idle'],
   ] as const)(
     'says a %s answer (%o monitors) kept after a later poll failed is the last known one',
-    (state, monitors, label, color) => {
+    (state, monitors, label, tone) => {
       expect(statusBadgeView({ state, lastUpdated: LAST_UPDATED, monitors }, true)).toEqual({
         label,
-        color,
+        tone,
       });
     },
   );
@@ -162,8 +168,22 @@ describe('statusBadgeView', () => {
   it('says an unknown answer is unavailable whether or not a later poll failed', () => {
     expect(statusBadgeView({ state: 'unknown', lastUpdated: LAST_UPDATED }, true)).toEqual({
       label: 'Status unavailable',
-      color: 'bg-zinc-400',
+      tone: 'idle',
     });
+  });
+
+  // The dot's tone is the home status tile's for the same answer: one palette for one state.
+  it('gives the dot the home status tile’s tone for every answer', () => {
+    const answers = (['operational', 'degraded', 'down', 'unknown'] as const).flatMap((state) =>
+      [undefined, { up: 4, total: 4 }, { up: 2, total: 4 }, { up: 0, total: 0 }].map(
+        (monitors) => ({ state, lastUpdated: LAST_UPDATED, monitors }),
+      ),
+    );
+    for (const data of answers) {
+      const view = serviceStatusView({ data, isError: false, initialKind: 'timeout' });
+      if (view.kind === 'loading') continue;
+      expect(statusBadgeView(data).tone, JSON.stringify(data)).toBe(view.tone);
+    }
   });
 
   // The tile is the reference: for every answer, failure and flag, the badge's words are its.
@@ -193,15 +213,15 @@ describe('statusBadgeView', () => {
   });
 
   it.each([
-    ['operational', { up: 3, total: 3 }, 'Last known: All systems up', 'bg-emerald-500'],
-    ['down', { up: 1, total: 2 }, `Last known: Outage${SEP}1/2 up`, 'bg-red-500'],
-    ['operational', { up: 0, total: 0 }, 'Last known: Monitoring paused', 'bg-zinc-400'],
+    ['operational', { up: 3, total: 3 }, 'Last known: All systems up', 'live'],
+    ['down', { up: 1, total: 2 }, `Last known: Outage${SEP}1/2 up`, 'down'],
+    ['operational', { up: 0, total: 0 }, 'Last known: Monitoring paused', 'idle'],
   ] as const)(
     'says a stale %s answer (%o monitors) is the last known one',
-    (state, monitors, label, color) => {
+    (state, monitors, label, tone) => {
       expect(statusBadgeView({ state, lastUpdated: LAST_UPDATED, monitors, stale: true })).toEqual({
         label,
-        color,
+        tone,
       });
     },
   );
@@ -219,7 +239,7 @@ describe('StatusBadge before and without an answer', () => {
     const link = mountBadge();
 
     expectWords(link, 'Checking status…');
-    expect(link.querySelector('[aria-hidden="true"]')).toHaveClass('bg-zinc-400');
+    expect(link.querySelector('[aria-hidden="true"]')).toHaveClass('bg-faint');
   });
 
   // No query seeds the badge, so this is every page's server HTML, and the page with JS off.
@@ -230,7 +250,7 @@ describe('StatusBadge before and without an answer', () => {
       </QueryClientProvider>,
     );
 
-    expect(markup).toContain('aria-label="Checking status…"');
+    expect(markup).toContain('aria-label="Status: Checking status… (opens in a new tab)"');
     expect(markup).toContain('title="Checking status…"');
     expect(markup).not.toContain('Status unavailable');
   });
@@ -247,7 +267,7 @@ describe('StatusBadge before and without an answer', () => {
     stubStatus(fail);
     const link = mountBadge();
 
-    await waitFor(() => expect(link).toHaveAccessibleName('Status unavailable'));
+    await waitFor(() => expect(link).toHaveAccessibleName(linkName('Status unavailable')));
     expectWords(link, 'Status unavailable');
   });
 
@@ -267,9 +287,11 @@ describe('StatusBadge last known answers', () => {
     );
     expectWords(link, `Degraded${SEP}3/4 up`);
 
-    await waitFor(() => expect(link).toHaveAccessibleName(`Last known: Degraded${SEP}3/4 up`));
+    await waitFor(() =>
+      expect(link).toHaveAccessibleName(linkName(`Last known: Degraded${SEP}3/4 up`)),
+    );
     expectWords(link, `Last known: Degraded${SEP}3/4 up`);
-    expect(link.querySelector('[aria-hidden="true"]')).toHaveClass('bg-amber-500');
+    expect(link.querySelector('[aria-hidden="true"]')).toHaveClass('bg-ongoing');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -294,7 +316,7 @@ describe('StatusBadge last known answers', () => {
     );
     expectWords(link, 'Last known: All systems up');
 
-    await waitFor(() => expect(link).toHaveAccessibleName('All systems up'));
+    await waitFor(() => expect(link).toHaveAccessibleName(linkName('All systems up')));
     expectWords(link, 'All systems up');
   });
 
@@ -328,7 +350,7 @@ describe('StatusBadge', () => {
       monitors: { up: 0, total: 0 },
     });
 
-    expect(link).toHaveAccessibleName('Monitoring paused');
+    expect(link).toHaveAccessibleName(linkName('Monitoring paused'));
     expect(link.querySelector('[aria-hidden="true"]')?.className).not.toMatch(/animate/);
   });
 
@@ -357,7 +379,7 @@ describe('StatusBadge', () => {
     );
 
     const link = screen.getByRole('link');
-    await waitFor(() => expect(link).toHaveAccessibleName('Last known: All systems up'));
+    await waitFor(() => expect(link).toHaveAccessibleName(linkName('Last known: All systems up')));
     expectWords(link, 'Last known: All systems up');
     expect(link.querySelector('[aria-hidden="true"]')?.className).not.toMatch(/animate/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -384,7 +406,9 @@ describe('StatusBadge', () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() => expect(screen.getByRole('link')).toHaveAccessibleName('Monitoring paused'));
+    await waitFor(() =>
+      expect(screen.getByRole('link')).toHaveAccessibleName(linkName('Monitoring paused')),
+    );
   });
 
   // It pulsed while every monitor was up. Motion is the now-playing equaliser's alone.
@@ -395,10 +419,36 @@ describe('StatusBadge', () => {
       monitors: { up: 3, total: 3 },
     });
 
-    expect(link).toHaveAccessibleName('All systems up');
+    expect(link).toHaveAccessibleName(linkName('All systems up'));
     const dot = link.querySelector('[aria-hidden="true"]');
-    expect(dot).toHaveClass('bg-emerald-500');
+    expect(dot).toHaveClass('bg-live');
     expect(dot?.className).not.toMatch(/animate/);
+  });
+
+  // It was a bare dot below 640px: the word sat in `hidden sm:inline`, a viewport query, while the
+  // footer lays out by its own width. Every width now shows the word its name starts with.
+  it("shows the word 'Status' at every width, the word its name starts with", () => {
+    const link = renderBadge({ state: 'operational', lastUpdated: LAST_UPDATED });
+    const word = [...link.querySelectorAll('span')].find((span) => span.textContent === 'Status');
+
+    expect(link).toHaveTextContent(/^Status$/);
+    expect(word).toBeDefined();
+    expect(word?.className ?? '').not.toMatch(/(?:^|\s)(?:hidden|sr-only)(?:\s|$)|:inline/);
+    expect(link.getAttribute('aria-label')).toMatch(/^Status: /);
+  });
+
+  // The palette's live, ongoing, down and faint tokens, never Tailwind's own colour scales.
+  it.each([
+    ['operational', { up: 3, total: 3 }, 'bg-live'],
+    ['degraded', { up: 3, total: 4 }, 'bg-ongoing'],
+    ['down', { up: 0, total: 2 }, 'bg-down'],
+    ['operational', { up: 0, total: 0 }, 'bg-faint'],
+    ['unknown', undefined, 'bg-faint'],
+  ] as const)('paints the %s dot (%o) with a palette token', (state, monitors, token) => {
+    const link = renderBadge({ state, lastUpdated: LAST_UPDATED, monitors });
+
+    expect(link.querySelector('[data-status-dot]')).toHaveClass(token);
+    expect(link.outerHTML).not.toMatch(/\b(?:emerald|amber|red|zinc|green|yellow)-\d{2,3}\b/);
   });
 
   it('names the link with the count when some monitor is not up', () => {
@@ -408,7 +458,7 @@ describe('StatusBadge', () => {
       monitors: { up: 3, total: 4 },
     });
 
-    expect(link).toHaveAccessibleName(`Degraded${SEP}3/4 up`);
+    expect(link).toHaveAccessibleName(linkName(`Degraded${SEP}3/4 up`));
     expect(link).toHaveAttribute('title', `Degraded${SEP}3/4 up`);
   });
 });

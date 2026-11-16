@@ -113,6 +113,19 @@ describe('MobileMenuOverlay contents', () => {
     ).toEqual(['Cookies', 'Privacy', 'Licenses']);
   });
 
+  it("opens without React's duplicate-key error (the dev server's '1 Issue' badge)", () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onTestFinished(() => errors.mockRestore());
+
+    renderOverlay('/');
+
+    const said = errors.mock.calls.map((call) => call.map(String).join(' '));
+    expect(said.filter((words) => words.includes('the same key'))).toEqual([]);
+    // The backdrop and the sheet are both still there, the sheet as the dialog.
+    const dialog = screen.getByRole('dialog', { name: SITE_MENU });
+    expect(dialog.previousElementSibling).not.toBeNull();
+  });
+
   it('marks only the current page with aria-current="page"', () => {
     renderOverlay('/places');
 

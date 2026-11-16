@@ -15,33 +15,35 @@
  */
 
 /**
- * @file The Ledger header's words and figures: the h1, the "since" subline and the three-figure
- * stat strip (certificates, issuers after
- * folding issuer families, and how many have a credential link). Server-safe.
+ * @file The page header's words: the h1, the "since" subline and the counts as one small byline
+ * (certificates, issuers after folding issuer families, and how many can be verified), in place
+ * of the stat tiles: the work leads, counts sit in bylines. Server-safe.
  */
 
 import type { ReactElement } from 'react';
 
-import { StatStrip } from '@/components/console';
+import { Byline, type BylinePart, countOf, formatCount } from '@/components/console/folio';
+import { CERTIFICATION_NOUN } from '../_lib/certification-filters';
 import type { LedgerStats } from '../_lib/ledger';
+import { ISSUER_NOUN } from '../_lib/record';
 
 export const LEDGER_TITLE = 'Certifications';
-const STATS_LABEL = 'Totals';
 
 /** "Courses and certificates since July 2022." (the earliest issue month). */
 export const sublineOf = (since: string | null): string =>
   since ? `Courses and certificates since ${since}.` : 'Courses and certificates.';
 
-/** The header's three figures. */
-export function LedgerStatStrip({ stats }: { readonly stats: LedgerStats }): ReactElement {
-  return (
-    <StatStrip
-      aria-label={STATS_LABEL}
-      items={[
-        { label: 'certificates', value: stats.certificates },
-        { label: 'issuers', value: stats.issuers },
-        { label: 'with a link', value: stats.withLink },
-      ]}
-    />
-  );
+/** '64 certificates · 17 issuers · 62 you can verify'; nothing for an empty page. */
+export function headerParts(stats: LedgerStats): BylinePart[] {
+  if (stats.certificates === 0) return [];
+  return [
+    countOf(stats.certificates, CERTIFICATION_NOUN),
+    countOf(stats.issuers, ISSUER_NOUN),
+    stats.verifiable > 0 && `${formatCount(stats.verifiable)} you can verify`,
+  ];
+}
+
+/** The header's counts, as a byline. */
+export function LedgerByline({ stats }: { readonly stats: LedgerStats }): ReactElement | null {
+  return <Byline parts={headerParts(stats)} />;
 }

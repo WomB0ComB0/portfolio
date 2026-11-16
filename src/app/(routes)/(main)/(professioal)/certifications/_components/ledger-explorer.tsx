@@ -17,54 +17,77 @@
  */
 
 /**
- * @file The Ledger's one client island, composed from the shared kits: the FilterBar (a sticky
+ * @file The page's one client island, composed from the shared kits: the FilterBar (a sticky
  * <search> with the search and the issuer chips; on a phone the search and a Filters button, the
- * chips in a bottom sheet), the results header (the count, then the applied issuer and skill as
- * removable tokens), the status line, and the IndexTable year groups, or the empty state that
- * names what removed everything. The rows are server-rendered markup it only arranges.
+ * chips in a bottom sheet), the results head once a filter narrows the list (the count, then the
+ * applied issuer and skill as removable tokens; unfiltered, the header's byline is the one
+ * count), the status line, and the results: the year jumps and the Folio record of the
+ * certificates the filters keep (record-years.tsx), or the empty state that names what removed
+ * everything. The record is drawn from the certificates' data with server-safe parts, so the
+ * server HTML holds every certificate.
  *
  * Its filters come from the URL through the Ledger's own sync (use-ledger-filters.ts) behind an
  * adapter (use-ledger-model.ts), so the server HTML of a shared link is already filtered, the
  * chips and tokens are links and the search is a GET form. The route has no loading.tsx (owner
- * decision), so without JavaScript the filtered rows show as they arrive, and the links and the
+ * decision), so without JavaScript the filtered record shows as it arrives, and the links and the
  * form still filter. With JavaScript a chip or a token filters in place (crossfading the results
  * where motion is welcome) and rewrites the URL with history.replaceState; typing filters at once.
+ * A filter regroups what it keeps: a busy year it thins to four or fewer is set large.
  */
 
 import { type ReactElement, useMemo } from 'react';
 
 import { FILTER_SCOPE_CLASS, FilterBar, RESULTS_HEAD_CLASS } from '@/components/console/filter-bar';
+import { ChapterJumps } from '@/components/console/folio';
 import { IndexAnnouncer } from '@/components/console/index-table';
 import { cn } from '@/lib/utils';
+import { CERTIFICATION_NOUN } from '../_lib/certification-filters';
 import type { LedgerFilters } from '../_lib/filters';
-import type { IssuerChip, LedgerIndex } from '../_lib/ledger';
-import { LIST_CLASS } from './ledger-classes';
-import { type LedgerRowItem, YearTables } from './ledger-years';
+import type { IssuerChip, LedgerEntry, LedgerIndex } from '../_lib/ledger';
+import { buildRecord } from '../_lib/record';
+import { leadSkillFirst } from '../_lib/skills';
+import { JUMPS_UNDER_COUNT_CLASS, LIST_CLASS, RECORD_CLASS } from './record-classes';
+import { RecordYears } from './record-years';
 import { useLedgerModel } from './use-ledger-model';
 
-export type { LedgerRowItem } from './ledger-years';
+/**
+ * The kept certificates with the ?skill filter's skill first in each one's list, so the skills
+ * line (three at most) always shows why a certificate is there. New objects; the rows are
+ * untouched.
+ */
+function withSkillFirst(
+  entries: readonly LedgerEntry[],
+  skill: string | null,
+): readonly LedgerEntry[] {
+  if (!skill) return entries;
+  return entries.map((entry) => ({ ...entry, skills: leadSkillFirst(entry.skills, skill) }));
+}
 
 export interface LedgerExplorerProps {
   /** Every certificate, newest first. */
-  readonly rows: readonly LedgerRowItem[];
+  readonly rows: readonly LedgerEntry[];
   readonly chips: readonly IssuerChip[];
   readonly other: IssuerChip | null;
   /** The lookups the URL's filters resolve against: families, raw issuers, skills. */
   readonly index: LedgerIndex;
   /** The server's reading of the URL, for where no router reports search params. */
   readonly initial: LedgerFilters;
+  /** A chapter (Featured) already opens the page above the bar, so the first year steps down. */
+  readonly leadTaken?: boolean;
 }
 
-/** The bar, the results header, the status line and the year tables. */
+/** The bar, the results head, the status line and the record. */
 export function LedgerExplorer({
   rows,
   chips,
   other,
   index,
   initial,
+  leadTaken = false,
 }: LedgerExplorerProps): ReactElement {
   const lookups = useMemo(() => ({ chips, other, index }), [chips, other, index]);
   const { model, results } = useLedgerModel(rows, lookups, initial);
+  const chapters = buildRecord(withSkillFirst(results, model.active.skill?.[0] ?? null));
 
   return (
     <div
@@ -79,13 +102,31 @@ export function LedgerExplorer({
             <FilterBar.Chips facet="issuer" />
           </FilterBar.Facets>
         </FilterBar.Root>
-        <div className={RESULTS_HEAD_CLASS}>
-          <FilterBar.Count />
-          <FilterBar.Applied />
-        </div>
+        {/* The header's byline already counts every certificate: say it again only once a filter narrows them. */}
+        {model.filtered ? (
+          <div className={RESULTS_HEAD_CLASS}>
+            <FilterBar.Count />
+            <FilterBar.Applied />
+          </div>
+        ) : null}
         <FilterBar.Status />
         <FilterBar.Results>
-          {results.length > 0 ? <YearTables items={results} /> : <FilterBar.Empty />}
+          {results.length > 0 ? (
+            <>
+              {/* With the results, so they change with them (a crossfade under a chip). */}
+              <ChapterJumps
+                label="By year"
+                noun={CERTIFICATION_NOUN}
+                className={model.filtered ? JUMPS_UNDER_COUNT_CLASS : undefined}
+                chapters={chapters.map(({ id, year, count }) => ({ id, label: year, count }))}
+              />
+              <div data-record="" className={RECORD_CLASS}>
+                <RecordYears chapters={chapters} offset={leadTaken ? 1 : 0} />
+              </div>
+            </>
+          ) : (
+            <FilterBar.Empty />
+          )}
         </FilterBar.Results>
         <IndexAnnouncer />
       </FilterBar.Provider>
