@@ -18,6 +18,7 @@
 import { type APIRequestContext, expect, type Locator, type Page, test } from '@playwright/test';
 import { getTargetUrl } from '../fixtures/base';
 import { readOnly } from '../fixtures/console-routes';
+import { markupOf } from '../fixtures/server-markup';
 
 test.beforeEach(async ({ page }) => readOnly(page));
 
@@ -140,15 +141,6 @@ test.describe('404 indexing', () => {
     });
   }
 });
-
-/**
- * A response's HTML without its script elements, whose payload repeats the page as text, and
- * without its noscript blocks: the page list in one (src/components/layout/noscript-nav.tsx) is
- * for a visitor without JavaScript, and a crawler that renders the page never sees it. Left in,
- * its links would pass the rail's check below on the rail's behalf.
- */
-const markupOf = (html: string): string =>
-  html.replace(/<script\b[\s\S]*?<\/script>/g, '').replace(/<noscript\b[\s\S]*?<\/noscript>/g, '');
 
 /** The href of every `<a>` in an HTML string. */
 const anchorHrefs = (html: string): string[] =>
