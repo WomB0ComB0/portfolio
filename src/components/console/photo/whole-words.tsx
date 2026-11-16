@@ -60,8 +60,7 @@ export function WholeWords({
   renderWord = asWritten,
 }: WholeWordsProps): ReactElement {
   const pieces = text.split(SPACES);
-  const held = pieces.some((piece, at) => at % 2 === 0 && piece !== '' && isWhole(piece));
-  if (pieces.length === 1 || !held) return <>{renderWord(text)}</>;
+  if (pieces.length === 1) return <>{renderWord(text)}</>;
   return (
     <>
       {pieces.map((piece, at) => {

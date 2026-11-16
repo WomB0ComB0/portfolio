@@ -81,6 +81,9 @@ export interface FilterBarRootProps {
  */
 export const PINNED_BAR_HEIGHT_PROPERTY = '--filter-bar-pinned-h';
 
+const scopedHeightOwners = new WeakMap<HTMLElement, symbol>();
+const pinnedHeightOwners = new WeakMap<HTMLElement, symbol>();
+
 /**
  * Writes the sticky bar's height to its scope, for the sticky year bars below it, and to <html>
  * for the edge haze (PINNED_BAR_HEIGHT_PROPERTY). On unmount the page's value goes only if it is
@@ -92,9 +95,11 @@ function useStickyHeight(bar: RefObject<HTMLElement | null>, sticky: boolean): v
     if (!element || !sticky) return;
     const page = document.documentElement;
     const scope = element.closest<HTMLElement>('[data-filter-scope]') ?? page;
-    let written = '';
+    const owner = Symbol('sticky-height');
     const write = (): void => {
-      written = `${element.getBoundingClientRect().height}px`;
+      const written = `${element.getBoundingClientRect().height}px`;
+      scopedHeightOwners.set(scope, owner);
+      pinnedHeightOwners.set(page, owner);
       scope.style.setProperty('--filter-bar-h', written);
       page.style.setProperty(PINNED_BAR_HEIGHT_PROPERTY, written);
     };
@@ -103,9 +108,13 @@ function useStickyHeight(bar: RefObject<HTMLElement | null>, sticky: boolean): v
     observer?.observe(element);
     return () => {
       observer?.disconnect();
-      scope.style.removeProperty('--filter-bar-h');
-      if (page.style.getPropertyValue(PINNED_BAR_HEIGHT_PROPERTY) === written) {
+      if (scopedHeightOwners.get(scope) === owner) {
+        scope.style.removeProperty('--filter-bar-h');
+        scopedHeightOwners.delete(scope);
+      }
+      if (pinnedHeightOwners.get(page) === owner) {
         page.style.removeProperty(PINNED_BAR_HEIGHT_PROPERTY);
+        pinnedHeightOwners.delete(page);
       }
     };
   }, [bar, sticky]);
