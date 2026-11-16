@@ -15,10 +15,11 @@
  */
 
 /**
- * @file The /projects Index stays on the palette (the owner's standing rule): no colour
+ * @file /projects stays on the palette (the owner's standing rule): no colour
  * literals (hex, rgb(), hsl(), oklch()), no chart colours (--chart-*, the old per-kind
- * swatches), no Tailwind palette scales and no inline colour styles in its files or the
- * preview's stylesheet. Kinds are told apart by words and position, never by colour.
+ * swatches), no Tailwind palette scales and no inline colour styles in its files (the /places
+ * parts the Screens view uses, and their stylesheets, are checked by places' own guards). Kinds
+ * are told apart by words and position, never by colour.
  */
 
 import { readFileSync } from 'node:fs';
@@ -35,16 +36,20 @@ const FILES = [
   '_lib/project-order.ts',
   '_lib/project-filters.ts',
   '_lib/project-index.ts',
-  '_components/project-index-classes.ts',
-  '_components/project-row.tsx',
-  '_components/project-groups.tsx',
+  '_lib/project-words.ts',
+  '_lib/project-images.ts',
+  '_lib/project-chapters.ts',
+  '_lib/project-screens.ts',
+  '_lib/project-views.ts',
+  '_lib/project-links.ts',
+  '_components/story-parts.tsx',
+  '_components/lead-story.tsx',
+  '_components/project-brief.tsx',
+  '_components/project-stories.tsx',
+  '_components/project-contents.tsx',
+  '_components/project-screens.tsx',
   '_components/project-header.tsx',
   '_components/projects-index.tsx',
-  '_components/project-preview-geometry.ts',
-  '_components/project-preview.tsx',
-  '_components/project-preview-live.tsx',
-  '_components/project-preview-card.tsx',
-  '_components/project-preview.module.css',
   '_interface/projects-index/projects-index.tsx',
 ];
 

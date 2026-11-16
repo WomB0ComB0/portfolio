@@ -15,11 +15,10 @@
  */
 
 /**
- * @file What the /projects Index browser checks share: the page's selectors, the phone, desktop
- * and wide viewports, opening the page at a viewport (settled as the Ledger's checks settle:
- * no streamed segment hidden, nothing busy, the fonts loaded), the island's hydration, a header
- * figure, the kind chips and the hover preview's readiness. Used by e2e/journeys/projects-index.spec.ts and
- * e2e/journeys/projects-index-preview.spec.ts.
+ * @file What the /projects browser checks share: the page's selectors, the phone, desktop and
+ * wide viewports, opening the page at a viewport (settled as the Ledger's checks settle: no
+ * streamed segment hidden, nothing busy, the fonts loaded), the island's hydration and the kind
+ * chips. Used by e2e/journeys/projects-index.spec.ts.
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -31,11 +30,7 @@ export { hydrated, settle, type Viewport };
 
 export const PATH = '/projects';
 export const MAIN = 'main#main-content';
-export const ROW = 'tr[data-project-row]';
-export const TITLE = 'a[data-project-title]';
-export const CARD = '[data-preview-card]';
 export const BAR = '[data-filter-part="bar"]';
-export const GROUP_HEADING = 'h2[id^="projects-"]';
 export const CURRENT_CHIP = 'a[aria-current="true"]';
 
 export const PHONE: Viewport = { width: 390, height: 844 };
@@ -48,23 +43,6 @@ export async function openAt(page: Page, query: string, viewport: Viewport): Pro
   await page.setViewportSize(viewport);
   await page.goto(`${getTargetUrl()}${PATH}${query}`);
   return settle(page);
-}
-
-/**
- * Hydrated, and the hover preview's lazily loaded half has mounted (a fine pointer only): its card
- * is in the body, so a hover or a keyboard focus from here is seen.
- */
-export async function previewReady(page: Page): Promise<void> {
-  await hydrated(page);
-  await page.locator(CARD).waitFor({ state: 'attached' });
-}
-
-/** A header figure by its label ('projects'), as a number. */
-export async function figure(main: Locator, label: string): Promise<number> {
-  const item = main
-    .locator('dl[aria-label="Totals"] > div')
-    .filter({ has: main.page().locator('dt', { hasText: new RegExp(`^${label}$`) }) });
-  return Number(((await item.locator('dd').textContent()) ?? '').replaceAll(',', ''));
 }
 
 export const kindChips = (root: Locator): Locator =>

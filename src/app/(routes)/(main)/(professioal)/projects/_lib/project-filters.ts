@@ -150,13 +150,14 @@ function resolveTech(raw: string, { techs }: ProjectLookups): string | null {
   return ownValue(techs, key) === undefined ? null : key;
 }
 
-/** The /projects filter schema for these lookups, over any rows that carry a project's fields. */
+/** The filter schema on a view's path, keeping that view in chip links, search and Clear. */
 export function projectFilters<T extends ProjectFilterItem = ProjectFilterItem>(
   lookups: ProjectLookups,
+  path = PROJECTS_PATH,
 ): ProjectSchema<T> {
   const folded = new Set(lookups.folded);
   return defineFilters<T, ProjectFacet>({
-    path: PROJECTS_PATH,
+    path,
     noun: PROJECT_NOUN,
     search: { haystack: (item) => item.haystack, maxLength: QUERY_MAX_LENGTH },
     facets: {

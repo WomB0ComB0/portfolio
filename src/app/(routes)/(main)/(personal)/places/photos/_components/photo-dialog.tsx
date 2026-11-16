@@ -22,14 +22,19 @@
  * fetched early on a first sign of intent (a pointer over or focus in the wall or the grid) and
  * at the latest on the first open. A chunk that fails to load resolves to DialogUnavailable,
  * which sends the visitor on to the photo's place page (which has every photo of that visit)
- * and tells the view to leave later clicks to the links themselves.
+ * and tells the view to leave later clicks to the links themselves. Another page passes its own
+ * caption words and link (openHref), which the fallback follows too.
  */
 
 import { useRouter } from 'next/navigation';
 import { type ComponentType, lazy, type ReactElement, Suspense, useEffect } from 'react';
 
-import type { LivePhotoDialogProps } from './photo-dialog-live';
+import type { WallPhoto } from '@/types/places';
+import type { DialogWords, LivePhotoDialogProps } from './photo-dialog-live';
 import type { OpenRequest } from './photo-types';
+
+/** A photo's place page (photo-dialog-live's default too; that module loads only on intent). */
+const placeHref = (photo: WallPhoto): string => `/places/${encodeURIComponent(photo.placeId)}`;
 
 interface Unavailable {
   /** Called once if the open view's code can't load. */
@@ -46,13 +51,13 @@ export function preloadPhotoDialog(): void {
   loadDialog().catch(() => undefined);
 }
 
-/** Stands in for an open view whose code failed to load: opens the photo's place page instead. */
-function DialogUnavailable({ opened, onUnavailable }: ChunkProps): null {
+/** Stands in for an open view whose code failed to load: opens the photo's own page instead. */
+function DialogUnavailable({ opened, onUnavailable, openHref = placeHref }: ChunkProps): null {
   const router = useRouter();
   useEffect(() => {
     onUnavailable();
-    router.push(`/places/${encodeURIComponent(opened.photo.placeId)}`);
-  }, [onUnavailable, opened, router]);
+    router.push(openHref(opened.photo));
+  }, [onUnavailable, opened, openHref, router]);
   return null;
 }
 
@@ -68,7 +73,7 @@ const LiveDialogChunk = lazy<ComponentType<ChunkProps>>(() =>
   ),
 );
 
-export interface PhotoDialogProps extends Unavailable {
+export interface PhotoDialogProps extends Unavailable, DialogWords {
   /** The photo open, or null. */
   readonly opened: OpenRequest | null;
   /** The view closed (it has landed back in its card): forget the photo. */
@@ -80,11 +85,17 @@ export function PhotoDialog({
   opened,
   onClosed,
   onUnavailable,
+  ...words
 }: PhotoDialogProps): ReactElement | null {
   if (!opened) return null;
   return (
     <Suspense fallback={null}>
-      <LiveDialogChunk opened={opened} onClosed={onClosed} onUnavailable={onUnavailable} />
+      <LiveDialogChunk
+        {...words}
+        opened={opened}
+        onClosed={onClosed}
+        onUnavailable={onUnavailable}
+      />
     </Suspense>
   );
 }
