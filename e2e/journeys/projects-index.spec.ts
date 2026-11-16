@@ -73,6 +73,8 @@ const RETIRED_KIND = 'Retired Kind';
 const SAME_PX = 1;
 /** A focused chip's ring: a 2px outline at a 2px offset. */
 const RING_PX = 4;
+/** The widest chip-row geometry, also covered by existing PR #653. */
+const LAPTOP: Viewport = { width: 1280, height: 800 };
 const NARROW: Viewport = { width: 320, height: 640 };
 
 type Box = { left: number; right: number; top: number; bottom: number };
@@ -458,6 +460,21 @@ test.describe('/projects: the views', () => {
 test.describe('/projects without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
+  test('at 1440 every Kind chip shows whole on the one line', async ({ page }) => {
+    await page.setViewportSize(WIDE);
+    await page.goto(`${getTargetUrl()}${PATH}`);
+    const main = page.locator(MAIN);
+    await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
+    await page.evaluate(() => document.fonts.ready);
+    const row = await chipRow(main);
+
+    expect(row.chips.map(({ label }) => label).join(' | ')).toMatch(/Other \d+ projects?$/);
+    for (const { label, box } of row.chips) {
+      expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
+    }
+    expect(row.overflows).toBe(false);
+  });
+
   test('every project is in the first HTML, visible, and a shared link is filtered', async ({
     page,
   }) => {
@@ -605,6 +622,18 @@ test.describe('/projects layout', () => {
 });
 
 test.describe('/projects: the Kind chips', () => {
+  test('at 1280, where the bar is first at its widest, every chip shows too', async ({ page }) => {
+    const main = await openAt(page, '', LAPTOP);
+    await hydrated(page);
+    const row = await chipRow(main);
+
+    for (const { label, box } of row.chips) {
+      expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
+    }
+    expect(row.overflows).toBe(false);
+    expect(row.overflow).toBeNull();
+  });
+
   test('at 1440 every chip shows on the one line, with nothing faded', async ({ page }) => {
     const main = await openAt(page, '', WIDE);
     await hydrated(page);
