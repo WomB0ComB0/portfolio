@@ -491,9 +491,12 @@ test.describe('/places: search and category chips', () => {
         `${id} is in web storage`,
       ).toBe(false);
     }
-    expect(
-      readChip((await main.locator(`${CHIPS} ${CURRENT_CHIP}`).textContent()) ?? '').label,
-    ).toBe('All');
+    await expect
+      .poll(
+        async () =>
+          readChip((await main.locator(`${CHIPS} ${CURRENT_CHIP}`).textContent()) ?? '').label,
+      )
+      .toBe('All');
     await expect(page.locator(MAP)).toBeVisible();
   });
 });

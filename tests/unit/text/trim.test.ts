@@ -16,11 +16,10 @@
  */
 
 /**
- * @file The shared trim helpers (src/lib/text/trim.ts). Seven modules once carried their own copy
- * of the trim loop (text-links, role-text, media-links, video-id, blogs, blog-merge and the
- * proxy), with two character sets written twice. The copies are kept here as the oracle, beside
- * the '[…]+$' patterns they replaced, and the shared helpers must give the same answer for every
- * input, fast on a long run.
+ * @file The shared trim helpers (src/lib/text/trim.ts). Reference versions of each trim, as plain
+ * loops and as the '[…]+$' patterns they stand in for (the proxy's canonical path used /\/+$/),
+ * are kept here as the oracle: the shared helpers must give the same answer for every input, and
+ * stay fast on a long run.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -33,7 +32,7 @@ import {
   trimEnd,
 } from '@/lib/text/trim';
 
-// The copies, as they were in each module.
+// The reference versions, as plain loops.
 const OLD_TRAILING_PUNCTUATION: ReadonlySet<string> = new Set([
   '.',
   ',',
@@ -200,7 +199,7 @@ describe('trimEnd, trailingRun and trimEdges', () => {
     expect(differences).toEqual([]);
   });
 
-  // The one copy of the 100,000-character check the modules each repeat for their own input.
+  // One 100,000-character check for every helper.
   it('reads a run of 100,000 inside the text and at its end fast', () => {
     const started = performance.now();
     for (const [run, chars] of [
