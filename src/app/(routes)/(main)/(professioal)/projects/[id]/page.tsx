@@ -25,6 +25,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
+import { ProjectMedia } from '@/app/(routes)/(dev)/media/_components/project-media';
+import { loadProjectMedia } from '@/app/(routes)/(dev)/media/_lib/load-project-media';
 import { ProjectDetail } from '@/app/(routes)/(main)/(professioal)/projects/_interface/project-detail/project-detail';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { reportApiFailure } from '@/lib/observability/report';
@@ -93,5 +95,10 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const project = await loadProjectById(id);
   if (!project) notFound();
-  return <ProjectDetail project={project} projects={await loadProjects()} />;
+  const [media, projects] = await Promise.all([loadProjectMedia(project._id), loadProjects()]);
+  return (
+    <ProjectDetail project={project} projects={projects}>
+      <ProjectMedia items={media} />
+    </ProjectDetail>
+  );
 }
