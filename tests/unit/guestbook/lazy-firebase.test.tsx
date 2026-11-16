@@ -187,7 +187,7 @@ describe('the guestbook loads Firebase only on demand', () => {
     renderCard();
     await act(async () => {});
 
-    expect(screen.getByRole('heading', { name: 'Sign the guestbook' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your note here' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Google/ })).toBeNull();
     expect(h.appLoaded).toBe(false);

@@ -21,7 +21,7 @@
  *
  * PostedMessagesProvider runs the page's one usePostedMessages(). The board shows its rows and
  * posts through it, and GuestbookLiveStats adds the stored ones the server list doesn't have yet to
- * the header, so once a post is stored, "27 messages" never sits above 28 rows while a refresh
+ * the header, so once a post is stored, "27 notes" never sits above 28 notes while a refresh
  * catches up. A post still sending shows in the list, marked as posting, but not in the count. On
  * the server nothing is added: the HTML has the server's figures as they were.
  */
@@ -29,7 +29,7 @@
 import { createContext, type ReactElement, type ReactNode, useContext, useMemo } from 'react';
 
 import { type GuestbookStats, withPosted } from '../_lib/format';
-import { GuestbookStatStrip } from './guestbook-header';
+import { GuestbookCountLine } from './guestbook-header';
 import { type PostedMessages, unlisted, usePostedMessages } from './use-posted-messages';
 
 const PostedMessagesContext = createContext<PostedMessages | null>(null);
@@ -57,24 +57,24 @@ export interface GuestbookLiveStatsProps {
   readonly stats: GuestbookStats;
   /** The ids of the server-rendered rows. */
   readonly knownIds: readonly string[];
-  /** False when the list could not load: both figures show as unavailable. */
+  /** False when the list could not load: the count shows as unavailable. */
   readonly available: boolean;
 }
 
 /**
- * The header's figures, counting the stored posts the server list doesn't have yet. A post still
- * sending is left out, so one that fails never moves the count.
+ * The header's count line, counting the stored posts the server list doesn't have yet. A post
+ * still sending is left out, so one that fails never moves the count.
  */
 export function GuestbookLiveStats({
   stats,
   knownIds,
   available,
-}: GuestbookLiveStatsProps): ReactElement {
+}: GuestbookLiveStatsProps): ReactElement | null {
   const { rows } = usePostedMessagesContext();
   const known = useMemo(() => new Set(knownIds), [knownIds]);
   const stored = unlisted(rows, known)
     .filter((row) => !row.pending)
     .map((row) => row.message);
-  return <GuestbookStatStrip stats={withPosted(stats, stored)} available={available} />;
+  return <GuestbookCountLine stats={withPosted(stats, stored)} available={available} />;
 }
 GuestbookLiveStats.displayName = 'GuestbookLiveStats';

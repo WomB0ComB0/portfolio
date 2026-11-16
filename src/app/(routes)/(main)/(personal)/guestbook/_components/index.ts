@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-export { type BoardListState, GuestbookBoard, type GuestbookBoardProps } from './guestbook-board';
+export {
+  type BoardChapter,
+  type BoardListState,
+  GuestbookBoard,
+  type GuestbookBoardProps,
+} from './guestbook-board';
 export { GUESTBOOK_DESCRIPTION, GUESTBOOK_TITLE, ListNotice } from './guestbook-header';
 export { MessageRow, type MessageRowProps } from './message-row';
 export { GuestbookLiveStats, PostedMessagesProvider } from './posted-messages';
