@@ -28,7 +28,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
 vi.mock('@/env', () => ({ env: {}, default: {} }));
 
-import { FetcherError, post } from '@/lib/http-clients/effect-fetcher';
+import { ensureBaseError } from '@/classes/error';
+import { FetcherError, get, post } from '@/lib/http-clients/effect-fetcher';
 
 const URL_UNDER_TEST = 'https://api.example.com/graphql';
 
@@ -101,5 +102,83 @@ describe('effect-fetcher: response bodies that are not JSON', () => {
       }),
     );
     expect(result).toEqual(Either.right({ ok: true }));
+  });
+});
+
+/**
+ * The error for a 2xx body that is not JSON once kept @effect/platform's own error, which holds
+ * the request and its headers: a key in a header Effect does not redact (YouTube's
+ * X-Goog-Api-Key) was printed by JSON.stringify(error), and any header (a GitHub token in
+ * Authorization) was readable by property access. Only text is kept now.
+ */
+describe('effect-fetcher: the error for a 2xx body that is not JSON keeps no request header', () => {
+  /** Made-up credentials: the tests look for them in everything the error reaches. */
+  const KEY = 'made-up-youtube-key-0123456789';
+  const TOKEN = 'made-up-github-token-9876543210';
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Whether `secret` is in any string reachable from `value` by property access, cause included. */
+  function reaches(value: unknown, secret: string, seen = new Set<unknown>(), depth = 0): boolean {
+    if (typeof value === 'string') return value.includes(secret);
+    if (value === null || typeof value !== 'object' || seen.has(value) || depth > 12) return false;
+    seen.add(value);
+    return Reflect.ownKeys(value).some((key) => {
+      let child: unknown;
+      try {
+        child = (value as Record<PropertyKey, unknown>)[key];
+      } catch {
+        return false;
+      }
+      return reaches(child, secret, seen, depth + 1);
+    });
+  }
+
+  const failGet = (body: string, contentType: string) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => new Response(body, { status: 200, headers: { 'Content-Type': contentType } }),
+      ),
+    );
+    return get(URL_UNDER_TEST, {
+      retries: 0,
+      headers: { 'X-Goog-Api-Key': KEY, Authorization: `Bearer ${TOKEN}` },
+    }).pipe(Effect.provide(FetchHttpClient.layer));
+  };
+
+  it.each([
+    ['an HTML page', '<!DOCTYPE html><html><body>Moved</body></html>', 'text/html'],
+    ['JSON cut short', '{"items":[{"id":"abc","snippet":{"title":"T', 'application/json'],
+  ])('for %s', async (_case, body, contentType) => {
+    const either = await Effect.runPromise(Effect.either(failGet(body, contentType)));
+    const error = expectFetcherError(either);
+    const thrown = await Effect.runPromise(failGet(body, contentType)).then(
+      () => {
+        throw new Error('expected the request to fail');
+      },
+      (rejection: unknown) => rejection,
+    );
+    const wrapped = ensureBaseError(thrown, 'fetcher:test');
+
+    const failures = { error, thrown, wrapped, cause: wrapped.cause };
+    for (const [name, failure] of Object.entries(failures)) {
+      for (const [label, secret] of [
+        ['key', KEY],
+        ['token', TOKEN],
+      ] as const) {
+        const json = JSON.stringify(failure) ?? '';
+        expect.soft(json.includes(secret), `${label} in JSON of ${name}`).toBe(false);
+        expect.soft(reaches(failure, secret), `${label} reachable from ${name}`).toBe(false);
+      }
+    }
+    // What came back is still told: the parse failure and the body, cut to the limit.
+    expect(error.message).toContain('Failed to parse JSON response');
+    expect(error.responseData).toEqual({
+      originalError: expect.any(String),
+      responseText: body,
+    });
   });
 });
