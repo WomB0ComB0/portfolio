@@ -85,8 +85,8 @@ afterEach(() => {
 });
 
 describe('live counters use tabular figures', () => {
-  // The guestbook's message count is a server-rendered StatStrip figure now (figure-sm, tabular
-  // in globals.css); it no longer changes on screen, so only the character counter is live.
+  // The guestbook's count is a server-rendered Byline now (tile-meta, tabular in globals.css);
+  // only the character counter changes on every keystroke.
   it('the guestbook character counter, which updates on every keystroke', () => {
     render(<ComposeCard onPost={vi.fn()} />);
 
