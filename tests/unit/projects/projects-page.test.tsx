@@ -331,7 +331,11 @@ describe('/projects hover preview on the page', () => {
     await waitFor(() => expect(card()).not.toBeNull());
     const title = document.querySelector('a[data-project-title]') as HTMLElement;
     fireEvent.pointerMove(title, { pointerType: 'mouse', clientX: 300, clientY: 10 });
-    expect(card()?.getAttribute('data-shown')).not.toBe('');
+    // The lazy preview and Motion can commit after the pointer handler returns. Establish
+    // that the correct row is showing before checking the filter change hides it.
+    const shown = title.closest('[data-preview-id]')?.getAttribute('data-preview-id');
+    expect(shown).toBeTruthy();
+    await waitFor(() => expect(card()).toHaveAttribute('data-shown', shown));
 
     // Every synthetic description says "project": the same rows stay, but the URL changes.
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'project' } });
