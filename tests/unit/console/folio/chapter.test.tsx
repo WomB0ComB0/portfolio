@@ -185,13 +185,18 @@ describe('ChapterOpener', () => {
     expect(body?.textContent).toBe('Briefs');
   });
 
-  it('leaves out empty slots rather than drawing empty wrappers', () => {
-    const { container } = render(<ChapterOpener id="y2022" title={2022} summary="" byline={[]} />);
+  it.each([{ byline: [] }, { byline: [' ', null, false, Number.NaN] }] as const)(
+    'leaves out empty byline slots: $byline',
+    ({ byline }) => {
+      const { container } = render(
+        <ChapterOpener id="y2022" title={2022} summary="" byline={byline} />,
+      );
 
-    expect(container.querySelector('header')?.children).toHaveLength(1);
-    expect(container.querySelector('[data-chapter-lead]')).toBeNull();
-    expect(container.querySelector('[data-chapter-body]')).toBeNull();
-  });
+      expect(container.querySelector('header')?.children).toHaveLength(1);
+      expect(container.querySelector('[data-chapter-lead]')).toBeNull();
+      expect(container.querySelector('[data-chapter-body]')).toBeNull();
+    },
+  );
 
   it('sets a word chapter small as a page opens, with no pause above it and one rule', () => {
     const { container } = render(

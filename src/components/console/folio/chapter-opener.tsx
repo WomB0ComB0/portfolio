@@ -36,7 +36,7 @@ import type { CSSProperties, ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { hasContent } from '../has-content';
 import { Byline } from './byline';
-import type { BylinePart } from './byline-items';
+import { type BylinePart, bylineItems } from './byline-items';
 import type { ChapterSize } from './chapter';
 import { widestWordUnits } from './word-measure';
 
@@ -142,7 +142,7 @@ export function ChapterOpener({
   const headingId = `${id}-title`;
   const fit = { '--folio-fit': String(widestWordUnits(String(title))) } as CSSProperties;
   const hasSummary = hasContent(summary);
-  const hasByline = byline !== undefined && byline.length > 0;
+  const hasByline = bylineItems(byline ?? []).length > 0;
   const heading = (
     <Heading id={headingId} className={TITLE_CLASS[size]} style={fit}>
       {title}
@@ -161,7 +161,7 @@ export function ChapterOpener({
           <div className={DEK_CLASS[size]}>
             {hasSummary ? <p className={SUMMARY_CLASS[size]}>{summary}</p> : null}
             {hasByline ? (
-              <Byline parts={byline} className={size === 'inline' ? undefined : 'mt-1.5'} />
+              <Byline parts={byline ?? []} className={size === 'inline' ? undefined : 'mt-1.5'} />
             ) : null}
           </div>
         ) : null}
