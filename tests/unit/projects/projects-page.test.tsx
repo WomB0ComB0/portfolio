@@ -350,6 +350,7 @@ describe('/projects module boundaries', () => {
     '_lib/project-text.ts',
     '_lib/project-order.ts',
     '_lib/project-filters.ts',
+    '_lib/project-schema.ts',
     '_lib/project-index.ts',
     '_components/project-index-classes.ts',
     '_components/project-row.tsx',
