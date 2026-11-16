@@ -19,6 +19,11 @@
  * it. Each trigger reports its state and names the panel it controls. A flyout also follows
  * keyboard focus: it closes when focus leaves its group (trigger and panel), as in the WAI-ARIA
  * disclosure navigation pattern, and its Escape never pulls focus out of the page.
+ *
+ * Every flyout stays in the HTML, open or closed, so each page's server HTML links every nav
+ * destination with a plain `<a href>`. jsdom applies no Tailwind CSS, so "closed" is the class
+ * and attribute contract: `invisible` (visibility: hidden) and `inert`, which keep a closed
+ * flyout's links out of the tab order and the accessibility tree.
  */
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -64,13 +69,29 @@ const panelOf = (label: string): HTMLElement => {
   return panel;
 };
 
+const classesOf = (element: Element): string[] =>
+  (element.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+
+/** A closed flyout is still in the document, hidden from sight, focus and assistive tech. */
 const expectClosed = async (label: string) => {
   expect(expanded(label)).toBe('false');
   await waitFor(() => {
-    const id = trigger(label).getAttribute('aria-controls');
-    expect(id && document.getElementById(id)).toBeFalsy();
+    const panel = panelOf(label);
+    expect(panel).toHaveAttribute('inert');
+    expect(classesOf(panel)).toEqual(expect.arrayContaining(['invisible', 'opacity-0']));
+    expect(classesOf(panel)).not.toContain('visible');
   });
 };
+
+const expectOpen = (label: string) => {
+  expect(expanded(label)).toBe('true');
+  const panel = panelOf(label);
+  expect(panel).not.toHaveAttribute('inert');
+  expect(classesOf(panel)).toEqual(expect.arrayContaining(['visible', 'opacity-100']));
+  expect(classesOf(panel)).not.toContain('invisible');
+};
+
+const GROUP_LABELS = ['Professional', 'Developer', 'Personal', 'Legal'] as const;
 
 /** Moves focus as Tab or a script would, letting React apply the resulting state. */
 const focus = (element: HTMLElement) => act(() => element.focus());
@@ -86,17 +107,17 @@ const openAndFocusFirstLink = (label: string): HTMLElement => {
 };
 
 describe('NavBar flyouts', () => {
-  it('names the panel each trigger controls, and starts with every group closed', () => {
+  it('names the panel each trigger controls, and starts with every group closed', async () => {
     renderRail();
 
-    for (const label of ['Professional', 'Developer', 'Personal', 'Legal']) {
-      expect(expanded(label)).toBe('false');
+    for (const label of GROUP_LABELS) {
       expect(trigger(label)).toHaveAttribute('aria-controls');
+      await expectClosed(label);
     }
 
     fireEvent.click(trigger('Personal'));
 
-    expect(expanded('Personal')).toBe('true');
+    expectOpen('Personal');
     const panel = panelOf('Personal');
     for (const name of ['Places', 'Spotify', 'Guestbook']) {
       expect(within(panel).getByRole('link', { name })).toBeInTheDocument();
@@ -111,7 +132,7 @@ describe('NavBar flyouts', () => {
     fireEvent.pointerDown(trigger('Developer'));
     fireEvent.click(trigger('Developer'));
 
-    expect(expanded('Developer')).toBe('true');
+    expectOpen('Developer');
     await expectClosed('Professional');
     expect(within(panelOf('Developer')).getByRole('link', { name: 'Stats' })).toBeInTheDocument();
   });
@@ -183,6 +204,30 @@ describe('NavBar flyouts', () => {
       'aria-current',
       'page',
     );
+  });
+
+  // The trigger is all a closed flyout leaves in the accessibility tree, and the rail marks it
+  // for sight (fill and brand bar) whenever the page is in its group: assistive tech hears it too.
+  it("marks the current page's group on its trigger for assistive tech, and no other trigger", () => {
+    renderRail('/resume');
+
+    expect(trigger('Professional')).toHaveAttribute('aria-current', 'true');
+    for (const label of GROUP_LABELS.filter((name) => name !== 'Professional')) {
+      expect(trigger(label)).not.toHaveAttribute('aria-current');
+    }
+  });
+
+  it('marks the section on a detail page: its trigger, and its link as the section in brand-ink', () => {
+    renderRail('/projects/some-id');
+    fireEvent.click(trigger('Professional'));
+    const panel = panelOf('Professional');
+    const section = within(panel).getByRole('link', { name: 'Projects' });
+
+    expect(trigger('Professional')).toHaveAttribute('aria-current', 'true');
+    expect(section).toHaveAttribute('aria-current', 'true');
+    expect(section).toHaveClass('text-brand-ink');
+    expect(within(panel).queryByRole('link', { current: 'page' })).toBeNull();
+    expect(within(panel).getByRole('link', { name: 'Resume' })).not.toHaveAttribute('aria-current');
   });
 });
 

@@ -167,7 +167,7 @@ describe('place page', () => {
 
       const metadata = await generateMetadata(paramsOf(place._id));
 
-      expect(titleOf(metadata)).toBe('Place Not Found');
+      expect(titleOf(metadata)).toBe('404');
       expect(ogUrlOf(metadata)).toBeUndefined();
       expect(JSON.stringify(metadata)).not.toContain(place.name);
     });
@@ -333,10 +333,10 @@ describe('place page metadata', () => {
     );
   });
 
-  it('says "Place Not Found" for an unknown id, without og:url or a report', async () => {
+  it('says "404" for an unknown id, without og:url or a report', async () => {
     const metadata = await generateMetadata(paramsOf('__nope__'));
 
-    expect(titleOf(metadata)).toBe('Place Not Found');
+    expect(titleOf(metadata)).toBe('404');
     expect(ogUrlOf(metadata)).toBeUndefined();
     expect(h.reportApiFailure).not.toHaveBeenCalled();
   });
