@@ -95,6 +95,7 @@ import {
   PostFailedError,
   PostNotSentError,
 } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/post';
+import { groupByYear } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/wall';
 import { GUESTBOOK_TTL_MS } from '@/lib/guestbook/limits';
 import type { GuestbookMessage } from '@/lib/guestbook/types';
 import { logger } from '@/utils/logging';
@@ -117,17 +118,18 @@ const SAVED: GuestbookMessage = {
   createdAt: '2026-11-07T18:00:00.000Z',
 };
 
+/** The board as the page renders it: the messages as year chapters (the empty state is its own). */
 const board = (messages: readonly GuestbookMessage[], listState: 'ready' | 'empty' = 'ready') => (
   <PostedMessagesProvider>
     <GuestbookBoard
       knownIds={messages.map((m) => m.id)}
       listState={listState}
-      notice={listState === 'empty' ? <p>No messages yet</p> : null}
-    >
-      {messages.map((m) => (
-        <MessageRow key={m.id} message={m} />
-      ))}
-    </GuestbookBoard>
+      chapters={groupByYear(messages).map(({ year, items }) => ({
+        year,
+        count: items.length,
+        rows: items.map((m) => <MessageRow key={m.id} message={m} />),
+      }))}
+    />
   </PostedMessagesProvider>
 );
 
@@ -309,6 +311,36 @@ describe('posting a guestbook message', () => {
 
     expect(screen.queryByText('No messages yet')).toBeNull();
     expect(rows()).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: '2026' })).toBeInTheDocument();
+  });
+
+  // The compose tile lives in the wall's first chapter: a post dated after every listed year
+  // opens a chapter of its own, and the card must not be remounted by it (a remount would drop
+  // the "Posted" line, focus, and on a failure the text it puts back).
+  it('opens a new year for a post after the listed ones, keeping the compose card as it was', async () => {
+    const settle = deferredFetch();
+    render(board([EXISTING]));
+    const card = screen.getByRole('heading', { name: 'Your note here' }).closest('section');
+
+    send("It's me & you");
+    await settle(answer(201, SAVED));
+
+    const years = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(years).toEqual(['2026', '2025']);
+    expect(screen.getByRole('heading', { name: 'Your note here' }).closest('section')).toBe(card);
+    expect(screen.getByRole('status')).toHaveTextContent('Posted. Thanks for signing.');
+    expect(box()).toHaveFocus();
+  });
+
+  it('puts the compose tile first in the newest year, before the posted and listed notes', async () => {
+    const settle = deferredFetch();
+    render(board([EXISTING]));
+    send("It's me & you");
+    await settle(answer(201, SAVED));
+
+    const tiles = Array.from(document.querySelector('ol')?.children ?? []);
+    expect(tiles[0]?.querySelector('h3')).toHaveTextContent('Your note here');
+    expect(tiles[1]).toHaveTextContent("It's me & you");
   });
 
   it.each([

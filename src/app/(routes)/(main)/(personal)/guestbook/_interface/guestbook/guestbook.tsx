@@ -15,15 +15,17 @@
  */
 
 /**
- * @file The /guestbook page, rendered on the server: a PageShell header with two figures, then
- * the client island (compose card and list) holding every message as a server-rendered row. A
- * visitor without JavaScript, and a crawler, read the whole guestbook in the HTML. Both sit in
- * PostedMessagesProvider, so a message posted here is counted in the header once it is stored.
+ * @file The /guestbook page, rendered on the server: a PageShell header whose subline ends in one
+ * quiet count line, then the wall (the client island) with every message as a server-rendered
+ * tile, cut into year chapters. A visitor without JavaScript, and a crawler, read the whole
+ * guestbook in the HTML. Both sit in PostedMessagesProvider, so a message posted here is counted
+ * in the header once it is stored.
  */
 
 import type { JSX } from 'react';
 
 import {
+  type BoardChapter,
   type BoardListState,
   GUESTBOOK_DESCRIPTION,
   GUESTBOOK_TITLE,
@@ -34,8 +36,9 @@ import {
   PostedMessagesProvider,
 } from '@/app/(routes)/(main)/(personal)/guestbook/_components';
 import { guestbookStats } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/format';
+import { groupByYear } from '@/app/(routes)/(main)/(personal)/guestbook/_lib/wall';
 import { PageShell } from '@/components/console';
-import type { GuestbookLoad } from '@/lib/guestbook/types';
+import type { GuestbookLoad, GuestbookMessage } from '@/lib/guestbook/types';
 
 export interface GuestbookProps {
   readonly load: GuestbookLoad;
@@ -50,8 +53,16 @@ const listStateOf = (load: GuestbookLoad): BoardListState => {
   return load.messages.length === 0 ? 'empty' : 'ready';
 };
 
+/** The messages as year chapters, newest first, each with its server-rendered tiles. */
+const chaptersOf = (messages: readonly GuestbookMessage[]): BoardChapter[] =>
+  groupByYear(messages).map(({ year, items }) => ({
+    year,
+    count: items.length,
+    rows: items.map((message) => <MessageRow key={message.id} message={message} />),
+  }));
+
 /**
- * The guestbook: every message, newest first, beside the card to sign it.
+ * The guestbook: every message, newest first, on a wall by year, with the tile to sign it first.
  *
  * @returns {JSX.Element} The guestbook view.
  */
@@ -62,24 +73,23 @@ export const Guestbook = ({ load }: GuestbookProps): JSX.Element => {
     <PostedMessagesProvider>
       <PageShell
         title={GUESTBOOK_TITLE}
-        description={GUESTBOOK_DESCRIPTION}
-        stats={
-          <GuestbookLiveStats
-            stats={guestbookStats(load.messages, load.truncated)}
-            knownIds={knownIds}
-            available={load.state !== 'error'}
-          />
+        description={
+          <>
+            {GUESTBOOK_DESCRIPTION}
+            <GuestbookLiveStats
+              stats={guestbookStats(load.messages, load.truncated)}
+              knownIds={knownIds}
+              available={load.state !== 'error'}
+            />
+          </>
         }
       >
         <GuestbookBoard
           knownIds={knownIds}
           listState={listState}
           notice={<ListNotice load={load} listState={listState} />}
-        >
-          {load.messages.map((message) => (
-            <MessageRow key={message.id} message={message} />
-          ))}
-        </GuestbookBoard>
+          chapters={chaptersOf(load.messages)}
+        />
       </PageShell>
     </PostedMessagesProvider>
   );
