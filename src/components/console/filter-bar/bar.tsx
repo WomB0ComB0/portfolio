@@ -23,7 +23,9 @@
  * 48rem page).
  *
  * Sticky, the bar holds the top edge above the edge haze and writes its height to the nearest
- * `[data-filter-scope]` as --filter-bar-h, which the sticky year bars below it stick under. Focus
+ * `[data-filter-scope]` as --filter-bar-h, which the sticky year bars below it stick under, and
+ * to <html> as --filter-bar-pinned-h, which the haze's top band rises to while the bar is pinned
+ * (edge-haze.css), so the first row under the bar stays sharp. Focus
  * moving into it never scrolls the page (src/lib/dom/steady-focus.ts). On a phone only the search
  * field and the Filters button stick; the facets open as a bottom sheet (a native popover, so it
  * opens without JavaScript too).
@@ -71,20 +73,40 @@ export interface FilterBarRootProps {
   readonly children: ReactNode;
 }
 
-/** Writes the sticky bar's height to its scope, for the sticky year bars below it. */
+/**
+ * The sticky bar's height on <html>, for the edge haze (src/styles/edge-haze.css): while the bar
+ * is pinned, the haze's top band rises to end at the bar's lower edge instead of blurring the
+ * first row under it. Before this is written (no JavaScript yet), the haze assumes the shortest
+ * bar, 3.5rem, so the band still ends under the bar.
+ */
+export const PINNED_BAR_HEIGHT_PROPERTY = '--filter-bar-pinned-h';
+
+/**
+ * Writes the sticky bar's height to its scope, for the sticky year bars below it, and to <html>
+ * for the edge haze (PINNED_BAR_HEIGHT_PROPERTY). On unmount the page's value goes only if it is
+ * still this bar's, so a bar mounted since (a client navigation) keeps its own.
+ */
 function useStickyHeight(bar: RefObject<HTMLElement | null>, sticky: boolean): void {
   useLayoutEffect(() => {
     const element = bar.current;
     if (!element || !sticky) return;
-    const scope = element.closest<HTMLElement>('[data-filter-scope]') ?? document.documentElement;
-    const write = (): void =>
-      scope.style.setProperty('--filter-bar-h', `${element.getBoundingClientRect().height}px`);
+    const page = document.documentElement;
+    const scope = element.closest<HTMLElement>('[data-filter-scope]') ?? page;
+    let written = '';
+    const write = (): void => {
+      written = `${element.getBoundingClientRect().height}px`;
+      scope.style.setProperty('--filter-bar-h', written);
+      page.style.setProperty(PINNED_BAR_HEIGHT_PROPERTY, written);
+    };
     write();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(write) : null;
     observer?.observe(element);
     return () => {
       observer?.disconnect();
       scope.style.removeProperty('--filter-bar-h');
+      if (page.style.getPropertyValue(PINNED_BAR_HEIGHT_PROPERTY) === written) {
+        page.style.removeProperty(PINNED_BAR_HEIGHT_PROPERTY);
+      }
     };
   }, [bar, sticky]);
 }
