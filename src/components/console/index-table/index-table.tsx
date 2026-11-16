@@ -51,6 +51,8 @@ export interface IndexGroupProps {
   readonly count: string;
   readonly columns: readonly IndexColumn[];
   readonly variant?: IndexVariant;
+  /** Extra classes for the heading bar, without changing the default table layout. */
+  readonly headerClassName?: string;
   /** The rows (<tr>, usually server-rendered IndexRow). */
   readonly children: ReactNode;
 }
@@ -65,11 +67,12 @@ export function IndexGroup({
   count,
   columns,
   variant = 'ledger',
+  headerClassName,
   children,
 }: IndexGroupProps): ReactElement {
   return (
     <section data-index-part="group" className={INDEX_GROUP_CLASS}>
-      <h2 id={id} data-index-part="year" className={INDEX_YEAR_CLASS}>
+      <h2 id={id} data-index-part="year" className={cn(INDEX_YEAR_CLASS, headerClassName)}>
         <span className={INDEX_YEAR_NUMBER_CLASS}>{year}</span>
         <span className="sr-only">,</span> <span className={INDEX_YEAR_COUNT_CLASS}>{count}</span>
       </h2>
