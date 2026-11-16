@@ -304,10 +304,10 @@ for (const javaScriptEnabled of [false, true]) {
       await expect(back).toHaveAttribute('rel', /noopener/);
       await expect(block.locator('a[href="/media"]')).toBeVisible();
       await expect(page.locator('main#main-content h1')).toHaveCount(1);
-      // The block sits with the project's own sections: "Back to All Projects" comes after it,
+      // The block sits with the project's own sections: "Back to all projects" comes after it,
       // in the document and on the page, and stays the page's last link.
       const lastLink = page.locator('main#main-content a').last();
-      await expect(lastLink).toHaveAccessibleName(/Back to All Projects/);
+      await expect(lastLink).toHaveAccessibleName('Back to all projects');
       const blockBox = await block.boundingBox();
       const lastBox = await lastLink.boundingBox();
       expect(lastBox?.y ?? 0).toBeGreaterThanOrEqual((blockBox?.y ?? 0) + (blockBox?.height ?? 0));

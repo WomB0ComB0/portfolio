@@ -528,6 +528,48 @@ describe('references that filter the list (round 4)', () => {
     );
   });
 
+  it('waits for a cleared search before focusing a series whose first upload was filtered out', async () => {
+    const entries = buildFeed(
+      {
+        videos: [
+          makeVideo({
+            _id: 'first',
+            title: 'A marathon.',
+            videoId: 'focus000001',
+            publishedDate: '2025-06-01T08:00:00Z',
+          }),
+          makeVideo({
+            _id: 'second',
+            title: 'A marathon. (Part 1/2)',
+            videoId: 'focus000002',
+            publishedDate: '2025-06-02T08:00:00Z',
+          }),
+          makeVideo({
+            _id: 'third',
+            title: 'A marathon. (Part 2/2)',
+            videoId: 'focus000003',
+            publishedDate: '2025-06-03T08:00:00Z',
+          }),
+        ],
+      },
+      noImages,
+    );
+    const { container, link } = renderLive(entries, PART);
+    expect(
+      container.querySelector('a[href="https://www.youtube.com/watch?v=focus000001"]'),
+    ).toBeNull();
+    const clicked = link('a[data-feed-series]');
+    clicked.focus();
+
+    fireEvent.click(clicked);
+
+    await waitFor(() => {
+      const first = container.querySelector('tr[data-feed-row] a[data-feed-title]');
+      expect(first).toHaveAttribute('href', 'https://www.youtube.com/watch?v=focus000001');
+      expect(document.activeElement).toBe(first);
+    });
+  });
+
   it.each([
     ['Ctrl', { ctrlKey: true }],
     ['Cmd', { metaKey: true }],
