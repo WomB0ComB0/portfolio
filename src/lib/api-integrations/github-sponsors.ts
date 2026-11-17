@@ -28,8 +28,8 @@
  * @web
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -44,10 +44,10 @@ import { logger } from '@/utils';
  */
 const SponsorEntitySchema = Schema.Struct({
   __typename: Schema.String,
-  login: Schema.NullishOr(Schema.String),
-  name: Schema.NullishOr(Schema.String),
-  avatarUrl: Schema.NullishOr(Schema.String),
-  url: Schema.NullishOr(Schema.String),
+  login: Schema.optional(Schema.NullishOr(Schema.String)),
+  name: Schema.optional(Schema.NullishOr(Schema.String)),
+  avatarUrl: Schema.optional(Schema.NullishOr(Schema.String)),
+  url: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 /**
@@ -71,7 +71,7 @@ const SponsorshipNodeSchema = Schema.Struct({
   // Nullable in GitHub's schema: it is null when the account can't be shown, e.g. one that was
   // deleted or suspended. One such node must not fail the decode of every other sponsor.
   sponsorEntity: Schema.NullOr(SponsorEntitySchema),
-  tier: Schema.NullishOr(SponsorTierSchema),
+  tier: Schema.optional(Schema.NullishOr(SponsorTierSchema)),
   createdAt: Schema.String,
   isActive: Schema.Boolean,
   privacyLevel: Schema.String,
@@ -84,17 +84,19 @@ const SponsorshipNodeSchema = Schema.Struct({
  */
 const GitHubSponsorsResponseSchema = Schema.Struct({
   data: Schema.Struct({
-    user: Schema.NullishOr(
-      Schema.Struct({
-        sponsorshipsAsMaintainer: Schema.Struct({
-          totalCount: Schema.Number,
-          nodes: Schema.Array(SponsorshipNodeSchema),
-          pageInfo: Schema.Struct({
-            hasNextPage: Schema.Boolean,
-            endCursor: Schema.NullishOr(Schema.String),
+    user: Schema.optional(
+      Schema.NullishOr(
+        Schema.Struct({
+          sponsorshipsAsMaintainer: Schema.Struct({
+            totalCount: Schema.Number,
+            nodes: Schema.Array(SponsorshipNodeSchema),
+            pageInfo: Schema.Struct({
+              hasNextPage: Schema.Boolean,
+              endCursor: Schema.optional(Schema.NullishOr(Schema.String)),
+            }),
           }),
         }),
-      }),
+      ),
     ),
   }),
 });

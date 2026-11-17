@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either, pipe, Schema } from 'effect';
+import { Effect, pipe, Result, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { env } from '@/env';
 import { FetcherError, get, post } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
@@ -48,13 +48,12 @@ let cachedToken: CachedAccessToken | undefined;
 let pendingToken: Promise<CachedAccessToken> | undefined;
 
 /**
- * Runs `effect` and rejects with the error it failed with (a FetcherError keeps its status)
- * rather than the FiberFailure wrapper `Effect.runPromise` rejects with.
+ * Runs `effect` and preserves the original typed error (a FetcherError keeps its status).
  */
 const runOrThrow = async <A, E>(effect: Effect.Effect<A, E>): Promise<A> => {
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (Either.isLeft(result)) throw result.left;
-  return result.right;
+  const result = await Effect.runPromise(Effect.result(effect));
+  if (Result.isFailure(result)) throw result.failure;
+  return result.success;
 };
 
 /** Basic credentials and the refresh token; throws when the environment lacks any of them. */
@@ -216,7 +215,7 @@ const forgetRejectedToken = (token: CachedAccessToken): void => {
 };
 
 interface SpotifyGetOptions<A, I> {
-  schema: Schema.Schema<A, I, never>;
+  schema: Schema.Codec<A, I, never>;
   /** The fetcher's own retries, for a 5xx or a dropped connection; a 4xx is never retried. */
   retries: number;
   retryDelay?: number;

@@ -22,6 +22,31 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// Effect 4 memoizes a Context.Reference's default value. Its default Fetch service would
+// retain the first test's fetch mock, even after vi.stubGlobal replaces it. Supply a transport
+// that reads the current global for each request; the real HTTP client and response handling
+// stay in use, including in local-server tests that use the actual global fetch.
+vi.mock('effect/http', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('effect/http')>();
+  const { Layer } = await import('effect');
+  const forwardingFetch = Object.assign(
+    (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args),
+    {
+      preconnect: (...args: Parameters<typeof globalThis.fetch.preconnect>) =>
+        globalThis.fetch.preconnect?.(...args),
+    },
+  );
+  return {
+    ...actual,
+    FetchHttpClient: {
+      ...actual.FetchHttpClient,
+      layer: actual.FetchHttpClient.layer.pipe(
+        Layer.provide(Layer.succeed(actual.FetchHttpClient.Fetch, forwardingFetch)),
+      ),
+    },
+  };
+});
+
 // next/font/google's runtime module is empty outside Next's SWC transform, so importing
 // src/app/fonts.ts (the root layout does) would crash. Each loader is a spy that returns its own
 // class-like `variable`, as next/font does (a generated class name, not the CSS variable it was

@@ -26,7 +26,7 @@
  *   every request until Sanity is asked again, so each answer is decoded and reported once.
  */
 
-import { Either, ParseResult, Schema } from 'effect';
+import { Result, Schema, SchemaIssue } from 'effect';
 import { ensureBaseError } from '@/classes/error';
 import { reportApiFailure } from '@/lib/observability/report';
 
@@ -72,11 +72,14 @@ const idOf = (doc: unknown): string => {
  * formatter's message starts with the schema's whole type, which alone fills the length limit
  * for most collections, so the field-level issues are listed instead.
  */
-const problemOf = (error: ParseResult.ParseError): string =>
-  ParseResult.ArrayFormatter.formatErrorSync(error)
-    .map(({ path, message }) =>
-      path.length > 0 ? `${path.map(String).join('.')}: ${message}` : message,
-    )
+const problemOf = (error: Schema.SchemaError): string =>
+  SchemaIssue.makeFormatterStandardSchemaV1()(error.issue)
+    .issues.map(({ path, message }) => {
+      const fields = path?.map((segment) =>
+        String(typeof segment === 'object' ? segment.key : segment),
+      );
+      return fields?.length ? `${fields.join('.')}: ${message}` : message;
+    })
     .join('; ')
     .slice(0, MAX_PROBLEM_LENGTH);
 
@@ -102,36 +105,38 @@ function reportInvalid(
  * and reported once per answer.
  */
 export function decodeEach<A, I>(
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Codec<A, I, never, never>,
   docs: readonly unknown[],
   collection: string,
 ): readonly A[] {
   return memoized(listMemo, docs, schema, () => {
-    const decode = Schema.decodeUnknownEither(schema);
+    const decode = Schema.decodeUnknownResult(schema, { reportInput: true });
     const results = docs.map((doc) => ({ doc, result: decode(doc) }));
     const invalid = results.flatMap(({ doc, result }) =>
-      Either.isLeft(result) ? [{ id: idOf(doc), problem: problemOf(result.left) }] : [],
+      Result.isFailure(result) ? [{ id: idOf(doc), problem: problemOf(result.failure) }] : [],
     );
     if (invalid.length > 0) reportInvalid(collection, docs.length, invalid);
-    return results.flatMap(({ result }) => (Either.isRight(result) ? [result.right] : []));
+    return results.flatMap(({ result }) => (Result.isSuccess(result) ? [result.success] : []));
   });
 }
 
 /**
  * `doc` decoded with `schema`: null for a missing document (null or undefined, not reported) and
- * for an invalid one (reported once per object).
+ * for an invalid one (reported once per object). Settings request every field error so the
+ * loader can report all the fields it drops; this does not change the memoized result.
  */
 export function decodeOne<A, I>(
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Codec<A, I, never, never>,
   doc: unknown,
   collection: string,
+  errors: 'first' | 'all' = 'first',
 ): A | null {
   if (doc === null || doc === undefined) return null;
 
   const decode = (): A | null => {
-    const result = Schema.decodeUnknownEither(schema)(doc);
-    if (Either.isRight(result)) return result.right;
-    reportInvalid(collection, 1, [{ id: idOf(doc), problem: problemOf(result.left) }]);
+    const result = Schema.decodeUnknownResult(schema, { reportInput: true, errors })(doc);
+    if (Result.isSuccess(result)) return result.success;
+    reportInvalid(collection, 1, [{ id: idOf(doc), problem: problemOf(result.failure) }]);
     return null;
   };
   return typeof doc === 'object' ? memoized(documentMemo, doc, schema, decode) : decode();

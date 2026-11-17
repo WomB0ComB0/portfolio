@@ -143,10 +143,10 @@ describe('Effect HTTP Client', () => {
       expect(result).toBe('Result: 10');
     });
 
-    it('Effect.catchAll handles errors', async () => {
+    it('Effect.catch handles errors', async () => {
       const effect = pipe(
         Effect.fail(new Error('Original error')),
-        Effect.catchAll(() => Effect.succeed('Recovered')),
+        Effect.catch(() => Effect.succeed('Recovered')),
       );
       const result = await Effect.runPromise(effect);
 
@@ -338,11 +338,11 @@ describe('Effect HTTP Client', () => {
 
 describe('Schema Complex Types', () => {
   it('handles union types', () => {
-    const StatusSchema = Schema.Union(
+    const StatusSchema = Schema.Union([
       Schema.Literal('pending'),
       Schema.Literal('active'),
       Schema.Literal('completed'),
-    );
+    ]);
 
     expect(Schema.decodeUnknownSync(StatusSchema)('pending')).toBe('pending');
     expect(Schema.decodeUnknownSync(StatusSchema)('active')).toBe('active');
@@ -382,10 +382,7 @@ describe('Schema Complex Types', () => {
   });
 
   it('handles records/maps', () => {
-    const StringMapSchema = Schema.Record({
-      key: Schema.String,
-      value: Schema.Number,
-    });
+    const StringMapSchema = Schema.Record(Schema.String, Schema.Number);
 
     const map = { a: 1, b: 2, c: 3 };
     expect(Schema.decodeUnknownSync(StringMapSchema)(map)).toEqual(map);

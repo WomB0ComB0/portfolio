@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { ParseResult } from 'effect';
+import type { Schema } from 'effect';
 import { Data } from 'effect';
 
 /**
@@ -29,7 +29,7 @@ import { Data } from 'effect';
  *
  * @property {Error} cause - The original error that triggered this error
  * @property {string} command - The command or operation identifier
- * @property {ParseResult.ParseError} [parseResult] - Optional parsing error from Effect schemas
+ * @property {Schema.SchemaError} [parseResult] - Optional parsing error from Effect schemas
  * @property {Record<string, unknown>} [metadata] - Additional contextual data
  * @property {number} timestamp - When the error was created (milliseconds since epoch)
  * @property {string} name - The error name (defaults to the tag value)
@@ -71,7 +71,7 @@ export class BaseError extends Data.TaggedError<'BaseError'>('BaseError')<{
   message: string;
   cause: Error;
   command: string;
-  parseResult?: ParseResult.ParseError;
+  parseResult?: Schema.SchemaError;
   metadata?: Record<string, unknown>;
   timestamp: number;
 }> {
@@ -151,7 +151,7 @@ Metadata: ${JSON.stringify(this.metadata, null, 2)}`
    * @returns {string} return.message - The error message
    * @returns {string} return.command - The command identifier
    * @returns {object} return.cause - The original error (serialized)
-   * @returns {ParseResult.ParseError} [return.parseResult] - Parse error details if available
+   * @returns {Schema.SchemaError} [return.parseResult] - Parse error details if available
    * @returns {Record<string, unknown>} [return.metadata] - Additional context
    * @returns {number} return.timestamp - When the error occurred
    * @returns {string} [return.stack] - Stack trace from the original error
@@ -183,7 +183,7 @@ Metadata: ${JSON.stringify(this.metadata, null, 2)}`
       message: string;
       stack?: string;
     };
-    parseResult?: ParseResult.ParseError;
+    parseResult?: Schema.SchemaError;
     metadata?: Record<string, unknown>;
     timestamp: number;
     stack?: string;
@@ -346,4 +346,4 @@ export const ensureBaseError = (
 /**
  * Re-export Effect types for convenience.
  */
-export type { ParseResult } from 'effect';
+export type { Schema } from 'effect';

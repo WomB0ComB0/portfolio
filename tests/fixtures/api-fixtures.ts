@@ -19,8 +19,8 @@
  * @description Shared fixtures and utilities for API testing using Effect-based HTTP client.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { get } from '@/lib/http-clients/effect-fetcher';
 
 /**

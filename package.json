@@ -99,7 +99,6 @@
     "uuid": "^14.0.3"
   },
   "dependencies": {
-    "@effect/platform": "^0.97.3",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/eden": "^1.4.9",
     "@elysiajs/opentelemetry": "^1.4.11",

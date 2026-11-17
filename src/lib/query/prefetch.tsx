@@ -80,7 +80,7 @@ const asJsonBody = (value: unknown): unknown => JSON.parse(JSON.stringify(value)
 export async function prefetchDecoded<A, I, TQueryKey extends QueryKey>(
   queryClient: QueryClient,
   { queryKey, staleTime }: PrefetchQuery<A, TQueryKey>,
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Codec<A, I, never>,
   load: () => Promise<unknown>,
   { label, deadlineMs = PREFETCH_DEADLINE_MS }: PrefetchSettings,
 ): Promise<void> {

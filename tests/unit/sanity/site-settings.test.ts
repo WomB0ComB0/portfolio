@@ -34,7 +34,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type ValidationClient, validateDocument } from '@sanity/validation';
-import { Either, Schema } from 'effect';
+import { Result, Schema } from 'effect';
 import type { DocumentActionComponent, Template } from 'sanity';
 import { createSchema } from 'sanity';
 import type { StructureBuilder, StructureResolverContext } from 'sanity/structure';
@@ -322,7 +322,7 @@ const CANDIDATES: Record<keyof typeof FULL, readonly string[]> = {
   ],
 };
 
-const decodeSettings = Schema.decodeUnknownEither(SiteSettingsDocumentSchema);
+const decodeSettings = Schema.decodeUnknownResult(SiteSettingsDocumentSchema);
 
 /** True when the site's decoder keeps `field` = `value`. */
 const siteKeeps = (field: string, value: string): boolean => {
@@ -331,7 +331,7 @@ const siteKeeps = (field: string, value: string): boolean => {
     _type: SITE_SETTINGS_TYPE,
     [field]: value,
   });
-  return Either.isRight(decoded) && field in decoded.right;
+  return Result.isSuccess(decoded) && field in decoded.success;
 };
 
 /** True when Studio lets `field` = `value` be published (no error on the field). */
@@ -363,9 +363,9 @@ describe('Studio and the site detect the same invalid values', () => {
         location,
       });
 
-      expect(Either.isRight(decoded)).toBe(true);
+      expect(Result.isSuccess(decoded)).toBe(true);
       const { location: _absent, ...rest } = FULL;
-      expect(Either.getOrNull(decoded)).toStrictEqual({
+      expect(Result.getOrNull(decoded)).toStrictEqual({
         _id: SITE_SETTINGS_ID,
         _type: SITE_SETTINGS_TYPE,
         ...rest,
@@ -375,7 +375,7 @@ describe('Studio and the site detect the same invalid values', () => {
 
   it('still takes a tagline of spaces only as invalid: it has a built-in value to fall back to', () => {
     expect(
-      Either.isLeft(
+      Result.isFailure(
         decodeSettings({ _id: SITE_SETTINGS_ID, _type: SITE_SETTINGS_TYPE, tagline: '  ' }),
       ),
     ).toBe(true);

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient, HttpClient, type HttpClientError } from '@effect/platform';
-import { type Cause, Duration, Effect, Either, Schedule, Schema } from 'effect';
+import { type Cause, Duration, Effect, Result, Schedule, Schema } from 'effect';
+import { FetchHttpClient, HttpClient, type HttpClientError } from 'effect/http';
 import { XMLParser } from 'fast-xml-parser';
 import { SLASH, trimEdges } from '@/lib/text/trim';
 import { youtubeIdsIn } from '@/lib/youtube/video-id';
@@ -77,7 +77,7 @@ const FeedItemSchema = Schema.Struct({
 
 type FeedItem = Schema.Schema.Type<typeof FeedItemSchema>;
 
-const decodeFeedItem = Schema.decodeUnknownEither(FeedItemSchema);
+const decodeFeedItem = Schema.decodeUnknownResult(FeedItemSchema);
 
 const feedParser = new XMLParser({
   ignoreAttributes: true,
@@ -139,7 +139,7 @@ export function parseHashnodeRss(xml: string, limit = DEFAULT_LIMIT): Blog[] {
   const items: unknown[] = Array.isArray(rawItems) ? rawItems : [];
   const blogs = items.flatMap((raw) => {
     const decoded = decodeFeedItem(raw);
-    const blog = Either.isRight(decoded) ? toBlog(decoded.right) : null;
+    const blog = Result.isSuccess(decoded) ? toBlog(decoded.success) : null;
     return blog ? [blog] : [];
   });
 
@@ -153,9 +153,9 @@ export function parseHashnodeRss(xml: string, limit = DEFAULT_LIMIT): Blog[] {
 }
 
 /** Retry timeouts, transport errors, unreadable bodies, 429 and 5xx; other 4xx won't fix themselves. */
-function isRetryable(error: HttpClientError.HttpClientError | Cause.TimeoutException): boolean {
-  if (error._tag === 'ResponseError' && error.reason === 'StatusCode') {
-    const { status } = error.response;
+function isRetryable(error: HttpClientError.HttpClientError | Cause.TimeoutError): boolean {
+  if (error._tag === 'HttpClientError' && error.reason._tag === 'StatusCodeError') {
+    const { status } = error.reason.response;
     return status === 429 || status >= 500;
   }
   return true;

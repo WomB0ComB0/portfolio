@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform';
-import { Duration, Effect, ParseResult, pipe, Schedule, Schema } from 'effect';
+import { Duration, Effect, pipe, Result, Schedule, Schema, SchemaIssue } from 'effect';
+import { HttpClient, HttpClientRequest } from 'effect/http';
 import { env } from '@/env';
 import { getURL } from '@/utils';
 
@@ -34,7 +34,7 @@ export interface FetcherOptions<T = unknown> {
   /** Additional headers to include in the request */
   headers?: Record<string, string>;
   /** Effect/Schema for runtime validation of the response */
-  schema?: Schema.Schema<T, any, never>;
+  schema?: Schema.Codec<T, any, never>;
   /** Abortsignal */
   signal?: AbortSignal;
   /** Body type - defaults to 'json', use 'text' for form-encoded data */
@@ -156,28 +156,28 @@ const isOwnOrigin = (url: string, baseURL: string): boolean => {
  */
 
 // HTTP Method type definition
-const HttpMethod = Schema.Literal('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD');
+const HttpMethod = Schema.Literals(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
 // Query parameters type definition
-const QueryParams = Schema.Record({
-  key: Schema.String,
-  value: Schema.Union(
+const QueryParams = Schema.Record(
+  Schema.String,
+  Schema.Union([
     Schema.String,
     Schema.Number,
     Schema.Boolean,
     Schema.Undefined,
     Schema.Null,
-    Schema.Array(Schema.Union(Schema.String, Schema.Number, Schema.Boolean)),
-  ),
-});
+    Schema.Array(Schema.Union([Schema.String, Schema.Number, Schema.Boolean])),
+  ]),
+);
 // Request body type definition
-const RequestBody = Schema.Union(
-  Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+const RequestBody = Schema.Union([
+  Schema.Record(Schema.String, Schema.Unknown),
   Schema.Array(Schema.Unknown),
   Schema.String,
   Schema.Number,
   Schema.Boolean,
   Schema.Null,
-);
+]);
 
 /**
  * Custom error class for validation-specific errors.
@@ -289,7 +289,7 @@ export function fetcher<T = unknown>(
 /**
  * Performs a GET request with Effect schema validation and automatic type inference.
  */
-export function fetcher<S extends Schema.Schema<any, any, never>>(
+export function fetcher<S extends Schema.Codec<any, any, never>>(
   input: string,
   method: 'GET',
   options: FetcherOptions<Schema.Schema.Type<S>> & { schema: S },
@@ -310,7 +310,7 @@ export function fetcher<T = unknown>(
 /**
  * Performs a POST, PUT, or PATCH request with Effect schema validation and automatic type inference.
  */
-export function fetcher<S extends Schema.Schema<any, any, never>>(
+export function fetcher<S extends Schema.Codec<any, any, never>>(
   input: string,
   method: 'POST' | 'PUT' | 'PATCH',
   options: FetcherOptions<Schema.Schema.Type<S>> & { schema: S },
@@ -438,7 +438,7 @@ export function fetcher<T = unknown>(
       case 'PATCH':
         return HttpClientRequest.patch(url);
       case 'DELETE':
-        return HttpClientRequest.del(url);
+        return HttpClientRequest.delete(url);
       case 'OPTIONS':
         return HttpClientRequest.options(url);
       case 'HEAD':
@@ -457,10 +457,10 @@ export function fetcher<T = unknown>(
       return Effect.succeed(data as T);
     }
 
-    const result = Schema.decodeUnknownEither(schema)(data);
+    const result = Schema.decodeUnknownResult(schema, { reportInput: true })(data);
 
-    if (result._tag === 'Left') {
-      const issues = ParseResult.TreeFormatter.formatIssueSync(result.left.issue);
+    if (Result.isFailure(result)) {
+      const issues = SchemaIssue.makeFormatterDefault()(result.failure.issue);
       const problems = cut(issues, MAX_ERROR_BODY_CHARS, (rest) => `… (${rest} more characters)`);
       const responseData = keptErrorBody(data, JSON.stringify(data));
       // onError hears of it once, where the request's failure is handled below.
@@ -469,7 +469,7 @@ export function fetcher<T = unknown>(
       );
     }
 
-    return Effect.succeed(result.right as T);
+    return Effect.succeed(result.success as T);
   };
 
   return Effect.gen(function* () {
@@ -525,19 +525,22 @@ export function fetcher<T = unknown>(
     ): Effect.Effect<A, FetcherError | E, R> =>
       pipe(
         eff,
-        Effect.timeoutFail({
+        Effect.timeoutOrElse({
           duration: Duration.millis(timeout),
-          onTimeout: () =>
-            new FetcherError('Request timed out', url, undefined, undefined, attempt),
+          orElse: () =>
+            Effect.fail(new FetcherError('Request timed out', url, undefined, undefined, attempt)),
         }),
       );
 
     // Retry schedule: exponential backoff from retryDelay, at most `retries` retries (so 0 means
     // one attempt for every status, 429 included), and only for retryable errors.
-    const retrySchedule = pipe(
+    const retrySchedule = Schedule.max([
       Schedule.exponential(Duration.millis(retryDelay)),
-      Schedule.intersect(Schedule.recurs(retries)),
-      Schedule.whileInput(isRetryableError),
+      Schedule.recurs(retries),
+    ]).pipe(
+      Schedule.while(({ input }: { input: FetcherError | ValidationError }) =>
+        isRetryableError(input),
+      ),
     );
 
     /**
@@ -567,12 +570,12 @@ export function fetcher<T = unknown>(
       if (response.status < 200 || response.status >= 300) {
         const errorData = yield* pipe(
           response.json,
-          Effect.catchAll(() => Effect.succeed(undefined)),
+          Effect.catch(() => Effect.succeed(undefined)),
         );
 
         const responseText = yield* pipe(
           response.text,
-          Effect.catchAll(() => Effect.succeed(null)),
+          Effect.catch(() => Effect.succeed(null)),
         );
 
         // Enhanced error handling for 429 Rate Limit responses. Otherwise the status and the start
@@ -594,12 +597,12 @@ export function fetcher<T = unknown>(
         );
       }
 
-      // Parse response data as JSON. @effect/platform caches the body text, so when JSON parsing
+      // Parse response data as JSON. Effect's HTTP client caches the body text, so when JSON parsing
       // fails the text can be re-read to report what actually came back. Only a failure to read
       // the body at all falls back to the generic message; it must not swallow the detailed one.
       const rawData = yield* pipe(
         response.json,
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           pipe(
             response.text,
             Effect.mapError(
@@ -643,7 +646,7 @@ export function fetcher<T = unknown>(
     return yield* pipe(
       executeRequest,
       Effect.retry(retrySchedule),
-      Effect.catchAll((error) => {
+      Effect.catch((error) => {
         if (error instanceof FetcherError || error instanceof ValidationError) {
           if (onError) onError(error);
           return Effect.fail(error);
@@ -681,7 +684,7 @@ export function get<T = unknown>(
   params?: QueryParams,
 ): Effect.Effect<T, FetcherError | ValidationError, HttpClient.HttpClient>;
 
-export function get<S extends Schema.Schema<any, any, never>>(
+export function get<S extends Schema.Codec<any, any, never>>(
   url: string,
   options: FetcherOptions<Schema.Schema.Type<S>> & { schema: S },
   params?: QueryParams,
@@ -701,7 +704,7 @@ export function post<T = unknown>(
   params?: QueryParams,
 ): Effect.Effect<T, FetcherError | ValidationError, HttpClient.HttpClient>;
 
-export function post<S extends Schema.Schema<any, any, never>>(
+export function post<S extends Schema.Codec<any, any, never>>(
   url: string,
   body: RequestBody,
   options: FetcherOptions<Schema.Schema.Type<S>> & { schema: S },

@@ -21,9 +21,9 @@
  * on TanStack's default of 3 retries, so a failing card made 12 requests over about 20 s.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
-import { Effect, Runtime } from 'effect';
+import { Effect } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -41,7 +41,7 @@ const URL_UNDER_TEST = 'https://api.example.com/stats';
 const httpError = (status: number) =>
   new FetcherError(`HTTP ${status}`, URL_UNDER_TEST, status, undefined, 1);
 
-/** What a queryFn that awaits `Effect.runPromise` actually rejects with: a FiberFailure. */
+/** What a queryFn that awaits `Effect.runPromise` actually rejects with: the original error. */
 const rejectionOf = (error: unknown): Promise<unknown> =>
   Effect.runPromise(Effect.fail(error)).then(
     () => {
@@ -71,16 +71,24 @@ describe('shouldRetryQuery', () => {
     expect(shouldRetryQuery(0, error)).toBe(false);
   });
 
-  it('reads the status through the FiberFailure that Effect.runPromise rejects with', async () => {
-    const rateLimited = await rejectionOf(httpError(429));
+  it('preserves the typed error and status that Effect.runPromise rejects with', async () => {
+    const original = httpError(429);
+    const rateLimited = await rejectionOf(original);
     const notFound = await rejectionOf(httpError(404));
     const serverError = await rejectionOf(httpError(500));
 
-    expect(Runtime.isFiberFailure(rateLimited)).toBe(true);
+    expect(rateLimited).toBe(original);
     expect(shouldRetryQuery(0, rateLimited)).toBe(false);
     expect(shouldRetryQuery(0, notFound)).toBe(false);
     expect(shouldRetryQuery(0, serverError)).toBe(true);
     expect(shouldRetryQuery(1, serverError)).toBe(false);
+  });
+
+  it('keeps Effect validation failures non-retryable', async () => {
+    const original = new ValidationError('Response validation failed', URL_UNDER_TEST, 'bad', {});
+    const rejection = await rejectionOf(original);
+    expect(rejection).toBe(original);
+    expect(shouldRetryQuery(0, rejection)).toBe(false);
   });
 
   it.each([

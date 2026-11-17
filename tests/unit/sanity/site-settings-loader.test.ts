@@ -216,6 +216,20 @@ describe('loadSiteSettings', () => {
     expect(settings).toMatchObject({ location: SETTINGS.location, email: SETTINGS.email });
   });
 
+  it('reports an undefined exact field and a non-string contact without exposing its contents', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue({
+      ...SETTINGS,
+      tagline: undefined,
+      email: { address: 'private@example.org' },
+    });
+
+    const { tagline: _tagline, email: _email, ...rest } = SETTINGS;
+    expect(await loadSiteSettings()).toStrictEqual(rest);
+    expect(reportedFields().sort()).toEqual(['email', 'tagline']);
+    expect(reportedProblem()).not.toContain('private@example.org');
+    expectOneReport('warning', 'decode site-settings');
+  });
+
   it('answers null for something that is not the settings at all', async () => {
     sanity.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, _type: 'project' });
 

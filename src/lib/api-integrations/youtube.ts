@@ -23,8 +23,8 @@
  * would reach error text, the error tracker and logs. Every query value is percent-encoded.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { get } from '@/lib/http-clients/effect-fetcher';
 
 const YOUTUBE_API = 'https://www.googleapis.com/youtube/v3';
@@ -183,7 +183,7 @@ function formatDuration(isoDuration: string): string {
 function youtubeGet<T, I>(
   endpoint: string,
   query: Readonly<Record<string, string>>,
-  schema: Schema.Schema<T, I, never>,
+  schema: Schema.Codec<T, I, never>,
   apiKey: string,
 ): Promise<T> {
   const url = `${YOUTUBE_API}/${endpoint}?${new URLSearchParams(query).toString()}`;

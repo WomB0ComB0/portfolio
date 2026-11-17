@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { useQuery } from '@tanstack/react-query';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import Link from 'next/link';
 import { memo } from 'react';
 import { StatusDot, type StatusTone } from '@/components/console/status-dot';
@@ -37,12 +37,12 @@ const StatusResponseSchema = Schema.Struct({
   success: Schema.Literal(true),
   message: Schema.String,
   data: Schema.Struct({
-    state: Schema.Union(
+    state: Schema.Union([
       Schema.Literal('operational'),
       Schema.Literal('degraded'),
       Schema.Literal('down'),
       Schema.Literal('unknown'),
-    ),
+    ]),
     lastUpdated: Schema.String,
     message: Schema.optional(Schema.String),
     /** How many active monitors are up; total 0 means every monitor is paused. */

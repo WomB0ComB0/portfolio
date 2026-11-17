@@ -48,7 +48,7 @@ const BASE = {
   featured: false,
 };
 
-const decode = Schema.decodeUnknownEither(PlaceSchema);
+const decode = Schema.decodeUnknownResult(PlaceSchema);
 
 /** The Studio field's options.list, read off the field as found. */
 const studioValues = (): readonly unknown[] => {
@@ -73,12 +73,12 @@ describe('place categories', () => {
 
   it.each(PLACE_CATEGORIES)('PlaceSchema accepts %s', (category) => {
     const decoded = decode({ ...BASE, category });
-    expect(decoded._tag).toBe('Right');
+    expect(decoded._tag).toBe('Success');
   });
 
   it('PlaceSchema rejects a category outside the list', () => {
-    expect(decode({ ...BASE, category: 'Other' })._tag).toBe('Left');
-    expect(decode({ ...BASE, category: 'tech-office' })._tag).toBe('Left');
+    expect(decode({ ...BASE, category: 'Other' })._tag).toBe('Failure');
+    expect(decode({ ...BASE, category: 'tech-office' })._tag).toBe('Failure');
   });
 
   it('have unique kebab slugs, A to Z by label, that map back to their labels', () => {

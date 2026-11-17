@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -29,13 +29,13 @@ const BetterStackMonitorAttributesSchema = Schema.Struct({
   url: Schema.String,
   pronounceable_name: Schema.String,
   monitor_type: Schema.String,
-  status: Schema.Union(
+  status: Schema.Union([
     Schema.Literal('up'),
     Schema.Literal('down'),
     Schema.Literal('paused'),
     Schema.Literal('validating'),
     Schema.Literal('maintenance'),
-  ),
+  ]),
   paused: Schema.Boolean,
   last_checked_at: Schema.NullOr(Schema.String),
   created_at: Schema.String,
@@ -156,12 +156,14 @@ const fetchMonitors = () =>
         Authorization: `Bearer ${env.BETTERSTACK_API_KEY}`,
       },
     }),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: UPSTREAM_DEADLINE_MS,
-      onTimeout: () =>
-        new FetcherError(
-          `Better Stack did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
-          MONITORS_URL,
+      orElse: () =>
+        Effect.fail(
+          new FetcherError(
+            `Better Stack did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+            MONITORS_URL,
+          ),
         ),
     }),
     Effect.provide(FetchHttpClient.layer),

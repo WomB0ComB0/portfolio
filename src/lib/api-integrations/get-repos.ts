@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { cache } from 'react';
 import { env } from '@/env';
 import { post } from '@/lib/http-clients/effect-fetcher';
@@ -45,11 +45,11 @@ const PrimaryLanguageSchema = Schema.Struct({
  */
 export const PinnedRepoSchema = Schema.Struct({
   name: Schema.String,
-  description: Schema.Union(Schema.String, Schema.Null),
+  description: Schema.Union([Schema.String, Schema.Null]),
   url: Schema.String,
   stargazerCount: Schema.Number,
   forkCount: Schema.Number,
-  primaryLanguage: Schema.Union(PrimaryLanguageSchema, Schema.Null),
+  primaryLanguage: Schema.Union([PrimaryLanguageSchema, Schema.Null]),
 });
 
 /**

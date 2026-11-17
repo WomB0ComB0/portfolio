@@ -25,8 +25,8 @@ import 'server-only';
  * good profile is served (marked stale) rather than nothing.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { type CachedValue, createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
@@ -56,9 +56,7 @@ const PersonalBestSchema = Schema.Struct({ wpm: Schema.Number, acc: Schema.Numbe
  */
 const MonkeytypeProfileSchema = Schema.Struct({
   personalBests: Schema.Struct({
-    time: Schema.optional(
-      Schema.Record({ key: Schema.String, value: Schema.Array(PersonalBestSchema) }),
-    ),
+    time: Schema.optional(Schema.Record(Schema.String, Schema.Array(PersonalBestSchema))),
   }),
   typingStats: Schema.Struct({ completedTests: Schema.Number }),
 });
@@ -83,12 +81,14 @@ const fetchProfile = async (): Promise<MonkeytypeProfile> => {
         retryDelay: RETRY_DELAY_MS,
         timeout: ATTEMPT_TIMEOUT_MS,
       }),
-      Effect.timeoutFail({
+      Effect.timeoutOrElse({
         duration: UPSTREAM_DEADLINE_MS,
-        onTimeout: () =>
-          new FetcherError(
-            `Monkeytype did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
-            MONKEYTYPE_PROFILE_URL,
+        orElse: () =>
+          Effect.fail(
+            new FetcherError(
+              `Monkeytype did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+              MONKEYTYPE_PROFILE_URL,
+            ),
           ),
       }),
       Effect.provide(FetchHttpClient.layer),

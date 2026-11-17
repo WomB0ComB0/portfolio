@@ -42,7 +42,7 @@ import 'server-only';
  * location is the owner clearing it: absent, and not reported.
  */
 
-import { Either, Option, ParseResult, Schema } from 'effect';
+import { Result, Schema, SchemaIssue } from 'effect';
 import { cache } from 'react';
 import { ensureBaseError } from '@/classes/error';
 import {
@@ -254,7 +254,7 @@ async function readData<T>(read: SanityReader<T>, key: string): Promise<T> {
 /** `key`'s list, each document decoded with `schema`; invalid documents are dropped. */
 async function loadList<A, I>(
   read: SanityReader<readonly unknown[]>,
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Codec<A, I, never, never>,
   key: string,
 ): Promise<readonly A[]> {
   return decodeEach(schema, await readData(read, key), key);
@@ -267,7 +267,7 @@ async function loadList<A, I>(
  * answer, by decodeEach).
  */
 function peekList<A, I>(
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Codec<A, I, never, never>,
   key: string,
 ): CachedValue<readonly A[]> | undefined {
   const cached = sharedCache.peek(key);
@@ -331,14 +331,20 @@ const SITE_SETTINGS_KEY = 'site-settings';
 
 const readSiteSettings = cachedReader<unknown>(SITE_SETTINGS_KEY, getSiteSettings);
 
-const decodeSettings = Schema.decodeUnknownEither(SiteSettingsDocumentSchema);
+const decodeSettings = Schema.decodeUnknownResult(SiteSettingsDocumentSchema, { errors: 'all' });
 
 /** The top-level fields an invalid document gets wrong (the schema lists every one). */
 function invalidFields(doc: object): ReadonlySet<PropertyKey> {
   const result = decodeSettings(doc);
-  if (Either.isRight(result)) return new Set();
-  const issues = ParseResult.ArrayFormatter.formatErrorSync(result.left);
-  return new Set(issues.flatMap(({ path }) => path.slice(0, 1)));
+  if (Result.isSuccess(result)) return new Set();
+  const issues = SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues;
+  return new Set(
+    issues.flatMap(({ path }) =>
+      (path?.slice(0, 1) ?? []).map((segment) =>
+        typeof segment === 'object' ? segment.key : segment,
+      ),
+    ),
+  );
 }
 
 /**
@@ -348,11 +354,11 @@ function invalidFields(doc: object): ReadonlySet<PropertyKey> {
  * left is still not one (no _id, another _type).
  */
 function decodeSiteSettings(doc: unknown): SiteSettings | null {
-  const settings = decodeOne(SiteSettingsDocumentSchema, doc, SITE_SETTINGS_KEY);
+  const settings = decodeOne(SiteSettingsDocumentSchema, doc, SITE_SETTINGS_KEY, 'all');
   if (settings !== null || typeof doc !== 'object' || doc === null) return settings;
   const invalid = invalidFields(doc);
   const validFields = Object.fromEntries(Object.entries(doc).filter(([key]) => !invalid.has(key)));
-  return Option.getOrNull(Either.getRight(decodeSettings(validFields)));
+  return Result.getOrNull(decodeSettings(validFields));
 }
 
 /**
