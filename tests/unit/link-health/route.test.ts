@@ -1,8 +1,25 @@
 // @vitest-environment node
+
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { Elysia } from 'elysia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const runtime = vi.hoisted(() => ({ readLinkHealth: vi.fn(), refreshLinkHealth: vi.fn() }));
+const runtime = vi.hoisted(() => ({ readLinkHealth: vi.fn(), readLinkHealthCatalog: vi.fn() }));
 const background = vi.hoisted(() => ({ after: vi.fn() }));
 vi.mock('@/lib/link-health/runtime', () => runtime);
 vi.mock('next/server', () => background);
@@ -15,14 +32,17 @@ const request = (query: string) => app.handle(new Request(`http://localhost/link
 beforeEach(() => {
   vi.clearAllMocks();
   runtime.readLinkHealth.mockResolvedValue({ links: {} });
-  runtime.refreshLinkHealth.mockResolvedValue(undefined);
+  runtime.readLinkHealthCatalog.mockResolvedValue({
+    scope: 'projects',
+    urls: ['https://example.com/demo'],
+  });
 });
 
 describe('GET /link-health', () => {
-  it('returns cached data immediately and schedules the probe batch after the response', async () => {
+  it('returns cached Sanity data without scheduling any background probe', async () => {
     const cached = {
       links: {
-        'https://example.com/demo': { status: 'temporary', checkedAt: '2026-11-17T01:00:00Z' },
+        'https://example.com/demo': { status: 'unavailable', checkedAt: '2026-11-17T01:00:00Z' },
       },
     };
     runtime.readLinkHealth.mockResolvedValue(cached);
@@ -31,10 +51,7 @@ describe('GET /link-health', () => {
     expect(await response.json()).toEqual(cached);
     expect(response.headers.get('cache-control')).toContain('s-maxage=30');
     expect(runtime.readLinkHealth).toHaveBeenCalledWith('projects');
-    expect(runtime.refreshLinkHealth).not.toHaveBeenCalled();
-    expect(background.after).toHaveBeenCalledTimes(1);
-    await background.after.mock.calls[0]?.[0]();
-    expect(runtime.refreshLinkHealth).toHaveBeenCalledWith('projects');
+    expect(background.after).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -53,7 +70,28 @@ describe('GET /link-health', () => {
   it('cannot pass an arbitrary URL to the checker', async () => {
     await request('scope=media&url=https%3A%2F%2F127.0.0.1%2Fsecret');
     for (const args of runtime.readLinkHealth.mock.calls) expect(args).toEqual(['media']);
-    for (const [task] of background.after.mock.calls) await task();
-    for (const args of runtime.refreshLinkHealth.mock.calls) expect(args).toEqual(['media']);
+    expect(background.after).not.toHaveBeenCalled();
+  });
+
+  it('serves only the fixed published catalog for the scheduler', async () => {
+    const response = await app.handle(
+      new Request('http://localhost/link-health/catalog?scope=projects&url=http://127.0.0.1'),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      scope: 'projects',
+      urls: ['https://example.com/demo'],
+    });
+    expect(runtime.readLinkHealthCatalog).toHaveBeenCalledExactlyOnceWith('projects');
+    expect(background.after).not.toHaveBeenCalled();
+  });
+
+  it('returns503 on a catalog failure instead of treating it as an empty allowlist', async () => {
+    runtime.readLinkHealthCatalog.mockRejectedValue(new Error('source failed'));
+    const response = await app.handle(
+      new Request('http://localhost/link-health/catalog?scope=projects'),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain('source failed');
   });
 });

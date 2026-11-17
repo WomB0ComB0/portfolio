@@ -48,6 +48,7 @@ import { RoleDetailLogo } from '../../_components/role-detail-logo';
 import { axisStyle } from '../../_components/role-lane';
 import { RoleListEntryGuard } from '../../_components/role-list-entry-guard';
 import { RolePeriodText } from '../../_components/role-parts';
+import { RoleProgression } from '../../_components/role-progression';
 import {
   RoleLengthFigure,
   RoleLinkChips,
@@ -212,6 +213,7 @@ export function RoleDetail({
     >
       <div data-role-clock="" className={PAGE_CLASS} style={axisStyle(page.axis)}>
         <RoleClockTile page={page} />
+        <RoleProgression id="role-progression" subRoles={role.subRoles} />
         <div className={hasSide ? BODY_CLASS : undefined}>
           <div className={MAIN_CLASS}>
             {page.description && (

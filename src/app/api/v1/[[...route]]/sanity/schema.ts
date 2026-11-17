@@ -33,6 +33,24 @@ export const experienceSchema = t.Object({
   description: t.String(),
   responsibilities: t.Array(t.String()),
   technologies: t.Array(t.String()),
+  subRoles: t.Optional(
+    t.Union([
+      t.Array(
+        t.Object({
+          _key: t.String(),
+          _type: t.Optional(t.Union([t.Literal('experienceSubRole'), t.Null()])),
+          position: t.String(),
+          startDate: t.String(),
+          endDate: t.Optional(t.Union([t.String(), t.Null()])),
+          current: t.Optional(t.Boolean({ default: false })),
+          description: t.Optional(t.Union([t.String(), t.Null()])),
+          responsibilities: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
+          technologies: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
+        }),
+      ),
+      t.Null(),
+    ]),
+  ),
   logo: t.Optional(
     t.Union([
       t.Object({

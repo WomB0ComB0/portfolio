@@ -1,3 +1,19 @@
+/**
+ * Copyright 2025 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { describe, expect, it } from 'vitest';
 import { nextRecord, publicEntry, readRecord } from '@/lib/link-health/state';
 
@@ -20,22 +36,28 @@ describe('link health observations', () => {
   it.each(['reachable', 'temporary', 'unknown'] as const)(
     'clears a missing streak on %s',
     (kind) => {
-      const first = nextRecord(undefined, { kind: 'missing' }, NOW);
+      const first = nextRecord(undefined, { kind: 'missing', httpStatus: 404 }, NOW);
       const interrupted = nextRecord(first, { kind }, NOW + 2 * MINUTE);
-      expect(interrupted.status).toBe(kind);
-      expect(nextRecord(interrupted, { kind: 'missing' }, NOW + 4 * MINUTE).status).toBe('unknown');
+      expect(interrupted.status).toBe(kind === 'reachable' ? 'reachable' : 'unknown');
+      expect(
+        nextRecord(interrupted, { kind: 'missing', httpStatus: 404 }, NOW + 4 * MINUTE).status,
+      ).toBe('unknown');
     },
   );
 
   it('does not join two missing observations separated by a day or a backwards clock', () => {
-    const first = nextRecord(undefined, { kind: 'missing' }, NOW);
-    expect(nextRecord(first, { kind: 'missing' }, NOW + 25 * 60 * MINUTE).status).toBe('unknown');
-    expect(nextRecord(first, { kind: 'missing' }, NOW - MINUTE).status).toBe('unknown');
+    const first = nextRecord(undefined, { kind: 'missing', httpStatus: 404 }, NOW);
+    expect(
+      nextRecord(first, { kind: 'missing', httpStatus: 404 }, NOW + 25 * 60 * MINUTE).status,
+    ).toBe('unknown');
+    expect(nextRecord(first, { kind: 'missing', httpStatus: 404 }, NOW - MINUTE).status).toBe(
+      'unknown',
+    );
   });
 
   it('clears a confirmed unavailable label immediately on recovery', () => {
-    const first = nextRecord(undefined, { kind: 'missing' }, NOW);
-    const failed = nextRecord(first, { kind: 'missing' }, NOW + 2 * MINUTE);
+    const first = nextRecord(undefined, { kind: 'missing', httpStatus: 404 }, NOW);
+    const failed = nextRecord(first, { kind: 'missing', httpStatus: 404 }, NOW + 2 * MINUTE);
     const recovered = nextRecord(failed, { kind: 'reachable' }, NOW + 3 * MINUTE);
     expect(recovered.status).toBe('reachable');
     expect(recovered.nextCheckAt).toBe(NOW + 363 * MINUTE);
@@ -48,12 +70,28 @@ describe('link health observations', () => {
 
   it('omits stale and future-dated warnings and exposes no internal HTTP details', () => {
     const record = nextRecord(undefined, { kind: 'temporary', httpStatus: 503 }, NOW);
-    expect(publicEntry(record, NOW)).toEqual({
-      status: 'temporary',
-      checkedAt: new Date(NOW).toISOString(),
-    });
+    expect(publicEntry(record, NOW)).toBeUndefined();
     expect(publicEntry(record, NOW + 24 * 60 * MINUTE)).toBeUndefined();
     expect(publicEntry(record, NOW - MINUTE)).toBeUndefined();
+  });
+
+  it('requires actual 404/410 evidence and only publishes confirmed missing results', () => {
+    const first = nextRecord(undefined, { kind: 'missing', httpStatus: 404 }, NOW);
+    const confirmed = nextRecord(first, { kind: 'missing', httpStatus: 410 }, NOW + 2 * MINUTE);
+    expect(publicEntry(confirmed, NOW + 2 * MINUTE)).toEqual({
+      status: 'unavailable',
+      checkedAt: new Date(NOW + 2 * MINUTE).toISOString(),
+    });
+    for (const observation of [
+      { kind: 'missing' as const },
+      { kind: 'missing' as const, httpStatus: 403 },
+      { kind: 'temporary' as const, httpStatus: 503 },
+      { kind: 'unknown' as const, httpStatus: 429 },
+    ]) {
+      const result = nextRecord(confirmed, observation, NOW + 3 * MINUTE);
+      expect(result.status).toBe('unknown');
+      expect(publicEntry(result, NOW + 3 * MINUTE)).toBeUndefined();
+    }
   });
 
   it('validates persisted records before reading', () => {

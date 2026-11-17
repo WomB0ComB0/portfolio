@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { canWarnForLink } from '@/lib/link-health/public-warning';
 import type { LinkHealthEntry, LinkHealthResponse, LinkHealthScope } from '@/lib/link-health/types';
 
 const POLL_MS = 30_000;
@@ -21,16 +22,16 @@ const REQUEST_MS = 5_000;
 export const WARNING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SLACK_MS = 60_000;
 export const EMPTY_LINK_HEALTH: LinkHealthResponse = { links: {} };
-const STATUSES = new Set(['reachable', 'unavailable', 'temporary', 'unknown']);
-const warning = (entry: LinkHealthEntry): boolean =>
-  entry.status === 'unavailable' || entry.status === 'temporary';
+const STATUSES = new Set(['reachable', 'unavailable', 'unknown']);
+const warning = (entry: LinkHealthEntry): boolean => entry.status === 'unavailable';
 
 /** Invalid, future-dated and expired observations cannot support a public warning. */
 export function freshWarning(
   entry: LinkHealthEntry | undefined,
   now: number,
+  href?: string,
 ): LinkHealthEntry | null {
-  if (!entry || !warning(entry)) return null;
+  if (!entry || !warning(entry) || (href !== undefined && !canWarnForLink(href))) return null;
   const checked = Date.parse(entry.checkedAt);
   return Number.isFinite(checked) &&
     checked <= now + CLOCK_SLACK_MS &&

@@ -17,6 +17,7 @@
 import 'server-only';
 
 import { type PublicAddress, probeHostname, publicAddress, publicHostname } from './ip-policy';
+import { canWarnForLink } from './public-warning';
 import { resolveHostAddresses } from './resolve';
 import { type ProbeHeaders, type ProbeRequest, requestPinned } from './transport';
 import type { LinkObservation } from './types';
@@ -84,6 +85,7 @@ async function observe(
   let url = initial;
   let method: ProbeRequest['method'] = 'HEAD';
   let redirects = 0;
+  let missingIsConclusive = canWarnForLink(initial.href);
   const visited = new Set<string>();
   for (;;) {
     assertActive();
@@ -102,6 +104,7 @@ async function observe(
       if (!next || redirects >= MAX_REDIRECTS) return { kind: 'unknown' };
       redirects++;
       url = next;
+      missingIsConclusive = missingIsConclusive && canWarnForLink(next.href);
       continue;
     }
     // A broken HEAD implementation must not label a working GET destination unavailable.
@@ -112,6 +115,8 @@ async function observe(
       method = 'GET';
       continue;
     }
+    if (missing(response.status) && !missingIsConclusive)
+      return { kind: 'unknown', httpStatus: response.status };
     return classify(response.status);
   }
 }

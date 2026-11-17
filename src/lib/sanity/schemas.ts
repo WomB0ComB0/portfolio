@@ -21,6 +21,8 @@
  * Location: schemas/ directory in your Sanity Studio
  */
 
+import type { Rule } from 'sanity';
+
 /**
  * Experience Schema
  * File: schemas/experience.ts
@@ -106,6 +108,50 @@ export const experienceSchema = {
       name: 'companyUrl',
       title: 'Company Website',
       type: 'url',
+    },
+    {
+      name: 'subRoles',
+      title: 'Roles Within This Organization',
+      type: 'array',
+      description:
+        'Dated positions within one engagement. Parent dates cover the whole tenure; child roles may overlap.',
+      of: [
+        {
+          type: 'object',
+          name: 'experienceSubRole',
+          title: 'Dated Role',
+          fields: [
+            {
+              name: 'position',
+              title: 'Position',
+              type: 'string',
+              validation: (rule: Rule) => rule.required(),
+            },
+            {
+              name: 'startDate',
+              title: 'Start Date',
+              type: 'date',
+              validation: (rule: Rule) => rule.required(),
+            },
+            { name: 'endDate', title: 'End Date', type: 'date' },
+            { name: 'current', title: 'Current Role', type: 'boolean', initialValue: false },
+            { name: 'description', title: 'Description', type: 'text', rows: 3 },
+            {
+              name: 'responsibilities',
+              title: 'Responsibilities',
+              type: 'array',
+              of: [{ type: 'string' }],
+            },
+            {
+              name: 'technologies',
+              title: 'Technologies',
+              type: 'array',
+              of: [{ type: 'string' }],
+            },
+          ],
+          preview: { select: { title: 'position', subtitle: 'startDate' } },
+        },
+      ],
     },
     {
       name: 'order',

@@ -39,7 +39,6 @@ export interface LinkHealthBadgeProps {
 export function LinkHealthBadge({ href, scope, label }: LinkHealthBadgeProps): ReactElement | null {
   const { url, entry } = useLinkHealth(href, scope);
   if (!url || !entry) return null;
-  const unavailable = entry.status === 'unavailable';
   const date = new Date(entry.checkedAt);
   return (
     <span
@@ -51,9 +50,7 @@ export function LinkHealthBadge({ href, scope, label }: LinkHealthBadgeProps): R
       {label && (
         <span className="font-medium text-muted-foreground [overflow-wrap:anywhere]">{label}:</span>
       )}
-      <span className={unavailable ? 'text-down' : 'text-ongoing'}>
-        {unavailable ? 'Unavailable' : 'Temporarily unreachable'}
-      </span>
+      <span className="text-down">Unavailable</span>
       <span aria-hidden="true" className="text-faint">
         ·
       </span>

@@ -120,6 +120,7 @@ async function renderedTargets(scope: LinkHealthScope): Promise<readonly (string
           // Detail Organization checks the original value without trimming before deciding to link it.
           row.companyUrl && /^https?:\/\//iu.test(row.companyUrl) ? row.companyUrl : null,
           ...row.links.map((link) => link.href),
+          ...(row.subRoles ?? []).flatMap((subRole) => subRole.links.map((link) => link.href)),
           // The Story's inline links and detail chips deduplicate differently; collect both rendered sets.
           ...linkedHrefs(prose.sentence),
           ...linkedHrefs(prose.more),

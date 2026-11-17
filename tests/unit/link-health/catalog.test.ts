@@ -242,6 +242,49 @@ describe('published link catalog', () => {
     );
   });
 
+  it('includes rendered sub-role destinations without checking future or invalid sub-roles', async () => {
+    sources.experiences.mockResolvedValue([
+      makeExperience({
+        startDate: '2024-01-01',
+        endDate: '2025-12-31',
+        current: false,
+        companyUrl: null,
+        description: '',
+        responsibilities: [],
+        subRoles: [
+          {
+            _key: 'published',
+            position: 'Engineer',
+            startDate: '2025-01-01',
+            endDate: '2025-03-31',
+            current: false,
+            description: 'Project evidence (https://work.example.com/child#details).',
+            responsibilities: ['See https://work.example.com/proof.'],
+          },
+          {
+            _key: 'future',
+            position: 'Lead',
+            startDate: '2027-01-01',
+            current: true,
+            description: 'https://hidden.example.com/future',
+          },
+          {
+            _key: 'reversed',
+            position: 'Other',
+            startDate: '2025-06-01',
+            endDate: '2025-01-01',
+            current: false,
+            description: 'https://hidden.example.com/invalid',
+          },
+        ],
+      }),
+    ]);
+    expect(await loadLinkCatalog('experience')).toEqual([
+      'https://work.example.com/child',
+      'https://work.example.com/proof',
+    ]);
+  });
+
   it('excludes stable profiles, service roots and image assets without excluding content on those platforms', async () => {
     const excluded = [
       'https://github.com/example',

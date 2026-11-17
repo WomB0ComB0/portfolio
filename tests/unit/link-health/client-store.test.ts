@@ -154,11 +154,11 @@ describe('scope-shared link health client', () => {
 
   it('expires a warning exactly at twenty-four hours even when the next read fails', async () => {
     const checkedAt = new Date(NOW - DAY + 1000).toISOString();
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(answer('temporary', checkedAt));
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(answer('unavailable', checkedAt));
     const store = createLinkHealthStore('certifications', fetcher);
     releases.push(store.subscribe(vi.fn()));
     await flush();
-    expect(store.getSnapshot().links[URL]?.status).toBe('temporary');
+    expect(store.getSnapshot().links[URL]?.status).toBe('unavailable');
     await vi.advanceTimersByTimeAsync(999);
     expect(store.getSnapshot().links[URL]).toBeDefined();
     await vi.advanceTimersByTimeAsync(1);

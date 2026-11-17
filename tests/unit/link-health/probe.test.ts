@@ -127,6 +127,14 @@ describe('public-address policy', () => {
 });
 
 describe('bounded link observations', () => {
+  it.each(['notion.so', 'www.notion.so', 'shared.notion.site', 'notion.site'])(
+    'treats missing responses from dynamic %s pages as inconclusive',
+    async (host) => {
+      const h = harness();
+      h.request.mockResolvedValue({ status: 404 });
+      expect(await h.probe(`https://${host}/a-page`)).toEqual({ kind: 'unknown', httpStatus: 404 });
+    },
+  );
   it('passes only a validated pinned address to the request transport', async () => {
     const h = harness();
     h.resolve.mockResolvedValue(['2606:4700:4700::1111', PUBLIC]);
