@@ -17,7 +17,7 @@
  */
 
 import { memo } from 'react';
-import { ErrorLayout } from '.';
+import { ErrorLayout } from './error-layout';
 
 /**
  * Renders a 404 "Page Not Found" error page.

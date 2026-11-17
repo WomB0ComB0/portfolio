@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { ErrorLayout } from '.';
+import { ErrorLayout } from './error-layout';
 
 /**
  * @author Mike Odnis

@@ -44,7 +44,7 @@
  */
 
 import React from 'react';
-import { ErrorLayout } from '.';
+import { ErrorLayout } from './error-layout';
 
 const InternalServerError = React.memo(
   ({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) => {

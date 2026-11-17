@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  // This retirement worker is fetched by browsers with an old registration, not imported.
+  "entry": ["public/sw.js"],
+  // Owner-run maintenance/seed commands and the GraphQL Code Generator schema loader.
+  "supportEntry": [
+    "bin/sanity/populate-*.ts",
+    "scripts/cleanup.ts",
+    "scripts/find-unused-exports.ts",
+    "src/generated/github-schema-loader.js"
+  ],
+  // Generated output is maintained by `bun run gen`, not hand-edited for analyzer scores.
+  "ignorePatterns": ["src/generated/graphql.ts"]
+}

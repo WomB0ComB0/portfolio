@@ -22,7 +22,7 @@ import type {
  * limitations under the License.
  */
 
-import { Stringify } from '..';
+import { Stringify } from '../formatting/stringify';
 
 /**
  * @fileoverview A comprehensive logging utility for both client and server environments.

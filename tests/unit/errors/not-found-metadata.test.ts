@@ -28,11 +28,12 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({ usePathname: () => '/no-such-page' }));
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
-vi.mock('@/components/layout', () => ({
-  NavBar: () => null,
-  MobileNavBar: () => null,
-  Footer: () => null,
-}));
+vi.mock('@/components/layout/nav', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/nav')>();
+  return { ...actual, NavBar: () => null };
+});
+vi.mock('@/components/layout/mobile-nav', () => ({ MobileNavBar: () => null }));
+vi.mock('@/components/layout/footer', () => ({ Footer: () => null }));
 
 import { metadata as routeGroupMetadata } from '@/app/(routes)/not-found';
 import { metadata as rootMetadata } from '@/app/not-found';

@@ -29,7 +29,7 @@
  */
 
 import React from 'react';
-import { ErrorLayout } from '.';
+import { ErrorLayout } from './error-layout';
 
 const ServiceUnavailableError = React.memo(() => {
   return <ErrorLayout title="503" description="Service Unavailable - Please try again later" />;

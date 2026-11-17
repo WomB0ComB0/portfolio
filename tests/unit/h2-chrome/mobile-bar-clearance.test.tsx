@@ -46,15 +46,12 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
-// layout.tsx imports the navs and footer from its own barrel. The bottom bar is the real one.
-vi.mock('@/components/layout', async () => {
-  const { MobileNavBar } = await import('@/components/layout/mobile-nav');
-  return {
-    NavBar: () => <nav aria-label="Main navigation" />,
-    MobileNavBar,
-    Footer: () => <footer />,
-  };
+// layout.tsx imports the navs and footer directly. The bottom bar is the real one.
+vi.mock('@/components/layout/nav', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/nav')>();
+  return { ...actual, NavBar: () => <nav aria-label="Main navigation" /> };
 });
+vi.mock('@/components/layout/footer', () => ({ Footer: () => <footer /> }));
 
 const ROOT = process.cwd();
 const LAYOUT_DIR = join(ROOT, 'src/components/layout');

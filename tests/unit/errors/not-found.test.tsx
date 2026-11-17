@@ -30,12 +30,15 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/no-such-page' }));
 // The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
-// layout.tsx imports the navs and footer from its own barrel.
-vi.mock('@/components/layout', () => ({
-  NavBar: () => <nav aria-label="Main navigation" />,
+// layout.tsx imports the navs and footer directly.
+vi.mock('@/components/layout/nav', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/nav')>();
+  return { ...actual, NavBar: () => <nav aria-label="Main navigation" /> };
+});
+vi.mock('@/components/layout/mobile-nav', () => ({
   MobileNavBar: () => <nav aria-label="Mobile navigation" />,
-  Footer: () => <footer />,
 }));
+vi.mock('@/components/layout/footer', () => ({ Footer: () => <footer /> }));
 
 import { NotFoundView } from '@/app/_components/errors';
 import RouteGroupNotFound from '@/app/(routes)/not-found';

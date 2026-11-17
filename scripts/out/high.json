@@ -2,9 +2,10 @@
   "next",
   "next-csrf",
   "react-icons",
+  "effect",
   "firebase",
   "lucide-react",
   "sanity",
   "@effect/platform",
-  "date-fns"
+  "prettier"
 ]

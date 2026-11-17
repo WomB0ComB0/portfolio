@@ -16,7 +16,7 @@
 
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { logger } from '../logging';
+import { logger } from '../logging/logger';
 
 /**
  * Sanitizes a string of HTML by removing malicious and unwanted tags and attributes

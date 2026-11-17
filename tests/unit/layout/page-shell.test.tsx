@@ -38,19 +38,27 @@ vi.mock('next/navigation', () => ({ usePathname }));
 // The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
-// layout.tsx imports the navs and footer from its own barrel. Each nav has a link, so the
+// layout.tsx imports the navs and footer directly. Each nav has a link, so the
 // skip link has something to come before.
-vi.mock('@/components/layout', () => ({
-  NavBar: () => (
-    <nav aria-label="Main navigation">
-      <a href="/projects">Projects</a>
-    </nav>
-  ),
+vi.mock('@/components/layout/nav', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/nav')>();
+  return {
+    ...actual,
+    NavBar: () => (
+      <nav aria-label="Main navigation">
+        <a href="/projects">Projects</a>
+      </nav>
+    ),
+  };
+});
+vi.mock('@/components/layout/mobile-nav', () => ({
   MobileNavBar: () => (
     <nav aria-label="Mobile navigation">
       <a href="/experience">Experience</a>
     </nav>
   ),
+}));
+vi.mock('@/components/layout/footer', () => ({
   Footer: () => (
     <footer>
       <a href="/privacy">Privacy</a>
