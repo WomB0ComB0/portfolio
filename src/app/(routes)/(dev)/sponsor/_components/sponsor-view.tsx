@@ -40,6 +40,7 @@ import {
   shapeWays,
 } from '../_lib/ways';
 import { BenefitsList } from './benefits-list';
+import { NAME_LINK_CLASS, NAME_UNDERLINE_CLASS } from './sponsor-classes';
 import { ThanksRow } from './thanks-row';
 import { WaysList } from './ways-list';
 
@@ -54,6 +55,7 @@ const PAGE_DESCRIPTION =
 const WAYS = shapeWays(SPONSOR_WAYS);
 const PRIMARY_WAY = WAYS.find((way) => way.id === PRIMARY_WAY_ID);
 const EMAIL = linkTargetOf(profile.emailHref);
+const CONSULTING = linkTargetOf(profile.consultingUrl);
 
 /** The two-column split from lg: the ways get three parts, the thanks two. */
 const BODY_CLASS = 'grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-10';
@@ -133,6 +135,15 @@ export function SponsorView({ sponsors, options, gutter = true }: SponsorViewPro
         </div>
         <ThanksRow sponsors={sponsors} retryHref={SPONSOR_PATH} />
       </div>
+      {CONSULTING ? (
+        <p className="border-t border-hairline pt-5 text-body text-muted-foreground">
+          Have a project in mind?{' '}
+          <a {...anchorAttrs(CONSULTING)} className={NAME_LINK_CLASS}>
+            <span className={NAME_UNDERLINE_CLASS}>Work with me through Atroviola Studio</span>
+            <NewTabMark target={CONSULTING} />
+          </a>
+        </p>
+      ) : null}
     </PageShell>
   );
 }
