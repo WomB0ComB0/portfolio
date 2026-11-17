@@ -15,6 +15,7 @@
  */
 
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
+import { GoogleAuth, JWT } from 'google-auth-library';
 import { z } from 'zod';
 import { getServiceAccount } from '@/core/firebase-admin';
 import { logger } from '@/utils';
@@ -135,11 +136,18 @@ export async function getAnalytics(): Promise<{
   const serviceAccount = getServiceAccount();
   const formattedPrivateKey = serviceAccount.private_key.replace(/\\n/g, '\n');
 
+  // Use the known service-account credential type instead of the SDK's deprecated generic
+  // credentials loader. Keep authentication local and restrict this reporting client to reads.
+  const auth = new GoogleAuth({
+    projectId: serviceAccount.project_id,
+    authClient: new JWT({
+      email: serviceAccount.client_email,
+      key: formattedPrivateKey,
+      scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+    }),
+  });
   const client = new BetaAnalyticsDataClient({
-    credentials: {
-      client_email: serviceAccount.client_email,
-      private_key: formattedPrivateKey,
-    },
+    auth,
   });
 
   const request = {

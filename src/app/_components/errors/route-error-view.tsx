@@ -26,6 +26,7 @@ import Link from 'next/link';
 import type { JSX } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ServiceStatusLink } from './service-status-link';
 
 /** Ties the section's accessible name to its heading. */
 const TITLE_ID = 'route-error-title';
@@ -70,7 +71,7 @@ export function RouteErrorView({
           Something went wrong
         </h1>
         <p className="text-muted-foreground">
-          This page didn&apos;t load, but the rest of the site still works.
+          This page didn&apos;t load. Try again, or check the service status.
         </p>
       </div>
 
@@ -89,6 +90,7 @@ export function RouteErrorView({
           <Home aria-hidden="true" />
           Home
         </Link>
+        <ServiceStatusLink className={buttonVariants({ size: 'lg', variant: 'outline' })} />
       </div>
 
       {digest ? (

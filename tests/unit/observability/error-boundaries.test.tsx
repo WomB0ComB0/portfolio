@@ -26,10 +26,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
 
 vi.mock('@sentry/nextjs', () => sentry);
-// The real page pulls in the animated error layout; the boundary only needs something to render.
+// The boundary's reporting only needs a lightweight view to render.
 vi.mock('@/app/_client', () => ({ InternalServerError: () => <p>Something went wrong</p> }));
-// next/error renders its own markup; global-error only wraps it in <html>.
-vi.mock('next/error', () => ({ default: () => <p>Application error</p> }));
 
 import ErrorBoundary from '@/app/error';
 import GlobalError from '@/app/global-error';

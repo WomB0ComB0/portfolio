@@ -4,6 +4,7 @@
   "@vitest/ui",
   "@babel/traverse",
   "tailwindcss",
+  "google-auth-library",
   "@opentelemetry/api",
   "kbar",
   "@babel/parser",
