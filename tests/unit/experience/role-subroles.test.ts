@@ -178,6 +178,72 @@ describe('subRolesOf', () => {
 });
 
 describe('parent engagement integration', () => {
+  it('keeps a concurrent same-start engagement title instead of inventing a promotion', () => {
+    const experience = parent(
+      [
+        child('product', 'Product Engineer', '2023-01-01', null, { current: true }),
+        child('platform', 'Platform Engineer', '2023-01-15', null, { current: true }),
+      ],
+      {
+        company: 'Elysium',
+        position: 'Full Stack Engineer',
+        startDate: '2023-01-01',
+        endDate: null,
+        current: true,
+      },
+    );
+    const result = buildRoleIndex([experience], { today: TODAY });
+    const row = roleRowsOf(result)[0];
+    expect(row?.role).toBe('Full Stack Engineer');
+    expect(row?.subRoles).toHaveLength(2);
+    expect(result.total).toBe(1);
+    expect(result.clock.peak?.count).toBe(1);
+  });
+
+  it('retains a progression when the preceding role ends in the next role’s start month', () => {
+    const experience = parent([
+      child('engineer', 'Software Engineer', '2024-01-01', '2024-06-30'),
+      child('lead', 'Program Lead', '2024-06-01', '2024-12-31'),
+    ]);
+    const result = buildRoleIndex([experience], { today: TODAY });
+    expect(roleRowsOf(result)[0]?.role).toBe('Software Engineer → Program Lead');
+    expect(result.total).toBe(1);
+  });
+
+  it('keeps different employment types on overlapping children without adding engagements', () => {
+    const experience = parent(
+      [
+        { ...rows[0], employmentType: '  Part-time  ' },
+        { ...rows[1], employmentType: 'Freelance' },
+      ],
+      { employmentType: '  Contract  ' },
+    );
+    const result = buildRoleIndex([experience], { today: TODAY });
+    const row = roleRowsOf(result)[0];
+    expect(row?.employmentType).toBe('Contract');
+    expect(row?.subRoles.map((role) => role.employmentType)).toEqual(['Freelance', 'Part-time']);
+    expect(result.total).toBe(1);
+    expect(result.clock.peak?.count).toBe(1);
+    expect(result.clock.spans.size).toBe(1);
+  });
+
+  it.each([undefined, null, '', '  '])(
+    'omits absent or blank employment metadata: %j',
+    (employmentType) => {
+      const experience = parent([{ ...rows[0], employmentType }], { employmentType });
+      const row = roleRowsOf(buildRoleIndex([experience], { today: TODAY }))[0];
+      expect(row).not.toHaveProperty('employmentType');
+      expect(row?.subRoles[0]).not.toHaveProperty('employmentType');
+    },
+  );
+
+  it('does not invent a child type from its parent employment type', () => {
+    const row = roleRowsOf(
+      buildRoleIndex([parent(rows, { employmentType: 'Full-time' })], { today: TODAY }),
+    )[0];
+    expect(row?.employmentType).toBe('Full-time');
+    expect(row?.subRoles.every((role) => role.employmentType === undefined)).toBe(true);
+  });
   it('uses chronological progression without counting child overlap as extra employment', () => {
     const experience = parent(rows);
     const original = JSON.stringify(experience);

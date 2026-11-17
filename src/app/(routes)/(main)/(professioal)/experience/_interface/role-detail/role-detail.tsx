@@ -138,6 +138,7 @@ function Facts({ role }: { readonly role: RoleRow }): ReactElement {
           },
         ]
       : []),
+    ...(role.employmentType ? [{ key: 'employment-type', node: role.employmentType }] : []),
     ...(role.location ? [{ key: 'location', node: role.location }] : []),
   ];
   return (

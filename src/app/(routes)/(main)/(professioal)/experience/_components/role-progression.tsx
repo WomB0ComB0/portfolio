@@ -46,6 +46,12 @@ function Dates({ role }: { readonly role: RoleSubRole }): ReactElement {
           />
         </>
       ) : null}
+      {role.employmentType ? (
+        <>
+          <span aria-hidden="true">·</span>
+          <span>{role.employmentType}</span>
+        </>
+      ) : null}
     </p>
   );
 }

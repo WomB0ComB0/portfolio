@@ -28,6 +28,13 @@ export const experienceType = defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({
+      name: 'employmentType',
+      title: 'Employment Type',
+      type: 'string',
+      description:
+        'Optional, e.g. Full-time, Freelance, Seasonal, Contract, Apprenticeship, Internship or Part-time.',
+    }),
+    defineField({
       name: 'company',
       title: 'Company',
       type: 'string',
@@ -111,6 +118,13 @@ export const experienceType = defineType({
               title: 'Position',
               type: 'string',
               validation: (Rule) => Rule.required(),
+            }),
+            defineField({
+              name: 'employmentType',
+              title: 'Employment Type',
+              type: 'string',
+              description:
+                'Optional. Applies only to this role; it may differ from the parent engagement.',
             }),
             defineField({
               name: 'startDate',

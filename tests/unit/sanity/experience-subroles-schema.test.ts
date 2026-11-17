@@ -34,6 +34,32 @@ const role = {
 const decode = Schema.decodeUnknownSync(ExperienceSchema);
 
 describe('optional nested experience schema', () => {
+  it.each([
+    'Full-time',
+    'Freelance',
+    'Seasonal',
+    'Contract',
+    'Apprenticeship',
+    'Internship',
+    'Part-time',
+  ])('preserves optional parent and child employment type: %s', (employmentType) => {
+    const decoded = decode({
+      ...makeExperience(),
+      employmentType,
+      subRoles: [{ ...role, employmentType }],
+    });
+    expect(decoded.employmentType).toBe(employmentType);
+    expect(decoded.subRoles?.[0]?.employmentType).toBe(employmentType);
+  });
+  it('accepts null employment types from old GROQ documents', () => {
+    const decoded = decode({
+      ...makeExperience(),
+      employmentType: null,
+      subRoles: [{ ...role, employmentType: null }],
+    });
+    expect(decoded.employmentType).toBeNull();
+    expect(decoded.subRoles?.[0]?.employmentType).toBeNull();
+  });
   it('preserves old documents and explicit null without inventing a progression', () => {
     const old = makeExperience();
     expect(decode(old)).toEqual(old);
@@ -79,12 +105,14 @@ describe('optional nested experience schema', () => {
             }[];
           }
         | undefined;
+      expect(schema.fields.find((f) => f.name === 'employmentType')?.type).toBe('string');
       expect(field?.type).toBe('array');
       expect(field?.of[0]?.name).toBe('experienceSubRole');
       expect(field?.of[0]?.type).toBe('object');
       expect(field?.of[0]?.fields.map((f) => f.name)).toEqual(
         expect.arrayContaining([
           'position',
+          'employmentType',
           'startDate',
           'endDate',
           'current',
@@ -101,10 +129,12 @@ describe('optional nested experience schema', () => {
     (query) => {
       const projection = /subRoles\[\]\s*\{([^}]+)\}/u.exec(query)?.[1];
       expect(projection).toBeDefined();
+      expect(query.split('subRoles')[0]).toContain('employmentType');
       for (const field of [
         '_key',
         '_type',
         'position',
+        'employmentType',
         'startDate',
         'endDate',
         'description',
@@ -119,13 +149,16 @@ describe('optional nested experience schema', () => {
     const payload = {
       ...makeExperience(),
       location: 'Remote',
+      employmentType: 'Contract',
       responsibilities: [],
       technologies: [],
-      subRoles: [{ ...role, current: false }],
+      subRoles: [{ ...role, current: false, employmentType: 'Part-time' }],
     };
     const app = new Elysia().get('/', () => payload, { response: responseSchema });
     const response = await app.handle(new Request('http://localhost/'));
     expect(response.status).toBe(200);
-    expect((await response.json()).subRoles).toEqual(payload.subRoles);
+    const body = await response.json();
+    expect(body.employmentType).toBe('Contract');
+    expect(body.subRoles).toEqual(payload.subRoles);
   });
 });

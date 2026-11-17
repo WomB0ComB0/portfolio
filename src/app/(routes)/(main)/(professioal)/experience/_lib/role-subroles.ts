@@ -26,6 +26,7 @@ import { dutiesBeyond, plainText } from './role-text';
 export interface RoleSubRole {
   readonly key: string;
   readonly position: string;
+  readonly employmentType?: string;
   readonly period: RolePeriod;
   readonly length: RoleLength | null;
   readonly description: string;
@@ -43,6 +44,7 @@ export interface SubRoleOptions {
 interface SourceSubRole {
   readonly _key: string;
   readonly position: string;
+  readonly employmentType?: string | null;
   readonly startDate: string;
   readonly endDate?: string | null;
   readonly current?: boolean | null;
@@ -62,6 +64,7 @@ function isSource(value: unknown): value is SourceSubRole {
   return (
     typeof source._key === 'string' &&
     typeof source.position === 'string' &&
+    optionalText(source.employmentType) &&
     (source._type == null || source._type === 'experienceSubRole') &&
     typeof source.startDate === 'string' &&
     optionalText(source.endDate) &&
@@ -148,6 +151,7 @@ export function subRolesOf(
     if (parent.start && monthIndex(start.month) < monthIndex(parent.start)) continue;
     if (parent.end && (!last || monthIndex(last) > monthIndex(parent.end))) continue;
     const description = source.description ?? '';
+    const employmentType = plainText(source.employmentType ?? '');
     const responsibilities = source.responsibilities ?? [];
     seen.add(key);
     rows.push({
@@ -155,6 +159,7 @@ export function subRolesOf(
       role: {
         key,
         position,
+        ...(employmentType ? { employmentType } : {}),
         period,
         length: lengthOf(period, today),
         description: plainText(description),
@@ -176,6 +181,8 @@ export function subRoleProgressionTitle(
   subRoles: readonly RoleSubRole[],
 ): string {
   if (subRoles.length < 2) return fallback;
+  // Equal start months describe concurrent roles, not evidence of a promotion.
+  if (subRoles.at(-1)?.period.start?.iso === subRoles[0]?.period.start?.iso) return fallback;
   const first = subRoles.at(-1)?.position;
   const last = subRoles[0]?.position;
   return first && last && first !== last ? `${first} → ${last}` : fallback;

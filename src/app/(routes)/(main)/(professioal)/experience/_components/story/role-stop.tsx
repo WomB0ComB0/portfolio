@@ -235,7 +235,7 @@ function PeriodWords({ stop }: { readonly stop: StoryStop }): ReactElement {
 
 /** Since when (a current role) or from and to, then how long in words. */
 function StopMeta({ stop }: { readonly stop: StoryStop }): ReactElement {
-  const { length, current } = stop.row;
+  const { length, current, employmentType } = stop.row;
   const start = stop.row.period.start;
   return (
     <p data-role-meta="" className={META_CLASS}>
@@ -255,6 +255,15 @@ function StopMeta({ stop }: { readonly stop: StoryStop }): ReactElement {
           </span>
           <span className="sr-only">, </span>
           <span data-role-length="">{length.spoken}</span>
+        </>
+      ) : null}
+      {employmentType ? (
+        <>
+          <span aria-hidden="true" className={META_SEPARATOR_CLASS}>
+            {SEPARATOR}
+          </span>
+          <span className="sr-only">, </span>
+          <span>{employmentType}</span>
         </>
       ) : null}
     </p>

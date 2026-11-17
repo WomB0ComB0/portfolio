@@ -45,6 +45,13 @@ export const experienceSchema = {
       validation: (Rule: any) => Rule.required(),
     },
     {
+      name: 'employmentType',
+      title: 'Employment Type',
+      type: 'string',
+      description:
+        'Optional, e.g. Full-time, Freelance, Seasonal, Contract, Apprenticeship, Internship or Part-time.',
+    },
+    {
       name: 'location',
       title: 'Location',
       type: 'string',
@@ -126,6 +133,13 @@ export const experienceSchema = {
               title: 'Position',
               type: 'string',
               validation: (rule: Rule) => rule.required(),
+            },
+            {
+              name: 'employmentType',
+              title: 'Employment Type',
+              type: 'string',
+              description:
+                'Optional. Applies only to this role; it may differ from the parent engagement.',
             },
             {
               name: 'startDate',

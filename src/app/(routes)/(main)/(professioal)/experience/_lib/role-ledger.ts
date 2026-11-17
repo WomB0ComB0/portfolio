@@ -30,7 +30,7 @@
 import { companyName } from '@/app/_components/home/data/format';
 import type { Experience } from '@/hooks/sanity/schemas';
 import { parseRoleMonth, periodOf, type RolePeriod } from './period';
-import { firstSentenceOf } from './role-text';
+import { firstSentenceOf, plainText } from './role-text';
 
 export const ROLE_ORDERS = ['groups', 'date'] as const;
 export type RoleOrder = (typeof ROLE_ORDERS)[number];
@@ -55,6 +55,8 @@ export interface RoleEntry {
   /** The organization's first letter or digit, for a role without a logo. */
   readonly monogram: string;
   readonly location: string | null;
+  /** Authored work arrangement, omitted when not supplied. */
+  readonly employmentType?: string;
   /** The description's first sentence, without its raw links. */
   readonly line: string;
   readonly current: boolean;
@@ -163,6 +165,7 @@ export function sortRoles<T extends Sortable>(roles: readonly T[], order: RoleOr
 export function roleEntryOf(experience: Experience, logo: string | null): RoleEntry {
   const period = periodOf(experience);
   const organization = companyName(experience.company);
+  const employmentType = plainText(experience.employmentType ?? '');
   return {
     id: experience._id,
     href: roleHref(experience._id),
@@ -173,6 +176,7 @@ export function roleEntryOf(experience: Experience, logo: string | null): RoleEn
     logo,
     monogram: monogramOf(organization),
     location: experience.location?.trim() || null,
+    ...(employmentType ? { employmentType } : {}),
     line: shortLineOf(experience.description),
     current: period.current,
     period,
