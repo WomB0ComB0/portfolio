@@ -30,12 +30,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
-
 import type { BylinePart } from '@/components/console/folio/byline-items';
 import { TypeCover } from '@/components/console/folio/type-cover';
 import { widestWordUnits } from '@/components/console/folio/word-measure';
 import { NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
 import { LinkPending } from '@/components/data/link-pending';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
 import { WIDE_MIN_RATIO } from '../_lib/project-chapters';
 import type { ProjectEntry, ProjectImage } from '../_lib/project-index';
@@ -225,20 +225,25 @@ export function StoryActions({
   return (
     <span className={cn('-mx-1.5 flex flex-wrap items-center gap-x-1', className)}>
       {links.map(({ label, href }) => (
-        <a
+        <span
           key={label}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-project-link={label.toLowerCase()}
-          className={ACTION_CLASS}
+          className="relative z-[2] inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1"
         >
-          {label}
-          <span aria-hidden="true">↗</span>
-          <SrOnlyWords>
-            for {entry.title} {NEW_TAB_LABEL}
-          </SrOnlyWords>
-        </a>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-project-link={label.toLowerCase()}
+            className={ACTION_CLASS}
+          >
+            {label}
+            <span aria-hidden="true">↗</span>
+            <SrOnlyWords>
+              for {entry.title} {NEW_TAB_LABEL}
+            </SrOnlyWords>
+          </a>
+          <LinkHealthBadge href={href} scope="projects" />
+        </span>
       ))}
     </span>
   );

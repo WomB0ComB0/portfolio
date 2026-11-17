@@ -29,8 +29,8 @@
 
 import Link from 'next/link';
 import type { ReactElement } from 'react';
-
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
 import { projectCount } from '../../projects/_lib/project-text';
 import type { RoleLength } from '../_lib/role-length';
@@ -108,7 +108,7 @@ export function RoleLinkChips({ links, className }: RoleLinkChipsProps): ReactEl
   return (
     <ul data-role-links="" className={cn(PILLS_CLASS, className)}>
       {links.map((link) => (
-        <li key={link.href} className="max-w-full">
+        <li key={link.href} className="flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1">
           <a href={link.href} target="_blank" rel="noopener noreferrer" className={CHIP_CLASS}>
             <span className={cn(CHIP_NAME_CLASS, link.token ? 'mono-token' : 'tile-label')}>
               {link.label}
@@ -117,6 +117,7 @@ export function RoleLinkChips({ links, className }: RoleLinkChipsProps): ReactEl
             <NewTabArrow />
             <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
           </a>
+          <LinkHealthBadge href={link.href} scope="experience" />
         </li>
       ))}
     </ul>
