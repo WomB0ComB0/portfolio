@@ -23,8 +23,8 @@ export function normalizeLinkUrl(value: unknown): string | null {
   if (!/^https?:\/\//iu.test(input)) return null;
   try {
     const url = new URL(input);
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port)
-      return null;
+    if (!['http:', 'https:'].includes(url.protocol) || url.port) return null;
+    if (url.username !== '' || url.password !== '') return null;
     url.hash = '';
     return url.href.length <= 2048 ? url.href : null;
   } catch {
