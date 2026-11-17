@@ -52,8 +52,8 @@
  * SOFTWARE.
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 import { cn } from '@/lib/utils';
 

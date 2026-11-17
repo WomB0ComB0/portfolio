@@ -56,11 +56,10 @@
  */
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import Image from 'next/image';
 import { type ReactElement, useLayoutEffect, useState } from 'react';
 import { FiX } from 'react-icons/fi';
-
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import Image from '@/components/ui/cdn-image';
 import {
   Dialog,
   DialogClose,

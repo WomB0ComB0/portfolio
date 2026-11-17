@@ -21,8 +21,8 @@
  * client card both render them. Palette tokens only.
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 import { cn } from '@/lib/utils';
 import { PRESENT_LABEL, RANGE_SEPARATOR, type RoleMonth, type RolePeriod } from '../_lib/period';

@@ -31,7 +31,6 @@
  */
 
 import { type MotionValue, motion, useMotionValue, useTransform } from 'motion/react';
-import Image from 'next/image';
 import {
   type CSSProperties,
   memo,
@@ -44,6 +43,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 import { cn } from '@/lib/utils';
 import type { PhotoPlace, WallPhoto } from '@/types/places';

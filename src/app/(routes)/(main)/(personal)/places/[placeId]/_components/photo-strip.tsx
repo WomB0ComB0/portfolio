@@ -26,7 +26,6 @@
  * view inside the strip, never by scrolling the page.
  */
 
-import Image from 'next/image';
 import {
   type CSSProperties,
   type FocusEvent,
@@ -36,6 +35,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 import { prefersReducedMotion } from '@/lib/design/motion';
 import type { ViewerPhoto } from '../page.types';

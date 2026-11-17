@@ -32,13 +32,12 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import Image from 'next/image';
 import Link from 'next/link';
 import { type ReactElement, useEffect } from 'react';
-
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
 import { Tile } from '@/components/console/tile';
 import { TileLink } from '@/components/console/tile-link';
+import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 import type { LiveInitial } from '../data/tile-result';
 import { Equaliser } from './equaliser';

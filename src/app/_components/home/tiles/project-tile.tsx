@@ -48,10 +48,9 @@ import 'server-only';
  * on a brand gradient. It never says 'No Image Available'.
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
-
 import { hasDestination, Tile, TileLink } from '@/components/console';
+import Image from '@/components/ui/cdn-image';
 import { urlFor } from '@/lib/sanity/client';
 import type { Project } from '@/lib/sanity/loaders';
 import {

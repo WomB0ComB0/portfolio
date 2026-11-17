@@ -28,11 +28,10 @@ import 'server-only';
  */
 
 import { Lock } from 'lucide-react';
-import Image from 'next/image';
 import type { CSSProperties, ReactElement } from 'react';
-
 import { Byline } from '@/components/console/folio';
 import { PhotoViewerLink } from '@/components/console/photo/photo-viewer';
+import Image from '@/components/ui/cdn-image';
 import { Prose } from './breakable';
 import styles from './case-hero.module.css';
 import { fullUrl, heroUrl } from './case-images';

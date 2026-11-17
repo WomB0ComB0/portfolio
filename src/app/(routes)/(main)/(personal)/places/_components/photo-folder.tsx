@@ -23,11 +23,10 @@
  * there. Either way it opens the place page, which has the whole photos and the viewer.
  */
 
-import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactElement } from 'react';
-
 import { LinkPending } from '@/components/data/link-pending';
+import Image from '@/components/ui/cdn-image';
 import styles from './photo-folder.module.css';
 
 /** The slivers' open size in px: 2x is the 96 x 64 crop the server builds. */

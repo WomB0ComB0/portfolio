@@ -36,7 +36,7 @@ const SLIVERS = [SLIVER(1), SLIVER(2), SLIVER(3)];
 const candidates = (img: Element): [string, string][] =>
   (img.getAttribute('srcset') ?? '').split(', ').map((entry) => {
     const [url = '', descriptor = ''] = entry.split(' ');
-    return [new URL(url, 'http://localhost').searchParams.get('url') ?? '', descriptor];
+    return [url, descriptor];
   });
 const spinnersIn = (link: HTMLElement) =>
   Array.from(link.querySelectorAll('span[aria-hidden="true"]')).filter((span) =>
@@ -105,7 +105,16 @@ describe('PhotoFolder', () => {
       expect(img).toHaveAttribute('loading', 'lazy');
       const list = candidates(img);
       expect(list.map(([, descriptor]) => descriptor)).toEqual(['1x', '2x']);
-      expect(list.every(([source]) => source === SLIVERS[index])).toBe(true);
+      for (const [source] of list) {
+        const actual = new URL(source);
+        const expected = new URL(SLIVERS[index] ?? '');
+        expect(actual.origin + actual.pathname).toBe(expected.origin + expected.pathname);
+        expect(actual.searchParams.get('rect')).toBe(expected.searchParams.get('rect'));
+        expect(actual.searchParams.get('fit')).toBe('crop');
+        const width = Number(actual.searchParams.get('w'));
+        expect(width).toBeLessThanOrEqual(96);
+        expect(Number(actual.searchParams.get('h'))).toBe(Math.round((width * 64) / 96));
+      }
     });
   });
 

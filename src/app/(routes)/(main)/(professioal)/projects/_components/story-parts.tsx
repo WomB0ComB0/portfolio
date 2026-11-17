@@ -27,7 +27,6 @@
  * and rings the whole story. Reduced motion keeps the light and drops the movement. Palette only.
  */
 
-import Image from 'next/image';
 import Link from 'next/link';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
 import type { BylinePart } from '@/components/console/folio/byline-items';
@@ -36,6 +35,7 @@ import { widestWordUnits } from '@/components/console/folio/word-measure';
 import { NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
 import { LinkPending } from '@/components/data/link-pending';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
+import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 import { WIDE_MIN_RATIO } from '../_lib/project-chapters';
 import type { ProjectEntry, ProjectImage } from '../_lib/project-index';

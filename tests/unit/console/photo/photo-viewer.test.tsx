@@ -99,6 +99,22 @@ afterEach(() => {
 });
 
 describe('the links', () => {
+  it.each([
+    ['https://cdn.sanity.io/images/test/test/card-1200x900.jpg?w=320&auto=format', true],
+    ['https://unrelated.example/card.jpg', false],
+  ])('keeps only trusted decoded preview %s', async (src, accepted) => {
+    recordScrolls();
+    render(<Page />);
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'complete', { value: true });
+    Object.defineProperty(img, 'currentSrc', { value: src });
+    linkTo(1).append(img);
+    const dialog = await openFrom(1);
+    expect(
+      [...dialog.querySelectorAll('img')].some((image) => image.getAttribute('src') === src),
+    ).toBe(accepted);
+  });
+
   it('are plain links to the whole image, so every image opens without JavaScript', () => {
     render(<Page />);
 

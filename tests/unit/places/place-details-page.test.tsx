@@ -234,12 +234,12 @@ describe('place photo viewer', () => {
     await renderPage(photographedPlace._id);
     const strip = screen.getByRole('toolbar', { name: 'Photos of Photographed Place' });
 
-    // next/image wraps the Sanity URL in /_next/image?url=…
+    // Responsive candidates now point directly at Sanity.
     const sources = within(strip)
       .getAllByRole('button')
       .map((button) => {
         const optimised = new URL(button.querySelector('img')?.getAttribute('src') ?? '', SITE);
-        return new URL(optimised.searchParams.get('url') ?? '');
+        return optimised;
       });
 
     expect(sources.map((source) => source.pathname)).toEqual([

@@ -31,6 +31,8 @@
  *   the vector map, 2026-11-03).
  */
 
+import { REMOTE_IMAGE_SOURCES } from '@/config/image-sources';
+
 export type CspMode = 'report-only' | 'enforce';
 
 /**
@@ -117,8 +119,7 @@ export function buildContentSecurityPolicy(options: CspOptions): string {
         'blob:',
         ...GOOGLE_ANALYTICS,
         ...GOOGLE_MAPS,
-        'https://cdn.discordapp.com', // Discord avatar on /stats
-        'https://img.youtube.com', // video thumbnails on /media (unoptimized)
+        ...REMOTE_IMAGE_SOURCES, // Images now load directly from the existing allowed CDNs.
       ],
     ],
     ['font-src', ["'self'", GOOGLE_FONTS_FILES]],

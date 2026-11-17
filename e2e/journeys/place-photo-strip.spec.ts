@@ -330,7 +330,7 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
       buttons.map((button) => button.querySelector('img')?.getAttribute('src') ?? ''),
     );
     for (const src of sources) {
-      const sanity = new URL(new URL(src, page.url()).searchParams.get('url') ?? '');
+      const sanity = new URL(src, page.url());
       expect(sanity.hostname).toBe('cdn.sanity.io');
       expect(sanity.searchParams.get('w')).toBe('320');
       expect(sanity.searchParams.get('h')).toBe('240');
@@ -377,7 +377,7 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
   }
 
   /**
-   * Moves the mouse from thumbnail 5 across the gap to 6 (with `reducedMotion`), sampling every
+   * Moves the mouse from thumbnail 5 across a measured short gap to 6, sampling every
    * thumbnail's dim each frame: none of the others may brighten on the way. Leaving the strip,
    * the dim lifts after its 60 ms delay.
    */
@@ -397,31 +397,74 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
     await page.mouse.move(centre(fromBox).x, y);
     await settleOn(strip, from, { mine: { light: 1 }, others: { dim: DIM } });
 
-    await page.evaluate((selector) => {
-      const buttons = [...document.querySelectorAll(`${selector} button`)];
-      const record = window as unknown as { __dims: number[][]; __sampling: boolean };
-      record.__dims = [];
-      record.__sampling = true;
-      /** Samples every thumbnail's dim (::after opacity) once a frame until __sampling is off. */
-      const tick = () => {
-        if (!record.__sampling) return;
-        record.__dims.push(buttons.map((b) => Number(getComputedStyle(b, '::after').opacity)));
+    await page.evaluate(
+      ({ selector, from, to }) => {
+        const buttons = [...document.querySelectorAll(`${selector} button`)];
+        const record = window as unknown as {
+          __dims: number[][];
+          __sampling: boolean;
+          __gapLeftAt: number;
+          __gapEnteredAt: number;
+          __gapFrames: number;
+        };
+        record.__gapLeftAt = record.__gapEnteredAt = -1;
+        record.__gapFrames = 0;
+        buttons[from]?.addEventListener(
+          'pointerleave',
+          () => {
+            record.__gapLeftAt = performance.now();
+          },
+          { once: true },
+        );
+        buttons[to]?.addEventListener(
+          'pointerenter',
+          () => {
+            record.__gapEnteredAt = performance.now();
+          },
+          { once: true },
+        );
+        record.__dims = [];
+        record.__sampling = true;
+        /** Samples every thumbnail's dim (::after opacity) once a frame until __sampling is off. */
+        const tick = () => {
+          if (!record.__sampling) return;
+          if (!buttons.some((button) => button.matches(':hover'))) record.__gapFrames++;
+          record.__dims.push(buttons.map((b) => Number(getComputedStyle(b, '::after').opacity)));
+          requestAnimationFrame(tick);
+        };
         requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, STRIP);
-    // To the middle of the gap, two frames there (under the 60 ms delay), then on to the next.
+      },
+      { selector: STRIP, from, to },
+    );
+    // Move straight across: two remote rAF waits can take over 60ms on a busy renderer.
+    // Measure the actual pointer gap so an expired leave delay is never called a UI failure.
     const gap = (fromBox.x + fromBox.width + toBox.x) / 2;
-    await page.mouse.move(gap, y, { steps: 6 });
-    await nextFrame(page);
-    await nextFrame(page);
-    await page.mouse.move(centre(toBox).x, y, { steps: 6 });
+    await page.mouse.move(gap, y);
+    await page.mouse.move(centre(toBox).x, y);
     await settleOn(strip, to, { mine: { light: 1, dim: 0 }, others: { dim: DIM } });
-    const samples = await page.evaluate(() => {
-      const record = window as unknown as { __dims: number[][]; __sampling: boolean };
+    const { samples, gapDuration, gapFrames, leftAt } = await page.evaluate(() => {
+      const record = window as unknown as {
+        __dims: number[][];
+        __sampling: boolean;
+        __gapLeftAt: number;
+        __gapEnteredAt: number;
+        __gapFrames: number;
+      };
       record.__sampling = false;
-      return record.__dims;
+      return {
+        samples: record.__dims,
+        gapDuration: record.__gapEnteredAt - record.__gapLeftAt,
+        gapFrames: record.__gapFrames,
+        leftAt: record.__gapLeftAt,
+      };
     });
+    expect(leftAt).toBeGreaterThanOrEqual(0);
+    expect(gapFrames, 'sampled at least one frame between thumbnails').toBeGreaterThan(0);
+    expect(
+      gapDuration,
+      'the pointer must cross before the 60ms leave delay expires',
+    ).toBeGreaterThanOrEqual(0);
+    expect(gapDuration).toBeLessThan(60);
 
     expect(samples.length).toBeGreaterThan(3);
     const others = samples.flatMap((row) => row.filter((_, i) => i !== from && i !== to));

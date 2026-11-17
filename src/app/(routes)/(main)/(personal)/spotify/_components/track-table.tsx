@@ -30,9 +30,7 @@
  * their own line, so none is cut to a letter, and the rank sits on the title's first line.
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
-
 import { EmptyState } from '@/components/console/empty-state';
 import {
   INDEX_SUB_CLASS,
@@ -46,6 +44,7 @@ import {
 import { NewTabArrow } from '@/components/console/tile-link';
 import { RetryButton } from '@/components/data/retry-button';
 import { SectionError } from '@/components/data/section-error';
+import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 import { type ChartListResult, type ChartTrack, TRACK_ART_PX } from '../_lib/chart';
 import { ArtGlyph } from './equaliser';

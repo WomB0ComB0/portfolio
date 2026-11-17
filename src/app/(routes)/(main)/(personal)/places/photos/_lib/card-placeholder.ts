@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-/**
- * @file The open view draws the card's own image (already decoded) until the whole photo loads.
- * The page's CSP allows images from 'self' only, never cdn.sanity.io, so that placeholder must be
- * a same-origin /_next/image URL; anything else is dropped. Pure.
- */
+import { isSanityImageUrl } from '@/lib/images/cdn-loader';
 
+/** Keep the already-decoded Sanity thumbnail, with legacy same-origin optimizer support. */
 const OPTIMIZER_PATH = '/_next/image';
 
 /**
- * `src` as a same-origin /_next/image path with its query, or '' for any other image.
+ * `src` as a trusted Sanity image or legacy optimizer path; unrelated sources are dropped.
  *
  * @example
- * sameOriginImage('http://localhost:3109/_next/image?url=x&w=640&q=75', 'http://localhost:3109')
+ * cardImageSource('http://localhost:3109/_next/image?url=x&w=640&q=75', 'http://localhost:3109')
  * // '/_next/image?url=x&w=640&q=75'
  */
-export function sameOriginImage(src: string, origin: string): string {
+export function cardImageSource(src: string, origin: string): string {
   if (src === '') return '';
   try {
     const url = new URL(src, origin);
+    if (isSanityImageUrl(url.href)) return url.href;
     return url.origin === new URL(origin).origin && url.pathname === OPTIMIZER_PATH
       ? `${url.pathname}${url.search}`
       : '';
@@ -41,9 +39,9 @@ export function sameOriginImage(src: string, origin: string): string {
   }
 }
 
-/** The placeholder for a card: its image's current source, if it is a /_next/image URL. */
+/** The placeholder for a card: its image's current source, if it is a trusted image source. */
 export function placeholderOf(card: Element): string {
   const img = card.querySelector('img');
   if (!img) return '';
-  return sameOriginImage(img.currentSrc || img.getAttribute('src') || '', window.location.origin);
+  return cardImageSource(img.currentSrc || img.getAttribute('src') || '', window.location.origin);
 }

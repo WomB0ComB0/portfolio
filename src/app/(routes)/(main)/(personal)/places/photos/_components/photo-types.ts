@@ -27,7 +27,7 @@ export interface OpenRequest {
   readonly place: PhotoPlace;
   /** The card's photo box: the flight starts and ends on it. */
   readonly source: HTMLElement | null;
-  /** The image the card already shows (a /_next/image URL), drawn until the full one loads. */
+  /** The image the card already shows (a trusted CDN image URL), drawn until the full one loads. */
   readonly placeholder: string;
   /** Focus goes back here on close: the grid's link, or the wall. */
   readonly returnFocus: HTMLElement | null;

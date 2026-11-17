@@ -39,7 +39,6 @@
  * never larger than the name.
  */
 
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   type CSSProperties,
@@ -50,9 +49,9 @@ import {
   useRef,
   useState,
 } from 'react';
-
 import { widestWordUnits } from '@/components/console/folio/word-measure';
 import { WholeWords } from '@/components/console/photo/whole-words';
+import Image from '@/components/ui/cdn-image';
 import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { PlaceDateRange } from '../../_components/place-date-range';
 import { placeholderOf } from '../_lib/card-placeholder';
