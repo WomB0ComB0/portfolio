@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, pipe, Schema } from 'effect';
+import { Effect, Option, Predicate, pipe, Schema, SchemaGetter } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { config } from '@/config';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -33,7 +33,14 @@ const DiscordUserSchema = Schema.Struct({
 });
 
 /** A field Lanyard may leave out or send as null; null decodes as missing. */
-const OptionalString = Schema.optionalWith(Schema.String, { nullable: true });
+const optionalNullable = <S extends Schema.Constraint>(schema: S) =>
+  Schema.optional(Schema.NullOr(schema)).pipe(
+    Schema.decodeTo(Schema.optional(Schema.toType(schema)), {
+      decode: SchemaGetter.transformOptional(Option.filter(Predicate.isNotNull)),
+      encode: SchemaGetter.passthrough(),
+    }),
+  );
+const OptionalString = optionalNullable(Schema.String);
 
 const ActivityAssetsSchema = Schema.Struct({
   large_image: OptionalString,
@@ -46,7 +53,7 @@ const ActivitySchema = Schema.Struct({
   // Discord documents both as `?string`: optional and nullable.
   state: OptionalString,
   details: OptionalString,
-  assets: Schema.optionalWith(ActivityAssetsSchema, { nullable: true }),
+  assets: optionalNullable(ActivityAssetsSchema),
 });
 
 const LanyardDataSchema = Schema.Struct({
@@ -130,10 +137,12 @@ async function fetchPresence(): Promise<LanyardData> {
         retries: 2,
         timeout: ATTEMPT_TIMEOUT_MS,
       }),
-      Effect.timeoutFail({
+      Effect.timeoutOrElse({
         duration: UPSTREAM_DEADLINE_MS,
-        onTimeout: () =>
-          new FetcherError(`Lanyard did not answer within ${UPSTREAM_DEADLINE_MS} ms`, url),
+        orElse: () =>
+          Effect.fail(
+            new FetcherError(`Lanyard did not answer within ${UPSTREAM_DEADLINE_MS} ms`, url),
+          ),
       }),
       Effect.provide(FetchHttpClient.layer),
     ),

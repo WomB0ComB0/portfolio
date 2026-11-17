@@ -66,7 +66,7 @@ const CardSchema = Schema.Struct({
   label: Schema.String,
   updatedAt: Schema.String,
 });
-type CardData = Schema.Schema.Type<typeof CardSchema>;
+type CardData = typeof CardSchema.Type;
 
 const UPDATED_AT = new Date('2026-11-05T12:00:00.000Z');
 

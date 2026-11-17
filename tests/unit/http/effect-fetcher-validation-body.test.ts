@@ -21,8 +21,8 @@
  * still runs once, no request header reaches the error, and an accepted body is returned as before.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either, Schema } from 'effect';
+import { Effect, Result, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -56,7 +56,7 @@ function stubUpstream(body: string) {
 async function run(schema: FetcherOptions['schema'] = ID_SCHEMA) {
   const seen: unknown[] = [];
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       get(URL_UNDER_TEST, {
         retries: 0,
         headers: HEADERS,
@@ -72,9 +72,9 @@ async function run(schema: FetcherOptions['schema'] = ID_SCHEMA) {
 async function rejected(body: string) {
   stubUpstream(body);
   const { result, seen } = await run();
-  if (Either.isRight(result)) throw new Error('expected the schema to reject the body');
-  expect(result.left).toBeInstanceOf(ValidationError);
-  return { error: result.left as ValidationError, seen };
+  if (Result.isSuccess(result)) throw new Error('expected the schema to reject the body');
+  expect(result.failure).toBeInstanceOf(ValidationError);
+  return { error: result.failure as ValidationError, seen };
 }
 
 /** A JSON body of exactly `size` characters, with no id. */
@@ -148,7 +148,7 @@ describe('effect-fetcher: what a ValidationError keeps of a 2xx body its schema 
 
     const { result, seen } = await run();
 
-    expect(result).toEqual(Either.right({ id: 7 }));
+    expect(result).toEqual(Result.succeed({ id: 7 }));
     expect(seen).toEqual([]);
   });
 });

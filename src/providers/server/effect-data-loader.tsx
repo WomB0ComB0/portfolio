@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import type { QueryKey } from '@tanstack/react-query';
 import {
   QueryErrorResetBoundary,
@@ -24,7 +23,8 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
+import { Effect, pipe, type Schema, SchemaRepresentation } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { unstable_rethrow } from 'next/navigation';
 import React, { Suspense, useCallback, useMemo } from 'react';
 import { ClientError, Loader } from '@/components/client';
@@ -40,7 +40,6 @@ import {
 } from '@/lib/http-clients';
 import { reportError } from '@/lib/observability/report';
 import { logger, parseCodePathDetailed } from '@/utils';
-import { unwrapEffectError } from './query-client';
 
 /**
  * @module effect-data-loader
@@ -164,21 +163,18 @@ export interface DataLoaderProps<T> extends BaseDataLoaderProps<T> {
 /**
  * Props for DataLoader with Effect Schema (automatic type inference).
  */
-export interface DataLoaderPropsWithSchema<S extends Schema.Schema<any, any, never>>
-  extends BaseDataLoaderProps<Schema.Schema.Type<S>> {
+export interface DataLoaderPropsWithSchema<S extends Schema.Codec<any, any, never>>
+  extends BaseDataLoaderProps<S['Type']> {
   /**
    * Render prop that receives validated data and optional utilities.
    */
   children:
-    | ((data: Schema.Schema.Type<S>) => React.ReactNode)
-    | ((
-        data: Schema.Schema.Type<S>,
-        utils: DataLoaderRenderProps<Schema.Schema.Type<S>>,
-      ) => React.ReactNode);
+    | ((data: S['Type']) => React.ReactNode)
+    | ((data: S['Type'], utils: DataLoaderRenderProps<S['Type']>) => React.ReactNode);
   /** Effect Schema for runtime validation */
   schema: S;
   /** Fetcher options with schema */
-  options?: FetcherOptions<Schema.Schema.Type<S>> & { schema: S };
+  options?: FetcherOptions<S['Type']> & { schema: S };
 }
 
 /** Renders `ErrorComponent`, given as a component or an element, with the failure and a retry. */
@@ -225,10 +221,9 @@ interface LoadFailureBoundaryState {
  * Keeps a failed first load inside its DataLoader. useSuspenseQuery throws when it has no data to
  * show; without this boundary the error reaches src/app/error.tsx, which replaces the whole page.
  *
- * A query that awaits Effect.runPromise directly rejects with Effect's FiberFailure (DataLoader
- * unwraps it already), so the boundary unwraps it too: the fallback gets the fetcher's own error
- * (a FetcherError keeps its `status`), and the reporting rule sees it too. Next's notFound() and
- * redirect() pass through to Next's own boundaries.
+ * Effect.runPromise rejects with the fetcher's own error, so the fallback and reporting rule
+ * both retain a FetcherError's status. Next's notFound() and redirect() pass through to Next's
+ * own boundaries.
  */
 class LoadFailureBoundary extends React.Component<
   LoadFailureBoundaryProps,
@@ -238,13 +233,11 @@ class LoadFailureBoundary extends React.Component<
 
   static getDerivedStateFromError(error: unknown): LoadFailureBoundaryState {
     unstable_rethrow(error);
-    const failure = unwrapEffectError(error);
-    return { error: failure instanceof Error ? failure : new Error(String(failure)) };
+    return { error: error instanceof Error ? error : new Error(String(error)) };
   }
 
   componentDidCatch(error: unknown): void {
-    const failure = unwrapEffectError(error);
-    if (!isReportedElsewhere(failure)) reportError(failure);
+    if (!isReportedElsewhere(error)) reportError(error);
   }
 
   /** Lets the query fetch again on remount (TanStack keeps a thrown error otherwise), then remounts. */
@@ -277,8 +270,14 @@ interface KeyedFetcherOptions {
  * `resultKey`. Loaders of one URL that decode with different schemas (or none) then never share a
  * decoded result, while loaders that would share a cache entry may also share the request.
  */
-const schemaKeyOf = (schema: Schema.Schema.AnyNoContext | undefined): string | undefined =>
-  schema ? `schema:${Schema.format(schema)}` : undefined;
+const schemaKeyOf = (schema: Schema.Codec<any, any, never> | undefined): string | undefined => {
+  if (!schema) return undefined;
+  const representation = SchemaRepresentation.toRepresentation(schema.ast);
+  const document = SchemaRepresentation.toMultiDocument(representation);
+  // Type text alone loses validation checks. Keep the runtime schema and named definitions,
+  // so decoders with different constraints or encodings cannot share a cached result.
+  return `schema:${JSON.stringify(SchemaRepresentation.toCodeDocument(document))}`;
+};
 
 /**
  * DataLoader's defaults for its object props. Module constants, so a DataLoader that leaves them
@@ -298,7 +297,7 @@ interface DataLoaderKeyProps {
   readonly queryKey?: QueryKey;
   readonly params?: QueryParams;
   readonly options?: KeyedFetcherOptions;
-  readonly schema?: Schema.Schema.AnyNoContext;
+  readonly schema?: Schema.Codec<any, any, never>;
 }
 
 /**
@@ -388,7 +387,7 @@ export function QueryErrorBoundary({
   );
 }
 
-type DataLoaderImplProps<T, S extends Schema.Schema<any, any, never>> = (
+type DataLoaderImplProps<T, S extends Schema.Codec<any, any, never>> = (
   | DataLoaderProps<T>
   | DataLoaderPropsWithSchema<S>
 ) & {
@@ -396,7 +395,7 @@ type DataLoaderImplProps<T, S extends Schema.Schema<any, any, never>> = (
 };
 
 /** DataLoader's props once DataLoader has resolved the query key and the loading UI. */
-type ResolvedDataLoaderProps<T, S extends Schema.Schema<any, any, never>> = DataLoaderImplProps<
+type ResolvedDataLoaderProps<T, S extends Schema.Codec<any, any, never>> = DataLoaderImplProps<
   T,
   S
 > & {
@@ -432,7 +431,7 @@ function useFetcherOptions(
   url: string,
   options: FetcherOptions<any>,
   onError: ((error: Error) => void) | undefined,
-  schema: Schema.Schema<any, any, never> | undefined,
+  schema: Schema.Codec<any, any, never> | undefined,
 ): FetcherOptions<any> {
   return useMemo((): FetcherOptions<any> => {
     const baseOptions: FetcherOptions<any> = {
@@ -447,8 +446,8 @@ function useFetcherOptions(
 
 /**
  * One GET of `url` through the page-wide request queue, which shares identical in-flight browser
- * requests. Rejects with the fetcher's own error: Effect.runPromise rejects with a FiberFailure,
- * and the error component and the retry rule (no retry for 4xx) need the FetcherError's status.
+ * requests. Effect.runPromise preserves the fetcher's own error and status for the error
+ * component and the retry rule (no retry for 4xx).
  */
 async function requestThroughQueue(
   url: string,
@@ -474,14 +473,13 @@ async function requestThroughQueue(
       },
     );
   } catch (error) {
-    const failure = unwrapEffectError(error);
-    if (failure instanceof ValidationError || failure instanceof FetcherError) throw failure;
+    if (error instanceof ValidationError || error instanceof FetcherError) throw error;
     // Wrap unexpected request errors
     throw new FetcherError(
-      failure instanceof Error ? failure.message : 'Unknown error occurred',
+      error instanceof Error ? error.message : 'Unknown error occurred',
       url,
       undefined,
-      failure,
+      error,
     );
   }
 }
@@ -523,7 +521,7 @@ function useDataLoaderQueryFn({
  * (TanStack keeps it beside the error), so the children keep showing it until a later refetch
  * succeeds.
  */
-function DataLoaderQuery<T = unknown, S extends Schema.Schema<any, any, never> = any>({
+function DataLoaderQuery<T = unknown, S extends Schema.Codec<any, any, never> = any>({
   children,
   url,
   queryOptions,
@@ -604,7 +602,7 @@ function DataLoaderQuery<T = unknown, S extends Schema.Schema<any, any, never> =
  *
  * Both hooks run on every render, whichever branch is taken.
  */
-function DataLoaderGate<T = unknown, S extends Schema.Schema<any, any, never> = any>(
+function DataLoaderGate<T = unknown, S extends Schema.Codec<any, any, never> = any>(
   props: ResolvedDataLoaderProps<T, S>,
 ): React.ReactElement {
   const { queryKey, LoadingComponent } = props;
@@ -652,10 +650,10 @@ function DataLoaderGate<T = unknown, S extends Schema.Schema<any, any, never> = 
  * ```
  */
 export function DataLoader<T = unknown>(props: DataLoaderProps<T>): React.ReactElement;
-export function DataLoader<S extends Schema.Schema<any, any, never>>(
+export function DataLoader<S extends Schema.Codec<any, any, never>>(
   props: DataLoaderPropsWithSchema<S>,
 ): React.ReactElement;
-export function DataLoader<T = unknown, S extends Schema.Schema<any, any, never> = any>(
+export function DataLoader<T = unknown, S extends Schema.Codec<any, any, never> = any>(
   props: DataLoaderImplProps<T, S>,
 ): React.ReactElement {
   const { ErrorComponent = ClientError, LoadingComponent = <Loader /> } = props;

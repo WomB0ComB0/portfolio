@@ -22,8 +22,8 @@
  * `</head>` arrives, or once {@link HEAD_CHAR_LIMIT} characters have been read.
  */
 
-import { FetchHttpClient, HttpClient } from '@effect/platform';
-import { Cause, Duration, Effect, Stream } from 'effect';
+import { Cause, Duration, Effect, Sink, Stream } from 'effect';
+import { FetchHttpClient, HttpClient } from 'effect/http';
 import { HASHNODE_COVER_PATTERNS } from '@/config/blog-images';
 import { logger } from '@/utils';
 import { type Blog, HASHNODE_BLOG_URL } from './blogs';
@@ -140,21 +140,23 @@ const readHead = (url: string) =>
     const response = yield* client.get(url, { headers: { accept: 'text/html' } });
     return yield* response.stream.pipe(
       Stream.decodeText(),
-      Stream.runFoldWhile(
-        '',
-        (html) => html.length < HEAD_CHAR_LIMIT && !HEAD_END.test(html),
-        (html, chunk) => (html + chunk).slice(0, HEAD_CHAR_LIMIT),
+      Stream.run(
+        Sink.reduceWhile(
+          () => '',
+          (html) => html.length < HEAD_CHAR_LIMIT && !HEAD_END.test(html),
+          (html, chunk: string) => (html + chunk).slice(0, HEAD_CHAR_LIMIT),
+        ),
       ),
     );
   });
 
-const withCover = (post: Blog, timeout: Duration.DurationInput) => {
+const withCover = (post: Blog, timeout: Duration.Input) => {
   if (post.imageUrl) return Effect.succeed(post);
   const pageUrl = `${HASHNODE_BLOG_URL}/${post.slug}`;
   return readHead(pageUrl).pipe(
     Effect.timeout(timeout),
     Effect.map((html) => extractCoverImage(html, pageUrl)),
-    Effect.catchAllCause((cause) =>
+    Effect.catchCause((cause) =>
       Effect.sync(() => {
         logger.warn('Could not read the cover of a Hashnode post', {
           slug: post.slug,
@@ -170,7 +172,7 @@ const withCover = (post: Blog, timeout: Duration.DurationInput) => {
 /** Options for {@link addHashnodeCovers}. */
 export interface HashnodeCoverOptions {
   /** How long each post page may take, from request to `</head>` (default 5 seconds). */
-  readonly timeout?: Duration.DurationInput;
+  readonly timeout?: Duration.Input;
 }
 
 /**

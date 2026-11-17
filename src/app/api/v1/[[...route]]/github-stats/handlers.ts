@@ -26,8 +26,8 @@
  * public repositories either way.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -46,9 +46,9 @@ const GitHubUserSchema = Schema.Struct({
 
 const GitHubRepoSchema = Schema.Struct({
   name: Schema.String,
-  description: Schema.Union(Schema.String, Schema.Null),
+  description: Schema.Union([Schema.String, Schema.Null]),
   stargazers_count: Schema.Number,
-  language: Schema.Union(Schema.String, Schema.Null),
+  language: Schema.Union([Schema.String, Schema.Null]),
   fork: Schema.Boolean,
   html_url: Schema.String,
 });
@@ -57,9 +57,9 @@ const GitHubReposArraySchema = Schema.Array(GitHubRepoSchema);
 
 const TopRepoSchema = Schema.Struct({
   name: Schema.String,
-  description: Schema.Union(Schema.String, Schema.Null),
+  description: Schema.Union([Schema.String, Schema.Null]),
   stars: Schema.Number,
-  language: Schema.Union(Schema.String, Schema.Null),
+  language: Schema.Union([Schema.String, Schema.Null]),
   url: Schema.String,
 });
 
@@ -245,12 +245,14 @@ function fetchGitHubSources() {
       concurrency: 'unbounded',
     }),
     Effect.map(([[me, personalRepos], orgRepos]) => [me, personalRepos, orgRepos] as const),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: UPSTREAM_DEADLINE_MS,
-      onTimeout: () =>
-        new FetcherError(
-          `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
-          'https://api.github.com',
+      orElse: () =>
+        Effect.fail(
+          new FetcherError(
+            `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+            'https://api.github.com',
+          ),
         ),
     }),
     Effect.provide(FetchHttpClient.layer),

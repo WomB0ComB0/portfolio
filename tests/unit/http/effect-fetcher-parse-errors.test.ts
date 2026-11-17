@@ -21,8 +21,8 @@
  * gql.hashnode.com had started returning an HTML page.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either } from 'effect';
+import { Effect, Result } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -39,7 +39,7 @@ const runPost = (response: Response) => {
     vi.fn(async () => response),
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       post(URL_UNDER_TEST, { query: '{ ok }' }, { retries: 0 }).pipe(
         Effect.provide(FetchHttpClient.layer),
       ),
@@ -47,10 +47,10 @@ const runPost = (response: Response) => {
   );
 };
 
-const expectFetcherError = (result: Either.Either<unknown, unknown>): FetcherError => {
-  if (Either.isRight(result)) throw new Error('expected the request to fail');
-  expect(result.left).toBeInstanceOf(FetcherError);
-  return result.left as FetcherError;
+const expectFetcherError = (result: Result.Result<unknown, unknown>): FetcherError => {
+  if (Result.isSuccess(result)) throw new Error('expected the request to fail');
+  expect(result.failure).toBeInstanceOf(FetcherError);
+  return result.failure as FetcherError;
 };
 
 describe('effect-fetcher: response bodies that are not JSON', () => {
@@ -101,7 +101,7 @@ describe('effect-fetcher: response bodies that are not JSON', () => {
         headers: { 'Content-Type': 'application/json' },
       }),
     );
-    expect(result).toEqual(Either.right({ ok: true }));
+    expect(result).toEqual(Result.succeed({ ok: true }));
   });
 });
 
@@ -153,7 +153,7 @@ describe('effect-fetcher: the error for a 2xx body that is not JSON keeps no req
     ['an HTML page', '<!DOCTYPE html><html><body>Moved</body></html>', 'text/html'],
     ['JSON cut short', '{"items":[{"id":"abc","snippet":{"title":"T', 'application/json'],
   ])('for %s', async (_case, body, contentType) => {
-    const either = await Effect.runPromise(Effect.either(failGet(body, contentType)));
+    const either = await Effect.runPromise(Effect.result(failGet(body, contentType)));
     const error = expectFetcherError(either);
     const thrown = await Effect.runPromise(failGet(body, contentType)).then(
       () => {

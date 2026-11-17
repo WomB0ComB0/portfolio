@@ -22,7 +22,7 @@
  * document with them, and pages take their types.
  */
 
-import { Schema } from 'effect';
+import { Option, Predicate, Result, Schema, SchemaGetter, SchemaTransformation } from 'effect';
 import { PLACE_CATEGORIES } from '@/lib/places/categories';
 import {
   hasText,
@@ -95,39 +95,56 @@ export const ResolvedSanityFileSchema = Schema.Struct({
   mimeType: Schema.optional(Schema.String),
 });
 
-/**
- * Sanity Experience Schema with Effect Schema validation
- */
+/** GROQ null means absent, while an explicitly undefined optional value stays undefined. */
+const optionalNullable = <S extends Schema.Constraint>(schema: S) =>
+  Schema.optional(Schema.NullOr(schema)).pipe(
+    Schema.decodeTo(Schema.optional(Schema.toType(schema)), {
+      decode: SchemaGetter.transformOptional(Option.filter(Predicate.isNotNull)),
+      encode: SchemaGetter.passthrough(),
+    }),
+  );
+
+/** Legacy GROQ booleans may be missing or null; both mean the unchecked default. */
+const NullableBooleanDefaultFalse = Schema.optional(Schema.NullOr(Schema.Boolean)).pipe(
+  Schema.decodeTo(Schema.Boolean, {
+    decode: SchemaGetter.transformOptional((value) =>
+      value.pipe(
+        Option.filter(Predicate.isNotNullish),
+        Option.orElseSome(() => false),
+      ),
+    ),
+    encode: SchemaGetter.required(),
+  }),
+);
+
+/** Sanity Experience Schema with Effect Schema validation. */
 export const ExperienceSubRoleSchema = Schema.Struct({
   _key: Schema.String,
-  _type: Schema.optionalWith(Schema.Literal('experienceSubRole'), { nullable: true }),
+  _type: optionalNullable(Schema.Literal('experienceSubRole')),
   position: Schema.String,
   employmentType: Schema.optional(Schema.NullOr(Schema.String)),
   startDate: Schema.String,
   endDate: Schema.optional(Schema.NullOr(Schema.String)),
-  current: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+  current: NullableBooleanDefaultFalse,
   description: Schema.optional(Schema.NullOr(Schema.String)),
   responsibilities: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
   technologies: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
 });
 
 /** A malformed child must not invalidate an otherwise readable parent engagement. */
-const experienceSubRolesValue = Schema.transform(
-  Schema.Unknown,
-  Schema.NullOr(Schema.Array(ExperienceSubRoleSchema)),
-  {
-    strict: true,
-    decode: (value) => {
+const experienceSubRolesValue = Schema.Unknown.pipe(
+  Schema.decodeTo(Schema.NullOr(Schema.Array(ExperienceSubRoleSchema)), {
+    decode: SchemaGetter.transform((value) => {
       if (value === null) return null;
       if (!Array.isArray(value)) return [];
-      const decode = Schema.decodeUnknownEither(ExperienceSubRoleSchema);
+      const decode = Schema.decodeUnknownResult(ExperienceSubRoleSchema);
       return value.flatMap((child) => {
         const result = decode(child);
-        return result._tag === 'Right' ? [result.right] : [];
+        return Result.isSuccess(result) ? [result.success] : [];
       });
-    },
-    encode: (value) => value,
-  },
+    }),
+    encode: SchemaGetter.passthrough(),
+  }),
 );
 
 export const ExperienceSchema = Schema.Struct({
@@ -140,15 +157,15 @@ export const ExperienceSchema = Schema.Struct({
   employmentType: Schema.optional(Schema.NullOr(Schema.String)),
   dateNote: Schema.optional(Schema.NullOr(Schema.String)),
   company: Schema.String,
-  companyUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  logo: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  location: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  companyUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  logo: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  location: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   description: Schema.String,
   responsibilities: Schema.optional(Schema.Array(Schema.String)),
   technologies: Schema.optional(Schema.Array(Schema.String)),
   subRoles: Schema.optional(experienceSubRolesValue),
   startDate: Schema.String,
-  endDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  endDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   current: Schema.Boolean,
   order: Schema.Number,
 });
@@ -165,9 +182,9 @@ export const ProjectSchema = Schema.Struct({
   title: Schema.String,
   slug: SanitySlugSchema,
   description: Schema.String,
-  longDescription: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  image: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  images: Schema.optional(Schema.Union(Schema.Array(SanityImageSchema), Schema.Null)),
+  longDescription: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  image: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  images: Schema.optional(Schema.Union([Schema.Array(SanityImageSchema), Schema.Null])),
   category: Schema.String, // Allow any string for flexible categorization
   technologies: Schema.Array(Schema.String),
   status: Schema.String, // Allow any string for flexible status combinations
@@ -177,11 +194,11 @@ export const ProjectSchema = Schema.Struct({
    * lowest first. Documents written before the field existed have no value, and GROQ answers
    * null for them: both decode as absent, so no project is dropped for lacking one.
    */
-  featuredRank: Schema.optionalWith(Schema.Number, { nullable: true }),
-  liveUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  githubUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  startDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  endDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  featuredRank: optionalNullable(Schema.Number),
+  liveUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  githubUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  startDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  endDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   order: Schema.Number,
 });
 
@@ -196,18 +213,18 @@ export const CertificationSchema = Schema.Struct({
   _rev: Schema.String,
   title: Schema.String,
   issuer: Schema.String,
-  description: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  image: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  credentialId: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  credentialUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  description: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  image: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  credentialId: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  credentialUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   issueDate: Schema.String,
-  expiryDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  skills: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  expiryDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  skills: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
   /**
    * The Studio switch for the /certifications Featured row. Documents written before the field
    * existed have no value, and GROQ answers null for them: both decode as false.
    */
-  featured: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+  featured: NullableBooleanDefaultFalse,
   order: Schema.Number,
 });
 
@@ -218,7 +235,7 @@ const isSanityDate = (value: string): boolean =>
   SANITY_DATE_PATTERN.test(value) && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
 
 const SanityDateSchema = Schema.String.pipe(
-  Schema.filter(isSanityDate, { message: () => 'Expected a YYYY-MM-DD calendar date' }),
+  Schema.check(Schema.makeFilter(isSanityDate, { message: 'Expected a YYYY-MM-DD calendar date' })),
 );
 
 /**
@@ -227,14 +244,14 @@ const SanityDateSchema = Schema.String.pipe(
  * document's date would blank the whole page. Non-ISO strings must not reach date formatting,
  * where `new Date()` would read them in local time and shift the day.
  */
-const LenientSanityDateSchema = Schema.transform(
-  Schema.NullOr(Schema.String),
-  Schema.NullOr(SanityDateSchema),
-  {
-    strict: true,
-    decode: (value) => (value !== null && isSanityDate(value) ? value : null),
-    encode: (value) => value,
-  },
+const LenientSanityDateSchema = Schema.NullOr(Schema.String).pipe(
+  Schema.decodeTo(
+    Schema.NullOr(SanityDateSchema),
+    SchemaTransformation.transform({
+      decode: (value) => (value !== null && isSanityDate(value) ? value : null),
+      encode: (value) => value,
+    }),
+  ),
 );
 
 /**
@@ -249,12 +266,12 @@ export const PlaceSchema = Schema.Struct({
   name: Schema.String,
   description: Schema.String,
   // The six categories have one source, which the /places chips read too.
-  category: Schema.Literal(...PLACE_CATEGORIES),
+  category: Schema.Literals(PLACE_CATEGORIES),
   latitude: Schema.Number,
   longitude: Schema.Number,
   startDate: Schema.optional(LenientSanityDateSchema),
   endDate: Schema.optional(LenientSanityDateSchema),
-  photos: Schema.optional(Schema.Union(Schema.Array(SanityImageSchema), Schema.Null)),
+  photos: Schema.optional(Schema.Union([Schema.Array(SanityImageSchema), Schema.Null])),
   order: Schema.Number,
   featured: Schema.Boolean,
 });
@@ -292,7 +309,7 @@ export const ResolvedResumeSchema = Schema.Struct({
 /**
  * Slides format type for type-safe format handling
  */
-export const SlidesFormatSchema = Schema.Union(
+export const SlidesFormatSchema = Schema.Union([
   Schema.Literal('pdf'),
   Schema.Literal('google_slides'),
   Schema.Literal('speakerdeck'),
@@ -300,17 +317,17 @@ export const SlidesFormatSchema = Schema.Union(
   Schema.Literal('canva'),
   Schema.Literal('other_url'),
   Schema.Literal('none'),
-);
+]);
 
 /**
  * Video format type for type-safe format handling
  */
-export const VideoFormatSchema = Schema.Union(
+export const VideoFormatSchema = Schema.Union([
   Schema.Literal('youtube'),
   Schema.Literal('vimeo'),
   Schema.Literal('other'),
   Schema.Literal('none'),
-);
+]);
 
 /**
  * Sanity Presentation Schema with Effect Schema validation
@@ -325,27 +342,27 @@ export const PresentationSchema = Schema.Struct({
   title: Schema.String,
   description: Schema.String,
   eventName: Schema.String,
-  eventUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  eventUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   date: Schema.String,
-  slidesFormat: Schema.optional(Schema.Union(SlidesFormatSchema, Schema.Null)),
-  slidesPdfUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  slidesPdf: Schema.optional(Schema.Union(SanityFileSchema, Schema.Null)),
-  slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
-  location: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
+  slidesFormat: Schema.optional(Schema.Union([SlidesFormatSchema, Schema.Null])),
+  slidesPdfUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  slidesPdf: Schema.optional(Schema.Union([SanityFileSchema, Schema.Null])),
+  slidesUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  videoUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  thumbnailImage: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  tags: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
+  location: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   order: Schema.Number,
 });
 
 /**
  * Talk slides format - simplified version with only PDF and URL options
  */
-export const TalkSlidesFormatSchema = Schema.Union(
+export const TalkSlidesFormatSchema = Schema.Union([
   Schema.Literal('pdf'),
   Schema.Literal('url'),
   Schema.Literal('none'),
-);
+]);
 
 /**
  * Sanity Talk Schema with Effect Schema validation
@@ -361,15 +378,15 @@ export const TalkSchema = Schema.Struct({
   description: Schema.String,
   venue: Schema.String,
   date: Schema.String,
-  videoFormat: Schema.optional(Schema.Union(VideoFormatSchema, Schema.Null)),
-  videoUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  slidesFormat: Schema.optional(Schema.Union(TalkSlidesFormatSchema, Schema.Null)),
-  slidesPdfUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  slidesPdf: Schema.optional(Schema.Union(SanityFileSchema, Schema.Null)),
-  slidesUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  thumbnailImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  duration: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  videoFormat: Schema.optional(Schema.Union([VideoFormatSchema, Schema.Null])),
+  videoUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  slidesFormat: Schema.optional(Schema.Union([TalkSlidesFormatSchema, Schema.Null])),
+  slidesPdfUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  slidesPdf: Schema.optional(Schema.Union([SanityFileSchema, Schema.Null])),
+  slidesUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  thumbnailImage: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  duration: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  tags: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
   order: Schema.Number,
 });
 
@@ -387,9 +404,9 @@ export const ArticleSchema = Schema.Struct({
   publication: Schema.String,
   publicationUrl: Schema.String,
   publishedDate: Schema.String,
-  coverImage: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  coAuthors: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
-  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  coverImage: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  coAuthors: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
+  tags: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
   order: Schema.Number,
 });
 
@@ -411,13 +428,13 @@ export const YoutubeVideoSchema = Schema.Struct({
   _createdAt: Schema.String,
   _updatedAt: Schema.String,
   _rev: Schema.String,
-  title: Schema.String.pipe(Schema.maxLength(YOUTUBE_TITLE_MAX)),
-  description: Schema.String.pipe(Schema.maxLength(YOUTUBE_DESCRIPTION_MAX)),
+  title: Schema.String.check(Schema.isMaxLength(YOUTUBE_TITLE_MAX)),
+  description: Schema.String.check(Schema.isMaxLength(YOUTUBE_DESCRIPTION_MAX)),
   videoId: Schema.String,
   publishedDate: Schema.String,
-  thumbnail: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),
-  duration: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-  tags: Schema.optional(Schema.Union(Schema.Array(Schema.String), Schema.Null)),
+  thumbnail: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  duration: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  tags: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
   order: Schema.Number,
 });
 
@@ -430,38 +447,45 @@ export const YoutubeVideoSchema = Schema.Struct({
  * A field's one message, whichever of its checks fails (and even for a non-string), so a report
  * names each bad field once and never repeats the value, which may be an address.
  */
-const fieldMessage = (message: string) => ({
-  message: () => ({ message, override: true }),
-});
+const siteStringSchema = (predicate: (value: string) => boolean, message: string) =>
+  Schema.String.annotate({ message }).pipe(
+    Schema.decodeTo(
+      Schema.String.check(Schema.makeFilter(predicate, { message })),
+      SchemaTransformation.transform({
+        decode: (value) => value.trim(),
+        encode: (value) => value,
+      }),
+    ),
+  );
 
 /** Hero text: trimmed, not blank, at most `maxLength` characters. */
 const siteTextSchema = (maxLength: number) =>
-  Schema.Trim.pipe(Schema.nonEmptyString(), Schema.maxLength(maxLength)).annotations(
-    fieldMessage(`Expected text of 1 to ${maxLength} characters`),
+  siteStringSchema(
+    (value) => value.length > 0 && value.length <= maxLength,
+    `Expected text of 1 to ${maxLength} characters`,
   );
 
 /** An address a mailto link carries as it is (isSiteEmail): no '?', '&' or '#'. */
-const SiteEmailSchema = Schema.Trim.pipe(Schema.filter(isSiteEmail)).annotations(
-  fieldMessage('Expected an email address without ?, & or #'),
+const SiteEmailSchema = siteStringSchema(
+  isSiteEmail,
+  'Expected an email address without ?, & or #',
 );
 
-const HttpsUrlSchema = Schema.Trim.pipe(Schema.filter(isSiteHttpsUrl)).annotations(
-  fieldMessage('Expected an https URL without credentials'),
+const HttpsUrlSchema = siteStringSchema(
+  isSiteHttpsUrl,
+  'Expected an https URL without credentials',
 );
-
-/** A field Studio may leave empty: then it has no key at all. */
-const SETTING = { exact: true } as const;
 
 /** Every invalid field is reported, not just the first, and the loader keeps the valid ones. */
 const SiteSettingsFieldsSchema = Schema.Struct({
   _id: Schema.String,
   _type: Schema.Literal('siteSettings'),
-  location: Schema.optionalWith(siteTextSchema(SITE_LOCATION_MAX_LENGTH), SETTING),
-  tagline: Schema.optionalWith(siteTextSchema(SITE_TAGLINE_MAX_LENGTH), SETTING),
-  email: Schema.optionalWith(SiteEmailSchema, SETTING),
-  githubUrl: Schema.optionalWith(HttpsUrlSchema, SETTING),
-  linkedinUrl: Schema.optionalWith(HttpsUrlSchema, SETTING),
-}).annotations({ parseOptions: { errors: 'all' } });
+  location: Schema.optionalKey(siteTextSchema(SITE_LOCATION_MAX_LENGTH)),
+  tagline: Schema.optionalKey(siteTextSchema(SITE_TAGLINE_MAX_LENGTH)),
+  email: Schema.optionalKey(SiteEmailSchema),
+  githubUrl: Schema.optionalKey(HttpsUrlSchema),
+  linkedinUrl: Schema.optionalKey(HttpsUrlSchema),
+});
 
 /**
  * The fields whose blank text means cleared: the location, the one with no built-in value (owner
@@ -480,14 +504,16 @@ const isUnset = ([key, value]: readonly [string, unknown]): boolean =>
  * all, before the fields are checked: so empty is never invalid, and each invalid field is one
  * issue at its own path. A blank tagline is still invalid: it falls back to the built-in one.
  */
-export const SiteSettingsDocumentSchema = Schema.transform(
-  Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-  SiteSettingsFieldsSchema,
-  {
-    strict: false,
-    decode: (doc) => Object.fromEntries(Object.entries(doc).filter((entry) => !isUnset(entry))),
-    encode: (settings) => settings,
-  },
+export const SiteSettingsDocumentSchema = Schema.Record(Schema.String, Schema.Unknown).pipe(
+  Schema.decodeTo(SiteSettingsFieldsSchema, {
+    decode: SchemaGetter.transform(
+      (doc) =>
+        Object.fromEntries(
+          Object.entries(doc).filter((entry) => !isUnset(entry)),
+        ) as typeof SiteSettingsFieldsSchema.Encoded,
+    ),
+    encode: SchemaGetter.passthrough(),
+  }),
 );
 
 /**

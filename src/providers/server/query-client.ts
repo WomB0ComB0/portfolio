@@ -23,7 +23,6 @@ import {
   type QueryCacheConfig,
   QueryClient,
 } from '@tanstack/react-query';
-import { Cause, Runtime } from 'effect';
 import { cache } from 'react';
 import SuperJSON from 'superjson';
 import { ValidationError } from '@/lib/http-clients/effect-fetcher';
@@ -31,14 +30,6 @@ import { logger } from '@/utils';
 
 /** Retries a failing query gets in the browser. Its queryFn's fetch should not retry as well. */
 const MAX_BROWSER_QUERY_RETRIES = 1;
-
-/**
- * Returns the error an Effect failed with. `Effect.runPromise` rejects with a FiberFailure that
- * keeps the original error (e.g. the fetcher's FetcherError, with its status) in its Cause.
- * Anything else is returned unchanged.
- */
-export const unwrapEffectError = (error: unknown): unknown =>
-  Runtime.isFiberFailure(error) ? Cause.squash(error[Runtime.FiberFailureCauseId]) : error;
 
 /** The HTTP status an error carries, such as FetcherError's `status`, if it has a numeric one. */
 const statusOf = (error: unknown): number | undefined => {
@@ -59,7 +50,7 @@ const isClientError = (error: unknown): boolean => {
  * on the server nothing is retried, matching TanStack's own server default.
  *
  * @param failureCount - Retries already made: TanStack passes 0 after the first failure.
- * @param error - What the queryFn threw; a FiberFailure from `Effect.runPromise` is unwrapped.
+ * @param error - What the queryFn threw; Effect 4 rejects with the original typed error.
  * @param onServer - Whether this runs without a browser window. Tests pass it explicitly.
  * @returns Whether TanStack should run the queryFn again.
  */
@@ -69,7 +60,7 @@ export const shouldRetryQuery = (
   onServer: boolean = globalThis.window === undefined,
 ): boolean => {
   if (onServer || failureCount >= MAX_BROWSER_QUERY_RETRIES) return false;
-  return !isClientError(unwrapEffectError(error));
+  return !isClientError(error);
 };
 
 /**

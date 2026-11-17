@@ -216,7 +216,7 @@ describe('requestQueue in the browser', () => {
     });
     const response = deferred<unknown>();
     const decodeWith =
-      <A, I>(schema: Schema.Schema<A, I>) =>
+      <A, I>(schema: Schema.Codec<A, I>) =>
       async () =>
         Schema.decodeUnknownSync(schema)(await response.promise);
 

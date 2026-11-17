@@ -36,8 +36,8 @@ import 'server-only';
  * them with the page instead of asking GitHub again.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either, Option, pipe, Schema } from 'effect';
+import { Effect, Option, pipe, Result, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -253,8 +253,8 @@ type GraphQLReply = Schema.Schema.Type<typeof GraphQLReplySchema>;
 
 /** A calendar date in another format would silently count as no contributions, so it fails. */
 const ContributionDaySchema = Schema.Struct({
-  date: Schema.String.pipe(Schema.pattern(/^\d{4}-\d{2}-\d{2}$/)),
-  contributionCount: Schema.NonNegativeInt,
+  date: Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),
+  contributionCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 
 const CommitSchema = Schema.Struct({
@@ -263,16 +263,24 @@ const CommitSchema = Schema.Struct({
   url: Schema.String,
   abbreviatedOid: Schema.String,
   // `user` is null when the commit's author email belongs to no GitHub account.
-  author: Schema.NullishOr(
-    Schema.Struct({ user: Schema.NullishOr(Schema.Struct({ login: Schema.String })) }),
+  author: Schema.optional(
+    Schema.NullishOr(
+      Schema.Struct({
+        user: Schema.optional(Schema.NullishOr(Schema.Struct({ login: Schema.String }))),
+      }),
+    ),
   ),
 });
 type Commit = Schema.Schema.Type<typeof CommitSchema>;
 
 /** `... on Commit` selects nothing on any other target (a tag), which then arrives as `{}`. */
 const BranchTargetSchema = Schema.Struct({
-  history: Schema.NullishOr(
-    Schema.Struct({ nodes: Schema.NullishOr(Schema.Array(Schema.NullOr(CommitSchema))) }),
+  history: Schema.optional(
+    Schema.NullishOr(
+      Schema.Struct({
+        nodes: Schema.optional(Schema.NullishOr(Schema.Array(Schema.NullOr(CommitSchema)))),
+      }),
+    ),
   ),
 });
 
@@ -280,8 +288,10 @@ const RepositorySchema = Schema.Struct({
   nameWithOwner: Schema.String,
   url: Schema.String,
   // Null for an empty repository.
-  defaultBranchRef: Schema.NullishOr(
-    Schema.Struct({ target: Schema.NullishOr(BranchTargetSchema) }),
+  defaultBranchRef: Schema.optional(
+    Schema.NullishOr(
+      Schema.Struct({ target: Schema.optional(Schema.NullishOr(BranchTargetSchema)) }),
+    ),
   ),
 });
 type Repository = Schema.Schema.Type<typeof RepositorySchema>;
@@ -293,7 +303,7 @@ const ActivityUserSchema = Schema.Struct({
     }),
   }),
   repositories: Schema.Struct({
-    nodes: Schema.NullishOr(Schema.Array(Schema.NullOr(RepositorySchema))),
+    nodes: Schema.optional(Schema.NullishOr(Schema.Array(Schema.NullOr(RepositorySchema)))),
   }),
 });
 type ActivityUser = Schema.Schema.Type<typeof ActivityUserSchema>;
@@ -325,10 +335,15 @@ const CommitContributionsSchema = Schema.Struct({
     url: Schema.String,
   }),
   contributions: Schema.Struct({
-    nodes: Schema.NullishOr(
-      Schema.Array(
-        Schema.NullOr(
-          Schema.Struct({ occurredAt: Schema.String, commitCount: Schema.NonNegativeInt }),
+    nodes: Schema.optional(
+      Schema.NullishOr(
+        Schema.Array(
+          Schema.NullOr(
+            Schema.Struct({
+              occurredAt: Schema.String,
+              commitCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+            }),
+          ),
         ),
       ),
     ),
@@ -336,7 +351,7 @@ const CommitContributionsSchema = Schema.Struct({
 });
 type CommitContributions = Schema.Schema.Type<typeof CommitContributionsSchema>;
 
-const decodeRecentCommitsData = Schema.decodeUnknownEither(RecentCommitsDataSchema);
+const decodeRecentCommitsData = Schema.decodeUnknownResult(RecentCommitsDataSchema);
 const decodeCommitContributions = Schema.decodeUnknownOption(CommitContributionsSchema);
 
 /** The weeks the query covers: from Sunday 00:00 UTC, eleven weeks before this one, to now. */
@@ -391,12 +406,14 @@ function requestGraphQL(token: string, query: string, variables: Record<string, 
         timeout: ATTEMPT_TIMEOUT_MS,
       },
     ),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: UPSTREAM_DEADLINE_MS,
-      onTimeout: () =>
-        new FetcherError(
-          `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
-          GITHUB_GRAPHQL_URL,
+      orElse: () =>
+        Effect.fail(
+          new FetcherError(
+            `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+            GITHUB_GRAPHQL_URL,
+          ),
         ),
     }),
     Effect.provide(FetchHttpClient.layer),
@@ -580,10 +597,10 @@ const byNewestCommit = (a: CommittedRepo, b: CommittedRepo): number =>
  */
 function toRecentCommits(reply: GraphQLReply): RecentCommits {
   const decoded = decodeRecentCommitsData(replyData(reply));
-  if (Either.isLeft(decoded)) {
+  if (Result.isFailure(decoded)) {
     throw new Error("GitHub's commit contributions did not have the expected shape");
   }
-  const { user } = decoded.right;
+  const { user } = decoded.success;
   if (!user) throw new Error(`GitHub has no user ${GITHUB_LOGIN}`);
   const entries = user.contributionsCollection.commitContributionsByRepository;
   return {

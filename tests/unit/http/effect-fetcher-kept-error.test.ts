@@ -27,8 +27,8 @@
 
 import { setFlagsFromString } from 'node:v8';
 import { runInNewContext } from 'node:vm';
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either, ParseResult, Schema } from 'effect';
+import { Effect, Result, Schema, SchemaIssue } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -87,7 +87,7 @@ async function failure({ status, body, type, schema }: FailurePath) {
   );
   const seen: unknown[] = [];
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       get(URL_UNDER_TEST, {
         retries: 0,
         headers: HEADERS,
@@ -96,8 +96,8 @@ async function failure({ status, body, type, schema }: FailurePath) {
       }).pipe(Effect.provide(FetchHttpClient.layer)),
     ),
   );
-  if (Either.isRight(result)) throw new Error('expected the request to fail');
-  return { error: result.left as FetcherError | ValidationError, seen };
+  if (Result.isSuccess(result)) throw new Error('expected the request to fail');
+  return { error: result.failure as FetcherError | ValidationError, seen };
 }
 
 afterEach(() => {
@@ -158,11 +158,11 @@ describe('effect-fetcher: a kept error whose stack is never read', () => {
   });
 });
 
-/** What Effect's tree formatter writes for `body` against the id schema. */
+/** What Effect's formatter writes for `body`, retaining the fetcher's rejected-input detail. */
 function formatted(body: string): string {
-  const result = Schema.decodeUnknownEither(ID_SCHEMA)(JSON.parse(body));
-  if (Either.isRight(result)) throw new Error('expected the schema to reject the body');
-  return ParseResult.TreeFormatter.formatIssueSync(result.left.issue);
+  const result = Schema.decodeUnknownResult(ID_SCHEMA, { reportInput: true })(JSON.parse(body));
+  if (Result.isSuccess(result)) throw new Error('expected the schema to reject the body');
+  return SchemaIssue.makeFormatterDefault()(result.failure.issue);
 }
 
 describe('effect-fetcher: ValidationError.problems', () => {

@@ -48,14 +48,14 @@ const TitleAndAuthorSchema = Schema.Struct({ title: Schema.String, author: Schem
 const ANSWER = { title: 'A Title', author: 'An Author' };
 
 /** Holds every answer until `release`, so a second load asks while the first is in flight. */
-const stubHeldAnswer = () => {
+const stubHeldAnswer = (answer: unknown = ANSWER) => {
   let release: () => void = () => undefined;
   const released = new Promise<void>((resolve) => {
     release = resolve;
   });
   const fetchMock = vi.fn(async () => {
     await released;
-    return new Response(JSON.stringify(ANSWER), {
+    return new Response(JSON.stringify(answer), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -169,5 +169,59 @@ describe('DataLoader request sharing', () => {
 
     expect(await screen.findAllByText('title card got A Title')).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps schemas with the same decoded type but different encodings separate', async () => {
+    const numeric = Schema.Struct({ amount: Schema.Number });
+    const fromString = Schema.Struct({ amount: Schema.NumberFromString });
+    const { fetchMock, release } = stubHeldAnswer({ amount: '7' });
+    vi.spyOn(requestQueue, 'enqueue');
+
+    render(
+      <QueryClientProvider client={createQueryClient()()}>
+        <DataLoader url={URL_PATH} schema={numeric} ErrorComponent={<p>numeric rejected</p>}>
+          {() => <p>numeric accepted</p>}
+        </DataLoader>
+        <DataLoader url={URL_PATH} schema={fromString}>
+          {(data: typeof fromString.Type) => <p>converted {data.amount}</p>}
+        </DataLoader>
+      </QueryClientProvider>,
+    );
+    try {
+      await queueAskedTimes(2);
+    } finally {
+      release();
+    }
+
+    expect(await screen.findByText('numeric rejected')).toBeInTheDocument();
+    expect(await screen.findByText('converted 7')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps different validation constraints separate even when their types match', async () => {
+    const positive = Schema.Struct({ amount: Schema.Number.check(Schema.isGreaterThan(0)) });
+    const aboveFive = Schema.Struct({ amount: Schema.Number.check(Schema.isGreaterThan(5)) });
+    const { fetchMock, release } = stubHeldAnswer({ amount: 3 });
+    vi.spyOn(requestQueue, 'enqueue');
+
+    render(
+      <QueryClientProvider client={createQueryClient()()}>
+        <DataLoader url={URL_PATH} schema={positive}>
+          {(data: typeof positive.Type) => <p>positive {data.amount}</p>}
+        </DataLoader>
+        <DataLoader url={URL_PATH} schema={aboveFive} ErrorComponent={<p>above five rejected</p>}>
+          {() => <p>above five accepted</p>}
+        </DataLoader>
+      </QueryClientProvider>,
+    );
+    try {
+      await queueAskedTimes(2);
+    } finally {
+      release();
+    }
+
+    expect(await screen.findByText('positive 3')).toBeInTheDocument();
+    expect(await screen.findByText('above five rejected')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

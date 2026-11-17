@@ -90,8 +90,9 @@ describe('fetching and decoding featured', () => {
     expect(decode({ ...BASE, featured: false }).featured).toBe(false);
   });
 
-  it('reads a missing or null value as false', () => {
+  it('reads a missing, undefined or null value as false', () => {
     expect(decode(BASE).featured).toBe(false);
+    expect(decode({ ...BASE, featured: undefined }).featured).toBe(false);
     expect(decode({ ...BASE, featured: null }).featured).toBe(false);
   });
 

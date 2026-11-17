@@ -21,8 +21,8 @@
  * from every visitor's tab. The server-side rules are in effect-fetcher-retries-server.test.ts.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either } from 'effect';
+import { Effect, Result } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -47,15 +47,15 @@ const stubStatus = (status: number) => {
 
 const runGet = (retries: number) =>
   Effect.runPromise(
-    Effect.either(
+    Effect.result(
       get(URL_UNDER_TEST, { retries, retryDelay: 1 }).pipe(Effect.provide(FetchHttpClient.layer)),
     ),
   );
 
-const expectStatus = (result: Either.Either<unknown, unknown>, status: number) => {
-  if (Either.isRight(result)) throw new Error('expected the request to fail');
-  expect(result.left).toBeInstanceOf(FetcherError);
-  expect((result.left as FetcherError).status).toBe(status);
+const expectStatus = (result: Result.Result<unknown, unknown>, status: number) => {
+  if (Result.isSuccess(result)) throw new Error('expected the request to fail');
+  expect(result.failure).toBeInstanceOf(FetcherError);
+  expect((result.failure as FetcherError).status).toBe(status);
 };
 
 describe('effect-fetcher retries in the browser', () => {
@@ -104,7 +104,7 @@ describe('effect-fetcher retries in the browser', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await runGet(1);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

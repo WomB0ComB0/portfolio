@@ -25,8 +25,8 @@
  *   String(error), its JSON or its responseData.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either, Schema } from 'effect';
+import { Effect, Result, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -63,7 +63,7 @@ function stubUpstream(status: number, body: string, contentType = 'application/j
 async function failingGet(options: FetcherOptions = {}) {
   const seen: unknown[] = [];
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       get(URL_UNDER_TEST, {
         retries: 0,
         retryDelay: 1,
@@ -73,8 +73,8 @@ async function failingGet(options: FetcherOptions = {}) {
       }).pipe(Effect.provide(FetchHttpClient.layer)),
     ),
   );
-  if (Either.isRight(result)) throw new Error('expected the request to fail');
-  return { error: result.left, seen };
+  if (Result.isSuccess(result)) throw new Error('expected the request to fail');
+  return { error: result.failure, seen };
 }
 
 /** A JSON error body of exactly `size` characters. */
@@ -219,7 +219,7 @@ describe('effect-fetcher: onError runs exactly once for a failed request', () =>
     const seen: unknown[] = [];
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         post(URL_UNDER_TEST, { big: 1n } as unknown as Record<string, unknown>, {
           headers: HEADERS,
           onError: (error) => seen.push(error),
@@ -227,7 +227,7 @@ describe('effect-fetcher: onError runs exactly once for a failed request', () =>
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(seen).toHaveLength(1);
     expect(seen[0]).toBeInstanceOf(FetcherError);

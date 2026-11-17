@@ -103,9 +103,13 @@ describe('fetching and decoding featuredRank', () => {
   });
 
   it('reads a missing or null value as absent, never dropping the project', () => {
-    expect(decode(BASE).featuredRank).toBeUndefined();
-    expect(decode({ ...BASE, featuredRank: null }).featuredRank).toBeUndefined();
+    expect(decode(BASE)).not.toHaveProperty('featuredRank');
+    expect(decode({ ...BASE, featuredRank: null })).not.toHaveProperty('featuredRank');
     expect(decode({ ...BASE, featuredRank: null }).title).toBe('Synthetic Project');
+  });
+
+  it('preserves an explicitly undefined rank without inventing a number', () => {
+    expect(decode({ ...BASE, featuredRank: undefined })).toHaveProperty('featuredRank', undefined);
   });
 
   it('still rejects a value that is not a number', () => {

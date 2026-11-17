@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import type { CachedValue } from '@/lib/cache/stale-cache';
@@ -174,12 +174,14 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
           headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com' },
         },
       ),
-      Effect.timeoutFail({
+      Effect.timeoutOrElse({
         duration: UPSTREAM_DEADLINE_MS,
-        onTimeout: () =>
-          new FetcherError(
-            `LeetCode did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
-            LEETCODE_GRAPHQL_URL,
+        orElse: () =>
+          Effect.fail(
+            new FetcherError(
+              `LeetCode did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+              LEETCODE_GRAPHQL_URL,
+            ),
           ),
       }),
       Effect.provide(FetchHttpClient.layer),

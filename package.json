@@ -99,7 +99,6 @@
     "uuid": "^14.0.3"
   },
   "dependencies": {
-    "@effect/platform": "^0.97.3",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/eden": "^1.4.9",
     "@elysiajs/opentelemetry": "^1.4.11",
@@ -132,7 +131,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.17",
-    "effect": "3.22.4",
+    "effect": "4.1.4",
     "elysia": "^1.4.30",
     "elysia-ip": "^2.0.0",
     "elysia-rate-limit": "4.6.3",

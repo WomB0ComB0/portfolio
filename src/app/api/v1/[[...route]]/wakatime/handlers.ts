@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect, pipe, Schema } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
@@ -109,10 +109,15 @@ async function refreshWakaTimeData(state: WakaTimeState): Promise<WakaTimeData> 
       retryDelay: RETRY_DELAY_MS,
       timeout: ATTEMPT_TIMEOUT_MS,
     }),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: UPSTREAM_DEADLINE_MS,
-      onTimeout: () =>
-        new FetcherError(`WakaTime did not answer within ${UPSTREAM_DEADLINE_MS} ms`, WAKATIME_URL),
+      orElse: () =>
+        Effect.fail(
+          new FetcherError(
+            `WakaTime did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+            WAKATIME_URL,
+          ),
+        ),
     }),
     Effect.provide(FetchHttpClient.layer),
   );

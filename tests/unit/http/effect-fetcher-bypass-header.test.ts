@@ -23,8 +23,8 @@
  * Runs in the node environment: on the server `getBaseURL()` is absolute; under jsdom it is ''.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const SECRET = 'test-bypass-secret';

@@ -21,8 +21,8 @@
  * message is built from the status and the body only: no request header can reach it.
  */
 
-import { FetchHttpClient } from '@effect/platform';
-import { Effect, Either } from 'effect';
+import { Effect, Result } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The fetcher only reads env for the Vercel bypass header; skip t3-env validation in tests.
@@ -41,16 +41,16 @@ const failWith = async (status: number, body: string): Promise<FetcherError> => 
     vi.fn(async () => new Response(body, { status, headers: { 'Content-Type': 'text/html' } })),
   );
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       get(URL_UNDER_TEST, {
         retries: 0,
         headers: { 'X-Goog-Api-Key': KEY, Authorization: `Bearer ${TOKEN}` },
       }).pipe(Effect.provide(FetchHttpClient.layer)),
     ),
   );
-  if (Either.isRight(result)) throw new Error('expected the request to fail');
-  expect(result.left).toBeInstanceOf(FetcherError);
-  return result.left as FetcherError;
+  if (Result.isSuccess(result)) throw new Error('expected the request to fail');
+  expect(result.failure).toBeInstanceOf(FetcherError);
+  return result.failure as FetcherError;
 };
 
 describe('effect-fetcher: the message of a non-2xx error', () => {

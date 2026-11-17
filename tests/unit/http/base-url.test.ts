@@ -24,8 +24,8 @@
  * Both helpers are covered: getURL() and the effect fetcher, which resolves relative paths with it.
  */
 
-import { FetchHttpClient } from '@effect/platform';
 import { Effect } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const SECRET = 'test-bypass-secret';

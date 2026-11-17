@@ -22,7 +22,7 @@ import type { CachedValue } from '@/lib/cache/stale-cache';
 import { logger } from '@/utils';
 
 export const GoogleAnalyticsSchema = Schema.Struct({
-  total_pageviews: Schema.Union(Schema.Number, Schema.Literal(0)),
+  total_pageviews: Schema.Union([Schema.Number, Schema.Literal(0)]),
 });
 export type GoogleAnalyticsData = Schema.Schema.Type<typeof GoogleAnalyticsSchema>;
 
