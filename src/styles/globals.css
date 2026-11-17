@@ -44,6 +44,7 @@
   --surface-3: oklch(27% 0.028 285deg);
 
   /* Background-only sticky glass: faint labels retain 4.5:1 even over a white photograph. */
+  --sticky-top-gap: 8px;
   --sticky-canvas: oklch(16% 0.016 285deg / 89%);
   --sticky-tile: oklch(20% 0.02 285deg / 24%);
   --hairline: oklch(30% 0.03 285deg);

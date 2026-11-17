@@ -38,6 +38,7 @@ import {
   EDGE_HAZE_TOP_OPACITY,
   EdgeHaze,
   edgeHazeOpacity,
+  STICKY_FILTER_BAR,
   underBarShift,
 } from '@/components/layout/edge-haze';
 import Layout from '@/components/layout/layout';
@@ -333,6 +334,14 @@ describe('edgeHazeOpacity', () => {
 });
 
 describe('underBarShift', () => {
+  it('tracks the raised sticky edge and releases from that edge when the bar leaves', () => {
+    const geometry = { barHeight: 70, bandTop: 0, bandHeight: 99, stickyInset: 8 };
+    expect(underBarShift({ ...geometry, barTop: 8 })).toBe(21);
+    expect(underBarShift({ ...geometry, barTop: 18 })).toBe(11);
+    expect(underBarShift({ ...geometry, barTop: -27 })).toBe(10.5);
+    expect(underBarShift({ ...geometry, bandTop: 47, barTop: 55 })).toBe(21);
+  });
+
   /** The owner's band at 1440 x 900 (99 px) over /places' 70 px bar, at the top of the window. */
   const at = (barTop: number, { bandTop = 0, bandHeight = 99, barHeight = 70 } = {}) =>
     underBarShift({ barTop, barHeight, bandTop, bandHeight });
@@ -507,6 +516,24 @@ describe('the scroll fade fallback', () => {
     expect(barShift(haze)).toBe('0px');
     expect(observers).toHaveLength(1);
     bar.remove();
+  });
+
+  it('keeps the shared inset when a short-screen bar is unpinned and top resolves to zero', () => {
+    supportsScrollTimeline(false);
+    manualFrames();
+    recordResizeObservers();
+    const bar = stubStickyBar(0);
+    const element = document.querySelector<HTMLElement>(STICKY_FILTER_BAR);
+    if (!element) throw new Error('missing test bar');
+    element.style.position = 'relative';
+    element.style.top = '0px';
+    element.style.setProperty('--sticky-top-gap', '8px');
+    const { container } = render(<EdgeHaze path="/places" />);
+    try {
+      expect(Number.parseFloat(barShift(hazeOf(container)))).toBeCloseTo(22 * (1 - 8 / 70));
+    } finally {
+      bar.remove();
+    }
   });
 
   it('resets the bar shift on navigation without a scroll or size change', () => {

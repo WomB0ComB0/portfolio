@@ -78,6 +78,8 @@ export interface UnderBarGeometry {
   /** The band's top (under the safe-area inset) and its height, before any rise. */
   readonly bandTop: number;
   readonly bandHeight: number;
+  /** Distance from the band start to the raised sticky edge, in pixels. */
+  readonly stickyInset?: number;
 }
 
 /**
@@ -92,10 +94,11 @@ export function underBarShift({
   barHeight,
   bandTop,
   bandHeight,
+  stickyInset = 0,
 }: UnderBarGeometry): number {
-  const rise = Math.max(0, bandHeight - barHeight);
+  const rise = Math.max(0, bandHeight - barHeight - stickyInset);
   if (rise === 0) return 0;
-  const offset = barTop - bandTop;
+  const offset = barTop - bandTop - stickyInset;
   if (offset >= 0) return Math.min(rise, Math.max(0, rise - offset));
   return rise * Math.max(0, 1 + offset / barHeight);
 }
@@ -122,13 +125,19 @@ function writeFade(haze: HTMLElement, top: HTMLElement, bottom: HTMLElement): vo
 
 /** Sets how far the top band's layers rise under the page's sticky bar, 0 with none (underBarShift). */
 function writeBarShift(haze: HTMLElement, top: HTMLElement): void {
-  const box = document.querySelector(STICKY_FILTER_BAR)?.getBoundingClientRect();
+  const bar = document.querySelector(STICKY_FILTER_BAR);
+  const box = bar?.getBoundingClientRect();
+  // Pixel-valued token: an unpinned short-screen bar has top:auto but keeps this timeline inset.
+  const inset = bar
+    ? Number.parseFloat(getComputedStyle(bar).getPropertyValue('--sticky-top-gap'))
+    : 0;
   const shift = box
     ? underBarShift({
         barTop: box.top,
         barHeight: box.height,
         bandTop: top.offsetTop,
         bandHeight: top.offsetHeight,
+        stickyInset: Number.isFinite(inset) ? Math.max(0, inset) : 0,
       })
     : 0;
   haze.style.setProperty(EDGE_HAZE_BAR_SHIFT, `${shift}px`);

@@ -395,13 +395,13 @@ describe('edge-haze.css', () => {
       expect(value(bar, 'view-timeline-axis')).toBe('block');
       // From the safe-area inset to the band's end: the range is the band itself.
       expect(value(bar, 'view-timeline-inset')).toBe(
-        'env(safe-area-inset-top, 0) calc(100% - var(--edge-haze-top) - env(safe-area-inset-top, 0px))',
+        'calc(env(safe-area-inset-top, 0px) + var(--sticky-top-gap)) calc(100% - var(--edge-haze-top) - env(safe-area-inset-top, 0px))',
       );
     });
 
     it("rises by the band's height less the bar's, never below 0, the shortest bar's before it measures", () => {
       expect(value(rule('.edge-haze > .t'), '--edge-haze-rise')).toBe(
-        `max(0px, var(--edge-haze-top) - var(${PINNED_BAR_HEIGHT_PROPERTY}, 3.5rem))`,
+        `max(0px, var(--edge-haze-top) - var(${PINNED_BAR_HEIGHT_PROPERTY}, 3.5rem) - var(--sticky-top-gap))`,
       );
       // 3.5rem is the phone bar (a 40px field and 8px above and below), the shortest there is.
       expect(FILTER_SCOPE_CLASS).toContain('[--filter-bar-h:3.5rem]');
@@ -451,14 +451,14 @@ describe('edge-haze.css', () => {
 
   it('keeps focus, find-in-page and #hash targets clear of both bands', () => {
     expect(value(rule('html'), 'scroll-padding-block')).toBe(
-      'calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px)) calc(var(--edge-haze-bottom) + var(--mobile-bar-total))',
+      'calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px)) calc(var(--edge-haze-bottom) + var(--mobile-bar-total))',
     );
     // From lg the top padding never drops under /projects' sticky FilterBar (74 px), even where a
     // short screen's band is shorter than that.
     // The top band starts below the safe-area inset (an iPad home-screen app in landscape is lg),
     // so the padding counts the inset too (CodeRabbit on #614).
     expect(value(rule('html', [MEDIA_LG]), 'scroll-padding-block')).toBe(
-      'max(calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px)), 4.625rem) var(--edge-haze-bottom)',
+      'max(calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px)), calc(4.625rem + var(--sticky-top-gap))) var(--edge-haze-bottom)',
     );
   });
 

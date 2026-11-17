@@ -490,7 +490,7 @@ test('pauses bars drawn with the real compiled equaliser keyframes under a band'
 
 // /projects' row bar, and /places' slimmer band around its 'bar' tile.
 for (const path of ['/projects', '/places'] as const) {
-  test(`${path}' sticky filter bar ends inside the top band, so its scroll-padding clears the bar too`, async ({
+  test(`${path}' raised sticky filter bar keeps its gap and stays clear of scroll-padding`, async ({
     page,
   }) => {
     // The shortest lg screen gives the shortest band: 77 px.
@@ -513,8 +513,8 @@ for (const path of ['/projects', '/places'] as const) {
     }, HAZE);
     if (edges.barTop === null || edges.barBottom === null) throw new Error('no sticky filter bar');
     expect(edges.barIsFirstSticky, 'another element sticks before the filter bar').toBe(true);
-    expect(edges.barTop, 'the filter bar is not stuck to the top').toBeGreaterThanOrEqual(0);
-    expect(edges.barBottom).toBeLessThanOrEqual(edges.bandEnd);
+    expect(edges.barTop, 'the filter bar keeps its 8px inset').toBeCloseTo(8, 0);
+    expect(edges.barBottom).toBeLessThanOrEqual(edges.bandEnd + 8);
     expect(edges.barBottom).toBeLessThanOrEqual(edges.paddingTop);
   });
 }
@@ -569,15 +569,18 @@ for (const path of STICKY_BAR_PATHS) {
       // Pinned: the band ends at the bar's lower edge and still covers everything under the bar.
       await scrollToY(page, Math.min(natural + 300, await maxScroll(page)));
       const pinned = await stickyBarBox(page);
-      expect(pinned.top, 'the filter bar is not pinned').toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
+      expect(
+        Math.abs(pinned.top - 8),
+        'the filter bar is not pinned at its inset',
+      ).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
       const band = await drawnTopBand(page);
       expect(Math.abs(band.bottom - pinned.bottom)).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
       expect(band.top).toBeLessThanOrEqual(pinned.top);
 
       // Coming up, halfway through the rise, the band already ends at the bar: no jump when it pins.
-      const rise = full - pinned.height;
+      const rise = full - pinned.height - 8;
       if (rise > 2) {
-        await scrollToY(page, natural - Math.round(rise / 2));
+        await scrollToY(page, natural - 8 - Math.round(rise / 2));
         const coming = await stickyBarBox(page);
         expect(coming.top).toBeGreaterThan(EDGE_TOLERANCE_PX);
         expect(Math.abs((await drawnTopBand(page)).bottom - coming.bottom)).toBeLessThanOrEqual(
