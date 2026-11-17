@@ -27,6 +27,7 @@ export const experienceSchema = t.Object({
   company: t.String(),
   position: t.String(),
   employmentType: t.Optional(t.Union([t.String(), t.Null()])),
+  dateNote: t.Optional(t.Union([t.String(), t.Null()])),
   location: t.String(),
   startDate: t.String(),
   endDate: t.Optional(t.Union([t.String(), t.Null()])),

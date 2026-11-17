@@ -138,6 +138,7 @@ export const ExperienceSchema = Schema.Struct({
   _rev: Schema.String,
   position: Schema.String,
   employmentType: Schema.optional(Schema.NullOr(Schema.String)),
+  dateNote: Schema.optional(Schema.NullOr(Schema.String)),
   company: Schema.String,
   companyUrl: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   logo: Schema.optional(Schema.Union(SanityImageSchema, Schema.Null)),

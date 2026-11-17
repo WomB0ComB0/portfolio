@@ -101,6 +101,17 @@ describe('Footer', () => {
     expect(profile).toHaveAttribute('href', 'https://github.com/WomB0ComB0');
   });
 
+  it('offers consulting outside the legal landmark with a spoken new-tab notice', () => {
+    render(<Footer />);
+    const link = screen.getByRole('link', {
+      name: 'Available for consulting (opens in a new tab)',
+    });
+    expect(link).toHaveAttribute('href', 'https://atroviola.com');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByRole('navigation', { name: 'Legal' })).not.toContainElement(link);
+  });
+
   // A separator shows only where its row cannot wrap, so none can end a line or sit alone.
   it('shows the separators only from the width that keeps the links on one line', () => {
     render(<Footer />);

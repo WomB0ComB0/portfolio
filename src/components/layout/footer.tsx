@@ -33,8 +33,8 @@ const FOOTER_CLASS =
   '@container/footer mx-auto mt-auto w-full max-w-shell border-t border-hairline px-(--page-gutter) py-6';
 
 /**
- * Stacked and centred until the footer itself is 52rem wide, where the licence line and the links
- * fit side by side on one line. It answers to the footer's own width, not the viewport's: beside
+ * Stacked and centred until the footer itself is 52rem wide, where the copyright/consulting
+ * group and the legal links fit side by side. It answers to the footer's own width, not the viewport's: beside
  * the desktop rail the column is narrower than the screen.
  */
 const ROW_CLASS =
@@ -70,16 +70,27 @@ export const Footer = memo(() => {
   return (
     <footer className={FOOTER_CLASS}>
       <div className={ROW_CLASS}>
-        <p className={LINE_CLASS}>
-          <Link className={LINK_CLASS} href="/licenses">
-            {SITE_LICENSE}
-          </Link>{' '}
-          2024–present &#169;{' '}
-          <a className={LINK_CLASS} href={profile.github.url} target="_blank" rel="noreferrer">
-            {profile.name}
+        <div className="flex flex-col items-center gap-2 @min-[52rem]/footer:items-start">
+          <p className={LINE_CLASS}>
+            <Link className={LINK_CLASS} href="/licenses">
+              {SITE_LICENSE}
+            </Link>{' '}
+            2024–present &#169;{' '}
+            <a className={LINK_CLASS} href={profile.github.url} target="_blank" rel="noreferrer">
+              {profile.name}
+              <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
+            </a>
+          </p>
+          <a
+            className={LINK_CLASS}
+            href={profile.consultingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Available for consulting
             <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
           </a>
-        </p>
+        </div>
 
         <div className={END_ROW_CLASS}>
           <nav aria-label={NAV_LABEL} className={NAV_CLASS}>

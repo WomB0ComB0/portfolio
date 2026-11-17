@@ -390,6 +390,14 @@ export function RoleStop({ stop }: RoleStopProps): ReactElement {
             </Link>
           </h3>
           <StopOrganization stop={stop} />
+          {row.dateNote ? (
+            <p
+              data-role-date-note=""
+              className="max-w-[68ch] text-body-sm text-muted-foreground [overflow-wrap:anywhere]"
+            >
+              {row.dateNote}
+            </p>
+          ) : null}
           <LinkedProse parts={prose.sentence} className={SENTENCE_CLASS[weight]} />
           <RoleProgression
             id={`role-${row.id}-progression`}

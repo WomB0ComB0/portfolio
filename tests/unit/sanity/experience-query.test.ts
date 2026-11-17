@@ -28,6 +28,20 @@ for (const [name, query] of [
   ['detail', experienceByIdQuery],
 ] as const) {
   describe(`experience ${name} projection`, () => {
+    it.each([undefined, null, 'Dates cover freelance work.'])(
+      'preserves an optional date note through GROQ and decoding: %j',
+      async (dateNote) => {
+        const source = { ...makeExperience(), ...(dateNote === undefined ? {} : { dateNote }) };
+        const value = await evaluate(parse(query), {
+          dataset: [source],
+          params: { id: source._id },
+        });
+        const result = await value.get();
+        const decoded = decode(Array.isArray(result) ? result[0] : result);
+        expect(decoded.dateNote).toBe(dateNote ?? null);
+      },
+    );
+
     it.each([
       ['omitted', undefined],
       ['explicit null', null],

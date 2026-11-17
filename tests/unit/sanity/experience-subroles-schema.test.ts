@@ -106,6 +106,7 @@ describe('optional nested experience schema', () => {
           }
         | undefined;
       expect(schema.fields.find((f) => f.name === 'employmentType')?.type).toBe('string');
+      expect(schema.fields.find((f) => f.name === 'dateNote')?.type).toBe('string');
       expect(field?.type).toBe('array');
       expect(field?.of[0]?.name).toBe('experienceSubRole');
       expect(field?.of[0]?.type).toBe('object');
@@ -150,6 +151,7 @@ describe('optional nested experience schema', () => {
       ...makeExperience(),
       location: 'Remote',
       employmentType: 'Contract',
+      dateNote: 'Dates cover freelance work.',
       responsibilities: [],
       technologies: [],
       subRoles: [{ ...role, current: false, employmentType: 'Part-time' }],
@@ -159,6 +161,7 @@ describe('optional nested experience schema', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.employmentType).toBe('Contract');
+    expect(body.dateNote).toBe(payload.dateNote);
     expect(body.subRoles).toEqual(payload.subRoles);
   });
 });
