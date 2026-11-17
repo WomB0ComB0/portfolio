@@ -81,6 +81,43 @@ function renderIndex(experience: typeof parent) {
 afterEach(cleanup);
 
 describe('sub-role progression in the existing experience pages', () => {
+  it.each(['index', 'detail'] as const)(
+    'renders optional parent and child employment types in existing %s metadata',
+    (view) => {
+      const experience = {
+        ...grouped,
+        employmentType: ' Contract ',
+        subRoles: grouped.subRoles.map((role, index) => ({
+          ...role,
+          employmentType: index === 0 ? 'Full-time' : 'Freelance',
+        })),
+      };
+      const { container } =
+        view === 'index'
+          ? renderIndex(experience)
+          : render(
+              <RoleDetail
+                experience={experience}
+                experiences={[experience]}
+                projects={[]}
+                today={TODAY}
+              />,
+            );
+      const parentMeta = container.querySelector(
+        view === 'index' ? '[data-role-meta]' : '[data-role-facts]',
+      );
+      expect(parentMeta).toHaveTextContent('Contract');
+      const lead = container.querySelector('[data-sub-role-key="lead"] [data-sub-role-period]');
+      const engineer = container.querySelector(
+        '[data-sub-role-key="engineer"] [data-sub-role-period]',
+      );
+      expect(lead).toHaveTextContent('Freelance');
+      expect(engineer).toHaveTextContent('Full-time');
+      expect(lead).not.toHaveTextContent('Contract');
+      expect(parentMeta?.textContent).not.toMatch(/·\s*·/u);
+    },
+  );
+
   it('adds compact dated children under one index engagement without repeating full descriptions', () => {
     const { container } = renderIndex(grouped);
     expect(container.querySelectorAll('[data-role-row]')).toHaveLength(1);
