@@ -109,7 +109,7 @@ graph TD
 | **Runtime & Package Manager**  | Bun (`>=1.4.0`), Node.js (`>=24.15.0`)                                       | Dependency management, script execution, and local dev runtime                |
 | **Framework**                  | Next.js 16, React 19                                                         | App Router, Server Components, dynamic code splitting, and PWA support        |
 | **API Engine**                 | Elysia.js 1.4, `@elysiajs/eden`                                              | Type-safe REST handlers, OpenTelemetry spans, Server-Timing headers, and CORS |
-| **Data Pipeline & Validation** | Effect (`@effect/platform`, `effect/Schema`), Zod 4, ArkType                 | Typed HTTP client pipelines, retry policies, and strict schema decoding       |
+| **Data Pipeline & Validation** | Effect 4 (`effect/http`, `effect/Schema`), Zod 4, ArkType                    | Typed HTTP client pipelines, retry policies, and strict schema decoding       |
 | **State & Caching**            | TanStack React Query v5, React state/context, Upstash Redis                  | Query caching, local UI state, and server-side API rate limits and ban list   |
 | **Styling & Motion**           | Tailwind CSS v4, Radix UI, Motion 14                                         | Component primitives, animations, and background lighting                     |
 | **CMS & Database**             | Sanity v6 (`@sanity/client`), Firebase v13 (`firebase`, `firebase-admin` 14) | Portfolio content management and authenticated guestbook entries              |
