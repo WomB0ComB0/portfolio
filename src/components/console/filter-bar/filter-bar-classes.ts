@@ -35,26 +35,26 @@
  * year bars below it (FilterBar.Root measures it; these are the values before it has, and
  * without JavaScript): 3.5rem on a phone (a 40px field and 8px above and below), 4rem from 48rem.
  */
-export const FILTER_SCOPE_CLASS = '[--filter-bar-h:3.5rem] @min-[48rem]/page:[--filter-bar-h:4rem]';
+export const FILTER_SCOPE_CLASS =
+  '[--filter-bar-h:3.5rem] [--filter-stack-gap:var(--sticky-top-gap)] @min-[48rem]/page:[--filter-bar-h:4rem]';
 
 /** The <search> landmark. */
 export const BAR_CLASS = 'block min-w-0';
 /**
- * Sticky: under the top edge, above the edge haze (z-20) and below the rail's flyouts (z-40). The
- * column's width, as the year bars and labels under it are, so stuck they read as one bar. Painted
+ * Sticky: inset below the top edge, above the edge haze (z-20) and below the rail's flyouts (z-40). The
+ * column's width, with rounded backplates and a matching gap above any table header below it. Painted
  * (a translucent backplate and a hairline under it) only while stuck (globals.css stuck-canvas): at rest the
  * page's glow shows through.
  */
 export const BAR_STICKY_CLASS =
-  'sticky top-[env(safe-area-inset-top,0px)] z-30 stuck-canvas py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 rounded-tile stuck-canvas py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
 
 /** The form: one row. From 48rem the search keeps its width and the chips take the rest. */
 export const FORM_ROW_CLASS =
   'flex min-w-0 items-center gap-2 @min-[48rem]/page:items-start @min-[48rem]/page:gap-4';
 /**
- * Sticky in `bar` density (/places): the same bar in a slimmer band, the same at every width, so
- * the stuck tile ends inside the edge haze's top band and html's scroll-padding (77px and 74px at
- * 1024x640). From 48rem: 4 + a 1px border + 8 + the 44px row (the scroll chips' slot) + 8 + 1 + 4
+ * Sticky in `bar` density (/places): the same bar in a slimmer band, the same at every width.
+ * The haze and scroll padding account for the shared raised inset. From 48rem: 4 + a 1px border + 8 + the 44px row (the scroll chips' slot) + 8 + 1 + 4
  * = 70px. Below 48rem the row is the 40px field, so 66px.
  * - Stuck, the band paints its translucent backplate, no line: the tile's own border is the edge (row
  *   density's hairline would run square under the tile's rounded corners, a second line).
@@ -65,7 +65,7 @@ export const FORM_ROW_CLASS =
  *   cover a third of the screen or more. From 550px the band is at least 77px.
  */
 export const BAR_STICKY_TILE_CLASS =
-  'sticky top-[env(safe-area-inset-top,0px)] z-30 stuck-canvas py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 rounded-tile stuck-canvas py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
 
 /**
  * The sticky band for a density: the slimmer one around the `bar` tile, else the row's. Row

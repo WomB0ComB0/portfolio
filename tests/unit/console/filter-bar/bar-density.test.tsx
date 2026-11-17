@@ -64,6 +64,17 @@ function renderBar(density?: 'row' | 'bar'): HTMLElement {
 }
 
 describe("FilterBar.Root density='bar'", () => {
+  it('rounds both sticky densities and leaves a shared gap below the screen edge', () => {
+    for (const density of ['bar', 'row'] as const) {
+      expect(classesOf(renderBar(density))).toEqual(
+        expect.arrayContaining([
+          'rounded-tile',
+          'top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))]',
+        ]),
+      );
+    }
+  });
+
   it('marks the landmark with its density and stickiness', () => {
     const bar = renderBar('bar');
 
@@ -84,7 +95,7 @@ describe("FilterBar.Root density='bar'", () => {
         'sticky',
         'z-30',
         'stuck-canvas',
-        'top-[env(safe-area-inset-top,0px)]',
+        'top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))]',
       ]),
     );
   });

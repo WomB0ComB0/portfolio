@@ -76,7 +76,7 @@ export const INDEX_GROUP_CLASS = 'flex min-w-0 flex-col';
 
 /** The year bar's first line: the year (20px/600) and its count. */
 export const INDEX_YEAR_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--filter-bar-h,0px))] z-[25] flex h-10 items-end gap-2.5 stuck-canvas px-2 pb-1 @max-[40rem]/page:border-b @max-[40rem]/page:border-hairline-strong @min-[40rem]/page:px-3';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap)+var(--filter-bar-h,0px)+var(--filter-stack-gap,0px))] z-[25] rounded-t-tile @max-[40rem]/page:rounded-b-tile flex h-10 items-end gap-2.5 stuck-canvas px-2 pb-1 @max-[40rem]/page:border-b @max-[40rem]/page:border-hairline-strong @min-[40rem]/page:px-3';
 /**
  * For a heading longer than a year ("Top repositories", with a qualifier): on a phone page the
  * bar grows to fit, the count wrapping under the heading, and keeps the room above it that the
@@ -102,7 +102,7 @@ export const INDEX_TABLE_CLASS = 'w-full table-fixed border-separate border-spac
 export const INDEX_THEAD_CLASS = 'hidden @min-[40rem]/page:table-header-group';
 /** A column label: sticky right under the year (and one z under it), over a strong hairline. */
 export const INDEX_TH_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--filter-bar-h,0px)+2.5rem)] z-[24] h-8 overflow-hidden text-ellipsis whitespace-nowrap border-b border-hairline-strong stuck-canvas px-3 pt-1 pb-2 align-bottom tile-label text-faint';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap)+var(--filter-bar-h,0px)+var(--filter-stack-gap,0px)+2.5rem)] z-[24] h-8 overflow-hidden text-ellipsis whitespace-nowrap border-b border-hairline-strong stuck-canvas px-3 pt-1 pb-2 align-bottom tile-label text-faint';
 
 /**
  * A row. The stretched title link's box (relative, plus a transform: Safari ignores position on
@@ -114,7 +114,7 @@ export const INDEX_TH_CLASS =
  * they carry it too.
  */
 export const INDEX_ROW_CLASS =
-  'group/row relative [transform:translate(0)] h-10 scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))] [&_:is(a,button,summary)]:scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))] transition-[background-color] duration-(--motion-base) ease-effect hover:bg-surface-1 hover:duration-(--motion-instant) focus-within:bg-surface-1 [[data-variant=open]_&]:h-16 @max-[40rem]/page:h-15 @max-[40rem]/page:[[data-variant=open]_&]:h-15';
+  'group/row relative [transform:translate(0)] h-10 scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+var(--filter-stack-gap,0px)+4.5rem-var(--edge-haze-top,0px)))] [&_:is(a,button,summary)]:scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+var(--filter-stack-gap,0px)+4.5rem-var(--edge-haze-top,0px)))] transition-[background-color] duration-(--motion-base) ease-effect hover:bg-surface-1 hover:duration-(--motion-instant) focus-within:bg-surface-1 [[data-variant=open]_&]:h-16 @max-[40rem]/page:h-15 @max-[40rem]/page:[[data-variant=open]_&]:h-15';
 
 /**
  * Every cell: one clipped line unless its column wraps (IndexColumn's `wrap`); ledger rows are
@@ -162,6 +162,20 @@ export const indexColClass = ({ priority = 0, width = '' }: IndexColumn): string
 /** A column label's classes. */
 export const indexHeaderClass = ({ align = 'start', priority = 0 }: IndexColumn): string =>
   [INDEX_TH_CLASS, ALIGN[align], CELL_PRIORITY[priority]].filter(Boolean).join(' ');
+
+/** Round only the outside corners of the visible label row, never every individual cell. */
+export function indexHeaderCornerClass(columns: readonly IndexColumn[], index: number): string {
+  const firstMedium = columns.findIndex((column) => (column.priority ?? 0) <= 1);
+  const lastMedium = columns.findLastIndex((column) => (column.priority ?? 0) <= 1);
+  return [
+    index === firstMedium && '@min-[40rem]/page:@max-[48rem]/page:rounded-bl-tile',
+    index === lastMedium && '@min-[40rem]/page:@max-[48rem]/page:rounded-br-tile',
+    index === 0 && '@min-[48rem]/page:rounded-bl-tile',
+    index === columns.length - 1 && '@min-[48rem]/page:rounded-br-tile',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 
 /** A body cell's classes for its column. */
 export const indexCellClass = ({

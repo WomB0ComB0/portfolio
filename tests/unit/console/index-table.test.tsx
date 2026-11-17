@@ -114,6 +114,18 @@ function LongHeadingGroup(props: {
 }
 
 describe('a year group', () => {
+  it('rounds the header group outline, including the last visible responsive column', () => {
+    render(<Table />);
+    const heading = classesOf(screen.getByRole('heading', { level: 2 }));
+    const headers = screen.getAllByRole('columnheader').map(classesOf);
+    expect(heading).toEqual(
+      expect.arrayContaining(['rounded-t-tile', '@max-[40rem]/page:rounded-b-tile']),
+    );
+    expect(headers[0]).toContain('@min-[40rem]/page:@max-[48rem]/page:rounded-bl-tile');
+    expect(headers[2]).toContain('@min-[40rem]/page:@max-[48rem]/page:rounded-br-tile');
+    expect(headers[3]).toContain('@min-[48rem]/page:rounded-br-tile');
+  });
+
   it('is a section with its h2, and a real table named by it', () => {
     render(<Table />);
     const heading = screen.getByRole('heading', { level: 2 });
@@ -164,11 +176,13 @@ describe('a year group', () => {
     // year's end they slide under the year bar instead of over its year.
     expect(heading).toContain('z-[25]');
     expect(header).toContain('z-[24]');
-    expect(heading).toContain('top-[calc(env(safe-area-inset-top,0px)+var(--filter-bar-h,0px))]');
+    expect(heading).toContain(
+      'top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap)+var(--filter-bar-h,0px)+var(--filter-stack-gap,0px))]',
+    );
     // The labels stick right under the year: the heading's own height (h-10, 2.5rem) lower.
     expect(heading).toContain('h-10');
     expect(header).toContain(
-      'top-[calc(env(safe-area-inset-top,0px)+var(--filter-bar-h,0px)+2.5rem)]',
+      'top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap)+var(--filter-bar-h,0px)+var(--filter-stack-gap,0px)+2.5rem)]',
     );
     expect(header).toContain('border-hairline-strong');
   });
@@ -221,7 +235,7 @@ describe('a row', () => {
     render(<Table />);
     const row = classesOf(document.querySelector('tr[data-index-row]'));
     const clearance =
-      'scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+4.5rem-var(--edge-haze-top,0px)))]';
+      'scroll-mt-[max(0px,calc(var(--filter-bar-h,0px)+var(--filter-stack-gap,0px)+4.5rem-var(--edge-haze-top,0px)))]';
 
     // Focus scrolling reads the focused element's own scroll-margin, never its row's.
     expect(row).toContain(clearance);

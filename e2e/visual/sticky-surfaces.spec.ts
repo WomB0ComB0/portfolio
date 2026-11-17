@@ -48,6 +48,13 @@ async function surfaces(page: Page) {
         context.fillStyle = plate.backgroundColor;
         context.fillRect(0, 0, 1, 1);
         return {
+          tag: element.tagName,
+          top: box.top,
+          bottom: box.bottom,
+          tl: plate.borderTopLeftRadius,
+          tr: plate.borderTopRightRadius,
+          bl: plate.borderBottomLeftRadius,
+          br: plate.borderBottomRightRadius,
           pinned:
             style.position === 'sticky' && Math.abs(box.top - Number.parseFloat(style.top)) < 2,
           alpha: (context.getImageData(0, 0, 1, 1).data[3] ?? 0) / 255,
@@ -60,6 +67,28 @@ async function surfaces(page: Page) {
       })
       .filter((surface) => surface.pinned);
   });
+}
+
+async function expectFloatingShape(page: Page): Promise<void> {
+  const pinned = await surfaces(page);
+  const bar = pinned.find((surface) => surface.tag === 'SEARCH');
+  const heading = pinned.find((surface) => surface.tag === 'H2');
+  if (bar) {
+    expect(bar.top).toBeCloseTo(8, 0);
+    expect([bar.tl, bar.tr, bar.bl, bar.br]).toEqual(['12px', '12px', '12px', '12px']);
+  }
+  if (heading) {
+    expect(heading.top).toBeCloseTo(bar ? bar.bottom + 8 : 8, 0);
+    expect([heading.tl, heading.tr]).toEqual(['12px', '12px']);
+    const labels = pinned.filter((surface) => surface.tag === 'TH');
+    if (labels.length) {
+      expect(labels[0]?.bl).toBe('12px');
+      expect(labels.at(-1)?.br).toBe('12px');
+    } else {
+      expect([heading.bl, heading.br]).toEqual(['12px', '12px']);
+    }
+  }
+  expect(bar || heading).toBeTruthy();
 }
 
 for (const route of ['/spotify', '/media', '/certifications', '/places/photos']) {
@@ -75,6 +104,7 @@ for (const route of ['/spotify', '/media', '/certifications', '/places/photos'])
         (await surfaces(page)).every((s) => s.alpha > 0 && s.alpha < 1 && s.blur === 'blur(12px)'),
       )
       .toBe(true);
+    await expectFloatingShape(page);
     for (const surface of await surfaces(page)) {
       expect(surface.textFilter).toBe('none');
       expect(surface.containerBlur).toBe('none');
@@ -92,6 +122,18 @@ for (const route of ['/spotify', '/media', '/certifications', '/places/photos'])
       await search.focus();
       await expect(search).toBeFocused();
     }
+  });
+}
+
+for (const width of [390, 760]) {
+  test(`Media at ${width}px: rounded visible edges and gaps survive collapsed columns`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await open(page, '/media');
+    await page.evaluate(() => window.scrollTo({ top: 1100, behavior: 'instant' }));
+    await expect.poll(async () => (await surfaces(page)).length).toBeGreaterThan(0);
+    await expectFloatingShape(page);
   });
 }
 

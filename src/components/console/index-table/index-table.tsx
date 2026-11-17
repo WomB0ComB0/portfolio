@@ -43,6 +43,7 @@ import {
   type IndexVariant,
   indexColClass,
   indexHeaderClass,
+  indexHeaderCornerClass,
 } from './index-table-classes';
 
 /** When the year bar and the column labels stay pinned while their rows scroll. */
@@ -90,9 +91,9 @@ export function IndexGroup({
   children,
 }: IndexGroupProps): ReactElement {
   const unpin = pin === 'tall-screens' && INDEX_UNPIN_SHORT_CLASS;
-  /** A column label's classes; the default string is the kit's own, untouched. */
-  const labelClass = (column: IndexColumn): string =>
-    unpin ? `${indexHeaderClass(column)} ${unpin}` : indexHeaderClass(column);
+  /** Visible outer corners complete the heading's rounded backplate. */
+  const labelClass = (column: IndexColumn, index: number): string =>
+    cn(indexHeaderClass(column), indexHeaderCornerClass(columns, index), unpin);
   return (
     <section data-index-part="group" className={INDEX_GROUP_CLASS}>
       <h2
@@ -116,8 +117,8 @@ export function IndexGroup({
         </colgroup>
         <thead className={INDEX_THEAD_CLASS}>
           <tr>
-            {columns.map((column) => (
-              <th key={column.id} scope="col" className={labelClass(column)}>
+            {columns.map((column, index) => (
+              <th key={column.id} scope="col" className={labelClass(column, index)}>
                 {column.label}
               </th>
             ))}

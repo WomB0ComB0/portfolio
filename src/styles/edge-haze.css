@@ -97,10 +97,15 @@
   --edge-haze-fade-end: linear-gradient(to top, transparent 0%, #000 50%, #000 100%, #000 100%);
 
   /*
-   * How far the band's layers rise under a pinned FilterBar: the band's height less the bar's,
-   * never below 0. The bar writes its height (bar.tsx); before it has, the shortest bar's 3.5rem.
+   * How far the band's layers rise under a pinned FilterBar: the band's height less the bar
+   * and its raised inset, never below 0. The bar writes its height (bar.tsx); before it has, the shortest bar's 3.5rem.
    */
-  --edge-haze-rise: max(0px, var(--edge-haze-top) - var(--filter-bar-pinned-h, 3.5rem));
+  --edge-haze-rise: max(
+    0px,
+    var(--edge-haze-top) -
+    var(--filter-bar-pinned-h, 3.5rem) -
+    var(--sticky-top-gap)
+  );
 
   top: env(safe-area-inset-top, 0);
   height: var(--edge-haze-top);
@@ -369,7 +374,7 @@
 
 /*
  * Under a pinned FilterBar (/places, /places/photos, /projects, /certifications, /media). The bar
- * holds the top edge over the haze, opaque, but is shorter than the band, whose lower part would
+ * sits below the top edge with a rounded translucent backplate, but is shorter than the band, whose lower part would
  * reach past it and blur the first row under it. So while a sticky bar is in the band, the band's
  * layers rise with it: 1:1 as the bar comes up, so the band ends at the bar's lower edge, then
  * held there while the bar is pinned, and back down as the bar leaves at the end of its list.
@@ -393,7 +398,7 @@
 [data-filter-part="bar"][data-sticky] {
   view-timeline-name: --filter-bar;
   view-timeline-axis: block;
-  view-timeline-inset: env(safe-area-inset-top, 0)
+  view-timeline-inset: calc(env(safe-area-inset-top, 0px) + var(--sticky-top-gap))
     calc(100% - var(--edge-haze-top) - env(safe-area-inset-top, 0px));
 }
 
@@ -499,19 +504,25 @@
 }
 
 /*
- * Focus, find-in-page and #hash targets stop clear of both bands (and of the bar on phones). The
- * site set no scroll-padding before. The only sticky header, /projects' FilterBar (lg:top-4), ends
- * 74px (4.625rem) down. From lg the top padding is never less than that, so it also clears the
- * bar on a short screen whose band is shorter (e2e/visual/edge-haze.spec.ts checks 1024 x 640).
+ * Focus, find-in-page and hash targets clear the haze plus the raised sticky edge. Table rows
+ * add the remaining filter/header stack through their scroll margin. The desktop minimum keeps
+ * compact bars clear on short screens too; the bottom padding still clears the phone navigation.
  */
 html {
-  scroll-padding-block: calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px))
+  scroll-padding-block: calc(
+      var(--edge-haze-top) +
+      var(--sticky-top-gap) +
+      env(safe-area-inset-top, 0px)
+    )
     calc(var(--edge-haze-bottom) + var(--mobile-bar-total));
 }
 
 @media (width >= 64rem) {
   html {
-    scroll-padding-block: max(calc(var(--edge-haze-top) + env(safe-area-inset-top, 0px)), 4.625rem)
+    scroll-padding-block: max(
+        calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px)),
+        calc(4.625rem + var(--sticky-top-gap))
+      )
       var(--edge-haze-bottom);
   }
 }
