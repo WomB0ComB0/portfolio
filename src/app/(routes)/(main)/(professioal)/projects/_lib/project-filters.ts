@@ -30,16 +30,10 @@ import { OTHER_KIND, type ProjectLookups } from './project-schema';
 import { kindSlug, kindsOf, techKey } from './project-text';
 
 export {
-  FACET_VALUE_MAX_LENGTH,
   OTHER_KIND,
-  PROJECTS_PATH,
-  type ProjectFacet,
   type ProjectFilterItem,
   type ProjectLookups,
-  type ProjectSchema,
-  type ProjectState,
   projectFilters,
-  QUERY_MAX_LENGTH,
 } from './project-schema';
 
 /** What the lookups are built from: each project's category and technologies. */

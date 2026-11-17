@@ -41,15 +41,14 @@
   catch-all route (`src/app/api/v1/[[...route]]/route.ts`) is an **Elysia.js** server instance,
   handling rate limiting, CORS, and OpenTelemetry tracing for internal API calls. Security headers
   for `/api` come from `next.config.ts` (`src/config/security-headers.ts`), not from Elysia.
-- **Parallel Routes/Modals**: Uses Next.js Parallel Routes (`@modal`) to display detailed views
-  (e.g., `/experience/[id]`, `/projects/[id]`) as modals that overlay the current page.
-- **Providers**: `src/providers/Providers.tsx` composes all React context providers (theme, query,
-  events, liveblocks, etc.).
-- **State Management**: Uses **Jotai** (for Firebase Auth, Firestore real-time data) and **Zustand**
-  (for simple client-side state, persisted to localStorage).
-- **Data Fetching**: Uses **@tanstack/react-query** for client-side data fetching, with
-  `lib/fetcher.ts` as the main Axios-based utility.
-- **Validation**: **Zod** is used extensively for API request/response validation.
+- **Detail Pages/Dialogs**: Experience, project and place details are normal routes. Photo/video
+  dialogs are route-local or shared console components; they do not rely on parallel `@modal` routes.
+- **Providers**: Application wrappers live in `src/app/_providers/` and `src/providers/`.
+- **State Management**: Uses **TanStack React Query** for remote client data and React state/hooks
+  for local UI and authentication. Firebase Auth and Firestore support the guestbook.
+- **Data Fetching**: Server pages call server loaders directly. Client queries use the Effect
+  DataLoader and fetch clients in `src/lib/http-clients/`; live polls use the lightweight JSON reader.
+- **Validation**: Preserve the existing Effect Schema, Zod and Elysia validation boundaries.
 - **UI & Styling**: Uses base UI components from `src/components/ui/` (built in the **shadcn/ui**
   style) and custom components like `magicui/` for effects. The fonts are **Geist** and **Geist
   Mono**, loaded with `next/font` in `src/app/fonts.ts`; the Live Console design tokens and
@@ -65,10 +64,10 @@
 - **Dev**: `bun run dev` (starts Next.js dev server).
 - **Testing (Unit)**: `bun run test` (uses **Vitest** for unit tests, configured in
   `vitest.config.ts`).
-- **Testing (E2E)**: `bun run e2e:ci` (uses **Playwright** for End-to-End tests in `src/e2e/`).
+- **Testing (E2E)**: `bun run e2e:ci` (uses **Playwright** for End-to-End tests in `e2e/`).
 - **Lint/Format**: `bun run lint` (uses **Biome** for JavaScript/TypeScript and **Stylelint** for
   CSS/SCSS).
-- **Typecheck**: `bun run typecheck`.
+- **Typecheck**: `bun run type`.
 - **Bundle Analysis**: `bun run analyze` (runs build + `report-bundle-size.js`).
 
 ## Project-Specific Conventions
@@ -77,10 +76,10 @@
   routes in the catch-all. Implement caching and Zod validation where possible.
 - **Client/Server Separation**: Use `'use client'` at the top of client components. Server-only code
   (e.g., `lib/blogs.ts`, `lib/get-repos.ts`) must not be imported into client components.
-- **State**: Use Jotai for async state (Firebase, Firestore), Zustand for simple global client
-  state.
+- **State**: Reuse the existing TanStack Query and React state/auth hooks; there is no Jotai or
+  Zustand dependency.
 - **Styling**: Tailwind CSS is used throughout. Use `cn` from `lib/utils.ts` for class merging.
-- **Metadata/SEO**: Use helpers from `utils/meta.ts` (`constructMetadata`, `constructViewport`) to
+- **Metadata/SEO**: Use helpers from `src/utils/seo/meta.ts` (`constructMetadata`, `constructViewport`) to
   manage page metadata.
 - **Third-party keys**: Managed via environment variables, not hardcoded.
 

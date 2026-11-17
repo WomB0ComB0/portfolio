@@ -39,14 +39,14 @@ import type { LimiterKind, Limiters, RateLimitResult } from './rate-limit.types'
 const log = Logger.getLogger('ApiGuard');
 
 /** How long the guard skips Redis once lookups keep failing or timing out. */
-export const GUARD_COOLDOWN_MS = 30_000;
+const GUARD_COOLDOWN_MS = 30_000;
 
 /**
  * Consecutive failed or timed-out lookups before the guard skips Redis for the cooldown. One slow
  * lookup, such as a new instance's first connection, lets that request through without turning
  * the checks off for everyone else on the instance.
  */
-export const GUARD_FAILURE_THRESHOLD = 2;
+const GUARD_FAILURE_THRESHOLD = 2;
 
 /** Rate-limit identifier for requests whose client IP header is not a valid address. */
 export const UNKNOWN_CLIENT_KEY = 'unknown';

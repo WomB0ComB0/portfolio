@@ -60,7 +60,7 @@ import styles from './photo-grid.module.css';
 import type { OpenPhoto, PlacesById } from './photo-types';
 
 /** The grid shows this many photos before "Show all". */
-export const GRID_FIRST = 48;
+const GRID_FIRST = 48;
 /** Two columns on a phone, 240 px cards wider (the source covers 480 x 360). */
 const THUMB_SIZES = '(max-width: 639px) 50vw, 240px';
 /** A contact sheet's tile grows to about 400 px (a wide shot on a 1440 window). */

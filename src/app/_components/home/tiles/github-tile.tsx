@@ -64,9 +64,9 @@ import {
   TileUnavailable,
 } from './tile-states';
 
-export const GITHUB_TILE_LABEL = 'GitHub';
+const GITHUB_TILE_LABEL = 'GitHub';
 /** After the figure: the period is part of the unit, not the label. */
-export const CONTRIBUTIONS_UNIT = `contributions in ${ACTIVITY_WEEKS} weeks`;
+const CONTRIBUTIONS_UNIT = `contributions in ${ACTIVITY_WEEKS} weeks`;
 
 const TILE_CLASS = 'gap-3';
 /**

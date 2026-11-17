@@ -14,37 +14,8 @@
  * limitations under the License.
  */
 
-// API function exports
-export {
-  getCacheOptions,
-  getCertifications,
-  getExperiences,
-  getFeaturedProjects,
-  getProjectBySlug,
-  getProjects,
-  revalidateTags,
-} from './api';
-// Client exports
-export {
-  client,
-  clientWithToken,
-  sanityClient,
-  sanityClientWithToken,
-  sanityConfig,
-  sanityFetch,
-  sanityFetchWithToken,
-  urlFor,
-} from './client';
-
-// Query exports
-export {
-  certificationByIdQuery,
-  certificationsQuery,
-  contentCountsQuery,
-  experienceByIdQuery,
-  experiencesQuery,
-  featuredProjectsQuery,
-  projectBySlugQuery,
-  projectsQuery,
-  skillCategoriesQuery,
-} from './queries';
+// Preserve the existing compatibility barrel's module evaluation while callers import
+// their actual APIs directly. In particular, client.ts initializes the shared Sanity clients.
+import './api';
+import './client';
+import './queries';

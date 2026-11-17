@@ -46,7 +46,7 @@ import { hasDestination } from '@/components/console/tile-link';
 import { cn } from '@/lib/utils';
 
 /** `ready` and `stale` show the value; `idle` means there is nothing to show right now. */
-export type StatTileState = 'ready' | 'loading' | 'idle' | 'error' | 'stale';
+type StatTileState = 'ready' | 'loading' | 'idle' | 'error' | 'stale';
 /**
  * The figure's tier, by the tile's size class and never the viewport: sm 28px (a slim tile such
  * as the site index), md 36px (an S stat tile, the default), lg 48px (an M tile). `fit` is md
@@ -54,12 +54,12 @@ export type StatTileState = 'ready' | 'loading' | 'idle' | 'error' | 'stale';
  * tile's width, md's 36px wherever the tile has the room and never under 24px, so five digits
  * and their unit stay on one line.
  */
-export type StatTileSize = 'sm' | 'md' | 'lg' | 'fit';
-export type StatTileLabelElement = 'p' | 'h2' | 'h3';
-export type StatTileAlign = 'end' | 'start';
+type StatTileSize = 'sm' | 'md' | 'lg' | 'fit';
+type StatTileLabelElement = 'p' | 'h2' | 'h3';
+type StatTileAlign = 'end' | 'start';
 
 /** A change to show beside the figure, e.g. +12 this week. */
-export interface StatDelta {
+interface StatDelta {
   value: number;
   /** Words after the amount, e.g. 'this week'. */
   period?: string;

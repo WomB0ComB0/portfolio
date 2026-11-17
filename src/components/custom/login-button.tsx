@@ -73,4 +73,3 @@ export const LoginButton = ({ signInMethod, disabled, ...props }: LoginButtonPro
   );
 };
 LoginButton.displayName = 'LoginButton';
-export default LoginButton;

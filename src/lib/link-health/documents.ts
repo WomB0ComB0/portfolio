@@ -20,8 +20,8 @@ import { createHash } from 'node:crypto';
 import { type LinkRecord, readRecord } from './state';
 import { normalizeLinkUrl } from './url';
 
-export const HEALTH_DOCUMENT_TYPE = 'linkHealth';
-export const HEALTH_DOCUMENT_VERSION = 1;
+const HEALTH_DOCUMENT_TYPE = 'linkHealth';
+const HEALTH_DOCUMENT_VERSION = 1;
 export const HEALTH_DOCUMENT_QUERY = `*[_type == "linkHealth" && _id in $ids]{
   _id, _rev, _type, schemaVersion, url, kind, status, httpStatus, checkedAt, nextCheckAt, missingSince
 }`;

@@ -57,7 +57,7 @@ const RELOAD_LATEST_MS = 250;
  * list back at the top). So the page is laid out at its new height at once, and the reload waits
  * for the frame after the event, or RELOAD_LATEST_MS when no frame comes.
  */
-export function reloadKeepingScroll(): void {
+function reloadKeepingScroll(): void {
   const root = document.documentElement;
   root.style.overflowAnchor = 'none';
   root.style.minHeight = RELOAD_HEIGHT;

@@ -62,8 +62,8 @@ import {
 import { feedRows, feedStats, groupByKind, kindsWithItems } from '../../_lib/media-rows';
 
 export const MEDIA_TITLE = 'Media';
-export const MEDIA_EYEBROW = 'Writing and video';
-export const MEDIA_DESCRIPTION = 'Everything I write, record and present, newest first.';
+const MEDIA_EYEBROW = 'Writing and video';
+const MEDIA_DESCRIPTION = 'Everything I write, record and present, newest first.';
 const STATS_LABEL = 'Totals';
 /** The header's figures: as many as the strip fits in one row on a phone. */
 const FIGURES = 3;
@@ -112,7 +112,7 @@ function statItems(stats: FeedStats, kinds: readonly FeedKind[]): StatStripItem[
  * Said when the channel listing stopped at its cap: the uploads below are the newest ones, so
  * the page states no total, length, place or "of N" for them, only what it lists.
  */
-export const CAPPED_SENTENCE =
+const CAPPED_SENTENCE =
   'Only the newest uploads are listed, so older videos and streams are missing below.';
 
 /** "Videos couldn't load", "Videos and posts couldn't load". */

@@ -35,7 +35,7 @@ const MAX_PROBLEM_LENGTH = 300;
 const MISSING_ID = '(no _id)';
 
 /** An invalid document, as a report lists it. */
-export interface InvalidDocument {
+interface InvalidDocument {
   readonly id: string;
   readonly problem: string;
 }

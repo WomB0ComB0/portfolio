@@ -1,11 +1,4 @@
-import type {
-  ColorKey,
-  LogData,
-  LogEntry,
-  LoggerOptions,
-  LogLevelString,
-  LogTransport,
-} from './logger.types';
+import type { ColorKey, LogData, LoggerOptions, LogLevelString } from './logger.types';
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -77,9 +70,6 @@ export class Logger {
   /** Whether to apply ANSI color codes to the output */
   private readonly shouldColorize: boolean;
 
-  /** Custom log transports */
-  private static transports: LogTransport[] = [];
-
   /** Registry of logger instances to implement the singleton pattern */
   private static readonly instances: Map<string, Logger> = new Map();
 
@@ -149,49 +139,6 @@ export class Logger {
   public static setGlobalLogLevel(level: LogLevel): void {
     Logger.instances.forEach((logger) => {
       logger.minLevel = level;
-    });
-  }
-
-  /**
-   * Set the minimum log level for this logger instance
-   *
-   * @param {LogLevel} level - The minimum level to log
-   */
-  public setMinLevel(level: LogLevel): void {
-    this.minLevel = level;
-  }
-
-  /**
-   * Add a custom log transport
-   *
-   * @param {LogTransport} transport - The transport to add
-   */
-  public static addTransport(transport: LogTransport): void {
-    Logger.transports.push(transport);
-  }
-
-  /**
-   * Remove a log transport by name
-   *
-   * @param {string} name - The name of the transport to remove
-   */
-  public static removeTransport(name: string): void {
-    Logger.transports = Logger.transports.filter((t) => t.name !== name);
-  }
-
-  /**
-   * Create a child logger with additional context
-   *
-   * @param {string} childContext - Additional context to append
-   * @param {LoggerOptions} [options] - Optional override options
-   * @returns {Logger} A new child logger instance
-   */
-  public child(childContext: string, options?: LoggerOptions): Logger {
-    const combinedContext = `${this.context}:${childContext}`;
-    return new Logger(combinedContext, {
-      minLevel: options?.minLevel ?? this.minLevel,
-      includeTimestamp: options?.includeTimestamp ?? this.includeTimestamp,
-      colorize: options?.colorize ?? this.shouldColorize,
     });
   }
 
@@ -333,24 +280,6 @@ export class Logger {
       : levelIndicator + ' ' + this.formatOutput(formattedData);
 
     consoleMethod(output);
-
-    // Send to transports
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      context: this.context,
-      message,
-      data,
-      environment: this.isServerContext ? 'server' : 'client',
-    };
-
-    for (const transport of Logger.transports) {
-      try {
-        transport.write(entry);
-      } catch {
-        // Silently ignore transport errors to prevent log loops
-      }
-    }
   }
 
   /**
@@ -440,24 +369,6 @@ export class Logger {
    */
   success(message: string, data?: LogData): void {
     this.log('success', LogLevel.INFO, message, data, console.log);
-  }
-
-  /**
-   * Group related log messages (Console.group wrapper)
-   *
-   * @param {string} label - The group label
-   */
-  group(label: string): void {
-    if (!this.shouldLog(LogLevel.INFO)) return;
-    console.group({ label: this.colorize('bold', label) });
-  }
-
-  /**
-   * End a log group (Console.groupEnd wrapper)
-   */
-  groupEnd(): void {
-    if (!this.shouldLog(LogLevel.INFO)) return;
-    console.groupEnd();
   }
 
   /**

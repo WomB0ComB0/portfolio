@@ -74,36 +74,6 @@ export type ColorKey =
 export type LogLevelString = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'action' | 'success';
 
 /**
- * Structured log entry for transport/storage
- * @interface
- */
-export interface LogEntry {
-  /** ISO timestamp of the log */
-  timestamp: string;
-  /** Log level */
-  level: LogLevelString;
-  /** Logger context/category */
-  context: string;
-  /** Log message */
-  message: string;
-  /** Optional structured data */
-  data?: LogData;
-  /** Environment (client/server) */
-  environment: 'client' | 'server';
-}
-
-/**
- * Interface for custom log transports
- * @interface
- */
-export interface LogTransport {
-  /** Transport name for identification */
-  name: string;
-  /** Method to write a log entry */
-  write(entry: LogEntry): void | Promise<void>;
-}
-
-/**
  * Options for the @Log decorator
  * @interface
  */

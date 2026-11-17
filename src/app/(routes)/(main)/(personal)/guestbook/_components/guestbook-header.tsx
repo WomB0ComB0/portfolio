@@ -60,7 +60,7 @@ const countWords = (count: number | string): string =>
   typeof count === 'number' ? countOf(count, NOTE_NOUN) : `${count} ${NOTE_NOUN.many}`;
 
 /** The count line's parts: the count, then the month of the first note, when there is one. */
-export function countLineParts(stats: GuestbookStats, available: boolean): BylinePart[] {
+function countLineParts(stats: GuestbookStats, available: boolean): BylinePart[] {
   if (!available) return [COUNT_UNAVAILABLE];
   return [countWords(stats.count), stats.firstMonth ? `since ${stats.firstMonth}` : null];
 }

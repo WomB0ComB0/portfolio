@@ -16,7 +16,7 @@
  * - Supports dry-runs to preview changes.
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -283,11 +283,21 @@ function showHelp() {
 
 function getGitFiles(): string[] {
   try {
-    const stdout = execSync('git ls-files && git ls-files -o --exclude-standard', {
-      encoding: 'utf8',
-    });
-    // Remove duplicates that can occur in edge cases
-    return [...new Set(stdout.split('\n').filter(Boolean))];
+    const stdout = execFileSync(
+      'git',
+      ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+      {
+        encoding: 'utf8',
+      },
+    );
+    const deleted = new Set(
+      execFileSync('git', ['ls-files', '--deleted', '-z'], {
+        encoding: 'utf8',
+      }).split('\0'),
+    );
+    // Deleted tracked files are intentional worktree changes, not unreadable source files.
+    // NUL delimiters preserve names containing spaces/newlines without shell parsing.
+    return [...new Set(stdout.split('\0').filter((file) => file && !deleted.has(file)))];
   } catch {
     return [];
   }
@@ -572,6 +582,7 @@ function handleCheckMode(file: string, alreadyHasHeader: boolean, verbose: boole
     if (verbose) console.log(kleur.gray(`- Has header: ${file}`));
     return { status: 'skipped', path: file };
   }
+  console.error(kleur.red(`- Missing header: ${file}`));
   return { status: 'missing', path: file };
 }
 
@@ -661,16 +672,20 @@ function printSummary(results: ProcessResult[], args: Args): void {
   console.log(kleur.bold('\n--- Summary ---'));
 
   if (args.check) {
-    if (missing > 0) {
-      console.error(kleur.red(`❌ ${missing} files are missing license headers.`));
-      process.exit(1);
+    if (missing > 0) console.error(kleur.red(`❌ ${missing} files are missing license headers.`));
+    if (errors > 0) console.error(kleur.red(`❌ Could not check ${errors} files.`));
+    if (missing > 0 || errors > 0) {
+      process.exitCode = 1;
     } else {
       console.log(kleur.green('✅ All files have license headers.'));
     }
   } else {
     console.log(kleur.green(`Updated: ${updated}`));
     console.log(kleur.gray(`Skipped: ${skipped}`));
-    if (errors > 0) console.log(kleur.red(`Errors: ${errors}`));
+    if (errors > 0) {
+      console.error(kleur.red(`Errors: ${errors}`));
+      process.exitCode = 1;
+    }
     console.log(`Total processed: ${results.length}`);
   }
 }

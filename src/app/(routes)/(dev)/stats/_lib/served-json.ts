@@ -17,19 +17,14 @@
 /**
  * @file The Discord tile's poll: the home islands' request (fetchJson in live-fetch.ts: one
  * attempt that asks for JSON, a 5 s timeout, the query's abort, a failed answer's body
- * cancelled) that also says when the server served the answer, by the server's clock. The tile
+ * cancelled), shared through lib/http-clients/live-json.ts, that also says when the server served the answer, by the server's clock. The tile
  * orders and ages its reads by that clock (discord-presence.ts). Pure (no directive, no Effect),
- * so the island's bundle stays small; live-fetch.ts stays as the home page uses it. The route's
+ * so the island's bundle stays small; the home page keeps its existing JSON-only interface. The route's
  * cache rule is restated below rather than imported: its module (the API's shared middleware)
  * would bring the server's error reporting and logger into the island.
  */
 
-import {
-  type FetchJsonOptions,
-  FetchStatusError,
-  FetchTimeoutError,
-  LIVE_FETCH_TIMEOUT_MS,
-} from '@/app/_components/home/live/live-fetch';
+import { type FetchJsonOptions, fetchJsonResponse } from '@/lib/http-clients/live-json';
 
 /** An answer's JSON body, and when the server served it (epoch ms, by its clock), if it said. */
 export interface ServedJson {
@@ -70,48 +65,11 @@ export function servedAtOf(headers: Headers): number | undefined {
   return seconds <= LONGEST_CACHED_S ? date + seconds * SECOND_MS : date;
 }
 
-/**
- * Lets go of a body nobody will read, as fetchJson does, so a failed poll holds no connection.
- * A cancel that fails changes nothing for the caller, whose error is the status.
- */
-async function discardBody(response: Response): Promise<void> {
-  try {
-    await response.body?.cancel();
-  } catch {
-    // Already locked or errored: there is nothing left to release.
-  }
-}
-
-/**
- * GETs `url` and resolves its JSON body with when the server served it ({@link servedAtOf}).
- *
- * @throws {FetchStatusError} For a non-2xx answer, carrying its status (its body is cancelled).
- * @throws {FetchTimeoutError} When the answer or its body takes longer than `timeoutMs`.
- * @throws The caller's abort reason when `signal` aborts, and a SyntaxError for a non-JSON body.
- */
+/** Read JSON with the shared transport and keep the server's Date/Age metadata. */
 export async function fetchServedJson(
   url: string,
-  { signal, timeoutMs = LIVE_FETCH_TIMEOUT_MS }: FetchJsonOptions = {},
+  options: FetchJsonOptions = {},
 ): Promise<ServedJson> {
-  const controller = new AbortController();
-  const abortWithCaller = (): void => controller.abort(signal?.reason);
-  if (signal?.aborted) abortWithCaller();
-  signal?.addEventListener('abort', abortWithCaller, { once: true });
-  const timer = setTimeout(() => controller.abort(new FetchTimeoutError(timeoutMs)), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { accept: 'application/json' },
-    });
-    if (!response.ok) {
-      await discardBody(response);
-      throw new FetchStatusError(response.status);
-    }
-    const json: unknown = await response.json();
-    return { json, servedAt: servedAtOf(response.headers) };
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener('abort', abortWithCaller);
-  }
+  const { json, headers } = await fetchJsonResponse(url, options);
+  return { json, servedAt: servedAtOf(headers) };
 }

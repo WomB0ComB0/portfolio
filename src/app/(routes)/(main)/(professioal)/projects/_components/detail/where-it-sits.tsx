@@ -32,7 +32,7 @@ import { projectHref } from '../../_lib/project-text';
 import type { Neighbour, ProjectLine } from './case-line';
 import styles from './where-it-sits.module.css';
 
-export const SITS_TITLE = 'Where it sits';
+const SITS_TITLE = 'Where it sits';
 const SITS_ID = 'where-it-sits';
 /** Near an end, a label is set against that end instead of centred on its tick. */
 const EDGE = 0.08;

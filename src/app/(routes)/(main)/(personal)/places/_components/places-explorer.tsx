@@ -150,4 +150,3 @@ export function PlacesExplorer({ places }: PlacesExplorerProps): JSX.Element {
 }
 
 PlacesExplorer.displayName = 'PlacesExplorer';
-export default PlacesExplorer;

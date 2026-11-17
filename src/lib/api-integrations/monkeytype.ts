@@ -54,7 +54,7 @@ const PersonalBestSchema = Schema.Struct({ wpm: Schema.Number, acc: Schema.Numbe
  * profile without a timed best (no `time`, or no `time['60']`) still decodes; callers decide
  * what to show without one.
  */
-export const MonkeytypeProfileSchema = Schema.Struct({
+const MonkeytypeProfileSchema = Schema.Struct({
   personalBests: Schema.Struct({
     time: Schema.optional(
       Schema.Record({ key: Schema.String, value: Schema.Array(PersonalBestSchema) }),

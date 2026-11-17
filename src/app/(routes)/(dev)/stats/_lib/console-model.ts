@@ -117,7 +117,7 @@ export function leetCodeMeta(stats: LeetCodeStats): string {
 }
 
 /** The test the typing figure is from, as the home typing tile words it. */
-export const BEST_60 = `60${NBSP}s best`;
+const BEST_60 = `60${NBSP}s best`;
 
 export interface TypingContextOptions {
   /** Says the accuracy in words; off when a gauge shows it. */
@@ -237,7 +237,7 @@ export function stripItems(
 }
 
 /** How many repositories the table lists. */
-export const TOP_REPOS_SHOWN = 6;
+const TOP_REPOS_SHOWN = 6;
 
 /**
  * The floors of the table's two content-sized columns, in characters: a name column that never

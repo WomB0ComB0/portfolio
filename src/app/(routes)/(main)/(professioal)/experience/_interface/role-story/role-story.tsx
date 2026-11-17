@@ -43,9 +43,9 @@ import { RolePathFigure } from '../../_components/story/role-path';
 import { roleLogoOf } from '../../_lib/role-logo';
 import { buildRoleStory, type RoleStory as Story, storyLede } from '../../_lib/role-story';
 
-export const STORY_TITLE = 'Experience';
-export const STORY_EYEBROW = 'Work';
-export const JUMP_LABEL = 'Jump to';
+const STORY_TITLE = 'Experience';
+const STORY_EYEBROW = 'Work';
+const JUMP_LABEL = 'Jump to';
 const EMPTY_TITLE = 'No roles listed yet';
 
 /** The chapters follow the jump row after a long rest; the first one sets no gap of its own. */

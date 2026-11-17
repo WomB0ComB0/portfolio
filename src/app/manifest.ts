@@ -45,7 +45,7 @@ type ManifestShortcut = NonNullable<MetadataRoute.Manifest['shortcuts']>[number]
 type ManifestScreenshot = NonNullable<MetadataRoute.Manifest['screenshots']>[number];
 
 /** The install description: the hero's positioning line, then what the site holds. */
-export const MANIFEST_DESCRIPTION = `${app.tagline} Projects, experience, certifications, places and live stats.`;
+const MANIFEST_DESCRIPTION = `${app.tagline} Projects, experience, certifications, places and live stats.`;
 
 const ICONS: readonly ManifestIcon[] = [
   { src: '/pwa/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },

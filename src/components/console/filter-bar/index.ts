@@ -63,24 +63,14 @@ export const FilterBar = {
   Results: FilterBarResults,
   Skeleton: FilterBarSkeleton,
 } as const;
-
-export type { FilterBarDensity, FilterBarRootProps, FilterBarSearchProps } from './bar';
-export type { ChipsLayout, FilterBarChipsProps } from './chips';
 export { useFilterBar } from './context';
 export {
   FILTER_SCOPE_CLASS,
-  type FilterBarBackplate,
   RESULTS_HEAD_CLASS,
 } from './filter-bar-classes';
 export {
-  type BuildFilterModelInput,
   type BuiltFilterModel,
   buildFilterModel,
-  type FilterActions,
-  type FilterFacetView,
   type FilterModel,
 } from './model';
-export type { FilterBarPickerProps } from './picker';
-export type { FilterBarAppliedProps, FilterBarEmptyProps } from './results';
-export type { FilterBarSkeletonProps } from './skeleton';
 export { useUrlFilters } from './use-url-filters';

@@ -69,7 +69,7 @@ export const SECTION_HEAD_GROW_CLASS =
 const RANK_WIDTH = 'leading-6 w-[max(2.25rem,1.375lh)] @min-[40rem]/page:w-[max(3rem,1.75lh)]';
 
 /** Rank, Track (art, title over artists), Album, Length. */
-export const TRACK_COLUMNS = [
+const TRACK_COLUMNS = [
   { id: 'rank', label: '#', align: 'end', width: RANK_WIDTH, sort: 'number' },
   { id: 'track', label: 'Track' },
   { id: 'album', label: 'Album', priority: 2, width: 'w-[30%]' },

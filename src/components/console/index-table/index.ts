@@ -21,30 +21,19 @@
  * server-safe, and IndexCopyButton carries its own 'use client'.
  */
 
-export { IndexCopyButton, type IndexCopyButtonProps } from './copy-button';
+export { IndexCopyButton } from './copy-button';
 export {
   IndexAnnouncer,
   IndexGroup,
-  type IndexGroupProps,
-  type IndexPin,
   IndexRow,
-  type IndexRowProps,
   IndexTitleLink,
-  type IndexTitleLinkProps,
 } from './index-table';
 export {
   INDEX_ACTION_CLASS,
-  INDEX_COPY_CLASS,
   INDEX_GROUPS_CLASS,
   INDEX_META_CLASS,
-  INDEX_ROW_INK_CLASS,
   INDEX_SUB_CLASS,
   INDEX_TITLE_TEXT_CLASS,
-  type IndexAlign,
   type IndexColumn,
-  type IndexPriority,
-  type IndexVariant,
   indexCellClass,
-  indexColClass,
-  indexHeaderClass,
 } from './index-table-classes';

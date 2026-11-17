@@ -74,5 +74,3 @@ export function Certifications({
   );
 }
 Certifications.displayName = 'Certifications';
-
-export default Certifications;

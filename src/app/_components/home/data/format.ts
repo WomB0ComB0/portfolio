@@ -98,7 +98,7 @@ const NY_CLOCK = new Intl.DateTimeFormat('en-US', {
 const plainSpaces = (text: string): string => text.replace(/\s+/gu, ' ');
 
 /** `at` in epoch milliseconds. */
-export const toMs = (at: Instant): number => (at instanceof Date ? at.getTime() : at);
+const toMs = (at: Instant): number => (at instanceof Date ? at.getTime() : at);
 
 interface ParsedDate {
   readonly ms: number;

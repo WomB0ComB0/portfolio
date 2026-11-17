@@ -61,7 +61,7 @@ import { guardListEntries, showList } from './role-list-entry-guard';
 export const ENTRY_NOTE = 'experienceList';
 
 /** What the list notes on one of its history entries. */
-export interface EntryNote {
+interface EntryNote {
   /**
    * This entry's own key, written with its first note: a popstate onto another key is a Back or
    * Forward, one that keeps it is a link to the fragment the address already has.

@@ -459,4 +459,3 @@ export const Privacy = (): JSX.Element => {
 };
 
 Privacy.displayName = 'Privacy';
-export default Privacy;

@@ -63,13 +63,13 @@ const MORE_LINK_CLASS =
 const roleHref = (role: Experience): string => `${EXPERIENCE_PATH}/${encodeURIComponent(role._id)}`;
 
 /** The roles the tile lists: every role shown but the first, which the hero names. */
-export const rolesBesideHero = ({ roles }: CurrentRoles): readonly Experience[] => roles.slice(1);
+const rolesBesideHero = ({ roles }: CurrentRoles): readonly Experience[] => roles.slice(1);
 
 /** How many current roles neither the hero nor this tile names. */
 const unnamedRoles = ({ roles, total }: CurrentRoles): number => Math.max(0, total - roles.length);
 
 /** 'Elysium · since 2023': the company as people say it, and the year the role began. */
-export function roleMeta(role: Experience): string {
+function roleMeta(role: Experience): string {
   const since = formatYear(role.startDate);
   return joinMeta([companyName(role.company), since ? `since ${since}` : null]);
 }

@@ -41,7 +41,7 @@ export const ALL_SLUG = 'all';
 /** A family needs this many certificates for a chip of its own; fewer go under Other. */
 const CHIP_MIN_COUNT = 2;
 /** The year group of a certificate whose issue date cannot be read. */
-export const UNDATED_YEAR = 'Undated';
+const UNDATED_YEAR = 'Undated';
 
 /** The fields the Ledger reads from a certification document. */
 export type LedgerSource = Pick<

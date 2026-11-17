@@ -135,6 +135,3 @@ export function groupLabel(group: string): string {
   if (group === UNDATED_GROUP) return 'Undated';
   return group;
 }
-
-/** A group's h2 id: projects-featured, projects-2024, projects-undated. */
-export const groupId = (group: string): string => `projects-${group}`;

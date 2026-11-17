@@ -33,4 +33,3 @@ export const GitHubStarIcon: React.FC<SVGIconProps> = ({ className, size, props 
   );
 };
 GitHubStarIcon.displayName = 'GitHubStarIcon';
-export default GitHubStarIcon;

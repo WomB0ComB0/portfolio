@@ -15,6 +15,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Log } from '@/utils/logging/logger.decorators';
 import { Logger, LogLevel } from '../../../src/utils/logging/logger';
 
 describe('Logger', () => {
@@ -86,5 +87,35 @@ describe('Logger', () => {
     expect(fn).toHaveBeenCalled();
     expect(result).toBe('result');
     expect(console.log).toHaveBeenCalled();
+  });
+  it.each(['trace', 'action', 'success'] as const)(
+    'supports the decorator-selected %s method',
+    (level) => {
+      class Example {
+        work(): number {
+          return 7;
+        }
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(Example.prototype, 'work');
+      if (!descriptor) throw new Error('Missing fixture method');
+      Logger.getLogger('[Example]', { minLevel: LogLevel.TRACE });
+      Logger.setGlobalLogLevel(LogLevel.TRACE);
+      Log({ level, logArgs: false, logResult: true })(Example.prototype, 'work', descriptor);
+      Object.defineProperty(Example.prototype, 'work', descriptor);
+      expect(new Example().work()).toBe(7);
+      const output = level === 'trace' ? console.debug : console.log;
+      expect(output).toHaveBeenCalledTimes(2);
+      expect(output).toHaveBeenLastCalledWith(expect.stringContaining('work returned'));
+    },
+  );
+
+  it('supports NONE as an explicit logging-off option', () => {
+    const logger = new Logger('silent', { minLevel: LogLevel.NONE });
+    for (const level of ['trace', 'debug', 'info', 'warn', 'error', 'action', 'success'] as const) {
+      logger[level]('must stay silent');
+    }
+    for (const output of [console.log, console.error, console.warn, console.debug]) {
+      expect(output).not.toHaveBeenCalled();
+    }
   });
 });

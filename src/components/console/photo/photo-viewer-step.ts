@@ -59,7 +59,7 @@ export type KeyStep = -1 | 1 | 'first' | 'last';
 export const COMPACT_QUERY = '(width < 40rem), (height < 32rem)';
 
 /** Taller than this (a phone is 0.46), the open view scrolls the image instead of shrinking it. */
-export const TALL_RATIO = 0.45;
+const TALL_RATIO = 0.45;
 
 /** The index `delta` steps from `index`, round the ends; 0 when there is nothing to show. */
 export function stepIndex(index: number, delta: number, count: number): number {

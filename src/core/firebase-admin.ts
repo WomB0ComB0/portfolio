@@ -43,7 +43,7 @@ export function getServiceAccount() {
 
 let cachedDb: Firestore | null = null;
 
-export function getAdminFirestore(): Firestore {
+function getAdminFirestore(): Firestore {
   if (cachedDb) return cachedDb;
 
   if (getApps().length > 0) {

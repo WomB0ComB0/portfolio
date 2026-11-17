@@ -108,7 +108,7 @@ async function settleList<T>({ name, store, load }: ListSource<T>): Promise<Char
 }
 
 /** The top tracks of the last four weeks, ranked. Per request (React cache), never rejects. */
-export const loadTopTracksChart = cache(
+const loadTopTracksChart = cache(
   (): Promise<ChartListResult<ChartTrack>> =>
     settleList({
       name: 'top tracks',
@@ -118,7 +118,7 @@ export const loadTopTracksChart = cache(
 );
 
 /** The top artists of the last four weeks, ranked. Per request (React cache), never rejects. */
-export const loadTopArtistsChart = cache(
+const loadTopArtistsChart = cache(
   (): Promise<ChartListResult<ChartArtist>> =>
     settleList({
       name: 'top artists',
@@ -138,7 +138,7 @@ export interface HeroSnapshot {
  * memory is stamped with the snapshot's own time, and aged against it too (or against now when
  * Spotify did not answer), so a remembered track is never newer than the answer it came from.
  */
-export const loadSpotifyHero = cache(async (): Promise<HeroSnapshot> => {
+const loadSpotifyHero = cache(async (): Promise<HeroSnapshot> => {
   const initial = await loadNowPlaying();
   const seenAt = initial.kind === 'data' ? initial.fetchedAt : Date.now();
   recentMemory = nextRecent(recentMemory, firstHeroView(initial), seenAt);

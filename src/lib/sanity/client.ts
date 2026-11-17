@@ -61,7 +61,7 @@ const config = getConfig();
 /**
  * Sanity client configuration
  */
-export const sanityConfig = {
+const sanityConfig = {
   projectId: config.projectId,
   dataset: config.dataset,
   apiVersion: config.apiVersion,
@@ -80,7 +80,7 @@ const requestLimits = sanityRequestLimits(isBrowser);
  * Sanity client instance
  * Safe to use in both server and client components
  */
-export const sanityClient: SanityClient = createClient({ ...sanityConfig, ...requestLimits });
+const sanityClient: SanityClient = createClient({ ...sanityConfig, ...requestLimits });
 
 /**
  * Sanity client with token for authenticated requests
@@ -123,21 +123,6 @@ export function urlFor(source: SanityImageSource) {
 }
 
 /**
- * Type-safe GROQ query helper
- * Safe to use in both server and client components
- *
- * @param query - GROQ query string
- * @param params - Query parameters
- * @returns Promise with typed result
- */
-export async function sanityFetch<T = any>(
-  query: string,
-  params: Record<string, any> = {},
-): Promise<T> {
-  return sanityClient.fetch<T>(query, params);
-}
-
-/**
  * Type-safe GROQ query helper with authentication
  * SERVER-ONLY: Falls back to regular fetch on client-side
  *
@@ -151,5 +136,3 @@ export async function sanityFetchWithToken<T = any>(
 ): Promise<T> {
   return sanityClientWithToken.fetch<T>(query, params);
 }
-
-export { sanityClient as client, sanityClientWithToken as clientWithToken };

@@ -65,7 +65,7 @@ type FirebaseAuthModule = typeof import('./firebase-auth');
 /** How long loading Firebase and reading its saved session may take before it counts as failed. */
 const PREPARE_DEADLINE_MS = 15_000;
 
-export const LOAD_FAILED = "Sign-in couldn't load. Check your connection and press Sign in again.";
+const LOAD_FAILED = "Sign-in couldn't load. Check your connection and press Sign in again.";
 const SIGN_OUT_FAILED = "Signing out didn't work. Please try again.";
 const SIGN_IN_FAILED = "Sign-in didn't work. Please try again.";
 const SIGN_IN_PAGE_CLOSED =
@@ -116,7 +116,7 @@ const codeText = (error: unknown): string => {
 };
 
 /** The sentence to show for a failed sign-in. */
-export function signInErrorMessage(error: unknown): string {
+function signInErrorMessage(error: unknown): string {
   const code = codeOf(error);
   return (typeof code === 'string' && SIGN_IN_ERRORS[code]) || SIGN_IN_FAILED;
 }
@@ -343,11 +343,6 @@ const getServerSnapshot = (): AuthSnapshot => INITIAL;
 /** The sign-in state; re-renders when it changes. */
 export function useAuth(): AuthSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-}
-
-/** The signed-in visitor, or null. */
-export function useCurrentUser(): SessionUser | null {
-  return useAuth().user;
 }
 
 /** A sign-in callback for `method`, and whether its popup is open. */

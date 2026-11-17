@@ -24,26 +24,19 @@
  * graph.
  */
 
-export { EmptyState, type EmptyStateAction, type EmptyStateProps } from './empty-state';
+export { EmptyState } from './empty-state';
 export * from './folio';
-export { formatAge, type Timestamp } from './format-age';
-export { Freshness, type FreshnessProps } from './freshness';
-export { LiveNumber, type LiveNumberProps } from './live-number';
-export { PageShell, type PageShellProps, type PageShellSizing } from './page-shell';
+export { formatAge } from './format-age';
+export { Freshness } from './freshness';
+export { LiveNumber } from './live-number';
+export { PageShell } from './page-shell';
 export {
-  type ChartTone,
-  type LeetCodeTone,
   SegmentBar,
-  type SegmentBarProps,
   type SegmentBarSegment,
   SegmentBarSkeleton,
-  type SegmentBarSkeletonProps,
-  type SegmentTone,
 } from './segment-bar';
 export {
   Sparkline,
-  type SparklinePoint,
-  type SparklineProps,
   sparklinePoints,
 } from './sparkline';
 export { SpotlightRoot } from './spotlight-root';
@@ -53,38 +46,19 @@ export {
   numberFormatter,
   StatStrip,
   type StatStripItem,
-  type StatStripProps,
-  type StatStripSizing,
 } from './stat-strip';
 export {
-  type InteractiveStatTileProps,
-  type StatDelta,
-  type StaticStatTileProps,
   StatTile,
-  type StatTileLabelElement,
-  type StatTileProps,
-  type StatTileSize,
   StatTileSkeleton,
-  type StatTileSkeletonProps,
-  type StatTileState,
 } from './stat-tile';
-export { StatusDot, type StatusDotProps, type StatusTone } from './status-dot';
+export { StatusDot, type StatusTone } from './status-dot';
 export {
-  type InteractiveTileProps,
-  type StaticTileProps,
   Tile,
-  type TileElement,
-  type TilePadding,
-  type TileProps,
-  type TileTone,
-  type TileVariant,
   tileVariants,
 } from './tile';
 export {
   DEFAULT_TILE_SPAN,
   TileGrid,
-  type TileGridElement,
-  type TileGridProps,
   type TileSpan,
   tileSpanClass,
 } from './tile-grid';
@@ -95,5 +69,4 @@ export {
   NewTabArrow,
   SrOnlyWords,
   TileLink,
-  type TileLinkProps,
 } from './tile-link';

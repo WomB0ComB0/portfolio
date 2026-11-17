@@ -39,7 +39,7 @@ export const otelResource = resourceFromAttributes({
  * Only configured for local development.
  * @type {OTLPTraceExporter | undefined}
  */
-export const otlpExporter = !IS_VERCEL
+const otlpExporter = !IS_VERCEL
   ? new OTLPTraceExporter({
       url: 'http://localhost:4318/v1/traces',
       keepAlive: true,

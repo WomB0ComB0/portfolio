@@ -17,8 +17,8 @@
 import type { LinkHealthEntry, LinkHealthStatus, LinkObservation } from './types';
 
 const MINUTE = 60_000;
-export const WARNING_MAX_AGE = 24 * 60 * MINUTE;
-export const CONFIRM_AFTER = 2 * MINUTE;
+const WARNING_MAX_AGE = 24 * 60 * MINUTE;
+const CONFIRM_AFTER = 2 * MINUTE;
 
 export interface LinkRecord {
   kind: LinkObservation['kind'];

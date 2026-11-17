@@ -42,7 +42,7 @@ import type { TechToken } from '../_lib/role-tech';
  * pill is 32px; its overlay is set from its padding box, which a 1px border leaves at 30px, so
  * the overlay reaches 7px past it above and below: 44px with a border, 46px without.
  */
-export const TOUCH_TARGET_CLASS =
+const TOUCH_TARGET_CLASS =
   "relative pointer-coarse:min-h-8 pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-[7px] pointer-coarse:after:content-['']";
 /** A wrapping row of pills; on a touch screen the rows stand clear of each other's targets. */
 const PILLS_CLASS = 'flex flex-wrap gap-1.5 pointer-coarse:gap-x-2 pointer-coarse:gap-y-3';

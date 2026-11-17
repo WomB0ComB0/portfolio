@@ -82,7 +82,7 @@ import {
 import { projectHref } from '../_lib/project-text';
 
 /** Below this many images the wall would repeat a few across the whole window: grid only. */
-export const WALL_MIN_SCREENS = 12;
+const WALL_MIN_SCREENS = 12;
 
 type ViewKind = 'wall' | 'grid';
 

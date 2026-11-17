@@ -59,7 +59,7 @@ import { ExternalAnchor, GITHUB_PROFILE_URL, META_SEPARATOR, SkeletonBar } from 
  */
 export const HERO_POSITIONING = profile.tagline;
 
-export const HERO_TITLE_ID = 'home-title';
+const HERO_TITLE_ID = 'home-title';
 
 /** The largest size it is drawn at (size-18, from a 30rem tile). */
 const AVATAR_PX = 72;

@@ -163,7 +163,7 @@ const VISITOR_IP_SPAN_ATTRIBUTES: ReadonlySet<string> = new Set([
 ]);
 const REQUEST_HEADER_ATTRIBUTE_PREFIX = 'http.request.header.';
 
-export function isVisitorIpHeader(name: string): boolean {
+function isVisitorIpHeader(name: string): boolean {
   const lower = name.toLowerCase();
   return VISITOR_IP_HEADER_TERMS.some((term) => lower.includes(term));
 }

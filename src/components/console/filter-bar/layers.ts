@@ -45,7 +45,7 @@ function portalOf(node: Element): Element | null {
 }
 
 /** The other layer that holds `target`: one marked as a layer, or a portal not the sheet's. */
-export function otherLayerOf(target: EventTarget | null, sheet: HTMLElement): Element | null {
+function otherLayerOf(target: EventTarget | null, sheet: HTMLElement): Element | null {
   if (!isElement(target) || sheet.contains(target)) return null;
   const marked = markedLayerOf(target, sheet);
   if (marked) return marked;
