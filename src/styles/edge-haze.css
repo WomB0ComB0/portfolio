@@ -100,7 +100,12 @@
    * How far the band's layers rise under a pinned FilterBar: the band's height less the bar
    * and its raised inset, never below 0. The bar writes its height (bar.tsx); before it has, the shortest bar's 3.5rem.
    */
-  --edge-haze-rise: max(0px, var(--edge-haze-top) - var(--filter-bar-pinned-h, 3.5rem) - var(--sticky-top-gap));
+  --edge-haze-rise: max(
+    0px,
+    var(--edge-haze-top) -
+    var(--filter-bar-pinned-h, 3.5rem) -
+    var(--sticky-top-gap)
+  );
 
   top: env(safe-area-inset-top, 0);
   height: var(--edge-haze-top);
@@ -504,13 +509,20 @@
  * compact bars clear on short screens too; the bottom padding still clears the phone navigation.
  */
 html {
-  scroll-padding-block: calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px))
+  scroll-padding-block: calc(
+      var(--edge-haze-top) +
+      var(--sticky-top-gap) +
+      env(safe-area-inset-top, 0px)
+    )
     calc(var(--edge-haze-bottom) + var(--mobile-bar-total));
 }
 
 @media (width >= 64rem) {
   html {
-    scroll-padding-block: max(calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px)), calc(4.625rem + var(--sticky-top-gap)))
+    scroll-padding-block: max(
+        calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px)),
+        calc(4.625rem + var(--sticky-top-gap))
+      )
       var(--edge-haze-bottom);
   }
 }
