@@ -15,10 +15,10 @@
  */
 
 import Link from 'next/link';
-import { FiX } from 'react-icons/fi';
-import { PlaceCategoryBadge } from '@/app/(routes)/(main)/(personal)/places/_components/place-category-badge';
+import type { ReactNode } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { PlaceDateRange } from '@/app/(routes)/(main)/(personal)/places/_components/place-date-range';
-import { Button } from '@/components/ui/button';
+import { PageShell } from '@/components/console/page-shell';
 
 interface PlaceSummaryProps {
   name: string;
@@ -26,41 +26,41 @@ interface PlaceSummaryProps {
   description?: string;
   startDate?: string | null;
   endDate?: string | null;
-  /** Accessible name of the close link back to /places. */
-  closeLabel: string;
+  children: ReactNode;
 }
 
-/** The place page's header: everything the list card shortens, in full. */
+/** An ordinary journal page: the visit's context, a real way back, then the photographs. */
 export function PlaceSummary({
   name,
   category,
   description,
   startDate,
   endDate,
-  closeLabel,
+  children,
 }: PlaceSummaryProps) {
   return (
-    <div className="space-y-3">
-      {/* Only the title shares a row with the close link, so the rest gets the full width. */}
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight">{name}</h1>
-        <Button asChild variant="ghost" size="icon" className="shrink-0">
-          <Link href="/places" aria-label={closeLabel}>
-            <FiX className="h-5 w-5" aria-hidden="true" />
-          </Link>
-        </Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <PlaceCategoryBadge category={category} />
-        <PlaceDateRange
-          startDate={startDate}
-          endDate={endDate}
-          className="text-sm text-muted-foreground"
-        />
-      </div>
-      {description && (
-        <p className="max-w-3xl text-muted-foreground leading-relaxed">{description}</p>
-      )}
-    </div>
+    <PageShell
+      sizing="container"
+      className="pb-8"
+      title={name}
+      eyebrow={
+        <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span>{category}</span>
+          <PlaceDateRange startDate={startDate} endDate={endDate} className="tabular-nums" />
+        </span>
+      }
+      description={description}
+      actions={
+        <Link
+          href="/places"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 tile-label text-muted-foreground no-underline shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-surface-1 hover:text-foreground"
+        >
+          <FiArrowLeft aria-hidden="true" />
+          Back to Places
+        </Link>
+      }
+    >
+      {children}
+    </PageShell>
   );
 }

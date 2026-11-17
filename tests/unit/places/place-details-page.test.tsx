@@ -186,7 +186,7 @@ describe('place page', () => {
       'https://maps.google.com/?q=40.75,-73.99',
     );
     expect(screen.getByRole('link', { name: 'Back to Places' })).toHaveAttribute('href', '/places');
-    expect(screen.getByRole('link', { name: 'Close' })).toHaveAttribute('href', '/places');
+    expect(screen.queryByRole('link', { name: /Close/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Photo \d+ of \d+$/)).not.toBeInTheDocument();
   });
 });
@@ -205,10 +205,10 @@ describe('place photo viewer', () => {
     expect(src).toContain('fit=max');
     expect(src).toContain('h=1200');
     expect(src).not.toContain('rect=');
-    expect(screen.getByRole('link', { name: 'Close photo viewer' })).toHaveAttribute(
-      'href',
-      '/places',
-    );
+    const back = screen.getByRole('link', { name: 'Back to Places' });
+    expect(back).toHaveAttribute('href', '/places');
+    expect(back.closest('header')).toContainElement(screen.getByRole('heading', { level: 1 }));
+    expect(screen.queryByRole('link', { name: /Close/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'No photos yet' })).not.toBeInTheDocument();
   });
 
@@ -269,6 +269,19 @@ describe('place photo viewer', () => {
     expect(imageSrc('Photo of Partly Broken Place')).toContain('/good-1600x1200.jpg');
     expect(screen.queryByText(/^Photo \d+ of \d+$/)).not.toBeInTheDocument();
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+  });
+
+  it('provides bounded previous/next navigation alongside the thumbnail strip', async () => {
+    await renderPage(photographedPlace._id);
+    const previous = screen.getByRole('button', { name: 'Previous photo' });
+    const next = screen.getByRole('button', { name: 'Next photo' });
+    expect(previous).toBeDisabled();
+    expect(next).toBeEnabled();
+    fireEvent.click(next);
+    expect(screen.getByText('Photo 2 of 2')).toBeInTheDocument();
+    expect(next).toBeDisabled();
+    fireEvent.click(previous);
+    expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
   });
 
   it('zooms in and back out, within its limits', async () => {

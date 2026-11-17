@@ -54,8 +54,8 @@ import {
 import { getTargetUrl } from '../fixtures/base';
 
 const STRIP = '[data-photo-strip]';
-/** The photo frame: the viewer's 16:9 box. */
-const FRAME = 'main .aspect-video';
+/** The photo journal's whole-photo stage. */
+const FRAME = 'main [data-place-photo-stage]';
 /** A streamed segment not revealed yet, or a skeleton marked busy (shell-grid.spec.ts). */
 const PENDING_CONTENT = 'div[hidden][id^="S:"], main [aria-busy="true"]';
 

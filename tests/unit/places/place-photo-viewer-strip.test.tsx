@@ -75,15 +75,17 @@ describe('the place viewer’s photo strip', () => {
     expect(screen.getByText('The stage before the keynote', { selector: 'p' })).toBeInTheDocument();
   });
 
-  it('puts the strip right under the frame, before the caption, so a caption never moves it', () => {
+  it('keeps controls off the photo and the strip before the caption, so captions never move it', () => {
     render(viewer());
     fireEvent.click(thumb(/^Photo 13 of 13/));
 
-    const frame = screen.getByRole('button', { name: 'Zoom in' }).closest('.aspect-video');
+    const figure = screen.getByRole('figure', { name: `Photos from ${PLACE}` });
+    const frame = figure.querySelector('[data-place-photo-stage]');
     const caption = screen.getByText('The stage before the keynote', { selector: 'p' });
     if (!frame) throw new Error('no photo frame');
 
-    expect(frame.nextElementSibling).toBe(strip());
+    expect(frame).not.toContainElement(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(frame.compareDocumentPosition(strip()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       strip().compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

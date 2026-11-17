@@ -54,6 +54,11 @@ vi.mock(
   '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/photo-strip.module.css',
   cssModuleNames,
 );
+// The detail concept's whole-photo stage and controls.
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/places/[placeId]/_components/place-photo-viewer.module.css',
+  cssModuleNames,
+);
 // The place card's photo folder: every /places list test renders it.
 vi.mock(
   '@/app/(routes)/(main)/(personal)/places/_components/photo-folder.module.css',

@@ -19,12 +19,19 @@
 import { AnimatePresence, motion, useMotionValue } from 'motion/react';
 import Image from 'next/image';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { FiMaximize, FiX, FiZoomIn, FiZoomOut } from 'react-icons/fi';
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiMaximize,
+  FiX,
+  FiZoomIn,
+  FiZoomOut,
+} from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
-import { CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { ViewerPhoto } from '../page.types';
 import { PhotoStrip } from './photo-strip';
+import styles from './place-photo-viewer.module.css';
 
 const swipeConfidenceThreshold = 10000;
 const swipePower = (offset: number, velocity: number) => {
@@ -57,40 +64,26 @@ const MotionImage = motion.create(Image);
 /** The caption's entrance when the photo changes. The first photo's is server content: no fade. */
 const CAPTION_ENTER = { opacity: 0, y: 10 };
 
-/**
- * The photo frame's rendered width, so next/image fetches a candidate as wide as it is drawn. The
- * frame is main minus the page's p-4 (p-8 from md), the card's 1 px border and CardContent's px-6:
- * main is the viewport below lg, then the viewport minus the 64 px rail, capped at max-w-shell
- * (1200 px) from a 1264 px viewport, where the frame stops at 1086 px. The old 50vw, set for the
- * 60% column, picked a 640-750 w file for that 1086 px frame and upscaled it.
- *
- * Each calc puts 100vw after a space on purpose: next/image trims its srcset by the smallest vw
- * length in `sizes`, but only spots one that follows a space or starts the string. Written
- * calc(100vw - 82px) it finds none and lists the 16-40 w icon sizes as well, which made the
- * preload selector too long for jsdom in place-details-page.test.tsx.
- */
+/** PageShell's gutters, the desktop rail, and the shell's 1200px cap. */
 const FRAME_SIZES =
-  '(max-width: 767px) calc(-82px + 100vw), (max-width: 1023px) calc(-114px + 100vw), (max-width: 1263px) calc(-178px + 100vw), 1086px';
+  '(max-width: 1023px) calc(-64px + 100vw), (max-width: 1263px) calc(-128px + 100vw), 1136px';
 
 interface PlacePhotoViewerProps {
   /** At least one photo, with URLs built on the server. */
   photos: readonly ViewerPhoto[];
   /** Names the photo strip ("Photos of <place>"). */
   placeName: string;
-  /** The card header's content above the "Photo n of m" line: the place's summary. */
-  summary: ReactNode;
+  /** Optional context for an embedded viewer; the detail page uses a server PageShell. */
+  summary?: ReactNode;
 }
 
-/**
- * The place page's photo carousel: swipe or the photo strip to move between photos, zoom and pan,
- * and fullscreen. It renders the card's header (the summary passed in, then the photo position)
- * and its content; the page renders the card around it.
- */
+/** A whole-photo journal stage; the page surrounds it, fullscreen surrounds only its controls. */
 export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewerProps) {
   const [[currentPhotoIndex, direction], setPage] = useState([0, 0]);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPanningZoom, setIsPanningZoom] = useState(false);
+  const [fullscreenMessage, setFullscreenMessage] = useState('');
 
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -127,30 +120,35 @@ export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewe
     [currentPhotoIndex, photos.length, zoomX, zoomY],
   );
 
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      fullscreenRef.current?.requestFullscreen();
-      setIsFullscreen(true);
+  const toggleFullscreen = useCallback(async () => {
+    const target = fullscreenRef.current;
+    if (!target) return;
+    setFullscreenMessage('');
+    try {
+      if (document.fullscreenElement === target) await document.exitFullscreen();
+      else await target.requestFullscreen();
+      setIsFullscreen(document.fullscreenElement === target);
       setZoom(1);
       zoomX.set(0);
       zoomY.set(0);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-      setZoom(1);
-      zoomX.set(0);
-      zoomY.set(0);
+    } catch {
+      // Unsupported or denied fullscreen leaves the ordinary gallery fully usable.
+      setFullscreenMessage(
+        'Fullscreen is unavailable in this browser. You can still zoom the photo.',
+      );
     }
   }, [zoomX, zoomY]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(document.fullscreenElement === fullscreenRef.current);
+      setZoom(1);
+      zoomX.set(0);
+      zoomY.set(0);
     };
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  }, [zoomX, zoomY]);
 
   const handleZoomIn = useCallback(() => {
     setZoom((prevZoom) => Math.min(prevZoom + 0.2, 3));
@@ -211,30 +209,14 @@ export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewe
   );
 
   return (
-    <>
-      <CardHeader className="space-y-4">
-        {summary}
-
-        {photos.length > 1 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {/* Geist's digits are proportional: tabular-nums stops the hint beside it shifting. */}
-            <span className="font-medium tabular-nums">
-              Photo {currentPhotoIndex + 1} of {photos.length}
-            </span>
-            {/* text-faint, not opacity-70: the darker muted token at 70% fell below 4.5:1 here. */}
-            <span className="text-xs text-faint">← Drag to navigate →</span>
-          </div>
-        )}
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        <div
-          ref={fullscreenRef}
-          className={cn(
-            'relative w-full aspect-video bg-muted rounded-lg overflow-hidden',
-            isFullscreen && 'fixed inset-0 z-50 bg-black rounded-none aspect-auto',
-          )}
-        >
+    <figure className={styles.journal} aria-label={`Photos from ${placeName}`}>
+      {summary}
+      <div
+        ref={fullscreenRef}
+        className={cn(styles.viewer, isFullscreen && styles.fullscreen)}
+        data-place-photo-viewer=""
+      >
+        <div className={styles.stage} data-place-photo-stage="">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={currentPhotoIndex}
@@ -250,29 +232,23 @@ export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewe
               drag={zoom === 1 && photos.length > 1 ? 'x' : false}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={1}
-              onDragEnd={(_e, { offset, velocity }) => {
-                if (zoom === 1) {
-                  const swipe = swipePower(offset.x, velocity.x);
-
-                  if (swipe < -swipeConfidenceThreshold) {
-                    paginate(1);
-                  } else if (swipe > swipeConfidenceThreshold) {
-                    paginate(-1);
-                  }
-                }
+              onDragEnd={(_event, { offset, velocity }) => {
+                if (zoom !== 1) return;
+                const swipe = swipePower(offset.x, velocity.x);
+                if (swipe < -swipeConfidenceThreshold) paginate(1);
+                else if (swipe > swipeConfidenceThreshold) paginate(-1);
               }}
-              className="absolute inset-0" // ensure it truly fills the wrapper
+              className="absolute inset-0"
             >
               {imageUrl ? (
                 <div
                   ref={containerRef}
-                  // Fill the frame so object-contain shows every photo whole and centred. A
-                  // fixed 4:3 box overflowed the 16:9 frame and clipped the bottom quarter.
                   className={cn(
                     'relative select-none flex items-center justify-center w-full h-full',
                     zoom > 1 && 'cursor-move',
                     zoom === 1 && photos.length > 1 && 'cursor-grab active:cursor-grabbing',
                   )}
+                  style={{ touchAction: zoom > 1 ? 'none' : 'pan-y' }}
                   onPointerDown={handlePanStart}
                   onPointerUp={handlePanEnd}
                   onPointerLeave={handlePanEnd}
@@ -288,7 +264,6 @@ export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewe
                     draggable={false}
                     style={{ scale: zoom, x: zoomX, y: zoomY }}
                     loading="eager"
-                    priority={true} // optional
                   />
                 </div>
               ) : (
@@ -298,82 +273,105 @@ export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewe
               )}
             </motion.div>
           </AnimatePresence>
-
-          {/* initial={false}: the controls are in the server HTML, so they show at once rather
-              than sit invisible (yet focusable) at opacity 0 until hydration fades them in. */}
-          <AnimatePresence initial={false}>
-            {imageUrl && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto z-10"
-              >
-                <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-lg">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleZoomIn}
-                    disabled={zoom >= 3}
-                    aria-label="Zoom in"
-                  >
-                    <FiZoomIn className="h-4 w-4" />
-                  </Button>
-                  <span className="px-2 text-sm font-medium min-win-12 text-center tabular-nums">
-                    {Math.round(zoom * 100)}%
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleZoomOut}
-                    disabled={zoom === 1}
-                    aria-label="Zoom out"
-                  >
-                    <FiZoomOut className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  onClick={toggleFullscreen}
-                  className="shadow-lg"
-                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                >
-                  {isFullscreen ? <FiX className="h-4 w-4" /> : <FiMaximize className="h-4 w-4" />}
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        {/* Right under the frame, above the caption: picking a captioned photo never moves the
-            strip from under the pointer. Hidden without JavaScript (photo-strip.module.css). */}
-        {photos.length > 1 && (
-          <PhotoStrip
-            photos={photos}
-            index={currentPhotoIndex}
-            onPick={goTo}
-            label={`Photos of ${placeName}`}
-          />
+        <div className={styles.controls} data-place-photo-controls="">
+          <div className={styles.position}>
+            {photos.length > 1 && (
+              <>
+                <span
+                  className="tile-label text-muted-foreground tabular-nums"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  Photo {currentPhotoIndex + 1} of {photos.length}
+                </span>
+                <div className={styles.buttons}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => goTo(currentPhotoIndex - 1)}
+                    disabled={currentPhotoIndex === 0}
+                    aria-label="Previous photo"
+                  >
+                    <FiChevronLeft aria-hidden="true" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => goTo(currentPhotoIndex + 1)}
+                    disabled={currentPhotoIndex === photos.length - 1}
+                    aria-label="Next photo"
+                  >
+                    <FiChevronRight aria-hidden="true" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+          {imageUrl && (
+            <div className={styles.buttons}>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleZoomIn}
+                disabled={zoom >= 3}
+                aria-label="Zoom in"
+              >
+                <FiZoomIn aria-hidden="true" />
+              </Button>
+              <span className="min-w-10 text-center tile-label tabular-nums text-muted-foreground">
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleZoomOut}
+                disabled={zoom === 1}
+                aria-label="Zoom out"
+              >
+                <FiZoomOut aria-hidden="true" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              >
+                {isFullscreen ? <FiX aria-hidden="true" /> : <FiMaximize aria-hidden="true" />}
+              </Button>
+            </div>
+          )}
+        </div>
+        {fullscreenMessage && (
+          <p role="status" className="tile-meta text-muted-foreground">
+            {fullscreenMessage}
+          </p>
         )}
+      </div>
 
-        {currentPhoto?.caption && (
-          <motion.div
+      {photos.length > 1 && (
+        <PhotoStrip
+          photos={photos}
+          index={currentPhotoIndex}
+          onPick={goTo}
+          label={`Photos of ${placeName}`}
+        />
+      )}
+
+      {currentPhoto?.caption && (
+        <figcaption className={styles.caption}>
+          <motion.p
             key={`caption-${currentPhotoIndex}`}
-            // direction is 0 only before the first move: the server-rendered caption shows at once.
             initial={direction === 0 ? false : CAPTION_ENTER}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-muted/50 rounded-lg p-6"
+            transition={{ duration: 0.2 }}
           >
-            <p className="text-sm text-muted-foreground leading-relaxed italic text-center">
-              {currentPhoto.caption}
-            </p>
-          </motion.div>
-        )}
-      </CardContent>
-    </>
+            {currentPhoto.caption}
+          </motion.p>
+        </figcaption>
+      )}
+    </figure>
   );
 }
 

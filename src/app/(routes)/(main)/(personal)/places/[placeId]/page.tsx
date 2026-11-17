@@ -18,8 +18,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { JSX } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
-import { MagicCard } from '@/components/magicui/magic-card';
-import { CardContent, CardHeader } from '@/components/ui/card';
 import { reportApiFailure } from '@/lib/observability/report';
 import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
@@ -103,18 +101,6 @@ const viewerPhotos = (place: Place): ViewerPhoto[] =>
     alt: photo.caption || `Photo of ${place.name}`,
   }));
 
-/** The place page's header content; the close link's name says what it closes. */
-const placeSummary = (place: Place, closeLabel: string): JSX.Element => (
-  <PlaceSummary
-    name={place.name}
-    category={place.category}
-    description={place.description}
-    startDate={place.startDate}
-    endDate={place.endDate}
-    closeLabel={closeLabel}
-  />
-);
-
 /**
  * A place in full: its summary, then its photos, or an empty state with a map link when it has
  * none. An unknown id answers 404, as does a visit that may still be on (the owner's rule: past
@@ -128,25 +114,18 @@ export default async function PlacePage({ params }: PlacePageProps): Promise<JSX
   const photos = viewerPhotos(place);
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="w-full max-w-7xl mx-auto">
-        <MagicCard>
-          {photos.length === 0 ? (
-            <>
-              <CardHeader>{placeSummary(place, 'Close')}</CardHeader>
-              <CardContent>
-                <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
-              </CardContent>
-            </>
-          ) : (
-            <PlacePhotoViewer
-              photos={photos}
-              placeName={place.name}
-              summary={placeSummary(place, 'Close photo viewer')}
-            />
-          )}
-        </MagicCard>
-      </div>
-    </div>
+    <PlaceSummary
+      name={place.name}
+      category={place.category}
+      description={place.description}
+      startDate={place.startDate}
+      endDate={place.endDate}
+    >
+      {photos.length === 0 ? (
+        <PlacePhotosEmptyState latitude={place.latitude} longitude={place.longitude} />
+      ) : (
+        <PlacePhotoViewer photos={photos} placeName={place.name} />
+      )}
+    </PlaceSummary>
   );
 }
