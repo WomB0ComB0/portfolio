@@ -15,12 +15,14 @@
  */
 
 /**
- * @file The site's YouTube channel, named once: the loader that lists its uploads
- * (src/lib/sanity/enrich.ts) and the site's JSON-LD (src/lib/seo/json-ld.ts) both read it here.
+ * @file Compatibility names for the YouTube channel in the shared public profile. The uploads
+ * loader and JSON-LD keep using these exports; the destination is maintained in profile.ts.
  */
 
+import { profile } from '@/constants/profile';
+
 /** The channel whose uploads are listed next to the videos stored in Sanity. */
-export const YOUTUBE_CHANNEL_HANDLE = '@mikeodnis';
+export const YOUTUBE_CHANNEL_HANDLE = profile.youtube.handle;
 
 /** The channel's page: youtube.com/@handle. */
-export const YOUTUBE_CHANNEL_URL = `https://www.youtube.com/${YOUTUBE_CHANNEL_HANDLE}`;
+export const YOUTUBE_CHANNEL_URL = profile.youtube.url;

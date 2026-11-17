@@ -31,18 +31,13 @@ import 'server-only';
  * when Sanity fails, the last good settings this server cached decide, and with nothing cached
  * there is none. So a location the owner cleared never comes back through a fallback.
  *
- * The positioning line and the contact links come from the site settings in Sanity, each falling
- * back to its built-in value ({@link HERO_FALLBACK_COPY}) when it is empty or invalid, or the
- * settings fail to load. The tagline and the links never hold the first flush, so it always has
- * the words and all four links. On a warm server they are rendered from the settings this server
- * last loaded, as they are, outside Suspense: the reload the role line starts once those are past
- * their TTL shows from the next request, so nothing streams in and nothing moves. A new server
- * has nothing cached: its first visitors get the built-in copy first, each in a Suspense boundary
- * the owner's copy streams into, the tagline in a box as tall as Studio's longest tagline at the
- * tile's width (five lines on a phone, three from a 24rem tile), so the owner's longer tagline
- * streaming in moves nothing either. (Loading the settings at startup would not help:
- * instrumentation's register() is awaited before an instance serves any route, so every cold
- * start would wait on Sanity.) The links are always the same four.
+ * Name, avatar and contact links come from the shared static profile and render in the first
+ * flush, outside the settings stream. The positioning line still comes from Studio, falling
+ * back to HERO_FALLBACK_COPY when missing or invalid. On a warm server the cached tagline is
+ * kept for the whole request; a reload started by the role line applies on the next request,
+ * so replacing a tagline with a longer one cannot move the page. On a cold server its built-in
+ * copy streams into a box reserved for Studio's longest tagline. Loading settings at startup
+ * would hold every route, so the hero starts that work only when requested.
  */
 
 import Image from 'next/image';
@@ -51,7 +46,7 @@ import { cache, type ReactElement, Suspense } from 'react';
 
 import { ensureBaseError } from '@/classes/error';
 import { Tile } from '@/components/console';
-import { app } from '@/constants';
+import { profile } from '@/constants/profile';
 import { reportApiFailure } from '@/lib/observability/report';
 import { loadSiteSettings, peekSiteSettings, type SiteSettings } from '@/lib/sanity/loaders';
 import { companyName } from '../data/format';
@@ -61,21 +56,19 @@ import { ExternalAnchor, GITHUB_PROFILE_URL, META_SEPARATOR, SkeletonBar } from 
 
 /**
  * The hero's one positioning line (owner decision 7), unless the site settings give a tagline.
- * Kept in app.tagline, which the link-preview card and the web app manifest repeat.
+ * The static default also feeds app.tagline, link-preview cards and the web app manifest.
  */
-export const HERO_POSITIONING = app.tagline;
+export const HERO_POSITIONING = profile.tagline;
 
 export const HERO_TITLE_ID = 'home-title';
 
-const AVATAR_SRC = 'https://avatars.githubusercontent.com/u/95197809?v=4';
-const AVATAR_ALT = "Mike Odnis's avatar: a painting of a scholar writing at his desk";
 /** The largest size it is drawn at (size-18, from a 30rem tile). */
 const AVATAR_PX = 72;
 
-export const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/mikeodnis/';
+export const LINKEDIN_PROFILE_URL = profile.linkedinUrl;
 const RESUME_PATH = '/resume';
 
-/** What the site settings change in the hero. */
+/** CMS-authored location/tagline plus shared static contact destinations. */
 export interface HeroCopy {
   /** Where Mike is, after the role; null shows none. Never built in: only the settings say it. */
   readonly location: string | null;
@@ -89,22 +82,22 @@ export interface HeroCopy {
 export const HERO_FALLBACK_COPY: HeroCopy = {
   location: null,
   tagline: HERO_POSITIONING,
-  email: app.email,
+  email: profile.email,
   githubUrl: GITHUB_PROFILE_URL,
   linkedinUrl: LINKEDIN_PROFILE_URL,
 };
 
 /**
- * The hero's copy from `settings`; each field they lack (empty, or dropped as invalid) built in,
- * except the location, which they alone give: without one, there is none.
+ * Studio owns location and tagline only. Contact destinations always follow the static profile,
+ * including when a stored legacy contact field differs. No location is built in.
  */
 export function heroCopyOf(settings: SiteSettings | null | undefined): HeroCopy {
   return {
     location: settings?.location ?? null,
     tagline: settings?.tagline ?? HERO_FALLBACK_COPY.tagline,
-    email: settings?.email ?? HERO_FALLBACK_COPY.email,
-    githubUrl: settings?.githubUrl ?? HERO_FALLBACK_COPY.githubUrl,
-    linkedinUrl: settings?.linkedinUrl ?? HERO_FALLBACK_COPY.linkedinUrl,
+    email: profile.email,
+    githubUrl: profile.github.url,
+    linkedinUrl: profile.linkedinUrl,
   };
 }
 
@@ -245,27 +238,22 @@ function HeroTagline({ copy }: CopyProps): ReactElement {
   );
 }
 
-/**
- * The mailto link for `email`. A mail client decodes %XX in the address, so a literal '%' (which
- * SITE_EMAIL_PATTERN allows) goes as %25: first%2Blast@ stays that, not first+last@.
- */
-const mailtoHref = (email: string): string => `mailto:${email.replaceAll('%', '%25')}`;
-
-function HeroLinks({ copy }: CopyProps): ReactElement {
+/** The contact row is plain first-flush HTML, independent of the settings stream. */
+function HeroLinks(): ReactElement {
   return (
     <ul className="flex flex-wrap gap-2">
       <li>
-        <a href={mailtoHref(copy.email)} className={PRIMARY_LINK_CLASS}>
+        <a href={profile.emailHref} className={PRIMARY_LINK_CLASS}>
           Email me
         </a>
       </li>
       <li>
-        <ExternalAnchor href={copy.githubUrl} className={GHOST_LINK_CLASS}>
+        <ExternalAnchor href={profile.github.url} className={GHOST_LINK_CLASS}>
           GitHub
         </ExternalAnchor>
       </li>
       <li>
-        <ExternalAnchor href={copy.linkedinUrl} className={GHOST_LINK_CLASS}>
+        <ExternalAnchor href={profile.linkedinUrl} className={GHOST_LINK_CLASS}>
           LinkedIn
         </ExternalAnchor>
       </li>
@@ -330,8 +318,8 @@ export function HeroTile(): ReactElement {
     <Tile variant="raised" tone="hero" padding="lg" className="gap-5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-4">
         <Image
-          src={AVATAR_SRC}
-          alt={AVATAR_ALT}
+          src={profile.avatar.src}
+          alt={profile.avatar.alt}
           width={AVATAR_PX}
           height={AVATAR_PX}
           sizes={`${AVATAR_PX}px`}
@@ -340,7 +328,7 @@ export function HeroTile(): ReactElement {
           className="size-16 shrink-0 rounded-full ring-2 ring-brand @[30rem]:size-18"
         />
         <h1 id={HERO_TITLE_ID} className="min-w-0 hero-name text-foreground">
-          Mike Odnis
+          {profile.name}
         </h1>
       </div>
       <div className="flex max-w-[40rem] flex-col gap-1">
@@ -357,7 +345,7 @@ export function HeroTile(): ReactElement {
           <SettingsCopy initial={initial} loaded={loaded} view={HeroTagline} />
         </div>
       </div>
-      <SettingsCopy initial={initial} loaded={loaded} view={HeroLinks} />
+      <HeroLinks />
     </Tile>
   );
 }

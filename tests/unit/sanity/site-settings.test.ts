@@ -18,8 +18,8 @@
  * @file The site settings in Studio: one optional-field document opened as a single "Site
  * settings" item at its fixed id, which cannot be created from the "Create" menu, deleted,
  * duplicated or unpublished. Studio refuses every value the site's decoder would drop (so the
- * owner never publishes an edit the home page silently ignores): an address the mailto link
- * cannot carry, a location or tagline of spaces only, a link with credentials.
+ * editable location/tagline remain valid). Legacy contact fields retain their stored values and
+ * validators as warnings but are read-only; the site uses src/constants/profile.ts for those destinations.
  *
  * The location is the one field with no built-in value (owner decision: 'Clear the field in
  * Studio to hide it'): Studio lets the owner clear it, and the site takes a location of spaces
@@ -111,6 +111,7 @@ async function problemsWith(fields: Record<string, unknown>): Promise<Problem[]>
 }
 
 const error = (path: string, code: string): Problem => ({ path, code, level: 'error' });
+const warning = (path: string, code: string): Problem => ({ path, code, level: 'warning' });
 
 const FULL = {
   location: 'New York, NY',
@@ -136,6 +137,21 @@ describe('the site settings schema in Studio', () => {
     );
   });
 
+  it('lets the owner publish a cleared location despite invalid read-only legacy contacts', async () => {
+    const problems = await problemsWith({
+      ...FULL,
+      location: undefined,
+      email: 'mike@',
+      githubUrl: 'http://github.com/example',
+      linkedinUrl: 'ftp://www.linkedin.com/in/example/',
+    });
+
+    expect(new Set(problems.map(({ path }) => path))).toEqual(
+      new Set(['email', 'githubUrl', 'linkedinUrl']),
+    );
+    expect(problems.every(({ level }) => level === 'warning')).toBe(true);
+  });
+
   it(`limits the location to ${SITE_LOCATION_MAX_LENGTH} characters and the tagline to ${SITE_TAGLINE_MAX_LENGTH}`, async () => {
     expect(
       await problemsWith({
@@ -154,8 +170,8 @@ describe('the site settings schema in Studio', () => {
     ]);
   });
 
-  it('takes an email address only', async () => {
-    expect(await problemsWith({ email: 'mike@' })).toContainEqual(error('email', 'string.email'));
+  it('warns about a malformed legacy email address', async () => {
+    expect(await problemsWith({ email: 'mike@' })).toContainEqual(warning('email', 'string.email'));
   });
 
   it.each([
@@ -165,14 +181,17 @@ describe('the site settings schema in Studio', () => {
     'a=b@x.com',
     'mike?cc=x@a.com',
     'mike@mikeodnis.dev#x',
-  ])('refuses %s, which a mailto link cannot carry, with the rule in words', async (email) => {
-    const problems = await problemsWithMessages({ email });
+  ])(
+    'warns about legacy %s, which a mailto link cannot carry, with the rule in words',
+    async (email) => {
+      const problems = await problemsWithMessages({ email });
 
-    expect(problems).toContainEqual({
-      ...error('email', 'custom.site-email'),
-      message: SITE_EMAIL_MESSAGE,
-    });
-  });
+      expect(problems).toContainEqual({
+        ...warning('email', 'custom.site-email'),
+        message: SITE_EMAIL_MESSAGE,
+      });
+    },
+  );
 
   it.each([
     ['location', '   '],
@@ -185,33 +204,33 @@ describe('the site settings schema in Studio', () => {
     ]);
   });
 
-  it('refuses a link with a user name or password, as the site does', async () => {
+  it('warns about legacy links with a user name or password', async () => {
     const problems = await problemsWith({
       githubUrl: 'https://user:secret@github.com/WomB0ComB0',
       linkedinUrl: 'https://someone@www.linkedin.com/in/mikeodnis/',
     });
 
     expect(problems).toEqual([
-      error('githubUrl', 'string.url.credentials-not-allowed'),
-      error('linkedinUrl', 'string.url.credentials-not-allowed'),
+      warning('githubUrl', 'string.url.credentials-not-allowed'),
+      warning('linkedinUrl', 'string.url.credentials-not-allowed'),
     ]);
   });
 
-  it('takes https links only, for GitHub and LinkedIn', async () => {
+  it('warns about non-https legacy GitHub and LinkedIn links', async () => {
     expect(
       await problemsWith({
         githubUrl: 'http://github.com/WomB0ComB0',
         linkedinUrl: 'ftp://www.linkedin.com/in/mikeodnis/',
       }),
     ).toEqual([
-      error('githubUrl', 'string.url.scheme-not-allowed'),
-      error('linkedinUrl', 'string.url.scheme-not-allowed'),
+      warning('githubUrl', 'string.url.scheme-not-allowed'),
+      warning('linkedinUrl', 'string.url.scheme-not-allowed'),
     ]);
     const [relative] = await problemsWith({ githubUrl: '/WomB0ComB0' });
-    expect(relative).toMatchObject({ path: 'githubUrl', level: 'error' });
+    expect(relative).toMatchObject({ path: 'githubUrl', level: 'warning' });
   });
 
-  it('says where on the site each field appears, and what leaving it empty does', () => {
+  it('keeps location/tagline editable and labels legacy contacts as read-only code-managed values', () => {
     expect(siteSettingsType.fields.map(({ name }) => name)).toEqual([
       'location',
       'tagline',
@@ -220,13 +239,14 @@ describe('the site settings schema in Studio', () => {
       'linkedinUrl',
     ]);
     for (const field of siteSettingsType.fields) {
-      expect(field.description, field.name).toMatch(/home page/);
-      // The location has no built-in value to fall back to: clearing it hides it.
-      expect(field.description, field.name).toMatch(
-        field.name === 'location'
-          ? /^Optional\..*Clear it to hide your location from the home page and the site's metadata\.$/
-          : /Leave it empty/,
-      );
+      if (['email', 'githubUrl', 'linkedinUrl'].includes(field.name)) {
+        expect(field, field.name).toHaveProperty('readOnly', true);
+        expect(field.description, field.name).toMatch(/src\/constants\/profile\.ts/);
+        expect(field.description, field.name).toMatch(/no longer/);
+      } else {
+        expect(field, field.name).not.toHaveProperty('readOnly', true);
+        expect(field.description, field.name).toMatch(/home page/);
+      }
     }
     const location = siteSettingsType.fields[0]?.description ?? '';
     expect(location).not.toMatch(/capitals|beside your avatar|built-in/);
@@ -318,14 +338,20 @@ const siteKeeps = (field: string, value: string): boolean => {
 const studioPublishes = async (field: string, value: string): Promise<boolean> =>
   (await problemsWith({ [field]: value })).every((problem) => problem.level !== 'error');
 
-describe('Studio and the site agree', () => {
+describe('Studio and the site detect the same invalid values', () => {
   it.each(
     Object.entries(CANDIDATES).flatMap(([field, values]) =>
       values.map((value) => [field, value] as const),
     ),
-  )('Studio publishes %s = %j only when the site keeps it', async (field, value) => {
-    expect(await studioPublishes(field, value)).toBe(siteKeeps(field, value));
-  });
+  )(
+    'Studio flags %s = %j, with non-blocking warnings for legacy contacts',
+    async (field, value) => {
+      const problems = await problemsWith({ [field]: value });
+      const legacy = ['email', 'githubUrl', 'linkedinUrl'].includes(field);
+      expect(problems.length === 0).toBe(siteKeeps(field, value));
+      expect(problems.every(({ level }) => level === (legacy ? 'warning' : 'error'))).toBe(true);
+    },
+  );
 
   it.each(['', '   ', ' \n\t '])(
     'the site takes a location of %j as cleared, and keeps the other fields',

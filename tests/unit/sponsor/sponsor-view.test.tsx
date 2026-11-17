@@ -29,6 +29,7 @@
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { profile } from '@/constants/profile';
 import type { GitHubSponsorsData, Sponsor } from '@/lib/api-integrations/github-sponsors';
 
 const { getGitHubSponsors, reportApiFailure } = vi.hoisted(() => ({
@@ -157,7 +158,7 @@ describe('/sponsor server HTML', () => {
     expect(Array.from(root.querySelectorAll('h1'), textOf)).toEqual(['Sponsor']);
   });
 
-  it('keeps the Email action in this tab', async () => {
+  it('uses the shared contact destination and keeps the Email action in this tab', async () => {
     getGitHubSponsors.mockResolvedValue(sponsorsData([]));
 
     const { root } = await routeHtml();
@@ -165,6 +166,7 @@ describe('/sponsor server HTML', () => {
     const mail = root.querySelectorAll('a[href^="mailto:"]');
     expect(mail.length).toBeGreaterThan(0);
     for (const link of mail) {
+      expect(link).toHaveAttribute('href', profile.emailHref);
       expect(link).not.toHaveAttribute('target');
     }
   });

@@ -15,7 +15,8 @@
  */
 
 import type { Metadata, Viewport } from 'next';
-import { app } from '@/constants';
+import { app } from '@/constants/app';
+import { profile } from '@/constants/profile';
 import {
   OG_CONTENT_TYPE,
   OG_IMAGE_SIZE,
@@ -219,7 +220,7 @@ export function constructMetadata({
       title,
       description,
       images: [twitter ? { url: twitter } : { ...preview.twitter }],
-      creator: '@mike_odnis',
+      creator: profile.x.handle,
     },
     icons: siteIcons(),
     category: 'technology',
