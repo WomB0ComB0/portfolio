@@ -658,16 +658,13 @@ async function processFile(file: string, args: Args): Promise<ProcessResult> {
 function printSummary(results: ProcessResult[], args: Args): void {
   const summary = results.reduce(
     (acc, result) => {
-      acc[result.status] = (acc[result.status] || 0) + 1;
+      acc[result.status] += 1;
       return acc;
     },
-    {} as Record<ProcessResult['status'], number>,
+    { updated: 0, skipped: 0, missing: 0, error: 0 },
   );
 
-  const updated = summary.updated || 0;
-  const skipped = summary.skipped || 0;
-  const missing = summary.missing || 0;
-  const errors = summary.error || 0;
+  const { updated, skipped, missing, error: errors } = summary;
 
   console.log(kleur.bold('\n--- Summary ---'));
 
