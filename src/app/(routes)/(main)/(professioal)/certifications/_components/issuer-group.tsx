@@ -24,9 +24,9 @@
  */
 
 import type { CSSProperties, ReactElement } from 'react';
-
 import { Byline, countOf, widestWordUnits } from '@/components/console/folio';
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
 import { CERTIFICATION_NOUN } from '../_lib/certification-filters';
 import {
@@ -143,13 +143,16 @@ function BriefCredential({ entry, group }: BriefProps): ReactElement {
   const margin = notes.length > 0 || skillsLine(entry.skills).shown.length > 0;
   return (
     <li data-cert-item="" data-cert-size="brief" className={BRIEF_ITEM_CLASS}>
-      <span className={cn(BRIEF_LINE_CLASS, !margin && BRIEF_LINE_FULL_CLASS)}>
-        <BriefTitle entry={entry} group={group} />
-        {entry.credentialId ? (
-          <span className={COPY_SLOT_CLASS}>
-            <CredentialCopy entry={entry} />
-          </span>
-        ) : null}
+      <span className={cn('min-w-0', !margin && BRIEF_LINE_FULL_CLASS)}>
+        <span className={BRIEF_LINE_CLASS}>
+          <BriefTitle entry={entry} group={group} />
+          {entry.credentialId ? (
+            <span className={COPY_SLOT_CLASS}>
+              <CredentialCopy entry={entry} />
+            </span>
+          ) : null}
+        </span>
+        {entry.link && <LinkHealthBadge href={entry.link.href} scope="certifications" />}
       </span>
       {margin ? <BriefMargin notes={notes} skills={entry.skills} /> : null}
     </li>

@@ -24,9 +24,9 @@
 
 import { Code } from 'lucide-react';
 import type { ReactElement } from 'react';
-
 import { StatusDot } from '@/components/console/status-dot';
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { Breakable } from './breakable';
 import styles from './case-hero.module.css';
 import { addressParts, type CaseStatus } from './case-text';
@@ -92,36 +92,42 @@ export function CaseLinks({ live, host, source }: CaseLinksProps): ReactElement 
   return (
     <p className={styles.links}>
       {live ? (
-        <a
-          href={live}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.primary}
-          data-case-link="live"
-        >
-          <span className={styles['link-words']}>
-            Visit {host ? <Address address={host} /> : 'the live site'}
-            <NewTabArrow />
-          </span>
-          <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
-        </a>
+        <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1">
+          <a
+            href={live}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.primary}
+            data-case-link="live"
+          >
+            <span className={styles['link-words']}>
+              Visit {host ? <Address address={host} /> : 'the live site'}
+              <NewTabArrow />
+            </span>
+            <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
+          </a>
+          <LinkHealthBadge href={live} scope="projects" />
+        </span>
       ) : null}
       {source ? (
-        <a
-          href={source}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.secondary}
-          data-case-link="source"
-        >
-          <Code aria-hidden="true" className={styles['link-icon']} />
-          <span className={styles['link-words']}>
-            Source
-            <SrOnlyWords>code</SrOnlyWords>
-            <NewTabArrow />
-          </span>
-          <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
-        </a>
+        <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1">
+          <a
+            href={source}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.secondary}
+            data-case-link="source"
+          >
+            <Code aria-hidden="true" className={styles['link-icon']} />
+            <span className={styles['link-words']}>
+              Source
+              <SrOnlyWords>code</SrOnlyWords>
+              <NewTabArrow />
+            </span>
+            <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
+          </a>
+          <LinkHealthBadge href={source} scope="projects" />
+        </span>
       ) : null}
     </p>
   );

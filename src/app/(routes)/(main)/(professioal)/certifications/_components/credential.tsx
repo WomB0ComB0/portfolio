@@ -23,10 +23,10 @@
  */
 
 import type { CSSProperties, ReactElement } from 'react';
-
 import { Byline, widestWordUnits } from '@/components/console/folio';
 import { IndexCopyButton } from '@/components/console/index-table';
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import type { CredentialLink } from '../_lib/format';
 import type { LedgerEntry } from '../_lib/ledger';
 import { NO_LINK_NOTE } from '../_lib/record';
@@ -112,6 +112,7 @@ export function BigCredential({ entry }: CredentialProps): ReactElement {
       <SkillsLine skills={entry.skills} className={BIG_SKILLS_CLASS} />
       <p className={VERIFY_ROW_CLASS}>
         <VerifyLink entry={entry} />
+        {entry.link && <LinkHealthBadge href={entry.link.href} scope="certifications" />}
         <CredentialCopy entry={entry} />
       </p>
     </li>

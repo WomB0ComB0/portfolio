@@ -35,7 +35,6 @@
 
 import type { ReactElement, ReactNode } from 'react';
 import { FiChevronRight, FiPlay } from 'react-icons/fi';
-
 import {
   INDEX_META_CLASS,
   INDEX_SUB_CLASS,
@@ -46,6 +45,7 @@ import {
 } from '@/components/console/index-table';
 import { INDEX_TITLE_LINK_CLASS } from '@/components/console/index-table/index-table-classes';
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
 import {
   type FeedEntry,
@@ -393,6 +393,9 @@ export function FeedRow({
             <span className={TITLE_LINE_CLASS}>
               <TitleLink row={row} play={play} />
             </span>
+            {row.external && row.href && row.kind !== 'video' && row.kind !== 'stream' && (
+              <LinkHealthBadge href={row.href} scope="media" />
+            )}
             {folded ? (
               <Parts row={row} play={play} dateStyle={dateStyle} />
             ) : (

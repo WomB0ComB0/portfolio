@@ -27,8 +27,8 @@
 
 import Link from 'next/link';
 import type { ReactElement } from 'react';
-
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import type { ProjectMediaItem } from '../_lib/load-project-media';
 import { KIND_WORDS } from '../_lib/media-feed';
 
@@ -73,7 +73,7 @@ export function ProjectMedia({ items }: ProjectMediaProps): ReactElement | null 
       </h2>
       <ul className={LIST_CLASS}>
         {items.map((item) => (
-          <li key={item.id}>
+          <li key={item.id} className="flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1">
             <a
               href={item.href}
               target="_blank"
@@ -89,6 +89,9 @@ export function ProjectMedia({ items }: ProjectMediaProps): ReactElement | null 
               </span>
               <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
             </a>
+            {item.kind !== 'video' && item.kind !== 'stream' && (
+              <LinkHealthBadge href={item.href} scope="media" />
+            )}
           </li>
         ))}
       </ul>

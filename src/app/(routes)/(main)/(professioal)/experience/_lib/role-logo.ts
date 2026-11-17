@@ -16,18 +16,37 @@
 
 /**
  * @file A role's logo URL, built on the server for both experience pages, so no client code
- * loads the Sanity client. One square crop serves the row's 20px mark and anything larger;
- * next/image sizes it down (CSP img-src is 'self', so Sanity's CDN is never hit from the page).
+ * loads the Sanity client. List marks retain their 96px square crop. The detail header requests
+ * the whole asset at 336px (three times its 112px display), without an authored or square crop.
+ * next/image serves the sized image through the site (CSP img-src is 'self').
  */
 
 import type { Experience } from '@/hooks/sanity/schemas';
 import { urlFor } from '@/lib/sanity/client';
 
 const LOGO_SOURCE_PX = 96;
+const DETAIL_SOURCE_PX = 336;
+
+export interface RoleLogoOptions {
+  readonly variant?: 'list' | 'detail';
+}
 
 /** The experience's logo URL, or null for the monogram. */
-export function roleLogoOf(experience: Experience): string | null {
+export function roleLogoOf(
+  experience: Experience,
+  { variant = 'list' }: RoleLogoOptions = {},
+): string | null {
   if (!experience.logo?.asset) return null;
+  if (variant === 'detail') {
+    try {
+      return (
+        urlFor(experience.logo.asset).width(DETAIL_SOURCE_PX).fit('max').auto('format').url() ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  }
   return (
     urlFor(experience.logo)
       .width(LOGO_SOURCE_PX)
