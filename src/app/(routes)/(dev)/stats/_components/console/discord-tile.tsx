@@ -63,9 +63,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowUpRight, Code, Headphones, Moon } from 'lucide-react';
-import Image from 'next/image';
 import { type ReactElement, useEffect, useReducer, useState } from 'react';
-
 import type { LiveInitial } from '@/app/_components/home/data/tile-result';
 import { fetchJson, parseNowPlaying } from '@/app/_components/home/live/live-fetch';
 import { TileLabel, TileUnavailable } from '@/app/_components/home/tiles/tile-states';
@@ -74,6 +72,7 @@ import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/h
 import { StatusDot, type StatusTone } from '@/components/console/status-dot';
 import { Tile } from '@/components/console/tile';
 import { TileLink } from '@/components/console/tile-link';
+import Image from '@/components/ui/cdn-image';
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { cn } from '@/lib/utils';
 import {

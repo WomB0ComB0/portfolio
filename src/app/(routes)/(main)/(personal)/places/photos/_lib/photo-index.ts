@@ -36,7 +36,7 @@ import {
 import { viewerPhotoUrl } from '../../_lib/viewer-photo-url';
 import { shuffled } from './photo-order';
 
-/** The place viewer's frame: the open view uses its URL, so /_next/image shares one cache. */
+/** The place viewer's frame: the open view uses its URL, so the CDN shares one cached rendition. */
 const VIEWER_MAX_WIDTH = 1600;
 const VIEWER_MAX_HEIGHT = 1200;
 

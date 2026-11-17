@@ -33,7 +33,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PhotoGrid } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-grid';
 import { widestWordUnits } from '@/components/console/folio/word-measure';
-import { byId, makePhotoPlace, photoData, photosOf, sourceOf } from './photo-fixtures';
+import { byId, makePhotoPlace, photoData, photosOf } from './photo-fixtures';
 
 const GRID_FIRST = 48;
 const { places, photos } = photoData(12, 5);
@@ -121,7 +121,11 @@ describe('PhotoGrid', () => {
     expect(img).toHaveAttribute('loading', 'lazy');
     expect(img).toHaveAttribute('sizes', '(max-width: 639px) 50vw, 240px');
     expect(img?.getAttribute('fetchpriority')).not.toBe('high');
-    expect(sourceOf(img?.getAttribute('src') ?? '')).toBe(photos[0]?.thumb);
+    const direct = new URL(img?.getAttribute('src') ?? '');
+    expect(direct.origin + direct.pathname).toBe((photos[0]?.thumb ?? '').split('?')[0]);
+    expect(direct.searchParams.get('h')).toBe('360');
+    expect(direct.searchParams.get('fit')).toBe('max');
+    expect(direct.searchParams.get('auto')).toBe('format');
     expect(img?.getAttribute('style')).toContain('object-position: 30% 20%');
   });
 

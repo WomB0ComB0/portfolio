@@ -1,4 +1,5 @@
 import 'server-only';
+
 /**
  * Copyright 2026 Mike Odnis
  *
@@ -27,10 +28,9 @@ import 'server-only';
  * dims the others, as the /places photo strip does.
  */
 
-import Image from 'next/image';
 import type { CSSProperties, ReactElement } from 'react';
-
 import { PhotoViewerLink } from '@/components/console/photo/photo-viewer';
+import Image from '@/components/ui/cdn-image';
 import styles from './case-body.module.css';
 import { fullUrl, tileUrl } from './case-images';
 import {

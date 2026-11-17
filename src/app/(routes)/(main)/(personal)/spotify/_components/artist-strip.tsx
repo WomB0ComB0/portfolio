@@ -26,9 +26,7 @@
  * Palette only: the portraits are the only colour.
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
-
 import { EmptyState } from '@/components/console/empty-state';
 import {
   INDEX_YEAR_COUNT_CLASS,
@@ -37,6 +35,7 @@ import {
 import { NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
 import { RetryButton } from '@/components/data/retry-button';
 import { SectionError } from '@/components/data/section-error';
+import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 import {
   ARTIST_PORTRAIT_PX,

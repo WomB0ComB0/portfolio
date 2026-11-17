@@ -24,7 +24,7 @@ import './src/env';
 // next.config.ts (top-level, before config)
 import fs from 'node:fs';
 import path from 'node:path';
-import { HASHNODE_COVER_PATTERNS } from './src/config/blog-images';
+import { REMOTE_IMAGE_PATTERNS } from './src/config/image-sources';
 import {
   RETIRED_SERVICE_WORKER_HEADERS,
   RETIRED_SERVICE_WORKER_SOURCE,
@@ -157,23 +157,7 @@ const config: NextConfig = {
   },
 
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'mikeodnis.dev' },
-      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
-      { protocol: 'https', hostname: 'github.com' },
-      { protocol: 'https', hostname: 'api.lanyard.rest' },
-      { protocol: 'https', hostname: 'i.scdn.co' },
-      { protocol: 'https', hostname: 'cdn.discordapp.com' },
-      { protocol: 'https', hostname: 'cdn.sanity.io' },
-      { protocol: 'https', hostname: 'img.youtube.com' },
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
-      { protocol: 'https', hostname: 'dev-to-uploads.s3.amazonaws.com' },
-      { protocol: 'https', hostname: 'media.dev.to' },
-      { protocol: 'https', hostname: 'media2.dev.to' },
-      // Hashnode post covers (cdn.hashnode.com and the blog's generated /api/og/** title cards).
-      ...HASHNODE_COVER_PATTERNS,
-    ],
+    remotePatterns: [...REMOTE_IMAGE_PATTERNS],
     // Widths for images drawn at a fixed size (`sizes="96px"`), below the smallest deviceSizes
     // entry (640): without 48-256, the home avatar (96px) and place thumbnail (72px) fetched 640w.
     imageSizes: [16, 20, 24, 32, 40, 48, 64, 96, 128, 256],

@@ -57,8 +57,8 @@
  * - decorative: hidden from assistive tech, with an empty alt.
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 /** How the hero treats album-art colour: images only, or a faint glow from the art too. */
 export const ART_MODES = ['plain', 'glow'] as const;

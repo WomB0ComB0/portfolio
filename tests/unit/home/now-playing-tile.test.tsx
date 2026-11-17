@@ -270,8 +270,10 @@ describe('NowPlayingTile', () => {
 
     const art = container.querySelector('img');
     expect(art).toHaveAttribute('alt', '');
-    expect(art?.getAttribute('src')).toContain(encodeURIComponent('https://i.scdn.co/image/ghi'));
-    expect(art).toHaveAttribute('sizes', '56px');
+    expect(art?.getAttribute('src')).toBe('https://i.scdn.co/image/ghi');
+    expect(art).toHaveAttribute('width', '56');
+    expect(art).toHaveAttribute('height', '56');
+    expect(art).not.toHaveAttribute('srcset');
     expect(art).toHaveClass('size-14', 'rounded-lg');
     expectNoDeadLinks();
   });

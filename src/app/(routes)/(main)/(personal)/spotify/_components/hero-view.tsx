@@ -40,14 +40,13 @@
  * its exports, even a string, would arrive as a client reference.
  */
 
-import Image from 'next/image';
 import type { ReactElement, ReactNode } from 'react';
-
 import { Equaliser } from '@/app/_components/home/live/equaliser';
 import type { PlayingTrackView } from '@/app/_components/home/live/now-playing-view';
 import { Freshness } from '@/components/console/freshness';
 import { Tile } from '@/components/console/tile';
 import { TileLink } from '@/components/console/tile-link';
+import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 import type { HeroState } from '../_lib/hero-state';
 import { ArtBacklight, type ArtMode } from './art-backlight';

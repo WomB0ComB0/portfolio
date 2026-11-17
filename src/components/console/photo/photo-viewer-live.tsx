@@ -36,7 +36,6 @@
  */
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import Image from 'next/image';
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -48,7 +47,7 @@ import {
   useState,
 } from 'react';
 import { FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
-
+import Image from '@/components/ui/cdn-image';
 import {
   Dialog,
   DialogClose,
@@ -56,6 +55,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { isSanityImageUrl } from '@/lib/images/cdn-loader';
 import styles from './photo-viewer.module.css';
 import {
   COMPACT_QUERY,
@@ -96,15 +96,14 @@ export interface LivePhotoViewerProps {
 
 /**
  * The copy of image `index` the page already shows (a link's image), when it is a same-origin
- * /_next/image URL that has loaded: drawn at once while the whole image loads over it. The CSP
- * lets images come only from the site itself, so anything else is skipped.
+ * or trusted Sanity CDN image that has loaded: drawn while the whole image loads over it.
  */
 function shownCopyOf(index: number): string | null {
   const image = document.querySelector<HTMLImageElement>(
     `[data-photo-viewer-index="${index}"] img`,
   );
   const src = image?.complete ? image.currentSrc : '';
-  return src.startsWith(`${window.location.origin}/`) ? src : null;
+  return src.startsWith(`${window.location.origin}/`) || isSanityImageUrl(src) ? src : null;
 }
 
 /** Marks the whole image loaded, so it fades in over the copy. */

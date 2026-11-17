@@ -412,7 +412,7 @@ async function playingAnswer(page: Page) {
     const image = document.querySelector('[data-spotify-track] img')?.getAttribute('src') ?? '';
     return {
       songURL: document.querySelector('[data-track-title]')?.getAttribute('href') ?? undefined,
-      imageURL: new URL(image, location.href).searchParams.get('url') ?? undefined,
+      imageURL: image ? new URL(image, location.href).href : undefined,
     };
   });
   return { isPlaying: true, songName: 'A Song', artistName: 'An Artist', ...track };

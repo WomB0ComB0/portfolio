@@ -330,7 +330,7 @@ test.describe('/places/[placeId]: the photo strip at 1440', () => {
       buttons.map((button) => button.querySelector('img')?.getAttribute('src') ?? ''),
     );
     for (const src of sources) {
-      const sanity = new URL(new URL(src, page.url()).searchParams.get('url') ?? '');
+      const sanity = new URL(src, page.url());
       expect(sanity.hostname).toBe('cdn.sanity.io');
       expect(sanity.searchParams.get('w')).toBe('320');
       expect(sanity.searchParams.get('h')).toBe('240');

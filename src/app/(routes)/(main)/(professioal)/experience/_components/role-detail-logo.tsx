@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-import Image from 'next/image';
 import { type ReactElement, useState } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 export interface RoleDetailLogoProps {
   readonly src: string | null;

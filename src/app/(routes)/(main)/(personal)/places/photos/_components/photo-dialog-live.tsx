@@ -29,7 +29,7 @@
  *   frame's measured box no longer holds.
  * - Crossing the layout while open (a phone rotated, a window zoomed) hides the button with
  *   focus, so focus moves to the one now shown instead of falling out of the dialog.
- * The card's own image (a same-origin /_next/image URL) shows until the full photo loads.
+ * The card's own image (a trusted CDN image URL) shows until the full photo loads.
  *
  * Its caption and its link are the places' by default (the place's category and dates, 'Open
  * place' to /places/<id>); another page (the /projects Screens view) passes its own words and
@@ -38,7 +38,6 @@
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { animate } from 'motion/react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   type CSSProperties,
@@ -51,6 +50,7 @@ import {
   useState,
 } from 'react';
 import { FiArrowRight, FiX } from 'react-icons/fi';
+import Image from '@/components/ui/cdn-image';
 
 import {
   Dialog,
@@ -62,7 +62,7 @@ import {
 import { DURATION_MS, EASE, prefersReducedMotion, SPRING, seconds } from '@/lib/design/motion';
 import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { formatDateRange } from '@/utils/date';
-import { sameOriginImage } from '../_lib/card-placeholder';
+import { cardImageSource } from '../_lib/card-placeholder';
 import { COMPACT_QUERY } from '../_lib/dialog-layout';
 import { type Box, clipPathOf, flightFrom, identityFlight } from '../_lib/photo-flight';
 import { photoAlt, spokenDates } from '../_lib/photo-labels';
@@ -315,7 +315,7 @@ function FlyingPanel({
   caption = placeCaption,
 }: PanelProps): ReactElement {
   const { photo, place } = opened;
-  const [placeholder] = useState(() => sameOriginImage(opened.placeholder, window.location.origin));
+  const [placeholder] = useState(() => cardImageSource(opened.placeholder, window.location.origin));
   const frameRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -370,7 +370,7 @@ function FlyingPanel({
           <div ref={frameRef} className={styles.frame} data-photo-frame="">
             {placeholder ? (
               // The card's own image, already decoded: shown at once and crossfaded out when the
-              // full photo has loaded over it. Same-origin /_next/image only (CSP img-src 'self').
+              // full photo has loaded over it. Only trusted CDN or legacy same-origin image sources.
               // biome-ignore lint/performance/noImgElement: a same-origin URL already in the cache.
               <img src={placeholder} alt="" className={styles.placeholder} />
             ) : null}

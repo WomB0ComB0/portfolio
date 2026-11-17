@@ -63,9 +63,12 @@ describe("the /spotify hero's album art", () => {
     expect(images).toHaveLength(1);
     expect(images[0]).toHaveAttribute('loading', 'eager');
     expect(images[0]).toHaveAttribute('fetchpriority', 'high');
-    // Still decorative and still the 112px file: only when it loads changed.
+    // Still decorative, with the same display dimensions and direct Spotify artwork.
     expect(images[0]).toHaveAttribute('alt', '');
-    expect(images[0]).toHaveAttribute('sizes', '112px');
+    expect(images[0]).toHaveAttribute('width', '112');
+    expect(images[0]).toHaveAttribute('height', '112');
+    expect(images[0]).toHaveAttribute('src', TRACK.imageURL);
+    expect(images[0]).not.toHaveAttribute('srcset');
   });
 
   it.each<[string, HeroState]>([

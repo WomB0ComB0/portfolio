@@ -429,6 +429,10 @@ Safari or physical-device coverage.
 
 ## Development Notes
 
+- **Images**: use `@/components/ui/cdn-image` for rendered images. Sanity and GitHub avatars
+  use their own CDN resizing; other sources load directly. This avoids Vercel's image-optimization
+  quota while preserving responsive Sanity images, crop settings and lazy loading. The shared
+  image-source allowlist also feeds CSP, so direct delivery stays restricted to known hosts.
 - **Identity and contact**: edit [`src/constants/profile.ts`](src/constants/profile.ts) for the
   shared name, email, avatar and profile links, then deploy. Home contacts render in the initial
   HTML without fetching settings. Legacy contact fields in Studio are read-only; the optional

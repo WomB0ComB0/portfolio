@@ -19,7 +19,7 @@ import 'server-only';
  * @file A project's screen URLs, built on the server from Sanity. Every URL is the whole image
  * (fit max: sized by its width only and never enlarged, so nothing is cropped), in the best
  * format, at most as wide as the place that shows it needs at 2x; next/image then serves each
- * window its own width from it (the site's CSP lets images come only through /_next/image). The
+ * window its own width from the image CDN. The
  * viewer's thumbnails are small crops from the top, where a page's header is.
  */
 

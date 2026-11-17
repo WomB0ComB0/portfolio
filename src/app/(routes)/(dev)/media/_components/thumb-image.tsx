@@ -23,8 +23,8 @@
  * happened before hydration, so a still that failed early is caught too.
  */
 
-import Image from 'next/image';
 import { type ReactElement, type ReactNode, useState } from 'react';
+import Image from '@/components/ui/cdn-image';
 
 import { THUMB_IMAGE_CLASS } from './feed-classes';
 

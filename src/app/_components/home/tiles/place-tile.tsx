@@ -29,10 +29,9 @@ import 'server-only';
  * last day ('Jul 29 – Sep 15', heard as 'Jul 29 to Sep 15').
  */
 
-import Image from 'next/image';
 import type { ReactElement } from 'react';
-
 import { hasDestination, SrOnlyWords, Tile, TileLink } from '@/components/console';
+import Image from '@/components/ui/cdn-image';
 import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import { type DaySpanParts, formatAsOfDay, formatDaySpan, type Instant } from '../data/format';

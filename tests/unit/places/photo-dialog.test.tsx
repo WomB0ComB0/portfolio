@@ -25,7 +25,7 @@
  * instead of falling out of the dialog, and the close is a crossfade.
  */
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { type ReactElement, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,7 +38,7 @@ vi.mock('motion/react', async (importOriginal) => {
 import { animate } from 'motion/react';
 import { LivePhotoDialog } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-dialog-live';
 import type { OpenRequest } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-types';
-import { photoData, sourceOf, stubDevice } from './photo-fixtures';
+import { photoData, stubDevice } from './photo-fixtures';
 
 const { places, photos } = photoData(3, 4);
 const PHOTO = photos[0];
@@ -157,7 +157,7 @@ describe('LivePhotoDialog', () => {
     const dialog = open();
     const images = Array.from(dialog.querySelectorAll('img'));
     const placeholder = images.find((img) => img.getAttribute('src') === CARD_SRC);
-    const full = images.find((img) => sourceOf(img.getAttribute('src')) === PHOTO.full);
+    const full = images.find((img) => img.getAttribute('alt') === PHOTO.caption);
 
     expect(placeholder?.getAttribute('src')).toMatch(/^\/_next\/image\?/);
     expect(full).toHaveAttribute('sizes', '(max-width: 639px) calc(-2rem + 100vw), 52rem');
@@ -165,7 +165,19 @@ describe('LivePhotoDialog', () => {
     expect(full).toHaveAttribute('alt', PHOTO.caption);
   });
 
-  it('drops a placeholder that is not a /_next/image URL', () => {
+  it('keeps a decoded direct Sanity preview underneath the full photo', () => {
+    stubDevice({ fine: true });
+    const preview = 'https://cdn.sanity.io/images/test/test/card-1200x900.jpg?w=320&auto=format';
+    const dialog = open(
+      <Harness request={(opener) => ({ ...requestFor(opener), placeholder: preview })} />,
+    );
+    expect(
+      [...dialog.querySelectorAll('img')].some((img) => img.getAttribute('src') === preview),
+    ).toBe(true);
+    expect(within(dialog).getByAltText(PHOTO.caption ?? '')).toHaveAttribute('loading', 'eager');
+  });
+
+  it('drops a placeholder outside the trusted image asset paths', () => {
     stubDevice({ fine: true });
     const dialog = open(
       <Harness
@@ -177,7 +189,7 @@ describe('LivePhotoDialog', () => {
     );
 
     const srcs = Array.from(dialog.querySelectorAll('img')).map((img) => img.getAttribute('src'));
-    expect(srcs.some((src) => src?.startsWith('https://'))).toBe(false);
+    expect(srcs).not.toContain('https://cdn.sanity.io/x.jpg');
   });
 
   it('flies from the card by transform and clip-path on a wide screen, and back', async () => {

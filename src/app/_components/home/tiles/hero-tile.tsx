@@ -40,12 +40,11 @@ import 'server-only';
  * would hold every route, so the hero starts that work only when requested.
  */
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { cache, type ReactElement, Suspense } from 'react';
-
 import { ensureBaseError } from '@/classes/error';
 import { Tile } from '@/components/console';
+import Image from '@/components/ui/cdn-image';
 import { profile } from '@/constants/profile';
 import { reportApiFailure } from '@/lib/observability/report';
 import { loadSiteSettings, peekSiteSettings, type SiteSettings } from '@/lib/sanity/loaders';

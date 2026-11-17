@@ -17,7 +17,6 @@
  */
 
 import { AnimatePresence, motion, useMotionValue } from 'motion/react';
-import Image from 'next/image';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   FiChevronLeft,
@@ -28,6 +27,7 @@ import {
   FiZoomOut,
 } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
+import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 import type { ViewerPhoto } from '../page.types';
 import { PhotoStrip } from './photo-strip';
