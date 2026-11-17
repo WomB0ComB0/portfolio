@@ -47,7 +47,7 @@ export const BAR_CLASS = 'block min-w-0';
  * page's glow shows through.
  */
 export const BAR_STICKY_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 rounded-tile stuck-canvas py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile stuck-canvas px-2 py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
 
 /** The form: one row. From 48rem the search keeps its width and the chips take the rest. */
 export const FORM_ROW_CLASS =
@@ -65,7 +65,7 @@ export const FORM_ROW_CLASS =
  *   cover a third of the screen or more. From 550px the band is at least 77px.
  */
 export const BAR_STICKY_TILE_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 rounded-tile stuck-canvas py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile stuck-canvas px-2 py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
 
 /**
  * The sticky band for a density: the slimmer one around the `bar` tile, else the row's. Row
@@ -79,7 +79,7 @@ export const FORM_TILE_CLASS =
   'flex min-w-0 items-center gap-2 rounded-tile border border-hairline bg-surface-1 p-2 shadow-tile @min-[48rem]/page:items-start @min-[48rem]/page:gap-3';
 
 export const SEARCH_SLOT_CLASS =
-  'h-10 min-w-0 flex-1 @min-[48rem]/page:min-w-40 @min-[48rem]/page:flex-[0_1_12rem]';
+  'h-10 min-w-0 flex-1 @min-[48rem]/page:min-w-40 @min-[48rem]/page:flex-[0_1_10rem]';
 export const SEARCH_FIELD_CLASS =
   'flex h-full items-center gap-2 rounded-lg border border-hairline bg-surface-1 px-3 text-faint transition-[border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong focus-within:border-hairline-strong focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-focus [[data-density=bar]_&]:bg-canvas';
 /** 16px below 48rem, so focusing the field never zooms an iPhone. */
