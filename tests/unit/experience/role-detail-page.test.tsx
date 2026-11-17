@@ -251,7 +251,7 @@ describe('/experience/[id]: the header', () => {
     expect(container.querySelector('header [data-role-detail-logo] img')).not.toBeNull();
   });
 
-  it('places one whole-color detail logo above the organization without a tiny duplicate', async () => {
+  it('places one whole-color detail logo in its own header area without a tiny duplicate', async () => {
     const { container } = await pageFor('lead');
     const logo = container.querySelector('header [data-role-detail-logo]');
     const organization = container.querySelector('[data-role-organization]');
@@ -261,7 +261,7 @@ describe('/experience/[id]: the header', () => {
     );
     expect(container.querySelectorAll('header [data-role-detail-logo]')).toHaveLength(1);
     expect(container.querySelector('header [data-role-logo]')).toBeNull();
-    expect(logo?.closest('p')?.querySelector('div')).toBeNull();
+    expect(logo?.closest('p')).toBeNull();
     const src = decodeURIComponent(logo?.querySelector('img')?.getAttribute('src') ?? '');
     expect(src).toContain('w=336');
     expect(src).toContain('fit=max');

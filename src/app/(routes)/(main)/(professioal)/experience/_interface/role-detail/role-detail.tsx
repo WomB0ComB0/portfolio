@@ -199,12 +199,8 @@ export function RoleDetail({
 
   return (
     <PageShell
-      eyebrow={
-        <span className="flex max-w-full flex-col items-start gap-3">
-          <RoleDetailLogo src={role.logo} monogram={role.monogram} />
-          <Organization role={role} />
-        </span>
-      }
+      headerMedia={<RoleDetailLogo src={role.logo} monogram={role.monogram} />}
+      eyebrow={<Organization role={role} />}
       title={role.role}
       description={<Facts role={role} />}
       actions={
