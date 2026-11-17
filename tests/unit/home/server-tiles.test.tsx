@@ -1626,6 +1626,25 @@ describe('RolesTileView', () => {
     );
   });
 
+  it.each(['Freelance', ' freelance ', 'FREELANCE'])(
+    'makes the year describe freelance work for employment type %j',
+    (employmentType) => {
+      const freelance = makeExperience({
+        position: 'Full Stack Engineer',
+        company: 'Example Studio',
+        employmentType,
+        current: true,
+        startDate: '2023-01-09',
+      });
+      const [founder] = roles(1);
+      if (!founder) throw new Error('no role');
+      render(<RolesTileView result={ok({ roles: [founder, freelance], total: 2 })} />);
+      expect(roleLines()).toEqual([
+        'Full Stack Engineer Example Studio · freelance work since 2023',
+      ]);
+    },
+  );
+
   it('counts the current roles named nowhere on the page: +2 more for 5', () => {
     render(<RolesTileView result={ok({ roles: roles(3), total: 5 })} />);
     const more = screen.getByRole('link', { name: '+2 more current roles' });
