@@ -127,11 +127,11 @@ graph TD
 | `/projects/[id]`                    | Story case studies, project facts, screenshot galleries and confirmed related writing or videos.                                        |
 | `/experience`, `/experience/[id]`   | Current roles, a career timeline and individual role stories.                                                                           |
 | `/certifications`                   | Featured credentials, year chapters and issuer groups, with credential links and ID copy controls.                                      |
-| `/resume`                           | PDF resume viewer and metadata from Sanity.                                                                                             |
+| `/resume`                           | Sanity PDF with download/open actions, the full direct CDN link, and an optional native preview.                                        |
 | `/media`                            | Writing, Video and Streams sections with search, series filters, related items and project links. Playback opens externally by default. |
 | `/stats`                            | A responsive console for GitHub, coding time, LeetCode, typing and Discord activity, with source freshness and fallback states.         |
 | `/spotify`                          | A listening hero, ranked track ledger and artist strip, with live playback updates after hydration.                                     |
-| `/places`, `/places/[placeId]`      | A map and place directory with detail pages and photo strips.                                                                           |
+| `/places`, `/places/[placeId]`      | A map and place directory with photo-journal detail pages, uncropped photos, captions and thumbnail navigation.                         |
 | `/places/photos`                    | A photo gallery drawn from the places collection.                                                                                       |
 | `/guestbook`                        | Visitor notes arranged in a wall by year, with authenticated posting through the API.                                                   |
 | `/sponsor`                          | Ways to support the work, followed by current and past supporter acknowledgements.                                                      |
@@ -418,8 +418,9 @@ bunx playwright test e2e/seo/server-render.spec.ts e2e/journeys/media.spec.ts --
 The default [Playwright config](playwright.config.ts) starts a development server on port 3000 and
 reuses an existing server locally. Journey tests cover desktop and phone layouts, URL filters,
 keyboard focus and reduced motion. The server-render suite checks content without JavaScript,
-structured navigation and real 404 responses. Resume retains its streamed loading exception. The
-guestbook and console-route fixtures block writes during their live-data checks.
+structured navigation and real 404 responses. Resume checks also verify the raw PDF link, download
+and keyboard-operated preview without JavaScript. The guestbook and console-route fixtures block
+writes during their live-data checks.
 
 The screenshot tests attach images for review when no matching baseline exists. Visual comparison
 begins only after a baseline has been deliberately created and reviewed. See
@@ -436,6 +437,9 @@ Safari or physical-device coverage.
 - **Rendering**: keep primary content and navigation in server HTML. Projects and Media encode
   filters in the URL, and their controls support normal links or GET forms before JavaScript takes
   over.
+- **Sticky surfaces**: FilterBar defaults to a translucent backplate. Places and Photos use
+  `backplate="none"` because their rounded form tile provides its own opaque surface; preserve the
+  shared top and side gaps when adding variants.
 - **Dependency updates**: keep the cookie override compatible with Elysia and the GraphQL tools
   override scoped by version. After changing GraphQL codegen dependencies, run `bun run gen` and
   inspect `src/generated/graphql.ts` as well as the normal type and build checks.

@@ -16,10 +16,9 @@
 
 /**
  * @file The place photo's `sizes` matches the frame it is drawn in, so next/image fetches a file
- * as wide as the frame. The old value (50vw from 1200 px) was set for the 60% column; in H2's
- * 1200 px column the frame is 1086 px wide, and a 1x laptop got a 640-750 w file stretched over
- * it. Here the attribute is evaluated at real viewport widths and compared with the frame width
- * worked out from the page's own boxes.
+ * as wide as the frame. The journal layout has fluid PageShell gutters and a single stage
+ * border, rather than nested card padding. Evaluate the attribute at viewport boundaries
+ * against those actual boxes so a wide photograph never receives an undersized source.
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -28,19 +27,14 @@ import { PlacePhotoViewer } from '@/app/(routes)/(main)/(personal)/places/[place
 import type { ViewerPhoto } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page.types';
 
 /** The shell (layout.tsx): full-width main below lg; a 64 px rail and max-w-shell from lg. */
-const MD_PX = 768;
 const LG_PX = 1024;
 const RAIL_PX = 64;
 const SHELL_PX = 1200;
-/** places/[placeId]/page.tsx: p-4, p-8 from md, around a MagicCard (1 px border). */
-const PAGE_PADDING_PX = 16;
-const PAGE_PADDING_MD_PX = 32;
-const CARD_BORDER_PX = 1;
-/** CardContent's px-6 around the photo frame. */
-const CONTENT_PADDING_PX = 24;
+const STAGE_BORDER_PX = 1;
 
 const VIEWPORT_WIDTHS = [
-  360, 375, 414, 767, 768, 900, 1023, 1024, 1180, 1263, 1264, 1280, 1366, 1440, 1920,
+  360, 375, 400, 401, 414, 767, 768, 900, 1023, 1024, 1180, 1199, 1200, 1263, 1264, 1280, 1366,
+  1440, 1920,
 ] as const;
 
 const PHOTO: ViewerPhoto = {
@@ -52,8 +46,8 @@ const PHOTO: ViewerPhoto = {
 /** The photo frame's width in the page at a viewport width, from the boxes around it. */
 function frameWidth(viewport: number): number {
   const main = viewport < LG_PX ? viewport : Math.min(SHELL_PX, viewport - RAIL_PX);
-  const padding = viewport < MD_PX ? PAGE_PADDING_PX : PAGE_PADDING_MD_PX;
-  return main - 2 * (padding + CARD_BORDER_PX + CONTENT_PADDING_PX);
+  const gutter = Math.min(32, Math.max(16, 8 + viewport * 0.02));
+  return main - 2 * (gutter + STAGE_BORDER_PX);
 }
 
 /** One `sizes` length: `Npx`, `Nvw` or `calc(-Mpx + Nvw)`, the forms the viewer uses. */
@@ -106,8 +100,8 @@ describe("the place photo's sizes", () => {
     expect(Math.abs(slot - frameWidth(viewport))).toBeLessThanOrEqual(1);
   });
 
-  it('asks for the full 1086 px frame on a 1366 px laptop, not half the viewport', () => {
-    expect(evaluateSizes(photoSizes(), 1366)).toBe(1086);
+  it('asks for the full 1134 px image area on a 1366 px laptop', () => {
+    expect(evaluateSizes(photoSizes(), 1366)).toBe(1134);
   });
 
   it('lets next/image see its 100vw, so the srcset skips the 16-40 w icon sizes', () => {

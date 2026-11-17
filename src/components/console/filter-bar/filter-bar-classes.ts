@@ -40,6 +40,10 @@ export const FILTER_SCOPE_CLASS =
 
 /** The <search> landmark. */
 export const BAR_CLASS = 'block min-w-0';
+/** The shared layer behind the form; `none` leaves a framed form's own surface intact. */
+export type FilterBarBackplate = 'translucent' | 'none';
+export const backplateClassFor = (backplate: FilterBarBackplate): string =>
+  backplate === 'translucent' ? 'stuck-canvas' : '';
 /**
  * Sticky: inset below the top edge, above the edge haze (z-20) and below the rail's flyouts (z-40). The
  * column's width, with rounded backplates and a matching gap above any table header below it. Painted
@@ -47,7 +51,7 @@ export const BAR_CLASS = 'block min-w-0';
  * page's glow shows through.
  */
 export const BAR_STICKY_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile stuck-canvas px-2 py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile px-2 py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
 
 /** The form: one row. From 48rem the search keeps its width and the chips take the rest. */
 export const FORM_ROW_CLASS =
@@ -56,8 +60,8 @@ export const FORM_ROW_CLASS =
  * Sticky in `bar` density (/places): the same bar in a slimmer band, the same at every width.
  * The haze and scroll padding account for the shared raised inset. From 48rem: 4 + a 1px border + 8 + the 44px row (the scroll chips' slot) + 8 + 1 + 4
  * = 70px. Below 48rem the row is the 40px field, so 66px.
- * - Stuck, the band paints its translucent backplate, no line: the tile's own border is the edge (row
- *   density's hairline would run square under the tile's rounded corners, a second line).
+ * - The backplate is a separate choice. Places sets it to none: its opaque form tile supplies
+ *   the single rounded surface and border, while this band only measures and positions it.
  * - Under 550px of height (a landscape phone, a page zoomed to 200-400%) it stays in the page:
  *   relative positioning still contains its backplate, without a sticky offset or raised layer;
  *   there the top band is 14svh (54.6px at 390px tall), shorter than the stuck tile, so a card
@@ -65,7 +69,7 @@ export const FORM_ROW_CLASS =
  *   cover a third of the screen or more. From 550px the band is at least 77px.
  */
 export const BAR_STICKY_TILE_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile stuck-canvas px-2 py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile px-2 py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
 
 /**
  * The sticky band for a density: the slimmer one around the `bar` tile, else the row's. Row

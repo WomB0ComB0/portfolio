@@ -112,7 +112,7 @@ async function expectFloatingShape(page: Page): Promise<void> {
   expect(bar || heading).toBeTruthy();
 }
 
-for (const route of ['/projects', '/spotify', '/media', '/certifications', '/places/photos']) {
+for (const route of ['/projects', '/spotify', '/media', '/certifications']) {
   test(`${route}: pinned backgrounds transmit the haze while controls stay sharp`, async ({
     page,
   }) => {
@@ -132,17 +132,116 @@ for (const route of ['/projects', '/spotify', '/media', '/certifications', '/pla
       expect(surface.opacity).toBe('1');
       expect(surface.pointerEvents).toBe('none');
     }
-    if (route === '/places/photos') {
-      const formAlpha = await page
-        .locator('[data-filter-part="bar"] > form')
-        .evaluate((element) => getComputedStyle(element).backgroundColor);
-      expect(formAlpha).toMatch(/\/\s*0\.24\)/);
-    }
     const search = page.getByRole('searchbox');
     if (await search.count()) {
       await search.focus();
       await expect(search).toBeFocused();
     }
+  });
+}
+
+/** The form is the only painted Places surface; the sticky wrapper only positions it. */
+async function expectOpaquePlaces(page: Page): Promise<void> {
+  const state = await page.locator('[data-filter-part="bar"]').evaluate((element) => {
+    const form = element.querySelector('form');
+    if (!form) throw new Error('missing Places form');
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas is required for computed colour alpha');
+    const alpha = (colour: string): number => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = colour;
+      context.fillRect(0, 0, 1, 1);
+      return (context.getImageData(0, 0, 1, 1).data[3] ?? 0) / 255;
+    };
+    const outer = getComputedStyle(element);
+    const plate = getComputedStyle(element, '::before');
+    const tile = getComputedStyle(form);
+    const box = element.getBoundingClientRect();
+    const inner = form.getBoundingClientRect();
+    return {
+      selected: element.getAttribute('data-backplate'),
+      outerAlpha: alpha(outer.backgroundColor),
+      outerBlur: outer.backdropFilter,
+      plateContent: plate.content,
+      plateAlpha: alpha(plate.backgroundColor),
+      plateBlur: plate.backdropFilter,
+      tileAlpha: alpha(tile.backgroundColor),
+      tileBlur: tile.backdropFilter,
+      radius: tile.borderRadius,
+      border: tile.borderTopWidth,
+      marginLeft: outer.marginLeft,
+      marginRight: outer.marginRight,
+      innerLeft: inner.left - box.left,
+      innerRight: box.right - inner.right,
+      verticalPadding: box.height - inner.height,
+      measured: document.documentElement.style.getPropertyValue('--filter-bar-pinned-h'),
+      height: box.height,
+    };
+  });
+  expect(state.selected).toBe('none');
+  expect(state.outerAlpha).toBe(0);
+  expect(state.outerBlur).toBe('none');
+  expect(['none', 'normal']).toContain(state.plateContent);
+  expect(state.plateAlpha).toBe(0);
+  expect(state.plateBlur).toBe('none');
+  expect(state.tileAlpha).toBe(1);
+  expect(state.tileBlur).toBe('none');
+  expect(state.radius).toBe('12px');
+  expect(state.border).toBe('1px');
+  expect([state.marginLeft, state.marginRight]).toEqual(['8px', '8px']);
+  expect(state.innerLeft).toBeCloseTo(8, 0);
+  expect(state.innerRight).toBeCloseTo(8, 0);
+  expect(state.verticalPadding).toBeCloseTo(8, 0);
+  expect(Number.parseFloat(state.measured)).toBeCloseTo(state.height, 0);
+}
+
+for (const profile of [
+  { name: 'Places desktop', route: '/places', width: 1440, height: 900, touch: false },
+  { name: 'Photos desktop', route: '/places/photos', width: 1440, height: 900, touch: false },
+  { name: 'Photos touch', route: '/places/photos', width: 390, height: 844, touch: true },
+  { name: 'Photos short screen', route: '/places/photos', width: 1024, height: 400, touch: true },
+]) {
+  test.describe(profile.name, () => {
+    test.use({
+      viewport: { width: profile.width, height: profile.height },
+      hasTouch: profile.touch,
+      isMobile: profile.touch,
+    });
+    test('keeps one opaque rounded tile at rest, while scrolling, and without scroll-state support', async ({
+      page,
+      context,
+    }) => {
+      await open(page, profile.route);
+      await expectOpaquePlaces(page);
+      const bar = page.locator('[data-filter-part="bar"]');
+      const initialTop = await bar.evaluate((element) => element.getBoundingClientRect().top);
+      await page.evaluate(() => window.scrollTo({ top: 1100, behavior: 'instant' }));
+      await expectOpaquePlaces(page);
+      if (profile.height < 550) {
+        await expect(bar).toHaveCSS('position', 'relative');
+        await expect(bar).toHaveCSS('z-index', 'auto');
+        expect(await bar.evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(
+          initialTop,
+        );
+      } else {
+        await expect
+          .poll(() => bar.evaluate((element) => element.getBoundingClientRect().top))
+          .toBeCloseTo(8, 0);
+      }
+      await disableScrollStateBranch(page);
+      await expectOpaquePlaces(page);
+      if (!profile.touch) {
+        const cdp = await context.newCDPSession(page);
+        await cdp.send('Emulation.setEmulatedMedia', {
+          features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }],
+        });
+        await expectOpaquePlaces(page);
+        await page.emulateMedia({ forcedColors: 'active' });
+        await expectOpaquePlaces(page);
+      }
+    });
   });
 }
 
@@ -219,7 +318,6 @@ async function disableScrollStateBranch(page: Page): Promise<void> {
 }
 
 for (const [route, selector] of [
-  ['/places/photos', '[data-filter-part="bar"][data-density="bar"]'],
   ['/stats', '#stats-top-repositories, #stats-top-repositories + table th.stuck-canvas'],
 ] as const) {
   test(`${route}: short-screen fallback backplates stay inside their unpinned bars`, async ({

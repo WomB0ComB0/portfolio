@@ -20,7 +20,7 @@
  * the controls invisible (yet focusable) until hydration, and hidden for good without JavaScript.
  */
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -107,6 +107,32 @@ describe('PlacePhotoViewer on the client', () => {
     expect(onRecoverableError).not.toHaveBeenCalled();
     expect(within(container).getByRole('button', { name: 'Zoom in' })).toBeEnabled();
     act(() => root?.unmount());
+  });
+
+  it('keeps the exit and photo controls inside the native fullscreen target', async () => {
+    const request = vi.fn(function (this: HTMLElement) {
+      Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: this });
+      document.dispatchEvent(new Event('fullscreenchange'));
+      return Promise.resolve();
+    });
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: request,
+    });
+    try {
+      render(viewer());
+      fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Exit fullscreen' })).toBeInTheDocument(),
+      );
+      const target = document.fullscreenElement as HTMLElement;
+      expect(target).toContainElement(screen.getByRole('button', { name: 'Exit fullscreen' }));
+      expect(target).toContainElement(screen.getByRole('button', { name: 'Next photo' }));
+      expect(target).toContainElement(screen.getByRole('button', { name: 'Zoom in' }));
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'requestFullscreen');
+      Reflect.deleteProperty(document, 'fullscreenElement');
+    }
   });
 
   it('still zooms from the controls', () => {

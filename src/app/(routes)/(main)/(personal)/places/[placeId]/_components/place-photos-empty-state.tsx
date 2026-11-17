@@ -15,7 +15,7 @@
  */
 
 import Link from 'next/link';
-import { FiArrowLeft, FiExternalLink, FiImage } from 'react-icons/fi';
+import { FiExternalLink, FiImage } from 'react-icons/fi';
 import { googleMapsUrl } from '@/app/(routes)/(main)/(personal)/places/_components/google-maps-url';
 import { Button } from '@/components/ui/button';
 
@@ -51,12 +51,6 @@ export function PlacePhotosEmptyState({ latitude, longitude }: PlacePhotosEmptyS
           <Link href={googleMapsUrl(latitude, longitude)} target="_blank" rel="noopener noreferrer">
             <FiExternalLink className="h-4 w-4" aria-hidden="true" />
             Open in Google Maps
-          </Link>
-        </Button>
-        <Button asChild variant="ghost" className="text-foreground">
-          <Link href="/places">
-            <FiArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to Places
           </Link>
         </Button>
       </div>

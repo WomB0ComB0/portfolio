@@ -24,8 +24,8 @@
  * FORM_ROW_CLASS exactly as they were.
  */
 
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { FilterBar } from '@/components/console/filter-bar';
 import {
@@ -45,11 +45,11 @@ const classesOf = (element: Element | null): string[] =>
   (element?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 
 /** A sticky bar in `density`, with one category chosen. */
-function renderBar(density?: 'row' | 'bar'): HTMLElement {
+function renderBar(density?: 'row' | 'bar', backplate?: 'translucent' | 'none'): HTMLElement {
   render(
     <Harness initial="?category=tools&q=cli">
       {() => (
-        <FilterBar.Root sticky density={density}>
+        <FilterBar.Root sticky density={density} backplate={backplate}>
           <FilterBar.Search />
           <FilterBar.Facets>
             <FilterBar.Chips facet="category" layout="scroll" />
@@ -64,6 +64,38 @@ function renderBar(density?: 'row' | 'bar'): HTMLElement {
 }
 
 describe("FilterBar.Root density='bar'", () => {
+  it('keeps the registered sticky height, focused search and GET fields when the form owns its surface', () => {
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 70,
+      width: 400,
+      height: 70,
+      toJSON: () => ({}),
+    });
+    try {
+      const bar = renderBar('bar', 'none');
+      const form = bar.querySelector('form');
+      const field = bar.querySelector<HTMLInputElement>('input[type="search"]');
+      expect(bar).toHaveAttribute('data-backplate', 'none');
+      expect(bar).toHaveAttribute('data-sticky', '');
+      expect(document.documentElement.style.getPropertyValue('--filter-bar-pinned-h')).toBe('70px');
+      expect(form).toHaveAttribute('method', 'get');
+      expect(form?.querySelector('input[type="hidden"][name="category"]')).toHaveValue('tools');
+      expect(field).toHaveValue('cli');
+      field?.focus();
+      expect(field).toHaveFocus();
+      fireEvent.change(field as HTMLInputElement, { target: { value: 'updated search' } });
+      expect(field).toHaveValue('updated search');
+    } finally {
+      cleanup();
+      rect.mockRestore();
+    }
+  });
+
   it('rounds both sticky densities and leaves a shared gap below the screen edge', () => {
     for (const density of ['bar', 'row'] as const) {
       expect(classesOf(renderBar(density))).toEqual(
@@ -145,13 +177,20 @@ describe("FilterBar.Root density='bar'", () => {
     expect(form?.querySelector('input[type="hidden"][name="category"]')).toHaveValue('tools');
   });
 
-  it('draws the same band in its skeleton', () => {
-    render(<FilterBarSkeleton sticky density="bar" />);
-    const skeleton = document.querySelector('[role="status"][data-filter-part="bar"]');
+  it.each(['translucent', 'none'] as const)(
+    'draws the same band in its %s skeleton',
+    (backplate) => {
+      const liveClasses = renderBar('bar', backplate).className;
+      cleanup();
+      render(<FilterBarSkeleton sticky density="bar" backplate={backplate} />);
+      const skeleton = document.querySelector('[role="status"][data-filter-part="bar"]');
 
-    expect(classesOf(skeleton)).toEqual(expect.arrayContaining(BAR_STICKY_TILE_CLASS.split(' ')));
-    expect(classesOf(skeleton)).not.toContain('@min-[48rem]/page:py-3');
-  });
+      expect(skeleton).toHaveAttribute('data-backplate', backplate);
+      expect(skeleton?.className).toBe(liveClasses);
+      expect(classesOf(skeleton)).toEqual(expect.arrayContaining(BAR_STICKY_TILE_CLASS.split(' ')));
+      expect(classesOf(skeleton)).not.toContain('@min-[48rem]/page:py-3');
+    },
+  );
 });
 
 describe("FilterBar.Root density='row'", () => {
@@ -159,6 +198,7 @@ describe("FilterBar.Root density='row'", () => {
     const bar = renderBar();
 
     expect(bar).toHaveAttribute('data-density', 'row');
+    expect(bar).toHaveAttribute('data-backplate', 'translucent');
     expect(classesOf(bar)).toEqual(expect.arrayContaining(BAR_STICKY_CLASS.split(' ')));
     expect(BAR_STICKY_CLASS).toContain('@min-[48rem]/page:py-3');
     expect(bar.querySelector('form')?.getAttribute('class')).toBe(FORM_ROW_CLASS);

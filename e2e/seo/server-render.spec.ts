@@ -24,9 +24,8 @@
  * - unknown URLs and detail IDs preserve real 404/noindex behavior;
  * - hard loads with JavaScript retain the same content, and client navigation keeps the shell.
  *
- * Empty lists assert their real empty label instead of skipping. Resume alone retains its
- * existing loading.tsx exception: the PDF/note must be in the response HTML, but may be in a
- * hidden streamed segment without JavaScript. Detail notFound() still sends an empty error
+ * Empty lists assert their real empty label instead of skipping. Resume actions and the direct
+ * PDF link must be visible without JavaScript too. Detail notFound() still sends an empty error
  * document without JavaScript so that its status remains 404; the JS case checks its shell UI.
  * All browser traffic is GET/HEAD only and service workers are blocked. A GET warm-up fills
  * bounded loader caches before each content check; it never signs in or posts a note.
@@ -84,8 +83,6 @@ interface ContentPage {
   /** The server's grid, where JavaScript may replace it with a virtual photo wall. */
   readonly serverItem?: (main: Locator) => Locator;
   readonly emptyText?: string | RegExp;
-  /** Only Resume still streams its content behind a loading boundary. */
-  readonly streamedWithoutScript?: boolean;
   readonly details?: (page: Page, main: Locator) => Promise<void>;
 }
 
@@ -149,9 +146,8 @@ const CONTENT_PAGES: readonly ContentPage[] = [
     path: '/resume',
     item: (main) =>
       main
-        .locator('iframe[title="Resume PDF"]')
+        .locator('a[data-resume-direct-link]')
         .or(main.getByText(NO_RESUME_TEXT, { exact: true })),
-    streamedWithoutScript: true,
   },
   {
     path: '/media',
@@ -233,7 +229,7 @@ async function expectServerHeading(page: Page): Promise<Locator> {
 const shownNav = (page: Page): Locator =>
   page.getByRole('navigation', { name: /^(Main|Mobile) navigation$/ }).first();
 
-/** Every non-Resume view must expose its real content inside main, visibly and opaquely. */
+/** Every view must expose its real content inside main, visibly and opaquely. */
 async function expectContent(
   page: Page,
   content: ContentPage,
@@ -242,19 +238,6 @@ async function expectContent(
   const main = page.locator(MAIN);
   await expect(main).toHaveCount(1);
   await expectServerHeading(page);
-  if (withoutScript && content.streamedWithoutScript) {
-    const item = content.item(page.locator('body')).first();
-    await expect(item).toBeAttached();
-    expect(
-      await item.evaluate((element) => {
-        for (let node: Element | null = element; node; node = node.parentElement) {
-          if (node instanceof HTMLElement && node.style.opacity === '0') return true;
-        }
-        return false;
-      }),
-    ).toBe(false);
-    return;
-  }
   const items = (withoutScript ? (content.serverItem ?? content.item) : content.item)(main);
   // Hydration can replace the grid before the lazy wall has mounted its cells. Wait for real
   // content or an explicit source state before deciding which branch the page is showing.
@@ -405,10 +388,7 @@ test.describe('server HTML without JavaScript', () => {
   }
 
   for (const content of CONTENT_PAGES) {
-    test(`${content.path} renders readable server content${content.streamedWithoutScript ? ' (Resume streaming exception)' : ''}`, async ({
-      page,
-      request,
-    }) => {
+    test(`${content.path} renders readable server content`, async ({ page, request }) => {
       await warmLoaders(request, content.path);
       const response = await page.goto(urlOf(content.path));
       expect(response?.status()).toBe(200);

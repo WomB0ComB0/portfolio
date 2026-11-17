@@ -1,0 +1,131 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.journal {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+}
+
+.viewer {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stage {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: clamp(20rem, 64svh, 46rem);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 0.75rem;
+  background: var(--surface-1);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.position,
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.position {
+  gap: 0.75rem;
+}
+
+.buttons button {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--muted-foreground);
+}
+
+.caption {
+  max-width: 64ch;
+  margin-inline: auto;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.fullscreen,
+.viewer:fullscreen {
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  background: var(--canvas);
+}
+
+.fullscreen .stage,
+.viewer:fullscreen .stage {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+@media (width < 40rem) {
+  .stage {
+    height: clamp(20rem, 56svh, 34rem);
+  }
+
+  .controls {
+    gap: 0.25rem 0.5rem;
+  }
+
+  .position {
+    gap: 0.25rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .buttons button {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+@media (height < 30rem) {
+  .stage {
+    height: 75svh;
+    min-height: 12rem;
+  }
+}
+
+@media (scripting: none) {
+  .controls {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .stage {
+    border-color: CanvasText;
+  }
+}
