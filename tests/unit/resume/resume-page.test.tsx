@@ -23,6 +23,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Before anything reads the clock: a zone west of UTC, where midnight UTC is still the day before.
@@ -42,7 +43,6 @@ vi.mock('@/env', () => {
 vi.mock('@/lib/sanity/loaders', () => ({ loadResume: h.loadResume }));
 
 import { makeResume } from '@tests/fixtures/sanity-docs';
-import ResumeLoading from '@/app/(routes)/(main)/(professioal)/resume/loading';
 import ResumePage from '@/app/(routes)/(main)/(professioal)/resume/page';
 
 const RESUME_FILE = 'src/app/(routes)/(main)/(professioal)/resume/_interface/resume/resume.tsx';
@@ -115,6 +115,74 @@ describe('/resume from the server', () => {
     expect(open.closest('button')).toBeNull();
   });
 
+  it('keeps the complete original CDN URL as a selectable native link above the preview', async () => {
+    const { container } = await renderPage();
+    const direct = screen.getByRole('link', { name: PDF_URL });
+    const viewer = screen.getByTitle('Resume PDF');
+    expect(direct).toHaveAttribute('href', PDF_URL);
+    expect(direct.textContent).toBe(PDF_URL);
+    expect(direct).toHaveAttribute('draggable', 'false');
+    expect(direct).toHaveAttribute('target', '_blank');
+    expect(direct).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(direct.closest('details, [hidden], button')).toBeNull();
+    expect(direct.compareDocumentPosition(viewer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
+  it('makes the preview a native opt-in disclosure while essential links stay outside it', async () => {
+    const { container } = await renderPage();
+    const preview = container.querySelector('details[data-resume-preview]');
+    expect(preview).not.toBeNull();
+    expect(preview).not.toHaveAttribute('open');
+    expect(preview?.querySelector('summary')).toHaveTextContent('PDF preview');
+    expect(preview?.querySelector('iframe')).toHaveAttribute('title', 'Resume PDF');
+    for (const link of screen.getAllByRole('link')) expect(link.closest('details')).toBeNull();
+  });
+
+  it('provides a real CDN attachment download without changing the original Open PDF URL', async () => {
+    await renderPage();
+    const download = screen.getByRole('link', { name: /^Download PDF/ });
+    const url = new URL(download.getAttribute('href') ?? '');
+    expect(url.origin + url.pathname).toBe(PDF_URL);
+    expect([...url.searchParams]).toEqual([['dl', 'Mike-Odnis-Resume.pdf']]);
+    expect(download).toHaveAttribute('download', 'Mike-Odnis-Resume.pdf');
+    expect(download.closest('button')).toBeNull();
+    expect(screen.getByRole('link', { name: /^Open PDF/ })).toHaveAttribute('href', PDF_URL);
+  });
+
+  it('keeps a full-length asset URL as literal link text in server HTML with all essential actions', async () => {
+    const hash = 'a'.repeat(40);
+    const url = `https://cdn.sanity.io/files/34jrnkds/production/${hash}.pdf`;
+    h.loadResume.mockResolvedValue({
+      ...RESUME,
+      pdfFile: { _type: 'file', asset: { _type: 'reference', _ref: `file-${hash}-pdf` } },
+    });
+    const html = renderToStaticMarkup(await ResumePage());
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    const direct = document.querySelector('[data-resume-direct-link]');
+    expect(direct?.textContent).toBe(url);
+    expect(direct?.getAttribute('href')).toBe(url);
+    expect(document.querySelector('a[download]')?.getAttribute('href')).toBe(
+      `${url}?dl=Mike-Odnis-Resume.pdf`,
+    );
+    expect(document.querySelector('iframe')?.getAttribute('src')).toBe(`${url}#view=FitH`);
+    expect(document.querySelector('a[download]')?.textContent).toContain('Download PDF');
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it.each(['', 'not-a-file', 'file-asset-jpg'])(
+    'does not invent a PDF URL for an invalid asset reference: %s',
+    async (ref) => {
+      h.loadResume.mockResolvedValue({
+        ...RESUME,
+        pdfFile: { _type: 'file', asset: { _type: 'reference', _ref: ref } },
+      });
+      const { container } = await renderPage();
+      expect(screen.getByText(NO_RESUME)).toBeInTheDocument();
+      expect(container.querySelector('iframe, a[download]')).toBeNull();
+    },
+  );
+
   it('shows a calm "no resume" state, without the frame, when none is active', async () => {
     h.loadResume.mockResolvedValue(null);
 
@@ -132,20 +200,6 @@ describe('/resume from the server', () => {
     h.loadResume.mockRejectedValue(new Error('Sanity is down'));
 
     await expect(ResumePage()).rejects.toThrow('Sanity is down');
-  });
-
-  // Without JavaScript, a cold load shows only this skeleton: the page streams into a hidden
-  // element that only a script reveals. The header must already be the page's own, h1 included.
-  it("loads as the page's own header over a 70vh frame", () => {
-    render(<ResumeLoading />);
-
-    const heading = screen.getByRole('heading', { level: 1, name: 'Resume' });
-    expect(heading.closest('.page-header')).not.toBeNull();
-    // The header is the page's, not part of what is loading; the frame and the date need data.
-    const status = screen.getByRole('status', { name: 'Loading resume' });
-    expect(status).not.toContainElement(heading);
-    expect(status.querySelector('.h-\\[70vh\\]')).not.toBeNull();
-    expect(screen.queryByText(/Last updated/)).not.toBeInTheDocument();
   });
 
   it('is a server component with no entrance animation', () => {

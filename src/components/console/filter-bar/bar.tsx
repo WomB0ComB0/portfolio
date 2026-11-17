@@ -55,7 +55,9 @@ import {
 import {
   BAR_CLASS,
   BUTTON_COUNT_CLASS,
+  backplateClassFor,
   FILTERS_BUTTON_CLASS,
+  type FilterBarBackplate,
   FORM_ROW_CLASS,
   FORM_TILE_CLASS,
   SEARCH_FIELD_CLASS,
@@ -80,6 +82,8 @@ export interface FilterBarRootProps {
   /** Holds the top edge while the list scrolls under it. */
   readonly sticky?: boolean;
   readonly density?: FilterBarDensity;
+  /** Shared sticky backdrop; none lets a self-framed form own its opaque surface. */
+  readonly backplate?: FilterBarBackplate;
   readonly className?: string;
   readonly children: ReactNode;
 }
@@ -147,6 +151,7 @@ export function FilterBarRoot({
   label,
   sticky = false,
   density = 'row',
+  backplate = 'translucent',
   className,
   children,
 }: FilterBarRootProps): ReactElement {
@@ -172,8 +177,14 @@ export function FilterBarRoot({
       aria-label={label}
       data-filter-part="bar"
       data-density={density}
+      data-backplate={backplate}
       data-sticky={sticky ? '' : undefined}
-      className={cn(BAR_CLASS, sticky && stickyClassFor(density), className)}
+      className={cn(
+        BAR_CLASS,
+        sticky && stickyClassFor(density),
+        sticky && backplateClassFor(backplate),
+        className,
+      )}
     >
       <form
         action={model.path}

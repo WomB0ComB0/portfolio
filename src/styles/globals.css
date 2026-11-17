@@ -46,7 +46,6 @@
   /* Background-only sticky glass: faint labels retain 4.5:1 even over a white photograph. */
   --sticky-top-gap: 8px;
   --sticky-canvas: oklch(16% 0.016 285deg / 89%);
-  --sticky-tile: oklch(20% 0.02 285deg / 24%);
   --hairline: oklch(30% 0.03 285deg);
   --hairline-strong: oklch(40% 0.04 285deg);
 
@@ -732,7 +731,6 @@
 /* stylelint-disable no-invalid-position-declaration -- Tailwind expands this @utility to a style rule before nested feature and media conditions. */
 @utility stuck-canvas {
   --stuck-fill: var(--canvas);
-  --stuck-tile-fill: var(--surface-1);
   --stuck-backdrop: none;
 
   background-color: transparent;
@@ -749,14 +747,8 @@
     pointer-events: none;
   }
 
-  /* The Places tile must not put an opaque second layer over the shared plate. */
-  &[data-density="bar"] > form {
-    background-color: var(--stuck-tile-fill);
-  }
-
   @supports (backdrop-filter: blur(1px)) {
     --stuck-fill: var(--sticky-canvas);
-    --stuck-tile-fill: var(--sticky-tile);
     --stuck-backdrop: blur(12px);
   }
 
@@ -769,32 +761,22 @@
       backdrop-filter: none;
     }
 
-    &[data-density="bar"] > form {
-      background-color: var(--surface-1);
-    }
-
     @container scroll-state(stuck: top) {
       &::before {
         background-color: var(--stuck-fill);
         box-shadow: var(--stuck-edge, none);
         backdrop-filter: var(--stuck-backdrop);
       }
-
-      &[data-density="bar"] > form {
-        background-color: var(--stuck-tile-fill);
-      }
     }
   }
 
   @media (prefers-reduced-transparency: reduce) {
     --stuck-fill: var(--canvas);
-    --stuck-tile-fill: var(--surface-1);
     --stuck-backdrop: none;
   }
 
   @media (forced-colors: active) {
     --stuck-fill: Canvas;
-    --stuck-tile-fill: Canvas;
     --stuck-backdrop: none;
   }
 }

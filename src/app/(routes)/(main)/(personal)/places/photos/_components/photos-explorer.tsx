@@ -79,7 +79,7 @@ export function PhotosExplorer({ places, photos }: PhotosExplorerProps): JSX.Ele
       className={cn(LIST_CLASS, FILTER_SCOPE_CLASS)}
     >
       <FilterBar.Provider model={model}>
-        <FilterBar.Root sticky density="bar">
+        <FilterBar.Root sticky density="bar" backplate="none">
           <FilterBar.Search placeholder="Search places" />
           <FilterBar.Facets>
             <FilterBar.Chips facet="category" layout="scroll" />

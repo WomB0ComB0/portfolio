@@ -64,9 +64,13 @@ const MotionImage = motion.create(Image);
 /** The caption's entrance when the photo changes. The first photo's is server content: no fade. */
 const CAPTION_ENTER = { opacity: 0, y: 10 };
 
-/** PageShell's gutters, the desktop rail, and the shell's 1200px cap. */
+/**
+ * Image area inside the stage's 1px border: PageShell uses clamp(16px, 8px + 2vw, 32px)
+ * gutters, then the 64px desktop rail and 1200px shell cap. Keep the vw term visible to Next's
+ * srcset sizing so full-width photographs never receive an icon-sized source.
+ */
 const FRAME_SIZES =
-  '(max-width: 1023px) calc(-64px + 100vw), (max-width: 1263px) calc(-128px + 100vw), 1136px';
+  '(max-width: 400px) calc(-34px + 100vw), (max-width: 1023px) calc(-18px + 96vw), (max-width: 1199px) calc(-82px + 96vw), (max-width: 1263px) calc(-130px + 100vw), 1134px';
 
 interface PlacePhotoViewerProps {
   /** At least one photo, with URLs built on the server. */

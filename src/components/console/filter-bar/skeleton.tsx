@@ -26,9 +26,11 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import {
   BAR_CLASS,
+  backplateClassFor,
   CHIP_LIST_CLASS,
   CHIPS_SLOT_CLASS,
   FILTERS_BUTTON_CLASS,
+  type FilterBarBackplate,
   FORM_ROW_CLASS,
   FORM_TILE_CLASS,
   SEARCH_SLOT_CLASS,
@@ -45,6 +47,8 @@ export interface FilterBarSkeletonProps {
   readonly sticky?: boolean;
   /** As FilterBar.Root's: one row of parts, or a surface tile. */
   readonly density?: 'row' | 'bar';
+  /** Same shared-backplate choice as the live bar. */
+  readonly backplate?: FilterBarBackplate;
 }
 
 /** The bar's boxes, marked busy. */
@@ -52,6 +56,7 @@ export function FilterBarSkeleton({
   chips = 5,
   sticky = false,
   density = 'row',
+  backplate = 'translucent',
 }: FilterBarSkeletonProps): ReactElement {
   return (
     <div
@@ -59,7 +64,12 @@ export function FilterBarSkeleton({
       aria-label="Loading filters"
       role="status"
       data-filter-part="bar"
-      className={cn(BAR_CLASS, sticky && stickyClassFor(density))}
+      data-backplate={backplate}
+      className={cn(
+        BAR_CLASS,
+        sticky && stickyClassFor(density),
+        sticky && backplateClassFor(backplate),
+      )}
     >
       <div className={density === 'bar' ? FORM_TILE_CLASS : FORM_ROW_CLASS}>
         <div className={cn(SEARCH_SLOT_CLASS, 'rounded-lg border border-hairline bg-surface-1')} />

@@ -124,11 +124,11 @@ describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
     expect(purpose.closest('a')).toHaveClass('group', 'hover:bg-accent');
   });
 
-  it("the photo viewer's drag hint uses the faint text tier, not muted text at 70%", () => {
+  it("the photo viewer's position counter uses a readable text tier without fading", () => {
     render(<PlacePhotoViewer photos={PHOTOS} placeName="A place" summary={<h2>A place</h2>} />);
 
-    const hint = screen.getByText('← Drag to navigate →');
-    expect(hint).toHaveClass('text-faint');
+    const hint = screen.getByText(/^Photo 1 of /);
+    expect(hint).toHaveClass('text-muted-foreground');
     expect(hint).not.toHaveClass('opacity-70');
   });
 });

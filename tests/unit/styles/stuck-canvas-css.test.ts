@@ -88,14 +88,6 @@ describe('stuck-canvas', () => {
     expect(declaredValue(stuck, 'box-shadow')).toBe('var(--stuck-edge, none)');
   });
 
-  it('lets the Places form transmit the backplate while pinned instead of covering it', () => {
-    const selector = '&[data-density="bar"] > form';
-    const rest = findRule(RULES, selector, [UTILITY, SUPPORTS]);
-    const pinned = findRule(RULES, selector, [UTILITY, SUPPORTS, STUCK]);
-    expect(declaredValue(rest, 'background-color')).toBe('var(--surface-1)');
-    expect(declaredValue(pinned, 'background-color')).toBe('var(--stuck-tile-fill)');
-  });
-
   it('honors reduced transparency and forced colours with opaque unblurred surfaces', () => {
     for (const media of [
       '@media (prefers-reduced-transparency: reduce)',
