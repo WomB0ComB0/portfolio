@@ -98,6 +98,37 @@ export const ResolvedSanityFileSchema = Schema.Struct({
 /**
  * Sanity Experience Schema with Effect Schema validation
  */
+export const ExperienceSubRoleSchema = Schema.Struct({
+  _key: Schema.String,
+  _type: Schema.optionalWith(Schema.Literal('experienceSubRole'), { nullable: true }),
+  position: Schema.String,
+  startDate: Schema.String,
+  endDate: Schema.optional(Schema.NullOr(Schema.String)),
+  current: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  responsibilities: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+  technologies: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+});
+
+/** A malformed child must not invalidate an otherwise readable parent engagement. */
+const experienceSubRolesValue = Schema.transform(
+  Schema.Unknown,
+  Schema.NullOr(Schema.Array(ExperienceSubRoleSchema)),
+  {
+    strict: true,
+    decode: (value) => {
+      if (value === null) return null;
+      if (!Array.isArray(value)) return [];
+      const decode = Schema.decodeUnknownEither(ExperienceSubRoleSchema);
+      return value.flatMap((child) => {
+        const result = decode(child);
+        return result._tag === 'Right' ? [result.right] : [];
+      });
+    },
+    encode: (value) => value,
+  },
+);
+
 export const ExperienceSchema = Schema.Struct({
   _id: Schema.String,
   _type: Schema.Literal('experience'),
@@ -112,6 +143,7 @@ export const ExperienceSchema = Schema.Struct({
   description: Schema.String,
   responsibilities: Schema.optional(Schema.Array(Schema.String)),
   technologies: Schema.optional(Schema.Array(Schema.String)),
+  subRoles: Schema.optional(experienceSubRolesValue),
   startDate: Schema.String,
   endDate: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   current: Schema.Boolean,
@@ -471,6 +503,7 @@ export type SanityFile = Schema.Schema.Type<typeof SanityFileSchema>;
 export type ResolvedSanityFile = Schema.Schema.Type<typeof ResolvedSanityFileSchema>;
 
 export type Experience = Schema.Schema.Type<typeof ExperienceSchema>;
+export type ExperienceSubRole = Schema.Schema.Type<typeof ExperienceSubRoleSchema>;
 export type Project = Schema.Schema.Type<typeof ProjectSchema>;
 export type Certification = Schema.Schema.Type<typeof CertificationSchema>;
 export type Place = Schema.Schema.Type<typeof PlaceSchema>;

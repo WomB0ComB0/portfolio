@@ -39,13 +39,13 @@
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { CSSProperties, ReactElement } from 'react';
-
 import { SrOnlyWords } from '@/components/console';
 import { widestWordUnits } from '@/components/console/folio/word-measure';
 import { cn } from '@/lib/utils';
 import { roleRowAnchor } from '../../_lib/role-index';
 import type { StoryStop, StoryWeight } from '../../_lib/role-story';
 import { LOGO_AT_REST_CLASS, RoleMark } from '../role-parts';
+import { RoleProgression } from '../role-progression';
 import { LinkedProse } from './linked-prose';
 
 export const MORE_LABEL = 'What I did';
@@ -382,6 +382,11 @@ export function RoleStop({ stop }: RoleStopProps): ReactElement {
           </h3>
           <StopOrganization stop={stop} />
           <LinkedProse parts={prose.sentence} className={SENTENCE_CLASS[weight]} />
+          <RoleProgression
+            id={`role-${row.id}-progression`}
+            subRoles={row.subRoles}
+            variant="compact"
+          />
           {weight === 'compact' ? null : <StopDuties duties={prose.duties} />}
           <StopTech stop={stop} />
           {weight === 'compact' ? <StopMore stop={stop} /> : null}

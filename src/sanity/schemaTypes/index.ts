@@ -18,6 +18,7 @@ import type { SchemaTypeDefinition } from 'sanity';
 import { articleType } from './article';
 import { certificationType } from './certification';
 import { experienceType } from './experience';
+import { linkHealthType } from './link-health';
 import { placeType } from './place';
 import { presentationType } from './presentation';
 import { projectType } from './project';
@@ -29,6 +30,7 @@ import { youtubeVideoType } from './youtube-video';
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
     siteSettingsType,
+    linkHealthType,
     projectType,
     experienceType,
     certificationType,

@@ -11,7 +11,7 @@ const profiles = [
 
 async function fixture(
   page: Page,
-  status: 'unavailable' | 'temporary' | 'reachable' | 'mixed' = 'unavailable',
+  status: 'unavailable' | 'temporary' | 'reachable' | 'pair' = 'unavailable',
 ) {
   const requests: string[] = [];
   const pageErrors: string[] = [];
@@ -36,7 +36,7 @@ async function fixture(
         .locator('main a[href]')
         .evaluateAll((anchors) => anchors.map((a) => (a as HTMLAnchorElement).href));
       const warningTargets =
-        status === 'mixed'
+        status === 'pair'
           ? await page
               .locator('main [data-project-link], main [data-case-link]')
               .evaluateAll((anchors) =>
@@ -54,13 +54,7 @@ async function fixture(
           target.hash = '';
           const index = warningTargets.indexOf(target.href);
           const observation =
-            status === 'mixed'
-              ? index === 0
-                ? 'unavailable'
-                : index === 1
-                  ? 'temporary'
-                  : 'reachable'
-              : status;
+            status === 'pair' ? (index >= 0 ? 'unavailable' : 'reachable') : status;
           return [[target.href, { status: observation, checkedAt: new Date().toISOString() }]];
         }),
       );
@@ -160,6 +154,19 @@ for (const profile of profiles) {
         expect(report.requests.filter((value) => value === scope).length).toBeLessThanOrEqual(2);
       });
     }
+    test('Notion case studies remain usable without automated unavailable labels', async ({
+      page,
+    }) => {
+      await fixture(page, 'unavailable');
+      await page.goto(getTargetUrl() + '/experience/exp-develop-for-good');
+      await settle(page);
+      const notion = page.locator('main a[href*=".notion.site/"]');
+      expect(await notion.count()).toBeGreaterThanOrEqual(4);
+      await expect(page.locator('[data-link-health-url*=".notion.site/"]')).toHaveCount(0);
+      await expect(notion.first()).not.toHaveAttribute('aria-disabled', 'true');
+      await notion.first().scrollIntoViewIfNeeded();
+      await notion.first().click({ trial: true });
+    });
     if (profile.name === 'phone') {
       for (const [path, selector] of [
         ['/projects', 'main [data-project-link]'],
@@ -168,11 +175,11 @@ for (const profile of profiles) {
         test(`phone: ${path} has separate 44px touch action targets with both warnings`, async ({
           page,
         }) => {
-          await fixture(page, 'mixed');
+          await fixture(page, 'pair');
           await openDestination(page, path);
           expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
           await expect(page.locator('[data-link-health="unavailable"]').first()).toBeVisible();
-          await expect(page.locator('[data-link-health="temporary"]').first()).toBeVisible();
+          await expect(page.locator('[data-link-health="unavailable"]').nth(1)).toBeVisible();
           await page
             .locator('[data-link-health]')
             .first()
@@ -207,12 +214,13 @@ for (const profile of profiles) {
           expect(overlap, JSON.stringify({ live, code })).toBe(false);
         });
       }
-      test('temporary failures are distinct; healthy links and stable-service pages have no warnings', async ({
+      test('inconclusive checks, healthy links and stable-service pages have no warnings', async ({
         page,
       }) => {
         const temporary = await fixture(page, 'temporary');
         await openDestination(page, '/projects');
-        await expect(page.locator(BADGE).first()).toContainText('Temporarily unreachable');
+        await expect.poll(() => temporary.requests.length).toBeGreaterThan(0);
+        await expect(page.locator(BADGE)).toHaveCount(0);
         await page.unroute('**/*');
         const healthy = await fixture(page, 'reachable');
         await page.reload();

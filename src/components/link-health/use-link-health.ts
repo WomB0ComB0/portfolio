@@ -52,5 +52,5 @@ export function useLinkHealth(href: string | null | undefined, scope: LinkHealth
     serverSnapshot,
   );
   const entry = url && Object.hasOwn(snapshot.links, url) ? snapshot.links[url] : undefined;
-  return { url, entry: freshWarning(entry, Date.now()) };
+  return { url, entry: freshWarning(entry, Date.now(), url ?? undefined) };
 }

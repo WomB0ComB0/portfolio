@@ -52,6 +52,7 @@ import {
 } from './role-ledger';
 import { lengthOf, type RoleLength } from './role-length';
 import { type RoleLink, roleLinksOf } from './role-links';
+import { type RoleSubRole, subRoleProgressionTitle, subRolesOf } from './role-subroles';
 import { NO_TECH_LINKS, type TechLinks, type TechToken, techTokensOf } from './role-tech';
 import { dutiesBeyond, ledeOf, plainText } from './role-text';
 
@@ -74,6 +75,8 @@ export interface RoleRow extends RoleEntry {
   /** Each address in the description and the duties, once, named. */
   readonly links: readonly RoleLink[];
   readonly tech: readonly TechToken[];
+  /** Dated child positions within this one engagement, newest first. */
+  readonly subRoles: readonly RoleSubRole[];
   /** Null without a readable start, or for a role that starts after the clock. */
   readonly lane: RoleLane | null;
 }
@@ -126,8 +129,11 @@ function rowOf(experience: Experience, context: RowContext): RoleRow {
   const logo = experience.logo?.asset ? context.logoOf(experience) : null;
   const entry = roleEntryOf(experience, logo);
   const responsibilities = experience.responsibilities ?? [];
+  const subRoles = subRolesOf(experience, { today: context.today, techLinks: context.techLinks });
   return {
     ...entry,
+    role: subRoleProgressionTitle(entry.role, subRoles),
+    subRoles,
     lede: ledeOf(experience.description),
     length: lengthOf(entry.period, context.today),
     duties: dutiesBeyond(experience.description, responsibilities).map(plainText),

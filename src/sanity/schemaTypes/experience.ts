@@ -95,6 +95,55 @@ export const experienceType = defineType({
       initialValue: false,
     }),
     defineField({
+      name: 'subRoles',
+      title: 'Roles Within This Organization',
+      type: 'array',
+      description:
+        'Dated positions within this one engagement. Keep the parent dates as the whole tenure; overlapping child roles are allowed.',
+      of: [
+        {
+          type: 'object',
+          name: 'experienceSubRole',
+          title: 'Dated Role',
+          fields: [
+            defineField({
+              name: 'position',
+              title: 'Position',
+              type: 'string',
+              validation: (Rule) => Rule.required(),
+            }),
+            defineField({
+              name: 'startDate',
+              title: 'Start Date',
+              type: 'date',
+              validation: (Rule) => Rule.required(),
+            }),
+            defineField({ name: 'endDate', title: 'End Date', type: 'date' }),
+            defineField({
+              name: 'current',
+              title: 'Current Role',
+              type: 'boolean',
+              initialValue: false,
+            }),
+            defineField({ name: 'description', title: 'Description', type: 'text', rows: 3 }),
+            defineField({
+              name: 'responsibilities',
+              title: 'Responsibilities',
+              type: 'array',
+              of: [{ type: 'string' }],
+            }),
+            defineField({
+              name: 'technologies',
+              title: 'Technologies',
+              type: 'array',
+              of: [{ type: 'string' }],
+            }),
+          ],
+          preview: { select: { title: 'position', subtitle: 'startDate' } },
+        },
+      ],
+    }),
+    defineField({
       name: 'order',
       title: 'Display Order',
       type: 'number',

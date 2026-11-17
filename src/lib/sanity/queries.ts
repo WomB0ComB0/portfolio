@@ -37,6 +37,17 @@ export const experiencesQuery = `
     description,
     responsibilities,
     technologies,
+    subRoles[]{
+      _key,
+      _type,
+      position,
+      startDate,
+      endDate,
+      "current": coalesce(current, false),
+      description,
+      responsibilities,
+      technologies
+    },
     logo,
     companyUrl,
     order
@@ -62,6 +73,17 @@ export const experienceByIdQuery = `
     description,
     responsibilities,
     technologies,
+    subRoles[]{
+      _key,
+      _type,
+      position,
+      startDate,
+      endDate,
+      "current": coalesce(current, false),
+      description,
+      responsibilities,
+      technologies
+    },
     logo,
     companyUrl,
     order

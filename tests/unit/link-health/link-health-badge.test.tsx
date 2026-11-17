@@ -101,18 +101,15 @@ describe('LinkHealthBadge', () => {
     expect(screen.getByText('Release notes:', { exact: true })).toBeInTheDocument();
   });
 
-  it('distinguishes temporary trouble from an unavailable destination', async () => {
+  it('keeps legacy temporary failures invisible instead of judging a working page', async () => {
     fetcher.mockResolvedValue(
       reply({ [TARGET]: { status: 'temporary', checkedAt: new Date(NOW).toISOString() } }),
     );
-    render(<LinkHealthBadge href={TARGET} scope="media" />);
+    const { container } = render(<LinkHealthBadge href={TARGET} scope="media" />);
     await flush();
-    expect(screen.getByText('Temporarily unreachable', { exact: true })).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText('Unavailable', { exact: true })).not.toBeInTheDocument();
-    expect(document.querySelector('[data-link-health]')).toHaveAttribute(
-      'data-link-health',
-      'temporary',
-    );
+    expect(document.querySelector('[data-link-health]')).toBeNull();
   });
 
   it.each(['reachable', 'unknown'])('renders no badge for %s', async (status) => {
