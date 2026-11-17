@@ -71,10 +71,10 @@
  */
 
 import { AlertTriangle, Home, RotateCw } from 'lucide-react';
-import { motion } from 'motion/react';
 import Link from 'next/link';
 import type React from 'react';
 import { memo } from 'react';
+import { ServiceStatusLink } from '@/app/_components/errors/service-status-link';
 import { Button } from '@/components/ui/button';
 
 const ErrorLayout: React.FC<{
@@ -97,7 +97,7 @@ const ErrorLayout: React.FC<{
     return (
       // The page's one <main>: error pages render outside the page Layout, which owns it elsewhere.
       <main className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden p-4 gap-3 bg-background atmosphere">
-        <motion.div
+        <div
           style={{
             zIndex: 10,
             maxWidth: '28rem',
@@ -106,9 +106,6 @@ const ErrorLayout: React.FC<{
             paddingRight: '1rem',
             textAlign: 'center',
           }}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
         >
           <AlertTriangle aria-hidden="true" className="mx-auto mb-6 size-8 text-down" />
           <h1 className="mb-6 font-sans text-hero font-extrabold tracking-display tabular-nums text-foreground sm:mb-8">
@@ -120,18 +117,15 @@ const ErrorLayout: React.FC<{
               size="lg"
               className="w-full bg-white/10 text-white hover:bg-white/20"
               variant="outline"
-              asChild
+              type="button"
+              onClick={() => (reset ? reset() : globalThis.location.reload())}
             >
-              <Link
-                href="."
-                role="button"
-                onClick={() => (reset ? reset() : globalThis.location.reload())}
-                className="flex items-center justify-center text-white"
-              >
-                <RotateCw className="w-4 h-4 mr-2" />
-                Try again
-              </Link>
+              <RotateCw aria-hidden="true" className="w-4 h-4 mr-2" />
+              Try again
             </Button>
+            {title === '500' || title === '503' ? (
+              <ServiceStatusLink className="text-sm text-brand-ink underline underline-offset-4" />
+            ) : null}
             <Button
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               asChild
@@ -143,7 +137,7 @@ const ErrorLayout: React.FC<{
             </Button>
           </div>
           {error?.digest && <p className="mt-8 text-sm text-white/60">Error ID: {error.digest}</p>}
-        </motion.div>
+        </div>
       </main>
     );
   },

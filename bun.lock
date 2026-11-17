@@ -45,6 +45,7 @@
         "fast-xml-parser": "5.12.1",
         "firebase": "^13.0.0",
         "firebase-admin": "14.5.1",
+        "google-auth-library": "11.3.4",
         "ip-address": "^10.7.5",
         "jose": "6.2.17",
         "kbar": "1.0.0",
