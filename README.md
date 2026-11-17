@@ -65,7 +65,7 @@ presence updates.
   trip through their own API.
 - **Storage and authentication**: Sanity holds projects, roles, credentials, places and media
   metadata. Firebase handles visitor sign-in and Firestore stores guestbook messages. Upstash Redis
-  holds API rate limits and IP/CIDR bans.
+  holds API rate limits, IP/CIDR bans and cached content-link health.
 - **Observability**: OpenTelemetry, Sentry and Better Stack report requests, errors and uptime.
   Server-rendered navigation links and JSON-LD support crawlers and navigation before hydration.
 
@@ -78,7 +78,7 @@ graph TD
     API["Elysia: /api/* and /api/v1/*"]
     Sanity[("Sanity content")]
     Firebase[("Firebase Auth / Firestore")]
-    Redis[("Upstash rate limits and bans")]
+    Redis[("Upstash rate limits, bans and link health")]
     Services["GitHub, Spotify, YouTube, writing and activity sources"]
 
     Browser --> Pages
@@ -149,20 +149,21 @@ directory spelling is part of the existing source layout.
 
 ### v1 Endpoints (`/api/v1/*`)
 
-| Method | Path                      | Upstream Source    | Description                                                                                                                                                |
-| :----- | :------------------------ | :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/api/v1/now-playing`     | Spotify Web API    | Current playback state, track metadata, and album art                                                                                                      |
-| `GET`  | `/api/v1/top-tracks`      | Spotify Web API    | Short-term top tracks with resilient pagination fallback                                                                                                   |
-| `GET`  | `/api/v1/top-artists`     | Spotify Web API    | Short-term top artists and genres                                                                                                                          |
-| `GET`  | `/api/v1/github-stats`    | GitHub REST API    | Repository counts, stars, followers, top languages and top repositories                                                                                    |
-| `GET`  | `/api/v1/github-sponsors` | GitHub GraphQL API | Active and past GitHub Sponsors and tier metadata                                                                                                          |
-| `GET`  | `/api/v1/wakatime`        | WakaTime API       | Total coding time as text, digital, decimal and seconds values                                                                                             |
-| `GET`  | `/api/v1/leetcode`        | LeetCode GraphQL   | Solved problem counts by difficulty                                                                                                                        |
-| `GET`  | `/api/v1/lanyard`         | Lanyard API        | Live Discord presence and custom activities                                                                                                                |
-| `GET`  | `/api/v1/blog`            | Hashnode & Dev.to  | Merged and chronologically sorted blog articles                                                                                                            |
-| `GET`  | `/api/v1/google`          | Google Analytics   | Total site pageviews                                                                                                                                       |
-| `POST` | `/api/v1/messages`        | Firebase Admin     | Sign the guestbook with a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                      |
-| `GET`  | `/api/v1/sanity/*`        | Sanity CMS         | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
+| Method | Path                                 | Upstream Source    | Description                                                                                                                                                |
+| :----- | :----------------------------------- | :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/v1/now-playing`                | Spotify Web API    | Current playback state, track metadata, and album art                                                                                                      |
+| `GET`  | `/api/v1/top-tracks`                 | Spotify Web API    | Short-term top tracks with resilient pagination fallback                                                                                                   |
+| `GET`  | `/api/v1/top-artists`                | Spotify Web API    | Short-term top artists and genres                                                                                                                          |
+| `GET`  | `/api/v1/github-stats`               | GitHub REST API    | Repository counts, stars, followers, top languages and top repositories                                                                                    |
+| `GET`  | `/api/v1/github-sponsors`            | GitHub GraphQL API | Active and past GitHub Sponsors and tier metadata                                                                                                          |
+| `GET`  | `/api/v1/wakatime`                   | WakaTime API       | Total coding time as text, digital, decimal and seconds values                                                                                             |
+| `GET`  | `/api/v1/leetcode`                   | LeetCode GraphQL   | Solved problem counts by difficulty                                                                                                                        |
+| `GET`  | `/api/v1/lanyard`                    | Lanyard API        | Live Discord presence and custom activities                                                                                                                |
+| `GET`  | `/api/v1/blog`                       | Hashnode & Dev.to  | Merged and chronologically sorted blog articles                                                                                                            |
+| `GET`  | `/api/v1/link-health?scope=projects` | Cached HTTP checks | Link status for `projects`, `media`, `certifications` or `experience`; accepts a scope, never a target URL                                                 |
+| `GET`  | `/api/v1/google`                     | Google Analytics   | Total site pageviews                                                                                                                                       |
+| `POST` | `/api/v1/messages`                   | Firebase Admin     | Sign the guestbook with a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                      |
+| `GET`  | `/api/v1/sanity/*`                   | Sanity CMS         | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
 
 The v1 router also exposes `/api/v1/`, `/api/v1/health`, `/api/v1/status`, `/api/v1/version` and
 `/api/v1/info` through its [utility module](src/app/api/v1/[[...route]]/utility/index.ts). `/info`
@@ -171,6 +172,26 @@ returns the active sponsorship list.
 
 The Media page composes its feed on the server from the blog, Sanity and YouTube loaders. It does
 not have a separate `/api/v1/media` endpoint.
+
+### Content-link health
+
+Project demos and source repositories, writing and talk destinations, credentials and experience
+links are checked automatically as their pages are visited. Places, Spotify, standalone video
+feeds and stable service/profile links are excluded. Checks run after the status response and share
+a Redis cache; they add no external requests to the page's server render. No new credentials or
+scheduled job are required.
+
+An **Unavailable** label requires two confirmed `404`/`410` observations at least two minutes apart.
+Temporary network/server failures receive a separate label. Healthy links and checks blocked by
+authentication or rate limits have no label. Every link stays clickable, recovery clears warnings,
+and warnings expire after 24 hours without a fresh observation. These are HTTP reachability checks:
+they cannot detect every soft 404, removed video or broken feature behind a successful response.
+
+Healthy and uncheckable links are checked again after six hours, temporary failures after 15 minutes,
+and confirmed missing pages after an hour. Background work is limited to eight URLs and two concurrent
+requests per shared 30-second lease. Each probe has a five-second deadline, validates DNS and every
+redirect, and pins the connection to a public address. If Redis is unavailable, checks stop. Only
+published content destinations enter the catalog; visitors cannot submit URLs for probing.
 
 ### Rate Limits & Bans
 

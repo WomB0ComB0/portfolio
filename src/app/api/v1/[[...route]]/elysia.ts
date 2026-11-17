@@ -21,6 +21,7 @@ import { githubStatsRoute } from './github-stats';
 import { googleRoute } from './google';
 import { lanyardRoute } from './lanyard';
 import { leetCodeStatsRoute } from './leetcode';
+import { linkHealthRoute } from './link-health';
 import { messagesRoute } from './messages';
 import { nowPlayingRoute } from './now-playing';
 import { sanityRoutes } from './sanity';
@@ -40,6 +41,7 @@ import { wakatimeRoute } from './wakatime';
  *   - /top-artists (Spotify)
  *   - /top-tracks (Spotify)
  *   - /blog
+ *   - /link-health (cached reachability of published content links)
  *   - /messages (POST only: signing the guestbook, with a Firebase ID token)
  *   - /sanity/* (CMS content)
  * @type {Elysia}
@@ -56,6 +58,7 @@ export const apiRoutes = new Elysia()
   .use(blogRoute)
   .use(messagesRoute)
   .use(sanityRoutes)
+  .use(linkHealthRoute)
   .use(leetCodeStatsRoute);
 
 export { utilityRoutes } from './utility';

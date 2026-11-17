@@ -43,8 +43,8 @@
 
 import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
-
 import { NEW_TAB_LABEL, NewTabArrow, SrOnlyWords } from '@/components/console/tile-link';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import type { FeedPair, FeedProject, FeedRow, FeedSeries, FeedTopic } from '../_lib/media-feed';
 import type { PlayMode } from '../_lib/media-options';
 import {
@@ -105,20 +105,25 @@ export interface PairLinkProps {
 export function PairLink({ pair, play }: PairLinkProps): ReactElement {
   const inPlace = playAttributes(pair, play, pair.title);
   return (
-    <a
-      href={pair.href}
-      data-feed-pair={pair.kind}
-      title={pair.title}
-      className={SEE_LINK_CLASS}
-      {...(inPlace ?? { target: '_blank', rel: 'noopener noreferrer' })}
-    >
-      <span className={SEE_TEXT_CLASS}>
-        {pairWords(pair)}
-        <span className={SEE_NAME_CLASS}>: {pair.title}</span>
-        {!inPlace && <NewTabArrow />}
-      </span>
-      {!inPlace && <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>}
-    </a>
+    <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-1">
+      <a
+        href={pair.href}
+        data-feed-pair={pair.kind}
+        title={pair.title}
+        className={SEE_LINK_CLASS}
+        {...(inPlace ?? { target: '_blank', rel: 'noopener noreferrer' })}
+      >
+        <span className={SEE_TEXT_CLASS}>
+          {pairWords(pair)}
+          <span className={SEE_NAME_CLASS}>: {pair.title}</span>
+          {!inPlace && <NewTabArrow />}
+        </span>
+        {!inPlace && <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>}
+      </a>
+      {pair.kind !== 'video' && pair.kind !== 'stream' && (
+        <LinkHealthBadge href={pair.href} scope="media" />
+      )}
+    </span>
   );
 }
 

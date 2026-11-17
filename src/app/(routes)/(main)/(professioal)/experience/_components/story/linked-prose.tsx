@@ -30,8 +30,9 @@
  */
 
 import { Fragment, type ReactElement, type ReactNode } from 'react';
-
 import { NEW_TAB_LABEL, NewTabArrow } from '@/components/console';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
+import { normalizeLinkUrl } from '@/lib/link-health/url';
 import { cn } from '@/lib/utils';
 import type { LinkedPart } from '../../_lib/linked-text';
 
@@ -187,9 +188,20 @@ export function LinkedProse({
   className,
 }: LinkedProseProps): ReactElement | null {
   if (parts.length === 0) return null;
+  const destinations = new Map<string, Extract<LinkedPart, { kind: 'link' }>>();
+  for (const part of parts) {
+    if (part.kind !== 'link') continue;
+    const canonical = normalizeLinkUrl(part.href);
+    if (canonical && !destinations.has(canonical)) destinations.set(canonical, part);
+  }
   return (
     <Element data-prose="" className={cn('[overflow-wrap:break-word]', className)}>
       {proseNodes(parts)}
+      <span data-prose-link-health="" className="mt-1 flex max-w-full flex-col gap-1 empty:hidden">
+        {[...destinations].map(([key, part]) => (
+          <LinkHealthBadge key={key} href={part.href} scope="experience" label={part.label} />
+        ))}
+      </span>
     </Element>
   );
 }

@@ -20,6 +20,9 @@ import { logger } from '@/utils';
 import { batchSpanProcessor, createElysiaApp, IS_VERCEL } from '../../_elysia';
 import { apiRoutes, utilityRoutes } from './elysia';
 
+// Includes the bounded link-health batch scheduled with after(), after the response is sent.
+export const maxDuration = 60;
+
 const app = createElysiaApp({
   prefix: '/api/v1',
 })
