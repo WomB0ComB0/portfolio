@@ -47,7 +47,7 @@ import { WhereItSits } from '../../_components/detail/where-it-sits';
 import { featuredOf } from '../../_lib/project-order';
 import type { ProjectDetailProps } from './project-detail.types';
 
-export const BACK_LABEL = 'Back to all projects';
+const BACK_LABEL = 'Back to all projects';
 
 const SCREEN_NOUN = { one: 'screen', many: 'screens' } as const;
 
@@ -82,5 +82,3 @@ export function ProjectDetail({ project, projects, children }: ProjectDetailProp
     </PhotoViewerRoot>
   );
 }
-
-export default ProjectDetail;

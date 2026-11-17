@@ -63,17 +63,15 @@ import { playAttributes } from './feed-play';
 import { SeriesReference } from './feed-series-ref';
 
 /** The line's name: what opens it on screen, and what a screen reader calls the list. */
-export const SEE_ALSO_LABEL = 'See also';
+const SEE_ALSO_LABEL = 'See also';
 
 /**
  * "Upload 14 of 27" when the series is numbered by date, "Part 1 of 2" by its own titles. Where
  * the list is not complete (past the channel listing's cap), the page can vouch for neither a
  * place nor a count (more uploads of the series may be past the cap), so the series' name alone.
  */
-export const seriesWords = (
-  { part, count, numbered, name }: FeedSeries,
-  complete = true,
-): string => (complete ? `${numbered === 'title' ? 'Part' : 'Upload'} ${part} of ${count}` : name);
+const seriesWords = ({ part, count, numbered, name }: FeedSeries, complete = true): string =>
+  complete ? `${numbered === 'title' ? 'Part' : 'Upload'} ${part} of ${count}` : name;
 
 /** The link's tooltip: "Show all 27, first to last"; past the cap, "Show all listed uploads". */
 const seriesTooltip = (series: FeedSeries, complete: boolean): string =>
@@ -83,11 +81,11 @@ const seriesTooltip = (series: FeedSeries, complete: boolean): string =>
 const isFilmed = (pair: FeedPair): boolean => pair.kind === 'video' || pair.kind === 'stream';
 
 /** "Video version" on a written row, "Written version" on a filmed one. */
-export const pairWords = (pair: FeedPair): string =>
+const pairWords = (pair: FeedPair): string =>
   isFilmed(pair) ? 'Video version' : 'Written version';
 
 /** A project's page on this site. */
-export const projectHref = (project: Pick<FeedProject, 'id'>): string =>
+const projectHref = (project: Pick<FeedProject, 'id'>): string =>
   `/projects/${encodeURIComponent(project.id)}`;
 
 export interface PairLinkProps {
@@ -127,7 +125,7 @@ export function PairLink({ pair, play }: PairLinkProps): ReactElement {
   );
 }
 
-export interface SeriesLinkProps {
+interface SeriesLinkProps {
   readonly series: FeedSeries;
   /** The page's URL showing only this series. */
   readonly href: string;
@@ -141,7 +139,7 @@ export interface SeriesLinkProps {
  * their own, read after a pause, so joined by a comma they were announced with a space before it
  * ("Upload 14 of 27 , <name>"). Past the cap the link shows the name itself ("Series: <name>").
  */
-export function SeriesLink({ series, href, complete = true }: SeriesLinkProps): ReactElement {
+function SeriesLink({ series, href, complete = true }: SeriesLinkProps): ReactElement {
   return (
     <Link
       href={href}
@@ -158,7 +156,7 @@ export function SeriesLink({ series, href, complete = true }: SeriesLinkProps): 
   );
 }
 
-export interface SeriesPlaceProps {
+interface SeriesPlaceProps {
   readonly series: FeedSeries;
   /** False past the channel listing's cap: the series' count is then not stated. */
   readonly complete?: boolean;
@@ -169,7 +167,7 @@ export interface SeriesPlaceProps {
  * nowhere new: the list already holds every upload of the series, or a row or the line under a
  * long series links it. Past the cap, with no place to say, the series it is in ("Series: <name>").
  */
-export function SeriesPlace({ series, complete = true }: SeriesPlaceProps): ReactElement {
+function SeriesPlace({ series, complete = true }: SeriesPlaceProps): ReactElement {
   return (
     <span data-feed-series-place="" className={SEE_PLACE_CLASS}>
       {complete ? seriesWords(series) : `Series: ${seriesWords(series, false)}`}
@@ -178,7 +176,7 @@ export function SeriesPlace({ series, complete = true }: SeriesPlaceProps): Reac
 }
 
 /** The link to the project a row is about; a proposal (the lab only) says that it is one. */
-export function ProjectLink({ project }: { readonly project: FeedProject }): ReactElement {
+function ProjectLink({ project }: { readonly project: FeedProject }): ReactElement {
   return (
     <Link
       href={projectHref(project)}
@@ -199,14 +197,14 @@ export function ProjectLink({ project }: { readonly project: FeedProject }): Rea
   );
 }
 
-export interface TopicLinksProps {
+interface TopicLinksProps {
   readonly topics: readonly FeedTopic[];
   /** The page's URL showing only what is filed under a topic. */
   readonly topicHref: (slug: string) => string;
 }
 
 /** "Topics:" and a link for each; a screen reader hears "Topic: <label>" on every link. */
-export function TopicLinks({ topics, topicHref }: TopicLinksProps): ReactElement {
+function TopicLinks({ topics, topicHref }: TopicLinksProps): ReactElement {
   return (
     <>
       <span aria-hidden="true" className={SEE_LABEL_CLASS}>

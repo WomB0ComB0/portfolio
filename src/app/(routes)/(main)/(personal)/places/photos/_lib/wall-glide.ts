@@ -24,7 +24,7 @@
 /** The release speed is read from the pointer's moves within this window. */
 export const VELOCITY_WINDOW_MS = 90;
 /** A pointer held still longer than this before letting go releases with no glide. */
-export const REST_BEFORE_RELEASE_MS = 100;
+const REST_BEFORE_RELEASE_MS = 100;
 /** The speed decays with this time constant: a flick carries speed x 0.34 s. */
 export const GLIDE_TIME_CONSTANT_S = 0.34;
 /** Below this speed (px/s) the glide stops. */

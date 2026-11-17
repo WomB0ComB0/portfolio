@@ -195,7 +195,7 @@ const startYear = (project: Project): string => /^\d{4}/u.exec(project.startDate
  * description in Studio (the latest work's too: it is a Sanity project, matched by its GitHub
  * URL), else its category, else {@link PROJECT_SUBTITLE_FALLBACK}.
  */
-export function projectSubtitle(project: Project, subtitle: string): string {
+function projectSubtitle(project: Project, subtitle: string): string {
   return (
     subtitle ||
     firstSentence(project.description) ||

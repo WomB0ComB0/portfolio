@@ -38,7 +38,7 @@ import { type Screen, screensLayout, sectionScreens } from './case-screens';
 import { type CaseBody, caseBody, leadSplit, proseRuns } from './case-text';
 import { ScreensSheet } from './screens-sheet';
 
-export const SCREENS_ID = 'screens';
+const SCREENS_ID = 'screens';
 
 export interface CaseStudyProps {
   readonly longDescription: string | null | undefined;

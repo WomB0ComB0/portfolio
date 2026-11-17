@@ -209,12 +209,7 @@ function BlockedNote({ href }: { readonly href: string }): ReactElement {
 }
 
 /** The player: the video's title, Close, the frame (or why it is blocked) and the way out. */
-export function VideoDialog({
-  video,
-  open,
-  onOpenChange,
-  returnFocusTo,
-}: VideoDialogProps): ReactElement {
+function VideoDialog({ video, open, onOpenChange, returnFocusTo }: VideoDialogProps): ReactElement {
   const blocked = useFrameBlocked(open, video.videoId);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

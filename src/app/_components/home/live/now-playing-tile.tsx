@@ -61,8 +61,8 @@ const ART_SIZE_PX = 56;
 const SPOTIFY_PATH = '/spotify';
 
 /** The tile's hidden h2 while something plays, and otherwise. */
-export const PLAYING_TITLE = 'Playing now on Spotify';
-export const SPOTIFY_TITLE = 'Spotify';
+const PLAYING_TITLE = 'Playing now on Spotify';
+const SPOTIFY_TITLE = 'Spotify';
 
 /** One row: the art, then the text, centred on each other. */
 const ROW_CLASS = 'flex min-w-0 items-center gap-3';

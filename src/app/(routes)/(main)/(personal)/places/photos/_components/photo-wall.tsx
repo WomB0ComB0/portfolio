@@ -69,11 +69,7 @@ const LiveSheetChunk = lazy<ComponentType<LiveWallSheetProps & Unavailable>>(() 
  * The wall's box with no cards: the server's HTML and the Suspense fallback alike. It shows the
  * hint the live wall will show, so the words don't change when the wall loads.
  */
-export function WallFrame({
-  hint = WALL_HINTS.page,
-}: {
-  readonly hint?: string;
-} = {}): ReactElement {
+function WallFrame({ hint = WALL_HINTS.page }: { readonly hint?: string } = {}): ReactElement {
   return (
     <div className={styles.wall} data-wall-frame="">
       <div className={styles.viewport} />

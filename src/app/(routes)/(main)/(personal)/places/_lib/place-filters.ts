@@ -49,18 +49,18 @@ export type PlaceState = FilterState<PlaceFacet>;
 export type PlaceSchema = FilterSchema<PlaceItem, PlaceFacet>;
 export type PlacePhotoSchema = FilterSchema<PhotoPlace, PlaceFacet>;
 /** What the filters read from a place: the same on /places and /places/photos. */
-export type FilterablePlace = Pick<PlaceItem, 'id' | 'name' | 'description' | 'category'>;
+type FilterablePlace = Pick<PlaceItem, 'id' | 'name' | 'description' | 'category'>;
 
 export const PLACES_PATH = '/places';
 /** The photos of the same past places, filtered by the same URL. */
 export const PLACE_PHOTOS_PATH = '/places/photos';
 /** The longest search read, as the old filter capped it. */
-export const QUERY_MAX_LENGTH = 100;
+const QUERY_MAX_LENGTH = 100;
 /**
  * The longest ?category value read, once the kit has trimmed the blanks around it; the longest
  * label is 11 characters.
  */
-export const FACET_VALUE_MAX_LENGTH = 100;
+const FACET_VALUE_MAX_LENGTH = 100;
 /** The old select's "every category" value. */
 const ALL_CATEGORIES = 'all';
 
@@ -85,7 +85,7 @@ export function resolvePlaceCategory(raw: string): string | null {
  * The places filter at `path`: ?q over the name and description, ?category as one of the six
  * chips. /places and /places/photos share it, so a link reads the same on either.
  */
-export function placeFilterInput<T extends FilterablePlace>(
+function placeFilterInput<T extends FilterablePlace>(
   path: string,
 ): FilterSchemaInput<T, PlaceFacet> {
   return {

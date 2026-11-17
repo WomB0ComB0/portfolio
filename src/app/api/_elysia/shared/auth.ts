@@ -33,7 +33,7 @@ import { Logger } from '@/utils';
  * @see {@link https://github.com/WomB0ComB0/portfolio}
  * @version 1.0.0
  */
-export interface AuthConfig {
+interface AuthConfig {
   envVar: string;
   logger: ReturnType<typeof Logger.getLogger>;
   errorMessage?: string;
@@ -100,7 +100,7 @@ export interface AuthErrorResponse {
  * @author Mike Odnis
  * @version 1.0.0
  */
-export function validateBearerToken(
+function validateBearerToken(
   token: string | undefined,
   envVar: string,
   logger: ReturnType<typeof Logger.getLogger>,
@@ -148,7 +148,7 @@ export function validateBearerToken(
  * @author Mike Odnis
  * @version 1.0.0
  */
-export function createBearerGuard(config: AuthConfig) {
+function createBearerGuard(config: AuthConfig) {
   const realm = config.realm || 'admin';
 
   return (context: BearerContext): AuthErrorResponse | undefined => {
@@ -191,50 +191,5 @@ export function createAdminBearerGuard(loggerName: string) {
     envVar: 'ADMIN_API_TOKEN',
     logger: Logger.getLogger(loggerName),
     errorMessage: 'Invalid or missing admin authentication token',
-  });
-}
-
-/**
- * @function createAuthenticator
- * @description
- * Legacy authentication checker using the Authorization header string.
- * Use only if @elysiajs/bearer plugin is unavailable.
- *
- * @deprecated Use createBearerGuard with @elysiajs/bearer plugin instead.
- * @param {AuthConfig} config Authentication configuration as per AuthConfig.
- * @returns {(headers: Headers) => boolean} Function to validate requests based on headers.
- * @see createBearerGuard
- * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization
- * @author Mike Odnis
- * @version 1.0.0
- */
-export function createAuthenticator(config: AuthConfig) {
-  return (headers: Headers): boolean => {
-    const authHeader = headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return false;
-    }
-
-    const token = authHeader.slice(7);
-    return validateBearerToken(token, config.envVar, config.logger);
-  };
-}
-
-/**
- * @function createAdminAuthenticator
- * @description
- * Legacy function for constructing an admin authenticator using ADMIN_API_TOKEN.
- *
- * @deprecated Use createAdminBearerGuard instead.
- * @param {string} loggerName Name of the logger for context.
- * @returns {(headers: Headers) => boolean} Authenticator function for admin token.
- * @see createAuthenticator
- * @author Mike Odnis
- * @version 1.0.0
- */
-export function createAdminAuthenticator(loggerName: string) {
-  return createAuthenticator({
-    envVar: 'ADMIN_API_TOKEN',
-    logger: Logger.getLogger(loggerName),
   });
 }

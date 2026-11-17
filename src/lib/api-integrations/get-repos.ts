@@ -128,5 +128,3 @@ export const getRepos = cache(async (): Promise<PinnedRepo[]> => {
     throw error;
   }
 });
-
-export default getRepos;

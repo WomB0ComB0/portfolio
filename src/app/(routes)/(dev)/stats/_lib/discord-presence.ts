@@ -36,7 +36,7 @@ import type { StatusTone } from '@/components/console';
  * Discord activity types, as Lanyard reports them.
  * @see https://discord.com/developers/docs/events/gateway-events#activity-object-activity-types
  */
-export const ActivityType = {
+const ActivityType = {
   Playing: 0,
   Streaming: 1,
   Listening: 2,
@@ -453,7 +453,7 @@ export function selectActivities<T extends PresenceActivity>(
 }
 
 /** "Listening to Spotify", "Playing Visual Studio Code", "Watching YouTube". */
-export const activityHeading = (activity: PresenceActivity): string =>
+const activityHeading = (activity: PresenceActivity): string =>
   `${VERBS[activity.type] ?? 'Playing'} ${activity.name}`;
 
 export const isListening = (activity: PresenceActivity): boolean =>
@@ -467,7 +467,7 @@ const SPOTIFY_IMAGE_ID = /^[A-Za-z0-9]+$/;
  * https://i.scdn.co/image/<image id>. Anything else (app assets, `mp:external/...`) is not
  * Spotify art and gets no image.
  */
-export function spotifyArtUrl(largeImage: string | undefined): string | undefined {
+function spotifyArtUrl(largeImage: string | undefined): string | undefined {
   if (!largeImage?.startsWith(SPOTIFY_ART_PREFIX)) return undefined;
   const id = largeImage.slice(SPOTIFY_ART_PREFIX.length);
   return SPOTIFY_IMAGE_ID.test(id) ? `https://i.scdn.co/image/${id}` : undefined;
@@ -477,7 +477,7 @@ export function spotifyArtUrl(largeImage: string | undefined): string | undefine
  * `value` as an https URL on `hostname`, or undefined. Keeps next/image to the hosts next.config
  * allows and keeps links pointed at Spotify.
  */
-export function httpsUrlOn(value: string | undefined, hostname: string): string | undefined {
+function httpsUrlOn(value: string | undefined, hostname: string): string | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);

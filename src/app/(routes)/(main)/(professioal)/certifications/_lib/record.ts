@@ -208,7 +208,7 @@ export function platformLine(platform: GroupPlatform | null): string | null {
 }
 
 /** Where a certificate's link leads, when it is a stored file rather than a record that verifies. */
-export const FILE_NOTE = 'Certificate file';
+const FILE_NOTE = 'Certificate file';
 /** A certificate with no credential URL. */
 export const NO_LINK_NOTE = 'No public link';
 

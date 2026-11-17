@@ -36,5 +36,3 @@ const ServiceUnavailableError = React.memo(() => {
 });
 
 ServiceUnavailableError.displayName = 'ServiceUnavailableError';
-
-export { ServiceUnavailableError };

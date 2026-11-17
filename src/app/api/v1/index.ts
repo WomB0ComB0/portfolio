@@ -14,14 +14,5 @@
  * limitations under the License.
  */
 
-export { blogRoute } from './[[...route]]/blog';
 export * from './[[...route]]/elysia';
-export { githubStatsRoute } from './[[...route]]/github-stats';
-export { googleRoute } from './[[...route]]/google';
-export { lanyardRoute } from './[[...route]]/lanyard';
-export { messagesRoute } from './[[...route]]/messages';
-export { nowPlayingRoute } from './[[...route]]/now-playing';
 export * from './[[...route]]/route';
-export { topArtistsRoute } from './[[...route]]/top-artists';
-export { topTracksRoute } from './[[...route]]/top-tracks';
-export { wakatimeRoute } from './[[...route]]/wakatime';

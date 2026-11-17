@@ -82,7 +82,7 @@ export function groupByYear<T extends { readonly createdAt: string }>(
 export type NoteScale = 'word' | 'line' | 'note' | 'body' | 'long';
 
 /** The most characters (code points, trimmed) each scale takes; anything longer is `long`. */
-export const NOTE_SCALE_MAX: Readonly<Record<Exclude<NoteScale, 'long'>, number>> = {
+const NOTE_SCALE_MAX: Readonly<Record<Exclude<NoteScale, 'long'>, number>> = {
   word: 8,
   line: 24,
   note: 60,

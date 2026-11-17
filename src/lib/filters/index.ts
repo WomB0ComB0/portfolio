@@ -21,26 +21,19 @@
 
 export {
   defineFilters,
-  type FilterParsers,
   type FilterSchema,
   type FilterSchemaInput,
 } from './define-filters';
 export {
-  allOf,
-  DEFAULT_QUERY_MAX_LENGTH,
   firstOf,
   normaliseQuery,
   ownValue,
   type ParamValue,
 } from './normalise';
-export { defaultScope, noMatchSentence, type StatusWords, statusSentence } from './sentences';
 export type {
   FacetOption,
   FacetOptions,
-  FacetSpec,
   FilterPatch,
   FilterState,
   Noun,
-  RawFilterValues,
-  StatusInput,
 } from './types';

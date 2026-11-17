@@ -101,7 +101,7 @@ export const INDEX_TABLE_CLASS = 'w-full table-fixed border-separate border-spac
 /** Labels show from a 40rem page; a phone's rows are one cell and a meta line. */
 export const INDEX_THEAD_CLASS = 'hidden @min-[40rem]/page:table-header-group';
 /** A column label: sticky right under the year (and one z under it), over a strong hairline. */
-export const INDEX_TH_CLASS =
+const INDEX_TH_CLASS =
   'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap)+var(--filter-bar-h,0px)+var(--filter-stack-gap,0px)+2.5rem)] z-[24] h-8 overflow-hidden text-ellipsis whitespace-nowrap border-b border-hairline-strong stuck-canvas px-3 pt-1 pb-2 align-bottom tile-label text-faint';
 
 /**
@@ -145,9 +145,6 @@ export const INDEX_TITLE_LINK_CLASS = `min-w-0 truncate ${TITLE_LINK_INK_CLASS}`
 export const INDEX_TITLE_LINK_WRAP_CLASS = `min-w-0 max-w-full self-start whitespace-normal ${TITLE_LINK_INK_CLASS}`;
 /** A title without a link. */
 export const INDEX_TITLE_TEXT_CLASS = 'min-w-0 truncate font-medium text-foreground';
-/** Quiet text that turns brand-ink with its row (the Verify platform). */
-export const INDEX_ROW_INK_CLASS =
-  'text-muted-foreground transition-colors duration-(--motion-base) ease-effect group-hover/row:text-brand-ink group-hover/row:duration-(--motion-instant) group-focus-within/row:text-brand-ink';
 /** The phone's meta line under the title. */
 export const INDEX_META_CLASS =
   'mt-0.5 block truncate tile-meta text-muted-foreground @min-[40rem]/page:hidden';

@@ -193,7 +193,7 @@ const TWITCH_EXPORT_LINE = /^[^\S\r\n]*broadcasted live on twitch\b/im;
  * The most of a description the stream-line test reads: YouTube's own limit, so an oversized CMS
  * entry cannot burn CPU on every /media and project page (cleanSummary caps its own input too).
  */
-export const DESCRIPTION_READ_MAX = 5_000;
+const DESCRIPTION_READ_MAX = 5_000;
 
 /** The first of `hrefs` that is an http(s) URL, trimmed; null when none is. */
 function firstLink(...hrefs: readonly (string | null | undefined)[]): string | null {

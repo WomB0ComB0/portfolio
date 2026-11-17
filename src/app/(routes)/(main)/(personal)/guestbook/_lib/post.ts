@@ -65,7 +65,7 @@ export interface GuestbookDraft {
 const isText = (value: unknown): value is string => typeof value === 'string';
 
 /** The API's answer as a message, or null when it is not one. */
-export function parsePostedMessage(value: unknown): GuestbookMessage | null {
+function parsePostedMessage(value: unknown): GuestbookMessage | null {
   if (typeof value !== 'object' || value === null) return null;
   const { id, authorName, message, createdAt } = value as Record<string, unknown>;
   if (!isText(id) || !isText(authorName) || !isText(message) || !isText(createdAt)) return null;

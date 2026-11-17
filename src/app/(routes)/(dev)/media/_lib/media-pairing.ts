@@ -54,8 +54,6 @@ import {
 import { entryKey, linkKey, linksIn, urlKey, videoKey } from './media-links';
 import type { MediaPairRule } from './media-pairs';
 
-export type { FeedPair } from './media-feed';
-
 /** "from links to": keys are 'yt:<video id>' or 'url:<host and path>'. */
 export interface PairEdge {
   readonly from: string;
@@ -71,7 +69,7 @@ export interface PairRules {
 type Medium = 'written' | 'filmed';
 
 /** The fewest words a title needs before two pieces sharing it are taken for one piece. */
-export const TITLE_MIN_WORDS = 3;
+const TITLE_MIN_WORDS = 3;
 
 const MEDIUM_OF: Readonly<Partial<Record<FeedKind, Medium>>> = {
   post: 'written',

@@ -95,4 +95,3 @@ export const Guestbook = ({ load }: GuestbookProps): JSX.Element => {
   );
 };
 Guestbook.displayName = 'Guestbook';
-export default Guestbook;

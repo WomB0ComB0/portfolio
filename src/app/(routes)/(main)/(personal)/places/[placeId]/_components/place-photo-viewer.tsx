@@ -380,4 +380,3 @@ export function PlacePhotoViewer({ photos, placeName, summary }: PlacePhotoViewe
 }
 
 PlacePhotoViewer.displayName = 'PlacePhotoViewer';
-export default PlacePhotoViewer;

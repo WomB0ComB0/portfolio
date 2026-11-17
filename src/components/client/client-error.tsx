@@ -62,4 +62,3 @@ export const ClientError = ({ error }: { error: Error }) => {
 };
 
 ClientError.displayName = 'ClientError';
-export default ClientError;

@@ -103,4 +103,3 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
   );
 });
 MobileNavBar.displayName = 'MobileNavBar';
-export default MobileNavBar;

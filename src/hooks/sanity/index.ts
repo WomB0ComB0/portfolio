@@ -32,6 +32,5 @@ export {
   CertificationSchema,
   ExperienceSchema,
   ProjectSchema,
-  type Resume,
   ResumeSchema,
 } from './schemas';

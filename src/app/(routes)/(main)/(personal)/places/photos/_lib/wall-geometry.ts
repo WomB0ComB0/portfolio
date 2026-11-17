@@ -54,7 +54,7 @@ export interface Cell {
 }
 
 /** `n` modulo `m`, never negative. */
-export const mod = (n: number, m: number): number => ((n % m) + m) % m;
+const mod = (n: number, m: number): number => ((n % m) + m) % m;
 
 /**
  * The wall's geometry for a box of `width` x `height` showing `count` photos.

@@ -273,11 +273,7 @@ function MoreRow({ more, href, columns, complete }: MoreRowProps): ReactElement 
  * is listed only in part (`complete` false, past the channel listing's cap), the count of what is
  * listed alone, no total length: "200 videos".
  */
-export function sectionCount(
-  kind: FeedKind,
-  rows: readonly SectionFeedRow[],
-  complete = true,
-): string {
+function sectionCount(kind: FeedKind, rows: readonly SectionFeedRow[], complete = true): string {
   const words = KIND_WORDS[kind];
   const items = rows.reduce((sum, row) => sum + (row.count ?? 1), 0);
   const count = `${items} ${(items === 1 ? words.one : words.many).toLowerCase()}`;

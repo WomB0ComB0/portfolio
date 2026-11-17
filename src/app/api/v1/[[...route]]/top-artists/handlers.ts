@@ -31,13 +31,13 @@ const SpotifyArtistSchema = Schema.Struct({
   images: Schema.Array(SpotifyImageSchema),
 });
 
-export const TopArtistSchema = Schema.Struct({
+const TopArtistSchema = Schema.Struct({
   name: Schema.String,
   url: Schema.String,
   imageUrl: Schema.String,
 });
 
-export type SpotifyArtist = Schema.Schema.Type<typeof SpotifyArtistSchema>;
+type SpotifyArtist = Schema.Schema.Type<typeof SpotifyArtistSchema>;
 export type TopArtist = Schema.Schema.Type<typeof TopArtistSchema>;
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours

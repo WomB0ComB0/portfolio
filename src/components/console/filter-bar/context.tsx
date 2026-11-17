@@ -109,7 +109,7 @@ export function shows(element: Element): boolean {
 }
 
 /** The current chip of the first chip set that shows. */
-export function currentChipOf(registry: FilterBarRegistry): HTMLElement | null {
+function currentChipOf(registry: FilterBarRegistry): HTMLElement | null {
   for (const list of registry.chipLists.values()) {
     const chip = list.querySelector<HTMLElement>('a[aria-current="true"]');
     if (chip?.isConnected && shows(chip)) return chip;

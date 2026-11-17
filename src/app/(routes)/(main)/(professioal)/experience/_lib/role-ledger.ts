@@ -32,7 +32,7 @@ import type { Experience } from '@/hooks/sanity/schemas';
 import { parseRoleMonth, periodOf, type RolePeriod } from './period';
 import { firstSentenceOf } from './role-text';
 
-export const ROLE_ORDERS = ['groups', 'date'] as const;
+const ROLE_ORDERS = ['groups', 'date'] as const;
 export type RoleOrder = (typeof ROLE_ORDERS)[number];
 export const DEFAULT_ROLE_ORDER: RoleOrder = 'groups';
 
@@ -111,7 +111,7 @@ export const ledgerDescription = (order: RoleOrder): string => DESCRIPTIONS[orde
 export const roleCount = (count: number): string => `${count} ${count === 1 ? 'role' : 'roles'}`;
 
 /** The role's page. */
-export const roleHref = (id: string): string => `${EXPERIENCE_PATH}/${encodeURIComponent(id)}`;
+const roleHref = (id: string): string => `${EXPERIENCE_PATH}/${encodeURIComponent(id)}`;
 
 /** The name's first letter or digit, upper-cased; '' when it has none. */
 export function monogramOf(name: string): string {

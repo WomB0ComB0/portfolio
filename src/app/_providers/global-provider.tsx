@@ -160,8 +160,3 @@ export const GlobalProvider: React.FC<
  * @description Display name for the GlobalProvider component, useful for debugging.
  */
 GlobalProvider.displayName = 'GlobalProvider';
-/**
- * @public
- * @description Exports the GlobalProvider component for use in the application's root layout.
- */
-export default GlobalProvider;

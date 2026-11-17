@@ -74,5 +74,3 @@ export function Projects({ projects, view = DEFAULT_PROJECT_VIEW }: ProjectsProp
   );
 }
 Projects.displayName = 'Projects';
-
-export default Projects;

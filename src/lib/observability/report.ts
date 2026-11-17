@@ -44,7 +44,7 @@ function causeChain(error: unknown): object[] {
 }
 
 /** True when `error`, or an error in its `cause` chain, was already reported. */
-export function wasReported(error: unknown): boolean {
+function wasReported(error: unknown): boolean {
   return causeChain(error).some((link) => reported.has(link));
 }
 
@@ -171,7 +171,7 @@ export function resetApiReportCooldowns(): void {
 }
 
 /** 'GET /api/v1/blog': the request's real path, not the catch-all route file. */
-export function apiTransactionName(request: Request): string {
+function apiTransactionName(request: Request): string {
   try {
     return `${request.method} ${new URL(request.url).pathname}`;
   } catch {

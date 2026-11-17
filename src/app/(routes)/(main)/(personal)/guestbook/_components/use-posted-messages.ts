@@ -61,21 +61,20 @@ import {
   postGuestbookMessage,
 } from '../_lib/post';
 
-export const POST_FAILED =
-  "Your message wasn't posted, so it's back in the box. Try again in a moment.";
+const POST_FAILED = "Your message wasn't posted, so it's back in the box. Try again in a moment.";
 /** No token to send, or the API refused the sign-in (401): nothing was stored. */
-export const POST_SIGNED_OUT =
+const POST_SIGNED_OUT =
   "Your message wasn't posted because your sign-in has expired. Sign in again to post it; your message is kept.";
-export const POST_RATE_LIMITED =
+const POST_RATE_LIMITED =
   "Your message wasn't posted: there have been a few from here just now. It's back in the box; try again in a few minutes.";
 /** May be stored, and was sent with a requestId: the same text posted again is stored once. */
-export const POST_UNCONFIRMED =
+const POST_UNCONFIRMED =
   "We couldn't confirm your message was posted. It's back in the box; posting it again as it is won't add it twice. The list will update in about a minute.";
 /** May be stored, and was sent without a requestId: posting it again could store it twice. */
-export const POST_UNCONFIRMED_CHECK_LIST =
+const POST_UNCONFIRMED_CHECK_LIST =
   "We couldn't confirm your message was posted. It's back in the box. The list will update in about a minute; if your message isn't there then, post it again.";
 /** A repeat was rate limited (stored nothing), but the post before it may be stored. */
-export const POST_RATE_LIMITED_UNCONFIRMED =
+const POST_RATE_LIMITED_UNCONFIRMED =
   "We couldn't confirm your message was posted, and there have been a few from here just now. It's back in the box. The list will update in about a minute; if your message isn't there then, try again in a few minutes.";
 
 /** The API has this post's requestId already, for other text or a message since removed. */

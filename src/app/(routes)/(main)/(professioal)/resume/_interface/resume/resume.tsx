@@ -147,4 +147,3 @@ export const Resume = ({ resume }: ResumeProps): JSX.Element => {
   );
 };
 Resume.displayName = 'Resume';
-export default Resume;

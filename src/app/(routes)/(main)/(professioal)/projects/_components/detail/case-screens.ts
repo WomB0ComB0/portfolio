@@ -72,9 +72,9 @@ const PHONE_RATIO = 0.8;
  */
 const PHONE_MAX_WIDTH = 1600;
 /** The tallest shape a tile keeps: a phone's. A full-page capture is cut to it from the top. */
-export const TALLEST_TILE = 0.46;
+const TALLEST_TILE = 0.46;
 /** The widest shape a tile keeps. */
-export const WIDEST_TILE = 2.4;
+const WIDEST_TILE = 2.4;
 /** From this many screens the section is a contact sheet; two make a strip, one a figure. */
 const SHEET_FROM = 3;
 

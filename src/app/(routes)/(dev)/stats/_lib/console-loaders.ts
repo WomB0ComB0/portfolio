@@ -80,7 +80,7 @@ export const DISCORD_DEADLINE_MS = LIVE_TILE_DEADLINE_MS;
  * How long the GitHub stats, WakaTime and Google handlers serve one answer before asking again.
  * An answer older than this was served because the reload failed: stale.
  */
-export const HANDLER_TTL_MS = 60 * 60_000;
+const HANDLER_TTL_MS = 60 * 60_000;
 
 const EMPTY: TileResult<never> = { status: 'empty' };
 

@@ -32,8 +32,8 @@ import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import type { ProjectMediaItem } from '../_lib/load-project-media';
 import { KIND_WORDS } from '../_lib/media-feed';
 
-export const PROJECT_MEDIA_TITLE = 'See also';
-export const PROJECT_MEDIA_ALL = 'All writing and video';
+const PROJECT_MEDIA_TITLE = 'See also';
+const PROJECT_MEDIA_ALL = 'All writing and video';
 
 const TITLE_ID = 'project-media-title';
 

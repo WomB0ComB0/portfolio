@@ -287,4 +287,3 @@ export const Cookies = (): JSX.Element => {
 };
 
 Cookies.displayName = 'Cookies';
-export default Cookies;

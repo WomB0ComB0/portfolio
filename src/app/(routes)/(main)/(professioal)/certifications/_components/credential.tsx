@@ -43,7 +43,7 @@ import {
 import { SkillsLine } from './skills-line';
 
 /** What a stored file's link says: it shows the certificate, and claims no one verifies it. */
-export const VIEW_FILE_LABEL = 'View certificate';
+const VIEW_FILE_LABEL = 'View certificate';
 
 /** What a credential shows of a certificate. */
 export type CredentialEntry = Pick<
@@ -71,7 +71,7 @@ export function CredentialCopy({ entry }: CredentialProps): ReactElement | null 
 }
 
 /** The words a credential's link shows: where it verifies, or that it is a stored file. */
-export const verifyWords = (link: CredentialLink): string =>
+const verifyWords = (link: CredentialLink): string =>
   link.verifies ? `Verify on ${link.platform}` : VIEW_FILE_LABEL;
 
 /**

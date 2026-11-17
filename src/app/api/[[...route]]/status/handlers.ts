@@ -55,10 +55,6 @@ const BetterStackMonitorsResponseSchema = Schema.Struct({
 });
 
 export type BetterStackMonitor = Schema.Schema.Type<typeof BetterStackMonitorSchema>;
-export type BetterStackMonitorsResponse = Schema.Schema.Type<
-  typeof BetterStackMonitorsResponseSchema
->;
-
 type ServiceState = ServiceStatus['state'];
 type MonitorCounts = NonNullable<ServiceStatus['monitors']>;
 type MonitorStatus = BetterStackMonitor['attributes']['status'];

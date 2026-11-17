@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils';
 import { PresentAge } from './present-age';
 
 /** The note before the age, as the kit's StatTile words it. */
-export const STALE_NOTE = 'Stale ·';
+const STALE_NOTE = 'Stale ·';
 
 /** The clock, then the words, on one line, the kit's 8px apart (StatTile's meta row). */
 const STALE_AGE_CLASS =

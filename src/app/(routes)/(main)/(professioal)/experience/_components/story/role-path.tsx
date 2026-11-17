@@ -42,8 +42,8 @@ import type { PathRole, RolePath } from '../../_lib/role-path';
 import { numberWord } from '../../_lib/role-story';
 import { type CssVars, percentOf, YEAR_LINES_CLASS } from '../role-lane';
 
-export const PATH_TITLE = 'The path so far';
-export const PATH_NOW = 'Now';
+const PATH_TITLE = 'The path so far';
+const PATH_NOW = 'Now';
 
 /**
  * The figure is the container both forms answer to: the wide one from 52rem (PATH_PACKED_REM)
@@ -156,7 +156,7 @@ const INSIDE_FROM: readonly (readonly [number, string])[] = [
 ];
 
 /** The class that moves a name beside its capsule inside it from its width; '' when none can. */
-export function insideFromClass(role: Pick<PathRole, 'label' | 'insideRem'>): string {
+function insideFromClass(role: Pick<PathRole, 'label' | 'insideRem'>): string {
   if (role.label === 'inside') return '';
   return INSIDE_FROM.find(([rem]) => rem >= role.insideRem)?.[1] ?? '';
 }

@@ -62,4 +62,3 @@ export const TailwindIndicator = () => {
   );
 };
 TailwindIndicator.displayName = 'TailwindIndicator';
-export default TailwindIndicator;

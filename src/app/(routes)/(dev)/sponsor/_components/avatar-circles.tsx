@@ -58,7 +58,7 @@ import Image from '@/components/ui/cdn-image';
 import { cn } from '@/lib/utils';
 
 /** How many circles the stack draws before it folds the rest into "+N". */
-export const AVATAR_LIMIT = 6;
+const AVATAR_LIMIT = 6;
 
 /** Each circle's drawn size in CSS px (size-10); next/image picks the 1x and 2x files from it. */
 const AVATAR_PX = 40;

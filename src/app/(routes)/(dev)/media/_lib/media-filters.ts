@@ -35,7 +35,6 @@
 import {
   defineFilters,
   type FilterSchema,
-  type FilterState,
   firstOf,
   normaliseQuery,
   ownValue,
@@ -47,13 +46,12 @@ import { SENTENCE_STOPS, SERIES_SLUG_MAX } from './media-parts';
 import { topicSlugOf } from './media-topics';
 
 export type MediaFacet = 'kind' | 'series' | 'topic';
-export type MediaState = FilterState<MediaFacet>;
 export type MediaSchema<T extends MediaFilterItem = MediaFilterItem> = FilterSchema<T, MediaFacet>;
 
 export const MEDIA_PATH = '/media';
-export const QUERY_MAX_LENGTH = 100;
+const QUERY_MAX_LENGTH = 100;
 /** The longest ?kind value read ("presentations" is 13); a longer one is dropped unread. */
-export const KIND_VALUE_MAX_LENGTH = 32;
+const KIND_VALUE_MAX_LENGTH = 32;
 /** The longest ?series value read: a series slug's own cap. */
 export const SERIES_VALUE_MAX_LENGTH = SERIES_SLUG_MAX;
 const MEDIA_NOUN = { one: 'item', many: 'items' } as const;
@@ -104,7 +102,7 @@ const isFeedKind = (slug: string): slug is FeedKind =>
   (FEED_KINDS as readonly string[]).includes(slug);
 
 /** The kind a URL value names, any case; too long or unknown is null. */
-export function kindOf(raw: string): FeedKind | null {
+function kindOf(raw: string): FeedKind | null {
   if (raw.length > KIND_VALUE_MAX_LENGTH) return null;
   return ownValue(KIND_SPELLINGS, raw.trim().toLowerCase()) ?? null;
 }

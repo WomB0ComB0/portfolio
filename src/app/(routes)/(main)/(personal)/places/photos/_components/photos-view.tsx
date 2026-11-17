@@ -43,7 +43,7 @@ import { PhotoWall, PhotoWallSheet } from './photo-wall';
 import styles from './photos-view.module.css';
 
 /** Below this many photos the wall would repeat a few across the whole window: grid only. */
-export const WALL_MIN_PHOTOS = 12;
+const WALL_MIN_PHOTOS = 12;
 
 type ViewKind = 'wall' | 'grid';
 

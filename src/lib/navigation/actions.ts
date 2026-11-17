@@ -32,7 +32,7 @@ import {
 } from 'react-icons/fi';
 
 /** The palette section every page action is listed under. */
-export const NAVIGATION_SECTION = 'Navigation';
+const NAVIGATION_SECTION = 'Navigation';
 
 /** Pixel size of the icon shown beside each page action in the palette. */
 const ACTION_ICON_SIZE = 18;

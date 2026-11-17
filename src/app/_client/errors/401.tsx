@@ -33,5 +33,3 @@ const UnauthorizedError: React.FC = React.memo(() => {
 });
 
 UnauthorizedError.displayName = 'UnauthorizedError';
-
-export { UnauthorizedError };

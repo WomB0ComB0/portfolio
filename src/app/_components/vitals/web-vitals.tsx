@@ -87,4 +87,3 @@ export const WebVitals = memo(() => {
   return null;
 });
 WebVitals.displayName = 'WebVitals';
-export default WebVitals;

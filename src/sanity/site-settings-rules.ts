@@ -37,15 +37,14 @@ export const SITE_LOCATION_MAX_LENGTH = 40;
  */
 export const SITE_TAGLINE_MAX_LENGTH = 120;
 /** The longest email address, in characters (RFC 5321's limit on a path). */
-export const SITE_EMAIL_MAX_LENGTH = 254;
+const SITE_EMAIL_MAX_LENGTH = 254;
 
 /**
  * An address a mailto link carries as it is: letters, digits and . _ % + - before the @, then a
  * dotted domain. Narrower than RFC 5322, and than Studio's own email check, on purpose: '?', '&'
  * and '#' would start a query or a fragment in the link.
  */
-export const SITE_EMAIL_PATTERN =
-  /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+const SITE_EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 
 /**
  * What Studio says about a location or tagline of spaces only. Clearing the field unsets it,

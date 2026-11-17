@@ -493,22 +493,11 @@ export const SiteSettingsDocumentSchema = Schema.transform(
  * for the schema tests (place-schema.test.ts).
  */
 export const PlacesSchema = Schema.Array(PlaceSchema);
-
-/**
- * TypeScript types derived from schemas
- */
-export type SanityImage = Schema.Schema.Type<typeof SanityImageSchema>;
-export type SanitySlug = Schema.Schema.Type<typeof SanitySlugSchema>;
-export type SanityFile = Schema.Schema.Type<typeof SanityFileSchema>;
-export type ResolvedSanityFile = Schema.Schema.Type<typeof ResolvedSanityFileSchema>;
-
 export type Experience = Schema.Schema.Type<typeof ExperienceSchema>;
-export type ExperienceSubRole = Schema.Schema.Type<typeof ExperienceSubRoleSchema>;
 export type Project = Schema.Schema.Type<typeof ProjectSchema>;
 export type Certification = Schema.Schema.Type<typeof CertificationSchema>;
 export type Place = Schema.Schema.Type<typeof PlaceSchema>;
 export type Resume = Schema.Schema.Type<typeof ResumeSchema>;
-export type ResolvedResume = Schema.Schema.Type<typeof ResolvedResumeSchema>;
 export type Presentation = Schema.Schema.Type<typeof PresentationSchema>;
 export type Talk = Schema.Schema.Type<typeof TalkSchema>;
 export type Article = Schema.Schema.Type<typeof ArticleSchema>;

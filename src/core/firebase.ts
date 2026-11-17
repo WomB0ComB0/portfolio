@@ -84,6 +84,6 @@ function initializeFirebase(): { app: FirebaseApp; firestore: Firestore } {
 }
 
 /** The singleton Firebase app and Firestore. */
-const { app, firestore } = initializeFirebase();
+const { firestore } = initializeFirebase();
 
-export { app, firestore };
+export { firestore };

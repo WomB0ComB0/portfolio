@@ -49,7 +49,7 @@ import {
   whenText,
 } from './case-text';
 
-export const CASE_TITLE_ID = 'project-title';
+const CASE_TITLE_ID = 'project-title';
 
 export interface CaseHeroProps {
   readonly project: Project;

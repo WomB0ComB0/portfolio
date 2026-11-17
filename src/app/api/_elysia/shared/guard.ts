@@ -26,9 +26,9 @@ interface GuardHookContext {
 }
 
 /** Body of a 403 from the guard. */
-export const FORBIDDEN_BODY = { error: 'Forbidden' } as const;
+const FORBIDDEN_BODY = { error: 'Forbidden' } as const;
 /** Body of a 429 from the guard (the same text as the in-process limiter's response). */
-export const TOO_MANY_REQUESTS_BODY = { error: 'Too many requests' } as const;
+const TOO_MANY_REQUESTS_BODY = { error: 'Too many requests' } as const;
 
 /**
  * Seconds until `reset` (a Unix time in ms), rounded up and at least 1, for Retry-After.
@@ -37,7 +37,7 @@ export const TOO_MANY_REQUESTS_BODY = { error: 'Too many requests' } as const;
  * @param {number} now - Current time in ms.
  * @returns {number} Whole seconds to wait.
  */
-export function secondsUntil(reset: number, now: number): number {
+function secondsUntil(reset: number, now: number): number {
   const seconds = Math.ceil((reset - now) / 1000);
   return Number.isFinite(seconds) && seconds > 1 ? seconds : 1;
 }
