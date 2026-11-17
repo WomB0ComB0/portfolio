@@ -143,7 +143,7 @@
     "ip-address": "^10.7.5",
     "jose": "6.2.17",
     "kbar": "1.0.0",
-    "lucide-react": "1.72.0",
+    "lucide-react": "1.74.0",
     "marked": "^18.1.3",
     "motion": "14.14.0",
     "next": "^16.4.4",
