@@ -18,12 +18,10 @@
  * @file Where the link-preview cards live and what they say about the site, shared by the
  * metadata (constructMetadata, which the client bundles too), the card routes and the cards.
  * No Node imports here.
- *
- * `app` is read only inside functions: src/constants/app.ts imports @/utils, which loads
- * constructMetadata and so this module, and a top-level read would meet `app` before it exists.
  */
 
-import { app } from '@/constants';
+import { app } from '@/constants/app';
+import { profile } from '@/constants/profile';
 
 /** Every card's size: the 1.91:1 frame Open Graph and X's large-image card expect. */
 export const OG_IMAGE_SIZE = { width: 1_200, height: 630 } as const;
@@ -47,7 +45,7 @@ export const PAGE_CARD_PATH = '/api/og';
 export const SITE_ROLE = 'Software engineer';
 
 /** The host the cards print: the canonical domain, whatever deployment draws them. */
-export const SITE_HOST = 'mikeodnis.dev';
+export const SITE_HOST = profile.siteHost;
 
 /** The site card's alt text: who it shows and the positioning line it carries. */
 export const siteCardAlt = (): string => `${app.name}, ${SITE_ROLE.toLowerCase()}. ${app.tagline}`;

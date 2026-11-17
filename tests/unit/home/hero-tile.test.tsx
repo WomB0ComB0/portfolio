@@ -24,12 +24,12 @@
  * Suspense inside a box that keeps its height, is clamped to the lines that box reserves, and
  * shows either part alone without the other (nothing without both).
  *
- * The positioning line and the contact links come from the Sanity site settings, each falling
- * back to today's built-in value when missing, invalid or failing. The location has no built-in
+ * The positioning line comes from Sanity, falling back to the shared static value when missing,
+ * invalid or failing. Contacts always come from the static profile, outside settings Suspense. The location has no built-in
  * value (owner decision: 'Clear the field in Studio to hide it'): a document without one, or a
  * failure with nothing cached, shows the role alone; a failure after a good load shows the last
- * good settings, so a location the owner cleared never comes back. The tagline and the links
- * never wait for Sanity before the first flush. A new server starts with nothing cached
+ * good settings, so a location the owner cleared never comes back. The tagline never waits for
+ * Sanity before the first flush. A new server starts with nothing cached
  * (instrumentation's register() asks Sanity nothing, since every route waits for it): its first
  * flush is the built-in copy, with the tagline's box as tall as Studio's longest tagline at the
  * tile's width (five lines on a phone, three from 24rem), so the owner's longer tagline streaming
@@ -143,9 +143,9 @@ const SETTINGS = {
 const SETTINGS_COPY: HeroCopy = {
   location: SETTINGS.location,
   tagline: SETTINGS.tagline,
-  email: SETTINGS.email,
-  githubUrl: SETTINGS.githubUrl,
-  linkedinUrl: SETTINGS.linkedinUrl,
+  email: app.email,
+  githubUrl: GITHUB_PROFILE_URL,
+  linkedinUrl: LINKEDIN_PROFILE_URL,
 };
 
 const T0 = new Date('2026-11-06T12:00:00Z').getTime();
@@ -426,7 +426,7 @@ describe('HeroTile', () => {
 });
 
 describe('HeroTile with the site settings', () => {
-  it('shows the location, the tagline and the contact links from the settings', async () => {
+  it('uses the CMS location and tagline while keeping the shared static contact destinations', async () => {
     h.sanityFetchWithToken.mockResolvedValue(SETTINGS);
     await renderHeroHtml();
     expectCopy(SETTINGS_COPY);
@@ -510,13 +510,11 @@ describe('HeroTile with the site settings', () => {
     expect(screen.getByText(tagline)).toHaveClass('wrap-break-word');
   });
 
-  it("sends a literal '%' in the address as %25, so the mail client gets the address as set", async () => {
+  it('ignores a legacy CMS email even when it contains an encoded mailbox name', async () => {
     h.sanityFetchWithToken.mockResolvedValue({ ...SETTINGS, email: 'first%2Blast@example.dev' });
     await renderHeroHtml();
     const href = contactHrefs().email ?? '';
-    expect(href).toBe('mailto:first%252Blast@example.dev');
-    // What a mail client decodes the link to: the configured mailbox, not first+last@.
-    expect(decodeURIComponent(href)).toBe('mailto:first%2Blast@example.dev');
+    expect(href).toBe(`mailto:${app.email}`);
   });
 
   it("renders today's copy, no location, and reports the hero tile when Sanity fails with nothing cached", async () => {
@@ -589,7 +587,7 @@ describe('HeroTile with the site settings', () => {
   // Review finding (CodeRabbit, #610): past the TTL the cache waits for a reload, so a tagline
   // streamed in after the first flush could differ from the cached one in its unreserved box and
   // move everything below it. A warm server keeps the cached copy for the whole request.
-  it('keeps the cached tagline and links for the request once the cache is past its TTL, the new ones from the next', async () => {
+  it('refreshes CMS copy after its TTL without changing static contact destinations', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(T0);
     h.sanityFetchWithToken.mockResolvedValueOnce(SETTINGS);
@@ -607,7 +605,7 @@ describe('HeroTile with the site settings', () => {
     expectRoleAlone(ROLE);
 
     await renderHeroHtml();
-    expectCopy({ ...SETTINGS_COPY, tagline: LONG_TAGLINE, email: edited.email, location: null });
+    expectCopy({ ...SETTINGS_COPY, tagline: LONG_TAGLINE, location: null });
   });
 
   it("renders today's copy, and reports, when reading the cached settings throws", () => {
@@ -740,7 +738,7 @@ describe('loadHeroCopy', () => {
 });
 
 describe('heroCopyOf', () => {
-  it("takes each field the settings have, and today's value for each they lack", () => {
+  it('takes authored location/tagline while keeping the shared static contacts', () => {
     expect(heroCopyOf({ _id: 'siteSettings', _type: 'siteSettings', tagline: 'Hi.' })).toEqual({
       ...HERO_FALLBACK_COPY,
       tagline: 'Hi.',

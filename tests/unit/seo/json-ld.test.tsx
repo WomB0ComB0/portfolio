@@ -37,6 +37,7 @@ vi.hoisted(() => {
 
 import { JsonLd, StructuredData } from '@/components/scripts/structured-data';
 import { app } from '@/constants/app';
+import { profile } from '@/constants/profile';
 import {
   collectionPageJsonLd,
   PERSON_ID,
@@ -46,22 +47,11 @@ import {
   WEBSITE_ID,
 } from '@/lib/seo/json-ld';
 import { YOUTUBE_CHANNEL_HANDLE, YOUTUBE_CHANNEL_URL } from '@/lib/youtube/channel';
+import { constructMetadata } from '@/utils/seo/meta';
 
 const SITE = 'https://mikeodnis.dev';
 
 const sourceOf = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8');
-
-/**
- * A string constant another module declares, read from its source: importing the hero's tiles
- * would load the Sanity client and the whole console kit for two URLs.
- */
-const declaredIn = (file: string, name: string): string => {
-  const value = new RegExp(`const ${name} = '([^']+)'`).exec(sourceOf(file))?.[1];
-  if (!value) throw new Error(`${file} declares no string constant ${name}`);
-  return value;
-};
-
-const HOME_TILES = 'src/app/_components/home/tiles';
 
 /** Types that would claim more than the pages show (see the file comment). */
 const UNWANTED_TYPES = /"@type":"(?:Organization|VideoObject|BlogPosting|ItemList)"/;
@@ -117,13 +107,9 @@ describe('siteJsonLd', () => {
     }
   });
 
-  it('takes GitHub and LinkedIn from the constants the hero links to', () => {
-    expect(PROFILE_URLS).toContain(
-      declaredIn(`${HOME_TILES}/tile-states.tsx`, 'GITHUB_PROFILE_URL'),
-    );
-    expect(PROFILE_URLS).toContain(
-      declaredIn(`${HOME_TILES}/hero-tile.tsx`, 'LINKEDIN_PROFILE_URL'),
-    );
+  it('uses the same public GitHub and LinkedIn destinations as the shared identity', () => {
+    expect(PROFILE_URLS).toContain(profile.github.url);
+    expect(PROFILE_URLS).toContain(profile.linkedinUrl);
   });
 
   it('includes the YouTube channel whose uploads /media lists', () => {
@@ -133,10 +119,8 @@ describe('siteJsonLd', () => {
   });
 
   it('names the X profile by the handle the Twitter card credits', () => {
-    const handle = /creator: '@(\w+)'/.exec(sourceOf('src/utils/seo/meta.ts'))?.[1];
-
-    expect(handle).toBeTruthy();
-    expect(PROFILE_URLS).toContain(`https://x.com/${handle}`);
+    expect(constructMetadata().twitter?.creator).toBe(profile.x.handle);
+    expect(PROFILE_URLS).toContain(`https://x.com/${profile.x.handle.slice(1)}`);
   });
 
   it('builds a new object on each call, so no caller can change another page', () => {

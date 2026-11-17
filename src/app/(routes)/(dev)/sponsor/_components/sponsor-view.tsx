@@ -28,7 +28,7 @@ import { SiGithubsponsors } from 'react-icons/si';
 
 import { NEW_TAB_LABEL, NewTabArrow, PageShell, SrOnlyWords } from '@/components/console';
 import { Button } from '@/components/ui/button';
-import { emailHref } from '@/constants/app';
+import { profile } from '@/constants/profile';
 import type { GitHubSponsorsData } from '@/lib/api-integrations/github-sponsors';
 import type { SponsorViewOptions } from '../_lib/options';
 import {
@@ -53,7 +53,7 @@ const PAGE_DESCRIPTION =
 
 const WAYS = shapeWays(SPONSOR_WAYS);
 const PRIMARY_WAY = WAYS.find((way) => way.id === PRIMARY_WAY_ID);
-const EMAIL = linkTargetOf(emailHref);
+const EMAIL = linkTargetOf(profile.emailHref);
 
 /** The two-column split from lg: the ways get three parts, the thanks two. */
 const BODY_CLASS = 'grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-10';

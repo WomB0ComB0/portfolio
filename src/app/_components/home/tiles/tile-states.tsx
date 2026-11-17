@@ -40,11 +40,12 @@ import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 
 import { destinationOf, NEW_TAB_LABEL, numberFormatter, SrOnlyWords } from '@/components/console';
+import { profile } from '@/constants/profile';
 import { cn } from '@/lib/utils';
 import { formatClockET, formatDay, type Instant } from '../data/format';
 
 /** The GitHub profile the hero and the GitHub tile link to. */
-export const GITHUB_PROFILE_URL = 'https://github.com/WomB0ComB0';
+export const GITHUB_PROFILE_URL = profile.github.url;
 
 /**
  * Every tile label: the tile's h2, in sentence case as written ('Recently at'). A label that is a

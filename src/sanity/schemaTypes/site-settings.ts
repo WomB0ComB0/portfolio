@@ -16,17 +16,19 @@
 
 /**
  * @file The site settings: one document, with the fixed id {@link SITE_SETTINGS_ID}, that holds
- * the home hero's words and contact links so they change in Studio rather than in code. Studio
+ * the home hero's location and tagline. Identity/contact values are static in
+ * src/constants/profile.ts; legacy contact fields remain read-only for reference. Studio
  * opens it as a single item and cannot create or delete another (structure.ts).
  *
- * Every field is optional. The site reads each on its own and uses its built-in value for one
- * that is empty or breaks its rule, so a missing or half-filled document never breaks the page.
+ * Every field is optional. The tagline uses its built-in value when empty or invalid, so a
+ * missing or half-filled document never breaks the page. Legacy contacts no longer override
+ * the shared profile; their stored values remain visible for reference.
  * The location is the exception: it has no built-in value (owner decision: 'Clear the field in
  * Studio to hide it'), so clearing it hides it from the hero's role line and from the pages'
  * metadata (geo.placename and the home page's keywords, src/lib/seo/site-metadata.ts), and the
  * site never shows one Studio does not set.
- * Studio checks the same rules before Publish (../site-settings-rules.ts, which the site's
- * decoder imports too): a value the site would drop is an error here, never a silent no-op.
+ * Studio and the site's decoder share validation rules (../site-settings-rules.ts). Legacy
+ * contact problems are warnings: read-only fields must never block a location/tagline update.
  *
  * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
  */
@@ -46,8 +48,10 @@ export const SITE_SETTINGS_TYPE = 'siteSettings';
 /** The one settings document's _id. */
 export const SITE_SETTINGS_ID = 'siteSettings';
 
-/** What a field's description adds about leaving it empty: every field but the location. */
+/** The tagline falls back to the shared static positioning line when unset. */
 const WHEN_EMPTY = 'Leave it empty to show the site’s built-in value.';
+const LEGACY_CONTACT =
+  'Legacy value, kept for reference. It no longer changes the site. Edit src/constants/profile.ts and deploy to update shared identity/contact links.';
 
 /**
  * A Studio rule from one of the site's checks: an empty field passes (the site shows its
@@ -64,9 +68,10 @@ const siteEmail = siteRule(isSiteEmail, 'custom.site-email', SITE_EMAIL_MESSAGE)
 
 /**
  * The links need no rule of their own: Studio's https-only URI check already refuses what the
- * site's (isSiteHttpsUrl) does, credentials and relative links included.
+ * site's (isSiteHttpsUrl) does, credentials and relative links included. Legacy fields warn
+ * instead of blocking Publish because their old values cannot be edited here.
  */
-const httpsOnly = (rule: UrlRule): UrlRule => rule.uri({ scheme: ['https'] });
+const httpsOnly = (rule: UrlRule): UrlRule => rule.uri({ scheme: ['https'] }).warning();
 
 export const siteSettingsType = defineType({
   name: SITE_SETTINGS_TYPE,
@@ -94,21 +99,24 @@ export const siteSettingsType = defineType({
       name: 'email',
       title: 'Email',
       type: 'email',
-      description: `The address the home page's "Email me" button writes to: letters, digits and . _ % + - before the @. ${WHEN_EMPTY}`,
-      validation: (rule) => rule.custom(siteEmail),
+      readOnly: true,
+      description: LEGACY_CONTACT,
+      validation: (rule) => rule.custom(siteEmail).warning(),
     }),
     defineField({
       name: 'githubUrl',
       title: 'GitHub profile URL',
       type: 'url',
-      description: `Where the home page's "GitHub" button leads, e.g. https://github.com/WomB0ComB0. https only. ${WHEN_EMPTY}`,
+      readOnly: true,
+      description: LEGACY_CONTACT,
       validation: httpsOnly,
     }),
     defineField({
       name: 'linkedinUrl',
       title: 'LinkedIn profile URL',
       type: 'url',
-      description: `Where the home page's "LinkedIn" button leads, e.g. https://www.linkedin.com/in/mikeodnis/. https only. ${WHEN_EMPTY}`,
+      readOnly: true,
+      description: LEGACY_CONTACT,
       validation: httpsOnly,
     }),
   ],

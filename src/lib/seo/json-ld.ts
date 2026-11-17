@@ -26,6 +26,7 @@
  */
 
 import { app } from '@/constants/app';
+import { profile } from '@/constants/profile';
 import { YOUTUBE_CHANNEL_URL } from '@/lib/youtube/channel';
 
 const SCHEMA_CONTEXT = 'https://schema.org';
@@ -42,22 +43,16 @@ const HOME_URL = siteUrl('/');
 export const PERSON_ID = `${HOME_URL}#person`;
 export const WEBSITE_ID = `${HOME_URL}#website`;
 
-/**
- * Other pages about the same person, for `sameAs`. Only profiles the repo already names:
- * GitHub and LinkedIn are the hero's buttons (GITHUB_PROFILE_URL and LINKEDIN_PROFILE_URL in
- * src/app/_components/home/tiles), YouTube is the channel /media lists, X is the handle the
- * Twitter card credits (src/utils/seo/meta.ts), and the rest were in this list before it moved
- * here. tests/unit/seo/json-ld.test.tsx keeps the first four equal to those sources.
- */
+/** Public profile URLs shared with visible identity links and social metadata. */
 export const PROFILE_URLS: readonly string[] = [
-  'https://github.com/WomB0ComB0',
-  'https://www.linkedin.com/in/mikeodnis/',
+  profile.github.url,
+  profile.linkedinUrl,
   YOUTUBE_CHANNEL_URL,
-  'https://x.com/mike_odnis',
-  'https://bsky.app/profile/mikeodnis.dev',
-  'https://instagram.com/mikeodnis.dev',
-  'https://blog.mikeodnis.dev',
-  'https://news.mikeodnis.dev',
+  profile.x.url,
+  profile.blueskyUrl,
+  profile.instagramUrl,
+  profile.blogUrl,
+  profile.newsletterUrl,
 ];
 
 /** A pointer to a node defined elsewhere in the site's JSON-LD. */

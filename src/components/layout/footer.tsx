@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { memo } from 'react';
 import { NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
 import { StatusBadge } from '@/components/custom/status-badge';
+import { profile } from '@/constants/profile';
 
 /** The SPDX id in package.json and LICENSE; /licenses explains what it covers. */
 const SITE_LICENSE = 'Apache-2.0';
@@ -74,13 +75,8 @@ export const Footer = memo(() => {
             {SITE_LICENSE}
           </Link>{' '}
           2024–present &#169;{' '}
-          <a
-            className={LINK_CLASS}
-            href="https://github.com/WomB0ComB0"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Mike Odnis
+          <a className={LINK_CLASS} href={profile.github.url} target="_blank" rel="noreferrer">
+            {profile.name}
             <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
           </a>
         </p>

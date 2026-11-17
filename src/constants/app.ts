@@ -52,8 +52,9 @@ export const ageOn = (date: Date): number => {
  */
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-import { obfuscateLink } from '@/utils';
+import { obfuscateLink } from '@/utils/browser/html-entities';
 import packageJson from '../../package.json' with { type: 'json' };
+import { profile } from './profile';
 
 /**
  * @interface AppMetadata
@@ -85,19 +86,18 @@ export const app: Readonly<{
   keywords: string[];
   logo: URL;
 }> = {
-  name: 'Mike Odnis',
+  name: profile.name,
   url: baseUrl,
-  email: 'mike@mikeodnis.dev',
-  tagline: 'Building web software end to end.',
-  description:
-    'Mike Odnis is a software engineer building web software end to end: projects, experience, certifications, places and live stats.',
+  email: profile.email,
+  tagline: profile.tagline,
+  description: profile.description,
   version: packageJson.version,
   keywords: [
     /** Core & Brand */
-    'Mike Odnis',
-    'Mike Odnis Portfolio',
-    'Mike Odnis Developer',
-    'WomB0ComB0',
+    profile.name,
+    `${profile.name} Portfolio`,
+    `${profile.name} Developer`,
+    profile.github.username,
     'The Full Stack Chronicle',
 
     /** Roles & Titles */
@@ -197,7 +197,8 @@ export const app: Readonly<{
   logo: new URL(`${baseUrl}/`),
 };
 
-export const { href: emailHref, encodedText: encodedEmail } = obfuscateLink({
+export const emailHref = profile.emailHref;
+export const { encodedText: encodedEmail } = obfuscateLink({
   scheme: 'mailto',
   address: app.email,
 });

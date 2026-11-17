@@ -482,16 +482,14 @@ export const youtubeVideosQuery = `
 /**
  * The site settings singleton, by its fixed _id; null before it is created. Only the published
  * document matches: a draft's _id is 'drafts.siteSettings'. A field left empty answers null.
+ * Only editable home copy is fetched; legacy contact fields no longer drive the site.
  */
 export const siteSettingsQuery = `
   *[_type == "siteSettings" && _id == "siteSettings"][0] {
     _id,
     _type,
     location,
-    tagline,
-    email,
-    githubUrl,
-    linkedinUrl
+    tagline
   }
 `;
 

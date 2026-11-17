@@ -429,6 +429,10 @@ Safari or physical-device coverage.
 
 ## Development Notes
 
+- **Identity and contact**: edit [`src/constants/profile.ts`](src/constants/profile.ts) for the
+  shared name, email, avatar and profile links, then deploy. Home contacts render in the initial
+  HTML without fetching settings. Legacy contact fields in Studio are read-only; the optional
+  home location and tagline still use Studio, and clearing Location still hides it.
 - **Content**: edit Sanity documents through the standalone Studio. Configure the site with a
   read-only `SANITY_API_TOKEN`, keeping editor credentials separate from runtime content queries.
 - **Data failures**: Media and Stats use bounded source loads and stale cache fallbacks. Preserve
