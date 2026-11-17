@@ -23,7 +23,7 @@
  * graph.
  */
 
-export { LinkPending, type LinkPendingProps } from './link-pending';
-export { RetryButton, type RetryButtonProps } from './retry-button';
-export { SectionBoundary, type SectionBoundaryProps } from './section-boundary';
-export { SECTION_ERROR_DESCRIPTION, SectionError, type SectionErrorProps } from './section-error';
+export { LinkPending } from './link-pending';
+export { RetryButton } from './retry-button';
+export { SectionBoundary } from './section-boundary';
+export { SECTION_ERROR_DESCRIPTION, SectionError } from './section-error';

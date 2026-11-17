@@ -53,11 +53,6 @@ import {
 } from './queries';
 
 /**
- * Cache duration for Sanity data (in seconds)
- */
-const CACHE_DURATION = 60 * 5; // 5 minutes
-
-/**
  * The active resume. It returns the asset reference (`asset`) rather than dereferencing it
  * (`asset->`), so the API shape matches the client schema's `{ asset: { _ref, _type } }`.
  */
@@ -171,32 +166,4 @@ export function getArticles(): Promise<Article[]> {
 /** All YouTube videos stored in Sanity. Throws when Sanity fails. */
 export function getYoutubeVideos(): Promise<YoutubeVideo[]> {
   return fetchList<YoutubeVideo>('youtube-videos', youtubeVideosQuery);
-}
-
-/**
- * Revalidation tags for Next.js ISR
- */
-export const revalidateTags = {
-  experiences: 'experiences',
-  projects: 'projects',
-  certifications: 'certifications',
-  skills: 'skills',
-  places: 'places',
-  resume: 'resume',
-  presentations: 'presentations',
-  talks: 'talks',
-  articles: 'articles',
-  youtubeVideos: 'youtubeVideos',
-} as const;
-
-/**
- * Helper to get cache options for Next.js fetch
- */
-export function getCacheOptions(tag: string) {
-  return {
-    next: {
-      revalidate: CACHE_DURATION,
-      tags: [tag],
-    },
-  };
 }

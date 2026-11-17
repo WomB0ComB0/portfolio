@@ -66,7 +66,7 @@ export const STATUS_POLL_MS = 60_000;
 /** A snapshot younger than this is not fetched again on mount or on focus. */
 const STATUS_STALE_MS = 55_000;
 
-export const STATUS_TILE_TITLE = 'Site status';
+const STATUS_TILE_TITLE = 'Site status';
 
 /**
  * The dot, then the words: one line wherever they fit. The words are the state, so they wrap

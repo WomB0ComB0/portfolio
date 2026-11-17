@@ -38,11 +38,11 @@ import { countWord, joinNames } from './project-words';
 /** A cover at least this wide for its height leads a chapter (4:3 is 1.33; a square is 1). */
 export const WIDE_MIN_RATIO = 1.3;
 /** Features need a chapter this big: the lead, two features and at least two briefs. */
-export const FEATURES_MIN_ITEMS = 5;
+const FEATURES_MIN_ITEMS = 5;
 /** Features come in an unequal pair. */
-export const FEATURE_COUNT = 2;
+const FEATURE_COUNT = 2;
 /** A chapter's summary names this many projects, then 'and four more'. */
-export const SUMMARY_NAMES = 3;
+const SUMMARY_NAMES = 3;
 
 /** What the layout reads of a project. */
 export type ChapterItem = Pick<

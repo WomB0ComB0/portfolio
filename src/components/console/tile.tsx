@@ -130,8 +130,8 @@ export const tileVariants = cva(
 
 export type TileVariant = 'plain' | 'raised' | 'interactive' | 'linked';
 /** `hero` washes the top-left corner with translucent brand over the variant's own surface. */
-export type TileTone = 'default' | 'hero';
-export type TilePadding = 'none' | 'sm' | 'md' | 'lg';
+type TileTone = 'default' | 'hero';
+type TilePadding = 'none' | 'sm' | 'md' | 'lg';
 /** Elements a non-link tile can render as. Use `li` inside `<TileGrid as="ul">`. */
 export type TileElement = 'div' | 'section' | 'article' | 'li' | 'aside';
 

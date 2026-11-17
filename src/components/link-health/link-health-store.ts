@@ -19,7 +19,7 @@ import type { LinkHealthEntry, LinkHealthResponse, LinkHealthScope } from '@/lib
 
 const POLL_MS = 30_000;
 const REQUEST_MS = 5_000;
-export const WARNING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const WARNING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SLACK_MS = 60_000;
 export const EMPTY_LINK_HEALTH: LinkHealthResponse = { links: {} };
 const STATUSES = new Set(['reachable', 'unavailable', 'unknown']);

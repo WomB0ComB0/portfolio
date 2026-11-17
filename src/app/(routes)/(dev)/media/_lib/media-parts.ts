@@ -92,7 +92,7 @@ const CLOSING_RUN: ReadonlySet<string> = new Set([
 ]);
 
 /** A title split into its base and the part number it carries, if any. */
-export interface SplitTitle {
+interface SplitTitle {
   readonly base: string;
   readonly part: number | null;
 }
@@ -115,9 +115,9 @@ export interface Folded<T> {
 }
 
 /** The most of a title the patterns read. */
-export const TITLE_READ_MAX = 300;
+const TITLE_READ_MAX = 300;
 /** The highest total a bracketed "(N/M)" may give and still be a part ("(12/29)" is a date). */
-export const BARE_TOTAL_MAX = 10;
+const BARE_TOTAL_MAX = 10;
 
 /**
  * "(Part 1/2)", "[part 2 of 3]", "(Pt. 4)" or "(2/3)", with the space before it. Groups: the

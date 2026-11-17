@@ -41,9 +41,9 @@ import { MonthStack, StackLegend } from './month-stack';
 import { RolePeriodText } from './role-parts';
 import { RoleLengthFigure } from './role-row-parts';
 
-export const CLOCK_LABEL = 'On the clock';
-export const COMPANIONS_LABEL = 'Ran alongside';
-export const STEPS_LABEL = 'Other roles';
+const CLOCK_LABEL = 'On the clock';
+const COMPANIONS_LABEL = 'Ran alongside';
+const STEPS_LABEL = 'Other roles';
 const BESIDE_UNIT = 'alongside';
 const BUSIEST_UNIT = 'at once at its busiest';
 const COMPANIONS_ORDER = 'by months shared';
@@ -89,7 +89,7 @@ const PLOT_CLASS = '@container min-w-0 self-end [grid-area:plot]';
  * alongside it and the most at once with its months spoken ("from Mar 2026 to Sep 2026", never
  * a dash). '' for a clock with no months or a role with no start.
  */
-export function contextCaption(page: RolePage): string {
+function contextCaption(page: RolePage): string {
   const first = page.clock.months[0];
   const last = page.clock.months.at(-1);
   const { start, end } = page.role.period;

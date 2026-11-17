@@ -99,7 +99,7 @@ describe('formatAge', () => {
     // From a 'use client' module a server component would get a client reference that throws.
     expect(readFileSync(FORMAT_AGE_SOURCE, 'utf8')).not.toMatch(DIRECTIVE);
     expect(readFileSync(BARREL_SOURCE, 'utf8')).toMatch(
-      /export \{ formatAge, type Timestamp \} from '\.\/format-age';/,
+      /export \{ formatAge \} from '\.\/format-age';/,
     );
     expect(consoleBarrel.formatAge).toBe(formatAge);
   });

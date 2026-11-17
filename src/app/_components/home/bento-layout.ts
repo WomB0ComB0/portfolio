@@ -257,7 +257,7 @@ export const BENTO_ESTIMATE_GAPS: Readonly<
 };
 
 /** The custom property that holds a slot's estimated span for a tier. */
-export const estimateProperty = (tier: BentoTier): `--rows-${BentoTier}` => `--rows-${tier}`;
+const estimateProperty = (tier: BentoTier): `--rows-${BentoTier}` => `--rows-${tier}`;
 
 /** The custom property the island writes with a slot's measured span. */
 export const MEASURED_ROWS_PROPERTY = '--rows-js';

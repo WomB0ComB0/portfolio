@@ -30,7 +30,7 @@ import { ValidationError } from '@/lib/http-clients/effect-fetcher';
 import { logger } from '@/utils';
 
 /** Retries a failing query gets in the browser. Its queryFn's fetch should not retry as well. */
-export const MAX_BROWSER_QUERY_RETRIES = 1;
+const MAX_BROWSER_QUERY_RETRIES = 1;
 
 /**
  * Returns the error an Effect failed with. `Effect.runPromise` rejects with a FiberFailure that

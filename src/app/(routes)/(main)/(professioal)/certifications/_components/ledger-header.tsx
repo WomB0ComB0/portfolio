@@ -34,7 +34,7 @@ export const sublineOf = (since: string | null): string =>
   since ? `Courses and certificates since ${since}.` : 'Courses and certificates.';
 
 /** '64 certificates · 17 issuers · 62 you can verify'; nothing for an empty page. */
-export function headerParts(stats: LedgerStats): BylinePart[] {
+function headerParts(stats: LedgerStats): BylinePart[] {
   if (stats.certificates === 0) return [];
   return [
     countOf(stats.certificates, CERTIFICATION_NOUN),

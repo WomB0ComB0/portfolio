@@ -61,10 +61,10 @@ import { roleLogoOf } from '../../_lib/role-logo';
 import { buildRolePage } from '../../_lib/role-page';
 import { buildTechLinks, NO_TECH_LINKS } from '../../_lib/role-tech';
 
-export const BACK_LABEL = 'All experience';
-export const DUTIES_LABEL = 'What I did';
-export const LINKS_LABEL = 'Links';
-export const TECH_LABEL = 'Technologies';
+const BACK_LABEL = 'All experience';
+const DUTIES_LABEL = 'What I did';
+const LINKS_LABEL = 'Links';
+const TECH_LABEL = 'Technologies';
 const HTTP_URL = /^https?:\/\//iu;
 
 const ORG_CLASS = 'group/org inline-flex max-w-full items-center gap-2 align-bottom';

@@ -33,4 +33,3 @@ export const GitHubForkIcon: React.FC<SVGIconProps> = ({ className, size, props 
   );
 };
 GitHubForkIcon.displayName = 'GitHubForkIcon';
-export default GitHubForkIcon;

@@ -170,4 +170,3 @@ export const Licenses = (): JSX.Element => {
   );
 };
 Licenses.displayName = 'Licenses';
-export default Licenses;

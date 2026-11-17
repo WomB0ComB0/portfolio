@@ -44,7 +44,7 @@ import { ThanksRow } from './thanks-row';
 import { WaysList } from './ways-list';
 
 /** The route itself: where the thank-you row's "Try again" reloads. */
-export const SPONSOR_PATH = '/sponsor';
+const SPONSOR_PATH = '/sponsor';
 
 /** The nav's label for the page, so the h1 and the nav agree. */
 const PAGE_TITLE = 'Sponsor';

@@ -23,7 +23,7 @@
  */
 
 /** Issuer strings, as written on credentials, that belong to one company. Any other string is a company of its own. */
-export const ISSUER_FAMILIES: Readonly<Record<string, readonly string[]>> = {
+const ISSUER_FAMILIES: Readonly<Record<string, readonly string[]>> = {
   Google: [
     'Google',
     'Google Cloud Skills Boost',
@@ -95,7 +95,7 @@ export interface CredentialLink {
  * credential service's own record, so the page says 'Verify on <platform>'. Any other host shows
  * as itself. api2.sololearn.com is Sololearn's own server, looked up by the certificate's ID.
  */
-export const CREDENTIAL_PLATFORMS: Readonly<Record<string, string>> = {
+const CREDENTIAL_PLATFORMS: Readonly<Record<string, string>> = {
   'coursera.org': 'Coursera',
   'credly.com': 'Credly',
   'linkedin.com': 'LinkedIn',
@@ -120,7 +120,7 @@ export const CREDENTIAL_PLATFORMS: Readonly<Record<string, string>> = {
  * but nobody there vouches for it, so the page never says 'Verify on' for them. Today one
  * certificate's PDF sits on Google Cloud Storage; the others are the usual places an upload lands.
  */
-export const FILE_HOSTS: Readonly<Record<string, string>> = {
+const FILE_HOSTS: Readonly<Record<string, string>> = {
   'storage.googleapis.com': 'Google Cloud Storage',
   'firebasestorage.googleapis.com': 'Firebase Storage',
   'drive.google.com': 'Google Drive',

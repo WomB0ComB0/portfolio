@@ -50,7 +50,7 @@ interface IndexEntry {
   readonly other: string;
 }
 
-export const SITE_INDEX_ENTRIES = [
+const SITE_INDEX_ENTRIES = [
   { key: 'projects', href: '/projects', one: 'project', other: 'projects' },
   { key: 'roles', href: '/experience', one: 'role', other: 'roles' },
   { key: 'certifications', href: '/certifications', one: 'certification', other: 'certifications' },

@@ -99,4 +99,3 @@ export const LogoIcon: React.FC<SVGIconProps> = ({ className, size, props }): JS
   );
 };
 LogoIcon.displayName = 'LogoIcon';
-export default LogoIcon;

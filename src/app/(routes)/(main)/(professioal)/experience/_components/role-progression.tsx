@@ -19,7 +19,7 @@ import type { RoleSubRole } from '../_lib/role-subroles';
 import { RolePeriodText } from './role-parts';
 import { RoleLengthFigure, RoleLinkChips, RoleTechTokens, withKeys } from './role-row-parts';
 
-export const ROLE_PROGRESSION_LABEL = 'Roles at this organization';
+const ROLE_PROGRESSION_LABEL = 'Roles at this organization';
 
 export interface RoleProgressionProps {
   /** Unique to the parent engagement on this page. */

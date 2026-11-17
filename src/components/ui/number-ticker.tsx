@@ -219,5 +219,3 @@ export const NumberTicker = ({
   );
 };
 NumberTicker.displayName = 'NumberTicker';
-
-export default NumberTicker;

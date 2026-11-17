@@ -145,4 +145,3 @@ export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
 });
 
 StatusBadge.displayName = 'StatusBadge';
-export default StatusBadge;

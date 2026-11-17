@@ -108,7 +108,7 @@ export function kindsWithItems(entries: readonly { readonly kind: FeedKind }[]):
 type Countable = FeedEntry & { readonly parts?: readonly FeedEntry[] };
 
 /** How many items a row stands for: every upload of a row that folds several, else one. */
-export const itemsOf = ({ parts }: Pick<Countable, 'parts'>): number =>
+const itemsOf = ({ parts }: Pick<Countable, 'parts'>): number =>
   parts && parts.length > 1 ? parts.length : 1;
 
 /**

@@ -69,7 +69,7 @@ const ViewerContext = createContext<ViewerApi | null>(null);
 const loadViewer = () => import('./photo-viewer-live');
 
 /** Starts fetching the open view's code, so the first open has it. Failures wait for the open. */
-export function preloadPhotoViewer(): void {
+function preloadPhotoViewer(): void {
   loadViewer().catch(() => undefined);
 }
 

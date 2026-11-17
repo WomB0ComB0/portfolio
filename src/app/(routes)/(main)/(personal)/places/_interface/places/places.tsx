@@ -82,4 +82,3 @@ export function Places({ places }: PlacesProps): JSX.Element {
 }
 
 Places.displayName = 'Places';
-export default Places;

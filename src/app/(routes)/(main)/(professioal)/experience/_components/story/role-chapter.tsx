@@ -33,7 +33,7 @@ import { chapterNamesOf, numberWord, type StoryChapter } from '../../_lib/role-s
 import { RoleStop } from './role-stop';
 
 export const ROLE_NOUN: Noun = { one: 'role', many: 'roles' };
-export const STILL_GOING = 'Still going';
+const STILL_GOING = 'Still going';
 
 /**
  * The rail's x (--rail-x): the middle of the stops' rail column (role-stop.tsx), 0.625rem on a

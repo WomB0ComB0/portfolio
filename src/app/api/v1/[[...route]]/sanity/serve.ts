@@ -39,9 +39,6 @@ import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils';
 import { sanityCacheHeaders, sanityNoStoreHeaders, sanityStaleCacheHeaders } from './middleware';
 
-/** How long an answer is served from memory before Sanity is asked again. Matches s-maxage. */
-export { SANITY_CACHE_TTL_MS } from '@/lib/sanity/loaders';
-
 const DEFAULT_NOT_FOUND_MESSAGE = 'Not found';
 
 /** The body of a 404 or 503 answer, the same shape as the API's other error bodies. */

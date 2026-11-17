@@ -48,9 +48,9 @@ import { LOGO_AT_REST_CLASS, RoleMark } from '../role-parts';
 import { RoleProgression } from '../role-progression';
 import { LinkedProse } from './linked-prose';
 
-export const MORE_LABEL = 'What I did';
-export const TECH_LABEL = 'Built with';
-export const SINCE_WORD = 'Since';
+const MORE_LABEL = 'What I did';
+const TECH_LABEL = 'Built with';
+const SINCE_WORD = 'Since';
 
 /** The dot between parts, glued to the part before it, so no wrapped line starts with one. */
 const SEPARATOR = ' · ';

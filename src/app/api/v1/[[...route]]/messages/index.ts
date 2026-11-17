@@ -39,7 +39,7 @@ import { type PosterRefusal, verifyPoster } from './poster';
 import { messagesSchema } from './schema';
 
 /** The 401 body: the same for a missing, malformed, invalid or expired token. */
-export const SIGN_IN_REQUIRED = {
+const SIGN_IN_REQUIRED = {
   error: 'Sign in to post a message. Your sign-in is missing or has expired.',
 } as const;
 

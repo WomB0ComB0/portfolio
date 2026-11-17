@@ -118,5 +118,3 @@ export const BlurFade = ({
   );
 };
 BlurFade.displayName = 'BlurFade';
-
-export default BlurFade;

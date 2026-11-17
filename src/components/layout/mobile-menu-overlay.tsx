@@ -38,7 +38,7 @@ const SIDEBAR_MEDIA_QUERY = '(min-width: 64rem)';
 export const MOBILE_MENU_DIALOG_ID = 'mobile-menu-dialog';
 
 /** The dialog's accessible name, shown as its heading. */
-export const MOBILE_MENU_TITLE = 'Site menu';
+const MOBILE_MENU_TITLE = 'Site menu';
 
 const MOBILE_MENU_TITLE_ID = 'mobile-menu-title';
 
@@ -180,14 +180,14 @@ const MobileNavLink = ({ item, isCurrent, onNavigate }: MobileNavLinkProps) => (
   </Link>
 );
 
-export interface MobileNavSectionProps {
+interface MobileNavSectionProps {
   readonly group: NavGroupData;
   readonly pathname: string;
   readonly onNavigate: () => void;
 }
 
 /** One nav group in the mobile menu: its heading and every page in it, always listed. */
-export const MobileNavSection = ({ group, pathname, onNavigate }: MobileNavSectionProps) => {
+const MobileNavSection = ({ group, pathname, onNavigate }: MobileNavSectionProps) => {
   const headingId = `mobile-nav-${group.id}`;
   const Icon = group.icon;
   return (
@@ -334,4 +334,3 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = memo(
   },
 );
 MobileMenuOverlay.displayName = 'MobileMenuOverlay';
-export default MobileMenuOverlay;

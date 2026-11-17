@@ -55,7 +55,7 @@
 import { prefersReducedMotion } from '@/lib/design/motion';
 
 /** The results' view-transition-name while a change crossfades them. */
-export const RESULTS_TRANSITION_NAME = 'filter-results';
+const RESULTS_TRANSITION_NAME = 'filter-results';
 /** Set on <html> while a filter change's transition runs. */
 const ROOT_FLAG = 'data-filter-transition';
 /** The clip insets, read by ::view-transition-group(filter-results). */

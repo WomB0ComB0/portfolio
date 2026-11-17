@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { Projects, type ProjectsProps } from './projects-index';
+export { Projects } from './projects-index';

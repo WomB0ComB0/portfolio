@@ -53,8 +53,8 @@ import { dutiesBeyond, splitLede } from './role-text';
 export type StoryWeight = 'lead' | 'major' | 'compact';
 export type StoryChapterKind = 'now' | 'year' | 'undated';
 
-export const NOW_TITLE = 'Now';
-export const UNDATED_TITLE = 'Undated';
+const NOW_TITLE = 'Now';
+const UNDATED_TITLE = 'Undated';
 
 /** A role's words, its addresses named links. */
 export interface StoryProse {

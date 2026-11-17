@@ -58,9 +58,6 @@ const LanyardDataSchema = Schema.Struct({
 const LanyardResponseSchema = Schema.Struct({
   data: LanyardDataSchema,
 });
-
-export type Activity = Schema.Schema.Type<typeof ActivitySchema>;
-export type DiscordUser = Schema.Schema.Type<typeof DiscordUserSchema>;
 export type LanyardData = Schema.Schema.Type<typeof LanyardDataSchema>;
 
 const CACHE_DURATION = 60 * 1_000;

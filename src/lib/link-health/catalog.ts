@@ -31,7 +31,7 @@ import type { LinkHealthScope } from './types';
 import { normalizeLinkUrl } from './url';
 
 /** A fixed, bounded allowlist of links the published pages actually offer. */
-export const MAX_CATALOG_LINKS = 500;
+const MAX_CATALOG_LINKS = 500;
 const CATALOG_CACHE_KEY = 'link-health.catalog.v1';
 const CATALOG_TTL_MS = 60_000;
 const catalogCache = (): StaleCache<readonly string[]> =>

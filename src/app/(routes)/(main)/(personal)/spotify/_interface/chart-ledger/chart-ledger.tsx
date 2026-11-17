@@ -40,7 +40,7 @@ import {
 } from '../../_lib/chart';
 
 /** The nav's label, so the h1 and the menu agree. */
-export const SPOTIFY_TITLE = 'Spotify';
+const SPOTIFY_TITLE = 'Spotify';
 const EYEBROW = 'Listening';
 const DESCRIPTION = "What I've had on repeat over the last four weeks.";
 

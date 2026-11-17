@@ -54,4 +54,3 @@ export const PageHeader = ({
 };
 
 PageHeader.displayName = 'PageHeader';
-export default PageHeader;

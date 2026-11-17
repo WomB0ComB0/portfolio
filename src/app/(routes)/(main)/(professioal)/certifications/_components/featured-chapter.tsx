@@ -27,7 +27,7 @@ import { ChapterOpener, chapterSize, countOf } from '@/components/console/folio'
 import { CERTIFICATION_NOUN } from '../_lib/certification-filters';
 import { BigCredentials, type CredentialEntry } from './credential';
 
-export const FEATURED_ID = 'featured';
+const FEATURED_ID = 'featured';
 
 export interface FeaturedChapterProps {
   /** Already capped and ordered by buildLedger. */

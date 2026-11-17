@@ -59,7 +59,7 @@ export interface MediaProjectRule {
  * holds it (SITE_HOST in src/lib/og/constants.ts) sits in an import cycle with the app constants,
  * and this map must load anywhere. A unit test keeps the two the same.
  */
-export const MEDIA_SITE_HOST = 'mikeodnis.dev';
+const MEDIA_SITE_HOST = 'mikeodnis.dev';
 
 /** The project "mikeodnis.dev – Personal Portfolio": this site. */
 const PORTFOLIO_PROJECT = 'ib3nmtodFyARmiBwkKzTbW';

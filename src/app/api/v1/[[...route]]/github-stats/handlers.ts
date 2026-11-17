@@ -79,7 +79,7 @@ const GitHubStatsDataSchema = Schema.Struct({
 
 export type GitHubStatsData = Schema.Schema.Type<typeof GitHubStatsDataSchema>;
 export type TopRepo = Schema.Schema.Type<typeof TopRepoSchema>;
-export type GitHubRepo = Schema.Schema.Type<typeof GitHubRepoSchema>;
+type GitHubRepo = Schema.Schema.Type<typeof GitHubRepoSchema>;
 type GitHubUser = Schema.Schema.Type<typeof GitHubUserSchema>;
 
 const CACHE_DURATION = 60 * 60 * 1_000; // 1 hour

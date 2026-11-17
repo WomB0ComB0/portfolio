@@ -26,14 +26,14 @@
  */
 
 import type { SessionUser } from '@/core/auth.types';
-import { ANONYMOUS_AUTHOR, MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
+import { MESSAGE_MAX_LENGTH } from '@/lib/guestbook/limits';
 import { checkAuthorName, checkMessageText, type MessageTextProblem } from '@/lib/guestbook/text';
 
-export { ANONYMOUS_AUTHOR, MESSAGE_MAX_LENGTH };
+export { MESSAGE_MAX_LENGTH };
 
-export const DRAFT_EMPTY = 'Write a message first.';
-export const DRAFT_TOO_LONG = `Keep it to ${MESSAGE_MAX_LENGTH} characters.`;
-export const DRAFT_ONLY_TAGS =
+const DRAFT_EMPTY = 'Write a message first.';
+const DRAFT_TOO_LONG = `Keep it to ${MESSAGE_MAX_LENGTH} characters.`;
+const DRAFT_ONLY_TAGS =
   "That message is only HTML tags, which aren't shown. Write some text instead.";
 /** Read out once when the draft goes past the limit (the counter says by how much). */
 export const DRAFT_OVER_LIMIT = `Over the ${MESSAGE_MAX_LENGTH}-character limit.`;

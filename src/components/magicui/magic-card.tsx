@@ -175,5 +175,3 @@ export const MagicCard = ({
   );
 };
 MagicCard.displayName = 'MagicCard';
-
-export default MagicCard;

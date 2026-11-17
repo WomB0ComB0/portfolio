@@ -19,9 +19,8 @@
  *
  * This module exports HTTP client utilities for making API requests.
  * Including: Effect-based fetcher with validation and schema support,
- * a request queue that shares identical in-flight browser requests, and throttle/debounce utilities.
+ * a request queue that shares identical in-flight browser requests.
  */
 
 export * from './effect-fetcher';
 export * from './request-queue';
-export * from './throttle';

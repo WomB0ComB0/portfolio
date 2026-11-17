@@ -32,23 +32,22 @@
  * here as plain JSON. The schema holds functions, so it never crosses that boundary itself.
  */
 
-import { defineFilters, type FilterSchema, type FilterState, ownValue } from '@/lib/filters';
+import { defineFilters, type FilterSchema, ownValue } from '@/lib/filters';
 import { kindSlug, kindsOf, PROJECT_NOUN, techKey } from './project-text';
 
 export type ProjectFacet = 'category' | 'tech';
-export type ProjectState = FilterState<ProjectFacet>;
 export type ProjectSchema<T extends ProjectFilterItem = ProjectFilterItem> = FilterSchema<
   T,
   ProjectFacet
 >;
 
 export const PROJECTS_PATH = '/projects';
-export const QUERY_MAX_LENGTH = 100;
+const QUERY_MAX_LENGTH = 100;
 /**
  * The longest ?category or ?tech value read; a longer one is dropped unread. The live data's
  * longest technology is 58 characters and its longest category 49 (a GET snapshot).
  */
-export const FACET_VALUE_MAX_LENGTH = 100;
+const FACET_VALUE_MAX_LENGTH = 100;
 export const OTHER_KIND = 'other';
 const ALL_KIND = 'all';
 

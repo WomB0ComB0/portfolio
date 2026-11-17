@@ -43,4 +43,3 @@ export const LogoutButton = (props: LogoutButtonProps): JSX.Element => {
 };
 
 LogoutButton.displayName = 'LogoutButton';
-export default LogoutButton;

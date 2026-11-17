@@ -126,7 +126,7 @@ const PlaylistPageSchema = Schema.Struct({
 // Exported Schema for Video Metadata
 // ============================================================================
 
-export const YouTubeVideoMetadataSchema = Schema.Struct({
+const YouTubeVideoMetadataSchema = Schema.Struct({
   videoId: Schema.String,
   title: Schema.String,
   description: Schema.String,

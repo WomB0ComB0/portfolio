@@ -54,7 +54,7 @@ export interface MediaTopicRule {
 }
 
 /** The longest topic slug. */
-export const TOPIC_SLUG_MAX = 40;
+const TOPIC_SLUG_MAX = 40;
 /** A topic slug's shape: lower-case letters and digits in runs joined by single hyphens. */
 const TOPIC_SLUG_SHAPE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

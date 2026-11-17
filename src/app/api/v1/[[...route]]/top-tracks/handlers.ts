@@ -40,14 +40,14 @@ const SpotifyTrackSchema = Schema.Struct({
   external_urls: SpotifyExternalUrlsSchema,
 });
 
-export const TopTrackSchema = Schema.Struct({
+const TopTrackSchema = Schema.Struct({
   name: Schema.String,
   artist: Schema.String,
   url: Schema.String,
   imageUrl: Schema.String,
 });
 
-export type SpotifyTrack = Schema.Schema.Type<typeof SpotifyTrackSchema>;
+type SpotifyTrack = Schema.Schema.Type<typeof SpotifyTrackSchema>;
 export type TopTrack = Schema.Schema.Type<typeof TopTrackSchema>;
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours

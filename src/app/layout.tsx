@@ -37,7 +37,7 @@ export function generateMetadata(): Metadata {
 export const viewport = constructViewport();
 export const dynamic = 'force-dynamic';
 
-export const RootLayout = async ({ children }: { children: React.ReactNode }) => {
+const RootLayout = async ({ children }: { children: React.ReactNode }) => {
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') || undefined;
   const pathname = headersList.get('x-url') || '';

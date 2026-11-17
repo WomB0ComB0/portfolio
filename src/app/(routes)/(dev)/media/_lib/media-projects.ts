@@ -119,7 +119,7 @@ function repositorySegments(host: string, segments: readonly string[]): readonly
  * else: the host and path as they are. Null when the link is not an http(s) address or names
  * nothing (a code host's home page).
  */
-export function addressKey(link: string): string | null {
+function addressKey(link: string): string | null {
   const key = urlKey(link);
   if (key === null) return null;
   const [host = '', ...segments] = key.slice('url:'.length).split('/');

@@ -62,7 +62,7 @@ const NOTE_ICON_CLASS = 'size-4 shrink-0 text-down';
  * vanish: an outline (forced to a system colour) keeps it a box, as SegmentBarSkeleton's. An
  * outline takes no space, so the bar's size is the same in every mode.
  */
-export const FORCED_COLORS_BOX_CLASS = 'forced-colors:outline';
+const FORCED_COLORS_BOX_CLASS = 'forced-colors:outline';
 const SKELETON_CLASS = `block rounded-md bg-surface-3 motion-safe:animate-pulse ${FORCED_COLORS_BOX_CLASS}`;
 /**
  * A text placeholder: a bar the size of the text it stands for. That text (data-shape) is drawn as
@@ -115,7 +115,7 @@ export interface TileMetaProps {
 }
 
 /** `data-stale` for a line that says when stale data was read: 'as of Nov 5'. */
-export const staleAttribute = (stale: boolean | undefined): { 'data-stale'?: '' } =>
+const staleAttribute = (stale: boolean | undefined): { 'data-stale'?: '' } =>
   stale ? { 'data-stale': '' } : {};
 
 /** One line of context, e.g. 'Event · Aug 21'. */

@@ -60,7 +60,7 @@ import { Logger } from '@/utils';
 const log = Logger.getLogger('GuestbookPoster');
 
 /** Firebase ID tokens are about 1 kB; anything far longer is not one. */
-export const MAX_TOKEN_LENGTH = 4_096;
+const MAX_TOKEN_LENGTH = 4_096;
 
 const BEARER = /^Bearer +(\S+) *$/i;
 /** Three base64url parts: the shape of a JWT. */
@@ -87,7 +87,7 @@ export type PosterCheck =
   | { readonly ok: false; readonly reason: PosterRefusal };
 
 /** The bearer token in an Authorization header, or null when the header is not one. */
-export function bearerTokenOf(header: string): string | null {
+function bearerTokenOf(header: string): string | null {
   if (header.length > MAX_HEADER_LENGTH) return null;
   const token = BEARER.exec(header)?.[1];
   if (!token || token.length > MAX_TOKEN_LENGTH || !JWT_SHAPE.test(token)) return null;
@@ -95,7 +95,7 @@ export function bearerTokenOf(header: string): string | null {
 }
 
 /** The poster a verified token names: its name only for a provider in {@link NAMED_PROVIDERS}. */
-export function posterOf(token: FirebaseIdToken): Poster {
+function posterOf(token: FirebaseIdToken): Poster {
   const provider: unknown = token.firebase?.sign_in_provider;
   const isNamed = typeof provider === 'string' && NAMED_PROVIDERS.has(provider);
   const name: unknown = isNamed ? token.name : null;

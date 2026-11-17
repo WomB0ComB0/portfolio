@@ -24,5 +24,3 @@ import { banRoute } from './ban';
  * @type {Elysia}
  */
 export const adminRoutes = new Elysia().use(banRoute);
-
-export { banRoute };

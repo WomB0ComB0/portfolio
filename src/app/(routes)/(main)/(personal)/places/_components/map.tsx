@@ -291,4 +291,3 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
 };
 
 GoogleMaps.displayName = 'GoogleMaps';
-export default GoogleMaps;

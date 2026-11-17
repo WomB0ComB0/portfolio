@@ -93,7 +93,7 @@ const isWithinPage = (slug: string, path: string): boolean =>
   path === slug || path.startsWith(`${slug}/`);
 
 /** Whether the current page belongs to the group, which the rail marks on its trigger. */
-export const isGroupActive = (group: NavGroupData, path: string): boolean =>
+const isGroupActive = (group: NavGroupData, path: string): boolean =>
   group.items.some((item) => isWithinPage(item.slug, path));
 
 /** A nav link's aria-current: its own page, its section (on a detail page under it), or none. */
@@ -110,7 +110,7 @@ export const navLinkCurrent = (slug: string, path: string): NavLinkCurrent => {
 };
 
 /** The id of a group's flyout panel, which its trigger names in aria-controls. */
-export const navFlyoutId = (id: NavGroupId): string => `nav-flyout-${id}`;
+const navFlyoutId = (id: NavGroupId): string => `nav-flyout-${id}`;
 
 /** Rail icons and flyout icons, in rem so they follow the browser's font size. */
 const RAIL_ICON_SIZE = '1.125rem';
@@ -246,7 +246,7 @@ const NavFlyoutLink = ({ item, current, isShown, onNavigate }: NavFlyoutLinkProp
   </Link>
 );
 
-export interface NavGroupProps {
+interface NavGroupProps {
   readonly group: NavGroupData;
   readonly path: string;
   readonly isOpen: boolean;
@@ -258,7 +258,7 @@ export interface NavGroupProps {
  * One rail group: an icon trigger and the flyout of its pages. The rail keeps which group is open,
  * so only one flyout shows at a time. Every flyout is rendered, open or not (see FLYOUT_PANEL).
  */
-export const NavGroup = memo(({ group, path, isOpen, onToggle, onClose }: NavGroupProps) => {
+const NavGroup = memo(({ group, path, isOpen, onToggle, onClose }: NavGroupProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   useFlyoutDismiss({ isOpen, containerRef, triggerRef, onClose });
@@ -400,4 +400,3 @@ export const NavBar = memo(({ path }: { path: string }) => {
   );
 });
 NavBar.displayName = 'NavBar';
-export default NavBar;

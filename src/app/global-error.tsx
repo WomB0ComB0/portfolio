@@ -20,7 +20,7 @@ import * as Sentry from '@sentry/nextjs';
 import NextError from 'next/error';
 import { useEffect } from 'react';
 
-export const GlobalError = ({ error }: { error: Error & { digest?: string } }) => {
+const GlobalError = ({ error }: { error: Error & { digest?: string } }) => {
   useEffect(() => {
     // An error with a digest was thrown while rendering on the server, where onRequestError
     // already reported it; the browser only gets a redacted copy.

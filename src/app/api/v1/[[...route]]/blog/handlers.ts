@@ -25,7 +25,7 @@ import {
 } from '@/lib';
 import { logger } from '@/utils';
 
-export const BlogSchema = Schema.Struct({
+const BlogSchema = Schema.Struct({
   title: Schema.String,
   slug: Schema.String,
   publishedAt: Schema.String,
