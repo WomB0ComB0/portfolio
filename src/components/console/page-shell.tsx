@@ -110,6 +110,8 @@ export interface PageShellProps {
   title: ReactNode;
   /** A short sentence-case line above the title, e.g. 'Work'. */
   eyebrow?: ReactNode;
+  /** Optional image/mark: above the heading on narrow pages, beside the whole heading on desktop. */
+  headerMedia?: ReactNode;
   description?: ReactNode;
   /**
    * Usually a StatStrip. On wide screens it sits beside the title, or, when there are actions
@@ -141,6 +143,7 @@ export interface PageShellProps {
 export function PageShell({
   title,
   eyebrow,
+  headerMedia,
   description,
   stats,
   actions,
@@ -154,16 +157,26 @@ export function PageShell({
     titleWord === undefined
       ? undefined
       : ({ '--page-title-word': String(titleWord) } as CSSProperties);
+  const heading = (
+    <div className="min-w-0 space-y-2">
+      {hasContent(eyebrow) && <p className={EYEBROW_CLASS}>{eyebrow}</p>}
+      <h1 className={TITLE_CLASS} style={titleStyle}>
+        {title}
+      </h1>
+      {hasContent(description) && <p className={DESCRIPTION_CLASS}>{description}</p>}
+    </div>
+  );
   return (
     <div className={cn(ROOT_CLASS[sizing], gutter && GUTTER_CLASS, className)}>
       <header className={HEADER_CLASS[sizing]}>
-        <div className="min-w-0 space-y-2">
-          {hasContent(eyebrow) && <p className={EYEBROW_CLASS}>{eyebrow}</p>}
-          <h1 className={TITLE_CLASS} style={titleStyle}>
-            {title}
-          </h1>
-          {hasContent(description) && <p className={DESCRIPTION_CLASS}>{description}</p>}
-        </div>
+        {hasContent(headerMedia) ? (
+          <div className="grid min-w-0 gap-3 @min-[56rem]/page:grid-cols-[auto_minmax(0,1fr)] @min-[56rem]/page:items-center @min-[56rem]/page:gap-6">
+            {headerMedia}
+            {heading}
+          </div>
+        ) : (
+          heading
+        )}
         {hasContent(actions) && <div className="flex flex-wrap gap-2">{actions}</div>}
         {hasContent(stats) && (
           <div className={cn('min-w-0', hasContent(actions) && STATS_UNDER_CLASS[sizing])}>

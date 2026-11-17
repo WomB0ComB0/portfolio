@@ -25,8 +25,8 @@ export interface RoleDetailLogoProps {
 }
 
 /**
- * A whole, full-color organization logo above the organization in the detail eyebrow. Spans keep the markup valid
- * inside PageShell's paragraph; the organization text below supplies the accessible name.
+ * A whole, full-color organization logo in the detail header's media slot. PageShell places it
+ * beside the heading on desktop and above on mobile; the organization text supplies the name.
  * Missing or failed images keep the frame and show the same monogram as the role's list mark.
  */
 export function RoleDetailLogo({ src, monogram }: RoleDetailLogoProps): ReactElement {
