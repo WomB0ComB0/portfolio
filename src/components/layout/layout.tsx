@@ -20,10 +20,12 @@ import { usePathname } from 'next/navigation';
 import { MAIN_CONTENT_ID, PageMain } from '@/components/animations/pages/page-transition';
 import Palette from '@/components/cmd';
 import { SpotlightRoot } from '@/components/console/spotlight-root';
-import { Footer, MobileNavBar, NavBar } from '.';
-// Not through the barrel: tests stand in for the barrel's navs and footer only.
+// Import siblings directly so the shell does not depend on its own export barrel.
 import { EdgeHaze } from './edge-haze';
+import { Footer } from './footer';
 import { LightRays } from './light-rays';
+import { MobileNavBar } from './mobile-nav';
+import { NavBar } from './nav';
 import { NoScriptNav } from './noscript-nav';
 import { ScrollToTop } from './scroll-to-top';
 

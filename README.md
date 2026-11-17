@@ -377,7 +377,11 @@ bun run e2e:ci                 # Run Playwright E2E test suite on Chromium
 # Bundle & Repository Maintenance
 bun run analyze                # Build with @next/bundle-analyzer and report bundle sizes
 bun run scripts:package-cost   # Measure dependency size impact
-bun run scripts:check-unused   # Detect unused files and exports
+npx fallow                     # Review unused code, duplication and complexity
+bun run analyze:cycles         # Check circular imports
+bun audit                      # Audit the lockfile; does not install or change dependencies
+bun run audit                  # Fail on high/critical advisories (used by build)
+bun run scripts:check-unused   # Legacy dependency-usage report
 bun run gen                    # Regenerate GitHub schema types from the installed schema package
 bun run scripts:copyright      # Add or repair source license headers
 bun run scripts:copyright:check # Check headers without writing
@@ -398,6 +402,11 @@ bun run type
 bun run lint
 bun run test
 ```
+
+Fallow is pinned as a development tool. Its [configuration](.fallowrc.jsonc) preserves manual
+maintenance/seed commands and the old service-worker retirement endpoint, while excluding generated
+GraphQL output. Treat unused-export and complexity findings as review candidates: check their
+consumers before editing. `bun audit` is read-only; dependency fixes remain a separate action.
 
 Use `bun run test`, which starts Vitest. `bun test` invokes Bun's own runner and does not use the
 repository's Vitest setup. For a focused regression check:

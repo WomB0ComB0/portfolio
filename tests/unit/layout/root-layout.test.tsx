@@ -63,11 +63,14 @@ vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => nul
 // The settings cache: what Location in Studio says, as this server last loaded it.
 const loaders = vi.hoisted(() => ({ peekSiteLocation: vi.fn<() => string | null>(() => null) }));
 vi.mock('@/lib/sanity/loaders', () => loaders);
-vi.mock('@/components/layout', () => ({
-  NavBar: () => <nav aria-label="Main navigation" />,
+vi.mock('@/components/layout/nav', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/nav')>();
+  return { ...actual, NavBar: () => <nav aria-label="Main navigation" /> };
+});
+vi.mock('@/components/layout/mobile-nav', () => ({
   MobileNavBar: () => <nav aria-label="Mobile navigation" />,
-  Footer: () => <footer />,
 }));
+vi.mock('@/components/layout/footer', () => ({ Footer: () => <footer /> }));
 
 type WithChildren = { children?: ReactNode };
 

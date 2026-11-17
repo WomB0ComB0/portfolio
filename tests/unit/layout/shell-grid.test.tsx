@@ -43,16 +43,15 @@ vi.mock('@/components/console/spotlight-root', () => ({
 }));
 // The status badge polls the status API; it is not under test.
 vi.mock('@/components/custom/status-badge', () => ({ StatusBadge: () => null }));
-// layout.tsx imports the navs and footer from its own barrel. The footer is the real one: its
+// layout.tsx imports the navs and footer directly. The footer is the real one: its
 // width has to match the page column's.
-vi.mock('@/components/layout', async () => {
-  const { Footer } = await import('@/components/layout/footer');
-  return {
-    NavBar: () => <nav aria-label="Main navigation" />,
-    MobileNavBar: () => <nav aria-label="Mobile navigation" />,
-    Footer,
-  };
+vi.mock('@/components/layout/nav', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/nav')>();
+  return { ...actual, NavBar: () => <nav aria-label="Main navigation" /> };
 });
+vi.mock('@/components/layout/mobile-nav', () => ({
+  MobileNavBar: () => <nav aria-label="Mobile navigation" />,
+}));
 
 /** The old column and rail sizes, the old display font, and overflow that breaks sticky. */
 const LEGACY_SHELL_CLASS = /w-\[\d+%\]|w-2\/3|pl-\[6%\]|font-clash|overflow-(?:y-)?hidden/;

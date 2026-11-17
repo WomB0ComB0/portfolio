@@ -57,7 +57,7 @@ import { $ } from 'bun';
  * await cleanup();
  * @version 1.0.0
  * @since 1.0.0
- * @see {@link module:src/__tests__/type-check.ts The type-check script} for verifying TypeScript types.
+ * @see package.json for the type and test commands for verifying TypeScript types.
  * @see {@link module:src/__tests__/api-manual-test.ts The API manual test script} for testing API endpoints.
  */
 async function cleanup(): Promise<void> {
@@ -90,9 +90,9 @@ async function cleanup(): Promise<void> {
 
   console.log('✨ Cleanup complete!\n');
   console.log('💡 Next steps:');
-  console.log('   1. Restart dev server: nr dev');
-  console.log('   2. Run type checks: bun src/__tests__/type-check.ts');
-  console.log('   3. Test APIs: bun src/__tests__/api-manual-test.ts\n');
+  console.log('   1. Restart dev server: bun dev');
+  console.log('   2. Run type checks: bun run type');
+  console.log('   3. Run unit tests: bun run test\n');
 }
 
 await cleanup();

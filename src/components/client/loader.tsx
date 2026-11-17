@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import Icons from '../icons'; // Assuming Icons.logo is your wolf logo component
 
 export const Loader = () => {

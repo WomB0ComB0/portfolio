@@ -15,5 +15,3 @@
  */
 
 export * from './sanity';
-export * from './use-mobile';
-export * from './use-persisted-id';

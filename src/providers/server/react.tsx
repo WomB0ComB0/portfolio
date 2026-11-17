@@ -22,8 +22,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { API } from '@/app/api/[[...route]]/route';
 import type { API_V1 } from '@/app/api/v1';
-import { getURL } from '@/utils';
-import { createQueryClient } from '.';
+import { getURL } from '@/utils/formatting/helpers';
+import { createQueryClient } from './query-client';
 
 /**
  * Instantiates a type-safe, client-side Elysia treaty API instance for all endpoints.
