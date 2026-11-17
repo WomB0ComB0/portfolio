@@ -222,8 +222,15 @@ export function StoryActions({
   if (links.length === 0) return null;
   // The links' own padding hangs outside the line, so their words line up with the text's edge
   // whether they sit at the end of the byline's line or wrap under it.
+  // Row gaps restore that hanging hit area when warning groups wrap: 8px for 32px mouse
+  // targets, 20px for 44px touch targets. Same-row actions keep their original spacing.
   return (
-    <span className={cn('-mx-1.5 flex flex-wrap items-center gap-x-1', className)}>
+    <span
+      className={cn(
+        '-mx-1.5 flex flex-wrap items-center gap-x-1 gap-y-2 pointer-coarse:gap-y-5',
+        className,
+      )}
+    >
       {links.map(({ label, href }) => (
         <span
           key={label}
