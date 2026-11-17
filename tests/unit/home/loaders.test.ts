@@ -94,6 +94,7 @@ const leetcode = vi.hoisted(() => ({ readLeetCodeStats: vi.fn(), peekLeetCodeSta
 const nowPlaying = vi.hoisted(() => ({ getNowPlaying: vi.fn() }));
 const status = vi.hoisted(() => ({ handleStatusCheck: vi.fn(), peekServiceStatus: vi.fn() }));
 const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
+const next = vi.hoisted(() => ({ after: vi.fn() }));
 
 vi.mock('@/lib/sanity/loaders', () => sanity);
 vi.mock('@/lib/api-integrations/github-activity', () => github);
@@ -102,6 +103,7 @@ vi.mock('@/app/api/v1/[[...route]]/leetcode/handlers', () => leetcode);
 vi.mock('@/app/api/v1/[[...route]]/now-playing/handlers', () => nowPlaying);
 vi.mock('@/app/api/[[...route]]/status/handlers', () => status);
 vi.mock('@/lib/observability/report', () => report);
+vi.mock('next/server', () => next);
 
 /** 10:30 PM in New York on 2026-11-05, already 2026-11-06 in UTC. */
 const NOW = Date.UTC(2026, 10, 6, 3, 30);
@@ -185,6 +187,7 @@ beforeEach(() => {
     nowPlaying.getNowPlaying,
     ...Object.values(status),
     report.reportApiFailure,
+    next.after,
   ]) {
     mock.mockReset();
   }
@@ -437,6 +440,7 @@ describe('loadProjectPick', () => {
     await expect(loadProjectPick()).resolves.toMatchObject({ data: LATEST_WORK });
     expect(github.readGitHubActivity).not.toHaveBeenCalled();
     expect(github.peekGitHubActivity).not.toHaveBeenCalled();
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -467,6 +471,7 @@ describe('loadProjectPick', () => {
     expect(report.reportApiFailure.mock.calls[0]?.[0]).toMatchObject({
       command: 'home:project-activity',
     });
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('still uses a stale GitHub answer, whose days are true, with a warning', async () => {
@@ -515,6 +520,28 @@ describe('loadProjectPick', () => {
     it('is the featured pick when GitHub never answered', async () => {
       await expect(pastBudget()).resolves.toEqual({ status: 'ok', data: featured, stale: false });
       expect(github.peekRecentCommits).toHaveBeenCalledTimes(1);
+      expect(reportOptions()).toEqual([ACTIVITY_WARNING]);
+    });
+
+    it('keeps the commits request alive after the project returns its featured pick', async () => {
+      const work = Promise.withResolvers<{ stale: false; data: RecentCommits }>();
+      github.readRecentCommits.mockReturnValue(work.promise);
+      const pick = loadProjectPick();
+
+      await vi.advanceTimersByTimeAsync(PROJECT_ACTIVITY_BUDGET_MS);
+      await expect(pick).resolves.toEqual({ status: 'ok', data: featured, stale: false });
+      expect(next.after).toHaveBeenCalledTimes(1);
+      const kept = next.after.mock.calls[0]?.[0] as Promise<unknown>;
+      const finished = vi.fn();
+      void kept.then(finished);
+      await vi.advanceTimersByTimeAsync(SERVER_TILE_DEADLINE_MS);
+      expect(finished).not.toHaveBeenCalled();
+      expect(next.after).toHaveBeenCalledTimes(1);
+
+      work.resolve({ stale: false, data: ACTIVE_COMMITS });
+      await kept;
+      expect(finished).toHaveBeenCalledTimes(1);
+      expect(github.readRecentCommits).toHaveBeenCalledTimes(1);
       expect(reportOptions()).toEqual([ACTIVITY_WARNING]);
     });
   });
@@ -781,6 +808,7 @@ describe('loadNowPlaying', () => {
       data: PLAYING,
       fetchedAt: NOW,
     });
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('shares one Spotify answer for 15 s, keeping its original date', async () => {
@@ -812,21 +840,40 @@ describe('loadNowPlaying', () => {
 
     await expect(loadNowPlaying()).resolves.toEqual({ kind: 'error' });
     expect(reportOptions()).toEqual([{ context: 'home now-playing tile', level: 'warning' }]);
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('is a timeout, unreported, when Spotify takes longer than 2.5 s', async () => {
-    nowPlaying.getNowPlaying.mockReturnValue(never());
+    const work = Promise.withResolvers<NowPlayingResponse>();
+    nowPlaying.getNowPlaying.mockReturnValue(work.promise);
     const settled = vi.fn();
 
     const snapshot = loadNowPlaying();
     void snapshot.then(settled);
     await vi.advanceTimersByTimeAsync(2_499);
     expect(settled).not.toHaveBeenCalled();
+    expect(next.after).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
 
     await expect(snapshot).resolves.toEqual({ kind: 'timeout' });
     expect(LIVE_TILE_DEADLINE_MS).toBe(2_500);
     expect(report.reportApiFailure).not.toHaveBeenCalled();
+    expect(next.after).toHaveBeenCalledTimes(1);
+    const kept = next.after.mock.calls[0]?.[0] as Promise<unknown>;
+    const finished = vi.fn();
+    void kept.then(finished);
+    await Promise.resolve();
+    expect(finished).not.toHaveBeenCalled();
+
+    work.resolve(PLAYING);
+    await kept;
+    await expect(loadNowPlaying()).resolves.toEqual({
+      kind: 'data',
+      data: PLAYING,
+      fetchedAt: NOW + LIVE_TILE_DEADLINE_MS,
+    });
+    expect(nowPlaying.getNowPlaying).toHaveBeenCalledTimes(1);
+    expect(next.after).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -845,6 +892,7 @@ describe('loadServiceStatus', () => {
       data: STATUS,
       fetchedAt: Date.parse(STATUS.lastUpdated),
     });
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('passes the whole answer through, a stale flag included, without reading the clock', async () => {
@@ -872,6 +920,7 @@ describe('loadServiceStatus', () => {
 
     await expect(loadServiceStatus()).resolves.toEqual({ kind: 'error' });
     expect(reportOptions()).toEqual([{ context: 'home status tile', level: 'warning' }]);
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('is a timeout when the check is slower than the live deadline and nothing was cached', async () => {
@@ -887,7 +936,8 @@ describe('loadServiceStatus', () => {
 
   it('is Better Stack’s last answer, as the handler flags it, past the live deadline', async () => {
     const lastKnown = { ...STATUS, lastUpdated: '2026-11-06T03:20:00.000Z', stale: true };
-    status.handleStatusCheck.mockReturnValue(never());
+    const work = Promise.withResolvers<ServiceStatus>();
+    status.handleStatusCheck.mockReturnValue(work.promise);
     status.peekServiceStatus.mockReturnValue(lastKnown);
 
     const snapshot = loadServiceStatus();
@@ -898,6 +948,17 @@ describe('loadServiceStatus', () => {
       data: lastKnown,
       fetchedAt: Date.parse(lastKnown.lastUpdated),
     });
+    expect(report.reportApiFailure).not.toHaveBeenCalled();
+    expect(next.after).toHaveBeenCalledTimes(1);
+    const kept = next.after.mock.calls[0]?.[0] as Promise<unknown>;
+    const finished = vi.fn();
+    void kept.then(finished);
+    await Promise.resolve();
+    expect(finished).not.toHaveBeenCalled();
+
+    work.reject(new Error('late Better Stack failure'));
+    await expect(kept).resolves.toBeUndefined();
+    expect(status.handleStatusCheck).toHaveBeenCalledTimes(1);
     expect(report.reportApiFailure).not.toHaveBeenCalled();
   });
 

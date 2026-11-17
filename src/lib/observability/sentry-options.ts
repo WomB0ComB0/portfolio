@@ -219,6 +219,90 @@ export const CLIENT_IGNORE_ERRORS: RegExp[] = [
   /^(?:Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?) \((?:www\.|region1\.)?(?:google-analytics|analytics\.google|googletagmanager)\.com\)$/,
 ];
 
+/**
+ * Brave/Firefox for iOS inject the `window.__firefox__.reader` namespace. Their reader probes
+ * can fail as inline global code on the document URL (PORTFOLIO-D2/D3). Drop only these exact
+ * signatures after the SDK identifies an exclusively third-party stack. `in_app` alone is not
+ * useful here: the Safari stack parser marks the injected page frame as in-app, too.
+ *
+ * Source: brave/brave-core's ios/brave-ios/Sources/Brave/Frontend/UserContent/UserScripts/
+ * Scripts_Dynamic/ScriptHandlers/Sandboxed/ReaderModeScriptHandler.swift (`readerModeNamespace`).
+ */
+function filterBrowserReaderErrors(event: ErrorEvent): ErrorEvent | null {
+  if (event.tags?.third_party_code !== true) return event;
+  const exceptions = event.exception?.values;
+  if (exceptions?.length !== 1) return event;
+  const exception = exceptions[0];
+  if (
+    exception?.mechanism?.type !== 'auto.browser.global_handlers.onerror' ||
+    exception.mechanism.handled !== false
+  ) {
+    return event;
+  }
+  const isReaderError =
+    (exception.type === 'TypeError' &&
+      exception.value === "undefined is not an object (evaluating 'window.__firefox__.reader')") ||
+    (exception.type === 'ReferenceError' && exception.value === "Can't find variable: __firefox__");
+  if (!isReaderError) return event;
+  const frames = exception.stacktrace?.frames;
+  const frame = frames?.[0];
+  const documentUrl = event.request?.url;
+  if (
+    frames?.length !== 1 ||
+    frame?.function !== 'global code' ||
+    frame.lineno !== 1 ||
+    !documentUrl
+  ) {
+    return event;
+  }
+  try {
+    const { origin, protocol } = new URL(documentUrl);
+    if (protocol !== 'https:' && protocol !== 'http:') return event;
+    // NextjsClientStackFrameNormalization rewrites origins before beforeSend in SDK 11.12.
+    return frame.filename === documentUrl ||
+      frame.filename === documentUrl.replace(origin, 'app://')
+      ? null
+      : event;
+  } catch {
+    return event;
+  }
+}
+
+/**
+ * PORTFOLIO-BK's six events share this native CefSharp lookup failure and injected console
+ * breadcrumb. The app has no antifingerprint/native bridge code. The message format comes
+ * from cefsharp/CefSharp's CefSharp/Internals/JavascriptObjectRepository.cs (TryCallMethod).
+ * Preserve every rejection without the full observed signature, including any stack frame.
+ */
+function filterBrowserNativeBridgeError(event: ErrorEvent): ErrorEvent | null {
+  const exceptions = event.exception?.values;
+  if (exceptions?.length !== 1) return event;
+  const exception = exceptions[0];
+  if (
+    exception?.type !== 'UnhandledRejection' ||
+    exception.mechanism?.type !== 'auto.browser.global_handlers.onunhandledrejection' ||
+    exception.mechanism.handled !== false ||
+    exception.stacktrace?.frames?.length ||
+    !exception.value
+  ) {
+    return event;
+  }
+  const match =
+    /^Non-Error promise rejection captured with value: Object Not Found Matching Id:\d+, MethodName:update, ParamCount:4$/.exec(
+      exception.value,
+    );
+  // Equality also rejects a trailing newline, which JavaScript's `$` anchor alone accepts.
+  if (!match || match[0] !== exception.value) return event;
+  return event.breadcrumbs?.some(
+    (breadcrumb) =>
+      breadcrumb.category === 'console' &&
+      breadcrumb.message ===
+        'antifingerprint not defined yet. will try and handle event after its ready...',
+  )
+    ? null
+    : event;
+}
+
 /** What the SDK may collect from visitors in every runtime. */
 const BASE_DATA_COLLECTION = {
   userInfo: false,
@@ -237,6 +321,7 @@ export type ClientInitOptions = Pick<
   | 'replaysOnErrorSampleRate'
   | 'denyUrls'
   | 'ignoreErrors'
+  | 'beforeSend'
 >;
 
 /**
@@ -254,6 +339,8 @@ export function buildClientOptions(env: SentryRuntimeEnv): ClientInitOptions {
     replaysOnErrorSampleRate: env.vercelEnv === 'production' ? REPLAY_ON_ERROR_SAMPLE_RATE : 0,
     denyUrls: [...CLIENT_DENY_URLS],
     ignoreErrors: [...CLIENT_IGNORE_ERRORS],
+    beforeSend: (event) =>
+      filterBrowserNativeBridgeError(event) === null ? null : filterBrowserReaderErrors(event),
   };
 }
 

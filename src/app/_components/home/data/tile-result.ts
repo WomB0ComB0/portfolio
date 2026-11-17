@@ -18,12 +18,13 @@
  * @file What the home tiles' server loaders answer, and {@link settle}, which turns a load into
  * one that never throws and never holds the stream past its deadline.
  *
- * No directive and no 'server-only': the types are shared with the client islands. Islands
- * import them with `import type` only, because settle's reporting brings Sentry and Effect.
+ * The types are shared with the client islands through `import type` only. Runtime imports are
+ * server-only: settle's reporting brings Sentry and Effect, and its continuation uses Next.
  */
 
 import { ensureBaseError } from '@/classes/error';
-import { DeadlineError, withDeadline } from '@/lib/async/deadline';
+import { DeadlineError } from '@/lib/async/deadline';
+import { withServerDeadline } from '@/lib/async/server-deadline';
 import { reportApiFailure } from '@/lib/observability/report';
 
 /**
@@ -114,8 +115,8 @@ function deadlineFallback<T>(
  * - A missed deadline resolves what `onDeadline` answers instead, when it answers: the last good
  *   value, so a slow reload does not hide data the source still holds. It is reported once, as
  *   any missed deadline is (a warning).
- * - The load is not cancelled: a late answer still fills its source's cache for the next
- *   request, and a late rejection is handled, never unhandled.
+ * - Past the deadline, the load is kept alive after the response: a late answer still fills its
+ *   source's cache for the next request, and a late rejection is handled, never unhandled.
  *
  * @param name - The tile, e.g. 'github'. Tags the error (`home:github`) and the report.
  *
@@ -134,7 +135,7 @@ export async function settle<T>(
 ): Promise<TileResult<T>> {
   const label = `home:${name}`;
   try {
-    return await withDeadline(run(), deadlineMs, label);
+    return await withServerDeadline(run(), deadlineMs, label);
   } catch (error) {
     reportTileFailure(name, error);
     const missedDeadline = error instanceof DeadlineError && error.label === label;

@@ -37,6 +37,8 @@ import { DeadlineError, withDeadline } from '@/lib/async/deadline';
 
 const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
 vi.mock('@/lib/observability/report', () => report);
+const next = vi.hoisted(() => ({ after: vi.fn() }));
+vi.mock('next/server', () => next);
 
 interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -71,6 +73,7 @@ function onlyReport(): { error: unknown; options: unknown } {
 
 beforeEach(() => {
   report.reportApiFailure.mockReset();
+  next.after.mockReset();
   // Only the deadline's timer is faked; setImmediate stays real for nextMacrotask.
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 });
@@ -83,6 +86,7 @@ describe('settle', () => {
   it('returns an ok result from the load unchanged and reports nothing', async () => {
     await expect(settle('leetcode', async () => OK)).resolves.toBe(OK);
     expect(report.reportApiFailure).not.toHaveBeenCalled();
+    expect(next.after).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -104,6 +108,7 @@ describe('settle', () => {
     expect(isBaseError(error)).toBe(true);
     expect(error).toMatchObject({ command: 'home:github', cause: failure });
     expect(options).toEqual({ context: 'home github tile', level: 'error' });
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('turns a load that throws before returning a promise into the error state', async () => {
@@ -113,6 +118,19 @@ describe('settle', () => {
 
     await expect(settle('typing', run)).resolves.toEqual({ status: 'error' });
     expect(onlyReport().options).toEqual({ context: 'home typing tile', level: 'error' });
+    expect(next.after).not.toHaveBeenCalled();
+  });
+
+  it('does not keep a settled task alive when its rejection matches the outer deadline', async () => {
+    const failure = new DeadlineError('home:github', SERVER_TILE_DEADLINE_MS);
+
+    await expect(settle('github', () => Promise.reject(failure))).resolves.toEqual({
+      status: 'error',
+    });
+
+    expect(next.after).not.toHaveBeenCalled();
+    expect(onlyReport().options).toEqual({ context: 'home github tile', level: 'warning' });
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('gives up at the 4 s deadline with a warning, not before', async () => {
@@ -123,9 +141,11 @@ describe('settle', () => {
 
     await vi.advanceTimersByTimeAsync(3_999);
     expect(settled).not.toHaveBeenCalled();
+    expect(next.after).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
     await expect(result).resolves.toEqual({ status: 'error' });
+    expect(next.after).toHaveBeenCalledTimes(1);
 
     const { error, options } = onlyReport();
     expect(options).toEqual({ context: 'home leetcode tile', level: 'warning' });
@@ -146,7 +166,7 @@ describe('settle', () => {
     await expect(result).resolves.toEqual({ status: 'error' });
   });
 
-  it('lets a late answer finish its work, such as filling the cache', async () => {
+  it('keeps the late cache fill alive after returning the error state', async () => {
     const upstream = deferred<number>();
     const writeCache = vi.fn();
     const result = settle('github', async () => {
@@ -157,11 +177,18 @@ describe('settle', () => {
 
     await vi.advanceTimersByTimeAsync(SERVER_TILE_DEADLINE_MS);
     await expect(result).resolves.toEqual({ status: 'error' });
+    expect(next.after).toHaveBeenCalledTimes(1);
+    const kept = next.after.mock.calls[0]?.[0] as Promise<unknown>;
+    const finished = vi.fn();
+    void kept.then(finished);
+    await nextMacrotask();
+    expect(finished).not.toHaveBeenCalled();
 
     upstream.resolve(42);
-    await nextMacrotask();
+    await kept;
 
     expect(writeCache).toHaveBeenCalledExactlyOnceWith(42);
+    expect(finished).toHaveBeenCalledTimes(1);
   });
 
   it('never turns a rejection after the deadline into an unhandled rejection', async () => {
@@ -173,8 +200,11 @@ describe('settle', () => {
 
       await vi.advanceTimersByTimeAsync(SERVER_TILE_DEADLINE_MS);
       await expect(result).resolves.toEqual({ status: 'error' });
+      expect(next.after).toHaveBeenCalledTimes(1);
+      const kept = next.after.mock.calls[0]?.[0] as Promise<unknown>;
 
       work.reject(new Error('late Sanity failure'));
+      await expect(kept).resolves.toBeUndefined();
       await nextMacrotask();
       await nextMacrotask();
 
@@ -208,6 +238,7 @@ describe('settle with onDeadline', () => {
 
     await vi.advanceTimersByTimeAsync(1);
     await expect(result).resolves.toBe(LAST_GOOD);
+    expect(next.after).toHaveBeenCalledTimes(1);
     expect(onDeadline).toHaveBeenCalledTimes(1);
     const { error, options } = onlyReport();
     expect(options).toEqual({ context: 'home github tile', level: 'warning' });
@@ -245,6 +276,7 @@ describe('settle with onDeadline', () => {
     ).resolves.toEqual({ status: 'error' });
 
     expect(onDeadline).not.toHaveBeenCalled();
+    expect(next.after).not.toHaveBeenCalled();
     expect(onlyReport().options).toEqual({ context: 'home roles tile', level: 'error' });
   });
 
@@ -262,6 +294,7 @@ describe('settle with onDeadline', () => {
 
     await expect(result).resolves.toEqual({ status: 'error' });
     expect(onDeadline).not.toHaveBeenCalled();
+    expect(next.after).not.toHaveBeenCalled();
   });
 
   it('stays the error state, reported, when onDeadline throws', async () => {
@@ -298,9 +331,11 @@ describe('settle with onDeadline', () => {
 
     await vi.advanceTimersByTimeAsync(SERVER_TILE_DEADLINE_MS);
     await expect(result).resolves.toBe(LAST_GOOD);
+    expect(next.after).toHaveBeenCalledTimes(1);
+    const kept = next.after.mock.calls[0]?.[0] as Promise<unknown>;
 
     upstream.resolve(655);
-    await nextMacrotask();
+    await kept;
 
     expect(writeCache).toHaveBeenCalledExactlyOnceWith(655);
     expect(report.reportApiFailure).toHaveBeenCalledTimes(1);

@@ -17,14 +17,15 @@
 /**
  * @fileoverview The 404 page for unmatched URLs.
  *
- * Next renders this root file for any URL no route matches, inside the root layout but outside
- * route-group layouts, so the (routes) shell is not around it. It wraps the shell itself: a typo
- * URL still gets the nav, the skip link, the command palette and the footer. notFound() thrown by
- * a page under (routes) renders src/app/(routes)/not-found.tsx instead, inside that shell.
+ * Unmatched URLs render inside the root layout but outside route-group layouts, so they need
+ * their own shell. The server-action 404 fallback omits the root layout and its providers;
+ * RootNotFoundShell handles that case without mounting the shell's context consumers.
+ * notFound() under (routes) uses that group's not-found.tsx inside the existing shell.
  */
 
 import type { JSX } from 'react';
 import { NotFoundView } from '@/app/_components/errors';
+import { RootNotFoundShell } from '@/app/_components/errors/root-not-found-shell';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { Layout } from '@/components/layout/layout';
 
@@ -32,8 +33,10 @@ export const metadata = NOT_FOUND_METADATA;
 
 export default function NotFoundPage(): JSX.Element {
   return (
-    <Layout>
-      <NotFoundView />
-    </Layout>
+    <RootNotFoundShell>
+      <Layout>
+        <NotFoundView />
+      </Layout>
+    </RootNotFoundShell>
   );
 }

@@ -69,7 +69,8 @@ import {
   peekMonkeytypeProfile,
   readMonkeytypeProfile,
 } from '@/lib/api-integrations/monkeytype';
-import { DeadlineError, withDeadline } from '@/lib/async/deadline';
+import { DeadlineError } from '@/lib/async/deadline';
+import { withServerDeadline } from '@/lib/async/server-deadline';
 import { type CachedValue, createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
@@ -198,7 +199,7 @@ function reportActivityProblem(error: unknown): void {
  */
 async function recentCommits(): Promise<readonly CommittedRepo[]> {
   try {
-    const result = await withDeadline(
+    const result = await withServerDeadline(
       readRecentCommits(),
       PROJECT_ACTIVITY_BUDGET_MS,
       PROJECT_ACTIVITY_LABEL,
@@ -391,7 +392,7 @@ const fetchNowPlaying = async (): Promise<NowPlayingSnapshot> => ({
  */
 export const loadNowPlaying = cache(async (): Promise<LiveInitial<NowPlayingResponse>> => {
   try {
-    const result = await withDeadline(
+    const result = await withServerDeadline(
       nowPlayingCache.get(NOW_PLAYING_KEY, fetchNowPlaying),
       LIVE_TILE_DEADLINE_MS,
       'home:now-playing',
@@ -425,7 +426,7 @@ const STATUS_DEADLINE_LABEL = 'home:status';
  */
 export const loadServiceStatus = cache(async (): Promise<LiveInitial<ServiceStatus>> => {
   try {
-    const status = await withDeadline(
+    const status = await withServerDeadline(
       handleStatusCheck(),
       LIVE_TILE_DEADLINE_MS,
       STATUS_DEADLINE_LABEL,

@@ -22,7 +22,9 @@
  * wraps the shell itself. The view is a server component that renders with no providers.
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
+import { KBarProvider } from 'kbar';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -43,6 +45,16 @@ vi.mock('@/components/layout/footer', () => ({ Footer: () => <footer /> }));
 import { NotFoundView } from '@/app/_components/errors';
 import RouteGroupNotFound from '@/app/(routes)/not-found';
 import RootNotFound, { metadata } from '@/app/not-found';
+
+/** An ordinary unmatched URL retains the root layout's contexts. */
+const renderRootNotFound = () =>
+  render(
+    <KBarProvider>
+      <QueryClientProvider client={new QueryClient()}>
+        <RootNotFound />
+      </QueryClientProvider>
+    </KBarProvider>,
+  );
 
 /** The view's own content: one heading and a way back to Home and Projects. */
 const expectNotFoundView = (scope: HTMLElement): void => {
@@ -69,7 +81,7 @@ describe('src/app/(routes)/not-found.tsx', () => {
 
 describe('src/app/not-found.tsx', () => {
   it('wraps the view in the shell, so an unmatched URL keeps the nav and main#main-content', () => {
-    const { container } = render(<RootNotFound />);
+    const { container } = renderRootNotFound();
 
     expect(screen.getAllByRole('navigation').length).toBeGreaterThan(0);
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
@@ -80,7 +92,7 @@ describe('src/app/not-found.tsx', () => {
   });
 
   it('offers the skip link to the 404 content', () => {
-    render(<RootNotFound />);
+    renderRootNotFound();
 
     expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute(
       'href',

@@ -132,7 +132,6 @@ function loadCached<S, T>(
   peek: () => CachedValue<S> | undefined,
   toData: (data: S) => T | null,
 ): Promise<TileResult<T>> {
-  let loading: Promise<S> | undefined;
   return settle(
     `stats-${source}`,
     async () => {
@@ -141,13 +140,11 @@ function loadCached<S, T>(
         keepAlive(load());
         return cachedTile(held, toData, Date.now());
       }
-      loading = load();
-      return loadedTile(await loading, peek, toData);
+      return loadedTile(await load(), peek, toData);
     },
     {
       deadlineMs: STATS_DEADLINE_MS,
       onDeadline: () => {
-        if (loading) keepAlive(loading);
         const cached = peek();
         return cached ? cachedTile(cached, toData, Date.now(), true) : undefined;
       },
