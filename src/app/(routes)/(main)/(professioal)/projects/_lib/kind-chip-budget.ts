@@ -43,6 +43,8 @@ export const CHIP_GAP_PX = 6;
 /**
  * The row's inside width where the bar is widest: 799px from a 1280px window, less 24px for the
  * Technology button growing by a two-digit count beside it, less the row's 4px padding each end.
+ * The toolbar's 32px horizontal spacing is balanced by the search field's 160px desktop basis
+ * (previously 192px), preserving the space available to these chips.
  */
 export const KIND_ROW_PX = 767;
 /** A chip's frame: 12px padding and a 1px border each side, and the 6px gap before its count. */

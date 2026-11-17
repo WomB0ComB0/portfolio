@@ -72,7 +72,7 @@ const ALIGN: Readonly<Record<IndexAlign, string>> = { start: 'text-left', end: '
 /** The year groups, newest first, with room between them. */
 export const INDEX_GROUPS_CLASS = 'flex min-w-0 flex-col gap-8';
 /** A year: no bottom padding, so the sticky h2 leaves with the last row. */
-export const INDEX_GROUP_CLASS = 'flex min-w-0 flex-col';
+export const INDEX_GROUP_CLASS = 'mx-2 flex min-w-0 flex-col';
 
 /** The year bar's first line: the year (20px/600) and its count. */
 export const INDEX_YEAR_CLASS =

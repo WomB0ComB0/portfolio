@@ -49,6 +49,8 @@ async function surfaces(page: Page) {
         context.fillRect(0, 0, 1, 1);
         return {
           tag: element.tagName,
+          left: box.left,
+          right: box.right,
           top: box.top,
           bottom: box.bottom,
           tl: plate.borderTopLeftRadius,
@@ -74,11 +76,30 @@ async function expectFloatingShape(page: Page): Promise<void> {
   const bar = pinned.find((surface) => surface.tag === 'SEARCH');
   const heading = pinned.find((surface) => surface.tag === 'H2');
   if (bar) {
+    const spacing = await page.locator('main [data-filter-part="bar"]').evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const form = element.querySelector('form')?.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        left: style.marginLeft,
+        right: style.marginRight,
+        innerLeft: form ? form.left - box.left : -1,
+        innerRight: form ? box.right - form.right : -1,
+      };
+    });
+    expect(spacing.left).toBe('8px');
+    expect(spacing.right).toBe('8px');
+    expect(spacing.innerLeft).toBeCloseTo(8, 0);
+    expect(spacing.innerRight).toBeCloseTo(8, 0);
     expect(bar.top).toBeCloseTo(8, 0);
     expect([bar.tl, bar.tr, bar.bl, bar.br]).toEqual(['12px', '12px', '12px', '12px']);
   }
   if (heading) {
     expect(heading.top).toBeCloseTo(bar ? bar.bottom + 8 : 8, 0);
+    if (bar) {
+      expect(heading.left).toBeCloseTo(bar.left, 0);
+      expect(heading.right).toBeCloseTo(bar.right, 0);
+    }
     expect([heading.tl, heading.tr]).toEqual(['12px', '12px']);
     const labels = pinned.filter((surface) => surface.tag === 'TH');
     if (labels.length) {
@@ -91,7 +112,7 @@ async function expectFloatingShape(page: Page): Promise<void> {
   expect(bar || heading).toBeTruthy();
 }
 
-for (const route of ['/spotify', '/media', '/certifications', '/places/photos']) {
+for (const route of ['/projects', '/spotify', '/media', '/certifications', '/places/photos']) {
   test(`${route}: pinned backgrounds transmit the haze while controls stay sharp`, async ({
     page,
   }) => {
