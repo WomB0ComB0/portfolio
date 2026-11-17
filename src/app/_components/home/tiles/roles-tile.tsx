@@ -68,10 +68,12 @@ const rolesBesideHero = ({ roles }: CurrentRoles): readonly Experience[] => role
 /** How many current roles neither the hero nor this tile names. */
 const unnamedRoles = ({ roles, total }: CurrentRoles): number => Math.max(0, total - roles.length);
 
-/** 'Elysium · since 2023': the company as people say it, and the year the role began. */
+/** Freelance dates describe the work history, not the establishment of the current studio. */
 function roleMeta(role: Experience): string {
   const since = formatYear(role.startDate);
-  return joinMeta([companyName(role.company), since ? `since ${since}` : null]);
+  const isFreelance = role.employmentType?.trim().toLowerCase() === 'freelance';
+  const tenure = since ? `${isFreelance ? 'freelance work since' : 'since'} ${since}` : null;
+  return joinMeta([companyName(role.company), tenure]);
 }
 
 function RoleItem({ role }: { role: Experience }): ReactElement {

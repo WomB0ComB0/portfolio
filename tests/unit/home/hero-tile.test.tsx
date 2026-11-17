@@ -287,7 +287,7 @@ describe('HeroTile', () => {
   it('lists the contact links with their spoken names, in a list and not a nav', async () => {
     await renderHeroHtml();
     const list = screen.getByRole('list');
-    expect(within(list).getAllByRole('link')).toHaveLength(4);
+    expect(within(list).getAllByRole('link')).toHaveLength(5);
     expect(screen.queryByRole('navigation')).toBeNull();
 
     expect(screen.getByRole('link', { name: 'Email me' })).toHaveAttribute(
@@ -297,6 +297,7 @@ describe('HeroTile', () => {
     for (const [name, href] of [
       ['GitHub (opens in a new tab)', 'https://github.com/WomB0ComB0'],
       ['LinkedIn (opens in a new tab)', 'https://www.linkedin.com/in/mikeodnis/'],
+      ['Available for consulting (opens in a new tab)', 'https://atroviola.com'],
     ] as const) {
       const link = screen.getByRole('link', { name });
       expect(link).toHaveAttribute('href', href);
@@ -560,12 +561,12 @@ describe('HeroTile with the site settings', () => {
     expectCopy({ ...SETTINGS_COPY, location: null });
   });
 
-  it('puts the h1, the tagline and all four links in the first flush while the settings load', () => {
+  it('puts the h1, the tagline and all five links in the first flush while the settings load', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     h.sanityFetchWithToken.mockReturnValue(pending());
     renderFirstFlush();
     expect(screen.getByRole('heading', { level: 1, name: 'Mike Odnis' })).toBeInTheDocument();
-    expect(within(screen.getByRole('list')).getAllByRole('link')).toHaveLength(4);
+    expect(within(screen.getByRole('list')).getAllByRole('link')).toHaveLength(5);
     expectFirstFlushCopy(HERO_FALLBACK_COPY);
   });
 

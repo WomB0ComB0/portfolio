@@ -96,6 +96,13 @@ export const experienceType = defineType({
       type: 'date',
     }),
     defineField({
+      name: 'dateNote',
+      title: 'Date Context',
+      type: 'string',
+      description:
+        'Optional context explaining what the dates cover, without changing the work history.',
+    }),
+    defineField({
       name: 'current',
       title: 'Currently Working Here',
       type: 'boolean',

@@ -150,6 +150,14 @@ function Facts({ role }: { readonly role: RoleRow }): ReactElement {
           {part.node}
         </span>
       ))}
+      {role.dateNote ? (
+        <span
+          data-role-date-note=""
+          className="mt-2 block max-w-[68ch] text-body-sm text-muted-foreground [overflow-wrap:anywhere]"
+        >
+          {role.dateNote}
+        </span>
+      ) : null}
     </span>
   );
 }

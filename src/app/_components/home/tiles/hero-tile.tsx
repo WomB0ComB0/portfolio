@@ -261,6 +261,11 @@ function HeroLinks(): ReactElement {
           Résumé
         </Link>
       </li>
+      <li>
+        <ExternalAnchor href={profile.consultingUrl} className={GHOST_LINK_CLASS}>
+          Available for consulting
+        </ExternalAnchor>
+      </li>
     </ul>
   );
 }

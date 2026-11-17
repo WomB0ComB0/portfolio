@@ -44,4 +44,5 @@ export const profile = {
   instagramUrl: 'https://instagram.com/mikeodnis.dev',
   blogUrl: 'https://blog.mikeodnis.dev',
   newsletterUrl: 'https://news.mikeodnis.dev',
+  consultingUrl: 'https://atroviola.com',
 } as const;

@@ -118,6 +118,46 @@ describe('sub-role progression in the existing experience pages', () => {
     },
   );
 
+  it.each(['index', 'detail'] as const)(
+    'shows a normalized optional date note in the %s without changing the work history',
+    (view) => {
+      const experience = {
+        ...parent,
+        dateNote: '  Dates cover freelance work,  not a studio founding.  ',
+      };
+      const { container } =
+        view === 'index'
+          ? renderIndex(experience)
+          : render(
+              <RoleDetail
+                experience={experience}
+                experiences={[experience]}
+                projects={[]}
+                today={TODAY}
+              />,
+            );
+      expect(container.querySelector('[data-role-date-note]')).toHaveTextContent(
+        'Dates cover freelance work, not a studio founding.',
+      );
+      expect(screen.getByText(parent.description)).toBeInTheDocument();
+      const period = container.querySelector(
+        view === 'index' ? '[data-role-period]' : '[data-role-facts]',
+      );
+      expect(period?.querySelector('time')?.dateTime).toBe('2023-01');
+    },
+  );
+
+  it.each([undefined, null, '  '])('omits empty date notes in both views: %j', (dateNote) => {
+    const experience = { ...parent, dateNote };
+    const index = renderIndex(experience);
+    expect(index.container.querySelector('[data-role-date-note]')).toBeNull();
+    index.unmount();
+    const detail = render(
+      <RoleDetail experience={experience} experiences={[experience]} projects={[]} today={TODAY} />,
+    );
+    expect(detail.container.querySelector('[data-role-date-note]')).toBeNull();
+  });
+
   it('adds compact dated children under one index engagement without repeating full descriptions', () => {
     const { container } = renderIndex(grouped);
     expect(container.querySelectorAll('[data-role-row]')).toHaveLength(1);

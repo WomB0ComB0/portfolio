@@ -57,6 +57,8 @@ export interface RoleEntry {
   readonly location: string | null;
   /** Authored work arrangement, omitted when not supplied. */
   readonly employmentType?: string;
+  /** Optional context for the tenure; never used to change the dates or role counts. */
+  readonly dateNote?: string;
   /** The description's first sentence, without its raw links. */
   readonly line: string;
   readonly current: boolean;
@@ -166,6 +168,7 @@ export function roleEntryOf(experience: Experience, logo: string | null): RoleEn
   const period = periodOf(experience);
   const organization = companyName(experience.company);
   const employmentType = plainText(experience.employmentType ?? '');
+  const dateNote = plainText(experience.dateNote ?? '');
   return {
     id: experience._id,
     href: roleHref(experience._id),
@@ -177,6 +180,7 @@ export function roleEntryOf(experience: Experience, logo: string | null): RoleEn
     monogram: monogramOf(organization),
     location: experience.location?.trim() || null,
     ...(employmentType ? { employmentType } : {}),
+    ...(dateNote ? { dateNote } : {}),
     line: shortLineOf(experience.description),
     current: period.current,
     period,

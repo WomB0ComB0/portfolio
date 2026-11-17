@@ -70,6 +70,13 @@ export const experienceSchema = {
       description: 'Leave empty if this is your current position',
     },
     {
+      name: 'dateNote',
+      title: 'Date Context',
+      type: 'string',
+      description:
+        'Optional context explaining what the dates cover, without changing the work history.',
+    },
+    {
       name: 'current',
       title: 'Current Position',
       type: 'boolean',
