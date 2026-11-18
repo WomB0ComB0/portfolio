@@ -72,7 +72,7 @@ describe('PortfolioMedia', () => {
     expect(html).toContain('Delivery dashboard');
     const { container } = render(<PortfolioMedia id="media" media={[photo]} />);
     const link = screen.getByRole('link', { name: /Delivery dashboard.*full image/u });
-    expect(link.getAttribute('href')).toMatch(/^https:\/\/cdn.sanity.io\/images/u);
+    expect(link.getAttribute('href')).toMatch(/^https:\/\/cdn\.sanity\.io\/images/u);
     expect(screen.getByAltText('Delivery dashboard')).toHaveAttribute('loading', 'lazy');
     expect(screen.getByText(photo.caption ?? '')).toBeVisible();
     expect(container.querySelector('img')?.src).not.toContain('/_next/image');
