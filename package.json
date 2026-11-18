@@ -2,7 +2,6 @@
   "name": "portfolio",
   "version": "3.0.0",
   "private": true,
-  "license": "Apache-2.0",
   "homepage": "https://github.com/WomB0ComB0/portfolio/",
   "bugs": {
     "url": "https://github.com/WomB0ComB0/portfolio/issues"
@@ -11,19 +10,19 @@
     "type": "git",
     "url": "https://github.com/WomB0ComB0/portfolio.git"
   },
+  "license": "Apache-2.0",
   "author": "Mike Odnis",
   "contributors": [
     "WomB0ComB0"
   ],
-  "engines": {
-    "node": ">=24.15.0",
-    "bun": ">=1.4.0"
-  },
   "sideEffects": false,
   "type": "module",
   "scripts": {
     "analyze": "cross-env ANALYZE=true next build && bun report-bundle-size.js",
     "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build",
+    "analyze:code": "fallow",
+    "analyze:code:json": "fallow --format json",
+    "analyze:cycles": "fallow architecture --cycles",
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
     "audit": "bun audit --audit-level=high",
     "audit:high": "bun audit --audit-level=high",
@@ -55,24 +54,7 @@
     "scripts:tree-shake": "bun run ./scripts/unused-tree-shake.ts",
     "start": "next start",
     "test": "vitest run",
-    "type": "tsc --noEmit",
-    "analyze:code": "fallow",
-    "analyze:code:json": "fallow --format json",
-    "analyze:cycles": "fallow architecture --cycles"
-  },
-  "browserslist": {
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ],
-    "production": [
-      "defaults",
-      "not dead",
-      "not IE 11",
-      "not IE_Mob 11",
-      "maintained node versions"
-    ]
+    "type": "tsc --noEmit"
   },
   "overrides": {
     "@babel/core": ">=7.29.6",
@@ -210,6 +192,10 @@
     "type-fest": "^5.10.0",
     "typescript": "6.0.3",
     "vitest": "^5.0.0"
+  },
+  "engines": {
+    "bun": ">=1.4.0",
+    "node": ">=24.15.0"
   },
   "os": [
     "linux",

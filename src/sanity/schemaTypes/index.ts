@@ -20,6 +20,7 @@ import { certificationType } from './certification';
 import { experienceType } from './experience';
 import { linkHealthType } from './link-health';
 import { placeType } from './place';
+import { portfolioPhotoType, portfolioVideoType } from './portfolio-media';
 import { presentationType } from './presentation';
 import { projectType } from './project';
 import { resumeType } from './resume';
@@ -29,6 +30,8 @@ import { youtubeVideoType } from './youtube-video';
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
+    portfolioPhotoType,
+    portfolioVideoType,
     siteSettingsType,
     linkHealthType,
     projectType,

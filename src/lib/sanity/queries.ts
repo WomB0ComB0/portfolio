@@ -18,6 +18,14 @@
  * GROQ queries for fetching data from Sanity CMS
  */
 
+/** Shared projection for project, organization and individual-role media. */
+const portfolioMediaProjection = `media[]{
+  _key, _type, image, alt, title, caption, externalUrl, poster,
+  "file": file.asset->{url, mimeType, originalFilename, size},
+  "captionsFile": captionsFile.asset->{url, mimeType, originalFilename, size},
+  captionsLanguage, captionsLabel
+}`;
+
 /**
  * Fetch all experiences ordered by explicit order then start date (most recent first)
  */
@@ -39,6 +47,7 @@ export const experiencesQuery = `
     description,
     "responsibilities": coalesce(responsibilities, []),
     "technologies": coalesce(technologies, []),
+    ${portfolioMediaProjection},
     subRoles[]{
       _key,
       _type,
@@ -49,7 +58,8 @@ export const experiencesQuery = `
       "current": coalesce(current, false),
       description,
       responsibilities,
-      technologies
+      technologies,
+      ${portfolioMediaProjection}
     },
     logo,
     companyUrl,
@@ -78,6 +88,7 @@ export const experienceByIdQuery = `
     description,
     "responsibilities": coalesce(responsibilities, []),
     "technologies": coalesce(technologies, []),
+    ${portfolioMediaProjection},
     subRoles[]{
       _key,
       _type,
@@ -88,7 +99,8 @@ export const experienceByIdQuery = `
       "current": coalesce(current, false),
       description,
       responsibilities,
-      technologies
+      technologies,
+      ${portfolioMediaProjection}
     },
     logo,
     companyUrl,
@@ -112,6 +124,7 @@ export const projectsQuery = `
     longDescription,
     image,
     images,
+    ${portfolioMediaProjection},
     technologies,
     githubUrl,
     liveUrl,
@@ -141,6 +154,7 @@ export const featuredProjectsQuery = `
     longDescription,
     image,
     images,
+    ${portfolioMediaProjection},
     technologies,
     githubUrl,
     liveUrl,
@@ -170,6 +184,7 @@ export const projectBySlugQuery = `
     longDescription,
     image,
     images,
+    ${portfolioMediaProjection},
     technologies,
     githubUrl,
     liveUrl,

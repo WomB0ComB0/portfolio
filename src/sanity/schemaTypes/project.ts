@@ -15,12 +15,14 @@
  */
 
 import { defineField, defineType } from 'sanity';
+import { portfolioMediaField } from './portfolio-media';
 
 export const projectType = defineType({
   name: 'project',
   title: 'Project',
   type: 'document',
   fields: [
+    portfolioMediaField(),
     defineField({
       name: 'title',
       title: 'Title',

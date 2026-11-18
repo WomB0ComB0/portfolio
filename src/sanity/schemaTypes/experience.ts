@@ -15,12 +15,14 @@
  */
 
 import { defineField, defineType } from 'sanity';
+import { portfolioMediaField } from './portfolio-media';
 
 export const experienceType = defineType({
   name: 'experience',
   title: 'Experience',
   type: 'document',
   fields: [
+    portfolioMediaField(),
     defineField({
       name: 'position',
       title: 'Position',
@@ -120,6 +122,7 @@ export const experienceType = defineType({
           name: 'experienceSubRole',
           title: 'Dated Role',
           fields: [
+            portfolioMediaField(),
             defineField({
               name: 'position',
               title: 'Position',

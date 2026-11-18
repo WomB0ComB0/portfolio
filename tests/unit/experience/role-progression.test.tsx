@@ -18,6 +18,8 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/lib/sanity/client', () => ({ urlFor: vi.fn() }));
+
 vi.mock('@/components/link-health/link-health-badge', () => ({ LinkHealthBadge: () => null }));
 
 import { RoleProgression } from '@/app/(routes)/(main)/(professioal)/experience/_components/role-progression';

@@ -146,7 +146,7 @@ export function buildContentSecurityPolicy(options: CspOptions): string {
     ['frame-src', ['https://cdn.sanity.io', ...firebaseFrame]],
     ['worker-src', ["'self'", 'blob:']], // Maps renders tiles in a blob: worker
     ['manifest-src', ["'self'"]],
-    ['media-src', ["'self'"]],
+    ['media-src', ["'self'", 'https://cdn.sanity.io']],
     ['object-src', ["'none'"]],
     ['base-uri', ["'none'"]],
     ['form-action', ["'self'"]],

@@ -105,6 +105,14 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(prod, 'connect-src')).toContain('https://places.googleapis.com');
   });
 
+  it('allows native media only from this site and the exact Sanity CDN origin', () => {
+    expect(directive(prod, 'media-src')).toEqual(["'self'", 'https://cdn.sanity.io']);
+    expect(directive(prod, 'frame-src')).toEqual([
+      'https://cdn.sanity.io',
+      'https://example-app.firebaseapp.com',
+    ]);
+  });
+
   it('locks down plugins, base URLs, form targets and framing', () => {
     expect(directive(prod, 'object-src')).toEqual(["'none'"]);
     expect(directive(prod, 'base-uri')).toEqual(["'none'"]);

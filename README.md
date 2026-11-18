@@ -188,11 +188,11 @@ results; they never start external probes. Places, Spotify, standalone video fee
 service/profile links remain outside the catalog.
 
 Only a repeatedly confirmed missing page receives an **Unavailable** label. The checker verifies
-`404`/`410` with GET and requires separated observations. Timeouts, authentication walls, rate limits,
-server errors and inconclusive checks produce no visitor warning. Notion pages cannot support a
-missing-page warning because their automated responses are not reliable evidence of availability.
-Links remain clickable, recovery clears warnings, and warnings expire after 24 hours without a
-fresh observation. HTTP checks cannot detect every soft 404 or broken application feature.
+`404`/`410` with GET and requires separated observations. Timeouts, authentication walls, rate
+limits, server errors and inconclusive checks produce no visitor warning. Notion pages cannot
+support a missing-page warning because their automated responses are not reliable evidence of
+availability. Links remain clickable, recovery clears warnings, and warnings expire after 24 hours
+without a fresh observation. HTTP checks cannot detect every soft 404 or broken application feature.
 
 The workflow handles up to 100 due URLs per run, with two concurrent probes and a five-minute run
 budget. Each probe keeps its five-second total deadline, validates DNS and redirects, pins the
@@ -208,12 +208,12 @@ credential is supplied through the public API.
 
 ### Experience role histories
 
-An experience can hold optional `subRoles` in Studio. Each child has its own title, dates, description,
-responsibilities and technologies. The index shows a compact nested progression; the detail page
-shows the roles and their staggered ranges within the overall employment period. Legitimate overlaps
-are supported. The main clock still counts the parent engagement once, so promotions and parallel
-sub-roles do not inflate the overall tenure or concurrency figures. Existing single-role entries
-keep their current presentation.
+An experience can hold optional `subRoles` in Studio. Each child has its own title, dates,
+description, responsibilities and technologies. The index shows a compact nested progression; the
+detail page shows the roles and their staggered ranges within the overall employment period.
+Legitimate overlaps are supported. The main clock still counts the parent engagement once, so
+promotions and parallel sub-roles do not inflate the overall tenure or concurrency figures. Existing
+single-role entries keep their current presentation.
 
 ### Rate Limits & Bans
 
@@ -438,16 +438,19 @@ Safari or physical-device coverage.
 
 ## Development Notes
 
-- **Images**: use `@/components/ui/cdn-image` for rendered images. Sanity and GitHub avatars
-  use their own CDN resizing; other sources load directly. This avoids Vercel's image-optimization
-  quota while preserving responsive Sanity images, crop settings and lazy loading. The shared
-  image-source allowlist also feeds CSP, so direct delivery stays restricted to known hosts.
+- **Images**: use `@/components/ui/cdn-image` for rendered images. Sanity and GitHub avatars use
+  their own CDN resizing; other sources load directly. This avoids Vercel's image-optimization quota
+  while preserving responsive Sanity images, crop settings and lazy loading. The shared image-source
+  allowlist also feeds CSP, so direct delivery stays restricted to known hosts.
 - **Identity and contact**: edit [`src/constants/profile.ts`](src/constants/profile.ts) for the
   shared name, email, avatar and profile links, then deploy. Home contacts render in the initial
-  HTML without fetching settings. Legacy contact fields in Studio are read-only; the optional
-  home location and tagline still use Studio, and clearing Location still hides it.
+  HTML without fetching settings. Legacy contact fields in Studio are read-only; the optional home
+  location and tagline still use Studio, and clearing Location still hides it.
 - **Content**: edit Sanity documents through the standalone Studio. Configure the site with a
   read-only `SANITY_API_TOKEN`, keeping editor credentials separate from runtime content queries.
+- **Project and experience media**: follow the
+  [capture and upload guide](docs/guides/portfolio-media.md) for desktop/mobile screenshots, short
+  walkthroughs, captions and placement on organizations or individual roles.
 - **Data failures**: Media and Stats use bounded source loads and stale cache fallbacks. Preserve
   their error and empty states when changing a loader, along with Stats freshness labels and Media
   source-availability notices.
