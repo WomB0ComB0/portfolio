@@ -150,6 +150,7 @@ describe('optional nested experience schema', () => {
     const payload = {
       ...makeExperience(),
       location: 'Remote',
+      media: [],
       employmentType: 'Contract',
       dateNote: 'Dates cover freelance work.',
       responsibilities: [],

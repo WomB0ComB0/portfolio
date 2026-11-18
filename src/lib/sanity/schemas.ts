@@ -17,11 +17,15 @@
 /**
  * Sanity Studio Schema Definitions
  *
- * Copy these schemas to your Sanity Studio project
+ * Copy these schemas and src/sanity/schemaTypes/portfolio-media.ts (with its rules) to your Studio.
+ * Register the exported portfolioPhotoType and portfolioVideoType alongside experienceSchema.
  * Location: schemas/ directory in your Sanity Studio
  */
 
 import type { Rule } from 'sanity';
+import { portfolioMediaField } from '../../sanity/schemaTypes/portfolio-media';
+
+export { portfolioPhotoType, portfolioVideoType } from '../../sanity/schemaTypes/portfolio-media';
 
 /**
  * Experience Schema
@@ -32,6 +36,7 @@ export const experienceSchema = {
   title: 'Experience',
   type: 'document',
   fields: [
+    portfolioMediaField(),
     {
       name: 'company',
       title: 'Company',
@@ -135,6 +140,7 @@ export const experienceSchema = {
           name: 'experienceSubRole',
           title: 'Dated Role',
           fields: [
+            portfolioMediaField(),
             {
               name: 'position',
               title: 'Position',

@@ -42,6 +42,7 @@ import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 import { NEW_TAB_LABEL, NewTabArrow, PageShell, SrOnlyWords } from '@/components/console';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
+import { PortfolioMedia } from '@/components/portfolio-media';
 import type { Experience, Project } from '@/hooks/sanity/schemas';
 import { RoleClockTile, RoleCompanions, RoleSteps } from '../../_components/role-context';
 import { RoleDetailLogo } from '../../_components/role-detail-logo';
@@ -260,6 +261,7 @@ export function RoleDetail({
             </aside>
           )}
         </div>
+        <PortfolioMedia id="experience-media" media={experience.media} />
         <RoleCompanions companions={page.alongside} />
         <RoleSteps previous={page.previous} next={page.next} />
         <RoleListEntryGuard listPath={EXPERIENCE_PATH} />

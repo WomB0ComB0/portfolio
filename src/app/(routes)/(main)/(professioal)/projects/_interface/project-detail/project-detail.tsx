@@ -1,4 +1,5 @@
 import 'server-only';
+
 /**
  * Copyright 2025 Mike Odnis
  *
@@ -34,8 +35,8 @@ import 'server-only';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactElement } from 'react';
-
 import { PhotoViewerRoot } from '@/components/console/photo/photo-viewer';
+import { PortfolioMedia } from '@/components/portfolio-media';
 import bodyStyles from '../../_components/detail/case-body.module.css';
 import { CaseHero } from '../../_components/detail/case-hero';
 import { viewerItems } from '../../_components/detail/case-images';
@@ -72,6 +73,7 @@ export function ProjectDetail({ project, projects, children }: ProjectDetailProp
           screens={screens}
         />
         <div className={bodyStyles.after}>
+          <PortfolioMedia id="project-media" media={project.media} />
           {children}
           <Link href="/projects" className={bodyStyles.back}>
             <ArrowLeft aria-hidden="true" className={bodyStyles['back-arrow']} />

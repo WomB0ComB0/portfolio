@@ -15,6 +15,7 @@
  */
 
 import type { ReactElement } from 'react';
+import { PortfolioMedia } from '@/components/portfolio-media';
 import type { RoleSubRole } from '../_lib/role-subroles';
 import { RolePeriodText } from './role-parts';
 import { RoleLengthFigure, RoleLinkChips, RoleTechTokens, withKeys } from './role-row-parts';
@@ -150,6 +151,7 @@ export function RoleProgression({
             <>
               <Interval lane={role.lane} />
               <Content role={role} />
+              <PortfolioMedia id={`${id}-${role.key}-media`} media={role.media} headingLevel={4} />
             </>
           )}
         </li>

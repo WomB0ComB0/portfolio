@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { Experience } from '@/hooks/sanity/schemas';
+import { type Experience, type PortfolioMediaItem, portfolioMediaOf } from '@/hooks/sanity/schemas';
 import { isListedRole } from './listed-role';
 import { monthsBetween, parseRoleMonth, periodOf, type RoleMonth, type RolePeriod } from './period';
 import { lengthOf, type RoleLength } from './role-length';
@@ -33,6 +33,7 @@ export interface RoleSubRole {
   readonly duties: readonly string[];
   readonly links: readonly RoleLink[];
   readonly tech: readonly TechToken[];
+  readonly media?: readonly PortfolioMediaItem[];
   readonly lane: { readonly startPercent: number; readonly widthPercent: number } | null;
 }
 
@@ -51,6 +52,7 @@ interface SourceSubRole {
   readonly description?: string | null;
   readonly responsibilities?: readonly string[] | null;
   readonly technologies?: readonly string[] | null;
+  readonly media?: unknown;
 }
 
 const optionalText = (value: unknown): boolean => value == null || typeof value === 'string';
@@ -167,6 +169,7 @@ export function subRolesOf(
         links: roleLinksOf([description, ...responsibilities]),
         tech: techTokensOf(source.technologies ?? [], techLinks),
         lane: laneOf(parent, period, clock),
+        ...(source.media == null ? {} : { media: portfolioMediaOf(source.media) }),
       },
     });
   }

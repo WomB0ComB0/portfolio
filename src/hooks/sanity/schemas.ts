@@ -25,6 +25,13 @@
 import { Option, Predicate, Result, Schema, SchemaGetter, SchemaTransformation } from 'effect';
 import { PLACE_CATEGORIES } from '@/lib/places/categories';
 import {
+  hasMediaText,
+  isCaptionsLanguage,
+  isMediaFileUrl,
+  isMediaImageRef,
+  isMediaLink,
+} from '@/sanity/portfolio-media-rules';
+import {
   hasText,
   isSiteEmail,
   isSiteHttpsUrl,
@@ -104,6 +111,81 @@ const optionalNullable = <S extends Schema.Constraint>(schema: S) =>
     }),
   );
 
+/** The media contract is optional and tolerant at its array boundary, strict per item. */
+const MediaText = Schema.String.check(Schema.makeFilter(hasMediaText));
+const MediaImage = SanityImageSchema.check(
+  Schema.makeFilter((image) => isMediaImageRef(image.asset._ref)),
+);
+const VideoFile = ResolvedSanityFileSchema.check(
+  Schema.makeFilter(
+    (file) =>
+      isMediaFileUrl(file.url, ['mp4', 'webm']) &&
+      (file.mimeType == null ||
+        file.mimeType ===
+          (new URL(file.url).pathname.endsWith('.mp4') ? 'video/mp4' : 'video/webm')),
+  ),
+);
+const CaptionsFile = ResolvedSanityFileSchema.check(
+  Schema.makeFilter(
+    (file) =>
+      isMediaFileUrl(file.url, ['vtt']) &&
+      (file.mimeType == null ||
+        ['text/vtt', 'text/plain', 'application/octet-stream'].includes(file.mimeType)),
+  ),
+);
+const PortfolioPhotoSchema = Schema.Struct({
+  _key: MediaText,
+  _type: Schema.Literal('portfolioPhoto'),
+  image: MediaImage,
+  alt: MediaText,
+  caption: optionalNullable(Schema.String),
+});
+const PortfolioVideoSchema = Schema.Struct({
+  _key: MediaText,
+  _type: Schema.Literal('portfolioVideo'),
+  title: MediaText,
+  file: optionalNullable(VideoFile),
+  externalUrl: optionalNullable(Schema.String.check(Schema.makeFilter(isMediaLink))),
+  poster: optionalNullable(MediaImage),
+  caption: optionalNullable(Schema.String),
+  captionsFile: optionalNullable(CaptionsFile),
+  captionsLanguage: optionalNullable(Schema.String),
+  captionsLabel: optionalNullable(Schema.String),
+}).check(
+  Schema.makeFilter(
+    (video) =>
+      Boolean(video.file) !== Boolean(video.externalUrl) &&
+      (!video.captionsFile ||
+        Boolean(
+          video.file &&
+            video.captionsLanguage &&
+            isCaptionsLanguage(video.captionsLanguage) &&
+            hasMediaText(video.captionsLabel),
+        )),
+  ),
+);
+const PortfolioMediaItemSchema = Schema.Union([PortfolioPhotoSchema, PortfolioVideoSchema]);
+export type PortfolioMediaItem = Schema.Schema.Type<typeof PortfolioMediaItemSchema>;
+
+/** One broken upload must never remove its readable project, experience or sibling media. */
+export function portfolioMediaOf(value: unknown): readonly PortfolioMediaItem[] {
+  if (!Array.isArray(value)) return [];
+  const decode = Schema.decodeUnknownResult(PortfolioMediaItemSchema);
+  const keys = new Set<string>();
+  return value.flatMap((item) => {
+    const result = decode(item);
+    if (Result.isFailure(result) || keys.has(result.success._key)) return [];
+    keys.add(result.success._key);
+    return [result.success];
+  });
+}
+const portfolioMediaValue = Schema.Unknown.pipe(
+  Schema.decodeTo(Schema.Array(Schema.toType(PortfolioMediaItemSchema)), {
+    decode: SchemaGetter.transform(portfolioMediaOf),
+    encode: SchemaGetter.passthrough(),
+  }),
+);
+
 /** Legacy GROQ booleans may be missing or null; both mean the unchecked default. */
 const NullableBooleanDefaultFalse = Schema.optional(Schema.NullOr(Schema.Boolean)).pipe(
   Schema.decodeTo(Schema.Boolean, {
@@ -129,6 +211,7 @@ export const ExperienceSubRoleSchema = Schema.Struct({
   description: Schema.optional(Schema.NullOr(Schema.String)),
   responsibilities: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
   technologies: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+  media: Schema.optional(portfolioMediaValue),
 });
 
 /** A malformed child must not invalidate an otherwise readable parent engagement. */
@@ -164,6 +247,7 @@ export const ExperienceSchema = Schema.Struct({
   responsibilities: Schema.optional(Schema.Array(Schema.String)),
   technologies: Schema.optional(Schema.Array(Schema.String)),
   subRoles: Schema.optional(experienceSubRolesValue),
+  media: Schema.optional(portfolioMediaValue),
   startDate: Schema.String,
   endDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   current: Schema.Boolean,
@@ -185,6 +269,7 @@ export const ProjectSchema = Schema.Struct({
   longDescription: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   image: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
   images: Schema.optional(Schema.Union([Schema.Array(SanityImageSchema), Schema.Null])),
+  media: Schema.optional(portfolioMediaValue),
   category: Schema.String, // Allow any string for flexible categorization
   technologies: Schema.Array(Schema.String),
   status: Schema.String, // Allow any string for flexible status combinations

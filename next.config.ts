@@ -217,6 +217,10 @@ const config: NextConfig = {
       { source: '/api/healthz', destination: '/api/health' },
       { source: '/health', destination: '/api/health' },
       { source: '/ping', destination: '/api/health' },
+      {
+        source: '/assets/sanity-files/:path*',
+        destination: 'https://cdn.sanity.io/files/:path*',
+      },
     ];
   },
 
