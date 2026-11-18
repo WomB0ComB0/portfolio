@@ -218,6 +218,7 @@ describe('buildServerOptions', () => {
     const filtered = options.beforeSend?.(event as never, {});
     expect(filtered).toEqual({ request: { headers: { 'user-agent': 'test' } } });
     expect(options.beforeSendSpan).toBe(stripVisitorIpAttributes);
+    expect(options._managedTunnel).toEqual({ path: '/monitoring', intercept: false });
   });
 });
 
@@ -346,6 +347,14 @@ describe('createTracesSampler', () => {
         context({
           name: 'POST',
           normalizedRequest: { url: 'https://mikeodnis.dev/monitoring?o=1' },
+        }),
+      ),
+    ).toBe(0);
+    expect(
+      sampler(
+        context({
+          name: 'POST /sentry-tunnel',
+          attributes: { 'url.path': '/sentry-tunnel' },
         }),
       ),
     ).toBe(0);

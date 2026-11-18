@@ -106,7 +106,7 @@ function traceSampleRate(env: SentryRuntimeEnv): number {
 
 /** Uptime checks and the Sentry tunnel are never traced. */
 const UNTRACED_PATH =
-  /^\/(?:api\/(?:v1\/)?)?(?:health|healthz|ping)(?:[/?]|$)|^\/monitoring(?:[/?]|$)/;
+  /^\/(?:api\/(?:v1\/)?)?(?:health|healthz|ping)(?:[/?]|$)|^\/(?:monitoring|sentry-tunnel)(?:[/?]|$)/;
 
 function samplingPath(context: TracesSamplerSamplingContext): string | undefined {
   const attributes = context.attributes ?? {};
@@ -353,6 +353,7 @@ export type ServerInitOptions = Pick<
   | 'beforeSend'
   | 'beforeSendSpan'
   | 'debug'
+  | '_managedTunnel'
 >;
 
 /** Node.js and edge options: the same gating, environment, sampling and privacy filters. */
@@ -371,5 +372,11 @@ export function buildServerOptions(env: SentryRuntimeEnv): ServerInitOptions {
     beforeSend: (event) => stripVisitorIpHeaders(event),
     beforeSendSpan: stripVisitorIpAttributes,
     debug: false,
+    // Keep `/monitoring` registered as the tunnel path (so tunnel requests produce no spans or
+    // sessions) while disabling `http.Server.emit` interception (`intercept: false`). In
+    // `@sentry/nextjs` 11.13+, intercepting `server.emit` ahead of Next.js on warm Vercel
+    // function invocations bypasses Next.js's request listener and leaves the invocation pending
+    // until the 300s runtime timeout. Next.js serves `/monitoring` via `src/app/monitoring/route.ts`.
+    _managedTunnel: { path: '/monitoring', intercept: false },
   };
 }

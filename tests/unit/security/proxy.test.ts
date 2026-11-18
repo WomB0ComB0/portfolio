@@ -223,6 +223,7 @@ describe('proxy matcher', () => {
       '/_vercel/insights/script.js',
       '/69a49a618619fab6/script.js',
       '/monitoring',
+      '/sentry-tunnel',
       '/favicon.ico',
       '/robots.txt',
       '/sitemap.xml',
