@@ -57,8 +57,8 @@ import {
   withKeys,
 } from '../../_components/role-row-parts';
 import type { RoleRow } from '../../_lib/role-index';
-import type { RoleLink } from '../../_lib/role-links';
 import { EXPERIENCE_PATH } from '../../_lib/role-ledger';
+import type { RoleLink } from '../../_lib/role-links';
 import { roleLogoOf } from '../../_lib/role-logo';
 import { buildRolePage } from '../../_lib/role-page';
 import { buildTechLinks, NO_TECH_LINKS } from '../../_lib/role-tech';
@@ -222,7 +222,8 @@ export function RoleDetail({
       : null;
   const sideLinks = organizationLink
     ? [organizationLink, ...role.links].filter(
-        (link, index, links) => links.findIndex((candidate) => candidate.href === link.href) === index,
+        (link, index, links) =>
+          links.findIndex((candidate) => candidate.href === link.href) === index,
       )
     : role.links;
   const hasSide = sideLinks.length > 0 || role.tech.length > 0;
