@@ -215,6 +215,7 @@ describe('/spotify server HTML', () => {
   it('aligns the Top artists heading flush on the page axis with Top tracks', async () => {
     const page = await pageHtml();
     const artistsHeading = page.querySelector('#spotify-top-artists');
+    expect(artistsHeading).not.toBeNull();
     const classes = (artistsHeading?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 
     expect(classes.filter((name) => /(?:^|:)p[xlr]-/.test(name))).toEqual([]);
