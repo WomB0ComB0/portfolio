@@ -44,6 +44,7 @@ import {
   bandsShowing,
   isPausableAnimation,
   pauseAnimationsUnderEdge,
+  SCROLL_INACTIVE_ATTRIBUTE,
   UNDER_EDGE_ATTRIBUTE,
   UNDER_EDGE_INK_OUTSET,
 } from '@/components/layout/pause-under-edge';
@@ -516,6 +517,39 @@ describe('pauseAnimationsUnderEdge', () => {
       stop();
     });
 
+    it('marks the haze scroll-inactive whenever the page cannot scroll, across resizes, sweeps and pageshow', () => {
+      scrollPage(0, WINDOW_PX);
+      const frames = manualFrames();
+      const haze = mountHaze();
+      const watch = watchHaze(haze);
+
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(true);
+
+      // Page grows past the viewport: scroll timeline becomes active again.
+      growPage(PAGE_PX);
+      frames.run();
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(false);
+
+      // Route change lands on a short page at y = 0: sweep() marks it inactive immediately.
+      scrollPage(0, WINDOW_PX);
+      watch.sweep();
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(true);
+
+      // Browser bfcache restore on a scrollable page: pageshow clears it immediately.
+      scrollPage(0, PAGE_PX);
+      window.dispatchEvent(new Event('pageshow'));
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(false);
+
+      // Stopping removes the attribute and ignores any late sweep().
+      scrollPage(0, WINDOW_PX);
+      watch.sweep();
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(true);
+      watch.stop();
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(false);
+      watch.sweep();
+      expect(haze.hasAttribute(SCROLL_INACTIVE_ATTRIBUTE)).toBe(false);
+    });
+
     it("agrees with the bands' fade: a band shows exactly when edgeHazeOpacity gives it any opacity", () => {
       const heights = { topHeight: TOP_BAND_END, bottomHeight: 93 };
       for (const maxScroll of [-100, 0, 0.5, 40, 2156]) {
@@ -775,7 +809,7 @@ describe('pauseAnimationsUnderEdge', () => {
     expect(resizeObservers.every((observer) => observer.disconnected)).toBe(true);
     expect(unlisten.mock.calls.map(([type]) => type)).toContain('animationstart');
     expect(unlistenWindow.mock.calls.map(([type]) => type)).toEqual(
-      expect.arrayContaining(['resize', 'scroll']),
+      expect.arrayContaining(['resize', 'scroll', 'pageshow']),
     );
     animationStart(pageElement(), 'pulse');
     expect(observers.every((observer) => observer.observed.size === 0)).toBe(true);

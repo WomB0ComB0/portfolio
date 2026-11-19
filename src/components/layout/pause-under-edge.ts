@@ -38,6 +38,7 @@
  */
 
 export const UNDER_EDGE_ATTRIBUTE = 'data-under-edge';
+export const SCROLL_INACTIVE_ATTRIBUTE = 'data-scroll-inactive';
 
 /**
  * The animations that pause: Tailwind's pulse (every loading placeholder), ping and live-pulse
@@ -186,9 +187,16 @@ function mark(state: WatchState, element: Element, overlap: Overlap): void {
   element.toggleAttribute(UNDER_EDGE_ATTRIBUTE, underShownBand(overlap, state.showing));
 }
 
+/** Marks the haze while the page cannot scroll so Chromium drops any stale scroll-animation hold. */
+function syncScroll(state: WatchState, scroll: PageScroll): void {
+  state.haze.toggleAttribute(SCROLL_INACTIVE_ATTRIBUTE, scroll.maxScroll <= 0);
+}
+
 /** Reads which bands show; when that changes, marks every watched element again. */
 function reshow(state: WatchState): void {
-  const showing = bandsShowing(pageScroll());
+  const scroll = pageScroll();
+  syncScroll(state, scroll);
+  const showing = bandsShowing(scroll);
   if (showing.top === state.showing.top && showing.bottom === state.showing.bottom) return;
   state.showing = showing;
   for (const [element, overlap] of [...state.watched]) mark(state, element, overlap);
@@ -227,7 +235,9 @@ function onBandEntries(
 function connect(state: WatchState): void {
   state.bands?.disconnect();
   state.bands = null;
-  state.showing = bandsShowing(pageScroll());
+  const scroll = pageScroll();
+  syncScroll(state, scroll);
+  state.showing = bandsShowing(scroll);
   sweep(state);
   for (const element of state.watched.keys()) mark(state, element, CLEAR);
   state.bands = createBandObservers(state.haze, (edge, entries) =>
@@ -247,6 +257,7 @@ function watch(state: WatchState, element: Element): void {
 function release(state: WatchState): void {
   state.bands?.disconnect();
   state.bands = null;
+  state.haze.removeAttribute(SCROLL_INACTIVE_ATTRIBUTE);
   for (const element of state.watched.keys()) element.removeAttribute(UNDER_EDGE_ATTRIBUTE);
   state.watched.clear();
 }
@@ -322,9 +333,16 @@ export function pauseAnimationsUnderEdge(haze: HTMLElement): UnderEdgeWatch {
   for (const element of runningTargets()) watch(state, element);
   connect(state);
 
+  let stopped = false;
+
   return {
-    sweep: () => sweep(state),
+    sweep: () => {
+      if (stopped) return;
+      sweep(state);
+      reshow(state);
+    },
     stop: () => {
+      stopped = true;
       document.removeEventListener('animationstart', onAnimationStart, true);
       window.removeEventListener('resize', remeasure.schedule);
       for (const query of queries) query.removeEventListener('change', remeasure.schedule);
@@ -342,13 +360,16 @@ export function pauseAnimationsUnderEdge(haze: HTMLElement): UnderEdgeWatch {
  */
 function followScroll(state: WatchState): () => void {
   const task = oncePerFrame(() => reshow(state));
+  const onPageShow = (): void => reshow(state);
   const pageSize = typeof ResizeObserver === 'function' ? new ResizeObserver(task.schedule) : null;
 
   window.addEventListener('scroll', task.schedule, { passive: true });
+  window.addEventListener('pageshow', onPageShow);
   pageSize?.observe(document.body);
 
   return () => {
     window.removeEventListener('scroll', task.schedule);
+    window.removeEventListener('pageshow', onPageShow);
     pageSize?.disconnect();
     task.cancel();
   };

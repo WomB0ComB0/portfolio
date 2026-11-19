@@ -40,6 +40,7 @@ import {
   EDGE_HAZE_TOP_OPACITY,
   STICKY_FILTER_BAR,
 } from '@/components/layout/edge-haze';
+import { SCROLL_INACTIVE_ATTRIBUTE } from '@/components/layout/pause-under-edge';
 import { type CssRule, declarations, declaredValue, findRule, styleRules } from './css-rules';
 
 /** The sticky FilterBar's view timeline, which the top band follows. */
@@ -459,6 +460,22 @@ describe('edge-haze.css', () => {
     // so the padding counts the inset too (CodeRabbit on #614).
     expect(value(rule('html', [MEDIA_LG]), 'scroll-padding-block')).toBe(
       'max(calc(var(--edge-haze-top) + var(--sticky-top-gap) + env(safe-area-inset-top, 0px)), calc(4.625rem + var(--sticky-top-gap))) var(--edge-haze-bottom)',
+    );
+  });
+
+  it('drops the scroll animations while the page cannot scroll so Chromium never holds a stale top blur', () => {
+    const attr = `[${SCROLL_INACTIVE_ATTRIBUTE}]`;
+    const inactive = rule(
+      `.edge-haze${attr} > div > i, :root:has(${STICKY_FILTER_BAR}) .edge-haze${attr} > .t > i`,
+    );
+
+    expect(value(inactive, 'animation-name')).toBe('none');
+    expect(RULES.indexOf(inactive)).toBeGreaterThan(
+      RULES.indexOf(
+        rule(`:root:has(${STICKY_FILTER_BAR}) .edge-haze > .t > i`, [
+          `@supports (timeline-scope: ${BAR_TIMELINE})`,
+        ]),
+      ),
     );
   });
 

@@ -414,6 +414,17 @@
   }
 }
 
+/*
+ * Chromium keeps a finished scroll-driven animation's hold time when scroll(root block) goes from
+ * active to inactive (navigating from a scrolled page to a short one, or filtering a list down to
+ * fit the viewport). Dropping the animation while the page cannot scroll leaves every layer at its
+ * base opacity: 0; the sticky-bar selector mirrors the rule above so specificity still wins.
+ */
+.edge-haze[data-scroll-inactive] > div > i,
+:root:has([data-filter-part="bar"][data-sticky]) .edge-haze[data-scroll-inactive] > .t > i {
+  animation-name: none;
+}
+
 @keyframes edge-haze-rise {
   from {
     translate: 0 0;
