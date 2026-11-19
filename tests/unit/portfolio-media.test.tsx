@@ -48,8 +48,9 @@ const video: PortfolioMediaItem = {
   title: 'Delivery walkthrough',
   file: { url: 'https://cdn.sanity.io/files/test/production/demo.mp4', mimeType: 'video/mp4' },
   poster: image,
+  // Sanity names a file asset by its SHA-1 (40 hex), the only .vtt name the caption rewrite accepts.
   captionsFile: {
-    url: 'https://cdn.sanity.io/files/test/production/captions.vtt',
+    url: 'https://cdn.sanity.io/files/test/production/0123456789abcdef0123456789abcdef01234567.vtt',
     mimeType: 'text/vtt',
   },
   captionsLanguage: 'en',
@@ -89,7 +90,7 @@ describe('PortfolioMedia', () => {
     expect(container.querySelector('source')).toHaveAttribute('src', video.file?.url);
     expect(container.querySelector('track')).toHaveAttribute(
       'src',
-      '/assets/sanity-files/test/production/captions.vtt',
+      '/assets/sanity-files/test/production/0123456789abcdef0123456789abcdef01234567.vtt',
     );
     expect(container.querySelector('track')).toHaveAttribute('srclang', 'en');
     expect(container.querySelector('track')).toHaveAttribute('label', 'English');
