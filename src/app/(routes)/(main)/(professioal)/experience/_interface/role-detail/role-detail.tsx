@@ -58,6 +58,7 @@ import {
 } from '../../_components/role-row-parts';
 import type { RoleRow } from '../../_lib/role-index';
 import { EXPERIENCE_PATH } from '../../_lib/role-ledger';
+import { mergeOrganizationLink, organizationLinkOf } from '../../_lib/role-links';
 import { roleLogoOf } from '../../_lib/role-logo';
 import { buildRolePage } from '../../_lib/role-page';
 import { buildTechLinks, NO_TECH_LINKS } from '../../_lib/role-tech';
@@ -66,7 +67,6 @@ const BACK_LABEL = 'All experience';
 const DUTIES_LABEL = 'What I did';
 const LINKS_LABEL = 'Links';
 const TECH_LABEL = 'Technologies';
-const HTTP_URL = /^https?:\/\//iu;
 
 const ORG_CLASS = 'group/org inline-flex max-w-full items-center gap-2 align-bottom';
 /**
@@ -107,22 +107,27 @@ function Organization({ role }: { readonly role: RoleRow }): ReactElement {
       {role.organization}
     </span>
   );
-  if (!role.companyUrl || !HTTP_URL.test(role.companyUrl)) {
+  const organizationLink = organizationLinkOf(role.companyUrl);
+  if (!organizationLink) {
     return <span className={ORG_CLASS}>{name}</span>;
   }
   return (
     <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1">
       <a
-        href={role.companyUrl}
+        href={organizationLink.href}
         target="_blank"
         rel="noopener noreferrer"
         className={ORG_LINK_CLASS}
       >
         {name}
+        {organizationLink.host &&
+        ['github.com', 'gitlab.com', 'bitbucket.org'].includes(organizationLink.host) ? (
+          <span className="tile-meta font-normal text-faint">{organizationLink.label}</span>
+        ) : null}
         <NewTabArrow />
         <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
       </a>
-      <LinkHealthBadge href={role.companyUrl} scope="experience" />
+      <LinkHealthBadge href={organizationLink.href} scope="experience" />
     </span>
   );
 }
@@ -206,7 +211,8 @@ export function RoleDetail({
   if (!page) return null;
   const { role } = page;
   const duties = withKeys(role.duties);
-  const hasSide = role.links.length > 0 || role.tech.length > 0;
+  const sideLinks = mergeOrganizationLink(role.companyUrl, role.links);
+  const hasSide = sideLinks.length > 0 || role.tech.length > 0;
 
   return (
     <PageShell
@@ -246,10 +252,10 @@ export function RoleDetail({
           </div>
           {hasSide && (
             <aside className={SIDE_CLASS}>
-              {role.links.length > 0 && (
+              {sideLinks.length > 0 && (
                 <section aria-labelledby="role-links" className={SECTION_CLASS}>
                   <SectionTitle id="role-links">{LINKS_LABEL}</SectionTitle>
-                  <RoleLinkChips links={role.links} />
+                  <RoleLinkChips links={sideLinks} />
                 </section>
               )}
               {role.tech.length > 0 && (

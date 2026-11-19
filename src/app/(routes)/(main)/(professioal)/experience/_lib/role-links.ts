@@ -167,3 +167,48 @@ export function roleLinksOf(texts: readonly string[]): RoleLink[] {
   const identities = links.map((link) => identityOf(link.href));
   return links.filter((_, index) => identities.indexOf(identities[index] ?? '') === index);
 }
+
+/** A Studio organization URL as a first-class role link, named by its code host or site. */
+export function organizationLinkOf(companyUrl: string | null | undefined): RoleLink | null {
+  if (!companyUrl) return null;
+  try {
+    const url = new URL(companyUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    const host = url.hostname.replace(/^www\./u, '').toLowerCase();
+    if (host === 'github.com') {
+      return {
+        href: companyUrl,
+        label:
+          url.pathname.split('/').filter(Boolean).length === 1 ? 'GitHub organization' : 'GitHub',
+        host,
+        token: false,
+      };
+    }
+    if (host === 'gitlab.com') {
+      return { href: companyUrl, label: 'GitLab organization', host, token: false };
+    }
+    if (host === 'bitbucket.org') {
+      return { href: companyUrl, label: 'Bitbucket organization', host, token: false };
+    }
+    return { href: companyUrl, label: 'Organization website', host: siteOf(host), token: false };
+  } catch {
+    return null;
+  }
+}
+
+/** Merge a code-host organization link before text-derived links without duplicating addresses. */
+export function mergeOrganizationLink(
+  companyUrl: string | null | undefined,
+  links: readonly RoleLink[],
+): readonly RoleLink[] {
+  const organization = organizationLinkOf(companyUrl);
+  if (
+    !organization?.host ||
+    !['github.com', 'gitlab.com', 'bitbucket.org'].includes(organization.host)
+  ) {
+    return links;
+  }
+  const merged = [organization, ...links];
+  const identities = merged.map((link) => identityOf(link.href));
+  return merged.filter((_, index) => identities.indexOf(identities[index] ?? '') === index);
+}
