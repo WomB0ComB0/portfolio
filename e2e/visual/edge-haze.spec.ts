@@ -914,3 +914,55 @@ test.describe('the layer stack and its fallbacks', () => {
     });
   }
 });
+
+test('navigating from a scrolled route to a non-scrollable route clears the top blur, and resumes on scroll', async ({
+  page,
+}) => {
+  const tallDesktop = { width: 1500, height: 1100 };
+  await openAt(page, '/projects', tallDesktop);
+  expect(await maxScroll(page), '/projects should scroll at 1500x1100').toBeGreaterThan(400);
+
+  // Scroll past the top band so Chromium finishes edge-haze-in at opacity 1.
+  await scrollToY(page, Math.min(1200, Math.round((await maxScroll(page)) / 2)));
+  expectAll((await bandOpacity(page)).top, 1, 'top band on scrolled /projects');
+
+  // Filter /projects in place until no items remain so the sticky-bar page becomes non-scrollable.
+  const search = page.locator('main [data-filter-part="bar"] input[data-filter-part="field"]');
+  await search.fill('zzzz-no-matching-project-xyz');
+  await expect.poll(() => maxScroll(page)).toBeLessThanOrEqual(0);
+  await nextFrames(page);
+  let opacity = await bandOpacity(page);
+  expectAll(opacity.top, 0, 'top band after filtering sticky-bar route to fit');
+  expectAll(opacity.bottom, 0, 'bottom band after filtering sticky-bar route to fit');
+
+  // Clear the filter, scroll down again, then client-navigate to / (which fits at 1500x1100).
+  await search.fill('');
+  await expect.poll(() => maxScroll(page)).toBeGreaterThan(400);
+  await scrollToY(page, Math.min(1200, Math.round((await maxScroll(page)) / 2)));
+  expectAll((await bandOpacity(page)).top, 1, 'top band on scrolled /projects before nav');
+
+  await page.locator('nav a[href="/"]').first().click();
+  await page.waitForURL((url) => url.pathname === '/');
+  await expect(page.locator(MAIN)).toBeVisible();
+  await expect.poll(() => maxScroll(page)).toBeLessThanOrEqual(0);
+  await nextFrames(page);
+
+  opacity = await bandOpacity(page);
+  expectAll(opacity.top, 0, 'top band on non-scrollable / after scrolled client nav');
+  expectAll(opacity.bottom, 0, 'bottom band on non-scrollable / after scrolled client nav');
+
+  // Client-navigate to a scrollable route: top band starts hidden at y = 0 and returns on scroll.
+  await page.locator('main a[href="/experience"]').first().click();
+  await page.waitForURL('**/experience');
+  await expect(page.locator(MAIN)).toBeVisible();
+  await expect.poll(() => maxScroll(page)).toBeGreaterThan(400);
+  await scrollToY(page, 0);
+
+  opacity = await bandOpacity(page);
+  expectAll(opacity.top, 0, 'top band at top of /experience after non-scrollable /');
+  expectAll(opacity.bottom, 1, 'bottom band at top of /experience after non-scrollable /');
+
+  await scrollToY(page, Math.min(600, Math.round((await maxScroll(page)) / 2)));
+  opacity = await bandOpacity(page);
+  expectAll(opacity.top, 1, 'top band on scrolled /experience');
+});
