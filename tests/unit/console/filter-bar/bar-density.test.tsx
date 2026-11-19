@@ -194,7 +194,7 @@ describe("FilterBar.Root density='bar'", () => {
 });
 
 describe("FilterBar.Root density='row'", () => {
-  it('keeps the row bar exactly as it was', () => {
+  it('keeps the row bar density and backplate contract', () => {
     const bar = renderBar();
 
     expect(bar).toHaveAttribute('data-density', 'row');

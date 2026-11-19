@@ -79,18 +79,39 @@ async function expectFloatingShape(page: Page): Promise<void> {
     const spacing = await page.locator('main [data-filter-part="bar"]').evaluate((element) => {
       const box = element.getBoundingClientRect();
       const form = element.querySelector('form')?.getBoundingClientRect();
+      const scope = element.closest('[data-filter-scope]')?.getBoundingClientRect();
       const style = getComputedStyle(element);
+      const search = element.querySelector('label')?.getBoundingClientRect();
+      const chip = element.querySelector('a[data-filter-part="chip"]')?.getBoundingClientRect();
+      const picker = element
+        .querySelector('button[popovertarget]:not([data-filter-part="filters"])')
+        ?.getBoundingClientRect();
+      const centerY = (rect?: DOMRect) =>
+        rect && rect.height > 0 ? (rect.top + rect.bottom) / 2 : null;
       return {
-        left: style.marginLeft,
-        right: style.marginRight,
+        marginLeft: Number.parseFloat(style.marginLeft),
+        marginRight: Number.parseFloat(style.marginRight),
         innerLeft: form ? form.left - box.left : -1,
         innerRight: form ? box.right - form.right : -1,
+        scopeLeftDelta: form && scope ? form.left - scope.left : null,
+        scopeRightDelta: form && scope ? form.right - scope.right : null,
+        searchCy: centerY(search),
+        chipCy: centerY(chip),
+        pickerCy: centerY(picker),
       };
     });
-    expect(spacing.left).toBe('8px');
-    expect(spacing.right).toBe('8px');
-    expect(spacing.innerLeft).toBeCloseTo(8, 0);
-    expect(spacing.innerRight).toBeCloseTo(8, 0);
+    expect(spacing.marginLeft).toBeCloseTo(-spacing.innerLeft, 0);
+    expect(spacing.marginRight).toBeCloseTo(-spacing.innerRight, 0);
+    expect(spacing.innerLeft).toBeGreaterThanOrEqual(8);
+    expect(spacing.innerRight).toBeGreaterThanOrEqual(8);
+    if (spacing.scopeLeftDelta !== null) expect(spacing.scopeLeftDelta).toBeCloseTo(0, 0);
+    if (spacing.scopeRightDelta !== null) expect(spacing.scopeRightDelta).toBeCloseTo(0, 0);
+    if (spacing.searchCy !== null && spacing.chipCy !== null) {
+      expect(spacing.chipCy).toBeCloseTo(spacing.searchCy, 0);
+    }
+    if (spacing.searchCy !== null && spacing.pickerCy !== null) {
+      expect(spacing.pickerCy).toBeCloseTo(spacing.searchCy, 0);
+    }
     expect(bar.top).toBeCloseTo(8, 0);
     expect([bar.tl, bar.tr, bar.bl, bar.br]).toEqual(['12px', '12px', '12px', '12px']);
   }
@@ -190,9 +211,9 @@ async function expectOpaquePlaces(page: Page): Promise<void> {
   expect(state.tileBlur).toBe('none');
   expect(state.radius).toBe('12px');
   expect(state.border).toBe('1px');
-  expect([state.marginLeft, state.marginRight]).toEqual(['8px', '8px']);
-  expect(state.innerLeft).toBeCloseTo(8, 0);
-  expect(state.innerRight).toBeCloseTo(8, 0);
+  expect([state.marginLeft, state.marginRight]).toEqual(['0px', '0px']);
+  expect(state.innerLeft).toBeCloseTo(0, 0);
+  expect(state.innerRight).toBeCloseTo(0, 0);
   expect(state.verticalPadding).toBeCloseTo(8, 0);
   expect(Number.parseFloat(state.measured)).toBeCloseTo(state.height, 0);
 }
@@ -214,6 +235,13 @@ for (const profile of [
       context,
     }) => {
       await open(page, profile.route);
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            document.documentElement.style.getPropertyValue('--filter-bar-pinned-h'),
+          ),
+        )
+        .not.toBe('');
       await expectOpaquePlaces(page);
       const bar = page.locator('[data-filter-part="bar"]');
       const initialTop = await bar.evaluate((element) => element.getBoundingClientRect().top);

@@ -187,6 +187,19 @@ describe('a year group', () => {
     expect(header).toContain('border-hairline-strong');
   });
 
+  it('bleeds symmetrically by its cell padding so headings and outer columns sit flush on the page axis', () => {
+    render(<Table />);
+    const group = classesOf(document.querySelector('section[data-index-part="group"]'));
+    const heading = classesOf(screen.getByRole('heading', { level: 2 }));
+    const header = classesOf(screen.getAllByRole('columnheader')[0]);
+    const cell = classesOf(document.querySelector('tbody td'));
+
+    expect(group).toEqual(expect.arrayContaining(['-mx-2', '@min-[40rem]/page:-mx-3']));
+    expect(heading).toEqual(expect.arrayContaining(['px-2', '@min-[40rem]/page:px-3']));
+    expect(header).toContain('px-3');
+    expect(cell).toEqual(expect.arrayContaining(['px-2', '@min-[40rem]/page:px-3']));
+  });
+
   it('draws style 2 from the same markup', () => {
     render(<Table variant="open" />);
 

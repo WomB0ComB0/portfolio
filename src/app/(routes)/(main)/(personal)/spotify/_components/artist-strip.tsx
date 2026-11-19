@@ -49,15 +49,12 @@ import { SECTION_HEAD_GROW_CLASS } from './track-table';
 const HEADING_ID = 'spotify-top-artists';
 
 /**
- * The h2: the IndexTable year bar's type and inset, so both section heads line up, and, as the
- * tracks bar does, its growing form on a page under ten lines wide: with text enlarged the
- * qualifier wraps under the heading instead of the two overflowing the 40px bar (at the browser's
- * own size it is still 40px).
+ * The h2: the IndexTable year bar's type, flush on the page content axis so both section heads
+ * line up with the page header and cards, and, as the tracks bar does, its growing form on a page
+ * under ten lines wide: with text enlarged the qualifier wraps under the heading instead of the
+ * two overflowing the 40px bar (at the browser's own size it is still 40px).
  */
-const HEADING_CLASS = cn(
-  'flex h-10 items-end gap-2.5 px-2 pb-1 @min-[40rem]/page:px-3',
-  SECTION_HEAD_GROW_CLASS,
-);
+const HEADING_CLASS = cn('flex h-10 items-end gap-2.5 pb-1', SECTION_HEAD_GROW_CLASS);
 /**
  * The list: a phone's edge-to-edge scroller (the page gutter becomes its padding, so the first
  * portrait lines up with the text above), a ten-up grid from a 53.5rem page. The grid has no gap
