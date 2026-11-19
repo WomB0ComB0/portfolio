@@ -44,7 +44,7 @@ export const Privacy = (): JSX.Element => {
           <div>
             <h1 className="text-4xl font-bold tracking-tight">Privacy Policy</h1>
             <p className="text-muted-foreground mt-1">
-              Last Updated: <span className="font-medium">November 4, 2026</span>
+              Last Updated: <span className="font-medium">November 19, 2026</span>
             </p>
           </div>
         </div>
@@ -227,6 +227,22 @@ export const Privacy = (): JSX.Element => {
               <li className="flex gap-3">
                 <span className="text-primary mt-1">•</span>
                 <div>
+                  <span className="font-semibold">Images and Media From Other Services:</span> Your
+                  browser loads the site's images, videos, and the résumé PDF directly from the
+                  services that host them, listed under Third-Party Services below. For most images
+                  this began on November 17, 2026; before then, they were fetched through our host,
+                  Vercel, so those services saw Vercel's servers rather than you. Each request gives
+                  the service your IP address, your browser's user agent and language preferences,
+                  and the address of the file. The site's Referrer-Policy is
+                  strict-origin-when-cross-origin, so these requests name only https://mikeodnis.dev
+                  as the referrer, not the page you are on. Your browser may also send cookies it
+                  already holds for a service's domain, depending on its third-party cookie
+                  settings.
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-primary mt-1">•</span>
+                <div>
                   <span className="font-semibold">By Law or to Protect Rights:</span> We may share
                   information if necessary to respond to legal process, investigate policy
                   violations, or protect rights, property, and safety of others.
@@ -266,7 +282,7 @@ export const Privacy = (): JSX.Element => {
                 },
                 {
                   name: 'Sanity',
-                  purpose: 'Content and image CDN',
+                  purpose: 'Content, plus images, videos, and the résumé PDF from cdn.sanity.io',
                   url: 'https://www.sanity.io/legal/privacy',
                 },
                 {
@@ -284,6 +300,40 @@ export const Privacy = (): JSX.Element => {
                   purpose: 'API Rate Limits and IP Ban List',
                   url: 'https://upstash.com/privacy',
                 },
+                {
+                  name: 'GitHub',
+                  purpose:
+                    'Avatars on the home page and /sponsor, from avatars.githubusercontent.com',
+                  url: 'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement',
+                },
+                {
+                  name: 'Spotify',
+                  purpose:
+                    'Album and artist art on the home page, /spotify and /stats, from i.scdn.co',
+                  url: 'https://www.spotify.com/legal/privacy-policy/',
+                },
+                {
+                  name: 'Discord',
+                  purpose: 'Profile picture on /stats, from cdn.discordapp.com',
+                  url: 'https://discord.com/privacy',
+                },
+                {
+                  name: 'YouTube',
+                  purpose: 'Video thumbnails on /media, from img.youtube.com',
+                  url: 'https://policies.google.com/privacy',
+                },
+                {
+                  name: 'Hashnode',
+                  purpose:
+                    'Blog post covers on /media, from cdn.hashnode.com and blog.mikeodnis.dev',
+                  url: 'https://hashnode.com/privacy-policy',
+                },
+                {
+                  name: 'dev.to',
+                  purpose:
+                    'Post covers on /media, from media.dev.to, media2.dev.to and dev-to-uploads.s3.amazonaws.com',
+                  url: 'https://dev.to/privacy',
+                },
               ].map((service) => (
                 <a
                   key={service.name}
@@ -292,10 +342,11 @@ export const Privacy = (): JSX.Element => {
                   rel="noopener noreferrer"
                   className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent transition-colors group"
                 >
-                  <div>
+                  {/* min-w-0 and overflow-wrap let a long host name wrap at phone width. */}
+                  <div className="min-w-0">
                     <span className="font-semibold">{service.name}</span>
                     {/* Muted text on the hover fill (bg-accent) is 4.14:1, so it brightens with it. */}
-                    <span className="text-muted-foreground text-sm ml-2 transition-colors group-hover:text-foreground">
+                    <span className="text-muted-foreground text-sm ml-2 transition-colors group-hover:text-foreground [overflow-wrap:anywhere]">
                       ({service.purpose})
                     </span>
                   </div>
