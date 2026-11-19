@@ -168,7 +168,7 @@
     "@vitest/ui": "5.1.1",
     "cross-env": "^10.1.0",
     "depcheck": "^1.4.7",
-    "fallow": "3.43.2",
+    "fallow": "3.44.0",
     "fast-glob": "3.3.3",
     "google-gax": "6.17.0",
     "groq-js": "2.0.1",
