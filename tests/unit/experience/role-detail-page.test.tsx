@@ -268,7 +268,9 @@ describe('/experience/[id]: the header', () => {
 
     const eyebrow = container.querySelector('[data-role-organization]');
     expect(visibleText(eyebrow)).toBe('ResQ Systems');
-    expect(screen.getAllByText('GitHub organization').length).toBeGreaterThan(0);
+    const headerLink = eyebrow?.closest('a');
+    expect(headerLink).not.toBeNull();
+    expect(visibleText(headerLink)).toContain('GitHub organization');
 
     const heading = screen.getByRole('heading', { level: 2, name: 'Links' });
     const section = heading.closest('section');

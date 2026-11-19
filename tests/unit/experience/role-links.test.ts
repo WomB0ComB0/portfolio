@@ -23,6 +23,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  mergeOrganizationLink,
+  organizationLinkOf,
   type RoleLink,
   roleLinksOf,
   siteOf,
@@ -37,6 +39,46 @@ const BARBERSHOP =
   'https://developforgood.notion.site/Barbershop-Books-Inspiring-Kids-To-Read-For-Fun-250fbe7117c0802a9bfbdc1450e33d91';
 const ROOTED =
   'https://developforgood.notion.site/Rooted-Minds_Case-Study-2fafbe7117c0808abfbfd62faff77e1a';
+
+describe('organizationLinkOf', () => {
+  it('names code-host organizations explicitly', () => {
+    expect(organizationLinkOf('https://github.com/resq-software')).toEqual({
+      href: 'https://github.com/resq-software',
+      label: 'GitHub organization',
+      host: 'github.com',
+      token: false,
+    });
+  });
+
+  it('uses neutral GitHub wording for repository destinations', () => {
+    expect(organizationLinkOf('https://github.com/resq-software/api')?.label).toBe('GitHub');
+  });
+
+  it('deduplicates organization links by address identity', () => {
+    const existing: readonly RoleLink[] = [
+      {
+        href: 'https://github.com/resq-software',
+        label: 'resq-software',
+        host: 'github.com',
+        token: true,
+      },
+    ];
+    expect(mergeOrganizationLink('https://github.com/resq-software/', existing)).toEqual([
+      {
+        href: 'https://github.com/resq-software/',
+        label: 'GitHub organization',
+        host: 'github.com',
+        token: false,
+      },
+    ]);
+  });
+
+  it('rejects invalid and non-http organization URLs', () => {
+    expect(organizationLinkOf('ftp://github.com/resq-software')).toBeNull();
+    expect(organizationLinkOf('not a url')).toBeNull();
+    expect(organizationLinkOf(null)).toBeNull();
+  });
+});
 
 describe('roleLinksOf: a proper name from the text', () => {
   it('names a link by the capitalised words right before its bracket', () => {
