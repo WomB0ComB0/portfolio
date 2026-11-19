@@ -6,21 +6,34 @@
   "prHourlyLimit": 6,
   "rangeStrategy": "auto",
   "labels": ["dependencies"],
-  "dependencyDashboard": true,
-  "enabledManagers": ["npm", "bun", "github-actions", "dockerfile"],
+  "dependencyDashboard": {
+    "enabled": true
+  },
+  "enabledManagers": ["npm", "bun", "github-actions", "dockerfile", "nvm"],
   "packageRules": [
     {
+      "description": "Action updates automerge, so a release must be 3 days old before Renovate opens the PR; strict filtering keeps a newer release from being picked before then",
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
-      "automergeType": "pr"
+      "automergeType": "pr",
+      "minimumReleaseAge": "3 days",
+      "internalChecksFilter": "strict"
     },
     {
+      "description": "devDependency updates automerge, so a release must be 3 days old before Renovate opens the PR; strict filtering keeps a newer release from being picked before then",
       "matchManagers": ["npm", "bun"],
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
+      "automerge": true,
+      "minimumReleaseAge": "3 days",
+      "internalChecksFilter": "strict"
+    },
+    {
+      "description": "Node moves in one PR: package.json engines (which Vercel follows) and .nvmrc (which the workflows read) change together",
+      "matchDatasources": ["node-version"],
+      "groupName": "node"
     },
     {
       "matchManagers": ["npm", "bun"],
@@ -52,12 +65,6 @@
       "matchManagers": ["npm", "bun"],
       "matchPackageNames": ["elysia-rate-limit"],
       "allowedVersions": "<5.0.0"
-    },
-    {
-      "description": "deepmerge 4.2.0 through 4.3.1 are affected by GHSA-gcqx-w48m-w2h4 and no fixed release exists yet, so the security override stays on 4.1.2",
-      "matchManagers": ["npm", "bun"],
-      "matchPackageNames": ["deepmerge"],
-      "allowedVersions": "<4.2.0"
     },
     {
       "description": "@pierre/diffs 1.6.3 was published with unresolved catalog:/workspace: specifiers and cannot be installed; skip it so the override moves straight to the next good release",
