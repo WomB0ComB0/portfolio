@@ -157,7 +157,7 @@
     "@sentry/browser": "11.13.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "10.4.2",
-    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/jest-dom": "8.0.0",
     "@testing-library/react": "16.3.3",
     "@types/bun": "1.4.4",
     "@types/google.maps": "^3.66.9",
