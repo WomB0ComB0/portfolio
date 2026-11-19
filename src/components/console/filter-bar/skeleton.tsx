@@ -17,8 +17,10 @@
 /**
  * @file FilterBar.Skeleton: the bar's boxes at the bar's own sizes, from the same class module,
  * for a server-rendered placeholder that must not shift when the real bar arrives. Server-safe
- * (no directive, no hooks). It never wraps filterable content: anything behind a Suspense
- * fallback is invisible without JavaScript.
+ * (no directive, no hooks). Whatever a Suspense fallback stands for is in the HTML but shown only
+ * once React's inline script moves it in, so content streamed behind this skeleton is invisible
+ * without JavaScript: /media streams its list behind it only when its feed is still loading after
+ * a short wait, and renders the list in place otherwise.
  */
 
 import type { ReactElement } from 'react';

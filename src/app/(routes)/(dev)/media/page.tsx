@@ -19,6 +19,7 @@ import type { JSX } from 'react';
 import {
   MEDIA_TITLE,
   MediaFeedView,
+  StreamedMediaFeed,
 } from '@/app/(routes)/(dev)/media/_interface/media-feed/media-feed';
 import { loadMediaFeed } from '@/app/(routes)/(dev)/media/_lib/load-feed';
 import { legacyTabHref, MEDIA_PATH } from '@/app/(routes)/(dev)/media/_lib/media-filters';
@@ -27,7 +28,9 @@ import {
   DEFAULT_PARTS,
   DEFAULT_PLAY,
 } from '@/app/(routes)/(dev)/media/_lib/media-options';
+import { ensureBaseError } from '@/classes/error';
 import { JsonLd } from '@/components/scripts/structured-data';
+import { FIRST_FLUSH_WAIT_MS, settledWithin } from '@/lib/async/settled-within';
 import { collectionPageJsonLd } from '@/lib/seo/json-ld';
 import { constructMetadata } from '@/utils';
 
@@ -48,10 +51,16 @@ interface MediaPageProps {
 
 /**
  * /media in sections (Writing, Video, Streams: one list per kind that has items), rendered on
- * the server: every source is awaited first (each within its deadline, behind its stale cache),
- * so every row is in the first HTML with no loading.tsx. An old ?tab= link redirects (308) to
- * the ?kind= it now means. When every source fails, the load rejects and
- * src/app/(routes)/error.tsx shows the error inside the shell.
+ * the server. Every source loads at once (each within its deadline, behind its stale cache) and
+ * the page waits for the feed FIRST_FLUSH_WAIT_MS at most:
+ * - in by then (a warm cache answers at once), the whole page is rendered in place, every row in
+ *   the first HTML and readable without JavaScript;
+ * - still loading, the header goes out and the strip's figures and the list (filter bar and
+ *   sections) stream in once it has loaded, behind skeletons of their own size;
+ * - failed by then (every source failed), the page throws and src/app/(routes)/error.tsx shows
+ *   the error inside the shell; failing later, the streamed parts throw it to the same view.
+ * There is no loading.tsx. An old ?tab= link redirects (308) to the ?kind= it now means, before
+ * anything loads.
  *
  * Its JSON-LD is the page alone, a CollectionPage named as the h1 names it: the rows link to
  * pieces on other sites, so none gets a node of its own (src/lib/seo/json-ld.ts).
@@ -59,17 +68,23 @@ interface MediaPageProps {
 export default async function MediaPage({ searchParams }: MediaPageProps): Promise<JSX.Element> {
   const legacy = legacyTabHref(await searchParams);
   if (legacy !== null) permanentRedirect(legacy);
-  const feed = await loadMediaFeed();
+  const feed = loadMediaFeed();
+  const early = (await settledWithin({ feed }, FIRST_FLUSH_WAIT_MS)).feed;
+  if (early?.status === 'rejected') throw ensureBaseError(early.reason, 'media:feed');
+  const view = {
+    layout: DEFAULT_LAYOUT,
+    parts: DEFAULT_PARTS,
+    play: DEFAULT_PLAY,
+    path: MEDIA_PATH,
+  };
   return (
     <>
       <JsonLd data={collectionPageJsonLd({ path: MEDIA_PATH, name: MEDIA_TITLE })} />
-      <MediaFeedView
-        feed={feed}
-        layout={DEFAULT_LAYOUT}
-        parts={DEFAULT_PARTS}
-        play={DEFAULT_PLAY}
-        path={MEDIA_PATH}
-      />
+      {early ? (
+        <MediaFeedView feed={early.value} {...view} />
+      ) : (
+        <StreamedMediaFeed feed={feed} {...view} />
+      )}
     </>
   );
 }

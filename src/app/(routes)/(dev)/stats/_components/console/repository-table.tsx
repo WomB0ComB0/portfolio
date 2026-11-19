@@ -39,6 +39,7 @@
 
 import type { CSSProperties, ReactElement } from 'react';
 import type { TileResult } from '@/app/_components/home/data/tile-result';
+import { LoadingNote, ShapePlaceholder } from '@/app/_components/home/tiles/tile-states';
 import type { GitHubStatsData } from '@/app/api/v1/[[...route]]/github-stats/handlers';
 import { EmptyState, NewTabArrow, numberFormatter } from '@/components/console';
 import {
@@ -49,7 +50,8 @@ import {
   indexCellClass,
 } from '@/components/console/index-table';
 import { cn } from '@/lib/utils';
-import { type RepoColumnSizes, topRepos } from '../../_lib/console-model';
+import { type RepoColumnSizes, TOP_REPOS_SHOWN, topRepos } from '../../_lib/console-model';
+import { WIDEST_AGE } from './age-room';
 import { PresentAge } from './present-age';
 import { StaleAge } from './stale-age';
 
@@ -199,6 +201,10 @@ const LANGUAGE_LINE_CLASS = 'mt-0.5 block tile-meta text-faint @min-[40rem]/page
  */
 const SECTION_CLASS = `flex flex-col gap-2 ${ABOUT_COLUMN_LABEL_CLASS}`;
 
+/** The table's heading and what it counts, which its skeleton shows too. */
+const TABLE_HEADING = 'Top repositories';
+const TABLE_COUNT = 'by stars · public, excluding forks';
+
 /** The six most-starred public repositories, with an honest empty or unavailable state. */
 export function RepositoryTable({
   result,
@@ -225,8 +231,8 @@ export function RepositoryTable({
     >
       <IndexGroup
         id="stats-top-repositories"
-        year="Top repositories"
-        count="by stars · public, excluding forks"
+        year={TABLE_HEADING}
+        count={TABLE_COUNT}
         columns={COLUMNS}
         variant="open"
         wrapHeading
@@ -267,6 +273,87 @@ export function RepositoryTable({
           {result.stale ? <StaleAge at={result.asOf} /> : <PresentAge at={result.asOf} />}
         </p>
       )}
+    </section>
+  );
+}
+
+/**
+ * What the skeleton's bars are shaped as (ShapePlaceholder): a name, a tagline, a language and a
+ * two-digit count, about what the loaded rows hold.
+ */
+const SKELETON_NAME = 'a-public-project';
+const SKELETON_ABOUT = 'What the repository is, in a line or two';
+const SKELETON_LANGUAGE = 'TypeScript';
+const SKELETON_STARS = '00';
+
+/** One row while the list loads: the row's cells, each a bar the size of what it holds. */
+function RepositoryRowSkeleton({ rank }: { readonly rank: number }): ReactElement {
+  return (
+    <IndexRow aria-hidden="true" data-stats-repo-skeleton="">
+      <td className={RANK_CELL_CLASS}>
+        <span className="tabular-nums text-faint">{rank}</span>
+      </td>
+      <td className={REPOSITORY_CELL_CLASS}>
+        <span className="flex min-w-0 flex-col">
+          <span className="self-start font-medium">
+            <ShapePlaceholder shape={SKELETON_NAME} />
+          </span>
+          <span className={ABOUT_LINE_CLASS}>
+            <ShapePlaceholder shape={SKELETON_ABOUT} />
+          </span>
+          <span className={LANGUAGE_LINE_CLASS}>
+            <ShapePlaceholder shape={SKELETON_LANGUAGE} />
+          </span>
+        </span>
+      </td>
+      <td className={ABOUT_CELL_CLASS}>
+        <span className={ABOUT_COLUMN_CLASS}>
+          <ShapePlaceholder shape={SKELETON_ABOUT} />
+        </span>
+      </td>
+      <td className={LANGUAGE_CELL_CLASS}>
+        <ShapePlaceholder shape={SKELETON_LANGUAGE} />
+      </td>
+      <td className={STARS_CELL_CLASS}>
+        <span className={STARS_FIGURE_CLASS}>
+          <ShapePlaceholder shape={SKELETON_STARS} />
+        </span>
+      </td>
+    </IndexRow>
+  );
+}
+
+/**
+ * The table while the GitHub totals load (/stats streams it on its own): the real heading, count
+ * and column labels over as many rows as the table lists, in the table's own columns and cells,
+ * and the age line under it, so the loaded table takes the same room.
+ */
+export function RepositoryTableSkeleton(): ReactElement {
+  return (
+    <section
+      aria-label={TABLE_HEADING}
+      aria-busy="true"
+      className={SECTION_CLASS}
+      data-stats-skeleton="repositories"
+    >
+      <IndexGroup
+        id="stats-top-repositories-loading"
+        year={TABLE_HEADING}
+        count={TABLE_COUNT}
+        columns={COLUMNS}
+        variant="open"
+        wrapHeading
+        pin="tall-screens"
+      >
+        {Array.from({ length: TOP_REPOS_SHOWN }, (_, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have no identity.
+          <RepositoryRowSkeleton key={index} rank={index + 1} />
+        ))}
+      </IndexGroup>
+      <p aria-hidden="true" className="flex items-center tile-meta text-faint">
+        <ShapePlaceholder shape={WIDEST_AGE} />
+      </p>
+      <LoadingNote>Loading the top repositories</LoadingNote>
     </section>
   );
 }

@@ -17,9 +17,11 @@ import 'server-only';
  */
 
 /**
- * @file The /stats console's server loaders, which the page awaits at the top so every figure is
- * final in the server HTML (no Suspense skeleton, no loading.tsx), as /certifications, /projects
- * and /places do.
+ * @file The /stats console's server loaders. The page starts every source at once
+ * (startStatsConsole) and waits for them a moment at most (settledWithin): each part whose
+ * sources have answered by then is rendered in place, and each other part awaits its own sources
+ * inside its own Suspense boundary, so the first byte never waits on a slow source's deadline.
+ * There is no loading.tsx; each streamed part's skeleton is its loading state.
  *
  * - Each source settles on its own and never throws: within its deadline (STATS_DEADLINE_MS for a
  *   tile, DISCORD_DEADLINE_MS for the live Discord snapshot) it is what the source answered;
@@ -70,7 +72,7 @@ import { DeadlineError, withDeadline } from '@/lib/async/deadline';
 import { keepAlive } from '@/lib/cache/keep-alive';
 import type { CachedValue } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
-import type { StatsConsoleData } from './console-model';
+import type { StatsConsoleData, StatsConsoleSources } from './console-model';
 
 /** How long a tile's source may take before it shows its last answer (or its error state). */
 export const STATS_DEADLINE_MS = SERVER_TILE_DEADLINE_MS;
@@ -229,21 +231,43 @@ export const loadDiscord = cache(async (): Promise<LiveInitial<LanyardData>> => 
 });
 
 /**
- * Everything the console shows, every source loaded in parallel and settled on its own: the
- * page waits at most the slowest deadline ({@link STATS_DEADLINE_MS}), and one source failing
- * never fails the page.
+ * Every source the console shows, all started at once and none awaited here: the page waits a
+ * moment for them, renders in place the parts whose sources have answered, and streams each other
+ * part once its own sources settle (the strip the totals and page views, the hero the activity
+ * and totals, and so on), so a slow source holds back only the parts that show it, for its
+ * deadline at most. No promise rejects.
+ */
+export const startStatsConsole = cache(
+  (): StatsConsoleSources => ({
+    activity: loadGitHubActivity(),
+    totals: loadGitHubTotals(),
+    leetcode: loadLeetCodeStats(),
+    typing: loadTypingStats(),
+    codingTime: loadCodingTime(),
+    pageViews: loadPageViews(),
+    discord: loadDiscord(),
+    nowPlaying: loadNowPlaying(),
+  }),
+);
+
+/**
+ * Everything the console shows, every source loaded in parallel and settled on its own: it
+ * resolves after at most the slowest deadline ({@link STATS_DEADLINE_MS}), and one source failing
+ * never fails it. For a caller that renders the whole console at once (the lab); /stats streams
+ * its parts from {@link startStatsConsole} instead.
  */
 export const loadStatsConsole = cache(async (): Promise<StatsConsoleData> => {
+  const sources = startStatsConsole();
   const [activity, totals, leetcode, typing, codingTime, pageViews, discord, nowPlaying] =
     await Promise.all([
-      loadGitHubActivity(),
-      loadGitHubTotals(),
-      loadLeetCodeStats(),
-      loadTypingStats(),
-      loadCodingTime(),
-      loadPageViews(),
-      loadDiscord(),
-      loadNowPlaying(),
+      sources.activity,
+      sources.totals,
+      sources.leetcode,
+      sources.typing,
+      sources.codingTime,
+      sources.pageViews,
+      sources.discord,
+      sources.nowPlaying,
     ]);
   return { activity, totals, leetcode, typing, codingTime, pageViews, discord, nowPlaying };
 });

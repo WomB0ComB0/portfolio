@@ -27,6 +27,7 @@ import {
   codingHours,
   heroModel,
   leetCodeMeta,
+  pendingStripItems,
   repoColumnSizes,
   statFigure,
   stripItems,
@@ -221,6 +222,21 @@ describe('stripItems', () => {
   it('shows a source that failed or has nothing as unavailable, never 0', () => {
     const items = stripItems({ totals: ERROR, pageViews: EMPTY }, NOW);
     expect(items.map((item) => item.value)).toEqual([22, null, null]);
+  });
+});
+
+describe('pendingStripItems', () => {
+  it('keeps the loaded strip’s labels and age, with the two sourced figures loading', () => {
+    const loaded = stripItems({ totals: ok(TOTALS), pageViews: ok(2615) }, NOW);
+
+    expect(pendingStripItems(NOW)).toEqual([
+      { label: 'years old', value: 22 },
+      { label: 'page views in 30 days', value: null, loading: true },
+      { label: 'GitHub followers', value: null, loading: true },
+    ]);
+    expect(pendingStripItems(NOW).map((item) => item.label)).toEqual(
+      loaded.map((item) => item.label),
+    );
   });
 });
 

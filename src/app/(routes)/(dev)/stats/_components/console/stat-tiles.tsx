@@ -38,6 +38,7 @@ import type { ReactElement, ReactNode } from 'react';
 import type { TypingTileData } from '@/app/_components/home/data/selectors';
 import type { TileResult } from '@/app/_components/home/data/tile-result';
 import {
+  LEETCODE_DIFFICULTIES,
   LEETCODE_PROFILE_URL,
   leetCodeSegments,
   MONKEYTYPE_PROFILE_URL,
@@ -45,7 +46,13 @@ import {
 import { ExternalAnchor } from '@/app/_components/home/tiles/tile-states';
 import type { LeetCodeStats } from '@/app/api/v1/[[...route]]/leetcode/handlers';
 import type { WakaTimeData } from '@/app/api/v1/[[...route]]/wakatime/handlers';
-import { SegmentBar, StatTile, type TileSpan } from '@/components/console';
+import {
+  SegmentBar,
+  SegmentBarSkeleton,
+  StatTile,
+  StatTileSkeleton,
+  type TileSpan,
+} from '@/components/console';
 import {
   type AccuracyStyle,
   codingHours,
@@ -66,6 +73,11 @@ import {
 } from './console-layout';
 import { MetaRow, metaParts } from './meta-row';
 import { PresentAge } from './present-age';
+
+/** Each tile's label, which its skeleton shows too. */
+const LEETCODE_LABEL = 'LeetCode';
+const TYPING_LABEL = 'Typing';
+const CODING_LABEL = 'Coding time';
 
 /** Typing's and coding time's places in the pair: their shared phone row and their ages' line. */
 const TYPING_CLASS = `${STAT_PAIR_CLASS} ${TYPING_AGE_LINE_CLASS}`;
@@ -214,7 +226,7 @@ export function LeetCodeStat({
   return (
     <ConsoleStat
       tile="leetcode"
-      label="LeetCode"
+      label={LEETCODE_LABEL}
       figure={statFigure(result, (stats) => stats.totalSolved)}
       unit="solved"
       context={data ? leetCodeMeta(data) : ''}
@@ -242,7 +254,7 @@ export function TypingStat({ result, accuracy }: TypingStatProps): ReactElement 
   return (
     <ConsoleStat
       tile="typing"
-      label="Typing"
+      label={TYPING_LABEL}
       figure={statFigure(result, (typing) => typing.best60.wpm)}
       unit="wpm"
       context={data ? typingContext(data, { accuracy: !gauge }) : ''}
@@ -273,12 +285,82 @@ export function CodingTimeStat({
   return (
     <ConsoleStat
       tile="coding"
-      label="Coding time"
+      label={CODING_LABEL}
       figure={statFigure(result, codingHours)}
       unit="hours"
       context="all time"
       idleText="No coding time yet"
       errorText="Coding time unavailable"
+      span={CODING_SPAN}
+      className={CODING_CLASS}
+    />
+  );
+}
+
+interface ConsoleStatSkeletonProps {
+  /** `data-stats-skeleton`, for the browser checks: the tile it stands in for. */
+  readonly tile: string;
+  readonly label: string;
+  readonly span: TileSpan;
+  readonly className?: string;
+  /** Under the figure's placeholder, where the loaded tile has something there (the split). */
+  readonly children?: ReactNode;
+}
+
+/**
+ * A stat tile while its source loads (/stats streams each tile on its own): the kit's StatTile
+ * skeleton with the loaded tile's label, heading, figure tier, alignment and place in the grid,
+ * so its three rows sit where the loaded tile's do and the tile lands without moving its row.
+ */
+function ConsoleStatSkeleton({
+  tile,
+  label,
+  span,
+  className,
+  children,
+}: ConsoleStatSkeletonProps): ReactElement {
+  return (
+    <StatTileSkeleton
+      label={label}
+      labelAs="h2"
+      size="fit"
+      align="start"
+      span={span}
+      className={className}
+      data-stats-skeleton={tile}
+    >
+      {children}
+    </StatTileSkeleton>
+  );
+}
+
+/** LeetCode while it loads, with the split's track and legend held (SegmentBarSkeleton). */
+export function LeetCodeStatSkeleton(): ReactElement {
+  return (
+    <ConsoleStatSkeleton tile="leetcode" label={LEETCODE_LABEL} span={LEETCODE_SPAN}>
+      <SegmentBarSkeleton segments={LEETCODE_DIFFICULTIES} />
+    </ConsoleStatSkeleton>
+  );
+}
+
+/** Typing while it loads, in its place in the pair (the phone row it shares, its age's line). */
+export function TypingStatSkeleton(): ReactElement {
+  return (
+    <ConsoleStatSkeleton
+      tile="typing"
+      label={TYPING_LABEL}
+      span={TYPING_SPAN}
+      className={TYPING_CLASS}
+    />
+  );
+}
+
+/** Coding time while it loads, in its place in the pair. */
+export function CodingTimeStatSkeleton(): ReactElement {
+  return (
+    <ConsoleStatSkeleton
+      tile="coding"
+      label={CODING_LABEL}
       span={CODING_SPAN}
       className={CODING_CLASS}
     />

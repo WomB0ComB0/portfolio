@@ -38,7 +38,10 @@ import type { ReactElement } from 'react';
 import { commitHeadline, formatRelative } from '@/app/_components/home/data/format';
 import { commitLinkName, contributionSummary } from '@/app/_components/home/tiles/github-tile';
 import {
+  FigurePlaceholder,
   GITHUB_PROFILE_URL,
+  LoadingNote,
+  ShapePlaceholder,
   TileLabel,
   TileUnavailable,
 } from '@/app/_components/home/tiles/tile-states';
@@ -391,6 +394,96 @@ export function GitHubHero({ hero, now }: GitHubHeroProps): ReactElement {
         <Totals totals={hero.totals} />
         <Commit commit={hero.activity?.latestCommit ?? null} now={now} />
       </div>
+    </Tile>
+  );
+}
+
+/**
+ * What the skeleton's bars are shaped as (ShapePlaceholder): what the loaded parts usually hold,
+ * so each bar is as wide as its text will be and wraps where it would.
+ */
+const SKELETON_CONTRIBUTION_DIGITS = 4;
+const SKELETON_REPO_DIGITS = 3;
+const SKELETON_STAR_DIGITS = 2;
+const SKELETON_LANGUAGES = 'TypeScript, Python, Go';
+const SKELETON_COMMIT_META = 'Latest commit · portfolio · 11 h ago';
+const SKELETON_HEADLINE = 'Keep the public figures current';
+/** The sparkline's box (80px, 112px in the wide layout, its column's height beside Discord). */
+const TREND_PLACEHOLDER_CLASS = `h-20 rounded-md bg-surface-3 motion-safe:animate-pulse forced-colors:outline ${TREND_CLASS}`;
+
+/** A total while it loads: a bar as wide as its figure over the real word. */
+function TotalSkeleton({
+  label,
+  digits,
+}: {
+  readonly label: string;
+  readonly digits: number;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span className={`order-2 ${UNIT_WORDS_CLASS}`}>{label}</span>
+      <FigurePlaceholder digits={digits} className="order-1 figure-md" />
+    </div>
+  );
+}
+
+/**
+ * The hero while its two sources load (/stats streams it on its own): the loaded hero's tile,
+ * place in the grid and parts, each a placeholder the size of what it holds (the figure, the
+ * sparkline's box, the totals, the commit), under the real label and words. The head keeps the
+ * age's room, so it wraps as the loaded head does, and nothing below moves when the hero lands.
+ */
+export function GitHubHeroSkeleton(): ReactElement {
+  return (
+    <Tile
+      tone="hero"
+      padding="lg"
+      aria-busy="true"
+      className={`gap-7 ${HERO_SPAN_CLASS} ${SHORT_SCREEN_TILE_CLASS}`}
+      data-stats-skeleton="github"
+      data-state="loading"
+    >
+      <div className={HEAD_CLASS}>
+        <TileLabel>GitHub</TileLabel>
+        <AgeRoom className={HERO_AGE_ROOM_CLASS}>
+          <span aria-hidden="true" className={AGE_CELL_CLASS} />
+        </AgeRoom>
+      </div>
+      <div aria-hidden="true" className={ACTIVITY_CLASS}>
+        <p className="flex flex-col gap-3">
+          <FigurePlaceholder
+            digits={SKELETON_CONTRIBUTION_DIGITS}
+            className={DISPLAY_FIGURE_CLASS}
+          />
+          <span className={UNIT_WORDS_CLASS}>contributions in the last {ACTIVITY_WEEKS} weeks</span>
+        </p>
+        <div className={TREND_COLUMN_CLASS}>
+          <div className={TREND_PLACEHOLDER_CLASS} />
+          <p className={TREND_LABELS_CLASS}>
+            <span>{ACTIVITY_WEEKS} weeks ago</span>
+            <span className="text-right">this week</span>
+          </p>
+        </div>
+      </div>
+      <div aria-hidden="true" className={FOOT_CLASS}>
+        <div className={TOTALS_CLASS}>
+          <TotalSkeleton label="repositories" digits={SKELETON_REPO_DIGITS} />
+          <TotalSkeleton label="stars" digits={SKELETON_STAR_DIGITS} />
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className={`order-2 ${UNIT_WORDS_CLASS}`}>used most</span>
+            <ShapePlaceholder shape={SKELETON_LANGUAGES} className={LANGUAGES_CLASS} />
+          </div>
+        </div>
+        <div className={COMMIT_CLASS}>
+          <p className="tile-meta">
+            <ShapePlaceholder shape={SKELETON_COMMIT_META} />
+          </p>
+          <p className={HEADLINE_LINE_CLASS}>
+            <ShapePlaceholder shape={SKELETON_HEADLINE} />
+          </p>
+        </div>
+      </div>
+      <LoadingNote>Loading GitHub stats</LoadingNote>
     </Tile>
   );
 }

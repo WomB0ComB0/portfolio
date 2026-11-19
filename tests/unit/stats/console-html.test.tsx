@@ -19,10 +19,30 @@ import { join } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
+import { prerender } from 'react-dom/static';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { loadStatsConsole } = vi.hoisted(() => ({ loadStatsConsole: vi.fn() }));
-vi.mock('@/app/(routes)/(dev)/stats/_lib/console-loaders', () => ({ loadStatsConsole }));
+const { consoleData, startStatsConsole } = vi.hoisted(() => {
+  const keys = [
+    'activity',
+    'totals',
+    'leetcode',
+    'typing',
+    'codingTime',
+    'pageViews',
+    'discord',
+    'nowPlaying',
+  ] as const;
+  /** What every source answers, as one object (each test sets it). */
+  const consoleData = vi.fn();
+  /** The page's sources: each the matching part of what consoleData answers. */
+  const startStatsConsole = vi.fn(() => {
+    const data: Promise<Record<string, unknown>> = Promise.resolve(consoleData());
+    return Object.fromEntries(keys.map((key) => [key, data.then((all) => all[key])]));
+  });
+  return { consoleData, startStatsConsole };
+});
+vi.mock('@/app/(routes)/(dev)/stats/_lib/console-loaders', () => ({ startStatsConsole }));
 // Reused home tile helpers import their loaders; this test supplies the already-settled data.
 vi.mock('@/app/_components/home/data/loaders', () => ({
   loadGitHubActivity: vi.fn(),
@@ -95,6 +115,24 @@ function fixture(): StatsConsoleData {
   };
 }
 
+/**
+ * /stats as the browser shows it once every part has streamed in, parsed without hydrating it:
+ * prerender waits for each Suspense boundary, and progressiveChunkSize: Infinity keeps each in its
+ * place (React's default sends a large part after its skeleton, for its inline script to move).
+ */
+async function pageHtml(): Promise<HTMLElement> {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const page = await StatsPage();
+  const { prelude } = await prerender(
+    <QueryClientProvider client={client}>{page}</QueryClientProvider>,
+    { progressiveChunkSize: Number.POSITIVE_INFINITY },
+  );
+  const root = document.createElement('div');
+  root.innerHTML = await new Response(prelude).text();
+  client.clear();
+  return root;
+}
+
 /** Parses server markup without hydrating it or running any effects. */
 function html(node: ReactElement): HTMLElement {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -110,14 +148,15 @@ const textOf = (element: Element | null | undefined) =>
   element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
 beforeEach(() => {
-  loadStatsConsole.mockReset().mockResolvedValue(fixture());
+  consoleData.mockReset().mockResolvedValue(fixture());
+  startStatsConsole.mockClear();
 });
 
 describe('/stats console server HTML', () => {
-  it('awaits every source and renders the final figures with no loading boundary', async () => {
-    const root = html(await StatsPage());
+  it('renders every final figure once each part has streamed in, with no loading.tsx', async () => {
+    const root = await pageHtml();
 
-    expect(loadStatsConsole).toHaveBeenCalledOnce();
+    expect(startStatsConsole).toHaveBeenCalledOnce();
     expect(metadata.openGraph).toMatchObject({ title: 'Stats' });
     expect(String(metadata.openGraph?.url)).toMatch(/\/stats$/);
     expect(textOf(root.querySelector('h1'))).toBe('Stats');
@@ -133,7 +172,7 @@ describe('/stats console server HTML', () => {
   });
 
   it('renders the Discord snapshot and latest commit before the client polls', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const discord = root.querySelector('[data-stats-tile="discord"]');
 
     expect(textOf(discord)).toContain('Online');
@@ -144,7 +183,7 @@ describe('/stats console server HTML', () => {
   });
 
   it('shows six ranked repository rows with external links and no description filler', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const rows = root.querySelectorAll('[data-stats-repo]');
 
     expect(rows).toHaveLength(6);
@@ -157,7 +196,7 @@ describe('/stats console server HTML', () => {
   });
 
   it('keeps failures local and never prints an invented zero for a missing source', async () => {
-    loadStatsConsole.mockResolvedValue({
+    consoleData.mockResolvedValue({
       ...fixture(),
       activity: { status: 'error' },
       totals: { status: 'error' },
@@ -165,7 +204,7 @@ describe('/stats console server HTML', () => {
       codingTime: { status: 'error' },
       discord: { kind: 'timeout' },
     });
-    const root = html(await StatsPage());
+    const root = await pageHtml();
 
     expect(textOf(root)).toContain('GitHub stats unavailable');
     expect(textOf(root)).toContain('No 60 s test yet');
@@ -180,8 +219,8 @@ describe('/stats console server HTML', () => {
   it('marks stale figures and keeps the last successful values', async () => {
     const data = fixture();
     if (data.typing.status !== 'ok') throw new Error('fixture must have typing');
-    loadStatsConsole.mockResolvedValue({ ...data, typing: { ...data.typing, stale: true } });
-    const root = html(await StatsPage());
+    consoleData.mockResolvedValue({ ...data, typing: { ...data.typing, stale: true } });
+    const root = await pageHtml();
     const typing = root.querySelector('[data-stats-tile="typing"]');
 
     expect(typing?.getAttribute('data-state')).toBe('stale');
@@ -197,7 +236,7 @@ describe('/stats console layout (browser QA fixes)', () => {
     classOf(element).split(/\s+/).includes(name);
 
   it('keeps every context separator inside the part it leads, never as an item of its own', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const leetcode = root.querySelector('[data-stats-tile="leetcode"] [data-context-line]');
     const parts = [...(leetcode?.querySelectorAll('[data-context-part]') ?? [])];
 
@@ -222,7 +261,7 @@ describe('/stats console layout (browser QA fixes)', () => {
   });
 
   it('holds a context line’s age in the room of its widest wording, so the line never re-wraps as the age grows', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
 
     for (const name of ['leetcode', 'typing', 'coding']) {
       const line = root.querySelector(`[data-stats-tile="${name}"] [data-context-line]`);
@@ -248,7 +287,7 @@ describe('/stats console layout (browser QA fixes)', () => {
 
   // The page's own hero keeps its age in the same room (age-room.test.tsx holds the details).
   it('holds the hero’s age in a room too, so its head never re-wraps as the age grows', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const head = root.querySelector('[data-stats-tile="github"]')?.firstElementChild;
     const room = head?.querySelector('[data-age-room]');
 
@@ -258,7 +297,7 @@ describe('/stats console layout (browser QA fixes)', () => {
   });
 
   it('anchors every secondary figure under its label, so a row of tiles lines up', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     for (const name of ['leetcode', 'typing', 'coding']) {
       const figure = root.querySelector(`[data-stats-tile="${name}"] .figure-row`);
       expect(classOf(figure?.parentElement), name).toContain('justify-start');
@@ -269,7 +308,7 @@ describe('/stats console layout (browser QA fixes)', () => {
   // Beside the kit's stale note a half-width phone tile leaves the line about 30px: it must drop
   // under the note instead of clipping its words.
   it('gives the context line a basis, so it wraps under a stale note in a narrow tile', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     for (const name of ['leetcode', 'typing', 'coding']) {
       const line = classOf(root.querySelector(`[data-stats-tile="${name}"] [data-context-line]`));
       expect(line, name).toContain('flex-[1_1_8rem]');
@@ -285,7 +324,7 @@ describe('/stats console layout (browser QA fixes)', () => {
   });
 
   it('lets the repositories bar grow on a phone page instead of overflowing its 40 px', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const section = root.querySelector('section[aria-label="Top repositories"]');
 
     const bar = section?.querySelector('[data-index-part="year"]');
@@ -297,11 +336,11 @@ describe('/stats console layout (browser QA fixes)', () => {
   it('fills the Discord tile’s height when there is no activity', async () => {
     const data = fixture();
     if (data.discord.kind !== 'data') throw new Error('fixture must have Discord');
-    loadStatsConsole.mockResolvedValue({
+    consoleData.mockResolvedValue({
       ...data,
       discord: { ...data.discord, data: { ...data.discord.data, activities: [] } },
     });
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const idle = root.querySelector('[data-stats-tile="discord"] [data-discord-idle]');
 
     expect(textOf(idle)).toBe('Not in an activity right now');
@@ -310,7 +349,7 @@ describe('/stats console layout (browser QA fixes)', () => {
   });
 
   it('wraps the commit headline instead of cutting it, and keeps its age whole', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const link = root.querySelector('a[href$="/commit/abc1234"]');
     const headline = link?.querySelector('[aria-hidden="true"]');
     const dated = link?.closest('div')?.querySelector('[data-dated]');
@@ -330,7 +369,7 @@ describe('/stats console layout (browser QA fixes)', () => {
   });
 
   it('gives the commit link a 24 px target, 44 px on touch, without moving the line', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const link = root.querySelector('a[href$="/commit/abc1234"]');
 
     expect(hasClass(link, '-my-0.5')).toBe(true);
@@ -351,7 +390,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
     classOf(element).split(/\s+/).includes(name);
 
   it('starts the 12-column tier only once the hero has room for its wide layout', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const grid = classOf(root.querySelector('[aria-label="Activity and development stats"]'));
 
     // A 56rem tier put a hero too narrow for its side-by-side layout beside Discord; at the kit's
@@ -369,7 +408,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('stands Discord beside the three stat tiles on a tablet grid, so no tile is stretched', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const grid = root.querySelector('[aria-label="Activity and development stats"]');
 
     // The hero is the whole row whatever the column count, until the 12-column tier.
@@ -410,7 +449,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   // From 15 lines (390px) a half holds typing's context in three lines; from the kit's 13.5lh
   // (351px) it took four, with a hole beside it in coding time.
   it('gives typing and coding a row each until two halves hold their figures and context at the text size in use', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     for (const name of ['typing', 'coding']) {
       expect(hasClass(tile(root, name), 'col-span-2'), name).toBe(true);
       expect(hasClass(tile(root, name), '@min-[15lh]/tiles:@max-xl/tiles:col-span-1'), name).toBe(
@@ -423,7 +462,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('sizes every figure by its tile, capped so it always fits', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const display = classOf(tile(root, 'github')?.querySelector('p > span'));
 
     // One cap on both sides of the 6 to 12 column step, and never wider than a third of the tile.
@@ -444,7 +483,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('splits the header strip into equal parts across its row, each never narrower than its figure', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const strip = root.querySelector('dl[aria-label="At a glance"]');
 
     // Under the title: equal parts across the row, as on the shipped pages, but as a wrapping row
@@ -468,7 +507,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('puts the strip beside the title by the page’s width in lines of text, never by the viewport', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const header = root.querySelector('h1')?.closest('header');
     const shell = header?.parentElement;
 
@@ -481,7 +520,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('drops the latest commit to its own row unless its meta line fits beside the totals', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const link = root.querySelector('a[href$="/commit/abc1234"]');
     const commit = link?.closest('div');
     const foot = commit?.parentElement;
@@ -501,7 +540,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('lets the sparkline’s two labels wrap instead of running into each other', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const labels = tile(root, 'github')?.querySelector('[data-sparkline] + p');
 
     expect(textOf(labels)).toMatch(/weeks ago\s*this week/);
@@ -509,7 +548,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('wraps the hero’s head row and balances the commit headline', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const hero = tile(root, 'github');
     const headline = root.querySelector('a[href$="/commit/abc1234"] [aria-hidden="true"]');
 
@@ -519,7 +558,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('gives the hero less air above its figure on a short screen', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const hero = tile(root, 'github');
     const figure = hero?.querySelector('p > span');
 
@@ -535,7 +574,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('never cuts the Discord status word, the name or an activity’s words', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const discord = tile(root, 'discord');
     const head = discord?.firstElementChild;
     const status = head?.querySelector('p');
@@ -555,11 +594,11 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   ) => {
     const data = fixture();
     if (data.discord.kind !== 'data') throw new Error('fixture must have Discord');
-    loadStatsConsole.mockResolvedValue({
+    consoleData.mockResolvedValue({
       ...data,
       discord: { ...data.discord, data: { ...data.discord.data, activities: [...activities] } },
     });
-    return tile(html(await StatsPage()), 'discord');
+    return tile(await pageHtml(), 'discord');
   };
   const CODE = { name: 'Visual Studio Code', type: 0, details: 'portfolio', state: 'Workspace' };
   const TALK = { name: 'YouTube', type: 3, details: 'A talk', state: 'A channel' };
@@ -614,7 +653,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('breaks a word wider than the hero instead of widening its row past the tile', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const figure = tile(root, 'github')?.querySelector('p > span');
     const unit = figure?.nextElementSibling;
 
@@ -630,7 +669,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('gives the repository table an About column and wrapping names', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const table = root.querySelector('table');
     const labels = [...(table?.querySelectorAll('th') ?? [])].map((th) => textOf(th));
     const rows = [...root.querySelectorAll('[data-stats-repo]')];
@@ -653,7 +692,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('sizes the name and star columns from the rows shown, in characters of the text in use', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const cols = [...root.querySelectorAll('table col')].map((col) => classOf(col));
     const section = root.querySelector('section[aria-label="Top repositories"]');
 
@@ -680,7 +719,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
     const [first, ...rest] = data.totals.data.topRepos;
     if (!first) throw new Error('fixture must have repositories');
     const longName = 'a-forty-character-repository-name-abcdef';
-    loadStatsConsole.mockResolvedValue({
+    consoleData.mockResolvedValue({
       ...data,
       totals: {
         ...data.totals,
@@ -690,7 +729,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
         },
       },
     });
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const section = root.querySelector('section[aria-label="Top repositories"]');
     const stars = root.querySelector('[data-stats-repo] td:last-child');
 
@@ -705,7 +744,7 @@ describe('/stats console responsive layout (space-led, not viewport-led)', () =>
   });
 
   it('unpins the repository bars on a short screen', async () => {
-    const root = html(await StatsPage());
+    const root = await pageHtml();
     const section = root.querySelector('section[aria-label="Top repositories"]');
     const bar = section?.querySelector('[data-index-part="year"]');
 

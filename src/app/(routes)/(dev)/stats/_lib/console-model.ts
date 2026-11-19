@@ -54,6 +54,15 @@ export interface StatsConsoleData {
   readonly nowPlaying: LiveInitial<NowPlayingResponse>;
 }
 
+/**
+ * Every source of {@link StatsConsoleData} as its own promise, all started together, so a part of
+ * the page that streams waits on its own sources only and the page frame waits on none of them
+ * for longer than its short wait. Like the data, no promise ever rejects.
+ */
+export type StatsConsoleSources = {
+  readonly [Source in keyof StatsConsoleData]: Promise<StatsConsoleData[Source]>;
+};
+
 /** The accuracy switch: a plain figure in the context line, or a gauge beside the wpm. */
 export type AccuracyStyle = 'figures' | 'gauge';
 
@@ -220,6 +229,11 @@ export function heroModel(
   return asOf ? { ...model, asOf } : model;
 }
 
+/** The header strip's labels, shared by the loaded strip and the one waiting on its sources. */
+const AGE_LABEL = 'years old';
+const PAGE_VIEWS_LABEL = 'page views in 30 days';
+const FOLLOWERS_LABEL = 'GitHub followers';
+
 /**
  * The header strip: figures the tiles below don't repeat. Age (worked out now, in UTC, as the old
  * Dev Stats card did), page views over 30 days and GitHub followers. A source with nothing to
@@ -230,14 +244,26 @@ export function stripItems(
   now: Date,
 ): StatStripItem[] {
   return [
-    { label: 'years old', value: ageOn(now) },
-    { label: 'page views in 30 days', value: dataOf(data.pageViews) },
-    { label: 'GitHub followers', value: dataOf(data.totals)?.user.followers ?? null },
+    { label: AGE_LABEL, value: ageOn(now) },
+    { label: PAGE_VIEWS_LABEL, value: dataOf(data.pageViews) },
+    { label: FOLLOWERS_LABEL, value: dataOf(data.totals)?.user.followers ?? null },
+  ];
+}
+
+/**
+ * The header strip while its sources load: the same labels, the age (which needs no source) and a
+ * placeholder for each figure still on its way, so the loaded strip takes exactly this room.
+ */
+export function pendingStripItems(now: Date): StatStripItem[] {
+  return [
+    { label: AGE_LABEL, value: ageOn(now) },
+    { label: PAGE_VIEWS_LABEL, value: null, loading: true },
+    { label: FOLLOWERS_LABEL, value: null, loading: true },
   ];
 }
 
 /** How many repositories the table lists. */
-const TOP_REPOS_SHOWN = 6;
+export const TOP_REPOS_SHOWN = 6;
 
 /**
  * The floors of the table's two content-sized columns, in characters: a name column that never

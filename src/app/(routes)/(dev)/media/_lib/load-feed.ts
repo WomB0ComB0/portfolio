@@ -16,8 +16,10 @@ import 'server-only';
  */
 
 /**
- * @file /media's data, awaited at the top of the page so every item is in the server HTML (no
- * loading.tsx, no Suspense around the list), as /certifications, /projects and /places do.
+ * @file /media's data. The page starts it and waits for it a moment at most (settledWithin): in by
+ * then, every item is rendered in place in the server HTML; still loading, the header goes out
+ * and the strip and the list stream in (each in its own Suspense boundary) once it resolves, so
+ * the first byte never waits for the slowest source.
  *
  * All five sources load at once, each behind its own stale-on-error cache:
  * - videos and talks: the shared Sanity cache (5 min), whose YouTube step rejects after 8 s

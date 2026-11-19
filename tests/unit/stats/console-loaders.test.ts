@@ -16,7 +16,8 @@
 
 /**
  * @file The /stats console's server loaders: every source settles on its own within its deadline
- * and never throws, so the page can await them all at the top and render final figures.
+ * and never throws. The page starts them all at once and awaits none (startStatsConsole); each
+ * part of the console awaits its own, so a slow source holds back only the parts that show it.
  *
  * - GitHub totals, coding time and page views use the handlers' actual load timestamps, even
  *   when a v1 request populated the cache before the first Stats visit. An answer older than the
@@ -398,5 +399,75 @@ describe('loadStatsConsole', () => {
     expect(data.pageViews).toMatchObject({ status: 'ok', data: 2615 });
     expect(data.discord).toMatchObject({ kind: 'data' });
     expect(data.nowPlaying).toEqual({ kind: 'timeout' });
+  });
+});
+
+describe('startStatsConsole', () => {
+  it('starts every source at once and awaits none, so the page frame waits on nothing', async () => {
+    // Every source hangs: starting them must still return at once, with each one asked once.
+    h.home.loadGitHubActivity.mockImplementation(never);
+    h.github.peekGitHubStats.mockReturnValue(undefined);
+    h.github.getGitHubStats.mockImplementation(never);
+    h.home.loadLeetCode.mockImplementation(never);
+    h.home.loadTyping.mockImplementation(never);
+    h.wakatime.peekWakaTimeData.mockReturnValue(undefined);
+    h.wakatime.getWakaTimeData.mockImplementation(never);
+    h.google.getGoogleAnalytics.mockImplementation(never);
+    h.lanyard.getLanyardSnapshot.mockImplementation(never);
+    h.home.loadNowPlaying.mockImplementation(never);
+    const { startStatsConsole } = await loadModule();
+
+    const sources = startStatsConsole();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(Object.keys(sources).sort()).toEqual(
+      [
+        'activity',
+        'codingTime',
+        'discord',
+        'leetcode',
+        'nowPlaying',
+        'pageViews',
+        'totals',
+        'typing',
+      ].sort(),
+    );
+    for (const source of Object.values(sources)) expect(source).toBeInstanceOf(Promise);
+    for (const load of [
+      h.home.loadGitHubActivity,
+      h.github.getGitHubStats,
+      h.home.loadLeetCode,
+      h.home.loadTyping,
+      h.wakatime.getWakaTimeData,
+      h.google.getGoogleAnalytics,
+      h.lanyard.getLanyardSnapshot,
+      h.home.loadNowPlaying,
+    ]) {
+      expect(load).toHaveBeenCalledOnce();
+    }
+  });
+
+  it('lets each source settle on its own: a hung one holds back only itself', async () => {
+    h.home.loadGitHubActivity.mockResolvedValue({ status: 'error' });
+    h.github.getGitHubStats.mockResolvedValue(TOTALS);
+    h.home.loadLeetCode.mockImplementation(never);
+    h.home.loadTyping.mockResolvedValue({ status: 'empty' });
+    h.wakatime.getWakaTimeData.mockResolvedValue(WAKA);
+    h.google.getGoogleAnalytics.mockResolvedValue({ total_pageviews: 2615 });
+    h.lanyard.getLanyardSnapshot.mockResolvedValue({ data: LANYARD, readAt: T0 });
+    h.home.loadNowPlaying.mockResolvedValue({ kind: 'timeout' });
+    const { startStatsConsole } = await loadModule();
+
+    const sources = startStatsConsole();
+    let leetcodeSettled = false;
+    void sources.leetcode.then(() => {
+      leetcodeSettled = true;
+    });
+
+    await expect(sources.totals).resolves.toMatchObject({ status: 'ok', data: TOTALS });
+    await expect(sources.pageViews).resolves.toMatchObject({ status: 'ok', data: 2615 });
+    await expect(sources.discord).resolves.toMatchObject({ kind: 'data' });
+    await expect(sources.codingTime).resolves.toMatchObject({ status: 'ok', data: WAKA });
+    expect(leetcodeSettled).toBe(false);
   });
 });

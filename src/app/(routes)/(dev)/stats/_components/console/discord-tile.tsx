@@ -66,7 +66,7 @@ import { Activity, ArrowUpRight, Code, Headphones, Moon } from 'lucide-react';
 import { type ReactElement, useEffect, useReducer, useState } from 'react';
 import type { LiveInitial } from '@/app/_components/home/data/tile-result';
 import { fetchJson, parseNowPlaying } from '@/app/_components/home/live/live-fetch';
-import { TileLabel, TileUnavailable } from '@/app/_components/home/tiles/tile-states';
+import { LoadingNote, TileLabel, TileUnavailable } from '@/app/_components/home/tiles/tile-states';
 import type { LanyardData } from '@/app/api/v1/[[...route]]/lanyard/handlers';
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
 import { StatusDot, type StatusTone } from '@/components/console/status-dot';
@@ -593,6 +593,41 @@ export function DiscordTile({
         </div>
       )}
       {polled && polled.readAt > 0 && <PresentAge at={polled.readAt} className={AGE_LINE_CLASS} />}
+    </Tile>
+  );
+}
+
+/** The quiet bar in the held room while the snapshot loads, where 'no activity' would sit. */
+const ROOM_PLACEHOLDER_CLASS =
+  'mx-auto block h-3 w-32 max-w-full rounded-sm bg-surface-3 motion-safe:animate-pulse forced-colors:outline';
+
+/**
+ * The tile while the server's snapshot is on its way (/stats streams it on its own): the label,
+ * the status word's room (so the head wraps as a loaded one does) and the stand-ins a tile with
+ * no answer holds the loaded height with (the name, the room and the age), marked busy. Static:
+ * nothing polls until the snapshot lands and the tile itself takes over.
+ */
+export function DiscordTileSkeleton(): ReactElement {
+  return (
+    <Tile
+      aria-busy="true"
+      span={DISCORD_SPAN}
+      className={`${TILE_GAP_CLASS} ${DISCORD_TABLET_ROWS_CLASS}`}
+      data-stats-skeleton="discord"
+      data-state="loading"
+    >
+      <div className={HEAD_CLASS}>
+        <TileLabel>Discord</TileLabel>
+        <p aria-hidden="true" data-widest={WIDEST_PRESENCE_WORD} className={STATUS_ROOM_CLASS} />
+      </div>
+      <div aria-hidden="true" className={UNAVAILABLE_CLASS}>
+        <div className={NAME_STAND_IN_CLASS} />
+        <div className={HELD_ROOM_CLASS}>
+          <span className={ROOM_PLACEHOLDER_CLASS} />
+        </div>
+        <div className={AGE_STAND_IN_CLASS} />
+      </div>
+      <LoadingNote>Loading Discord status</LoadingNote>
     </Tile>
   );
 }
