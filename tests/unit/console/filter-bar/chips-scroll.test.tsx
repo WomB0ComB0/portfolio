@@ -143,8 +143,8 @@ describe('the scroll layout’s classes', () => {
 
   it('keeps 4px inside its clip on every side, for a focused chip’s 2px ring at a 2px offset', () => {
     expect(classes).toContain('@min-[48rem]/page:p-1');
-    // A matching negative margin keeps the chips where the old 2px padding put them.
-    expect(classes).toContain('@min-[48rem]/page:-m-0.5');
+    // An equal -4px negative margin cancels the 4px padding so chips stay flush and centred on the 40px search.
+    expect(classes).toContain('@min-[48rem]/page:-m-1');
   });
 
   it('fades each end over CHIP_EDGE_FADE_REM, the width a revealed chip keeps clear', () => {

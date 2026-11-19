@@ -33,6 +33,7 @@ import {
   BAR_STICKY_TILE_CLASS,
   FORM_ROW_CLASS,
   FORM_TILE_CLASS,
+  PICKER_BUTTON_CLASS,
   SEARCH_FIELD_CLASS,
 } from '@/components/console/filter-bar/filter-bar-classes';
 import { FilterBarSkeleton } from '@/components/console/filter-bar/skeleton';
@@ -191,16 +192,33 @@ describe("FilterBar.Root density='bar'", () => {
       expect(classesOf(skeleton)).not.toContain('@min-[48rem]/page:py-3');
     },
   );
+
+  it('sits flush on the page content axis with no horizontal inset around the framed tile', () => {
+    const classes = classesOf(renderBar('bar', 'none'));
+
+    expect(classes.filter((name) => /^-?m[xlr]-|^p[xlr]-/.test(name))).toEqual([]);
+  });
 });
 
 describe("FilterBar.Root density='row'", () => {
-  it('keeps the row bar exactly as it was', () => {
+  it('keeps the row bar aligned on the page axis with symmetric backplate bleed and centred controls', () => {
     const bar = renderBar();
+    const classes = classesOf(bar);
 
     expect(bar).toHaveAttribute('data-density', 'row');
     expect(bar).toHaveAttribute('data-backplate', 'translucent');
-    expect(classesOf(bar)).toEqual(expect.arrayContaining(BAR_STICKY_CLASS.split(' ')));
-    expect(BAR_STICKY_CLASS).toContain('@min-[48rem]/page:py-3');
+    expect(classes).toEqual(expect.arrayContaining(BAR_STICKY_CLASS.split(' ')));
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        '-mx-2',
+        'px-2',
+        '@min-[40rem]/page:-mx-3',
+        '@min-[40rem]/page:px-3',
+        '@min-[48rem]/page:py-3',
+      ]),
+    );
     expect(bar.querySelector('form')?.getAttribute('class')).toBe(FORM_ROW_CLASS);
+    // The 32px picker trigger takes 4px vertical margin from 48rem to centre on the 40px search field.
+    expect(PICKER_BUTTON_CLASS.split(' ')).toContain('@min-[48rem]/page:my-1');
   });
 });

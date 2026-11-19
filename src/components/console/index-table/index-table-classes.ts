@@ -71,8 +71,13 @@ const ALIGN: Readonly<Record<IndexAlign, string>> = { start: 'text-left', end: '
 
 /** The year groups, newest first, with room between them. */
 export const INDEX_GROUPS_CLASS = 'flex min-w-0 flex-col gap-8';
-/** A year: no bottom padding, so the sticky h2 leaves with the last row. */
-export const INDEX_GROUP_CLASS = 'mx-2 flex min-w-0 flex-col';
+/**
+ * A year: no bottom padding, so the sticky h2 leaves with the last row. Negative horizontal
+ * margins match the heading/header/cell padding (-8px below 40rem, -12px from 40rem) so table
+ * headings and outer cell content sit flush on the page content axis while row hovers and sticky
+ * backplates frame them symmetrically inside --page-gutter and line up with FilterBar.
+ */
+export const INDEX_GROUP_CLASS = '-mx-2 flex min-w-0 flex-col @min-[40rem]/page:-mx-3';
 
 /** The year bar's first line: the year (20px/600) and its count. */
 export const INDEX_YEAR_CLASS =

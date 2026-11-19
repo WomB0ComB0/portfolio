@@ -45,21 +45,24 @@ export type FilterBarBackplate = 'translucent' | 'none';
 export const backplateClassFor = (backplate: FilterBarBackplate): string =>
   backplate === 'translucent' ? 'stuck-canvas' : '';
 /**
- * Sticky: inset below the top edge, above the edge haze (z-20) and below the rail's flyouts (z-40). The
- * column's width, with rounded backplates and a matching gap above any table header below it. Painted
- * (a translucent backplate and a hairline under it) only while stuck (globals.css stuck-canvas): at rest the
- * page's glow shows through.
+ * Sticky: inset below the top edge, above the edge haze (z-20) and below the rail's flyouts (z-40).
+ * Negative horizontal margins match the inner padding (-8px/+8px below 40rem, -12px/+12px from
+ * 40rem) so the controls sit flush on the page content axis while the rounded sticky backplate
+ * frames them symmetrically inside --page-gutter and shares its outer edges with IndexGroup.
+ * Painted (a translucent backplate and a hairline under it) only while stuck (globals.css
+ * stuck-canvas): at rest the page's glow shows through.
  */
 export const BAR_STICKY_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile px-2 py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[48rem]/page:py-3';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 -mx-2 rounded-tile px-2 py-2 [--stuck-edge:0_1px_0_var(--hairline)] @min-[40rem]/page:-mx-3 @min-[40rem]/page:px-3 @min-[48rem]/page:py-3';
 
 /** The form: one row. From 48rem the search keeps its width and the chips take the rest. */
 export const FORM_ROW_CLASS =
   'flex min-w-0 items-center gap-2 @min-[48rem]/page:items-start @min-[48rem]/page:gap-4';
 /**
- * Sticky in `bar` density (/places): the same bar in a slimmer band, the same at every width.
- * The haze and scroll padding account for the shared raised inset. From 48rem: 4 + a 1px border + 8 + the 44px row (the scroll chips' slot) + 8 + 1 + 4
- * = 70px. Below 48rem the row is the 40px field, so 66px.
+ * Sticky in `bar` density (/places): the same bar in a slimmer band, flush on the page content
+ * axis at every width so the framed tile lines up edge to edge with the map and cards below it.
+ * The haze and scroll padding account for the shared raised inset: 4 + a 1px border + 8 + the
+ * 40px row + 8 + 1 + 4 = 66px at every width.
  * - The backplate is a separate choice. Places sets it to none: its opaque form tile supplies
  *   the single rounded surface and border, while this band only measures and positions it.
  * - Under 550px of height (a landscape phone, a page zoomed to 200-400%) it stays in the page:
@@ -69,7 +72,7 @@ export const FORM_ROW_CLASS =
  *   cover a third of the screen or more. From 550px the band is at least 77px.
  */
 export const BAR_STICKY_TILE_CLASS =
-  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 mx-2 rounded-tile px-2 py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
+  'sticky top-[calc(env(safe-area-inset-top,0px)+var(--sticky-top-gap))] z-30 rounded-tile py-1 [@media(height<34.375rem)]:relative [@media(height<34.375rem)]:top-auto [@media(height<34.375rem)]:z-auto';
 
 /**
  * The sticky band for a density: the slimmer one around the `bar` tile, else the row's. Row
@@ -115,10 +118,10 @@ export const CHIP_LIST_CLASS = 'relative isolate flex flex-wrap gap-1.5';
 /**
  * Chips that wrap in the sheet and, from 48rem, sit on one line that scrolls sideways inside
  * itself (`scroll` layout, /projects). The scroller clips at its padding box, so it keeps 4px on
- * every side for a focused chip's ring (a 2px outline at a 2px offset), with a matching negative
- * margin so the chips sit where 2px of padding put them. With no scrollbar, the cue that it
- * scrolls is a fade over each end that has chips past it (data-overflow, set by FilterBar.Chips):
- * a mask, so alpha only, never a colour.
+ * every side for a focused chip's ring (a 2px outline at a 2px offset), with an equal -4px
+ * negative margin so the chips stay flush with the slot and centred on the 40px search field.
+ * With no scrollbar, the cue that it scrolls is a fade over each end that has chips past it
+ * (data-overflow, set by FilterBar.Chips): a mask, so alpha only, never a colour.
  */
 /**
  * The width of each end's fade in CHIP_LIST_SCROLL_CLASS (its 1.5rem), so FilterBar.Chips can
@@ -126,7 +129,7 @@ export const CHIP_LIST_CLASS = 'relative isolate flex flex-wrap gap-1.5';
  */
 export const CHIP_EDGE_FADE_REM = 1.5;
 export const CHIP_LIST_SCROLL_CLASS =
-  'relative isolate flex flex-wrap gap-1.5 [scrollbar-width:none] @min-[48rem]/page:-m-0.5 @min-[48rem]/page:flex-nowrap @min-[48rem]/page:overflow-x-auto @min-[48rem]/page:p-1 data-[overflow=end]:[mask-image:linear-gradient(to_right,#000_calc(100%_-_1.5rem),transparent)] data-[overflow=start]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem)] data-[overflow=both]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem,#000_calc(100%_-_1.5rem),transparent)]';
+  'relative isolate flex flex-wrap gap-1.5 [scrollbar-width:none] @min-[48rem]/page:-m-1 @min-[48rem]/page:flex-nowrap @min-[48rem]/page:overflow-x-auto @min-[48rem]/page:p-1 data-[overflow=end]:[mask-image:linear-gradient(to_right,#000_calc(100%_-_1.5rem),transparent)] data-[overflow=start]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem)] data-[overflow=both]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem,#000_calc(100%_-_1.5rem),transparent)]';
 
 /**
  * A chip, a link. Current: the brand-subtle fill with the brand edge, until the pill has
@@ -162,9 +165,12 @@ export const CHIP_COUNT_CLASS =
 export const PILL_CLASS =
   'pointer-events-none absolute top-0 left-0 z-[1] h-full w-(--pill-track,100%) opacity-0 [background:linear-gradient(var(--brand-edge),var(--brand-edge)),var(--brand-subtle)] [clip-path:inset(var(--pill-t,0)_var(--pill-r,100%)_var(--pill-b,0)_var(--pill-l,0)_round_9999px)] transition-[clip-path] duration-(--motion-spring-in) ease-spring before:absolute before:inset-0 before:bg-brand-subtle before:content-[""] before:[clip-path:inset(calc(var(--pill-t,0px)+1px)_calc(var(--pill-r,100%)+1px)_calc(var(--pill-b,0px)+1px)_calc(var(--pill-l,0px)+1px)_round_9999px)] before:transition-[clip-path] before:duration-(--motion-spring-in) before:ease-spring data-on:opacity-100 data-instant:transition-none data-instant:before:transition-none forced-colors:hidden';
 
-/** The picker's trigger: a chip-shaped button, filled while any of its values is chosen. */
+/**
+ * The picker's trigger: a chip-shaped button, filled while any of its values is chosen. From
+ * 48rem, 4px above and below centre the 32px trigger on the 40px search field and first chip row.
+ */
 export const PICKER_BUTTON_CLASS =
-  'hidden h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-[color,background-color,border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong hover:text-foreground data-active:border-(--brand-edge) data-active:bg-brand-subtle data-active:text-foreground @min-[48rem]/page:inline-flex';
+  'hidden h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-[color,background-color,border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong hover:text-foreground data-active:border-(--brand-edge) data-active:bg-brand-subtle data-active:text-foreground @min-[48rem]/page:my-1 @min-[48rem]/page:inline-flex';
 /**
  * The picker's panel. Below 48rem it is laid out inline in the sheet (a closed popover shown as a
  * block); from 48rem a real popover under its button (anchor positioning; centred where the
