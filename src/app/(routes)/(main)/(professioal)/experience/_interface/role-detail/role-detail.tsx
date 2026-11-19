@@ -57,6 +57,7 @@ import {
   withKeys,
 } from '../../_components/role-row-parts';
 import type { RoleRow } from '../../_lib/role-index';
+import type { RoleLink } from '../../_lib/role-links';
 import { EXPERIENCE_PATH } from '../../_lib/role-ledger';
 import { roleLogoOf } from '../../_lib/role-logo';
 import { buildRolePage } from '../../_lib/role-page';
@@ -67,6 +68,7 @@ const DUTIES_LABEL = 'What I did';
 const LINKS_LABEL = 'Links';
 const TECH_LABEL = 'Technologies';
 const HTTP_URL = /^https?:\/\//iu;
+const GITHUB_URL = /^https:\/\/(?:www\.)?github\.com\//iu;
 
 const ORG_CLASS = 'group/org inline-flex max-w-full items-center gap-2 align-bottom';
 /**
@@ -119,6 +121,9 @@ function Organization({ role }: { readonly role: RoleRow }): ReactElement {
         className={ORG_LINK_CLASS}
       >
         {name}
+        {GITHUB_URL.test(role.companyUrl) ? (
+          <span className="tile-meta font-normal text-faint">GitHub organization</span>
+        ) : null}
         <NewTabArrow />
         <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
       </a>
@@ -206,7 +211,21 @@ export function RoleDetail({
   if (!page) return null;
   const { role } = page;
   const duties = withKeys(role.duties);
-  const hasSide = role.links.length > 0 || role.tech.length > 0;
+  const organizationLink: RoleLink | null =
+    role.companyUrl && GITHUB_URL.test(role.companyUrl)
+      ? {
+          href: role.companyUrl,
+          label: 'GitHub organization',
+          host: 'github.com',
+          token: false,
+        }
+      : null;
+  const sideLinks = organizationLink
+    ? [organizationLink, ...role.links].filter(
+        (link, index, links) => links.findIndex((candidate) => candidate.href === link.href) === index,
+      )
+    : role.links;
+  const hasSide = sideLinks.length > 0 || role.tech.length > 0;
 
   return (
     <PageShell
@@ -246,10 +265,10 @@ export function RoleDetail({
           </div>
           {hasSide && (
             <aside className={SIDE_CLASS}>
-              {role.links.length > 0 && (
+              {sideLinks.length > 0 && (
                 <section aria-labelledby="role-links" className={SECTION_CLASS}>
                   <SectionTitle id="role-links">{LINKS_LABEL}</SectionTitle>
-                  <RoleLinkChips links={role.links} />
+                  <RoleLinkChips links={sideLinks} />
                 </section>
               )}
               {role.tech.length > 0 && (

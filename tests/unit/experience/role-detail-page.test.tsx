@@ -251,6 +251,33 @@ describe('/experience/[id]: the header', () => {
     expect(container.querySelector('header [data-role-detail-logo] img')).not.toBeNull();
   });
 
+  it('labels a GitHub organization explicitly in the header and Links section', async () => {
+    const github = exp('resq', 1, '2026-03-01', null, {
+      company: 'ResQ Systems, Inc.',
+      companyUrl: 'https://github.com/resq-software',
+      position: 'Founder',
+      location: 'United States',
+      description: 'Built emergency response software.',
+      responsibilities: [],
+      technologies: [],
+    });
+    h.loadExperiences.mockResolvedValue([github]);
+    h.loadExperienceById.mockResolvedValue(github);
+
+    const { container } = await pageFor('resq');
+
+    const eyebrow = container.querySelector('[data-role-organization]');
+    expect(visibleText(eyebrow)).toBe('ResQ Systems');
+    expect(screen.getAllByText('GitHub organization').length).toBeGreaterThan(0);
+
+    const heading = screen.getByRole('heading', { level: 2, name: 'Links' });
+    const section = heading.closest('section');
+    const chip = within(section as HTMLElement).getByRole('link', {
+      name: /GitHub organization/,
+    });
+    expect(chip).toHaveAttribute('href', 'https://github.com/resq-software');
+  });
+
   it('places one whole-color detail logo in its own header area without a tiny duplicate', async () => {
     const { container } = await pageFor('lead');
     const logo = container.querySelector('header [data-role-detail-logo]');
