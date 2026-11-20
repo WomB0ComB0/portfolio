@@ -106,7 +106,7 @@ graph TD
 
 | Category                       | Technology                                                                   | Usage                                                                         |
 | :----------------------------- | :--------------------------------------------------------------------------- | :---------------------------------------------------------------------------- |
-| **Runtime & Package Manager**  | Bun (`>=1.4.0`), Node.js (`>=24.15.0`)                                       | Dependency management, script execution, and local dev runtime                |
+| **Runtime & Package Manager**  | Bun (`>=1.4.0`), Node.js (`24.x`)                                            | Dependency management, script execution, and local dev runtime                |
 | **Framework**                  | Next.js 16, React 19                                                         | App Router, Server Components, dynamic code splitting, and PWA support        |
 | **API Engine**                 | Elysia.js 1.4, `@elysiajs/eden`                                              | Type-safe REST handlers, OpenTelemetry spans, Server-Timing headers, and CORS |
 | **Data Pipeline & Validation** | Effect 4 (`effect/http`, `effect/Schema`), Zod 4, ArkType                    | Typed HTTP client pipelines, retry policies, and strict schema decoding       |
@@ -290,8 +290,9 @@ so there is no `GET`.
 
 ### Prerequisites
 
-- **Bun** `>= 1.4.0` (CI uses `1.4.4`)
-- **Node.js** `>= 24.15.0`
+- **Bun** `>= 1.4.0` (CI uses `1.4.5`)
+- **Node.js** `24.x`: `.nvmrc`, `engines` in `package.json` (which Vercel follows) and every
+  workflow use the same major
 
 ### Setup
 

@@ -27,7 +27,7 @@
     "audit": "bun audit --audit-level=high",
     "audit:high": "bun audit --audit-level=high",
     "audit:moderate": "bun audit --audit-level=moderate",
-    "build": "bun audit --audit-level=high --ignore GHSA-fc5q-39xc-vjpf && bun run scripts:package-cost && next build -d",
+    "build": "bun audit --audit-level=high && bun run scripts:package-cost && next build -d",
     "dev": "next dev",
     "e2e:ci": "bun run e2e:install && bunx playwright test --project=chromium",
     "e2e:install": "bunx playwright install",
@@ -201,7 +201,7 @@
   },
   "engines": {
     "bun": ">=1.4.0",
-    "node": ">=24.15.0"
+    "node": "24.x"
   },
   "os": [
     "linux",
