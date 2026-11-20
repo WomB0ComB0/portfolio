@@ -19,7 +19,8 @@
  * @description Global setup for all Vitest tests. Runs once before all tests.
  */
 
-import '@testing-library/jest-dom';
+// The Vitest entry registers the matchers on vitest's own `expect` and types them for Vitest 5.
+import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 // Effect 4 memoizes a Context.Reference's default value. Its default Fetch service would
