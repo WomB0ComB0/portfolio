@@ -225,7 +225,7 @@ describe('stripItems', () => {
   });
 
   it('shows the age figure it is given in place of the whole years, which stay the value', () => {
-    const figure = '22.65753';
+    const figure = '22.65753424';
     const [age, ...rest] = stripItems({ totals: ok(TOTALS), pageViews: ok(2615) }, NOW, figure);
 
     expect(age).toEqual({ label: 'years old', value: 22, figure });
@@ -248,7 +248,7 @@ describe('pendingStripItems', () => {
   });
 
   it('shows the age figure it is given while the sourced figures load', () => {
-    const figure = '22.65753';
+    const figure = '22.65753424';
     const [age, ...rest] = pendingStripItems(NOW, figure);
 
     expect(age).toEqual({ label: 'years old', value: 22, figure });

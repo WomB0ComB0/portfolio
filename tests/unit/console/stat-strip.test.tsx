@@ -130,17 +130,17 @@ describe('StatStrip', () => {
 
   it('shows a figure node in place of the formatted value, with its unit', () => {
     const list = renderStrip([
-      { label: 'years old', value: 22, figure: <span data-live="">22.65753</span>, unit: 'y' },
+      { label: 'years old', value: 22, figure: <span data-live="">22.65753424</span>, unit: 'y' },
     ]);
     const figure = list.querySelector('dd');
 
-    expect(figure?.querySelector('[data-live]')?.textContent).toBe('22.65753');
-    expect(figure?.textContent).toBe('22.65753y');
+    expect(figure?.querySelector('[data-live]')?.textContent).toBe('22.65753424');
+    expect(figure?.textContent).toBe('22.65753424y');
   });
 
   it('reads a missing value as unavailable even with a figure node', () => {
     const list = renderStrip([
-      { label: 'years old', value: null, figure: <span data-live="">22.65753</span> },
+      { label: 'years old', value: null, figure: <span data-live="">22.65753424</span> },
     ]);
 
     expect(list.querySelector('[data-live]')).toBeNull();
