@@ -345,6 +345,33 @@ describe('/experience: "The path so far"', () => {
     expect(container.querySelector('[data-month-stack]')).toBeNull();
   });
 
+  it("shows a role's date note with its bar, in its link's name and under the figure", async () => {
+    const note = 'Dates cover freelance work, not the establishment of the studio.';
+    h.loadExperiences.mockResolvedValue(
+      ROLES.map((role) => (role._id === 'elysium' ? { ...role, dateNote: note } : role)),
+    );
+    const { container } = render(await ExperiencePage());
+    const figure = pathOf(container);
+
+    expect(
+      within(figure).getByRole('link', {
+        name: `Elysium, Freelance Developer, since Jan 2023. ${note}`,
+      }),
+    ).toHaveAttribute('href', '#role-elysium');
+    expect(visibleText(figure.querySelector('a[data-r="elysium"]'))).toBe('Elysium*');
+    expect(figure.querySelector('[data-path-mark]')).toHaveAttribute('aria-hidden', 'true');
+    const notes = figure.querySelector('[data-path-notes]');
+    expect(notes).toHaveAttribute('aria-hidden', 'true');
+    expect(visibleText(notes)).toBe(`*${note}`);
+    expect(figure.querySelectorAll('[data-path-note]')).toHaveLength(1);
+  });
+
+  it('draws no notes when no role has one', async () => {
+    const { container } = render(await ExperiencePage());
+
+    expect(pathOf(container).querySelector('[data-path-notes], [data-path-mark]')).toBeNull();
+  });
+
   it("marks the roles that still run, which reach the axis's end", async () => {
     const { container } = render(await ExperiencePage());
     const current = Array.from(

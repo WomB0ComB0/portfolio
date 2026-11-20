@@ -28,6 +28,9 @@
  *   name hung over its line where the line starts, so nothing scrolls sideways and every row is
  *   a 44px target (a 24px capsule is too small a target for a finger).
  *
+ * A role whose dates Studio qualifies (its dateNote) has a footnote mark after its name and its
+ * note under the years, so the bar is never read without it; its link says the note in full.
+ *
  * A mouse on a capsule lifts it 1px on the house spring and rims it in brand; keyboard focus
  * gives the same light with the house ring. The cross-lighting island (role-crosslight.tsx) also
  * lights a role's capsule while its stop on the rail is pointed at, and dims the others; it does
@@ -192,6 +195,9 @@ const LINE_TONE = {
 } as const;
 
 const YEARS_CLASS = 'relative mt-2 block h-4';
+/** The date notes under the years, each led by its mark, at the caption's measure. */
+const NOTES_CLASS = 'mt-3 flex max-w-[62ch] flex-col gap-1 tile-meta text-muted-foreground';
+const NOTE_MARK_CLASS = 'mr-1 font-medium text-foreground';
 const YEAR_CLASS =
   'absolute top-0 left-[calc(var(--at)+0.375rem)] tile-meta tabular-nums text-faint';
 /** A year a very narrow plot has no room for (clockAxis decides which). */
@@ -225,8 +231,15 @@ function PathCapsule({ role, columns }: PathCapsuleProps): ReactElement {
           className={cn(LABEL_BASE, LABEL_SIDE[role.label], insideFromClass(role))}
         >
           {role.organization}
+          {role.note ? (
+            <span aria-hidden="true" data-path-mark="">
+              {role.note.mark}
+            </span>
+          ) : null}
         </span>
-        <span className="sr-only">{`, ${role.role}, ${role.spoken}`}</span>
+        <span className="sr-only">
+          {`, ${role.role}, ${role.spoken}${role.note ? `. ${role.note.text}` : ''}`}
+        </span>
         <span aria-hidden="true" data-path-line="" className={cn(LINE_BASE, tone)} />
       </a>
     </li>
@@ -250,6 +263,25 @@ function PathYears({ axis }: { readonly axis: ClockAxis }): ReactElement {
           </span>
         ))}
     </span>
+  );
+}
+
+/**
+ * The roles' date notes under the figure, each led by the mark its name carries. Decorative to
+ * a screen reader, which hears each note with its role's link instead of a second time here.
+ */
+function PathNotes({ roles }: { readonly roles: readonly PathRole[] }): ReactElement | null {
+  const noted = roles.flatMap((role) => (role.note ? [{ id: role.id, note: role.note }] : []));
+  if (noted.length === 0) return null;
+  return (
+    <ul aria-hidden="true" data-path-notes="" className={NOTES_CLASS}>
+      {noted.map(({ id, note }) => (
+        <li key={id} data-path-note={id}>
+          <span className={NOTE_MARK_CLASS}>{note.mark}</span>
+          {note.text}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -301,6 +333,7 @@ export function RolePathFigure({
         ))}
       </ol>
       <PathYears axis={axis} />
+      <PathNotes roles={path.roles} />
     </figure>
   );
 }

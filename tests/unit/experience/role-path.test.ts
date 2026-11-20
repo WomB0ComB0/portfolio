@@ -155,6 +155,42 @@ describe('buildRolePath: lanes and labels', () => {
   });
 });
 
+describe('buildRolePath: date notes', () => {
+  const FREELANCE_NOTE = 'Dates cover freelance work, not the establishment of the studio.';
+  const noted = (id: string, note: string): readonly Experience[] =>
+    ROLES.map((role) => (role._id === id ? { ...role, dateNote: note } : role));
+
+  it("carries a role's date note with a footnote mark, and nothing for the others", () => {
+    const path = pathOf(noted('elysium', FREELANCE_NOTE));
+
+    expect(byId(path.roles, 'elysium').note).toEqual({ mark: '*', text: FREELANCE_NOTE });
+    expect(path.roles.filter((role) => role.note)).toHaveLength(1);
+    expect(pathOf().roles.some((role) => role.note)).toBe(false);
+  });
+
+  it("marks several notes in the figure's order, '*' then '**', whatever Studio's order", () => {
+    const roles = noted('elysium', FREELANCE_NOTE).map((role) =>
+      role._id === 'dfg' ? { ...role, dateNote: 'Part time.' } : role,
+    );
+    const path = pathOf([...roles].reverse());
+
+    expect(byId(path.roles, 'elysium').note?.mark).toBe('*');
+    expect(byId(path.roles, 'dfg').note?.mark).toBe('**');
+  });
+
+  it('measures a noted name with its mark, so the mark fits wherever the name is set', () => {
+    const plain = byId(pathOf().roles, 'mlh');
+    const marked = byId(pathOf(noted('mlh', FREELANCE_NOTE)).roles, 'mlh');
+
+    expect(marked.labelEm).toBeGreaterThan(plain.labelEm);
+    expect(marked.insideRem).toBeGreaterThan(plain.insideRem);
+  });
+
+  it('ignores a blank date note', () => {
+    expect(byId(pathOf(noted('elysium', '   ')).roles, 'elysium').note).toBeUndefined();
+  });
+});
+
 describe('spokenPeriodOf', () => {
   const rowFor = (start: string, end: string | null) =>
     buildRoleStory([exp('one', 1, start, end, 'One')], { today: TODAY }).chapters[0]?.stops[0]?.row;
