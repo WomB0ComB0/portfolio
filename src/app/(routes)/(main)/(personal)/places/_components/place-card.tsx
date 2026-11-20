@@ -24,6 +24,9 @@ import { PhotoFolder } from './photo-folder';
 import { PlaceCategoryBadge } from './place-category-badge';
 import { PlaceDateRange } from './place-date-range';
 
+/** What a screen reader hears after the place: where the card's header link goes, and how. */
+const MAPS_NEW_TAB_LABEL = '(opens Google Maps in a new tab)';
+
 interface PlaceCardProps {
   place: PlaceItem;
 }
@@ -45,11 +48,20 @@ export function PlaceCard({ place }: PlaceCardProps) {
             rel="noopener noreferrer"
           >
             <div className="flex items-start justify-between gap-3 mb-2">
-              <CardTitle className="text-lg text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2">
-                <FiMapPin className="h-4 w-4 shrink-0" />
+              {/* An h2: the page's h1 is the only heading above the cards. */}
+              <CardTitle
+                as="h2"
+                className="text-lg text-foreground group-hover/link:text-primary transition-colors flex items-center gap-2"
+              >
+                <FiMapPin aria-hidden="true" className="h-4 w-4 shrink-0" />
                 <span className="line-clamp-1">{place.name}</span>
               </CardTitle>
-              <FiExternalLink className="h-4 w-4 text-muted-foreground group-hover/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+              {/* The new-tab cue shows on keyboard focus too; screen readers hear the words. */}
+              <FiExternalLink
+                aria-hidden="true"
+                className="h-4 w-4 text-muted-foreground group-hover/link:text-primary group-focus-visible/link:text-primary shrink-0 mt-0.5 opacity-0 group-hover/link:opacity-100 group-focus-visible/link:opacity-100 transition-opacity"
+              />{' '}
+              <span className="sr-only">{MAPS_NEW_TAB_LABEL}</span>
             </div>
             <CardDescription className="text-sm text-muted-foreground leading-snug mb-3 line-clamp-2">
               {place.description}

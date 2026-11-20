@@ -38,7 +38,9 @@ export const Cookies = (): JSX.Element => {
       <div className="space-y-8">
         <MagicCard className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl">What Are Cookies?</CardTitle>
+            <CardTitle as="h2" className="text-2xl">
+              What Are Cookies?
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-foreground/80 leading-relaxed">
@@ -52,7 +54,9 @@ export const Cookies = (): JSX.Element => {
 
         <MagicCard className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl">How We Use Cookies</CardTitle>
+            <CardTitle as="h2" className="text-2xl">
+              How We Use Cookies
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-foreground/80 leading-relaxed">
@@ -79,7 +83,9 @@ export const Cookies = (): JSX.Element => {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <CardTitle className="text-xl">Strictly Necessary Cookies</CardTitle>
+                    <CardTitle as="h3" className="text-xl">
+                      Strictly Necessary Cookies
+                    </CardTitle>
                     <Badge variant="destructive" className="text-xs">
                       Required
                     </Badge>
@@ -114,7 +120,9 @@ export const Cookies = (): JSX.Element => {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <CardTitle className="text-xl">Performance and Analytics Cookies</CardTitle>
+                    <CardTitle as="h3" className="text-xl">
+                      Performance and Analytics Cookies
+                    </CardTitle>
                     <Badge variant="secondary" className="text-xs">
                       Optional
                     </Badge>
@@ -169,7 +177,9 @@ export const Cookies = (): JSX.Element => {
 
         <MagicCard className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl">Your Choices and How to Manage Cookies</CardTitle>
+            <CardTitle as="h2" className="text-2xl">
+              Your Choices and How to Manage Cookies
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-foreground/80 leading-relaxed">
@@ -183,7 +193,7 @@ export const Cookies = (): JSX.Element => {
                 href="https://www.aboutcookies.org"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
+                className="text-primary underline hover:text-foreground inline-flex items-center gap-1"
               >
                 www.aboutcookies.org
                 <ExternalLink className="w-3 h-3" />
@@ -193,7 +203,7 @@ export const Cookies = (): JSX.Element => {
                 href="https://www.allaboutcookies.org"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
+                className="text-primary underline hover:text-foreground inline-flex items-center gap-1"
               >
                 www.allaboutcookies.org
                 <ExternalLink className="w-3 h-3" />
@@ -249,7 +259,9 @@ export const Cookies = (): JSX.Element => {
 
         <MagicCard className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl">Changes to This Cookie Policy</CardTitle>
+            <CardTitle as="h2" className="text-2xl">
+              Changes to This Cookie Policy
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-foreground/80 leading-relaxed">
@@ -263,7 +275,9 @@ export const Cookies = (): JSX.Element => {
 
         <MagicCard className="border-border/50 shadow-sm bg-muted/30">
           <CardHeader>
-            <CardTitle className="text-2xl">Contact Us</CardTitle>
+            <CardTitle as="h2" className="text-2xl">
+              Contact Us
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-foreground/80 leading-relaxed">
@@ -273,7 +287,7 @@ export const Cookies = (): JSX.Element => {
                 href={emailHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline font-medium"
+                className="text-primary underline hover:text-foreground font-medium"
               >
                 {encodedEmail.replaceAll(/&#(\d+);/g, (_match, dec) => String.fromCodePoint(dec))}
               </a>

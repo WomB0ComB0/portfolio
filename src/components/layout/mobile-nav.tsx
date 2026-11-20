@@ -84,7 +84,9 @@ export const MobileNavBar = memo(({ path }: { path: string }) => {
             aria-label="Open navigation menu"
             aria-haspopup="dialog"
             aria-expanded={isMenuOpen}
-            aria-controls={MOBILE_MENU_DIALOG_ID}
+            // The dialog renders only while open, so it is named only then: an id that is not in
+            // the page is a broken reference.
+            aria-controls={isMenuOpen ? MOBILE_MENU_DIALOG_ID : undefined}
           >
             <Menu className="size-4.5 shrink-0" aria-hidden />
             <span>Menu</span>

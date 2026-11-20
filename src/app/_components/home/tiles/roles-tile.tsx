@@ -56,7 +56,11 @@ const LIST_CLASS = 'grid gap-0.5 @[32rem]:grid-cols-2 @[32rem]:gap-x-4';
 const ROLE_BOX_CLASS = '-mx-2 flex min-w-0 flex-col gap-0.5 rounded-lg px-2 py-1.5';
 const ROLE_LINK_CLASS = `${ROLE_BOX_CLASS} text-foreground transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-2`;
 const POSITION_CLASS = 'truncate tile-title text-foreground';
-const COMPANY_CLASS = 'truncate tile-meta text-muted-foreground';
+/**
+ * The company and tenure wrap rather than end in an ellipsis: cut to one line, 'since 2023' was
+ * lost when a reader widened letter and word spacing (WCAG 1.4.12). It fits one line as before.
+ */
+const COMPANY_CLASS = 'wrap-break-word tile-meta text-muted-foreground';
 const MORE_LINK_CLASS =
   'self-start tile-meta font-medium text-brand-ink underline-offset-4 hover:underline';
 

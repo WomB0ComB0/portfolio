@@ -117,3 +117,13 @@ export function normaliseCaption(caption: string | undefined): string | null {
   const text = (caption ?? '').replace(/\s+/g, ' ').trim();
   return text === '' ? null : text;
 }
+
+/**
+ * What a photo shows, in Studio's words: its Alternative Text, else its caption, each tidied as
+ * normaliseCaption does; null with neither, where each surface writes its own fallback.
+ *
+ * @example
+ * photoAltText({ alt: ' ', caption: 'Demo day' }) // 'Demo day'
+ */
+export const photoAltText = (photo: Pick<PlacePhoto, 'alt' | 'caption'>): string | null =>
+  normaliseCaption(photo.alt) ?? normaliseCaption(photo.caption);

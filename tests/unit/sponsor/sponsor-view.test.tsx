@@ -126,7 +126,7 @@ describe('/sponsor server HTML', () => {
 
     const { html, root } = await routeHtml();
 
-    const links = Array.from(waysSection(root).querySelectorAll('li h3 a[href]'));
+    const links = Array.from(waysSection(root).querySelectorAll('li a[href]'));
     expect(links.map((link) => textOf(link).replace(/\s*\(opens in a new tab\)$/, ''))).toEqual(
       WAY_NAMES,
     );
@@ -148,6 +148,23 @@ describe('/sponsor server HTML', () => {
     expect(first).toHaveAttribute('target', '_blank');
     expect(first).toHaveAttribute('rel', 'noopener noreferrer');
     expect(textOf(waysSection(root).querySelector('li h3'))).toMatch(/^GitHub Sponsors/);
+  });
+
+  // Audit 2026-11-20 polish: each way's h3 read "Ko-fi (opens in a new tab)", built from the
+  // link inside it. The link wraps the heading instead: the heading is the name alone, and the
+  // link still says it opens a new tab.
+  it('names each way’s heading by the platform alone, inside its link', async () => {
+    getGitHubSponsors.mockResolvedValue(sponsorsData([]));
+
+    const { root } = await routeHtml();
+    const items = Array.from(waysSection(root).querySelectorAll('li'));
+
+    expect(items.map((item) => textOf(item.querySelector('h3')))).toEqual(WAY_NAMES);
+    for (const item of items) {
+      const link = item.querySelector('a[href]');
+      expect(link?.querySelector('h3')).not.toBeNull();
+      expect(textOf(link)).toMatch(/\(opens in a new tab\)$/);
+    }
   });
 
   it('has one h1, "Sponsor", as the nav names it', async () => {

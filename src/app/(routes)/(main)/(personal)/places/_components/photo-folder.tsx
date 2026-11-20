@@ -81,7 +81,10 @@ export function PhotoFolder({ href, count, slivers, placeName }: PhotoFolderProp
         <span className={styles.front} />
       </span>
       <span className={styles.label}>
-        <span className={styles.count}>{count}</span> {count === 1 ? 'photo' : 'photos'}
+        {/* The space and the word are one text node: on its own, Chromium dropped the space
+            from the link's name ("5photos of X"). */}
+        <span className={styles.count}>{count}</span>
+        {` ${count === 1 ? 'photo' : 'photos'}`}
         {/* A space outside the hidden span: browsers drop one inside it when they build the
             link's name ("5 photosof X"). */}{' '}
         <span className="sr-only">of {placeName}</span>

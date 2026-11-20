@@ -21,9 +21,9 @@
  * pattern, our own rewrite; the owner's pick B in the Aceternity lab review). It is a toolbar:
  * ONE Tab stop (the photo shown), Left and Right (and Home and End) move between thumbnails, and
  * Enter or Space shows the one focused (a native button's click). Every thumbnail is a real
- * button named "Photo n of N" (plus its caption), and the photo shown is marked aria-current. The
- * look is CSS (photo-strip.module.css); the script only keeps the shown or focused thumbnail in
- * view inside the strip, never by scrolling the page.
+ * button named "Photo n of N" (plus what the photo shows: its alt text, else its caption), and the
+ * photo shown is marked aria-current. The look is CSS (photo-strip.module.css); the script only
+ * keeps the shown or focused thumbnail in view inside the strip, never by scrolling the page.
  */
 
 import {
@@ -47,7 +47,7 @@ const THUMB_HEIGHT = 120;
 const THUMB_SIZES = '(max-width: 639px) 104px, 160px';
 
 /** What a thumbnail needs from a viewer photo. */
-export type StripPhoto = Pick<ViewerPhoto, 'thumb' | 'caption'>;
+export type StripPhoto = Pick<ViewerPhoto, 'thumb' | 'described'>;
 
 export interface PhotoStripProps {
   readonly photos: readonly StripPhoto[];
@@ -164,7 +164,7 @@ export function PhotoStrip({ photos, index, onPick, label }: PhotoStripProps): R
           className={styles.thumb}
           tabIndex={i === stop ? 0 : -1}
           aria-current={i === index ? 'true' : undefined}
-          aria-label={`Photo ${i + 1} of ${photos.length}${photo.caption ? `: ${photo.caption}` : ''}`}
+          aria-label={`Photo ${i + 1} of ${photos.length}${photo.described ? `: ${photo.described}` : ''}`}
           onClick={(event) => pick(i, event.currentTarget)}
         >
           <Image

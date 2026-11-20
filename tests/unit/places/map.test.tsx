@@ -137,6 +137,18 @@ describe('places map', () => {
     expect(h.mapProps).not.toHaveProperty('styles');
   });
 
+  // Audit 2026-11-20 minor 7 (WCAG 2.5.1, 2.5.7): zooming needed two fingers or Ctrl + wheel.
+  it("shows Google's zoom buttons, and only them, over the dark map", () => {
+    render(<GoogleMaps placesToDisplay={PLACES} />);
+
+    expect(h.mapProps).toMatchObject({
+      zoomControl: true,
+      disableDefaultUI: true,
+      colorScheme: 'DARK',
+      gestureHandling: 'cooperative',
+    });
+  });
+
   it('makes place markers keyboard-clickable through gmp-click, not the deprecated click events', () => {
     render(<GoogleMaps placesToDisplay={PLACES} />);
 
@@ -159,6 +171,21 @@ describe('places map', () => {
     clickMarker(1);
     expect(screen.getByRole('heading', { name: 'Second Place' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'First Place' })).not.toBeInTheDocument();
+  });
+
+  // Verify 2026-11-20 R1: the open card comes before the place cards' h2s in the page, so an h3
+  // title read the outline as h1, h3, h2. It is an h2 in the same look.
+  it("titles the open card with an h2 in the card title's look, never an h3", () => {
+    render(<GoogleMaps placesToDisplay={PLACES} />);
+
+    clickMarker(0);
+    const title = screen.getByRole('heading', { level: 2, name: 'First Place' });
+
+    expect(title.tagName).toBe('H2');
+    expect((title.getAttribute('class') ?? '').split(' ')).toEqual(
+      expect.arrayContaining(['text-base', 'font-semibold', 'text-primary']),
+    );
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument();
   });
 
   it('links the card to the place page, with or without photos', () => {

@@ -32,7 +32,12 @@ import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Tile } from '@/components/console/tile';
-import { destinationOf, hasDestination, TileLink } from '@/components/console/tile-link';
+import {
+  destinationOf,
+  hasDestination,
+  NewTabArrow,
+  TileLink,
+} from '@/components/console/tile-link';
 
 vi.mock('next/link', () => ({
   default: ({
@@ -178,6 +183,26 @@ describe('TileLink', () => {
     expect(
       screen.getByRole('link', { name: 'Source portfolio repo (opens in a new tab)' }),
     ).toBeInTheDocument();
+  });
+
+  // Audit 2026-11-20 polish: a heading around the link was named "GitHub profile (opens in a new
+  // tab)", and so was the region it labels. The link wraps the heading instead, which draws the
+  // arrow itself: the heading is the title alone, and the link's name still says it all.
+  it('wraps a heading that draws its own arrow, so only the link says where it goes', () => {
+    render(
+      <TileLink href="https://github.com/WomB0ComB0" external arrow={false} srSuffix="profile">
+        <h2>
+          GitHub
+          <NewTabArrow />
+        </h2>
+      </TileLink>,
+    );
+
+    const heading = screen.getByRole('heading', { level: 2, name: 'GitHub' });
+    const link = screen.getByRole('link', { name: 'GitHub profile (opens in a new tab)' });
+    expect(link).toContainElement(heading);
+    expect(link.querySelectorAll('[data-new-tab-arrow]')).toHaveLength(1);
+    expect(heading.querySelector('[data-new-tab-arrow]')).not.toBeNull();
   });
 
   it('is the one link of a linked tile, which rings itself for it', () => {

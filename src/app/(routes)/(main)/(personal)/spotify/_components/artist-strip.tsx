@@ -160,11 +160,15 @@ function Portrait({ image }: { readonly image?: string }): ReactElement {
   );
 }
 
-/** The rank and the name; the space keeps the link's name "1 potsu". */
+/**
+ * The rank and the name; the space keeps the link's name "1 potsu". The space and the name are
+ * one text node: on its own, Chromium dropped the space from the name ("1potsu").
+ */
 function ArtistName({ artist }: { readonly artist: ChartArtist }): ReactElement {
   return (
     <span data-artist-name="" className={NAME_CLASS}>
-      <span className={RANK_CLASS}>{artist.rank}</span> {artist.name}
+      <span className={RANK_CLASS}>{artist.rank}</span>
+      {` ${artist.name}`}
     </span>
   );
 }

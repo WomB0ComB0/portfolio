@@ -182,7 +182,8 @@ describe('MobileNavBar', () => {
     expect(within(bar).getByRole('button', { name: SEARCH_LABEL })).toBeInTheDocument();
     expect(menu).toHaveAttribute('aria-haspopup', 'dialog');
     expect(menu).toHaveAttribute('aria-expanded', 'false');
-    expect(menu).toHaveAttribute('aria-controls', 'mobile-menu-dialog');
+    // The dialog is not in the page while the menu is closed, so nothing points at it yet.
+    expect(menu).not.toHaveAttribute('aria-controls');
   });
 
   it('opens the palette from the Search button, and it stays open on its focused search box', async () => {

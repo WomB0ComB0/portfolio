@@ -55,6 +55,17 @@ describe('PhotoFolder', () => {
     );
   });
 
+  // Audit 2026-11-20 minor 6: Chromium dropped a space that sat alone in its own text node after
+  // the count, naming the link "5photos of …". jsdom keeps it either way, so the check is that the
+  // space and the word are one text node, the shape the audit's browser check confirmed.
+  it('keeps the space after the count in the same text as "photos"', () => {
+    render(<PhotoFolder href="/places/p1" count={5} slivers={SLIVERS} placeName="Antler NYC" />);
+    const count = screen.getByText('5');
+
+    expect(count.nextSibling?.nodeType).toBe(Node.TEXT_NODE);
+    expect(count.nextSibling?.textContent).toBe(' photos');
+  });
+
   it('says "1 photo" for one', () => {
     render(<PhotoFolder href="/places/p1" count={1} slivers={[SLIVER(1)]} placeName="X" />);
 

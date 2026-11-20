@@ -38,7 +38,14 @@ import 'server-only';
 
 import type { ReactElement } from 'react';
 
-import { hasDestination, numberFormatter, Sparkline, Tile, TileLink } from '@/components/console';
+import {
+  hasDestination,
+  NewTabArrow,
+  numberFormatter,
+  Sparkline,
+  Tile,
+  TileLink,
+} from '@/components/console';
 import {
   ACTIVITY_WEEKS,
   type ContributionWeek,
@@ -229,15 +236,23 @@ function ActivityView({ activity, stale, asOf, now }: ActivityViewProps): ReactE
   const commit = latest && hasDestination(latest.url) ? latest : null;
   return (
     <Tile variant="linked" className={TILE_CLASS} data-state={activityState(stale, commit)}>
-      <TileLabel>
-        {commit ? (
-          GITHUB_TILE_LABEL
-        ) : (
-          <TileLink href={GITHUB_PROFILE_URL} external srSuffix="profile" className="text-inherit">
+      {commit ? (
+        <TileLabel>{GITHUB_TILE_LABEL}</TileLabel>
+      ) : (
+        // The link wraps the label: the heading is just "GitHub", the link says the rest.
+        <TileLink
+          href={GITHUB_PROFILE_URL}
+          external
+          srSuffix="profile"
+          arrow={false}
+          className="block text-inherit"
+        >
+          <TileLabel>
             {GITHUB_TILE_LABEL}
-          </TileLink>
-        )}
-      </TileLabel>
+            <NewTabArrow />
+          </TileLabel>
+        </TileLink>
+      )}
       <div className={BODY_CLASS}>
         <div className={TEXT_COLUMN_CLASS}>
           <FigureRow value={formatCount(activity.total)} unit={CONTRIBUTIONS_UNIT} size="lg" />

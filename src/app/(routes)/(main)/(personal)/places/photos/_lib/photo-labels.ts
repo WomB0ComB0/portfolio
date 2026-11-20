@@ -16,8 +16,8 @@
 
 /**
  * @file The photos view's words, pure and server-safe: plurals that read right at one, each grid
- * link's unique name, the wall's spoken sentence and the open photo's alt. Captions are plain
- * text, only ever rendered by React as text or attributes.
+ * link's unique name (one string, the same in every browser), the wall's spoken sentence and the
+ * open photo's alt. Captions are plain text, only ever rendered by React as text or attributes.
  */
 
 import type { PhotoPlace, WallPhoto } from '@/types/places';
@@ -52,30 +52,67 @@ export function spokenDates(startDate: string | null, endDate: string | null): s
   return shown.replace(RANGE_SEPARATOR, SPOKEN_SEPARATOR);
 }
 
-/** ", photo 3 of 5" with ": <caption>" when it has one. */
-const numbered = (photo: WallPhoto, place: PhotoPlace): string =>
-  `photo ${photo.index} of ${place.photoCount}${photo.caption ? `: ${photo.caption}` : ''}`;
+/** What the photo shows in words: its alt text, else its caption; null with neither. */
+const describedBy = (photo: WallPhoto): string | null => photo.alt ?? photo.caption;
+
+/** ", photo 3 of 5" with ": <alt text or caption>" when it has one. */
+const numbered = (photo: WallPhoto, place: PhotoPlace): string => {
+  const words = describedBy(photo);
+  return `photo ${photo.index} of ${place.photoCount}${words ? `: ${words}` : ''}`;
+};
 
 /**
- * The hidden end of a grid link's name, after the place, category and dates it shows: every
- * photo of one place then has a name of its own.
+ * The end of a grid link's name, after the place, category and dates it shows: every photo of
+ * one place then has a name of its own.
  */
 export const gridLinkSuffix = (photo: WallPhoto, place: PhotoPlace): string =>
   `, ${numbered(photo, place)}`;
+
+/**
+ * The line under a place's name in words: its category, then its dates as heard when it is
+ * dated (['Hackathon', 'May 19 to 20, 2026']).
+ */
+export function placeMetaWords(place: PhotoPlace): readonly string[] {
+  const dates = spokenDates(place.startDate, place.endDate);
+  return dates ? [place.category, dates] : [place.category];
+}
+
+/** The parts of a grid link's name, in the order the card shows them. */
+export interface GridLinkWords {
+  /** The number a run's later card shows in place of the name ('Fig. 2'); else null. */
+  readonly fig: number | null;
+  readonly name: string;
+  /** The line under the name, as parts. */
+  readonly meta: readonly string[];
+  /** The rest, which the card does not show (', photo 3 of 5: Opening night'). */
+  readonly suffix: string;
+}
+
+/**
+ * A grid link's whole name as one string, each part after a comma: "IEEE LISAT 2024, Research,
+ * Nov 15, 2024, photo 3 of 3: Devices on a table". Built from the card's own text nodes, Chromium
+ * ran the category into the dates and put a space before the comma, so the link carries this as
+ * its aria-label. It starts with what the card shows, in order (WCAG 2.5.3): the figure number
+ * on a run's later card, else the name.
+ */
+export function gridLinkName({ fig, name, meta, suffix }: GridLinkWords): string {
+  const shown = [fig === null ? '' : `Fig. ${fig}`, name, ...meta]
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+  return `${shown.join(', ')}${suffix}`;
+}
 
 /**
  * What the wall's live region says for a photo: "Antler NYC, photo 3 of 5: Opening night.
  * Hackathon, May 19 to 20, 2026".
  */
 export function wallAnnouncement(photo: WallPhoto, place: PhotoPlace): string {
-  const dates = spokenDates(place.startDate, place.endDate);
-  const meta = dates ? `${place.category}, ${dates}` : place.category;
-  return `${place.name}, ${numbered(photo, place)}. ${meta}`;
+  return `${place.name}, ${numbered(photo, place)}. ${placeMetaWords(place).join(', ')}`;
 }
 
-/** The open photo's alt: its caption, else "Photo 2 of 5 at Antler NYC". */
+/** The open photo's alt: its alt text, else its caption, else "Photo 2 of 5 at Antler NYC". */
 export const photoAlt = (photo: WallPhoto, place: PhotoPlace): string =>
-  photo.caption ?? `Photo ${photo.index} of ${place.photoCount} at ${place.name}`;
+  describedBy(photo) ?? `Photo ${photo.index} of ${place.photoCount} at ${place.name}`;
 
 /** A photo's focus as an object-position ("30% 70%"); centred without one. */
 export const focusPosition = (photo: WallPhoto): string =>

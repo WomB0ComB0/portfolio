@@ -34,7 +34,7 @@ import { HOME_NAV_ITEM, NAV_GROUPS, type NavGroupData, type NavItem } from './na
  */
 const SIDEBAR_MEDIA_QUERY = '(min-width: 64rem)';
 
-/** The dialog's id, which the Menu button names in aria-controls. */
+/** The dialog's id, which the Menu button names in aria-controls while the dialog is open. */
 export const MOBILE_MENU_DIALOG_ID = 'mobile-menu-dialog';
 
 /** The dialog's accessible name, shown as its heading. */

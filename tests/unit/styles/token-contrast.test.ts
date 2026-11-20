@@ -287,6 +287,18 @@ describe('colour token contrast (globals.css :root)', () => {
     },
   );
 
+  // Audit 2026-11-20 minor 3: a selected chip, Technology option or view is ringed 2px in --brand
+  // inside its brand-subtle fill, where the others have a hairline (WCAG 1.4.11).
+  it.each(['canvas', 'surface-1', 'surface-2', 'brand-subtle', 'hairline'])(
+    'the selected ring (--brand) meets 3:1 against --%s',
+    (neighbour) => {
+      const ratio = contrastRatio(color('brand'), color(neighbour));
+      expect(ratio, `brand on ${neighbour} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+        AA_NON_TEXT,
+      );
+    },
+  );
+
   it.each(CONSOLE_SURFACES)('the --focus ring meets 3:1 against --%s', (surface) => {
     const ratio = contrastRatio(color('focus'), color(surface));
     expect(ratio, `focus on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(

@@ -151,7 +151,28 @@ describe('MobileNavBar menu button', () => {
     const dialog = openMenu();
 
     expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+    expect(dialog.id).not.toBe('');
     expect(menuButton()).toHaveAttribute('aria-controls', dialog.id);
+  });
+
+  // Verify 2026-11-20 R4: aria-controls named 'mobile-menu-dialog' while no element had that id
+  // (the dialog only renders while open). It points at the dialog only while the dialog is there.
+  it('names the dialog in aria-controls only while it is in the page', async () => {
+    renderBar();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(menuButton()).not.toHaveAttribute('aria-controls');
+
+    const dialog = openMenu();
+    const controls = menuButton().getAttribute('aria-controls') ?? '';
+    expect(document.getElementById(controls)).toBe(dialog);
+    await flushFocus();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close menu' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+    expect(menuButton()).not.toHaveAttribute('aria-controls');
   });
 
   it('moves focus into the dialog when it opens', async () => {

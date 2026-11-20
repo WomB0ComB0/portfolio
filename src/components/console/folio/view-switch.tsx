@@ -28,8 +28,8 @@
  * a small client island builds them from the bar's live state (useFilterBar().model.active and the
  * schema's serialize), as PlacesViewNav does, and renders this.
  *
- * Palette only: a surface-1 track with a hairline, the current view on brand-subtle with a
- * brand-edge rim. The label colour flips at once; only a press moves (scale, on the house spring).
+ * Palette only: a surface-1 track with a hairline, the current view on brand-subtle with a 2px
+ * brand ring. The label colour flips at once; only a press moves (scale, on the house spring).
  */
 
 import Link from 'next/link';
@@ -57,7 +57,8 @@ const LINK_CLASS = [
   'inline-flex min-h-9 grow items-center justify-center rounded-[0.4375rem] px-[clamp(0.625rem,3cqi,0.875rem)] tile-label text-muted-foreground no-underline pointer-coarse:min-h-11',
   'transition-[scale] duration-(--motion-spring-out) ease-spring hover:text-foreground',
   'active:scale-[0.96] active:duration-(--motion-instant) motion-reduce:active:scale-100',
-  'aria-[current=page]:bg-brand-subtle aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_0_0_0_1px_var(--brand-edge)]',
+  // The current view's 2px --brand ring tells it apart by shape too, as a selected chip's does.
+  'aria-[current=page]:bg-brand-subtle aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_0_0_0_2px_var(--brand)]',
   'forced-colors:border forced-colors:border-[color:ButtonBorder]',
   'forced-colors:aria-[current=page]:border-[color:Highlight] forced-colors:aria-[current=page]:bg-[color:Highlight] forced-colors:aria-[current=page]:text-[color:HighlightText] forced-colors:aria-[current=page]:[forced-color-adjust:none]',
 ].join(' ');

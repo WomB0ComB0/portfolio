@@ -68,6 +68,13 @@ export interface TileLinkProps {
   srSuffix?: string;
   /** Internal links only. Off by default: a page of tiles would prefetch every target at once. */
   prefetch?: boolean;
+  /**
+   * Draws the new-tab arrow after the children (external links; on by default). Off when the link
+   * wraps a tile's heading, which then draws the arrow itself (NewTabArrow, on its title's line):
+   * the heading, and a region it labels, are then named by the title alone, while the link's
+   * name still ends with srSuffix and "(opens in a new tab)".
+   */
+  arrow?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -122,6 +129,7 @@ export function TileLink({
   external = false,
   srSuffix,
   prefetch = false,
+  arrow = true,
   className,
   children,
 }: TileLinkProps): ReactElement {
@@ -141,7 +149,7 @@ export function TileLink({
         className={linkClassName}
       >
         {children}
-        <NewTabArrow />
+        {arrow && <NewTabArrow />}
         {suffix}
         <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
       </a>

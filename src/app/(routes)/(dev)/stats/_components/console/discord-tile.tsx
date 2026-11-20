@@ -71,7 +71,7 @@ import type { LanyardData } from '@/app/api/v1/[[...route]]/lanyard/handlers';
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
 import { StatusDot, type StatusTone } from '@/components/console/status-dot';
 import { Tile } from '@/components/console/tile';
-import { TileLink } from '@/components/console/tile-link';
+import { NewTabArrow, TileLink } from '@/components/console/tile-link';
 import Image from '@/components/ui/cdn-image';
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { cn } from '@/lib/utils';
@@ -567,16 +567,19 @@ export function DiscordTile({
       data-state={data ? 'ready' : failed ? 'error' : 'empty'}
     >
       <div className={HEAD_CLASS}>
-        <TileLabel id={LABEL_ID}>
-          <TileLink
-            href={profileUrl(profileId)}
-            external
-            srSuffix="profile"
-            className="text-inherit"
-          >
+        {/* The link wraps the label: the heading, and the region it names, are just "Discord". */}
+        <TileLink
+          href={profileUrl(profileId)}
+          external
+          srSuffix="profile"
+          arrow={false}
+          className="block text-inherit"
+        >
+          <TileLabel id={LABEL_ID}>
             Discord
-          </TileLink>
-        </TileLabel>
+            <NewTabArrow />
+          </TileLabel>
+        </TileLink>
         {data && <StatusWord status={data.discord_status} />}
       </div>
       {data ? (

@@ -327,11 +327,65 @@ const HomeRailLink = ({ item, path }: { readonly item: NavItem; readonly path: s
 };
 
 /**
+ * The rail tooltip, at rest: hidden, fading in and out on opacity alone, and taking no pointer, so
+ * an invisible tooltip never catches a hover or a click. Its ::before is a transparent bridge over
+ * the 16px gap (ml-4), reaching a little onto the button past the tooltip's 1px border.
+ */
+const PALETTE_TIP_CLASS =
+  'pointer-events-none absolute top-1/2 left-full z-50 ml-4 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-md border border-hairline bg-surface-2 px-2.5 py-1.5 text-body-sm text-foreground opacity-0 shadow-raised transition-opacity duration-(--motion-fast) ease-standard before:absolute before:inset-y-0 before:right-full before:w-5 before:content-[""]';
+/**
+ * Shown while the button is hovered or has keyboard focus, unless Escape dismissed it. Shown on
+ * hover it takes the pointer, bridge included: it is inside the button, so the pointer can move
+ * onto it and the button stays hovered (WCAG 1.4.13, hoverable).
+ */
+const PALETTE_TIP_SHOWN_CLASS =
+  'group-hover/palette:pointer-events-auto group-hover/palette:opacity-100 group-focus-visible/palette:opacity-100';
+
+type TipTrigger = 'hovered' | 'focused';
+
+/**
+ * Escape for the rail tooltip (WCAG 1.4.13): while the button is hovered or focused, Escape hides
+ * the tooltip and leaves focus and the pointer where they are. It stays hidden until both have
+ * left, so the next hover or focus shows it again.
+ */
+function useEscapableTip() {
+  const [isDismissed, setIsDismissed] = useState(false);
+  const triggers = useRef<Readonly<Record<TipTrigger, boolean>>>({
+    hovered: false,
+    focused: false,
+  });
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const { hovered, focused } = triggers.current;
+      if (event.key === 'Escape' && (hovered || focused)) setIsDismissed(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const set = useCallback((trigger: TipTrigger, isOn: boolean) => {
+    triggers.current = { ...triggers.current, [trigger]: isOn };
+    if (!triggers.current.hovered && !triggers.current.focused) setIsDismissed(false);
+  }, []);
+
+  return {
+    isDismissed,
+    onPointerEnter: () => set('hovered', true),
+    onPointerLeave: () => set('hovered', false),
+    onFocus: () => set('focused', true),
+    onBlur: () => set('focused', false),
+  };
+}
+
+/**
  * Opens the command palette. A tooltip beside the rail names it and its shortcut on hover and on
- * keyboard focus; aria-keyshortcuts gives assistive tech the same shortcut.
+ * keyboard focus, and Escape dismisses it; aria-keyshortcuts gives assistive tech the same
+ * shortcut.
  */
 const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
   const shortcut = usePaletteShortcut();
+  const { isDismissed, ...tipTriggers } = useEscapableTip();
   return (
     <button
       type="button"
@@ -339,11 +393,13 @@ const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
       className={cn(RAIL_ITEM, RAIL_ITEM_IDLE, 'group/palette')}
       aria-label="Open command menu"
       aria-keyshortcuts={shortcut.keys}
+      {...tipTriggers}
     >
       <FiCommand size={RAIL_ICON_SIZE} aria-hidden />
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-full z-50 ml-4 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-md border border-hairline bg-surface-2 px-2.5 py-1.5 text-body-sm text-foreground opacity-0 shadow-raised transition-opacity duration-(--motion-fast) ease-standard group-hover/palette:opacity-100 group-focus-visible/palette:opacity-100"
+        data-palette-tip=""
+        className={cn(PALETTE_TIP_CLASS, !isDismissed && PALETTE_TIP_SHOWN_CLASS)}
       >
         Command menu
         <kbd className="font-mono text-label text-muted-foreground">{shortcut.label}</kbd>

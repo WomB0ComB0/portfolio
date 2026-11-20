@@ -30,7 +30,7 @@ import type { ReactElement } from 'react';
 import type { IconType } from 'react-icons';
 import { SiBuymeacoffee, SiGithubsponsors, SiKofi, SiOpencollective } from 'react-icons/si';
 
-import { Tile, TileLink } from '@/components/console';
+import { NewTabArrow, Tile, TileLink } from '@/components/console';
 import { PRIMARY_WAY_ID, type SponsorWay, type SponsorWayId } from '../_lib/ways';
 import { SECTION_LABEL_CLASS } from './sponsor-classes';
 
@@ -75,12 +75,19 @@ function WayRow({ way }: { readonly way: SponsorWay }): ReactElement {
         <Icon className="size-5" />
       </span>
       <div className={BODY_CLASS}>
-        <h3 className="tile-title text-foreground">
-          {/* text-inherit: the name stays foreground; brand is for the row's hover and focus. */}
-          <TileLink href={way.href} external={way.newTab} className="text-inherit">
+        {/* text-inherit: the name stays foreground; brand is for the row's hover and focus. The
+            link wraps the h3, so the heading is the name alone and the link adds the new tab. */}
+        <TileLink
+          href={way.href}
+          external={way.newTab}
+          arrow={false}
+          className="block text-inherit"
+        >
+          <h3 className="tile-title text-foreground">
             {way.name}
-          </TileLink>
-        </h3>
+            {way.newTab && <NewTabArrow />}
+          </h3>
+        </TileLink>
         <p className="tile-sub text-muted-foreground">{way.purpose}</p>
       </div>
     </Tile>

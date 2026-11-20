@@ -31,11 +31,24 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 );
 CardHeader.displayName = 'CardHeader';
 
-const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
+/** What a card title renders: a div, or a real heading where the page outline needs one. */
+type CardTitleElement = 'div' | 'h2' | 'h3' | 'h4';
+
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  /** The element: 'div' by default; h2 to h4 make the title a heading with the same look. */
+  as?: CardTitleElement;
+}
+
+/**
+ * A card's title. As a heading it looks as it does as a div: the utilities override the base
+ * heading rule's weight, line height and tracking, and `text-wrap` undoes its balanced wrapping
+ * (a no-op on the div, which already wraps normally).
+ */
+const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
+  ({ as: Element = 'div', className, ...props }, ref) => (
+    <Element
       ref={ref}
-      className={cn('font-semibold leading-none tracking-tight', className)}
+      className={cn('font-semibold leading-none tracking-tight text-wrap', className)}
       {...props}
     />
   ),

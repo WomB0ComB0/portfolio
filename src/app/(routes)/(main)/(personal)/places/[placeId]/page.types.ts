@@ -28,6 +28,11 @@ export interface ViewerPhoto {
   /** A 4:3 crop for the photo strip under the frame. */
   thumb: string;
   caption?: string;
-  /** The caption, or "Photo of <place>" when it has none. */
+  /**
+   * What the photo shows: Studio's Alternative Text, else the caption, tidied (photoAltText);
+   * absent with neither. The strip names a thumbnail by it, as /places/photos does.
+   */
+  described?: string;
+  /** Studio's Alternative Text, else the caption, else "Photo of <place>". */
   alt: string;
 }

@@ -35,7 +35,11 @@ import { KIND_WORDS } from '../_lib/media-feed';
 const PROJECT_MEDIA_TITLE = 'See also';
 const PROJECT_MEDIA_ALL = 'All writing and video';
 
-const TITLE_ID = 'project-media-title';
+/**
+ * Its own id: the project's media section above it (PortfolioMedia id="project-media") titles
+ * itself "project-media-title", which this one used too, so "See also" was named after it.
+ */
+const TITLE_ID = 'project-see-also-title';
 
 const BLOCK_CLASS = 'flex flex-col gap-3 border-t border-hairline pt-6';
 const HEADING_CLASS = 'tile-label text-faint';

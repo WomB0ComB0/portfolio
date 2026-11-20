@@ -349,7 +349,7 @@ describe('/projects views', () => {
       hrefsAt(PAGE_ORDER.filter((index) => index !== 0)),
     );
     // The places grid's own card: the project's name and byline shown, its number heard.
-    expect(links[0]).toHaveAccessibleName('Project 2 Web Development Jun 2025, image 1 of 1');
+    expect(links[0]).toHaveAccessibleName('Project 2, Web Development, Jun 2025, image 1 of 1');
     expect(screen.getByText('11 images from 11 projects')).toBeInTheDocument();
     // Every image is listed: no 'Show all' step.
     expect(screen.queryByRole('button', { name: /^Show all/ })).not.toBeInTheDocument();
@@ -434,7 +434,7 @@ describe('/projects views', () => {
     ]);
     // Its link's name starts with the number it shows, as a voice user says it (WCAG 2.5.3).
     expect(links[2]).toHaveAccessibleName(
-      /^Fig\. 3 ?, Project 2 Web Development .*, image 3 of 3$/,
+      /^Fig\. 3, Project 2, Web Development, .*, image 3 of 3$/,
     );
   });
 

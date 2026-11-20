@@ -114,7 +114,9 @@ export function CaseHero({ project, screens, featured }: CaseHeroProps): ReactEl
   const ongoing = isOngoing(project.status);
   const hasImage = screens.length > 0;
   return (
-    <QuietStage as="header" aria-labelledby={CASE_TITLE_ID} className={styles.stage}>
+    // Unnamed: inside the article and main the header has a generic role, on which
+    // aria-labelledby is prohibited; the h1 titles the page.
+    <QuietStage as="header" className={styles.stage}>
       <Crumbs crumb={caseCrumb(project._id, project.startDate, featured)} />
       <div className={styles.hero} data-has-image={hasImage ? 'true' : 'false'}>
         <div className={styles.intro}>
