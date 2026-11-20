@@ -70,7 +70,8 @@ describe('GET /leetcode', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe(CachePresets.Medium.cacheControl);
-    expect(res.headers.get('content-type')).toContain('application/json');
+    // Exactly one value: a second spelling of the header used to come back as "application/json, application/json".
+    expect(res.headers.get('content-type')).toBe('application/json');
     expect(await res.json()).toEqual(stats);
   });
 
