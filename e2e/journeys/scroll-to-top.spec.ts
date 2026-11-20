@@ -39,9 +39,21 @@ async function scrollTo(page: Page, top: number): Promise<void> {
   await expect.poll(() => scrollY(page)).toBe(top);
 }
 
-async function reveal(page: Page): Promise<void> {
+/**
+ * Shows the control at 500 px. On a phone it waits for a scroll back up (it stays off the text
+ * while the visitor reads down), so the page first goes past 500 and comes back.
+ */
+async function reveal(page: Page, mobile: boolean): Promise<void> {
+  if (mobile) await scrollTo(page, 700);
   await scrollTo(page, 500);
   await expect(control(page)).toBeVisible();
+}
+
+/** Waits for the control's entrance (opacity, translate, scale) to finish before measuring it. */
+async function settled(page: Page): Promise<void> {
+  await control(page).evaluate((element) =>
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  );
 }
 
 /** Real client navigation exercises the persistent shell and App Router's history state. */
@@ -72,7 +84,15 @@ for (const profile of PROFILES) {
       await scrollTo(page, threshold - 1);
       await expect(control(page)).toHaveCount(0);
       await scrollTo(page, threshold);
+      if (profile.mobile) {
+        // Reading on down, a phone keeps the control off the text; a scroll back up shows it.
+        await expect(control(page)).toHaveCount(0);
+        await scrollTo(page, threshold + 200);
+        await expect(control(page)).toHaveCount(0);
+        await scrollTo(page, threshold + 100);
+      }
       await expect(control(page)).toBeVisible();
+      await settled(page);
       const box = await control(page).boundingBox();
       const main = await page.locator(MAIN).boundingBox();
       if (!box || !main) throw new Error('missing control or main box');
@@ -98,6 +118,7 @@ for (const profile of PROFILES) {
         window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }),
       );
       await expect(control(page)).toBeVisible();
+      await settled(page);
       await expect
         .poll(async () => {
           const button = await control(page).boundingBox();
@@ -121,7 +142,7 @@ for (const profile of PROFILES) {
     }) => {
       await openProjects(page, '?q=a');
       await expect(page.getByRole('searchbox')).toHaveValue('a');
-      await reveal(page);
+      await reveal(page, profile.mobile);
       const before = await page.evaluate(() => {
         history.replaceState(
           { ...history.state, scrollTopMarker: 'kept' },
@@ -158,7 +179,7 @@ for (const profile of PROFILES) {
     }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openProjects(page);
-      await reveal(page);
+      await reveal(page, profile.mobile);
       // Runs after React's root click handler but in the same event: a smooth journey would not
       // have reached the top yet. It observes the real scroll, without replacing a browser API.
       await page.evaluate(() => {
@@ -182,7 +203,7 @@ for (const profile of PROFILES) {
 
     test('hides while the command palette is open and restores after Escape', async ({ page }) => {
       await openProjects(page);
-      await reveal(page);
+      await reveal(page, profile.mobile);
       await page.keyboard.press('Control+k');
       const search = page.getByRole('combobox');
       await expect(search).toHaveAttribute('aria-expanded', 'true');
@@ -196,12 +217,45 @@ for (const profile of PROFILES) {
       page,
     }) => {
       await openProjects(page);
-      await reveal(page);
+      await reveal(page, profile.mobile);
       await navigateToPrivacy(page, profile.mobile);
       await expect.poll(() => scrollY(page)).toBe(0);
       await expect(control(page)).toHaveCount(0);
-      await scrollTo(page, 500);
+      await reveal(page, profile.mobile);
+    });
+
+    test('appears, follows the footer and leaves without shifting the layout', async ({ page }) => {
+      await page.addInitScript(() => {
+        const w = window as Window & { scrollTopShift?: number };
+        w.scrollTopShift = 0;
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as unknown as {
+            value: number;
+            sources?: { node?: Node | null }[];
+          }[]) {
+            const fromControl = (entry.sources ?? []).some(({ node }) => {
+              const element = node instanceof Element ? node : node?.parentElement;
+              return Boolean(element?.closest('[data-scroll-top-position]'));
+            });
+            if (fromControl) w.scrollTopShift = (w.scrollTopShift ?? 0) + entry.value;
+          }
+        }).observe({ type: 'layout-shift', buffered: true });
+      });
+      await openProjects(page);
+      await reveal(page, profile.mobile);
+      await page.evaluate(() =>
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }),
+      );
       await expect(control(page)).toBeVisible();
+      await settled(page);
+      await scrollTo(page, 0);
+      await expect(control(page)).toHaveCount(0);
+      await page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      );
+      expect(
+        await page.evaluate(() => (window as Window & { scrollTopShift?: number }).scrollTopShift),
+      ).toBe(0);
     });
 
     if (profile.mobile) {
@@ -211,7 +265,7 @@ for (const profile of PROFILES) {
           .locator('main [data-filter-part="chips"][data-pill="on"]')
           .first()
           .waitFor({ state: 'attached' });
-        await reveal(page);
+        await reveal(page, profile.mobile);
         // A locator click first scrolls this pinned button into the page's scroll padding.
         // Tap its visible position, as a phone visitor does, keeping the scrolled precondition.
         const filters = await page.locator('main [data-filter-part="filters"]').boundingBox();
