@@ -31,8 +31,9 @@
 /*
  * Safari before 18 blurs only with -webkit-backdrop-filter, and Chrome before 120 masks only with
  * -webkit-mask-image and its own -webkit-mask-composite keywords: each twin is deliberate. Next's
- * production CSS pass follows package.json's browserslist (Safari 18 and up today) and drops the
- * -webkit-backdrop-filter twins, so older Safari gets the scrim below; they come back with the list.
+ * CSS pass follows package.json's browserslist (Safari 18.0 and up, the owner's choice) and drops
+ * the -webkit-backdrop-filter twins, so Safari 16.4 to 17 get the scrim below; they come back with
+ * the list. tests/unit/config/browserslist.test.ts builds this file to check.
  */
 /* stylelint-disable property-no-vendor-prefix */
 
