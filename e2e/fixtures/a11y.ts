@@ -50,16 +50,42 @@ const MAX_CANDIDATES = 40;
 /** Detail pages fetched at once while searching for one that fits. */
 const DISCOVERY_BATCH = 4;
 
+const isProduction = (url: string): boolean => PRODUCTION_HOSTS.has(new URL(url).hostname);
+
+const isRedirect = (status: number): boolean => status >= 300 && status < 400;
+
+/** Redirect hops checked before a chain is let through; a longer chain is refused. */
+const MAX_REDIRECT_HOPS = 10;
+
 /**
  * Lets the browser read but never write: every request other than GET or HEAD is aborted (the
- * Sentry tunnel, analytics beacons, any form), and so is anything for the production site.
+ * Sentry tunnel, analytics beacons, any form), and so is anything for the production site,
+ * including through redirects. Playwright follows a redirect without routing its next hop, so a
+ * redirect is never handed to the browser unchecked: the whole chain is walked first with redirects
+ * off, and the request is aborted if any hop is the production site. A chain that stays clear is
+ * let through for the browser to follow itself, so the page's URL still moves with it.
  */
 export async function guardRequests(context: BrowserContext): Promise<void> {
-  await context.route('**/*', (route) => {
+  await context.route('**/*', async (route) => {
     const request = route.request();
     const isRead = request.method() === 'GET' || request.method() === 'HEAD';
-    if (!isRead || PRODUCTION_HOSTS.has(new URL(request.url()).hostname)) return route.abort();
-    return route.continue();
+    if (!isRead || isProduction(request.url())) return route.abort();
+    const first = await route.fetch({ maxRedirects: 0 }).catch(() => null);
+    if (!first) return route.abort();
+    if (!isRedirect(first.status())) return route.fulfill({ response: first });
+
+    let response = first;
+    let url = request.url();
+    for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop += 1) {
+      const location = response.headers().location;
+      if (!isRedirect(response.status()) || !location) return route.continue();
+      url = new URL(location, url).href;
+      if (isProduction(url)) return route.abort();
+      const next = await route.fetch({ url, maxRedirects: 0 }).catch(() => null);
+      if (!next) return route.abort();
+      response = next;
+    }
+    return route.abort();
   });
 }
 
@@ -250,10 +276,13 @@ function detailFinder(request: APIRequestContext) {
   const htmlOf = (path: string): Promise<string> => {
     const known = pages.get(path);
     if (known) return known;
-    // No redirects: a 3xx is not ok(), so a page that sends the request elsewhere is never read.
-    const html = request
-      .get(path, { maxRedirects: 0 })
-      .then((response) => (response.ok() ? response.text() : ''));
+    // No redirects: a page that sends the request elsewhere is not this page. Any other failure is
+    // a broken page and fails the check, rather than reading as a page without the part.
+    const html = request.get(path, { maxRedirects: 0 }).then((response) => {
+      if (isRedirect(response.status())) return '';
+      expect(response.ok(), `GET ${path} answered ${response.status()}`).toBe(true);
+      return response.text();
+    });
     pages.set(path, html);
     return html;
   };
