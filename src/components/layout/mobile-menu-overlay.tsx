@@ -300,8 +300,8 @@ const MenuPages = ({ onClose, pathname, query }: MenuPagesProps) => (
           query.toggle();
           onClose();
         }}
-        aria-label="Open command menu"
       >
+        {/* Its name is the words it shows, as the rail button's starts with them (WCAG 2.5.3). */}
         <FiCommand size={ITEM_ICON_SIZE} className="shrink-0" aria-hidden />
         <span>Command menu</span>
       </button>

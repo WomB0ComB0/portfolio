@@ -413,6 +413,9 @@ function RowBody({ row, density }: RowProps): ReactElement {
     <>
       <RowArt row={row} density={density} />
       <span className={ROW_WORDS_CLASS}>
+        {/* A space between the lines keeps the last word of one and the first of the next two
+            words in the text a name is checked against (WCAG 2.5.3); a column of flex items
+            draws no space-only text, so nothing moves. */}
         <span className="flex min-w-0 flex-1 flex-col">
           <span
             className={cn(ROW_LINE_CLASS, lines.heading, 'tile-sub font-medium text-foreground')}
@@ -420,14 +423,22 @@ function RowBody({ row, density }: RowProps): ReactElement {
             {row.heading}
           </span>
           {row.primary && (
-            <span className={cn(ROW_LINE_CLASS, lines.primary, 'tile-meta text-muted-foreground')}>
-              {row.primary}
-            </span>
+            <>
+              {' '}
+              <span
+                className={cn(ROW_LINE_CLASS, lines.primary, 'tile-meta text-muted-foreground')}
+              >
+                {row.primary}
+              </span>
+            </>
           )}
           {row.secondary && (
-            <span className={cn(ROW_LINE_CLASS, lines.secondary, 'tile-meta text-faint')}>
-              {row.secondary}
-            </span>
+            <>
+              {' '}
+              <span className={cn(ROW_LINE_CLASS, lines.secondary, 'tile-meta text-faint')}>
+                {row.secondary}
+              </span>
+            </>
           )}
         </span>
         {row.link && (

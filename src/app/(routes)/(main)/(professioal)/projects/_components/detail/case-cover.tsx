@@ -38,6 +38,7 @@ import { fullUrl, heroUrl } from './case-images';
 import {
   type CoverFrame,
   coverFrame,
+  coverLabel,
   cssRatio,
   openLabel,
   type PeekStyle,
@@ -67,21 +68,26 @@ interface FrontProps {
   readonly count: number;
 }
 
-/** The cover: a browser frame with the live address, or a print at its own shape. */
+/**
+ * The cover: a browser frame with the live address, or a print at its own shape. The address is
+ * the link's only text, so the link's name starts with it as shown (coverLabel, WCAG 2.5.3); the
+ * bar itself stays out of the accessibility tree, where the name already says it.
+ */
 function Front({ screen, frame, host, count }: FrontProps): ReactElement {
+  const shownHost = frame === 'browser' ? host : null;
   return (
     <PhotoViewerLink
       index={0}
       href={fullUrl(screen)}
-      aria-label={openLabel(0, count, screen.words)}
+      aria-label={coverLabel(count, screen.words, shownHost)}
       className={styles.front}
       data-frame={frame}
       data-case-cover=""
     >
-      {frame === 'browser' && host ? (
+      {shownHost ? (
         <span className={styles.bar} aria-hidden="true">
           <Lock className={styles['bar-icon']} />
-          <span className={`mono-token ${styles['bar-host']}`}>{host}</span>
+          <span className={`mono-token ${styles['bar-host']}`}>{shownHost}</span>
         </span>
       ) : null}
       <span className={styles.shot}>

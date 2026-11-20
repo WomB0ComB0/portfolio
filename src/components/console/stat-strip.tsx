@@ -184,6 +184,11 @@ export interface StatStripActionProps {
   readonly children: ReactNode;
   /** Added to the cell's classes: to hide the cell with its control, say. */
   readonly className?: string;
+  /**
+   * Hides the cell from screen readers, for a placeholder holding the control's room while the
+   * control cannot work (the Pause toggle's, in a skeleton the server sent): nothing to read there.
+   */
+  readonly 'aria-hidden'?: boolean;
 }
 
 /**
@@ -194,8 +199,16 @@ export interface StatStripActionProps {
  * @example
  * <StatStripAction className="motion-reduce:hidden"><button type="button">Pause</button></StatStripAction>
  */
-export function StatStripAction({ children, className }: StatStripActionProps): ReactElement {
-  return <dd className={cn(ACTION_CLASS, className)}>{children}</dd>;
+export function StatStripAction({
+  children,
+  className,
+  'aria-hidden': ariaHidden,
+}: StatStripActionProps): ReactElement {
+  return (
+    <dd aria-hidden={ariaHidden || undefined} className={cn(ACTION_CLASS, className)}>
+      {children}
+    </dd>
+  );
 }
 
 /** The item's action, when it shows its figure; else null (StatStripItem.action). */

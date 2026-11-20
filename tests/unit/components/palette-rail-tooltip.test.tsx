@@ -56,7 +56,7 @@ function renderRail() {
       <NavBar path="/" />
     </KBarProvider>,
   );
-  const button = screen.getByRole('button', { name: 'Open command menu' });
+  const button = screen.getByRole('button', { name: 'Command menu, Ctrl K' });
   const tip = button.querySelector<HTMLElement>('[data-palette-tip]');
   if (!tip) throw new Error('no tooltip in the command menu button');
   return { button, tip };

@@ -22,8 +22,9 @@
  * a plain left click is upgraded to the open view (a modified or middle click still opens the
  * place). Each link is named by its place, category, dates and its number there, so no two read
  * the same; the name is one aria-label string, so every browser reads it with the same commas
- * and spaces. The first GRID_FIRST show; "Show all" reveals the rest (without script, a note says
- * how to see them instead).
+ * and spaces, and it starts with the card's words exactly as shown, a range's dash included
+ * (WCAG 2.5.3). The first GRID_FIRST show; "Show all" reveals the rest (without script, a note
+ * says how to see them instead).
  *
  * The links, the line under each name, the end of each link's name (which the card does not show),
  * how many show first and the list's name are the places' by default; another page (the /projects
@@ -56,7 +57,7 @@ import Image from '@/components/ui/cdn-image';
 import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { PlaceDateRange } from '../../_components/place-date-range';
 import { placeholderOf } from '../_lib/card-placeholder';
-import { focusPosition, gridLinkName, gridLinkSuffix, placeMetaWords } from '../_lib/photo-labels';
+import { focusPosition, gridLinkName, gridLinkSuffix, placeMetaShown } from '../_lib/photo-labels';
 import styles from './photo-grid.module.css';
 import type { OpenPhoto, PlacesById } from './photo-types';
 
@@ -87,7 +88,7 @@ export interface PhotoGridProps {
   readonly hrefOf?: (photo: WallPhoto) => string;
   /**
    * The line under the name, as parts joined by a dot only the eye sees; the place's category
-   * and dates by default.
+   * and dates by default. Each link's name says the same parts, after commas.
    */
   readonly metaOf?: (place: PhotoPlace) => readonly string[];
   /**
@@ -219,8 +220,9 @@ interface GridCardProps
 }
 
 /**
- * A card's link name, whole: what the card shows, then the end it does not ('Antler NYC,
- * Hackathon, May 19 to 20, 2026, photo 3 of 5: Opening night'), the same in every browser.
+ * A card's link name, whole: what the card shows, word for word, then the end it does not
+ * ('Antler NYC, Hackathon, May 19 – 20, 2026, photo 3 of 5: Opening night'), the same in every
+ * browser.
  */
 function linkName(
   photo: WallPhoto,
@@ -231,7 +233,7 @@ function linkName(
   return gridLinkName({
     fig: part === 'fig' ? photo.index : null,
     name: place.name,
-    meta: metaOf ? metaOf(place) : placeMetaWords(place),
+    meta: metaOf ? metaOf(place) : placeMetaShown(place),
     suffix: suffixOf(photo, place),
   });
 }

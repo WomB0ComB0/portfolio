@@ -20,6 +20,10 @@
  * Those, and the whole pages, are checked in a real browser by e2e/accessibility/a11y.spec.ts.
  * Not a test file.
  *
+ * label-content-name-mismatch (WCAG 2.5.3, Label in Name: a link or button's name contains the
+ * text it shows) needs two things a browser has and jsdom does not, which each run lends it
+ * (withBrowserBits): a canvas, and the stylesheet that hides `.sr-only` text.
+ *
  * @example
  * const { container } = render(<Privacy />);
  * await expectNoAxeViolations(container);
@@ -61,6 +65,74 @@ const ruleOptions = (rules: Readonly<Record<string, boolean>> = {}): axe.RuleObj
   ]);
 
 /**
+ * Tailwind 4's `sr-only`, which the components use for words only a screen reader hears ('to'
+ * between a range's dates). Without it jsdom shows them, and label-content-name-mismatch would
+ * hold a name to words nobody sees.
+ */
+const SR_ONLY_CSS =
+  '.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;' +
+  'clip-path:inset(50%);white-space:nowrap;border-width:0}';
+
+/** What axe's icon-ligature check calls on a 2D context. */
+interface LigatureCanvas {
+  readonly canvas: HTMLCanvasElement;
+  font: string;
+  textAlign: string;
+  textBaseline: string;
+  measureText(text: string): { readonly width: number };
+  fillText(): void;
+  clearRect(): void;
+  getImageData(x: number, y: number, width: number, height: number): { readonly data: Uint8Array };
+}
+
+/** Every glyph's width, any one: what matters is that a word is as wide as its letters. */
+const GLYPH_WIDTH = 10;
+
+/**
+ * A 2D context on which every word is drawn as a word. axe's label-content-name-mismatch skips
+ * text drawn as an icon-font ligature ('home' shown as a house), and tells one by drawing it;
+ * jsdom has no 2D context, so the check threw, axe filed the rule as "needs review" and it checked
+ * nothing. jsdom loads no fonts and the site's icons are SVGs, not ligatures, so "never a ligature"
+ * is the truth here: each glyph is as wide as the next and every pixel is ink.
+ */
+function wordCanvas(canvas: HTMLCanvasElement): LigatureCanvas {
+  return {
+    canvas,
+    font: '',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
+    measureText: (text) => ({ width: text.length * GLYPH_WIDTH }),
+    fillText: () => {},
+    clearRect: () => {},
+    getImageData: (_x, _y, width, height) => ({
+      data: new Uint8Array(Math.max(1, Math.ceil(width) * Math.ceil(height)) * 4).fill(255),
+    }),
+  };
+}
+
+/**
+ * Runs `check` with what label-content-name-mismatch needs from a browser (Tailwind's sr-only and
+ * a 2D canvas), then takes both away again, so no other test sees them.
+ */
+async function withBrowserBits<T>(check: () => Promise<T>): Promise<T> {
+  const style = document.createElement('style');
+  style.dataset.axeHelper = '';
+  style.textContent = SR_ONLY_CSS;
+  document.head.append(style);
+  const canvas = HTMLCanvasElement.prototype;
+  const { getContext } = canvas;
+  canvas.getContext = function getWordContext(this: HTMLCanvasElement) {
+    return wordCanvas(this);
+  } as unknown as typeof getContext;
+  try {
+    return await check();
+  } finally {
+    canvas.getContext = getContext;
+    style.remove();
+  }
+}
+
+/**
  * The WCAG A and AA violations axe finds in `context` (an element and what it holds; the body for
  * content in portals), with the layout rules off, and the needs-review results of
  * REVIEW_AS_FAILURE_RULES (a duplicate id ARIA points at), which are failures here. Pass an
@@ -71,12 +143,14 @@ export async function axeViolations(
   context: Element = document.body,
   options: AxeCheckOptions = {},
 ): Promise<axe.Result[]> {
-  const results = await axe.run(context, {
-    runOnly: { type: 'tag', values: [...WCAG_AA_TAGS] },
-    rules: ruleOptions(options.rules),
-    // Passes and inapplicable rules are never read; they keep one node each, which is faster.
-    resultTypes: ['violations', 'incomplete'],
-  });
+  const results = await withBrowserBits(() =>
+    axe.run(context, {
+      runOnly: { type: 'tag', values: [...WCAG_AA_TAGS] },
+      rules: ruleOptions(options.rules),
+      // Passes and inapplicable rules are never read; they keep one node each, which is faster.
+      resultTypes: ['violations', 'incomplete'],
+    }),
+  );
   return [
     ...results.violations,
     ...results.incomplete.filter((result) => REVIEW_AS_FAILURE_RULES.includes(result.id)),

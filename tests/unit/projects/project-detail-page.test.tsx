@@ -87,6 +87,8 @@ import { storyAnchor } from '@/app/(routes)/(main)/(professioal)/projects/_compo
 import ProjectDetailPage from '@/app/(routes)/(main)/(professioal)/projects/[id]/page';
 import { resetSanityLoaderCaches } from '@/lib/sanity/loaders';
 import { logger } from '@/utils';
+import { expectNoAxeViolations } from '../../utils/axe';
+import { expectLabelInName, shownText } from '../../utils/label-in-name';
 
 const NOT_FOUND_DIGEST = /^NEXT_HTTP_ERROR_FALLBACK;404/;
 
@@ -306,10 +308,34 @@ describe('/projects/[id] header', () => {
     render(await pageFor(GREPO._id));
 
     const header = screen.getByRole('banner');
-    const cover = within(header).getByRole('link', { name: 'Open screen 1 of 3: grepo cover' });
+    const cover = within(header).getByRole('link', {
+      name: 'grepo.example.com, open screen 1 of 3: grepo cover',
+    });
     expect(cover.getAttribute('href')).toMatch(/cover-1600x900\.png\?.*fit=max/);
     expect(cover.getAttribute('href')).not.toMatch(/[?&]h=/);
     expect(screen.getByText('3 screens')).toBeInTheDocument();
+  });
+
+  // The CI's axe run, 2026-11-20 (label-content-name-mismatch, desktop and phone): the browser
+  // frame's bar shows the live address inside the cover link, whose name left it out.
+  it('starts the cover link’s name with the address its browser frame shows', async () => {
+    render(await pageFor(GREPO._id));
+
+    const cover = document.querySelector<HTMLElement>('[data-case-cover]');
+    if (!cover) throw new Error('no cover link');
+    expect(cover).toHaveAttribute('data-frame', 'browser');
+    expect(shownText(cover)).toBe('grepo.example.com');
+    expectLabelInName(cover);
+    await expectNoAxeViolations(cover, { label: 'the cover link' });
+  });
+
+  it('names a print cover, which shows no words, by the screen it opens', async () => {
+    render(await pageFor(COVER_ONLY._id));
+
+    const cover = document.querySelector<HTMLElement>('[data-case-cover]');
+    expect(cover).toHaveAttribute('data-frame', 'print');
+    expect(cover && shownText(cover)).toBe('');
+    expect(cover).toHaveAccessibleName('Open the cover: Solo home');
   });
 });
 
@@ -367,7 +393,12 @@ describe('/projects/[id] case study', () => {
         .getAllByRole('figure')
         .map((figure) => figure.querySelector('figcaption')?.textContent),
     ).toEqual(['Fig. 2Duo settings']);
-    expect(screen.getAllByRole('link', { name: 'Open screen 1 of 2: Duo home' })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('link', { name: 'duo.example.vercel.app, open screen 1 of 2: Duo home' }),
+    ).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: /open screen 1 of 2/i })).toHaveAttribute(
+      'data-case-cover',
+    );
   });
 
   it('lists Built with as links to the projects built with each', async () => {

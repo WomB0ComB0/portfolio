@@ -23,7 +23,12 @@
  * figures landed. The one provider now sits around the strip's slot, outside the boundary, for
  * both renders. LiveAgeProvider renders no markup of its own, so here it is wrapped in a marker
  * element to show where it sits in the server HTML; live-age.test.tsx checks that a figure and
- * toggle replaced under one provider keep its pause.
+ * toggle replaced under one provider keep its pause, and age-pause-skeleton.test.tsx that a real
+ * Suspense swap keeps it, and the toggle's focus.
+ *
+ * The skeleton the server sends is never hydrated: React leaves a fallback's server HTML as it is
+ * until the content replacing it arrives. So in that HTML the skeleton's toggle is a placeholder,
+ * not a button that would take focus and presses and do nothing.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -149,10 +154,11 @@ describe('/stats: one Pause state for the strip, skeleton and loaded alike', () 
     const [provider, ...others] = providersIn(root);
 
     expect(others).toEqual([]);
-    // The skeleton strip, with its live age and Pause, is under the provider...
+    // The skeleton strip, with its age and the Pause toggle's placeholder, is under the provider...
     const strip = stripIn(root);
     expect(provider?.contains(strip)).toBe(true);
-    expect(strip?.querySelector('button[aria-label="Pause age counter"]')).not.toBeNull();
+    expect(strip?.querySelector('[data-pause-placeholder]')).not.toBeNull();
+    expect(strip?.querySelector('button')).toBeNull();
     // ...and so is the boundary the loaded strip replaces it in, so the swap keeps the provider.
     expect(boundariesIn(provider ?? root)).toHaveLength(1);
   });
@@ -162,6 +168,9 @@ describe('/stats: one Pause state for the strip, skeleton and loaded alike', () 
       const providers = providersIn(root);
       expect(providers).toHaveLength(1);
       expect(providers[0]?.contains(stripIn(root))).toBe(true);
+      // The loaded strip, hydrated as any server HTML is, has the working toggle.
+      expect(stripIn(root)?.querySelector('button[aria-label="Pause age counter"]')).not.toBeNull();
+      expect(stripIn(root)?.querySelector('[data-pause-placeholder]')).toBeNull();
     }
   });
 });

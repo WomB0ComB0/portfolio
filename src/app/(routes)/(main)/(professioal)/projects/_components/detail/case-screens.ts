@@ -164,6 +164,20 @@ export function openLabel(index: number, count: number, words: string | null): s
   return words ? `${what}: ${words}` : what;
 }
 
+/**
+ * The cover link's name. In a browser frame the link shows the live site's address in the bar,
+ * so its name starts with that address as shown (WCAG 2.5.3, Label in Name: a voice user can say
+ * what they see), then says what opening it does: 'grepo.example.com, open screen 1 of 3: grepo
+ * cover'. A print shows no words, so its name is openLabel's.
+ *
+ * @param shownHost - The address the frame's bar shows; null for a print, which has no bar.
+ */
+export function coverLabel(count: number, words: string | null, shownHost: string | null): string {
+  const open = openLabel(0, count, words);
+  if (!shownHost) return open;
+  return `${shownHost}, ${open.charAt(0).toLowerCase()}${open.slice(1)}`;
+}
+
 /** The note under the cover: '4 screens' (with 'open one' beside it on the page). */
 export const screensCount = (count: number): string =>
   `${count} ${count === 1 ? 'screen' : 'screens'}`;

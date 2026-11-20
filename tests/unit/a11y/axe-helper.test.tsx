@@ -18,7 +18,9 @@
  * @file The component axe helper (tests/utils/axe.ts) fails when it should, says why in a way a
  * reader can act on (rule id, impact, help, the failing nodes' HTML), and leaves out only the
  * rules jsdom cannot evaluate. Without these checks every "no violations" test could pass on a
- * helper that checks nothing.
+ * helper that checks nothing. label-content-name-mismatch (WCAG 2.5.3) included: jsdom alone
+ * filed it as "needs review" every time, so it checked nothing until the helper lent it a canvas
+ * and Tailwind's sr-only.
  */
 
 import { cleanup, render } from '@testing-library/react';
@@ -112,6 +114,53 @@ describe('expectNoAxeViolations', () => {
       (violation) => violation.id,
     );
     expect(ids).toEqual(['heading-order']);
+  });
+});
+
+/** A link that shows a date range, with 'to' for screen readers only, as PlaceDateRange does. */
+const RangeLink = ({ name }: { readonly name: string }) => (
+  <a href="/places/antler" aria-label={name}>
+    May 19<span aria-hidden="true"> – </span>
+    <span className="sr-only"> to </span>
+    20, 2026
+  </a>
+);
+
+describe('label-content-name-mismatch under jsdom (WCAG 2.5.3, Label in Name)', () => {
+  it('fails a name that rewrites the words its link shows (the dash said as "to")', async () => {
+    const { container } = render(<RangeLink name="Antler NYC, May 19 to 20, 2026, photo 1" />);
+
+    const ids = (await axeViolations(container)).map((violation) => violation.id);
+
+    expect(ids).toEqual(['label-content-name-mismatch']);
+  });
+
+  it('passes a name that holds the words shown, and never counts sr-only words as shown', async () => {
+    const { container } = render(<RangeLink name="May 19 – 20, 2026, photo 1 of 5" />);
+
+    await expect(expectNoAxeViolations(container)).resolves.toBeUndefined();
+  });
+
+  it('fails a name that leaves out text inside the link, such as a browser frame’s address', async () => {
+    const { container } = render(
+      <a href="/cover.png" aria-label="Open screen 1 of 2: The live map">
+        <span>grepo.example.com</span>
+      </a>,
+    );
+
+    const failure = expectNoAxeViolations(container, { label: 'the cover' });
+
+    await expect(failure).rejects.toThrow(/- label-content-name-mismatch \[serious\]/);
+  });
+
+  it('leaves jsdom as it found it: no canvas context, no sr-only stylesheet', async () => {
+    const { container } = render(<RangeLink name="May 19 – 20, 2026" />);
+    const { getContext } = HTMLCanvasElement.prototype;
+
+    await axeViolations(container);
+
+    expect(HTMLCanvasElement.prototype.getContext).toBe(getContext);
+    expect(document.querySelector('style[data-axe-helper]')).toBeNull();
   });
 });
 

@@ -108,13 +108,19 @@ function consoleParts({ accuracy, profileId, clock }: PartOptions) {
           />
         );
       },
-      // The age needs no source, so it is live while the other figures are on their way.
+      // The age needs no source, so it is live while the other figures are on their way. Its
+      // toggle is a skeleton's: a placeholder in the server's HTML, which React never hydrates
+      // inside a fallback, and a working toggle when the fallback is rendered in the browser.
       () => {
         const now = clock();
         return (
           <StatStrip
             aria-label={STRIP_LABEL}
-            items={pendingStripItems(new Date(now), <LiveAge at={now} />, <LiveAgePause />)}
+            items={pendingStripItems(
+              new Date(now),
+              <LiveAge at={now} />,
+              <LiveAgePause skeleton />,
+            )}
             sizing="container"
           />
         );
@@ -179,7 +185,9 @@ interface ConsoleFrameProps {
  *
  * The strip's slot sits in the age's LiveAgeProvider, which holds its Pause. A streamed strip is a
  * Suspense boundary there, its skeleton (age and Pause included) giving way to the loaded strip;
- * with the provider outside the boundary, a pause made on the skeleton holds when the figures land.
+ * with the provider outside the boundary, a pause made on the skeleton holds when the figures land,
+ * and focus on the skeleton's Pause moves to the loaded one. (Sent by the server, the skeleton is
+ * never hydrated, so its Pause is a placeholder there: see LiveAgePause `skeleton`.)
  */
 function ConsoleFrame({
   strip,

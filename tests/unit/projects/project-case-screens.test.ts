@@ -20,11 +20,13 @@
  * (a browser frame only for a web page's shape with a live site); how the next screen joins it
  * (a phone screenshot in front, anything else behind); and the Screens section, which leaves out
  * the cover the header shows: a figure for one screen, a strip for two, a contact sheet from three.
+ * The cover link's name starts with the address its browser frame shows (WCAG 2.5.3).
  */
 
 import { describe, expect, it } from 'vitest';
 import {
   coverFrame,
+  coverLabel,
   isCut,
   openLabel,
   peekStyle,
@@ -36,6 +38,7 @@ import {
   tileRatio,
 } from '@/app/(routes)/(main)/(professioal)/projects/_components/detail/case-screens';
 import type { Project } from '@/hooks/sanity/schemas';
+import { startsWithShownWords } from '../../utils/label-in-name';
 
 type SanityImage = NonNullable<Project['image']>;
 
@@ -170,6 +173,28 @@ describe('words', () => {
     expect(openLabel(1, 4, 'Sponsorship tiers')).toBe('Open screen 2 of 4: Sponsorship tiers');
     expect(openLabel(2, 7, null)).toBe('Open screen 3 of 7');
     expect(openLabel(0, 1, null)).toBe('Open the cover');
+  });
+
+  // The CI's axe run, 2026-11-20 (label-content-name-mismatch, desktop and phone): the cover's
+  // browser frame shows the live address, which its name ('Open screen 1 of 2: …') left out.
+  it('starts the cover’s name with the address its browser frame shows, then says what it opens', () => {
+    expect(coverLabel(2, 'The live map', 'grepo.example.com')).toBe(
+      'grepo.example.com, open screen 1 of 2: The live map',
+    );
+    expect(coverLabel(4, null, 'duo.example.vercel.app')).toBe(
+      'duo.example.vercel.app, open screen 1 of 4',
+    );
+    expect(coverLabel(1, 'Solo home', 'solo.example.dev')).toBe(
+      'solo.example.dev, open the cover: Solo home',
+    );
+    expect(
+      startsWithShownWords(coverLabel(2, 'The live map', 'grepo.example.com'), 'grepo.example.com'),
+    ).toBe(true);
+  });
+
+  it('names a print cover, which shows no words, as any screen', () => {
+    expect(coverLabel(2, 'The live map', null)).toBe(openLabel(0, 2, 'The live map'));
+    expect(coverLabel(1, null, null)).toBe('Open the cover');
   });
 
   it('counts the screens for the note under the cover', () => {

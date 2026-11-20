@@ -36,9 +36,15 @@
  *   at the end of the strip's label row, under the digits, in a cell of its own, so the figure's
  *   line never holds it; the two share their state through LiveAgeProvider, which holds the moment
  *   the age was paused, so a figure mounted while paused (the loaded strip replacing its skeleton
- *   on /stats) shows the same digits. Under reduced motion the age holds still: shown once as of
- *   mount (and when the tab shows again), never ticking, and the toggle, with nothing to pause, is
- *   hidden. The setting is followed live.
+ *   on /stats) shows the same digits, and a toggle that had focus when it was replaced hands it to
+ *   the toggle replacing it. Under reduced motion the age holds still: shown once as of mount (and
+ *   when the tab shows again), never ticking, and the toggle, with nothing to pause, is hidden.
+ *   The setting is followed live.
+ * - A skeleton's toggle (LiveAgePause `skeleton`) works only where React renders it in the
+ *   browser: React never hydrates the server's HTML for a Suspense fallback (it waits for the
+ *   content that replaces it), so a button sent there would take focus and presses and do nothing.
+ *   The server sends an inert placeholder of the key cap's size instead. Nothing there needs
+ *   pausing: the skeleton's figure, never hydrated either, does not tick.
  * - The digits on screen are hidden from screen readers and never live. A twin gives the whole
  *   years, which the strip's label completes ('years old, 22'), and changes once a year.
  * - Tabular figures in a box held at the figure's width by an unseen '00.00000000' (a zero for
@@ -54,6 +60,9 @@ import {
   createContext,
   type ReactElement,
   type ReactNode,
+  type RefCallback,
+  type RefObject,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -64,6 +73,7 @@ import { FiPause } from 'react-icons/fi';
 
 import { StatStripAction } from '@/components/console/stat-strip';
 import { AGE_DECIMALS, exactAgeParts } from '@/constants/age';
+import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 
@@ -116,6 +126,15 @@ const PAUSE_PRESSED_CLASS = 'border-hairline-strong bg-surface-3 text-foreground
  */
 const PAUSE_WORD_CLASS = '@max-[25rem]/page:sr-only';
 
+/**
+ * The skeleton's placeholder for the toggle, where the server sent it: the key cap's box (its
+ * classes, its contents unseen, so the same size at every width) drawn as the strip's other
+ * placeholder bars are, on the raised surface and pulsing where motion is welcome. Not a control:
+ * no button, no focus, hidden from screen readers with its cell.
+ */
+const PAUSE_PLACEHOLDER_CLASS =
+  'border-transparent bg-surface-3 motion-safe:animate-pulse forced-colors:outline';
+
 /** The toggle's accessible name: the word shown, and what it pauses. */
 const PAUSE_LABEL = 'Pause age counter';
 
@@ -125,12 +144,17 @@ function writeText(node: HTMLElement | null, text: string): void {
 }
 
 /**
- * What the figure and its toggle share: when the age was paused (epoch ms; null while it runs), and
- * the toggle's press.
+ * What the figure and its toggle share: when the age was paused (epoch ms; null while it runs), the
+ * toggle's press, and the hand-off of focus from a toggle being replaced to its replacement.
  */
 interface PauseState {
   readonly pausedAt: number | null;
   readonly togglePaused: () => void;
+  /**
+   * True from the moment a toggle that has focus is removed until the end of that commit: the
+   * toggle mounted in the same commit (the loaded strip's, replacing the skeleton's) takes focus.
+   */
+  readonly focusHandoff: RefObject<boolean>;
 }
 
 const PauseContext = createContext<PauseState | null>(null);
@@ -143,7 +167,8 @@ export interface LiveAgeProviderProps {
  * Holds the Pause state LiveAge (the figure) and LiveAgePause (its toggle) share. The strip sets
  * them in different cells, the figure on its own line and the toggle on the label's row, so the
  * state sits around the strip: on /stats around the strip's slot, outside the Suspense boundary in
- * which the loaded strip replaces its skeleton, so a pause made on the skeleton holds.
+ * which the loaded strip replaces its skeleton, so a pause made on the skeleton holds, and focus on
+ * the skeleton's toggle moves to the loaded one.
  *
  * @example
  * <LiveAgeProvider>
@@ -152,8 +177,13 @@ export interface LiveAgeProviderProps {
  */
 export function LiveAgeProvider({ children }: LiveAgeProviderProps): ReactElement {
   const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const focusHandoff = useRef(false);
   const state = useMemo<PauseState>(
-    () => ({ pausedAt, togglePaused: () => setPausedAt(pausedAt === null ? Date.now() : null) }),
+    () => ({
+      pausedAt,
+      togglePaused: () => setPausedAt(pausedAt === null ? Date.now() : null),
+      focusHandoff,
+    }),
     [pausedAt],
   );
   return <PauseContext.Provider value={state}>{children}</PauseContext.Provider>;
@@ -275,24 +305,77 @@ export function LiveAge({ at, className }: LiveAgeProps): ReactElement | null {
 }
 
 /**
+ * The toggle's ref: a toggle that has focus as it is removed marks the hand-off, and the toggle
+ * mounted in that same commit takes focus. React detaches the old one's ref (while it is still in
+ * the page) before it attaches the new one's, and the mark is cleared once the commit is over, so
+ * a toggle mounted later never takes focus it was not handed.
+ */
+function useFocusHandoff(focusHandoff: RefObject<boolean>): RefCallback<HTMLButtonElement> {
+  return useCallback(
+    (button: HTMLButtonElement | null) => {
+      if (!button) return undefined;
+      if (focusHandoff.current) {
+        focusHandoff.current = false;
+        button.focus();
+      }
+      return () => {
+        if (button.ownerDocument.activeElement !== button) return;
+        focusHandoff.current = true;
+        queueMicrotask(() => {
+          focusHandoff.current = false;
+        });
+      };
+    },
+    [focusHandoff],
+  );
+}
+
+export interface LiveAgePauseProps {
+  /**
+   * The toggle stands in a skeleton (a Suspense fallback, which React never hydrates): the server
+   * sends an inert placeholder of its size, and it is a working toggle wherever React renders it in
+   * the browser (a fallback on a client navigation, or once hydrated).
+   */
+  readonly skeleton?: boolean;
+}
+
+/** The skeleton's stand-in for the toggle: its key cap's box, unseen inside, not a control. */
+function PausePlaceholder(): ReactElement {
+  return (
+    <StatStripAction className={PAUSE_CELL_CLASS} aria-hidden>
+      <span data-pause-placeholder="" className={cn(PAUSE_CLASS, PAUSE_PLACEHOLDER_CLASS)}>
+        <FiPause aria-hidden="true" className="invisible size-3" />
+        <span className={cn('invisible', PAUSE_WORD_CLASS)}>Pause</span>
+      </span>
+    </StatStripAction>
+  );
+}
+
+/**
  * The age's Pause toggle, in its strip cell (StatStripAction, the age item's action): pressed, the
  * figure stops where it is; pressed again, it catches up at once and ticks on. Renders inside a
- * LiveAgeProvider, with the LiveAge it pauses, and throws outside one.
+ * LiveAgeProvider, with the LiveAge it pauses, and throws outside one. A toggle that replaces one
+ * with focus (the loaded strip's, replacing the skeleton's) takes that focus.
  *
  * @example
  * <LiveAgePause />
+ * <LiveAgePause skeleton />
  */
-export function LiveAgePause(): ReactElement {
+export function LiveAgePause({ skeleton = false }: LiveAgePauseProps): ReactElement {
   const state = useContext(PauseContext);
   if (!state) throw new Error('LiveAgePause renders inside <LiveAgeProvider>, with its LiveAge');
-  const { pausedAt, togglePaused } = state;
+  const { pausedAt, togglePaused, focusHandoff } = state;
   const paused = pausedAt !== null;
+  const keepFocus = useFocusHandoff(focusHandoff);
+  const fromServer = useIsServerHtmlRender();
 
+  if (skeleton && fromServer) return <PausePlaceholder />;
   return (
     <StatStripAction className={PAUSE_CELL_CLASS}>
       {/* The name starts with the word shown, so a voice user saying "Pause" reaches it; it stays
           the same when pressed, as a toggle's must, and aria-pressed says it is paused. */}
       <button
+        ref={keepFocus}
         type="button"
         aria-label={PAUSE_LABEL}
         aria-pressed={paused}

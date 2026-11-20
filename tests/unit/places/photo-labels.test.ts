@@ -15,9 +15,10 @@
  */
 
 /**
- * @file The photos view's words: plurals that read right at one, each grid link's unique name,
- * the wall's spoken sentence, and the open photo's alt (its alt text, else its caption, else its
- * place and number).
+ * @file The photos view's words: plurals that read right at one, each grid link's unique name
+ * (starting with the card's words as shown, a range's dash included: WCAG 2.5.3), the wall's
+ * spoken sentence, and the open photo's alt (its alt text, else its caption, else its place and
+ * number).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -28,11 +29,15 @@ import {
   photoAlt,
   photoCountLabel,
   photosFromVisits,
+  placeMetaShown,
   placeMetaWords,
+  shownDates,
   spokenDates,
   wallAnnouncement,
 } from '@/app/(routes)/(main)/(personal)/places/photos/_lib/photo-labels';
 import type { PhotoPlace, WallPhoto } from '@/types/places';
+import { formatDateRange } from '@/utils/date';
+import { containsShownWords, startsWithShownWords } from '../../utils/label-in-name';
 
 const PLACE: PhotoPlace = {
   id: 'p1',
@@ -68,6 +73,27 @@ describe('plurals', () => {
   });
 });
 
+describe('shownDates', () => {
+  it('is the dates as a card shows them, dash and all, and nothing for an undated place', () => {
+    expect(shownDates('2026-05-19', '2026-05-20')).toBe('May 19 – 20, 2026');
+    expect(shownDates('2025-12-30', '2026-01-02')).toBe('Dec 30, 2025 – Jan 2, 2026');
+    expect(shownDates('2026-05-19', null)).toBe('May 19, 2026');
+    expect(shownDates(null, null)).toBeNull();
+    expect(shownDates('not a date', null)).toBeNull();
+  });
+
+  it('is word for word what formatDateRange writes for the card', () => {
+    for (const [start, end] of [
+      ['2024-04-20', '2024-04-21'],
+      ['2026-07-29', '2026-09-15'],
+      ['2025-12-30', '2026-01-02'],
+      ['2026-05-19', null],
+    ] as const) {
+      expect(shownDates(start, end)).toBe(formatDateRange(start, end));
+    }
+  });
+});
+
 describe('spokenDates', () => {
   it('says a range with "to", and nothing for an undated place', () => {
     expect(spokenDates('2026-05-19', '2026-05-20')).toBe('May 19 to 20, 2026');
@@ -81,6 +107,15 @@ describe('gridLinkSuffix', () => {
   it('numbers the photo in its place and adds the caption', () => {
     expect(gridLinkSuffix(photo(2), PLACE)).toBe(', photo 2 of 5');
     expect(gridLinkSuffix(photo(3, 'Opening night'), PLACE)).toBe(', photo 3 of 5: Opening night');
+  });
+});
+
+describe('placeMetaShown', () => {
+  it("is the line under a place's name as the card shows it: its category, then its dates", () => {
+    expect(placeMetaShown(PLACE)).toEqual(['Hackathon', 'May 19 – 20, 2026']);
+    expect(placeMetaShown({ ...PLACE, endDate: null })).toEqual(['Hackathon', 'May 19, 2026']);
+    expect(placeMetaShown({ ...PLACE, startDate: null, endDate: null })).toEqual(['Hackathon']);
+    expect(placeMetaShown({ ...PLACE, startDate: 'not a date' })).toEqual(['Hackathon']);
   });
 });
 
@@ -114,10 +149,33 @@ describe('gridLinkName', () => {
       gridLinkName({
         fig: 2,
         name: 'SparkMind',
-        meta: ['Education', 'Jun to Sep 2024'],
+        meta: ['Education', 'Jun – Sep 2024'],
         suffix: ', image 2 of 3',
       }),
-    ).toBe('Fig. 2, SparkMind, Education, Jun to Sep 2024, image 2 of 3');
+    ).toBe('Fig. 2, SparkMind, Education, Jun – Sep 2024, image 2 of 3');
+  });
+
+  // The CI's axe run (label-content-name-mismatch, 2026-11-20): 'Apr 20 to 21, 2024' in the name
+  // where the card shows 'Apr 20 – 21, 2024'. Words compare without punctuation, so the dash is
+  // nothing and 'to' is a word the card does not show.
+  it('starts with the card’s words, dates as shown, where "to" for the dash failed WCAG 2.5.3', () => {
+    const card = 'Antler NYC Hackathon · May 19 – 20, 2026';
+    const name = gridLinkName({
+      fig: null,
+      name: PLACE.name,
+      meta: placeMetaShown(PLACE),
+      suffix: gridLinkSuffix(photo(1), PLACE),
+    });
+
+    expect(name).toBe('Antler NYC, Hackathon, May 19 – 20, 2026, photo 1 of 5');
+    expect(startsWithShownWords(name, card)).toBe(true);
+    const spoken = gridLinkName({
+      fig: null,
+      name: PLACE.name,
+      meta: placeMetaWords(PLACE),
+      suffix: gridLinkSuffix(photo(1), PLACE),
+    });
+    expect(containsShownWords(spoken, card)).toBe(false);
   });
 
   it('leaves out an empty or blank part instead of doubling a comma', () => {

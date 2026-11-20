@@ -24,6 +24,9 @@
  * platform (Node has a navigator too) and fail hydration for every visitor whose platform
  * differs: React reports a recoverable error and re-renders the root on the client. So the server
  * render here runs on Linux and hydration runs on a different platform.
+ *
+ * Each button's name ends with the shortcut it shows ('Command menu, ⌘K', WCAG 2.5.3), so the
+ * name follows the hint through hydration too.
  */
 
 import { act, screen } from '@testing-library/react';
@@ -34,6 +37,7 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 
 import { MobileNavBar } from '@/components/layout/mobile-nav';
 import { NavBar } from '@/components/layout/nav';
+import { stubMediaQuery } from '../../utils/match-media';
 
 // t3-env validates on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -46,8 +50,11 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const SERVER_PLATFORM = 'Linux x86_64';
 
-/** The two buttons that print the palette shortcut: the rail's and the phone bar's. */
-const SHORTCUT_BUTTONS = ['Open command menu', 'Search pages and commands'] as const;
+/**
+ * The two buttons that print the palette shortcut, by their names before it: the rail's and the
+ * phone bar's.
+ */
+const SHORTCUT_BUTTONS = ['Command menu', 'Search pages and commands'] as const;
 
 /** The real rail and phone bar, as the shell renders them inside kbar's provider. */
 const Chrome = () => (
@@ -67,6 +74,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 /** The server HTML, rendered while the platform reads as the server's own. */
@@ -106,15 +114,18 @@ const hydrateOn = async (
   return onRecoverableError;
 };
 
-const shortcutButton = (name: (typeof SHORTCUT_BUTTONS)[number]) =>
-  screen.getByRole('button', { name });
+/** A shortcut button by its whole name, which ends with the shortcut it shows. */
+const shortcutButton = (name: (typeof SHORTCUT_BUTTONS)[number], shortcut: string) =>
+  screen.getByRole('button', { name: `${name}, ${shortcut}` });
 
 describe('palette shortcut hint, server render and hydration', () => {
   it('server-renders ⌘K and Meta+K in both buttons, whatever the server runs on', () => {
     const html = renderOnServer();
 
     expect(html.match(/aria-keyshortcuts="Meta\+K"/g)).toHaveLength(SHORTCUT_BUTTONS.length);
-    expect(html.match(/⌘K/g)).toHaveLength(SHORTCUT_BUTTONS.length);
+    // The hint, and the end of the name.
+    expect(html.match(/>⌘K</g)).toHaveLength(SHORTCUT_BUTTONS.length);
+    for (const name of SHORTCUT_BUTTONS) expect(html).toContain(`aria-label="${name}, ⌘K"`);
     expect(html).not.toContain('Ctrl K');
     expect(html).not.toContain('Control+K');
   });
@@ -124,9 +135,9 @@ describe('palette shortcut hint, server render and hydration', () => {
 
     const onRecoverableError = await hydrateOn('Win32', html, () => {
       for (const name of SHORTCUT_BUTTONS) {
-        expect(shortcutButton(name)).toHaveAttribute('aria-keyshortcuts', 'Control+K');
-        expect(shortcutButton(name)).toHaveTextContent('Ctrl K');
-        expect(shortcutButton(name)).not.toHaveTextContent('⌘K');
+        expect(shortcutButton(name, 'Ctrl K')).toHaveAttribute('aria-keyshortcuts', 'Control+K');
+        expect(shortcutButton(name, 'Ctrl K')).toHaveTextContent('Ctrl K');
+        expect(shortcutButton(name, 'Ctrl K')).not.toHaveTextContent('⌘K');
       }
     });
 
@@ -139,9 +150,30 @@ describe('palette shortcut hint, server render and hydration', () => {
 
     const onRecoverableError = await hydrateOn('MacIntel', html, () => {
       for (const name of SHORTCUT_BUTTONS) {
-        expect(shortcutButton(name)).toHaveAttribute('aria-keyshortcuts', 'Meta+K');
-        expect(shortcutButton(name)).toHaveTextContent('⌘K');
+        expect(shortcutButton(name, '⌘K')).toHaveAttribute('aria-keyshortcuts', 'Meta+K');
+        expect(shortcutButton(name, '⌘K')).toHaveTextContent('⌘K');
       }
+    });
+
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(hydrationWarnings()).toEqual([]);
+  });
+
+  it('hydrates on a touch screen with no mismatch, then drops the hidden hint from the Search name', async () => {
+    // The phone bar's hint hides under Tailwind's pointer-coarse variant.
+    stubMediaQuery('(pointer: coarse)', true);
+    const html = renderOnServer();
+    // The server cannot know the pointer, so its names say the hint as on any other device.
+    for (const name of SHORTCUT_BUTTONS) expect(html).toContain(`aria-label="${name}, ⌘K"`);
+
+    const onRecoverableError = await hydrateOn('Win32', html, () => {
+      const search = screen.getByRole('button', { name: 'Search pages and commands' });
+      expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K');
+      // The rail's tooltip is no touch-screen hint: its name keeps the shortcut.
+      expect(shortcutButton('Command menu', 'Ctrl K')).toHaveAttribute(
+        'aria-keyshortcuts',
+        'Control+K',
+      );
     });
 
     expect(onRecoverableError).not.toHaveBeenCalled();
