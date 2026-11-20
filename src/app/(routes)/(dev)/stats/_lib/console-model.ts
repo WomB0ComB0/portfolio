@@ -246,7 +246,7 @@ function ageItem(now: Date, figure?: ReactNode): StatStripItem {
  * Dev Stats card did), page views over 30 days and GitHub followers. A source with nothing to
  * show gives null, which the strip prints as an em dash read as 'unavailable'.
  *
- * The age's value is whole years; `ageFigure` (the console passes LiveAge, the age to five
+ * The age's value is whole years; `ageFigure` (the console passes LiveAge, the age to eight
  * decimals) is shown in its place.
  */
 export function stripItems(

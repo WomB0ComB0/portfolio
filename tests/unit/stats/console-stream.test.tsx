@@ -216,7 +216,7 @@ describe('/stats: the frame never waits on a slow source', () => {
     expect(textOf(root)).toContain('Each source keeps its own clock.');
     expect(strip(root)?.getAttribute('aria-busy')).toBe('true');
     expect(stripLabels(root)).toEqual(['years old', 'page views in 30 days', 'GitHub followers']);
-    // The age needs no source: live to five decimals (LiveAge), the whole years for readers.
+    // The age needs no source: live to eight decimals (LiveAge), the whole years for readers.
     const age = strip(root)?.querySelector('dd');
     expect(textOf(age?.querySelector('[data-digits]'))).toBe(formatExactAge(new Date(NOW)));
     expect(textOf(age?.querySelector('.sr-only'))).toBe(String(ageOn(new Date(NOW))));

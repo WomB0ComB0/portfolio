@@ -25,8 +25,13 @@
  */
 const BIRTH_DATE = new Date(Date.UTC(2004, 2, 24));
 
-/** How many decimals the live age on /stats shows, as the counter on the first site did. */
-export const AGE_DECIMALS = 5;
+/**
+ * How many decimals the live age on /stats shows. The eighth is 1e-8 of a year, a step every
+ * 315.36 ms (316.224 ms in a 366-day year), so the last digit visibly ticks about three times a
+ * second. At 8 places a year's milliseconds times 10^8 pass Number.MAX_SAFE_INTEGER, one reason
+ * the fraction is worked out in BigInt.
+ */
+export const AGE_DECIMALS = 8;
 
 /**
  * Age in whole years on `date`, counted in UTC calendar days: it goes up at 00:00 UTC on March 24.
@@ -56,25 +61,25 @@ const birthdayIn = (year: number): number =>
 export interface ExactAge {
   /** Whole years, always equal to ageOn: '22'. */
   readonly whole: string;
-  /** The share of the current birthday year gone by, truncated to the decimals asked for: '65753'. */
+  /** The share of the current birthday year gone by, truncated to the decimals asked for: '65753424'. */
   readonly fraction: string;
 }
 
 /**
  * Age on `date` to `decimals` places: whole years (ageOn) plus the share of the year since the last
  * birthday, measured against that year's real length (366 days when it holds a February 29), so the
- * figure reads exactly 22.00000 at 00:00 UTC on the birthday. Null for an invalid date.
+ * figure reads exactly 22.00000000 at 00:00 UTC on the birthday. Null for an invalid date.
  *
  * The fraction is truncated, never rounded, so the whole years never turn over before the birthday
- * (rounding to five places shows 22.00000 for the last two and a half minutes of 21). It is worked
- * out in integers (BigInt milliseconds), so no decimal is ever off by one from floating-point error.
+ * (rounding to eight places shows 22.00000000 for the last 157 ms of 21). It is worked out in
+ * integers (BigInt milliseconds), so no decimal is ever off by one from floating-point error.
  *
  * Not the first site's `(now - new Date('March 24, 2004')) / 365.25 days`: that parsed the birth
  * date in the visitor's local time and drifted by up to three quarters of a day against the
  * calendar, so the whole years and the birthday disagreed.
  *
  * @example
- *   exactAgeParts(new Date('2026-11-19T00:00:00Z')); // { whole: '22', fraction: '65753' }
+ *   exactAgeParts(new Date('2026-11-19T00:00:00Z')); // { whole: '22', fraction: '65753424' }
  */
 export function exactAgeParts(date: Date, decimals: number = AGE_DECIMALS): ExactAge | null {
   const time = date.getTime();
@@ -93,10 +98,10 @@ export function exactAgeParts(date: Date, decimals: number = AGE_DECIMALS): Exac
 }
 
 /**
- * The exact age as one string, '22.65753' ('22' with no decimals). Null for an invalid date.
+ * The exact age as one string, '22.65753424' ('22' with no decimals). Null for an invalid date.
  *
  * @example
- *   formatExactAge(new Date('2026-03-24T00:00:00Z')); // '22.00000'
+ *   formatExactAge(new Date('2026-03-24T00:00:00Z')); // '22.00000000'
  */
 export function formatExactAge(date: Date, decimals: number = AGE_DECIMALS): string | null {
   const parts = exactAgeParts(date, decimals);
