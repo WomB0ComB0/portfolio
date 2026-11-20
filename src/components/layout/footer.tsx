@@ -72,7 +72,7 @@ export const Footer = memo(() => {
       <div className={ROW_CLASS}>
         <div className="flex flex-col items-center gap-2 @min-[52rem]/footer:items-start">
           <p className={LINE_CLASS}>
-            <Link className={LINK_CLASS} href="/licenses">
+            <Link className={LINK_CLASS} prefetch={false} href="/licenses">
               {SITE_LICENSE}
             </Link>{' '}
             2024–present &#169;{' '}
@@ -94,19 +94,19 @@ export const Footer = memo(() => {
 
         <div className={END_ROW_CLASS}>
           <nav aria-label={NAV_LABEL} className={NAV_CLASS}>
-            <Link className={LINK_CLASS} href="/licenses">
+            <Link className={LINK_CLASS} prefetch={false} href="/licenses">
               Licenses
             </Link>
             <span aria-hidden="true" className={SEPARATOR_CLASS}>
               •
             </span>
-            <Link className={LINK_CLASS} href="/privacy">
+            <Link className={LINK_CLASS} prefetch={false} href="/privacy">
               Privacy Policy
             </Link>
             <span aria-hidden="true" className={SEPARATOR_CLASS}>
               •
             </span>
-            <Link className={LINK_CLASS} href="/cookies">
+            <Link className={LINK_CLASS} prefetch={false} href="/cookies">
               Cookie Policy
             </Link>
           </nav>

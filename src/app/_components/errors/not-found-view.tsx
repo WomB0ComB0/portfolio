@@ -57,11 +57,15 @@ export function NotFoundView(): JSX.Element {
       </div>
 
       <div className="flex flex-wrap justify-center gap-3">
-        <Link href="/" className={buttonVariants({ size: 'lg' })}>
+        <Link href="/" prefetch={false} className={buttonVariants({ size: 'lg' })}>
           <Home aria-hidden="true" />
           Home
         </Link>
-        <Link href="/projects" className={buttonVariants({ size: 'lg', variant: 'outline' })}>
+        <Link
+          href="/projects"
+          prefetch={false}
+          className={buttonVariants({ size: 'lg', variant: 'outline' })}
+        >
           Projects
         </Link>
       </div>

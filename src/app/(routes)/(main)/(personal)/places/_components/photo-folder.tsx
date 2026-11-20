@@ -55,7 +55,7 @@ export function PhotoFolder({ href, count, slivers, placeName }: PhotoFolderProp
   const pending = <LinkPending className={styles.pending} />;
   if (count === 0) {
     return (
-      <Link href={href} className={styles.link}>
+      <Link href={href} prefetch={false} className={styles.link}>
         <span className={styles.label}>
           Details <span className="sr-only">of {placeName}</span>
         </span>
@@ -64,7 +64,7 @@ export function PhotoFolder({ href, count, slivers, placeName }: PhotoFolderProp
     );
   }
   return (
-    <Link href={href} className={styles.link}>
+    <Link href={href} prefetch={false} className={styles.link}>
       <span className={styles.folder} aria-hidden="true" data-photo-folder="">
         <span className={styles.back} />
         {slivers.slice(0, MAX_SLIVERS).map((src) => (

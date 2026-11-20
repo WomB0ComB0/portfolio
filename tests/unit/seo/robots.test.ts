@@ -26,16 +26,30 @@
  * renders its messages on the server now, so no page reads it in the browser.
  *
  * A list page's search results (`?q=`) are closed as well: the page prints the query back, so
- * every such URL is an indexable page of somebody else's words. The rules name each list page,
- * so no other URL with a `q` parameter is caught, /_next/image?...&q=75 least of all. Each page
- * is named with and without a trailing slash: the site answers /media/?q=x with the same page
- * and no redirect (skipTrailingSlashRedirect in next.config.ts).
+ * every such URL is an indexable page of somebody else's words. So are its filter and view
+ * parameters (each facet of its filter schema, and /projects' `view`): every chip combination is
+ * the same content again, rendered per request, and the canonical link is the page without its
+ * query. The list pages themselves stay open. The rules name each list page, so no other URL
+ * with a `q` parameter is caught, /_next/image?...&q=75 least of all. Each page is named with
+ * and without a trailing slash: the site answers /media/?q=x with the same page and no redirect
+ * (skipTrailingSlashRedirect in next.config.ts).
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { MetadataRoute } from 'next';
 import { describe, expect, it } from 'vitest';
+import { mediaFilters } from '@/app/(routes)/(dev)/media/_lib/media-filters';
+import {
+  placeFilters,
+  placePhotoFilters,
+} from '@/app/(routes)/(main)/(personal)/places/_lib/place-filters';
+import {
+  type CertificationLookups,
+  certificationFilters,
+} from '@/app/(routes)/(main)/(professioal)/certifications/_lib/certification-filters';
+import { projectFilters } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-schema';
+import { VIEW_PARAM } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-views';
 import robots from '@/app/robots';
 
 /** One user-agent group; `userAgent` is optional here, as in the single-group form. */
@@ -96,21 +110,35 @@ const CRAWLABLE_PATHS = [
   '/api/og?title=Projects',
 ];
 
+/**
+ * The list pages and the parameters closed on each: the search `q`, the filter schema's facets,
+ * and /projects' view. Checked against the schemas themselves below.
+ */
+const LIST_PARAMS: Readonly<Record<string, readonly string[]>> = {
+  '/media': ['q', 'kind', 'series', 'topic'],
+  '/projects': ['q', 'category', 'tech', 'view'],
+  '/certifications': ['q', 'issuer', 'skill'],
+  '/places': ['q', 'category'],
+  '/places/photos': ['q', 'category'],
+};
+
 /** The list pages whose filter bar takes free text in `?q=` and prints it back. */
-const SEARCHABLE_PAGES = [
-  '/media',
-  '/projects',
-  '/certifications',
-  '/places',
-  '/places/photos',
-] as const;
+const SEARCHABLE_PAGES = Object.keys(LIST_PARAMS);
 
 /** A list page as it is linked, and with the trailing slash the site also answers. */
 const formsOf = (page: string): string[] => [page, `${page}/`];
 
-/** The rules that close one list page's search: `q` first or after other parameters, each form. */
-const searchRulesOf = (page: string): string[] =>
-  formsOf(page).flatMap((form) => [`${form}?q=`, `${form}?*&q=`]);
+/** The rules that close one parameter on one list page: first or after others, each form. */
+const paramRulesOf = (page: string, param: string): string[] =>
+  formsOf(page).flatMap((form) => [`${form}?${param}=`, `${form}?*&${param}=`]);
+
+/** The rules that close one list page's search. */
+const searchRulesOf = (page: string): string[] => paramRulesOf(page, 'q');
+
+/** Every list page's rules, in the order robots.ts writes them. */
+const LIST_RULES = Object.entries(LIST_PARAMS).flatMap(([page, params]) =>
+  params.flatMap((param) => paramRulesOf(page, param)),
+);
 
 /**
  * A search on each list page, with and without the trailing slash: `q` alone, after another
@@ -124,7 +152,34 @@ const SEARCH_URLS = SEARCHABLE_PAGES.flatMap(formsOf).flatMap((page) => [
   `${page}?a=1&b=2&q=x`,
 ]);
 
-/** URLs with a `q` in them that are no list page's search, and the filters that are not search. */
+/**
+ * A filter or a view on each list page, in both forms: the parameter alone, after another, and
+ * before one.
+ */
+const FILTER_URLS = [
+  '/media?kind=video',
+  '/media/?kind=video',
+  '/media?series=coding-marathon',
+  '/media?topic=rust',
+  '/media?kind=video&topic=rust',
+  '/media/?q=x&series=coding-marathon',
+  '/projects?tech=react',
+  '/projects/?tech=react',
+  '/projects?category=web&tech=react',
+  '/projects?view=screens',
+  '/projects?tech=react&view=screens',
+  '/projects/?view=screens',
+  '/certifications?issuer=aws',
+  '/certifications?skill=kubernetes',
+  '/certifications/?issuer=aws&skill=kubernetes',
+  '/places?category=food',
+  '/places/?category=food',
+  '/places/photos?category=food',
+  '/places/photos/?category=food',
+  '/places/photos?q=x&category=food',
+];
+
+/** URLs with a `q` in them that are no list page's search, and parameters that are no filter. */
 const NOT_SEARCH_URLS = [
   // Next's image optimiser: `q` is the quality.
   '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fcover.png&w=1080&q=75',
@@ -135,22 +190,27 @@ const NOT_SEARCH_URLS = [
   '/assets/logo.svg?q=1',
   '/opengraph-image?q=1',
   '/api/og?title=Projects&q=1',
-  // The list pages themselves, in both forms, and their other filters.
+  // The list pages themselves, in both forms, and parameters that are no filter of theirs.
   ...SEARCHABLE_PAGES.flatMap(formsOf),
-  '/media?kind=video',
-  '/media/?kind=video',
-  '/media/?kind=video&seq=1',
-  '/media/?kind=video&qq=1',
+  '/media/?seq=1',
+  '/media/?qq=1',
   '/media/?faq=1',
-  '/projects/?tech=react',
-  '/places/photos/?category=food',
-  '/media?series=coding-marathon',
-  '/media?kind=video&seq=1',
-  '/media?kind=video&qq=1',
+  '/media?seq=1',
+  '/media?qq=1',
   '/media?faq=1',
-  '/projects?tech=react',
+  '/media?skind=video',
+  '/media?tab=videos',
+  '/projects?technology=react',
+  '/projects?preview=1',
   '/places?year=2024',
-  '/certifications?issuer=aws',
+  '/certifications?issuers=aws',
+  // A detail page under a list page takes no filter: a parameter there changes nothing.
+  '/projects/project-1?tech=react',
+  '/projects/project-1/?view=screens',
+  '/places/place-1?category=food',
+  // Other pages: `view` and `category` are no filter there.
+  '/experience?view=story',
+  '/stats?category=x',
   // Pages that take no search: a `q` there changes nothing they render.
   '/?q=anything',
   '/experience?q=anything',
@@ -231,9 +291,11 @@ describe('robots', () => {
     for (const pattern of patterns) {
       expect(pattern).not.toContain('$');
       if (!pattern.includes('*')) continue;
-      // `<page>?*&q=` or `<page>/?*&q=`: the page's exact path up to its `?`, so the wildcard
-      // can never span another URL's path.
-      const page = SEARCHABLE_PAGES.flatMap(formsOf).find((path) => pattern === `${path}?*&q=`);
+      // `<page>?*&<param>=` or `<page>/?*&<param>=`: the page's exact path up to its `?`, so the
+      // wildcard can never span another URL's path.
+      const page = Object.entries(LIST_PARAMS).find(([path, params]) =>
+        formsOf(path).some((form) => params.some((param) => pattern === `${form}?*&${param}=`)),
+      );
       expect({ pattern, page: page !== undefined }).toEqual({ pattern, page: true });
     }
   });
@@ -245,12 +307,12 @@ describe('robots', () => {
   });
 
   it.each(rulesOf(config).map((rule) => [toList(rule.userAgent).join(', '), rule] as const))(
-    'the %s group allows / and /api/og, disallows /api/ and list searches, and opens nothing under /api/v1',
+    'the %s group allows / and /api/og, disallows /api/ and list parameters, and opens nothing under /api/v1',
     (_agents, rule) => {
       const allow = toList(rule.allow);
 
       expect(allow).toEqual(['/', '/api/og']);
-      expect(toList(rule.disallow)).toEqual(['/api/', ...SEARCHABLE_PAGES.flatMap(searchRulesOf)]);
+      expect(toList(rule.disallow)).toEqual(['/api/', ...LIST_RULES]);
       expect(allow.filter((pattern) => pattern.startsWith('/api/v1'))).toEqual([]);
     },
   );
@@ -276,6 +338,13 @@ describe('robots', () => {
   it.each(CRAWLERS)("keeps %s out of every list page's search results", (crawler) => {
     const group = groupFor(config, crawler) as RobotsRule;
     for (const path of SEARCH_URLS) {
+      expect({ path, allowed: isAllowed(group, path) }).toEqual({ path, allowed: false });
+    }
+  });
+
+  it.each(CRAWLERS)("keeps %s out of every list page's filters and views", (crawler) => {
+    const group = groupFor(config, crawler) as RobotsRule;
+    for (const path of FILTER_URLS) {
       expect({ path, allowed: isAllowed(group, path) }).toEqual({ path, allowed: false });
     }
   });
@@ -309,6 +378,34 @@ describe('robots', () => {
 
     expect(patterns.filter((pattern) => /^\/?\*/.test(pattern))).toEqual([]);
     expect(patterns.filter((pattern) => pattern.startsWith('/_next'))).toEqual([]);
+  });
+
+  it("closes each list page's own filter parameters, as its schema names them, and q", () => {
+    const certificationLookups = {
+      chips: [],
+      other: null,
+      index: { families: {}, issuers: {}, skills: {} },
+    } as unknown as CertificationLookups;
+    const schemas = [
+      mediaFilters([]),
+      projectFilters({ kinds: {}, kindOrder: [], folded: [], techs: {} }),
+      certificationFilters(certificationLookups),
+      placeFilters,
+      placePhotoFilters,
+    ];
+    const patterns = toList(groupFor(config, 'Googlebot')?.disallow);
+
+    for (const schema of schemas) {
+      expect(LIST_PARAMS[schema.path], schema.path).toEqual(
+        expect.arrayContaining(['q', ...schema.keys]),
+      );
+      for (const param of ['q', ...schema.keys]) {
+        expect(patterns, `${schema.path} ${param}`).toEqual(
+          expect.arrayContaining(paramRulesOf(schema.path, param)),
+        );
+      }
+    }
+    expect(LIST_PARAMS['/projects']).toContain(VIEW_PARAM);
   });
 
   it('covers every route that defines a filter schema, which is what takes ?q=', () => {

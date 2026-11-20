@@ -69,6 +69,19 @@ describe('FilterBar in the server HTML', () => {
     expect(html.getByRole('searchbox', { name: 'Search projects' })).toHaveValue('cli');
   });
 
+  // Crawlers: robots.txt closes the filter parameters, and the chips do not invite them in.
+  it('marks every chip rel="nofollow" while keeping it a plain link to its filtered page', () => {
+    const container = serverRender(LINK);
+    const kinds = within(container).getByRole('list', { name: 'Filter by kind' });
+    const chips = within(kinds).getAllByRole('link');
+
+    expect(chips.length).toBeGreaterThan(1);
+    for (const chip of chips) {
+      expect(chip).toHaveAttribute('rel', 'nofollow');
+      expect(chip.getAttribute('href')).toMatch(/^\//);
+    }
+  });
+
   it('hydrates that HTML without a mismatch', async () => {
     const container = serverRender(LINK);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);

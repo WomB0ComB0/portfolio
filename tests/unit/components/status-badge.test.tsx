@@ -25,17 +25,27 @@
  * failed), or one kept after a later poll failed, says 'Last known: ...', exactly as the tile does.
  * The link's name and its title are the same words in every state. The query cache is seeded, or
  * fetch stubbed where the decoding or a failure is checked.
+ *
+ * It shares the home status tile's query (serviceStatusQuery, ['service-status']): one poll per
+ * tab every 5 minutes, none while the tab is hidden, and a fetch on mount only when nothing fresh
+ * is cached. It reads the shared cache only once hydrated, so its server HTML is always
+ * 'Checking status…' whatever the tile seeded.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { serviceStatusView } from '@/app/_components/home/live/status-tile';
+import {
+  SERVICE_STATUS_QUERY_KEY,
+  STATUS_POLL_MS,
+  STATUS_STALE_MS,
+} from '@/app/_components/home/live/status-query';
+import { StatusTile, serviceStatusView } from '@/app/_components/home/live/status-tile';
 import { StatusBadge, statusBadgeView } from '@/components/custom/status-badge';
 import { CHECKING_STATUS, statusSentence } from '@/lib/status/service-state';
 
-// t3-env validates on import (through the Effect fetcher); these tests need no configuration.
+// t3-env validates on import; these tests need no configuration.
 vi.mock('@/env', () => {
   const env = new Proxy({} as Record<string, unknown>, {
     get: (_target, key) => (key === 'NODE_ENV' ? 'test' : undefined),
@@ -47,6 +57,7 @@ const LAST_UPDATED = '2026-11-05T14:00:00.000Z';
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 type Answer = NonNullable<Parameters<typeof statusBadgeView>[0]>;
@@ -62,7 +73,7 @@ const testClient = () => new QueryClient({ defaultOptions: { queries: { retry: f
 function mountBadge(seed?: Answer, ageMs = 0) {
   const client = testClient();
   if (seed) {
-    client.setQueryData(['system-status'], envelope(seed), { updatedAt: Date.now() - ageMs });
+    client.setQueryData(SERVICE_STATUS_QUERY_KEY, seed, { updatedAt: Date.now() - ageMs });
   }
   render(
     <QueryClientProvider client={client}>
@@ -100,8 +111,8 @@ function expectWords(link: HTMLElement, words: string) {
   expect(link).toHaveAttribute('title', words);
 }
 
-/** Older than the badge's one-minute staleTime, so it asks again on mount. */
-const OLD_MS = 2 * 60_000;
+/** Older than the shared query's staleTime (just under 5 minutes), so it asks again on mount. */
+const OLD_MS = STATUS_STALE_MS + 60_000;
 
 /** The home status tile's separator between a state and its count: a no-break space, then '· '. */
 const SEP = ' · ';
@@ -460,5 +471,112 @@ describe('StatusBadge', () => {
 
     expect(link).toHaveAccessibleName(linkName(`Degraded${SEP}3/4 up`));
     expect(link).toHaveAttribute('title', `Degraded${SEP}3/4 up`);
+  });
+});
+
+/** Sets what document.visibilityState reads, and tells listeners as the browser would. */
+function setVisibility(state: DocumentVisibilityState): void {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+  document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
+}
+
+describe('StatusBadge polling', () => {
+  afterEach(() => {
+    setVisibility('visible');
+  });
+
+  const operational = () =>
+    jsonResponse(
+      envelope({ state: 'operational', lastUpdated: LAST_UPDATED, monitors: { up: 3, total: 3 } }),
+    );
+
+  it('fetches once on mount, then once every 5 minutes while the tab is visible', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const fetchMock = stubStatus(operational);
+    const link = mountBadge();
+
+    await waitFor(() => expect(link).toHaveAccessibleName(linkName('All systems up')));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('/api/status', expect.anything());
+
+    await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS - 1_000));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('polls every 5 minutes, not every minute', () => {
+    expect(STATUS_POLL_MS).toBe(5 * 60_000);
+    expect(STATUS_STALE_MS).toBeLessThan(STATUS_POLL_MS);
+  });
+
+  it('asks nothing while the tab is hidden, and asks again once it is shown with a stale answer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const fetchMock = stubStatus(operational);
+    const link = mountBadge();
+    await waitFor(() => expect(link).toHaveAccessibleName(linkName('All systems up')));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    setVisibility('hidden');
+    await act(() => vi.advanceTimersByTimeAsync(3 * STATUS_POLL_MS));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    setVisibility('visible');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('fetches nothing on mount while the cached answer is fresh', async () => {
+    const fetchMock = stubStatus(operational);
+    mountBadge(
+      { state: 'operational', lastUpdated: LAST_UPDATED, monitors: { up: 3, total: 3 } },
+      STATUS_STALE_MS - 60_000,
+    );
+
+    await act(() => Promise.resolve());
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('StatusBadge and the home status tile', () => {
+  it("shows the tile's server snapshot from the shared cache, with no fetch of its own", async () => {
+    const fetchMock = stubStatus(() => new Promise<Response>(() => {}));
+    const client = testClient();
+    const checked = {
+      state: 'degraded',
+      lastUpdated: new Date().toISOString(),
+      monitors: { up: 3, total: 4 },
+    } as const;
+
+    render(
+      <QueryClientProvider client={client}>
+        <StatusTile initial={{ kind: 'data', data: checked, fetchedAt: Date.now() }} />
+        <StatusBadge />
+      </QueryClientProvider>,
+    );
+
+    const badge = screen.getByRole('link', { name: /^Status:/ });
+    await waitFor(() => expect(badge).toHaveAccessibleName(linkName(`Degraded${SEP}3/4 up`)));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(client.getQueryCache().findAll()).toHaveLength(1);
+  });
+
+  it("says 'Checking status…' in the server HTML even when the cache already holds an answer", () => {
+    const client = testClient();
+    client.setQueryData(SERVICE_STATUS_QUERY_KEY, {
+      state: 'operational',
+      lastUpdated: LAST_UPDATED,
+      monitors: { up: 3, total: 3 },
+    });
+
+    const markup = renderToString(
+      <QueryClientProvider client={client}>
+        <StatusBadge />
+      </QueryClientProvider>,
+    );
+
+    expect(markup).toContain('title="Checking status…"');
+    expect(markup).not.toContain('All systems up');
   });
 });

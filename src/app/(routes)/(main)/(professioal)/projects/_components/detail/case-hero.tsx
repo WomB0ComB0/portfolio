@@ -67,7 +67,7 @@ function Crumbs({ crumb }: { readonly crumb: CaseCrumb | null }): ReactElement {
     <nav aria-label="Breadcrumb" className={styles.crumbs}>
       <ol className={styles['crumb-list']}>
         <li>
-          <Link href="/projects" className={styles.crumb}>
+          <Link href="/projects" prefetch={false} className={styles.crumb}>
             <ArrowLeft aria-hidden="true" className={styles['crumb-arrow']} />
             Projects
           </Link>
@@ -77,7 +77,7 @@ function Crumbs({ crumb }: { readonly crumb: CaseCrumb | null }): ReactElement {
             <span aria-hidden="true" className={styles['crumb-sep']}>
               /
             </span>
-            <Link href={crumb.href} className={styles.crumb}>
+            <Link href={crumb.href} prefetch={false} className={styles.crumb}>
               {crumb.label}
             </Link>
           </li>

@@ -105,6 +105,7 @@ export function PhotosExplorer({ places, photos }: PhotosExplorerProps): JSX.Ele
               Places without photos are in{' '}
               <Link
                 href={placeFilters.serialize(placeStateOf(model.active))}
+                prefetch={false}
                 className={PLACES_LINK_CLASS}
               >
                 the places list

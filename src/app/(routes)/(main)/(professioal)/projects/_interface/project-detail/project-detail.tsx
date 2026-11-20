@@ -75,7 +75,7 @@ export function ProjectDetail({ project, projects, children }: ProjectDetailProp
         <div className={bodyStyles.after}>
           <PortfolioMedia id="project-media" media={project.media} />
           {children}
-          <Link href="/projects" className={bodyStyles.back}>
+          <Link href="/projects" prefetch={false} className={bodyStyles.back}>
             <ArrowLeft aria-hidden="true" className={bodyStyles['back-arrow']} />
             {BACK_LABEL}
           </Link>

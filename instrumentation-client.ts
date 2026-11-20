@@ -20,7 +20,27 @@
 
 import * as Sentry from '@sentry/nextjs';
 import { config } from '@/config';
-import { buildClientOptions, SENTRY_APPLICATION_KEY } from '@/lib/observability/sentry-options';
+import {
+  buildClientOptions,
+  SENTRY_APPLICATION_KEY,
+  withoutSessionTracking,
+} from '@/lib/observability/sentry-options';
+
+/** The site's own integrations, added to the SDK's defaults (a same-named default is replaced). */
+const siteIntegrations = [
+  // These are the SDK defaults, spelled out because the privacy policy promises them.
+  Sentry.replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true }),
+  Sentry.browserTracingIntegration(),
+  Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
+  // Tags errors whose stack has no frame from our bundles (extensions, injected scripts).
+  // Once the tag looks right in Sentry, 'drop-error-if-exclusively-contains-third-party-frames'
+  // stops them from using quota.
+  Sentry.thirdPartyErrorFilterIntegration({
+    filterKeys: [SENTRY_APPLICATION_KEY],
+    behaviour: 'apply-tag-if-exclusively-contains-third-party-frames',
+    ignoreSentryInternalFrames: true,
+  }),
+];
 
 Sentry.init({
   dsn: config.sentry.dsn,
@@ -33,20 +53,9 @@ Sentry.init({
     optIn: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
     nodeEnv: process.env.NODE_ENV,
   }),
-  integrations: [
-    // These are the SDK defaults, spelled out because the privacy policy promises them.
-    Sentry.replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true }),
-    Sentry.browserTracingIntegration(),
-    Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
-    // Tags errors whose stack has no frame from our bundles (extensions, injected scripts).
-    // Once the tag looks right in Sentry, 'drop-error-if-exclusively-contains-third-party-frames'
-    // stops them from using quota.
-    Sentry.thirdPartyErrorFilterIntegration({
-      filterKeys: [SENTRY_APPLICATION_KEY],
-      behaviour: 'apply-tag-if-exclusively-contains-third-party-frames',
-      ignoreSentryInternalFrames: true,
-    }),
-  ],
+  // The SDK's defaults without per-page-load session tracking (withoutSessionTracking), then the
+  // site's own. Errors, traces and replays keep working; only Release Health sessions stop.
+  integrations: (defaults) => [...withoutSessionTracking(defaults), ...siteIntegrations],
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

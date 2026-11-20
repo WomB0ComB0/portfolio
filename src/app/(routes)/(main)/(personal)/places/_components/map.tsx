@@ -269,7 +269,7 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
 
             {/* With or without photos, the place page has the full description. */}
             <Button asChild size="sm" className="w-full">
-              <Link href={`/places/${activeMarker.id}`}>
+              <Link href={`/places/${activeMarker.id}`} prefetch={false}>
                 {activeMarker.photoCount > 0 ? (
                   <>
                     <FiCamera className="h-4 w-4" aria-hidden="true" />

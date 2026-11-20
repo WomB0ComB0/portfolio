@@ -39,6 +39,15 @@ export const SITE_TWITTER_CARD_PATH = '/twitter-image';
 export const PAGE_CARD_PATH = '/api/og';
 
 /**
+ * How long a page card is kept: a day in browsers, a year at the CDN, and a day more served stale
+ * while the CDN asks again. ImageResponse's own default ('public, max-age=0, must-revalidate')
+ * has no s-maxage, so Vercel's CDN kept no copy and every preview fetch drew the card again. The
+ * card's words are its query, so a changed title or description is a new URL and a new copy.
+ */
+export const PAGE_CARD_CACHE_CONTROL =
+  'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=86400';
+
+/**
  * The site card's role line. Fixed rather than the hero's first current role from Studio
  * ('{position}, {company}'), so a cached preview never names a role that has since changed.
  */
