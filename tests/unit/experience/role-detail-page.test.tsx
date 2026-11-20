@@ -225,19 +225,22 @@ describe('/experience/[id]: the header', () => {
     expect(site).toHaveAccessibleName('Curve Labs (opens in a new tab)');
   });
 
-  it("reaches 44px around the organization's link on a touch screen, without growing its line", async () => {
+  it("gives the organization's link a 44px target on a touch screen, without growing its line", async () => {
     await pageFor('curve');
 
     const classes = classesOf(screen.getByRole('link', { name: /^Curve Labs/ }));
-    // The 20px line keeps its height; an overlay 12px past it, above and below, takes the tap.
+    // The line keeps its height; an overlay 2.75rem tall, centred on it, takes the tap: top and
+    // bottom at 50% - 1.375rem leave 44px whatever the line height (the old 12px each way gave
+    // 42px on the 18px eyebrow line).
     expect(classes).toEqual(
       expect.arrayContaining([
         'relative',
         'pointer-coarse:after:absolute',
-        'pointer-coarse:after:-inset-y-3',
+        'pointer-coarse:after:inset-y-[calc(50%-1.375rem)]',
         "pointer-coarse:after:content-['']",
       ]),
     );
+    expect(classes).not.toContain('pointer-coarse:after:-inset-y-3');
     expect(classes.some((name) => /^pointer-coarse:(min-)?h-/.test(name))).toBe(false);
   });
 
