@@ -231,6 +231,20 @@ describe('stripItems', () => {
     expect(age).toEqual({ label: 'years old', value: 22, figure });
     expect(rest.every((item) => !('figure' in item))).toBe(true);
   });
+
+  it('gives the age the action it is given (its Pause toggle), and no other item one', () => {
+    const figure = '22.65753424';
+    const action = 'Pause';
+    const [age, ...rest] = stripItems(
+      { totals: ok(TOTALS), pageViews: ok(2615) },
+      NOW,
+      figure,
+      action,
+    );
+
+    expect(age).toEqual({ label: 'years old', value: 22, figure, action });
+    expect(rest.every((item) => !('action' in item))).toBe(true);
+  });
 });
 
 describe('pendingStripItems', () => {
@@ -253,6 +267,13 @@ describe('pendingStripItems', () => {
 
     expect(age).toEqual({ label: 'years old', value: 22, figure });
     expect(rest.every((item) => item.loading === true && !('figure' in item))).toBe(true);
+  });
+
+  it('gives the age its action while the sourced figures load', () => {
+    const [age, ...rest] = pendingStripItems(NOW, '22.65753424', 'Pause');
+
+    expect(age).toEqual({ label: 'years old', value: 22, figure: '22.65753424', action: 'Pause' });
+    expect(rest.every((item) => !('action' in item))).toBe(true);
   });
 });
 

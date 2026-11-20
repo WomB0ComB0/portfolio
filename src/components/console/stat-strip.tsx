@@ -20,7 +20,8 @@
  * LiveNumber island both format through numberFormatter, so their text always agrees.
  *
  * The type is the refined set (globals.css): each figure is Geist (figure-sm, tabular) with its
- * label under it (figure-unit), hairlines between the items; no mono face, no capitals.
+ * label under it (figure-unit), hairlines between the items; no mono face, no capitals. An item
+ * can carry an action for its figure (the live age's Pause toggle) at the end of its label's row.
  */
 
 import Link from 'next/link';
@@ -127,6 +128,26 @@ const FLUID_LABEL_CLASS = 'text-balance';
 const UNIT_CLASS = 'ml-0.5 figure-unit text-muted-foreground';
 const BAR_CLASS = 'block rounded-sm bg-surface-3 motion-safe:animate-pulse forced-colors:outline';
 
+/**
+ * An item with an action: two content-sized columns, the figure across both and, under it, the
+ * label and the action, packed at the top as the column is. So the figure's line, the item's
+ * floor and the label's place are those of an item without one. (A flexible column would leave the
+ * figure out of the floor, as an item spanning a flexible track is not counted in a grid's
+ * min-content, and the figure would run past its divider.) Where the label and the action do not
+ * share the row at the item's width, the label wraps beside the action, as a narrow item's do.
+ */
+const ACTION_ITEM_CLASS = 'grid grid-cols-[auto_auto] content-start gap-x-2 gap-y-1';
+const ACTION_VALUE_CLASS = 'col-span-2 row-start-1';
+const ACTION_LABEL_CLASS = 'col-start-1 row-start-2';
+/**
+ * The action's cell ends the label's row and is one label line tall (the label's type, 1lh), with
+ * what it holds centred on that line: a control taller than the line (the 24px Pause toggle on the
+ * 20px line) overhangs it evenly and adds no height to the row. From the container step the item
+ * is as wide as its figure, so the cell ends under the figure's end.
+ */
+const ACTION_CLASS =
+  'figure-unit col-start-2 row-start-2 flex h-lh items-center self-start justify-self-end';
+
 export interface StatStripItem {
   /** Read after the value ("22 projects"). Labels key the items, so keep them unique. */
   label: string;
@@ -151,6 +172,36 @@ export interface StatStripItem {
    * its figures (a streamed header), so the loaded strip lands without moving anything.
    */
   loading?: boolean;
+  /**
+   * A control for the figure (the live age's Pause toggle), given as a StatStripAction: the dd it
+   * sits in, after the figure's, at the end of the label's row (ACTION_ITEM_CLASS). Shown only
+   * with the figure: not for a missing value or while it loads.
+   */
+  action?: ReactNode;
+}
+
+export interface StatStripActionProps {
+  readonly children: ReactNode;
+  /** Added to the cell's classes: to hide the cell with its control, say. */
+  readonly className?: string;
+}
+
+/**
+ * The cell an item's action sits in (StatStripItem.action): a dd ending the label's row. A part of
+ * its own so the control's owner can hide the cell with the control (the Pause toggle's, under
+ * reduced motion and without scripting): an empty dd is still a description to a screen reader.
+ *
+ * @example
+ * <StatStripAction className="motion-reduce:hidden"><button type="button">Pause</button></StatStripAction>
+ */
+export function StatStripAction({ children, className }: StatStripActionProps): ReactElement {
+  return <dd className={cn(ACTION_CLASS, className)}>{children}</dd>;
+}
+
+/** The item's action, when it shows its figure; else null (StatStripItem.action). */
+function shownAction({ action, loading, value }: StatStripItem): ReactNode {
+  if (action === undefined || loading || presentValue(value) === null) return null;
+  return action;
 }
 
 export interface StatStripProps {
@@ -250,14 +301,27 @@ export function StatStrip({
             // The placeholders are identical and never reorder, so the index is their identity.
             <PlaceholderItem key={`placeholder-${Number(index)}`} className={itemClass} />
           ))
-        : items.map((item) => (
-            <div key={item.label} className={itemClass}>
-              <dt className={cn(LABEL_CLASS, fluid && FLUID_LABEL_CLASS)}>{item.label}</dt>
-              <dd className={VALUE_CLASS}>
-                <StripValue {...item} />
-              </dd>
-            </div>
-          ))}
+        : items.map((item) => {
+            const action = shownAction(item);
+            const acts = action !== null;
+            return (
+              <div key={item.label} className={cn(itemClass, acts && ACTION_ITEM_CLASS)}>
+                <dt
+                  className={cn(
+                    LABEL_CLASS,
+                    fluid && FLUID_LABEL_CLASS,
+                    acts && ACTION_LABEL_CLASS,
+                  )}
+                >
+                  {item.label}
+                </dt>
+                <dd className={cn(VALUE_CLASS, acts && ACTION_VALUE_CLASS)}>
+                  <StripValue {...item} />
+                </dd>
+                {action}
+              </div>
+            );
+          })}
     </dl>
   );
   // The wrapper clips the divider of whichever item starts a row (see StatStripSizing).

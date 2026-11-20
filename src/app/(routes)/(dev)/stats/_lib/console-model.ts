@@ -235,10 +235,17 @@ const AGE_LABEL = 'years old';
 const PAGE_VIEWS_LABEL = 'page views in 30 days';
 const FOLLOWERS_LABEL = 'GitHub followers';
 
-/** The age item: whole years as its value, and `figure` (LiveAge) shown in their place if given. */
-function ageItem(now: Date, figure?: ReactNode): StatStripItem {
-  const age: StatStripItem = { label: AGE_LABEL, value: ageOn(now) };
-  return figure === undefined ? age : { ...age, figure };
+/**
+ * The age item: whole years as its value, `figure` (LiveAge) shown in their place and `action`
+ * (its Pause toggle) on the label's row, each if given.
+ */
+function ageItem(now: Date, figure?: ReactNode, action?: ReactNode): StatStripItem {
+  return {
+    label: AGE_LABEL,
+    value: ageOn(now),
+    ...(figure === undefined ? {} : { figure }),
+    ...(action === undefined ? {} : { action }),
+  };
 }
 
 /**
@@ -247,15 +254,17 @@ function ageItem(now: Date, figure?: ReactNode): StatStripItem {
  * show gives null, which the strip prints as an em dash read as 'unavailable'.
  *
  * The age's value is whole years; `ageFigure` (the console passes LiveAge, the age to eight
- * decimals) is shown in its place.
+ * decimals) is shown in its place, and `ageAction` (LiveAgePause, its Pause toggle) is the item's
+ * action.
  */
 export function stripItems(
   data: Pick<StatsConsoleData, 'totals' | 'pageViews'>,
   now: Date,
   ageFigure?: ReactNode,
+  ageAction?: ReactNode,
 ): StatStripItem[] {
   return [
-    ageItem(now, ageFigure),
+    ageItem(now, ageFigure, ageAction),
     { label: PAGE_VIEWS_LABEL, value: dataOf(data.pageViews) },
     { label: FOLLOWERS_LABEL, value: dataOf(data.totals)?.user.followers ?? null },
   ];
@@ -264,11 +273,15 @@ export function stripItems(
 /**
  * The header strip while its sources load: the same labels, the age (which needs no source) and a
  * placeholder for each figure still on its way, so the loaded strip takes exactly this room. The
- * age takes `ageFigure` as in stripItems, so it is live from the first frame.
+ * age takes `ageFigure` and `ageAction` as in stripItems, so it is live from the first frame.
  */
-export function pendingStripItems(now: Date, ageFigure?: ReactNode): StatStripItem[] {
+export function pendingStripItems(
+  now: Date,
+  ageFigure?: ReactNode,
+  ageAction?: ReactNode,
+): StatStripItem[] {
   return [
-    ageItem(now, ageFigure),
+    ageItem(now, ageFigure, ageAction),
     { label: PAGE_VIEWS_LABEL, value: null, loading: true },
     { label: FOLLOWERS_LABEL, value: null, loading: true },
   ];
