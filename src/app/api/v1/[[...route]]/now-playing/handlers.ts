@@ -15,13 +15,18 @@
  */
 
 import { type CurrentlyPlayingTrack, currentlyPlayingSong } from '@/lib/api-integrations/spotify';
+import { spotifyArtFor } from '@/lib/images/spotify-art';
 import type { NowPlayingResponse } from './schema';
 
 export type { NowPlayingResponse } from './schema';
 
 const SPOTIFY_LINK_HOST = 'open.spotify.com';
-/** Spotify's image CDN, the host next.config allows next/image to load album art from. */
-const SPOTIFY_IMAGE_HOST = 'i.scdn.co';
+/**
+ * The largest slot the playing track's art is drawn in: the /spotify hero (112 px). The home
+ * tile (56 px), the hero's glow (64 px) and the /stats row (40 or 96 px) are smaller, so
+ * Spotify's 300 px image serves them all, rather than its first, 640 px one.
+ */
+const NOW_PLAYING_ART_PX = 112;
 
 /** `value` as an https URL on `hostname`, or undefined, so the cards only link to Spotify. */
 const httpsUrlOn = (value: string | undefined, hostname: string): string | undefined => {
@@ -42,7 +47,7 @@ const fromTrack = (track: CurrentlyPlayingTrack): NowPlayingResponse => {
     artistName: artistName || undefined,
     songURL: httpsUrlOn(track.external_urls?.spotify, SPOTIFY_LINK_HOST),
     artistURL: httpsUrlOn(track.artists[0]?.external_urls?.spotify, SPOTIFY_LINK_HOST),
-    imageURL: httpsUrlOn(track.album?.images[0]?.url, SPOTIFY_IMAGE_HOST),
+    imageURL: spotifyArtFor(track.album?.images, NOW_PLAYING_ART_PX),
   };
 };
 

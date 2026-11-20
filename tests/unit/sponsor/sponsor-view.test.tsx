@@ -50,7 +50,7 @@ import {
   DEFAULT_SPONSOR_OPTIONS,
   type SponsorViewOptions,
 } from '@/app/(routes)/(dev)/sponsor/_lib/options';
-import SponsorPage from '@/app/(routes)/(dev)/sponsor/page';
+import SponsorPage, { metadata } from '@/app/(routes)/(dev)/sponsor/page';
 
 const GITHUB_SPONSORS_URL = 'https://github.com/sponsors/WomB0ComB0';
 const WAY_NAMES = ['GitHub Sponsors', 'Open Collective', 'Ko-fi', 'Buy Me a Coffee'];
@@ -193,6 +193,30 @@ describe('/sponsor server HTML', () => {
     );
     expect(thanks?.querySelectorAll('img')).toHaveLength(2);
     expect(textOf(thanks)).toContain('now');
+  });
+
+  it('introduces a past sponsor as past when nobody sponsors now, right above the name', async () => {
+    getGitHubSponsors.mockResolvedValue(
+      sponsorsData([
+        makeSponsor({ login: 'former', name: 'Former Friend', url: 'https://github.com/former' }),
+      ]),
+    );
+
+    const { root } = await routeHtml();
+
+    const thanks = root.querySelector('[data-sponsor-thanks]');
+    expect(textOf(thanks?.querySelector('p'))).toBe('No one sponsors right now. Past sponsors:');
+    expect(textOf(thanks)).not.toContain('None right now');
+    expect(textOf(thanks?.querySelector('li'))).toMatch(/^Former Friend/);
+    expect(textOf(thanks?.querySelector('li'))).not.toContain('now');
+  });
+
+  it('describes the page truthfully with or without a current sponsor', () => {
+    expect(metadata.description).toBe(
+      'Ways to support my open-source work and educational content, with thanks to everyone who has sponsored it.',
+    );
+    expect(metadata.description).not.toMatch(/current sponsors/i);
+    expect(metadata.openGraph?.description).toBe(metadata.description);
   });
 
   // That the two labels line up on a wide page is measured in e2e/journeys/sponsor.spec.ts.

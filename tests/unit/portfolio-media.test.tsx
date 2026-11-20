@@ -21,7 +21,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RoleProgression } from '@/app/(routes)/(main)/(professioal)/experience/_components/role-progression';
 import { buildRoleIndex } from '@/app/(routes)/(main)/(professioal)/experience/_lib/role-index';
 import { subRolesOf } from '@/app/(routes)/(main)/(professioal)/experience/_lib/role-subroles';
-import { PortfolioMedia } from '@/components/portfolio-media';
+import { mediaSizeOf, PortfolioMedia } from '@/components/portfolio-media';
 import type { PortfolioMediaItem } from '@/hooks/sanity/schemas';
 
 vi.mock('@/lib/sanity/client', async () => {
@@ -106,6 +106,46 @@ describe('PortfolioMedia', () => {
       external.externalUrl,
     );
     expect(container.querySelector('iframe, video')).toBeNull();
+  });
+  it('sizes a phone-shaped walkthrough by its own poster, not a 16:9 box, before anything loads', () => {
+    const portrait = {
+      ...image,
+      asset: { ...image.asset, _ref: 'image-mobileTour-390x844-png' },
+    };
+    const html = renderToStaticMarkup(
+      <PortfolioMedia id="media" media={[{ ...video, poster: portrait }, external]} />,
+    );
+    expect(html).not.toContain('aspect-video');
+    const { container } = render(
+      <PortfolioMedia id="media" media={[{ ...video, poster: portrait }, external]} />,
+    );
+    const player = screen.getByLabelText('Delivery walkthrough');
+    expect(player).toHaveAttribute('width', '390');
+    expect(player).toHaveAttribute('height', '844');
+    expect(player.style.getPropertyValue('--media-aspect')).toBe('0.4621');
+    // Wide media keeps its own shape too: the external poster is 1600x900.
+    const frames = Array.from(container.querySelectorAll<HTMLElement>('[data-media-frame]'));
+    expect(frames.map((frame) => frame.style.getPropertyValue('--media-aspect'))).toEqual([
+      '0.4621',
+      '1.7778',
+    ]);
+    // Never taller than the cap: the width follows the shape, so a tall frame narrows instead.
+    for (const frame of frames) {
+      expect(frame.className).toContain('aspect-(--media-aspect)');
+      expect(frame.className).toContain('w-[min(100%,calc(min(36rem,75svh)*var(--media-aspect)))]');
+    }
+  });
+  it('falls back to 16:9 for a video without a poster or with an unreadable size', () => {
+    render(<PortfolioMedia id="media" media={[{ ...video, poster: undefined }, photo]} />);
+    const player = screen.getByLabelText('Delivery walkthrough');
+    expect(player).toHaveAttribute('width', '1280');
+    expect(player).toHaveAttribute('height', '720');
+    expect(player.style.getPropertyValue('--media-aspect')).toBe('1.7778');
+    expect(mediaSizeOf(undefined)).toEqual({ width: 1280, height: 720 });
+    expect(mediaSizeOf({ ...image, asset: { ...image.asset, _ref: 'image-a-0x844-png' } })).toEqual(
+      { width: 1280, height: 720 },
+    );
+    expect(mediaSizeOf(image)).toEqual({ width: 1600, height: 900 });
   });
   it('drops unsafe direct inputs and keeps valid siblings without throwing', () => {
     const { container } = render(

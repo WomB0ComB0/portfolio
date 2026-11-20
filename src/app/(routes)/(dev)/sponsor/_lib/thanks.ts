@@ -111,9 +111,13 @@ export function thanksOf(data: GitHubSponsorsData | null): SponsorsThanks {
   };
 }
 
-/** The line under "Thank you": it says so plainly when nobody sponsors right now. */
+/**
+ * The line under "Thank you", over the names. With nobody sponsoring now, every name below is a
+ * past sponsor, so it says that and leads into them (a line ending "None right now." read as if
+ * the name under it were nobody).
+ */
 export function thanksLine(currentCount: number): string {
   return currentCount > 0
     ? 'To everyone sponsoring this work, now and before.'
-    : 'To everyone who has sponsored this work. None right now.';
+    : 'No one sponsors right now. Past sponsors:';
 }

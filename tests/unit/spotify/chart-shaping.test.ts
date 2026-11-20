@@ -28,10 +28,10 @@ import {
   chartStats,
   durationIso,
   formatDuration,
-  pickImage,
   shapeTopArtists,
   shapeTopTracks,
 } from '@/app/(routes)/(main)/(personal)/spotify/_lib/chart';
+import { pickSpotifyImage as pickImage } from '@/lib/images/spotify-art';
 
 /** A raw top track as Spotify sends it, trimmed to the fields the ledger reads. */
 const rawTrack = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({

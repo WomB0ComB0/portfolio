@@ -17,7 +17,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAIN_CONTENT_ID } from '@/components/animations/pages/page-transition';
-import { ScrollToTop } from '@/components/layout/scroll-to-top';
+import { SCROLL_UP_REVEAL_QUERY, ScrollToTop } from '@/components/layout/scroll-to-top';
 import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 
 const SETUP_RESIZE_OBSERVER = globalThis.ResizeObserver;
@@ -314,6 +314,114 @@ describe('shared scroll-to-top control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to top' }));
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(screen.getByRole('main')).not.toHaveFocus();
+  });
+
+  it('stays mounted while hidden, inert and out of the accessibility tree, so it can fade out', async () => {
+    const { container } = await openControl();
+    const node = container.querySelector<HTMLElement>('[data-scroll-top]');
+    const position = container.querySelector<HTMLElement>('[data-scroll-top-position]');
+    expect(node).toHaveAttribute('data-shown', 'true');
+    expect(position).not.toHaveAttribute('inert');
+    expect(position).not.toHaveAttribute('aria-hidden');
+
+    await scroll(0);
+
+    expect(button()).not.toBeInTheDocument();
+    expect(container.querySelector('[data-scroll-top]')).toBe(node);
+    expect(node).toHaveAttribute('data-shown', 'false');
+    expect(node).toHaveAttribute('tabindex', '-1');
+    expect(position).toHaveAttribute('inert');
+    expect(position).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('never moves its fixed box: one bottom, a footer lift by translate, entry by opacity and transform', async () => {
+    const { container } = await openControl();
+    const position = container.querySelector<HTMLElement>('[data-scroll-top-position]');
+    const lift = container.querySelector<HTMLElement>('[data-scroll-top-lift]');
+    const classes = position?.className.split(' ') ?? [];
+
+    // The bottom is one variable, set per breakpoint, never the footer's scroll-driven clearance.
+    expect(classes).toContain('bottom-(--scroll-top-base)');
+    expect(position?.className).not.toContain('scroll-top-footer-bottom');
+    expect(lift?.style.translate).toBe(
+      '0 calc(-1 * max(0px, var(--scroll-top-footer-bottom) - var(--scroll-top-base)))',
+    );
+    const buttonClasses = button()?.className.split(' ') ?? [];
+    expect(buttonClasses).toEqual(
+      expect.arrayContaining([
+        'transition-[opacity,translate,scale,color,background-color,border-color]',
+        'data-[shown=false]:opacity-0',
+        'data-[shown=false]:translate-y-2',
+        'data-[shown=false]:scale-90',
+        'motion-reduce:transition-none',
+      ]),
+    );
+    // Nothing that sizes or places the box is ever transitioned.
+    expect(button()?.className).not.toMatch(
+      /transition-(all|\[[^\]]*(width|height|bottom|top|inset))/,
+    );
+  });
+
+  describe('on a page narrower than the side rail', () => {
+    beforeEach(() => {
+      globalThis.matchMedia = (query) => ({
+        ...originalMatchMedia(query),
+        matches: query === SCROLL_UP_REVEAL_QUERY,
+      });
+    });
+
+    it('stays out of the way while reading down and shows on a scroll back up', async () => {
+      render(page());
+      await frame();
+      await scroll(600);
+      await scroll(1200);
+      expect(button()).not.toBeInTheDocument();
+      await scroll(1190);
+      // Under the slop: a jitter is not a change of direction.
+      expect(button()).not.toBeInTheDocument();
+      await scroll(1100);
+      expect(button()).toBeInTheDocument();
+      await scroll(1105);
+      expect(button()).toBeInTheDocument();
+      await scroll(1400);
+      expect(button()).not.toBeInTheDocument();
+    });
+
+    it('waits for a scroll up even at a restored position, and still needs the threshold', async () => {
+      y = 1600;
+      render(page());
+      await frame();
+      expect(button()).not.toBeInTheDocument();
+      await scroll(1500);
+      expect(button()).toBeInTheDocument();
+      await scroll(200);
+      expect(button()).not.toBeInTheDocument();
+    });
+
+    it('shows at the foot of the page, with the footer in view, whichever way the page moved', async () => {
+      viewport = 800;
+      pageHeight = 3000;
+      render(page());
+      const footer = screen.getByRole('contentinfo');
+      let top = 2000;
+      vi.spyOn(footer, 'getBoundingClientRect').mockImplementation(
+        () =>
+          ({
+            top,
+            bottom: top + 100,
+            height: 100,
+            left: 0,
+            right: 390,
+            width: 390,
+          }) as DOMRect,
+      );
+      await frame();
+      await scroll(1500);
+      expect(button()).not.toBeInTheDocument();
+      top = 700;
+      await scroll(2200);
+      expect(button()).toBeInTheDocument();
+    });
   });
 
   it('disconnects observers and cancels pending work on unmount', async () => {

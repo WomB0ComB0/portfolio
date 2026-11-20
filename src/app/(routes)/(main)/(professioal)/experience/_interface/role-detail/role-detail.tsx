@@ -70,11 +70,13 @@ const TECH_LABEL = 'Technologies';
 
 const ORG_CLASS = 'group/org inline-flex max-w-full items-center gap-2 align-bottom';
 /**
- * On a touch screen the link's target reaches 44px without its 20px line growing: an overlay
- * 12px past it, above and below (nothing else there can be tapped: the h1 is under it).
+ * On a touch screen the link's target is 44px tall without its line growing: an overlay 2.75rem
+ * tall, centred on the link whatever its line height (the eyebrow's line is 18px, so a fixed
+ * 12px each way gave 42px). A link wrapped onto two lines is taller than that and is its own
+ * target. Nothing else there can be tapped: the h1 is under it.
  */
 const ORG_TOUCH_CLASS =
-  "relative pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:content-['']";
+  "relative pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:inset-y-[calc(50%-1.375rem)] pointer-coarse:after:content-['']";
 const ORG_LINK_CLASS = `${ORG_CLASS} ${ORG_TOUCH_CLASS} rounded-sm text-muted-foreground underline-offset-4 transition-colors duration-(--motion-fast) ease-effect hover:text-foreground hover:underline`;
 const ORG_NAME_CLASS = 'min-w-0 [overflow-wrap:anywhere]';
 const FACTS_CLASS = 'tabular-nums';

@@ -16,18 +16,19 @@
 
 /**
  * @file The Chart ledger's data: Spotify's raw top tracks and artists shaped into ranked rows,
- * and the header's figures. Pure (no directive, no imports), so every rule is tested without
- * rendering, and both the page and the lab station share it.
+ * and the header's figures. Pure (no directive; its one import, the art picker, is pure too), so
+ * every rule is tested without rendering, and both the page and the lab station share it.
  *
  * Spotify's answers are untrusted: each item is narrowed field by field, an item without a name
  * is skipped (the rest are ranked again without a gap), links are kept only on open.spotify.com
- * and art only from Spotify's image CDN, the one host next.config lets next/image load.
+ * and art only from Spotify's image CDN, the one host next.config lets next/image load, at the
+ * smallest size that stays sharp (spotify-art.ts, which the API handlers share).
  */
+
+import { spotifyArtFor } from '@/lib/images/spotify-art';
 
 /** A track page or an artist page: the only links the ledger makes. */
 const SPOTIFY_LINK_HOST = 'open.spotify.com';
-/** Spotify's image CDN. */
-const SPOTIFY_IMAGE_HOST = 'i.scdn.co';
 
 /** The row's album art, drawn at 40px. */
 export const TRACK_ART_PX = 40;
@@ -35,8 +36,6 @@ export const TRACK_ART_PX = 40;
 export const ARTIST_PORTRAIT_PX = 64;
 /** How many artists the strip shows, of the 20 Spotify sends. */
 export const ARTISTS_SHOWN = 10;
-/** Art is picked at twice its drawn size, so it stays sharp on a 2x screen. */
-const SHARP_SCALE = 2;
 const UNKNOWN_ARTIST = 'Unknown artist';
 
 const SECOND_MS = 1000;
@@ -162,44 +161,6 @@ export function durationIso(ms: unknown): string | undefined {
   return `PT${units.join('')}`;
 }
 
-interface CdnImage {
-  readonly url: string;
-  /** Spotify's stated width; some answers leave it out (null). */
-  readonly width?: number;
-}
-
-interface SizedImage {
-  readonly url: string;
-  readonly width: number;
-}
-
-/** One raw image when it is on Spotify's CDN over https, with its width when stated. */
-function cdnImage(image: unknown): CdnImage | undefined {
-  if (!isRecord(image)) return undefined;
-  const url = httpsUrlOn(image.url, SPOTIFY_IMAGE_HOST);
-  if (!url) return undefined;
-  const width = typeof image.width === 'number' && image.width > 0 ? image.width : undefined;
-  return { url, width };
-}
-
-const isSized = (image: CdnImage): image is SizedImage => image.width !== undefined;
-
-/**
- * The art to draw at `minPx`: the smallest image at least that wide; else the widest one; else,
- * when Spotify stated no sizes, the first. Only images on Spotify's CDN count.
- */
-export function pickImage(images: unknown, minPx: number): string | undefined {
-  if (!Array.isArray(images)) return undefined;
-  const usable = images.flatMap((image: unknown) => cdnImage(image) ?? []);
-  const sized = usable.filter(isSized);
-  if (sized.length === 0) return usable[0]?.url;
-  const wideEnough = sized.filter((image) => image.width >= minPx);
-  if (wideEnough.length > 0) {
-    return wideEnough.reduce((best, image) => (image.width < best.width ? image : best)).url;
-  }
-  return sized.reduce((best, image) => (image.width > best.width ? image : best)).url;
-}
-
 /** The credited artists' names, in Spotify's order, blanks dropped. */
 function artistNames(artists: unknown): string[] {
   if (!Array.isArray(artists)) return [];
@@ -247,7 +208,7 @@ function shapeTrack({ item, name }: NamedItem, rank: number): ChartTrack {
     durationIso: durationIso(durationMs),
     durationMs,
     href,
-    art: album ? pickImage(album.images, TRACK_ART_PX * SHARP_SCALE) : undefined,
+    art: album ? spotifyArtFor(album.images, TRACK_ART_PX) : undefined,
   };
 }
 
@@ -267,7 +228,7 @@ function shapeArtist({ item, name }: NamedItem, rank: number): ChartArtist {
     key: textOf(item.id) ?? href ?? `rank-${rank}`,
     name,
     href,
-    image: pickImage(item.images, ARTIST_PORTRAIT_PX * SHARP_SCALE),
+    image: spotifyArtFor(item.images, ARTIST_PORTRAIT_PX),
   };
 }
 
