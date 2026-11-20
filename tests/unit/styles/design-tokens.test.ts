@@ -24,11 +24,12 @@
  * silently turn `text-base` into a colour). next/font/google is mocked in tests/setup.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { compile } from 'tailwindcss';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { declaredValue, findRule, styleRules } from './css-rules';
 
 // Vitest runs from the repository root (where vitest.config.ts lives).
 const fromRoot = (path: string): string => join(process.cwd(), path);
@@ -194,6 +195,62 @@ const rootToken = (name: string): string => {
 const THEME_INLINE = customProperties(onlyBlock('@theme inline').body);
 const THEME_STATIC = customProperties(onlyBlock('@theme static').body);
 
+const REDUCED_MOTION = '@media (prefers-reduced-motion: reduce)';
+
+/**
+ * Tailwind's pseudo-element variants and the pseudo-element each one writes. ::before and
+ * ::after are left out: the global reduced-motion rule names them.
+ */
+const PSEUDO_VARIANTS: Readonly<Record<string, string>> = {
+  'details-content': 'details-content',
+  backdrop: 'backdrop',
+  placeholder: 'placeholder',
+  file: 'file-selector-button',
+  marker: 'marker',
+  selection: 'selection',
+  'first-line': 'first-line',
+  'first-letter': 'first-letter',
+};
+const MOTION_UTILITY = String.raw`(?:transition|duration|delay|ease|animate)\b`;
+const VARIANT_CHAIN = String.raw`(?:[\w@\[\]=()/.-]+:)*`;
+
+/** Every source file under src/ a class string or a rule can be in. */
+function sourceFiles(dir = fromRoot('src')): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(?:tsx?|css)$/.test(entry.name) ? [path] : [];
+  });
+}
+
+/**
+ * The pseudo-elements, other than ::before and ::after, that anything in src/ gives a
+ * transition or an animation: a Tailwind variant (`details-content:transition-opacity`), an
+ * arbitrary one (`[&::backdrop]:duration-200`), or a stylesheet rule outside reduced motion.
+ */
+function pseudoElementsWithMotion(): Set<string> {
+  const variant = new RegExp(
+    String.raw`(?<![\w-])(${Object.keys(PSEUDO_VARIANTS).join('|')}):${VARIANT_CHAIN}${MOTION_UTILITY}`,
+    'g',
+  );
+  const arbitrary = new RegExp(String.raw`\[&::([\w-]+)\]:${VARIANT_CHAIN}${MOTION_UTILITY}`, 'g');
+  const found = new Set<string>();
+  for (const file of sourceFiles()) {
+    const text = readFileSync(file, 'utf8');
+    for (const [, name = ''] of text.matchAll(variant)) found.add(PSEUDO_VARIANTS[name] ?? name);
+    for (const [, name = ''] of text.matchAll(arbitrary)) found.add(name);
+    if (!file.endsWith('.css')) continue;
+    for (const rule of styleRules(text)) {
+      if (rule.conditions.includes(REDUCED_MOTION) || !/\b(?:transition|animation)/.test(rule.body))
+        continue;
+      for (const [, name = ''] of rule.selector.matchAll(/::([\w-]+)/g)) found.add(name);
+    }
+  }
+  for (const skipped of ['before', 'after']) found.delete(skipped);
+  for (const name of [...found]) if (name.startsWith('view-transition')) found.delete(name);
+  return found;
+}
+
 describe('colour tokens (first :root block)', () => {
   it.each(Object.entries(COLOUR_TOKENS))('--%s is the literal %s', (name, value) => {
     expect(rootToken(name)).toBe(value);
@@ -302,11 +359,50 @@ describe('@theme maps and utilities', () => {
     }
   });
 
-  it('ends every animation and transition at once under reduced motion', () => {
-    const reduced = onlyBlock('@media (prefers-reduced-motion: reduce)').body;
+  // A transition's duration is 0s, never 1ms. transition-property defaults to `all`, so with 1ms
+  // every style change while the page loaded became a 1ms transition from the browser's default
+  // (a 3px border, the default font size), and the first frame painted those start values: the
+  // page jumped at load (layout shift 0.27 on /experience and 0.51 on /certifications at 390px).
+  // A zero duration starts no transition at all. Animations keep 1ms: they must still run to
+  // their last frame and fire animationend, which Radix waits for before it unmounts a dialog.
+  it('ends every animation at once and starts no transition under reduced motion', () => {
+    const reduced = onlyBlock(REDUCED_MOTION).body;
+    const transitionDurations = [...reduced.matchAll(/transition-duration:\s*([^;]+);/g)].map(
+      ([, value = '']) => value.trim(),
+    );
+
     expect(reduced).toMatch(/animation-duration:\s*1ms\s*!important/);
-    expect(reduced).toMatch(/transition-duration:\s*1ms\s*!important/);
+    expect(transitionDurations.length).toBeGreaterThan(0);
+    expect(new Set(transitionDurations)).toEqual(new Set(['0s !important']));
     expect(reduced).toMatch(/scroll-behavior:\s*auto\s*!important/);
+  });
+
+  // `*`, `*::before` and `*::after` never match ::details-content, which an opened "What I did"
+  // on /experience fades in (story/role-stop.tsx). It has a rule of its own: in the shared
+  // selector list, a browser that does not know ::details-content would drop the whole rule,
+  // and with it reduced motion everywhere.
+  it('stills ::details-content in a rule of its own under reduced motion', () => {
+    const rules = styleRules(CSS);
+    const shared = findRule(rules, '*, *::before, *::after', [REDUCED_MOTION]);
+    const details = findRule(rules, '*::details-content', [REDUCED_MOTION]);
+
+    expect(declaredValue(details, 'transition-duration')).toBe('0s !important');
+    expect(declaredValue(details, 'transition-delay')).toBe('0ms !important');
+    expect(declaredValue(details, 'animation-duration')).toBe('1ms !important');
+    expect(declaredValue(details, 'animation-delay')).toBe('0ms !important');
+    expect(declaredValue(details, 'animation-iteration-count')).toBe('1 !important');
+    expect(shared.selector).not.toContain('details-content');
+  });
+
+  it('stills every pseudo-element the site gives a transition or an animation', () => {
+    const moving = pseudoElementsWithMotion();
+    const rules = styleRules(CSS);
+
+    // The scan finds the one the /experience rows use, so an empty result is not a pass.
+    expect(moving).toContain('details-content');
+    for (const name of moving) {
+      expect(() => findRule(rules, `*::${name}`, [REDUCED_MOTION]), `::${name}`).not.toThrow();
+    }
   });
 
   it('drops the dead .dark block, the Kodchasan font sheet and every Kodchasan reference', () => {

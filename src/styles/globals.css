@@ -1083,6 +1083,17 @@
   }
 }
 
+/*
+ * Reduced motion. Animations are cut to 1ms, not removed: each still runs to its last frame and
+ * fires animationend, which Radix waits for before it unmounts a closing dialog.
+ *
+ * Transitions get 0s, which starts none. With 1ms, every style change while the page loaded was
+ * a 1ms transition from the browser's default (transition-property defaults to `all`): the first
+ * frame painted 3px borders and default font sizes, and the page jumped when the transitions
+ * ended (layout shift 0.27 on /experience and 0.51 on /certifications at 390px). Nothing on the
+ * site waits for a transitionend.
+ */
+
 /* biome-ignore-start lint/complexity/noImportantStyles: reduced motion everywhere must beat utility and inline styles. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1091,9 +1102,22 @@
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
+    transition-duration: 0s !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /*
+   * Nor ::details-content, which an opened "What I did" on /experience fades in
+   * (story/role-stop.tsx). A rule of its own: in the list above, a browser that does not know
+   * this pseudo-element would drop the whole rule, and reduced motion with it.
+   */
+  *::details-content {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    transition-delay: 0ms !important;
   }
 
   /* The rule above never matches view-transition pseudo-elements, which kept running for 250ms. */

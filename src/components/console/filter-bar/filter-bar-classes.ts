@@ -27,7 +27,8 @@
  *
  * Motion: colours fade on --ease-effect over --motion-fast; the current-chip pill slides on
  * clip-path over --motion-spring-in on --ease-spring; the sheet rises on translate. The global
- * reduced-motion rule (globals.css) cuts every one of them to 1ms.
+ * reduced-motion rule (globals.css) gives every transition a 0s duration, so under reduced
+ * motion none of them starts: each change is drawn in its end state at once.
  */
 
 /**
