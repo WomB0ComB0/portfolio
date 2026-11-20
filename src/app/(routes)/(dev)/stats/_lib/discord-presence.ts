@@ -530,7 +530,12 @@ function fromDiscord(activity: PresenceActivity, index: number): ActivityRow {
   });
 }
 
-/** Spotify's now playing as a row, linked to the track when Spotify gave its page. */
+/**
+ * Spotify's now playing as a row, linked to the track when Spotify gave its page. The link's name
+ * says the row's words as shown, in order, then where it opens: 'Listening on Spotify: Nights,
+ * Frank Ocean (opens in a new tab)'. A 'by' between the song and the artist, which the row does
+ * not show, split the words it shows (WCAG 2.5.3, Label in Name).
+ */
 function fromNowPlaying({
   songName,
   artistName,
@@ -540,7 +545,7 @@ function fromNowPlaying({
   const heading = 'Listening on Spotify';
   const artSrc = httpsUrlOn(imageURL, SPOTIFY_ART_HOST);
   const href = httpsUrlOn(songURL, SPOTIFY_LINK_HOST);
-  const track = [songName, artistName && `by ${artistName}`].filter(Boolean).join(' ');
+  const track = [songName, artistName].filter(Boolean).join(', ');
   return defined<ActivityRow>({
     key: 'spotify-now-playing',
     kind: 'spotify',

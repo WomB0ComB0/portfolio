@@ -38,6 +38,8 @@ import { hydrateRoot, type Root } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '@/hooks/sanity/schemas';
+import { expectNoAxeViolations } from '../../utils/axe';
+import { expectLabelInName, shownText } from '../../utils/label-in-name';
 import { wideLayout } from '../console/filter-bar/wide-layout';
 
 const loaders = vi.hoisted(() => ({ loadProjects: vi.fn() }));
@@ -353,6 +355,40 @@ describe('/projects views', () => {
     expect(screen.getByText('11 images from 11 projects')).toBeInTheDocument();
     // Every image is listed: no 'Show all' step.
     expect(screen.queryByRole('button', { name: /^Show all/ })).not.toBeInTheDocument();
+  });
+
+  // The CI's axe run, 2026-11-20 (label-content-name-mismatch), failed the places grid this view
+  // shares for names that read a range's dash as 'to': a checker compares words, so the dash is
+  // no word and 'to' is one the card does not show. Each name starts with its card's words as
+  // shown, dash and all; only the dot between the parts, no word either, is a comma.
+  it('Screens: each link’s name starts with its card’s words as shown, a period’s dash included', async () => {
+    const ranged = PROJECTS.map((project, index) =>
+      index === 1 ? { ...project, endDate: '2025-09-01' } : project,
+    );
+    loaders.loadProjects.mockResolvedValue(ranged);
+    await renderPage('?view=screens');
+    const grid = screen.getByRole('list', { name: 'Images' });
+    const links = within(grid).getAllByRole('link');
+    const linkTo = (index: number): HTMLElement => {
+      const link = links.find(
+        (candidate) => candidate.getAttribute('href') === hrefsAt([index])[0],
+      );
+      if (!link) throw new Error(`no Screens link to project ${index + 1}`);
+      return link;
+    };
+
+    // A period inside a year, and one still in progress, as the cards show them.
+    expect(shownText(linkTo(1))).toBe('Project 2 Web Development · Jun – Sep 2025');
+    expect(shownText(linkTo(4))).toBe('Project 5 Mobile · Jan 2025 – now');
+    expect(linkTo(1)).toHaveAccessibleName(
+      'Project 2, Web Development, Jun – Sep 2025, image 1 of 1',
+    );
+    expect(linkTo(4)).toHaveAccessibleName('Project 5, Mobile, Jan 2025 – now, image 1 of 1');
+    for (const link of links) {
+      expectLabelInName(link);
+      expect(link.getAttribute('aria-label')).not.toMatch(/ to (now|[A-Z][a-z]{2})\b/);
+    }
+    await expectNoAxeViolations(grid, { label: 'the Screens grid' });
   });
 
   /** The Screens view as the server sends it. */

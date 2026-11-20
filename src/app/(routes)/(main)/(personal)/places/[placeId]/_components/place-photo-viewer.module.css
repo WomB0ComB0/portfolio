@@ -93,9 +93,10 @@
 
 /*
  * A button at an end or a zoom limit is aria-disabled (it keeps focus) rather than disabled, which
- * also turned pointer events off: keep it looking as a disabled one did, with no hover fill. Button
- * fades an aria-disabled button whole, focus ring included (3.01:1), and this one keeps focus: the
- * button stays opaque and only its icon, all it shows, fades.
+ * also turned pointer events off: keep it looking as a disabled one did, with no hover fill. The
+ * button stays opaque and only its icon, all it shows, fades, so its focus ring keeps full
+ * contrast. Button now does the same for every aria-disabled button while its ring shows (and
+ * fades it whole only while the ring is hidden); this rule holds the viewer to it in every state.
  */
 .buttons button[aria-disabled="true"] {
   background-color: transparent;

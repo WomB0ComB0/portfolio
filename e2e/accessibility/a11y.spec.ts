@@ -167,9 +167,10 @@ test.describe('keyboard', () => {
       test.skip(isMobile, 'the rail shows from lg up; the phone has the bottom bar');
     });
 
-    const RAIL_BUTTON = 'button[aria-label="Open command menu"]';
+    // The name is its tooltip's words: 'Command menu, Ctrl K' (⌘K on a Mac).
+    const RAIL_BUTTON = 'button[aria-label^="Command menu, "]';
     const railButton = (page: Page): Locator =>
-      page.getByRole('button', { name: 'Open command menu' });
+      page.getByRole('button', { name: /^Command menu, / });
     const tipOf = (button: Locator): Locator => button.locator('[data-palette-tip]');
     const opacityOf = (tip: Locator): Promise<string> =>
       tip.evaluate((element) => getComputedStyle(element).opacity);

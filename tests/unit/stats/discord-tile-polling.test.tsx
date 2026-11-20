@@ -27,7 +27,8 @@
  *   and aged by the server's clock: an older cached copy never replaces a newer presence;
  * - nor when the device clock steps forward or back between polls, and the presence kept says
  *   its true age (it showed the older copy, or an empty age line, until a newer read came);
- * - the server HTML hydrates whatever the browser's clock says.
+ * - the server HTML hydrates whatever the browser's clock says;
+ * - Spotify's row links to the song with a name that starts with the row's words (WCAG 2.5.3).
  */
 
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -45,6 +46,8 @@ vi.mock('@/env', () => {
 import { DiscordTile } from '@/app/(routes)/(dev)/stats/_components/console/discord-tile';
 import type { LanyardData } from '@/app/api/v1/[[...route]]/lanyard/handlers';
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
+import { expectNoAxeViolations } from '../../utils/axe';
+import { expectLabelInName, shownText } from '../../utils/label-in-name';
 
 const NOW = Date.parse('2026-11-13T18:00:00Z');
 const POLL_MS = 30_000;
@@ -192,6 +195,23 @@ describe('DiscordTile Spotify fallback', () => {
     expect(await screen.findByText('Next song')).toBeInTheDocument();
     expect(screen.queryByText('Polled song')).toBeNull();
     expect(screen.queryByText('A Discord song')).toBeNull();
+  });
+});
+
+describe('DiscordTile Spotify link', () => {
+  // The name said 'Seed song by An artist' where the row shows 'Seed song' over 'An artist', so
+  // the words it shows were not side by side in it; nor were the lines, which only the flexbox
+  // set apart ('SpotifySeed songAn artist' to a checker).
+  it('names the song’s link with the row’s words, as shown and in order, then where it opens', async () => {
+    answers = { lanyard: presence([CODE]), nowPlaying: 503 };
+    render(tile({ seedSong: song('Seed song') }));
+
+    const link = screen.getByRole('link', {
+      name: 'Listening on Spotify: Seed song, An artist (opens in a new tab)',
+    });
+    expect(shownText(link)).toBe('Listening on Spotify Seed song An artist');
+    expectLabelInName(link);
+    await expectNoAxeViolations(link, { label: 'the Spotify row' });
   });
 });
 

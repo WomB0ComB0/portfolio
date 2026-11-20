@@ -51,11 +51,14 @@ import { cn } from '@/lib/utils';
 
 /**
  * Accessible name of the palette's search box. The phone bar's Search button, which opens the
- * palette, has the same name.
+ * palette, has the same name, with the shortcut after it wherever its hint shows (withShortcut).
  */
 export const PALETTE_SEARCH_LABEL = 'Search pages and commands';
 
-/** Accessible name of the palette's dialog, the same as the rail button that opens it. */
+/**
+ * Accessible name of the palette's dialog. The rail button that opens it shows the same words in
+ * its tooltip, and its name starts with them (withShortcut).
+ */
 export const PALETTE_DIALOG_LABEL = 'Command menu';
 
 /** The line shown, and announced politely, when nothing matches the search. */
@@ -101,6 +104,19 @@ const subscribeToNothing = (): (() => void) => () => {};
  */
 export const usePaletteShortcut = (): PaletteShortcut =>
   useSyncExternalStore(subscribeToNothing, browserShortcut, serverShortcut);
+
+/**
+ * A button's name with the shortcut its hint shows after it: 'Command menu, ⌘K'. The hint is text
+ * inside the button, so its name says it too (WCAG 2.5.3, Label in Name: a voice user can say
+ * what they see). After a comma, not in brackets: a checker drops a bracketed part before it
+ * compares.
+ *
+ * @example
+ * withShortcut('Search pages and commands', { label: 'Ctrl K', keys: 'Control+K' })
+ * // 'Search pages and commands, Ctrl K'
+ */
+export const withShortcut = (name: string, shortcut: PaletteShortcut): string =>
+  `${name}, ${shortcut.label}`;
 
 const isPaletteOpen = (visualState: VisualState): boolean =>
   visualState === VisualState.animatingIn || visualState === VisualState.showing;

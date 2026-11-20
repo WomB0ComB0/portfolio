@@ -402,7 +402,8 @@ describe('activityRows', () => {
       secondary: 'Frank Ocean',
       link: {
         href: 'https://open.spotify.com/track/1',
-        label: 'Listening on Spotify: Nights by Frank Ocean (opens in a new tab)',
+        // The row's words as shown, in order (WCAG 2.5.3): no 'by' between the song and artist.
+        label: 'Listening on Spotify: Nights, Frank Ocean (opens in a new tab)',
       },
     });
     expect(rows[1]?.heading).toBe('Playing Visual Studio Code');

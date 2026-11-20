@@ -18,8 +18,8 @@
 
 import { useKBar } from 'kbar';
 import { Menu, Search } from 'lucide-react';
-import { memo, useCallback, useRef, useState } from 'react';
-import { PALETTE_SEARCH_LABEL, usePaletteShortcut } from '@/components/cmd';
+import { memo, useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { PALETTE_SEARCH_LABEL, usePaletteShortcut, withShortcut } from '@/components/cmd';
 import { cn } from '@/lib/utils';
 import { MOBILE_MENU_DIALOG_ID, MobileMenuOverlay } from './mobile-menu-overlay';
 
@@ -28,18 +28,44 @@ const BAR_BUTTON =
   'inline-flex h-11 items-center rounded-full border border-hairline bg-surface-2 text-foreground transition-colors duration-(--motion-fast) ease-standard hover:border-hairline-strong hover:bg-surface-3';
 
 /**
+ * Where the Search button's shortcut hint hides: Tailwind's pointer-coarse variant (its
+ * pointer-coarse:hidden class), a touch screen as the main pointer.
+ */
+const COARSE_POINTER = '(pointer: coarse)';
+
+const subscribeToPointer = (onChange: () => void): (() => void) => {
+  const query = window.matchMedia(COARSE_POINTER);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+const browserHintHidden = (): boolean => window.matchMedia(COARSE_POINTER).matches;
+/** Server HTML and hydration show the hint, so the name says it there too. */
+const serverHintHidden = (): boolean => false;
+
+/**
+ * Whether the shortcut hint is hidden on this device. False on the server and while hydrating,
+ * true right after on a touch screen, and it follows the media query as it changes.
+ */
+const useHintHidden = (): boolean =>
+  useSyncExternalStore(subscribeToPointer, browserHintHidden, serverHintHidden);
+
+/**
  * Opens the command palette, which makes it the quickest way to any page on a phone as well.
- * Its ⌘K / Ctrl K hint shows only with a fine pointer (a narrow window or a tablet with a
- * keyboard); on a touch screen the button is a 44 px circle. The aria-label is the whole name,
- * so the hint stays out of it; aria-keyshortcuts carries the shortcut instead.
+ * Its ⌘K / Ctrl K hint shows only when the main pointer is not a touch screen (a narrow desktop
+ * window, say); on a touch screen the button is a 44 px circle. Where the hint shows it is the
+ * only text the button shows, so its name ends with it ('Search pages and commands, Ctrl K',
+ * WCAG 2.5.3); where it hides, the name leaves it out. aria-keyshortcuts gives the keys either way.
  */
 const PaletteSearchButton = ({ onOpen }: { readonly onOpen: () => void }) => {
   const shortcut = usePaletteShortcut();
+  const isHintHidden = useHintHidden();
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={PALETTE_SEARCH_LABEL}
+      aria-label={
+        isHintHidden ? PALETTE_SEARCH_LABEL : withShortcut(PALETTE_SEARCH_LABEL, shortcut)
+      }
       aria-keyshortcuts={shortcut.keys}
       className={cn(BAR_BUTTON, 'min-w-11 shrink-0 justify-center gap-2 px-3')}
     >

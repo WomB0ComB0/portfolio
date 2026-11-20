@@ -27,6 +27,7 @@ import { Palette } from '@/components/cmd';
 import { MobileMenuOverlay } from '@/components/layout/mobile-menu-overlay';
 import { MobileNavBar } from '@/components/layout/mobile-nav';
 import { NavbarItems } from '@/constants/client';
+import { expectLabelInName } from '../../utils/label-in-name';
 
 // t3-env validates on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -244,7 +245,10 @@ describe('MobileNavBar menu button', () => {
     const dialog = openMenu();
     await flushFocus();
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Open command menu' }));
+    const commandMenu = within(dialog).getByRole('button', { name: 'Command menu' });
+    // Its name is the words it shows (WCAG 2.5.3), as the rail button's starts with them.
+    expectLabelInName(commandMenu);
+    fireEvent.click(commandMenu);
     await flushFocus();
 
     expect(screen.queryByRole('dialog', { name: SITE_MENU })).not.toBeInTheDocument();

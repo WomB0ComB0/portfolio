@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { memo, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { IconType } from 'react-icons';
 import { FiBriefcase, FiCode, FiCommand, FiHome, FiShield, FiUser } from 'react-icons/fi';
-import { usePaletteShortcut } from '@/components/cmd';
+import { PALETTE_DIALOG_LABEL, usePaletteShortcut, withShortcut } from '@/components/cmd';
 import { NavbarItems } from '@/constants/index';
 import { cn } from '@/lib/utils';
 
@@ -380,8 +380,9 @@ function useEscapableTip() {
 
 /**
  * Opens the command palette. A tooltip beside the rail names it and its shortcut on hover and on
- * keyboard focus, and Escape dismisses it; aria-keyshortcuts gives assistive tech the same
- * shortcut.
+ * keyboard focus, and Escape dismisses it. The tooltip is the button's own text, so its name is
+ * the tooltip's words, the shortcut included ('Command menu, ⌘K', WCAG 2.5.3: it starts with what
+ * a voice user sees); aria-keyshortcuts gives the keys as well.
  */
 const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
   const shortcut = usePaletteShortcut();
@@ -391,7 +392,7 @@ const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
       type="button"
       onClick={onOpen}
       className={cn(RAIL_ITEM, RAIL_ITEM_IDLE, 'group/palette')}
-      aria-label="Open command menu"
+      aria-label={withShortcut(PALETTE_DIALOG_LABEL, shortcut)}
       aria-keyshortcuts={shortcut.keys}
       {...tipTriggers}
     >
@@ -401,7 +402,9 @@ const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
         data-palette-tip=""
         className={cn(PALETTE_TIP_CLASS, !isDismissed && PALETTE_TIP_SHOWN_CLASS)}
       >
-        Command menu
+        {/* The space keeps 'menu' and 'Ctrl' two words for a name check (the gap is the
+            flexbox's, which draws no space-only text). */}
+        {PALETTE_DIALOG_LABEL}{' '}
         <kbd className="font-mono text-label text-muted-foreground">{shortcut.label}</kbd>
       </span>
     </button>

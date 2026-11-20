@@ -24,7 +24,8 @@
  * cutting it; a hyphenated word in a name ('(PG-FMS)') is held whole, the name's text unchanged.
  * In runs (the /projects Screens view) a place is named once per run, the rest numbered, each
  * such link's name starting with the number it shows, then the place in full, each tile carrying
- * its shape for the contact sheet.
+ * its shape for the contact sheet. Every link's name starts with its card's words as shown, a
+ * range's dash included (WCAG 2.5.3, which axe checks here too).
  */
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -33,6 +34,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PhotoGrid } from '@/app/(routes)/(main)/(personal)/places/photos/_components/photo-grid';
 import { widestWordUnits } from '@/components/console/folio/word-measure';
+import { expectNoAxeViolations } from '../../utils/axe';
+import { expectLabelInName, shownText } from '../../utils/label-in-name';
 import { byId, makePhotoPlace, photoData, photosOf } from './photo-fixtures';
 
 const GRID_FIRST = 48;
@@ -100,12 +103,12 @@ describe('PhotoGrid', () => {
     );
 
     expect(links().map((link) => link.getAttribute('aria-label'))).toEqual([
-      'Antler NYC, Hackathon, May 19 to 20, 2026, photo 1 of 5: First at Antler NYC',
-      'Antler NYC, Hackathon, May 19 to 20, 2026, photo 2 of 5',
+      'Antler NYC, Hackathon, May 19 – 20, 2026, photo 1 of 5: First at Antler NYC',
+      'Antler NYC, Hackathon, May 19 – 20, 2026, photo 2 of 5',
       'Visited 3, Hackathon, photo 1 of 1: First at Visited 3',
     ]);
     expect(links()[1]).toHaveAccessibleName(
-      'Antler NYC, Hackathon, May 19 to 20, 2026, photo 2 of 5',
+      'Antler NYC, Hackathon, May 19 – 20, 2026, photo 2 of 5',
     );
     // The card still shows the name over its category and dates; the name only adds commas.
     expect(links()[1]).toHaveTextContent(/^Antler NYC Hackathon · May 19 /);
@@ -117,8 +120,38 @@ describe('PhotoGrid', () => {
     );
 
     expect(html).toContain(
-      'aria-label="Antler NYC, Hackathon, May 19 to 20, 2026, photo 1 of 5: First at Antler NYC"',
+      'aria-label="Antler NYC, Hackathon, May 19 – 20, 2026, photo 1 of 5: First at Antler NYC"',
     );
+  });
+
+  // The CI's axe run, 2026-11-20 (label-content-name-mismatch, 16 links on a phone): the names
+  // said 'May 19 to 20, 2026' where the cards show 'May 19 – 20, 2026'. A checker compares words,
+  // not punctuation, so the dash is no word and 'to' is one the card does not show.
+  it('starts every link’s name with its card’s words as shown, a range’s dash included', async () => {
+    const undated = { ...makePhotoPlace(3, 1), startDate: null, endDate: null };
+    const oneDay = { ...makePhotoPlace(4, 1), endDate: null };
+    const yearEnd = { ...makePhotoPlace(5, 1), startDate: '2025-12-30', endDate: '2026-01-02' };
+    const { container } = render(
+      <PhotoGrid
+        photos={[...photos.slice(0, 2), ...photosOf([undated, oneDay, yearEnd])]}
+        places={byId([...places, undated, oneDay, yearEnd])}
+        onOpen={vi.fn()}
+        enhance
+      />,
+    );
+
+    expect(links().map(shownText)).toEqual([
+      'Antler NYC Hackathon · May 19 – 20, 2026',
+      'Antler NYC Hackathon · May 19 – 20, 2026',
+      'Visited 3 Hackathon',
+      expect.stringMatching(/^Visited 4 \w[\w ]* · \w{3} \d+, \d{4}$/),
+      expect.stringMatching(/^Visited 5 \w[\w ]* · Dec 30, 2025 – Jan 2, 2026$/),
+    ]);
+    for (const link of links()) {
+      expectLabelInName(link);
+      expect(link.getAttribute('aria-label')).not.toMatch(/\d to \w/);
+    }
+    await expectNoAxeViolations(container, { label: 'the photos grid' });
   });
 
   it('opens the view on a plain left click, and lets a modified or middle click navigate', () => {
@@ -263,14 +296,15 @@ describe('PhotoGrid in runs (the /projects Screens view)', () => {
 
     // A voice user says what they see ('Fig. 2'), so the link's name starts with it (WCAG 2.5.3).
     expect(links()[1]).toHaveAccessibleName(
-      'Fig. 2, Antler NYC, Hackathon, May 19 to 20, 2026, photo 2 of 3',
+      'Fig. 2, Antler NYC, Hackathon, May 19 – 20, 2026, photo 2 of 3',
     );
     expect(links()[2]).toHaveAccessibleName(
-      'Fig. 3, Antler NYC, Hackathon, May 19 to 20, 2026, photo 3 of 3',
+      'Fig. 3, Antler NYC, Hackathon, May 19 – 20, 2026, photo 3 of 3',
     );
     expect(links()[5]).toHaveAccessibleName(
-      'Fig. 2, Visited 2, Tech Office, May 19 to 20, 2026, photo 2 of 2',
+      'Fig. 2, Visited 2, Tech Office, May 19 – 20, 2026, photo 2 of 2',
     );
+    for (const link of links()) expectLabelInName(link);
     // A run's first card shows its name, which its link's name starts with; it has no number.
     for (const at of [0, 3, 4]) {
       expect(links()[at]).toHaveAccessibleName(/^(Antler NYC|Visited \d), /);

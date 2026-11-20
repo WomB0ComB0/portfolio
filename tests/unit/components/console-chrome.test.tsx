@@ -33,6 +33,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Palette, ResultItem } from '@/components/cmd';
 import { MobileNavBar } from '@/components/layout/mobile-nav';
 import { NavBar } from '@/components/layout/nav';
+import { expectLabelInName } from '../../utils/label-in-name';
+import { stubMediaQuery } from '../../utils/match-media';
 
 // t3-env validates on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -51,6 +53,12 @@ const CHROME_FILES = [
 ] as const;
 
 const SEARCH_LABEL = 'Search pages and commands';
+/**
+ * The bar's Search button and the rail's command menu button off Apple devices (jsdom's platform):
+ * each name ends with the shortcut the button shows (WCAG 2.5.3, Label in Name).
+ */
+const SEARCH_BUTTON = 'Search pages and commands, Ctrl K';
+const RAIL_BUTTON = 'Command menu, Ctrl K';
 
 /**
  * Legacy shadcn and palette colours the chrome no longer uses: the purple primary and accent
@@ -80,6 +88,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   restoreAnimate();
 });
 
@@ -179,7 +188,7 @@ describe('MobileNavBar', () => {
 
     const bar = screen.getByRole('navigation', { name: 'Mobile navigation' });
     const menu = within(bar).getByRole('button', { name: 'Open navigation menu' });
-    expect(within(bar).getByRole('button', { name: SEARCH_LABEL })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: SEARCH_BUTTON })).toBeInTheDocument();
     expect(menu).toHaveAttribute('aria-haspopup', 'dialog');
     expect(menu).toHaveAttribute('aria-expanded', 'false');
     // The dialog is not in the page while the menu is closed, so nothing points at it yet.
@@ -189,14 +198,14 @@ describe('MobileNavBar', () => {
   it('opens the palette from the Search button, and it stays open on its focused search box', async () => {
     renderBarWithPalette();
 
-    await openPaletteFrom(screen.getByRole('button', { name: SEARCH_LABEL }));
+    await openPaletteFrom(screen.getByRole('button', { name: SEARCH_BUTTON }));
   });
 
   it.each(DISMISSALS)(
     'returns focus to the Search button when %s closes the palette',
     async (_name, dismiss) => {
       renderBarWithPalette();
-      const button = screen.getByRole('button', { name: SEARCH_LABEL });
+      const button = screen.getByRole('button', { name: SEARCH_BUTTON });
       await openPaletteFrom(button);
 
       dismiss();
@@ -209,18 +218,36 @@ describe('MobileNavBar', () => {
   it('shows Ctrl K off Apple devices, hidden on touch screens, and names the keys for AT', () => {
     renderBarWithPalette();
 
-    const search = screen.getByRole('button', { name: SEARCH_LABEL });
+    const search = screen.getByRole('button', { name: SEARCH_BUTTON });
     expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K');
     expect(within(search).getByText('Ctrl K')).toHaveClass('pointer-coarse:hidden');
+    // The hint is all the button shows, so its name holds it, after what the button does.
+    expectLabelInName(search, { start: false });
   });
 
   it('shows ⌘K on a Mac', () => {
     onMac();
     renderBarWithPalette();
 
-    const search = screen.getByRole('button', { name: SEARCH_LABEL });
+    const search = screen.getByRole('button', { name: 'Search pages and commands, ⌘K' });
     expect(search).toHaveAttribute('aria-keyshortcuts', 'Meta+K');
     expect(within(search).getByText('⌘K')).toBeInTheDocument();
+  });
+
+  it('leaves the hidden hint out of the name on a touch screen, and follows the pointer', () => {
+    // Tailwind's pointer-coarse variant, which hides the hint (pointer-coarse:hidden above).
+    const setTouchScreen = stubMediaQuery('(pointer: coarse)', true);
+    renderBarWithPalette();
+
+    const search = screen.getByRole('button', { name: SEARCH_LABEL });
+    // Nothing visible to say, and aria-keyshortcuts still gives assistive tech the keys.
+    expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K');
+
+    act(() => setTouchScreen(false));
+    expect(search).toHaveAccessibleName(SEARCH_BUTTON);
+
+    act(() => setTouchScreen(true));
+    expect(search).toHaveAccessibleName(SEARCH_LABEL);
   });
 
   it('styles the Menu button as a hairline pill on surface-2, not the lavender gradient', () => {
@@ -288,9 +315,11 @@ describe('NavBar rail', () => {
     onMac();
     renderRail('/');
 
-    const button = screen.getByRole('button', { name: 'Open command menu' });
+    const button = screen.getByRole('button', { name: 'Command menu, ⌘K' });
     expect(button).toHaveAttribute('aria-keyshortcuts', 'Meta+K');
     expect(button).toHaveTextContent('⌘K');
+    // The tooltip's words ('Command menu ⌘K') are the button's text: its name starts with them.
+    expectLabelInName(button);
   });
 
   const renderRailWithPalette = () =>
@@ -305,14 +334,14 @@ describe('NavBar rail', () => {
   it('opens the palette from the command menu button, and it stays open on its search box', async () => {
     renderRailWithPalette();
 
-    await openPaletteFrom(screen.getByRole('button', { name: 'Open command menu' }));
+    await openPaletteFrom(screen.getByRole('button', { name: RAIL_BUTTON }));
   });
 
   it.each(DISMISSALS)(
     'returns focus to the command menu button when %s closes the palette',
     async (_name, dismiss) => {
       renderRailWithPalette();
-      const button = screen.getByRole('button', { name: 'Open command menu' });
+      const button = screen.getByRole('button', { name: RAIL_BUTTON });
       await openPaletteFrom(button);
 
       dismiss();

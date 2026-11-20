@@ -20,6 +20,9 @@
  * accessibility tree (the button's own name says the same), so it adds no second name and no
  * focusable content under aria-hidden. Set up as palette-rail-tooltip.test.tsx sets it up; jsdom
  * has no :hover, so "shown" is the tooltip's class contract.
+ *
+ * The tooltip's words ('Command menu Ctrl K') are the button's own text, so its name starts with
+ * them, shortcut included (WCAG 2.5.3, label-content-name-mismatch): 'Command menu, Ctrl K'.
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -28,6 +31,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { NavBar } from '@/components/layout/nav';
 import { expectNoAxeViolations } from '../../utils/axe';
+import { expectLabelInName } from '../../utils/label-in-name';
 
 // t3-env validates on import; these tests need no real configuration.
 vi.mock('@/env', () => {
@@ -47,7 +51,7 @@ describe('the rail command-menu tooltip under axe', () => {
         <NavBar path="/" />
       </KBarProvider>,
     );
-    const button = screen.getByRole('button', { name: 'Open command menu' });
+    const button = screen.getByRole('button', { name: 'Command menu, Ctrl K' });
     const tip = button.querySelector<HTMLElement>('[data-palette-tip]');
 
     fireEvent.pointerEnter(button);
@@ -59,6 +63,8 @@ describe('the rail command-menu tooltip under axe', () => {
     );
     expect(tip).toHaveAttribute('aria-hidden', 'true');
     expect(button).toHaveFocus();
+    // The name starts with the tooltip's words, the shortcut included.
+    expectLabelInName(button);
     await expectNoAxeViolations(container, { label: 'the rail with its tooltip shown' });
   });
 });

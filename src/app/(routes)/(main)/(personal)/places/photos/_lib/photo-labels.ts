@@ -18,6 +18,11 @@
  * @file The photos view's words, pure and server-safe: plurals that read right at one, each grid
  * link's unique name (one string, the same in every browser), the wall's spoken sentence and the
  * open photo's alt. Captions are plain text, only ever rendered by React as text or attributes.
+ *
+ * A grid link's name starts with the card's own words, dates as shown, dash and all ('Apr 20 –
+ * 21, 2024'): WCAG 2.5.3 (Label in Name) needs a name to hold the words its link shows, and
+ * checkers compare words, so 'Apr 20 to 21' (#726) failed it. Words that name no control (the
+ * wall's live sentence, the open photo's description) still read a range's dash as 'to'.
  */
 
 import type { PhotoPlace, WallPhoto } from '@/types/places';
@@ -41,15 +46,26 @@ export const photosFromVisits = (photos: number, visits: number): string =>
   `${photoCountLabel(photos)} from ${visitCountLabel(visits)}`;
 
 /**
- * A visit's dates as heard ("May 19 to 20, 2026"); null for an undated or unreadable visit.
+ * A visit's dates as a card shows them ("May 19 – 20, 2026"); null for an undated or unreadable
+ * visit, which shows none.
+ *
+ * @example
+ * shownDates('2026-05-19', '2026-05-20') // 'May 19 – 20, 2026'
+ */
+export function shownDates(startDate: string | null, endDate: string | null): string | null {
+  const shown = formatDateRange(startDate, endDate);
+  return shown === '' || shown === INVALID_DATE ? null : shown;
+}
+
+/**
+ * A visit's dates as heard ("May 19 to 20, 2026"); null for an undated or unreadable visit. Only
+ * for words that name no control: a link's name says the dates as shown (placeMetaShown).
  *
  * @example
  * spokenDates('2026-05-19', '2026-05-20') // 'May 19 to 20, 2026'
  */
 export function spokenDates(startDate: string | null, endDate: string | null): string | null {
-  const shown = formatDateRange(startDate, endDate);
-  if (shown === '' || shown === INVALID_DATE) return null;
-  return shown.replace(RANGE_SEPARATOR, SPOKEN_SEPARATOR);
+  return shownDates(startDate, endDate)?.replace(RANGE_SEPARATOR, SPOKEN_SEPARATOR) ?? null;
 }
 
 /** What the photo shows in words: its alt text, else its caption; null with neither. */
@@ -69,8 +85,17 @@ export const gridLinkSuffix = (photo: WallPhoto, place: PhotoPlace): string =>
   `, ${numbered(photo, place)}`;
 
 /**
- * The line under a place's name in words: its category, then its dates as heard when it is
- * dated (['Hackathon', 'May 19 to 20, 2026']).
+ * The line under a place's name as its card shows it: its category, then its dates when it is
+ * dated (['Hackathon', 'May 19 – 20, 2026']). A grid link's name says these after the name.
+ */
+export function placeMetaShown(place: PhotoPlace): readonly string[] {
+  const dates = shownDates(place.startDate, place.endDate);
+  return dates ? [place.category, dates] : [place.category];
+}
+
+/**
+ * The line under a place's name in words, for the wall's live sentence: its category, then its
+ * dates as heard when it is dated (['Hackathon', 'May 19 to 20, 2026']).
  */
 export function placeMetaWords(place: PhotoPlace): readonly string[] {
   const dates = spokenDates(place.startDate, place.endDate);
@@ -82,18 +107,19 @@ export interface GridLinkWords {
   /** The number a run's later card shows in place of the name ('Fig. 2'); else null. */
   readonly fig: number | null;
   readonly name: string;
-  /** The line under the name, as parts. */
+  /** The line under the name, as parts, each as the card shows it. */
   readonly meta: readonly string[];
   /** The rest, which the card does not show (', photo 3 of 5: Opening night'). */
   readonly suffix: string;
 }
 
 /**
- * A grid link's whole name as one string, each part after a comma: "IEEE LISAT 2024, Research,
- * Nov 15, 2024, photo 3 of 3: Devices on a table". Built from the card's own text nodes, Chromium
- * ran the category into the dates and put a space before the comma, so the link carries this as
- * its aria-label. It starts with what the card shows, in order (WCAG 2.5.3): the figure number
- * on a run's later card, else the name.
+ * A grid link's whole name as one string, each part after a comma: "Antler NYC, Hackathon, May
+ * 19 – 20, 2026, photo 3 of 5: Opening night". Built from the card's own text nodes, Chromium ran
+ * the category into the dates and put a space before the comma, so the link carries this as its
+ * aria-label. It starts with what the card shows, word for word and in order (WCAG
+ * 2.5.3): the figure number on a run's later card, else the name, then the line under it with
+ * only the dot between its parts, which is no word, made a comma.
  */
 export function gridLinkName({ fig, name, meta, suffix }: GridLinkWords): string {
   const shown = [fig === null ? '' : `Fig. ${fig}`, name, ...meta]

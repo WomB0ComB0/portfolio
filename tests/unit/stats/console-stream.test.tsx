@@ -266,22 +266,32 @@ describe('/stats: each part lands where its skeleton stood', () => {
   });
 
   // On a phone the toggle wrapped under the digits, beside them, and pushed the age's label a line
-  // below its neighbours'. It has a cell of its own on the label's row instead.
+  // below its neighbours'. It has a cell of its own on the label's row instead. The skeleton the
+  // server sends is never hydrated (React waits for the strip that replaces it), so a button there
+  // would do nothing: its cell holds a placeholder of the toggle's size, which is no control.
   it('gives the age its Pause toggle in a cell of its own, after the figure, in either strip', async () => {
     const first = firstFlush(consoleOf(sourcesOf(consoleFixture(), ALL_HUNG)));
     const loaded = await streamed(consoleOf(sourcesOf(consoleFixture())));
-
-    for (const root of [first, loaded]) {
+    const ageCells = (root: HTMLElement) => {
       const age = strip(root)?.firstElementChild;
       const [label, figure, cell] = Array.from(age?.children ?? []);
       expect(textOf(label)).toBe('years old');
       expect(figure?.querySelector('[data-digits]')).not.toBeNull();
       expect(figure?.querySelector('button')).toBeNull();
       expect(cell?.tagName).toBe('DD');
-      const pause = cell?.querySelector('button');
-      expect(pause?.getAttribute('aria-label')).toBe('Pause age counter');
-      expect(pause?.getAttribute('aria-pressed')).toBe('false');
-    }
+      return cell;
+    };
+
+    const pause = ageCells(loaded)?.querySelector('button');
+    expect(pause?.getAttribute('aria-label')).toBe('Pause age counter');
+    expect(pause?.getAttribute('aria-pressed')).toBe('false');
+
+    const held = ageCells(first);
+    expect(held?.querySelector('button, [tabindex]')).toBeNull();
+    expect(held?.getAttribute('aria-hidden')).toBe('true');
+    expect(held?.querySelector('[data-pause-placeholder]')).not.toBeNull();
+    // The same cell as the loaded strip's, so nothing moves when the strip lands.
+    expect(held?.className).toBe(ageCells(loaded)?.className);
   });
 
   it('keeps the Discord tile’s held room, and LeetCode’s split, while they load', () => {
