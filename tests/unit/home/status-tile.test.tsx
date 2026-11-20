@@ -20,9 +20,10 @@
  * is for screen readers only. It counts the monitors only when some are not up ('Degraded · 5/6
  * up'), says 'Monitoring paused' when none is active, and marks an answer 'Last known' with its
  * New York day and time on a second line when the route flagged it stale or a poll failed (never
- * by comparing clocks). Nothing on it moves. It caches under its own key, not the footer badge's,
- * and renders the same HTML whatever the clock says, so hydration matches. On a return to '/', a
- * server snapshot newer than the cached answer replaces it.
+ * by comparing clocks). Nothing on it moves. It shares the footer badge's query
+ * (['service-status'], every 5 minutes while the tab is visible), and renders the same HTML
+ * whatever the clock says, so hydration matches. On a return to '/', a server snapshot newer than
+ * the cached answer replaces it.
  *
  * Its root says what it shows (the e2e layout checks compare only tiles showing their reference
  * content): data-state 'loading' with aria-busy, 'ready' for a current answer, 'stale' plus
@@ -41,6 +42,9 @@ import { FetchStatusError } from '@/app/_components/home/live/live-fetch';
 import {
   SERVICE_STATUS_QUERY_KEY,
   STATUS_POLL_MS,
+  STATUS_STALE_MS,
+} from '@/app/_components/home/live/status-query';
+import {
   StatusTile,
   StatusTileSkeleton,
   serviceStatusView,
@@ -348,7 +352,7 @@ describe('StatusTile last known state', () => {
 });
 
 describe('StatusTile polling', () => {
-  it('shows the snapshot without fetching, then polls /api/status once a minute', async () => {
+  it('shows the snapshot without fetching, then polls /api/status every 5 minutes', async () => {
     const fetchMock = stubStatus(answer(status({ state: 'down', monitors: { up: 4, total: 6 } })));
     renderTile(snapshot(status()));
 
@@ -363,10 +367,10 @@ describe('StatusTile polling', () => {
   });
 
   it.each([
-    [50_000, 0],
-    [56_000, 1],
+    [STATUS_STALE_MS - 5_000, 0],
+    [STATUS_STALE_MS + 1_000, 1],
   ])(
-    'on mount, fetches a snapshot checked %i ms ago %i time(s): it is fresh for 55 s',
+    'on mount, fetches a snapshot checked %i ms ago %i time(s): it is fresh for just under 5 minutes',
     async (age, calls) => {
       const fetchMock = stubStatus(answer(status({ state: 'down' })));
       const checked = status({ lastUpdated: new Date(NOW.getTime() - age).toISOString() });
@@ -418,14 +422,37 @@ describe('StatusTile polling', () => {
     await waitFor(() => expect(retry).toHaveBeenCalledWith(0, expect.any(FetchStatusError)));
   });
 
-  it("caches under ['service-status'], never the footer badge's ['system-status']", () => {
+  it("caches its answer under ['service-status'], the key the footer badge reads too", () => {
     stubStatus(answer(status()));
     const client = testQueryClient();
     renderTile(snapshot(status()), client);
 
-    expect(SERVICE_STATUS_QUERY_KEY).not.toEqual(['system-status']);
+    expect(SERVICE_STATUS_QUERY_KEY).toEqual(['service-status']);
     expect(client.getQueryData(['service-status'])).toEqual(status());
-    expect(client.getQueryData(['system-status'])).toBeUndefined();
+    expect(client.getQueryCache().findAll()).toHaveLength(1);
+  });
+
+  it('does not poll before 5 minutes have passed', async () => {
+    const fetchMock = stubStatus(answer(status()));
+    renderTile(snapshot(status()));
+
+    await act(() => vi.advanceTimersByTimeAsync(STATUS_POLL_MS - MINUTE_MS));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing while the tab is hidden', async () => {
+    const fetchMock = stubStatus(answer(status()));
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      renderTile(snapshot(status()));
+
+      await act(() => vi.advanceTimersByTimeAsync(3 * STATUS_POLL_MS));
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      visibility.mockRestore();
+    }
   });
 });
 
@@ -433,7 +460,7 @@ describe('StatusTile on a return to the home page', () => {
   // The QueryClient outlives client navigations, so the tile can mount over an earlier answer.
   it.each([
     ['fresh', 10_000],
-    ['stale', 2 * MINUTE_MS],
+    ['stale', STATUS_POLL_MS + MINUTE_MS],
   ])(
     'shows an outage in a server snapshot newer than a %s cached answer, without fetching again',
     async (_freshness, cacheAge) => {

@@ -17,8 +17,9 @@
 'use client';
 
 /**
- * @file The home page's service status tile: the server's Better Stack snapshot first, then a
- * poll of /api/status every minute. Plain fetch through TanStack Query, no Effect.
+ * @file The home page's service status tile: the server's Better Stack snapshot first, then the
+ * shared /api/status poll (status-query.ts: every 5 minutes while the tab is visible). Plain fetch
+ * through TanStack Query, no Effect.
  *
  * A slim tile of one line: a still dot and the state in words ('All systems up'), the link to the
  * public status page. A count follows only when some monitor is not up ('Degraded · 3/4 up'), and
@@ -26,9 +27,9 @@
  * its h2 ('Site status') is for screen readers only. Nothing moves: the page's one moving thing is
  * the now-playing equaliser.
  *
- * Its query key is not the footer badge's ['system-status']: that query caches the whole
- * envelope, this one only `data`, and one key holding two shapes would break whichever read
- * second. Retries are the QueryClient's (shouldRetryQuery).
+ * It shares the footer badge's query (serviceStatusQuery, key ['service-status'], `data` only), so
+ * a tab polls once for both and the badge shows the tile's seeded answer on home without a fetch
+ * of its own. Retries are the QueryClient's (shouldRetryQuery).
  *
  * Render reads no clock: times are absolute (New York), and whether an answer is old is decided
  * on the server (the route's `stale` flag) or by a failed poll, never by comparing the browser's
@@ -57,14 +58,7 @@ import {
 } from '@/lib/status/service-state';
 import { formatClockET, formatDay } from '../data/format';
 import type { LiveInitial } from '../data/tile-result';
-import { fetchJson, parseServiceStatus } from './live-fetch';
-
-export const SERVICE_STATUS_QUERY_KEY = ['service-status'] as const;
-const STATUS_URL = '/api/status';
-/** How often the tile asks again; the route caches Better Stack's answer for as long. */
-export const STATUS_POLL_MS = 60_000;
-/** A snapshot younger than this is not fetched again on mount or on focus. */
-const STATUS_STALE_MS = 55_000;
+import { SERVICE_STATUS_QUERY_KEY, serviceStatusQuery } from './status-query';
 
 const STATUS_TILE_TITLE = 'Site status';
 
@@ -181,12 +175,9 @@ function useServiceStatus(initial: LiveInitial<ServiceStatus>) {
   const seeded = initial.kind === 'data' ? initial : undefined;
   useNewerSnapshot(seeded);
   return useQuery({
-    queryKey: SERVICE_STATUS_QUERY_KEY,
-    queryFn: async ({ signal }) => parseServiceStatus(await fetchJson(STATUS_URL, { signal })),
+    ...serviceStatusQuery,
     initialData: seeded?.data,
     initialDataUpdatedAt: seeded?.fetchedAt,
-    staleTime: STATUS_STALE_MS,
-    refetchInterval: STATUS_POLL_MS,
   });
 }
 

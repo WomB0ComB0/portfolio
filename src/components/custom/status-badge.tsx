@@ -17,13 +17,12 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { Effect, pipe, Schema } from 'effect';
-import { FetchHttpClient } from 'effect/http';
 import Link from 'next/link';
-import { memo } from 'react';
+import { memo, useSyncExternalStore } from 'react';
+import { serviceStatusQuery } from '@/app/_components/home/live/status-query';
+import type { ServiceStatus } from '@/app/api/[[...route]]/status/schema';
 import { StatusDot, type StatusTone } from '@/components/console/status-dot';
 import { NEW_TAB_LABEL } from '@/components/console/tile-link';
-import { get } from '@/lib/http-clients/effect-fetcher';
 import {
   CHECKING_STATUS,
   isLastKnownAnswer,
@@ -33,26 +32,12 @@ import {
 } from '@/lib/status/service-state';
 import { cn } from '@/lib/utils';
 
-const StatusResponseSchema = Schema.Struct({
-  success: Schema.Literal(true),
-  message: Schema.String,
-  data: Schema.Struct({
-    state: Schema.Union([
-      Schema.Literal('operational'),
-      Schema.Literal('degraded'),
-      Schema.Literal('down'),
-      Schema.Literal('unknown'),
-    ]),
-    lastUpdated: Schema.String,
-    message: Schema.optional(Schema.String),
-    /** How many active monitors are up; total 0 means every monitor is paused. */
-    monitors: Schema.optional(Schema.Struct({ up: Schema.Number, total: Schema.Number })),
-    /** True when Better Stack just failed and this is its last answer, served from the cache. */
-    stale: Schema.optional(Schema.Boolean),
-  }),
-});
-
-type StatusData = Schema.Schema.Type<typeof StatusResponseSchema>['data'];
+/**
+ * /api/status's `data`: the state, when it was checked, the active monitors up out of the total
+ * (total 0 means every monitor is paused), and `stale` when Better Stack just failed and this is
+ * its last answer, served from the cache.
+ */
+type StatusData = ServiceStatus;
 
 interface StatusBadgeProps {
   className?: string;
@@ -96,35 +81,36 @@ export function statusBadgeView(data: StatusData | undefined, isError = false): 
   return { label: statusSentence(words), tone: words.tone };
 }
 
+const subscribeToNothing = () => () => undefined;
+
 /**
- * Client component that displays live status from Better Stack
- * Uses React Query for data fetching with Effect-based HTTP client
+ * False in the server render and while hydrating, true from then on. The badge shares its query
+ * with the home status tile, whose server snapshot can reach the cache before or after the badge
+ * renders, on the server and in the browser alike. Reading the cache only once hydrated keeps
+ * the badge's first render 'Checking status…' on both sides, so the HTML always matches.
+ */
+const useHydrated = (): boolean =>
+  useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+
+/**
+ * The footer's live status pill. It reads the query the home status tile shares
+ * (serviceStatusQuery): one /api/status poll per tab, every 5 minutes while the tab is visible,
+ * fetched on mount when nothing fresh is cached. Plain fetch, no Effect.
  */
 export const StatusBadge = memo(({ className }: StatusBadgeProps) => {
-  const { data: statusData, isError } = useQuery({
-    queryKey: ['system-status'],
-    queryFn: async () => {
-      const effect = pipe(
-        get('/api/status', {
-          schema: StatusResponseSchema,
-          // One attempt: the QueryClient's shared rule (shouldRetryQuery) does the retrying.
-          retries: 0,
-          timeout: 5_000,
-        }),
-        Effect.provide(FetchHttpClient.layer),
-      );
-      return await Effect.runPromise(effect);
-    },
-    staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 1000 * 60, // Refetch every minute
-  });
+  const { data, isError } = useQuery(serviceStatusQuery);
+  const hydrated = useHydrated();
 
   /**
    * The title is the state's words. The name starts with the visible word 'Status', shown at every
    * width (label in name, so voice control's "click Status" finds the link), then the same words,
    * then the new-tab cue every other external link carries.
    */
-  const { label, tone } = statusBadgeView(statusData?.data, isError);
+  const { label, tone } = statusBadgeView(hydrated ? data : undefined, hydrated && isError);
 
   return (
     <Link
