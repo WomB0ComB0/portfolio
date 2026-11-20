@@ -76,8 +76,10 @@ function getBrowserProjects() {
 export default defineConfig({
   // Use new e2e/ directory structure
   testDir: './e2e',
-  // Ignore setup files (auth is optional, tests work without it)
-  testIgnore: ['**/fixtures/**'],
+  // Ignore setup files (auth is optional, tests work without it), and the accessibility spec,
+  // which runs only with its own config against a production build it is pointed at
+  // (playwright.a11y.config.ts: `A11Y_BASE_URL=… bun run test:a11y`), never this dev server.
+  testIgnore: ['**/fixtures/**', '**/accessibility/**'],
   // Run tests in files in parallel
   fullyParallel: true,
   // Fail the build on CI if you accidentally left test.only in the source code

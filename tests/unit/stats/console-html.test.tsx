@@ -17,10 +17,11 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 const { consoleData, startStatsConsole } = vi.hoisted(() => {
   const keys = [
@@ -181,18 +182,19 @@ describe('/stats console server HTML', () => {
     'names the %s tile by its title, the link around its heading saying where it goes',
     async (tile, title, href) => {
       const root = await pageHtml();
-      const section = root.querySelector(`[data-stats-tile="${tile}"]`);
-      const heading = section?.querySelector('h2');
-      const link = heading?.closest('a');
-      // Without NewTabArrow's invisible U+2060 WORD JOINER, which no name includes.
-      const words = (element: Element | null | undefined): string =>
-        textOf(element).replace(/⁠/g, '');
+      // In the document, so aria-labelledby resolves the region's name from its heading's id.
+      document.body.append(root);
+      onTestFinished(() => root.remove());
 
-      expect(section?.tagName).toBe('SECTION');
-      expect(root.querySelector(`#${section?.getAttribute('aria-labelledby')}`)).toBe(heading);
-      expect(words(heading)).toBe(title);
-      expect(link?.getAttribute('href')).toBe(href);
-      expect(words(link)).toBe(`${title} profile (opens in a new tab)`);
+      const section = within(root).getByRole('region', { name: title });
+      const heading = within(section).getByRole('heading', { level: 2, name: title });
+      const link = within(section).getByRole('link', {
+        name: `${title} profile (opens in a new tab)`,
+      });
+
+      expect(section).toHaveAttribute('data-stats-tile', tile);
+      expect(link).toContainElement(heading);
+      expect(link).toHaveAttribute('href', href);
     },
   );
 

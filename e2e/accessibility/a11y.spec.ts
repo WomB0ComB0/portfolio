@@ -15,489 +15,322 @@
  */
 
 /**
- * @file Accessibility E2E Tests
- * @description Comprehensive accessibility tests for WCAG compliance.
+ * @file The accessibility regression guard for the 2026-11-20 WCAG 2.2 AA audit, in a real
+ * browser at a 1440 x 900 desktop and a 390 x 844 phone. Run it with its own config only:
+ * `A11Y_BASE_URL=http://127.0.0.1:<port> bun run test:a11y` against a local production build
+ * (playwright.a11y.config.ts starts no server and refuses to run without that variable).
+ *
+ * - axe 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes, expecting no
+ *   failure. Best-practice violations are reported beside each test (an annotation and an
+ *   attachment) and never fail it. The detail pages are found from the listing pages.
+ * - Keyboard: the skip link; the command menu as a modal dialog that keeps Tab inside and hands
+ *   focus back; the rail tooltip, hoverable and dismissed by Escape; a zoomed place photo panned
+ *   with the arrow keys, and Previous keeping focus at the first photo; the /stats age's Pause
+ *   and its stillness under reduced motion.
+ *
+ * Every context reads only: requests other than GET and HEAD, and any for the production site,
+ * are aborted (fixtures/a11y.ts).
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
-import { getTargetUrl, TIMEOUTS } from '../fixtures/base';
+import {
+  animationsDone,
+  type DynamicRoutes,
+  dynamicRoutes,
+  expectNoAxeFailures,
+  guardRequests,
+  hydratedAt,
+  nextFrame,
+  openPage,
+  readyForAxe,
+} from '../fixtures/a11y';
 
-const PAGES_TO_TEST = [
-  { path: '/', name: 'Homepage' },
-  { path: '/about', name: 'About' },
-  { path: '/projects', name: 'Projects' },
-  { path: '/experience', name: 'Experience' },
-  { path: '/media', name: 'Media' },
-  { path: '/stats', name: 'Stats' },
-  { path: '/guestbook', name: 'Guestbook' },
-  { path: '/resume', name: 'Resume' },
+/** One of the audit's routes: a fixed path, or one found from a listing page. */
+interface AuditedRoute {
+  readonly label: string;
+  readonly path: string | ((routes: DynamicRoutes) => string | null);
+  readonly status?: number;
+}
+
+const AUDITED_ROUTES: readonly AuditedRoute[] = [
+  { label: 'home', path: '/' },
+  { label: 'projects', path: '/projects' },
+  { label: 'a project with screens', path: (routes) => routes.projectWithScreens },
+  { label: 'a project with media and See also', path: (routes) => routes.projectWithSeeAlso },
+  { label: 'experience', path: '/experience' },
+  { label: 'an experience page', path: (routes) => routes.experience },
+  { label: 'places', path: '/places' },
+  { label: 'place photos', path: '/places/photos' },
+  { label: 'a place page', path: (routes) => routes.place },
+  { label: 'stats', path: '/stats' },
+  { label: 'media', path: '/media' },
+  { label: 'guestbook', path: '/guestbook' },
+  { label: 'certifications', path: '/certifications' },
+  { label: 'resume', path: '/resume' },
+  { label: 'sponsor', path: '/sponsor' },
+  { label: 'spotify', path: '/spotify' },
+  { label: 'privacy', path: '/privacy' },
+  { label: 'cookies', path: '/cookies' },
+  { label: 'licenses', path: '/licenses' },
+  { label: 'a missing page (404)', path: '/this-page-does-not-exist', status: 404 },
 ];
 
-test.describe('Accessibility', () => {
-  test.describe('Keyboard Navigation', () => {
-    test('should be able to navigate main menu with keyboard', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+/** The route's path: fixed, or found from the listing pages (skipping the test when none is). */
+async function pathOf(page: Page, route: AuditedRoute): Promise<string> {
+  if (typeof route.path === 'string') return route.path;
+  const path = route.path(await dynamicRoutes(page.request));
+  test.skip(path === null, `no listed page has what "${route.label}" needs`);
+  return path ?? '';
+}
 
-      // Tab to first focusable element
-      await page.keyboard.press('Tab');
+/**
+ * Zoom in steps 20% from 100% to 300%: ten presses, eleven as floating point adds them up, and a
+ * spare (a press at the limit does nothing).
+ */
+const MAX_ZOOM_PRESSES = 12;
 
-      // Should have a focused element
-      const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
-      expect(focusedElement).toBeTruthy();
+/** A keyboard interaction first, so focus moved by script shows as keyboard focus. */
+async function keyboardFocus(page: Page, target: Locator): Promise<void> {
+  await page.keyboard.press('Shift');
+  await target.focus();
+}
+
+test.beforeEach(async ({ context }) => guardRequests(context));
+
+test.describe('axe on the audited routes (WCAG 2.2 A and AA)', () => {
+  for (const route of AUDITED_ROUTES) {
+    test(`${route.label} has no WCAG A or AA failures`, async ({ page }, testInfo) => {
+      const path = await pathOf(page, route);
+      await openPage(page, path, route.status);
+      await readyForAxe(page);
+
+      await expectNoAxeFailures(page, testInfo, `${path} (${testInfo.project.name})`);
     });
+  }
+});
 
-    test('should have visible focus indicators', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+test.describe('keyboard', () => {
+  test('the skip link is the first Tab stop and moves focus to main', async ({ page }) => {
+    await openPage(page, '/');
 
-      // Tab to navigation
-      await page.keyboard.press('Tab');
-      await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    const skip = page.getByRole('link', { name: 'Skip to content' });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeVisible();
 
-      // Check if focused element has visible outline
-      const hasVisibleFocus = await page.evaluate(() => {
-        const el = document.activeElement;
-        if (!el) return false;
-        const styles = globalThis.getComputedStyle(el);
-        return (
-          styles.outline !== 'none' ||
-          styles.boxShadow !== 'none' ||
-          el.classList.contains('focus-visible') ||
-          el.matches(':focus-visible')
-        );
-      });
-
-      expect(hasVisibleFocus).toBeTruthy();
-    });
-
-    test('should be able to activate links with Enter key', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Find any link on the page that navigates internally
-      const internalLinks = page.locator('a[href^="/"]');
-      const linkCount = await internalLinks.count();
-
-      if (linkCount > 0) {
-        const link = internalLinks.first();
-        const href = await link.getAttribute('href');
-
-        // Focus the link and press Enter
-        await link.focus();
-        await page.keyboard.press('Enter');
-
-        // Wait for navigation
-        await page.waitForTimeout(1000);
-        const currentUrl = page.url();
-
-        // Should have navigated (URL changed or contains the href)
-        const navigated = (href && currentUrl.includes(href)) || currentUrl !== targetUrl;
-        expect(navigated).toBeTruthy();
-      } else {
-        // Skip if no internal links found
-        test.skip();
-      }
-    });
-
-    test('should trap focus in modals when open', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/projects`);
-      await page.waitForLoadState('networkidle');
-
-      const projectLink = page.locator('a[href^="/projects/"]').first();
-      const linkExists = (await projectLink.count()) > 0;
-
-      if (linkExists) {
-        await projectLink.click();
-        await page.waitForTimeout(500);
-
-        const modal = page.locator('[role="dialog"]');
-        const modalExists = (await modal.count()) > 0;
-
-        if (modalExists) {
-          // Tab through modal elements
-          await page.keyboard.press('Tab');
-          await page.keyboard.press('Tab');
-          await page.keyboard.press('Tab');
-
-          // Focus should stay within modal
-          const focusedInModal = await page.evaluate(() => {
-            const modal = document.querySelector('[role="dialog"]');
-            return modal?.contains(document.activeElement);
-          });
-
-          expect(focusedInModal).toBeTruthy();
-        }
-      }
-    });
-
-    test('should close modals with Escape key', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/projects`);
-      await page.waitForLoadState('networkidle');
-
-      const projectLink = page.locator('a[href^="/projects/"]').first();
-      const linkExists = (await projectLink.count()) > 0;
-
-      if (linkExists) {
-        await projectLink.click();
-        await page.waitForTimeout(500);
-
-        const modalBefore = await page.locator('[role="dialog"]').count();
-
-        if (modalBefore > 0) {
-          await page.keyboard.press('Escape');
-          await page.waitForTimeout(300);
-
-          // Modal should be closed or URL should change back
-          const modalAfter = await page.locator('[role="dialog"]').count();
-          expect(modalAfter).toBeLessThanOrEqual(modalBefore);
-        }
-      }
-    });
+    await page.keyboard.press('Enter');
+    await expect(page.locator('main#main-content')).toBeFocused();
   });
 
-  test.describe('Skip Links', () => {
-    test('should have skip to main content link', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+  test('the command menu opens with Control+K as a named modal dialog, keeps Tab inside and returns focus', async ({
+    page,
+  }) => {
+    await openPage(page, '/');
+    const opener = page.locator('main#main-content a[href]:visible').first();
+    await keyboardFocus(page, opener);
 
-      // Look for skip link
-      const skipLink = page.locator('a[href="#main"], a[href="#content"], a:has-text("Skip")');
-      const count = await skipLink.count();
+    await page.keyboard.press('Control+K');
+    const dialog = page.getByRole('dialog', { name: 'Command menu' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    const search = dialog.getByRole('combobox', { name: 'Search pages and commands' });
+    const results = dialog.getByRole('region', { name: 'Search results' });
+    await expect(search).toBeFocused();
 
-      // Skip links are important for accessibility
-      expect(count).toBeGreaterThanOrEqual(0);
-    });
+    /** Whether focus is inside the dialog (and not on the page behind it, or nowhere). */
+    const focusInside = (): Promise<boolean> =>
+      dialog.evaluate((element) => element.contains(document.activeElement));
 
-    test('should skip to main content when activated', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Tab to reveal skip link (often hidden until focused)
+    // Tab cycles between the search box and the results, and never leaves.
+    for (const expected of [results, search, results, search]) {
       await page.keyboard.press('Tab');
-
-      const skipLink = page.locator('a[href="#main"], a[href="#content"]').first();
-      const exists = (await skipLink.count()) > 0;
-
-      if (exists) {
-        await skipLink.click();
-
-        // Focus should move to main content
-        const focusedElement = await page.evaluate(
-          () => document.activeElement?.tagName || document.activeElement?.id,
-        );
-        expect(focusedElement).toBeTruthy();
-      }
-    });
-  });
-
-  test.describe('Semantic HTML', () => {
-    for (const pageInfo of PAGES_TO_TEST) {
-      test(`${pageInfo.name} should have proper landmark regions`, async ({ page }) => {
-        const targetUrl = getTargetUrl();
-        await page.goto(`${targetUrl}${pageInfo.path}`);
-        await page.waitForLoadState('domcontentloaded');
-
-        // Should have main element
-        const main = page.locator('main');
-        const mainCount = await main.count();
-        expect(mainCount).toBe(1);
-
-        // Should have header element or banner role (some apps use roles instead)
-        const header = page.locator('header, [role="banner"]');
-        const headerCount = await header.count();
-        // Header is recommended but not required for all pages
-        expect(headerCount).toBeGreaterThanOrEqual(0);
-      });
-
-      test(`${pageInfo.name} should have at least one h1`, async ({ page }) => {
-        const targetUrl = getTargetUrl();
-        await page.goto(`${targetUrl}${pageInfo.path}`, { timeout: TIMEOUTS.navigation });
-        await page.waitForLoadState('domcontentloaded');
-
-        // Check for any heading structure
-        const h1 = page.locator('h1');
-        const h1Count = await h1.count();
-        const h2Count = await page.locator('h2').count();
-        const h3Count = await page.locator('h3').count();
-        const h4Count = await page.locator('h4').count();
-
-        // Check for aria-labels on main content
-        const mainLabel = await page.locator('main[aria-label], main[aria-labelledby]').count();
-        const hasTitle = await page.title().then((t) => t.length > 0);
-
-        // Page should have some form of heading structure or at least a title
-        // This is a soft check - pass if ANY heading/labeling exists
-        const totalStructure =
-          h1Count + h2Count + h3Count + h4Count + mainLabel + (hasTitle ? 1 : 0);
-        expect(totalStructure).toBeGreaterThan(0);
-      });
+      await expect(expected).toBeFocused();
+      expect(await focusInside()).toBe(true);
+    }
+    // Shift+Tab as a keyboard sends it: Shift goes down first, then Tab.
+    for (const expected of [results, search, results, search]) {
+      await page.keyboard.down('Shift');
+      await page.keyboard.press('Tab');
+      await page.keyboard.up('Shift');
+      await expect(expected).toBeFocused();
+      expect(await focusInside()).toBe(true);
     }
 
-    test('should have proper heading hierarchy (no major skips)', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+  });
 
-      const headingLevels = await page.evaluate(() => {
-        const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-        return Array.from(headings).map((h) => Number.parseInt(h.tagName.charAt(1), 10));
-      });
+  test.describe('the rail command-menu tooltip', () => {
+    test.beforeEach(({ isMobile }) => {
+      test.skip(isMobile, 'the rail shows from lg up; the phone has the bottom bar');
+    });
 
-      // Check for major skipped levels (more than 3 levels is a severe issue)
-      // Some flexibility is needed for real-world apps with complex layouts
-      let previousLevel = 0;
-      for (const level of headingLevels) {
-        // Should not skip more than 3 levels (e.g., h1 to h5 is very bad)
-        // This catches severe accessibility issues while allowing common patterns
-        expect(level - previousLevel).toBeLessThanOrEqual(3);
-        if (level > previousLevel) {
-          previousLevel = level;
-        }
-      }
+    const RAIL_BUTTON = 'button[aria-label="Open command menu"]';
+    const railButton = (page: Page): Locator =>
+      page.getByRole('button', { name: 'Open command menu' });
+    const tipOf = (button: Locator): Locator => button.locator('[data-palette-tip]');
+    const opacityOf = (tip: Locator): Promise<string> =>
+      tip.evaluate((element) => getComputedStyle(element).opacity);
+
+    test('can be hovered: the pointer moves from the button onto it and it stays shown', async ({
+      page,
+    }) => {
+      await openPage(page, '/');
+      await hydratedAt(page, RAIL_BUTTON);
+      const button = railButton(page);
+      const tip = tipOf(button);
+      const buttonBox = await button.boundingBox();
+      if (!buttonBox) throw new Error('the rail button has no box');
+
+      await page.mouse.move(buttonBox.x + buttonBox.width / 2, buttonBox.y + buttonBox.height / 2);
+      await expect.poll(() => opacityOf(tip)).toBe('1');
+
+      const tipBox = await tip.boundingBox();
+      if (!tipBox) throw new Error('the shown tooltip has no box');
+      const onTip = { x: tipBox.x + tipBox.width / 2, y: tipBox.y + tipBox.height / 2 };
+      // In small steps, across the gap between the button and the tooltip.
+      await page.mouse.move(onTip.x, onTip.y, { steps: 12 });
+
+      // The pointer is on the tooltip, which keeps the button hovered, so nothing fades it.
+      expect(
+        await page.evaluate(
+          ({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('[data-palette-tip]')),
+          onTip,
+        ),
+      ).toBe(true);
+      expect(await button.evaluate((element) => element.matches(':hover'))).toBe(true);
+      await animationsDone(page);
+      expect(await opacityOf(tip)).toBe('1');
+
+      // Escape hides it where it is, the pointer still on it.
+      await page.keyboard.press('Escape');
+      await expect.poll(() => opacityOf(tip)).toBe('0');
+    });
+
+    test('Escape hides it while the button has keyboard focus, and focus stays', async ({
+      page,
+    }) => {
+      await openPage(page, '/');
+      await hydratedAt(page, RAIL_BUTTON);
+      const button = railButton(page);
+      const tip = tipOf(button);
+      // The pointer away from the rail, so only focus shows the tooltip.
+      await page.mouse.move((page.viewportSize()?.width ?? 1440) - 1, 1);
+
+      await keyboardFocus(page, button);
+      expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+      await expect.poll(() => opacityOf(tip)).toBe('1');
+
+      await page.keyboard.press('Escape');
+      await expect.poll(() => opacityOf(tip)).toBe('0');
+      await expect(button).toBeFocused();
     });
   });
 
-  test.describe('Images', () => {
-    for (const pageInfo of PAGES_TO_TEST.slice(0, 3)) {
-      test(`${pageInfo.name} images should have alt text`, async ({ page }) => {
-        const targetUrl = getTargetUrl();
-        await page.goto(`${targetUrl}${pageInfo.path}`, { timeout: TIMEOUTS.navigation });
-        await page.waitForLoadState('domcontentloaded');
+  test('a zoomed place photo pans with the arrow keys, and Previous keeps focus at the first photo', async ({
+    page,
+  }) => {
+    const path = await pathOf(page, { label: 'a place page', path: (routes) => routes.place });
+    await openPage(page, path);
+    await hydratedAt(page, '[data-place-photo-viewer] button[aria-label="Zoom in"]');
+    const viewer = page.locator('[data-place-photo-viewer]');
+    const position = viewer.getByText(/^Photo \d+ of \d+$/);
 
-        // Give images a moment to load
-        await page.waitForTimeout(2000);
+    // At the first photo Previous is unavailable, but pressing it leaves focus on it.
+    const previous = viewer.getByRole('button', { name: 'Previous photo' });
+    await expect(position).toHaveText(/^Photo 1 of /);
+    await keyboardFocus(page, previous);
+    await expect(previous).toHaveAttribute('aria-disabled', 'true');
+    await page.keyboard.press('Enter');
+    await expect(previous).toBeFocused();
+    await expect(position).toHaveText(/^Photo 1 of /);
 
-        const images = page.locator('img');
-        const imageCount = await images.count();
-
-        for (let i = 0; i < imageCount; i++) {
-          const img = images.nth(i);
-          const alt = await img.getAttribute('alt');
-          const role = await img.getAttribute('role');
-
-          // Images should have alt text or be decorative (role="presentation")
-          const hasAlt = alt !== null;
-          const isDecorative = role === 'presentation' || role === 'none';
-
-          expect(hasAlt || isDecorative).toBeTruthy();
-        }
-      });
+    // Zoomed all the way in from the keyboard (so the photo overhangs the stage both ways, a
+    // wide one too), the photo is a named surface the arrow keys pan.
+    const zoomIn = viewer.getByRole('button', { name: 'Zoom in' });
+    await keyboardFocus(page, zoomIn);
+    for (let press = 0; press < MAX_ZOOM_PRESSES; press += 1) {
+      if ((await zoomIn.getAttribute('aria-disabled')) === 'true') break;
+      await page.keyboard.press('Enter');
     }
+    await expect(zoomIn).toHaveAttribute('aria-disabled', 'true');
+    await expect(zoomIn).toBeFocused();
+    const surface = viewer.getByRole('application', { name: /^Zoomed photo/ });
+    await expect(surface).toBeVisible();
+
+    /** The photo's pan along `axis`, from the transform motion writes (0 where it writes none). */
+    const photo = surface.locator('img');
+    const panOf = (axis: 'X' | 'Y'): Promise<number> =>
+      photo.evaluate((element, which) => {
+        const match = new RegExp(`translate${which}\\((-?[\\d.]+)px\\)`).exec(
+          element.style.transform,
+        );
+        return Number(match?.[1] ?? 0);
+      }, axis);
+
+    await surface.focus();
+    await expect(surface).toBeFocused();
+    // Right shows more of the photo's right side, so the photo moves left; Down moves it up.
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(() => panOf('X'), { message: 'ArrowRight pans the photo' }).toBeLessThan(0);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => panOf('Y'), { message: 'ArrowDown pans the photo' }).toBeLessThan(0);
+    await expect(surface).toBeFocused();
   });
 
-  test.describe('Forms', () => {
-    test('guestbook form should have associated labels', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/guestbook`);
-      await page.waitForLoadState('domcontentloaded');
+  test.describe('the /stats age', () => {
+    const digitsOf = (page: Page): Locator => page.locator('main [data-digits]').first();
+    const PAUSE = 'button[aria-label="Pause age counter"]';
+    const pauseOf = (page: Page): Locator =>
+      page.getByRole('button', { name: 'Pause age counter' });
 
-      const inputs = page.locator('input:not([type="hidden"]), textarea');
-      const inputCount = await inputs.count();
+    /**
+     * Opens /stats on a clock the test controls, once the strip has hydrated and run its first
+     * effects (the age's first write after mount), then pauses that clock where it is.
+     */
+    async function openOnHeldClock(page: Page): Promise<void> {
+      await page.clock.install();
+      await openPage(page, '/stats');
+      await hydratedAt(page, PAUSE);
+      await nextFrame(page);
+      await holdClock(page);
+    }
 
-      for (let i = 0; i < inputCount; i++) {
-        const input = inputs.nth(i);
-        const id = await input.getAttribute('id');
-        const ariaLabel = await input.getAttribute('aria-label');
-        const ariaLabelledby = await input.getAttribute('aria-labelledby');
-        const placeholder = await input.getAttribute('placeholder');
+    /** Pauses the page's clock where it is: from here time moves only when the test says so. */
+    async function holdClock(page: Page): Promise<void> {
+      await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    }
 
-        // Check if there's an associated label
-        let hasLabel = false;
-        if (id) {
-          const label = page.locator(`label[for="${id}"]`);
-          hasLabel = (await label.count()) > 0;
-        }
+    test('ticks until Pause is pressed, then holds still', async ({ page }) => {
+      await openOnHeldClock(page);
+      const digits = digitsOf(page);
 
-        // Input should be labeled in some way
-        const isLabeled = hasLabel || ariaLabel || ariaLabelledby || placeholder;
-        expect(isLabeled).toBeTruthy();
-      }
+      // Running: a second moves the eighth decimal about three steps.
+      const before = (await digits.textContent()) ?? '';
+      await page.clock.runFor(1_000);
+      await expect(digits).not.toHaveText(before);
+
+      const pause = pauseOf(page);
+      await pause.press('Enter');
+      await expect(pause).toHaveAttribute('aria-pressed', 'true');
+      // Whatever the press scheduled has run before the paused digits are read.
+      await page.clock.runFor(100);
+      const paused = (await digits.textContent()) ?? '';
+      await page.clock.runFor(3_000);
+      await expect(digits).toHaveText(paused);
     });
 
-    test('form buttons should have accessible names', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(`${targetUrl}/guestbook`);
-      await page.waitForLoadState('domcontentloaded');
-
-      const buttons = page.locator('button[type="submit"], input[type="submit"]');
-      const buttonCount = await buttons.count();
-
-      for (let i = 0; i < buttonCount; i++) {
-        const button = buttons.nth(i);
-        const text = await button.textContent();
-        const ariaLabel = await button.getAttribute('aria-label');
-        const value = await button.getAttribute('value');
-
-        // Button should have accessible name
-        const hasName = (text && text.trim().length > 0) || ariaLabel || value;
-        expect(hasName).toBeTruthy();
-      }
-    });
-  });
-
-  test.describe('Color Contrast', () => {
-    test('should not rely solely on color to convey information', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Check that links are distinguishable (not just by color)
-      const links = page.locator('a');
-      const linkCount = await links.count();
-
-      if (linkCount > 0) {
-        const firstLink = links.first();
-        const textDecoration = await firstLink.evaluate((el) => {
-          return globalThis.getComputedStyle(el).textDecoration;
-        });
-
-        // Links should have underline or other visual indicator
-        // This is a basic check - real contrast testing needs axe-core
-        expect(typeof textDecoration).toBe('string');
-      }
-    });
-  });
-
-  test.describe('ARIA Usage', () => {
-    test('should use valid ARIA roles', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Get all elements with role attribute
-      const elementsWithRole = await page.evaluate(() => {
-        const elements = document.querySelectorAll('[role]');
-        return Array.from(elements).map((el) => el.getAttribute('role'));
-      });
-
-      const validRoles = [
-        'button',
-        'link',
-        'navigation',
-        'main',
-        'banner',
-        'contentinfo',
-        'complementary',
-        'form',
-        'search',
-        'dialog',
-        'alert',
-        'alertdialog',
-        'menu',
-        'menubar',
-        'menuitem',
-        'tab',
-        'tablist',
-        'tabpanel',
-        'list',
-        'listitem',
-        'img',
-        'presentation',
-        'none',
-        'region',
-        'article',
-        'group',
-        'heading',
-        'status',
-        'progressbar',
-        'checkbox',
-        'radio',
-        'textbox',
-        'switch',
-      ];
-
-      for (const role of elementsWithRole) {
-        if (role) {
-          expect(validRoles).toContain(role);
-        }
-      }
-    });
-
-    test('should have required ARIA properties for interactive elements', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Check dialogs have aria-labelledby or aria-label
-      const dialogs = page.locator('[role="dialog"]');
-      const dialogCount = await dialogs.count();
-
-      for (let i = 0; i < dialogCount; i++) {
-        const dialog = dialogs.nth(i);
-        const ariaLabel = await dialog.getAttribute('aria-label');
-        const ariaLabelledby = await dialog.getAttribute('aria-labelledby');
-
-        expect(ariaLabel || ariaLabelledby).toBeTruthy();
-      }
-    });
-  });
-
-  test.describe('Motion & Animation', () => {
-    test('should respect reduced motion preference', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-
-      // Emulate reduced motion preference
+    test('holds still under reduced motion, with no Pause to offer', async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
+      await openOnHeldClock(page);
+      const digits = digitsOf(page);
 
-      // Check that animations respect prefers-reduced-motion
-      const hasReducedMotionStyles = await page.evaluate(() => {
-        const styles = document.documentElement.style.cssText;
-        const computedStyles = globalThis.getComputedStyle(document.documentElement);
-
-        // Check if any animation-duration is set to minimal values
-        return (
-          styles.includes('reduced-motion') ||
-          computedStyles.getPropertyValue('--reduced-motion') !== '' ||
-          true
-        ); // Pass if we can't definitively check
-      });
-
-      expect(hasReducedMotionStyles).toBeTruthy();
-    });
-  });
-
-  test.describe('Touch Targets', () => {
-    test('should have adequately sized touch targets on mobile', async ({ page }) => {
-      const targetUrl = getTargetUrl();
-      await page.setViewportSize({ width: 375, height: 812 });
-      await page.goto(targetUrl);
-      await page.waitForLoadState('domcontentloaded');
-
-      // Check button and link sizes
-      const interactiveElements = page.locator('button, a, input, select');
-      const count = await interactiveElements.count();
-
-      let smallTargets = 0;
-      for (let i = 0; i < Math.min(count, 20); i++) {
-        const el = interactiveElements.nth(i);
-        const box = await el.boundingBox();
-
-        if (box) {
-          // WCAG recommends 44x44px minimum touch target
-          if (box.width < 44 || box.height < 44) {
-            smallTargets++;
-          }
-        }
-      }
-
-      // Allow some small targets (icons, etc.) but flag if too many
-      // Use <= and ceil to handle edge cases with small counts
-      if (count === 0) {
-        expect(true).toBeTruthy(); // No elements to check - pass
-      } else {
-        expect(smallTargets).toBeLessThanOrEqual(Math.ceil(count * 0.5));
-      }
+      const shown = (await digits.textContent()) ?? '';
+      await page.clock.runFor(3_000);
+      await expect(digits).toHaveText(shown);
+      await expect(pauseOf(page)).toBeHidden();
     });
   });
 });

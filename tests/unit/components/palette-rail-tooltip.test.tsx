@@ -18,11 +18,13 @@
  * @file The rail's "Command menu" tooltip shows on hover and on keyboard focus, and Escape hides
  * it without moving focus or the pointer (WCAG 1.4.13, audit 2026-11-20 minor 2). It stays hidden
  * until both the pointer and focus have left the button; the next hover or focus shows it again.
- * While shown on hover it takes the pointer, and a transparent bridge spans the gap to the button,
- * so the pointer can move onto it without it fading (1.4.13's "hoverable").
+ * While shown on hover it takes the pointer, so the pointer can move onto it without it fading
+ * (1.4.13's "hoverable").
  *
  * jsdom applies no Tailwind CSS and has no :hover or :focus-visible, so "shown" is the class
- * contract: the hover and focus-visible classes are on the tooltip, or left off it.
+ * contract: the hover and focus-visible classes are on the tooltip, or left off it. That the
+ * pointer can move from the button onto the tooltip, and that Escape hides it with focus kept, is
+ * checked in a real browser by e2e/accessibility/a11y.spec.ts.
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -72,20 +74,13 @@ describe('the command menu tooltip', () => {
     expect(tip).toHaveTextContent('Command menu');
   });
 
-  it('can be hovered: it takes the pointer only while shown, across a bridge to the button', () => {
+  // Whether the pointer can actually cross onto the tooltip is a question of layout, which jsdom
+  // does not do: e2e/accessibility/a11y.spec.ts moves a real pointer from the button onto it.
+  it('takes the pointer only while shown, and gives it up once dismissed', () => {
     const { button, tip } = renderRail();
 
     // At rest, and once dismissed, an invisible tooltip never catches a hover or a click.
     expect(tip).toHaveClass('pointer-events-none', 'group-hover/palette:pointer-events-auto');
-    // The 16px gap (ml-4) is covered from the tooltip's left edge back onto the button, which
-    // owns the tooltip, so the pointer crossing it keeps the button hovered.
-    expect(tip).toHaveClass(
-      'before:absolute',
-      'before:inset-y-0',
-      'before:right-full',
-      'before:w-5',
-      'before:content-[""]',
-    );
 
     fireEvent.pointerEnter(button);
     fireEvent.keyDown(document.body, { key: 'Escape' });

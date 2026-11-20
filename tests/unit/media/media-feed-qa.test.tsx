@@ -311,6 +311,23 @@ describe('columns (round 2)', () => {
     }
   });
 
+  // CodeRabbit on #726: the one feed's short day ("Dec 29") lost its number to the ellipsis under
+  // the same widened spacing. Its column wraps too.
+  it('lets the one feed’s Date cell wrap instead of cutting the day', () => {
+    const feedColumns: readonly FeedColumn[] = FEED_COLUMNS;
+    expect(feedColumns.at(-1)).toMatchObject({ id: 'date', wrap: true });
+    const root = renderFeed('', { layout: 'feed', parts: 'each' });
+    const cells = Array.from(root.querySelectorAll('tr[data-feed-row] time'), (time) =>
+      time.closest('td'),
+    );
+
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell?.className.split(' ')).toContain('whitespace-normal');
+      expect(cell?.className.split(' ')).not.toContain('whitespace-nowrap');
+    }
+  });
+
   it('keeps the one feed its five columns and its short date', () => {
     expect(FEED_COLUMNS.map((column) => column.id)).toEqual([
       'item',

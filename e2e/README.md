@@ -28,8 +28,8 @@ End-to-end tests using Playwright for real browser testing.
 
 ```
 e2e/
-├── accessibility/        # WCAG accessibility tests
-│   └── a11y.spec.ts      # Keyboard nav, ARIA, semantic HTML
+├── accessibility/        # WCAG 2.2 AA guard, own config (bun run test:a11y)
+│   └── a11y.spec.ts      # axe on the audited routes, keyboard checks
 ├── journeys/             # User journey tests
 │   ├── home-bento.spec.ts
 │   ├── navigation.spec.ts
@@ -53,6 +53,7 @@ e2e/
 │   ├── light-rays.spec.ts
 │   └── shell-grid.spec.ts
 ├── fixtures/             # Playwright fixtures
+│   ├── a11y.ts           # Request guard, axe runner and route discovery for the a11y spec
 │   ├── auth.setup.ts     # Auth state setup
 │   ├── base.ts           # Extended test fixtures
 │   └── home-bento.ts     # Home bento selectors, settle wait and masonry measure
@@ -99,15 +100,43 @@ User journey tests that verify end-to-end flows:
 
 ### Accessibility (`e2e/accessibility/`)
 
-WCAG compliance tests:
+The regression guard for the 2026-11-20 WCAG 2.2 AA audit, at a 1440 x 900 desktop and a 390 x 844
+phone (Chromium):
 
-- Keyboard navigation
-- Focus indicators
-- Skip links
-- Semantic HTML & landmarks
-- Image alt text
-- ARIA roles & properties
-- Touch targets
+- **axe** 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes: `/`, `/projects`,
+  a project with screens, a project with photos and "See also", `/experience`, a role's page,
+  `/places`, `/places/photos`, a place page, `/stats`, `/media`, `/guestbook`, `/certifications`,
+  `/resume`, `/sponsor`, `/spotify`, `/privacy`, `/cookies`, `/licenses` and a 404. Any failure fails
+  the test, with each rule's id, impact, help and the failing nodes' HTML. Best-practice violations
+  are listed in an annotation and an attachment and never fail it. The detail pages are found from
+  the listing pages (`/projects`, `/media`, `/experience`, `/places`), not hard-coded ids.
+- **Keyboard**: the skip link is the first Tab stop and moves focus to main; Control+K opens the
+  command menu as a named modal dialog that keeps Tab and Shift+Tab inside and hands focus back on
+  Escape; the rail tooltip stays shown while the pointer moves onto it, and Escape hides it with
+  focus kept; a zoomed place photo pans with the arrow keys and Previous keeps focus at the first
+  photo; the `/stats` age stops on Pause and holds still under reduced motion.
+
+It has its own config, `playwright.a11y.config.ts`, and never starts a server. Point it at a local
+production build:
+
+```bash
+bun run build
+bunx next start -p 3162 &
+A11Y_BASE_URL=http://127.0.0.1:3162 bun run test:a11y
+```
+
+Without `A11Y_BASE_URL` the config throws instead of falling back to anything, and it refuses port
+3000 (the dev server) and the production domain. Every context reads only: requests other than GET
+and HEAD, and any for the production site, are aborted. The main config ignores
+`e2e/accessibility`, so `bunx playwright test` and `bun run e2e:ci` never run it. Reports go to
+`playwright/a11y/`.
+
+Google Maps only renders its controls on the production domain, so on a local build axe checks the
+`/places` map without its zoom buttons and other controls; those are not covered here.
+
+Component-level axe checks run in the Vitest job too (`tests/unit/a11y/`, through
+`tests/utils/axe.ts`), with the rules jsdom cannot evaluate (colour contrast, target size and others
+that need layout) left to this spec.
 
 ### Performance (`e2e/performance/`)
 
@@ -260,7 +289,6 @@ bun run e2e:ui
 bun run test:e2e -- e2e/journeys/navigation.spec.ts
 
 # Run specific category
-bun run test:e2e -- e2e/accessibility/
 bun run test:e2e -- e2e/performance/
 bun run test:e2e -- e2e/seo/
 
