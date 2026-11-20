@@ -14,21 +14,19 @@
  * limitations under the License.
  */
 
-import MillionLint from '@million/lint';
-import withBundleAnalyzer from '@next/bundle-analyzer';
-import { withSentryConfig } from '@sentry/nextjs/config';
-import type { NextConfig } from 'next';
-import './src/env';
-
 // Just in case you accidentally import these packages
 // next.config.ts (top-level, before config)
 import fs from 'node:fs';
 import path from 'node:path';
-import { REMOTE_IMAGE_PATTERNS } from './src/config/image-sources';
+import MillionLint from '@million/lint';
+import withBundleAnalyzer from '@next/bundle-analyzer';
+import { withSentryConfig } from '@sentry/nextjs/config';
+import type { NextConfig } from 'next';
 import {
   RETIRED_SERVICE_WORKER_HEADERS,
   RETIRED_SERVICE_WORKER_SOURCE,
 } from './src/config/retired-service-worker';
+import { SANITY_CAPTIONS_HEADERS, sanityCaptionsRewrite } from './src/config/sanity-files';
 import {
   API_SECURITY_HEADERS,
   API_SECURITY_HEADERS_SOURCE,
@@ -38,6 +36,7 @@ import {
   SECURITY_HEADERS_SOURCE,
 } from './src/config/security-headers';
 import { buildSentryBuildOptions, shouldApplySentryConfig } from './src/config/sentry-build';
+import { env } from './src/env';
 
 function safeReadJSON(p: string) {
   try {
@@ -144,6 +143,13 @@ function computeExemptDeps(): Set<string> {
 // Build the dynamic EXEMPT_DEPS set once at config load:
 const EXEMPT_DEPS: Set<string> = computeExemptDeps();
 
+// Caption files for <track>, same-origin. Pinned to this site's Sanity project and dataset and to
+// .vtt assets; undefined (no rewrite, so the path 404s) if either value is missing or malformed.
+const SANITY_CAPTIONS_REWRITE = sanityCaptionsRewrite(
+  env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+  env.NEXT_PUBLIC_SANITY_DATASET,
+);
+
 const config: NextConfig = {
   reactStrictMode: true,
   pageExtensions: ['ts', 'tsx'],
@@ -157,7 +163,13 @@ const config: NextConfig = {
   },
 
   images: {
-    remotePatterns: [...REMOTE_IMAGE_PATTERNS],
+    // No page uses the /_next/image optimizer: CdnImage (the only next/image importer) either sizes
+    // at the CDN through its own loader or renders unoptimized. Empty patterns make the optimizer
+    // refuse every remote URL and every local path except static imports, so it cannot relay other
+    // hosts' images. `unoptimized: true` is not used because it also drops CdnImage's loader srcset.
+    // The CSP img-src allowlist (src/config/image-sources.ts) is separate and unchanged.
+    remotePatterns: [],
+    localPatterns: [],
     // Widths for images drawn at a fixed size (`sizes="96px"`), below the smallest deviceSizes
     // entry (640): without 48-256, the home avatar (96px) and place thumbnail (72px) fetched 640w.
     imageSizes: [16, 20, 24, 32, 40, 48, 64, 96, 128, 256],
@@ -217,10 +229,7 @@ const config: NextConfig = {
       { source: '/api/healthz', destination: '/api/health' },
       { source: '/health', destination: '/api/health' },
       { source: '/ping', destination: '/api/health' },
-      {
-        source: '/assets/sanity-files/:path*',
-        destination: 'https://cdn.sanity.io/files/:path*',
-      },
+      ...(SANITY_CAPTIONS_REWRITE ? [{ ...SANITY_CAPTIONS_REWRITE }] : []),
     ];
   },
 
@@ -291,6 +300,10 @@ const config: NextConfig = {
         source: '/(.*).png',
         headers: [{ key: 'Content-Type', value: 'image/png' }],
       },
+      // Caption files from the rewrite above: served as WebVTT and inert if opened as a page.
+      ...(SANITY_CAPTIONS_REWRITE
+        ? [{ source: SANITY_CAPTIONS_REWRITE.source, headers: [...SANITY_CAPTIONS_HEADERS] }]
+        : []),
       // The script that retires the service worker older builds registered (public/sw.js). Kept
       // last so nothing above can override its Cache-Control.
       {

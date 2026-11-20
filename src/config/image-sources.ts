@@ -16,7 +16,10 @@
 
 import { HASHNODE_COVER_PATTERNS } from './blog-images';
 
-/** Existing image allowlist, shared by Next configuration and direct-delivery CSP. */
+/**
+ * Hosts the browser may load images from directly, for the CSP img-src list. Not passed to the
+ * /_next/image optimizer: next.config.ts gives it no remote patterns, so it relays no host.
+ */
 export const REMOTE_IMAGE_PATTERNS = [
   { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
   { protocol: 'https', hostname: 'mikeodnis.dev' },
