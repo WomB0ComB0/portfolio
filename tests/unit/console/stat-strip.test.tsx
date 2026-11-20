@@ -37,6 +37,7 @@ import {
   numberFormatter,
   presentValue,
   StatStrip,
+  StatStripAction,
   type StatStripItem,
 } from '@/components/console/stat-strip';
 
@@ -314,6 +315,111 @@ describe('StatStrip sized by the page container', () => {
     expect(classOf(list?.firstElementChild)).toEqual(
       expect.arrayContaining(['min-w-0', 'first:border-l-0', 'first:pl-0', 'md:px-6']),
     );
+  });
+});
+
+// The live age's Pause toggle sat on the figure's line and, on a phone, wrapped under the digits:
+// the age's label dropped a line below its neighbours' (measured in Chromium at 390 to 600 px).
+// Kept on that line it would widen the age past what a 320 px strip has room for. So an action
+// goes on the label's row, in a cell of its own, and the figure's line never changes.
+describe('StatStrip item with an action', () => {
+  const classOf = (element: Element | null | undefined): string[] =>
+    (element?.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+
+  const ACTION = (
+    <StatStripAction className="motion-reduce:hidden">
+      <button type="button">Pause</button>
+    </StatStripAction>
+  );
+
+  function renderWithAction(age: Partial<StatStripItem> = {}): HTMLElement {
+    const { container } = render(
+      <StatStrip
+        sizing="container"
+        aria-label="At a glance"
+        items={[
+          {
+            label: 'years old',
+            value: 22,
+            figure: <span data-live="">22.65753424</span>,
+            action: ACTION,
+            ...age,
+          },
+          { label: 'commits', value: 1234 },
+        ]}
+      />,
+    );
+    const list = container.querySelector('dl');
+    if (!list) throw new Error('no dl rendered');
+    return list;
+  }
+
+  it('sets the action in a dd of its own after the figure’s, so the list stays valid', () => {
+    const [group] = Array.from(renderWithAction().children);
+    const [label, value, action] = Array.from(group?.children ?? []);
+
+    expect(Array.from(group?.children ?? [], (child) => child.tagName)).toEqual(['DT', 'DD', 'DD']);
+    expect(label).toHaveTextContent('years old');
+    expect(value?.querySelector('[data-live]')).not.toBeNull();
+    expect(value?.querySelector('button')).toBeNull();
+    expect(within(action as HTMLElement).getByRole('button', { name: 'Pause' })).toBeVisible();
+  });
+
+  it('lays the figure across the item and the label and action side by side under it', () => {
+    const [group] = Array.from(renderWithAction().children);
+    const [label, value, action] = Array.from(group?.children ?? []);
+
+    // Two content-sized columns (a flexible one would leave the figure out of the item's floor),
+    // packed at the top, as the column is, when the row is taller than the item.
+    expect(classOf(group)).toEqual(
+      expect.arrayContaining(['grid', 'grid-cols-[auto_auto]', 'content-start', 'gap-x-2']),
+    );
+    expect(classOf(group)).not.toContain('flex');
+    // Still an equal part of the row, never narrower than its figure, with its divider.
+    expect(classOf(group)).toEqual(
+      expect.arrayContaining(['flex-[1_1_0]', 'min-w-min', 'border-l']),
+    );
+    expect(classOf(value)).toEqual(expect.arrayContaining(['col-span-2', 'row-start-1']));
+    expect(classOf(label)).toEqual(expect.arrayContaining(['col-start-1', 'row-start-2']));
+    // The action ends the label's row, one label line tall (whatever it holds is centred on that
+    // line), so the label sits where it does in an item without one.
+    expect(classOf(action)).toEqual(
+      expect.arrayContaining([
+        'col-start-2',
+        'row-start-2',
+        'justify-self-end',
+        'self-start',
+        'figure-unit',
+        'h-lh',
+        'flex',
+        'items-center',
+      ]),
+    );
+  });
+
+  it('keeps the classes the action is given on its cell, so the cell hides with its control', () => {
+    const [group] = Array.from(renderWithAction().children);
+
+    expect(group?.lastElementChild).toHaveClass('motion-reduce:hidden', 'col-start-2');
+  });
+
+  it('leaves an item without an action as it was', () => {
+    const [, other] = Array.from(renderWithAction().children);
+
+    expect(Array.from(other?.children ?? [], (child) => child.tagName)).toEqual(['DT', 'DD']);
+    expect(classOf(other)).toEqual(expect.arrayContaining(['flex', 'flex-col', 'gap-1']));
+    expect(classOf(other)).not.toContain('grid');
+  });
+
+  it.each([
+    ['a missing value', { value: null }],
+    ['a figure still loading', { loading: true }],
+  ])('shows no action for %s, which shows no figure to act on', (_case, age) => {
+    const [group] = Array.from(renderWithAction(age).children);
+
+    expect(group?.querySelector('button')).toBeNull();
+    expect(group?.querySelectorAll('dd')).toHaveLength(1);
+    expect(classOf(group)).toEqual(expect.arrayContaining(['flex', 'flex-col']));
   });
 });
 

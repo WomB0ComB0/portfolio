@@ -318,15 +318,16 @@ describe('place photo viewer', () => {
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
   });
 
+  // A button at an end is aria-disabled rather than disabled, so it keeps keyboard focus.
   it('provides bounded previous/next navigation alongside the thumbnail strip', async () => {
     await renderPage(photographedPlace._id);
     const previous = screen.getByRole('button', { name: 'Previous photo' });
     const next = screen.getByRole('button', { name: 'Next photo' });
-    expect(previous).toBeDisabled();
-    expect(next).toBeEnabled();
+    expect(previous).toHaveAttribute('aria-disabled', 'true');
+    expect(next).not.toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(next);
     expect(screen.getByText('Photo 2 of 2')).toBeInTheDocument();
-    expect(next).toBeDisabled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(previous);
     expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
   });
@@ -337,19 +338,19 @@ describe('place photo viewer', () => {
     const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
 
     expect(screen.getByText('100%')).toBeInTheDocument();
-    expect(zoomOut).toBeDisabled();
+    expect(zoomOut).toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.click(zoomIn);
     expect(screen.getByText('120%')).toBeInTheDocument();
-    expect(zoomOut).toBeEnabled();
+    expect(zoomOut).not.toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.click(zoomOut);
     expect(screen.getByText('100%')).toBeInTheDocument();
-    expect(zoomOut).toBeDisabled();
+    expect(zoomOut).toHaveAttribute('aria-disabled', 'true');
 
     for (let step = 0; step < 15; step += 1) fireEvent.click(zoomIn);
     expect(screen.getByText('300%')).toBeInTheDocument();
-    expect(zoomIn).toBeDisabled();
+    expect(zoomIn).toHaveAttribute('aria-disabled', 'true');
   });
 });
 

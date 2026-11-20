@@ -26,11 +26,19 @@
  *   mismatch to suppress. The clock starts after mount.
  * - Each tick writes through refs, and only text that changed: React never renders again. (The
  *   first site set state every 10 ms, a hundred renders a second.)
- * - A tick is an animation frame, a tenth of a second after the last (a second under reduced
- *   motion), so a write lands with a paint and an idle page is not woken every frame. The eighth
- *   decimal steps every 315.36 ms (316.224 ms in a 366-day year), so about every third tick
- *   writes, each step lands within a tenth of a second of happening, and none is skipped. A
- *   hidden tab stops the clock, and it catches up the moment the tab shows again.
+ * - A tick is an animation frame, a tenth of a second after the last, so a write lands with a
+ *   paint and an idle page is not woken every frame. The eighth decimal steps every 315.36 ms
+ *   (316.224 ms in a 366-day year), so about every third tick writes, each step lands within a
+ *   tenth of a second of happening, and none is skipped. A hidden tab stops the clock, and it
+ *   catches up the moment the tab shows again.
+ * - Moving content must be stoppable (WCAG 2.2.2). A Pause toggle (LiveAgePause, aria-pressed)
+ *   stops the clock where it is; pressed again, the age catches up at once and ticks on. It sits
+ *   at the end of the strip's label row, under the digits, in a cell of its own, so the figure's
+ *   line never holds it; the two share their state through LiveAgeProvider, which holds the moment
+ *   the age was paused, so a figure mounted while paused (the loaded strip replacing its skeleton
+ *   on /stats) shows the same digits. Under reduced motion the age holds still: shown once as of
+ *   mount (and when the tab shows again), never ticking, and the toggle, with nothing to pause, is
+ *   hidden. The setting is followed live.
  * - The digits on screen are hidden from screen readers and never live. A twin gives the whole
  *   years, which the strip's label completes ('years old, 22'), and changes once a year.
  * - Tabular figures in a box held at the figure's width by an unseen '00.00000000' (a zero for
@@ -42,8 +50,19 @@
  * smaller (FRACTION_SIZE_CLASS), so the strip keeps its three items on one row.
  */
 
-import { type ReactElement, useEffect, useRef } from 'react';
+import {
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { FiPause } from 'react-icons/fi';
 
+import { StatStripAction } from '@/components/console/stat-strip';
 import { AGE_DECIMALS, exactAgeParts } from '@/constants/age';
 import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
@@ -53,9 +72,6 @@ import { cn } from '@/lib/utils';
  * of a second late.
  */
 export const TICK_MS = 100;
-
-/** Once a second when the visitor asked for less motion. */
-export const REDUCED_TICK_MS = 1_000;
 
 /**
  * The decimals' size on a narrow page. At the strip's figure size the age is about 180 px wide, and
@@ -68,9 +84,79 @@ export const REDUCED_TICK_MS = 1_000;
 const FRACTION_SIZE_CLASS =
   '@max-[25rem]/page:text-[length:1.125rem] @max-[22rem]/page:text-[length:0.75rem]';
 
+/**
+ * The Pause toggle: a key cap in Geist Mono (mono-token), 24 px tall to meet the target size,
+ * centred on the label's 20 px line by its cell (StatStripAction), which it overhangs evenly.
+ */
+const PAUSE_CLASS =
+  'inline-flex h-6 items-center gap-1 rounded-md border px-1.5 mono-token transition-colors duration-(--motion-fast) ease-standard';
+
+/**
+ * The toggle's cell is hidden with it: under reduced motion, where the age never ticks, and without
+ * scripting, where it never starts. Hiding the cell, not only the button, leaves no empty dd.
+ */
+const PAUSE_CELL_CLASS = 'motion-reduce:hidden [@media(scripting:none)]:hidden';
+
+/** Running: a hairline key cap in the muted tier, firming up under the pointer. */
+const PAUSE_IDLE_CLASS =
+  'border-hairline text-muted-foreground hover:border-hairline-strong hover:text-foreground';
+
+/**
+ * Pressed (paused): pushed in, on the raised surface with the strong hairline, in the foreground
+ * tier, and its bars drawn solid rather than outlined: a change of shape, not only of colour.
+ */
+const PAUSE_PRESSED_CLASS = 'border-hairline-strong bg-surface-3 text-foreground';
+
+/**
+ * The word, on screen from 25rem. The toggle shares the label's row with 'years old', inside the
+ * age's column, which is the digits' width. Under 25rem the digits shrink (FRACTION_SIZE_CLASS) to
+ * about 123 px, too narrow for the label and the word (measured in Chromium), so only the icon
+ * shows there; under 22rem (about 91 px) the label wraps beside it, as its neighbours' labels do at
+ * that width. The name keeps the word.
+ */
+const PAUSE_WORD_CLASS = '@max-[25rem]/page:sr-only';
+
+/** The toggle's accessible name: the word shown, and what it pauses. */
+const PAUSE_LABEL = 'Pause age counter';
+
 /** Writes `text` into `node` only when it differs, so a tick that changes nothing touches nothing. */
 function writeText(node: HTMLElement | null, text: string): void {
   if (node && node.textContent !== text) node.textContent = text;
+}
+
+/**
+ * What the figure and its toggle share: when the age was paused (epoch ms; null while it runs), and
+ * the toggle's press.
+ */
+interface PauseState {
+  readonly pausedAt: number | null;
+  readonly togglePaused: () => void;
+}
+
+const PauseContext = createContext<PauseState | null>(null);
+
+export interface LiveAgeProviderProps {
+  readonly children: ReactNode;
+}
+
+/**
+ * Holds the Pause state LiveAge (the figure) and LiveAgePause (its toggle) share. The strip sets
+ * them in different cells, the figure on its own line and the toggle on the label's row, so the
+ * state sits around the strip: on /stats around the strip's slot, outside the Suspense boundary in
+ * which the loaded strip replaces its skeleton, so a pause made on the skeleton holds.
+ *
+ * @example
+ * <LiveAgeProvider>
+ *   <StatStrip items={stripItems(data, now, <LiveAge at={at} />, <LiveAgePause />)} />
+ * </LiveAgeProvider>
+ */
+export function LiveAgeProvider({ children }: LiveAgeProviderProps): ReactElement {
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const state = useMemo<PauseState>(
+    () => ({ pausedAt, togglePaused: () => setPausedAt(pausedAt === null ? Date.now() : null) }),
+    [pausedAt],
+  );
+  return <PauseContext.Provider value={state}>{children}</PauseContext.Provider>;
 }
 
 export interface LiveAgeProps {
@@ -80,33 +166,42 @@ export interface LiveAgeProps {
 }
 
 /**
- * The owner's age to AGE_DECIMALS (eight) places, kept current while the page is visible. Renders
- * nothing for an invalid `at`.
+ * The owner's age to AGE_DECIMALS (eight) places, kept current while the page is visible and not
+ * paused (by LiveAgePause, through a LiveAgeProvider; outside one it never pauses); still under
+ * reduced motion. Renders nothing for an invalid `at`.
  *
  * @example
  * <LiveAge at={now} />
  */
 export function LiveAge({ at, className }: LiveAgeProps): ReactElement | null {
+  const pausedAt = useContext(PauseContext)?.pausedAt ?? null;
   const spokenRef = useRef<HTMLSpanElement>(null);
   const wholeRef = useRef<HTMLSpanElement>(null);
   const fractionRef = useRef<HTMLSpanElement>(null);
   const initial = exactAgeParts(new Date(at));
 
   useEffect(() => {
+    /** Writes the age at `moment` (the browser's now by default) into the digits and their twin. */
+    const show = (moment = new Date()): void => {
+      const parts = exactAgeParts(moment);
+      if (!parts) return;
+      writeText(spokenRef.current, parts.whole);
+      writeText(wholeRef.current, parts.whole);
+      writeText(fractionRef.current, parts.fraction);
+    };
+
+    // Paused, the digits show the age at the moment of the pause, and nothing ticks. React renders
+    // them only from `at`, so this also covers a figure mounted while paused.
+    if (pausedAt !== null) {
+      show(new Date(pausedAt));
+      return;
+    }
     const reducedMotion =
       typeof globalThis.matchMedia === 'function'
         ? globalThis.matchMedia(REDUCED_MOTION_QUERY)
         : null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let frame: number | undefined;
-
-    const show = (): void => {
-      const parts = exactAgeParts(new Date());
-      if (!parts) return;
-      writeText(spokenRef.current, parts.whole);
-      writeText(wholeRef.current, parts.whole);
-      writeText(fractionRef.current, parts.fraction);
-    };
 
     const stop = (): void => {
       if (timer !== undefined) clearTimeout(timer);
@@ -115,19 +210,17 @@ export function LiveAge({ at, className }: LiveAgeProps): ReactElement | null {
       frame = undefined;
     };
 
-    // The preference is read at every tick, so changing it takes effect within a second.
+    // Under reduced motion the age holds still: start shows it, and nothing ticks after.
     const schedule = (): void => {
-      timer = setTimeout(
-        () => {
-          timer = undefined;
-          frame = requestAnimationFrame(() => {
-            frame = undefined;
-            show();
-            schedule();
-          });
-        },
-        reducedMotion?.matches ? REDUCED_TICK_MS : TICK_MS,
-      );
+      if (reducedMotion?.matches) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        frame = requestAnimationFrame(() => {
+          frame = undefined;
+          show();
+          schedule();
+        });
+      }, TICK_MS);
     };
 
     const start = (): void => {
@@ -144,11 +237,14 @@ export function LiveAge({ at, className }: LiveAgeProps): ReactElement | null {
 
     start();
     document.addEventListener('visibilitychange', onVisibilityChange);
+    // A change of the setting mid-visit restarts the clock: still from now on, or ticking again.
+    reducedMotion?.addEventListener('change', start);
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      reducedMotion?.removeEventListener('change', start);
       stop();
     };
-  }, []);
+  }, [pausedAt]);
 
   if (!initial) return null;
 
@@ -175,5 +271,37 @@ export function LiveAge({ at, className }: LiveAgeProps): ReactElement | null {
         </span>
       </span>
     </span>
+  );
+}
+
+/**
+ * The age's Pause toggle, in its strip cell (StatStripAction, the age item's action): pressed, the
+ * figure stops where it is; pressed again, it catches up at once and ticks on. Renders inside a
+ * LiveAgeProvider, with the LiveAge it pauses, and throws outside one.
+ *
+ * @example
+ * <LiveAgePause />
+ */
+export function LiveAgePause(): ReactElement {
+  const state = useContext(PauseContext);
+  if (!state) throw new Error('LiveAgePause renders inside <LiveAgeProvider>, with its LiveAge');
+  const { pausedAt, togglePaused } = state;
+  const paused = pausedAt !== null;
+
+  return (
+    <StatStripAction className={PAUSE_CELL_CLASS}>
+      {/* The name starts with the word shown, so a voice user saying "Pause" reaches it; it stays
+          the same when pressed, as a toggle's must, and aria-pressed says it is paused. */}
+      <button
+        type="button"
+        aria-label={PAUSE_LABEL}
+        aria-pressed={paused}
+        onClick={togglePaused}
+        className={cn(PAUSE_CLASS, paused ? PAUSE_PRESSED_CLASS : PAUSE_IDLE_CLASS)}
+      >
+        <FiPause aria-hidden="true" className="size-3" fill={paused ? 'currentColor' : 'none'} />
+        <span className={PAUSE_WORD_CLASS}>Pause</span>
+      </button>
+    </StatStripAction>
   );
 }

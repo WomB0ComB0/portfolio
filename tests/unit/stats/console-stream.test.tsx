@@ -265,6 +265,25 @@ describe('/stats: each part lands where its skeleton stood', () => {
     expect(strip(loaded)?.hasAttribute('aria-busy')).toBe(false);
   });
 
+  // On a phone the toggle wrapped under the digits, beside them, and pushed the age's label a line
+  // below its neighbours'. It has a cell of its own on the label's row instead.
+  it('gives the age its Pause toggle in a cell of its own, after the figure, in either strip', async () => {
+    const first = firstFlush(consoleOf(sourcesOf(consoleFixture(), ALL_HUNG)));
+    const loaded = await streamed(consoleOf(sourcesOf(consoleFixture())));
+
+    for (const root of [first, loaded]) {
+      const age = strip(root)?.firstElementChild;
+      const [label, figure, cell] = Array.from(age?.children ?? []);
+      expect(textOf(label)).toBe('years old');
+      expect(figure?.querySelector('[data-digits]')).not.toBeNull();
+      expect(figure?.querySelector('button')).toBeNull();
+      expect(cell?.tagName).toBe('DD');
+      const pause = cell?.querySelector('button');
+      expect(pause?.getAttribute('aria-label')).toBe('Pause age counter');
+      expect(pause?.getAttribute('aria-pressed')).toBe('false');
+    }
+  });
+
   it('keeps the Discord tile’s held room, and LeetCode’s split, while they load', () => {
     const first = firstFlush(consoleOf(sourcesOf(consoleFixture(), ALL_HUNG)));
 

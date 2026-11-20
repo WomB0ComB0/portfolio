@@ -30,14 +30,40 @@
 }
 
 .stage {
+  --stage-radius: 0.75rem;
+
   position: relative;
   isolation: isolate;
   width: 100%;
   height: clamp(20rem, 64svh, 46rem);
   overflow: hidden;
   border: 1px solid var(--hairline);
-  border-radius: 0.75rem;
+  border-radius: var(--stage-radius);
   background: var(--surface-1);
+}
+
+/*
+ * Zoomed, the photo is a pan surface and a Tab stop. The site's ring is drawn outside a box, and
+ * the surface is exactly the stage's padding box, which clips: none of it would show. An inset
+ * outline on the surface is no better, as the zoomed photo (transformed, a layer of its own)
+ * paints over it. So a layer above the photo draws the ring inside the edge: the focus colour over
+ * a canvas line, which keeps 3:1 on any photo. The outline (unlike the shadow) stays in forced
+ * colours; the corners follow the stage's rounded clip, inside its hairline.
+ */
+.pan-surface:focus-visible {
+  outline: none;
+}
+
+.pan-surface:focus-visible::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: calc(var(--stage-radius) - 1px);
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 4px var(--canvas);
+  content: "";
+  pointer-events: none;
 }
 
 .controls {
@@ -63,6 +89,21 @@
   width: 2.5rem;
   height: 2.5rem;
   color: var(--muted-foreground);
+}
+
+/*
+ * A button at an end or a zoom limit is aria-disabled (it keeps focus) rather than disabled, which
+ * also turned pointer events off: keep it looking as a disabled one did, with no hover fill. Button
+ * fades an aria-disabled button whole, focus ring included (3.01:1), and this one keeps focus: the
+ * button stays opaque and only its icon, all it shows, fades.
+ */
+.buttons button[aria-disabled="true"] {
+  background-color: transparent;
+  opacity: 1;
+}
+
+.buttons button[aria-disabled="true"] > svg {
+  opacity: 0.5;
 }
 
 .caption {
@@ -127,5 +168,10 @@
 @media (forced-colors: active) {
   .stage {
     border-color: CanvasText;
+  }
+
+  /* Highlight, as the gallery's current thumbnail: not read as the stage's edge thickened. */
+  .pan-surface:focus-visible::after {
+    outline-color: Highlight;
   }
 }

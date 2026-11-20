@@ -42,7 +42,7 @@ import {
 } from '../../_components/console/console-layout';
 import { DiscordTile, DiscordTileSkeleton } from '../../_components/console/discord-tile';
 import { GitHubHero, GitHubHeroSkeleton } from '../../_components/console/github-hero';
-import { LiveAge } from '../../_components/console/live-age';
+import { LiveAge, LiveAgePause, LiveAgeProvider } from '../../_components/console/live-age';
 import {
   RepositoryTable,
   RepositoryTableSkeleton,
@@ -94,6 +94,8 @@ interface PartOptions {
 /** The seven parts, each the one place its render and its skeleton are written. */
 function consoleParts({ accuracy, profileId, clock }: PartOptions) {
   return {
+    // The age's figure and its Pause toggle sit in different cells and share a provider, which
+    // ConsoleFrame sets around the strip's slot (both renders below go in it).
     strip: consolePart(
       ['totals', 'pageViews'],
       (data) => {
@@ -101,7 +103,7 @@ function consoleParts({ accuracy, profileId, clock }: PartOptions) {
         return (
           <StatStrip
             aria-label={STRIP_LABEL}
-            items={stripItems(data, new Date(now), <LiveAge at={now} />)}
+            items={stripItems(data, new Date(now), <LiveAge at={now} />, <LiveAgePause />)}
             sizing="container"
           />
         );
@@ -112,7 +114,7 @@ function consoleParts({ accuracy, profileId, clock }: PartOptions) {
         return (
           <StatStrip
             aria-label={STRIP_LABEL}
-            items={pendingStripItems(new Date(now), <LiveAge at={now} />)}
+            items={pendingStripItems(new Date(now), <LiveAge at={now} />, <LiveAgePause />)}
             sizing="container"
           />
         );
@@ -174,6 +176,10 @@ interface ConsoleFrameProps {
  * The header (its words need no source; the strip goes beside the title), then the tiles in
  * reading order (the hero, Discord, LeetCode, typing, coding time) and the repository table. The
  * one place the parts' order and the grid's tiers are written, for both ways of rendering.
+ *
+ * The strip's slot sits in the age's LiveAgeProvider, which holds its Pause. A streamed strip is a
+ * Suspense boundary there, its skeleton (age and Pause included) giving way to the loaded strip;
+ * with the provider outside the boundary, a pause made on the skeleton holds when the figures land.
  */
 function ConsoleFrame({
   strip,
@@ -190,7 +196,7 @@ function ConsoleFrame({
       eyebrow="Activity"
       title="Stats"
       description="What I'm building, practising and up to. Each source keeps its own clock."
-      stats={strip}
+      stats={<LiveAgeProvider>{strip}</LiveAgeProvider>}
       gutter={gutter}
       sizing="container"
     >
