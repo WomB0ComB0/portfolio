@@ -60,6 +60,7 @@ function NeighbourLink({ neighbour, side }: NeighbourLinkProps): ReactElement {
   return (
     <Link
       href={projectHref(neighbour.id)}
+      prefetch={false}
       className={`${styles.neighbour} ${styles[side]}`}
       data-case-neighbour={side}
     >

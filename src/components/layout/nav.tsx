@@ -316,6 +316,7 @@ const HomeRailLink = ({ item, path }: { readonly item: NavItem; readonly path: s
   return (
     <Link
       href={item.slug}
+      prefetch={false}
       className={cn(RAIL_ITEM, railItemState(isCurrent))}
       aria-label={item.name}
       aria-current={isCurrent ? 'page' : undefined}

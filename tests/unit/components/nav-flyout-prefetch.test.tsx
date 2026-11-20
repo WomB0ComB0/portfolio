@@ -22,6 +22,9 @@
  * still laid out beside the rail, so without the opt-out every desktop page view would
  * prefetch all thirteen routes. The links take the default again when their flyout opens, which
  * is when they used to mount.
+ *
+ * The rail's Home link shows on every page, so it opts out too: every route renders per request
+ * and has no loading.tsx, so its prefetch carried only the route tree and still ran a function.
  */
 
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -86,9 +89,9 @@ describe('NavBar flyout links and prefetching', () => {
     expect(prefetchOf('nav-flyout-developer')).toEqual(['false', 'false', 'false']);
   });
 
-  it('leaves the Home link, which always shows, on the default', () => {
+  it('opts the Home link, which shows on every page, out of prefetching', () => {
     renderRail();
 
-    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('data-prefetch', 'default');
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('data-prefetch', 'false');
   });
 });

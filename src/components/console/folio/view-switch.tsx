@@ -92,6 +92,7 @@ export function ViewSwitch<V extends string>({
         <Link
           key={value}
           href={href}
+          prefetch={false}
           data-view={value}
           className={LINK_CLASS}
           aria-current={value === current ? 'page' : undefined}

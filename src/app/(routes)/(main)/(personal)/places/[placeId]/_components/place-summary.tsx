@@ -53,6 +53,7 @@ export function PlaceSummary({
       actions={
         <Link
           href="/places"
+          prefetch={false}
           className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 tile-label text-muted-foreground no-underline shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-surface-1 hover:text-foreground"
         >
           <FiArrowLeft aria-hidden="true" />

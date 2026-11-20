@@ -171,6 +171,7 @@ interface MobileNavLinkProps {
 const MobileNavLink = ({ item, isCurrent, onNavigate }: MobileNavLinkProps) => (
   <Link
     href={item.slug}
+    prefetch={false}
     onClick={onNavigate}
     aria-current={isCurrent ? 'page' : undefined}
     className={cn(MENU_ITEM, isCurrent ? MENU_ITEM_CURRENT : MENU_ITEM_IDLE)}

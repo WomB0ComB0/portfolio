@@ -52,6 +52,7 @@ export function PlacesViewNav({ current }: PlacesViewNavProps): ReactElement {
         <Link
           key={view}
           href={schema.serialize(state)}
+          prefetch={false}
           className={styles.link}
           aria-current={view === current ? 'page' : undefined}
         >

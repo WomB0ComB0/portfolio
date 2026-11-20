@@ -167,6 +167,7 @@ function NoScreens(): ReactElement {
       Projects without images are in{' '}
       <Link
         href={viewHref(model.hrefFor({}), DEFAULT_PROJECT_VIEW, VIEW_OPTIONS)}
+        prefetch={false}
         className={EMPTY_LINK_CLASS}
       >
         the stories
