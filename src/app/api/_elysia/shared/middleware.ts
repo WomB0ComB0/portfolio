@@ -121,7 +121,7 @@ export const CachePresets = {
  * @returns {() => Record<string, string>} - Function returning a headers object for responses.
  * @example
  * const headers = createCacheHeaders('Short')();
- * // { "Content-Type": "application/json", "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" }
+ * // { "content-type": "application/json", "cache-control": "public, s-maxage=60, stale-while-revalidate=30" }
  * @see CachePresets
  */
 export function createCacheHeaders(config: CacheConfig | keyof typeof CachePresets = 'JsonOnly') {
@@ -130,12 +130,15 @@ export function createCacheHeaders(config: CacheConfig | keyof typeof CachePrese
   return () => {
     const headers: Record<string, string> = {};
 
+    // Lower-case keys, because Elysia looks for `set.headers['content-type']` before adding its own
+    // JSON content type. A 'Content-Type' key slips past that check, and both spellings end up in
+    // the response as "application/json, application/json".
     if (actualConfig.contentType) {
-      headers['Content-Type'] = actualConfig.contentType;
+      headers['content-type'] = actualConfig.contentType;
     }
 
     if (actualConfig.cacheControl) {
-      headers['Cache-Control'] = actualConfig.cacheControl;
+      headers['cache-control'] = actualConfig.cacheControl;
     }
 
     return headers;

@@ -72,7 +72,8 @@ describe('GET /api/status headers', () => {
     expect(res.status).toBe(200);
     // The route's own cache preset.
     expect(res.headers.get('cache-control')).toBe(CachePresets.Short.cacheControl);
-    expect(res.headers.get('content-type')).toContain('application/json');
+    // Exactly one value, not "application/json, application/json".
+    expect(res.headers.get('content-type')).toBe('application/json');
     // Set by the shared app before the handler runs.
     expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN);
     expect(res.headers.get('access-control-allow-credentials')).toBe('true');
