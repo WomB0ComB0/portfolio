@@ -223,6 +223,14 @@ describe('stripItems', () => {
     const items = stripItems({ totals: ERROR, pageViews: EMPTY }, NOW);
     expect(items.map((item) => item.value)).toEqual([22, null, null]);
   });
+
+  it('shows the age figure it is given in place of the whole years, which stay the value', () => {
+    const figure = '22.65753';
+    const [age, ...rest] = stripItems({ totals: ok(TOTALS), pageViews: ok(2615) }, NOW, figure);
+
+    expect(age).toEqual({ label: 'years old', value: 22, figure });
+    expect(rest.every((item) => !('figure' in item))).toBe(true);
+  });
 });
 
 describe('pendingStripItems', () => {
@@ -237,6 +245,14 @@ describe('pendingStripItems', () => {
     expect(pendingStripItems(NOW).map((item) => item.label)).toEqual(
       loaded.map((item) => item.label),
     );
+  });
+
+  it('shows the age figure it is given while the sourced figures load', () => {
+    const figure = '22.65753';
+    const [age, ...rest] = pendingStripItems(NOW, figure);
+
+    expect(age).toEqual({ label: 'years old', value: 22, figure });
+    expect(rest.every((item) => item.loading === true && !('figure' in item))).toBe(true);
   });
 });
 

@@ -23,6 +23,7 @@
  * idle, and neither is ever 0. Stale data keeps when it was read, so the tile can say how old it is.
  */
 
+import type { ReactNode } from 'react';
 import type { TypingTileData } from '@/app/_components/home/data/selectors';
 import type { LiveInitial, TileResult } from '@/app/_components/home/data/tile-result';
 import { joinMeta } from '@/app/_components/home/tiles/tile-states';
@@ -32,7 +33,7 @@ import type { LeetCodeStats } from '@/app/api/v1/[[...route]]/leetcode/handlers'
 import type { NowPlayingResponse } from '@/app/api/v1/[[...route]]/now-playing/handlers';
 import type { WakaTimeData } from '@/app/api/v1/[[...route]]/wakatime/handlers';
 import { numberFormatter, type StatStripItem } from '@/components/console';
-import { ageOn } from '@/constants/app';
+import { ageOn } from '@/constants/age';
 import type { GitHubActivity } from '@/lib/api-integrations/github-activity';
 
 /** Everything the console shows, each source settled on its own (never a throw). */
@@ -234,17 +235,27 @@ const AGE_LABEL = 'years old';
 const PAGE_VIEWS_LABEL = 'page views in 30 days';
 const FOLLOWERS_LABEL = 'GitHub followers';
 
+/** The age item: whole years as its value, and `figure` (LiveAge) shown in their place if given. */
+function ageItem(now: Date, figure?: ReactNode): StatStripItem {
+  const age: StatStripItem = { label: AGE_LABEL, value: ageOn(now) };
+  return figure === undefined ? age : { ...age, figure };
+}
+
 /**
  * The header strip: figures the tiles below don't repeat. Age (worked out now, in UTC, as the old
  * Dev Stats card did), page views over 30 days and GitHub followers. A source with nothing to
  * show gives null, which the strip prints as an em dash read as 'unavailable'.
+ *
+ * The age's value is whole years; `ageFigure` (the console passes LiveAge, the age to five
+ * decimals) is shown in its place.
  */
 export function stripItems(
   data: Pick<StatsConsoleData, 'totals' | 'pageViews'>,
   now: Date,
+  ageFigure?: ReactNode,
 ): StatStripItem[] {
   return [
-    { label: AGE_LABEL, value: ageOn(now) },
+    ageItem(now, ageFigure),
     { label: PAGE_VIEWS_LABEL, value: dataOf(data.pageViews) },
     { label: FOLLOWERS_LABEL, value: dataOf(data.totals)?.user.followers ?? null },
   ];
@@ -252,11 +263,12 @@ export function stripItems(
 
 /**
  * The header strip while its sources load: the same labels, the age (which needs no source) and a
- * placeholder for each figure still on its way, so the loaded strip takes exactly this room.
+ * placeholder for each figure still on its way, so the loaded strip takes exactly this room. The
+ * age takes `ageFigure` as in stripItems, so it is live from the first frame.
  */
-export function pendingStripItems(now: Date): StatStripItem[] {
+export function pendingStripItems(now: Date, ageFigure?: ReactNode): StatStripItem[] {
   return [
-    { label: AGE_LABEL, value: ageOn(now) },
+    ageItem(now, ageFigure),
     { label: PAGE_VIEWS_LABEL, value: null, loading: true },
     { label: FOLLOWERS_LABEL, value: null, loading: true },
   ];

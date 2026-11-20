@@ -54,7 +54,7 @@ import type {
   StatsConsoleSources,
 } from '@/app/(routes)/(dev)/stats/_lib/console-model';
 import StatsPage from '@/app/(routes)/(dev)/stats/page';
-import { ageOn } from '@/constants/app';
+import { ageOn, formatExactAge } from '@/constants/age';
 import { FIRST_FLUSH_WAIT_MS } from '@/lib/async/settled-within';
 import { classOf, consoleFixture, NOW, textOf, tileOf } from './console-fixture';
 
@@ -216,7 +216,10 @@ describe('/stats: the frame never waits on a slow source', () => {
     expect(textOf(root)).toContain('Each source keeps its own clock.');
     expect(strip(root)?.getAttribute('aria-busy')).toBe('true');
     expect(stripLabels(root)).toEqual(['years old', 'page views in 30 days', 'GitHub followers']);
-    expect(textOf(strip(root)?.querySelector('dd'))).toBe(String(ageOn(new Date(NOW))));
+    // The age needs no source: live to five decimals (LiveAge), the whole years for readers.
+    const age = strip(root)?.querySelector('dd');
+    expect(textOf(age?.querySelector('[data-digits]'))).toBe(formatExactAge(new Date(NOW)));
+    expect(textOf(age?.querySelector('.sr-only'))).toBe(String(ageOn(new Date(NOW))));
     expect(strip(root)?.querySelectorAll('[data-placeholder]')).toHaveLength(2);
     expect(
       Array.from(grid?.querySelectorAll('[data-stats-skeleton]') ?? [], (part) =>

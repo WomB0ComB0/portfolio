@@ -135,6 +135,12 @@ export interface StatStripItem {
    * screen readers hear as 'unavailable'.
    */
   value: number | string | null;
+  /**
+   * Shown in place of the formatted value: a client island that keeps its own text current (the
+   * live age on /stats). The unit and link still apply. A missing `value` still reads unavailable
+   * and the figure is not shown, so keep `value` the number the island stands for.
+   */
+  figure?: ReactNode;
   /** Shown right after the value, e.g. 'h' or '%'. */
   unit?: string;
   /** Makes the value a link (prefetch off). An empty or '#' href is ignored. */
@@ -163,7 +169,7 @@ export interface StatStripProps {
   'aria-label'?: string;
 }
 
-function StripValue({ label, value, unit, href, loading }: StatStripItem): ReactNode {
+function StripValue({ label, value, figure, unit, href, loading }: StatStripItem): ReactNode {
   if (loading) {
     // The placeholder item's figure bar, in the figure's own 28px line.
     return (
@@ -185,7 +191,7 @@ function StripValue({ label, value, unit, href, loading }: StatStripItem): React
 
   const text = (
     <>
-      {formatStatValue(shown)}
+      {figure ?? formatStatValue(shown)}
       {unit && <span className={UNIT_CLASS}>{unit}</span>}
     </>
   );
