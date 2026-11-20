@@ -131,6 +131,20 @@ and HEAD, and any for the production site, are aborted. The main config ignores
 `e2e/accessibility`, so `bunx playwright test` and `bun run e2e:ci` never run it. Reports go to
 `playwright/a11y/`.
 
+CI runs it too: `.github/workflows/a11y.yml` runs on pull requests to master that touch the site
+(`src/`, `public/`, this spec and its helpers, `next.config.ts`, `postcss.config.mjs`, the
+`instrumentation-*.ts` files, `tsconfig.json`, `.nvmrc`, `package.json` or `bun.lock`) and from the
+Actions tab. It builds for production with Sentry and Next.js telemetry off and serves the
+standalone output on `127.0.0.1:3100` inside the job. On a failure it prints the server log in a
+collapsed group in the job log, where GitHub masks secrets, and uploads only `playwright/a11y/` (the
+reports and results) for 7 days: the repository is public and artifacts are not masked. It skips
+pull requests from forks (no secrets) and is not a required check.
+
+The job passes only the secrets the Build workflow uses, so `/spotify`, the WakaTime figures on
+`/stats` and the `/places` map (which shows "Google Maps is not configured") are checked in their
+fallback states there, not with live data as in a local run. Its requests come from 127.0.0.1, which
+the API guard exempts, so overlapping runs never share a rate-limit key in production Redis.
+
 Google Maps only renders its controls on the production domain, so on a local build axe checks the
 `/places` map without its zoom buttons and other controls; those are not covered here.
 

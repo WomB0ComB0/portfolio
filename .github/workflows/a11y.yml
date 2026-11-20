@@ -1,0 +1,197 @@
+# Copyright 2026 Mike Odnis
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The accessibility e2e spec (e2e/accessibility/a11y.spec.ts, `bun run test:a11y`) against a
+# production build served inside this job on 127.0.0.1:3100: never the dev server's :3000 and never
+# the production site, which playwright.a11y.config.ts refuses anyway. Informational, not a
+# required check. See e2e/README.md, "Accessibility".
+name: Accessibility
+
+on:
+  pull_request:
+    branches: ["master"]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "e2e/accessibility/**"
+      # The spec's fixture, ledger.ts (its settle helper) and base.ts, which ledger.ts imports.
+      - "e2e/fixtures/a11y.ts"
+      - "e2e/fixtures/ledger.ts"
+      - "e2e/fixtures/base.ts"
+      - "tests/utils/axe*.ts"
+      - "playwright.a11y.config.ts"
+      # Root files that change the build: Next.js and PostCSS config (the CSS pipeline can change
+      # contrast), the instrumentation entry points, path aliases and the Node version from .nvmrc.
+      - "next.config.ts"
+      - "postcss.config.mjs"
+      - "instrumentation-*.ts"
+      - "tsconfig.json"
+      - ".nvmrc"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/a11y.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: a11y-${{ github.ref }}
+
+jobs:
+  a11y:
+    name: Accessibility (axe and keyboard)
+    # Pull requests from forks get no secrets, so the build could not pass src/env.ts.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # The build, then 54 tests (27 per project) on two workers, each allowed 90 s.
+    timeout-minutes: 60
+    env:
+      NODE_ENV: production
+      SERVER_HOST: 127.0.0.1
+      SERVER_PORT: "3100"
+      SERVER_ORIGIN: http://127.0.0.1:3100
+      # Outside playwright/a11y/ on purpose: the repository is public, and GitHub masks secrets in
+      # the job log but not inside artifacts, so the log is printed on failure, never uploaded.
+      SERVER_LOG: a11y-server.log
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.5"
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Install Chromium for Playwright
+        run: bunx playwright install --with-deps chromium
+
+      # The Build step's secrets from build.yml (src/env.ts validates them), with telemetry off for
+      # this local run: Sentry disabled, no Sentry auth token (so no release or source map upload),
+      # and no Next.js telemetry. Only the build and the server get them, through this anchor;
+      # GitHub supports anchors but not merge keys, so the server's host and port are set inline.
+      - name: Build
+        env: &app-env
+          CSRF_SECRET: ${{ secrets.CSRF_SECRET }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          BETTERSTACK_API_KEY: ${{ secrets.BETTERSTACK_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          # Server-only: the service account key must never be NEXT_PUBLIC_.
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_PRIVATE_KEY_ID: ${{ secrets.GCP_PRIVATE_KEY_ID }}
+          GCP_PRIVATE_KEY: ${{ secrets.GCP_PRIVATE_KEY }}
+          GCP_CLIENT_EMAIL: ${{ secrets.GCP_CLIENT_EMAIL }}
+          GCP_CLIENT_ID: ${{ secrets.GCP_CLIENT_ID }}
+          GCP_CLIENT_X509_CERT_URL: ${{ secrets.GCP_CLIENT_X509_CERT_URL }}
+          NEXT_PUBLIC_DISCORD_ID: ${{ secrets.NEXT_PUBLIC_DISCORD_ID }}
+          NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          # Server-only: never expose these as NEXT_PUBLIC_. The API guard exempts loopback clients
+          # (src/lib/security/api-guard.ts), so this job's requests from 127.0.0.1 never reach the
+          # production rate-limit or ban keys, however many runs overlap.
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_SANITY_PROJECT_ID }}
+          # Telemetry off. Empty is not "1", the only opt-in value, and VERCEL is unset here.
+          SENTRY_ENABLED: ""
+          NEXT_PUBLIC_SENTRY_ENABLED: ""
+          NEXT_TELEMETRY_DISABLED: "1"
+          # SSR self-fetches and the browser bundles use the job's own server.
+          NEXT_PUBLIC_SITE_URL: ${{ env.SERVER_ORIGIN }}
+        run: bun run build
+
+      # output: 'standalone' leaves the static assets and public/ out of .next/standalone.
+      - name: Stage the standalone server
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f .next/standalone/server.js ]]; then
+            echo "::error::.next/standalone/server.js is missing: is output: 'standalone' still set in next.config.ts?"
+            exit 1
+          fi
+          mkdir -p .next/standalone/.next/static .next/standalone/public
+          cp -R .next/static/. .next/standalone/.next/static/
+          cp -R public/. .next/standalone/public/
+
+      - name: Start the server and wait for /api/health
+        env: *app-env
+        shell: bash
+        run: |
+          set -euo pipefail
+          readonly HEALTH_TIMEOUT_SECONDS=120
+          readonly HEALTH_URL="$SERVER_ORIGIN/api/health"
+          mkdir -p "$(dirname "$SERVER_LOG")"
+          HOSTNAME="$SERVER_HOST" PORT="$SERVER_PORT" \
+            nohup node .next/standalone/server.js >"$SERVER_LOG" 2>&1 &
+          server_pid=$!
+
+          # The "Print the server log" step shows the log after any failure.
+          fail() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
+          until curl --silent --fail --max-time 5 --output /dev/null "$HEALTH_URL"; do
+            kill -0 "$server_pid" 2>/dev/null || fail "The server exited before $HEALTH_URL answered."
+            ((SECONDS < deadline)) || fail "$HEALTH_URL did not answer within ${HEALTH_TIMEOUT_SECONDS}s."
+            sleep 2
+          done
+          echo "The server answers at $HEALTH_URL."
+
+      - name: Run the accessibility spec
+        id: spec
+        env:
+          A11Y_BASE_URL: ${{ env.SERVER_ORIGIN }}
+        run: bun run test:a11y
+
+      # Into the job log, where GitHub masks the secrets, in a collapsed group. Workflow commands
+      # are paused while it prints, so no logged line can act as one.
+      - name: Print the server log
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f "$SERVER_LOG" ]]; then
+            echo "No server log: the job failed before the server started."
+            exit 0
+          fi
+          resume_token="$(uuidgen)"
+          echo "::group::Server log"
+          echo "::stop-commands::$resume_token"
+          cat "$SERVER_LOG"
+          printf '\n::%s::\n' "$resume_token"
+          echo "::endgroup::"
+
+      # The Playwright reports and results only; the server log stays in the job log above.
+      - name: Upload the reports
+        if: failure() && steps.spec.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: a11y-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright/a11y/
+          retention-days: 7
