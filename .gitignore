@@ -92,6 +92,7 @@ swe-worker-*.js
 /test-results
 /playwright/results
 /playwright/reports
+/playwright/a11y
 /playwright/.auth
 /playwright/screenshots
 

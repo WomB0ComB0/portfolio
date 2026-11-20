@@ -93,7 +93,17 @@ export const FEED_COLUMNS = [
   },
   // 7.5rem: a folded stream's total ("124 h 50 min") fits whole.
   { id: 'length', label: 'Length', align: 'end', priority: 2, width: 'w-[7.5rem]' },
-  { id: 'date', label: 'Date', align: 'end', priority: 1, width: 'w-[5rem]', sort: 'date' },
+  // The day ("Dec 29") wraps, as DATE_FULL does, rather than losing its number to an ellipsis
+  // when a reader widens letter and word spacing (WCAG 1.4.12).
+  {
+    id: 'date',
+    label: 'Date',
+    align: 'end',
+    priority: 1,
+    width: 'w-[5rem]',
+    sort: 'date',
+    wrap: true,
+  },
 ] as const satisfies readonly FeedColumn[];
 
 /**
