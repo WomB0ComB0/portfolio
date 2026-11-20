@@ -24,7 +24,10 @@ const background = vi.hoisted(() => ({ after: vi.fn() }));
 vi.mock('@/lib/link-health/runtime', () => runtime);
 vi.mock('next/server', () => background);
 
-import { linkHealthRoute } from '@/app/api/v1/[[...route]]/link-health';
+import {
+  LINK_HEALTH_CATALOG_CACHE_CONTROL,
+  linkHealthRoute,
+} from '@/app/api/v1/[[...route]]/link-health';
 
 const app = new Elysia().use(linkHealthRoute);
 const request = (query: string) => app.handle(new Request(`http://localhost/link-health?${query}`));
@@ -84,6 +87,27 @@ describe('GET /link-health', () => {
     });
     expect(runtime.readLinkHealthCatalog).toHaveBeenCalledExactlyOnceWith('projects');
     expect(background.after).not.toHaveBeenCalled();
+  });
+
+  it('lets the CDN keep a catalog for about 55 minutes, and browsers keep nothing', async () => {
+    const response = await app.handle(
+      new Request('http://localhost/link-health/catalog?scope=media'),
+    );
+    const cacheControl = response.headers.get('cache-control') ?? '';
+    expect(response.status).toBe(200);
+    expect(cacheControl).toBe(LINK_HEALTH_CATALOG_CACHE_CONTROL);
+    expect(cacheControl).toMatch(/^public,/);
+    expect(cacheControl).toContain('s-maxage=3300');
+    expect(cacheControl).toContain('max-age=0');
+  });
+
+  it('keeps a failed catalog (503) out of every cache', async () => {
+    runtime.readLinkHealthCatalog.mockRejectedValue(new Error('source failed'));
+    const response = await app.handle(
+      new Request('http://localhost/link-health/catalog?scope=media'),
+    );
+    expect(response.status).toBe(503);
+    expect(response.headers.get('cache-control')).toBe('no-store');
   });
 
   it('returns503 on a catalog failure instead of treating it as an empty allowlist', async () => {

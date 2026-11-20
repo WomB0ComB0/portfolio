@@ -17,7 +17,12 @@
 import { canWarnForLink } from '@/lib/link-health/public-warning';
 import type { LinkHealthEntry, LinkHealthResponse, LinkHealthScope } from '@/lib/link-health/types';
 
-const POLL_MS = 30_000;
+/**
+ * How often a visible tab asks again. The scheduled check rewrites the data once an hour, so the
+ * first read on a page load plus one every 15 minutes is plenty; a hidden tab asks nothing.
+ */
+export const LINK_HEALTH_POLL_MS = 15 * 60_000;
+const POLL_MS = LINK_HEALTH_POLL_MS;
 const REQUEST_MS = 5_000;
 const WARNING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SLACK_MS = 60_000;
@@ -80,7 +85,12 @@ export interface LinkHealthStore {
   subscribe(listener: () => void): () => void;
 }
 
-/** One request, deadline and refresh clock shared by every badge for this scope. No target URLs are sent. */
+/**
+ * One request, deadline and refresh clock shared by every badge for this scope. No target URLs are
+ * sent. The read uses the browser's default cache mode: `no-store` made browsers send
+ * `Cache-Control: no-cache`, which can ask the CDN to skip its copy. The answer's max-age=0
+ * already keeps browsers from holding it.
+ */
 export function createLinkHealthStore(
   scope: LinkHealthScope,
   fetcher: LinkHealthFetcher = (...args) => fetch(...args),
@@ -142,7 +152,6 @@ export function createLinkHealthStore(
         const response = await fetcher(`/api/v1/link-health?scope=${encodeURIComponent(scope)}`, {
           method: 'GET',
           credentials: 'omit',
-          cache: 'no-store',
           headers: { accept: 'application/json' },
           signal: controller.signal,
         });

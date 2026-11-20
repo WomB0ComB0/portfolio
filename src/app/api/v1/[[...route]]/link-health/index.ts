@@ -24,6 +24,13 @@ const scope = t.Union([
   t.Literal('experience'),
 ]);
 
+/**
+ * How long the CDN keeps a scope's catalog (the links the scheduled check probes): about 55
+ * minutes. The scheduled GitHub workflow reads every scope once an hour; with s-maxage=60 each of
+ * its reads ran the function. The catalog only changes when the content does.
+ */
+export const LINK_HEALTH_CATALOG_CACHE_CONTROL = 'public, max-age=0, s-maxage=3300';
+
 /** Fixed content collections only: this endpoint cannot check a supplied URL. */
 export const linkHealthRoute = new Elysia({ prefix: '/link-health' })
   .get(
@@ -31,7 +38,7 @@ export const linkHealthRoute = new Elysia({ prefix: '/link-health' })
     async ({ query, set }) => {
       try {
         const result = await readLinkHealthCatalog(query.scope);
-        set.headers['Cache-Control'] = 'public, max-age=0, s-maxage=60';
+        set.headers['Cache-Control'] = LINK_HEALTH_CATALOG_CACHE_CONTROL;
         return result;
       } catch {
         set.status = 503;

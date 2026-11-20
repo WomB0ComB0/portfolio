@@ -15,7 +15,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createLinkHealthStore } from '@/components/link-health/link-health-store';
+import {
+  createLinkHealthStore,
+  LINK_HEALTH_POLL_MS as POLL_MS,
+} from '@/components/link-health/link-health-store';
 
 const NOW = Date.UTC(2026, 10, 16, 12);
 const URL = 'https://example.com/demo';
@@ -58,10 +61,24 @@ describe('scope-shared link health client', () => {
       }),
     );
     expect(store.getSnapshot().links[URL]?.status).toBe('unavailable');
-    await vi.advanceTimersByTimeAsync(29_999);
+    await vi.advanceTimersByTimeAsync(POLL_MS - 1);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads once per page load, then at most every fifteen minutes', () => {
+    expect(POLL_MS).toBe(15 * 60_000);
+  });
+
+  it("uses the browser's default cache mode, so the request does not ask the CDN to skip its copy", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(answer());
+    const store = createLinkHealthStore('media', fetcher);
+    releases.push(store.subscribe(vi.fn()));
+    await flush();
+    const init = fetcher.mock.calls[0]?.[1];
+    expect(init).toBeDefined();
+    expect(init).not.toHaveProperty('cache');
   });
 
   it('keeps the initial request through StrictMode immediate resubscription without a new request', async () => {
@@ -83,7 +100,7 @@ describe('scope-shared link health client', () => {
     finish(answer());
     await flush();
     expect(store.getSnapshot().links[URL]?.status).toBe('unavailable');
-    await vi.advanceTimersByTimeAsync(29_999);
+    await vi.advanceTimersByTimeAsync(POLL_MS - 1);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
@@ -100,7 +117,7 @@ describe('scope-shared link health client', () => {
     visibility = 'hidden';
     document.dispatchEvent(new Event('visibilitychange'));
     expect(signal?.aborted).toBe(true);
-    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(2 * POLL_MS);
     expect(fetcher).toHaveBeenCalledTimes(1);
     visibility = 'visible';
     document.dispatchEvent(new Event('visibilitychange'));
@@ -114,15 +131,15 @@ describe('scope-shared link health client', () => {
     const b = store.subscribe(vi.fn());
     await flush();
     a();
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(fetcher).toHaveBeenCalledTimes(2);
     b();
-    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(2 * POLL_MS);
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('reuses recent data on remount without fetching more often than thirty seconds', async () => {
+  it('reuses recent data on remount without fetching more often than fifteen minutes', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(answer());
     const store = createLinkHealthStore('projects', fetcher);
     const release = store.subscribe(vi.fn());
@@ -132,7 +149,7 @@ describe('scope-shared link health client', () => {
     releases.push(store.subscribe(vi.fn()));
     expect(store.getSnapshot().links[URL]?.status).toBe('unavailable');
     expect(fetcher).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS - 10_000);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
@@ -145,9 +162,9 @@ describe('scope-shared link health client', () => {
     const store = createLinkHealthStore('projects', fetcher);
     releases.push(store.subscribe(vi.fn()));
     await flush();
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(store.getSnapshot().links[URL]?.status).toBe('unavailable');
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(store.getSnapshot().links[URL]?.status).toBe('reachable');
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
@@ -181,7 +198,7 @@ describe('scope-shared link health client', () => {
     releases.push(store.subscribe(vi.fn()));
     await vi.advanceTimersByTimeAsync(5000);
     expect(fetcher.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
-    await vi.advanceTimersByTimeAsync(25_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS - 5000);
     expect(store.getSnapshot().links[URL]?.status).toBe('reachable');
     finish(answer('unavailable'));
     await flush();
@@ -198,9 +215,9 @@ describe('scope-shared link health client', () => {
     releases.push(store.subscribe(vi.fn()));
     await flush();
     expect(store.getSnapshot().links).toEqual({});
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(store.getSnapshot().links).toEqual({});
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
     expect(store.getSnapshot().links[URL]?.status).toBe('unavailable');
   });
 });
