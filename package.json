@@ -120,7 +120,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.17",
-    "effect": "4.1.4",
+    "effect": "4.1.5",
     "elysia": "^1.4.30",
     "elysia-ip": "^2.0.0",
     "elysia-rate-limit": "4.6.3",
