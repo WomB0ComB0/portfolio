@@ -109,8 +109,9 @@ describe('displayNameOf', () => {
 });
 
 describe('thanksLine', () => {
-  it('says plainly when nobody sponsors right now', () => {
-    expect(thanksLine(0)).toBe('To everyone who has sponsored this work. None right now.');
+  it('says plainly when nobody sponsors right now, and leads into the past sponsors', () => {
+    expect(thanksLine(0)).toBe('No one sponsors right now. Past sponsors:');
+    expect(thanksLine(0)).not.toMatch(/None right now\.$/);
   });
 
   it('thanks current and past sponsors together otherwise', () => {

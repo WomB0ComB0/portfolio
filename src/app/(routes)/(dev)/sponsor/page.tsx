@@ -22,11 +22,14 @@ import { SponsorView } from './_components/sponsor-view';
 import { loadSponsors } from './_lib/load-sponsors';
 import { DEFAULT_SPONSOR_OPTIONS } from './_lib/options';
 
-/** The page's title, description and canonical path for search engines and shared links. */
+/**
+ * The page's title, description and canonical path for search engines and shared links. The
+ * description is true with or without a current sponsor: it promises the ways and the thanks.
+ */
 export const metadata = constructMetadata({
   title: 'Sponsor',
   description:
-    'Support my work through sponsorship. See my current sponsors and ways to contribute.',
+    'Ways to support my open-source work and educational content, with thanks to everyone who has sponsored it.',
   path: '/sponsor',
 });
 
