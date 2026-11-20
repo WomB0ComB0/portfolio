@@ -27,8 +27,23 @@ import type { ReactElement } from 'react';
 import { OG_IMAGE_SIZE } from './constants';
 import { loadOgFonts } from './fonts';
 
-/** `card` as a 1200x630 PNG response. Rejects when the faces cannot be read. */
-export async function renderOgCard(card: ReactElement): Promise<ImageResponse> {
+/** What a caller adds to the response: headers that replace ImageResponse's, such as Cache-Control. */
+export interface OgCardResponseInit {
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+/**
+ * `card` as a 1200x630 PNG response. Rejects when the faces cannot be read. Without `headers` it
+ * keeps ImageResponse's own Cache-Control, which the prerendered site cards leave to Next.
+ */
+export async function renderOgCard(
+  card: ReactElement,
+  { headers }: OgCardResponseInit = {},
+): Promise<ImageResponse> {
   const fonts = await loadOgFonts();
-  return new ImageResponse(card, { ...OG_IMAGE_SIZE, fonts: [...fonts] });
+  return new ImageResponse(card, {
+    ...OG_IMAGE_SIZE,
+    fonts: [...fonts],
+    ...(headers ? { headers: { ...headers } } : {}),
+  });
 }
