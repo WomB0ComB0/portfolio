@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import CdnImage from '@/components/ui/cdn-image';
 import { type PortfolioMediaItem, portfolioMediaOf } from '@/hooks/sanity/schemas';
 import { urlFor } from '@/lib/sanity/client';
@@ -32,8 +32,35 @@ function imageUrl(image: MediaImage | undefined, width?: number): string | undef
   }
 }
 
+/** A Sanity image asset id carries the original's size: `image-<hash>-<w>x<h>-<format>`. */
+const ASSET_SIZE = /^image-[A-Za-z0-9]+-(\d+)x(\d+)-[a-z0-9]+$/u;
+/** The shape a frame takes when its media has no readable size: 16:9. */
+const DEFAULT_SIZE = { width: 1280, height: 720 } as const;
+
+interface MediaSize {
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The poster's or photo's own size, from its asset id; 16:9 without one. */
+export function mediaSizeOf(image: MediaImage | undefined): MediaSize {
+  const match = ASSET_SIZE.exec(image?.asset._ref ?? '');
+  const width = Number(match?.[1] ?? 0);
+  const height = Number(match?.[2] ?? 0);
+  return width > 0 && height > 0 ? { width, height } : DEFAULT_SIZE;
+}
+
+/** The frame's shape as a CSS variable, set in the server HTML, so nothing moves on load. */
+const frameStyle = ({ width, height }: MediaSize): CSSProperties =>
+  ({ '--media-aspect': Math.round((width / height) * 10_000) / 10_000 }) as CSSProperties;
+
+/**
+ * Each frame takes its media's own shape, never taller than min(36rem, 75svh): a phone-shaped
+ * walkthrough narrows to that height instead of shrinking into a 16:9 box, and a wide one fills
+ * the column. Both sides come from the shape, so the box is sized before anything loads.
+ */
 const FRAME =
-  'relative block aspect-video w-full overflow-hidden rounded-lg border border-hairline bg-surface-1';
+  'relative block aspect-(--media-aspect) w-[min(100%,calc(min(36rem,75svh)*var(--media-aspect)))] overflow-hidden rounded-lg border border-hairline bg-surface-1';
 const LINK =
   'rounded-sm text-body-sm text-muted-foreground underline underline-offset-4 [overflow-wrap:anywhere] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus)';
 
@@ -63,6 +90,8 @@ function MediaFigure({ item }: { readonly item: PortfolioMediaItem }): ReactElem
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`${item.alt} — open full image (new tab)`}
+          data-media-frame=""
+          style={frameStyle(mediaSizeOf(item.image))}
           className={`${FRAME} focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus)`}
         >
           <Preview src={preview} alt={item.alt} />
@@ -77,6 +106,7 @@ function MediaFigure({ item }: { readonly item: PortfolioMediaItem }): ReactElem
   }
   const poster = imageUrl(item.poster, 1200);
   const file = item.file;
+  const size = mediaSizeOf(poster ? item.poster : undefined);
   return (
     <figure className="min-w-0 space-y-3">
       {file ? (
@@ -88,8 +118,10 @@ function MediaFigure({ item }: { readonly item: PortfolioMediaItem }): ReactElem
             playsInline
             preload="none"
             poster={poster}
-            width={1280}
-            height={720}
+            width={size.width}
+            height={size.height}
+            data-media-frame=""
+            style={frameStyle(size)}
             className={`${FRAME} h-auto object-contain`}
           >
             <source
@@ -130,7 +162,7 @@ function MediaFigure({ item }: { readonly item: PortfolioMediaItem }): ReactElem
           rel="noopener noreferrer"
         >
           {poster ? (
-            <span className={FRAME}>
+            <span data-media-frame="" style={frameStyle(size)} className={FRAME}>
               <Preview src={poster} alt="" />
             </span>
           ) : null}
