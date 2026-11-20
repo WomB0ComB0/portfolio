@@ -42,6 +42,7 @@ import {
 } from '../../_components/console/console-layout';
 import { DiscordTile, DiscordTileSkeleton } from '../../_components/console/discord-tile';
 import { GitHubHero, GitHubHeroSkeleton } from '../../_components/console/github-hero';
+import { LiveAge } from '../../_components/console/live-age';
 import {
   RepositoryTable,
   RepositoryTableSkeleton,
@@ -95,20 +96,27 @@ function consoleParts({ accuracy, profileId, clock }: PartOptions) {
   return {
     strip: consolePart(
       ['totals', 'pageViews'],
-      (data) => (
-        <StatStrip
-          aria-label={STRIP_LABEL}
-          items={stripItems(data, new Date(clock()))}
-          sizing="container"
-        />
-      ),
-      () => (
-        <StatStrip
-          aria-label={STRIP_LABEL}
-          items={pendingStripItems(new Date(clock()))}
-          sizing="container"
-        />
-      ),
+      (data) => {
+        const now = clock();
+        return (
+          <StatStrip
+            aria-label={STRIP_LABEL}
+            items={stripItems(data, new Date(now), <LiveAge at={now} />)}
+            sizing="container"
+          />
+        );
+      },
+      // The age needs no source, so it is live while the other figures are on their way.
+      () => {
+        const now = clock();
+        return (
+          <StatStrip
+            aria-label={STRIP_LABEL}
+            items={pendingStripItems(new Date(now), <LiveAge at={now} />)}
+            sizing="container"
+          />
+        );
+      },
     ),
     hero: consolePart(
       ['activity', 'totals'],
@@ -212,7 +220,8 @@ export interface StatsConsoleProps {
 
 /**
  * The full console from data already loaded: final server figures and isolated source failures,
- * with only Discord polling after hydration.
+ * with only Discord polling after hydration (the strip's age ticks on the browser's clock,
+ * LiveAge, and fetches nothing).
  */
 export function StatsConsole({
   data,

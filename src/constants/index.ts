@@ -14,5 +14,6 @@
  * limitations under the License.
  */
 
+export * from './age';
 export * from './app';
 export * from './client';

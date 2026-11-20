@@ -15,32 +15,6 @@
  */
 
 /**
- * Birth date, March 24, 2004, at midnight UTC. Fixed in UTC rather than parsed in local time so
- * a server (UTC) and a browser in any time zone roll the age over at the same instant.
- */
-const BIRTH_DATE = new Date(Date.UTC(2004, 2, 24));
-
-/**
- * Age in whole years on `date`, counted in UTC calendar days: it goes up at 00:00 UTC on March 24.
- *
- * Call it when rendering rather than storing the result at module load. A server process outlives
- * a birthday, and a value captured when it started would disagree with the browser's (a
- * hydration mismatch) until the next restart.
- *
- * @example
- *   ageOn(new Date('2026-03-23T23:59:59Z')); // 21
- *   ageOn(new Date('2026-03-24T00:00:00Z')); // 22
- */
-export const ageOn = (date: Date): number => {
-  const years = date.getUTCFullYear() - BIRTH_DATE.getUTCFullYear();
-  const month = date.getUTCMonth();
-  const birthMonth = BIRTH_DATE.getUTCMonth();
-  const hasHadBirthday =
-    month > birthMonth || (month === birthMonth && date.getUTCDate() >= BIRTH_DATE.getUTCDate());
-  return hasHadBirthday ? years : years - 1;
-};
-
-/**
  * @readonly
  * @const
  * @private

@@ -128,6 +128,25 @@ describe('StatStrip', () => {
     expect(within(list).queryByRole('link')).toBeNull();
   });
 
+  it('shows a figure node in place of the formatted value, with its unit', () => {
+    const list = renderStrip([
+      { label: 'years old', value: 22, figure: <span data-live="">22.65753</span>, unit: 'y' },
+    ]);
+    const figure = list.querySelector('dd');
+
+    expect(figure?.querySelector('[data-live]')?.textContent).toBe('22.65753');
+    expect(figure?.textContent).toBe('22.65753y');
+  });
+
+  it('reads a missing value as unavailable even with a figure node', () => {
+    const list = renderStrip([
+      { label: 'years old', value: null, figure: <span data-live="">22.65753</span> },
+    ]);
+
+    expect(list.querySelector('[data-live]')).toBeNull();
+    expect(within(list).getByText('unavailable')).toHaveClass('sr-only');
+  });
+
   it('links a value with prefetch off, named with its label', () => {
     renderStrip();
     const link = screen.getByRole('link', { name: '22 projects' });
