@@ -16,6 +16,13 @@
 
 import { Schema } from 'effect';
 import { topTracks as getTopTracks } from '@/lib/api-integrations/spotify';
+import { spotifyArtFor } from '@/lib/images/spotify-art';
+
+/**
+ * The art's slot: a top track's cover is drawn at 40 to 64 px wherever the site lists one, so
+ * Spotify's 300 px image is sharp on a 2x screen, at a fraction of its 640 px one.
+ */
+const TOP_TRACK_ART_PX = 64;
 
 const SpotifyArtistSchema = Schema.Struct({
   name: Schema.String,
@@ -23,6 +30,7 @@ const SpotifyArtistSchema = Schema.Struct({
 
 const SpotifyImageSchema = Schema.Struct({
   url: Schema.String,
+  width: Schema.optional(Schema.NullOr(Schema.Number)),
 });
 
 const SpotifyAlbumSchema = Schema.Struct({
@@ -67,7 +75,7 @@ export async function fetchTopTracks(): Promise<TopTrack[]> {
     name: track.name,
     artist: track.artists?.[0]?.name ?? 'Unknown Artist',
     url: track.external_urls?.spotify ?? '',
-    imageUrl: track.album.images?.[0]?.url ?? '',
+    imageUrl: spotifyArtFor(track.album.images, TOP_TRACK_ART_PX) ?? '',
   }));
 
   cache = { data: topTracks, timestamp: now };

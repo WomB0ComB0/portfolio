@@ -99,7 +99,15 @@ const PlayingTrackSchema = Schema.Struct({
   name: Schema.String,
   artists: Schema.Array(PlayingArtistSchema),
   album: Schema.optional(
-    Schema.Struct({ images: Schema.Array(Schema.Struct({ url: Schema.String })) }),
+    Schema.Struct({
+      // Each image's width is kept, so the art can be picked at the size it is drawn.
+      images: Schema.Array(
+        Schema.Struct({
+          url: Schema.String,
+          width: Schema.optional(Schema.NullOr(Schema.Number)),
+        }),
+      ),
+    }),
   ),
   external_urls: Schema.optional(ExternalUrlsSchema),
 });

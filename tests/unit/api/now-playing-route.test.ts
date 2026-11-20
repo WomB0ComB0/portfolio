@@ -144,6 +144,49 @@ describe('GET /now-playing', () => {
     });
   });
 
+  it("serves Spotify's 300 px album art, not its 640 px one, for slots of at most 112 px", async () => {
+    stubSpotify(() =>
+      json(200, {
+        is_playing: true,
+        item: {
+          name: 'Test Song',
+          artists: [{ name: 'First Artist', external_urls: {} }],
+          album: {
+            images: [
+              { url: 'https://i.scdn.co/image/art-640', width: 640, height: 640 },
+              { url: 'https://i.scdn.co/image/art-300', width: 300, height: 300 },
+              { url: 'https://i.scdn.co/image/art-64', width: 64, height: 64 },
+            ],
+          },
+          external_urls: {},
+        },
+      }),
+    );
+
+    const res = await getNowPlaying();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ imageURL: 'https://i.scdn.co/image/art-300' });
+  });
+
+  it("keeps album art only from Spotify's image CDN", async () => {
+    stubSpotify(() =>
+      json(200, {
+        is_playing: true,
+        item: {
+          name: 'Test Song',
+          artists: [{ name: 'First Artist', external_urls: {} }],
+          album: { images: [{ url: 'https://images.example.com/art.png', width: 300 }] },
+          external_urls: {},
+        },
+      }),
+    );
+
+    const res = await getNowPlaying();
+
+    expect(await res.json()).not.toHaveProperty('imageURL');
+  });
+
   it('leaves out links that are not Spotify pages', async () => {
     stubSpotify(() =>
       json(200, {
