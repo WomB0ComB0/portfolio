@@ -17,16 +17,19 @@
 /**
  * @file /sitemap.xml: every public page, then every project, experience and place page.
  *
- * It renders on request from the loaders the pages use, and with the rules the pages use (past
- * places only, roles from their first month), so it lists the detail pages that answer 200
- * right now, and `next build` never asks Sanity. The loaders keep each collection in memory
- * for a few minutes, so a crawler's fetch costs no Sanity request in the steady state.
+ * It is built from the loaders the pages use, and with the rules the pages use (past places
+ * only, roles from their first month), so it lists the detail pages that answer 200. It is
+ * regenerated at most once an hour (ISR, `revalidate`), not on every crawler's fetch: `next
+ * build` renders it once from Sanity, and after an hour the next fetch is served the cached copy
+ * while one fresh render runs in the background. A new project, role or past place therefore
+ * appears within about an hour, and a role or place that turns listable on a new day as well.
  *
  * When Sanity fails with nothing cached for projects, experiences or places, that loader rejects
- * and so does this route (HTTP 500). Crawlers retry a failed sitemap, whereas a sitemap without
- * the detail URLs would read as those pages being gone. The certifications and resume loads only
- * date /certifications and /resume, so their failure is reported and those two entries go out
- * without a lastModified: every URL is still listed.
+ * and so does the render: the build fails rather than ship a sitemap without the detail URLs
+ * (which would read as those pages being gone), and a failed hourly render keeps serving the last
+ * good copy. The certifications and resume loads only date /certifications and /resume, so their
+ * failure is reported and those two entries go out without a lastModified: every URL is still
+ * listed.
  */
 
 import type { MetadataRoute } from 'next';
@@ -43,8 +46,11 @@ import {
   loadResume,
 } from '@/lib/sanity/loaders';
 
-/** Render per request: a build-time sitemap would freeze the detail URLs and need Sanity. */
-export const dynamic = 'force-dynamic';
+/**
+ * Regenerate at most once an hour (seconds). It used to render on every fetch (force-dynamic),
+ * running five Sanity loaders per crawler request. A literal, as Next reads it statically.
+ */
+export const revalidate = 3600;
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 

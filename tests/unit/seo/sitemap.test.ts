@@ -29,6 +29,8 @@
  * The loaders are mocked with fixtures; isSanityDocumentId is the real one.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   makeCertification,
   makeExperience,
@@ -72,7 +74,8 @@ vi.mock('@/lib/observability/report', async (importOriginal) => ({
   ...report,
 }));
 
-import Sitemap, { dynamic } from '@/app/sitemap';
+import * as sitemapModule from '@/app/sitemap';
+import Sitemap, { revalidate } from '@/app/sitemap';
 
 type Entry = MetadataRoute.Sitemap[number];
 
@@ -147,8 +150,16 @@ afterAll(() => {
 });
 
 describe('sitemap entries', () => {
-  it('renders on request, so the build never asks Sanity and the detail URLs stay current', () => {
-    expect(dynamic).toBe('force-dynamic');
+  it('is regenerated at most once an hour, not rendered on every fetch', () => {
+    expect(revalidate).toBe(3600);
+    expect(sitemapModule).not.toHaveProperty('dynamic');
+  });
+
+  it('keeps `revalidate` a plain number literal in the source, which Next reads statically', () => {
+    const source = readFileSync(join(process.cwd(), 'src/app/sitemap.ts'), 'utf8');
+
+    expect(source).toMatch(/^export const revalidate = 3600;$/m);
+    expect(source).not.toMatch(/^export const dynamic\b/m);
   });
 
   it('lists every project, experience and place page once, dated by its own change', async () => {
