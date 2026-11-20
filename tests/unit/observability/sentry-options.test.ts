@@ -24,6 +24,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  BROWSER_SESSION_INTEGRATION,
   buildClientOptions,
   buildServerOptions,
   CLIENT_DENY_URLS,
@@ -37,6 +38,7 @@ import {
   stripVisitorIpHeaders,
   TRACE_SAMPLE_RATES,
   VISITOR_IP_HEADER_TERMS,
+  withoutSessionTracking,
 } from '@/lib/observability/sentry-options';
 
 type SamplerContext = Parameters<ReturnType<typeof createTracesSampler>>[0];
@@ -139,6 +141,32 @@ describe('buildClientOptions', () => {
       cookies: false,
       httpBodies: [],
     });
+  });
+
+  // Each report is one more POST through the /monitoring tunnel, and so one more function run.
+  it('sends no client reports (dropped-event stats) from any environment', () => {
+    for (const env of [{}, { onVercel: true, vercelEnv: 'production' }, { optIn: '1' }]) {
+      expect(buildClientOptions(env).sendClientReports, JSON.stringify(env)).toBe(false);
+    }
+  });
+});
+
+describe('withoutSessionTracking', () => {
+  const named = (...names: string[]) => names.map((name) => ({ name }));
+
+  it("drops the browser's per-page-load Release Health session integration", () => {
+    expect(BROWSER_SESSION_INTEGRATION).toBe('BrowserSession');
+    expect(
+      withoutSessionTracking(named('InboundFilters', 'BrowserSession', 'Breadcrumbs', 'Dedupe')),
+    ).toEqual(named('InboundFilters', 'Breadcrumbs', 'Dedupe'));
+  });
+
+  it('keeps every other default, in order, and does not change the list it is given', () => {
+    const defaults = named('GlobalHandlers', 'BrowserTracing', 'HttpContext');
+    const kept = withoutSessionTracking(defaults);
+
+    expect(kept).toEqual(defaults);
+    expect(kept).not.toBe(defaults);
   });
 });
 

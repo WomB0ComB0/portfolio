@@ -222,4 +222,38 @@ describe('instrumentation-client', () => {
       ignoreSentryInternalFrames: true,
     });
   });
+
+  it('sends no client reports, which each cost a /monitoring request', async () => {
+    const options = await initOptionsFor('client', {
+      NEXT_PUBLIC_VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
+    });
+    expect(options.sendClientReports).toBe(false);
+  });
+
+  it("drops the SDK's browser session tracking and adds the site's integrations to the rest", async () => {
+    const options = await initOptionsFor('client', {
+      NEXT_PUBLIC_VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
+    });
+    const integrations = options.integrations as (
+      defaults: { name: string }[],
+    ) => { name: string }[];
+    expect(typeof integrations).toBe('function');
+
+    const names = integrations([
+      { name: 'InboundFilters' },
+      { name: 'BrowserSession' },
+      { name: 'Breadcrumbs' },
+    ]).map((integration) => integration.name);
+
+    expect(names).toEqual([
+      'InboundFilters',
+      'Breadcrumbs',
+      'Replay',
+      'BrowserTracing',
+      'ConsoleLogs',
+      'ThirdPartyErrorsFilter',
+    ]);
+  });
 });

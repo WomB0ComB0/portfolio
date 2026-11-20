@@ -53,6 +53,23 @@ export const TRACE_SAMPLE_RATES = { production: 0.1, other: 0.05 } as const;
 export const REPLAY_ON_ERROR_SAMPLE_RATE = 0.25;
 
 /**
+ * The browser SDK's default Release Health integration. It sends a session envelope on every page
+ * load, through the /monitoring tunnel and so through a function, for crash-free rates nothing
+ * here reads (the alerts are issue alerts). Errors, traces and replays do not depend on it.
+ */
+export const BROWSER_SESSION_INTEGRATION = 'BrowserSession';
+
+/**
+ * `defaults` without browser session tracking (BROWSER_SESSION_INTEGRATION). For the browser's
+ * `integrations` function, which receives the SDK's defaults and returns the list to set up.
+ */
+export function withoutSessionTracking<T extends { readonly name: string }>(
+  defaults: readonly T[],
+): T[] {
+  return defaults.filter((integration) => integration.name !== BROWSER_SESSION_INTEGRATION);
+}
+
+/**
  * Environment for opt-in reports from outside Vercel, so a local production build is not
  * mistaken for the real 'production'.
  */
@@ -319,6 +336,7 @@ export type ClientInitOptions = Pick<
   | 'tracesSampleRate'
   | 'replaysSessionSampleRate'
   | 'replaysOnErrorSampleRate'
+  | 'sendClientReports'
   | 'denyUrls'
   | 'ignoreErrors'
   | 'beforeSend'
@@ -328,6 +346,10 @@ export type ClientInitOptions = Pick<
  * Browser options (without integrations). On Vercel, `environment` is left out so the SDK's
  * default applies; the key must be absent, because the SDK spreads these options over its
  * defaults and an `undefined` value would replace them.
+ *
+ * `sendClientReports: false`: the SDK otherwise posts a report of the events it dropped (most
+ * often the 90% of traces the sample rate drops) each time a tab is hidden, one more /monitoring
+ * request per visit that only feeds Sentry's own dropped-event stats.
  */
 export function buildClientOptions(env: SentryRuntimeEnv): ClientInitOptions {
   return {
@@ -337,6 +359,7 @@ export function buildClientOptions(env: SentryRuntimeEnv): ClientInitOptions {
     tracesSampleRate: traceSampleRate(env),
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: env.vercelEnv === 'production' ? REPLAY_ON_ERROR_SAMPLE_RATE : 0,
+    sendClientReports: false,
     denyUrls: [...CLIENT_DENY_URLS],
     ignoreErrors: [...CLIENT_IGNORE_ERRORS],
     beforeSend: (event) =>
