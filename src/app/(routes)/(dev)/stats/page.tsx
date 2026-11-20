@@ -16,9 +16,10 @@
 
 import type { ReactElement } from 'react';
 import env from '@/env';
+import { FIRST_FLUSH_WAIT_MS, fulfilledWithin, settledWithin } from '@/lib/async/settled-within';
 import { constructMetadata } from '@/utils';
-import { StatsConsole } from './_interface/stats-console/stats-console';
-import { loadStatsConsole } from './_lib/console-loaders';
+import { StreamedStatsConsole } from './_interface/stats-console/stats-console';
+import { startStatsConsole } from './_lib/console-loaders';
 
 /**
  * @readonly
@@ -39,10 +40,21 @@ export const metadata = constructMetadata({
 });
 
 /**
- * Awaits the bounded, parallel source loaders before rendering so the figures and Discord's
- * first state are readable without JavaScript. There is intentionally no loading.tsx or hidden
- * streamed card. Discord alone continues polling after hydration.
+ * Starts every source at once and waits for them FIRST_FLUSH_WAIT_MS at most, so the first byte
+ * never waits on a slow source's deadline. Every part whose sources have answered by then (all of
+ * them when the caches are warm) is rendered in place, readable without JavaScript; any other
+ * streams in its own Suspense boundary once its own sources settle (each within its deadline),
+ * behind a skeleton of its own size. There is no loading.tsx: the parts' skeletons are the
+ * loading state. Discord alone polls after hydration.
  */
 export default async function StatsPage(): Promise<ReactElement> {
-  return <StatsConsole data={await loadStatsConsole()} profileId={env.NEXT_PUBLIC_DISCORD_ID} />;
+  const sources = startStatsConsole();
+  const settled = fulfilledWithin(await settledWithin(sources, FIRST_FLUSH_WAIT_MS));
+  return (
+    <StreamedStatsConsole
+      sources={sources}
+      settled={settled}
+      profileId={env.NEXT_PUBLIC_DISCORD_ID}
+    />
+  );
 }

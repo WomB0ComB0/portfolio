@@ -21,11 +21,20 @@
  * then Streams, each a flat list, newest first. A row carries its "see also" line (its other
  * version, its series, its project, its topics) as plain links. The lab's alternative layout is
  * the one feed (all kinds together, in year groups). With nothing published, the EmptyState
- * instead (no filter bar over nothing). Server-safe and sync: the page awaits the feed first, so
- * every row is in the first HTML.
+ * instead (no filter bar over nothing).
+ *
+ * One frame (MediaFrame: the header and what goes under it), rendered two ways, which work the
+ * feed out the same way (mediaFeedModel):
+ * - MediaFeedView, from a feed already loaded: what /media renders when its feed is in within the
+ *   page's short wait (every row in place in the first HTML), and what the lab and tests render;
+ * - StreamedMediaFeed, when the feed is still loading then: the header goes out, and the strip's
+ *   figures and the list (the notes, the filter bar and the sections) each stream in a Suspense
+ *   boundary of their own once the feed has loaded, behind skeletons of their own size (the
+ *   strip's placeholders; MediaFeedSkeleton). The list is one boundary because the filter island
+ *   counts and filters every row of every kind together.
  */
 
-import type { ReactElement } from 'react';
+import { type ReactElement, type ReactNode, Suspense } from 'react';
 
 import {
   EmptyState,
@@ -36,6 +45,7 @@ import {
 } from '@/components/console';
 import { FEED_COLUMNS, MISSING_CLASS, SECTION_COLUMNS } from '../../_components/feed-classes';
 import { FeedRow } from '../../_components/feed-row';
+import { MediaFeedSkeleton } from '../../_components/feed-skeleton';
 import {
   type FeedRowItem,
   type FeedRowPart,
@@ -223,16 +233,32 @@ function FeedNotes({ missing, capped }: FeedNotesProps): ReactElement {
   );
 }
 
-/** The header, any missing source, and the sections (or the feed) or the EmptyState. */
-export function MediaFeedView({
-  feed,
-  layout = DEFAULT_LAYOUT,
-  parts,
-  longSeries = DEFAULT_SERIES_ROWS,
-  play,
-  path,
-  gutter = true,
-}: MediaFeedViewProps): ReactElement {
+/** How the list is laid out and where its links point: what working the feed out depends on. */
+interface FeedViewOptions {
+  readonly layout: LayoutMode;
+  readonly parts: PartsMode;
+  readonly play: PlayMode;
+  readonly path: string;
+}
+
+/** The feed worked out for the page: what the header's strip and the list each show. */
+interface MediaFeedModel {
+  readonly kinds: readonly FeedKind[];
+  /** The kinds listed only in part (the uploads, past the channel listing's cap). */
+  readonly uncounted: readonly FeedKind[];
+  readonly items: readonly FeedRowItem[];
+  /** The header's figures; none when nothing is published. */
+  readonly stats: readonly StatStripItem[];
+  readonly missing: readonly FeedKind[];
+}
+
+type FeedInput = MediaFeedViewProps['feed'];
+
+/** The feed as the page shows it: its rows in page order, its kinds, figures and row items. */
+function mediaFeedModel(
+  feed: FeedInput,
+  { layout, parts, play, path }: FeedViewOptions,
+): MediaFeedModel {
   const rows = pageOrder(feedRows(feed.entries, parts), layout);
   const kinds = kindsWithItems(rows);
   // Past the channel listing's cap the uploads are its newest only: no total is stated for them.
@@ -241,17 +267,57 @@ export function MediaFeedView({
   const items = rowItems(rows, { layout, kinds, path, play, counted });
   // Counted in items (a folded row's every upload), as the chips, the sections and "52 items" are.
   const stats = rows.length > 0 ? statItems(feedStats(rows), kinds.filter(counted)) : [];
+  return { kinds, uncounted, items, stats, missing: feed.missing };
+}
 
+interface MediaFrameProps {
+  /** Beside the title on wide screens: the strip, or the boundary that streams it. */
+  readonly stats: ReactNode;
+  readonly gutter: boolean;
+  readonly children: ReactNode;
+}
+
+/** The header (its words need no feed) over the list. */
+function MediaFrame({ stats, gutter, children }: MediaFrameProps): ReactElement {
   return (
     <PageShell
       eyebrow={MEDIA_EYEBROW}
       title={MEDIA_TITLE}
       description={MEDIA_DESCRIPTION}
-      stats={stats.length > 0 ? <StatStrip aria-label={STATS_LABEL} items={stats} /> : null}
+      stats={stats}
       gutter={gutter}
     >
-      <FeedNotes missing={feed.missing} capped={uncounted.length > 0} />
-      {rows.length === 0 ? (
+      {children}
+    </PageShell>
+  );
+}
+
+/** The header's figures, or nothing when nothing is published. */
+function MediaStrip({ stats }: { readonly stats: readonly StatStripItem[] }): ReactElement | null {
+  return stats.length > 0 ? <StatStrip aria-label={STATS_LABEL} items={stats} /> : null;
+}
+
+interface MediaFeedBodyProps {
+  readonly model: MediaFeedModel;
+  readonly layout: LayoutMode;
+  readonly longSeries: SeriesRowsMode;
+  readonly play: PlayMode;
+  readonly path: string;
+}
+
+/** Any missing source, then the sections (or the feed) or the EmptyState. */
+function MediaFeedBody({
+  model,
+  layout,
+  longSeries,
+  play,
+  path,
+}: MediaFeedBodyProps): ReactElement {
+  const { kinds, uncounted, items, missing } = model;
+  return (
+    <>
+      <FeedNotes missing={missing} capped={uncounted.length > 0} />
+      {items.length === 0 ? (
         <EmptyState title="Nothing published yet">
           Posts, videos and streams show up here as they go out.
         </EmptyState>
@@ -267,6 +333,91 @@ export function MediaFeedView({
           uncounted={uncounted}
         />
       )}
-    </PageShell>
+    </>
+  );
+}
+
+/** The header, any missing source, and the sections (or the feed) or the EmptyState. */
+export function MediaFeedView({
+  feed,
+  layout = DEFAULT_LAYOUT,
+  parts,
+  longSeries = DEFAULT_SERIES_ROWS,
+  play,
+  path,
+  gutter = true,
+}: MediaFeedViewProps): ReactElement {
+  const model = mediaFeedModel(feed, { layout, parts, play, path });
+  return (
+    <MediaFrame stats={<MediaStrip stats={model.stats} />} gutter={gutter}>
+      <MediaFeedBody
+        model={model}
+        layout={layout}
+        longSeries={longSeries}
+        play={play}
+        path={path}
+      />
+    </MediaFrame>
+  );
+}
+
+/** The strip once the feed has loaded. */
+async function StripPart({
+  model,
+}: {
+  readonly model: Promise<MediaFeedModel>;
+}): Promise<ReactElement | null> {
+  return <MediaStrip stats={(await model).stats} />;
+}
+
+/** The list once the feed has loaded. */
+async function BodyPart({
+  model,
+  ...props
+}: Omit<MediaFeedBodyProps, 'model'> & {
+  readonly model: Promise<MediaFeedModel>;
+}): Promise<ReactElement> {
+  return <MediaFeedBody model={await model} {...props} />;
+}
+
+export interface StreamedMediaFeedProps extends Omit<MediaFeedViewProps, 'feed'> {
+  /** The feed, loading (loadMediaFeed): it rejects only when every source failed. */
+  readonly feed: Promise<FeedInput>;
+}
+
+/**
+ * /media streamed (see the file comment): the header's words in the first flush, then the strip
+ * and the list once the feed has loaded, each behind a skeleton of its own size. When every
+ * source failed the feed rejects, both parts throw it, and the (routes) error view takes the page
+ * as it does for any page that throws.
+ */
+export function StreamedMediaFeed({
+  feed,
+  layout = DEFAULT_LAYOUT,
+  parts,
+  longSeries = DEFAULT_SERIES_ROWS,
+  play,
+  path,
+  gutter = true,
+}: StreamedMediaFeedProps): ReactElement {
+  // Worked out once for both parts, as soon as the feed is in.
+  const model = feed.then((loaded) => mediaFeedModel(loaded, { layout, parts, play, path }));
+  return (
+    <MediaFrame
+      gutter={gutter}
+      stats={
+        <Suspense
+          fallback={
+            <StatStrip aria-label={STATS_LABEL} items={[]} loading placeholderCount={FIGURES} />
+          }
+        >
+          <StripPart model={model} />
+        </Suspense>
+      }
+    >
+      <Suspense fallback={<MediaFeedSkeleton />}>
+        <BodyPart model={model} layout={layout} longSeries={longSeries} play={play} path={path} />
+      </Suspense>
+    </MediaFrame>
   );
 }

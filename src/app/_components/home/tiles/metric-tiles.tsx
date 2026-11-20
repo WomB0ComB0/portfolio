@@ -72,9 +72,10 @@ const FIGURE_DIGITS = 3;
 
 /**
  * LeetCode's difficulties in bar order: each one's name, LeetCode's own colour for it (teal, amber,
- * red, as on leetcode.com, so the split never reads in another palette) and solved count.
+ * red, as on leetcode.com, so the split never reads in another palette) and solved count. The
+ * /stats LeetCode skeleton draws its legend from the same list.
  */
-const DIFFICULTIES = [
+export const LEETCODE_DIFFICULTIES = [
   { key: 'easy', label: 'Easy', tone: 'leet-easy', solved: 'easySolved' },
   { key: 'medium', label: 'Medium', tone: 'leet-medium', solved: 'mediumSolved' },
   { key: 'hard', label: 'Hard', tone: 'leet-hard', solved: 'hardSolved' },
@@ -86,7 +87,7 @@ const formatCount = (value: number): string => numberFormatter().format(value);
 
 /** The solved split as the bar's parts, easy to hard. */
 export function leetCodeSegments(stats: LeetCodeStats): SegmentBarSegment[] {
-  return DIFFICULTIES.map(({ key, label, tone, solved }) => ({
+  return LEETCODE_DIFFICULTIES.map(({ key, label, tone, solved }) => ({
     key,
     label,
     value: stats[solved],
@@ -182,7 +183,7 @@ export function LeetCodeTileSkeleton(): ReactElement {
     <Tile className={TILE_CLASS} aria-busy="true" data-state="loading">
       <TileLabel>{LEETCODE_LABEL}</TileLabel>
       <FigureRowSkeleton digits={FIGURE_DIGITS} unit="solved" size="md" />
-      <SegmentBarSkeleton segments={DIFFICULTIES} />
+      <SegmentBarSkeleton segments={LEETCODE_DIFFICULTIES} />
       <LoadingNote>Loading LeetCode stats</LoadingNote>
     </Tile>
   );

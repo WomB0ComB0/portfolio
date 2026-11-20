@@ -17,9 +17,10 @@
 /**
  * @file StatStrip is a description list whose labels come first in the DOM (values first on
  * screen), with en-US numbers, a spoken 'unavailable' for a missing value, optional links that
- * never prefetch, and four placeholders while loading. A blank string or a non-finite number is
- * as missing as null (presentValue, shared with StatTile). The shared number formatter it exports
- * returns one instance per option set.
+ * never prefetch, and four placeholders while loading (or, item by item, a placeholder figure
+ * under its real label). A blank string or a non-finite number is as missing as null
+ * (presentValue, shared with StatTile). The shared number formatter it exports returns one
+ * instance per option set.
  *
  * next/link is a plain anchor exposing prefetch as data-prefetch.
  */
@@ -171,6 +172,32 @@ describe('StatStrip', () => {
       expect(placeholder).toHaveClass('flex', 'flex-col');
       expect(placeholder.querySelector('dd span')).toHaveClass('h-7');
     }
+  });
+
+  it('keeps an item’s label and puts a busy placeholder in its figure’s place while it loads', () => {
+    const list = renderStrip([
+      { label: 'years old', value: 25 },
+      { label: 'page views in 30 days', value: null, loading: true },
+    ]);
+    const [ready, loading] = Array.from(list.children);
+
+    expect(list).toHaveAttribute('aria-busy', 'true');
+    expect(ready?.querySelector('dd')?.textContent).toBe('25');
+    expect(loading?.querySelector('dt')?.textContent).toBe('page views in 30 days');
+    // The placeholder item's figure bar, in the figure's own line; read as loading, never as
+    // unavailable and never as a number.
+    const figure = loading?.querySelector('dd');
+    expect(figure).toHaveClass('order-1', 'figure-sm');
+    expect(figure?.querySelector('[data-placeholder]')).toHaveClass('h-7');
+    expect(figure?.querySelector('[data-placeholder]')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(figure as HTMLElement).getByText('Loading')).toHaveClass('sr-only');
+    expect(figure?.textContent).not.toMatch(/unavailable|\d/);
+  });
+
+  it('is not busy once no item is loading', () => {
+    const list = renderStrip([{ label: 'years old', value: 25, loading: false }]);
+
+    expect(list).not.toHaveAttribute('aria-busy');
   });
 
   it('renders on the server and has no use client directive', () => {

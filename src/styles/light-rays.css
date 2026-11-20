@@ -38,8 +38,20 @@
     radial-gradient(circle at 80% 10%, oklch(from var(--light-rays) l c h / 4.2%), transparent 75%);
 }
 
-/* The rays: under the content (-1 inside the isolated root), clipped to the page. */
+/*
+ * The rays: under the content (-1 inside the isolated root), clipped to the page.
+ *
+ * --ray-page is a fixed height the rays hang from 12% of. LightRays hung them from 12% of the
+ * page's own height (`top: -12%`), so they moved whenever a page grew: on a cold /media the list
+ * replacing its skeleton pulled them from about 490 px on screen to 20 px, and Chrome scored the
+ * move as a layout shift (CLS 0.32 at 390 px). Its values are the home page's height at each
+ * layout while the rays still hung from it (about 2,040 px on a phone, 1,340 px from 40rem and
+ * 954 px from 80rem), so the home page's first screen keeps the rays it had, and every other page
+ * now gets those same rays however long it is or grows.
+ */
 .light-rays {
+  --ray-page: 2040px;
+
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -47,8 +59,22 @@
   pointer-events: none;
 }
 
+@media (width >= 40rem) {
+  .light-rays {
+    --ray-page: 1340px;
+  }
+}
+
+@media (width >= 80rem) {
+  .light-rays {
+    --ray-page: 954px;
+  }
+}
+
 /*
- * Each 70vh long, hanging from 12% of the page's height above its top; 0.2 of the colour at 70%.
+ * Each 70vh long, hanging 12% of --ray-page above the top of the page, or 12% of the screen when
+ * the screen is taller (the shell is never shorter than the screen); 0.2 of the colour at 70%. In
+ * px and vh only, so its place never depends on how tall the page is.
  * One cycle is its fade and a rest of a tenth. It starts one cycle before its delay (a negative
  * delay), so it is part way through a cycle at the first paint instead of dark until the delay
  * ends, and the haze never pauses it before it has lit; once running, the phase is the same as
@@ -60,7 +86,7 @@
   --ray-cycle: calc(var(--ray-duration) * 1.1);
 
   position: absolute;
-  top: -12%;
+  top: calc(max(var(--ray-page), 100vh) * -0.12);
   left: var(--ray-left);
   width: var(--ray-width);
   height: 70vh;

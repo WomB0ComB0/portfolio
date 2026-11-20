@@ -15,29 +15,33 @@
  */
 
 /**
- * @file /media in sections, rendered on the server: every item is a row link in the first HTML
- * (renderToString, no client JavaScript run), in the section of its own kind (Writing, Video,
+ * @file /media in sections, rendered on the server: every item is a row link in the server HTML
+ * (prerender, no client JavaScript run), in the section of its own kind (Writing, Video,
  * Streams), each section newest first with its own heading, count and columns. Every upload is
  * its own row, and a series part says which part it is. Kind chips exist only for kinds that have
  * items. Shared ?kind=, ?series= and ?topic= links are filtered in the server HTML. A source that
  * fails or misses its deadline costs only its own items (and says so); every source failing
  * reaches the error view; nothing published shows the EmptyState. Old ?tab= links redirect to
- * ?kind=. No loading.tsx. Only the loaders are mocked; image URLs come from the real Sanity URL
- * builder. What a row points at (its "See also" line, a long series, a post and the video of it)
+ * ?kind=. No loading.tsx: the page waits for its feed a moment at most (FIRST_FLUSH_WAIT_MS). In by
+ * then, every row is in place in the first HTML; still loading, the header goes out and the strip
+ * and the list stream in behind skeletons of their own size. Only the loaders are mocked;
+ * image URLs come from the real Sanity URL builder. What a row points at (its "See also" line, a long series, a post and the video of it)
  * is in media-feed-page-see-also.test.tsx.
  */
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { makeTalk, makeVideo } from '@tests/fixtures/sanity-docs';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
-import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FIRST_FLUSH_WAIT_MS } from '@/lib/async/settled-within';
 import {
   chipSlugs,
+  firstFlushHtml,
   POST,
   POST_URL,
+  pageElement,
   parse,
+  prerenderHtml,
   rowOf,
   SERIES,
   sections,
@@ -88,6 +92,12 @@ vi.mock('next/navigation', async (importOriginal) => ({
 }));
 
 const ROUTE_DIR = path.join(process.cwd(), 'src/app/(routes)/(dev)/media');
+
+/** Past the page's short wait (FIRST_FLUSH_WAIT_MS), so a source answering then is streamed. */
+const LATE_MS = FIRST_FLUSH_WAIT_MS + 100;
+
+/** One turn of the event loop, on the real setImmediate (the fake clock leaves it alone). */
+const nextTurn = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 /** Every loader answering at once: six uploads (three of them one stream), one post, nothing else. */
 function answerAll(): void {
@@ -296,7 +306,7 @@ describe('/media: sections in the server HTML', () => {
     expect(metadata.description).not.toMatch(/talks|presentations|articles/i);
   });
 
-  it('keeps no loading.tsx, so the rows render without JavaScript', () => {
+  it('keeps no loading.tsx: the header and the parts’ own skeletons are the loading state', () => {
     const present = ['loading.tsx', 'loading.ts', 'loading.jsx', 'loading.js'].filter((file) =>
       existsSync(path.join(ROUTE_DIR, file)),
     );
@@ -383,28 +393,54 @@ describe('/media: when sources fail or run long', () => {
     expect(sections(root).map(([heading]) => heading)).toEqual(['Writing, 1 post']);
   });
 
-  it('drops a source that misses its deadline instead of holding the page', async () => {
+  it('drops a source that misses its deadline instead of holding the list', async () => {
     loaders.loadVideos.mockReturnValue(new Promise(() => {}));
-    // Modules load on real timers; only the page's wait runs on fake ones.
-    const { default: MediaPage } = await import('@/app/(routes)/(dev)/media/page');
+    // Modules load on real timers, and React schedules its work on the real setImmediate; only
+    // the feed's deadline runs on the fake clock.
+    await import('@/app/(routes)/(dev)/media/page');
     const { FEED_SOURCE_DEADLINE_MS } = await import('@/app/(routes)/(dev)/media/_lib/load-feed');
-    vi.useFakeTimers();
-    const pending = MediaPage({ searchParams: Promise.resolve({}) });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const pending = pageElement().then((element) => prerenderHtml(element));
+    // Let the page start its feed (each source's deadline) and its own short wait, all on the
+    // fake clock and all at once, before the clock moves past both.
+    for (let turn = 0; turn < 100 && vi.getTimerCount() < 2; turn += 1) await nextTurn();
     await vi.advanceTimersByTimeAsync(FEED_SOURCE_DEADLINE_MS + 1);
-    const page = await pending;
+    const root = parse(await pending);
     vi.useRealTimers();
-    const root = parse(renderToString(<NuqsTestingAdapter>{page}</NuqsTestingAdapter>));
 
     expect(root.querySelector(`a[data-feed-title][href="${POST_URL}"]`)).not.toBeNull();
     expect(root.querySelector('[data-feed-missing]')?.textContent).toContain('Videos');
   });
 
-  it('reaches the error view when every source fails', async () => {
+  it('reaches the error view when every source fails within the wait: the page throws', async () => {
     for (const load of Object.values(loaders)) load.mockRejectedValue(new Error('down'));
     fetchBlogs.mockRejectedValue(new Error('down'));
     const { default: MediaPage } = await import('@/app/(routes)/(dev)/media/page');
 
-    await expect(MediaPage({ searchParams: Promise.resolve({}) })).rejects.toThrow();
+    await expect(MediaPage({ searchParams: Promise.resolve({}) })).rejects.toThrow('down');
+  });
+
+  it('reaches the error view when every source fails later: both streamed parts throw it', async () => {
+    const downLater = () =>
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new Error('down')), LATE_MS);
+      });
+    for (const load of Object.values(loaders)) load.mockImplementation(downLater);
+    fetchBlogs.mockImplementation(downLater);
+    const errors: unknown[] = [];
+    const html = await serverHtml({}, { onError: (error) => errors.push(error) });
+    const root = parse(html);
+
+    // The header went out first; the strip and the list each throw the feed's failure, which
+    // React leaves to the client (its "render on the client" mark), where the (routes) error
+    // boundary takes the page as it does for any page that throws.
+    expect(root.querySelector('h1')?.textContent).toBe('Media');
+    expect(errors.map((error) => (error instanceof Error ? error.message : error))).toEqual([
+      'media:feed: down',
+      'media:feed: down',
+    ]);
+    expect(html).toContain('<!--$!-->');
+    expect(root.querySelector('tr[data-feed-row]')).toBeNull();
   });
 
   it('shows the EmptyState, with no filter bar, when nothing is published', async () => {
@@ -440,6 +476,84 @@ describe('/media: when sources fail or run long', () => {
       (th) => th.textContent,
     );
     expect(labels).toEqual(['Title', 'Where', 'Length', 'Date']);
+  });
+});
+
+describe('/media streamed: the first byte never waits on a slow source', () => {
+  it('renders the whole list in place, with no boundary, when the feed is in within the wait', async () => {
+    // React's default chunk size: a list sent from a Suspense boundary would go out after its
+    // skeleton, hidden until React's inline script moved it. In place it is simply there.
+    const html = await serverHtml({}, { outline: true });
+    const root = parse(html);
+
+    expect(html).not.toContain('<!--$');
+    expect(root.querySelector('div[hidden], [data-media-part="feed-skeleton"]')).toBeNull();
+    expect(root.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(root.querySelectorAll('tr[data-feed-row]')).toHaveLength(7);
+    // renderToString never waits, so what it prints is in the first HTML: the rows are.
+    expect(parse(await firstFlushHtml()).querySelectorAll('tr[data-feed-row]')).toHaveLength(7);
+  });
+
+  it('sends the header after the wait when sources hang, with the strip and the list as skeletons', async () => {
+    loaders.loadVideos.mockReturnValue(new Promise(() => {}));
+    fetchBlogs.mockReturnValue(new Promise(() => {}));
+    // The page returns once its short wait is over while two sources have not answered.
+    const root = parse(await firstFlushHtml());
+
+    expect(root.querySelector('h1')?.textContent).toBe('Media');
+    expect(textOf(root)).toContain('newest first');
+    const strip = root.querySelector('dl[aria-label="Totals"]');
+    expect(strip?.getAttribute('aria-busy')).toBe('true');
+    expect(strip?.querySelectorAll('[data-placeholder]')).toHaveLength(3);
+    const list = root.querySelector('[data-media-part="feed-skeleton"]');
+    expect(list?.querySelector('[data-filter-part="bar"]')?.getAttribute('aria-busy')).toBe('true');
+    expect(list?.querySelectorAll('tr[data-feed-row-skeleton]')).toHaveLength(8);
+    expect(textOf(list)).toContain('Loading writing, videos and streams');
+    expect(root.querySelector('tr[data-feed-row]')).toBeNull();
+  });
+
+  it('holds the loaded list’s place: its root and its sticky bar have the loaded classes', async () => {
+    const loaded = parse(await serverHtml());
+    // A fresh page whose videos hang past the wait: its first flush has the skeletons.
+    vi.resetModules();
+    loaders.loadVideos.mockReturnValue(new Promise(() => {}));
+    const first = parse(await firstFlushHtml());
+    const classOf = (element: Element | null | undefined): string | null | undefined =>
+      element?.getAttribute('class');
+    const skeletonBar = first.querySelector('[data-filter-part="bar"]');
+    const loadedBar = loaded.querySelector('[data-filter-part="bar"]');
+
+    expect(classOf(skeletonBar)).toBeTruthy();
+    expect(classOf(skeletonBar)).toBe(classOf(loadedBar));
+    expect(classOf(skeletonBar?.firstElementChild)).toBe(classOf(loadedBar?.firstElementChild));
+    expect(classOf(first.querySelector('[data-media-part="feed-skeleton"]'))).toBe(
+      classOf(loaded.querySelector('[data-media-part="feed"]')),
+    );
+    // The strip's placeholders stand in its own grid, three figures as the loaded strip has.
+    expect(classOf(first.querySelector('dl[aria-label="Totals"]'))).toBe(
+      classOf(loaded.querySelector('dl[aria-label="Totals"]')),
+    );
+    expect(loaded.querySelectorAll('dl[aria-label="Totals"] > div')).toHaveLength(3);
+  });
+
+  it('keeps every row in the server HTML when the feed lands after the wait', async () => {
+    loaders.loadVideos.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, LATE_MS));
+      return VIDEOS;
+    });
+    // With React's default chunk size a part as big as the list goes out after its fallback, in a
+    // hidden segment that React's inline script moves into place. Without JavaScript that
+    // segment stays hidden, but every row is in the HTML for anything that reads it.
+    const root = parse(await serverHtml({}, { outline: true }));
+
+    for (const video of VIDEOS) {
+      expect(
+        root.querySelector(`a[data-feed-title][href="${watch(video.videoId)}"]`),
+      ).not.toBeNull();
+    }
+    expect(root.querySelector(`a[data-feed-title][href="${POST_URL}"]`)).not.toBeNull();
+    expect(root.querySelector('div[hidden] tr[data-feed-row]')).not.toBeNull();
+    expect(root.querySelector('[data-media-part="feed-skeleton"]')).not.toBeNull();
   });
 });
 

@@ -85,6 +85,7 @@ export function presentValue(value: number | string | null | undefined): number 
 /** An em dash is shown only next to a word that says why. */
 const UNAVAILABLE_DASH = '—';
 const UNAVAILABLE_LABEL = 'unavailable';
+const LOADING_LABEL = 'Loading';
 
 /** How many placeholder items a loading strip shows unless told. */
 const DEFAULT_PLACEHOLDERS = 4;
@@ -138,6 +139,12 @@ export interface StatStripItem {
   unit?: string;
   /** Makes the value a link (prefetch off). An empty or '#' href is ignored. */
   href?: string;
+  /**
+   * The figure is on its way: a placeholder bar stands in the figure's place (read as 'Loading')
+   * under the real label, and the list is marked busy. For a strip whose labels are known before
+   * its figures (a streamed header), so the loaded strip lands without moving anything.
+   */
+  loading?: boolean;
 }
 
 export interface StatStripProps {
@@ -156,7 +163,16 @@ export interface StatStripProps {
   'aria-label'?: string;
 }
 
-function StripValue({ label, value, unit, href }: StatStripItem): ReactNode {
+function StripValue({ label, value, unit, href, loading }: StatStripItem): ReactNode {
+  if (loading) {
+    // The placeholder item's figure bar, in the figure's own 28px line.
+    return (
+      <>
+        <span aria-hidden="true" data-placeholder="" className={cn(BAR_CLASS, 'h-7 w-10')} />
+        <span className="sr-only">{LOADING_LABEL}</span>
+      </>
+    );
+  }
   const shown = presentValue(value);
   if (shown === null) {
     return (
@@ -216,10 +232,11 @@ export function StatStrip({
 }: StatStripProps): ReactElement {
   const fluid = sizing === 'container';
   const itemClass = fluid ? FLUID_ITEM_CLASS : ITEM_CLASS;
+  const busy = loading || items.some((item) => item.loading === true);
   const list = (
     <dl
       aria-label={ariaLabel}
-      aria-busy={loading || undefined}
+      aria-busy={busy || undefined}
       className={cn(fluid ? FLUID_STRIP_CLASS : STRIP_CLASS, className)}
     >
       {loading
