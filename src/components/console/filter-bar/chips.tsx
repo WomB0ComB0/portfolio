@@ -20,7 +20,9 @@
  * @file FilterBar.Chips: a single-select facet as links. Each chip is a link (it works without
  * JavaScript) with its disjunctive count and noun ("Google 20 certificates"); exactly one carries
  * aria-current. A chip at 0 stays where it is, quieter, and still works. A plain click filters in
- * place inside the guarded view transition; a modified click (a new tab) is the browser's.
+ * place inside the guarded view transition; a modified click (a new tab) is the browser's. Each
+ * chip is rel="nofollow": a filtered page is the same content as the page, and robots.txt closes
+ * the filter parameters, so crawlers are not invited to render every combination.
  *
  * Once it has measured, one aria-hidden pill draws the current chip's fill and slides to the next
  * current chip on clip-path (--motion-spring-in, --ease-spring); before that, without JavaScript
@@ -291,6 +293,7 @@ export function FilterBarChips({
           <li key={item.slug ?? ''}>
             <a
               href={model.hrefFor({ [facet]: item.slug })}
+              rel="nofollow"
               data-chip={item.slug ?? 'all'}
               data-filter-part="chip"
               data-zero={item.count === 0 && !item.current ? '' : undefined}

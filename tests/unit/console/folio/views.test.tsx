@@ -136,6 +136,15 @@ describe('ViewSwitch', () => {
     expect(index?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('marks every view link rel="nofollow", which robots.txt backs by closing ?view=', () => {
+    render(<ViewSwitch label="Project views" current="stories" views={links} />);
+    const nav = screen.getByRole('navigation', { name: 'Project views' });
+    const all = within(nav).getAllByRole('link');
+
+    expect(all).toHaveLength(links.length);
+    for (const link of all) expect(link).toHaveAttribute('rel', 'nofollow');
+  });
+
   it('styles the current view from aria-current alone: every view link shares one look', () => {
     render(<ViewSwitch label="Project views" current="stories" views={links} />);
     const views = screen.getAllByRole('link');

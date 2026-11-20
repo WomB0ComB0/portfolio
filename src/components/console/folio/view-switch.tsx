@@ -20,6 +20,9 @@
  * views and server-safe (no directive, no hooks): it draws the hrefs it is given, so it works
  * without JavaScript.
  *
+ * Each link is rel="nofollow": another view is the same content arranged differently, and
+ * robots.txt closes the `view` parameter. People follow it as any other link.
+ *
  * The hrefs carry the filters across (viewHref / viewLinks). A server page builds them from its
  * searchParams. Inside a FilterBar, whose chips change the URL in place without a server render,
  * a small client island builds them from the bar's live state (useFilterBar().model.active and the
@@ -93,6 +96,7 @@ export function ViewSwitch<V extends string>({
           key={value}
           href={href}
           prefetch={false}
+          rel="nofollow"
           data-view={value}
           className={LINK_CLASS}
           aria-current={value === current ? 'page' : undefined}
