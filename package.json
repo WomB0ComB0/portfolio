@@ -56,6 +56,12 @@
     "test": "vitest run",
     "type": "tsc --noEmit"
   },
+  "browserslist": [
+    "chrome 111",
+    "edge 111",
+    "firefox 111",
+    "safari 18.0"
+  ],
   "overrides": {
     "@babel/core": ">=7.29.6",
     "@graphql-tools/utils@<12.1.0": ">=12.1.0 <13",
