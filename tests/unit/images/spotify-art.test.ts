@@ -16,7 +16,7 @@
 
 /**
  * @file spotifyArtFor picks the smallest of Spotify's images at least twice the slot it is drawn
- * in, for every slot the site has (40 to 112 px), from Spotify's usual 640, 300 and 64 px set.
+ * in, for every slot the site has (40 to 112 px), from an album's 640, 300 and 64 px set.
  */
 
 import { describe, expect, it } from 'vitest';

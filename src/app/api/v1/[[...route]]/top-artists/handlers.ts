@@ -20,7 +20,8 @@ import { spotifyArtFor } from '@/lib/images/spotify-art';
 
 /**
  * The portrait's slot: an artist is drawn at up to 64 px wherever the site lists one (the
- * /spotify strip), so Spotify's 300 px image is sharp on a 2x screen, unlike its 64 px one.
+ * /spotify strip). Spotify sizes artist images at 640, 320 and 160 px (not an album's 640, 300
+ * and 64), so the pick is the 160 px one: the smallest at least 128 px, sharp on a 2x screen.
  */
 const TOP_ARTIST_ART_PX = 64;
 

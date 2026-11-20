@@ -15,9 +15,9 @@
  */
 
 /**
- * @file The v1 top-tracks and top-artists handlers serve Spotify's 300 px art, the smallest
- * image at least twice the 64 px the site draws a listed cover or portrait at, rather than the
- * first (640 px) image Spotify lists; and art only from Spotify's image CDN.
+ * @file The v1 top-tracks and top-artists handlers serve the smallest image at least twice the
+ * 64 px the site draws a listed cover or portrait at (an album's 300 px cover, an artist's 160 px
+ * portrait), rather than the first (640 px) image Spotify lists; and art only from Spotify's CDN.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -29,12 +29,16 @@ vi.mock('@/lib/api-integrations/spotify', () => spotify);
 import { fetchTopArtists } from '@/app/api/v1/[[...route]]/top-artists/handlers';
 import { fetchTopTracks } from '@/app/api/v1/[[...route]]/top-tracks/handlers';
 
-/** Spotify's three sizes, largest first, as it lists them. */
-const images = (name: string) => [
-  { url: `https://i.scdn.co/image/${name}-640`, width: 640, height: 640 },
-  { url: `https://i.scdn.co/image/${name}-300`, width: 300, height: 300 },
-  { url: `https://i.scdn.co/image/${name}-64`, width: 64, height: 64 },
-];
+/** Spotify's three sizes for an album or an artist, largest first, as it lists them. */
+const ALBUM_SIZES = [640, 300, 64] as const;
+const ARTIST_SIZES = [640, 320, 160] as const;
+
+const images = (name: string, sizes: readonly number[]) =>
+  sizes.map((size) => ({
+    url: `https://i.scdn.co/image/${name}-${size}`,
+    width: size,
+    height: size,
+  }));
 
 describe('v1 Spotify list art', () => {
   it("gives each top track Spotify's 300 px cover, and none from another host", async () => {
@@ -42,7 +46,7 @@ describe('v1 Spotify list art', () => {
       {
         name: 'First Song',
         artists: [{ name: 'First Artist' }],
-        album: { images: images('album') },
+        album: { images: images('album', ALBUM_SIZES) },
         external_urls: { spotify: 'https://open.spotify.com/track/first' },
       },
       {
@@ -61,12 +65,12 @@ describe('v1 Spotify list art', () => {
     ]);
   });
 
-  it("gives each top artist Spotify's 300 px portrait", async () => {
+  it("gives each top artist Spotify's 160 px portrait, the smallest of its 640/320/160 set", async () => {
     spotify.topArtists.mockResolvedValue([
       {
         name: 'First Artist',
         external_urls: { spotify: 'https://open.spotify.com/artist/first' },
-        images: images('artist'),
+        images: images('artist', ARTIST_SIZES),
       },
     ]);
 
@@ -76,7 +80,7 @@ describe('v1 Spotify list art', () => {
       {
         name: 'First Artist',
         url: 'https://open.spotify.com/artist/first',
-        imageUrl: 'https://i.scdn.co/image/artist-300',
+        imageUrl: 'https://i.scdn.co/image/artist-160',
       },
     ]);
   });

@@ -15,10 +15,11 @@
  */
 
 /**
- * @file Which of Spotify's images to draw. Spotify sends each album or artist at 640, 300 and
- * 64 px, and its CDN cannot resize them, so the site serves them as they are (no optimizer).
- * The smallest image at least twice the slot stays sharp on a 2x screen; Spotify's first, 640 px
- * image has about 4.5 times the pixels of its 300 px one and adds nothing in a 40 to 112 px slot.
+ * @file Which of Spotify's images to draw. Spotify sends each album at 640, 300 and 64 px and
+ * each artist at 640, 320 and 160 px, and its CDN cannot resize them, so the site serves them as
+ * they are (no optimizer). The smallest image at least twice the slot stays sharp on a 2x screen;
+ * an album's first, 640 px image has about 4.5 times the pixels of its 300 px one and adds
+ * nothing in a 40 to 112 px slot.
  * Pure (no imports), so the API handlers, the /spotify chart and their tests share it.
  */
 
