@@ -58,6 +58,11 @@ export interface WallPhoto {
   /** 1-based, among its place's photos. */
   readonly index: number;
   readonly caption: string | null;
+  /**
+   * Studio's Alternative Text, tidied; null (or absent, as for a project's image) when it has
+   * none. It describes the photo ahead of the caption wherever words stand in for the image.
+   */
+  readonly alt?: string | null;
   /** Width over height. */
   readonly ratio: number;
   readonly focus: PhotoFocus | null;

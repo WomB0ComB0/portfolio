@@ -594,9 +594,12 @@ describe('LeetCodeTileView', () => {
     const tile = tileOf(container);
     expect(tile).toHaveAttribute('data-linked-tile');
 
-    const label = screen.getByRole('heading', { level: 2 });
+    // Audit 2026-11-20 polish: the link wraps the label, so the heading is named by its title
+    // alone, and the link keeps saying where it goes and that it opens a new tab.
+    const label = screen.getByRole('heading', { level: 2, name: 'LeetCode' });
     expect(label).toHaveClass('tile-label', 'text-muted-foreground');
-    const link = within(label).getByRole('link', { name: `LeetCode profile ${NEW_TAB}` });
+    const link = screen.getByRole('link', { name: `LeetCode profile ${NEW_TAB}` });
+    expect(link).toContainElement(label);
     expect(link).toHaveAttribute('href', 'https://leetcode.com/u/WomB0ComB0/');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('data-tile-link');
@@ -685,10 +688,11 @@ describe('TypingTileView', () => {
   it('shows the 60 s best and its accuracy, its label linking the profile', () => {
     const { container } = render(<TypingTileView result={ok(TYPING)} now={NOW} />);
     const tile = tileOf(container);
-    const label = screen.getByRole('heading', { level: 2 });
-    const link = within(label).getByRole('link', {
+    const label = screen.getByRole('heading', { level: 2, name: 'Typing' });
+    const link = screen.getByRole('link', {
       name: `Typing profile on Monkeytype ${NEW_TAB}`,
     });
+    expect(link).toContainElement(label);
     expect(link).toHaveAttribute('href', 'https://monkeytype.com/profile/WomB0ComB0');
     expect(link.querySelector('[data-new-tab-arrow]')).toHaveAttribute('aria-hidden', 'true');
     expect(within(tile).getByText('142')).toHaveClass('figure-md');
@@ -944,10 +948,10 @@ describe('GitHubTileView', () => {
         now={NOW}
       />,
     );
-    const heading = screen.getByRole('heading', { level: 2 });
-    expect(
-      within(heading).getByRole('link', { name: `GitHub profile ${NEW_TAB}` }),
-    ).toHaveAttribute('href', 'https://github.com/WomB0ComB0');
+    const heading = screen.getByRole('heading', { level: 2, name: 'GitHub' });
+    const link = screen.getByRole('link', { name: `GitHub profile ${NEW_TAB}` });
+    expect(link).toHaveAttribute('href', 'https://github.com/WomB0ComB0');
+    expect(link).toContainElement(heading);
     expect(screen.queryByText(/Live Console bento/)).toBeNull();
   });
 
@@ -979,11 +983,8 @@ describe('GitHubTileView', () => {
         now={NOW}
       />,
     );
-    const heading = screen.getByRole('heading', { level: 2 });
-    expect(within(heading).getByRole('link')).toHaveAttribute(
-      'href',
-      'https://github.com/WomB0ComB0',
-    );
+    const heading = screen.getByRole('heading', { level: 2, name: 'GitHub' });
+    expect(heading.closest('a')).toHaveAttribute('href', 'https://github.com/WomB0ComB0');
     expect(screen.queryByText('portfolio')).toBeNull();
   });
 
@@ -1601,10 +1602,11 @@ describe('RolesTileView', () => {
       `${shown[2]?.position} ${shown[2]?.company} · since 2024`,
     ]);
     expect(within(tile).getByText(shown[1]?.position ?? '')).toHaveClass('tile-title', 'truncate');
-    expect(within(tile).getByText(`${shown[1]?.company} · since 2024`)).toHaveClass(
-      'tile-meta',
-      'truncate',
-    );
+    // Audit 2026-11-20 #8 (WCAG 1.4.12): cut to one line, the company line lost 'since 2023'
+    // under a reader's wider text spacing. It wraps instead, and fits one line as before.
+    const company = within(tile).getByText(`${shown[1]?.company} · since 2024`);
+    expect(company).toHaveClass('tile-meta', 'wrap-break-word');
+    expect(company).not.toHaveClass('truncate');
   });
 
   it('links each role to its page, its company as people say it and the year it began', () => {
@@ -1960,15 +1962,25 @@ describe('skeletons', () => {
     'tile-meta',
     'figure-row',
   ] as const;
+  /**
+   * A row's own element. A link that wraps a row (a label linked to its profile, so the heading
+   * is named by the label alone) is a block around it, as tall as the row it holds.
+   */
+  const rowOf = (child: Element): Element => {
+    const inner = child.tagName === 'A' ? child.firstElementChild : null;
+    return inner && TYPE_CLASSES.some((type) => inner.classList.contains(type)) ? inner : child;
+  };
   const rowTypes = (element: Element | null | undefined): string[] =>
-    shownChildren(element).map(
-      (child) =>
-        TYPE_CLASSES.find((type) => child.classList.contains(type)) ??
-        (child.hasAttribute('data-segment-bar') ||
-        child.hasAttribute('data-segment-bar-placeholder')
-          ? 'segment-bar'
-          : child.tagName.toLowerCase()),
-    );
+    shownChildren(element)
+      .map(rowOf)
+      .map(
+        (child) =>
+          TYPE_CLASSES.find((type) => child.classList.contains(type)) ??
+          (child.hasAttribute('data-segment-bar') ||
+          child.hasAttribute('data-segment-bar-placeholder')
+            ? 'segment-bar'
+            : child.tagName.toLowerCase()),
+      );
 
   // The old skeleton had a line for 'refreshed every 6 h' that the tile no longer has.
   it('LeetCode holds the loaded rows: label, the figure’s row with its unit, the bar', () => {

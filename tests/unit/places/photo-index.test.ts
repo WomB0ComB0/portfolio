@@ -116,6 +116,26 @@ describe('buildPhotoIndex', () => {
     expect(byKey.get(`${A._id}:2`)).toMatchObject({ caption: null, focus: null, ratio: 0.75 });
   });
 
+  // Audit 2026-11-20 #6: Studio's Alternative Text reaches the photos view, tidied like captions.
+  it("carries each photo's alt text from Studio, or null without one", () => {
+    const place = makePlace({
+      photos: [
+        photo(hash(7), 1600, 1200, { alt: '  Two people   at a demo table ', caption: 'Demo day' }),
+        photo(hash(8), 1600, 1200, { alt: '   ' }),
+        photo(hash(9)),
+      ],
+    });
+    const { photos } = buildPhotoIndex([place]);
+    const byIndex = new Map(photos.map((item) => [item.index, item]));
+
+    expect(byIndex.get(1)).toMatchObject({
+      alt: 'Two people at a demo table',
+      caption: 'Demo day',
+    });
+    expect(byIndex.get(2)?.alt).toBeNull();
+    expect(byIndex.get(3)?.alt).toBeNull();
+  });
+
   it("builds the cover thumbnail and the place viewer's whole photo, both uncropped", () => {
     const { photos } = buildPhotoIndex([A]);
     const portrait = photos.find((item) => item.index === 2);

@@ -171,6 +171,31 @@ describe('/stats console server HTML', () => {
     expect(existsSync(join(process.cwd(), 'src/app/(routes)/(dev)/stats/loading.tsx'))).toBe(false);
   });
 
+  // Audit 2026-11-20 polish: the GitHub and Discord headings, and the regions they name, read
+  // "GitHub profile (opens in a new tab)": the link sat inside the heading. The link wraps the
+  // heading instead, so the region and heading are the title alone and the link says the rest.
+  it.each([
+    ['github', 'GitHub', 'https://github.com/WomB0ComB0'],
+    ['discord', 'Discord', 'https://discord.com/users/42'],
+  ])(
+    'names the %s tile by its title, the link around its heading saying where it goes',
+    async (tile, title, href) => {
+      const root = await pageHtml();
+      const section = root.querySelector(`[data-stats-tile="${tile}"]`);
+      const heading = section?.querySelector('h2');
+      const link = heading?.closest('a');
+      // Without NewTabArrow's invisible U+2060 WORD JOINER, which no name includes.
+      const words = (element: Element | null | undefined): string =>
+        textOf(element).replace(/⁠/g, '');
+
+      expect(section?.tagName).toBe('SECTION');
+      expect(root.querySelector(`#${section?.getAttribute('aria-labelledby')}`)).toBe(heading);
+      expect(words(heading)).toBe(title);
+      expect(link?.getAttribute('href')).toBe(href);
+      expect(words(link)).toBe(`${title} profile (opens in a new tab)`);
+    },
+  );
+
   it('renders the Discord snapshot and latest commit before the client polls', async () => {
     const root = await pageHtml();
     const discord = root.querySelector('[data-stats-tile="discord"]');

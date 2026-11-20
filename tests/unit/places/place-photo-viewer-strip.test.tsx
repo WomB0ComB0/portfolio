@@ -32,12 +32,13 @@ const PLACE = 'Photographed Place';
 
 /**
  * Viewer photo `n` (1-based): its frame URL and its strip thumbnail. A `caption`, when given, is
- * also its alt text; otherwise the alt is "Photo of <PLACE>".
+ * also its description and alt text, as the page passes a photo with no Studio alt text;
+ * otherwise the alt is "Photo of <PLACE>".
  */
 const photo = (n: number, caption?: string): ViewerPhoto => ({
   url: `https://cdn.sanity.io/images/test/test/p${n}-1600x1200.jpg?w=1600&fit=max`,
   thumb: `https://cdn.sanity.io/images/test/test/p${n}-1600x1200.jpg?w=320&h=240&fit=crop&auto=format`,
-  ...(caption && { caption }),
+  ...(caption && { caption, described: caption }),
   alt: caption ?? `Photo of ${PLACE}`,
 });
 

@@ -19,12 +19,12 @@
  * hooks, so the live island renders it and the lab renders its samples on the server.
  *
  * It is the home now-playing tile's body at hero scale: the album art, then the track over its
- * artist, with the equaliser before the artist as the only live cue (moving while a track plays,
- * still otherwise, still under reduced motion), the same copy and the same link rules (the whole
- * tile links to the track on Spotify, in a new tab). Above the track, a sentence-case label says
- * when: "Playing now" or "Recently played · 3 h ago". That label is the tile's h2, so a screen
- * reader hears the state once. Every state, nothing playing included, is the same tile with the
- * same art box, so a poll never changes the hero's height.
+ * artist, with the equaliser before the artist as the only live cue (moving for a few seconds when
+ * a track starts, then at rest; still otherwise, and still under reduced motion), the same copy and
+ * the same link rules (the whole tile links to the track on Spotify, in a new tab). Above the
+ * track, a sentence-case label says when: "Playing now" or "Recently played · 3 h ago". That label
+ * is the tile's h2, so a screen reader hears the state once. Every state, nothing playing included,
+ * is the same tile with the same art box, so a poll never changes the hero's height.
  *
  * The art is sized in pixels (80px, 112px from a 28rem tile), so enlarged text does not double
  * it. Once the tile is under nine lines of its own text wide (at the browser's own size only under

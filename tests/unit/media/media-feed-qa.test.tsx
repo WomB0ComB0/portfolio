@@ -292,6 +292,25 @@ describe('columns (round 2)', () => {
     }
   });
 
+  // Audit 2026-11-20 #8 (WCAG 1.4.12): with a reader's wider letter and word spacing the year was
+  // cut off. The date fits its column at the browser's spacing, and wraps before the year past it.
+  it('lets a section’s Date cell wrap instead of cutting the year', () => {
+    for (const kind of FEED_KINDS) {
+      const columns: readonly FeedColumn[] = SECTION_COLUMNS[kind];
+      expect(columns.at(-1)).toMatchObject({ id: 'date', wrap: true });
+    }
+    const root = renderFeed('', { parts: 'each' });
+    const cells = Array.from(root.querySelectorAll('tr[data-feed-row] time'), (time) =>
+      time.closest('td'),
+    );
+
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell?.className.split(' ')).toContain('whitespace-normal');
+      expect(cell?.className.split(' ')).not.toContain('whitespace-nowrap');
+    }
+  });
+
   it('keeps the one feed its five columns and its short date', () => {
     expect(FEED_COLUMNS.map((column) => column.id)).toEqual([
       'item',

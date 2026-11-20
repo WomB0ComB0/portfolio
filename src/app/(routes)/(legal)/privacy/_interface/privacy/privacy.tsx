@@ -62,7 +62,9 @@ export const Privacy = (): JSX.Element => {
                 <Database className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Information We Collect</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Information We Collect
+                </CardTitle>
                 <CardDescription className="mt-2">
                   We collect information in various ways to provide and improve our services.
                 </CardDescription>
@@ -77,7 +79,9 @@ export const Privacy = (): JSX.Element => {
               </div>
               <ul className="space-y-3 ml-4">
                 <li className="flex gap-3">
-                  <span className="text-primary mt-1">•</span>
+                  <span aria-hidden="true" className="text-primary mt-1">
+                    •
+                  </span>
                   <div>
                     <span className="font-semibold">Guestbook:</span> You can sign in with Google,
                     GitHub, or anonymously. The guestbook stores your display name, your message,
@@ -86,7 +90,9 @@ export const Privacy = (): JSX.Element => {
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-primary mt-1">•</span>
+                  <span aria-hidden="true" className="text-primary mt-1">
+                    •
+                  </span>
                   <div>
                     <span className="font-semibold">Contact:</span> If you contact us directly, we
                     receive your email address and any information you provide.
@@ -104,7 +110,9 @@ export const Privacy = (): JSX.Element => {
               </div>
               <ul className="space-y-3 ml-4">
                 <li className="flex gap-3">
-                  <span className="text-primary mt-1">•</span>
+                  <span aria-hidden="true" className="text-primary mt-1">
+                    •
+                  </span>
                   <div>
                     <span className="font-semibold">Log and Usage Data:</span> Our servers
                     automatically collect IP address, browser type, operating system, referring
@@ -112,7 +120,9 @@ export const Privacy = (): JSX.Element => {
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-primary mt-1">•</span>
+                  <span aria-hidden="true" className="text-primary mt-1">
+                    •
+                  </span>
                   <div>
                     <span className="font-semibold">Analytics Data:</span> We use Google Analytics
                     and Vercel Analytics to understand visitor engagement, including device,
@@ -120,7 +130,9 @@ export const Privacy = (): JSX.Element => {
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-primary mt-1">•</span>
+                  <span aria-hidden="true" className="text-primary mt-1">
+                    •
+                  </span>
                   <div>
                     <span className="font-semibold">Error Monitoring and Session Replay:</span>{' '}
                     Sentry records errors. Your browser also keeps the last minute or so of how the
@@ -132,13 +144,15 @@ export const Privacy = (): JSX.Element => {
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="text-primary mt-1">•</span>
+                  <span aria-hidden="true" className="text-primary mt-1">
+                    •
+                  </span>
                   <div>
                     <span className="font-semibold">Cookies and Tracking:</span> We use cookies and
                     similar technologies to operate and personalize the website. See our{' '}
                     <Link
                       href="/cookies"
-                      className="text-primary hover:underline font-medium inline-flex items-center gap-1"
+                      className="text-primary underline hover:text-foreground font-medium inline-flex items-center gap-1"
                     >
                       Cookie Policy
                     </Link>{' '}
@@ -157,7 +171,9 @@ export const Privacy = (): JSX.Element => {
                 <UserCheck className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">How We Use Your Information</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  How We Use Your Information
+                </CardTitle>
                 <CardDescription className="mt-2">
                   We use collected information to provide, improve, and protect our services.
                 </CardDescription>
@@ -167,29 +183,41 @@ export const Privacy = (): JSX.Element => {
           <CardContent>
             <ul className="space-y-2 ml-4">
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <span>Provide, operate, and maintain our website</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <span>Improve, personalize, and expand functionality and user experience</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <span>Understand and analyze website usage through analytics</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <span>Enable interactive features like the Guestbook</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <span>
                   Protect security and integrity, including rate limiting and blocking malicious IPs
                 </span>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <span>Respond to your comments or inquiries</span>
               </li>
             </ul>
@@ -203,7 +231,9 @@ export const Privacy = (): JSX.Element => {
                 <Share2 className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Sharing of Your Information</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Sharing of Your Information
+                </CardTitle>
                 <CardDescription className="mt-2">
                   We do not sell your personal information. We may share information in certain
                   situations.
@@ -214,7 +244,9 @@ export const Privacy = (): JSX.Element => {
           <CardContent className="space-y-4">
             <ul className="space-y-3 ml-4">
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <div>
                   <span className="font-semibold">With Third-Party Service Providers:</span> We
                   share data with vendors performing services for us, including Vercel (hosting),
@@ -225,7 +257,9 @@ export const Privacy = (): JSX.Element => {
                 </div>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <div>
                   <span className="font-semibold">Images and Media From Other Services:</span> Your
                   browser loads the site's images, videos, and the résumé PDF directly from the
@@ -241,7 +275,9 @@ export const Privacy = (): JSX.Element => {
                 </div>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <div>
                   <span className="font-semibold">By Law or to Protect Rights:</span> We may share
                   information if necessary to respond to legal process, investigate policy
@@ -264,7 +300,9 @@ export const Privacy = (): JSX.Element => {
                 <ExternalLink className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Third-Party Services</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Third-Party Services
+                </CardTitle>
                 <CardDescription className="mt-2">
                   This site integrates with several third-party services governed by their own
                   privacy policies.
@@ -363,7 +401,9 @@ export const Privacy = (): JSX.Element => {
                 <Lock className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Data Security and Retention</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Data Security and Retention
+                </CardTitle>
                 <CardDescription className="mt-2">
                   We implement security measures to protect your personal information.
                 </CardDescription>
@@ -397,7 +437,9 @@ export const Privacy = (): JSX.Element => {
                 <UserCheck className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Your Data Rights</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Your Data Rights
+                </CardTitle>
                 <CardDescription className="mt-2">
                   Depending on your location, you may have certain rights regarding your personal
                   data.
@@ -408,21 +450,27 @@ export const Privacy = (): JSX.Element => {
           <CardContent>
             <ul className="space-y-2 ml-4">
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <div>
                   <span className="font-semibold">Right to Access:</span> Request copies of your
                   personal data
                 </div>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <div>
                   <span className="font-semibold">Right to Rectification:</span> Request correction
                   of inaccurate information
                 </div>
               </li>
               <li className="flex gap-3">
-                <span className="text-primary mt-1">•</span>
+                <span aria-hidden="true" className="text-primary mt-1">
+                  •
+                </span>
                 <div>
                   <span className="font-semibold">Right to Erasure:</span> Request deletion of your
                   personal data under certain conditions
@@ -444,7 +492,9 @@ export const Privacy = (): JSX.Element => {
                 <Baby className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Children's Privacy</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Children's Privacy
+                </CardTitle>
               </div>
             </div>
           </CardHeader>
@@ -464,7 +514,9 @@ export const Privacy = (): JSX.Element => {
                 <FileText className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Changes to This Privacy Policy</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Changes to This Privacy Policy
+                </CardTitle>
               </div>
             </div>
           </CardHeader>
@@ -482,7 +534,9 @@ export const Privacy = (): JSX.Element => {
                 <Mail className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-2xl">Contact Us</CardTitle>
+                <CardTitle as="h2" className="text-2xl">
+                  Contact Us
+                </CardTitle>
                 <CardDescription className="mt-2">
                   Questions or comments about this Privacy Policy?
                 </CardDescription>
@@ -495,7 +549,6 @@ export const Privacy = (): JSX.Element => {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-lg font-medium text-primary hover:underline"
-              aria-label="Send email"
             >
               <span>
                 {encodedEmail.replaceAll(/&#(\d+);/g, (_match, dec) => String.fromCodePoint(dec))}

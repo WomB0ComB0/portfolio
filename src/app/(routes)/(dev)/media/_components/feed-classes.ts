@@ -55,7 +55,9 @@ const LENGTH = {
   priority: 1,
   width: 'w-[7.5rem]',
 } as const satisfies FeedColumn;
-// 8rem: "Nov 12, 2024" measured 92px in Linux Chromium, plus the cell's 24px padding.
+// 8rem: "Nov 12, 2024" measured 92px in Linux Chromium, plus the cell's 24px padding. It wraps
+// rather than cutting the year off with an ellipsis when a reader widens letter and word spacing
+// (WCAG 1.4.12): at the browser's own spacing it still fits one line.
 const DATE_FULL = {
   id: 'date',
   label: 'Date',
@@ -63,6 +65,7 @@ const DATE_FULL = {
   priority: 1,
   width: 'w-[8rem]',
   sort: 'date',
+  wrap: true,
 } as const satisfies FeedColumn;
 
 /**

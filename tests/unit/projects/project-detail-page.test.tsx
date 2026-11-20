@@ -218,6 +218,20 @@ describe('/projects/[id] header', () => {
     expect(headings[0]).toHaveAccessibleName('grepo: Search your repos');
   });
 
+  // Verify 2026-11-20 R3: inside the page's article and main the header has a generic role, on
+  // which aria-labelledby is prohibited (axe: needs review). The h1 already titles the page.
+  it('leaves the header unnamed: no aria-labelledby on its generic role, the h1 titling the page', async () => {
+    const { container } = render(await pageFor(GREPO._id));
+
+    const header = container.querySelector('header[data-quiet-stage]');
+    expect(header).not.toBeNull();
+    expect(header).not.toHaveAttribute('aria-labelledby');
+    expect(header).not.toHaveAttribute('aria-label');
+    expect(within(header as HTMLElement).getByRole('heading', { level: 1 })).toHaveAccessibleName(
+      'grepo: Search your repos',
+    );
+  });
+
   it('shows the kind, When / Length / Status in words, and the description', async () => {
     const { container } = render(await pageFor(GREPO._id));
 

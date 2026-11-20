@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PlaceCard } from '@/app/(routes)/(main)/(personal)/places/_components/place-card';
 import type { PlaceItem } from '@/types/places';
@@ -78,5 +78,43 @@ describe('PlaceCard', () => {
     expect(maps).toHaveAttribute('href', 'https://maps.google.com/?q=40.7,-74');
     expect(maps).toHaveTextContent('A description long enough');
     expect(screen.getByRole('link', { name: '1 photo of Test Place' })).toBeInTheDocument();
+  });
+
+  // Audit 2026-11-20 #2: the page's h1 is "Places I've Visited" and no heading sits between it
+  // and the cards, so each card's title is an h2, named by the place alone.
+  it('titles the card with an h2 named by the place, its pin left out', () => {
+    render(<PlaceCard place={place(0)} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Test Place' })).toBeInTheDocument();
+  });
+
+  // Audit 2026-11-20 #9 (WCAG 2.4.4, 1.1.1).
+  it('says the Maps link opens Google Maps in a new tab, right after the place', () => {
+    render(<PlaceCard place={place(0)} />);
+    const maps = screen.getByRole('link', {
+      name: /^Test Place \(opens Google Maps in a new tab\) A description/,
+    });
+
+    expect(maps).toHaveAttribute('target', '_blank');
+    expect(within(maps).getByText('(opens Google Maps in a new tab)')).toHaveClass('sr-only');
+  });
+
+  it('hides the pin and the new-tab icon from screen readers', () => {
+    render(<PlaceCard place={place(0)} />);
+    const icons = screen.getByRole('link', { name: /^Test Place/ }).querySelectorAll('svg');
+
+    expect(icons).toHaveLength(2);
+    for (const icon of icons) expect(icon).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shows the new-tab icon on keyboard focus as well as on hover', () => {
+    render(<PlaceCard place={place(0)} />);
+    const [, newTab] = screen.getByRole('link', { name: /^Test Place/ }).querySelectorAll('svg');
+
+    expect(newTab).toHaveClass(
+      'opacity-0',
+      'group-hover/link:opacity-100',
+      'group-focus-visible/link:opacity-100',
+    );
   });
 });

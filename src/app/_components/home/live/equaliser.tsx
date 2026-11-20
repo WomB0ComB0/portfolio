@@ -15,11 +15,12 @@
  */
 
 /**
- * @file The now-playing equaliser: three bars on equaliser.module.css, moving in the live colour
- * while a track plays and still and faint otherwise (still under reduced motion too). The home
- * now-playing tile draws it, and so does /spotify. No directive and no hooks, so a server
- * component renders it on the server and the client tile bundles it as a plain module: importing
- * it from the tile's 'use client' module would make every export a client reference on the server.
+ * @file The now-playing equaliser: three bars on equaliser.module.css, in the live colour while a
+ * track plays (moving for its first few seconds, then at rest) and still and faint otherwise
+ * (still under reduced motion too). The home now-playing tile draws it, and so does /spotify. No
+ * directive and no hooks, so a server component renders it on the server and the client tile
+ * bundles it as a plain module: importing it from the tile's 'use client' module would make every
+ * export a client reference on the server.
  */
 
 import type { ReactElement } from 'react';
@@ -33,7 +34,7 @@ const BAR_POSES = ['low', 'high', 'mid'] as const;
 export interface EqualiserProps {
   /** 'inline' beside text (12px), or 'glyph' in an art box's place (20px). */
   readonly size: 'inline' | 'glyph';
-  /** Moving, in the live colour; otherwise still and faint. */
+  /** In the live colour, moving for its first few seconds; otherwise still and faint. */
   readonly live: boolean;
 }
 

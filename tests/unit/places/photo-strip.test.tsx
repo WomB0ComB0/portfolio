@@ -18,9 +18,10 @@
  * @file The photo strip under the place viewer (the owner's pick B from the Aceternity lab): a
  * toolbar of thumbnails with ONE Tab stop, the photo shown. Left and Right (and Home and End) move
  * the focus without changing the photo; a click (or Enter or Space, which click a native button)
- * shows it. Every thumbnail is a button named "Photo n of N" plus its caption, the shown one is
- * aria-current, and the script scrolls only the strip, never the page, to keep the shown or
- * focused thumbnail in its middle. The look is CSS (photo-strip-css.test.ts).
+ * shows it. Every thumbnail is a button named "Photo n of N" plus what the photo shows (its alt
+ * text, else its caption), the shown one is aria-current, and the script scrolls only the strip,
+ * never the page, to keep the shown or focused thumbnail in its middle. The look is CSS
+ * (photo-strip-css.test.ts).
  */
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
@@ -29,7 +30,8 @@ import { PhotoStrip } from '@/app/(routes)/(main)/(personal)/places/[placeId]/_c
 
 interface StripPhoto {
   readonly thumb: string;
-  readonly caption?: string;
+  /** What the photo shows: Studio's alt text, else its caption. */
+  readonly described?: string;
 }
 
 const thumbUrl = (n: number): string =>
@@ -37,7 +39,7 @@ const thumbUrl = (n: number): string =>
 
 const PHOTOS: readonly StripPhoto[] = Array.from({ length: 7 }, (_, index) => ({
   thumb: thumbUrl(index + 1),
-  ...(index === 2 && { caption: 'The stage before the keynote' }),
+  ...(index === 2 && { described: 'The stage before the keynote' }),
 }));
 
 const LABEL = 'Photos of Photographed Place';
@@ -114,7 +116,7 @@ describe('PhotoStrip: what it says', () => {
     for (const button of thumbs()) expect(button).toHaveAttribute('type', 'button');
   });
 
-  it('names each button "Photo n of N", with the caption when the photo has one', () => {
+  it('names each button "Photo n of N", with what the photo shows when it says', () => {
     renderStrip();
 
     expect(thumbs().map((button) => button.getAttribute('aria-label'))).toEqual([

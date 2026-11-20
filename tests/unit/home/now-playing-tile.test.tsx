@@ -628,18 +628,44 @@ describe('the equaliser’s motion (equaliser.module.css)', () => {
     const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1];
     expect(reduced).toBeDefined();
     expect(lastRule(reduced ?? '', '.live')).toMatch(/animation:\s*none/);
-    expect(lastRule(css, '.low')).toMatch(/transform:\s*scaleY\(0\.4\)/);
-    expect(lastRule(css, '.high')).toMatch(/transform:\s*scaleY\(1\)/);
-    expect(lastRule(css, '.mid')).toMatch(/transform:\s*scaleY\(0\.65\)/);
+    // Every bar is drawn at its pose's rest scale, still or once it has stopped moving.
+    expect(lastRule(css, '.bar')).toMatch(/transform:\s*scaleY\(var\(--rest, 1\)\)/);
+    expect(lastRule(css, '.low')).toMatch(/--rest:\s*0\.4;/);
+    expect(lastRule(css, '.high')).toMatch(/--rest:\s*1;/);
+    expect(lastRule(css, '.mid')).toMatch(/--rest:\s*0\.65;/);
   });
 
   it('gives each bar its own speed, so they never move as one', () => {
     const durations = ['.low', '.high', '.mid'].map(
       (pose) => /animation-duration:\s*([\d.]+s)/.exec(lastRule(css, pose))?.[1],
     );
-    expect(durations).toEqual(['0.7s', '0.9s', '1.1s']);
+    // A beat is a whole rise and fall: the 0.7, 0.9 and 1.1 s each way of the old alternating loop.
+    expect(durations).toEqual(['1.4s', '1.8s', '2.2s']);
     // The poses come after .live, so their timings win over its shorthand.
     expect(css.indexOf('.low {')).toBeGreaterThan(css.indexOf('.live {'));
+  });
+
+  // Audit 2026-11-20 minor 4 (WCAG 2.2.2): it looped for as long as a track played.
+  it('never loops forever: each bar stops within 5 s of showing', () => {
+    expect(css).not.toMatch(/\binfinite\b/);
+    for (const pose of ['.low', '.high', '.mid']) {
+      const rule = lastRule(css, pose);
+      const count = Number(/animation-iteration-count:\s*(\d+)/.exec(rule)?.[1]);
+      const beat = Number(/animation-duration:\s*([\d.]+)s/.exec(rule)?.[1]);
+      // A negative delay starts it part-way through its first beat, which it doesn't repeat.
+      const delay = Number(/animation-delay:\s*(-?[\d.]+)s/.exec(rule)?.[1] ?? 0);
+      const moving = count * beat + Math.min(0, delay);
+
+      expect(Number.isInteger(count) && count > 0, `${pose} beats`).toBe(true);
+      expect(moving, `${pose} moves for ${moving.toFixed(2)} s`).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('starts and ends each beat at the bar’s rest pose, so it settles without a jump', () => {
+    const keyframes = /@keyframes\s+equalise\s*\{([\s\S]*?\n)\}/.exec(css)?.[1] ?? '';
+    expect(keyframes).toMatch(/0%,\s*100%\s*\{\s*transform:\s*scaleY\(var\(--rest, 1\)\);\s*\}/);
+    // Not alternate: a whole number of beats then ends on 100%, the rest pose.
+    expect(css).not.toMatch(/\balternate\b/);
   });
 
   // Review finding CR611-5: forced colours paint every author fill as Canvas, the tile's own, so

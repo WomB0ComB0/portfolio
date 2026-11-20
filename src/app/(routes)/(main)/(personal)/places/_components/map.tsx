@@ -78,6 +78,9 @@ export const GoogleMaps = ({ placesToDisplay }: GoogleMapsProps) => {
           // keyboard and a cluster's click still move it.
           gestureHandling="cooperative"
           disableDefaultUI={true}
+          // The one control kept: its + and - buttons zoom with a single tap or click, no
+          // gesture or drag (WCAG 2.5.1, 2.5.7). The dark color scheme styles them to match.
+          zoomControl={true}
         >
           <Markers placesToDisplay={placesToDisplay} />
         </VisGLMap>
@@ -259,7 +262,9 @@ const Markers = ({ placesToDisplay }: MarkersComponentProps) => {
             >
               <FiX className="h-4 w-4" aria-hidden="true" />
             </button>
-            <h3 className="mb-1 pr-6 text-base font-semibold text-primary">{activeMarker.name}</h3>
+            {/* An h2, as the place cards' titles are: the card comes before them in the page,
+                so an h3 here read the outline as h1, h3, h2. */}
+            <h2 className="mb-1 pr-6 text-base font-semibold text-primary">{activeMarker.name}</h2>
             <p className="mb-2 text-xs leading-normal text-muted-foreground">
               {activeMarker.category}
             </p>

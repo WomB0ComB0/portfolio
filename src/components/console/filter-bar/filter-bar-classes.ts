@@ -17,9 +17,11 @@
 /**
  * @file Every visual decision of the FilterBar family, as whole Tailwind class strings (Tailwind
  * reads class names from source). No directive, so a server skeleton imports these instead of
- * copying them. Palette only: surfaces, hairlines, the three text tiers, brand-subtle and
- * --brand-edge for the current chip, brand-ink for Clear. The shared sticky backplate is translucent; controls keep solid palette fills. No red or
- * per-kind colours. Refined type (tile-*): no capitals, weights at most 600, nothing under 12px.
+ * copying them. Palette only: surfaces, hairlines, the three text tiers, brand-subtle with a 2px
+ * --brand ring for the current chip, its pill and a checked option (the Filters button and the
+ * picker trigger keep a --brand-edge border while active), brand-ink for Clear. The shared sticky
+ * backplate is translucent; controls keep solid palette fills. No red or per-kind colours.
+ * Refined type (tile-*): no capitals, weights at most 600, nothing under 12px.
  *
  * Sizes answer to the shell's `page` container, never the viewport. Below a 48rem page the bar
  * is the search field and a Filters button; the facets open as a bottom sheet. From 48rem the
@@ -133,7 +135,7 @@ export const CHIP_LIST_SCROLL_CLASS =
   'relative isolate flex flex-wrap gap-1.5 [scrollbar-width:none] @min-[48rem]/page:-m-1 @min-[48rem]/page:flex-nowrap @min-[48rem]/page:overflow-x-auto @min-[48rem]/page:p-1 data-[overflow=end]:[mask-image:linear-gradient(to_right,#000_calc(100%_-_1.5rem),transparent)] data-[overflow=start]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem)] data-[overflow=both]:[mask-image:linear-gradient(to_right,transparent,#000_1.5rem,#000_calc(100%_-_1.5rem),transparent)]';
 
 /**
- * A chip, a link. Current: the brand-subtle fill with the brand edge, until the pill has
+ * A chip, a link. Current: the brand-subtle fill with a 2px brand ring, until the pill has
  * measured and draws it instead (CHIP_CURRENT_FILL_CLASS is then left off). Forced colours repaint
  * fills and borders with system colours, which would leave the current chip looking like the
  * rest, so there it takes the system's selected colours (Highlight, HighlightText) and a
@@ -142,9 +144,14 @@ export const CHIP_LIST_SCROLL_CLASS =
  */
 export const CHIP_CLASS =
   'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-[color,background-color,border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong hover:text-foreground focus-visible:relative focus-visible:z-[3] data-zero:text-faint aria-[current=true]:text-foreground forced-colors:aria-[current=true]:[forced-color-adjust:none] forced-colors:aria-[current=true]:border-[color:Highlight] forced-colors:aria-[current=true]:bg-[color:Highlight] forced-colors:aria-[current=true]:text-[color:HighlightText] forced-colors:aria-[current=true]:outline-[color:CanvasText]';
-/** The current chip's own fill: before the pill measures, without JavaScript, and in forced colours. */
+/**
+ * The current chip's own fill: before the pill measures, without JavaScript, and in forced colours.
+ * Its ring is 2px of --brand (the border and an inset shadow, so the chip keeps its size) where
+ * every other chip has a 1px hairline: the state reads by shape, not by colour alone (WCAG 1.4.1),
+ * and the ring is 3:1 against the fill and the page (1.4.11).
+ */
 export const CHIP_CURRENT_FILL_CLASS =
-  'aria-[current=true]:border-(--brand-edge) aria-[current=true]:bg-brand-subtle';
+  'aria-[current=true]:border-(--brand) aria-[current=true]:shadow-[inset_0_0_0_1px_var(--brand)] aria-[current=true]:bg-brand-subtle';
 /** In pill mode the current chip lets the pill show through. */
 export const CHIP_PILL_MODE_CLASS =
   'aria-[current=true]:border-transparent aria-[current=true]:bg-transparent forced-colors:aria-[current=true]:border-[color:Highlight] forced-colors:aria-[current=true]:bg-[color:Highlight]';
@@ -159,12 +166,13 @@ export const CHIP_COUNT_CLASS =
 
 /**
  * The current-chip pill: one layer the width of the chip row, clipped to the current chip
- * (clip-path inset, set from its measured box), with an inner layer 1px smaller for the brand
- * edge. It slides on clip-path alone: no width, no layout, no box-shadow. Hidden in forced colours,
- * where the chip keeps its own Highlight.
+ * (clip-path inset, set from its measured box), with an inner layer 2px smaller, so the current
+ * chip shows the same 2px --brand ring as CHIP_CURRENT_FILL_CLASS. It slides on clip-path alone:
+ * no width, no layout, no box-shadow. Hidden in forced colours, where the chip keeps its own
+ * Highlight.
  */
 export const PILL_CLASS =
-  'pointer-events-none absolute top-0 left-0 z-[1] h-full w-(--pill-track,100%) opacity-0 [background:linear-gradient(var(--brand-edge),var(--brand-edge)),var(--brand-subtle)] [clip-path:inset(var(--pill-t,0)_var(--pill-r,100%)_var(--pill-b,0)_var(--pill-l,0)_round_9999px)] transition-[clip-path] duration-(--motion-spring-in) ease-spring before:absolute before:inset-0 before:bg-brand-subtle before:content-[""] before:[clip-path:inset(calc(var(--pill-t,0px)+1px)_calc(var(--pill-r,100%)+1px)_calc(var(--pill-b,0px)+1px)_calc(var(--pill-l,0px)+1px)_round_9999px)] before:transition-[clip-path] before:duration-(--motion-spring-in) before:ease-spring data-on:opacity-100 data-instant:transition-none data-instant:before:transition-none forced-colors:hidden';
+  'pointer-events-none absolute top-0 left-0 z-[1] h-full w-(--pill-track,100%) opacity-0 [background:linear-gradient(var(--brand),var(--brand)),var(--brand-subtle)] [clip-path:inset(var(--pill-t,0)_var(--pill-r,100%)_var(--pill-b,0)_var(--pill-l,0)_round_9999px)] transition-[clip-path] duration-(--motion-spring-in) ease-spring before:absolute before:inset-0 before:bg-brand-subtle before:content-[""] before:[clip-path:inset(calc(var(--pill-t,0px)+2px)_calc(var(--pill-r,100%)+2px)_calc(var(--pill-b,0px)+2px)_calc(var(--pill-l,0px)+2px)_round_9999px)] before:transition-[clip-path] before:duration-(--motion-spring-in) before:ease-spring data-on:opacity-100 data-instant:transition-none data-instant:before:transition-none forced-colors:hidden';
 
 /**
  * The picker's trigger: a chip-shaped button, filled while any of its values is chosen. From
@@ -186,9 +194,12 @@ export const PICKER_FIELD_CLASS =
   'flex h-9 min-w-0 flex-[1_1_12rem] items-center gap-2 rounded-lg border border-hairline bg-canvas px-3 text-faint focus-within:border-hairline-strong focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-focus';
 export const PICKER_SHOWN_CLASS = 'tile-meta text-faint';
 export const PICKER_OPTIONS_CLASS = 'flex flex-wrap gap-1.5 p-0.5';
-/** A checkbox option, drawn as a chip; checked, it takes the current chip's fill. */
+/**
+ * A checkbox option, drawn as a chip; checked, it takes the current chip's fill and its 2px
+ * --brand ring (the native box is hidden, so the ring is the checked state's shape).
+ */
 export const OPTION_CLASS =
-  'relative inline-flex h-8 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-[color,background-color,border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong hover:text-foreground has-checked:border-(--brand-edge) has-checked:bg-brand-subtle has-checked:text-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-focus data-zero:text-faint forced-colors:has-checked:[forced-color-adjust:none] forced-colors:has-checked:bg-[color:Highlight] forced-colors:has-checked:text-[color:HighlightText]';
+  'relative inline-flex h-8 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-[color,background-color,border-color] duration-(--motion-fast) ease-effect hover:border-hairline-strong hover:text-foreground has-checked:border-(--brand) has-checked:shadow-[inset_0_0_0_1px_var(--brand)] has-checked:bg-brand-subtle has-checked:text-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-focus data-zero:text-faint forced-colors:has-checked:[forced-color-adjust:none] forced-colors:has-checked:bg-[color:Highlight] forced-colors:has-checked:text-[color:HighlightText]';
 export const OPTION_INPUT_CLASS = 'absolute size-px opacity-0';
 export const OPTION_COUNT_CLASS =
   'tabular-nums text-faint [:checked~&]:text-muted-foreground forced-colors:[:checked~&]:text-[color:HighlightText]';

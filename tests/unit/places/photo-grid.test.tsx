@@ -75,13 +75,50 @@ describe('PhotoGrid', () => {
     const all = [...photos.slice(0, 10), ...photosOf([special])];
     render(<PhotoGrid photos={all} places={byId([...places, special])} onOpen={vi.fn()} enhance />);
 
-    const names = links().map((link) => link.textContent ?? '');
+    const names = links().map((link) => link.getAttribute('aria-label') ?? '');
+    expect(names.every((name) => name !== '')).toBe(true);
     expect(new Set(names).size).toBe(names.length);
     expect(links().at(-1)).toHaveAttribute('href', '/places/a%20b%2Fc');
     expect(links()[0]).toHaveAttribute('href', `/places/${photos[0]?.placeId}`);
     expect(
       screen.getByRole('link', { name: /^Antler NYC.*photo 1 of 5: First at Antler NYC$/ }),
     ).toBe(links()[0]);
+  });
+
+  // Verify 2026-11-20 R2: Chromium named a link from its text nodes as 'IEEE LISAT 2024
+  // ResearchNov 15, 2024 , photo 3 of 3: …' (the category run into the dates, a space before the
+  // comma). The name is one string now, the same in every browser and in the server's HTML.
+  it('names each link in one clean run: the place, category, dates, then the photo', () => {
+    const undated = { ...makePhotoPlace(3, 1), startDate: null, endDate: null };
+    render(
+      <PhotoGrid
+        photos={[...photos.slice(0, 2), ...photosOf([undated])]}
+        places={byId([...places, undated])}
+        onOpen={vi.fn()}
+        enhance
+      />,
+    );
+
+    expect(links().map((link) => link.getAttribute('aria-label'))).toEqual([
+      'Antler NYC, Hackathon, May 19 to 20, 2026, photo 1 of 5: First at Antler NYC',
+      'Antler NYC, Hackathon, May 19 to 20, 2026, photo 2 of 5',
+      'Visited 3, Hackathon, photo 1 of 1: First at Visited 3',
+    ]);
+    expect(links()[1]).toHaveAccessibleName(
+      'Antler NYC, Hackathon, May 19 to 20, 2026, photo 2 of 5',
+    );
+    // The card still shows the name over its category and dates; the name only adds commas.
+    expect(links()[1]).toHaveTextContent(/^Antler NYC Hackathon · May 19 /);
+  });
+
+  it('sends each link its whole name in the server HTML, for the grid before and without script', () => {
+    const html = renderToStaticMarkup(
+      <PhotoGrid photos={photos.slice(0, 1)} places={PLACES} onOpen={vi.fn()} enhance={false} />,
+    );
+
+    expect(html).toContain(
+      'aria-label="Antler NYC, Hackathon, May 19 to 20, 2026, photo 1 of 5: First at Antler NYC"',
+    );
   });
 
   it('opens the view on a plain left click, and lets a modified or middle click navigate', () => {
@@ -185,7 +222,7 @@ describe('PhotoGrid', () => {
     expect(Array.from(name.querySelectorAll('span'), (span) => span.textContent)).toEqual([
       '(PG-FMS)',
     ]);
-    expect(link).toHaveAccessibleName(/^Purple Geckos File Management System \(PG-FMS\) /);
+    expect(link).toHaveAccessibleName(/^Purple Geckos File Management System \(PG-FMS\), /);
   });
 
   it('leaves a name with nothing to hold as one piece of text', () => {
@@ -225,12 +262,18 @@ describe('PhotoGrid in runs (the /projects Screens view)', () => {
     renderRuns();
 
     // A voice user says what they see ('Fig. 2'), so the link's name starts with it (WCAG 2.5.3).
-    expect(links()[1]).toHaveAccessibleName(/^Fig\. 2 ?, Antler NYC Hackathon .*photo 2 of 3$/);
-    expect(links()[2]).toHaveAccessibleName(/^Fig\. 3 ?, Antler NYC Hackathon .*photo 3 of 3$/);
-    expect(links()[5]).toHaveAccessibleName(/^Fig\. 2 ?, Visited 2 Tech Office .*photo 2 of 2$/);
+    expect(links()[1]).toHaveAccessibleName(
+      'Fig. 2, Antler NYC, Hackathon, May 19 to 20, 2026, photo 2 of 3',
+    );
+    expect(links()[2]).toHaveAccessibleName(
+      'Fig. 3, Antler NYC, Hackathon, May 19 to 20, 2026, photo 3 of 3',
+    );
+    expect(links()[5]).toHaveAccessibleName(
+      'Fig. 2, Visited 2, Tech Office, May 19 to 20, 2026, photo 2 of 2',
+    );
     // A run's first card shows its name, which its link's name starts with; it has no number.
     for (const at of [0, 3, 4]) {
-      expect(links()[at]).toHaveAccessibleName(/^(Antler NYC|Visited \d) /);
+      expect(links()[at]).toHaveAccessibleName(/^(Antler NYC|Visited \d), /);
       expect(links()[at]).not.toHaveAccessibleName(/Fig\./);
     }
   });

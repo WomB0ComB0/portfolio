@@ -382,11 +382,19 @@ export function GitHubHero({ hero, now }: GitHubHeroProps): ReactElement {
       data-state={hero.state}
     >
       <div className={HEAD_CLASS}>
-        <TileLabel id={LABEL_ID}>
-          <TileLink href={GITHUB_PROFILE_URL} external srSuffix="profile" className="text-inherit">
+        {/* The link wraps the label: the heading, and the region it names, are just "GitHub". */}
+        <TileLink
+          href={GITHUB_PROFILE_URL}
+          external
+          srSuffix="profile"
+          arrow={false}
+          className="block text-inherit"
+        >
+          <TileLabel id={LABEL_ID}>
             GitHub
-          </TileLink>
-        </TileLabel>
+            <NewTabArrow />
+          </TileLabel>
+        </TileLink>
         <HeroAge hero={hero} />
       </div>
       <Contributions activity={hero.activity} now={now} />

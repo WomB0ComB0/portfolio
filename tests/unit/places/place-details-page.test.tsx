@@ -61,11 +61,12 @@ import PlacePage, {
   generateMetadata,
 } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
 
-const image = (key: string, ref: string, caption?: string) => ({
+const image = (key: string, ref: string, caption?: string, alt?: string) => ({
   _type: 'image' as const,
   _key: key,
   asset: { _ref: ref, _type: 'reference' as const },
   ...(caption && { caption }),
+  ...(alt && { alt }),
 });
 
 const quietPlace = makePlace({
@@ -88,7 +89,19 @@ const photographedPlace = makePlace({
   ],
 });
 
-const PLACES: readonly Place[] = [quietPlace, photographedPlace];
+/** Photos with Studio's Alternative Text: with a caption, alone, and blank (counted as none). */
+const describedPlace = makePlace({
+  name: 'Described Place',
+  description: FULL_DESCRIPTION,
+  category: 'Hackathon',
+  photos: [
+    image('c', 'image-c-1600x1200-jpg', 'Demo day', 'Two people at a laptop on a demo table'),
+    image('d', 'image-d-1600x1200-jpg', undefined, 'A robot arm sorting blocks'),
+    image('e', 'image-e-1600x1200-jpg', 'The judges', '   '),
+  ],
+});
+
+const PLACES: readonly Place[] = [quietPlace, photographedPlace, describedPlace];
 
 const paramsOf = (placeId: string) => ({ params: Promise.resolve({ placeId }) });
 
@@ -228,6 +241,40 @@ describe('place photo viewer', () => {
     fireEvent.click(within(strip).getByRole('button', { name: 'Photo 1 of 2' }));
 
     expect(screen.getByText('Photo 1 of 2')).toBeInTheDocument();
+  });
+
+  // Audit 2026-11-20 #6 (WCAG 1.1.1): Studio's Alternative Text says what each photo shows.
+  it("describes each photo by its alt text, else its caption, else the place's name", async () => {
+    await renderPage(describedPlace._id);
+    const strip = screen.getByRole('toolbar', { name: 'Photos of Described Place' });
+
+    expect(
+      screen.getByRole('img', { name: 'Two people at a laptop on a demo table' }),
+    ).toBeInTheDocument();
+    // The caption is still shown under the photo.
+    expect(screen.getByText('Demo day', { selector: 'p' })).toBeInTheDocument();
+
+    fireEvent.click(within(strip).getByRole('button', { name: /^Photo 2 of 3/ }));
+    expect(screen.getByRole('img', { name: 'A robot arm sorting blocks' })).toBeInTheDocument();
+
+    fireEvent.click(within(strip).getByRole('button', { name: /^Photo 3 of 3/ }));
+    expect(screen.getByRole('img', { name: 'The judges' })).toBeInTheDocument();
+  });
+
+  // The strip uses the same words, so a photo reads as it does on /places/photos.
+  it('names each strip thumbnail by its alt text, else its caption', async () => {
+    await renderPage(describedPlace._id);
+    const strip = screen.getByRole('toolbar', { name: 'Photos of Described Place' });
+
+    expect(
+      within(strip)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual([
+      'Photo 1 of 3: Two people at a laptop on a demo table',
+      'Photo 2 of 3: A robot arm sorting blocks',
+      'Photo 3 of 3: The judges',
+    ]);
   });
 
   it("draws each photo's strip thumbnail as a 320 x 240 crop in the best format", async () => {

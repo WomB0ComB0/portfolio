@@ -21,7 +21,7 @@ import 'server-only';
  * that may still be on, or one whose photos were cleared, never adds a photo, a count or a chip.
  * Each place with a usable photo is sent once (name, description, category, dates: what the
  * filters and captions read); each photo carries only its place's id, its index there, its
- * caption, shape, focus and URLs. No coordinates anywhere.
+ * caption, alt text, shape, focus and URLs. No coordinates anywhere.
  */
 
 import type { Place } from '@/hooks/sanity/schemas';
@@ -65,6 +65,7 @@ const wallPhotosOf = (place: Place): WallPhoto[] =>
     placeId: place._id,
     index: offset + 1,
     caption: normaliseCaption(photo.caption),
+    alt: normaliseCaption(photo.alt),
     ratio: photoRatio(photo.asset._ref),
     focus: photoFocus(photo.hotspot),
     thumb: coverThumbUrl(photo.asset),

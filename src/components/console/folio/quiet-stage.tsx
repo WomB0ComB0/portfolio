@@ -32,16 +32,27 @@ import { cn } from '@/lib/utils';
 /** A length the stage's bottom stays unlit: '0', '34%', '6rem', '120px'. */
 export type StageHang = '0' | `${number}${'%' | 'rem' | 'px'}`;
 
-export interface QuietStageProps {
-  /** The stage's element: a div by default, a header for a page's head. */
-  readonly as?: 'div' | 'header' | 'section';
+interface QuietStageBaseProps {
   /** How much of the stage's bottom stays unlit; none by default. */
   readonly hang?: StageHang;
-  /** For a section: the heading that names it. */
-  readonly 'aria-labelledby'?: string;
   readonly className?: string;
   readonly children?: ReactNode;
 }
+
+/**
+ * A div (by default) or a header for a page's head, never named: inside a page's article or main
+ * a header has a generic role, on which aria-labelledby is prohibited. Or a section, which the
+ * heading it is given names.
+ */
+export type QuietStageProps = QuietStageBaseProps &
+  (
+    | { readonly as?: 'div' | 'header'; readonly 'aria-labelledby'?: never }
+    | {
+        readonly as: 'section';
+        /** The heading that names the section. */
+        readonly 'aria-labelledby'?: string;
+      }
+  );
 
 const HANG = /^(?:0|\d+(?:\.\d+)?(?:%|rem|px))$/u;
 
@@ -68,7 +79,7 @@ export function QuietStage({
   return (
     <Element
       data-quiet-stage=""
-      aria-labelledby={labelledBy}
+      aria-labelledby={Element === 'section' ? labelledBy : undefined}
       className={cn('quiet-stage', className)}
       style={style}
     >

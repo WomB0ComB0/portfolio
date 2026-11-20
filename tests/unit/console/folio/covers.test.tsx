@@ -373,4 +373,23 @@ describe('QuietStage', () => {
 
     expect(getByRole('region', { name: 'SparkMind' })).toBeTruthy();
   });
+
+  // Verify 2026-11-20 R3: a header or div inside a page's article has a generic role, on which
+  // aria-labelledby is prohibited, so only a section takes a name.
+  it('names only a section: a header or a div never carries aria-labelledby', () => {
+    const { container } = render(
+      <>
+        {/* @ts-expect-error -- only a section takes aria-labelledby. */}
+        <QuietStage as="header" aria-labelledby="project-title">
+          <h1 id="project-title">SparkMind</h1>
+        </QuietStage>
+        {/* @ts-expect-error -- only a section takes aria-labelledby. */}
+        <QuietStage aria-labelledby="project-title" />
+      </>,
+    );
+
+    for (const stage of container.querySelectorAll('[data-quiet-stage]')) {
+      expect(stage).not.toHaveAttribute('aria-labelledby');
+    }
+  });
 });

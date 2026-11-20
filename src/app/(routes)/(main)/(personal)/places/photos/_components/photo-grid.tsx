@@ -21,16 +21,17 @@
  * without it. Every photo is a real link to its past place's page, so it works with no script;
  * a plain left click is upgraded to the open view (a modified or middle click still opens the
  * place). Each link is named by its place, category, dates and its number there, so no two read
- * the same. The first GRID_FIRST show; "Show all" reveals the rest (without script, a note says
+ * the same; the name is one aria-label string, so every browser reads it with the same commas
+ * and spaces. The first GRID_FIRST show; "Show all" reveals the rest (without script, a note says
  * how to see them instead).
  *
- * The links, the line under each name, the hidden end of each link's name, how many show first
- * and the list's name are the places' by default; another page (the /projects Screens view, whose
- * pictures link to their projects and are all listed) passes its own. That page also names each
- * project once per run of its pictures (`runs`): the first card of a run carries the name and the
- * line under it, the rest only their figure number ('Fig. 2'), whose link names start with that
- * number, as shown, and go on with the name; from a 40rem window those cards sit in a justified
- * contact sheet, each at its own shape, as the project page shows its screens.
+ * The links, the line under each name, the end of each link's name (which the card does not show),
+ * how many show first and the list's name are the places' by default; another page (the /projects
+ * Screens view, whose pictures link to their projects and are all listed) passes its own. That page
+ * also names each project once per run of its pictures (`runs`): the first card of a run carries
+ * the name and the line under it, the rest only their figure number ('Fig. 2'), whose link names
+ * start with that number, as shown, and go on with the name; from a 40rem window those cards sit in
+ * a justified contact sheet, each at its own shape, as the project page shows its screens.
  *
  * A name (and the line under it) is never cut: it wraps at its spaces, a short name with a hyphen
  * or slash ('(PG-FMS)') moves whole to the next line whenever it fits there (whole-words.tsx),
@@ -55,7 +56,7 @@ import Image from '@/components/ui/cdn-image';
 import type { PhotoPlace, WallPhoto } from '@/types/places';
 import { PlaceDateRange } from '../../_components/place-date-range';
 import { placeholderOf } from '../_lib/card-placeholder';
-import { focusPosition, gridLinkSuffix } from '../_lib/photo-labels';
+import { focusPosition, gridLinkName, gridLinkSuffix, placeMetaWords } from '../_lib/photo-labels';
 import styles from './photo-grid.module.css';
 import type { OpenPhoto, PlacesById } from './photo-types';
 
@@ -89,7 +90,10 @@ export interface PhotoGridProps {
    * and dates by default.
    */
   readonly metaOf?: (place: PhotoPlace) => readonly string[];
-  /** The hidden end of a link's name (', photo 3 of 5: …'); gridLinkSuffix by default. */
+  /**
+   * The end of a link's name, which the card does not show (', photo 3 of 5: …'); gridLinkSuffix
+   * by default.
+   */
   readonly suffixOf?: (photo: WallPhoto, place: PhotoPlace) => string;
   /** How many show before "Show all"; GRID_FIRST by default. */
   readonly first?: number;
@@ -181,8 +185,8 @@ const isPlainClick = (event: MouseEvent): boolean =>
 
 /**
  * The card's words: the name over the line under it; in a run's later card only its number
- * shows ('Fig. 2'). Its link's name starts with that number, as a voice user says what they see,
- * then goes on with the name and the line, read only ('Fig. 2, ResQ Viz …').
+ * shows ('Fig. 2'). Its link's name (linkName) starts with that number, as a voice user says what
+ * they see, then goes on with the name and the line ('Fig. 2, ResQ Viz, …').
  */
 function CardWords({
   place,
@@ -194,19 +198,13 @@ function CardWords({
   /** The photo's number among its place's, for a run's later card; else null. */
   readonly fig: number | null;
 }): ReactElement {
-  const words = (
+  if (fig !== null) return <span className={styles.fig}>Fig. {fig}</span>;
+  return (
     <>
       <span className={styles.name}>
         <WholeWords text={place.name} />
       </span>{' '}
       <CardMeta place={place} metaOf={metaOf} />
-    </>
-  );
-  if (fig === null) return words;
-  return (
-    <>
-      <span className={styles.fig}>Fig. {fig}</span>
-      <span className="sr-only">, {words}</span>
     </>
   );
 }
@@ -220,7 +218,25 @@ interface GridCardProps
   readonly onClick: (event: MouseEvent<HTMLAnchorElement>, photo: WallPhoto) => void;
 }
 
-/** One photo's card: a real link, its picture, the name, the line under it and its hidden end. */
+/**
+ * A card's link name, whole: what the card shows, then the end it does not ('Antler NYC,
+ * Hackathon, May 19 to 20, 2026, photo 3 of 5: Opening night'), the same in every browser.
+ */
+function linkName(
+  photo: WallPhoto,
+  place: PhotoPlace,
+  part: RunPart,
+  { metaOf, suffixOf }: Pick<GridCardProps, 'metaOf' | 'suffixOf'>,
+): string {
+  return gridLinkName({
+    fig: part === 'fig' ? photo.index : null,
+    name: place.name,
+    meta: metaOf ? metaOf(place) : placeMetaWords(place),
+    suffix: suffixOf(photo, place),
+  });
+}
+
+/** One photo's card: a real link named in full, its picture, the name and the line under it. */
 function GridCard({
   photo,
   place,
@@ -237,6 +253,7 @@ function GridCard({
         prefetch={false}
         className={styles.card}
         onClick={(event) => onClick(event, photo)}
+        aria-label={linkName(photo, place, part, { metaOf, suffixOf })}
         data-photo-key={photo.key}
       >
         <span className={styles.frame} data-grid-frame="">
@@ -256,7 +273,6 @@ function GridCard({
           <span className={styles.light} />
         </span>
         <CardWords place={place} metaOf={metaOf} fig={part === 'fig' ? photo.index : null} />
-        <span className="sr-only">{suffixOf(photo, place)}</span>
       </Link>
     </li>
   );

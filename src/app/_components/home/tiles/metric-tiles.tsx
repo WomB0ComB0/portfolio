@@ -32,6 +32,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 import type { LeetCodeStats } from '@/app/api/v1/[[...route]]/leetcode/handlers';
 import {
+  NewTabArrow,
   numberFormatter,
   SegmentBar,
   type SegmentBarSegment,
@@ -104,15 +105,25 @@ interface LinkedMetricProps {
   children: ReactNode;
 }
 
-/** A metric tile with somewhere to go: its label is the stretched link to the profile. */
+/**
+ * A metric tile with somewhere to go: its label is the stretched link to the profile. The link
+ * wraps the label, so the heading is named by the label alone and the link by the rest too.
+ */
 function LinkedMetric({ label, href, srSuffix, state, children }: LinkedMetricProps): ReactElement {
   return (
     <Tile variant="linked" className={TILE_CLASS} data-state={state}>
-      <TileLabel>
-        <TileLink href={href} external srSuffix={srSuffix} className="text-inherit">
+      <TileLink
+        href={href}
+        external
+        srSuffix={srSuffix}
+        arrow={false}
+        className="block text-inherit"
+      >
+        <TileLabel>
           {label}
-        </TileLink>
-      </TileLabel>
+          <NewTabArrow />
+        </TileLabel>
+      </TileLink>
       {children}
     </Tile>
   );

@@ -235,6 +235,20 @@ describe('/spotify server HTML', () => {
     expect(artists[0]?.closest('ol')).not.toBeNull();
   });
 
+  // Audit 2026-11-20 minor 6: Chromium dropped a space that sat alone in its own text node after
+  // the rank, naming the link "1Bb trickz". The space and the name are one text node.
+  it('keeps the space after each rank in the same text as the artist’s name', async () => {
+    const names = Array.from((await pageHtml()).querySelectorAll('[data-artist-name]'));
+
+    expect(names.length).toBeGreaterThan(0);
+    for (const [index, name] of names.entries()) {
+      const rank = name.firstElementChild;
+      expect(rank?.textContent).toBe(String(index + 1));
+      expect(rank?.nextSibling?.nodeType).toBe(Node.TEXT_NODE);
+      expect(rank?.nextSibling?.textContent).toBe(` Artist ${index + 1}`);
+    }
+  });
+
   it('draws the focus ring on an artist link: no outline-none, which would zero the ring style', async () => {
     const link = (await pageHtml()).querySelector('[data-spotify-artist] a');
     const classes = link?.className.split(/\s+/) ?? [];

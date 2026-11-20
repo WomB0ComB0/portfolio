@@ -53,7 +53,9 @@ const LicenseCard = ({
     <CardHeader>
       <div className="flex items-center gap-3 mb-2">
         <div className="text-primary">{icon}</div>
-        <CardTitle className="text-2xl text-foreground">{title}</CardTitle>
+        <CardTitle as="h2" className="text-2xl text-foreground">
+          {title}
+        </CardTitle>
       </div>
       <CardDescription className="text-muted-foreground text-base">{description}</CardDescription>
     </CardHeader>
@@ -131,7 +133,9 @@ export const Licenses = (): JSX.Element => {
 
       <MagicCard className="mt-12 border-border">
         <CardHeader>
-          <CardTitle className="text-xl text-foreground">Third-Party Licenses</CardTitle>
+          <CardTitle as="h2" className="text-xl text-foreground">
+            Third-Party Licenses
+          </CardTitle>
         </CardHeader>
         <CardContent className="text-muted-foreground space-y-4">
           <p>
@@ -151,7 +155,7 @@ export const Licenses = (): JSX.Element => {
       </MagicCard>
 
       <div className="mt-8 p-6 bg-muted rounded-lg border border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-2">Questions or Permissions</h3>
+        <h2 className="text-lg font-semibold text-foreground mb-2">Questions or Permissions</h2>
         <p className="text-muted-foreground">
           If you have questions about these licenses or need special permissions beyond what is
           granted, please feel free to{' '}

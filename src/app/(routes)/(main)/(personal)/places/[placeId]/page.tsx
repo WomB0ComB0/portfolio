@@ -23,7 +23,7 @@ import { urlFor } from '@/lib/sanity/client';
 import type { Place } from '@/lib/sanity/loaders';
 import { constructMetadata } from '@/utils/seo/meta';
 import { loadPastPlaceById } from '../_lib/past-place-loaders';
-import { usablePhotos } from '../_lib/place-photo-urls';
+import { photoAltText, usablePhotos } from '../_lib/place-photo-urls';
 import { stripThumbUrl, viewerPhotoUrl } from '../_lib/viewer-photo-url';
 import { PlacePhotoViewer } from './_components/place-photo-viewer';
 import { PlacePhotosEmptyState } from './_components/place-photos-empty-state';
@@ -90,16 +90,21 @@ export async function generateMetadata({ params }: PlacePageProps): Promise<Meta
 }
 
 /**
- * The viewer's photos: each whole (never cropped to the frame), with its strip thumbnail and its
- * alt text. Only the usable ones, as the card counts them: a malformed asset id would throw.
+ * The viewer's photos: each whole (never cropped to the frame), with its strip thumbnail, what it
+ * shows (Studio's Alternative Text, else the caption) and its alt text (that, else the place).
+ * Only the usable ones, as the card counts them: a malformed asset id would throw.
  */
 const viewerPhotos = (place: Place): ViewerPhoto[] =>
-  usablePhotos(place).map((photo) => ({
-    url: viewerPhotoUrl(photo.asset, VIEWER_MAX_WIDTH, VIEWER_MAX_HEIGHT),
-    thumb: stripThumbUrl(photo),
-    caption: photo.caption,
-    alt: photo.caption || `Photo of ${place.name}`,
-  }));
+  usablePhotos(place).map((photo) => {
+    const described = photoAltText(photo);
+    return {
+      url: viewerPhotoUrl(photo.asset, VIEWER_MAX_WIDTH, VIEWER_MAX_HEIGHT),
+      thumb: stripThumbUrl(photo),
+      caption: photo.caption,
+      ...(described && { described }),
+      alt: described ?? `Photo of ${place.name}`,
+    };
+  });
 
 /**
  * A place in full: its summary, then its photos, or an empty state with a map link when it has
