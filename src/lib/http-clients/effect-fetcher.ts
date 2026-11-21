@@ -92,10 +92,11 @@ const HTML_SCAN_CHARS = 4_000;
 const HTML_BODY_START = /<body[\s>]/i;
 const HTML_TITLE = /<title[^>]*>([^<]*)<\/title>/i;
 /**
- * Comments, whole script, style and inline svg elements (code and icons, not words), and tags
- * (one cut off by the scan limit too).
+ * Comments, script, style and inline svg elements (code and icons, not words), and tags. An
+ * element or tag cut off by the scan limit is removed to the end of the scanned text.
  */
-const HTML_NOT_TEXT = /<!--[\s\S]*?-->|<(script|style|svg)\b[^>]*>[\s\S]*?<\/\1\s*>|<[^>]*>?/gi;
+const HTML_NOT_TEXT =
+  /<!--[\s\S]*?(?:-->|$)|<(script|style|svg)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)|<[^>]*>?/gi;
 
 const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim();
 

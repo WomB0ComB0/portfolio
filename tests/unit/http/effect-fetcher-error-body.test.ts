@@ -126,6 +126,16 @@ describe('effect-fetcher: the message of a non-2xx error', () => {
     expect((await failWith(500, page(metas, '<h1>Down</h1>'))).message).toBe('HTTP 500: HTML page');
   });
 
+  it('drops a script or style block that runs past the scan limit, keeping the text before it', async () => {
+    const css = `.a{color:red}`.repeat(400);
+    const styled = `<!DOCTYPE html><html><head><style>${css}</style></head><body><h1>Down</h1></body></html>`;
+    expect((await failWith(503, styled)).message).toBe('HTTP 503: HTML page');
+
+    const js = 'window.x=1;'.repeat(500);
+    const scripted = `<html><body><h1>Bad Gateway</h1><script>${js}</script></body></html>`;
+    expect((await failWith(502, scripted)).message).toBe('HTTP 502: HTML page "Bad Gateway"');
+  });
+
   it("quotes the document's own title, not an SVG icon's in the body", async () => {
     const body = '<html><body><svg><title>logo</title></svg><h1>Error 500</h1></body></html>';
     expect((await failWith(500, body)).message).toBe('HTTP 500: HTML page "Error 500"');
