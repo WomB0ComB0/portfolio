@@ -124,6 +124,8 @@ describe('Effect 4 fetcher over a real HTTP connection', () => {
     const rejected = expect(running).rejects.toMatchObject({
       name: 'FetcherError',
       message: 'Request timed out',
+      // Marked, so the reporter can drop one that came due while the process was paused.
+      timedOut: true,
     });
     await observed.arrived;
     await rejected;

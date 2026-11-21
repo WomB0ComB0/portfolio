@@ -19,9 +19,32 @@
  * 'server-only', so server loaders and client islands share it.
  */
 
+/**
+ * Carried by this codebase's timeout errors ({@link DeadlineError}, FetcherTimeoutError,
+ * FetchTimeoutError), so a reporter can tell a missed time budget from a failure without knowing
+ * every error class.
+ */
+export interface TimedOut {
+  readonly timedOut: true;
+}
+
+/**
+ * Whether `error` itself (not its cause) is a timeout: one of ours ({@link TimedOut}), or the
+ * platform's `TimeoutError`, which `AbortSignal.timeout` raises (Sanity's client, for one, fails
+ * with it).
+ */
+export function isTimeout(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  return (
+    (error as Partial<TimedOut>).timedOut === true ||
+    (error as { name?: unknown }).name === 'TimeoutError'
+  );
+}
+
 /** Raised by {@link withDeadline} when the promise is still pending once its budget runs out. */
-export class DeadlineError extends Error {
+export class DeadlineError extends Error implements TimedOut {
   readonly name = 'DeadlineError';
+  readonly timedOut = true;
 
   constructor(
     /** What timed out, e.g. 'github activity'. */

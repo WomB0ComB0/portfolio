@@ -20,6 +20,7 @@
 
 import { init } from '@sentry/nextjs';
 import { env } from '@/env';
+import { startPauseDetector } from '@/lib/observability/pause-detector';
 import { buildServerOptions } from '@/lib/observability/sentry-options';
 
 init({
@@ -34,3 +35,6 @@ init({
     nodeEnv: process.env.NODE_ENV,
   }),
 });
+
+// Lets the reporter drop timeouts that came due while the instance was frozen (see the module).
+startPauseDetector();

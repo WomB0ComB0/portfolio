@@ -233,7 +233,11 @@ describe.each(cases)('$name with a hanging upstream', (handlerCase) => {
     await expect(pending).resolves.toEqual(first);
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     expect(sentry.captureException).toHaveBeenCalledWith(
-      expect.objectContaining({ command: handlerCase.command }),
+      // The cause is a marked timeout, so the reporter can tell one that came due in a pause.
+      expect.objectContaining({
+        command: handlerCase.command,
+        cause: expect.objectContaining({ timedOut: true }),
+      }),
       expect.objectContaining({ level: 'warning', tags: { 'api.context': handlerCase.context } }),
     );
   });

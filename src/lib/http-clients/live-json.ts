@@ -16,6 +16,8 @@
 
 /** Shared browser-safe JSON transport. No retry layer or server-only dependencies. */
 
+import type { TimedOut } from '@/lib/async/deadline';
+
 /** How long one poll may take, body included, before it is aborted. */
 const LIVE_FETCH_TIMEOUT_MS = 5_000;
 
@@ -29,8 +31,9 @@ export class FetchStatusError extends Error {
 }
 
 /** The endpoint did not answer (body included) within the timeout. */
-export class FetchTimeoutError extends Error {
+export class FetchTimeoutError extends Error implements TimedOut {
   override readonly name = 'FetchTimeoutError';
+  readonly timedOut = true;
 
   constructor(readonly timeoutMs: number) {
     super(`Request timed out after ${timeoutMs} ms`);

@@ -327,7 +327,10 @@ describe('handleStatusCheck with a hanging Better Stack', () => {
     const pending = handleStatusCheck();
 
     expect(await settlesWithin(pending, CHECK_BUDGET_MS)).toBe(true);
-    await expect(pending).rejects.toThrow();
+    // A marked timeout underneath, so the reporter can tell one that came due in a pause.
+    await expect(pending).rejects.toMatchObject({
+      cause: expect.objectContaining({ timedOut: true }),
+    });
   });
 });
 

@@ -19,7 +19,7 @@ import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import type { CachedValue } from '@/lib/cache/stale-cache';
-import { FetcherError, post } from '@/lib/http-clients/effect-fetcher';
+import { FetcherTimeoutError, post } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
 const LEETCODE_GRAPHQL_URL = 'https://leetcode.com/graphql';
@@ -178,7 +178,7 @@ async function fetchFromGraphQL(): Promise<LeetCodeStats> {
         duration: UPSTREAM_DEADLINE_MS,
         orElse: () =>
           Effect.fail(
-            new FetcherError(
+            new FetcherTimeoutError(
               `LeetCode did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
               LEETCODE_GRAPHQL_URL,
             ),

@@ -36,7 +36,14 @@ const sentry = vi.hoisted(() => ({
   captureRouterTransitionStart: vi.fn(),
 }));
 
+const pauseDetector = vi.hoisted(() => ({
+  startPauseDetector: vi.fn(),
+  recentlyResumed: vi.fn(() => false),
+}));
+
 vi.mock('@sentry/nextjs', () => sentry);
+// Mocked so each fresh import of the server entry starts no real heartbeat in the test process.
+vi.mock('@/lib/observability/pause-detector', () => pauseDetector);
 vi.mock('@/env', () => {
   const env = { NEXT_PUBLIC_SENTRY_DSN: 'https://abc123@o42.ingest.us.sentry.io/7' };
   return { env, default: env };
@@ -153,6 +160,12 @@ describe.each(['server', 'edge'] as const)('instrumentation-%s', (entry) => {
     expect(
       beforeSend({ request: { headers: { 'x-real-ip': '203.0.113.7', accept: '*/*' } } }, {}),
     ).toEqual({ request: { headers: { accept: '*/*' } } });
+  });
+
+  it('starts the pause detector on the Node.js server only (Vercel freezes those instances)', async () => {
+    pauseDetector.startPauseDetector.mockClear();
+    await initOptionsFor(entry, { VERCEL: '1', VERCEL_ENV: 'production' });
+    expect(pauseDetector.startPauseDetector).toHaveBeenCalledTimes(entry === 'server' ? 1 : 0);
   });
 });
 

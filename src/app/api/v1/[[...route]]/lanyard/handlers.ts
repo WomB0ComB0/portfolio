@@ -19,7 +19,7 @@ import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { config } from '@/config';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
-import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherTimeoutError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
 /** The route's error-handler context, so stale-fallback warnings group with its errors. */
@@ -141,7 +141,10 @@ async function fetchPresence(): Promise<LanyardData> {
         duration: UPSTREAM_DEADLINE_MS,
         orElse: () =>
           Effect.fail(
-            new FetcherError(`Lanyard did not answer within ${UPSTREAM_DEADLINE_MS} ms`, url),
+            new FetcherTimeoutError(
+              `Lanyard did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
+              url,
+            ),
           ),
       }),
       Effect.provide(FetchHttpClient.layer),

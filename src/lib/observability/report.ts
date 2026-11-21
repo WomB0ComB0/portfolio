@@ -21,10 +21,15 @@
  * Every helper reports a given error once. An error that was already sent, or one that wraps it
  * through `cause`, is skipped, so a route's own handler and the API's root handler never both
  * report the same failure.
+ *
+ * A timeout that came due while the server process was paused is not sent either (see
+ * pause-detector): it measured the pause, not the upstream it guarded.
  */
 
 import * as Sentry from '@sentry/nextjs';
 import type { SignInMethod } from '@/core/auth.types';
+import { isTimeout } from '@/lib/async/deadline';
+import { recentlyResumed } from './pause-detector';
 
 type CaptureContext = Parameters<typeof Sentry.captureException>[1];
 
@@ -52,10 +57,32 @@ function markReported(error: unknown): void {
   for (const link of causeChain(error)) reported.add(link);
 }
 
-/** Sends `error` to Sentry unless it (or its cause) was already sent. */
+/**
+ * True, after leaving a breadcrumb, when `error` is a timeout (or wraps one) that came due while
+ * the process was paused: every timer that came due in the pause fires as it resumes, so the
+ * timeout says nothing about the upstream, and the request it served was usually answered long
+ * before. The breadcrumb keeps it on record for any real error that follows in the same scope.
+ */
+function isPauseArtifact(error: unknown): boolean {
+  if (!recentlyResumed() || !causeChain(error).some(isTimeout)) return false;
+  Sentry.addBreadcrumb({
+    category: 'timeout',
+    level: 'info',
+    message: `Not reported, came due while the process was paused: ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+  });
+  return true;
+}
+
+/**
+ * Sends `error` to Sentry unless it (or its cause) was already sent, or it is a timeout that came
+ * due during a pause.
+ */
 export function reportError(error: unknown, context?: CaptureContext): boolean {
   if (wasReported(error)) return false;
   markReported(error);
+  if (isPauseArtifact(error)) return false;
   Sentry.captureException(error, context);
   return true;
 }
@@ -99,6 +126,8 @@ export function reportApiFailure(
 ): boolean {
   if (wasReported(error)) return false;
   markReported(error);
+  // Before the cooldown: a dropped timeout must not hold back the context's next real failure.
+  if (isPauseArtifact(error)) return false;
   if (cooldown) {
     const key = cooldownKey(context, level);
     const last = lastApiReportAt.get(key);
@@ -211,6 +240,7 @@ export function reportApiServerError(
 ): boolean {
   if (wasReported(error)) return false;
   markReported(error);
+  if (isPauseArtifact(error)) return false;
   Sentry.withScope((scope) => {
     if (request) scope.setTransactionName(apiTransactionName(request));
     Sentry.captureException(error, { tags: { 'api.code': String(code ?? 'UNKNOWN') } });

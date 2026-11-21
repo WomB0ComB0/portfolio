@@ -35,12 +35,19 @@ const sentry = vi.hoisted(() => {
     scope,
     isolationScope,
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     withScope: vi.fn((callback: (s: typeof scope) => unknown) => callback(scope)),
     getIsolationScope: vi.fn(() => isolationScope),
   };
 });
 
+/** Whether the process "just resumed from a pause"; false unless a test says otherwise. */
+const pause = vi.hoisted(() => ({ resumed: false }));
+
 vi.mock('@sentry/nextjs', () => sentry);
+vi.mock('@/lib/observability/pause-detector', () => ({
+  recentlyResumed: () => pause.resumed,
+}));
 vi.mock('@/env', () => {
   const env = new Proxy({} as Record<string, unknown>, {
     get: (_target, key) => (key === 'NODE_ENV' ? 'test' : undefined),
@@ -54,10 +61,13 @@ import {
   createErrorHandlerWithDefault,
 } from '@/app/api/_elysia/shared/middleware';
 import { BaseError } from '@/classes/error';
+import { DeadlineError } from '@/lib/async/deadline';
+import { FetcherError, FetcherTimeoutError } from '@/lib/http-clients/effect-fetcher';
 import {
   API_REPORT_COOLDOWN_MS,
   isServerSideApiError,
   reportApiFailure,
+  reportApiServerError,
   reportError,
   resetApiReportCooldowns,
 } from '@/lib/observability/report';
@@ -330,5 +340,96 @@ describe('the API root error handler', () => {
     });
     expect(res.status).toBe(400);
     expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+});
+
+describe('timeouts that came due while the process was paused', () => {
+  const UPSTREAM_URL = 'https://uptime.example.com/api/v2/monitors';
+
+  beforeEach(() => {
+    pause.resumed = true;
+    sentry.addBreadcrumb.mockClear();
+  });
+
+  afterEach(() => {
+    pause.resumed = false;
+  });
+
+  // The three kinds production reported in one burst after a frozen HEAD render, each wrapped in
+  // a BaseError the way the loaders wrap them.
+  const timeouts: ReadonlyArray<readonly [string, () => Error]> = [
+    ['a missed withDeadline budget', () => new DeadlineError('home:github', 4_000)],
+    [
+      "the platform's TimeoutError (Sanity's client)",
+      () => new DOMException('The operation was aborted due to timeout', 'TimeoutError'),
+    ],
+    [
+      'an upstream that did not answer in time',
+      () => new FetcherTimeoutError('Better Stack did not answer within 8000 ms', UPSTREAM_URL),
+    ],
+  ];
+
+  it.each(timeouts)('drops %s, leaving a breadcrumb instead', (_kind, make) => {
+    const error = new BaseError(make(), 'home:github');
+
+    expect(reportApiFailure(error, { context: 'home github tile', level: 'warning' })).toBe(false);
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    expect(sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'timeout',
+        level: 'info',
+        message: expect.stringContaining(error.message),
+      }),
+    );
+  });
+
+  it('drops them through reportError and reportApiServerError too', () => {
+    expect(reportError(new DeadlineError('media youtube', 4_000))).toBe(false);
+    expect(
+      reportApiServerError(new FetcherTimeoutError('GitHub did not answer', UPSTREAM_URL)),
+    ).toBe(false);
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("starts no cooldown, so the context's next real failure is still sent", () => {
+    const context = { context: 'home github tile' };
+    reportApiFailure(
+      new BaseError(new DeadlineError('home:github', 4_000), 'home:github'),
+      context,
+    );
+    pause.resumed = false;
+
+    expect(reportApiFailure(new Error('GitHub answered 502'), context)).toBe(true);
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a dropped timeout reported, so the root handler does not send it later', () => {
+    const timeout = new DeadlineError('home:github', 4_000);
+    reportApiFailure(new BaseError(timeout, 'home:github'), { context: 'home github tile' });
+    pause.resumed = false;
+
+    expect(reportError(timeout)).toBe(false);
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('still sends a failure that is not a timeout, paused or not', () => {
+    expect(
+      reportApiFailure(new Error('GitHub answered 502'), { context: 'home github tile' }),
+    ).toBe(true);
+    expect(
+      reportApiFailure(new FetcherError('HTTP 504: Gateway Timeout', UPSTREAM_URL, 504), {
+        context: 'fetch system status',
+      }),
+    ).toBe(true);
+    expect(sentry.captureException).toHaveBeenCalledTimes(2);
+    expect(sentry.addBreadcrumb).not.toHaveBeenCalled();
+  });
+
+  it('still sends a timeout when the process was not paused (a slow upstream is worth knowing)', () => {
+    pause.resumed = false;
+    const error = new BaseError(new DeadlineError('home:github', 4_000), 'home:github');
+
+    expect(reportApiFailure(error, { context: 'home github tile', level: 'warning' })).toBe(true);
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
   });
 });
