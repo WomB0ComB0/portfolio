@@ -47,7 +47,7 @@ import {
   type StaleCache,
   type StaleCacheResult,
 } from '@/lib/cache/stale-cache';
-import { FetcherError, post } from '@/lib/http-clients/effect-fetcher';
+import { FetcherTimeoutError, post } from '@/lib/http-clients/effect-fetcher';
 
 /** The GitHub account whose contributions and commits the tile shows. */
 export const GITHUB_LOGIN = 'WomB0ComB0';
@@ -410,7 +410,7 @@ function requestGraphQL(token: string, query: string, variables: Record<string, 
       duration: UPSTREAM_DEADLINE_MS,
       orElse: () =>
         Effect.fail(
-          new FetcherError(
+          new FetcherTimeoutError(
             `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
             GITHUB_GRAPHQL_URL,
           ),

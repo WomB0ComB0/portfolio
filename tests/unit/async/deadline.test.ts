@@ -23,7 +23,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DeadlineError, withDeadline } from '@/lib/async/deadline';
+import { DeadlineError, isTimeout, withDeadline } from '@/lib/async/deadline';
+import { FetcherError, FetcherTimeoutError } from '@/lib/http-clients/effect-fetcher';
+import { FetchTimeoutError } from '@/lib/http-clients/live-json';
+
+// The fetcher only reads env for the Vercel bypass header; skip t3-env validation here.
+vi.mock('@/env', () => ({ env: {}, default: {} }));
 
 const BUDGET_MS = 1_000;
 const LABEL = 'github activity';
@@ -135,5 +140,45 @@ describe('withDeadline', () => {
     await filling;
 
     expect(writeCache).toHaveBeenCalledExactlyOnceWith('fresh');
+  });
+});
+
+describe('isTimeout', () => {
+  const URL_UNDER_TEST = 'https://api.example.com/items';
+
+  it("recognises every timeout this codebase raises, and the platform's TimeoutError", () => {
+    expect(isTimeout(new DeadlineError(LABEL, BUDGET_MS))).toBe(true);
+    expect(isTimeout(new FetcherTimeoutError('GitHub did not answer', URL_UNDER_TEST))).toBe(true);
+    expect(isTimeout(new FetchTimeoutError(5_000))).toBe(true);
+    // What AbortSignal.timeout aborts with (Sanity's client rejects with it).
+    expect(
+      isTimeout(new DOMException('The operation was aborted due to timeout', 'TimeoutError')),
+    ).toBe(true);
+  });
+
+  it('rejects failures that are not timeouts, and looks at the error itself, not its cause', () => {
+    expect(isTimeout(new Error('fetch failed'))).toBe(false);
+    expect(isTimeout(new DOMException('aborted', 'AbortError'))).toBe(false);
+    expect(isTimeout(new FetcherError('HTTP 504: Gateway Timeout', URL_UNDER_TEST, 504))).toBe(
+      false,
+    );
+    expect(isTimeout(new Error('wrapper', { cause: new DeadlineError(LABEL, BUDGET_MS) }))).toBe(
+      false,
+    );
+    expect(isTimeout(undefined)).toBe(false);
+    expect(isTimeout('timed out')).toBe(false);
+  });
+
+  it('keeps a FetcherTimeoutError a FetcherError: same name, no status, same string form', () => {
+    const error = new FetcherTimeoutError('Request timed out', URL_UNDER_TEST, 2);
+
+    expect(error).toBeInstanceOf(FetcherError);
+    expect(error).toBeInstanceOf(FetcherTimeoutError);
+    expect(error.name).toBe('FetcherError');
+    expect(error.status).toBeUndefined();
+    expect(error.attempt).toBe(2);
+    expect(String(error)).toBe(
+      `FetcherError: Request timed out (URL: ${URL_UNDER_TEST}, Attempt: 2)`,
+    );
   });
 });

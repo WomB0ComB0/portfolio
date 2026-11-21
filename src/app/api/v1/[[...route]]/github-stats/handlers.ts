@@ -32,7 +32,7 @@ import { ensureBaseError } from '@/classes/error';
 import env from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import type { CachedValue } from '@/lib/cache/stale-cache';
-import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherError, FetcherTimeoutError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
 /** The route's error-handler context, so stale-fallback warnings group with its errors. */
@@ -249,7 +249,7 @@ function fetchGitHubSources() {
       duration: UPSTREAM_DEADLINE_MS,
       orElse: () =>
         Effect.fail(
-          new FetcherError(
+          new FetcherTimeoutError(
             `GitHub did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
             'https://api.github.com',
           ),

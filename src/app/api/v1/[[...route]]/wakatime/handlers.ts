@@ -20,7 +20,7 @@ import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import type { CachedValue } from '@/lib/cache/stale-cache';
-import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherTimeoutError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 import { wakaTimeAuthorization } from './auth';
 
@@ -113,7 +113,7 @@ async function refreshWakaTimeData(state: WakaTimeState): Promise<WakaTimeData> 
       duration: UPSTREAM_DEADLINE_MS,
       orElse: () =>
         Effect.fail(
-          new FetcherError(
+          new FetcherTimeoutError(
             `WakaTime did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
             WAKATIME_URL,
           ),

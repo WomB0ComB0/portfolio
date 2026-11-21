@@ -29,7 +29,7 @@ import { Effect, pipe, Schema } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { ensureBaseError } from '@/classes/error';
 import { type CachedValue, createStaleCache, type StaleCacheResult } from '@/lib/cache/stale-cache';
-import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherTimeoutError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 
 export const MONKEYTYPE_PROFILE_URL = 'https://api.monkeytype.com/users/WomB0ComB0/profile';
@@ -85,7 +85,7 @@ const fetchProfile = async (): Promise<MonkeytypeProfile> => {
         duration: UPSTREAM_DEADLINE_MS,
         orElse: () =>
           Effect.fail(
-            new FetcherError(
+            new FetcherTimeoutError(
               `Monkeytype did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
               MONKEYTYPE_PROFILE_URL,
             ),

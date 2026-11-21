@@ -17,6 +17,7 @@
 import { Duration, Effect, pipe, Result, Schedule, Schema, SchemaIssue } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/http';
 import { env } from '@/env';
+import type { TimedOut } from '@/lib/async/deadline';
 import { getURL } from '@/utils';
 
 /**
@@ -83,6 +84,34 @@ const MESSAGE_BODY_CHARS = 200;
 
 /** `text` as a message quotes it: whole, or its first {@link MESSAGE_BODY_CHARS} and '...'. */
 const messageSnippet = (text: string): string => cut(text, MESSAGE_BODY_CHARS, () => '...');
+
+/** A body that is an HTML document: a CDN's or proxy's error page rather than the API's answer. */
+const HTML_DOCUMENT = /^\s*<(?:!doctype\s+html|html)[\s>]/i;
+/** How much of an HTML page is searched for its title or text: the head comes first. */
+const HTML_SCAN_CHARS = 4_000;
+const HTML_BODY_START = /<body[\s>]/i;
+const HTML_TITLE = /<title[^>]*>([^<]*)<\/title>/i;
+/**
+ * Comments, whole script, style and inline svg elements (code and icons, not words), and tags
+ * (one cut off by the scan limit too).
+ */
+const HTML_NOT_TEXT = /<!--[\s\S]*?-->|<(script|style|svg)\b[^>]*>[\s\S]*?<\/\1\s*>|<[^>]*>?/gi;
+
+const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * `text` as an error's message quotes it. An HTML page is quoted by its title (e.g. a CDN's
+ * "example.com | 521: Web server is down"), or else its text, never its markup: Sentry titles an
+ * issue with the message's first line, and a page's first line is just its doctype. Only the
+ * document's own title counts, not an SVG icon's in the body.
+ */
+const bodyForMessage = (text: string): string => {
+  if (!HTML_DOCUMENT.test(text)) return messageSnippet(text);
+  const head = text.slice(0, HTML_SCAN_CHARS);
+  const title = collapse(HTML_TITLE.exec(head.split(HTML_BODY_START)[0] ?? '')?.[1] ?? '');
+  const words = title || collapse(head.replace(HTML_NOT_TEXT, ' '));
+  return words ? `HTML page "${messageSnippet(words)}"` : 'HTML page';
+};
 
 /**
  * Get the base URL for API requests.
@@ -257,6 +286,21 @@ export class FetcherError extends Error {
 
   toString(): string {
     return `FetcherError: ${this.message} (URL: ${this.url}${this.status ? `, Status: ${this.status}` : ''}${this.attempt ? `, Attempt: ${this.attempt}` : ''})`;
+  }
+}
+
+/**
+ * A request that did not answer within its time budget: no status, nothing read. Still a
+ * FetcherError (same name, same handling and retries), marked {@link TimedOut} so the reporter
+ * can tell a missed budget from a failure.
+ */
+export class FetcherTimeoutError extends FetcherError implements TimedOut {
+  readonly timedOut = true;
+
+  constructor(message: string, url: string, attempt?: number) {
+    super(message, url, undefined, undefined, attempt);
+    // FetcherError pins its own prototype; put this class's back.
+    Object.setPrototypeOf(this, FetcherTimeoutError.prototype);
   }
 }
 
@@ -527,8 +571,7 @@ export function fetcher<T = unknown>(
         eff,
         Effect.timeoutOrElse({
           duration: Duration.millis(timeout),
-          orElse: () =>
-            Effect.fail(new FetcherError('Request timed out', url, undefined, undefined, attempt)),
+          orElse: () => Effect.fail(new FetcherTimeoutError('Request timed out', url, attempt)),
         }),
       );
 
@@ -583,7 +626,7 @@ export function fetcher<T = unknown>(
         const errorMessage =
           response.status === 429
             ? `Rate limit exceeded (429). Please slow down requests to ${url}`
-            : `HTTP ${response.status}: ${messageSnippet(responseText ?? 'Request failed')}`;
+            : `HTTP ${response.status}: ${bodyForMessage(responseText ?? 'Request failed')}`;
 
         // onError hears of it once, after the last attempt, where the failure is handled below.
         return yield* Effect.fail(
@@ -618,7 +661,7 @@ export function fetcher<T = unknown>(
             Effect.flatMap((text) => {
               // Effect normalises header names to lower case.
               const contentType = response.headers['content-type'] || 'unknown';
-              const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${contentType}, Body: ${messageSnippet(text)}`;
+              const errorMessage = `Failed to parse JSON response. Status: ${response.status}, Content-Type: ${contentType}, Body: ${bodyForMessage(text)}`;
               // Text only: the platform's error keeps the request headers, credentials included.
               const originalError = error instanceof Error ? error.message : String(error);
               return Effect.fail(

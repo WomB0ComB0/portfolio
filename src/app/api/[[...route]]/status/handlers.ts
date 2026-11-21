@@ -20,7 +20,7 @@ import { ensureBaseError } from '@/classes/error';
 import { env } from '@/env';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { STALE_RETRY_BACKOFF_MS } from '@/lib/cache/stale-cache';
-import { FetcherError, get } from '@/lib/http-clients/effect-fetcher';
+import { FetcherTimeoutError, get } from '@/lib/http-clients/effect-fetcher';
 import { reportApiFailure } from '@/lib/observability/report';
 import type { ServiceStatus } from './schema';
 
@@ -160,7 +160,7 @@ const fetchMonitors = () =>
       duration: UPSTREAM_DEADLINE_MS,
       orElse: () =>
         Effect.fail(
-          new FetcherError(
+          new FetcherTimeoutError(
             `Better Stack did not answer within ${UPSTREAM_DEADLINE_MS} ms`,
             MONITORS_URL,
           ),

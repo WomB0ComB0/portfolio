@@ -58,7 +58,7 @@ describe('effect-fetcher: response bodies that are not JSON', () => {
     vi.unstubAllGlobals();
   });
 
-  it('reports the status, content type and a body snippet for an HTML page served with 200', async () => {
+  it('reports the status, content type and the title of an HTML page served with 200', async () => {
     const html = `<!DOCTYPE html><html><head><title>Moved</title></head><body>${'x'.repeat(5_000)}</body></html>`;
     const error = expectFetcherError(
       await runPost(
@@ -72,8 +72,9 @@ describe('effect-fetcher: response bodies that are not JSON', () => {
     expect(error.message).toContain('Failed to parse JSON response');
     expect(error.message).toContain('Status: 200');
     expect(error.message).toContain('Content-Type: text/html; charset=utf-8');
-    expect(error.message).toContain('Body: <!DOCTYPE html><html><head><title>Moved</title>');
-    expect(error.message.endsWith('...')).toBe(true);
+    // The page is quoted by its title, never its markup; the error's data keeps the body itself.
+    expect(error.message.endsWith('Body: HTML page "Moved"')).toBe(true);
+    expect(error.message).not.toContain('<');
     expect(error.status).toBe(200);
     expect(error.url).toBe(URL_UNDER_TEST);
 
