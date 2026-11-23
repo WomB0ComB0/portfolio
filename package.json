@@ -166,7 +166,7 @@
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "8.0.0",
     "@testing-library/react": "16.3.3",
-    "@types/bun": "1.4.4",
+    "@types/bun": "1.4.5",
     "@types/google.maps": "^3.66.9",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
