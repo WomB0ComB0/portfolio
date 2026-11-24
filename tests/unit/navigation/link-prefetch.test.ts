@@ -35,7 +35,7 @@ const PROJECTS = 'src/app/(routes)/(main)/(professioal)/projects';
 
 /** Each file, and how many next/link elements it has (so the scan cannot pass by finding none). */
 const FILES: Readonly<Record<string, number>> = {
-  'src/components/layout/nav.tsx': 2,
+  'src/components/layout/nav.tsx': 4,
   'src/components/layout/footer.tsx': 4,
   'src/components/layout/mobile-menu-overlay.tsx': 1,
   'src/components/console/folio/view-switch.tsx': 1,

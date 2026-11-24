@@ -311,3 +311,63 @@ describe('NavBar flyouts and keyboard focus', () => {
     await expectPaletteState(VisualState.hidden);
   });
 });
+
+describe('NavBar *.mikeodnis.dev ecosystem switcher', () => {
+  const networkTrigger = () => screen.getByRole('button', { name: '*.mikeodnis.dev network' });
+
+  it('starts closed without dangling aria-controls, and opens with Portfolio marked here plus Ventures', () => {
+    renderRail('/');
+
+    expect(networkTrigger()).toHaveAttribute('aria-expanded', 'false');
+    expect(networkTrigger()).not.toHaveAttribute('aria-controls');
+    expect(document.getElementById('nav-flyout-ecosystem')).toBeNull();
+
+    fireEvent.click(networkTrigger());
+
+    expect(networkTrigger()).toHaveAttribute('aria-expanded', 'true');
+    expect(networkTrigger()).toHaveAttribute('aria-controls', 'nav-flyout-ecosystem');
+
+    const panel = document.getElementById('nav-flyout-ecosystem');
+    if (!panel) throw new Error('Ecosystem flyout is not rendered');
+    const networkList = within(panel).getByRole('list', { name: '*.mikeodnis.dev' });
+    const portfolio = within(networkList).getByRole('link', { name: /Portfolio/ });
+    expect(portfolio).toHaveTextContent('here');
+    expect(portfolio).toHaveClass('bg-brand-subtle', 'text-brand-ink');
+
+    const links = within(networkList).getByRole('link', { name: 'Links' });
+    expect(links).toHaveAttribute('href', 'https://links.mikeodnis.dev');
+    expect(links).toHaveAttribute('target', '_blank');
+    expect(links).toHaveAttribute('rel', 'noopener noreferrer');
+
+    const venturesList = within(panel).getByRole('list', { name: 'Ventures' });
+    expect(within(venturesList).getByRole('link', { name: 'Elysium Tools' })).toHaveAttribute(
+      'href',
+      'https://elysium.tools',
+    );
+    expect(within(venturesList).getByRole('link', { name: 'Atroviola' })).toHaveAttribute(
+      'href',
+      'https://atroviola.com',
+    );
+  });
+
+  it('coordinates with page-group flyouts and closes on Escape', async () => {
+    renderRail('/');
+
+    fireEvent.click(trigger('Professional'));
+    expectOpen('Professional');
+
+    fireEvent.click(networkTrigger());
+    await expectClosed('Professional');
+    expect(networkTrigger()).toHaveAttribute('aria-expanded', 'true');
+
+    const panel = document.getElementById('nav-flyout-ecosystem');
+    if (!panel) throw new Error('Ecosystem flyout is not rendered');
+    const linksAnchor = within(panel).getByRole('link', { name: 'Links' });
+    focus(linksAnchor);
+    fireEvent.keyDown(linksAnchor, { key: 'Escape' });
+
+    expect(networkTrigger()).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('nav-flyout-ecosystem')).toBeNull();
+    expect(networkTrigger()).toHaveFocus();
+  });
+});

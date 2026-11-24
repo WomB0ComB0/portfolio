@@ -21,8 +21,15 @@ import Link from 'next/link';
 import type React from 'react';
 import { memo, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FiCommand, FiX } from 'react-icons/fi';
+import { FiArrowUpRight, FiBriefcase, FiCommand, FiGlobe, FiX } from 'react-icons/fi';
 import { DURATION_MS, EASE, seconds } from '@/lib/design/motion';
+import {
+  ECOSYSTEM_SECTION,
+  type EcosystemSite,
+  EXTERNAL_NETWORK_SITES,
+  VENTURE_ECOSYSTEM_SITES,
+  VENTURES_SECTION,
+} from '@/lib/navigation/ecosystem';
 import { cn } from '@/lib/utils';
 import type { MobileMenuOverlayProps } from './mobile-menu-overlay.types';
 import { HOME_NAV_ITEM, NAV_GROUPS, type NavGroupData, type NavItem } from './nav';
@@ -275,9 +282,60 @@ const MenuHeader = ({ onClose }: { readonly onClose: () => void }) => (
   </div>
 );
 
+interface MobileEcosystemSectionProps {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: typeof FiGlobe;
+  readonly sites: readonly EcosystemSite[];
+  readonly onNavigate: () => void;
+}
+
+/** Companion *.mikeodnis.dev properties and ventures in the mobile sheet. */
+const MobileEcosystemSection = ({
+  id,
+  label,
+  icon: Icon,
+  sites,
+  onNavigate,
+}: MobileEcosystemSectionProps) => {
+  const headingId = `mobile-nav-${id}`;
+  return (
+    <div className="mt-4 border-t border-hairline pt-4">
+      <h3 id={headingId} className="label-mono flex items-center gap-2 px-3 pb-1.5 text-faint">
+        <Icon size={SECTION_ICON_SIZE} aria-hidden />
+        {label}
+      </h3>
+      <ul aria-labelledby={headingId} className="grid gap-1 sm:grid-cols-2">
+        {sites.map((site) => {
+          const SiteIcon = site.icon;
+          return (
+            <li key={site.id}>
+              <a
+                href={site.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onNavigate}
+                className={cn(MENU_ITEM, MENU_ITEM_IDLE)}
+              >
+                <SiteIcon size={ITEM_ICON_SIZE} className="shrink-0 text-faint" aria-hidden />
+                <span className="flex-1 truncate">{site.name}</span>
+                <FiArrowUpRight
+                  size={SECTION_ICON_SIZE}
+                  className="shrink-0 text-faint"
+                  aria-hidden
+                />
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+};
+
 type MenuPagesProps = Pick<MobileMenuOverlayProps, 'onClose' | 'pathname' | 'query'>;
 
-/** Home, every nav group with all of its pages, then the command menu button. */
+/** Home, every nav group with all of its pages, companion properties, then the command menu button. */
 const MenuPages = ({ onClose, pathname, query }: MenuPagesProps) => (
   <nav className="px-3 pt-3 pb-6" aria-label="Site pages">
     {HOME_NAV_ITEM && (
@@ -291,6 +349,22 @@ const MenuPages = ({ onClose, pathname, query }: MenuPagesProps) => (
     {NAV_GROUPS.map((group) => (
       <MobileNavSection key={group.id} group={group} pathname={pathname} onNavigate={onClose} />
     ))}
+
+    <MobileEcosystemSection
+      id="ecosystem"
+      label={ECOSYSTEM_SECTION}
+      icon={FiGlobe}
+      sites={EXTERNAL_NETWORK_SITES}
+      onNavigate={onClose}
+    />
+
+    <MobileEcosystemSection
+      id="ventures"
+      label={VENTURES_SECTION}
+      icon={FiBriefcase}
+      sites={VENTURE_ECOSYSTEM_SITES}
+      onNavigate={onClose}
+    />
 
     <div className="mt-4 border-t border-hairline pt-3">
       <button

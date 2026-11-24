@@ -20,12 +20,32 @@ import { useKBar, VisualState } from 'kbar';
 import Link from 'next/link';
 import { memo, type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { IconType } from 'react-icons';
-import { FiBriefcase, FiCode, FiCommand, FiHome, FiShield, FiUser } from 'react-icons/fi';
+import {
+  FiArrowUpRight,
+  FiBriefcase,
+  FiCode,
+  FiCommand,
+  FiGlobe,
+  FiHome,
+  FiShield,
+  FiUser,
+} from 'react-icons/fi';
 import { PALETTE_DIALOG_LABEL, usePaletteShortcut, withShortcut } from '@/components/cmd';
 import { NavbarItems } from '@/constants/index';
+import {
+  ECOSYSTEM_SECTION,
+  type EcosystemSite,
+  NETWORK_ECOSYSTEM_SITES,
+  VENTURE_ECOSYSTEM_SITES,
+  VENTURES_SECTION,
+} from '@/lib/navigation/ecosystem';
 import { cn } from '@/lib/utils';
 
 export type NavGroupId = 'professional' | 'developer' | 'personal' | 'legal';
+type RailFlyoutId = NavGroupId | 'ecosystem';
+
+const ECOSYSTEM_FLYOUT_ID = 'nav-flyout-ecosystem';
+const ECOSYSTEM_EXTERNAL_ICON_SIZE = '0.875rem';
 
 export interface NavItem {
   readonly name: string;
@@ -411,11 +431,144 @@ const PaletteRailButton = ({ onOpen }: { readonly onOpen: () => void }) => {
   );
 };
 
+const EcosystemFlyoutItem = ({
+  site,
+  path,
+  onClose,
+}: {
+  readonly site: EcosystemSite;
+  readonly path: string;
+  readonly onClose: () => void;
+}) => {
+  const Icon = site.icon;
+  if (site.current) {
+    return (
+      <Link
+        href={site.internalPath ?? '/'}
+        prefetch={false}
+        onClick={onClose}
+        aria-current={path === '/' ? 'page' : undefined}
+        className={cn(FLYOUT_LINK, FLYOUT_LINK_CURRENT)}
+      >
+        <Icon size={FLYOUT_ICON_SIZE} className="shrink-0" aria-hidden />
+        <span className="flex-1 truncate">{site.name}</span>
+        <span className="mono-token text-brand-ink">here</span>
+      </Link>
+    );
+  }
+  if (site.internalPath) {
+    const current = navLinkCurrent(site.internalPath, path);
+    return (
+      <Link
+        href={site.internalPath}
+        prefetch={false}
+        onClick={onClose}
+        aria-current={current}
+        className={cn(FLYOUT_LINK, current ? FLYOUT_LINK_STATE[current] : FLYOUT_LINK_IDLE)}
+      >
+        <Icon size={FLYOUT_ICON_SIZE} className="shrink-0 text-faint" aria-hidden />
+        <span className="flex-1 truncate">{site.name}</span>
+        <FiArrowUpRight
+          size={ECOSYSTEM_EXTERNAL_ICON_SIZE}
+          className="shrink-0 text-faint"
+          aria-hidden
+        />
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={site.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClose}
+      className={cn(FLYOUT_LINK, FLYOUT_LINK_IDLE)}
+    >
+      <Icon size={FLYOUT_ICON_SIZE} className="shrink-0 text-faint" aria-hidden />
+      <span className="flex-1 truncate">{site.name}</span>
+      <FiArrowUpRight
+        size={ECOSYSTEM_EXTERNAL_ICON_SIZE}
+        className="shrink-0 text-faint"
+        aria-hidden
+      />
+    </a>
+  );
+};
+
+interface EcosystemFlyoutProps {
+  readonly path: string;
+  readonly isOpen: boolean;
+  readonly onToggle: () => void;
+  readonly onClose: () => void;
+}
+
+/**
+ * Cross-property switcher for *.mikeodnis.dev and ventures. Unlike the internal page groups, its
+ * panel mounts only while open so server HTML and crawler link checks keep only this site's own
+ * routes, and aria-controls points at the panel only while it is in the DOM.
+ */
+const EcosystemFlyout = memo(({ path, isOpen, onToggle, onClose }: EcosystemFlyoutProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useFlyoutDismiss({ isOpen, containerRef, triggerRef, onClose });
+
+  const networkLabelId = `${ECOSYSTEM_FLYOUT_ID}-network-label`;
+  const venturesLabelId = `${ECOSYSTEM_FLYOUT_ID}-ventures-label`;
+
+  return (
+    <div ref={containerRef} className="relative flex w-full flex-col items-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={onToggle}
+        className={cn(RAIL_ITEM, railItemState(false, isOpen))}
+        aria-label={`${ECOSYSTEM_SECTION} network`}
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? ECOSYSTEM_FLYOUT_ID : undefined}
+      >
+        <FiGlobe size={RAIL_ICON_SIZE} aria-hidden />
+      </button>
+
+      {isOpen && (
+        <div
+          id={ECOSYSTEM_FLYOUT_ID}
+          className="absolute top-0 left-full z-50 ml-4 max-h-[calc(100dvh-18.75rem)] min-w-60 overflow-y-auto overscroll-contain rounded-tile border border-hairline bg-surface-2 p-1.5 shadow-raised"
+        >
+          <div id={networkLabelId} className="label-mono px-2.5 pt-2 pb-1 text-faint">
+            {ECOSYSTEM_SECTION}
+          </div>
+          <ul aria-labelledby={networkLabelId} className="flex flex-col gap-0.5">
+            {NETWORK_ECOSYSTEM_SITES.map((site) => (
+              <li key={site.id}>
+                <EcosystemFlyoutItem site={site} path={path} onClose={onClose} />
+              </li>
+            ))}
+          </ul>
+
+          <div aria-hidden="true" className="my-1.5 h-px bg-hairline" />
+
+          <div id={venturesLabelId} className="label-mono px-2.5 pt-1 pb-1 text-faint">
+            {VENTURES_SECTION}
+          </div>
+          <ul aria-labelledby={venturesLabelId} className="flex flex-col gap-0.5">
+            {VENTURE_ECOSYSTEM_SITES.map((site) => (
+              <li key={site.id}>
+                <EcosystemFlyoutItem site={site} path={path} onClose={onClose} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+});
+EcosystemFlyout.displayName = 'EcosystemFlyout';
+
 export const NavBar = memo(({ path }: { path: string }) => {
   const { query, isPaletteShown } = useKBar((state) => ({
     isPaletteShown: state.visualState !== VisualState.hidden,
   }));
-  const [openGroupId, setOpenGroupId] = useState<NavGroupId | null>(null);
+  const [openGroupId, setOpenGroupId] = useState<RailFlyoutId | null>(null);
   // The shell stays mounted across navigations, so a route change the rail didn't make itself
   // (Back, Forward) must close the open flyout here, or it stays open over the new page.
   const [groupsPath, setGroupsPath] = useState(path);
@@ -425,9 +578,10 @@ export const NavBar = memo(({ path }: { path: string }) => {
   }
 
   const toggleGroup = useCallback(
-    (id: NavGroupId) => setOpenGroupId((current) => (current === id ? null : id)),
+    (id: RailFlyoutId) => setOpenGroupId((current) => (current === id ? null : id)),
     [],
   );
+  const toggleEcosystem = useCallback(() => toggleGroup('ecosystem'), [toggleGroup]);
   const closeGroups = useCallback(() => setOpenGroupId(null), []);
 
   // The palette opens over the rail (⌘K needs no click outside), so a flyout left open under it
@@ -451,6 +605,13 @@ export const NavBar = memo(({ path }: { path: string }) => {
             onClose={closeGroups}
           />
         ))}
+
+        <EcosystemFlyout
+          path={path}
+          isOpen={openGroupId === 'ecosystem'}
+          onToggle={toggleEcosystem}
+          onClose={closeGroups}
+        />
 
         <div aria-hidden="true" className="my-1 h-px w-8 bg-hairline" />
 
