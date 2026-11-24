@@ -532,7 +532,7 @@ const EcosystemFlyout = memo(({ path, isOpen, onToggle, onClose }: EcosystemFlyo
       {isOpen && (
         <div
           id={ECOSYSTEM_FLYOUT_ID}
-          className="absolute top-0 left-full z-50 ml-4 min-w-60 rounded-tile border border-hairline bg-surface-2 p-1.5 shadow-raised"
+          className="absolute top-0 left-full z-50 ml-4 max-h-[calc(100dvh-18.75rem)] min-w-60 overflow-y-auto overscroll-contain rounded-tile border border-hairline bg-surface-2 p-1.5 shadow-raised"
         >
           <div id={networkLabelId} className="label-mono px-2.5 pt-2 pb-1 text-faint">
             {ECOSYSTEM_SECTION}
