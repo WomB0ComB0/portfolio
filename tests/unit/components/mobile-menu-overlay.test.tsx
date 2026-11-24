@@ -104,7 +104,15 @@ describe('MobileMenuOverlay contents', () => {
     const headings = within(dialog)
       .getAllByRole('heading')
       .map((heading) => heading.textContent?.trim());
-    expect(headings).toEqual([SITE_MENU, 'Professional', 'Developer', 'Personal', 'Legal']);
+    expect(headings).toEqual([
+      SITE_MENU,
+      'Professional',
+      'Developer',
+      'Personal',
+      'Legal',
+      '*.mikeodnis.dev',
+      'Ventures',
+    ]);
 
     const legal = within(dialog).getByRole('list', { name: 'Legal' });
     expect(
@@ -112,6 +120,17 @@ describe('MobileMenuOverlay contents', () => {
         .getAllByRole('link')
         .map((link) => link.textContent?.trim()),
     ).toEqual(['Cookies', 'Privacy', 'Licenses']);
+
+    const network = within(dialog).getByRole('list', { name: '*.mikeodnis.dev' });
+    expect(within(network).getByRole('link', { name: 'Links' })).toHaveAttribute(
+      'href',
+      'https://links.mikeodnis.dev',
+    );
+    const ventures = within(dialog).getByRole('list', { name: 'Ventures' });
+    expect(within(ventures).getByRole('link', { name: 'Elysium Tools' })).toHaveAttribute(
+      'href',
+      'https://elysium.tools',
+    );
   });
 
   it("opens without React's duplicate-key error (the dev server's '1 Issue' badge)", () => {

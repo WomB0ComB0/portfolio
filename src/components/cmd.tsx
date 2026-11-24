@@ -47,6 +47,7 @@ import {
   findNavigationShortcut,
   NAVIGATION_SHORTCUTS,
 } from '@/lib/navigation/actions';
+import { createEcosystemActions } from '@/lib/navigation/ecosystem';
 import { cn } from '@/lib/utils';
 
 /**
@@ -126,7 +127,10 @@ const isPaletteOpen = (visualState: VisualState): boolean =>
  * rather than a full reload.
  */
 const useNavigationActions = (navigate: (href: string) => void): void => {
-  const navigationActions = useMemo(() => createNavigationActions(navigate), [navigate]);
+  const navigationActions = useMemo(
+    () => [...createNavigationActions(navigate), ...createEcosystemActions()],
+    [navigate],
+  );
   useRegisterActions(navigationActions, [navigationActions]);
 };
 
