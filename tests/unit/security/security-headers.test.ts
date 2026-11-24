@@ -20,6 +20,8 @@
  * This compiles the source with Next's own route builder to catch that kind of mistake.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { buildCustomRoute } from 'next/dist/lib/build-custom-route';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -62,10 +64,13 @@ describe('static security headers', () => {
   });
 
   it('sets the expected values', () => {
-    expect(header('Strict-Transport-Security')).toBe('max-age=63072000; includeSubDomains');
+    expect(header('Strict-Transport-Security')).toBe(
+      'max-age=63072000; includeSubDomains; preload',
+    );
     expect(header('X-Content-Type-Options')).toBe('nosniff');
     expect(header('X-Frame-Options')).toBe('DENY');
     expect(header('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+    expect(header('Cross-Origin-Resource-Policy')).toBe('same-site');
     expect(header('X-XSS-Protection')).toBe('0');
   });
 
@@ -73,8 +78,8 @@ describe('static security headers', () => {
     expect(header('Cross-Origin-Opener-Policy')).toBe('same-origin-allow-popups');
   });
 
-  it('does not opt into the HSTS preload list or block the photo viewer fullscreen', () => {
-    expect(header('Strict-Transport-Security')).not.toContain('preload');
+  it('keeps HSTS preload on .dev and does not block the photo viewer fullscreen', () => {
+    expect(header('Strict-Transport-Security')).toContain('preload');
     expect(header('Permissions-Policy')).not.toContain('fullscreen');
   });
 
@@ -121,11 +126,12 @@ describe('API security headers', () => {
     expect(API_SECURITY_HEADERS).toHaveLength(2);
   });
 
-  it('shares no header with the global rule, so the two rules never compete', () => {
+  it('only overlaps the global rule on CORP (where /api tightens same-site to same-origin)', () => {
     const globalKeys = new Set(SECURITY_HEADERS.map((h) => h.key.toLowerCase()));
-    for (const { key } of API_SECURITY_HEADERS) {
-      expect(globalKeys.has(key.toLowerCase()), key).toBe(false);
-    }
+    const overlapping = API_SECURITY_HEADERS.map((h) => h.key.toLowerCase()).filter((k) =>
+      globalKeys.has(k),
+    );
+    expect(overlapping).toEqual(['cross-origin-resource-policy']);
   });
 });
 
@@ -144,8 +150,12 @@ describe('next.config.ts headers()', () => {
   it('sends the API headers next to the CORS and no-store headers on /api', async () => {
     for (const path of ['/api/health', '/api/v1/sanity/places', '/api/does-not-exist']) {
       const headers = await headersFor(path);
+      const expected = new Map<string, string>();
       for (const { key, value } of [...SECURITY_HEADERS, ...API_SECURITY_HEADERS]) {
-        expect(headers.get(key.toLowerCase()), `${path} ${key}`).toBe(value);
+        expected.set(key.toLowerCase(), value);
+      }
+      for (const [key, value] of expected) {
+        expect(headers.get(key), `${path} ${key}`).toBe(value);
       }
       expect(headers.get('access-control-allow-credentials'), path).toBe('true');
       expect(headers.get('access-control-allow-origin'), path).toBeTruthy();
@@ -153,11 +163,21 @@ describe('next.config.ts headers()', () => {
     }
   });
 
-  it('lets other sites embed the link-preview images, and nothing else under /api', async () => {
-    for (const path of ['/api/og', '/api/og/']) {
+  it('lets other sites embed social cards, icons and security.txt, and nothing else under /api', async () => {
+    for (const path of [
+      '/api/og',
+      '/api/og/',
+      '/opengraph-image',
+      '/twitter-image',
+      '/favicon.ico',
+      '/pwa/icon.svg',
+      '/.well-known/security.txt',
+    ]) {
       const headers = await headersFor(path);
       expect(headers.get('cross-origin-resource-policy'), path).toBe('cross-origin');
-      expect(headers.get('content-security-policy'), path).toBe(
+    }
+    for (const path of ['/api/og', '/api/og/']) {
+      expect((await headersFor(path)).get('content-security-policy'), path).toBe(
         "default-src 'none'; frame-ancestors 'none'",
       );
     }
@@ -168,12 +188,23 @@ describe('next.config.ts headers()', () => {
     }
   });
 
-  it('keeps the API-only headers off pages', async () => {
+  it('sends same-site CORP and keeps API-only CSP off pages', async () => {
     for (const path of ['/', '/places', '/apiary']) {
       const headers = await headersFor(path);
       expect(headers.get('strict-transport-security'), path).toBeTruthy();
       expect(headers.has('content-security-policy'), path).toBe(false);
-      expect(headers.has('cross-origin-resource-policy'), path).toBe(false);
+      expect(headers.get('cross-origin-resource-policy'), path).toBe('same-site');
     }
+  });
+});
+
+describe('public/.well-known/security.txt', () => {
+  it('follows RFC 9116 with a canonical HTTPS URL, contact, and future Expires date', () => {
+    const body = readFileSync(join(process.cwd(), 'public/.well-known/security.txt'), 'utf8');
+    expect(body).toContain('Contact: mailto:mike@mikeodnis.dev');
+    expect(body).toContain('Canonical: https://mikeodnis.dev/.well-known/security.txt');
+    const expiresMatch = /^Expires:\s*(.+)$/m.exec(body);
+    expect(expiresMatch?.[1]).toBeTruthy();
+    expect(Date.parse(expiresMatch?.[1] ?? '')).toBeGreaterThan(Date.now());
   });
 });

@@ -35,10 +35,10 @@ export function AnalyticsScripts({ nonce }: Readonly<{ nonce: string | undefined
       <Script
         id="ga-loader"
         src={`https://www.googletagmanager.com/gtag/js?id=${env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}`}
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         nonce={nonce}
       />
-      <Script id="ga-init" strategy="afterInteractive" nonce={nonce}>
+      <Script id="ga-init" strategy="lazyOnload" nonce={nonce}>
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments)}

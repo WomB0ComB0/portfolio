@@ -30,8 +30,8 @@ import { SANITY_CAPTIONS_HEADERS, sanityCaptionsRewrite } from './src/config/san
 import {
   API_SECURITY_HEADERS,
   API_SECURITY_HEADERS_SOURCE,
+  CROSS_ORIGIN_RESOURCE_SOURCES,
   OG_IMAGE_HEADERS,
-  OG_IMAGE_HEADERS_SOURCE,
   SECURITY_HEADERS,
   SECURITY_HEADERS_SOURCE,
 } from './src/config/security-headers';
@@ -195,6 +195,7 @@ const config: NextConfig = {
       })(),
     ],
     optimizeCss: true,
+    inlineCss: true,
     serverActions: {
       allowedOrigins: ['localhost:3000', process.env.NEXT_PUBLIC_APP_URL || ''],
       bodySizeLimit: '2mb',
@@ -273,11 +274,11 @@ const config: NextConfig = {
           },
         ],
       },
-      // After the API rule, so it wins for /api/og: link-preview images are embedded cross-origin.
-      {
-        source: OG_IMAGE_HEADERS_SOURCE,
+      // After the global and API rules, so cross-origin CORP wins for social cards, icons, and security.txt.
+      ...CROSS_ORIGIN_RESOURCE_SOURCES.map((source) => ({
+        source,
         headers: [...OG_IMAGE_HEADERS],
-      },
+      })),
       {
         source: '/static/:path*',
         headers: [

@@ -132,12 +132,12 @@ export const config = {
   matcher: [
     {
       source:
-        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|sentry-tunnel(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
+        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|sentry-tunnel(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|\\.well-known/security\\.txt$|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
       missing: [{ type: 'header', key: 'next-router-prefetch', value: '[123]' }],
     },
     {
       source:
-        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|sentry-tunnel(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
+        '/((?!api(?:/|$)|_next/static|_next/image|_vercel|69a49a618619fab6|monitoring(?:/|$)|sentry-tunnel(?:/|$)|opengraph-image|twitter-image|assets/|pwa/|\\.well-known/security\\.txt$|favicon\\.ico$|llms\\.txt$|robots\\.txt$|sitemap\\.xml$|manifest\\.webmanifest$|sw\\.js$).*)',
       missing: [{ type: 'header', key: 'rsc', value: '1' }],
     },
   ],
