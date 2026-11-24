@@ -33,9 +33,9 @@
 export const SECURITY_HEADERS_SOURCE = '/:path*';
 
 export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
-  // Two years. Every *.mikeodnis.dev host serves HTTPS (checked 2026-11-03), so includeSubDomains
-  // is safe. `preload` is deliberately left out: submitting to the preload list is hard to undo.
-  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+  // Two years. Every *.mikeodnis.dev host serves HTTPS and .dev is HSTS-preloaded at the TLD
+  // level, so includeSubDomains and preload are safe across the entire constellation.
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Nothing embeds this site. The proxy's CSP adds frame-ancestors 'none' for modern browsers.
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -47,6 +47,10 @@ export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   },
   // same-origin-allow-popups (not same-origin) keeps Firebase's Google/GitHub sign-in popups working.
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+  // Protect documents and first-party chunks from cross-site no-cors reads while keeping
+  // *.mikeodnis.dev companion properties working; API routes tighten this to same-origin and
+  // public social-preview/icon routes relax it to cross-origin below.
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
   // The legacy XSS auditor is gone from browsers and could itself be abused; 0 disables it.
   { key: 'X-XSS-Protection', value: '0' },
 ];
@@ -57,10 +61,9 @@ export const API_SECURITY_HEADERS_SOURCE = '/api/:path*';
 /**
  * Extra headers for API responses, on top of SECURITY_HEADERS. The Elysia routes return JSON and
  * /api/og returns a PNG: none of them loads subresources or is meant to be framed, so the CSP
- * allows nothing. CORP same-origin stops other sites from loading these responses as no-cors
- * subresources (img/script tags). It does not affect CORS fetches, or link-preview crawlers, which
- * fetch server-side.
- * Keep the keys disjoint from SECURITY_HEADERS so the two next.config.ts rules never compete.
+ * allows nothing. CORP same-origin tightens the global same-site default so other sites cannot
+ * load API responses as no-cors subresources (img/script tags). It does not affect CORS fetches,
+ * or link-preview crawlers, which fetch server-side.
  */
 export const API_SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'Content-Security-Policy', value: "default-src 'none'; frame-ancestors 'none'" },
@@ -71,9 +74,23 @@ export const API_SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }>
 export const OG_IMAGE_HEADERS_SOURCE = '/api/og/:path*';
 
 /**
- * The link-preview images are meant to be embedded by other sites, including ones that render
- * previews in the browser, so they relax the API's same-origin CORP. next.config.ts lists this
- * rule after the API rule: for a key set by two matching rules, the later rule wins.
+ * Public routes intended to be embedded or fetched cross-origin (social cards, icons, PWA
+ * assets, and RFC 9116 security.txt). Listed after the global and API rules in next.config.ts so
+ * their cross-origin CORP wins.
+ */
+export const CROSS_ORIGIN_RESOURCE_SOURCES: ReadonlyArray<string> = [
+  OG_IMAGE_HEADERS_SOURCE,
+  '/opengraph-image',
+  '/twitter-image',
+  '/favicon.ico',
+  '/pwa/:path*',
+  '/assets/:path*',
+  '/.well-known/security.txt',
+];
+
+/**
+ * The link-preview images and public icon assets are meant to be embedded by other sites,
+ * including ones that render previews in the browser, so they relax CORP to cross-origin.
  */
 export const OG_IMAGE_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },

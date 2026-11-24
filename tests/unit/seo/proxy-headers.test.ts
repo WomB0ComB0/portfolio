@@ -118,7 +118,13 @@ describe('which requests pass through the proxy', () => {
 
   it('skips API routes and static files with or without either header', () => {
     for (const headers of [{}, PREFETCH, RSC, { ...RSC, ...PREFETCH }]) {
-      for (const path of ['/api/v1/blog', '/_next/static/chunks/app.js', '/robots.txt', '/sw.js']) {
+      for (const path of [
+        '/api/v1/blog',
+        '/_next/static/chunks/app.js',
+        '/.well-known/security.txt',
+        '/robots.txt',
+        '/sw.js',
+      ]) {
         expect(runsFor(path, headers), `${path} ${JSON.stringify(headers)}`).toBe(false);
       }
     }
