@@ -84,7 +84,7 @@ const GROUP_DEFINITIONS: readonly NavGroupDefinition[] = [
     id: 'personal',
     label: 'Personal',
     icon: FiUser,
-    slugs: new Set(['/guestbook', '/places', '/spotify']),
+    slugs: new Set(['/guestbook', '/places', '/spotify', '/bookshelf']),
   },
   {
     id: 'legal',

@@ -74,6 +74,7 @@ vi.mock('@/lib/observability/report', async (importOriginal) => ({
   ...report,
 }));
 
+import { BOOK_SLUGS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import * as sitemapModule from '@/app/sitemap';
 import Sitemap, { revalidate } from '@/app/sitemap';
 
@@ -96,6 +97,7 @@ const STATIC_PATHS = [
   '/stats',
   '/experience',
   '/guestbook',
+  '/bookshelf',
   '/places',
   '/places/photos',
 ];
@@ -187,7 +189,7 @@ describe('sitemap entries', () => {
     const entries = await Sitemap();
     const undated = ['/', '/cookies', '/licenses', '/privacy', '/sponsor', '/media', '/stats'];
 
-    for (const path of [...undated, '/spotify', '/guestbook']) {
+    for (const path of [...undated, '/spotify', '/guestbook', '/bookshelf']) {
       expect(entryAt(entries, path)).toEqual({ url: urlOf(path) });
     }
   });
@@ -205,7 +207,7 @@ describe('sitemap order', () => {
     const details = paths.slice(STATIC_PATHS.length);
 
     expect(paths.slice(0, STATIC_PATHS.length)).toEqual(STATIC_PATHS);
-    expect(details).toHaveLength(DETAIL_DOCS.length);
+    expect(details).toHaveLength(DETAIL_DOCS.length + BOOK_SLUGS.length);
     expect(details).toEqual([...details].sort());
   });
 

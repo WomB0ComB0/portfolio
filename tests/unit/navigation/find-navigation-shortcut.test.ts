@@ -50,6 +50,7 @@ const LAYOUTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     l: 'KeyP',
     s: 'Semicolon',
     g: 'KeyU',
+    b: 'KeyN',
     d: 'KeyH',
     o: 'KeyS',
   },
@@ -63,6 +64,7 @@ const LAYOUTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     l: 'KeyU',
     s: 'KeyD',
     g: 'KeyT',
+    b: 'KeyB',
     d: 'KeyG',
     o: 'Semicolon',
   },
@@ -70,6 +72,7 @@ const LAYOUTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 
 /** What Option+letter types on the macOS US (ABC) layout. */
 const US_MAC_OPTION: Readonly<Record<string, string>> = {
+  b: '∫',
   c: 'ç',
   d: '∂',
   g: '©',

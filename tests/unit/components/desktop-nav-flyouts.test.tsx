@@ -131,7 +131,7 @@ describe('NavBar flyouts', () => {
 
     expectOpen('Personal');
     const panel = panelOf('Personal');
-    for (const name of ['Places', 'Spotify', 'Guestbook']) {
+    for (const name of ['Places', 'Spotify', 'Guestbook', 'Bookshelf']) {
       expect(within(panel).getByRole('link', { name })).toBeInTheDocument();
     }
   });

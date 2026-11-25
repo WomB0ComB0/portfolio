@@ -45,6 +45,7 @@ import { FaCookie, FaGavel } from 'react-icons/fa';
 import {
   FiAward,
   FiBarChart,
+  FiBook,
   FiBookOpen,
   FiBriefcase,
   FiClipboard,
@@ -121,6 +122,11 @@ export const NavbarItems = [
     name: 'Guestbook',
     slug: '/guestbook',
     icon: FiBookOpen,
+  },
+  {
+    name: 'Bookshelf',
+    slug: '/bookshelf',
+    icon: FiBook,
   },
   {
     name: 'Stats',

@@ -20,6 +20,7 @@ import type { IconType } from 'react-icons';
 import {
   FiAward,
   FiBarChart,
+  FiBook,
   FiBookOpen,
   FiBriefcase,
   FiClipboard,
@@ -120,6 +121,14 @@ export const NAVIGATION_SHORTCUTS: readonly NavigationShortcut[] = [
     icon: FiBookOpen,
   },
   {
+    id: 'bookshelf',
+    name: 'Bookshelf',
+    href: '/bookshelf',
+    key: 'b',
+    keywords: 'bookshelf books reading engineering systems ai shelf',
+    icon: FiBook,
+  },
+  {
     id: 'stats',
     name: 'Stats',
     href: '/stats',
@@ -166,6 +175,7 @@ const letterKeyCode = (letter: string): string => `Key${letter.toUpperCase()}`;
  * those letters would map to 'Dead' here.
  */
 const US_MAC_OPTION_KEYS: Readonly<Record<string, string>> = {
+  b: '∫',
   c: 'ç',
   d: '∂',
   g: '©',

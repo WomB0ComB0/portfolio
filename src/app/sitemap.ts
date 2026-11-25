@@ -34,6 +34,7 @@
 
 import type { MetadataRoute } from 'next';
 import { nyToday } from '@/app/_components/home/data/format';
+import { BOOK_SLUGS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { loadPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import { listedExperiences } from '@/app/(routes)/(main)/(professioal)/experience/_lib/listed-role';
 import { app } from '@/constants/app';
@@ -75,6 +76,7 @@ const STATIC_ROUTES = [
   '/stats',
   '/experience',
   '/guestbook',
+  '/bookshelf',
   '/places',
   '/places/photos',
 ] as const;
@@ -186,6 +188,7 @@ export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...STATIC_ROUTES.map((route) => entryFor(route, lastModifiedOf[route])),
     ...sortedUnique([
+      ...BOOK_SLUGS.map((slug) => entryFor(`/bookshelf/${encodeURIComponent(slug)}`, undefined)),
       ...detailEntries('/projects', projects),
       ...detailEntries('/experience', experiences),
       ...detailEntries('/places', places),

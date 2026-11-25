@@ -267,6 +267,7 @@ describe('Palette actions', () => {
       '/places',
       '/spotify',
       '/guestbook',
+      '/bookshelf',
       '/stats',
       '/sponsor',
     ]);

@@ -71,7 +71,7 @@ describe('NavBar flyout links and prefetching', () => {
     renderRail();
 
     const closed = [...document.querySelectorAll('[inert] a')];
-    expect(closed).toHaveLength(13);
+    expect(closed).toHaveLength(14);
     for (const anchor of closed) expect(anchor).toHaveAttribute('data-prefetch', 'false');
   });
 
@@ -82,7 +82,7 @@ describe('NavBar flyout links and prefetching', () => {
     fireEvent.click(trigger);
 
     expect(prefetchOf('nav-flyout-developer')).toEqual(['default', 'default', 'default']);
-    expect(prefetchOf('nav-flyout-personal')).toEqual(['false', 'false', 'false']);
+    expect(prefetchOf('nav-flyout-personal')).toEqual(['false', 'false', 'false', 'false']);
 
     fireEvent.click(trigger);
 

@@ -1,0 +1,125 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* 3D bookshelf perspective stage and realistic spine/cover lighting.
+ * Motion respects global prefers-reduced-motion in globals.css. */
+
+.stage-viewport {
+  perspective: 1800px;
+  perspective-origin: 50% 48%;
+}
+
+.shelf-floor-glow {
+  background: radial-gradient(
+    ellipse 52% 60% at 50% 50%,
+    var(--brand-wash) 0%,
+    var(--brand-glow) 46%,
+    transparent 74%
+  );
+}
+
+.book-3d {
+  transform-style: preserve-3d;
+}
+
+.spine-surface {
+  box-shadow:
+    inset 3px 0 6px rgb(255 255 255 / 16%),
+    inset -4px 0 8px rgb(0 0 0 / 34%),
+    inset 0 1px 0 rgb(255 255 255 / 12%),
+    0 18px 28px -12px rgb(0 0 0 / 72%),
+    0 6px 12px -4px rgb(0 0 0 / 55%);
+}
+
+.spine-surface:hover {
+  box-shadow:
+    inset 3px 0 8px rgb(255 255 255 / 22%),
+    inset -4px 0 8px rgb(0 0 0 / 30%),
+    inset 0 1px 0 var(--brand-rim),
+    0 24px 36px -12px rgb(0 0 0 / 82%),
+    0 0 24px -6px var(--brand-halo);
+}
+
+.spine-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.active-book-assembly {
+  transform-style: preserve-3d;
+  transform: rotateY(-11deg) rotateX(1deg);
+  transition: transform var(--motion-spring-in) var(--ease-spring);
+}
+
+.active-book-assembly:hover,
+.active-book-assembly:focus-within {
+  transform: rotateY(-4deg) rotateX(0deg) translateY(-4px);
+}
+
+.active-spine-wing {
+  transform-origin: right center;
+  transform: rotateY(-44deg);
+  box-shadow:
+    inset 2px 0 5px rgb(255 255 255 / 18%),
+    inset -6px 0 12px rgb(0 0 0 / 48%);
+}
+
+.cover-face {
+  box-shadow:
+    inset 4px 0 10px rgb(0 0 0 / 28%),
+    inset 1px 0 0 rgb(255 255 255 / 24%),
+    0 28px 54px -16px rgb(0 0 0 / 88%),
+    0 12px 24px -10px rgb(0 0 0 / 68%),
+    0 0 42px -12px var(--brand-edge);
+}
+
+.cover-crease {
+  background: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 32%) 0%,
+    rgb(255 255 255 / 22%) 2.5%,
+    rgb(0 0 0 / 16%) 5.5%,
+    transparent 11%,
+    transparent 96%,
+    rgb(255 255 255 / 12%) 100%
+  );
+}
+
+.page-block-edge {
+  background: repeating-linear-gradient(90deg, #d6d6e2 0, #d6d6e2 1px, #a8a8ba 1px, #a8a8ba 2px);
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 24%),
+    inset 0 -2px 4px rgb(0 0 0 / 28%),
+    3px 0 10px rgb(0 0 0 / 45%);
+}
+
+.detail-cover-shadow {
+  box-shadow:
+    inset 5px 0 12px rgb(0 0 0 / 26%),
+    inset 1px 0 0 rgb(255 255 255 / 22%),
+    0 32px 64px -20px rgb(0 0 0 / 85%),
+    0 14px 28px -12px rgb(0 0 0 / 65%),
+    0 0 48px -16px var(--brand-edge);
+}
+
+.floor-shadow {
+  background: radial-gradient(
+    ellipse 85% 65% at 50% 50%,
+    rgb(0 0 0 / 72%) 0%,
+    rgb(0 0 0 / 32%) 45%,
+    transparent 76%
+  );
+}

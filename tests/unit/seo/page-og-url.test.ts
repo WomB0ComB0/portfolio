@@ -63,9 +63,13 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map', () => ({
 // Metadata imports traverse the real Spotify body, including its shared CSS-only equaliser.
 // Vite cannot load Next's PostCSS plugin configuration; no body is rendered in this Node test.
 vi.mock('@/app/_components/home/live/equaliser.module.css', () => ({ default: {} }));
+vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
+  default: {},
+}));
 // The homepage's client component.
 vi.mock('@/app/_components/home', () => ({ HomePage: () => null }));
 
+import { BOOK_SLUGS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import manifest from '@/app/manifest';
 import Sitemap from '@/app/sitemap';
 import { app } from '@/constants';
@@ -101,15 +105,16 @@ const STATIC_PAGES: Readonly<Record<string, () => Promise<PageModule>>> = {
   '/experience': () => import('@/app/(routes)/(main)/(professioal)/experience/(list)/page'),
   '/spotify': () => import('@/app/(routes)/(main)/(personal)/spotify/page'),
   '/guestbook': () => import('@/app/(routes)/(main)/(personal)/guestbook/page'),
+  '/bookshelf': () => import('@/app/(routes)/(main)/(personal)/bookshelf/(list)/page'),
   '/places': () => import('@/app/(routes)/(main)/(personal)/places/(list)/page'),
   '/places/photos': () => import('@/app/(routes)/(main)/(personal)/places/photos/page'),
 };
 
 /**
- * A page per Sanity document: /projects/<id>, /experience/<id> or /places/<id>, but not the
+ * A detail page: /bookshelf/<slug>, /projects/<id>, /experience/<id> or /places/<id>, but not the
  * static /places/photos.
  */
-const DETAIL_PATH = /^\/(?:projects|experience|places)\/(?!photos$)[^/]+$/;
+const DETAIL_PATH = /^\/(?:bookshelf|projects|experience|places)\/(?!photos$)[^/]+$/;
 
 const STATS_DESCRIPTION =
   "What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours.";
@@ -129,8 +134,8 @@ describe('static page og:url', () => {
     const detailPaths = paths.filter((path) => DETAIL_PATH.test(path));
     const staticPaths = paths.filter((path) => !DETAIL_PATH.test(path));
 
-    // One detail page per mocked document, so the filter above is really exercised.
-    expect(detailPaths).toHaveLength(3);
+    // One detail page per mocked Sanity document plus every bookshelf stage.
+    expect(detailPaths).toHaveLength(3 + BOOK_SLUGS.length);
     expect(Object.keys(STATIC_PAGES).sort()).toEqual([...staticPaths].sort());
   });
 

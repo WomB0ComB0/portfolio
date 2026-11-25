@@ -86,7 +86,15 @@ describe('MobileMenuOverlay contents', () => {
     renderOverlay('/');
 
     const dialog = screen.getByRole('dialog', { name: SITE_MENU });
-    for (const name of ['Guestbook', 'Places', 'Spotify', 'Privacy', 'Cookies', 'Licenses']) {
+    for (const name of [
+      'Guestbook',
+      'Bookshelf',
+      'Places',
+      'Spotify',
+      'Privacy',
+      'Cookies',
+      'Licenses',
+    ]) {
       expect(within(dialog).getByRole('link', { name })).toBeInTheDocument();
     }
     for (const item of NavbarItems) {
