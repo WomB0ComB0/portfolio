@@ -207,9 +207,23 @@ const PARKED_DOMAIN_SIGNATURES: readonly RegExp[] = [
 ];
 
 /** Active PDF dictionary/action names capable of code execution, launch, or embedded payloads. */
+const PDF_STREAM_BLOCK_RE = /\bstream\r?\n[\s\S]*?\bendstream\b/g;
 const PDF_ACTIVE_OBJECT_RE =
-  /\/(?:JavaScript|JS|Launch|OpenAction|AA|EmbeddedFile|RichMedia|XFA|SubmitForm|ImportData|GoToR|GoToE|Rendition|Sound|Movie)\b/;
+  /\/(?:JavaScript|EmbeddedFile|RichMedia|XFA)\b|\/S\s*\/(?:JavaScript|JS|Launch|SubmitForm|ImportData)\b|\/OpenAction\s*<</;
 const PDF_POLYGLOT_RE = /(?:<\s*script\b|<!doctype\s+html\b|<\?php\b)/i;
+
+/** Benign analytics/consent noscript iframe hosts that legitimately render 0x0 hidden iframes. */
+const BENIGN_HIDDEN_IFRAME_HOSTS = new Set([
+  'googletagmanager.com',
+  'consent.cookiebot.com',
+  'vars.hotjar.com',
+  'c.bing.com',
+]);
+const BENIGN_HIDDEN_IFRAME_SUFFIXES = [
+  '.googletagmanager.com',
+  '.doubleclick.net',
+  '.googlesyndication.com',
+] as const;
 
 /** ClickFix / fake-CAPTCHA / fake-update clipboard-hijack lures on compromised blogs & doc sites. */
 const CLICKFIX_CLIPBOARD_RE = /navigator\.clipboard\.writeText\s*\(/i;
@@ -218,11 +232,10 @@ const CLICKFIX_SHELL_PAYLOAD_RE =
 const CLICKFIX_LURE_COPY_RE =
   /\b(?:press\s+win(?:dows)?\s*\+\s*r|windows\s+key\s*\+\s*r)\b[\s\S]{0,240}\b(?:ctrl\s*\+\s*v|paste\s+and\s+(?:press\s+)?enter)\b/i;
 
-/** High-signal obfuscated inline JS loader patterns (not triggered by normal docs/book pages). */
+/** High-signal obfuscated inline JS loader patterns (excludes legacy GA document.write(unescape)). */
 const OBFUSCATED_SCRIPT_PATTERNS: readonly RegExp[] = [
   /\b(?:eval|Function)\s*\(\s*atob\s*\(/i,
-  /\bdocument\.write\s*\(\s*unescape\s*\(/i,
-  /\bString\.fromCharCode\s*\((?:\s*\d+\s*,){10,}/i,
+  /\bString\.fromCharCode\s*\((?:\s*\d+\s*,){16,}/i,
   /\b(?:eval|new\s+Function)\s*\([\s\S]{0,80}\batob\s*\(\s*["'][A-Za-z0-9+/=]{160,}["']\s*\)/i,
 ];
 
@@ -395,17 +408,18 @@ export function inspectPdfBytes(bytes: Uint8Array): string | null {
     latin1 += piece;
   }
 
-  const direct = PDF_ACTIVE_OBJECT_RE.exec(latin1);
+  const metadataOnly = latin1.replace(PDF_STREAM_BLOCK_RE, ' ');
+  const direct = PDF_ACTIVE_OBJECT_RE.exec(metadataOnly);
   if (direct) {
-    return `pdf_active_object:${direct[0]}`;
+    return `pdf_active_object:${direct[0].replace(/\s+/g, ' ')}`;
   }
 
-  const decoded = latin1.replace(/#([0-9a-fA-F]{2})/g, (_, hex: string) =>
+  const decoded = metadataOnly.replace(/#([0-9a-fA-F]{2})/g, (_, hex: string) =>
     String.fromCharCode(Number.parseInt(hex, 16)),
   );
   const obfuscated = PDF_ACTIVE_OBJECT_RE.exec(decoded);
   if (obfuscated) {
-    return `pdf_obfuscated_active_object:${obfuscated[0]}`;
+    return `pdf_obfuscated_active_object:${obfuscated[0].replace(/\s+/g, ' ')}`;
   }
 
   if (PDF_POLYGLOT_RE.test(latin1.slice(0, 8192))) {
@@ -414,25 +428,33 @@ export function inspectPdfBytes(bytes: Uint8Array): string | null {
   return null;
 }
 
+function registrableApex(hostname: string): string {
+  const parts = hostname.toLowerCase().replace(/\.+$/, '').split('.').filter(Boolean);
+  if (parts.length <= 2) return parts.join('.');
+  const lastTwo = parts.slice(-2).join('.');
+  if (/^(?:co|ac|org|gov|edu|com|net)\.[a-z]{2}$/.test(lastTwo) && parts.length >= 3) {
+    return parts.slice(-3).join('.');
+  }
+  return lastTwo;
+}
+
 /**
  * Audits a multi-hop redirect chain for Traffic Direction Systems (TDS):
- * flags >2 distinct external host hops or any hop failing `screenExternalBookUrl()`.
+ * flags >2 distinct external registrable domains or any hop failing `screenExternalBookUrl()`.
  */
 export function isSuspiciousRedirectChain(hops: readonly string[]): string | null {
-  const distinctHosts: string[] = [];
+  const distinctExternalApexes = new Set<string>();
   for (const hop of hops) {
     const verdict = screenExternalBookUrl(hop);
     if (!verdict.safe || !verdict.hostname) {
       return `unsafe_redirect_hop:${verdict.blockReason ?? 'invalid'}`;
     }
-    const bare = verdict.hostname.replace(/^www\./, '');
-    if (distinctHosts.at(-1) !== bare) {
-      distinctHosts.push(bare);
+    if (classifyHostTrustTier(verdict.hostname) === 'external') {
+      distinctExternalApexes.add(registrableApex(verdict.hostname));
     }
   }
-  const externalHops = distinctHosts.filter((h) => classifyHostTrustTier(h) === 'external');
-  if (externalHops.length > 2) {
-    return `tds_redirect_chain:${externalHops.length}_external_hosts`;
+  if (distinctExternalApexes.size > 2) {
+    return `tds_redirect_chain:${distinctExternalApexes.size}_external_domains`;
   }
   return null;
 }
@@ -488,9 +510,14 @@ export function inspectHtmlSnippet(
     if (!isHidden) continue;
     try {
       const target = new URL(srcMatch[1], `https://${normalizedOrigin}`);
+      const targetHost = target.hostname.toLowerCase().replace(/^www\./, '');
+      const isBenignTracker =
+        BENIGN_HIDDEN_IFRAME_HOSTS.has(targetHost) ||
+        BENIGN_HIDDEN_IFRAME_SUFFIXES.some((s) => targetHost.endsWith(s));
       if (
         (target.protocol === 'http:' || target.protocol === 'https:') &&
-        target.hostname.toLowerCase().replace(/^www\./, '') !== normalizedOrigin
+        targetHost !== normalizedOrigin &&
+        !isBenignTracker
       ) {
         hiddenCrossOriginIframe = true;
         break;

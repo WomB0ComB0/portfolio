@@ -438,6 +438,12 @@ async function main(): Promise<void> {
     ),
   };
 
+  const quarantineBreakdown: Record<string, number> = {};
+  for (const reason of Object.values(manifest.quarantinedUrls)) {
+    const category = reason.split(':')[0] ?? reason;
+    quarantineBreakdown[category] = (quarantineBreakdown[category] ?? 0) + 1;
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -446,6 +452,7 @@ async function main(): Promise<void> {
         urlhausFeedSize: urlhausHosts.size,
         blockedHostsCount: Object.keys(manifest.blockedHosts).length,
         quarantinedUrlsCount: Object.keys(manifest.quarantinedUrls).length,
+        quarantineBreakdown,
         unavailableUrlsCount: Object.keys(manifest.unavailableUrls).length,
         trackedFingerprintsCount: Object.keys(manifest.urlFingerprints ?? {}).length,
         deltaDetonationsCount: Object.keys(manifest.deltaDetonations ?? {}).length,

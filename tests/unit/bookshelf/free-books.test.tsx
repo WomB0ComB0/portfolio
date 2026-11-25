@@ -315,7 +315,11 @@ describe('Free Books Security Gate & Threat Intel Verifier', () => {
   it('detects weaponized PDFs, ClickFix lures, obfuscated JS, hidden iframes, and TDS redirect chains', () => {
     const enc = new TextEncoder();
     expect(
-      inspectPdfBytes(enc.encode('%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n')),
+      inspectPdfBytes(
+        enc.encode(
+          '%PDF-1.7\n1 0 obj << /Type /Catalog /OpenAction [3 0 R /Fit] >> endobj\nstream\nrandom /JS /AA binary bytes\nendstream\n%%EOF\n',
+        ),
+      ),
     ).toBeNull();
     expect(
       inspectPdfBytes(enc.encode('%PDF-1.7\n1 0 obj << /OpenAction << /S /JS >> >> endobj')),
@@ -345,10 +349,17 @@ describe('Free Books Security Gate & Threat Intel Verifier', () => {
     );
     expect(hiddenFrame.hiddenCrossOriginIframe).toBe(true);
 
+    const gtmFrame = inspectHtmlSnippet(
+      `<html><body><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-123" height="0" width="0" style="display:none;visibility:hidden"></iframe></body></html>`,
+      'syncfusion.com',
+    );
+    expect(gtmFrame.hiddenCrossOriginIframe).toBe(false);
+
     expect(
       isSuspiciousRedirectChain([
-        'https://doc.rust-lang.org/book/',
-        'https://github.com/rust-lang',
+        'https://www.gitbook.com/book/x',
+        'https://legacy.gitbook.com/book/x',
+        'https://docs.gitbook.com/book/x',
       ]),
     ).toBeNull();
     expect(
