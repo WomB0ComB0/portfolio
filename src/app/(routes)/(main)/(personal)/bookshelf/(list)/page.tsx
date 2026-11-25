@@ -22,7 +22,7 @@ import { loadBookshelfCatalog } from '../_lib/load-bookshelf';
 export const metadata = constructMetadata({
   title: 'Bookshelf',
   description:
-    'An interactive 3D engineering bookshelf covering computer systems, backend architecture, infrastructure, and AI.',
+    'An interactive 3D bookshelf spanning computer systems, backend architecture, AI, philosophy, psychology, society, economics, and political power.',
   path: '/bookshelf',
 });
 

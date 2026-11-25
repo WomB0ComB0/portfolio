@@ -20,7 +20,18 @@
  * 132-topic progression. Pure data and lookup helpers (server- and client-safe).
  */
 
-export const BOOK_TRACKS = ['Foundations', 'Backend', 'Infra & Ops', 'AI'] as const;
+import { buildHumanitiesBooks } from './humanities-books';
+
+export const BOOK_TRACKS = [
+  'Foundations',
+  'Backend',
+  'Infra & Ops',
+  'AI',
+  'Reasoning & Systems',
+  'Mind & Society',
+  'History & Economics',
+  'Power & Institutions',
+] as const;
 export type DefaultBookTrack = (typeof BOOK_TRACKS)[number];
 /** Open string so Sanity Studio books can introduce custom sections (e.g. Startups, Design). */
 export type BookTrack = DefaultBookTrack | (string & {});
@@ -154,7 +165,7 @@ export interface BookItem {
   readonly topics: readonly BookTopic[];
 }
 
-export const BOOKS: readonly [BookItem, ...BookItem[]] = [
+const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
   {
     slug: 'computer-systems',
     stage: 1,
@@ -695,6 +706,17 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
   },
 ];
 
+const ENGINEERING_TOPIC_COUNT = ENGINEERING_BOOKS.reduce(
+  (sum, book) => sum + book.topics.length,
+  0,
+);
+
+/** Full 44-book library: 14 engineering books (read) + 30 society, behavior & power books (queued). */
+export const BOOKS: readonly [BookItem, ...BookItem[]] = [
+  ...ENGINEERING_BOOKS,
+  ...buildHumanitiesBooks(ENGINEERING_BOOKS.length + 1, ENGINEERING_TOPIC_COUNT + 1),
+];
+
 /** Default initial active book on /bookshelf (Stage 04: Designing Data-Intensive Applications). */
 export const DEFAULT_BOOK_INDEX = 3;
 
@@ -702,7 +724,7 @@ export const BOOK_SLUGS: readonly string[] = BOOKS.map((book) => book.slug);
 
 export const TOTAL_TOPICS: number = BOOKS.reduce((sum, book) => sum + book.topics.length, 0);
 
-/** Default separated shelf collections matching the four core engineering tracks. */
+/** Default separated shelf collections across engineering and society/power curricula. */
 export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
   {
     slug: 'foundations',
@@ -734,6 +756,44 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
       'Deep learning math, production ML pipelines, building LLMs from scratch, and AI systems.',
     accentColor: '#8884d5',
     bookSlugs: BOOKS.filter((book) => book.track === 'AI').map((book) => book.slug),
+  },
+  {
+    slug: 'reasoning-and-systems',
+    title: 'Reasoning & Systems',
+    description:
+      'Philosophy, argument construction, statistical reasoning, systems thinking, and media ecology.',
+    accentColor: '#8884d5',
+    bookSlugs: BOOKS.filter((book) => book.track === 'Reasoning & Systems').map(
+      (book) => book.slug,
+    ),
+  },
+  {
+    slug: 'mind-and-society',
+    title: 'Mind & Society',
+    description:
+      'Psychology, cultural anthropology, and sociology—how individuals, norms, and groups shape behavior.',
+    accentColor: '#d55181',
+    bookSlugs: BOOKS.filter((book) => book.track === 'Mind & Society').map((book) => book.slug),
+  },
+  {
+    slug: 'history-and-economics',
+    title: 'History & Economics',
+    description:
+      'World history, historical method, incentives, markets, and empirical development economics.',
+    accentColor: '#c98500',
+    bookSlugs: BOOKS.filter((book) => book.track === 'History & Economics').map(
+      (book) => book.slug,
+    ),
+  },
+  {
+    slug: 'power-and-institutions',
+    title: 'Power & Institutions',
+    description:
+      'Political theory, state capacity, the rule of law, institutional legibility, and geopolitics.',
+    accentColor: '#3987e5',
+    bookSlugs: BOOKS.filter((book) => book.track === 'Power & Institutions').map(
+      (book) => book.slug,
+    ),
   },
 ];
 

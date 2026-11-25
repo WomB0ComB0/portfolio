@@ -89,6 +89,10 @@ const TRACK_ACCENTS: Readonly<Record<string, string>> = {
   Backend: '#d95926',
   'Infra & Ops': '#199e70',
   AI: '#8884d5',
+  'Reasoning & Systems': '#8884d5',
+  'Mind & Society': '#d55181',
+  'History & Economics': '#c98500',
+  'Power & Institutions': '#3987e5',
   Startups: '#c98500',
   Design: '#d55181',
 };

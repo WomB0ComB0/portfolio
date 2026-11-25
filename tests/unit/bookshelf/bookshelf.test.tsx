@@ -42,13 +42,15 @@ import {
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
 import { cleanIsbn, lookupBooks, toBookSlug } from '@/app/api/v1/[[...route]]/books/handlers';
 
-describe('Engineering bookshelf catalog', () => {
-  it('contains 14 uniquely slugged stages numbered 01 through 14 across all 4 tracks', () => {
-    expect(BOOKS).toHaveLength(14);
+describe('Bookshelf catalog', () => {
+  it('contains 44 uniquely slugged stages numbered 01 through 44 across all 8 tracks', () => {
+    expect(BOOKS).toHaveLength(44);
     expect(new Set(BOOK_SLUGS).size).toBe(BOOKS.length);
-    expect(BOOKS.map((book) => book.stage)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-    ]);
+    expect(BOOKS.map((book) => book.stage)).toEqual(
+      Array.from({ length: BOOKS.length }, (_, idx) => idx + 1),
+    );
+    expect(BOOKS.filter((book) => book.status === 'completed')).toHaveLength(14);
+    expect(BOOKS.filter((book) => book.status === 'queued')).toHaveLength(30);
     for (const track of BOOK_TRACKS) {
       expect(BOOKS.some((book) => book.track === track)).toBe(true);
     }
@@ -72,13 +74,13 @@ describe('Engineering bookshelf catalog', () => {
     }
   });
 
-  it('wraps previous and next neighbors cyclically around stage 01 and stage 14', () => {
+  it('wraps previous and next neighbors cyclically around stage 01 and stage 44', () => {
     const first = getAdjacentBooks(getBookAt(0).slug);
-    expect(first.prev.stage).toBe(14);
+    expect(first.prev.stage).toBe(BOOKS.length);
     expect(first.next.stage).toBe(2);
 
-    const last = getAdjacentBooks(getBookAt(13).slug);
-    expect(last.prev.stage).toBe(13);
+    const last = getAdjacentBooks(getBookAt(BOOKS.length - 1).slug);
+    expect(last.prev.stage).toBe(BOOKS.length - 1);
     expect(last.next.stage).toBe(1);
   });
 });
@@ -86,25 +88,27 @@ describe('Engineering bookshelf catalog', () => {
 describe('BookshelfStage Live Console & bidirectional scroll', () => {
   it('defaults to Stage 04 (Designing Data-Intensive Applications) and steps both directions', () => {
     render(<BookshelfStage />);
+    const n = BOOKS.length;
 
     const defaultBook = getBookAt(DEFAULT_BOOK_INDEX);
-    expect(screen.getByText(`04 of 14: ${defaultBook.title}`)).toBeInTheDocument();
+    expect(screen.getByText(`04 of ${n}: ${defaultBook.title}`)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Backend/ })).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Next book' }));
     const nextBook = getBookAt(DEFAULT_BOOK_INDEX + 1);
-    expect(screen.getByText(`05 of 14: ${nextBook.title}`)).toBeInTheDocument();
+    expect(screen.getByText(`05 of ${n}: ${nextBook.title}`)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
-    expect(screen.getByText(`04 of 14: ${defaultBook.title}`)).toBeInTheDocument();
+    expect(screen.getByText(`04 of ${n}: ${defaultBook.title}`)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
     const prevBook = getBookAt(DEFAULT_BOOK_INDEX - 1);
-    expect(screen.getByText(`03 of 14: ${prevBook.title}`)).toBeInTheDocument();
+    expect(screen.getByText(`03 of ${n}: ${prevBook.title}`)).toBeInTheDocument();
   });
 
   it('scrolls right on wheel down and left on wheel up cleanly across direction reversals', () => {
     vi.useFakeTimers();
+    const n = BOOKS.length;
     try {
       render(<BookshelfStage />);
       const stage = screen.getByRole('region', { name: /Bookshelf/i });
@@ -113,7 +117,7 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
       vi.advanceTimersByTime(300);
       fireEvent.wheel(stage, { deltaY: 120 });
       expect(
-        screen.getByText(`05 of 14: ${getBookAt(DEFAULT_BOOK_INDEX + 1).title}`),
+        screen.getByText(`05 of ${n}: ${getBookAt(DEFAULT_BOOK_INDEX + 1).title}`),
       ).toBeInTheDocument();
 
       // Momentum during cooldown is ignored, then scrolling up reverses immediately to 04
@@ -121,14 +125,14 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
       vi.advanceTimersByTime(300);
       fireEvent.wheel(stage, { deltaY: -80 });
       expect(
-        screen.getByText(`04 of 14: ${getBookAt(DEFAULT_BOOK_INDEX).title}`),
+        screen.getByText(`04 of ${n}: ${getBookAt(DEFAULT_BOOK_INDEX).title}`),
       ).toBeInTheDocument();
 
       // Another scroll up steps left to 03
       vi.advanceTimersByTime(300);
       fireEvent.wheel(stage, { deltaY: -80 });
       expect(
-        screen.getByText(`03 of 14: ${getBookAt(DEFAULT_BOOK_INDEX - 1).title}`),
+        screen.getByText(`03 of ${n}: ${getBookAt(DEFAULT_BOOK_INDEX - 1).title}`),
       ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
@@ -166,8 +170,9 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     fireEvent.pointerMove(stage, { pointerId: 1, clientX: 240, clientY: 200 });
     fireEvent.pointerUp(stage, { pointerId: 1, clientX: 240, clientY: 200 });
 
-    const liveTextAfterLeftDrag = screen.getByText(/of 14:/).textContent ?? '';
-    expect(liveTextAfterLeftDrag).not.toContain('04 of 14:');
+    const liveTextAfterLeftDrag =
+      screen.getByText(new RegExp(`of ${BOOKS.length}:`)).textContent ?? '';
+    expect(liveTextAfterLeftDrag).not.toContain(`04 of ${BOOKS.length}:`);
 
     // Drag right by 260px -> scrubs backward (left)
     fireEvent.pointerDown(stage, { pointerId: 2, button: 0, clientX: 240, clientY: 200 });
@@ -175,7 +180,8 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     fireEvent.pointerMove(stage, { pointerId: 2, clientX: 520, clientY: 200 });
     fireEvent.pointerUp(stage, { pointerId: 2, clientX: 520, clientY: 200 });
 
-    const liveTextAfterRightDrag = screen.getByText(/of 14:/).textContent ?? '';
+    const liveTextAfterRightDrag =
+      screen.getByText(new RegExp(`of ${BOOKS.length}:`)).textContent ?? '';
     expect(liveTextAfterRightDrag).not.toBe(liveTextAfterLeftDrag);
   });
 
@@ -226,7 +232,9 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
       const dimmed = container.querySelectorAll('[data-dimmed="true"]');
       expect(highlighted.length).toBeGreaterThan(0);
       expect(dimmed.length).toBeGreaterThan(0);
-      expect(screen.getByText(/11 of 14: Deep Learning/)).toBeInTheDocument();
+      expect(
+        screen.getByText(new RegExp(`11 of ${BOOKS.length}: Deep Learning`)),
+      ).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Open AI shelf/i })).toHaveAttribute(
         'href',
         '/bookshelf/shelf/ai',

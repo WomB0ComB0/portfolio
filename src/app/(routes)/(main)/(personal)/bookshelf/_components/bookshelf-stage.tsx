@@ -145,9 +145,11 @@ export function BookshelfStage({
   const [detailBook, setDetailBook] = useState<BookItem | null>(null);
   const [tabIndicator, setTabIndicator] = useState<{
     readonly left: number;
+    readonly top: number;
     readonly width: number;
+    readonly height: number;
     readonly ready: boolean;
-  }>({ left: 0, width: 0, ready: false });
+  }>({ left: 0, top: 0, width: 0, height: 32, ready: false });
 
   const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
@@ -258,7 +260,9 @@ export function BookshelfStage({
     if (!activeBtn) return;
     setTabIndicator((prev) => ({
       left: activeBtn.offsetLeft,
+      top: activeBtn.offsetTop,
       width: activeBtn.offsetWidth,
+      height: activeBtn.offsetHeight || 32,
       ready: prev.ready || activeBtn.offsetWidth > 0,
     }));
   }, [activeTabCategory]);
@@ -866,7 +870,7 @@ export function BookshelfStage({
       description={
         activeShelf
           ? activeShelf.description
-          : 'Foundational books on computer systems, backend architecture, infrastructure, and AI.'
+          : 'Foundational books across computer systems, backend architecture, AI, philosophy, psychology, society, economics, and political power.'
       }
       stats={<StatStrip aria-label="Bookshelf summary" items={statItems} sizing="container" />}
       actions={
@@ -911,7 +915,8 @@ export function BookshelfStage({
                 className={cn(styles['track-pill'], !tabIndicator.ready && styles['no-anim'])}
                 style={{
                   width: `${tabIndicator.width}px`,
-                  transform: `translateX(${tabIndicator.left}px)`,
+                  height: `${tabIndicator.height}px`,
+                  transform: `translate3d(${tabIndicator.left}px, ${tabIndicator.top}px, 0)`,
                 }}
               />
               {categories.map((category) => (
