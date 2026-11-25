@@ -130,6 +130,50 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     }
   });
 
+  it('keeps pool DOM nodes in fixed ascending poolIndex order when stepping left and right', () => {
+    const { container } = render(<BookshelfStage />);
+
+    const readOrder = (): string[] =>
+      [...container.querySelectorAll<HTMLElement>('[data-pool-index]')].map(
+        (el) => el.dataset.poolIndex ?? '',
+      );
+
+    const initialOrder = readOrder();
+    expect(initialOrder.length).toBeGreaterThanOrEqual(7);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next book' }));
+    expect(readOrder()).toEqual(initialOrder);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
+    expect(readOrder()).toEqual(initialOrder);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
+    expect(readOrder()).toEqual(initialOrder);
+  });
+
+  it('scrubs across multiple books during a continuous pointer drag in both directions', () => {
+    render(<BookshelfStage />);
+    const stage = screen.getByRole('region', { name: /Bookshelf/i });
+
+    // Drag left by 260px -> scrubs forward (right) multiple books
+    fireEvent.pointerDown(stage, { pointerId: 1, button: 0, clientX: 500, clientY: 200 });
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 400, clientY: 200 });
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 240, clientY: 200 });
+    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 240, clientY: 200 });
+
+    const liveTextAfterLeftDrag = screen.getByText(/of 14:/).textContent ?? '';
+    expect(liveTextAfterLeftDrag).not.toContain('04 of 14:');
+
+    // Drag right by 260px -> scrubs backward (left)
+    fireEvent.pointerDown(stage, { pointerId: 2, button: 0, clientX: 240, clientY: 200 });
+    fireEvent.pointerMove(stage, { pointerId: 2, clientX: 360, clientY: 200 });
+    fireEvent.pointerMove(stage, { pointerId: 2, clientX: 520, clientY: 200 });
+    fireEvent.pointerUp(stage, { pointerId: 2, clientX: 520, clientY: 200 });
+
+    const liveTextAfterRightDrag = screen.getByText(/of 14:/).textContent ?? '';
+    expect(liveTextAfterRightDrag).not.toBe(liveTextAfterLeftDrag);
+  });
+
   it('opens the reading map dialog and closes on close button', () => {
     render(<BookshelfStage />);
 

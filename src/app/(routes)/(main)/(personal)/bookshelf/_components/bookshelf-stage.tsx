@@ -54,12 +54,13 @@ export interface BookshelfStageProps {
 }
 
 const BOOK_COUNT = BOOKS.length;
-const DEFAULT_BOOK_HEIGHT = 390;
-const STEP_DURATION_MS = 560;
-const CHAIN_STEP_DURATION_MS = 280;
-const CHAIN_TICK_MS = 85;
-const WHEEL_THRESHOLD = 24;
-const WHEEL_COOLDOWN_MS = 240;
+const DEFAULT_BOOK_HEIGHT = 360;
+const STEP_DURATION_MS = 400;
+const CHAIN_STEP_DURATION_MS = 220;
+const CHAIN_TICK_MS = 55;
+const WHEEL_THRESHOLD = 20;
+const WHEEL_COOLDOWN_MS = 140;
+const DRAG_ACTIVATION_PX = 6;
 
 const STAT_ITEMS: readonly StatStripItem[] = [
   { label: 'books', value: BOOKS.length },
@@ -92,14 +93,28 @@ interface PoolSlot {
   readonly book: BookItem;
 }
 
+interface DragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastTime: number;
+  vx: number;
+  residualX: number;
+  isDragging: boolean;
+  steppedDuringDrag: boolean;
+  startTarget: EventTarget | null;
+}
+
 /**
  * Interactive 3D Engineering Bookshelf built natively inside Live Console `<PageShell>`:
- * - Never covers the site's left nav rail or footer (detail view renders in-page inside PageShell).
- * - True 4-face CSS 3D cuboid books with symmetric perspective depth across all 14 stages.
- * - Synchronous `useLayoutEffect` slot recycling so only off-screen teleported slots skip transitions,
- *   guaranteeing smooth 3D rotation & slide across every visible book in BOTH directions.
- * - Bidirectional wheel scrolling (scroll up / left -> previous book, scroll down / right -> next
- *   book) with instant direction reversal and cooldown gating so momentum never locks direction.
+ * - Pool DOM nodes stay in fixed ascending `poolIndex` order (`0..2K`) so React NEVER moves nodes
+ *   with `insertBefore` when stepping left vs right — guaranteeing identical 60fps CSS 3D cuboid
+ *   transitions in BOTH directions.
+ * - Live 1:1 horizontal pointer drag with real-time scrubbing across multiple books and velocity
+ *   flick momentum on release.
+ * - Bidirectional wheel scrolling (scroll up / left -> previous, scroll down / right -> next).
+ * - In-page stage detail view inside `<PageShell>` so the site's nav rail & footer stay intact.
  */
 export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactElement {
   const initialPos = useMemo(() => {
@@ -115,6 +130,7 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
   const [pinnedTab, setPinnedTab] = useState<BookCategory | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [detailBook, setDetailBook] = useState<BookItem | null>(null);
   const [tabIndicator, setTabIndicator] = useState<{
     readonly left: number;
@@ -131,11 +147,16 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
 
   const posRef = useRef<number>(pos);
   posRef.current = pos;
+  const bookHeightRef = useRef<number>(bookHeight);
+  bookHeightRef.current = bookHeight;
   const detailOpenRef = useRef<boolean>(false);
   detailOpenRef.current = detailBook !== null;
+  const isDraggingRef = useRef<boolean>(false);
+  isDraggingRef.current = isDragging;
+
   const chainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastStepRef = useRef<number>(0);
-  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<DragState | null>(null);
 
   const activeBook = getBookAt(pos);
   const activeTabCategory: BookCategory = pinnedTab ?? activeBook.track;
@@ -145,8 +166,8 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     const stageEl = stageRef.current;
     if (!stageEl) return;
     const sw = stageEl.clientWidth || window.innerWidth;
-    const sh = stageEl.clientHeight || 420;
-    const nextH = Math.round(Math.max(220, Math.min(sh * 0.84, 430, sw * 0.88)));
+    const sh = stageEl.clientHeight || 390;
+    const nextH = Math.round(Math.max(220, Math.min(sh * 0.84, 410, sw * 0.88)));
     const x1 = nextH * 0.5;
     const pitch = nextH * 0.18;
     const nextK = Math.max(3, Math.ceil((sw / 2 - x1) / pitch) + 2);
@@ -174,22 +195,29 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     [bookHeight],
   );
 
-  // Build the recycled M = 2K+1 slot array (pure; DOM recycling happens synchronously in useLayoutEffect).
+  // CRITICAL: Always emit slots in FIXED ascending `poolIndex` order (`0..poolSize-1`).
+  // Never reorder the array when stepping left vs right, otherwise React's reconciler calls
+  // `insertBefore` on every visible DOM child going left and cancels all CSS transitions!
   const poolSlots = useMemo<readonly PoolSlot[]>(() => {
+    const base = pos - halfWindow;
+    const baseMod = mod(base, poolSize);
     const slots: PoolSlot[] = [];
-    for (let s = pos - halfWindow; s <= pos + halfWindow; s += 1) {
+    for (let poolIndex = 0; poolIndex < poolSize; poolIndex += 1) {
+      const shift = mod(poolIndex - baseMod, poolSize);
+      const slotPosition = base + shift;
       slots.push({
-        poolIndex: mod(s, poolSize),
-        slotPosition: s,
-        offset: s - pos,
-        book: getBookAt(s),
+        poolIndex,
+        slotPosition,
+        offset: slotPosition - pos,
+        book: getBookAt(slotPosition),
       });
     }
     return slots;
   }, [pos, halfWindow, poolSize]);
 
   // Synchronously position every slot before paint: ONLY newly recycled off-screen slots skip
-  // transition via a flush, so ALL visible books smoothly animate in BOTH left and right directions.
+  // transitions via a synchronous reflow flush, while all visible DOM nodes stay stationary in DOM
+  // order and animate smoothly in BOTH left and right directions.
   useLayoutEffect(() => {
     if (detailBook !== null) return;
     const noAnimClass = styles['no-anim'] ?? '';
@@ -294,7 +322,6 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     if (!fromPop && typeof window !== 'undefined' && window.location.hash) {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
     }
-    // Reset slot map so returning to the shelf lays out cleanly without flying in from stale coords.
     prevSlotPositionsRef.current.clear();
     setDetailBook(null);
   }, []);
@@ -330,7 +357,6 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     };
   }, [measureStage, syncTabIndicator]);
 
-  // Re-measure when returning from the detail view to the shelf.
   useEffect(() => {
     if (detailBook !== null) return;
     measureStage();
@@ -373,13 +399,11 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
 
       event.preventDefault();
 
-      // Drop momentum events during cooldown so previous direction never blocks a reversal.
       if (performance.now() - lastStepRef.current < WHEEL_COOLDOWN_MS) {
         wheelAcc = 0;
         return;
       }
 
-      // Immediately zero accumulator when the user reverses scroll direction.
       if (wheelAcc !== 0 && Math.sign(rawDelta) !== Math.sign(wheelAcc)) {
         wheelAcc = 0;
       }
@@ -388,7 +412,7 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
       if (wheelTimer) clearTimeout(wheelTimer);
       wheelTimer = setTimeout(() => {
         wheelAcc = 0;
-      }, 160);
+      }, 150);
 
       if (Math.abs(wheelAcc) >= WHEEL_THRESHOLD) {
         step(wheelAcc > 0 ? 1 : -1);
@@ -448,7 +472,7 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [mapOpen, step, goToBookIndex, openDetail, closeDetail]);
 
-  // Magnetic ring -> Open disc cursor while pointer is over the shelf stage.
+  // Magnetic ring -> Open / Grab cursor while pointer is over the shelf stage.
   useEffect(() => {
     if (!finePointer || detailBook !== null) return;
     const state = { x: -200, y: -200, tx: -200, ty: -200, seen: false };
@@ -472,8 +496,8 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
 
     let rafId = 0;
     const loop = (): void => {
-      state.x += (state.tx - state.x) * 0.24;
-      state.y += (state.ty - state.y) * 0.24;
+      state.x += (state.tx - state.x) * 0.28;
+      state.y += (state.ty - state.y) * 0.28;
       const cursorEl = cursorRef.current;
       const stageEl = stageRef.current;
       if (cursorEl && stageEl) {
@@ -482,10 +506,15 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
           state.seen && !detailOpenRef.current && !mapOpen
             ? document.elementFromPoint(state.tx, state.ty)
             : null;
-        const inStage = Boolean(hit && stageEl.contains(hit));
-        const onActive = Boolean(inStage && hit?.closest('[data-active-slot="true"]'));
-        cursorEl.classList.toggle(styles['cursor-visible'] ?? '', inStage);
-        cursorEl.classList.toggle(styles['cursor-open'] ?? '', onActive);
+        const inStage = isDraggingRef.current || Boolean(hit && stageEl.contains(hit));
+        const onActive =
+          !isDraggingRef.current && Boolean(inStage && hit?.closest('[data-active-slot="true"]'));
+        const visibleClass = styles['cursor-visible'] ?? '';
+        const openClass = styles['cursor-open'] ?? '';
+        const grabClass = styles['cursor-grabbing'] ?? '';
+        if (visibleClass) cursorEl.classList.toggle(visibleClass, inStage);
+        if (openClass) cursorEl.classList.toggle(openClass, onActive);
+        if (grabClass) cursorEl.classList.toggle(grabClass, isDraggingRef.current);
       }
       rafId = window.requestAnimationFrame(loop);
     };
@@ -498,22 +527,108 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     };
   }, [finePointer, detailBook, mapOpen]);
 
+  // Live 1:1 pointer drag & multi-book scrubbing with flick momentum.
   const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>): void => {
-    pointerDownRef.current = { x: event.clientX, y: event.clientY };
+    if (event.button !== 0) return;
+    if (chainTimerRef.current) {
+      clearTimeout(chainTimerRef.current);
+      chainTimerRef.current = null;
+    }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastTime: performance.now(),
+      vx: 0,
+      residualX: 0,
+      isDragging: false,
+      steppedDuringDrag: false,
+      startTarget: event.target,
+    };
   };
 
-  const handleStagePointerUp = (event: PointerEvent<HTMLDivElement>): void => {
-    const start = pointerDownRef.current;
-    pointerDownRef.current = null;
-    if (!start) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-      step(dx < 0 ? 1 : -1);
+  const handleStagePointerMove = (event: PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const totalDx = event.clientX - drag.startX;
+    const totalDy = event.clientY - drag.startY;
+
+    if (!drag.isDragging) {
+      if (Math.abs(totalDx) < DRAG_ACTIVATION_PX || Math.abs(totalDy) > Math.abs(totalDx) * 1.4) {
+        return;
+      }
+      drag.isDragging = true;
+      setIsDragging(true);
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+
+    const now = performance.now();
+    const dt = Math.max(1, now - drag.lastTime);
+    const stepDx = event.clientX - drag.lastX;
+    drag.vx = drag.vx * 0.5 + (stepDx / dt) * 0.5;
+    drag.lastX = event.clientX;
+    drag.lastTime = now;
+    drag.residualX += stepDx;
+
+    // Advance books live as the user scrubs across one pitch width (~0.24 * H).
+    const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
+    let stepsToMove = 0;
+    while (drag.residualX <= -scrubUnit) {
+      drag.residualX += scrubUnit;
+      stepsToMove += 1;
+    }
+    while (drag.residualX >= scrubUnit) {
+      drag.residualX -= scrubUnit;
+      stepsToMove -= 1;
+    }
+
+    if (stepsToMove !== 0) {
+      drag.steppedDuringDrag = true;
+      step(stepsToMove, CHAIN_STEP_DURATION_MS);
+    }
+
+    // Dampen live shelf translation around current snap point so books track 1:1 under pointer.
+    const visualOffset = Math.max(
+      -scrubUnit * 0.55,
+      Math.min(scrubUnit * 0.55, drag.residualX * 0.65),
+    );
+    shelfRef.current?.style.setProperty('--drag-x', `${visualOffset.toFixed(1)}px`);
+  };
+
+  const finishDrag = (event: PointerEvent<HTMLDivElement>, cancelled = false): void => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+
+    if (drag.isDragging) {
+      setIsDragging(false);
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      shelfRef.current?.style.setProperty('--drag-x', '0px');
+
+      if (cancelled) return;
+
+      const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
+      const speed = Math.abs(drag.vx);
+      if (speed > 0.4) {
+        const extra = Math.min(3, Math.max(1, Math.round(speed * 1.6)));
+        stepBy(drag.vx < 0 ? extra : -extra);
+      } else if (!drag.steppedDuringDrag && Math.abs(drag.residualX) > scrubUnit * 0.3) {
+        step(drag.residualX < 0 ? 1 : -1);
+      }
       return;
     }
+
+    if (cancelled) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
     if (Math.hypot(dx, dy) > 8) return;
-    const slotEl = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-slot-offset]');
+
+    const targetEl = (drag.startTarget ?? event.target) as HTMLElement | null;
+    const slotEl = targetEl?.closest<HTMLElement>('[data-slot-offset]');
     if (!slotEl) return;
     const offset = Number(slotEl.dataset.slotOffset);
     if (offset === 0) {
@@ -606,14 +721,20 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
           ref={stageRef}
           role="region"
           aria-roledescription="carousel"
-          aria-label="Bookshelf. Scroll or use left and right arrow keys to browse, Enter to open."
+          aria-label="Bookshelf. Drag, scroll, or use left and right arrow keys to browse, Enter to open."
           // biome-ignore lint/a11y/noNoninteractiveTabindex: Carousel viewport is focusable for keyboard navigation.
           tabIndex={0}
           onPointerDown={handleStagePointerDown}
-          onPointerUp={handleStagePointerUp}
-          className={cn(styles.stage, finePointer && styles['custom-cursor'])}
+          onPointerMove={handleStagePointerMove}
+          onPointerUp={(event) => finishDrag(event, false)}
+          onPointerCancel={(event) => finishDrag(event, true)}
+          className={cn(
+            styles.stage,
+            isDragging && styles['stage-dragging'],
+            finePointer && styles['custom-cursor'],
+          )}
         >
-          <div ref={shelfRef} className={styles.shelf}>
+          <div ref={shelfRef} className={cn(styles.shelf, isDragging && styles['shelf-dragging'])}>
             {poolSlots.map((slot) => {
               const isActive = slot.offset === 0;
               const { book } = slot;
@@ -625,20 +746,10 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
                     if (el) slotElementsRef.current.set(slot.poolIndex, el);
                     else slotElementsRef.current.delete(slot.poolIndex);
                   }}
+                  data-pool-index={slot.poolIndex}
                   data-slot-offset={slot.offset}
                   data-active-slot={isActive ? 'true' : 'false'}
-                  className={cn(
-                    styles.slot,
-                    isActive && styles['is-active'],
-                    slot.offset < 0 && styles['is-before'],
-                    slot.offset > 0 && styles['is-after'],
-                  )}
-                  style={
-                    {
-                      '--slot-x': `${slotX(slot.offset).toFixed(2)}px`,
-                      zIndex: 100 - Math.abs(slot.offset),
-                    } as CSSProperties
-                  }
+                  className={styles.slot}
                 >
                   <div
                     className={styles.book}
