@@ -18,7 +18,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FreeBooksExplorer } from '@/app/(routes)/(main)/(personal)/bookshelf/free/_components/free-books-explorer';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
-import { checkHostnameThreatIntel } from '@/lib/books/free-books-verifier';
+import { BOOKSHELF_COOP_HEADERS, BOOKSHELF_COOP_SOURCES } from '@/config/security-headers';
+import {
+  checkGoogleSafeBrowsing,
+  checkHostnameThreatIntel,
+  checkRdapDomainAge,
+  loadUrlhausHostBlocklist,
+  submitDeltaDetonation,
+} from '@/lib/books/free-books-verifier';
 import {
   buildFreeProgrammingBooksCatalog,
   filterFreeProgrammingBooks,
@@ -27,8 +34,11 @@ import {
   resetFreeProgrammingBooksCache,
 } from '@/lib/books/free-programming-books';
 import {
+  classifyHostTrustTier,
   inspectHtmlSnippet,
+  inspectPdfBytes,
   isDangerousResponseHeaders,
+  isSuspiciousRedirectChain,
   screenExternalBookUrl,
 } from '@/lib/books/url-security';
 
@@ -300,5 +310,118 @@ describe('Free Books Security Gate & Threat Intel Verifier', () => {
       { title: 'Safe Book', unavailable: false },
       { title: 'Dead Book', unavailable: true },
     ]);
+  });
+
+  it('detects weaponized PDFs, ClickFix lures, obfuscated JS, hidden iframes, and TDS redirect chains', () => {
+    const enc = new TextEncoder();
+    expect(
+      inspectPdfBytes(enc.encode('%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n')),
+    ).toBeNull();
+    expect(
+      inspectPdfBytes(enc.encode('%PDF-1.7\n1 0 obj << /OpenAction << /S /JS >> >> endobj')),
+    ).toContain('pdf_active_object');
+    expect(
+      inspectPdfBytes(enc.encode('%PDF-1.7\n1 0 obj << /J#61vaScript (alert(1)) >> endobj')),
+    ).toContain('pdf_obfuscated_active_object');
+    expect(inspectPdfBytes(enc.encode('%PDF-1.7\n<html><script>alert(1)</script></html>'))).toBe(
+      'pdf_html_script_polyglot',
+    );
+
+    const clickFix = inspectHtmlSnippet(
+      `<script>navigator.clipboard.writeText("powershell -w hidden -enc AAA");</script>`,
+      'compromised-blog.org',
+    );
+    expect(clickFix.clickFixLure).toBe(true);
+
+    const obf = inspectHtmlSnippet(
+      `<script>eval(atob("YWxlcnQoMSk="));</script>`,
+      'compromised-blog.org',
+    );
+    expect(obf.obfuscatedScript).toBe(true);
+
+    const hiddenFrame = inspectHtmlSnippet(
+      `<html><body><iframe src="https://c2-drop.example/kit" width="0" height="0"></iframe></body></html>`,
+      'compromised-blog.org',
+    );
+    expect(hiddenFrame.hiddenCrossOriginIframe).toBe(true);
+
+    expect(
+      isSuspiciousRedirectChain([
+        'https://doc.rust-lang.org/book/',
+        'https://github.com/rust-lang',
+      ]),
+    ).toBeNull();
+    expect(
+      isSuspiciousRedirectChain([
+        'https://hop1.example/a',
+        'https://hop2.example/b',
+        'https://hop3.example/c',
+      ]),
+    ).toContain('tds_redirect_chain');
+  });
+
+  it('supports URLhaus, Safe Browsing, RDAP domain-age drift, delta detonation, trust tiers, and strict COOP', async () => {
+    const urlhaus = await loadUrlhausHostBlocklist({
+      fetcher: async () =>
+        new Response('# comment\n127.0.0.1\tevil-drop.example\n', { status: 200 }),
+    });
+    expect(urlhaus.has('evil-drop.example')).toBe(true);
+    const urlhausHit = await checkHostnameThreatIntel('evil-drop.example', {
+      urlhausHosts: urlhaus,
+      fetcher: async () => new Response(JSON.stringify({}), { status: 200 }),
+    });
+    expect(urlhausHit.blocked).toBe(true);
+    expect(urlhausHit.provider).toContain('URLhaus');
+
+    const gsbHits = await checkGoogleSafeBrowsing(['https://bad.example/kit'], 'test-key', {
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            matches: [{ threatType: 'MALWARE', threat: { url: 'https://bad.example/kit' } }],
+          }),
+          { status: 200 },
+        ),
+    });
+    expect(gsbHits['https://bad.example/kit']).toBe('google_safe_browsing:MALWARE');
+
+    const recentRdap = await checkRdapDomainAge('re-registered.example', {
+      nowMs: Date.parse('2026-11-25T00:00:00Z'),
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            events: [{ eventAction: 'registration', eventDate: '2026-10-20T00:00:00Z' }],
+          }),
+          { status: 200 },
+        ),
+    });
+    expect(recentRdap.newlyRegistered).toBe(true);
+    expect(recentRdap.ageDays).toBe(36);
+
+    const detonation = await submitDeltaDetonation('https://drifted.example/book', {
+      cloudflareAccountId: 'acct-1',
+      cloudflareToken: 'tok-1',
+      fetcher: async () => new Response(JSON.stringify({ uuid: 'scan-123' }), { status: 200 }),
+    });
+    expect(detonation?.provider).toBe('cloudflare-url-scanner');
+    expect(detonation?.reportUrl).toBe('https://radar.cloudflare.com/scan/scan-123');
+
+    expect(classifyHostTrustTier('github.com')).toBe('verified');
+    expect(classifyHostTrustTier('cdn.mikeodnis.dev')).toBe('verified');
+    expect(classifyHostTrustTier('ocw.mit.edu')).toBe('verified');
+    expect(classifyHostTrustTier('random-independent-blog.org')).toBe('external');
+
+    expect(BOOKSHELF_COOP_SOURCES).toContain('/bookshelf/:path*');
+    expect(BOOKSHELF_COOP_HEADERS).toEqual([
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+    ]);
+
+    const mixed = parseFreeProgrammingBooksMarkdown(
+      `### Rust\n* [GitHub Book](https://github.com/rust-lang/book)\n* [Blog Book](https://indie-blog.example/rust)`,
+      'langs',
+    );
+    expect(filterFreeProgrammingBooks(mixed, { verifiedHostsOnly: true })).toHaveLength(1);
+    expect(filterFreeProgrammingBooks(mixed, { verifiedHostsOnly: true })[0]?.host).toBe(
+      'github.com',
+    );
   });
 });

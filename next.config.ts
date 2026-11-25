@@ -30,6 +30,8 @@ import { SANITY_CAPTIONS_HEADERS, sanityCaptionsRewrite } from './src/config/san
 import {
   API_SECURITY_HEADERS,
   API_SECURITY_HEADERS_SOURCE,
+  BOOKSHELF_COOP_HEADERS,
+  BOOKSHELF_COOP_SOURCES,
   CROSS_ORIGIN_RESOURCE_SOURCES,
   OG_IMAGE_HEADERS,
   SECURITY_HEADERS,
@@ -278,6 +280,11 @@ const config: NextConfig = {
       ...CROSS_ORIGIN_RESOURCE_SOURCES.map((source) => ({
         source,
         headers: [...OG_IMAGE_HEADERS],
+      })),
+      // Bookshelf routes have no OAuth popups and link out to third-party book hosts; tighten COOP to same-origin.
+      ...BOOKSHELF_COOP_SOURCES.map((source) => ({
+        source,
+        headers: [...BOOKSHELF_COOP_HEADERS],
       })),
       {
         source: '/static/:path*',

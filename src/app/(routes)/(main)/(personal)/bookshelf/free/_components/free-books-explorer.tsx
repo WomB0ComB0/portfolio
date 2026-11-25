@@ -51,6 +51,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
   const [hideArchived, setHideArchived] = useState<boolean>(true);
   const [hideUnavailable, setHideUnavailable] = useState<boolean>(true);
   const [httpsOnly, setHttpsOnly] = useState<boolean>(false);
+  const [verifiedHostsOnly, setVerifiedHostsOnly] = useState<boolean>(false);
   const [hideInProcess, setHideInProcess] = useState<boolean>(false);
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
 
@@ -77,6 +78,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
         hideInProcess,
         hideUnavailable,
         httpsOnly,
+        verifiedHostsOnly,
       }),
     [
       catalog.books,
@@ -88,6 +90,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
       hideInProcess,
       hideUnavailable,
       httpsOnly,
+      verifiedHostsOnly,
     ],
   );
 
@@ -114,6 +117,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
     setHideArchived(true);
     setHideUnavailable(true);
     setHttpsOnly(false);
+    setVerifiedHostsOnly(false);
     setHideInProcess(false);
     setVisibleCount(PAGE_SIZE);
   };
@@ -126,6 +130,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
     !hideArchived ||
     !hideUnavailable ||
     httpsOnly ||
+    verifiedHostsOnly ||
     hideInProcess;
 
   return (
@@ -302,6 +307,18 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
               <label className="inline-flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
+                  checked={verifiedHostsOnly}
+                  onChange={(event) => {
+                    setVerifiedHostsOnly(event.target.checked);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
+                  className="size-3.5 accent-[var(--brand)]"
+                />
+                <span>Verified hosts only</span>
+              </label>
+              <label className="inline-flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
                   checked={httpsOnly}
                   onChange={(event) => {
                     setHttpsOnly(event.target.checked);
@@ -432,35 +449,54 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
             {displayedBooks.map((book) => (
-              <li key={book.id}>
+              <li
+                key={book.id}
+                className="group flex h-full flex-col justify-between gap-3 rounded-tile border border-hairline bg-surface-1 p-4 transition-colors hover:border-brand-rim hover:bg-surface-2"
+              >
                 <a
                   href={book.url}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   referrerPolicy="no-referrer"
-                  className="group flex h-full flex-col justify-between gap-3 rounded-tile border border-hairline bg-surface-1 p-4 no-underline transition-colors hover:border-brand-rim hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-focus"
+                  className="space-y-1.5 no-underline focus-visible:outline-2 focus-visible:outline-focus"
                 >
-                  <div className="space-y-1.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="text-body-sm font-semibold leading-snug text-foreground group-hover:text-brand-ink">
-                        {book.title}
-                      </h2>
-                      <FiArrowUpRight
-                        aria-hidden="true"
-                        className="mt-0.5 size-4 shrink-0 text-faint transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
-                      />
-                    </div>
-                    {book.authors && (
-                      <p className="line-clamp-2 text-meta text-muted-foreground">{book.authors}</p>
-                    )}
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-body-sm font-semibold leading-snug text-foreground group-hover:text-brand-ink">
+                      {book.title}
+                    </h2>
+                    <FiArrowUpRight
+                      aria-hidden="true"
+                      className="mt-0.5 size-4 shrink-0 text-faint transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
+                    />
                   </div>
+                  {book.authors && (
+                    <p className="line-clamp-2 text-meta text-muted-foreground">{book.authors}</p>
+                  )}
+                </a>
 
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="inline-flex items-center gap-1 rounded-full border border-hairline bg-canvas px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
                       <FiBookOpen aria-hidden="true" className="size-3 text-faint" />
                       {book.category}
                       {book.subcategory ? ` / ${book.subcategory}` : ''}
                     </span>
+
+                    {book.trustTier === 'verified' ? (
+                      <span
+                        title={`Verified publisher/repository host (${book.host})`}
+                        className="rounded-full border border-hairline bg-[var(--live-tint)] px-2 py-0.5 font-mono text-[11px] text-[var(--live)]"
+                      >
+                        Verified host
+                      </span>
+                    ) : (
+                      <span
+                        title={`Independent external host (${book.host})`}
+                        className="rounded-full border border-hairline bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-faint"
+                      >
+                        {book.host}
+                      </span>
+                    )}
 
                     {book.formats.map((fmt) => (
                       <span
@@ -507,7 +543,20 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                       </span>
                     )}
                   </div>
-                </a>
+
+                  {book.trustTier === 'external' && (
+                    <a
+                      href={`https://web.archive.org/web/*/${book.url}`}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      referrerPolicy="no-referrer"
+                      title="Open archived Wayback Machine snapshot"
+                      className="shrink-0 font-mono text-[11px] text-faint underline-offset-4 hover:text-brand-ink hover:underline"
+                    >
+                      Wayback ↗
+                    </a>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

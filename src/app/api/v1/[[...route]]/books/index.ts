@@ -68,6 +68,7 @@ export const booksRoute = new Elysia({ prefix: '/books' })
           hideInProcess: query.hideInProcess,
           hideUnavailable: query.hideUnavailable ?? true,
           httpsOnly: query.httpsOnly,
+          verifiedHostsOnly: query.verifiedHostsOnly,
         });
         const limit = query.limit ?? 60;
         const offset = query.offset ?? 0;

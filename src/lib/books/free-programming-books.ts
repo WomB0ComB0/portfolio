@@ -26,7 +26,7 @@
 
 import securityManifest from '@/data/free-books-security.json';
 import type { FreeBooksSecurityManifest } from './free-books-verifier';
-import { screenExternalBookUrl } from './url-security';
+import { type HostTrustTier, screenExternalBookUrl } from './url-security';
 
 export type FreeBookSource = 'langs' | 'subjects';
 export type FreeBookFormat = 'PDF' | 'HTML' | 'EPUB' | 'Kindle' | 'Markdown' | 'AsciiDoc';
@@ -35,6 +35,8 @@ export interface FreeBookEntry {
   readonly id: string;
   readonly title: string;
   readonly url: string;
+  readonly host: string;
+  readonly trustTier: HostTrustTier;
   readonly authors: string;
   readonly source: FreeBookSource;
   readonly category: string;
@@ -210,6 +212,8 @@ function parseEntryLine(
       id: `${source}-${slugKey}-${index}`,
       title,
       url,
+      host: verdict.hostname,
+      trustTier: verdict.trustTier,
       authors,
       source,
       category,
@@ -358,6 +362,7 @@ export interface FreeBooksFilterOptions {
   readonly hideInProcess?: boolean;
   readonly hideUnavailable?: boolean;
   readonly httpsOnly?: boolean;
+  readonly verifiedHostsOnly?: boolean;
 }
 
 export function filterFreeProgrammingBooks(
@@ -372,6 +377,7 @@ export function filterFreeProgrammingBooks(
   const hideInProcess = options.hideInProcess ?? false;
   const hideUnavailable = options.hideUnavailable ?? false;
   const httpsOnly = options.httpsOnly ?? false;
+  const verifiedHostsOnly = options.verifiedHostsOnly ?? false;
 
   return books.filter((book) => {
     if (source !== 'all' && book.source !== source) return false;
@@ -381,6 +387,7 @@ export function filterFreeProgrammingBooks(
     if (hideInProcess && book.inProcess) return false;
     if (hideUnavailable && book.unavailable) return false;
     if (httpsOnly && book.insecureTransport) return false;
+    if (verifiedHostsOnly && book.trustTier !== 'verified') return false;
     if (query) {
       const haystack =
         `${book.title} ${book.authors} ${book.category} ${book.subcategory ?? ''}`.toLowerCase();

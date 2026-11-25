@@ -15,7 +15,8 @@
  */
 
 /**
- * @file Synchronous, browser- and server-safe URL security screening & content/parking heuristics
+ * @file Synchronous, browser- and server-safe URL security screening, trust-tier classification,
+ * raw PDF active-content inspection, and HTML/ClickFix/obfuscated-JS/parking heuristics
  * for external book links. Ported from link-shortener's 9-stage security pipeline
  * (`url-validator.ts`, `malware-checker.ts`, `phishing-detector.ts`, `http-security-checker.ts`).
  */
@@ -32,12 +33,23 @@ export type UrlBlockReason =
   | 'punycode_homograph'
   | 'high_abuse_tld';
 
+export type HostTrustTier = 'verified' | 'external';
+
 export interface UrlSecurityVerdict {
   readonly safe: boolean;
   readonly normalizedUrl: string | null;
   readonly hostname: string | null;
   readonly insecureTransport: boolean;
+  readonly trustTier: HostTrustTier;
   readonly blockReason: UrlBlockReason | null;
+}
+
+export interface HtmlSecurityInspection {
+  readonly parked: boolean;
+  readonly metaRefreshCrossOrigin: string | null;
+  readonly clickFixLure: boolean;
+  readonly obfuscatedScript: boolean;
+  readonly hiddenCrossOriginIframe: boolean;
 }
 
 const MAX_URL_LENGTH = 2048;
@@ -100,6 +112,62 @@ const BLOCKED_HOSTNAMES = new Set([
   'metadata.google.internal',
 ]);
 
+/** High-trust publishers, versioned git hosts, standards bodies, and academic/doc platforms. */
+const VERIFIED_EXACT_HOSTS = new Set([
+  'github.com',
+  'raw.githubusercontent.com',
+  'gitlab.com',
+  'codeberg.org',
+  'bitbucket.org',
+  'arxiv.org',
+  'archive.org',
+  'web.archive.org',
+  'openstax.org',
+  'mitpress.mit.edu',
+  'doc.rust-lang.org',
+  'docs.python.org',
+  'go.dev',
+  'pkg.go.dev',
+  'developer.mozilla.org',
+  'web.dev',
+  'learn.microsoft.com',
+  'docs.oracle.com',
+  'kubernetes.io',
+  'greenteapress.com',
+  'ostep.org',
+  'pages.cs.wisc.edu',
+  'eloquentjavascript.net',
+  'craftinginterpreters.com',
+  'beej.us',
+  'git-scm.com',
+  'progit.org',
+  'en.wikibooks.org',
+  'leanpub.com',
+  'cdn.mikeodnis.dev',
+]);
+
+const VERIFIED_HOST_SUFFIXES = [
+  '.github.io',
+  '.gitlab.io',
+  '.readthedocs.io',
+  '.readthedocs.org',
+  '.oreilly.com',
+  '.apache.org',
+  '.gnu.org',
+  '.w3.org',
+  '.ietf.org',
+  '.kernel.org',
+  '.freebsd.org',
+  '.debian.org',
+  '.python.org',
+  '.rust-lang.org',
+  '.mozilla.org',
+  '.edu',
+  '.ac.uk',
+  '.edu.au',
+  '.gov',
+] as const;
+
 const DANGEROUS_CONTENT_TYPES = new Set([
   'application/x-msdownload',
   'application/x-dosexec',
@@ -138,6 +206,26 @@ const PARKED_DOMAIN_SIGNATURES: readonly RegExp[] = [
   /\bgodaddy\.com\/domainsearch\b/i,
 ];
 
+/** Active PDF dictionary/action names capable of code execution, launch, or embedded payloads. */
+const PDF_ACTIVE_OBJECT_RE =
+  /\/(?:JavaScript|JS|Launch|OpenAction|AA|EmbeddedFile|RichMedia|XFA|SubmitForm|ImportData|GoToR|GoToE|Rendition|Sound|Movie)\b/;
+const PDF_POLYGLOT_RE = /(?:<\s*script\b|<!doctype\s+html\b|<\?php\b)/i;
+
+/** ClickFix / fake-CAPTCHA / fake-update clipboard-hijack lures on compromised blogs & doc sites. */
+const CLICKFIX_CLIPBOARD_RE = /navigator\.clipboard\.writeText\s*\(/i;
+const CLICKFIX_SHELL_PAYLOAD_RE =
+  /\b(?:powershell(?:\.exe)?\s+-[a-z]*\s*(?:enc|encodedcommand|w\s+hidden|ep\s+bypass)|mshta(?:\.exe)?\s+https?:|cmd(?:\.exe)?\s+\/c\s+|curl\s+[^|\n]+\|\s*(?:ba)?sh\b|wget\s+[^|\n]+\|\s*(?:ba)?sh\b|iex\s*\(\s*(?:irm|iwr|new-object)\b)/i;
+const CLICKFIX_LURE_COPY_RE =
+  /\b(?:press\s+win(?:dows)?\s*\+\s*r|windows\s+key\s*\+\s*r)\b[\s\S]{0,240}\b(?:ctrl\s*\+\s*v|paste\s+and\s+(?:press\s+)?enter)\b/i;
+
+/** High-signal obfuscated inline JS loader patterns (not triggered by normal docs/book pages). */
+const OBFUSCATED_SCRIPT_PATTERNS: readonly RegExp[] = [
+  /\b(?:eval|Function)\s*\(\s*atob\s*\(/i,
+  /\bdocument\.write\s*\(\s*unescape\s*\(/i,
+  /\bString\.fromCharCode\s*\((?:\s*\d+\s*,){10,}/i,
+  /\b(?:eval|new\s+Function)\s*\([\s\S]{0,80}\batob\s*\(\s*["'][A-Za-z0-9+/=]{160,}["']\s*\)/i,
+];
+
 function hasControlOrBackslash(value: string): boolean {
   for (let i = 0; i < value.length; i += 1) {
     const code = value.charCodeAt(i);
@@ -156,6 +244,17 @@ function isLiteralIp(hostname: string): boolean {
   return false;
 }
 
+/** Classifies a hostname as a verified high-trust publisher/git/edu host vs an external domain. */
+export function classifyHostTrustTier(hostname: string): HostTrustTier {
+  const normalized = hostname
+    .toLowerCase()
+    .replace(/\.+$/, '')
+    .replace(/^www\./, '');
+  if (VERIFIED_EXACT_HOSTS.has(normalized)) return 'verified';
+  if (VERIFIED_HOST_SUFFIXES.some((suffix) => normalized.endsWith(suffix))) return 'verified';
+  return 'external';
+}
+
 /**
  * Pure, synchronous URL security gate (runs at parse time on every external book URL).
  * Fails closed on invalid syntax, credentials, non-default ports, literal/private IPs,
@@ -167,6 +266,7 @@ export function screenExternalBookUrl(rawUrl: string): UrlSecurityVerdict {
     normalizedUrl: null,
     hostname: null,
     insecureTransport: false,
+    trustTier: 'external',
     blockReason,
   });
 
@@ -237,6 +337,7 @@ export function screenExternalBookUrl(rawUrl: string): UrlSecurityVerdict {
     normalizedUrl: parsed.href,
     hostname,
     insecureTransport: parsed.protocol === 'http:',
+    trustTier: classifyHostTrustTier(hostname),
     blockReason: null,
   };
 }
@@ -267,14 +368,86 @@ export function isDangerousResponseHeaders(
 }
 
 /**
- * Inspects a bounded (<=16 KiB) HTML snippet for expired-domain parking storefronts or
- * cross-origin `<meta http-equiv="refresh">` cloaking.
+ * Pure, zero-execution raw PDF byte scanner (never renders PDFs).
+ * Flags active scripting (`/JavaScript`, `/JS`), `/Launch`, `/OpenAction`, `/AA`, `/EmbeddedFile`,
+ * `/RichMedia`, `/XFA`, hex-obfuscated PDF names (`/J#61vaScript`), and HTML/PHP polyglots.
+ */
+export function inspectPdfBytes(bytes: Uint8Array): string | null {
+  if (bytes.byteLength < 5) return 'pdf_truncated';
+  let header = '';
+  for (let i = 0; i < 5; i += 1) {
+    header += String.fromCharCode(bytes[i] ?? 0);
+  }
+  if (header !== '%PDF-') {
+    return 'pdf_invalid_magic';
+  }
+
+  // Decode bounded window (up to 1 MiB) as latin1 so byte offsets stay 1:1.
+  const limit = Math.min(bytes.byteLength, 1024 * 1024);
+  let latin1 = '';
+  const chunkSize = 8192;
+  for (let offset = 0; offset < limit; offset += chunkSize) {
+    const end = Math.min(offset + chunkSize, limit);
+    let piece = '';
+    for (let i = offset; i < end; i += 1) {
+      piece += String.fromCharCode(bytes[i] ?? 0);
+    }
+    latin1 += piece;
+  }
+
+  const direct = PDF_ACTIVE_OBJECT_RE.exec(latin1);
+  if (direct) {
+    return `pdf_active_object:${direct[0]}`;
+  }
+
+  const decoded = latin1.replace(/#([0-9a-fA-F]{2})/g, (_, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16)),
+  );
+  const obfuscated = PDF_ACTIVE_OBJECT_RE.exec(decoded);
+  if (obfuscated) {
+    return `pdf_obfuscated_active_object:${obfuscated[0]}`;
+  }
+
+  if (PDF_POLYGLOT_RE.test(latin1.slice(0, 8192))) {
+    return 'pdf_html_script_polyglot';
+  }
+  return null;
+}
+
+/**
+ * Audits a multi-hop redirect chain for Traffic Direction Systems (TDS):
+ * flags >2 distinct external host hops or any hop failing `screenExternalBookUrl()`.
+ */
+export function isSuspiciousRedirectChain(hops: readonly string[]): string | null {
+  const distinctHosts: string[] = [];
+  for (const hop of hops) {
+    const verdict = screenExternalBookUrl(hop);
+    if (!verdict.safe || !verdict.hostname) {
+      return `unsafe_redirect_hop:${verdict.blockReason ?? 'invalid'}`;
+    }
+    const bare = verdict.hostname.replace(/^www\./, '');
+    if (distinctHosts.at(-1) !== bare) {
+      distinctHosts.push(bare);
+    }
+  }
+  const externalHops = distinctHosts.filter((h) => classifyHostTrustTier(h) === 'external');
+  if (externalHops.length > 2) {
+    return `tds_redirect_chain:${externalHops.length}_external_hosts`;
+  }
+  return null;
+}
+
+/**
+ * Inspects a bounded (<=64 KiB) HTML snippet for expired-domain parking storefronts,
+ * cross-origin `<meta http-equiv="refresh">` cloaking, ClickFix clipboard lures,
+ * obfuscated inline script loaders, and hidden `0x0` cross-origin iframes.
  */
 export function inspectHtmlSnippet(
   htmlSnippet: string,
   pageOriginHost: string,
-): { readonly parked: boolean; readonly metaRefreshCrossOrigin: string | null } {
-  const bounded = htmlSnippet.slice(0, 16 * 1024);
+): HtmlSecurityInspection {
+  const bounded = htmlSnippet.slice(0, 64 * 1024);
+  const normalizedOrigin = pageOriginHost.toLowerCase().replace(/^www\./, '');
   const parked = PARKED_DOMAIN_SIGNATURES.some((pattern) => pattern.test(bounded));
 
   let metaRefreshCrossOrigin: string | null = null;
@@ -284,11 +457,11 @@ export function inspectHtmlSnippet(
     );
   if (metaMatch?.[1]) {
     try {
-      const target = new URL(metaMatch[1].replace(/^['"]|['"]$/g, ''), `https://${pageOriginHost}`);
-      if (
-        target.hostname.toLowerCase().replace(/^www\./, '') !==
-        pageOriginHost.toLowerCase().replace(/^www\./, '')
-      ) {
+      const target = new URL(
+        metaMatch[1].replace(/^['"]|['"]$/g, ''),
+        `https://${normalizedOrigin}`,
+      );
+      if (target.hostname.toLowerCase().replace(/^www\./, '') !== normalizedOrigin) {
         metaRefreshCrossOrigin = target.href;
       }
     } catch {
@@ -296,5 +469,42 @@ export function inspectHtmlSnippet(
     }
   }
 
-  return { parked, metaRefreshCrossOrigin };
+  const clickFixLure =
+    (CLICKFIX_CLIPBOARD_RE.test(bounded) && CLICKFIX_SHELL_PAYLOAD_RE.test(bounded)) ||
+    CLICKFIX_LURE_COPY_RE.test(bounded);
+
+  const obfuscatedScript = OBFUSCATED_SCRIPT_PATTERNS.some((pattern) => pattern.test(bounded));
+
+  let hiddenCrossOriginIframe = false;
+  for (const iframeMatch of bounded.matchAll(/<iframe\b([^>]*)>/gi)) {
+    const attrs = iframeMatch[1] ?? '';
+    const srcMatch = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(attrs);
+    if (!srcMatch?.[1]) continue;
+    const isHidden =
+      /\b(?:width|height)\s*=\s*["']?0(?:px)?["']?/i.test(attrs) ||
+      /\bstyle\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0\b|(?:width|height)\s*:\s*0(?:px)?\b)/i.test(
+        attrs,
+      );
+    if (!isHidden) continue;
+    try {
+      const target = new URL(srcMatch[1], `https://${normalizedOrigin}`);
+      if (
+        (target.protocol === 'http:' || target.protocol === 'https:') &&
+        target.hostname.toLowerCase().replace(/^www\./, '') !== normalizedOrigin
+      ) {
+        hiddenCrossOriginIframe = true;
+        break;
+      }
+    } catch {
+      // Ignore invalid iframe src.
+    }
+  }
+
+  return {
+    parked,
+    metaRefreshCrossOrigin,
+    clickFixLure,
+    obfuscatedScript,
+    hiddenCrossOriginIframe,
+  };
 }

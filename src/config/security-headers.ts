@@ -95,3 +95,14 @@ export const CROSS_ORIGIN_RESOURCE_SOURCES: ReadonlyArray<string> = [
 export const OG_IMAGE_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
 ];
+
+/**
+ * Bookshelf routes contain outbound links to hundreds of external book hosts and never invoke
+ * Firebase OAuth popups, so they tighten COOP to strict `same-origin` process/browsing-context
+ * isolation (protecting against cross-origin window/spectre side-channels).
+ */
+export const BOOKSHELF_COOP_SOURCES: ReadonlyArray<string> = ['/bookshelf', '/bookshelf/:path*'];
+
+export const BOOKSHELF_COOP_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+];

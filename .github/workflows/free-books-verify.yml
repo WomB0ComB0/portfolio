@@ -56,9 +56,14 @@ jobs:
       - name: Install dependencies without lifecycle scripts
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Run DNSBL + SSRF-safe reachability & parking sweep
+      - name: Run multi-layer threat-intel, PDF/ClickFix/drift & delta sandbox sweep
         env:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          URLHAUS_AUTH_KEY: ${{ secrets.URLHAUS_AUTH_KEY }}
+          GOOGLE_SAFE_BROWSING_API_KEY: ${{ secrets.GOOGLE_SAFE_BROWSING_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_URL_SCANNER_TOKEN: ${{ secrets.CLOUDFLARE_URL_SCANNER_TOKEN }}
+          URLSCAN_API_KEY: ${{ secrets.URLSCAN_API_KEY }}
           NEXT_TELEMETRY_DISABLED: "1"
         shell: bash
         run: |
@@ -66,5 +71,5 @@ jobs:
           if [[ "$DRY_RUN" == "true" ]]; then
             bun --conditions=react-server run scripts/books/verify-free-books.ts --dry-run
           else
-            bun --conditions=react-server run scripts/books/verify-free-books.ts --write
+            bun --conditions=react-server run scripts/books/verify-free-books.ts --write --detonate-deltas
           fi
