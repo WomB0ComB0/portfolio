@@ -85,9 +85,9 @@ const DEFAULT_SPINE_PALETTES: readonly [BookSpineTheme, ...BookSpineTheme[]] = [
 ];
 
 const TRACK_ACCENTS: Readonly<Record<string, string>> = {
-  Foundations: '#5682c3',
-  Backend: '#be1e2d',
-  'Infra & Ops': '#2965a7',
+  Foundations: '#3987e5',
+  Backend: '#d95926',
+  'Infra & Ops': '#199e70',
   AI: '#8884d5',
   Startups: '#c98500',
   Design: '#d55181',

@@ -52,7 +52,7 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
   if (previewBooks.length === 0) {
     return (
       <div className={styles['fan-stage']} aria-hidden="true">
-        <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.02] px-2 text-center font-mono text-[11px] text-faint">
+        <div className="flex h-32 w-24 items-center justify-center rounded-sm border border-dashed border-hairline bg-surface-2 px-2 text-center font-mono text-[11px] text-faint">
           Empty
         </div>
       </div>

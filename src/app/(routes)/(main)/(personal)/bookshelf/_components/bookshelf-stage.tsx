@@ -840,7 +840,7 @@ export function BookshelfStage({
             <Link
               href="/bookshelf"
               prefetch={false}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/10 bg-surface-1/70 px-3 tile-label text-muted-foreground no-underline backdrop-blur-md transition-colors hover:border-white/20 hover:bg-surface-2/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
             >
               <FiArrowLeft className="size-4" aria-hidden="true" />
               All shelves
@@ -849,7 +849,7 @@ export function BookshelfStage({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-white/10 bg-surface-1/70 px-3 tile-label text-muted-foreground backdrop-blur-md transition-colors hover:border-white/20 hover:bg-surface-2/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map
@@ -944,7 +944,7 @@ export function BookshelfStage({
         </div>
 
         {matchingFilterCount === 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-surface-1/60 px-4 py-2.5 tile-meta text-muted-foreground backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-1 px-4 py-2.5 tile-meta text-muted-foreground">
             <span>
               No books match this filter yet — update a book&apos;s reading status in Sanity Studio.
             </span>

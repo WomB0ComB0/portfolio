@@ -92,7 +92,7 @@ export function ReadingMapDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="reading-map-heading"
-        className="relative z-10 flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile border border-white/10 bg-surface-1/90 shadow-raised backdrop-blur-md"
+        className="relative z-10 flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile border border-hairline bg-surface-1 shadow-raised"
       >
         <div className="flex items-start justify-between gap-4 px-5 py-5 sm:px-6">
           <div className="min-w-0 space-y-1">
@@ -160,8 +160,8 @@ export function ReadingMapDialog({
                         className={cn(
                           'flex flex-col justify-between gap-3 rounded-lg border p-4 transition-colors',
                           isActive
-                            ? 'border-brand/40 bg-brand-subtle/45'
-                            : 'border-white/[0.07] bg-canvas/65 hover:border-white/[0.14] hover:bg-canvas/90',
+                            ? 'border-brand-rim bg-brand-subtle/45'
+                            : 'border-hairline bg-canvas/65 hover:border-hairline-strong hover:bg-canvas/90',
                         )}
                       >
                         <div className="space-y-1.5">

@@ -33,7 +33,7 @@
   min-width: 0;
 }
 
-/* FilterBar-style sliding pill track with smooth translucent glass borders */
+/* FilterBar-style sliding pill track using Live Console OKLCH tokens */
 .track-bar {
   position: relative;
   display: inline-flex;
@@ -43,11 +43,8 @@
   align-self: flex-start;
   padding: 0.25rem;
   border-radius: 9999px;
-  background: color-mix(in oklch, var(--surface-1) 62%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 8%),
-    0 6px 20px -10px rgb(0 0 0 / 55%);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
 .track-pill {
@@ -58,10 +55,8 @@
   left: 0;
   width: 0;
   border-radius: 9999px;
-  background: color-mix(in oklch, var(--brand) 18%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in oklch, var(--brand) 42%, transparent),
-    0 2px 10px -4px rgb(0 0 0 / 45%);
+  background: var(--brand-subtle);
+  box-shadow: inset 0 0 0 1px var(--brand-edge);
   transition:
     transform var(--motion-spring-in) var(--ease-spring),
     width var(--motion-spring-in) var(--ease-spring);
@@ -100,7 +95,7 @@
   color: var(--fg-muted);
 }
 
-/* Smooth translucent reading-status segmented control & badges */
+/* Reading-status segmented control & badges using Live Console status tokens */
 .status-bar {
   display: inline-flex;
   flex-wrap: wrap;
@@ -110,11 +105,8 @@
   padding: 0.25rem;
   border: 0;
   border-radius: 9999px;
-  background: color-mix(in oklch, var(--surface-1) 62%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 8%),
-    0 6px 20px -10px rgb(0 0 0 / 55%);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
 .status-chip {
@@ -137,13 +129,13 @@
 
 .status-chip:hover {
   color: var(--fg);
-  background: rgb(255 255 255 / 4%);
+  background: var(--surface-2);
 }
 
 .status-chip[aria-pressed="true"] {
   color: var(--fg);
-  background: rgb(255 255 255 / 9%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
+  background: var(--brand-subtle);
+  box-shadow: inset 0 0 0 1px var(--brand-edge);
 }
 
 .status-dot {
@@ -154,18 +146,17 @@
 }
 
 .status-dot-completed {
-  background: #34d399;
-  box-shadow: 0 0 8px rgb(52 211 153 / 55%);
+  background: var(--live);
+  box-shadow: 0 0 8px var(--live-halo);
 }
 
 .status-dot-reading {
-  background: #f59e0b;
-  box-shadow: 0 0 8px rgb(245 158 11 / 55%);
+  background: var(--ongoing);
 }
 
 .status-dot-queued {
   background: transparent;
-  box-shadow: inset 0 0 0 1.5px rgb(148 163 184 / 78%);
+  box-shadow: inset 0 0 0 1.5px var(--fg-faint);
 }
 
 .status-badge {
@@ -179,25 +170,24 @@
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.02em;
-  backdrop-filter: blur(8px);
 }
 
 .status-badge-completed {
-  color: #a7f3d0;
-  background: rgb(16 185 129 / 12%);
-  box-shadow: inset 0 0 0 1px rgb(52 211 153 / 28%);
+  color: var(--live);
+  background: var(--live-tint);
+  box-shadow: inset 0 0 0 1px var(--live-halo);
 }
 
 .status-badge-reading {
-  color: #fde68a;
-  background: rgb(245 158 11 / 12%);
-  box-shadow: inset 0 0 0 1px rgb(245 158 11 / 30%);
+  color: var(--ongoing);
+  background: var(--ongoing-tint);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 
 .status-badge-queued {
   color: var(--fg-muted);
-  background: rgb(148 163 184 / 10%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
 /* Borderless 3D stage inside PageShell with wide, smooth translucent edge fade */
@@ -337,30 +327,26 @@
   pointer-events: none;
 }
 
-/* Fanned cover-stack shelf cards with smooth translucent borders */
+/* Fanned cover-stack shelf cards using Live Console surface + hairline tokens */
 .shelf-card {
-  background: color-mix(in oklch, var(--surface-1) 66%, transparent);
-  backdrop-filter: blur(10px);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 7%),
-    0 12px 32px -18px rgb(0 0 0 / 60%);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   transition:
     background-color var(--motion-fast) var(--ease-effect),
-    box-shadow var(--motion-fast) var(--ease-effect),
-    transform var(--motion-fast) var(--ease-effect);
+    box-shadow var(--motion-fast) var(--ease-effect);
 }
 
 .shelf-card:hover {
-  background: color-mix(in oklch, var(--surface-2) 74%, transparent);
+  background: var(--surface-2);
   box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 14%),
-    0 18px 36px -16px rgb(0 0 0 / 70%);
+    inset 0 0 0 1px var(--brand-rim),
+    0 20px 40px -18px var(--brand-halo);
 }
 
 .shelf-card-active {
-  background: color-mix(in oklch, var(--surface-2) 78%, transparent);
+  background: var(--surface-2);
   box-shadow:
-    inset 0 0 0 1px color-mix(in oklch, var(--brand) 48%, transparent),
+    inset 0 0 0 1px var(--brand-rim),
     0 0 26px -12px var(--brand-edge);
 }
 
@@ -377,10 +363,9 @@
   width: 96px;
   aspect-ratio: 3 / 4;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 3px;
   background: var(--surface-2);
   box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 14%),
     0 14px 28px -10px rgb(0 0 0 / 72%),
     0 4px 10px -4px rgb(0 0 0 / 50%);
   transform: translate3d(var(--fan-x, 0), var(--fan-y, 0), 0) rotate(var(--fan-rot, 0deg))
@@ -403,38 +388,36 @@
 .face-spine {
   left: 0;
   width: 100%;
-  border-radius: 9px;
   transform: translateZ(calc(var(--book-c) / 2));
   background: var(--spine-body);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
 }
 
 .face-cover {
   left: calc((var(--book-w) - var(--book-c)) / 2);
   width: var(--book-c);
-  border-radius: 4px 10px 10px 4px;
   overflow: hidden;
   transform: rotateY(90deg) translateZ(calc(var(--book-w) / 2));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
+  box-shadow: 0 0 0 rgb(0 0 0 / 0%);
   transition: box-shadow var(--shelf-dur) var(--shelf-ease);
 }
 
 .face-back {
   left: calc((var(--book-w) - var(--book-c)) / 2);
   width: var(--book-c);
-  border-radius: 9px 4px 4px 9px;
   transform: rotateY(-90deg) translateZ(calc(var(--book-w) / 2));
   background: var(--spine-body);
 }
 
+/* Inset page block by 2px so pages sit recessed inside the boards and never peek past the cover corner */
 .face-pages {
-  left: 0;
-  width: 100%;
-  border-radius: 4px;
-  transform: rotateY(180deg) translateZ(calc(var(--book-c) / 2));
+  left: 1px;
+  top: 2px;
+  width: calc(100% - 2px);
+  height: calc(100% - 4px);
+  transform: rotateY(180deg) translateZ(calc(var(--book-c) / 2 - 1px));
   background:
     linear-gradient(90deg, rgb(0 0 0 / 12%), transparent 30%, transparent 70%, rgb(0 0 0 / 14%)),
     repeating-linear-gradient(90deg, #f2efe8 0 1px, #dcd7cc 1px 2px);
@@ -442,7 +425,6 @@
 
 .is-active .face-cover {
   box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 16%),
     calc(var(--book-h) * -0.025) calc(var(--book-h) * 0.03) calc(var(--book-h) * 0.075)
     rgb(0 0 0 / 56%),
     0 0 36px -14px var(--brand-edge);
@@ -507,20 +489,18 @@
 }
 
 .spine-status-completed {
-  background: rgb(52 211 153 / 88%);
-  box-shadow: 0 0 0 1.5px rgb(0 0 0 / 28%);
+  background: var(--live);
+  box-shadow: 0 0 0 1.5px rgb(0 0 0 / 32%);
 }
 
 .spine-status-reading {
-  background: rgb(251 191 36 / 95%);
-  box-shadow:
-    0 0 0 1.5px rgb(0 0 0 / 28%),
-    0 0 6px rgb(251 191 36 / 65%);
+  background: var(--ongoing);
+  box-shadow: 0 0 0 1.5px rgb(0 0 0 / 32%);
 }
 
 .spine-status-queued {
   background: transparent;
-  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 55%);
+  box-shadow: inset 0 0 0 1.5px var(--fg-faint);
 }
 
 .spine-title {
@@ -618,9 +598,8 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 9999px;
-  background: color-mix(in oklch, var(--surface-1) 65%, transparent);
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--hairline);
   color: var(--fg-muted);
   display: grid;
   place-items: center;
@@ -631,8 +610,8 @@
 }
 
 .arrow:hover {
-  background: color-mix(in oklch, var(--surface-2) 78%, transparent);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
   color: var(--fg);
 }
 
@@ -764,11 +743,9 @@
   width: 100%;
   max-width: 340px;
   aspect-ratio: 3 / 4;
-  border-radius: 10px;
   overflow: hidden;
   background: var(--surface-1);
   box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 14%),
     0 28px 56px -18px rgb(0 0 0 / 76%),
     0 0 40px -16px var(--brand-edge);
 }

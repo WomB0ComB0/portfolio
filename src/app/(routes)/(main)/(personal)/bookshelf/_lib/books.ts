@@ -43,19 +43,19 @@ export const BOOK_STATUS_META: Readonly<Record<BookStatus, BookStatusMeta>> = {
   completed: {
     label: 'Read',
     description: 'Finished books with distilled notes and key takeaways.',
-    accentColor: '#34d399',
+    accentColor: 'var(--live)',
     isRead: true,
   },
   reading: {
     label: 'Reading',
     description: 'Books currently on the desk and actively being annotated.',
-    accentColor: '#f59e0b',
+    accentColor: 'var(--ongoing)',
     isRead: false,
   },
   queued: {
     label: 'Unread',
     description: 'Queued on the reading list for upcoming deep dives.',
-    accentColor: '#94a3b8',
+    accentColor: 'var(--fg-faint)',
     isRead: false,
   },
 };
@@ -684,7 +684,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     slug: 'foundations',
     title: 'Foundations',
     description: 'Hardware, kernels, virtual memory, concurrency, and how packets cross the wire.',
-    accentColor: '#5682c3',
+    accentColor: '#3987e5',
     bookSlugs: BOOKS.filter((book) => book.track === 'Foundations').map((book) => book.slug),
   },
   {
@@ -692,7 +692,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Backend',
     description:
       'Storage engines, replication, distributed consensus, system design, and service boundaries.',
-    accentColor: '#be1e2d',
+    accentColor: '#d95926',
     bookSlugs: BOOKS.filter((book) => book.track === 'Backend').map((book) => book.slug),
   },
   {
@@ -700,7 +700,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Infra & Ops',
     description:
       'Containers, Kubernetes orchestration, Terraform IaC, SLOs, and production reliability.',
-    accentColor: '#2965a7',
+    accentColor: '#199e70',
     bookSlugs: BOOKS.filter((book) => book.track === 'Infra & Ops').map((book) => book.slug),
   },
   {
