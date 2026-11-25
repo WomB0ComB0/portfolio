@@ -15,36 +15,87 @@
  */
 
 import { Elysia, StatusMap } from 'elysia';
+import {
+  filterFreeProgrammingBooks,
+  loadFreeProgrammingBooks,
+} from '@/lib/books/free-programming-books';
 import { lookupBooks } from './handlers';
 import { cacheHeaders, errorHandler } from './middleware';
 import { booksSchema } from './schema';
 
-export const booksRoute = new Elysia({ prefix: '/books' }).model(booksSchema).get(
-  '/lookup',
-  async ({ query, set }) => {
-    try {
-      const q = query.q?.trim();
-      const isbn = query.isbn?.trim();
-      if (!q && !isbn) {
-        set.status = StatusMap['Bad Request'];
-        return { error: 'Provide either a `q` search query or an `isbn` parameter.' };
-      }
+export const booksRoute = new Elysia({ prefix: '/books' })
+  .model(booksSchema)
+  .get(
+    '/lookup',
+    async ({ query, set }) => {
+      try {
+        const q = query.q?.trim();
+        const isbn = query.isbn?.trim();
+        if (!q && !isbn) {
+          set.status = StatusMap['Bad Request'];
+          return { error: 'Provide either a `q` search query or an `isbn` parameter.' };
+        }
 
-      const result = await lookupBooks({ q, isbn, limit: query.limit });
-      Object.assign(set.headers, cacheHeaders());
-      return result;
-    } catch (error) {
-      const errorResponse = errorHandler(error);
-      set.status = StatusMap['Internal Server Error'];
-      return { error: errorResponse.error };
-    }
-  },
-  {
-    query: 'books.lookup.query',
-    response: {
-      200: 'books.lookup.response',
-      400: 'books.lookup.error',
-      500: 'books.lookup.error',
+        const result = await lookupBooks({ q, isbn, limit: query.limit });
+        Object.assign(set.headers, cacheHeaders());
+        return result;
+      } catch (error) {
+        const errorResponse = errorHandler(error);
+        set.status = StatusMap['Internal Server Error'];
+        return { error: errorResponse.error };
+      }
     },
-  },
-);
+    {
+      query: 'books.lookup.query',
+      response: {
+        200: 'books.lookup.response',
+        400: 'books.lookup.error',
+        500: 'books.lookup.error',
+      },
+    },
+  )
+  .get(
+    '/free',
+    async ({ query, set }) => {
+      try {
+        const catalog = await loadFreeProgrammingBooks();
+        const filtered = filterFreeProgrammingBooks(catalog.books, {
+          source: query.source,
+          category: query.category,
+          format: query.format,
+          q: query.q,
+          hideArchived: query.hideArchived,
+          hideInProcess: query.hideInProcess,
+        });
+        const limit = query.limit ?? 60;
+        const offset = query.offset ?? 0;
+        const items = filtered
+          .slice(offset, offset + limit)
+          .map((item) => ({ ...item, formats: [...item.formats] }));
+
+        Object.assign(set.headers, cacheHeaders());
+        return {
+          fetchedAt: catalog.fetchedAt,
+          repoUrl: catalog.repoUrl,
+          license: catalog.license,
+          totalCatalogBooks: catalog.totalBooks,
+          totalMatched: filtered.length,
+          limit,
+          offset,
+          categories: [...catalog.categories],
+          items,
+        };
+      } catch (error) {
+        const errorResponse = errorHandler(error);
+        set.status = StatusMap['Internal Server Error'];
+        return { error: errorResponse.error };
+      }
+    },
+    {
+      query: 'books.free.query',
+      response: {
+        200: 'books.free.response',
+        500: 'books.lookup.error',
+      },
+    },
+  );

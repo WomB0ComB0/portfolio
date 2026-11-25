@@ -29,6 +29,36 @@ export const bookLookupItemSchema = t.Object({
   source: t.Union([t.Literal('openlibrary'), t.Literal('googlebooks')]),
 });
 
+export const freeBookFormatSchema = t.Union([
+  t.Literal('PDF'),
+  t.Literal('HTML'),
+  t.Literal('EPUB'),
+  t.Literal('Kindle'),
+  t.Literal('Markdown'),
+  t.Literal('AsciiDoc'),
+]);
+
+export const freeBookEntrySchema = t.Object({
+  id: t.String(),
+  title: t.String(),
+  url: t.String(),
+  authors: t.String(),
+  source: t.Union([t.Literal('langs'), t.Literal('subjects')]),
+  category: t.String(),
+  subcategory: t.Nullable(t.String()),
+  formats: t.Array(freeBookFormatSchema),
+  license: t.Nullable(t.String()),
+  archived: t.Boolean(),
+  inProcess: t.Boolean(),
+  requiresAccount: t.Boolean(),
+});
+
+export const freeBookCategorySchema = t.Object({
+  name: t.String(),
+  source: t.Union([t.Literal('langs'), t.Literal('subjects')]),
+  count: t.Number(),
+});
+
 export const booksSchema = {
   'books.lookup.query': t.Object({
     q: t.Optional(t.String()),
@@ -41,5 +71,26 @@ export const booksSchema = {
   }),
   'books.lookup.error': t.Object({
     error: t.String(),
+  }),
+  'books.free.query': t.Object({
+    source: t.Optional(t.Union([t.Literal('all'), t.Literal('langs'), t.Literal('subjects')])),
+    category: t.Optional(t.String()),
+    format: t.Optional(t.Union([t.Literal('all'), freeBookFormatSchema])),
+    q: t.Optional(t.String()),
+    hideArchived: t.Optional(t.BooleanString()),
+    hideInProcess: t.Optional(t.BooleanString()),
+    limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
+    offset: t.Optional(t.Numeric({ minimum: 0 })),
+  }),
+  'books.free.response': t.Object({
+    fetchedAt: t.String(),
+    repoUrl: t.String(),
+    license: t.String(),
+    totalCatalogBooks: t.Number(),
+    totalMatched: t.Number(),
+    limit: t.Number(),
+    offset: t.Number(),
+    categories: t.Array(freeBookCategorySchema),
+    items: t.Array(freeBookEntrySchema),
   }),
 };

@@ -28,7 +28,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
 import { prefersReducedMotion } from '@/lib/design/motion';
@@ -885,6 +885,14 @@ export function BookshelfStage({
               All shelves
             </Link>
           )}
+          <Link
+            href="/bookshelf/free"
+            prefetch={false}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <FiBookOpen className="size-3.5" aria-hidden="true" />
+            Free library
+          </Link>
           <button
             type="button"
             onClick={() => setMapOpen(true)}
@@ -1163,6 +1171,33 @@ export function BookshelfStage({
             activeStatus={statusFilter}
             onSelectStatus={(status) => handleStatusClick(status, true)}
           />
+        )}
+
+        {/* Open-access free programming books directory link (EbookFoundation) */}
+        {!activeShelf && (
+          <Link
+            href="/bookshelf/free"
+            prefetch={false}
+            className="group flex flex-wrap items-center justify-between gap-4 rounded-tile border border-hairline bg-surface-1 p-5 no-underline transition-colors hover:border-brand-rim hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 tile-meta text-brand-ink">
+                <FiBookOpen className="size-3.5" aria-hidden="true" />
+                <span>Open-access index · EbookFoundation</span>
+              </div>
+              <p className="tile-title text-foreground">Free Programming Books Directory</p>
+              <p className="tile-sub text-muted-foreground">
+                Search 2,400+ community-verified open books across 150+ languages and 47 subjects.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 tile-label text-brand-ink group-hover:text-foreground">
+              Browse directory
+              <FiArrowUpRight
+                className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                aria-hidden="true"
+              />
+            </span>
+          </Link>
         )}
       </div>
 
