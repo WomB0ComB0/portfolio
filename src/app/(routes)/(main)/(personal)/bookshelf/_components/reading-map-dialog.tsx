@@ -20,14 +20,8 @@ import Link from 'next/link';
 import { type ReactElement, useEffect, useMemo, useRef } from 'react';
 import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import {
-  BOOK_STATUS_META,
-  BOOKS,
-  type BookItem,
-  DEFAULT_SHELVES,
-  type ShelfCollection,
-} from '../_lib/books';
-import styles from './bookshelf.module.css';
+import { BOOKS, type BookItem, DEFAULT_SHELVES, type ShelfCollection } from '../_lib/books';
+import { BookStatusBadge } from './book-status-badge';
 
 export interface ReadingMapDialogProps {
   readonly open: boolean;
@@ -175,21 +169,7 @@ export function ReadingMapDialog({
                               Stage {book.stageLabel}
                             </span>
                             <div className="inline-flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  styles['status-badge'],
-                                  styles[`status-badge-${book.status}`],
-                                )}
-                              >
-                                <span
-                                  aria-hidden="true"
-                                  className={cn(
-                                    styles['status-dot'],
-                                    styles[`status-dot-${book.status}`],
-                                  )}
-                                />
-                                {BOOK_STATUS_META[book.status].label}
-                              </span>
+                              <BookStatusBadge status={book.status} />
                               <span className="font-mono text-label tabular-nums text-faint">
                                 {book.topics.length} topics
                               </span>

@@ -18,7 +18,7 @@
 
 import Link from 'next/link';
 import { type CSSProperties, type ReactElement, useState } from 'react';
-import { FiArrowUpRight } from 'react-icons/fi';
+import { FiArrowUpRight, FiCheck } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
 import {
   BOOK_STATUS_META,
@@ -28,6 +28,7 @@ import {
   type BookStatusFilter,
   type ShelfCollection,
 } from '../_lib/books';
+import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
 
 export interface ShelfCardsGridProps {
@@ -154,6 +155,9 @@ export function ShelfCardsGrid({
               .map((slug) => bySlug.get(slug))
               .filter((book): book is BookItem => Boolean(book));
             const readCount = shelfBooks.filter((book) => book.status === 'completed').length;
+            const readPct =
+              shelfBooks.length > 0 ? Math.round((readCount / shelfBooks.length) * 100) : 0;
+            const allRead = shelfBooks.length > 0 && readCount === shelfBooks.length;
             const isHighlighted = highlightedSection === shelf.title;
 
             return (
@@ -176,7 +180,13 @@ export function ShelfCardsGrid({
                     />
                     {shelf.title}
                   </span>
-                  <span className="tile-meta tabular-nums text-faint">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 tile-meta tabular-nums',
+                      allRead ? 'text-[var(--live)]' : 'text-faint',
+                    )}
+                  >
+                    {allRead && <FiCheck className="size-3 stroke-[2.75]" aria-hidden="true" />}
                     {readCount}/{shelfBooks.length} read
                   </span>
                 </div>
@@ -196,9 +206,16 @@ export function ShelfCardsGrid({
                   </p>
                   <div
                     aria-hidden="true"
-                    className="h-[2px] w-10 rounded-full opacity-75 transition-all duration-300 group-hover:w-16 group-hover:opacity-100"
-                    style={{ backgroundColor: shelf.accentColor }}
-                  />
+                    className="h-[3px] w-full overflow-hidden rounded-full bg-surface-3"
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${readPct}%`,
+                        backgroundColor: shelf.accentColor,
+                      }}
+                    />
+                  </div>
                 </div>
               </Link>
             );
@@ -223,13 +240,7 @@ export function ShelfCardsGrid({
                 )}
               >
                 <div className="flex w-full items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-2 tile-meta text-muted-foreground">
-                    <span
-                      aria-hidden="true"
-                      className={cn(styles['status-dot'], styles[`status-dot-${status}`])}
-                    />
-                    {meta.label}
-                  </span>
+                  <BookStatusBadge status={status} />
                   <span className="tile-meta tabular-nums text-faint">
                     {bucketBooks.length} {bucketBooks.length === 1 ? 'book' : 'books'}
                   </span>

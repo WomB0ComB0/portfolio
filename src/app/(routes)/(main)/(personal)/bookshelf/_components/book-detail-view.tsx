@@ -21,14 +21,9 @@ import { type CSSProperties, type ReactElement, useMemo, useState } from 'react'
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { cn } from '@/lib/utils';
-import {
-  BOOK_STATUS_META,
-  BOOKS,
-  type BookItem,
-  DEFAULT_SHELVES,
-  type ShelfCollection,
-} from '../_lib/books';
+import { BOOKS, type BookItem, DEFAULT_SHELVES, type ShelfCollection } from '../_lib/books';
 import { BookCoverFrame } from './book-cover-frame';
+import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
 import { ReadingMapDialog } from './reading-map-dialog';
 
@@ -112,16 +107,7 @@ export function BookDetailView({
             ·
           </span>
           <span className="text-faint">{book.edition}</span>
-          <span
-            className={cn(styles['status-badge'], styles[`status-badge-${book.status}`])}
-            data-book-status={book.status}
-          >
-            <span
-              aria-hidden="true"
-              className={cn(styles['status-dot'], styles[`status-dot-${book.status}`])}
-            />
-            {BOOK_STATUS_META[book.status].label}
-          </span>
+          <BookStatusBadge status={book.status} data-book-status={book.status} />
         </span>
       }
       title={book.title}

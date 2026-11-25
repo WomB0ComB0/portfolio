@@ -47,6 +47,7 @@ import {
   slugifyShelf,
 } from '../_lib/books';
 import { BookDetailView } from './book-detail-view';
+import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
@@ -625,8 +626,22 @@ export function BookshelfStage({
             ? document.elementFromPoint(state.tx, state.ty)
             : null;
         const inStage = isDraggingRef.current || Boolean(hit && stageEl.contains(hit));
+        const activeCoverEl = stageEl.querySelector<HTMLElement>(
+          '[data-active-slot="true"] [data-book-cover]',
+        );
+        const coverRect = activeCoverEl?.getBoundingClientRect();
+        const insideCoverRect = Boolean(
+          coverRect &&
+            coverRect.width > 0 &&
+            state.tx >= coverRect.left &&
+            state.tx <= coverRect.right &&
+            state.ty >= coverRect.top &&
+            state.ty <= coverRect.bottom,
+        );
         const onActive =
-          !isDraggingRef.current && Boolean(inStage && hit?.closest('[data-active-slot="true"]'));
+          !isDraggingRef.current &&
+          inStage &&
+          (insideCoverRect || Boolean(hit?.closest('[data-active-slot="true"]')));
         const visibleClass = styles['cursor-visible'] ?? '';
         const openClass = styles['cursor-open'] ?? '';
         const grabClass = styles['cursor-grabbing'] ?? '';
@@ -745,20 +760,40 @@ export function BookshelfStage({
 
     const targetEl = (drag.startTarget ?? event.target) as HTMLElement | null;
     const slotEl = targetEl?.closest<HTMLElement>('[data-slot-offset]');
-    if (!slotEl) return;
-    const offset = Number(slotEl.dataset.slotOffset);
-    if (offset === 0) {
+    if (slotEl) {
+      const offset = Number(slotEl.dataset.slotOffset);
+      if (offset === 0) {
+        openDetail(bookAt(posRef.current));
+        return;
+      }
+      if (!Number.isNaN(offset)) {
+        const clickedBook = bookAt(posRef.current + offset);
+        // Clicking a dimmed out-of-filter book shifts active highlight cleanly to it.
+        if (highlightedTrack && clickedBook.track !== highlightedTrack) {
+          setHighlightedTrack(clickedBook.track);
+        }
+        if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
+          setStatusFilter('all');
+        }
+        stepBy(offset);
+        return;
+      }
+    }
+
+    // Fallback geometric hit-test for the active 3D front cover across all browsers.
+    const activeCoverEl = stageRef.current?.querySelector<HTMLElement>(
+      '[data-active-slot="true"] [data-book-cover]',
+    );
+    const coverRect = activeCoverEl?.getBoundingClientRect();
+    if (
+      coverRect &&
+      coverRect.width > 0 &&
+      event.clientX >= coverRect.left &&
+      event.clientX <= coverRect.right &&
+      event.clientY >= coverRect.top &&
+      event.clientY <= coverRect.bottom
+    ) {
       openDetail(bookAt(posRef.current));
-    } else if (!Number.isNaN(offset)) {
-      const clickedBook = bookAt(posRef.current + offset);
-      // Clicking a dimmed out-of-filter book shifts active highlight cleanly to it.
-      if (highlightedTrack && clickedBook.track !== highlightedTrack) {
-        setHighlightedTrack(clickedBook.track);
-      }
-      if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
-        setStatusFilter('all');
-      }
-      stepBy(offset);
     }
   };
 
@@ -1017,22 +1052,20 @@ export function BookshelfStage({
                     }
                   >
                     <div className={cn(styles.face, styles['face-spine'])}>
-                      <div className={styles['spine-hdr']}>
-                        <span>{book.stageLabel}</span>
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            styles['spine-status-pip'],
-                            styles[`spine-status-${book.status}`],
-                          )}
-                        />
-                      </div>
+                      <div className={styles['spine-hdr']}>{book.stageLabel}</div>
                       <div className={styles['spine-title']}>
                         <span>{book.spineTitle}</span>
                       </div>
                       <div className={styles['spine-author']}>
                         <span>{book.spineAuthor}</span>
                       </div>
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          styles['spine-status-bar'],
+                          styles[`spine-status-${book.status}`],
+                        )}
+                      />
                     </div>
 
                     <div data-book-cover className={cn(styles.face, styles['face-cover'])}>
@@ -1055,6 +1088,12 @@ export function BookshelfStage({
                     <div className={cn(styles.face, styles['face-pages'])} />
                   </div>
 
+                  {/* Full-cover 2D hit plane for active book (eliminates 51px perspective hit clipping) */}
+                  <div
+                    aria-hidden="true"
+                    data-active-hit={isActive ? 'true' : 'false'}
+                    className={styles['active-hit']}
+                  />
                   <div aria-hidden="true" className={styles['slot-shadow']} />
                 </div>
               );
@@ -1074,16 +1113,7 @@ export function BookshelfStage({
               ·
             </span>
             <span className="tile-sub font-medium text-foreground">{activeBook.title}</span>
-            <span
-              className={cn(styles['status-badge'], styles[`status-badge-${activeBook.status}`])}
-              data-active-status={activeBook.status}
-            >
-              <span
-                aria-hidden="true"
-                className={cn(styles['status-dot'], styles[`status-dot-${activeBook.status}`])}
-              />
-              {BOOK_STATUS_META[activeBook.status].label}
-            </span>
+            <BookStatusBadge status={activeBook.status} data-active-status={activeBook.status} />
             <span aria-hidden="true" className="text-faint">
               ·
             </span>
