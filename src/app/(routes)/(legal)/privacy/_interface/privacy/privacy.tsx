@@ -44,7 +44,7 @@ export const Privacy = (): JSX.Element => {
           <div>
             <h1 className="text-4xl font-bold tracking-tight">Privacy Policy</h1>
             <p className="text-muted-foreground mt-1">
-              Last Updated: <span className="font-medium">November 19, 2026</span>
+              Last Updated: <span className="font-medium">November 25, 2026</span>
             </p>
           </div>
         </div>
@@ -315,7 +315,8 @@ export const Privacy = (): JSX.Element => {
               {[
                 {
                   name: 'Google',
-                  purpose: 'Firebase, Analytics, and Maps on /places',
+                  purpose:
+                    'Firebase, Analytics, Maps on /places, and book covers on /bookshelf from books.google.com',
                   url: 'https://policies.google.com/privacy',
                 },
                 {
@@ -371,6 +372,11 @@ export const Privacy = (): JSX.Element => {
                   purpose:
                     'Post covers on /media, from media.dev.to, media2.dev.to and dev-to-uploads.s3.amazonaws.com',
                   url: 'https://dev.to/privacy',
+                },
+                {
+                  name: 'Open Library',
+                  purpose: 'Book covers on /bookshelf, from covers.openlibrary.org',
+                  url: 'https://archive.org/about/terms.php',
                 },
               ].map((service) => (
                 <a
