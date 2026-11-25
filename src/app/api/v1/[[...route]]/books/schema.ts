@@ -51,6 +51,8 @@ export const freeBookEntrySchema = t.Object({
   archived: t.Boolean(),
   inProcess: t.Boolean(),
   requiresAccount: t.Boolean(),
+  insecureTransport: t.Boolean(),
+  unavailable: t.Boolean(),
 });
 
 export const freeBookCategorySchema = t.Object({
@@ -79,6 +81,8 @@ export const booksSchema = {
     q: t.Optional(t.String()),
     hideArchived: t.Optional(t.BooleanString()),
     hideInProcess: t.Optional(t.BooleanString()),
+    hideUnavailable: t.Optional(t.BooleanString()),
+    httpsOnly: t.Optional(t.BooleanString()),
     limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
     offset: t.Optional(t.Numeric({ minimum: 0 })),
   }),
@@ -88,6 +92,8 @@ export const booksSchema = {
     license: t.String(),
     totalCatalogBooks: t.Number(),
     totalMatched: t.Number(),
+    quarantinedCount: t.Number(),
+    unavailableCount: t.Number(),
     limit: t.Number(),
     offset: t.Number(),
     categories: t.Array(freeBookCategorySchema),

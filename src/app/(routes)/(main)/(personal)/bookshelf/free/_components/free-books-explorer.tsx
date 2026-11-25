@@ -49,6 +49,8 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
   const [format, setFormat] = useState<'all' | FreeBookFormat>('all');
   const [query, setQuery] = useState<string>('');
   const [hideArchived, setHideArchived] = useState<boolean>(true);
+  const [hideUnavailable, setHideUnavailable] = useState<boolean>(true);
+  const [httpsOnly, setHttpsOnly] = useState<boolean>(false);
   const [hideInProcess, setHideInProcess] = useState<boolean>(false);
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
 
@@ -73,8 +75,20 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
         q: deferredQuery,
         hideArchived,
         hideInProcess,
+        hideUnavailable,
+        httpsOnly,
       }),
-    [catalog.books, source, category, format, deferredQuery, hideArchived, hideInProcess],
+    [
+      catalog.books,
+      source,
+      category,
+      format,
+      deferredQuery,
+      hideArchived,
+      hideInProcess,
+      hideUnavailable,
+      httpsOnly,
+    ],
   );
 
   const displayedBooks = useMemo(
@@ -98,6 +112,8 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
     setFormat('all');
     setQuery('');
     setHideArchived(true);
+    setHideUnavailable(true);
+    setHttpsOnly(false);
     setHideInProcess(false);
     setVisibleCount(PAGE_SIZE);
   };
@@ -108,6 +124,8 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
     format !== 'all' ||
     query.trim().length > 0 ||
     !hideArchived ||
+    !hideUnavailable ||
+    httpsOnly ||
     hideInProcess;
 
   return (
@@ -284,6 +302,30 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
               <label className="inline-flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
+                  checked={httpsOnly}
+                  onChange={(event) => {
+                    setHttpsOnly(event.target.checked);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
+                  className="size-3.5 accent-[var(--brand)]"
+                />
+                <span>HTTPS only</span>
+              </label>
+              <label className="inline-flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={hideUnavailable}
+                  onChange={(event) => {
+                    setHideUnavailable(event.target.checked);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
+                  className="size-3.5 accent-[var(--brand)]"
+                />
+                <span>Hide unavailable</span>
+              </label>
+              <label className="inline-flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
                   checked={hideArchived}
                   onChange={(event) => {
                     setHideArchived(event.target.checked);
@@ -394,7 +436,8 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                 <a
                   href={book.url}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer nofollow"
+                  referrerPolicy="no-referrer"
                   className="group flex h-full flex-col justify-between gap-3 rounded-tile border border-hairline bg-surface-1 p-4 no-underline transition-colors hover:border-brand-rim hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-focus"
                 >
                   <div className="space-y-1.5">
@@ -431,6 +474,18 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                     {book.license && (
                       <span className="rounded-full border border-hairline bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-faint">
                         {book.license}
+                      </span>
+                    )}
+
+                    {book.insecureTransport && (
+                      <span className="rounded-full border border-hairline-strong bg-[var(--ongoing-tint)] px-2 py-0.5 font-mono text-[11px] text-[var(--ongoing)]">
+                        HTTP
+                      </span>
+                    )}
+
+                    {book.unavailable && (
+                      <span className="rounded-full border border-hairline-strong bg-[var(--down-tint)] px-2 py-0.5 font-mono text-[11px] text-down">
+                        Unavailable
                       </span>
                     )}
 
@@ -471,7 +526,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
           </div>
         )}
 
-        {/* Attribution footer (CC BY 4.0) */}
+        {/* Attribution & security screening telemetry footer */}
         <p className="border-t border-hairline pt-4 tile-meta text-faint">
           Index sourced from{' '}
           <a
@@ -482,8 +537,9 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
           >
             EbookFoundation/free-programming-books
           </a>{' '}
-          ({catalog.license}) · JSON API available at{' '}
-          <code className="font-mono text-muted-foreground">/api/v1/books/free</code>.
+          ({catalog.license}) · Screened by SSRF/URL/DNSBL security gate
+          {catalog.quarantinedCount > 0 ? ` (${catalog.quarantinedCount} quarantined)` : ''} · JSON
+          API at <code className="font-mono text-muted-foreground">/api/v1/books/free</code>.
         </p>
       </div>
     </PageShell>

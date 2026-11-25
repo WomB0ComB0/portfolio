@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { type CSSProperties, type ReactElement, useMemo, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
+import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
 import {
   BOOKS,
@@ -189,6 +190,7 @@ export function BookDetailView({
               Explore {book.spineTitle}
               <FiArrowUpRight className="size-4" aria-hidden="true" />
             </a>
+            <LinkHealthBadge href={book.url} scope="bookshelf" />
             {isbnLinks && (
               <>
                 <a

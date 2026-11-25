@@ -22,6 +22,7 @@ const scope = t.Union([
   t.Literal('media'),
   t.Literal('certifications'),
   t.Literal('experience'),
+  t.Literal('bookshelf'),
 ]);
 
 /**

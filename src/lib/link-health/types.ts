@@ -15,7 +15,13 @@
  */
 
 /** Cached reachability of published content links; independent of any browser or server API. */
-export const LINK_HEALTH_SCOPES = ['projects', 'media', 'certifications', 'experience'] as const;
+export const LINK_HEALTH_SCOPES = [
+  'projects',
+  'media',
+  'certifications',
+  'experience',
+  'bookshelf',
+] as const;
 export type LinkHealthScope = (typeof LINK_HEALTH_SCOPES)[number];
 export type LinkHealthStatus = 'reachable' | 'unavailable' | 'unknown';
 export interface LinkHealthEntry {

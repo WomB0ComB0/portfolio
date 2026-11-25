@@ -24,6 +24,10 @@
  *   - Rejects non-http(s) URLs for safety
  */
 
+import securityManifest from '@/data/free-books-security.json';
+import type { FreeBooksSecurityManifest } from './free-books-verifier';
+import { screenExternalBookUrl } from './url-security';
+
 export type FreeBookSource = 'langs' | 'subjects';
 export type FreeBookFormat = 'PDF' | 'HTML' | 'EPUB' | 'Kindle' | 'Markdown' | 'AsciiDoc';
 
@@ -40,6 +44,8 @@ export interface FreeBookEntry {
   readonly archived: boolean;
   readonly inProcess: boolean;
   readonly requiresAccount: boolean;
+  readonly insecureTransport: boolean;
+  readonly unavailable: boolean;
 }
 
 export interface FreeBookCategorySummary {
@@ -58,6 +64,9 @@ export interface FreeProgrammingBooksCatalog {
   readonly languageCategoriesCount: number;
   readonly subjectCategoriesCount: number;
   readonly pdfCount: number;
+  readonly quarantinedCount: number;
+  readonly unavailableCount: number;
+  readonly securityCheckedAt: string | null;
   readonly categories: readonly FreeBookCategorySummary[];
   readonly books: readonly FreeBookEntry[];
 }
@@ -95,38 +104,39 @@ interface CacheEntry {
 let cachedCatalog: CacheEntry | null = null;
 let inflightLoad: Promise<FreeProgrammingBooksCatalog> | null = null;
 
-function isSafeHttpUrl(raw: string): boolean {
-  try {
-    const parsed = new URL(raw);
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
-  } catch {
-    return false;
-  }
-}
-
-function cleanInlineMarkdown(raw: string): string {
-  return raw
-    .replace(/<[^>]+>/g, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/[*_`~]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function parseEntryLine(
   line: string,
   source: FreeBookSource,
   category: string,
   subcategory: string | null,
   index: number,
-): FreeBookEntry | null {
+  manifest?: FreeBooksSecurityManifest,
+): { readonly entry: FreeBookEntry | null; readonly quarantined: boolean } {
   // Match `* [Title](https://...)` with balanced-ish URL handling (no spaces in URL).
   const match = /^\s*\*\s+\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)(.*)$/.exec(line);
-  if (!match?.[1] || !match[2]) return null;
+  if (!match?.[1] || !match[2]) return { entry: null, quarantined: false };
 
   const title = cleanInlineMarkdown(match[1]);
-  const url = match[2].trim();
-  if (!title || !isSafeHttpUrl(url)) return null;
+  const rawUrl = match[2].trim();
+  if (!title) return { entry: null, quarantined: false };
+
+  // Fail-closed synchronous URL security gate (SSRF, credentials, executables, homographs, abuse TLDs).
+  const verdict = screenExternalBookUrl(rawUrl);
+  if (!verdict.safe || !verdict.normalizedUrl || !verdict.hostname) {
+    return { entry: null, quarantined: true };
+  }
+  const url = verdict.normalizedUrl;
+
+  // Fail-closed manifest quarantine (DNSBL-blocked hosts, parked domains, drive-by MIME payloads).
+  if (
+    manifest &&
+    (Object.hasOwn(manifest.blockedHosts, verdict.hostname) ||
+      Object.hasOwn(manifest.quarantinedUrls, url))
+  ) {
+    return { entry: null, quarantined: true };
+  }
+
+  const unavailable = Boolean(manifest && Object.hasOwn(manifest.unavailableUrls, url));
 
   const trailing = (match[3] ?? '').trim();
   const formatsSet = new Set<FreeBookFormat>();
@@ -196,29 +206,53 @@ function parseEntryLine(
     .replace(/^-+|-+$/g, '');
 
   return {
-    id: `${source}-${slugKey}-${index}`,
-    title,
-    url,
-    authors,
-    source,
-    category,
-    subcategory,
-    formats: [...formatsSet],
-    license,
-    archived,
-    inProcess,
-    requiresAccount,
+    entry: {
+      id: `${source}-${slugKey}-${index}`,
+      title,
+      url,
+      authors,
+      source,
+      category,
+      subcategory,
+      formats: [...formatsSet],
+      license,
+      archived,
+      inProcess,
+      requiresAccount,
+      insecureTransport: verdict.insecureTransport,
+      unavailable,
+    },
+    quarantined: false,
   };
+}
+
+function cleanInlineMarkdown(raw: string): string {
+  return raw
+    .replace(/<[^>]+>/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
  * Pure parser for an EbookFoundation `free-programming-books` Markdown list.
- * Skips the `### Index` section and extracts all verified `http(s)` book entries with metadata.
+ * Skips the `### Index` section, runs the synchronous URL security gate, and quarantines
+ * blocked/malicious/parked entries when a security manifest is provided.
  */
 export function parseFreeProgrammingBooksMarkdown(
   markdown: string,
   source: FreeBookSource,
+  manifest?: FreeBooksSecurityManifest,
 ): FreeBookEntry[] {
+  return parseFreeProgrammingBooksWithStats(markdown, source, manifest).entries;
+}
+
+export function parseFreeProgrammingBooksWithStats(
+  markdown: string,
+  source: FreeBookSource,
+  manifest?: FreeBooksSecurityManifest,
+): { readonly entries: FreeBookEntry[]; readonly quarantinedCount: number } {
   const entries: FreeBookEntry[] = [];
   const lines = markdown.split(/\r?\n/);
 
@@ -226,6 +260,7 @@ export function parseFreeProgrammingBooksMarkdown(
   let currentSubcategory: string | null = null;
   let inIndex = false;
   let seq = 0;
+  let quarantinedCount = 0;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -254,20 +289,30 @@ export function parseFreeProgrammingBooksMarkdown(
 
     if (inIndex || !currentCategory || !line.startsWith('*')) continue;
 
-    const entry = parseEntryLine(line, source, currentCategory, currentSubcategory, seq);
-    if (entry) {
+    const { entry, quarantined } = parseEntryLine(
+      line,
+      source,
+      currentCategory,
+      currentSubcategory,
+      seq,
+      manifest,
+    );
+    if (quarantined) {
+      quarantinedCount += 1;
+    } else if (entry) {
       entries.push(entry);
       seq += 1;
     }
   }
 
-  return entries;
+  return { entries, quarantinedCount };
 }
 
 export function buildFreeProgrammingBooksCatalog(
   langsBooks: readonly FreeBookEntry[],
   subjectsBooks: readonly FreeBookEntry[],
   fetchedAt = new Date().toISOString(),
+  options: { readonly quarantinedCount?: number; readonly securityCheckedAt?: string | null } = {},
 ): FreeProgrammingBooksCatalog {
   const books = [...langsBooks, ...subjectsBooks];
   const categoryCounts = new Map<string, FreeBookCategorySummary>();
@@ -296,6 +341,9 @@ export function buildFreeProgrammingBooksCatalog(
     languageCategoriesCount: categories.filter((c) => c.source === 'langs').length,
     subjectCategoriesCount: categories.filter((c) => c.source === 'subjects').length,
     pdfCount: books.filter((b) => b.formats.includes('PDF')).length,
+    quarantinedCount: options.quarantinedCount ?? 0,
+    unavailableCount: books.filter((b) => b.unavailable).length,
+    securityCheckedAt: options.securityCheckedAt ?? null,
     categories,
     books,
   };
@@ -308,6 +356,8 @@ export interface FreeBooksFilterOptions {
   readonly q?: string;
   readonly hideArchived?: boolean;
   readonly hideInProcess?: boolean;
+  readonly hideUnavailable?: boolean;
+  readonly httpsOnly?: boolean;
 }
 
 export function filterFreeProgrammingBooks(
@@ -320,6 +370,8 @@ export function filterFreeProgrammingBooks(
   const query = options.q?.trim().toLowerCase() ?? '';
   const hideArchived = options.hideArchived ?? false;
   const hideInProcess = options.hideInProcess ?? false;
+  const hideUnavailable = options.hideUnavailable ?? false;
+  const httpsOnly = options.httpsOnly ?? false;
 
   return books.filter((book) => {
     if (source !== 'all' && book.source !== source) return false;
@@ -327,6 +379,8 @@ export function filterFreeProgrammingBooks(
     if (format !== 'all' && !book.formats.includes(format)) return false;
     if (hideArchived && book.archived) return false;
     if (hideInProcess && book.inProcess) return false;
+    if (hideUnavailable && book.unavailable) return false;
+    if (httpsOnly && book.insecureTransport) return false;
     if (query) {
       const haystack =
         `${book.title} ${book.authors} ${book.category} ${book.subcategory ?? ''}`.toLowerCase();
@@ -377,9 +431,18 @@ export async function loadFreeProgrammingBooks(): Promise<FreeProgrammingBooksCa
         fetchMarkdown(RAW_SOURCES.langs),
         fetchMarkdown(RAW_SOURCES.subjects),
       ]);
-      const langsBooks = parseFreeProgrammingBooksMarkdown(langsMd, 'langs');
-      const subjectsBooks = parseFreeProgrammingBooksMarkdown(subjectsMd, 'subjects');
-      const catalog = buildFreeProgrammingBooksCatalog(langsBooks, subjectsBooks);
+      const manifest = securityManifest as FreeBooksSecurityManifest;
+      const langsParsed = parseFreeProgrammingBooksWithStats(langsMd, 'langs', manifest);
+      const subjectsParsed = parseFreeProgrammingBooksWithStats(subjectsMd, 'subjects', manifest);
+      const catalog = buildFreeProgrammingBooksCatalog(
+        langsParsed.entries,
+        subjectsParsed.entries,
+        new Date().toISOString(),
+        {
+          quarantinedCount: langsParsed.quarantinedCount + subjectsParsed.quarantinedCount,
+          securityCheckedAt: manifest.checkedHosts > 0 ? manifest.generatedAt : null,
+        },
+      );
       cachedCatalog = { catalog, expiresAt: Date.now() + CACHE_TTL_MS };
       return catalog;
     } catch (error) {

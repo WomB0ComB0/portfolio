@@ -66,6 +66,8 @@ export const booksRoute = new Elysia({ prefix: '/books' })
           q: query.q,
           hideArchived: query.hideArchived,
           hideInProcess: query.hideInProcess,
+          hideUnavailable: query.hideUnavailable ?? true,
+          httpsOnly: query.httpsOnly,
         });
         const limit = query.limit ?? 60;
         const offset = query.offset ?? 0;
@@ -80,6 +82,8 @@ export const booksRoute = new Elysia({ prefix: '/books' })
           license: catalog.license,
           totalCatalogBooks: catalog.totalBooks,
           totalMatched: filtered.length,
+          quarantinedCount: catalog.quarantinedCount,
+          unavailableCount: catalog.unavailableCount,
           limit,
           offset,
           categories: [...catalog.categories],
