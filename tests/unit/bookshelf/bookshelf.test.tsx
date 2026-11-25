@@ -78,13 +78,13 @@ describe('Engineering bookshelf catalog', () => {
   });
 });
 
-describe('BookshelfStage 3D physics & interaction', () => {
-  it('defaults to Stage 04 (Designing Data-Intensive Applications) and steps with arrows', () => {
+describe('BookshelfStage Live Console & bidirectional scroll', () => {
+  it('defaults to Stage 04 (Designing Data-Intensive Applications) and steps both directions', () => {
     render(<BookshelfStage />);
 
     const defaultBook = getBookAt(DEFAULT_BOOK_INDEX);
     expect(screen.getByText(`04 of 14: ${defaultBook.title}`)).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Backend' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Backend/ })).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Next book' }));
     const nextBook = getBookAt(DEFAULT_BOOK_INDEX + 1);
@@ -92,6 +92,42 @@ describe('BookshelfStage 3D physics & interaction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
     expect(screen.getByText(`04 of 14: ${defaultBook.title}`)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
+    const prevBook = getBookAt(DEFAULT_BOOK_INDEX - 1);
+    expect(screen.getByText(`03 of 14: ${prevBook.title}`)).toBeInTheDocument();
+  });
+
+  it('scrolls right on wheel down and left on wheel up cleanly across direction reversals', () => {
+    vi.useFakeTimers();
+    try {
+      render(<BookshelfStage />);
+      const stage = screen.getByRole('region', { name: /Bookshelf/i });
+
+      // Advance past initial cooldown
+      vi.advanceTimersByTime(300);
+      fireEvent.wheel(stage, { deltaY: 120 });
+      expect(
+        screen.getByText(`05 of 14: ${getBookAt(DEFAULT_BOOK_INDEX + 1).title}`),
+      ).toBeInTheDocument();
+
+      // Momentum during cooldown is ignored, then scrolling up reverses immediately to 04
+      fireEvent.wheel(stage, { deltaY: 200 });
+      vi.advanceTimersByTime(300);
+      fireEvent.wheel(stage, { deltaY: -80 });
+      expect(
+        screen.getByText(`04 of 14: ${getBookAt(DEFAULT_BOOK_INDEX).title}`),
+      ).toBeInTheDocument();
+
+      // Another scroll up steps left to 03
+      vi.advanceTimersByTime(300);
+      fireEvent.wheel(stage, { deltaY: -80 });
+      expect(
+        screen.getByText(`03 of 14: ${getBookAt(DEFAULT_BOOK_INDEX - 1).title}`),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens the reading map dialog and closes on close button', () => {
@@ -106,7 +142,7 @@ describe('BookshelfStage 3D physics & interaction', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('opens the container-transform detail dialog when pressing Enter on the stage', () => {
+  it('renders the stage detail view in-page inside PageShell and returns cleanly to Bookshelf', () => {
     render(<BookshelfStage initialSlug="ai-engineering" />);
 
     const stage = screen.getByRole('region', { name: /Bookshelf/i });
@@ -115,7 +151,7 @@ describe('BookshelfStage 3D physics & interaction', () => {
 
     expect(
       screen.getByRole('heading', {
-        level: 2,
+        level: 1,
         name: 'AI Engineering: Building Applications with Foundation Models',
       }),
     ).toBeInTheDocument();
@@ -123,25 +159,20 @@ describe('BookshelfStage 3D physics & interaction', () => {
     expect(screen.getByText('119')).toBeInTheDocument();
     expect(screen.getByText('132')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to shelf' }));
-    expect(
-      screen.queryByRole('heading', {
-        level: 2,
-        name: 'AI Engineering: Building Applications with Foundation Models',
-      }),
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
   });
 });
 
 describe('BookDetailView standalone', () => {
-  it('renders the borderless stage outline, numbered topics, and back link to the shelf', () => {
+  it('renders inside PageShell with Back to Bookshelf link and numbered topics', () => {
     const book = getBookBySlug('ai-engineering');
     expect(book).toBeDefined();
     if (!book) return;
     render(<BookDetailView book={book} />);
 
     expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Back to shelf/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Back to Bookshelf/i })).toHaveAttribute(
       'href',
       '/bookshelf?book=ai-engineering',
     );

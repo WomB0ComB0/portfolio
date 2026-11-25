@@ -18,7 +18,9 @@
 
 import Link from 'next/link';
 import { type CSSProperties, type ReactElement, useState } from 'react';
-import { FiArrowLeft, FiArrowRight, FiArrowUpRight } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
+import { PageShell } from '@/components/console/page-shell';
+import { cn } from '@/lib/utils';
 import { type BookItem, getAdjacentBooks } from '../_lib/books';
 import { BookCoverFrame } from './book-cover-frame';
 import styles from './bookshelf.module.css';
@@ -26,103 +28,211 @@ import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
   readonly book: BookItem;
+  /** Provided when rendered in-page from `/bookshelf` so Back returns smoothly without reloading. */
+  readonly onBack?: () => void;
+  /** Provided when stepping between adjacent stages inside `/bookshelf`. */
+  readonly onNavigateBook?: (book: BookItem) => void;
+  /** Plays the staggered top-to-bottom wipe reveal when opened from the 3D shelf. */
+  readonly entering?: boolean;
 }
 
 /**
- * Borderless standalone stage detail page (`/bookshelf/[slug]`): matches the shelf's
- * container-transform detail layout for direct links, SEO, and no-JS visitors.
+ * Live Console book detail view — rendered inside `<PageShell>` so the site navigation rail,
+ * typography, and page rhythm stay 100% consistent (used both in-page from `/bookshelf` and on
+ * the canonical `/bookshelf/[slug]` route).
  */
-export function BookDetailView({ book }: BookDetailViewProps): ReactElement {
+export function BookDetailView({
+  book,
+  onBack,
+  onNavigateBook,
+  entering = false,
+}: BookDetailViewProps): ReactElement {
   const [mapOpen, setMapOpen] = useState(false);
   const { prev, next } = getAdjacentBooks(book.slug);
   const topicRows = Math.ceil(book.topics.length / 2);
 
+  const backAction = onBack ? (
+    <button
+      type="button"
+      onClick={onBack}
+      className="inline-flex min-h-10 items-center gap-2 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+    >
+      <FiArrowLeft className="size-4" aria-hidden="true" />
+      Back to Bookshelf
+    </button>
+  ) : (
+    <Link
+      href={`/bookshelf?book=${book.slug}`}
+      prefetch={false}
+      className="inline-flex min-h-10 items-center gap-2 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+    >
+      <FiArrowLeft className="size-4" aria-hidden="true" />
+      Back to Bookshelf
+    </Link>
+  );
+
   return (
-    <div className="min-h-dvh pb-20">
-      <div className="mx-auto flex max-w-[1320px] items-center justify-between px-[clamp(20px,3vw,48px)] pt-6">
-        <Link
-          href={`/bookshelf?book=${book.slug}`}
-          prefetch={false}
-          className="inline-flex min-h-10 items-center gap-2 text-body-sm font-medium text-muted-foreground no-underline transition-colors hover:text-foreground"
-        >
-          <FiArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to shelf
-        </Link>
-
-        <button type="button" onClick={() => setMapOpen(true)} className={styles['top-link']}>
-          Reading map ↗
-        </button>
-      </div>
-
+    <PageShell
+      sizing="container"
+      className={cn('pb-12', styles['detail-panel'], entering && styles['detail-entering'])}
+      eyebrow={
+        <span className="inline-flex flex-wrap items-center gap-2 tabular-nums">
+          <span
+            aria-hidden="true"
+            className="inline-block size-2 rounded-xs"
+            style={{ backgroundColor: book.spine.capBg }}
+          />
+          <span>Stage {book.stageLabel}</span>
+          <span aria-hidden="true" className="text-faint">
+            ·
+          </span>
+          <span>{book.track}</span>
+          <span aria-hidden="true" className="text-faint">
+            ·
+          </span>
+          <span className="text-faint">{book.edition}</span>
+        </span>
+      }
+      title={book.title}
+      description={book.summary}
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          {backAction}
+          <button
+            type="button"
+            onClick={() => setMapOpen(true)}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <FiMap className="size-3.5" aria-hidden="true" />
+            Reading map
+          </button>
+        </div>
+      }
+    >
       <div className={styles['detail-grid']}>
-        <div className={styles['detail-text']}>
-          <p className={styles['detail-eyebrow']}>
-            <span>
-              Stage {book.stageLabel} · {book.spineTitle}
-            </span>
+        <div className="min-w-0 space-y-8">
+          <p
+            className={cn('tile-meta text-faint', styles.rv)}
+            style={{ '--d': '80ms' } as CSSProperties}
+          >
+            {book.authors} · {book.publisher} ({book.year}) · ISBN {book.isbn}
           </p>
 
-          <h1 className={styles['detail-heading']}>{book.title}</h1>
-          <p className={styles['detail-desc']}>{book.summary}</p>
-
-          <ol
-            className={styles['detail-topics']}
-            style={{ '--topic-rows': String(topicRows) } as CSSProperties}
+          <section
+            aria-label="Core topics"
+            className={styles.rv}
+            style={{ '--d': '140ms' } as CSSProperties}
           >
-            {book.topics.map((topic) => (
-              <li key={topic.number}>
-                <span className={styles['detail-topic-num']}>{topic.number}</span>
-                <span>{topic.title}</span>
-              </li>
-            ))}
-          </ol>
+            <ol
+              className={styles['detail-topics']}
+              style={{ '--topic-rows': String(topicRows) } as CSSProperties}
+            >
+              {book.topics.map((topic) => (
+                <li key={topic.number}>
+                  <span className={styles['detail-topic-num']}>
+                    {String(topic.number).padStart(3, '0')}
+                  </span>
+                  <span>{topic.title}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
 
-          <div className="mt-7 flex flex-wrap items-center gap-5">
+          <div
+            className={cn('flex flex-wrap items-center gap-5', styles.rv)}
+            style={{ '--d': '220ms' } as CSSProperties}
+          >
             <a
               href={book.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-body-sm font-semibold text-brand-ink underline underline-offset-4 hover:text-foreground"
+              className="inline-flex items-center gap-1.5 tile-label text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
             >
               Explore {book.spineTitle}
-              <FiArrowUpRight className="h-4 w-4" aria-hidden="true" />
+              <FiArrowUpRight className="size-4" aria-hidden="true" />
             </a>
-            <span className="font-mono text-label text-faint">
-              {book.authors} · {book.publisher} ({book.year})
-            </span>
+            {onBack && (
+              <Link
+                href={`/bookshelf/${book.slug}`}
+                prefetch={false}
+                className="inline-flex items-center gap-1 tile-meta text-faint no-underline hover:text-foreground"
+              >
+                Direct link
+                <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            )}
           </div>
 
-          <nav aria-label="Adjacent books" className="mt-12 grid gap-4 sm:grid-cols-2">
-            <Link
-              href={`/bookshelf/${prev.slug}`}
-              prefetch={false}
-              className="group flex flex-col items-start gap-1 rounded-tile bg-surface-1 p-4 no-underline transition-colors hover:bg-surface-2"
-            >
-              <span className="inline-flex items-center gap-1.5 font-mono text-label tabular-nums text-faint group-hover:text-brand-ink">
-                <FiArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                Stage {prev.stageLabel}
-              </span>
-              <span className="text-body-sm font-semibold text-foreground">{prev.title}</span>
-            </Link>
+          {/* Adjacent stages */}
+          <nav aria-label="Adjacent books" className="grid gap-3 pt-2 sm:grid-cols-2">
+            {onNavigateBook ? (
+              <button
+                type="button"
+                onClick={() => onNavigateBook(prev)}
+                className="group flex flex-col items-start gap-1 rounded-tile bg-surface-1 p-4 text-left transition-colors hover:bg-surface-2"
+              >
+                <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
+                  <FiArrowLeft className="size-3.5" aria-hidden="true" />
+                  Stage {prev.stageLabel} · {prev.track}
+                </span>
+                <span className="tile-sub font-medium text-foreground">{prev.title}</span>
+              </button>
+            ) : (
+              <Link
+                href={`/bookshelf/${prev.slug}`}
+                prefetch={false}
+                className="group flex flex-col items-start gap-1 rounded-tile bg-surface-1 p-4 no-underline transition-colors hover:bg-surface-2"
+              >
+                <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
+                  <FiArrowLeft className="size-3.5" aria-hidden="true" />
+                  Stage {prev.stageLabel} · {prev.track}
+                </span>
+                <span className="tile-sub font-medium text-foreground">{prev.title}</span>
+              </Link>
+            )}
 
-            <Link
-              href={`/bookshelf/${next.slug}`}
-              prefetch={false}
-              className="group flex flex-col items-end gap-1 rounded-tile bg-surface-1 p-4 text-right no-underline transition-colors hover:bg-surface-2"
-            >
-              <span className="inline-flex items-center gap-1.5 font-mono text-label tabular-nums text-faint group-hover:text-brand-ink">
-                Stage {next.stageLabel}
-                <FiArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
-              <span className="text-body-sm font-semibold text-foreground">{next.title}</span>
-            </Link>
+            {onNavigateBook ? (
+              <button
+                type="button"
+                onClick={() => onNavigateBook(next)}
+                className="group flex flex-col items-end gap-1 rounded-tile bg-surface-1 p-4 text-right transition-colors hover:bg-surface-2"
+              >
+                <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
+                  Stage {next.stageLabel} · {next.track}
+                  <FiArrowRight className="size-3.5" aria-hidden="true" />
+                </span>
+                <span className="tile-sub font-medium text-foreground">{next.title}</span>
+              </button>
+            ) : (
+              <Link
+                href={`/bookshelf/${next.slug}`}
+                prefetch={false}
+                className="group flex flex-col items-end gap-1 rounded-tile bg-surface-1 p-4 text-right no-underline transition-colors hover:bg-surface-2"
+              >
+                <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
+                  Stage {next.stageLabel} · {next.track}
+                  <FiArrowRight className="size-3.5" aria-hidden="true" />
+                </span>
+                <span className="tile-sub font-medium text-foreground">{next.title}</span>
+              </Link>
+            )}
           </nav>
         </div>
 
-        <BookCoverFrame book={book} priority />
+        <div
+          className={cn('lg:sticky lg:top-20', styles.rv)}
+          style={{ '--d': '120ms', '--rd': '640ms' } as CSSProperties}
+        >
+          <BookCoverFrame book={book} priority />
+        </div>
       </div>
 
-      <ReadingMapDialog open={mapOpen} activeSlug={book.slug} onClose={() => setMapOpen(false)} />
-    </div>
+      <ReadingMapDialog
+        open={mapOpen}
+        activeSlug={book.slug}
+        onClose={() => setMapOpen(false)}
+        onOpenBook={onNavigateBook}
+      />
+    </PageShell>
   );
 }

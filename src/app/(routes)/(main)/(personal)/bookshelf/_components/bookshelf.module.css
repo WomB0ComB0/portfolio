@@ -14,103 +14,93 @@
  * limitations under the License.
  */
 
-/* Engineering shelf 3D cuboid physics, recycled infinite slot track,
- * scroll-spy segmented tabs, magnetic cursor, and clip-path container transform.
- * Geometry derives from --book-h (set in px from stage height). */
+/* Live Console 3D Engineering Shelf.
+ * Borderless 3D cuboid books projected per slot around --book-h,
+ * living cleanly inside <PageShell> without covering site navigation. */
 
-.app {
-  --book-h: 440px;
+.shelf-shell {
+  --book-h: 410px;
   --book-w: calc(var(--book-h) * 0.15);
   --book-c: calc(var(--book-h) * 0.75);
-  --shelf-dur: 620ms;
+  --shelf-dur: 560ms;
   --shelf-ease: cubic-bezier(0.45, 0.05, 0.2, 1);
   --shelf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  height: calc(100dvh - 1rem);
-  min-height: 580px;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  overflow: hidden;
-}
-
-.top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px clamp(1rem, 0.5rem + 2vw, 2rem) 0;
-}
-
-.top-title {
-  font-size: clamp(20px, 2.15vw, 27px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--fg);
-}
-
-.top-link {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-thickness: 1px;
-  transition: color 180ms ease;
-}
-
-.top-link:hover {
-  color: var(--fg);
-}
-
-/* Segmented control with sliding scroll-spy indicator (borderless) */
-.tabs {
-  justify-self: center;
-  margin-top: 14px;
   position: relative;
   display: flex;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--surface-1);
-  z-index: 2;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
-.tabs-ind {
+/* FilterBar-style sliding pill track (Live Console tokens, no heavy outer border) */
+.track-bar {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: flex-start;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: var(--surface-1);
+}
+
+.track-pill {
+  pointer-events: none;
   position: absolute;
-  top: 4px;
-  bottom: 4px;
+  top: 0.25rem;
+  bottom: 0.25rem;
   left: 0;
   width: 0;
-  border-radius: 999px;
-  background: var(--brand);
+  border-radius: 9999px;
+  background: var(--brand-subtle);
+  box-shadow: inset 0 0 0 2px var(--brand);
   transition:
-    transform 500ms var(--shelf-ease),
-    width 500ms var(--shelf-ease);
+    transform var(--motion-spring-in) var(--ease-spring),
+    width var(--motion-spring-in) var(--ease-spring);
 }
 
-.tab {
+.track-chip {
   position: relative;
   z-index: 1;
-  padding: 9px 17px;
-  border-radius: 999px;
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--fg-muted);
   white-space: nowrap;
-  transition: color 300ms ease;
+  transition: color var(--motion-fast) var(--ease-effect);
 }
 
-.tab:hover {
+.track-chip:hover {
   color: var(--fg);
 }
 
-.tab[aria-selected="true"] {
-  color: var(--canvas);
+.track-chip[aria-selected="true"] {
+  color: var(--fg);
 }
 
-/* Borderless 3D stage */
+.track-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-faint);
+}
+
+.track-chip[aria-selected="true"] .track-count {
+  color: var(--fg-muted);
+}
+
+/* Borderless 3D stage inside PageShell */
 .stage {
   position: relative;
   z-index: 0;
   isolation: isolate;
+  height: clamp(300px, 45dvh, 420px);
+  width: 100%;
   overflow: hidden;
   user-select: none;
   touch-action: pan-y;
@@ -129,8 +119,7 @@
   height: 0;
 }
 
-/* Each slot owns its own perspective so unrotated spines stay flat
- * and only rotated books reveal a 3D side face. */
+/* Each slot owns its own perspective so books project cleanly around their own centre. */
 .slot {
   position: absolute;
   left: calc(var(--book-w) / -2);
@@ -142,8 +131,7 @@
   transition: transform var(--shelf-dur) var(--shelf-ease);
 }
 
-/* Single shared transform function list across all states so angles
- * interpolate numerically without matrix decomposition artifacts. */
+/* Single transform function list across all states so all 14 books interpolate angles smoothly. */
 .book {
   --ry: 0deg;
   --rz: 0deg;
@@ -158,7 +146,11 @@
 }
 
 .is-before .book {
-  --ry: -4deg;
+  --ry: -5deg;
+}
+
+.is-after .book {
+  --ry: 5deg;
 }
 
 .is-active .book {
@@ -172,7 +164,7 @@
 }
 
 .slot:not(.is-active):hover .book {
-  --lift: calc(var(--book-h) * -0.018);
+  --lift: calc(var(--book-h) * -0.02);
 }
 
 .face {
@@ -217,11 +209,12 @@
 }
 
 .is-active .face-cover {
-  box-shadow: calc(var(--book-h) * -0.03) calc(var(--book-h) * 0.035) calc(var(--book-h) * 0.08)
-    rgb(0 0 0 / 55%);
+  box-shadow:
+    calc(var(--book-h) * -0.025) calc(var(--book-h) * 0.03) calc(var(--book-h) * 0.075)
+    rgb(0 0 0 / 56%),
+    0 0 36px -14px var(--brand-edge);
 }
 
-/* Soft grounded floor shadow outside the 3D box */
 .slot-shadow {
   position: absolute;
   left: 50%;
@@ -238,7 +231,7 @@
   width: calc(var(--book-c) * 1.05);
 }
 
-/* Spine interior */
+/* Spine typography & cylindrical highlight */
 .face-spine::after {
   content: "";
   position: absolute;
@@ -282,7 +275,7 @@
   writing-mode: vertical-rl;
   white-space: pre-line;
   text-align: center;
-  font-weight: 700;
+  font-weight: 600;
   font-size: calc(var(--book-h) * 0.036);
   line-height: 1.08;
   letter-spacing: -0.01em;
@@ -310,7 +303,7 @@
   opacity: 0.8;
 }
 
-/* Book cover (shared by 3D face and detail page; zero border) */
+/* Book cover (borderless, subtle hinge lighting) */
 .cover {
   position: absolute;
   inset: 0;
@@ -344,29 +337,33 @@
   display: block;
 }
 
-/* Prev/next circular buttons (borderless) */
-.controls {
-  position: relative;
-  z-index: 5;
+/* Stage footer controls inside the Live Console rhythm (no borders) */
+.controls-row {
   display: flex;
-  justify-content: center;
-  gap: 14px;
-  padding: 6px 0 56px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+.controls-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .arrow {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
   background: var(--surface-1);
   color: var(--fg-muted);
   display: grid;
   place-items: center;
-  font-size: 18px;
-  line-height: 1;
   transition:
-    background-color 180ms ease,
-    color 180ms ease;
+    background-color var(--motion-fast) var(--ease-effect),
+    color var(--motion-fast) var(--ease-effect);
 }
 
 .arrow:hover {
@@ -374,15 +371,15 @@
   color: var(--fg);
 }
 
-/* Magnetic custom cursor (ring -> solid Open disc over active book) */
+/* Magnetic custom cursor scoped to the shelf stage */
 .cursor-layer {
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 60;
+  z-index: 40;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 200ms ease;
+  transition: opacity 180ms var(--ease-effect);
 }
 
 .cursor-visible {
@@ -393,20 +390,20 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: rgb(255 255 255 / 10%);
-  box-shadow: inset 0 0 0 1.5px var(--fg);
+  border-radius: 9999px;
+  background: var(--brand-glow);
+  box-shadow: inset 0 0 0 1.5px var(--brand-ink);
   backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   transition:
-    width 380ms var(--shelf-ease-out),
-    height 380ms var(--shelf-ease-out),
-    background-color 250ms ease,
-    box-shadow 250ms ease;
+    width 320ms var(--shelf-ease-out),
+    height 320ms var(--shelf-ease-out),
+    background-color 220ms ease,
+    box-shadow 220ms ease;
 }
 
 .cursor-ring::before {
@@ -414,27 +411,27 @@
   position: absolute;
   width: 5px;
   height: 5px;
-  border-radius: 50%;
-  background: var(--fg);
+  border-radius: 9999px;
+  background: var(--brand-ink);
   transition:
-    transform 250ms ease,
-    opacity 200ms ease;
+    transform 220ms ease,
+    opacity 180ms ease;
 }
 
 .cursor-label {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--canvas);
   opacity: 0;
   transform: scale(0.6);
   transition:
-    opacity 200ms ease,
-    transform 300ms var(--shelf-ease-out);
+    opacity 180ms ease,
+    transform 280ms var(--shelf-ease-out);
 }
 
 .cursor-open .cursor-ring {
-  width: 92px;
-  height: 92px;
+  width: 84px;
+  height: 84px;
   background: var(--fg);
   box-shadow: 0 14px 32px -8px rgb(0 0 0 / 60%);
 }
@@ -449,148 +446,64 @@
   transform: none;
 }
 
-/* Detail container-transform overlay (borderless) */
-.detail {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: var(--canvas);
-  display: none;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.detail-open {
-  display: block;
+/* In-page book detail layout (never covers the site's navbar/shell) */
+.detail-panel {
+  min-width: 0;
 }
 
 .detail-grid {
-  min-height: 100%;
-  max-width: 1320px;
-  margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 340px);
   align-items: start;
-  gap: clamp(24px, 8vw, 120px);
-  padding: clamp(24px, 5vh, 42px) clamp(20px, 3vw, 48px);
-}
-
-.detail-text {
-  padding-top: clamp(12px, 6vh, 48px);
-  max-width: 640px;
-}
-
-.detail-eyebrow {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--brand-ink);
-}
-
-.detail-heading {
-  margin-top: 14px;
-  font-size: clamp(30px, 4.1vw, 54px);
-  line-height: 1.04;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  color: var(--fg);
-}
-
-.detail-desc {
-  margin-top: 22px;
-  font-size: clamp(14px, 1.35vw, 17px);
-  line-height: 1.55;
-  color: var(--fg-muted);
-  max-width: 36em;
+  gap: clamp(2rem, 5vw, 4.5rem);
 }
 
 .detail-topics {
   list-style: none;
-  margin-top: 26px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-flow: column;
   grid-template-rows: repeat(var(--topic-rows, 6), auto);
-  gap: 10px 30px;
+  gap: 0.625rem 2rem;
 }
 
 .detail-topics li {
   display: grid;
-  grid-template-columns: 2.6em 1fr;
-  font-size: 14.5px;
-  line-height: 1.35;
-  font-weight: 500;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: baseline;
+  font-size: 0.875rem;
+  line-height: 1.45;
   color: var(--fg);
 }
 
 .detail-topic-num {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-weight: 500;
-  font-size: 11.5px;
-  line-height: 1.75;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
   color: var(--fg-faint);
 }
 
-.detail-cta {
-  display: inline-block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--brand-ink);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-thickness: 1px;
-}
-
-.detail-cta:hover {
-  color: var(--fg);
-}
-
 .detail-cover {
-  --detail-h: min(84vh, 660px);
-
   position: relative;
-  height: var(--detail-h);
+  width: 100%;
+  max-width: 340px;
   aspect-ratio: 3 / 4;
   background: var(--surface-1);
-  box-shadow: 0 32px 64px -20px rgb(0 0 0 / 78%);
+  box-shadow:
+    0 28px 56px -18px rgb(0 0 0 / 76%),
+    0 0 40px -16px var(--brand-edge);
 }
 
-.detail-close {
-  position: fixed;
-  top: 18px;
-  right: 20px;
-  z-index: 2;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--surface-1);
-  color: var(--fg-muted);
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  transition:
-    background-color 180ms ease,
-    color 180ms ease;
-}
-
-.detail-close:hover {
-  background: var(--surface-2);
-  color: var(--fg);
-}
-
-/* Staggered top-to-bottom wipe reveals */
+/* Staggered top-to-bottom wipe reveal when opening a stage in-page */
 .detail-entering .rv {
-  animation: rv-wipe var(--rd, 700ms) var(--shelf-ease-out) both;
+  animation: rv-wipe var(--rd, 560ms) var(--shelf-ease-out) both;
   animation-delay: var(--d, 0ms);
 }
 
 @keyframes rv-wipe {
   from {
     clip-path: inset(0 0 100% 0);
-    transform: translateY(14px);
+    transform: translateY(10px);
   }
 
   to {
@@ -599,49 +512,34 @@
   }
 }
 
-.detail-leaving .detail-grid,
-.detail-leaving .detail-close {
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
 .slot.no-anim,
 .slot.no-anim .face-cover,
 .slot.no-anim .slot-shadow,
-.tabs-ind.no-anim {
+.track-pill.no-anim {
   transition: none;
 }
 
-@media (width <= 760px) {
-  .top {
-    padding: 16px 16px 0;
-  }
-
-  .tab {
-    padding: 8px 11px;
-    font-size: 12.5px;
-  }
-
+@media (width <= 900px) {
   .detail-grid {
     grid-template-columns: 1fr;
   }
 
+  .detail-cover {
+    order: -1;
+    max-width: 260px;
+  }
+}
+
+@media (width <= 640px) {
   .detail-topics {
     grid-template-columns: 1fr;
     grid-auto-flow: row;
     grid-template-rows: none;
   }
-
-  .detail-cover {
-    --detail-h: min(54vh, 110vw);
-
-    order: -1;
-    justify-self: start;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app {
+  .shelf-shell {
     --shelf-dur: 0ms;
   }
 
