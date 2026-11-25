@@ -97,8 +97,12 @@ describe('the site card', () => {
     expect(text).toContain(app.tagline);
   });
 
-  it('carries the console cues: the host, the section index and a live readout', () => {
+  it('carries the console cues: the host, the ecosystem strip, the section index and a live readout', () => {
     expect(text).toContain(SITE_HOST);
+    expect(text).toContain('*.mikeodnis.dev');
+    for (const host of ['api', 'cdn', 'links', 'blog', 'status']) {
+      expect(text).toContain(host);
+    }
     for (const path of ['/projects', '/places', '/certifications', '/guestbook', '/stats']) {
       expect(text).toContain(path);
     }

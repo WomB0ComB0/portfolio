@@ -56,5 +56,8 @@ export const SITE_ROLE = 'Software engineer';
 /** The host the cards print: the canonical domain, whatever deployment draws them. */
 export const SITE_HOST = profile.siteHost;
 
+/** Companion *.mikeodnis.dev properties surfaced in the Live Console card chrome. */
+export const ECOSYSTEM_HOSTS = ['api', 'cdn', 'links', 'blog', 'status'] as const;
+
 /** The site card's alt text: who it shows and the positioning line it carries. */
 export const siteCardAlt = (): string => `${app.name}, ${SITE_ROLE.toLowerCase()}. ${app.tagline}`;
