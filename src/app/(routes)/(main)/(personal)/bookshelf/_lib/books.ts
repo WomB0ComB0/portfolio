@@ -92,6 +92,30 @@ export const slugifyShelf = (title: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+/** Strips hyphens and spaces from an ISBN, returning it if valid ISBN-10 or ISBN-13, else null. */
+export function normalizeIsbn(raw?: string | null): string | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^0-9Xx]/g, '').toUpperCase();
+  return cleaned.length === 10 || cleaned.length === 13 ? cleaned : null;
+}
+
+export interface IsbnRegistryLinks {
+  readonly openLibrary: string;
+  readonly worldCat: string;
+  readonly isbnSearch: string;
+}
+
+/** Authoritative public bibliographic registry URLs for a published ISBN. */
+export function getIsbnRegistryLinks(isbn?: string | null): IsbnRegistryLinks | null {
+  const cleaned = normalizeIsbn(isbn);
+  if (!cleaned) return null;
+  return {
+    openLibrary: `https://openlibrary.org/isbn/${cleaned}`,
+    worldCat: `https://search.worldcat.org/isbn/${cleaned}`,
+    isbnSearch: `https://isbnsearch.org/isbn/${cleaned}`,
+  };
+}
+
 export interface BookTopic {
   readonly number: number;
   readonly title: string;

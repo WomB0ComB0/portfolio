@@ -21,7 +21,13 @@ import { type CSSProperties, type ReactElement, useMemo, useState } from 'react'
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { cn } from '@/lib/utils';
-import { BOOKS, type BookItem, DEFAULT_SHELVES, type ShelfCollection } from '../_lib/books';
+import {
+  BOOKS,
+  type BookItem,
+  DEFAULT_SHELVES,
+  getIsbnRegistryLinks,
+  type ShelfCollection,
+} from '../_lib/books';
 import { BookCoverFrame } from './book-cover-frame';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
@@ -66,12 +72,13 @@ export function BookDetailView({
   }, [books, book]);
 
   const topicRows = Math.max(1, Math.ceil(book.topics.length / 2));
+  const isbnLinks = useMemo(() => getIsbnRegistryLinks(book.isbn), [book.isbn]);
 
   const backAction = onBack ? (
     <button
       type="button"
       onClick={onBack}
-      className="inline-flex min-h-10 items-center gap-2 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
     >
       <FiArrowLeft className="size-4" aria-hidden="true" />
       Back to Bookshelf
@@ -80,7 +87,7 @@ export function BookDetailView({
     <Link
       href={`/bookshelf?book=${book.slug}`}
       prefetch={false}
-      className="inline-flex min-h-10 items-center gap-2 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
     >
       <FiArrowLeft className="size-4" aria-hidden="true" />
       Back to Bookshelf
@@ -118,7 +125,7 @@ export function BookDetailView({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map
@@ -132,7 +139,19 @@ export function BookDetailView({
             className={cn('tile-meta text-faint', styles.rv)}
             style={{ '--d': '80ms' } as CSSProperties}
           >
-            {book.authors} · {book.publisher} ({book.year}) · ISBN {book.isbn}
+            {book.authors} · {book.publisher} ({book.year}) ·{' '}
+            {isbnLinks ? (
+              <a
+                href={isbnLinks.openLibrary}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tabular-nums text-muted-foreground underline-offset-4 hover:text-brand-ink hover:underline"
+              >
+                ISBN {book.isbn}
+              </a>
+            ) : (
+              <span>ISBN {book.isbn}</span>
+            )}
           </p>
 
           {book.topics.length > 0 && (
@@ -158,7 +177,7 @@ export function BookDetailView({
           )}
 
           <div
-            className={cn('flex flex-wrap items-center gap-5', styles.rv)}
+            className={cn('flex flex-wrap items-center gap-x-5 gap-y-2', styles.rv)}
             style={{ '--d': '220ms' } as CSSProperties}
           >
             <a
@@ -170,15 +189,36 @@ export function BookDetailView({
               Explore {book.spineTitle}
               <FiArrowUpRight className="size-4" aria-hidden="true" />
             </a>
-            {onBack && (
-              <Link
-                href={`/bookshelf/${book.slug}`}
-                prefetch={false}
-                className="inline-flex items-center gap-1 tile-meta text-faint no-underline hover:text-foreground"
-              >
-                Direct link
-                <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-              </Link>
+            {isbnLinks && (
+              <>
+                <a
+                  href={isbnLinks.openLibrary}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  Open Library
+                  <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                </a>
+                <a
+                  href={isbnLinks.worldCat}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  WorldCat
+                  <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                </a>
+                <a
+                  href={isbnLinks.isbnSearch}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  ISBN Search
+                  <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                </a>
+              </>
             )}
           </div>
 

@@ -35,6 +35,7 @@ import {
   getAdjacentBooks,
   getBookAt,
   getBookBySlug,
+  getIsbnRegistryLinks,
   normalizeBookStatus,
   TOTAL_TOPICS,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
@@ -403,5 +404,26 @@ describe('BookDetailView standalone', () => {
     expect(screen.getByText('119')).toBeInTheDocument();
     expect(screen.getByText('132')).toBeInTheDocument();
     expect(screen.getByText('Agents: tools & planning')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Direct link/i })).not.toBeInTheDocument();
+
+    const links = getIsbnRegistryLinks(book.isbn);
+    expect(links).toEqual({
+      openLibrary: 'https://openlibrary.org/isbn/9781098166304',
+      worldCat: 'https://search.worldcat.org/isbn/9781098166304',
+      isbnSearch: 'https://isbnsearch.org/isbn/9781098166304',
+    });
+    expect(screen.getByRole('link', { name: /Open Library/i })).toHaveAttribute(
+      'href',
+      'https://openlibrary.org/isbn/9781098166304',
+    );
+    expect(screen.getByRole('link', { name: /WorldCat/i })).toHaveAttribute(
+      'href',
+      'https://search.worldcat.org/isbn/9781098166304',
+    );
+    expect(screen.getByRole('link', { name: /ISBN Search/i })).toHaveAttribute(
+      'href',
+      'https://isbnsearch.org/isbn/9781098166304',
+    );
+    expect(getIsbnRegistryLinks('N/A')).toBeNull();
   });
 });
