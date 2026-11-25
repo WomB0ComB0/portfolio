@@ -14,112 +14,638 @@
  * limitations under the License.
  */
 
-/* 3D bookshelf perspective stage and realistic spine/cover lighting.
- * Motion respects global prefers-reduced-motion in globals.css. */
+/* Engineering shelf 3D cuboid physics, recycled infinite slot track,
+ * scroll-spy segmented tabs, magnetic cursor, and clip-path container transform.
+ * Geometry derives from --book-h (set in px from stage height). */
 
-.stage-viewport {
-  perspective: 1800px;
-  perspective-origin: 50% 48%;
+.app {
+  --book-h: 440px;
+  --book-w: calc(var(--book-h) * 0.15);
+  --book-c: calc(var(--book-h) * 0.75);
+  --shelf-dur: 620ms;
+  --shelf-ease: cubic-bezier(0.45, 0.05, 0.2, 1);
+  --shelf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  height: calc(100dvh - 1rem);
+  min-height: 580px;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  overflow: hidden;
 }
 
-.shelf-floor-glow {
-  background: radial-gradient(
-    ellipse 52% 60% at 50% 50%,
-    var(--brand-wash) 0%,
-    var(--brand-glow) 46%,
-    transparent 74%
-  );
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px clamp(1rem, 0.5rem + 2vw, 2rem) 0;
 }
 
-.book-3d {
+.top-title {
+  font-size: clamp(20px, 2.15vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+}
+
+.top-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: color 180ms ease;
+}
+
+.top-link:hover {
+  color: var(--fg);
+}
+
+/* Segmented control with sliding scroll-spy indicator (borderless) */
+.tabs {
+  justify-self: center;
+  margin-top: 14px;
+  position: relative;
+  display: flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-1);
+  z-index: 2;
+}
+
+.tabs-ind {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 0;
+  border-radius: 999px;
+  background: var(--brand);
+  transition:
+    transform 500ms var(--shelf-ease),
+    width 500ms var(--shelf-ease);
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  padding: 9px 17px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  transition: color 300ms ease;
+}
+
+.tab:hover {
+  color: var(--fg);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--canvas);
+}
+
+/* Borderless 3D stage */
+.stage {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  overflow: hidden;
+  user-select: none;
+  touch-action: pan-y;
+  outline: none;
+}
+
+.custom-cursor {
+  cursor: none;
+}
+
+.shelf {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+}
+
+/* Each slot owns its own perspective so unrotated spines stay flat
+ * and only rotated books reveal a 3D side face. */
+.slot {
+  position: absolute;
+  left: calc(var(--book-w) / -2);
+  top: calc(var(--book-h) / -2);
+  width: var(--book-w);
+  height: var(--book-h);
+  perspective: calc(var(--book-h) * 2.2);
+  transform: translate3d(var(--slot-x, 0), 0, 0);
+  transition: transform var(--shelf-dur) var(--shelf-ease);
+}
+
+/* Single shared transform function list across all states so angles
+ * interpolate numerically without matrix decomposition artifacts. */
+.book {
+  --ry: 0deg;
+  --rz: 0deg;
+  --tz: calc(var(--book-c) / -2);
+  --lift: 0px;
+
+  position: absolute;
+  inset: 0;
   transform-style: preserve-3d;
+  transform: translateY(var(--lift)) translateZ(var(--tz)) rotateZ(var(--rz)) rotateY(var(--ry));
+  transition: transform var(--shelf-dur) var(--shelf-ease);
 }
 
-.spine-surface {
-  box-shadow:
-    inset 3px 0 6px rgb(255 255 255 / 16%),
-    inset -4px 0 8px rgb(0 0 0 / 34%),
-    inset 0 1px 0 rgb(255 255 255 / 12%),
-    0 18px 28px -12px rgb(0 0 0 / 72%),
-    0 6px 12px -4px rgb(0 0 0 / 55%);
+.is-before .book {
+  --ry: -4deg;
 }
 
-.spine-surface:hover {
-  box-shadow:
-    inset 3px 0 8px rgb(255 255 255 / 22%),
-    inset -4px 0 8px rgb(0 0 0 / 30%),
-    inset 0 1px 0 var(--brand-rim),
-    0 24px 36px -12px rgb(0 0 0 / 82%),
-    0 0 24px -6px var(--brand-halo);
+.is-active .book {
+  --ry: -100deg;
+  --rz: -4deg;
+  --tz: calc(var(--book-w) * -0.5 + var(--book-h) * 0.02);
 }
 
-.spine-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+.slot.no-anim .book {
+  transition: none;
 }
 
-.active-book-assembly {
-  transform-style: preserve-3d;
-  transform: rotateY(-11deg) rotateX(1deg);
-  transition: transform var(--motion-spring-in) var(--ease-spring);
+.slot:not(.is-active):hover .book {
+  --lift: calc(var(--book-h) * -0.018);
 }
 
-.active-book-assembly:hover,
-.active-book-assembly:focus-within {
-  transform: rotateY(-4deg) rotateX(0deg) translateY(-4px);
+.face {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  backface-visibility: hidden;
 }
 
-.active-spine-wing {
-  transform-origin: right center;
-  transform: rotateY(-44deg);
-  box-shadow:
-    inset 2px 0 5px rgb(255 255 255 / 18%),
-    inset -6px 0 12px rgb(0 0 0 / 48%);
+.face-spine {
+  left: 0;
+  width: 100%;
+  transform: translateZ(calc(var(--book-c) / 2));
+  background: var(--spine-body);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.cover-face {
-  box-shadow:
-    inset 4px 0 10px rgb(0 0 0 / 28%),
-    inset 1px 0 0 rgb(255 255 255 / 24%),
-    0 28px 54px -16px rgb(0 0 0 / 88%),
-    0 12px 24px -10px rgb(0 0 0 / 68%),
-    0 0 42px -12px var(--brand-edge);
+.face-cover {
+  left: calc((var(--book-w) - var(--book-c)) / 2);
+  width: var(--book-c);
+  transform: rotateY(90deg) translateZ(calc(var(--book-w) / 2));
+  box-shadow: 0 0 0 rgb(0 0 0 / 0%);
+  transition: box-shadow var(--shelf-dur) var(--shelf-ease);
 }
 
-.cover-crease {
+.face-back {
+  left: calc((var(--book-w) - var(--book-c)) / 2);
+  width: var(--book-c);
+  transform: rotateY(-90deg) translateZ(calc(var(--book-w) / 2));
+  background: var(--spine-body);
+}
+
+.face-pages {
+  left: 0;
+  width: 100%;
+  transform: rotateY(180deg) translateZ(calc(var(--book-c) / 2));
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 12%), transparent 30%, transparent 70%, rgb(0 0 0 / 14%)),
+    repeating-linear-gradient(90deg, #f2efe8 0 1px, #dcd7cc 1px 2px);
+}
+
+.is-active .face-cover {
+  box-shadow: calc(var(--book-h) * -0.03) calc(var(--book-h) * 0.035) calc(var(--book-h) * 0.08)
+    rgb(0 0 0 / 55%);
+}
+
+/* Soft grounded floor shadow outside the 3D box */
+.slot-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--book-h) * -0.055);
+  width: calc(var(--book-w) * 1.7);
+  height: calc(var(--book-h) * 0.08);
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgb(0 0 0 / 48%), rgb(0 0 0 / 0%));
+  transition: width var(--shelf-dur) var(--shelf-ease);
+  pointer-events: none;
+}
+
+.is-active .slot-shadow {
+  width: calc(var(--book-c) * 1.05);
+}
+
+/* Spine interior */
+.face-spine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background: linear-gradient(
     90deg,
-    rgb(0 0 0 / 32%) 0%,
-    rgb(255 255 255 / 22%) 2.5%,
-    rgb(0 0 0 / 16%) 5.5%,
-    transparent 11%,
-    transparent 96%,
-    rgb(255 255 255 / 12%) 100%
+    rgb(0 0 0 / 28%) 0%,
+    rgb(0 0 0 / 7%) 9%,
+    rgb(255 255 255 / 10%) 24%,
+    rgb(255 255 255 / 3%) 45%,
+    rgb(0 0 0 / 5%) 72%,
+    rgb(0 0 0 / 26%) 100%
   );
 }
 
-.page-block-edge {
-  background: repeating-linear-gradient(90deg, #d6d6e2 0, #d6d6e2 1px, #a8a8ba 1px, #a8a8ba 2px);
-  box-shadow:
-    inset 0 2px 4px rgb(0 0 0 / 24%),
-    inset 0 -2px 4px rgb(0 0 0 / 28%),
-    3px 0 10px rgb(0 0 0 / 45%);
+.spine-hdr {
+  flex: none;
+  height: calc(var(--book-h) * 0.118);
+  background: var(--spine-hdr);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 600;
+  font-size: calc(var(--book-h) * 0.034);
+  line-height: 1;
+  color: var(--spine-num);
+  letter-spacing: 0.02em;
 }
 
-.detail-cover-shadow {
-  box-shadow:
-    inset 5px 0 12px rgb(0 0 0 / 26%),
-    inset 1px 0 0 rgb(255 255 255 / 22%),
-    0 32px 64px -20px rgb(0 0 0 / 85%),
-    0 14px 28px -12px rgb(0 0 0 / 65%),
-    0 0 48px -16px var(--brand-edge);
+.spine-title {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--book-h) * 0.035) 0;
 }
 
-.floor-shadow {
-  background: radial-gradient(
-    ellipse 85% 65% at 50% 50%,
-    rgb(0 0 0 / 72%) 0%,
-    rgb(0 0 0 / 32%) 45%,
-    transparent 76%
-  );
+.spine-title span {
+  writing-mode: vertical-rl;
+  white-space: pre-line;
+  text-align: center;
+  font-weight: 700;
+  font-size: calc(var(--book-h) * 0.036);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--spine-ink);
+}
+
+.spine-author {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-bottom: calc(var(--book-h) * 0.028);
+}
+
+.spine-author span {
+  writing-mode: vertical-rl;
+  white-space: pre-line;
+  text-align: end;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 500;
+  font-size: calc(var(--book-h) * 0.0175);
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--spine-ink);
+  opacity: 0.8;
+}
+
+/* Book cover (shared by 3D face and detail page; zero border) */
+.cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--surface-1);
+}
+
+.cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(0 0 0 / 22%) 0,
+      rgb(255 255 255 / 14%) 1.4%,
+      rgb(0 0 0 / 5%) 3.2%,
+      transparent 7%
+    ),
+    linear-gradient(135deg, rgb(255 255 255 / 8%), transparent 45%);
+}
+
+.cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Prev/next circular buttons (borderless) */
+.controls {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding: 6px 0 56px;
+}
+
+.arrow {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  color: var(--fg-muted);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.arrow:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+/* Magnetic custom cursor (ring -> solid Open disc over active book) */
+.cursor-layer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.cursor-visible {
+  opacity: 1;
+}
+
+.cursor-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 56px;
+  height: 56px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 10%);
+  box-shadow: inset 0 0 0 1.5px var(--fg);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  transition:
+    width 380ms var(--shelf-ease-out),
+    height 380ms var(--shelf-ease-out),
+    background-color 250ms ease,
+    box-shadow 250ms ease;
+}
+
+.cursor-ring::before {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--fg);
+  transition:
+    transform 250ms ease,
+    opacity 200ms ease;
+}
+
+.cursor-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--canvas);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 200ms ease,
+    transform 300ms var(--shelf-ease-out);
+}
+
+.cursor-open .cursor-ring {
+  width: 92px;
+  height: 92px;
+  background: var(--fg);
+  box-shadow: 0 14px 32px -8px rgb(0 0 0 / 60%);
+}
+
+.cursor-open .cursor-ring::before {
+  opacity: 0;
+  transform: scale(0);
+}
+
+.cursor-open .cursor-label {
+  opacity: 1;
+  transform: none;
+}
+
+/* Detail container-transform overlay (borderless) */
+.detail {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--canvas);
+  display: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.detail-open {
+  display: block;
+}
+
+.detail-grid {
+  min-height: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: clamp(24px, 8vw, 120px);
+  padding: clamp(24px, 5vh, 42px) clamp(20px, 3vw, 48px);
+}
+
+.detail-text {
+  padding-top: clamp(12px, 6vh, 48px);
+  max-width: 640px;
+}
+
+.detail-eyebrow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brand-ink);
+}
+
+.detail-heading {
+  margin-top: 14px;
+  font-size: clamp(30px, 4.1vw, 54px);
+  line-height: 1.04;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  color: var(--fg);
+}
+
+.detail-desc {
+  margin-top: 22px;
+  font-size: clamp(14px, 1.35vw, 17px);
+  line-height: 1.55;
+  color: var(--fg-muted);
+  max-width: 36em;
+}
+
+.detail-topics {
+  list-style: none;
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--topic-rows, 6), auto);
+  gap: 10px 30px;
+}
+
+.detail-topics li {
+  display: grid;
+  grid-template-columns: 2.6em 1fr;
+  font-size: 14.5px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.detail-topic-num {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 500;
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--fg-faint);
+}
+
+.detail-cta {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+
+.detail-cta:hover {
+  color: var(--fg);
+}
+
+.detail-cover {
+  --detail-h: min(84vh, 660px);
+
+  position: relative;
+  height: var(--detail-h);
+  aspect-ratio: 3 / 4;
+  background: var(--surface-1);
+  box-shadow: 0 32px 64px -20px rgb(0 0 0 / 78%);
+}
+
+.detail-close {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  color: var(--fg-muted);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.detail-close:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+/* Staggered top-to-bottom wipe reveals */
+.detail-entering .rv {
+  animation: rv-wipe var(--rd, 700ms) var(--shelf-ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes rv-wipe {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(14px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+
+.detail-leaving .detail-grid,
+.detail-leaving .detail-close {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.slot.no-anim,
+.slot.no-anim .face-cover,
+.slot.no-anim .slot-shadow,
+.tabs-ind.no-anim {
+  transition: none;
+}
+
+@media (width <= 760px) {
+  .top {
+    padding: 16px 16px 0;
+  }
+
+  .tab {
+    padding: 8px 11px;
+    font-size: 12.5px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-topics {
+    grid-template-columns: 1fr;
+    grid-auto-flow: row;
+    grid-template-rows: none;
+  }
+
+  .detail-cover {
+    --detail-h: min(54vh, 110vw);
+
+    order: -1;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app {
+    --shelf-dur: 0ms;
+  }
+
+  .detail-entering .rv {
+    animation: none;
+  }
 }

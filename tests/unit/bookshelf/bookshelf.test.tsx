@@ -78,32 +78,24 @@ describe('Engineering bookshelf catalog', () => {
   });
 });
 
-describe('BookshelfStage interaction', () => {
+describe('BookshelfStage 3D physics & interaction', () => {
   it('defaults to Stage 04 (Designing Data-Intensive Applications) and steps with arrows', () => {
     render(<BookshelfStage />);
 
     const defaultBook = getBookAt(DEFAULT_BOOK_INDEX);
-    expect(
-      screen.getByRole('link', { name: new RegExp(`Open ${defaultBook.title}`) }),
-    ).toHaveAttribute('href', `/bookshelf/${defaultBook.slug}`);
+    expect(screen.getByText(`04 of 14: ${defaultBook.title}`)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Backend' })).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Next book' }));
     const nextBook = getBookAt(DEFAULT_BOOK_INDEX + 1);
-    expect(
-      screen.getByRole('link', { name: new RegExp(`Open ${nextBook.title}`) }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`05 of 14: ${nextBook.title}`)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
-    expect(
-      screen.getByRole('link', { name: new RegExp(`Open ${defaultBook.title}`) }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`04 of 14: ${defaultBook.title}`)).toBeInTheDocument();
   });
 
-  it('jumps to a track when clicking its category tab and opens the reading map dialog', () => {
+  it('opens the reading map dialog and closes on close button', () => {
     render(<BookshelfStage />);
-
-    fireEvent.click(screen.getByRole('tab', { name: 'AI' }));
-    expect(screen.getByRole('link', { name: /Open Deep Learning/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
     const dialog = screen.getByRole('dialog', { name: /Reading map/i });
@@ -114,20 +106,35 @@ describe('BookshelfStage interaction', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('links the active cover directly to its dedicated /bookshelf/[slug] detail route', () => {
+  it('opens the container-transform detail dialog when pressing Enter on the stage', () => {
     render(<BookshelfStage initialSlug="ai-engineering" />);
 
-    const openLink = screen.getByRole('link', { name: /Open AI Engineering/ });
-    expect(openLink).toHaveAttribute('href', '/bookshelf/ai-engineering');
-    expect(screen.getByRole('link', { name: /Open notes \(14 topics\)/i })).toHaveAttribute(
-      'href',
-      '/bookshelf/ai-engineering',
-    );
+    const stage = screen.getByRole('region', { name: /Bookshelf/i });
+    stage.focus();
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'AI Engineering: Building Applications with Foundation Models',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Agents: tools & planning')).toBeInTheDocument();
+    expect(screen.getByText('119')).toBeInTheDocument();
+    expect(screen.getByText('132')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to shelf' }));
+    expect(
+      screen.queryByRole('heading', {
+        level: 2,
+        name: 'AI Engineering: Building Applications with Foundation Models',
+      }),
+    ).not.toBeInTheDocument();
   });
 });
 
 describe('BookDetailView standalone', () => {
-  it('renders the stage outline, numbered topics, and back link to the shelf', () => {
+  it('renders the borderless stage outline, numbered topics, and back link to the shelf', () => {
     const book = getBookBySlug('ai-engineering');
     expect(book).toBeDefined();
     if (!book) return;
@@ -141,6 +148,5 @@ describe('BookDetailView standalone', () => {
     expect(screen.getByText('119')).toBeInTheDocument();
     expect(screen.getByText('132')).toBeInTheDocument();
     expect(screen.getByText('Agents: tools & planning')).toBeInTheDocument();
-    expect(screen.getByText('Guardrails, model router & gateway')).toBeInTheDocument();
   });
 });

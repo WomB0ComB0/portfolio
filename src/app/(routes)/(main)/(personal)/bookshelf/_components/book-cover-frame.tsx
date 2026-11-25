@@ -26,8 +26,8 @@ export interface BookCoverFrameProps {
 }
 
 /**
- * Upright, tactile book cover with a subtle spine crease, right-edge paper block, and soft
- * grounded shadow, used on the book detail screen.
+ * Borderless upright book cover with subtle spine-hinge shading and elevation shadow,
+ * shared by the standalone `/bookshelf/[slug]` route.
  */
 export function BookCoverFrame({
   book,
@@ -35,13 +35,8 @@ export function BookCoverFrame({
   priority = false,
 }: BookCoverFrameProps): ReactElement {
   return (
-    <div className={cn('relative inline-flex w-full max-w-[360px] select-none', className)}>
-      <div
-        className={cn(
-          'relative aspect-[520/680] w-full overflow-hidden rounded-[6px_10px_10px_6px] border border-hairline-strong/80 bg-surface-1',
-          styles['detail-cover-shadow'],
-        )}
-      >
+    <div className={cn(styles['detail-cover'], 'select-none', className)}>
+      <div className={styles.cover}>
         {/* biome-ignore lint/performance/noImgElement: Local WebP asset served directly from public/assets/bookshelf (next.config disables /_next/image). */}
         <img
           src={book.coverSrc}
@@ -50,20 +45,10 @@ export function BookCoverFrame({
           height={680}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
-          className="h-full w-full object-cover"
-        />
-        <div
-          aria-hidden="true"
-          className={cn('pointer-events-none absolute inset-0', styles['cover-crease'])}
+          draggable={false}
+          className={styles['cover-img']}
         />
       </div>
-      <div
-        aria-hidden="true"
-        className={cn(
-          'my-[5px] w-[7px] shrink-0 rounded-r-[3px] border-y border-r border-black/25',
-          styles['page-block-edge'],
-        )}
-      />
     </div>
   );
 }

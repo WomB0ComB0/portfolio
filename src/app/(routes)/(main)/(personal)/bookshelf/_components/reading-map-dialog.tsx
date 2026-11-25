@@ -75,9 +75,9 @@ export function ReadingMapDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="reading-map-heading"
-        className="relative z-10 flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile border border-hairline-strong bg-surface-1 shadow-raised"
+        className="relative z-10 flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile bg-surface-1 shadow-raised"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-hairline px-5 py-4 sm:px-6">
+        <div className="flex items-start justify-between gap-4 px-5 py-5 sm:px-6">
           <div className="min-w-0 space-y-1">
             <p className="label-mono text-faint">Engineering curriculum</p>
             <h2 id="reading-map-heading" className="text-title font-semibold text-foreground">
@@ -93,13 +93,13 @@ export function ReadingMapDialog({
             type="button"
             onClick={onClose}
             aria-label="Close reading map"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2 text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
           >
             <FiX className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-6 sm:px-6">
           {BOOK_TRACKS.map((track) => {
             const trackBooks = BOOKS.filter((book) => book.track === track);
             const firstTopic = trackBooks[0]?.topics[0]?.number ?? 1;
@@ -108,7 +108,7 @@ export function ReadingMapDialog({
 
             return (
               <section key={track} className="space-y-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-hairline pb-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2 pb-1">
                   <h3 className="text-body font-semibold text-foreground">{track}</h3>
                   <span className="font-mono text-meta tabular-nums text-faint">
                     {trackBooks.length} books · topics {formatTopicNumber(firstTopic)}–
@@ -123,10 +123,8 @@ export function ReadingMapDialog({
                       <div
                         key={book.slug}
                         className={cn(
-                          'flex flex-col justify-between gap-3 rounded-lg border bg-canvas/60 p-4 transition-colors',
-                          isActive
-                            ? 'border-brand/70 bg-brand-subtle/30'
-                            : 'border-hairline hover:border-hairline-strong',
+                          'flex flex-col justify-between gap-3 rounded-lg p-4 transition-colors',
+                          isActive ? 'bg-brand-subtle/45' : 'bg-canvas/65 hover:bg-canvas/90',
                         )}
                       >
                         <div className="space-y-1.5">
@@ -157,7 +155,7 @@ export function ReadingMapDialog({
                                 onSelectBook(book);
                                 onClose();
                               }}
-                              className="inline-flex min-h-9 items-center rounded-md border border-hairline bg-surface-1 px-2.5 text-label text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground"
+                              className="inline-flex min-h-9 items-center rounded-md bg-surface-1 px-2.5 text-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                             >
                               Focus on shelf
                             </button>
