@@ -16,7 +16,7 @@
 
 import { Elysia, StatusMap } from 'elysia';
 import {
-  filterFreeProgrammingBooks,
+  buildFreeBooksPageResponse,
   loadFreeProgrammingBooks,
 } from '@/lib/books/free-programming-books';
 import { lookupBooks } from './handlers';
@@ -59,36 +59,27 @@ export const booksRoute = new Elysia({ prefix: '/books' })
     async ({ query, set }) => {
       try {
         const catalog = await loadFreeProgrammingBooks();
-        const filtered = filterFreeProgrammingBooks(catalog.books, {
+        const page = buildFreeBooksPageResponse(catalog, {
           source: query.source,
           category: query.category,
           format: query.format,
           q: query.q,
+          sort: query.sort,
+          dir: query.dir,
           hideArchived: query.hideArchived,
           hideInProcess: query.hideInProcess,
           hideUnavailable: query.hideUnavailable ?? true,
           httpsOnly: query.httpsOnly,
           verifiedHostsOnly: query.verifiedHostsOnly,
+          limit: query.limit ?? 50,
+          offset: query.offset ?? 0,
         });
-        const limit = query.limit ?? 60;
-        const offset = query.offset ?? 0;
-        const items = filtered
-          .slice(offset, offset + limit)
-          .map((item) => ({ ...item, formats: [...item.formats] }));
 
         Object.assign(set.headers, cacheHeaders());
         return {
-          fetchedAt: catalog.fetchedAt,
-          repoUrl: catalog.repoUrl,
-          license: catalog.license,
-          totalCatalogBooks: catalog.totalBooks,
-          totalMatched: filtered.length,
-          quarantinedCount: catalog.quarantinedCount,
-          unavailableCount: catalog.unavailableCount,
-          limit,
-          offset,
-          categories: [...catalog.categories],
-          items,
+          ...page,
+          categories: [...page.categories],
+          items: page.items.map((item) => ({ ...item, formats: [...item.formats] })),
         };
       } catch (error) {
         const errorResponse = errorHandler(error);

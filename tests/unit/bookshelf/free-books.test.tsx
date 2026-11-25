@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FreeBooksExplorer } from '@/app/(routes)/(main)/(personal)/bookshelf/free/_components/free-books-explorer';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
 import { BOOKSHELF_COOP_HEADERS, BOOKSHELF_COOP_SOURCES } from '@/config/security-headers';
+import {
+  loadLiveSecurityManifestFromRedis,
+  mergeSecurityManifests,
+  publishSecurityManifestToRedis,
+  REDIS_RUNTIME_MANIFEST_KEY,
+} from '@/lib/books/free-books-manifest-store';
 import {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
@@ -28,6 +35,7 @@ import {
   submitDeltaDetonation,
 } from '@/lib/books/free-books-verifier';
 import {
+  buildFreeBooksPageResponse,
   buildFreeProgrammingBooksCatalog,
   filterFreeProgrammingBooks,
   parseFreeProgrammingBooksMarkdown,
@@ -194,58 +202,105 @@ describe('EbookFoundation free-programming-books parser & filters', () => {
 });
 
 describe('FreeBooksExplorer UI', () => {
-  it('renders a sortable data table synced to URL query state via nuqs', async () => {
+  it('hydrates SSR page 1 with zero initial fetch, then fetches incrementally via TanStack Query + nuqs', async () => {
     const catalog = buildFreeProgrammingBooksCatalog(
       parseFreeProgrammingBooksMarkdown(SAMPLE_LANGS_MD, 'langs'),
       parseFreeProgrammingBooksMarkdown(SAMPLE_SUBJECTS_MD, 'subjects'),
     );
+    const initialPage = buildFreeBooksPageResponse(catalog, {
+      hideArchived: true,
+      hideUnavailable: true,
+      sort: 'title',
+      dir: 'asc',
+      limit: 50,
+      offset: 0,
+    });
     const updates: UrlUpdateEvent[] = [];
-
-    render(
-      <NuqsTestingAdapter onUrlUpdate={(event) => updates.push(event)}>
-        <FreeBooksExplorer catalog={catalog} />
-      </NuqsTestingAdapter>,
-    );
-
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Free Programming Books' }),
-    ).toBeInTheDocument();
-
-    // Renders as a semantic data table with sortable column headers
-    const table = screen.getByRole('table', { name: /Free programming books catalog/i });
-    expect(table).toBeInTheDocument();
-    const bookHeader = within(table).getByRole('columnheader', { name: /Book/i });
-    expect(bookHeader).toHaveAttribute('aria-sort', 'ascending');
-
-    // Clicking Book header flips sort direction to descending
-    fireEvent.click(within(bookHeader).getByRole('button'));
-    expect(bookHeader).toHaveAttribute('aria-sort', 'descending');
-
-    // Archived book is hidden by default
-    expect(screen.queryByText('Asynchronous Programming in Rust')).not.toBeInTheDocument();
-    expect(screen.getByText('The Rust Programming Language')).toBeInTheDocument();
-
-    // Unchecking Hide archived reveals the archived book
-    fireEvent.click(screen.getByLabelText('Hide archived'));
-    expect(screen.getByText('Asynchronous Programming in Rust')).toBeInTheDocument();
-
-    // Search narrows down cleanly
-    fireEvent.change(screen.getByRole('searchbox', { name: /Search free programming books/i }), {
-      target: { value: 'Basarat' },
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const rawUrl =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const parsed = new URL(rawUrl, 'https://mikeodnis.dev');
+      const sp = parsed.searchParams;
+      const payload = buildFreeBooksPageResponse(catalog, {
+        source: (sp.get('source') as 'all' | 'langs' | 'subjects' | null) ?? 'all',
+        category: sp.get('category') ?? 'all',
+        format: (sp.get('format') as 'all' | 'PDF' | null) ?? 'all',
+        q: sp.get('q') ?? '',
+        sort: (sp.get('sort') as 'title' | 'category' | 'host' | null) ?? 'title',
+        dir: (sp.get('dir') as 'asc' | 'desc' | null) ?? 'asc',
+        hideArchived: sp.get('hideArchived') === 'true',
+        hideUnavailable: sp.get('hideUnavailable') === 'true',
+        hideInProcess: sp.get('hideInProcess') === 'true',
+        httpsOnly: sp.get('httpsOnly') === 'true',
+        verifiedHostsOnly: sp.get('verifiedHostsOnly') === 'true',
+        limit: Number.parseInt(sp.get('limit') ?? '50', 10),
+        offset: Number.parseInt(sp.get('offset') ?? '0', 10),
+      });
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     });
-    expect(screen.getByText('TypeScript Deep Dive')).toBeInTheDocument();
-    expect(screen.queryByText('The Rust Programming Language')).not.toBeInTheDocument();
 
-    // nuqs flushes URL query updates asynchronously on a microtask/throttle tick
-    await vi.waitFor(() => {
-      const qs = updates.at(-1)?.queryString ?? '';
-      expect(qs).toContain('q=Basarat');
-      expect(qs).toContain('archived=true');
-      expect(qs).toContain('dir=desc');
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
     });
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NuqsTestingAdapter hasMemory onUrlUpdate={(event) => updates.push(event)}>
+            <FreeBooksExplorer initialPage={initialPage} />
+          </NuqsTestingAdapter>
+        </QueryClientProvider>,
+      );
+
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Free Programming Books' }),
+      ).toBeInTheDocument();
+      // SSR initialData prevents redundant initial client fetch
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // Renders as a semantic data table with sortable column headers
+      const table = screen.getByRole('table', { name: /Free programming books catalog/i });
+      const bookHeader = within(table).getByRole('columnheader', { name: /Book/i });
+      expect(bookHeader).toHaveAttribute('aria-sort', 'ascending');
+
+      // Clicking Book header flips sort direction and triggers incremental API fetch
+      fireEvent.click(within(bookHeader).getByRole('button'));
+      expect(bookHeader).toHaveAttribute('aria-sort', 'descending');
+
+      // Archived book is hidden by default
+      expect(screen.queryByText('Asynchronous Programming in Rust')).not.toBeInTheDocument();
+      expect(screen.getByText('The Rust Programming Language')).toBeInTheDocument();
+
+      // Unchecking Hide archived incrementally fetches including archived entries
+      fireEvent.click(screen.getByLabelText('Hide archived'));
+      expect(await screen.findByText('Asynchronous Programming in Rust')).toBeInTheDocument();
+
+      // Search incrementally fetches matching books
+      fireEvent.change(screen.getByRole('searchbox', { name: /Search free programming books/i }), {
+        target: { value: 'Basarat' },
+      });
+      expect(await screen.findByText('TypeScript Deep Dive')).toBeInTheDocument();
+      await vi.waitFor(() => {
+        expect(screen.queryByText('The Rust Programming Language')).not.toBeInTheDocument();
+      });
+
+      // nuqs flushes URL query updates cleanly
+      await vi.waitFor(() => {
+        const qs = updates.at(-1)?.queryString ?? '';
+        expect(qs).toContain('q=Basarat');
+        expect(qs).toContain('archived=true');
+        expect(qs).toContain('dir=desc');
+      });
+    } finally {
+      fetchSpy.mockRestore();
+      queryClient.clear();
+    }
   });
 
-  it('hydrates filters directly from URL query parameters and paginates large sets', () => {
+  it('hydrates non-default URL pagination directly via incremental /api/v1/books/free fetch', async () => {
     const manyLines = [
       '### Rust',
       ...Array.from(
@@ -258,16 +313,106 @@ describe('FreeBooksExplorer UI', () => {
       parseFreeProgrammingBooksMarkdown(manyLines, 'langs'),
       [],
     );
+    const initialPage = buildFreeBooksPageResponse(catalog, { limit: 50, offset: 0 });
 
-    render(
-      <NuqsTestingAdapter searchParams="?perPage=25&page=2&format=PDF">
-        <FreeBooksExplorer catalog={catalog} />
-      </NuqsTestingAdapter>,
-    );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const rawUrl =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const parsed = new URL(rawUrl, 'https://mikeodnis.dev');
+      const sp = parsed.searchParams;
+      const payload = buildFreeBooksPageResponse(catalog, {
+        format: (sp.get('format') as 'all' | 'PDF' | null) ?? 'all',
+        limit: Number.parseInt(sp.get('limit') ?? '50', 10),
+        offset: Number.parseInt(sp.get('offset') ?? '0', 10),
+      });
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
 
-    expect(screen.getByText(/Page/i)).toBeInTheDocument();
-    expect(screen.getByText('Rust Book 26')).toBeInTheDocument();
-    expect(screen.queryByText('Rust Book 01')).not.toBeInTheDocument();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NuqsTestingAdapter hasMemory searchParams="?perPage=25&page=2&format=PDF">
+            <FreeBooksExplorer initialPage={initialPage} />
+          </NuqsTestingAdapter>
+        </QueryClientProvider>,
+      );
+
+      expect(await screen.findByText('Rust Book 26')).toBeInTheDocument();
+      expect(screen.queryByText('Rust Book 01')).not.toBeInTheDocument();
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/books/free?'),
+        expect.anything(),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+      queryClient.clear();
+    }
+  });
+});
+
+describe('Live Upstash Redis Security Manifest Overlay', () => {
+  it('publishes, loads, and merges live Redis manifests over bundled baseline without regressing blocks', async () => {
+    const store = new Map<string, string>();
+    const mockFetch = async (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (init?.method === 'POST') {
+        const [, key, value] = JSON.parse(String(init.body)) as [string, string, string];
+        store.set(key, value);
+        return new Response(JSON.stringify({ result: 'OK' }), { status: 200 });
+      }
+      const key = decodeURIComponent(url.split('/get/')[1] ?? '');
+      return new Response(JSON.stringify({ result: store.get(key) ?? null }), { status: 200 });
+    };
+
+    const credentials = { url: 'https://redis.example.upstash.io', token: 'test-token' };
+    const liveManifest = {
+      generatedAt: '2026-11-26T00:00:00.000Z',
+      checkedHosts: 1312,
+      checkedUrls: 2506,
+      blockedHosts: { 'newly-bad.example': 'Cloudflare: dnsbl_sinkhole' },
+      quarantinedUrls: { 'https://parked.example/book': 'parked_domain' },
+      unavailableUrls: { 'https://dead.example/404': '2026-11-26T00:00:00.000Z' },
+      urlFingerprints: {
+        'https://doc.rust-lang.org/book/': {
+          finalHost: 'doc.rust-lang.org',
+          contentType: 'text/html',
+          checkedAt: '2026-11-26T00:00:00.000Z',
+        },
+      },
+    };
+
+    const pub = await publishSecurityManifestToRedis(liveManifest, {
+      credentials,
+      fetcher: mockFetch,
+    });
+    expect(pub).toEqual({ runtimePublished: true, fingerprintsPublished: true });
+    expect(store.has(REDIS_RUNTIME_MANIFEST_KEY)).toBe(true);
+
+    const loaded = await loadLiveSecurityManifestFromRedis({ credentials, fetcher: mockFetch });
+    expect(loaded?.blockedHosts['newly-bad.example']).toContain('dnsbl_sinkhole');
+
+    const bundled = {
+      generatedAt: '2026-11-25T00:00:00.000Z',
+      checkedHosts: 1312,
+      checkedUrls: 0,
+      blockedHosts: { 'git-blocked.example': 'Manual block' },
+      quarantinedUrls: {},
+      unavailableUrls: {},
+    };
+    const merged = mergeSecurityManifests(bundled, loaded);
+    expect(merged.source).toBe('redis');
+    expect(merged.manifest.blockedHosts).toEqual({
+      'git-blocked.example': 'Manual block',
+      'newly-bad.example': 'Cloudflare: dnsbl_sinkhole',
+    });
+    expect(merged.manifest.quarantinedUrls['https://parked.example/book']).toBe('parked_domain');
   });
 });
 

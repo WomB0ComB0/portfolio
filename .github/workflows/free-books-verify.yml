@@ -59,6 +59,8 @@ jobs:
       - name: Run multi-layer threat-intel, PDF/ClickFix/drift & delta sandbox sweep
         env:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           URLHAUS_AUTH_KEY: ${{ secrets.URLHAUS_AUTH_KEY }}
           GOOGLE_SAFE_BROWSING_API_KEY: ${{ secrets.GOOGLE_SAFE_BROWSING_API_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -71,5 +73,5 @@ jobs:
           if [[ "$DRY_RUN" == "true" ]]; then
             bun --conditions=react-server run scripts/books/verify-free-books.ts --dry-run
           else
-            bun --conditions=react-server run scripts/books/verify-free-books.ts --write --detonate-deltas
+            bun --conditions=react-server run scripts/books/verify-free-books.ts --write --publish-redis --detonate-deltas
           fi

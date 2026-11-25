@@ -16,6 +16,7 @@
 
 'use client';
 
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import { type ReactElement, useDeferredValue, useMemo } from 'react';
@@ -41,41 +42,67 @@ import {
 } from '@/lib/books/bookshelf-search-params';
 import {
   EBOOK_FOUNDATION_REPO_URL,
-  type FreeBookEntry,
   type FreeBookFormat,
-  type FreeProgrammingBooksCatalog,
-  filterFreeProgrammingBooks,
+  type FreeBookSource,
+  type FreeBooksPageResponse,
 } from '@/lib/books/free-programming-books';
 import { cn } from '@/lib/utils';
 
 export interface FreeBooksExplorerProps {
-  readonly catalog: FreeProgrammingBooksCatalog;
+  /** Initial SSR-rendered page 1 (50 rows) + catalog summary stats & categories. */
+  readonly initialPage: FreeBooksPageResponse;
 }
 
 const FORMAT_FILTERS: readonly ('all' | FreeBookFormat)[] = ['all', 'PDF', 'HTML', 'EPUB'];
 const TOP_CATEGORY_CHIPS = 14;
+const CLIENT_STALE_TIME_MS = 5 * 60 * 1000;
 
-function compareBooks(
-  a: FreeBookEntry,
-  b: FreeBookEntry,
-  sort: FreeBooksSortField,
-  dir: FreeBooksSortDir,
-): number {
-  const mult = dir === 'asc' ? 1 : -1;
-  let cmp = 0;
-  if (sort === 'category') {
-    cmp =
-      a.category.localeCompare(b.category, undefined, { sensitivity: 'base' }) ||
-      a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
-  } else if (sort === 'host') {
-    cmp =
-      (a.trustTier === b.trustTier ? 0 : a.trustTier === 'verified' ? -1 : 1) ||
-      a.host.localeCompare(b.host, undefined, { sensitivity: 'base' }) ||
-      a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
-  } else {
-    cmp = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+interface FreeBooksApiParams {
+  readonly source: 'all' | FreeBookSource;
+  readonly category: string;
+  readonly format: 'all' | FreeBookFormat;
+  readonly q: string;
+  readonly sort: FreeBooksSortField;
+  readonly dir: FreeBooksSortDir;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly hideArchived: boolean;
+  readonly hideUnavailable: boolean;
+  readonly hideInProcess: boolean;
+  readonly httpsOnly: boolean;
+  readonly verifiedHostsOnly: boolean;
+}
+
+function buildFreeBooksApiUrl(params: FreeBooksApiParams): string {
+  const qs = new URLSearchParams();
+  if (params.source !== 'all') qs.set('source', params.source);
+  if (params.category !== 'all') qs.set('category', params.category);
+  if (params.format !== 'all') qs.set('format', params.format);
+  if (params.q.trim()) qs.set('q', params.q.trim());
+  qs.set('sort', params.sort);
+  qs.set('dir', params.dir);
+  qs.set('hideArchived', String(params.hideArchived));
+  qs.set('hideUnavailable', String(params.hideUnavailable));
+  if (params.hideInProcess) qs.set('hideInProcess', 'true');
+  if (params.httpsOnly) qs.set('httpsOnly', 'true');
+  if (params.verifiedHostsOnly) qs.set('verifiedHostsOnly', 'true');
+  qs.set('limit', String(params.pageSize));
+  qs.set('offset', String((Math.max(1, params.page) - 1) * params.pageSize));
+  return `/api/v1/books/free?${qs.toString()}`;
+}
+
+async function fetchFreeBooksPage(
+  params: FreeBooksApiParams,
+  signal?: AbortSignal,
+): Promise<FreeBooksPageResponse> {
+  const res = await fetch(buildFreeBooksApiUrl(params), {
+    signal,
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch free programming books (${res.status})`);
   }
-  return cmp * mult;
+  return (await res.json()) as FreeBooksPageResponse;
 }
 
 function SortIcon({
@@ -100,24 +127,102 @@ function SortIcon({
 }
 
 /**
- * Live Console searchable, sortable data table for EbookFoundation's 2,500+ free programming books.
- * All filter, sort, and pagination state lives in the URL via a single batched `nuqs`
- * `useQueryStates` hook (`clearOnDefault: true`, `history: 'replace'`, `shallow: true`).
+ * Live Console searchable, sortable, incrementally fetched data table for EbookFoundation's
+ * 2,500+ free programming books:
+ * - Page 1 (50 rows) arrives pre-rendered from the Server Component (cutting initial HTML by ~95%).
+ * - Every filter, sort, and page transition is synced to the URL via a single batched `nuqs`
+ *   `useQueryStates` hook and fetched incrementally from `/api/v1/books/free` via TanStack Query
+ *   (`keepPreviousData`, AbortSignal cancellation, and hover/focus next-page prefetch).
  */
-export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactElement {
+export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): ReactElement {
+  const queryClient = useQueryClient();
   const [state, setState] = useQueryStates(freeBooksSearchParsers, BOOKSHELF_URL_OPTIONS);
   const deferredQuery = useDeferredValue(state.q);
 
   const pageSize = normalizeFreeBooksPageSize(state.perPage);
   const hideArchived = !state.archived;
   const hideUnavailable = !state.unavailable;
+  const requestedPage = Math.max(1, state.page);
+
+  const apiParams: FreeBooksApiParams = useMemo(
+    () => ({
+      source: state.source,
+      category: state.category,
+      format: state.format,
+      q: deferredQuery,
+      sort: state.sort,
+      dir: state.dir,
+      page: requestedPage,
+      pageSize,
+      hideArchived,
+      hideUnavailable,
+      hideInProcess: state.hideWip,
+      httpsOnly: state.https,
+      verifiedHostsOnly: state.verified,
+    }),
+    [
+      state.source,
+      state.category,
+      state.format,
+      deferredQuery,
+      state.sort,
+      state.dir,
+      requestedPage,
+      pageSize,
+      hideArchived,
+      hideUnavailable,
+      state.hideWip,
+      state.https,
+      state.verified,
+    ],
+  );
+
+  const isDefaultInitialQuery =
+    apiParams.source === 'all' &&
+    apiParams.category === 'all' &&
+    apiParams.format === 'all' &&
+    apiParams.q.trim() === '' &&
+    apiParams.sort === 'title' &&
+    apiParams.dir === 'asc' &&
+    apiParams.page === 1 &&
+    apiParams.pageSize === initialPage.limit &&
+    apiParams.hideArchived &&
+    apiParams.hideUnavailable &&
+    !apiParams.hideInProcess &&
+    !apiParams.httpsOnly &&
+    !apiParams.verifiedHostsOnly;
+
+  const parsedInitialUpdatedAt = Date.parse(initialPage.fetchedAt);
+  const { data, isFetching, isPlaceholderData, isError, refetch } = useQuery<FreeBooksPageResponse>(
+    {
+      queryKey: ['books', 'free', apiParams] as const,
+      queryFn: ({ signal }) => fetchFreeBooksPage(apiParams, signal),
+      placeholderData: keepPreviousData,
+      staleTime: CLIENT_STALE_TIME_MS,
+      ...(isDefaultInitialQuery
+        ? {
+            initialData: initialPage,
+            initialDataUpdatedAt: Number.isFinite(parsedInitialUpdatedAt)
+              ? parsedInitialUpdatedAt
+              : Date.now(),
+          }
+        : {}),
+    },
+  );
+
+  const activeData = data ?? initialPage;
+  const isInitialNonDefaultLoading = !data && isFetching;
+  const displayedBooks = isInitialNonDefaultLoading ? [] : activeData.items;
+  const totalMatched = isInitialNonDefaultLoading ? 0 : activeData.totalMatched;
+  const totalPages = Math.max(1, Math.ceil(totalMatched / pageSize));
+  const currentPage = Math.min(requestedPage, totalPages);
 
   const visibleCategories = useMemo(
     () =>
-      catalog.categories.filter((item) =>
+      activeData.categories.filter((item) =>
         state.source === 'all' ? true : item.source === state.source,
       ),
-    [catalog.categories, state.source],
+    [activeData.categories, state.source],
   );
 
   const topCategories = useMemo(
@@ -125,52 +230,25 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
     [visibleCategories],
   );
 
-  const sortedBooks = useMemo(() => {
-    const filtered = filterFreeProgrammingBooks(catalog.books, {
-      source: state.source,
-      category: state.category,
-      format: state.format,
-      q: deferredQuery,
-      hideArchived,
-      hideInProcess: state.hideWip,
-      hideUnavailable,
-      httpsOnly: state.https,
-      verifiedHostsOnly: state.verified,
-    });
-    return [...filtered].sort((a, b) => compareBooks(a, b, state.sort, state.dir));
-  }, [
-    catalog.books,
-    state.source,
-    state.category,
-    state.format,
-    deferredQuery,
-    hideArchived,
-    state.hideWip,
-    hideUnavailable,
-    state.https,
-    state.verified,
-    state.sort,
-    state.dir,
-  ]);
-
-  const totalMatched = sortedBooks.length;
-  const totalPages = Math.max(1, Math.ceil(totalMatched / pageSize));
-  const currentPage = Math.min(Math.max(1, state.page), totalPages);
-  const pageStartIdx = (currentPage - 1) * pageSize;
-  const displayedBooks = useMemo(
-    () => sortedBooks.slice(pageStartIdx, pageStartIdx + pageSize),
-    [sortedBooks, pageStartIdx, pageSize],
-  );
-
   const statItems = useMemo<readonly StatStripItem[]>(
     () => [
-      { label: 'free books', value: catalog.totalBooks },
-      { label: 'languages', value: catalog.languageCategoriesCount },
-      { label: 'subjects', value: catalog.subjectCategoriesCount },
-      { label: 'PDFs', value: catalog.pdfCount },
+      { label: 'free books', value: activeData.totalCatalogBooks },
+      { label: 'languages', value: activeData.languageCategoriesCount },
+      { label: 'subjects', value: activeData.subjectCategoriesCount },
+      { label: 'PDFs', value: activeData.pdfCount },
     ],
-    [catalog],
+    [activeData],
   );
+
+  const prefetchNextPage = (): void => {
+    if (currentPage >= totalPages) return;
+    const nextParams: FreeBooksApiParams = { ...apiParams, page: currentPage + 1 };
+    void queryClient.prefetchQuery({
+      queryKey: ['books', 'free', nextParams] as const,
+      queryFn: ({ signal }) => fetchFreeBooksPage(nextParams, signal),
+      staleTime: CLIENT_STALE_TIME_MS,
+    });
+  };
 
   const toggleSort = (field: FreeBooksSortField): void => {
     const nextDir: FreeBooksSortDir = state.sort === field && state.dir === 'asc' ? 'desc' : 'asc';
@@ -211,15 +289,15 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
     return state.dir === 'asc' ? 'ascending' : 'descending';
   };
 
-  const rangeStart = totalMatched === 0 ? 0 : pageStartIdx + 1;
-  const rangeEnd = Math.min(pageStartIdx + pageSize, totalMatched);
+  const rangeStart = totalMatched === 0 ? 0 : activeData.offset + 1;
+  const rangeEnd = Math.min(activeData.offset + displayedBooks.length, totalMatched);
 
   return (
     <PageShell
       sizing="container"
       eyebrow="Open Library Index"
       title="Free Programming Books"
-      description="Searchable, URL-synced index of open-access programming books by language and subject, sourced live from EbookFoundation/free-programming-books and screened by our multi-layer security gate."
+      description="Searchable, URL-synced index of open-access programming books fetched incrementally from EbookFoundation/free-programming-books and screened by our live security manifest."
       stats={
         <StatStrip
           aria-label="Free programming books summary"
@@ -289,9 +367,9 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
             >
               {(
                 [
-                  { id: 'all', label: 'All', count: catalog.totalBooks },
-                  { id: 'langs', label: 'Languages', count: catalog.langsCount },
-                  { id: 'subjects', label: 'Subjects', count: catalog.subjectsCount },
+                  { id: 'all', label: 'All', count: activeData.totalCatalogBooks },
+                  { id: 'langs', label: 'Languages', count: activeData.langsCount },
+                  { id: 'subjects', label: 'Subjects', count: activeData.subjectsCount },
                 ] as const
               ).map((tab) => {
                 const active = state.source === tab.id;
@@ -477,6 +555,25 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
           )}
         </div>
 
+        {/* Transient API error banner */}
+        {isError && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline-strong bg-[var(--down-tint)] px-4 py-2.5 tile-meta text-down"
+          >
+            <span>Could not refresh this page from /api/v1/books/free.</span>
+            <button
+              type="button"
+              onClick={() => {
+                void refetch();
+              }}
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
         {/* Results & Pagination Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="tile-meta tabular-nums text-muted-foreground">
@@ -486,6 +583,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
             </span>{' '}
             of <span className="text-foreground">{totalMatched}</span> matching books
             {state.category !== 'all' ? ` in ${state.category}` : ''}
+            {isFetching && <span className="ml-2 font-mono text-[11px] text-faint">Updating…</span>}
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -520,7 +618,18 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
         </div>
 
         {/* High-density Live Console Data Table */}
-        {displayedBooks.length === 0 ? (
+        {isInitialNonDefaultLoading ? (
+          <output
+            aria-live="polite"
+            className="block rounded-tile border border-hairline bg-surface-1 p-10 text-center"
+          >
+            <p className="tile-sub text-foreground">Loading matching books…</p>
+            <p className="mt-1 tile-meta text-muted-foreground">
+              Fetching page {requestedPage} from{' '}
+              <code className="font-mono text-foreground">/api/v1/books/free</code>.
+            </p>
+          </output>
+        ) : displayedBooks.length === 0 ? (
           <div className="rounded-tile border border-hairline bg-surface-1 p-10 text-center">
             <p className="tile-sub text-foreground">No free books match that filter.</p>
             <p className="mt-1 tile-meta text-muted-foreground">
@@ -535,9 +644,15 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
             </button>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-tile border border-hairline bg-canvas">
+          <div
+            className={cn(
+              'overflow-hidden rounded-tile border border-hairline bg-canvas transition-opacity duration-150',
+              isPlaceholderData && 'opacity-70',
+            )}
+          >
             <table
               aria-label="Free programming books catalog"
+              aria-busy={isFetching}
               className="w-full table-fixed border-separate border-spacing-0"
             >
               <colgroup>
@@ -604,7 +719,6 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                     key={book.id}
                     className="group/row relative [transform:translate(0)] transition-colors duration-100 hover:bg-surface-1 focus-within:bg-surface-1"
                   >
-                    {/* Col 1: Title (stretched row link) + Authors + Mobile Meta */}
                     <td className="border-b border-hairline px-3 py-3 align-middle">
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <a
@@ -625,7 +739,6 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                             {book.authors}
                           </span>
                         )}
-                        {/* Mobile-only compact meta line */}
                         <div className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-faint @min-[40rem]/page:hidden">
                           <span>{book.category}</span>
                           {book.formats.length > 0 && <span>· {book.formats.join(', ')}</span>}
@@ -634,7 +747,6 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                       </div>
                     </td>
 
-                    {/* Col 2: Category / Subcategory */}
                     <td className="hidden border-b border-hairline px-3 py-3 align-middle @min-[40rem]/page:table-cell">
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate text-label text-foreground">{book.category}</span>
@@ -646,7 +758,6 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                       </div>
                     </td>
 
-                    {/* Col 3: Format, License & Security/Status Badges */}
                     <td className="hidden border-b border-hairline px-3 py-3 align-middle @min-[40rem]/page:table-cell">
                       <div className="flex flex-wrap items-center gap-1">
                         {book.formats.length > 0 ? (
@@ -694,7 +805,6 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
                       </div>
                     </td>
 
-                    {/* Col 4: Host Trust Tier + Wayback Fallback */}
                     <td className="hidden border-b border-hairline px-3 py-3 align-middle @min-[48rem]/page:table-cell">
                       <div className="flex min-w-0 items-center justify-between gap-2">
                         <span
@@ -737,7 +847,7 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
           </div>
         )}
 
-        {/* Paginated Navigation Bar */}
+        {/* Paginated Navigation Bar (prefetches next page on hover/focus) */}
         {totalPages > 1 && (
           <nav
             aria-label="Free books pagination"
@@ -762,6 +872,8 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
+                onMouseEnter={prefetchNextPage}
+                onFocus={prefetchNextPage}
                 onClick={() => {
                   void setState({ page: Math.min(totalPages, currentPage + 1) });
                 }}
@@ -774,20 +886,24 @@ export function FreeBooksExplorer({ catalog }: FreeBooksExplorerProps): ReactEle
           </nav>
         )}
 
-        {/* Attribution & security screening telemetry footer */}
+        {/* Attribution & live security manifest telemetry footer */}
         <p className="border-t border-hairline pt-4 tile-meta text-faint">
           Index sourced from{' '}
           <a
-            href={catalog.repoUrl}
+            href={activeData.repoUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground underline-offset-4 hover:text-brand-ink hover:underline"
           >
             EbookFoundation/free-programming-books
           </a>{' '}
-          ({catalog.license}) · Screened by SSRF/URL/DNSBL/PDF security gate
-          {catalog.quarantinedCount > 0 ? ` (${catalog.quarantinedCount} quarantined)` : ''} · JSON
-          API at <code className="font-mono text-muted-foreground">/api/v1/books/free</code>.
+          ({activeData.license}) · Screened via{' '}
+          {activeData.manifestSource === 'redis'
+            ? 'live Redis security overlay'
+            : 'bundled security manifest'}
+          {activeData.quarantinedCount > 0 ? ` (${activeData.quarantinedCount} quarantined)` : ''} ·
+          Incremental JSON API at{' '}
+          <code className="font-mono text-muted-foreground">/api/v1/books/free</code>.
         </p>
       </div>
     </PageShell>

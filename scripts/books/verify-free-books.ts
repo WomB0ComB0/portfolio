@@ -41,6 +41,11 @@ import dns from 'node:dns/promises';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  loadLiveSecurityManifestFromRedis,
+  loadVerifierDriftStateFromRedis,
+  publishSecurityManifestToRedis,
+} from '../../src/lib/books/free-books-manifest-store';
+import {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
   checkRdapDomainAge,
@@ -242,6 +247,7 @@ async function main(): Promise<void> {
   const dryRun = args.has('--dry-run');
   const dnsblOnly = args.has('--dnsbl-only');
   const shouldWrite = args.has('--write') && !dryRun;
+  const shouldPublishRedis = (args.has('--publish-redis') || shouldWrite) && !dryRun;
   const detonateDeltas = args.has('--detonate-deltas');
 
   const limitArg = process.argv.find((a) => a.startsWith('--limit='));
@@ -261,6 +267,39 @@ async function main(): Promise<void> {
     existing = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as FreeBooksSecurityManifest;
   } catch {
     // Start fresh if manifest is missing.
+  }
+
+  // Hydrate previous live manifest & drift baselines from Upstash Redis when configured
+  // so consecutive stateless CI runs diff seamlessly without requiring git commits.
+  const [redisManifest, redisDrift] = await Promise.all([
+    loadLiveSecurityManifestFromRedis(),
+    loadVerifierDriftStateFromRedis(),
+  ]);
+  if (redisManifest) {
+    existing = {
+      ...existing,
+      ...redisManifest,
+      urlFingerprints: {
+        ...(existing.urlFingerprints ?? {}),
+        ...(redisDrift?.urlFingerprints ?? {}),
+      },
+      deltaDetonations: {
+        ...(existing.deltaDetonations ?? {}),
+        ...(redisDrift?.deltaDetonations ?? {}),
+      },
+    };
+  } else if (redisDrift) {
+    existing = {
+      ...existing,
+      urlFingerprints: {
+        ...(existing.urlFingerprints ?? {}),
+        ...redisDrift.urlFingerprints,
+      },
+      deltaDetonations: {
+        ...(existing.deltaDetonations ?? {}),
+        ...redisDrift.deltaDetonations,
+      },
+    };
   }
 
   const catalog = await loadFreeProgrammingBooks();
@@ -444,6 +483,14 @@ async function main(): Promise<void> {
     quarantineBreakdown[category] = (quarantineBreakdown[category] ?? 0) + 1;
   }
 
+  let redisPublishResult: {
+    readonly runtimePublished: boolean;
+    readonly fingerprintsPublished: boolean;
+  } | null = null;
+  if (shouldPublishRedis) {
+    redisPublishResult = await publishSecurityManifestToRedis(manifest);
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -456,6 +503,8 @@ async function main(): Promise<void> {
         unavailableUrlsCount: Object.keys(manifest.unavailableUrls).length,
         trackedFingerprintsCount: Object.keys(manifest.urlFingerprints ?? {}).length,
         deltaDetonationsCount: Object.keys(manifest.deltaDetonations ?? {}).length,
+        redisPublished: redisPublishResult?.runtimePublished ?? false,
+        redisFingerprintsPublished: redisPublishResult?.fingerprintsPublished ?? false,
         dryRun,
       },
       null,

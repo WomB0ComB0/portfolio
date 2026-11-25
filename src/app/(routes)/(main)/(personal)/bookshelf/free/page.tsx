@@ -16,13 +16,14 @@
 
 import { type ReactElement, Suspense } from 'react';
 import {
+  buildFreeBooksPageResponse,
   buildFreeProgrammingBooksCatalog,
   loadFreeProgrammingBooks,
 } from '@/lib/books/free-programming-books';
 import { constructMetadata } from '@/utils/seo/meta';
 import { FreeBooksExplorer } from './_components/free-books-explorer';
 
-export const revalidate = 86_400;
+export const revalidate = 3_600;
 
 export const metadata = constructMetadata({
   title: 'Free Programming Books',
@@ -35,9 +36,20 @@ export default async function FreeProgrammingBooksPage(): Promise<ReactElement> 
   const catalog = await loadFreeProgrammingBooks().catch(() =>
     buildFreeProgrammingBooksCatalog([], []),
   );
+  // Send only page 1 (50 rows) + category/stat summaries in the initial RSC payload;
+  // subsequent pages, filters, and sorts fetch incrementally via TanStack Query + /api/v1/books/free.
+  const initialPage = buildFreeBooksPageResponse(catalog, {
+    hideArchived: true,
+    hideUnavailable: true,
+    sort: 'title',
+    dir: 'asc',
+    limit: 50,
+    offset: 0,
+  });
+
   return (
     <Suspense fallback={null}>
-      <FreeBooksExplorer catalog={catalog} />
+      <FreeBooksExplorer initialPage={initialPage} />
     </Suspense>
   );
 }

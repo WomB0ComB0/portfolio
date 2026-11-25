@@ -25,6 +25,11 @@
  */
 
 import securityManifest from '@/data/free-books-security.json';
+import type { FreeBooksSortDir, FreeBooksSortField } from './bookshelf-search-params';
+import {
+  loadLiveSecurityManifestFromRedis,
+  mergeSecurityManifests,
+} from './free-books-manifest-store';
 import type { FreeBooksSecurityManifest } from './free-books-verifier';
 import { type HostTrustTier, screenExternalBookUrl } from './url-security';
 
@@ -69,8 +74,30 @@ export interface FreeProgrammingBooksCatalog {
   readonly quarantinedCount: number;
   readonly unavailableCount: number;
   readonly securityCheckedAt: string | null;
+  readonly manifestSource: 'redis' | 'bundled';
   readonly categories: readonly FreeBookCategorySummary[];
   readonly books: readonly FreeBookEntry[];
+}
+
+export interface FreeBooksPageResponse {
+  readonly fetchedAt: string;
+  readonly repoUrl: string;
+  readonly license: string;
+  readonly totalCatalogBooks: number;
+  readonly langsCount: number;
+  readonly subjectsCount: number;
+  readonly languageCategoriesCount: number;
+  readonly subjectCategoriesCount: number;
+  readonly pdfCount: number;
+  readonly totalMatched: number;
+  readonly quarantinedCount: number;
+  readonly unavailableCount: number;
+  readonly securityCheckedAt: string | null;
+  readonly manifestSource: 'redis' | 'bundled';
+  readonly limit: number;
+  readonly offset: number;
+  readonly categories: readonly FreeBookCategorySummary[];
+  readonly items: readonly FreeBookEntry[];
 }
 
 export const EBOOK_FOUNDATION_REPO_URL =
@@ -95,7 +122,7 @@ const KNOWN_FORMATS: readonly { readonly pattern: RegExp; readonly label: FreeBo
 const LICENSE_PATTERN =
   /\b(CC\s+BY(?:-[A-Z]{2,3})*(?:\s+\d\.\d)?|GFDL|MIT|GPL(?:\s+v?\d)?|Apache(?:\s+2\.0)?)\b/i;
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1h in-memory TTL so live Upstash Redis patches apply promptly
 const FETCH_TIMEOUT_MS = 10_000;
 
 interface CacheEntry {
@@ -316,7 +343,11 @@ export function buildFreeProgrammingBooksCatalog(
   langsBooks: readonly FreeBookEntry[],
   subjectsBooks: readonly FreeBookEntry[],
   fetchedAt = new Date().toISOString(),
-  options: { readonly quarantinedCount?: number; readonly securityCheckedAt?: string | null } = {},
+  options: {
+    readonly quarantinedCount?: number;
+    readonly securityCheckedAt?: string | null;
+    readonly manifestSource?: 'redis' | 'bundled';
+  } = {},
 ): FreeProgrammingBooksCatalog {
   const books = [...langsBooks, ...subjectsBooks];
   const categoryCounts = new Map<string, FreeBookCategorySummary>();
@@ -348,6 +379,7 @@ export function buildFreeProgrammingBooksCatalog(
     quarantinedCount: options.quarantinedCount ?? 0,
     unavailableCount: books.filter((b) => b.unavailable).length,
     securityCheckedAt: options.securityCheckedAt ?? null,
+    manifestSource: options.manifestSource ?? 'bundled',
     categories,
     books,
   };
@@ -397,6 +429,72 @@ export function filterFreeProgrammingBooks(
   });
 }
 
+/** Deterministic sort shared by SSR initial page, `/api/v1/books/free`, and tests. */
+export function sortFreeProgrammingBooks(
+  books: readonly FreeBookEntry[],
+  sort: FreeBooksSortField = 'title',
+  dir: FreeBooksSortDir = 'asc',
+): FreeBookEntry[] {
+  const mult = dir === 'asc' ? 1 : -1;
+  return [...books].sort((a, b) => {
+    let cmp = 0;
+    if (sort === 'category') {
+      cmp =
+        a.category.localeCompare(b.category, undefined, { sensitivity: 'base' }) ||
+        a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    } else if (sort === 'host') {
+      cmp =
+        (a.trustTier === b.trustTier ? 0 : a.trustTier === 'verified' ? -1 : 1) ||
+        a.host.localeCompare(b.host, undefined, { sensitivity: 'base' }) ||
+        a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    } else {
+      cmp = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    }
+    return cmp * mult;
+  });
+}
+
+/** Filters, sorts, and slices a single paginated response shared by SSR and `GET /api/v1/books/free`. */
+export function buildFreeBooksPageResponse(
+  catalog: FreeProgrammingBooksCatalog,
+  options: FreeBooksFilterOptions & {
+    readonly sort?: FreeBooksSortField;
+    readonly dir?: FreeBooksSortDir;
+    readonly limit?: number;
+    readonly offset?: number;
+  } = {},
+): FreeBooksPageResponse {
+  const filtered = filterFreeProgrammingBooks(catalog.books, options);
+  const sorted = sortFreeProgrammingBooks(filtered, options.sort ?? 'title', options.dir ?? 'asc');
+  const limit = Math.min(Math.max(1, options.limit ?? 50), 200);
+  const offset = Math.max(0, options.offset ?? 0);
+  const items = sorted.slice(offset, offset + limit).map((item) => ({
+    ...item,
+    formats: [...item.formats],
+  }));
+
+  return {
+    fetchedAt: catalog.fetchedAt,
+    repoUrl: catalog.repoUrl,
+    license: catalog.license,
+    totalCatalogBooks: catalog.totalBooks,
+    langsCount: catalog.langsCount,
+    subjectsCount: catalog.subjectsCount,
+    languageCategoriesCount: catalog.languageCategoriesCount,
+    subjectCategoriesCount: catalog.subjectCategoriesCount,
+    pdfCount: catalog.pdfCount,
+    totalMatched: sorted.length,
+    quarantinedCount: catalog.quarantinedCount,
+    unavailableCount: catalog.unavailableCount,
+    securityCheckedAt: catalog.securityCheckedAt,
+    manifestSource: catalog.manifestSource,
+    limit,
+    offset,
+    categories: [...catalog.categories],
+    items,
+  };
+}
+
 async function fetchMarkdown(url: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -407,7 +505,7 @@ async function fetchMarkdown(url: string): Promise<string> {
         Accept: 'text/plain',
         'User-Agent': 'mikeodnis-portfolio/1.0 (+https://mikeodnis.dev)',
       },
-      next: { revalidate: 86_400 },
+      next: { revalidate: 3_600 },
     });
     if (!res.ok) {
       throw new Error(`GitHub raw fetch failed (${res.status}) for ${url}`);
@@ -419,8 +517,9 @@ async function fetchMarkdown(url: string): Promise<string> {
 }
 
 /**
- * Loads the parsed EbookFoundation free programming books catalog with 24h caching and
- * stale-on-error fallback so the UI and API stay resilient if GitHub is transiently unreachable.
+ * Loads the parsed EbookFoundation free programming books catalog, overlaying any live Upstash
+ * Redis security manifest on top of the committed baseline so weekly security patches apply
+ * without a redeploy, with stale-on-error fallback if GitHub is transiently unreachable.
  */
 export async function loadFreeProgrammingBooks(): Promise<FreeProgrammingBooksCatalog> {
   const now = Date.now();
@@ -434,11 +533,15 @@ export async function loadFreeProgrammingBooks(): Promise<FreeProgrammingBooksCa
 
   inflightLoad = (async () => {
     try {
-      const [langsMd, subjectsMd] = await Promise.all([
+      const [langsMd, subjectsMd, liveRedisManifest] = await Promise.all([
         fetchMarkdown(RAW_SOURCES.langs),
         fetchMarkdown(RAW_SOURCES.subjects),
+        loadLiveSecurityManifestFromRedis(),
       ]);
-      const manifest = securityManifest as FreeBooksSecurityManifest;
+      const { manifest, source: manifestSource } = mergeSecurityManifests(
+        securityManifest as FreeBooksSecurityManifest,
+        liveRedisManifest,
+      );
       const langsParsed = parseFreeProgrammingBooksWithStats(langsMd, 'langs', manifest);
       const subjectsParsed = parseFreeProgrammingBooksWithStats(subjectsMd, 'subjects', manifest);
       const catalog = buildFreeProgrammingBooksCatalog(
@@ -448,6 +551,7 @@ export async function loadFreeProgrammingBooks(): Promise<FreeProgrammingBooksCa
         {
           quarantinedCount: langsParsed.quarantinedCount + subjectsParsed.quarantinedCount,
           securityCheckedAt: manifest.checkedHosts > 0 ? manifest.generatedAt : null,
+          manifestSource,
         },
       );
       cachedCatalog = { catalog, expiresAt: Date.now() + CACHE_TTL_MS };
