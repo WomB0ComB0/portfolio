@@ -48,6 +48,8 @@ import { ensureBaseError } from '@/classes/error';
 import {
   type Article,
   ArticleSchema,
+  BookSchema,
+  BookshelfSchema,
   type Certification,
   CertificationSchema,
   type Experience,
@@ -60,6 +62,8 @@ import {
   ProjectSchema,
   type Resume,
   ResumeSchema,
+  type SanityBook,
+  type SanityBookshelf,
   type SiteSettings,
   SiteSettingsDocumentSchema,
   type Talk,
@@ -78,6 +82,8 @@ import {
 import { reportApiFailure } from '@/lib/observability/report';
 import {
   getArticles,
+  getBooks,
+  getBookshelves,
   getCertifications,
   getExperiences,
   getFeaturedProjects,
@@ -103,6 +109,8 @@ export type {
   Presentation,
   Project,
   Resume,
+  SanityBook,
+  SanityBookshelf,
   SiteSettings,
   Talk,
   YoutubeVideo,
@@ -168,6 +176,8 @@ export const readPlaces = cachedReader<Place[]>('places', getPlaces);
 export const readResume = cachedReader<Resume | null>('resume', getResume);
 export const readPresentations = cachedReader<Presentation[]>('presentations', getPresentations);
 export const readArticles = cachedReader<Article[]>('articles', getArticles);
+export const readBooks = cachedReader<SanityBook[]>('books', getBooks);
+export const readBookshelves = cachedReader<SanityBookshelf[]>('bookshelves', getBookshelves);
 /**
  * The longest a talks or videos load may run. Both wait on YouTube, whose retries can take 30 s
  * or more, and the browser gives up on the route after 10 s; like the other routes'
@@ -313,6 +323,13 @@ export const loadArticles = cache(
 /** Past their TTL, answered at once while they refresh in the background (see the file comment). */
 export const loadTalks = cache(
   (): Promise<readonly Talk[]> => loadList(readTalksForPages, TalkSchema, 'talks'),
+);
+export const loadBooks = cache(
+  (): Promise<readonly SanityBook[]> => loadList(readBooks, BookSchema, 'books'),
+);
+export const loadBookshelves = cache(
+  (): Promise<readonly SanityBookshelf[]> =>
+    loadList(readBookshelves, BookshelfSchema, 'bookshelves'),
 );
 
 /**

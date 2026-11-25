@@ -42,6 +42,8 @@ vi.hoisted(() => {
 
 const sanityApi = vi.hoisted(() => ({
   getArticles: vi.fn(),
+  getBooks: vi.fn(),
+  getBookshelves: vi.fn(),
   getCertifications: vi.fn(),
   getExperiences: vi.fn(),
   getFeaturedProjects: vi.fn(),

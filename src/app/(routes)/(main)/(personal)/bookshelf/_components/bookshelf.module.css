@@ -180,6 +180,72 @@
   --lift: calc(var(--book-h) * -0.02);
 }
 
+/* Section pill highlighting: dims out-of-section books and spotlights matching books. */
+.is-dimmed {
+  opacity: 0.22;
+  filter: saturate(0.28);
+  transition:
+    transform var(--shelf-dur) var(--shelf-ease),
+    opacity 240ms var(--ease-effect),
+    filter 240ms var(--ease-effect);
+}
+
+.is-dimmed:hover {
+  opacity: 0.72;
+  filter: saturate(0.8);
+}
+
+.is-highlighted::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -14px;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--brand);
+  box-shadow: 0 0 12px var(--brand-rim);
+  pointer-events: none;
+}
+
+/* Fanned cover-stack shelf cards */
+.shelf-card {
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+.shelf-card-active {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.fan-stage {
+  position: relative;
+  height: 168px;
+  display: grid;
+  place-items: center;
+  margin: 0.25rem 0;
+}
+
+.fan-card {
+  position: absolute;
+  width: 96px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--surface-2);
+  box-shadow:
+    0 14px 28px -10px rgb(0 0 0 / 72%),
+    0 4px 10px -4px rgb(0 0 0 / 50%);
+  transform: translate3d(var(--fan-x, 0), var(--fan-y, 0), 0) rotate(var(--fan-rot, 0deg))
+    scale(var(--fan-scale, 1));
+  transition: transform var(--motion-spring-in) var(--ease-spring);
+}
+
+.shelf-card:hover .fan-card {
+  transform: translate3d(var(--fan-x-hover, 0), calc(var(--fan-y, 0) - 4px), 0)
+    rotate(var(--fan-rot-hover, 0deg)) scale(var(--fan-scale, 1));
+}
+
 .face {
   position: absolute;
   top: 0;
@@ -226,6 +292,15 @@
     calc(var(--book-h) * -0.025) calc(var(--book-h) * 0.03) calc(var(--book-h) * 0.075)
     rgb(0 0 0 / 56%),
     0 0 36px -14px var(--brand-edge);
+}
+
+/* Rounded spine polish for focused single-shelf views (seathru-inspired) */
+.shelf-focused .face-spine {
+  border-radius: 7px;
+}
+
+.shelf-focused .face-cover {
+  border-radius: 4px 8px 8px 4px;
 }
 
 .slot-shadow {

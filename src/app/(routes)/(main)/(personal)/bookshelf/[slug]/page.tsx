@@ -20,7 +20,8 @@ import type { ReactElement } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookDetailView } from '../_components/book-detail-view';
-import { BOOK_SLUGS, getBookBySlug } from '../_lib/books';
+import { BOOK_SLUGS } from '../_lib/books';
+import { loadCatalogBookBySlug } from '../_lib/load-bookshelf';
 
 export interface BookDetailPageProps {
   readonly params: Promise<{ readonly slug: string }>;
@@ -32,26 +33,25 @@ export function generateStaticParams(): Array<{ slug: string }> {
 
 export async function generateMetadata({ params }: BookDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const book = getBookBySlug(slug);
-  if (!book) return NOT_FOUND_METADATA;
+  const hit = await loadCatalogBookBySlug(slug);
+  if (!hit) return NOT_FOUND_METADATA;
 
   return constructMetadata({
-    title: `${book.title} (Stage ${book.stageLabel})`,
-    description: book.summary,
-    path: `/bookshelf/${book.slug}`,
+    title: `${hit.book.title} (Stage ${hit.book.stageLabel})`,
+    description: hit.book.summary,
+    path: `/bookshelf/${hit.book.slug}`,
   });
 }
 
 /**
- * Dedicated route for each stage on the engineering bookshelf (`/bookshelf/[slug]`).
- * Renders the full editorial detail view and numbered curriculum topics on the server.
+ * Dedicated route for each book on the shelf (`/bookshelf/[slug]`).
  */
 export default async function BookDetailPage({
   params,
 }: BookDetailPageProps): Promise<ReactElement> {
   const { slug } = await params;
-  const book = getBookBySlug(slug);
-  if (!book) notFound();
+  const hit = await loadCatalogBookBySlug(slug);
+  if (!hit) notFound();
 
-  return <BookDetailView book={book} />;
+  return <BookDetailView book={hit.book} books={hit.catalog.books} shelves={hit.catalog.shelves} />;
 }

@@ -16,6 +16,7 @@
 
 import { Elysia } from 'elysia';
 import { blogRoute } from './blog';
+import { booksRoute } from './books';
 import { githubSponsorsRoute } from './github-sponsors';
 import { githubStatsRoute } from './github-stats';
 import { googleRoute } from './google';
@@ -56,6 +57,7 @@ export const apiRoutes = new Elysia()
   .use(topArtistsRoute)
   .use(topTracksRoute)
   .use(blogRoute)
+  .use(booksRoute)
   .use(messagesRoute)
   .use(sanityRoutes)
   .use(linkHealthRoute)

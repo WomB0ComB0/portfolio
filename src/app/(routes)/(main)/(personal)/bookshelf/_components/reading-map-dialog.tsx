@@ -17,14 +17,16 @@
 'use client';
 
 import Link from 'next/link';
-import { type ReactElement, useEffect, useRef } from 'react';
+import { type ReactElement, useEffect, useMemo, useRef } from 'react';
 import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import { BOOK_TRACKS, BOOKS, type BookItem, TOTAL_TOPICS } from '../_lib/books';
+import { BOOKS, type BookItem, DEFAULT_SHELVES, type ShelfCollection } from '../_lib/books';
 
 export interface ReadingMapDialogProps {
   readonly open: boolean;
   readonly activeSlug?: string;
+  readonly books?: readonly BookItem[];
+  readonly shelves?: readonly ShelfCollection[];
   readonly onClose: () => void;
   /** Optional handler to focus a book on the 3D shelf before closing. */
   readonly onSelectBook?: (book: BookItem) => void;
@@ -35,16 +37,24 @@ export interface ReadingMapDialogProps {
 const formatTopicNumber = (num: number): string => String(num).padStart(3, '0');
 
 /**
- * Full-curriculum Reading Map modal showing all 4 tracks, 14 stages, and 132 numbered topics.
+ * Full-curriculum Reading Map modal showing all shelves/tracks, stages, and numbered topics.
  */
 export function ReadingMapDialog({
   open,
   activeSlug,
+  books = BOOKS,
+  shelves = DEFAULT_SHELVES,
   onClose,
   onSelectBook,
   onOpenBook,
 }: ReadingMapDialogProps): ReactElement | null {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const bySlug = useMemo(() => new Map(books.map((book) => [book.slug, book])), [books]);
+  const totalTopics = useMemo(
+    () => books.reduce((sum, book) => sum + book.topics.length, 0),
+    [books],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -84,8 +94,8 @@ export function ReadingMapDialog({
               Reading map
             </h2>
             <p className="text-body-sm text-muted-foreground">
-              {BOOKS.length} stages across {BOOK_TRACKS.length} tracks, covering {TOTAL_TOPICS}{' '}
-              systems, backend, infrastructure, and AI topics in order.
+              {books.length} books across {shelves.length}{' '}
+              {shelves.length === 1 ? 'shelf' : 'shelves'}, covering {totalTopics} numbered topics.
             </p>
           </div>
           <button
@@ -100,24 +110,41 @@ export function ReadingMapDialog({
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto px-5 pb-6 sm:px-6">
-          {BOOK_TRACKS.map((track) => {
-            const trackBooks = BOOKS.filter((book) => book.track === track);
-            const firstTopic = trackBooks[0]?.topics[0]?.number ?? 1;
-            const lastBook = trackBooks.at(-1);
-            const lastTopic = lastBook?.topics.at(-1)?.number ?? firstTopic;
+          {shelves.map((shelf) => {
+            const shelfBooks = shelf.bookSlugs
+              .map((slug) => bySlug.get(slug))
+              .filter((book): book is BookItem => Boolean(book));
+            if (shelfBooks.length === 0) return null;
+
+            const firstTopic = shelfBooks[0]?.topics[0]?.number;
+            const lastBook = shelfBooks.at(-1);
+            const lastTopic = lastBook?.topics.at(-1)?.number;
 
             return (
-              <section key={track} className="space-y-3">
+              <section key={shelf.slug} className="space-y-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 pb-1">
-                  <h3 className="text-body font-semibold text-foreground">{track}</h3>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-body font-semibold text-foreground">{shelf.title}</h3>
+                    <Link
+                      href={`/bookshelf/shelf/${shelf.slug}`}
+                      prefetch={false}
+                      onClick={onClose}
+                      className="inline-flex items-center gap-1 tile-meta text-brand-ink no-underline hover:text-foreground"
+                    >
+                      Open shelf
+                      <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </Link>
+                  </div>
                   <span className="font-mono text-meta tabular-nums text-faint">
-                    {trackBooks.length} books · topics {formatTopicNumber(firstTopic)}–
-                    {formatTopicNumber(lastTopic)}
+                    {shelfBooks.length} {shelfBooks.length === 1 ? 'book' : 'books'}
+                    {firstTopic !== undefined && lastTopic !== undefined
+                      ? ` · topics ${formatTopicNumber(firstTopic)}–${formatTopicNumber(lastTopic)}`
+                      : ''}
                   </span>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  {trackBooks.map((book) => {
+                  {shelfBooks.map((book) => {
                     const isActive = book.slug === activeSlug;
                     return (
                       <div

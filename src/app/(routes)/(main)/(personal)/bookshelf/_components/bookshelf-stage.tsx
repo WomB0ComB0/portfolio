@@ -16,6 +16,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import {
   type CSSProperties,
   type PointerEvent,
@@ -33,27 +34,30 @@ import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
-  BOOK_CATEGORIES,
-  BOOK_TRACKS,
   BOOKS,
   type BookCategory,
   type BookItem,
   DEFAULT_BOOK_INDEX,
-  getBookAt,
-  getBookIndexBySlug,
-  getTrackStartIndex,
-  TOTAL_TOPICS,
+  DEFAULT_SHELVES,
+  type ShelfCollection,
+  slugifyShelf,
 } from '../_lib/books';
 import { BookDetailView } from './book-detail-view';
 import styles from './bookshelf.module.css';
 import { ReadingMapDialog } from './reading-map-dialog';
+import { ShelfCardsGrid } from './shelf-cards-grid';
 
 export interface BookshelfStageProps {
   /** Optional initial book slug (e.g. from `?book=<slug>` when returning from a detail route). */
   readonly initialSlug?: string;
+  /** Dynamic books list from Sanity (falls back to built-in catalog when omitted). */
+  readonly books?: readonly BookItem[];
+  /** Dynamic separated shelf collections from Sanity (falls back to built-in 4 shelves). */
+  readonly shelves?: readonly ShelfCollection[];
+  /** When set, renders a focused single-shelf view (`/bookshelf/shelf/[shelfSlug]`). */
+  readonly activeShelf?: ShelfCollection;
 }
 
-const BOOK_COUNT = BOOKS.length;
 const DEFAULT_BOOK_HEIGHT = 360;
 const STEP_DURATION_MS = 400;
 const CHAIN_STEP_DURATION_MS = 220;
@@ -62,29 +66,10 @@ const WHEEL_THRESHOLD = 20;
 const WHEEL_COOLDOWN_MS = 140;
 const DRAG_ACTIVATION_PX = 6;
 
-const STAT_ITEMS: readonly StatStripItem[] = [
-  { label: 'books', value: BOOKS.length },
-  { label: 'tracks', value: BOOK_TRACKS.length },
-  { label: 'topics', value: TOTAL_TOPICS },
-];
-
-const CATEGORY_COUNTS: Readonly<Record<BookCategory, number>> = {
-  All: BOOKS.length,
-  Foundations: BOOKS.filter((book) => book.track === 'Foundations').length,
-  Backend: BOOKS.filter((book) => book.track === 'Backend').length,
-  'Infra & Ops': BOOKS.filter((book) => book.track === 'Infra & Ops').length,
-  AI: BOOKS.filter((book) => book.track === 'AI').length,
-};
-
 const mod = (a: number, n: number): number => ((a % n) + n) % n;
 
-const stageIndexFromHash = (): number => {
-  if (typeof window === 'undefined') return -1;
-  const match = /^#\/stage\/(\d+)/.exec(window.location.hash);
-  if (!match?.[1]) return -1;
-  const label = match[1].padStart(2, '0');
-  return BOOKS.findIndex((book) => book.stageLabel === label);
-};
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
 
 interface PoolSlot {
   readonly poolIndex: number;
@@ -108,26 +93,46 @@ interface DragState {
 
 /**
  * Interactive 3D Engineering Bookshelf built natively inside Live Console `<PageShell>`:
- * - Pool DOM nodes stay in fixed ascending `poolIndex` order (`0..2K`) so React NEVER moves nodes
- *   with `insertBefore` when stepping left vs right — guaranteeing identical 60fps CSS 3D cuboid
- *   transitions in BOTH directions.
- * - Live 1:1 horizontal pointer drag with real-time scrubbing across multiple books and velocity
- *   flick momentum on release.
- * - Bidirectional wheel scrolling (scroll up / left -> previous, scroll down / right -> next).
- * - In-page stage detail view inside `<PageShell>` so the site's nav rail & footer stay intact.
+ * - Supports both the unified multi-section shelf (`/bookshelf` with fanned shelf cards below)
+ *   and focused finite single-shelf views (`/bookshelf/shelf/[shelfSlug]`).
+ * - Clicking a section pill (`Foundations`, `Backend`, `Infra & Ops`, `AI`, etc.) visually
+ *   highlights/spotlights that section's books while dimming out-of-section books.
+ * - Fixed ascending `poolIndex` DOM order guarantees identical 60fps CSS 3D cuboid animations in
+ *   BOTH left and right directions, plus live 1:1 drag scrubbing and bidirectional wheel scroll.
  */
-export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactElement {
+export function BookshelfStage({
+  initialSlug,
+  books = BOOKS,
+  shelves = DEFAULT_SHELVES,
+  activeShelf,
+}: BookshelfStageProps): ReactElement {
+  const safeBooks = books.length > 0 ? books : BOOKS;
+  const bookCount = safeBooks.length;
+  // Focused collections or small Sanity lists stay finite (0..N-1) so no book ever duplicates.
+  const isFiniteShelf = Boolean(activeShelf) || bookCount < 9;
+
+  const bookAt = useCallback(
+    (index: number): BookItem => {
+      const idx = isFiniteShelf ? clamp(index, 0, bookCount - 1) : mod(index, bookCount);
+      return safeBooks[idx] ?? safeBooks[0] ?? BOOKS[0];
+    },
+    [safeBooks, bookCount, isFiniteShelf],
+  );
+
   const initialPos = useMemo(() => {
-    if (!initialSlug) return DEFAULT_BOOK_INDEX;
-    const found = getBookIndexBySlug(initialSlug);
-    return found >= 0 ? found : DEFAULT_BOOK_INDEX;
-  }, [initialSlug]);
+    if (initialSlug) {
+      const found = safeBooks.findIndex((book) => book.slug === initialSlug);
+      if (found >= 0) return found;
+    }
+    if (isFiniteShelf) return 0;
+    return Math.min(DEFAULT_BOOK_INDEX, bookCount - 1);
+  }, [initialSlug, safeBooks, bookCount, isFiniteShelf]);
 
   const [pos, setPos] = useState<number>(initialPos);
   const [bookHeight, setBookHeight] = useState<number>(DEFAULT_BOOK_HEIGHT);
   const [halfWindow, setHalfWindow] = useState<number>(5);
   const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
-  const [pinnedTab, setPinnedTab] = useState<BookCategory | null>(null);
+  const [highlightedTrack, setHighlightedTrack] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -158,9 +163,61 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
   const lastStepRef = useRef<number>(0);
   const dragRef = useRef<DragState | null>(null);
 
-  const activeBook = getBookAt(pos);
-  const activeTabCategory: BookCategory = pinnedTab ?? activeBook.track;
-  const poolSize = 2 * halfWindow + 1;
+  const activeBook = bookAt(pos);
+
+  // Derive section pills dynamically from the loaded books' tracks.
+  const categories = useMemo<readonly BookCategory[]>(() => {
+    const seen = new Set<string>();
+    const tracks: string[] = [];
+    for (const book of safeBooks) {
+      if (!seen.has(book.track)) {
+        seen.add(book.track);
+        tracks.push(book.track);
+      }
+    }
+    return ['All', ...tracks];
+  }, [safeBooks]);
+
+  const categoryCounts = useMemo<Readonly<Record<string, number>>>(() => {
+    const counts: Record<string, number> = { All: bookCount };
+    for (const book of safeBooks) {
+      counts[book.track] = (counts[book.track] ?? 0) + 1;
+    }
+    return counts;
+  }, [safeBooks, bookCount]);
+
+  const totalTopics = useMemo(
+    () => safeBooks.reduce((sum, book) => sum + book.topics.length, 0),
+    [safeBooks],
+  );
+
+  const statItems = useMemo<readonly StatStripItem[]>(
+    () =>
+      activeShelf
+        ? [
+            { label: bookCount === 1 ? 'book' : 'books', value: bookCount },
+            { label: 'topics', value: totalTopics },
+          ]
+        : [
+            { label: 'books', value: bookCount },
+            { label: shelves.length === 1 ? 'shelf' : 'shelves', value: shelves.length },
+            { label: 'topics', value: totalTopics },
+          ],
+    [activeShelf, bookCount, shelves.length, totalTopics],
+  );
+
+  const activeTabCategory: BookCategory = highlightedTrack ?? activeBook.track;
+  const poolSize = isFiniteShelf ? bookCount : 2 * halfWindow + 1;
+
+  const highlightedShelfSlug = useMemo(() => {
+    if (!highlightedTrack) return null;
+    const match = shelves.find(
+      (shelf) =>
+        shelf.title.toLowerCase() === highlightedTrack.toLowerCase() ||
+        shelf.slug === slugifyShelf(highlightedTrack),
+    );
+    return match?.slug ?? null;
+  }, [highlightedTrack, shelves]);
 
   const measureStage = useCallback((): void => {
     const stageEl = stageRef.current;
@@ -185,20 +242,30 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     }));
   }, [activeTabCategory]);
 
+  const syncTabIndicatorRef = useRef<() => void>(syncTabIndicator);
+  syncTabIndicatorRef.current = syncTabIndicator;
+
   const slotX = useCallback(
     (offset: number): number => {
       if (offset === 0) return 0;
-      const x1 = bookHeight * 0.5;
-      const pitch = bookHeight * 0.18;
+      const x1 = bookHeight * (isFiniteShelf ? 0.52 : 0.5);
+      const pitch = bookHeight * (isFiniteShelf ? 0.2 : 0.18);
       return Math.sign(offset) * (x1 + (Math.abs(offset) - 1) * pitch);
     },
-    [bookHeight],
+    [bookHeight, isFiniteShelf],
   );
 
-  // CRITICAL: Always emit slots in FIXED ascending `poolIndex` order (`0..poolSize-1`).
-  // Never reorder the array when stepping left vs right, otherwise React's reconciler calls
-  // `insertBefore` on every visible DOM child going left and cancels all CSS transitions!
+  // CRITICAL: Fixed ascending `poolIndex` order (`0..poolSize-1`) so React NEVER moves DOM children
+  // with `insertBefore` when stepping left vs right!
   const poolSlots = useMemo<readonly PoolSlot[]>(() => {
+    if (isFiniteShelf) {
+      return safeBooks.map((book, index) => ({
+        poolIndex: index,
+        slotPosition: index,
+        offset: index - pos,
+        book,
+      }));
+    }
     const base = pos - halfWindow;
     const baseMod = mod(base, poolSize);
     const slots: PoolSlot[] = [];
@@ -209,21 +276,21 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
         poolIndex,
         slotPosition,
         offset: slotPosition - pos,
-        book: getBookAt(slotPosition),
+        book: bookAt(slotPosition),
       });
     }
     return slots;
-  }, [pos, halfWindow, poolSize]);
+  }, [isFiniteShelf, safeBooks, pos, halfWindow, poolSize, bookAt]);
 
-  // Synchronously position every slot before paint: ONLY newly recycled off-screen slots skip
-  // transitions via a synchronous reflow flush, while all visible DOM nodes stay stationary in DOM
-  // order and animate smoothly in BOTH left and right directions.
+  // Synchronously position every slot before paint and apply section highlighting/dimming.
   useLayoutEffect(() => {
     if (detailBook !== null) return;
     const noAnimClass = styles['no-anim'] ?? '';
     const activeClass = styles['is-active'] ?? '';
     const beforeClass = styles['is-before'] ?? '';
     const afterClass = styles['is-after'] ?? '';
+    const dimmedClass = styles['is-dimmed'] ?? '';
+    const highlightedClass = styles['is-highlighted'] ?? '';
 
     const teleported: HTMLDivElement[] = [];
 
@@ -240,9 +307,15 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
         teleported.push(el);
       }
 
+      const matchesHighlight = highlightedTrack !== null && slot.book.track === highlightedTrack;
+      const isDimmed = highlightedTrack !== null && slot.book.track !== highlightedTrack;
+
       if (activeClass) el.classList.toggle(activeClass, slot.offset === 0);
       if (beforeClass) el.classList.toggle(beforeClass, slot.offset < 0);
       if (afterClass) el.classList.toggle(afterClass, slot.offset > 0);
+      if (highlightedClass) el.classList.toggle(highlightedClass, matchesHighlight);
+      if (dimmedClass) el.classList.toggle(dimmedClass, isDimmed);
+
       el.style.setProperty('--slot-x', `${slotX(slot.offset).toFixed(2)}px`);
       el.style.zIndex = String(100 - Math.abs(slot.offset));
     }
@@ -253,20 +326,22 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
         if (noAnimClass) el.classList.remove(noAnimClass);
       }
     }
-  }, [poolSlots, slotX, detailBook]);
+  }, [poolSlots, slotX, detailBook, highlightedTrack]);
 
   const step = useCallback(
-    (dir: number, dur = STEP_DURATION_MS, pin: BookCategory | null = null): void => {
+    (dir: number, dur = STEP_DURATION_MS): void => {
       setStepDuration(prefersReducedMotion() ? 0 : dur);
-      setPinnedTab(pin);
       lastStepRef.current = performance.now();
-      setPos((current) => current + dir);
+      setPos((current) => {
+        const next = isFiniteShelf ? clamp(current + dir, 0, bookCount - 1) : current + dir;
+        return next;
+      });
     },
-    [],
+    [isFiniteShelf, bookCount],
   );
 
   const stepBy = useCallback(
-    (delta: number, pin: BookCategory | null = null): void => {
+    (delta: number): void => {
       if (chainTimerRef.current) {
         clearTimeout(chainTimerRef.current);
         chainTimerRef.current = null;
@@ -275,12 +350,12 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
       const dir = Math.sign(delta);
       let left = Math.abs(delta);
       if (left === 1) {
-        step(dir, STEP_DURATION_MS, pin);
+        step(dir, STEP_DURATION_MS);
         return;
       }
       const tick = (): void => {
         left -= 1;
-        step(dir, left > 0 ? CHAIN_STEP_DURATION_MS : STEP_DURATION_MS, pin);
+        step(dir, left > 0 ? CHAIN_STEP_DURATION_MS : STEP_DURATION_MS);
         if (left > 0) {
           chainTimerRef.current = setTimeout(tick, CHAIN_TICK_MS);
         }
@@ -291,32 +366,47 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
   );
 
   const goToBookIndex = useCallback(
-    (targetIndex: number, pin: BookCategory | null = null): void => {
-      let delta = mod(targetIndex - mod(posRef.current, BOOK_COUNT), BOOK_COUNT);
-      if (delta > BOOK_COUNT / 2) delta -= BOOK_COUNT;
-      stepBy(delta, pin);
+    (targetIndex: number): void => {
+      if (isFiniteShelf) {
+        stepBy(clamp(targetIndex, 0, bookCount - 1) - posRef.current);
+        return;
+      }
+      let delta = mod(targetIndex - mod(posRef.current, bookCount), bookCount);
+      if (delta > bookCount / 2) delta -= bookCount;
+      stepBy(delta);
     },
-    [stepBy],
+    [isFiniteShelf, bookCount, stepBy],
   );
 
-  const openDetail = useCallback((book: BookItem, { push = true } = {}): void => {
-    const idx = getBookIndexBySlug(book.slug);
-    if (idx >= 0) setPos(idx);
-    setDetailBook(book);
-    if (push && typeof window !== 'undefined') {
-      const nextHash = `#/stage/${book.stageLabel}`;
-      if (window.location.hash !== nextHash) {
-        window.history.pushState(
-          { stage: book.stageLabel },
-          '',
-          `${window.location.pathname}${window.location.search}${nextHash}`,
-        );
+  const stageIndexFromHash = useCallback((): number => {
+    if (typeof window === 'undefined') return -1;
+    const match = /^#\/stage\/(\d+)/.exec(window.location.hash);
+    if (!match?.[1]) return -1;
+    const label = match[1].padStart(2, '0');
+    return safeBooks.findIndex((book) => book.stageLabel === label);
+  }, [safeBooks]);
+
+  const openDetail = useCallback(
+    (book: BookItem, { push = true } = {}): void => {
+      const idx = safeBooks.findIndex((item) => item.slug === book.slug);
+      if (idx >= 0) setPos(idx);
+      setDetailBook(book);
+      if (push && typeof window !== 'undefined') {
+        const nextHash = `#/stage/${book.stageLabel}`;
+        if (window.location.hash !== nextHash) {
+          window.history.pushState(
+            { stage: book.stageLabel },
+            '',
+            `${window.location.pathname}${window.location.search}${nextHash}`,
+          );
+        }
       }
-    }
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-    }
-  }, []);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+      }
+    },
+    [safeBooks],
+  );
 
   const closeDetail = useCallback(({ fromPop = false } = {}): void => {
     if (!fromPop && typeof window !== 'undefined' && window.location.hash) {
@@ -337,7 +427,7 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     const hashIndex = stageIndexFromHash();
     if (hashIndex >= 0) {
       setPos(hashIndex);
-      setDetailBook(getBookAt(hashIndex));
+      setDetailBook(bookAt(hashIndex));
     }
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -345,17 +435,23 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         measureStage();
-        syncTabIndicator();
+        syncTabIndicatorRef.current();
       }, 100);
     };
     window.addEventListener('resize', onResize);
-    void document.fonts?.ready.then(syncTabIndicator);
+    void document.fonts?.ready.then(() => syncTabIndicatorRef.current());
     return () => {
       window.removeEventListener('resize', onResize);
       if (resizeTimer) clearTimeout(resizeTimer);
+    };
+  }, [measureStage, stageIndexFromHash, bookAt]);
+
+  // Cancel any in-flight multi-step chain only when the component unmounts.
+  useEffect(() => {
+    return () => {
       if (chainTimerRef.current) clearTimeout(chainTimerRef.current);
     };
-  }, [measureStage, syncTabIndicator]);
+  }, []);
 
   useEffect(() => {
     if (detailBook !== null) return;
@@ -367,7 +463,6 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     syncTabIndicator();
   }, [syncTabIndicator]);
 
-  // Hash popstate sync for browser Back / Forward.
   useEffect(() => {
     const onPopState = (): void => {
       const idx = stageIndexFromHash();
@@ -375,14 +470,14 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
         closeDetail({ fromPop: true });
       } else {
         setPos(idx);
-        setDetailBook(getBookAt(idx));
+        setDetailBook(bookAt(idx));
       }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [closeDetail]);
+  }, [closeDetail, stageIndexFromHash, bookAt]);
 
-  // Bidirectional wheel browsing on the stage (scroll up / left -> previous, scroll down / right -> next).
+  // Bidirectional wheel browsing on the stage.
   useEffect(() => {
     if (detailBook !== null) return;
     const stageEl = stageRef.current;
@@ -458,21 +553,21 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
         goToBookIndex(0);
       } else if (event.key === 'End') {
         event.preventDefault();
-        goToBookIndex(BOOK_COUNT - 1);
+        goToBookIndex(bookCount - 1);
       } else if (
         (event.key === 'Enter' || event.key === ' ') &&
         document.activeElement === stageRef.current
       ) {
         event.preventDefault();
-        openDetail(getBookAt(posRef.current));
+        openDetail(bookAt(posRef.current));
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [mapOpen, step, goToBookIndex, openDetail, closeDetail]);
+  }, [mapOpen, step, goToBookIndex, bookCount, openDetail, bookAt, closeDetail]);
 
-  // Magnetic ring -> Open / Grab cursor while pointer is over the shelf stage.
+  // Magnetic ring -> Open / Grab cursor.
   useEffect(() => {
     if (!finePointer || detailBook !== null) return;
     const state = { x: -200, y: -200, tx: -200, ty: -200, seen: false };
@@ -572,7 +667,6 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     drag.lastTime = now;
     drag.residualX += stepDx;
 
-    // Advance books live as the user scrubs across one pitch width (~0.24 * H).
     const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
     let stepsToMove = 0;
     while (drag.residualX <= -scrubUnit) {
@@ -589,7 +683,6 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
       step(stepsToMove, CHAIN_STEP_DURATION_MS);
     }
 
-    // Dampen live shelf translation around current snap point so books track 1:1 under pointer.
     const visualOffset = Math.max(
       -scrubUnit * 0.55,
       Math.min(scrubUnit * 0.55, drag.residualX * 0.65),
@@ -632,25 +725,35 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
     if (!slotEl) return;
     const offset = Number(slotEl.dataset.slotOffset);
     if (offset === 0) {
-      openDetail(getBookAt(posRef.current));
+      openDetail(bookAt(posRef.current));
     } else if (!Number.isNaN(offset)) {
+      const clickedBook = bookAt(posRef.current + offset);
+      // Clicking a dimmed out-of-section book shifts section highlight to its track cleanly.
+      if (highlightedTrack && clickedBook.track !== highlightedTrack) {
+        setHighlightedTrack(clickedBook.track);
+      }
       stepBy(offset);
     }
   };
 
   const handleTabClick = (category: BookCategory): void => {
     if (category === 'All') {
-      setPinnedTab('All');
-      goToBookIndex(0, 'All');
+      setHighlightedTrack(null);
       return;
     }
-    goToBookIndex(getTrackStartIndex(category));
+    setHighlightedTrack(category);
+    const firstInTrack = safeBooks.findIndex((book) => book.track === category);
+    if (firstInTrack >= 0) {
+      goToBookIndex(firstInTrack);
+    }
   };
 
   if (detailBook) {
     return (
       <BookDetailView
         book={detailBook}
+        books={safeBooks}
+        shelves={shelves}
         entering
         onBack={() => closeDetail()}
         onNavigateBook={(book) => openDetail(book)}
@@ -661,24 +764,40 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
   return (
     <PageShell
       sizing="container"
-      eyebrow="Reading"
-      title="Bookshelf"
-      description="Foundational books on computer systems, backend architecture, infrastructure, and AI."
-      stats={<StatStrip aria-label="Bookshelf summary" items={STAT_ITEMS} sizing="container" />}
-      actions={
-        <button
-          type="button"
-          onClick={() => setMapOpen(true)}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
-        >
-          <FiMap className="size-3.5" aria-hidden="true" />
-          Reading map
-        </button>
+      eyebrow={activeShelf ? 'Shelf collection' : 'Reading'}
+      title={activeShelf ? activeShelf.title : 'Bookshelf'}
+      description={
+        activeShelf
+          ? activeShelf.description
+          : 'Foundational books on computer systems, backend architecture, infrastructure, and AI.'
       }
-      className="pb-12"
+      stats={<StatStrip aria-label="Bookshelf summary" items={statItems} sizing="container" />}
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          {activeShelf && (
+            <Link
+              href="/bookshelf"
+              prefetch={false}
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            >
+              <FiArrowLeft className="size-4" aria-hidden="true" />
+              All shelves
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setMapOpen(true)}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <FiMap className="size-3.5" aria-hidden="true" />
+            Reading map
+          </button>
+        </div>
+      }
+      className="pb-16"
     >
       <div
-        className={styles['shelf-shell']}
+        className={cn(styles['shelf-shell'], isFiniteShelf && styles['shelf-focused'])}
         style={
           {
             '--book-h': `${bookHeight}px`,
@@ -686,34 +805,51 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
           } as CSSProperties
         }
       >
-        {/* Live Console track filter chips with sliding brand-subtle pill */}
-        <div role="tablist" aria-label="Categories" className={styles['track-bar']}>
-          <span
-            aria-hidden="true"
-            className={cn(styles['track-pill'], !tabIndicator.ready && styles['no-anim'])}
-            style={{
-              width: `${tabIndicator.width}px`,
-              transform: `translateX(${tabIndicator.left}px)`,
-            }}
-          />
-          {BOOK_CATEGORIES.map((category) => (
-            <button
-              key={category}
-              ref={(el) => {
-                if (el) tabButtonRefs.current.set(category, el);
-                else tabButtonRefs.current.delete(category);
-              }}
-              type="button"
-              role="tab"
-              aria-selected={activeTabCategory === category}
-              onClick={() => handleTabClick(category)}
-              className={styles['track-chip']}
-            >
-              <span>{category}</span>
-              <span className={styles['track-count']}>{CATEGORY_COUNTS[category]}</span>
-            </button>
-          ))}
-        </div>
+        {/* Live Console section filter pills (hidden on single-section focused shelf) */}
+        {!activeShelf && categories.length > 2 && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div role="tablist" aria-label="Categories" className={styles['track-bar']}>
+              <span
+                aria-hidden="true"
+                className={cn(styles['track-pill'], !tabIndicator.ready && styles['no-anim'])}
+                style={{
+                  width: `${tabIndicator.width}px`,
+                  transform: `translateX(${tabIndicator.left}px)`,
+                }}
+              />
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  ref={(el) => {
+                    if (el) tabButtonRefs.current.set(category, el);
+                    else tabButtonRefs.current.delete(category);
+                  }}
+                  type="button"
+                  role="tab"
+                  aria-selected={
+                    category === 'All' ? highlightedTrack === null : activeTabCategory === category
+                  }
+                  onClick={() => handleTabClick(category)}
+                  className={styles['track-chip']}
+                >
+                  <span>{category}</span>
+                  <span className={styles['track-count']}>{categoryCounts[category] ?? 0}</span>
+                </button>
+              ))}
+            </div>
+
+            {highlightedTrack && highlightedShelfSlug && (
+              <Link
+                href={`/bookshelf/shelf/${highlightedShelfSlug}`}
+                prefetch={false}
+                className="inline-flex items-center gap-1 tile-meta text-brand-ink no-underline underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Open {highlightedTrack} shelf
+                <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* Borderless 3D Shelf Stage */}
         {/* biome-ignore lint/a11y/useSemanticElements: Interactive 3D carousel stage follows ARIA carousel pattern. */}
@@ -738,6 +874,8 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
             {poolSlots.map((slot) => {
               const isActive = slot.offset === 0;
               const { book } = slot;
+              const isHighlighted = highlightedTrack !== null && book.track === highlightedTrack;
+              const isDimmed = highlightedTrack !== null && book.track !== highlightedTrack;
 
               return (
                 <div
@@ -749,6 +887,8 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
                   data-pool-index={slot.poolIndex}
                   data-slot-offset={slot.offset}
                   data-active-slot={isActive ? 'true' : 'false'}
+                  data-highlighted={isHighlighted ? 'true' : 'false'}
+                  data-dimmed={isDimmed ? 'true' : 'false'}
                   className={styles.slot}
                 >
                   <div
@@ -774,7 +914,7 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
 
                     <div data-book-cover className={cn(styles.face, styles['face-cover'])}>
                       <div className={styles.cover}>
-                        {/* biome-ignore lint/performance/noImgElement: Local WebP asset served directly from public/assets/bookshelf (next.config disables /_next/image). */}
+                        {/* biome-ignore lint/performance/noImgElement: Local or CDN cover asset served directly without Next optimizer. */}
                         <img
                           src={book.coverSrc}
                           alt={`${book.title} by ${book.authors}`}
@@ -803,7 +943,9 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
         <div className={styles['controls-row']}>
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <span className="tile-meta tabular-nums text-brand-ink">
-              Stage {activeBook.stageLabel} / {String(BOOK_COUNT).padStart(2, '0')}
+              {activeShelf
+                ? `Book ${String(mod(pos, bookCount) + 1).padStart(2, '0')} / ${String(bookCount).padStart(2, '0')}`
+                : `Stage ${activeBook.stageLabel} / ${String(bookCount).padStart(2, '0')}`}
             </span>
             <span aria-hidden="true" className="text-faint">
               ·
@@ -826,21 +968,32 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
             <button
               type="button"
               onClick={() => step(-1)}
+              disabled={isFiniteShelf && pos <= 0}
               aria-label="Previous book"
-              className={styles.arrow}
+              className={cn(styles.arrow, isFiniteShelf && pos <= 0 && 'opacity-35')}
             >
               <FiArrowLeft className="size-4" aria-hidden="true" />
             </button>
             <button
               type="button"
               onClick={() => step(1)}
+              disabled={isFiniteShelf && pos >= bookCount - 1}
               aria-label="Next book"
-              className={styles.arrow}
+              className={cn(styles.arrow, isFiniteShelf && pos >= bookCount - 1 && 'opacity-35')}
             >
               <FiArrowRight className="size-4" aria-hidden="true" />
             </button>
           </div>
         </div>
+
+        {/* Separated `seathru.app`-inspired fanned cover-stack shelf cards */}
+        {!activeShelf && shelves.length > 0 && (
+          <ShelfCardsGrid
+            shelves={shelves}
+            books={safeBooks}
+            highlightedSection={highlightedTrack}
+          />
+        )}
       </div>
 
       {/* Magnetic custom cursor */}
@@ -851,15 +1004,18 @@ export function BookshelfStage({ initialSlug }: BookshelfStageProps): ReactEleme
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {activeBook.stageLabel} of {BOOK_COUNT}: {activeBook.title}
+        {activeShelf ? String(mod(pos, bookCount) + 1).padStart(2, '0') : activeBook.stageLabel} of{' '}
+        {bookCount}: {activeBook.title}
       </p>
 
       <ReadingMapDialog
         open={mapOpen}
         activeSlug={activeBook.slug}
+        books={safeBooks}
+        shelves={shelves}
         onClose={() => setMapOpen(false)}
         onSelectBook={(book) => {
-          const idx = getBookIndexBySlug(book.slug);
+          const idx = safeBooks.findIndex((item) => item.slug === book.slug);
           if (idx >= 0) goToBookIndex(idx);
         }}
         onOpenBook={(book) => openDetail(book)}

@@ -602,6 +602,64 @@ export const SiteSettingsDocumentSchema = Schema.Record(Schema.String, Schema.Un
 );
 
 /**
+ * Sanity Book Spine Palette Schema
+ */
+export const BookSpineSchema = Schema.Struct({
+  capBg: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  capText: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  bodyBg: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  titleColor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  authorColor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+});
+
+/**
+ * Sanity Book Schema with Effect Schema validation
+ */
+export const BookSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('book'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  slug: SanitySlugSchema,
+  spineTitle: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  authors: Schema.String,
+  spineAuthor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  publisher: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  edition: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  year: Schema.optional(Schema.Union([Schema.Number, Schema.Null])),
+  isbn: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  track: Schema.String,
+  status: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  summary: Schema.String,
+  coverImage: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
+  coverUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  url: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  spine: Schema.optional(Schema.Union([BookSpineSchema, Schema.Null])),
+  topics: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
+  order: Schema.Number,
+});
+
+/**
+ * Sanity Bookshelf Collection Schema (with dereferenced books)
+ */
+export const BookshelfSchema = Schema.Struct({
+  _id: Schema.String,
+  _type: Schema.Literal('bookshelf'),
+  _createdAt: Schema.String,
+  _updatedAt: Schema.String,
+  _rev: Schema.String,
+  title: Schema.String,
+  slug: SanitySlugSchema,
+  description: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  accentColor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  books: Schema.optional(Schema.Union([Schema.Array(BookSchema), Schema.Null])),
+  order: Schema.Number,
+  featured: NullableBooleanDefaultFalse,
+});
+
+/**
  * The places list as one schema. The loaders decode each document on its own (decodeEach), so
  * one bad document is dropped rather than failing the list; this whole-list form is kept only
  * for the schema tests (place-schema.test.ts).
@@ -617,3 +675,5 @@ export type Talk = Schema.Schema.Type<typeof TalkSchema>;
 export type Article = Schema.Schema.Type<typeof ArticleSchema>;
 export type YoutubeVideo = Schema.Schema.Type<typeof YoutubeVideoSchema>;
 export type SiteSettings = Schema.Schema.Type<typeof SiteSettingsDocumentSchema>;
+export type SanityBook = Schema.Schema.Type<typeof BookSchema>;
+export type SanityBookshelf = Schema.Schema.Type<typeof BookshelfSchema>;

@@ -34,6 +34,9 @@ export const REMOTE_IMAGE_PATTERNS = [
   { protocol: 'https', hostname: 'dev-to-uploads.s3.amazonaws.com' },
   { protocol: 'https', hostname: 'media.dev.to' },
   { protocol: 'https', hostname: 'media2.dev.to' },
+  // Book covers returned by /api/v1/books/lookup (Open Library & Google Books).
+  { protocol: 'https', hostname: 'covers.openlibrary.org' },
+  { protocol: 'https', hostname: 'books.google.com' },
   // Hashnode post covers (cdn.hashnode.com and the blog's generated /api/og/** title cards).
   ...HASHNODE_COVER_PATTERNS,
 ] as const;

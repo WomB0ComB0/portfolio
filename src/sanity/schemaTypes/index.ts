@@ -16,6 +16,8 @@
 
 import type { SchemaTypeDefinition } from 'sanity';
 import { articleType } from './article';
+import { bookType } from './book';
+import { bookshelfType } from './bookshelf';
 import { certificationType } from './certification';
 import { experienceType } from './experience';
 import { linkHealthType } from './link-health';
@@ -43,5 +45,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     talkType,
     articleType,
     youtubeVideoType,
+    bookType,
+    bookshelfType,
   ],
 };

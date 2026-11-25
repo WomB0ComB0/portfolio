@@ -16,7 +16,7 @@
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 // Vite cannot load Next's PostCSS plugin configuration for CSS modules under Vitest.
@@ -31,11 +31,14 @@ import {
   BOOK_TRACKS,
   BOOKS,
   DEFAULT_BOOK_INDEX,
+  DEFAULT_SHELVES,
   getAdjacentBooks,
   getBookAt,
   getBookBySlug,
   TOTAL_TOPICS,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import { booksRoute } from '@/app/api/v1/[[...route]]/books';
+import { cleanIsbn, lookupBooks, toBookSlug } from '@/app/api/v1/[[...route]]/books/handlers';
 
 describe('Engineering bookshelf catalog', () => {
   it('contains 14 uniquely slugged stages numbered 01 through 14 across all 4 tracks', () => {
@@ -205,6 +208,150 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
     expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
+  });
+
+  it('highlights books in the selected section pill and dims non-matching sections until All is clicked', () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(<BookshelfStage />);
+
+      fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+
+      const highlighted = container.querySelectorAll('[data-highlighted="true"]');
+      const dimmed = container.querySelectorAll('[data-dimmed="true"]');
+      expect(highlighted.length).toBeGreaterThan(0);
+      expect(dimmed.length).toBeGreaterThan(0);
+      expect(screen.getByText(/11 of 14: Deep Learning/)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Open AI shelf/i })).toHaveAttribute(
+        'href',
+        '/bookshelf/shelf/ai',
+      );
+
+      fireEvent.click(screen.getByRole('tab', { name: /All/ }));
+      expect(container.querySelectorAll('[data-dimmed="true"]').length).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('renders separated fanned shelf cards linking to /bookshelf/shelf/[slug]', () => {
+    render(<BookshelfStage />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Shelves' })).toBeInTheDocument();
+    for (const shelf of DEFAULT_SHELVES) {
+      const link = screen.getByRole('link', { name: new RegExp(shelf.title) });
+      expect(link).toHaveAttribute('href', `/bookshelf/shelf/${shelf.slug}`);
+    }
+  });
+
+  it('renders focused single-shelf mode finitely without duplicating books', () => {
+    const backendShelf = DEFAULT_SHELVES.find((shelf) => shelf.slug === 'backend');
+    expect(backendShelf).toBeDefined();
+    if (!backendShelf) return;
+    const backendBooks = BOOKS.filter((book) => backendShelf.bookSlugs.includes(book.slug));
+
+    const { container } = render(
+      <BookshelfStage books={backendBooks} shelves={DEFAULT_SHELVES} activeShelf={backendShelf} />,
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Backend' })).toBeInTheDocument();
+    expect(screen.getByText('Book 01 / 03')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /All shelves/i })).toHaveAttribute(
+      'href',
+      '/bookshelf',
+    );
+    expect(container.querySelectorAll('[data-pool-index]')).toHaveLength(backendBooks.length);
+  });
+});
+
+describe('Books Lookup API (/api/v1/books/lookup)', () => {
+  it('normalizes slugs and ISBN strings cleanly', () => {
+    expect(toBookSlug('Designing Data-Intensive Applications!')).toBe(
+      'designing-data-intensive-applications',
+    );
+    expect(cleanIsbn('978-1-09-816630-4')).toBe('9781098166304');
+  });
+
+  it('answers 400 when neither q nor isbn is provided', async () => {
+    const response = await booksRoute.handle(new Request('http://localhost/books/lookup'));
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toContain('isbn');
+  });
+
+  it('normalizes Open Library results and falls back to Google Books when empty', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    try {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            docs: [
+              {
+                key: '/works/OL123W',
+                title: 'AI Engineering',
+                author_name: ['Chip Huyen'],
+                publisher: ["O'Reilly Media"],
+                first_publish_year: 2025,
+                isbn: ['9781098166304'],
+                cover_i: 14625765,
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+
+      const olResult = await lookupBooks({ isbn: '978-1098166304' });
+      expect(olResult.query).toBe('9781098166304');
+      expect(olResult.items).toHaveLength(1);
+      expect(olResult.items[0]).toMatchObject({
+        title: 'AI Engineering',
+        slug: 'ai-engineering',
+        authors: 'Chip Huyen',
+        coverUrl: 'https://covers.openlibrary.org/b/id/14625765-L.jpg',
+        source: 'openlibrary',
+      });
+
+      fetchSpy
+        .mockResolvedValueOnce(new Response(JSON.stringify({ docs: [] }), { status: 200 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  volumeInfo: {
+                    title: 'Designing Data-Intensive Applications',
+                    authors: ['Martin Kleppmann'],
+                    publisher: "O'Reilly Media",
+                    publishedDate: '2017-03-16',
+                    industryIdentifiers: [{ type: 'ISBN_13', identifier: '9781449373320' }],
+                    imageLinks: { thumbnail: 'http://books.google.com/cover.jpg&edge=curl' },
+                    infoLink: 'http://books.google.com/ddia',
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+        );
+
+      const gbResult = await lookupBooks({ q: 'Designing Data-Intensive Applications' });
+      expect(gbResult.items).toHaveLength(1);
+      expect(gbResult.items[0]).toMatchObject({
+        title: 'Designing Data-Intensive Applications',
+        slug: 'designing-data-intensive-applications',
+        authors: 'Martin Kleppmann',
+        year: 2017,
+        isbn: '9781449373320',
+        coverUrl: 'https://books.google.com/cover.jpg',
+        source: 'googlebooks',
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });
 

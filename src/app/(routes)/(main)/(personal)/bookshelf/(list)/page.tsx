@@ -17,6 +17,7 @@
 import type { ReactElement } from 'react';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookshelfStage } from '../_components/bookshelf-stage';
+import { loadBookshelfCatalog } from '../_lib/load-bookshelf';
 
 export const metadata = constructMetadata({
   title: 'Bookshelf',
@@ -30,15 +31,19 @@ interface BookshelfPageProps {
 }
 
 /**
- * /bookshelf: interactive 3D engineering shelf. Accepts `?book=<slug>` when returning from a
- * book detail route so the shelf opens directly on that stage.
+ * /bookshelf: dynamic Sanity-backed 3D engineering shelf + separated fanned shelf collections.
  */
 export default async function BookshelfPage({
   searchParams,
 }: BookshelfPageProps): Promise<ReactElement> {
-  const params = searchParams ? await searchParams : undefined;
+  const [params, catalog] = await Promise.all([
+    searchParams ? searchParams : Promise.resolve(undefined),
+    loadBookshelfCatalog(),
+  ]);
   const rawBook = params?.book;
   const initialSlug = typeof rawBook === 'string' ? rawBook : undefined;
 
-  return <BookshelfStage initialSlug={initialSlug} />;
+  return (
+    <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
+  );
 }

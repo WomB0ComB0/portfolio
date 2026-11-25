@@ -375,3 +375,60 @@ export const siteSettingsQuery = `
     tagline
   }
 `;
+
+const bookProjection = `
+  _id,
+  _type,
+  _createdAt,
+  _updatedAt,
+  _rev,
+  title,
+  slug,
+  spineTitle,
+  authors,
+  spineAuthor,
+  publisher,
+  edition,
+  year,
+  isbn,
+  track,
+  status,
+  summary,
+  coverImage,
+  coverUrl,
+  url,
+  spine,
+  topics,
+  order
+`;
+
+/**
+ * Fetch all published books ordered by stage order ascending
+ */
+export const booksQuery = `
+  *[_type == "book"] | order(order asc, _createdAt asc) {
+    ${bookProjection}
+  }
+`;
+
+/**
+ * Fetch all published bookshelf collections with dereferenced books
+ */
+export const bookshelvesQuery = `
+  *[_type == "bookshelf"] | order(order asc, _createdAt asc) {
+    _id,
+    _type,
+    _createdAt,
+    _updatedAt,
+    _rev,
+    title,
+    slug,
+    description,
+    accentColor,
+    order,
+    featured,
+    "books": books[]->{
+      ${bookProjection}
+    }
+  }
+`;

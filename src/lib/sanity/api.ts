@@ -34,12 +34,16 @@ import type {
   Presentation,
   Project,
   Resume,
+  SanityBook,
+  SanityBookshelf,
   Talk,
   YoutubeVideo,
 } from '@/hooks/sanity/schemas';
 import { sanityFetchWithToken } from './client';
 import {
   articlesQuery,
+  bookshelvesQuery,
+  booksQuery,
   certificationsQuery,
   experiencesQuery,
   featuredProjectsQuery,
@@ -166,4 +170,14 @@ export function getArticles(): Promise<Article[]> {
 /** All YouTube videos stored in Sanity. Throws when Sanity fails. */
 export function getYoutubeVideos(): Promise<YoutubeVideo[]> {
   return fetchList<YoutubeVideo>('youtube-videos', youtubeVideosQuery);
+}
+
+/** All books stored in Sanity. Throws when Sanity fails. */
+export function getBooks(): Promise<SanityBook[]> {
+  return fetchList<SanityBook>('books', booksQuery);
+}
+
+/** All bookshelf collections stored in Sanity with dereferenced books. Throws when Sanity fails. */
+export function getBookshelves(): Promise<SanityBookshelf[]> {
+  return fetchList<SanityBookshelf>('bookshelves', bookshelvesQuery);
 }

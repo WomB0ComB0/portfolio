@@ -21,10 +21,27 @@
  */
 
 export const BOOK_TRACKS = ['Foundations', 'Backend', 'Infra & Ops', 'AI'] as const;
-export type BookTrack = (typeof BOOK_TRACKS)[number];
+export type DefaultBookTrack = (typeof BOOK_TRACKS)[number];
+/** Open string so Sanity Studio books can introduce custom sections (e.g. Startups, Design). */
+export type BookTrack = DefaultBookTrack | (string & {});
 
 export const BOOK_CATEGORIES = ['All', ...BOOK_TRACKS] as const;
-export type BookCategory = (typeof BOOK_CATEGORIES)[number];
+export type BookCategory = 'All' | BookTrack;
+
+export interface ShelfCollection {
+  readonly slug: string;
+  readonly title: string;
+  readonly description: string;
+  readonly accentColor: string;
+  readonly bookSlugs: readonly string[];
+}
+
+export const slugifyShelf = (title: string): string =>
+  title
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 export interface BookTopic {
   readonly number: number;
@@ -596,6 +613,43 @@ export const DEFAULT_BOOK_INDEX = 3;
 export const BOOK_SLUGS: readonly string[] = BOOKS.map((book) => book.slug);
 
 export const TOTAL_TOPICS: number = BOOKS.reduce((sum, book) => sum + book.topics.length, 0);
+
+/** Default separated shelf collections matching the four core engineering tracks. */
+export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
+  {
+    slug: 'foundations',
+    title: 'Foundations',
+    description: 'Hardware, kernels, virtual memory, concurrency, and how packets cross the wire.',
+    accentColor: '#5682c3',
+    bookSlugs: BOOKS.filter((book) => book.track === 'Foundations').map((book) => book.slug),
+  },
+  {
+    slug: 'backend',
+    title: 'Backend',
+    description:
+      'Storage engines, replication, distributed consensus, system design, and service boundaries.',
+    accentColor: '#be1e2d',
+    bookSlugs: BOOKS.filter((book) => book.track === 'Backend').map((book) => book.slug),
+  },
+  {
+    slug: 'infra-and-ops',
+    title: 'Infra & Ops',
+    description:
+      'Containers, Kubernetes orchestration, Terraform IaC, SLOs, and production reliability.',
+    accentColor: '#2965a7',
+    bookSlugs: BOOKS.filter((book) => book.track === 'Infra & Ops').map((book) => book.slug),
+  },
+  {
+    slug: 'ai',
+    title: 'AI',
+    description:
+      'Deep learning math, production ML pipelines, building LLMs from scratch, and AI systems.',
+    accentColor: '#8884d5',
+    bookSlugs: BOOKS.filter((book) => book.track === 'AI').map((book) => book.slug),
+  },
+];
+
+export const DEFAULT_SHELF_SLUGS: readonly string[] = DEFAULT_SHELVES.map((shelf) => shelf.slug);
 
 /** Looks up a book by its URL slug. */
 export const getBookBySlug = (slug: string): BookItem | undefined =>

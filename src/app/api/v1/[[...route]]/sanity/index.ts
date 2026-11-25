@@ -18,6 +18,8 @@ import { Elysia } from 'elysia';
 import { readPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import {
   readArticles,
+  readBooks,
+  readBookshelves,
   readCertifications,
   readExperiences,
   readFeaturedProjects,
@@ -84,6 +86,16 @@ const videos = sanityRoute({
   context: 'fetch YouTube videos from Sanity',
   read: readVideos,
 });
+const books = sanityRoute({
+  key: 'books',
+  context: 'fetch books from Sanity',
+  read: readBooks,
+});
+const bookshelves = sanityRoute({
+  key: 'bookshelves',
+  context: 'fetch bookshelf collections from Sanity',
+  read: readBookshelves,
+});
 
 /**
  * Sanity API Routes
@@ -100,4 +112,6 @@ export const sanityRoutes = new Elysia({ prefix: '/sanity' })
   .get('/presentations', ({ set }) => presentations(set))
   .get('/talks', ({ set }) => talks(set))
   .get('/articles', ({ set }) => articles(set))
-  .get('/videos', ({ set }) => videos(set));
+  .get('/videos', ({ set }) => videos(set))
+  .get('/books', ({ set }) => books(set))
+  .get('/bookshelves', ({ set }) => bookshelves(set));
