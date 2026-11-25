@@ -101,14 +101,17 @@ export const bookType = defineType({
       name: 'status',
       title: 'Reading Status',
       type: 'string',
+      description: 'Whether you have read this book, are currently reading it, or have it queued.',
       options: {
         list: [
-          { title: 'Completed', value: 'completed' },
-          { title: 'Reading', value: 'reading' },
-          { title: 'Queued', value: 'queued' },
+          { title: 'Read (Completed)', value: 'completed' },
+          { title: 'Currently Reading', value: 'reading' },
+          { title: 'Unread (Queued)', value: 'queued' },
         ],
+        layout: 'radio',
       },
       initialValue: 'completed',
+      validation: (Rule) => Rule.required(),
     }),
     defineField({
       name: 'summary',
@@ -167,8 +170,18 @@ export const bookType = defineType({
   preview: {
     select: {
       title: 'title',
-      subtitle: 'track',
+      track: 'track',
+      status: 'status',
       media: 'coverImage',
+    },
+    prepare({ title, track, status, media }) {
+      const statusLabel =
+        status === 'reading' ? 'Reading' : status === 'queued' ? 'Unread' : 'Read';
+      return {
+        title,
+        subtitle: [track, statusLabel].filter(Boolean).join(' · '),
+        media,
+      };
     },
   },
 });

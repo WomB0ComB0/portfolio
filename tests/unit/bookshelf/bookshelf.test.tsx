@@ -35,6 +35,7 @@ import {
   getAdjacentBooks,
   getBookAt,
   getBookBySlug,
+  normalizeBookStatus,
   TOTAL_TOPICS,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
@@ -264,6 +265,38 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
       '/bookshelf',
     );
     expect(container.querySelectorAll('[data-pool-index]')).toHaveLength(backendBooks.length);
+  });
+
+  it('filters and spotlights books by reading status and groups shelves by status', () => {
+    expect(normalizeBookStatus('completed')).toBe('completed');
+    expect(normalizeBookStatus('reading')).toBe('reading');
+    expect(normalizeBookStatus('unread')).toBe('queued');
+    expect(normalizeBookStatus('to-read')).toBe('queued');
+    expect(normalizeBookStatus(undefined)).toBe('completed');
+
+    const mixedBooks = BOOKS.map((book, idx) => ({
+      ...book,
+      status:
+        idx === 0 ? ('queued' as const) : idx === 1 ? ('reading' as const) : ('completed' as const),
+    }));
+
+    const { container } = render(<BookshelfStage books={mixedBooks} />);
+    const statusGroup = screen.getByRole('group', { name: 'Reading status' });
+
+    fireEvent.click(within(statusGroup).getByRole('button', { name: /Unread/i }));
+    const highlighted = container.querySelectorAll('[data-highlighted="true"]');
+    const dimmed = container.querySelectorAll('[data-dimmed="true"]');
+    expect(highlighted.length).toBeGreaterThan(0);
+    expect(dimmed.length).toBeGreaterThan(0);
+    for (const el of highlighted) {
+      expect(el.getAttribute('data-book-status')).toBe('queued');
+    }
+
+    // Switch Shelves grid to "By reading status"
+    fireEvent.click(screen.getByRole('button', { name: 'By reading status' }));
+    expect(screen.getByText(/Finished books with distilled notes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Books currently on the desk/i)).toBeInTheDocument();
+    expect(screen.getByText(/Queued on the reading list/i)).toBeInTheDocument();
   });
 });
 

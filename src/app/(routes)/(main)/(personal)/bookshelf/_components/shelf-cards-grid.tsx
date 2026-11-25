@@ -17,10 +17,17 @@
 'use client';
 
 import Link from 'next/link';
-import type { CSSProperties, ReactElement } from 'react';
+import { type CSSProperties, type ReactElement, useState } from 'react';
 import { FiArrowUpRight } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import type { BookItem, ShelfCollection } from '../_lib/books';
+import {
+  BOOK_STATUS_META,
+  BOOK_STATUSES,
+  type BookItem,
+  type BookStatus,
+  type BookStatusFilter,
+  type ShelfCollection,
+} from '../_lib/books';
 import styles from './bookshelf.module.css';
 
 export interface ShelfCardsGridProps {
@@ -28,129 +35,228 @@ export interface ShelfCardsGridProps {
   readonly books: readonly BookItem[];
   /** Currently highlighted section title on the unified shelf, if any. */
   readonly highlightedSection?: string | null;
+  /** Active reading status filter on the unified shelf. */
+  readonly activeStatus?: BookStatusFilter;
+  /** Called when a user selects a reading status card in "By status" mode. */
+  readonly onSelectStatus?: (status: BookStatus) => void;
 }
+
+type GroupingMode = 'topic' | 'status';
 
 const MAX_FAN_COVERS = 5;
 
+function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): ReactElement {
+  const previewBooks = books.slice(0, MAX_FAN_COVERS);
+  const centerIndex = Math.floor(previewBooks.length / 2);
+
+  if (previewBooks.length === 0) {
+    return (
+      <div className={styles['fan-stage']} aria-hidden="true">
+        <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.02] px-2 text-center font-mono text-[11px] text-faint">
+          Empty
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles['fan-stage']} aria-hidden="true">
+      {previewBooks.map((book, idx) => {
+        const delta = idx - centerIndex;
+        const dist = Math.abs(delta);
+        return (
+          <div
+            key={book.slug}
+            className={styles['fan-card']}
+            style={
+              {
+                '--fan-rot': `${delta * 5.5}deg`,
+                '--fan-rot-hover': `${delta * 9.5}deg`,
+                '--fan-x': `${delta * 20}px`,
+                '--fan-x-hover': `${delta * 30}px`,
+                '--fan-y': `${dist * 4}px`,
+                '--fan-scale': `${(1 - dist * 0.06).toFixed(2)}`,
+                zIndex: MAX_FAN_COVERS - dist,
+              } as CSSProperties
+            }
+          >
+            {/* biome-ignore lint/performance/noImgElement: Local or CDN cover asset served directly without Next optimizer. */}
+            <img
+              src={book.coverSrc}
+              alt=""
+              width={260}
+              height={340}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
- * `seathru.app`-inspired fanned cover-stack collection cards, styled natively as Live Console
- * surface tiles. Clicking any shelf opens its focused 3D view at `/bookshelf/shelf/[shelfSlug]`.
+ * `seathru.app`-inspired fanned cover-stack collection cards with smooth translucent borders.
+ * Supports grouping by topic shelf (`/bookshelf/shelf/[shelfSlug]`) or by reading status
+ * (`Read`, `Reading`, `Unread`).
  */
 export function ShelfCardsGrid({
   shelves,
   books,
   highlightedSection,
+  activeStatus = 'all',
+  onSelectStatus,
 }: ShelfCardsGridProps): ReactElement {
+  const [groupBy, setGroupBy] = useState<GroupingMode>('topic');
   const bySlug = new Map(books.map((book) => [book.slug, book]));
 
   return (
     <section aria-labelledby="shelves-heading" className="space-y-4 pt-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <h2 id="shelves-heading" className="tile-title text-foreground">
             Shelves
           </h2>
           <p className="tile-sub text-muted-foreground">
-            Curated collections separated by topic. Open any shelf for a focused 3D view.
+            {groupBy === 'topic'
+              ? 'Curated collections separated by topic. Open any shelf for a focused 3D view.'
+              : 'Grouped by reading progress. Select any stack to spotlight those books on the shelf.'}
           </p>
         </div>
-        <span className="tile-meta tabular-nums text-faint">
-          {shelves.length} {shelves.length === 1 ? 'shelf' : 'shelves'}
-        </span>
+
+        <fieldset className={styles['status-bar']} aria-label="Group shelves">
+          <button
+            type="button"
+            aria-pressed={groupBy === 'topic'}
+            onClick={() => setGroupBy('topic')}
+            className={styles['status-chip']}
+          >
+            By topic
+          </button>
+          <button
+            type="button"
+            aria-pressed={groupBy === 'status'}
+            onClick={() => setGroupBy('status')}
+            className={styles['status-chip']}
+          >
+            By reading status
+          </button>
+        </fieldset>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {shelves.map((shelf) => {
-          const shelfBooks = shelf.bookSlugs
-            .map((slug) => bySlug.get(slug))
-            .filter((book): book is BookItem => Boolean(book));
-          const previewBooks = shelfBooks.slice(0, MAX_FAN_COVERS);
-          const centerIndex = Math.floor(previewBooks.length / 2);
-          const isHighlighted = highlightedSection === shelf.title;
+      {groupBy === 'topic' ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {shelves.map((shelf) => {
+            const shelfBooks = shelf.bookSlugs
+              .map((slug) => bySlug.get(slug))
+              .filter((book): book is BookItem => Boolean(book));
+            const readCount = shelfBooks.filter((book) => book.status === 'completed').length;
+            const isHighlighted = highlightedSection === shelf.title;
 
-          return (
-            <Link
-              key={shelf.slug}
-              href={`/bookshelf/shelf/${shelf.slug}`}
-              prefetch={false}
-              className={cn(
-                styles['shelf-card'],
-                isHighlighted && styles['shelf-card-active'],
-                'group flex flex-col justify-between gap-4 rounded-tile bg-surface-1 p-5 no-underline transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-focus',
-              )}
-            >
-              {/* Top metadata */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-2 tile-meta text-muted-foreground">
-                  <span
+            return (
+              <Link
+                key={shelf.slug}
+                href={`/bookshelf/shelf/${shelf.slug}`}
+                prefetch={false}
+                className={cn(
+                  styles['shelf-card'],
+                  isHighlighted && styles['shelf-card-active'],
+                  'group flex flex-col justify-between gap-4 rounded-tile p-5 no-underline focus-visible:outline-2 focus-visible:outline-focus',
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 tile-meta text-muted-foreground">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block size-2 rounded-full"
+                      style={{ backgroundColor: shelf.accentColor }}
+                    />
+                    {shelf.title}
+                  </span>
+                  <span className="tile-meta tabular-nums text-faint">
+                    {readCount}/{shelfBooks.length} read
+                  </span>
+                </div>
+
+                <FanCoverStack books={shelfBooks} />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="tile-title text-foreground">{shelf.title}</span>
+                    <FiArrowUpRight
+                      className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p className="line-clamp-2 tile-meta text-muted-foreground">
+                    {shelf.description}
+                  </p>
+                  <div
                     aria-hidden="true"
-                    className="inline-block size-2 rounded-full"
+                    className="h-[2px] w-10 rounded-full opacity-75 transition-all duration-300 group-hover:w-16 group-hover:opacity-100"
                     style={{ backgroundColor: shelf.accentColor }}
                   />
-                  {shelf.title}
-                </span>
-                <span className="tile-meta tabular-nums text-faint">
-                  {shelfBooks.length} {shelfBooks.length === 1 ? 'book' : 'books'}
-                </span>
-              </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {BOOK_STATUSES.map((status) => {
+            const meta = BOOK_STATUS_META[status];
+            const bucketBooks = books.filter((book) => book.status === status);
+            const isActive = activeStatus === status;
 
-              {/* Fanned cover stack */}
-              <div className={styles['fan-stage']} aria-hidden="true">
-                {previewBooks.map((book, idx) => {
-                  const delta = idx - centerIndex;
-                  const dist = Math.abs(delta);
-                  return (
-                    <div
-                      key={book.slug}
-                      className={styles['fan-card']}
-                      style={
-                        {
-                          '--fan-rot': `${delta * 5.5}deg`,
-                          '--fan-rot-hover': `${delta * 9.5}deg`,
-                          '--fan-x': `${delta * 20}px`,
-                          '--fan-x-hover': `${delta * 30}px`,
-                          '--fan-y': `${dist * 4}px`,
-                          '--fan-scale': `${(1 - dist * 0.06).toFixed(2)}`,
-                          zIndex: MAX_FAN_COVERS - dist,
-                        } as CSSProperties
-                      }
-                    >
-                      {/* biome-ignore lint/performance/noImgElement: Local or CDN cover asset served directly without Next optimizer. */}
-                      <img
-                        src={book.coverSrc}
-                        alt=""
-                        width={260}
-                        height={340}
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => onSelectStatus?.(status)}
+                className={cn(
+                  styles['shelf-card'],
+                  isActive && styles['shelf-card-active'],
+                  'group flex flex-col justify-between gap-4 rounded-tile p-5 text-left focus-visible:outline-2 focus-visible:outline-focus',
+                )}
+              >
+                <div className="flex w-full items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 tile-meta text-muted-foreground">
+                    <span
+                      aria-hidden="true"
+                      className={cn(styles['status-dot'], styles[`status-dot-${status}`])}
+                    />
+                    {meta.label}
+                  </span>
+                  <span className="tile-meta tabular-nums text-faint">
+                    {bucketBooks.length} {bucketBooks.length === 1 ? 'book' : 'books'}
+                  </span>
+                </div>
 
-              {/* Bottom title + accent line */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="tile-title text-foreground">{shelf.title}</span>
-                  <FiArrowUpRight
-                    className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
+                <FanCoverStack books={bucketBooks} />
+
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="tile-title text-foreground">{meta.label}</span>
+                    <FiArrowUpRight
+                      className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p className="line-clamp-2 tile-meta text-muted-foreground">{meta.description}</p>
+                  <div
                     aria-hidden="true"
+                    className="h-[2px] w-10 rounded-full opacity-75 transition-all duration-300 group-hover:w-16 group-hover:opacity-100"
+                    style={{ backgroundColor: meta.accentColor }}
                   />
                 </div>
-                <p className="line-clamp-2 tile-meta text-muted-foreground">{shelf.description}</p>
-                <div
-                  aria-hidden="true"
-                  className="h-[2px] w-10 rounded-full opacity-75 transition-all duration-300 group-hover:w-16 group-hover:opacity-100"
-                  style={{ backgroundColor: shelf.accentColor }}
-                />
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

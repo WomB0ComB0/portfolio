@@ -37,6 +37,7 @@ import {
   type BookSpineTheme,
   type BookTrack,
   DEFAULT_SHELVES,
+  normalizeBookStatus,
   type ShelfCollection,
   slugifyShelf,
 } from './books';
@@ -141,6 +142,7 @@ function mapSanityBooks(docs: readonly SanityBook[]): BookItem[] {
       year: doc.year ?? new Date().getUTCFullYear(),
       isbn: doc.isbn?.trim() || 'N/A',
       track: (doc.track.trim() || 'General') as BookTrack,
+      status: normalizeBookStatus(doc.status),
       summary: doc.summary,
       coverSrc: resolveCoverSrc(doc),
       url: doc.url?.trim() || `https://openlibrary.org/search?q=${encodeURIComponent(doc.title)}`,

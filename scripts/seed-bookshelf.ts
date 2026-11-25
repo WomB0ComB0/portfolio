@@ -59,7 +59,7 @@ async function seed(): Promise<void> {
       year: book.year,
       isbn: book.isbn,
       track: book.track,
-      status: 'completed',
+      status: book.status,
       summary: book.summary,
       coverUrl: book.coverSrc,
       url: book.url,

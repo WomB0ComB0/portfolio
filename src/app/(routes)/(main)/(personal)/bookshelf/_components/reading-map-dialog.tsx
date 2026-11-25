@@ -20,7 +20,14 @@ import Link from 'next/link';
 import { type ReactElement, useEffect, useMemo, useRef } from 'react';
 import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import { BOOKS, type BookItem, DEFAULT_SHELVES, type ShelfCollection } from '../_lib/books';
+import {
+  BOOK_STATUS_META,
+  BOOKS,
+  type BookItem,
+  DEFAULT_SHELVES,
+  type ShelfCollection,
+} from '../_lib/books';
+import styles from './bookshelf.module.css';
 
 export interface ReadingMapDialogProps {
   readonly open: boolean;
@@ -85,7 +92,7 @@ export function ReadingMapDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="reading-map-heading"
-        className="relative z-10 flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile bg-surface-1 shadow-raised"
+        className="relative z-10 flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile border border-white/10 bg-surface-1/90 shadow-raised backdrop-blur-md"
       >
         <div className="flex items-start justify-between gap-4 px-5 py-5 sm:px-6">
           <div className="min-w-0 space-y-1">
@@ -136,7 +143,8 @@ export function ReadingMapDialog({
                     </Link>
                   </div>
                   <span className="font-mono text-meta tabular-nums text-faint">
-                    {shelfBooks.length} {shelfBooks.length === 1 ? 'book' : 'books'}
+                    {shelfBooks.filter((b) => b.status === 'completed').length}/{shelfBooks.length}{' '}
+                    read
                     {firstTopic !== undefined && lastTopic !== undefined
                       ? ` · topics ${formatTopicNumber(firstTopic)}–${formatTopicNumber(lastTopic)}`
                       : ''}
@@ -150,12 +158,14 @@ export function ReadingMapDialog({
                       <div
                         key={book.slug}
                         className={cn(
-                          'flex flex-col justify-between gap-3 rounded-lg p-4 transition-colors',
-                          isActive ? 'bg-brand-subtle/45' : 'bg-canvas/65 hover:bg-canvas/90',
+                          'flex flex-col justify-between gap-3 rounded-lg border p-4 transition-colors',
+                          isActive
+                            ? 'border-brand/40 bg-brand-subtle/45'
+                            : 'border-white/[0.07] bg-canvas/65 hover:border-white/[0.14] hover:bg-canvas/90',
                         )}
                       >
                         <div className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="inline-flex items-center gap-2 font-mono text-label tabular-nums text-brand-ink">
                               <span
                                 aria-hidden="true"
@@ -164,9 +174,26 @@ export function ReadingMapDialog({
                               />
                               Stage {book.stageLabel}
                             </span>
-                            <span className="font-mono text-label tabular-nums text-faint">
-                              {book.topics.length} topics
-                            </span>
+                            <div className="inline-flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  styles['status-badge'],
+                                  styles[`status-badge-${book.status}`],
+                                )}
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={cn(
+                                    styles['status-dot'],
+                                    styles[`status-dot-${book.status}`],
+                                  )}
+                                />
+                                {BOOK_STATUS_META[book.status].label}
+                              </span>
+                              <span className="font-mono text-label tabular-nums text-faint">
+                                {book.topics.length} topics
+                              </span>
+                            </div>
                           </div>
                           <h4 className="text-body-sm font-semibold text-foreground">
                             {book.title}

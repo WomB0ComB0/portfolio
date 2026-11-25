@@ -28,6 +28,55 @@ export type BookTrack = DefaultBookTrack | (string & {});
 export const BOOK_CATEGORIES = ['All', ...BOOK_TRACKS] as const;
 export type BookCategory = 'All' | BookTrack;
 
+export const BOOK_STATUSES = ['completed', 'reading', 'queued'] as const;
+export type BookStatus = (typeof BOOK_STATUSES)[number];
+export type BookStatusFilter = 'all' | BookStatus;
+
+export interface BookStatusMeta {
+  readonly label: string;
+  readonly description: string;
+  readonly accentColor: string;
+  readonly isRead: boolean;
+}
+
+export const BOOK_STATUS_META: Readonly<Record<BookStatus, BookStatusMeta>> = {
+  completed: {
+    label: 'Read',
+    description: 'Finished books with distilled notes and key takeaways.',
+    accentColor: '#34d399',
+    isRead: true,
+  },
+  reading: {
+    label: 'Reading',
+    description: 'Books currently on the desk and actively being annotated.',
+    accentColor: '#f59e0b',
+    isRead: false,
+  },
+  queued: {
+    label: 'Unread',
+    description: 'Queued on the reading list for upcoming deep dives.',
+    accentColor: '#94a3b8',
+    isRead: false,
+  },
+};
+
+export function normalizeBookStatus(raw?: string | null): BookStatus {
+  const value = raw?.trim().toLowerCase();
+  if (value === 'reading' || value === 'in-progress' || value === 'in_progress') {
+    return 'reading';
+  }
+  if (
+    value === 'queued' ||
+    value === 'unread' ||
+    value === 'to-read' ||
+    value === 'to_read' ||
+    value === 'planned'
+  ) {
+    return 'queued';
+  }
+  return 'completed';
+}
+
 export interface ShelfCollection {
   readonly slug: string;
   readonly title: string;
@@ -73,6 +122,7 @@ export interface BookItem {
   readonly year: number;
   readonly isbn: string;
   readonly track: BookTrack;
+  readonly status: BookStatus;
   readonly summary: string;
   readonly coverSrc: string;
   readonly url: string;
@@ -94,6 +144,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2015,
     isbn: '978-0-13-409266-9',
     track: 'Foundations',
+    status: 'completed',
     summary:
       'How code actually executes on hardware: bits, assembly, processor pipelining, memory hierarchies, linking, and system-level I/O.',
     coverSrc: '/assets/bookshelf/computer-systems.webp',
@@ -132,6 +183,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2018,
     isbn: '978-1-98-508659-3',
     track: 'Foundations',
+    status: 'completed',
     summary:
       'The three pillars of every modern OS kernel: virtualizing the CPU and memory, coordinating concurrency, and persisting state safely on disk.',
     coverSrc: '/assets/bookshelf/operating-systems.webp',
@@ -170,6 +222,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2021,
     isbn: '978-0-13-668155-7',
     track: 'Foundations',
+    status: 'completed',
     summary:
       'How packets cross the internet from application protocols down to the wire: HTTP/3, DNS, TCP congestion control, BGP routing, and TLS.',
     coverSrc: '/assets/bookshelf/computer-networking.webp',
@@ -208,6 +261,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2025,
     isbn: '978-1-44-937332-0',
     track: 'Backend',
+    status: 'completed',
     summary:
       'The blueprint for reliable, scalable, and maintainable data systems: storage engines, replication, partitioning, transactions, consensus, and streams.',
     coverSrc: '/assets/bookshelf/designing-data-intensive-applications.webp',
@@ -248,6 +302,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2020,
     isbn: '979-8-66-465340-3',
     track: 'Backend',
+    status: 'completed',
     summary:
       'Practical architecture patterns from zero to millions of users: rate limiters, consistent hashing, key-value stores, feeds, and real-time messaging.',
     coverSrc: '/assets/bookshelf/system-design-interview.webp',
@@ -286,6 +341,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2021,
     isbn: '978-1-49-203402-5',
     track: 'Backend',
+    status: 'completed',
     summary:
       'Modeling service boundaries around domain context, evolving monoliths safely, choosing sync vs async communication, and isolating failures.',
     coverSrc: '/assets/bookshelf/building-microservices.webp',
@@ -324,6 +380,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2024,
     isbn: '978-1-91-658525-6',
     track: 'Infra & Ops',
+    status: 'completed',
     summary:
       'Containers from the Linux kernel up: namespaces, cgroups, OCI image layers, multi-stage builds, container networking, and supply-chain security.',
     coverSrc: '/assets/bookshelf/docker-deep-dive.webp',
@@ -360,6 +417,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2022,
     isbn: '978-1-09-811020-8',
     track: 'Infra & Ops',
+    status: 'completed',
     summary:
       'Declarative container orchestration at scale: reconciliation loops, pods, services, ingress, autoscaling, stateful workloads, and operators.',
     coverSrc: '/assets/bookshelf/kubernetes-up-and-running.webp',
@@ -398,6 +456,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2022,
     isbn: '978-1-09-811674-3',
     track: 'Infra & Ops',
+    status: 'completed',
     summary:
       'Writing production infrastructure as code: remote state locking, composable modules, zero-downtime rollouts, drift detection, and CI pipelines.',
     coverSrc: '/assets/bookshelf/terraform-up-and-running.webp',
@@ -434,6 +493,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2016,
     isbn: '978-1-49-192912-4',
     track: 'Infra & Ops',
+    status: 'completed',
     summary:
       'Treating operations as a software engineering problem: SLIs, SLOs, error budgets, toil elimination, alerting hygiene, and blameless postmortems.',
     coverSrc: '/assets/bookshelf/site-reliability-engineering.webp',
@@ -472,6 +532,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2016,
     isbn: '978-0-26-203561-3',
     track: 'AI',
+    status: 'completed',
     summary:
       'The mathematical foundation of neural networks: linear algebra, probability, backprop, optimization, regularization, sequence modeling, and generative models.',
     coverSrc: '/assets/bookshelf/deep-learning.webp',
@@ -508,6 +569,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2022,
     isbn: '978-1-09-810796-3',
     track: 'AI',
+    status: 'completed',
     summary:
       'End-to-end production ML engineering: data pipelines, feature engineering, offline vs online evaluation, distribution shift, and continual learning.',
     coverSrc: '/assets/bookshelf/designing-machine-learning-systems.webp',
@@ -542,6 +604,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2024,
     isbn: '978-1-63-343716-6',
     track: 'AI',
+    status: 'completed',
     summary:
       'Demystifying modern LLMs line by line in PyTorch: BPE tokenization, causal self-attention, GPT blocks, pretraining loops, and instruction tuning.',
     coverSrc: '/assets/bookshelf/build-a-large-language-model.webp',
@@ -576,6 +639,7 @@ export const BOOKS: readonly [BookItem, ...BookItem[]] = [
     year: 2025,
     isbn: '978-1-09-816630-4',
     track: 'AI',
+    status: 'completed',
     summary:
       'Shipping on top of foundation models: evaluation, prompting, RAG, agents, finetuning, inference.',
     coverSrc: '/assets/bookshelf/ai-engineering.webp',

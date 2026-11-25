@@ -34,9 +34,13 @@ import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
+  BOOK_STATUS_META,
+  BOOK_STATUSES,
   BOOKS,
   type BookCategory,
   type BookItem,
+  type BookStatus,
+  type BookStatusFilter,
   DEFAULT_BOOK_INDEX,
   DEFAULT_SHELVES,
   type ShelfCollection,
@@ -133,6 +137,7 @@ export function BookshelfStage({
   const [halfWindow, setHalfWindow] = useState<number>(5);
   const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
   const [highlightedTrack, setHighlightedTrack] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<BookStatusFilter>('all');
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -186,6 +191,19 @@ export function BookshelfStage({
     return counts;
   }, [safeBooks, bookCount]);
 
+  const statusCounts = useMemo<Readonly<Record<BookStatusFilter, number>>>(() => {
+    const counts: Record<BookStatusFilter, number> = {
+      all: bookCount,
+      completed: 0,
+      reading: 0,
+      queued: 0,
+    };
+    for (const book of safeBooks) {
+      counts[book.status] += 1;
+    }
+    return counts;
+  }, [safeBooks, bookCount]);
+
   const totalTopics = useMemo(
     () => safeBooks.reduce((sum, book) => sum + book.topics.length, 0),
     [safeBooks],
@@ -196,14 +214,16 @@ export function BookshelfStage({
       activeShelf
         ? [
             { label: bookCount === 1 ? 'book' : 'books', value: bookCount },
+            { label: 'read', value: statusCounts.completed },
             { label: 'topics', value: totalTopics },
           ]
         : [
             { label: 'books', value: bookCount },
+            { label: 'read', value: statusCounts.completed },
             { label: shelves.length === 1 ? 'shelf' : 'shelves', value: shelves.length },
             { label: 'topics', value: totalTopics },
           ],
-    [activeShelf, bookCount, shelves.length, totalTopics],
+    [activeShelf, bookCount, statusCounts.completed, shelves.length, totalTopics],
   );
 
   const activeTabCategory: BookCategory = highlightedTrack ?? activeBook.track;
@@ -248,8 +268,8 @@ export function BookshelfStage({
   const slotX = useCallback(
     (offset: number): number => {
       if (offset === 0) return 0;
-      const x1 = bookHeight * (isFiniteShelf ? 0.52 : 0.5);
-      const pitch = bookHeight * (isFiniteShelf ? 0.2 : 0.18);
+      const x1 = bookHeight * (isFiniteShelf ? 0.53 : 0.515);
+      const pitch = bookHeight * (isFiniteShelf ? 0.205 : 0.19);
       return Math.sign(offset) * (x1 + (Math.abs(offset) - 1) * pitch);
     },
     [bookHeight, isFiniteShelf],
@@ -307,8 +327,11 @@ export function BookshelfStage({
         teleported.push(el);
       }
 
-      const matchesHighlight = highlightedTrack !== null && slot.book.track === highlightedTrack;
-      const isDimmed = highlightedTrack !== null && slot.book.track !== highlightedTrack;
+      const hasFilter = highlightedTrack !== null || statusFilter !== 'all';
+      const matchesTrack = highlightedTrack === null || slot.book.track === highlightedTrack;
+      const matchesStatus = statusFilter === 'all' || slot.book.status === statusFilter;
+      const matchesHighlight = hasFilter && matchesTrack && matchesStatus;
+      const isDimmed = hasFilter && !matchesHighlight;
 
       if (activeClass) el.classList.toggle(activeClass, slot.offset === 0);
       if (beforeClass) el.classList.toggle(beforeClass, slot.offset < 0);
@@ -326,7 +349,7 @@ export function BookshelfStage({
         if (noAnimClass) el.classList.remove(noAnimClass);
       }
     }
-  }, [poolSlots, slotX, detailBook, highlightedTrack]);
+  }, [poolSlots, slotX, detailBook, highlightedTrack, statusFilter]);
 
   const step = useCallback(
     (dir: number, dur = STEP_DURATION_MS): void => {
@@ -728,9 +751,12 @@ export function BookshelfStage({
       openDetail(bookAt(posRef.current));
     } else if (!Number.isNaN(offset)) {
       const clickedBook = bookAt(posRef.current + offset);
-      // Clicking a dimmed out-of-section book shifts section highlight to its track cleanly.
+      // Clicking a dimmed out-of-filter book shifts active highlight cleanly to it.
       if (highlightedTrack && clickedBook.track !== highlightedTrack) {
         setHighlightedTrack(clickedBook.track);
+      }
+      if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
+        setStatusFilter('all');
       }
       stepBy(offset);
     }
@@ -742,11 +768,47 @@ export function BookshelfStage({
       return;
     }
     setHighlightedTrack(category);
-    const firstInTrack = safeBooks.findIndex((book) => book.track === category);
-    if (firstInTrack >= 0) {
-      goToBookIndex(firstInTrack);
+    const firstMatch = safeBooks.findIndex(
+      (book) => book.track === category && (statusFilter === 'all' || book.status === statusFilter),
+    );
+    const fallbackInTrack =
+      firstMatch >= 0 ? firstMatch : safeBooks.findIndex((book) => book.track === category);
+    if (fallbackInTrack >= 0) {
+      goToBookIndex(fallbackInTrack);
     }
   };
+
+  const handleStatusClick = (nextStatus: BookStatusFilter, scrollToStage = false): void => {
+    setStatusFilter(nextStatus);
+    if (nextStatus !== 'all') {
+      const firstMatch = safeBooks.findIndex(
+        (book) =>
+          book.status === nextStatus &&
+          (highlightedTrack === null || book.track === highlightedTrack),
+      );
+      if (firstMatch >= 0) {
+        goToBookIndex(firstMatch);
+      } else if (highlightedTrack !== null) {
+        const anyWithStatus = safeBooks.findIndex((book) => book.status === nextStatus);
+        if (anyWithStatus >= 0) {
+          setHighlightedTrack(null);
+          goToBookIndex(anyWithStatus);
+        }
+      }
+    }
+    if (scrollToStage && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    }
+  };
+
+  const matchingFilterCount = useMemo(() => {
+    if (highlightedTrack === null && statusFilter === 'all') return bookCount;
+    return safeBooks.filter(
+      (book) =>
+        (highlightedTrack === null || book.track === highlightedTrack) &&
+        (statusFilter === 'all' || book.status === statusFilter),
+    ).length;
+  }, [safeBooks, bookCount, highlightedTrack, statusFilter]);
 
   if (detailBook) {
     return (
@@ -778,7 +840,7 @@ export function BookshelfStage({
             <Link
               href="/bookshelf"
               prefetch={false}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/10 bg-surface-1/70 px-3 tile-label text-muted-foreground no-underline backdrop-blur-md transition-colors hover:border-white/20 hover:bg-surface-2/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
             >
               <FiArrowLeft className="size-4" aria-hidden="true" />
               All shelves
@@ -787,7 +849,7 @@ export function BookshelfStage({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-white/10 bg-surface-1/70 px-3 tile-label text-muted-foreground backdrop-blur-md transition-colors hover:border-white/20 hover:bg-surface-2/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map
@@ -805,9 +867,9 @@ export function BookshelfStage({
           } as CSSProperties
         }
       >
-        {/* Live Console section filter pills (hidden on single-section focused shelf) */}
-        {!activeShelf && categories.length > 2 && (
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Translucent section & reading-status filter controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {!activeShelf && categories.length > 2 && (
             <div role="tablist" aria-label="Categories" className={styles['track-bar']}>
               <span
                 aria-hidden="true"
@@ -837,6 +899,36 @@ export function BookshelfStage({
                 </button>
               ))}
             </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <fieldset aria-label="Reading status" className={styles['status-bar']}>
+              <button
+                type="button"
+                aria-pressed={statusFilter === 'all'}
+                onClick={() => handleStatusClick('all')}
+                className={styles['status-chip']}
+              >
+                <span>Any status</span>
+                <span className={styles['track-count']}>{statusCounts.all}</span>
+              </button>
+              {BOOK_STATUSES.map((status: BookStatus) => (
+                <button
+                  key={status}
+                  type="button"
+                  aria-pressed={statusFilter === status}
+                  onClick={() => handleStatusClick(status)}
+                  className={styles['status-chip']}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(styles['status-dot'], styles[`status-dot-${status}`])}
+                  />
+                  <span>{BOOK_STATUS_META[status].label}</span>
+                  <span className={styles['track-count']}>{statusCounts[status]}</span>
+                </button>
+              ))}
+            </fieldset>
 
             {highlightedTrack && highlightedShelfSlug && (
               <Link
@@ -848,6 +940,24 @@ export function BookshelfStage({
                 <FiArrowUpRight className="size-3.5" aria-hidden="true" />
               </Link>
             )}
+          </div>
+        </div>
+
+        {matchingFilterCount === 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-surface-1/60 px-4 py-2.5 tile-meta text-muted-foreground backdrop-blur-md">
+            <span>
+              No books match this filter yet — update a book&apos;s reading status in Sanity Studio.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setHighlightedTrack(null);
+                setStatusFilter('all');
+              }}
+              className="text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Show all books
+            </button>
           </div>
         )}
 
@@ -874,8 +984,11 @@ export function BookshelfStage({
             {poolSlots.map((slot) => {
               const isActive = slot.offset === 0;
               const { book } = slot;
-              const isHighlighted = highlightedTrack !== null && book.track === highlightedTrack;
-              const isDimmed = highlightedTrack !== null && book.track !== highlightedTrack;
+              const hasFilter = highlightedTrack !== null || statusFilter !== 'all';
+              const matchesTrack = highlightedTrack === null || book.track === highlightedTrack;
+              const matchesStatus = statusFilter === 'all' || book.status === statusFilter;
+              const isHighlighted = hasFilter && matchesTrack && matchesStatus;
+              const isDimmed = hasFilter && !isHighlighted;
 
               return (
                 <div
@@ -887,6 +1000,7 @@ export function BookshelfStage({
                   data-pool-index={slot.poolIndex}
                   data-slot-offset={slot.offset}
                   data-active-slot={isActive ? 'true' : 'false'}
+                  data-book-status={book.status}
                   data-highlighted={isHighlighted ? 'true' : 'false'}
                   data-dimmed={isDimmed ? 'true' : 'false'}
                   className={styles.slot}
@@ -903,7 +1017,16 @@ export function BookshelfStage({
                     }
                   >
                     <div className={cn(styles.face, styles['face-spine'])}>
-                      <div className={styles['spine-hdr']}>{book.stageLabel}</div>
+                      <div className={styles['spine-hdr']}>
+                        <span>{book.stageLabel}</span>
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            styles['spine-status-pip'],
+                            styles[`spine-status-${book.status}`],
+                          )}
+                        />
+                      </div>
                       <div className={styles['spine-title']}>
                         <span>{book.spineTitle}</span>
                       </div>
@@ -951,6 +1074,16 @@ export function BookshelfStage({
               ·
             </span>
             <span className="tile-sub font-medium text-foreground">{activeBook.title}</span>
+            <span
+              className={cn(styles['status-badge'], styles[`status-badge-${activeBook.status}`])}
+              data-active-status={activeBook.status}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(styles['status-dot'], styles[`status-dot-${activeBook.status}`])}
+              />
+              {BOOK_STATUS_META[activeBook.status].label}
+            </span>
             <span aria-hidden="true" className="text-faint">
               ·
             </span>
@@ -992,6 +1125,8 @@ export function BookshelfStage({
             shelves={shelves}
             books={safeBooks}
             highlightedSection={highlightedTrack}
+            activeStatus={statusFilter}
+            onSelectStatus={(status) => handleStatusClick(status, true)}
           />
         )}
       </div>
