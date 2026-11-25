@@ -17,6 +17,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useQueryStates } from 'nuqs';
 import {
   type CSSProperties,
   type PointerEvent,
@@ -31,6 +32,7 @@ import {
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
+import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '@/lib/books/bookshelf-search-params';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
@@ -124,21 +126,22 @@ export function BookshelfStage({
     [safeBooks, bookCount, isFiniteShelf],
   );
 
+  const [urlState, setUrlState] = useQueryStates(bookshelfSearchParsers, BOOKSHELF_URL_OPTIONS);
+  const resolvedInitialSlug = urlState.book ?? initialSlug;
+
   const initialPos = useMemo(() => {
-    if (initialSlug) {
-      const found = safeBooks.findIndex((book) => book.slug === initialSlug);
+    if (resolvedInitialSlug) {
+      const found = safeBooks.findIndex((book) => book.slug === resolvedInitialSlug);
       if (found >= 0) return found;
     }
     if (isFiniteShelf) return 0;
     return Math.min(DEFAULT_BOOK_INDEX, bookCount - 1);
-  }, [initialSlug, safeBooks, bookCount, isFiniteShelf]);
+  }, [resolvedInitialSlug, safeBooks, bookCount, isFiniteShelf]);
 
   const [pos, setPos] = useState<number>(initialPos);
   const [bookHeight, setBookHeight] = useState<number>(DEFAULT_BOOK_HEIGHT);
   const [halfWindow, setHalfWindow] = useState<number>(5);
   const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
-  const [highlightedTrack, setHighlightedTrack] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<BookStatusFilter>('all');
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -150,6 +153,13 @@ export function BookshelfStage({
     readonly height: number;
     readonly ready: boolean;
   }>({ left: 0, top: 0, width: 0, height: 32, ready: false });
+
+  // Derive valid tracks once so unknown `?track=` values safely fall back to null (All).
+  const validTrackSet = useMemo(() => new Set(safeBooks.map((book) => book.track)), [safeBooks]);
+  const highlightedTrack: string | null =
+    urlState.track && validTrackSet.has(urlState.track) ? urlState.track : null;
+  const statusFilter: BookStatusFilter = urlState.status;
+  const shelfGroupBy = urlState.group;
 
   const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
@@ -772,12 +782,16 @@ export function BookshelfStage({
       }
       if (!Number.isNaN(offset)) {
         const clickedBook = bookAt(posRef.current + offset);
-        // Clicking a dimmed out-of-filter book shifts active highlight cleanly to it.
+        // Clicking a dimmed out-of-filter book shifts active highlight cleanly in one batched URL update.
+        const nextUrlPatch: { track?: string | null; status?: BookStatusFilter } = {};
         if (highlightedTrack && clickedBook.track !== highlightedTrack) {
-          setHighlightedTrack(clickedBook.track);
+          nextUrlPatch.track = clickedBook.track;
         }
         if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
-          setStatusFilter('all');
+          nextUrlPatch.status = 'all';
+        }
+        if (Object.keys(nextUrlPatch).length > 0) {
+          void setUrlState(nextUrlPatch);
         }
         stepBy(offset);
         return;
@@ -803,10 +817,10 @@ export function BookshelfStage({
 
   const handleTabClick = (category: BookCategory): void => {
     if (category === 'All') {
-      setHighlightedTrack(null);
+      void setUrlState({ track: null });
       return;
     }
-    setHighlightedTrack(category);
+    void setUrlState({ track: category });
     const firstMatch = safeBooks.findIndex(
       (book) => book.track === category && (statusFilter === 'all' || book.status === statusFilter),
     );
@@ -818,7 +832,7 @@ export function BookshelfStage({
   };
 
   const handleStatusClick = (nextStatus: BookStatusFilter, scrollToStage = false): void => {
-    setStatusFilter(nextStatus);
+    let clearTrack = false;
     if (nextStatus !== 'all') {
       const firstMatch = safeBooks.findIndex(
         (book) =>
@@ -830,11 +844,12 @@ export function BookshelfStage({
       } else if (highlightedTrack !== null) {
         const anyWithStatus = safeBooks.findIndex((book) => book.status === nextStatus);
         if (anyWithStatus >= 0) {
-          setHighlightedTrack(null);
+          clearTrack = true;
           goToBookIndex(anyWithStatus);
         }
       }
     }
+    void setUrlState(clearTrack ? { status: nextStatus, track: null } : { status: nextStatus });
     if (scrollToStage && typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     }
@@ -999,8 +1014,7 @@ export function BookshelfStage({
             <button
               type="button"
               onClick={() => {
-                setHighlightedTrack(null);
-                setStatusFilter('all');
+                void setUrlState({ track: null, status: 'all' });
               }}
               className="text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
             >
@@ -1169,6 +1183,10 @@ export function BookshelfStage({
             books={safeBooks}
             highlightedSection={highlightedTrack}
             activeStatus={statusFilter}
+            groupBy={shelfGroupBy}
+            onGroupByChange={(next) => {
+              void setUrlState({ group: next });
+            }}
             onSelectStatus={(status) => handleStatusClick(status, true)}
           />
         )}

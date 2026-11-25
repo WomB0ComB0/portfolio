@@ -16,8 +16,17 @@
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render as rtlRender, screen, within } from '@testing-library/react';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+
+const render = (ui: ReactElement, searchParams?: string) =>
+  rtlRender(ui, {
+    wrapper: ({ children }) => (
+      <NuqsTestingAdapter searchParams={searchParams}>{children}</NuqsTestingAdapter>
+    ),
+  });
 
 // Vite cannot load Next's PostCSS plugin configuration for CSS modules under Vitest.
 vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
@@ -218,13 +227,13 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
   });
 
-  it('highlights books in the selected section pill and dims non-matching sections until All is clicked', () => {
+  it('highlights books in the selected section pill and dims non-matching sections until All is clicked', async () => {
     vi.useFakeTimers();
     try {
       const { container } = render(<BookshelfStage />);
 
-      fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
-      act(() => {
+      await act(async () => {
+        fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
         vi.advanceTimersByTime(600);
       });
 
@@ -240,7 +249,10 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
         '/bookshelf/shelf/ai',
       );
 
-      fireEvent.click(screen.getByRole('tab', { name: /All/ }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('tab', { name: /All/ }));
+        vi.advanceTimersByTime(100);
+      });
       expect(container.querySelectorAll('[data-dimmed="true"]').length).toBe(0);
     } finally {
       vi.useRealTimers();

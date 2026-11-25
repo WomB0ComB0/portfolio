@@ -93,7 +93,7 @@ export const GlobalProvider: React.FC<
        * NuqsAdapter provides URL state management for Next.js App Router.
        * Required for nuqs useQueryState hooks to work properly.
        */}
-      <NuqsAdapter>
+      <NuqsAdapter defaultOptions={{ shallow: true, scroll: false, clearOnDefault: true }}>
         <Providers
           node={
             <>

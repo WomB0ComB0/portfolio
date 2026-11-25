@@ -16,7 +16,7 @@
 
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import type { ReactElement } from 'react';
+import { type ReactElement, Suspense } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookshelfStage } from '../../_components/bookshelf-stage';
@@ -54,5 +54,9 @@ export default async function ShelfDetailPage({
   const hit = await loadCatalogShelfBySlug(shelfSlug);
   if (!hit || hit.books.length === 0) notFound();
 
-  return <BookshelfStage books={hit.books} shelves={hit.catalog.shelves} activeShelf={hit.shelf} />;
+  return (
+    <Suspense fallback={null}>
+      <BookshelfStage books={hit.books} shelves={hit.catalog.shelves} activeShelf={hit.shelf} />
+    </Suspense>
+  );
 }

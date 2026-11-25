@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { ReactElement } from 'react';
+import { type ReactElement, Suspense } from 'react';
 import {
   buildFreeProgrammingBooksCatalog,
   loadFreeProgrammingBooks,
@@ -35,5 +35,9 @@ export default async function FreeProgrammingBooksPage(): Promise<ReactElement> 
   const catalog = await loadFreeProgrammingBooks().catch(() =>
     buildFreeProgrammingBooksCatalog([], []),
   );
-  return <FreeBooksExplorer catalog={catalog} />;
+  return (
+    <Suspense fallback={null}>
+      <FreeBooksExplorer catalog={catalog} />
+    </Suspense>
+  );
 }

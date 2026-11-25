@@ -38,6 +38,10 @@ export interface ShelfCardsGridProps {
   readonly highlightedSection?: string | null;
   /** Active reading status filter on the unified shelf. */
   readonly activeStatus?: BookStatusFilter;
+  /** Controlled grouping mode synced to the URL via `nuqs` (`?group=topic|status`). */
+  readonly groupBy?: GroupingMode;
+  /** Called when the user switches between topic shelves and reading-status stacks. */
+  readonly onGroupByChange?: (mode: GroupingMode) => void;
   /** Called when a user selects a reading status card in "By status" mode. */
   readonly onSelectStatus?: (status: BookStatus) => void;
 }
@@ -109,9 +113,19 @@ export function ShelfCardsGrid({
   books,
   highlightedSection,
   activeStatus = 'all',
+  groupBy: controlledGroupBy,
+  onGroupByChange,
   onSelectStatus,
 }: ShelfCardsGridProps): ReactElement {
-  const [groupBy, setGroupBy] = useState<GroupingMode>('topic');
+  const [uncontrolledGroupBy, setUncontrolledGroupBy] = useState<GroupingMode>('topic');
+  const groupBy = controlledGroupBy ?? uncontrolledGroupBy;
+  const setGroupBy = (next: GroupingMode): void => {
+    if (onGroupByChange) {
+      onGroupByChange(next);
+    } else {
+      setUncontrolledGroupBy(next);
+    }
+  };
   const bySlug = new Map(books.map((book) => [book.slug, book]));
 
   return (

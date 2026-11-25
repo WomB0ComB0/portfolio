@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { ReactElement } from 'react';
+import { type ReactElement, Suspense } from 'react';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookshelfStage } from '../_components/bookshelf-stage';
 import { loadBookshelfCatalog } from '../_lib/load-bookshelf';
@@ -44,6 +44,8 @@ export default async function BookshelfPage({
   const initialSlug = typeof rawBook === 'string' ? rawBook : undefined;
 
   return (
-    <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
+    <Suspense fallback={null}>
+      <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
+    </Suspense>
   );
 }

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { NuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FreeBooksExplorer } from '@/app/(routes)/(main)/(personal)/bookshelf/free/_components/free-books-explorer';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
@@ -193,17 +194,33 @@ describe('EbookFoundation free-programming-books parser & filters', () => {
 });
 
 describe('FreeBooksExplorer UI', () => {
-  it('filters live by search query, source tab, format, and archived toggle', () => {
+  it('renders a sortable data table synced to URL query state via nuqs', async () => {
     const catalog = buildFreeProgrammingBooksCatalog(
       parseFreeProgrammingBooksMarkdown(SAMPLE_LANGS_MD, 'langs'),
       parseFreeProgrammingBooksMarkdown(SAMPLE_SUBJECTS_MD, 'subjects'),
     );
+    const updates: UrlUpdateEvent[] = [];
 
-    render(<FreeBooksExplorer catalog={catalog} />);
+    render(
+      <NuqsTestingAdapter onUrlUpdate={(event) => updates.push(event)}>
+        <FreeBooksExplorer catalog={catalog} />
+      </NuqsTestingAdapter>,
+    );
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Free Programming Books' }),
     ).toBeInTheDocument();
+
+    // Renders as a semantic data table with sortable column headers
+    const table = screen.getByRole('table', { name: /Free programming books catalog/i });
+    expect(table).toBeInTheDocument();
+    const bookHeader = within(table).getByRole('columnheader', { name: /Book/i });
+    expect(bookHeader).toHaveAttribute('aria-sort', 'ascending');
+
+    // Clicking Book header flips sort direction to descending
+    fireEvent.click(within(bookHeader).getByRole('button'));
+    expect(bookHeader).toHaveAttribute('aria-sort', 'descending');
+
     // Archived book is hidden by default
     expect(screen.queryByText('Asynchronous Programming in Rust')).not.toBeInTheDocument();
     expect(screen.getByText('The Rust Programming Language')).toBeInTheDocument();
@@ -218,6 +235,39 @@ describe('FreeBooksExplorer UI', () => {
     });
     expect(screen.getByText('TypeScript Deep Dive')).toBeInTheDocument();
     expect(screen.queryByText('The Rust Programming Language')).not.toBeInTheDocument();
+
+    // nuqs flushes URL query updates asynchronously on a microtask/throttle tick
+    await vi.waitFor(() => {
+      const qs = updates.at(-1)?.queryString ?? '';
+      expect(qs).toContain('q=Basarat');
+      expect(qs).toContain('archived=true');
+      expect(qs).toContain('dir=desc');
+    });
+  });
+
+  it('hydrates filters directly from URL query parameters and paginates large sets', () => {
+    const manyLines = [
+      '### Rust',
+      ...Array.from(
+        { length: 30 },
+        (_, i) =>
+          `* [Rust Book ${String(i + 1).padStart(2, '0')}](https://doc.rust-lang.org/book-${i + 1}/) - Author ${i + 1} (PDF)`,
+      ),
+    ].join('\n');
+    const catalog = buildFreeProgrammingBooksCatalog(
+      parseFreeProgrammingBooksMarkdown(manyLines, 'langs'),
+      [],
+    );
+
+    render(
+      <NuqsTestingAdapter searchParams="?perPage=25&page=2&format=PDF">
+        <FreeBooksExplorer catalog={catalog} />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByText(/Page/i)).toBeInTheDocument();
+    expect(screen.getByText('Rust Book 26')).toBeInTheDocument();
+    expect(screen.queryByText('Rust Book 01')).not.toBeInTheDocument();
   });
 });
 
