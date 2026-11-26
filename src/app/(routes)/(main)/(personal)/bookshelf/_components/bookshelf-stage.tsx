@@ -31,6 +31,7 @@ import {
 import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip } from '@/components/console/stat-strip';
+import { FINE_POINTER } from '@/hooks/use-fine-pointer';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import { describeShelves, formatStageLabel, shelfStats } from '../_lib/book-labels';
@@ -95,6 +96,8 @@ export interface BookshelfStageProps {
   readonly activeShelf?: ShelfCollection;
 }
 
+/** A resize re-measures the stage once it has settled this long. */
+const RESIZE_DEBOUNCE_MS = 100;
 /** A jump past JUMP_SLIDE_MAX (use-shelf-motion.ts) teleports every slot, then fades in this long. */
 const JUMP_IN_MS = 220;
 /** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
@@ -282,8 +285,7 @@ export function BookshelfStage({
   useEffect(() => {
     measureStage();
     const isFine =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      typeof window.matchMedia === 'function' && window.matchMedia(FINE_POINTER).matches;
     setFinePointer(isFine);
 
     const hashIndex = stageIndexFromHash();
@@ -298,7 +300,7 @@ export function BookshelfStage({
       resizeTimer = setTimeout(() => {
         measureStage();
         syncShelfPillRef.current();
-      }, 100);
+      }, RESIZE_DEBOUNCE_MS);
     };
     window.addEventListener('resize', onResize);
     void document.fonts?.ready.then(() => syncShelfPillRef.current());
