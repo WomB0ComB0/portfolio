@@ -186,7 +186,12 @@ async function openBookshelf(page: Page, path = '/bookshelf'): Promise<void> {
   await expect(page.locator(LIVE)).toHaveText(LIVE_TEXT);
 }
 
-/** The cdn.sanity.io response bytes a fresh load of `path` takes, once the network is idle. */
+/**
+ * The cdn.sanity.io response bytes a fresh load of `path` takes, once the network is idle. A cover
+ * request that fails or answers with a non-2xx status fails the measurement instead of counting
+ * (or vanishing from) the total, and the page must have loaded at least one cover, so a broken
+ * CDN can never pass an upper-bound budget with 0 bytes.
+ */
 async function coverBytes(
   browser: Browser,
   options: BrowserContextOptions,
@@ -194,12 +199,29 @@ async function coverBytes(
 ): Promise<{ readonly bytes: number; readonly requests: number }> {
   return withPage(browser, options, async (page) => {
     const sizes: Promise<number>[] = [];
+    const failures: string[] = [];
+    const isCover = (url: string): boolean => new URL(url).hostname === SANITY_CDN_HOST;
+    page.on('requestfailed', (request) => {
+      if (isCover(request.url()))
+        failures.push(`${request.failure()?.errorText ?? 'failed'} ${request.url()}`);
+    });
     page.on('requestfinished', (request) => {
-      if (new URL(request.url()).hostname !== SANITY_CDN_HOST) return;
-      sizes.push(request.sizes().then((size) => size.responseBodySize));
+      if (!isCover(request.url())) return;
+      sizes.push(
+        request.response().then(async (response) => {
+          const status = response?.status() ?? 0;
+          if (status < 200 || status >= 300) {
+            failures.push(`HTTP ${status} ${request.url()}`);
+            return 0;
+          }
+          return (await request.sizes()).responseBodySize;
+        }),
+      );
     });
     await openBookshelf(page, path);
     const bodies = await Promise.all(sizes);
+    expect(failures, `cover requests failed while loading ${path}`).toEqual([]);
+    expect(bodies.length, `no covers loaded on ${path}`).toBeGreaterThan(0);
     return { bytes: bodies.reduce((sum, size) => sum + size, 0), requests: bodies.length };
   });
 }

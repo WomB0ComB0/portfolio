@@ -138,6 +138,17 @@ describe('resolveShelfFilter', () => {
     expect(resolveShelfFilter('systems-advanced', 'Systems', tabs)).toBe('systems-advanced');
   });
 
+  it('keeps a shared title ambiguous even when one of those shelves has it as its slug', () => {
+    const tabs: readonly ShelfTab[] = [
+      { slug: 'systems', title: 'systems', count: 2 },
+      { slug: 'systems-advanced', title: 'systems', count: 3 },
+    ];
+
+    expect(resolveShelfFilter(null, 'systems', tabs)).toBeNull();
+    // A slug typed into ?track= with no title match still resolves.
+    expect(resolveShelfFilter(null, 'systems-advanced', tabs)).toBe('systems-advanced');
+  });
+
   it('treats a shelf whose slug is "all" as a shelf, apart from the All reset (null)', () => {
     const tabs: readonly ShelfTab[] = [
       { slug: 'all', title: 'All', count: 4 },

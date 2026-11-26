@@ -69,6 +69,8 @@ export function resolveShelfFilter(
   if (trackParam === null) return null;
   const titled = tabs.filter((tab) => tab.title === trackParam);
   if (titled.length === 1) return titled[0]?.slug ?? null;
+  // A title two shelves share is ambiguous: no filter, even if one of them has it as its slug.
+  if (titled.length > 1) return null;
   return tabs.some((tab) => tab.slug === trackParam) ? trackParam : null;
 }
 
