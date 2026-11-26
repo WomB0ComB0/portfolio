@@ -21,8 +21,7 @@
  * The 3D spine colours are a UI palette in code, not content.
  *
  * Studio and the site's decoder share the status list, slug pattern and ISBN check
- * (../bookshelf-rules.ts). `track` is a hidden legacy field: the site code deployed before the
- * shelf reference still reads it, so it stays until the data migration's finalize step unsets it.
+ * (../bookshelf-rules.ts).
  *
  * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
  */
@@ -186,16 +185,6 @@ export const bookType = defineType({
       description:
         'Position within its shelf; books sort by shelf order, then this. Existing books use steps of 10.',
       validation: (Rule) => Rule.required(),
-    }),
-    // Legacy: the site code deployed before the shelf reference groups books by this label. Hidden
-    // and read-only, never removed from the schema, until the migration's finalize step unsets it.
-    defineField({
-      name: 'track',
-      title: 'Section / Track (legacy)',
-      type: 'string',
-      hidden: true,
-      readOnly: true,
-      description: 'Legacy: replaced by Shelf; removed after the migration',
     }),
   ],
   orderings: [{ title: 'Position', name: 'orderAsc', by: [{ field: 'order', direction: 'asc' }] }],
