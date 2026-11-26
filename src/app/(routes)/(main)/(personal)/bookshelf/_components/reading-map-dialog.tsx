@@ -20,7 +20,9 @@ import Link from 'next/link';
 import { type ReactElement, useEffect, useMemo, useRef } from 'react';
 import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import { lastTopicOf, type ReadingMapEntry, type ShelfCollection } from '../_lib/books';
+import { formatTopicNumber } from '../_lib/book-labels';
+import type { ShelfCollection } from '../_lib/books';
+import { lastTopicOf, type ReadingMapEntry } from '../_lib/reading-map';
 import { BookStatusBadge } from './book-status-badge';
 
 export interface ReadingMapDialogProps {
@@ -36,8 +38,6 @@ export interface ReadingMapDialogProps {
   /** Optional handler to open a book's detail view directly. */
   readonly onOpenBook?: (entry: ReadingMapEntry) => void;
 }
-
-const formatTopicNumber = (num: number): string => String(num).padStart(3, '0');
 
 /**
  * Full-curriculum Reading Map modal showing all shelves/tracks, stages, and numbered topics.

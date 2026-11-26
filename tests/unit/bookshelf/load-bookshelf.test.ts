@@ -52,7 +52,6 @@ vi.mock('@/lib/sanity/client', async () => {
 });
 vi.mock('@sentry/nextjs', () => sentry);
 
-import { getLiveConsoleSpineTheme } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import {
   buildBookshelfCatalog,
   hasBooks,
@@ -60,6 +59,7 @@ import {
   loadCatalogBookBySlug,
   loadCatalogShelfBySlug,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
+import { getLiveConsoleSpineTheme } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/spine-themes';
 import { BookSchema } from '@/hooks/sanity/schemas';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { decodeEach } from '@/lib/sanity/decode';

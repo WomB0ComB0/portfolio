@@ -118,8 +118,8 @@ describe('bookshelf client island compartmentalization', () => {
     },
   );
 
-  // The covers are sized by the site's CDN loader (coverAt in books.ts): that module takes only a
-  // type from next/image, so the island stays free of next/image's runtime.
+  // The covers are sized by the site's CDN loader (coverAt in book-covers.ts): that module takes
+  // only a type from next/image, so the island stays free of next/image's runtime.
   it('sizes the stage covers through the CDN loader, never through next/image', () => {
     const { files, packages } = collectValueGraph(CLIENT_ISLANDS[0] ?? '');
 

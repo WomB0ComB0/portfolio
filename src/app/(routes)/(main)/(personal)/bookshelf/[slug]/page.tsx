@@ -34,8 +34,8 @@ import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils/logging';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookDetailView } from '../_components/book-detail-view';
-import { toReadingMapEntry } from '../_lib/books';
 import { loadCatalogBookBySlug } from '../_lib/load-bookshelf';
+import { toReadingMapEntry } from '../_lib/reading-map';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build book page metadata';

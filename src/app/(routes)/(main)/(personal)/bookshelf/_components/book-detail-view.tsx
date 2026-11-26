@@ -22,13 +22,10 @@ import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
-import {
-  type BookItem,
-  type BookNeighbor,
-  getIsbnRegistryLinks,
-  type ReadingMapEntry,
-  type ShelfCollection,
-} from '../_lib/books';
+import { formatTopicNumber } from '../_lib/book-labels';
+import type { BookNeighbor } from '../_lib/book-neighbors';
+import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_lib/books';
+import type { ReadingMapEntry } from '../_lib/reading-map';
 import { BookCoverFrame } from './book-cover-frame';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
@@ -179,7 +176,7 @@ export function BookDetailView({
                 {book.topics.map((topic) => (
                   <li key={topic.number}>
                     <span className={styles['detail-topic-num']}>
-                      {String(topic.number).padStart(3, '0')}
+                      {formatTopicNumber(topic.number)}
                     </span>
                     <span>{topic.title}</span>
                   </li>

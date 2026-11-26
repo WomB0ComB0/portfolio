@@ -30,16 +30,16 @@ import {
 } from 'react';
 import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
-import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
+import { StatStrip } from '@/components/console/stat-strip';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
+import { describeShelves, formatStageLabel, shelfStats } from '../_lib/book-labels';
+import { neighborsOf } from '../_lib/book-neighbors';
 import {
   type BookItem,
   DEFAULT_BOOK_INDEX,
-  neighborsOf,
-  type ReadingMapEntry,
+  type NonEmptyBooks,
   type ShelfCollection,
-  toReadingMapEntry,
 } from '../_lib/books';
 import {
   BOOKSHELF_URL_OPTIONS,
@@ -51,6 +51,7 @@ import {
   resolveShelfFilter,
   type ShelfTab,
 } from '../_lib/bookshelf-filters';
+import { type ReadingMapEntry, toReadingMapEntry } from '../_lib/reading-map';
 import { BookDetailView } from './book-detail-view';
 import styles from './bookshelf.module.css';
 import { BookshelfBookSlot, slotOffsetFactor } from './bookshelf-book-slot';
@@ -74,7 +75,7 @@ export interface BookshelfStageProps {
    * The books to shelve, in stage order: the whole catalog, or one shelf's books. Never empty: the
    * server page renders the empty state instead of this island when there are none.
    */
-  readonly books: readonly [BookItem, ...BookItem[]];
+  readonly books: NonEmptyBooks;
   /**
    * The shelves of `books`, in shelf order (the shelf cards and the reading map): every shelf on
    * /bookshelf, only `activeShelf` on a shelf's page.
@@ -124,19 +125,6 @@ interface PendingJump {
   readonly pos: number;
   /** -1 or 1; 0 lands with no fade (reduced motion). */
   readonly dir: number;
-}
-
-/** "A", "A and B", or "A, B, and C". Plain joins, so the server and browser render the same text. */
-function listTitles(titles: readonly string[]): string {
-  if (titles.length <= 2) return titles.join(' and ');
-  return `${titles.slice(0, -1).join(', ')}, and ${titles.at(-1)}`;
-}
-
-/** The whole shelf's description: its shelves' titles in shelf order, never a fixed subject list. */
-function describeShelves(shelves: readonly ShelfCollection[]): string {
-  return shelves.length === 0
-    ? 'Foundational books, shelf by shelf.'
-    : `Foundational books across ${listTitles(shelves.map((shelf) => shelf.title))}.`;
 }
 
 /**
@@ -218,26 +206,15 @@ export function BookshelfStage({
 
   const statusCounts = useMemo(() => countStatuses(books), [books]);
 
-  const totalTopics = useMemo(
-    () => books.reduce((sum, book) => sum + book.topics.length, 0),
-    [books],
-  );
-
-  const statItems = useMemo<readonly StatStripItem[]>(
+  const statItems = useMemo(
     () =>
-      activeShelf
-        ? [
-            { label: bookCount === 1 ? 'book' : 'books', value: bookCount },
-            { label: 'read', value: statusCounts.completed },
-            { label: 'topics', value: totalTopics },
-          ]
-        : [
-            { label: 'books', value: bookCount },
-            { label: 'read', value: statusCounts.completed },
-            { label: shelves.length === 1 ? 'shelf' : 'shelves', value: shelves.length },
-            { label: 'topics', value: totalTopics },
-          ],
-    [activeShelf, bookCount, statusCounts.completed, shelves.length, totalTopics],
+      shelfStats({
+        books,
+        readCount: statusCounts.completed,
+        shelfCount: shelves.length,
+        isSingleShelf: Boolean(activeShelf),
+      }),
+    [books, statusCounts.completed, shelves.length, activeShelf],
   );
 
   // Where the pill sits: the filtered shelf, else the shelf of the book on stage.
@@ -788,7 +765,7 @@ export function BookshelfStage({
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {activeShelf ? String(mod(pos, bookCount) + 1).padStart(2, '0') : activeBook.stageLabel} of{' '}
+        {activeShelf ? formatStageLabel(mod(pos, bookCount) + 1) : activeBook.stageLabel} of{' '}
         {bookCount}: {activeBook.title}
       </p>
 

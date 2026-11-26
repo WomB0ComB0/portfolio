@@ -25,10 +25,8 @@ import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BookshelfBookSlot } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot';
-import {
-  type BookItem,
-  getLiveConsoleSpineTheme,
-} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import type { BookItem } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import { getLiveConsoleSpineTheme } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/spine-themes';
 
 const book = (slug: string): BookItem => ({
   slug,

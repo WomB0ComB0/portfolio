@@ -20,14 +20,12 @@ import Link from 'next/link';
 import type { CSSProperties, ReactElement } from 'react';
 import { FiArrowUpRight, FiCheck } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
+import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
 import {
   BOOK_STATUS_META,
   BOOK_STATUSES,
   type BookItem,
   type BookStatus,
-  COVER_HEIGHT,
-  COVER_WIDTH,
-  coverAt,
   type ShelfCollection,
 } from '../_lib/books';
 import type { BOOKSHELF_GROUP_VALUES, BookStatusFilter } from '../_lib/bookshelf-filters';

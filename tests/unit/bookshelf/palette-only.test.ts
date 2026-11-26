@@ -32,8 +32,14 @@ const BOOKSHELF_DIR = path.resolve(
 );
 
 const FILES = [
+  '_lib/book-covers.ts',
+  '_lib/book-labels.ts',
+  '_lib/book-neighbors.ts',
   '_lib/books.ts',
+  '_lib/bookshelf-filters.ts',
   '_lib/load-bookshelf.ts',
+  '_lib/reading-map.ts',
+  '_lib/spine-themes.ts',
   '_components/book-cover-frame.tsx',
   '_components/book-detail-view.tsx',
   '_components/book-status-badge.tsx',

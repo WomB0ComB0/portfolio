@@ -77,18 +77,20 @@ import { BookDetailView } from '@/app/(routes)/(main)/(personal)/bookshelf/_comp
 import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot';
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import {
+  neighborsOf,
+  toBookNeighbor,
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/book-neighbors';
+import {
   type BookItem,
   DEFAULT_BOOK_INDEX,
   getIsbnRegistryLinks,
-  neighborsOf,
-  toBookNeighbor,
-  toReadingMapEntry,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import {
   buildBookshelfCatalog,
   hasBooks,
   type NonEmptyBooks,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
+import { toReadingMapEntry } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
 import ShelfDetailPage from '@/app/(routes)/(main)/(personal)/bookshelf/shelf/[shelfSlug]/page';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
 import {

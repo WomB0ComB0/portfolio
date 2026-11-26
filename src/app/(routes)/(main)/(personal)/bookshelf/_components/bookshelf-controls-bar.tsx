@@ -20,6 +20,7 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiBookOpen } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
+import { formatStageLabel } from '../_lib/book-labels';
 import type { BookItem } from '../_lib/books';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
@@ -51,8 +52,8 @@ export function BookshelfControlsBar({
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
         <span className="tile-meta tabular-nums text-brand-ink">
           {isSingleShelf
-            ? `Book ${String(displayIndex + 1).padStart(2, '0')} / ${String(bookCount).padStart(2, '0')}`
-            : `Stage ${activeBook.stageLabel} / ${String(bookCount).padStart(2, '0')}`}
+            ? `Book ${formatStageLabel(displayIndex + 1)} / ${formatStageLabel(bookCount)}`
+            : `Stage ${activeBook.stageLabel} / ${formatStageLabel(bookCount)}`}
         </span>
         <span aria-hidden="true" className="text-faint">
           ·

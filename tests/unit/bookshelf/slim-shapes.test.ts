@@ -15,7 +15,8 @@
  */
 
 /**
- * @file The bookshelf's slim shapes and sizes (books.ts, bookshelf-book-slot.tsx), pure:
+ * @file The bookshelf's slim shapes and sizes (reading-map.ts, book-neighbors.ts, book-covers.ts,
+ * bookshelf-book-slot.tsx), pure:
  * - toReadingMapEntry / lastTopicOf: a book as the reading map draws it, and nothing more;
  * - toBookNeighbor / neighborsOf: the Previous and Next books, as their links name them,
  *   wrapping round both ends;
@@ -43,16 +44,20 @@ vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
 import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot';
 import {
-  type BookItem,
   COVER_HEIGHT,
   COVER_WIDTH,
   coverAt,
-  lastTopicOf,
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/book-covers';
+import {
   neighborsOf,
   toBookNeighbor,
-  toReadingMapEntry,
-} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/book-neighbors';
+import type { BookItem } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { buildBookshelfCatalog } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
+import {
+  lastTopicOf,
+  toReadingMapEntry,
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
 
 const SHELF = makeBookshelf();
 const CATALOG = buildBookshelfCatalog(
