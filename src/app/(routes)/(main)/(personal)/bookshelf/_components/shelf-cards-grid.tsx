@@ -220,10 +220,17 @@ export function ShelfCardsGrid({
                   </p>
                   <div
                     aria-hidden="true"
-                    className="h-[3px] w-full overflow-hidden rounded-full bg-surface-3"
+                    data-shelf-ribbon={shelf.slug}
+                    className="relative h-[3px] w-full overflow-hidden rounded-full bg-surface-3"
                   >
                     <div
-                      className="h-full rounded-full transition-all duration-300"
+                      data-shelf-ribbon-track={shelf.slug}
+                      className="absolute inset-0 rounded-full opacity-40 transition-opacity duration-300 group-hover:opacity-65"
+                      style={{ backgroundColor: shelf.accentColor }}
+                    />
+                    <div
+                      data-shelf-ribbon-fill={shelf.slug}
+                      className="relative h-full rounded-full transition-all duration-300"
                       style={{
                         width: `${readPct}%`,
                         backgroundColor: shelf.accentColor,

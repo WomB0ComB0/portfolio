@@ -446,4 +446,16 @@ describe('BookDetailView standalone', () => {
     );
     expect(getIsbnRegistryLinks('N/A')).toBeNull();
   });
+
+  it('renders a colored accent ribbon on every topic shelf card including unread humanities shelves', () => {
+    const { container } = render(<BookshelfStage />);
+    for (const shelf of DEFAULT_SHELVES) {
+      const track = container.querySelector(`[data-shelf-ribbon-track="${shelf.slug}"]`);
+      const fill = container.querySelector(`[data-shelf-ribbon-fill="${shelf.slug}"]`);
+      expect(track, shelf.slug).not.toBeNull();
+      expect(fill, shelf.slug).not.toBeNull();
+      expect((track as HTMLElement).style.backgroundColor).not.toBe('');
+      expect((fill as HTMLElement).style.backgroundColor).not.toBe('');
+    }
+  });
 });
