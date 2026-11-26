@@ -81,6 +81,7 @@ import { FreeLibraryDirectoryCard } from './free-library-card';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
+import { useInPageDetail } from './use-in-page-detail';
 import { useShelfMotion } from './use-shelf-motion';
 
 export interface BookshelfStageProps {
@@ -148,19 +149,34 @@ export function BookshelfStage({
   const { pos, setPos, stepDuration, posRef, bookHeightRef, pendingJumpRef, jumpAnimRef } = motion;
   const { step, jumpTo } = motion;
 
+  const indexBySlug = useMemo(
+    () => new Map(books.map((book, index) => [book.slug, index] as const)),
+    [books],
+  );
+  const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
+  const {
+    detailBook,
+    setDetailBook,
+    stageIndexFromHash,
+    openDetail,
+    openDetailBySlug,
+    closeDetail,
+  } = useInPageDetail({
+    books,
+    indexBySlug,
+    bookAt,
+    setPos,
+    slotPositionsRef: prevSlotPositionsRef,
+  });
+
   const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
-  const [detailBook, setDetailBook] = useState<BookItem | null>(null);
   const [shelfPill, setShelfPill] = useState<ShelfPillState>(UNMEASURED_PILL);
 
   // A shelf's slug is its filter's identity; its title is only the chip's label.
   const shelfTabs = useMemo(() => buildShelfTabs(books), [books]);
   const mapBooks = useMemo(() => books.map(toReadingMapEntry), [books]);
-  const indexBySlug = useMemo(
-    () => new Map(books.map((book, index) => [book.slug, index] as const)),
-    [books],
-  );
   const activeShelfSlug = resolveShelfFilter(urlState.shelf, urlState.track, shelfTabs);
   const activeShelfTab = useMemo<ShelfTab | null>(
     () => shelfTabs.find((tab) => tab.slug === activeShelfSlug) ?? null,
@@ -174,7 +190,6 @@ export function BookshelfStage({
   const cursorRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const slotElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
-  const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
 
   const activeBook = bookAt(pos);
 
@@ -301,54 +316,6 @@ export function BookshelfStage({
     }
   }, [poolSlots, detailBook, pendingJumpRef, posRef, jumpAnimRef, bookHeightRef]);
 
-  const stageIndexFromHash = useCallback((): number => {
-    if (typeof window === 'undefined') return -1;
-    const match = /^#\/stage\/(\d+)/.exec(window.location.hash);
-    if (!match?.[1]) return -1;
-    const label = match[1].padStart(2, '0');
-    return books.findIndex((book) => book.stageLabel === label);
-  }, [books]);
-
-  const openDetail = useCallback(
-    (book: BookItem, { push = true } = {}): void => {
-      const idx = books.findIndex((item) => item.slug === book.slug);
-      if (idx >= 0) setPos(idx);
-      setDetailBook(book);
-      if (push && typeof window !== 'undefined') {
-        const nextHash = `#/stage/${book.stageLabel}`;
-        if (window.location.hash !== nextHash) {
-          window.history.pushState(
-            { stage: book.stageLabel },
-            '',
-            `${window.location.pathname}${window.location.search}${nextHash}`,
-          );
-        }
-      }
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-      }
-    },
-    [books, setPos],
-  );
-
-  /** Opens the book with this slug (the detail's Previous/Next, the map's Open stage). */
-  const openDetailBySlug = useCallback(
-    (slug: string): void => {
-      const idx = indexBySlug.get(slug);
-      const book = idx === undefined ? undefined : books[idx];
-      if (book) openDetail(book);
-    },
-    [indexBySlug, books, openDetail],
-  );
-
-  const closeDetail = useCallback(({ fromPop = false } = {}): void => {
-    if (!fromPop && typeof window !== 'undefined' && window.location.hash) {
-      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    }
-    prevSlotPositionsRef.current.clear();
-    setDetailBook(null);
-  }, []);
-
   useEffect(() => {
     measureStage();
     const isFine =
@@ -376,7 +343,7 @@ export function BookshelfStage({
       window.removeEventListener('resize', onResize);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [measureStage, stageIndexFromHash, bookAt, setPos]);
+  }, [measureStage, stageIndexFromHash, bookAt, setPos, setDetailBook]);
 
   useEffect(() => {
     if (detailBook !== null) return;
@@ -395,20 +362,6 @@ export function BookshelfStage({
       urlState.track === null && (urlState.shelf === null || urlState.shelf === activeShelfSlug);
     if (!isClean) void setUrlState({ shelf: activeShelfSlug, track: null });
   }, [urlState.track, urlState.shelf, activeShelfSlug, setUrlState]);
-
-  useEffect(() => {
-    const onPopState = (): void => {
-      const idx = stageIndexFromHash();
-      if (idx < 0) {
-        closeDetail({ fromPop: true });
-      } else {
-        setPos(idx);
-        setDetailBook(bookAt(idx));
-      }
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, [closeDetail, stageIndexFromHash, bookAt, setPos]);
 
   const { isDragging, handleStagePointerDown, handleStagePointerMove, finishDrag } =
     useBookshelfNavigation({
