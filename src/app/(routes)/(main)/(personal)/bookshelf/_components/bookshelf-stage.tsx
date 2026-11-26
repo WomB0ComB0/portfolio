@@ -55,9 +55,7 @@ import { type ReadingMapEntry, toReadingMapEntry } from '../_lib/reading-map';
 import {
   buildPoolSlots,
   clamp,
-  DEFAULT_BOOK_HEIGHT,
   INITIAL_HALF_WINDOW,
-  jumpDelta,
   MIN_CIRCULAR_BOOKS,
   measureShelf,
   type PoolSlot,
@@ -83,6 +81,7 @@ import { FreeLibraryDirectoryCard } from './free-library-card';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
+import { useShelfMotion } from './use-shelf-motion';
 
 export interface BookshelfStageProps {
   /** Optional initial book slug (e.g. from `?book=<slug>` when returning from a detail route). */
@@ -101,16 +100,7 @@ export interface BookshelfStageProps {
   readonly activeShelf?: ShelfCollection;
 }
 
-const STEP_DURATION_MS = 400;
-const CHAIN_STEP_DURATION_MS = 220;
-const CHAIN_TICK_MS = 55;
-/**
- * The longest jump that slides as one step: measureStage keeps two to three slots off screen on
- * each side (measured at stage widths of 328-1568 px), so a slide of up to two books never shows
- * a recycled slot crossing the stage.
- */
-const JUMP_SLIDE_MAX = 2;
-/** A longer jump teleports every slot, then fades the shelf in over this long. */
+/** A jump past JUMP_SLIDE_MAX (use-shelf-motion.ts) teleports every slot, then fades in this long. */
 const JUMP_IN_MS = 220;
 /** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
 const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -118,13 +108,6 @@ const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
 /** The shelf pill before its first measurement: no clip, so hidden, and placed without a slide. */
 const UNMEASURED_PILL: ShelfPillState = { clip: null, animate: false };
-
-/** A jump waiting for its commit: the position it lands on, and the side it travels toward. */
-interface PendingJump {
-  readonly pos: number;
-  /** -1 or 1; 0 lands with no fade (reduced motion). */
-  readonly dir: number;
-}
 
 /**
  * Interactive 3D Bookshelf orchestrator built natively inside Live Console `<PageShell>`.
@@ -161,9 +144,11 @@ export function BookshelfStage({
     return Math.min(DEFAULT_BOOK_INDEX, bookCount - 1);
   }, [resolvedInitialSlug, books, bookCount, isFiniteShelf]);
 
-  const [pos, setPos] = useState<number>(initialPos);
+  const motion = useShelfMotion({ initialPos, finite: isFiniteShelf, bookCount });
+  const { pos, setPos, stepDuration, posRef, bookHeightRef, pendingJumpRef, jumpAnimRef } = motion;
+  const { step, jumpTo } = motion;
+
   const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
-  const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
   const [detailBook, setDetailBook] = useState<BookItem | null>(null);
@@ -190,16 +175,6 @@ export function BookshelfStage({
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const slotElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
-
-  const posRef = useRef<number>(pos);
-  posRef.current = pos;
-  const bookHeightRef = useRef<number>(DEFAULT_BOOK_HEIGHT);
-  const detailOpenRef = useRef<boolean>(false);
-  detailOpenRef.current = detailBook !== null;
-  const chainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastStepRef = useRef<number>(0);
-  const pendingJumpRef = useRef<PendingJump | null>(null);
-  const jumpAnimRef = useRef<Animation | null>(null);
 
   const activeBook = bookAt(pos);
 
@@ -236,7 +211,7 @@ export function BookshelfStage({
     );
     bookHeightRef.current = bookHeight;
     setHalfWindow(nextHalfWindow);
-  }, []);
+  }, [bookHeightRef]);
 
   /**
    * Clips the shelf pill to the current chip and keeps that chip in view in a chip row that
@@ -324,71 +299,7 @@ export function BookshelfStage({
         { duration: JUMP_IN_MS, easing: JUMP_IN_EASE },
       );
     }
-  }, [poolSlots, detailBook]);
-
-  const step = useCallback(
-    (dir: number, dur = STEP_DURATION_MS): void => {
-      pendingJumpRef.current = null;
-      setStepDuration(prefersReducedMotion() ? 0 : dur);
-      lastStepRef.current = performance.now();
-      setPos((current) => (isFiniteShelf ? clamp(current + dir, 0, bookCount - 1) : current + dir));
-    },
-    [isFiniteShelf, bookCount],
-  );
-
-  const stepBy = useCallback(
-    (delta: number): void => {
-      if (chainTimerRef.current) {
-        clearTimeout(chainTimerRef.current);
-        chainTimerRef.current = null;
-      }
-      if (!delta) return;
-      const dir = Math.sign(delta);
-      let left = Math.abs(delta);
-      if (left === 1) {
-        step(dir, STEP_DURATION_MS);
-        return;
-      }
-      const tick = (): void => {
-        left -= 1;
-        step(dir, left > 0 ? CHAIN_STEP_DURATION_MS : STEP_DURATION_MS);
-        if (left > 0) {
-          chainTimerRef.current = setTimeout(tick, CHAIN_TICK_MS);
-        }
-      };
-      tick();
-    },
-    [step],
-  );
-
-  /**
-   * Moves the stage to the book at `targetIndex` in ONE move, however far it is (the shorter way
-   * round the circular shelf): up to JUMP_SLIDE_MAX books slide as one step; a longer jump
-   * teleports every slot and the layout effect fades the shelf in, instantly under reduced
-   * motion. One position change, so one announcement in the live region. Shelf chips, status
-   * chips, Home/End and the reading map jump; arrow keys, drags and clicks on a visible book step.
-   */
-  const jumpTo = useCallback(
-    (targetIndex: number): void => {
-      if (chainTimerRef.current) {
-        clearTimeout(chainTimerRef.current);
-        chainTimerRef.current = null;
-      }
-      const delta = jumpDelta(targetIndex, posRef.current, bookCount, isFiniteShelf);
-      if (delta === 0) return;
-      if (Math.abs(delta) <= JUMP_SLIDE_MAX) {
-        step(delta);
-        return;
-      }
-      const reduced = prefersReducedMotion();
-      const target = posRef.current + delta;
-      pendingJumpRef.current = { pos: target, dir: reduced ? 0 : Math.sign(delta) };
-      setStepDuration(reduced ? 0 : STEP_DURATION_MS);
-      lastStepRef.current = performance.now();
-      setPos(target);
-    },
-    [isFiniteShelf, bookCount, step],
-  );
+  }, [poolSlots, detailBook, pendingJumpRef, posRef, jumpAnimRef, bookHeightRef]);
 
   const stageIndexFromHash = useCallback((): number => {
     if (typeof window === 'undefined') return -1;
@@ -417,7 +328,7 @@ export function BookshelfStage({
         window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
       }
     },
-    [books],
+    [books, setPos],
   );
 
   /** Opens the book with this slug (the detail's Previous/Next, the map's Open stage). */
@@ -465,14 +376,7 @@ export function BookshelfStage({
       window.removeEventListener('resize', onResize);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [measureStage, stageIndexFromHash, bookAt]);
-
-  useEffect(() => {
-    return () => {
-      if (chainTimerRef.current) clearTimeout(chainTimerRef.current);
-      jumpAnimRef.current?.cancel();
-    };
-  }, []);
+  }, [measureStage, stageIndexFromHash, bookAt, setPos]);
 
   useEffect(() => {
     if (detailBook !== null) return;
@@ -504,19 +408,14 @@ export function BookshelfStage({
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [closeDetail, stageIndexFromHash, bookAt]);
+  }, [closeDetail, stageIndexFromHash, bookAt, setPos]);
 
   const { isDragging, handleStagePointerDown, handleStagePointerMove, finishDrag } =
     useBookshelfNavigation({
       stageRef,
       shelfRef,
       cursorRef,
-      posRef,
-      bookHeightRef,
-      detailOpenRef,
-      chainTimerRef,
-      lastStepRef,
-      jumpAnimRef,
+      motion,
       finePointer,
       detailOpen: detailBook !== null,
       mapOpen,
@@ -524,9 +423,6 @@ export function BookshelfStage({
       activeShelfSlug,
       statusFilter,
       bookAt,
-      step,
-      stepBy,
-      jumpTo,
       openDetail,
       closeDetail,
       onUpdateUrlFilter: (patch) => void setUrlState({ ...patch, track: null }),

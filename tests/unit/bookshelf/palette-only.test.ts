@@ -54,6 +54,7 @@ const FILES = [
   '_components/reading-map-dialog.tsx',
   '_components/shelf-cards-grid.tsx',
   '_components/use-bookshelf-navigation.ts',
+  '_components/use-shelf-motion.ts',
   'free/_components/free-books-explorer.tsx',
   'free/_components/free-books-filters.tsx',
   'free/_components/free-books-pagination.tsx',

@@ -16,14 +16,7 @@
 
 'use client';
 
-import {
-  type MutableRefObject,
-  type PointerEvent,
-  type RefObject,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type PointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
 import type { BookItem } from '../_lib/books';
 import type { BookStatusFilter } from '../_lib/bookshelf-filters';
 import {
@@ -37,10 +30,10 @@ import {
   settleStep,
 } from '../_lib/shelf-glide';
 import styles from './bookshelf-stage.module.css';
+import { CHAIN_STEP_DURATION_MS, type ShelfMotion } from './use-shelf-motion';
 
 const WHEEL_THRESHOLD = 20;
 const WHEEL_COOLDOWN_MS = 140;
-const CHAIN_STEP_DURATION_MS = 220;
 /** The keys that move the stage, and only while it (or nothing) has focus. */
 const STAGE_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
@@ -61,13 +54,8 @@ export interface UseBookshelfNavigationOptions {
   readonly stageRef: RefObject<HTMLDivElement | null>;
   readonly shelfRef: RefObject<HTMLDivElement | null>;
   readonly cursorRef: RefObject<HTMLDivElement | null>;
-  readonly posRef: MutableRefObject<number>;
-  readonly bookHeightRef: MutableRefObject<number>;
-  readonly detailOpenRef: MutableRefObject<boolean>;
-  readonly chainTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
-  readonly lastStepRef: MutableRefObject<number>;
-  /** A jump's fade-in, while it runs: a drag finishes it, so it never fights --drag-x. */
-  readonly jumpAnimRef: MutableRefObject<Animation | null>;
+  /** The stage's position, its refs and the moves (use-shelf-motion.ts). */
+  readonly motion: ShelfMotion;
   readonly finePointer: boolean;
   readonly detailOpen: boolean;
   readonly mapOpen: boolean;
@@ -76,10 +64,6 @@ export interface UseBookshelfNavigationOptions {
   readonly activeShelfSlug: string | null;
   readonly statusFilter: BookStatusFilter;
   readonly bookAt: (index: number) => BookItem;
-  readonly step: (dir: number, dur?: number) => void;
-  readonly stepBy: (delta: number) => void;
-  /** One move to a book, however far (Home/End). */
-  readonly jumpTo: (index: number) => void;
   readonly openDetail: (book: BookItem) => void;
   readonly closeDetail: () => void;
   readonly onUpdateUrlFilter: (patch: { shelf?: string | null; status?: BookStatusFilter }) => void;
@@ -103,12 +87,7 @@ export function useBookshelfNavigation({
   stageRef,
   shelfRef,
   cursorRef,
-  posRef,
-  bookHeightRef,
-  detailOpenRef,
-  chainTimerRef,
-  lastStepRef,
-  jumpAnimRef,
+  motion,
   finePointer,
   detailOpen,
   mapOpen,
@@ -116,13 +95,14 @@ export function useBookshelfNavigation({
   activeShelfSlug,
   statusFilter,
   bookAt,
-  step,
-  stepBy,
-  jumpTo,
   openDetail,
   closeDetail,
   onUpdateUrlFilter,
 }: UseBookshelfNavigationOptions) {
+  const { posRef, bookHeightRef, lastStepRef, jumpAnimRef, step, stepBy, jumpTo, cancelChain } =
+    motion;
+  const detailOpenRef = useRef<boolean>(detailOpen);
+  detailOpenRef.current = detailOpen;
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   isDraggingRef.current = isDragging;
@@ -171,7 +151,7 @@ export function useBookshelfNavigation({
       stageEl.removeEventListener('wheel', onWheel);
       if (wheelTimer) clearTimeout(wheelTimer);
     };
-  }, [detailOpen, mapOpen, step, stageRef, detailOpenRef, lastStepRef]);
+  }, [detailOpen, mapOpen, step, stageRef, lastStepRef]);
 
   // Keyboard navigation.
   useEffect(() => {
@@ -217,18 +197,7 @@ export function useBookshelfNavigation({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    mapOpen,
-    step,
-    jumpTo,
-    bookCount,
-    openDetail,
-    bookAt,
-    closeDetail,
-    stageRef,
-    posRef,
-    detailOpenRef,
-  ]);
+  }, [mapOpen, step, jumpTo, bookCount, openDetail, bookAt, closeDetail, stageRef, posRef]);
 
   // Magnetic ring -> Open / Grab cursor.
   useEffect(() => {
@@ -297,14 +266,11 @@ export function useBookshelfNavigation({
       document.documentElement.removeEventListener('mouseleave', onLeave);
       window.cancelAnimationFrame(rafId);
     };
-  }, [finePointer, detailOpen, mapOpen, cursorRef, stageRef, detailOpenRef]);
+  }, [finePointer, detailOpen, mapOpen, cursorRef, stageRef]);
 
   const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
-    if (chainTimerRef.current) {
-      clearTimeout(chainTimerRef.current);
-      chainTimerRef.current = null;
-    }
+    cancelChain();
     jumpAnimRef.current?.finish();
     jumpAnimRef.current = null;
     dragRef.current = {
