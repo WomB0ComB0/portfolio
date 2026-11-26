@@ -84,7 +84,7 @@ export interface ShelfMeasure {
 
 /**
  * The book height and pool half-width for a stage `width` x `height` px. The height is --book-h
- * (bookshelf.module.css .shelf-shell) rounded, so change the two together. The half-width
+ * (bookshelf-stage.module.css .shelf-shell) rounded, so change the two together. The half-width
  * fills half the stage at a 0.5 first offset and a 0.18 pitch, both a little under
  * SLOT_GEOMETRY.circular's, so it errs a slot wide; matching them would change the pool size.
  */

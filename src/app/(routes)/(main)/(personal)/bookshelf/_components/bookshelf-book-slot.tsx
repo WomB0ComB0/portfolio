@@ -20,7 +20,11 @@ import { type CSSProperties, memo, type ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
 import type { BookItem } from '../_lib/books';
+import coverStyles from './book-cover-frame.module.css';
 import styles from './bookshelf-book-slot.module.css';
+
+/** The class that lands a slot without a transition: the stage adds it to a recycled slot. */
+export const SLOT_NO_ANIM_CLASS = styles['no-anim'] ?? '';
 
 /** The books this far from the active one, or nearer, load eagerly: a step or two shows them. */
 const NEAR_OFFSET = 2;
@@ -130,7 +134,7 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
         </div>
 
         <div data-book-cover className={cn(styles.face, styles['face-cover'])}>
-          <div className={styles.cover}>
+          <div className={coverStyles.cover}>
             {/* biome-ignore lint/performance/noImgElement: Sanity CDN cover, sized to how it is drawn (coverAt); next.config disables /_next/image. */}
             <img
               // Keyed by book: a slot reused for another book (a jump) mounts a fresh <img> and
@@ -144,7 +148,7 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
               loading={Math.abs(offset) <= NEAR_OFFSET ? 'eager' : 'lazy'}
               decoding="async"
               draggable={false}
-              className={styles['cover-img']}
+              className={coverStyles['cover-img']}
             />
           </div>
         </div>

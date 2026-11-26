@@ -1,0 +1,99 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * A book's detail (book-detail-view.tsx), in-page on /bookshelf and on /bookshelf/[slug]: the text
+ * and cover columns, the numbered topics, and the wipe that reveals each block when it opens from
+ * the stage.
+ */
+
+/* Two columns, the text and the cover, stacked at 900px and under. */
+.detail-panel {
+  min-width: 0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 340px);
+  align-items: start;
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.detail-topics {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--topic-rows, 6), auto);
+  gap: 0.625rem 2rem;
+}
+
+.detail-topics li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: baseline;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
+.detail-topic-num {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--fg-faint);
+}
+
+/*
+ * Opened from the stage, each block wipes in from the top, staggered by --d. --shelf-ease-out is
+ * set only on the stage's .shelf-shell, which the detail replaces, so the wipe does not run today.
+ */
+.detail-entering .rv {
+  animation: rv-wipe var(--rd, 560ms) var(--shelf-ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes rv-wipe {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(10px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+
+@media (width <= 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (width <= 640px) {
+  .detail-topics {
+    grid-template-columns: 1fr;
+    grid-auto-flow: row;
+    grid-template-rows: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-entering .rv {
+    animation: none;
+  }
+}

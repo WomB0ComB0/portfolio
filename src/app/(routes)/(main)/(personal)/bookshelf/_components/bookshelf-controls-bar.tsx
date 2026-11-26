@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { formatStageLabel } from '../_lib/book-labels';
 import type { BookItem } from '../_lib/books';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf-book-slot.module.css';
+import styles from './bookshelf-controls-bar.module.css';
 
 export interface BookshelfControlsBarProps {
   readonly isSingleShelf: boolean;

@@ -30,7 +30,8 @@ import {
 } from '../_lib/books';
 import type { BOOKSHELF_GROUP_VALUES, BookStatusFilter } from '../_lib/bookshelf-filters';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf-book-slot.module.css';
+import chipStyles from './bookshelf-filters-bar.module.css';
+import styles from './shelf-cards-grid.module.css';
 
 export interface ShelfCardsGridProps {
   readonly shelves: readonly ShelfCollection[];
@@ -158,12 +159,12 @@ export function ShelfCardsGrid({
           </p>
         </div>
 
-        <fieldset className={styles['status-bar']} aria-label="Group shelves">
+        <fieldset className={chipStyles['status-bar']} aria-label="Group shelves">
           <button
             type="button"
             aria-pressed={groupBy === 'topic'}
             onClick={() => onGroupByChange('topic')}
-            className={styles['status-chip']}
+            className={chipStyles['status-chip']}
           >
             By topic
           </button>
@@ -171,7 +172,7 @@ export function ShelfCardsGrid({
             type="button"
             aria-pressed={groupBy === 'status'}
             onClick={() => onGroupByChange('status')}
-            className={styles['status-chip']}
+            className={chipStyles['status-chip']}
           >
             By reading status
           </button>

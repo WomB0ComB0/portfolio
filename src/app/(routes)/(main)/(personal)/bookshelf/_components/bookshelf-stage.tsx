@@ -67,8 +67,7 @@ import {
   wrapIndex,
 } from '../_lib/shelf-geometry';
 import { BookDetailView } from './book-detail-view';
-import { BookshelfBookSlot } from './bookshelf-book-slot';
-import styles from './bookshelf-book-slot.module.css';
+import { BookshelfBookSlot, SLOT_NO_ANIM_CLASS } from './bookshelf-book-slot';
 import { BookshelfControlsBar, FreeLibraryDirectoryCard } from './bookshelf-controls-bar';
 import {
   BookshelfFiltersBar,
@@ -78,6 +77,7 @@ import {
   sameShelfPillClip,
   trackEdgeFadePx,
 } from './bookshelf-filters-bar';
+import styles from './bookshelf-stage.module.css';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
@@ -110,7 +110,7 @@ const CHAIN_TICK_MS = 55;
 const JUMP_SLIDE_MAX = 2;
 /** A longer jump teleports every slot, then fades the shelf in over this long. */
 const JUMP_IN_MS = 220;
-/** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf.module.css). */
+/** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
 const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 /** How far the shelf slides in from the side it travels toward, in book heights: one slot pitch. */
 const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
@@ -282,8 +282,6 @@ export function BookshelfStage({
       pendingJumpRef.current = null;
       prevSlotPositionsRef.current.clear();
     }
-    const noAnimClass = styles['no-anim'] ?? '';
-
     const teleported: HTMLDivElement[] = [];
 
     for (const slot of poolSlots) {
@@ -294,8 +292,8 @@ export function BookshelfStage({
       const isFresh = prevSlot === undefined || prevSlot !== slot.slotPosition;
       prevSlotPositionsRef.current.set(slot.poolIndex, slot.slotPosition);
 
-      if (isFresh && noAnimClass) {
-        el.classList.add(noAnimClass);
+      if (isFresh && SLOT_NO_ANIM_CLASS) {
+        el.classList.add(SLOT_NO_ANIM_CLASS);
         teleported.push(el);
       }
       // Position (--slot-x), z-index and the state classes are rendered from props, server and
@@ -306,7 +304,7 @@ export function BookshelfStage({
     if (teleported.length > 0) {
       void shelfRef.current?.offsetWidth;
       for (const el of teleported) {
-        if (noAnimClass) el.classList.remove(noAnimClass);
+        if (SLOT_NO_ANIM_CLASS) el.classList.remove(SLOT_NO_ANIM_CLASS);
       }
     }
 

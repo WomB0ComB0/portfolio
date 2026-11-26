@@ -27,8 +27,8 @@ import type { BookNeighbor } from '../_lib/book-neighbors';
 import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_lib/books';
 import type { ReadingMapEntry } from '../_lib/reading-map';
 import { BookCoverFrame } from './book-cover-frame';
+import styles from './book-detail-view.module.css';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf-book-slot.module.css';
 import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
