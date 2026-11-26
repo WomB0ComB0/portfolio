@@ -28,10 +28,6 @@
 import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
 import { describe, expect, it, vi } from 'vitest';
 
-// Vite cannot load Next's PostCSS plugin configuration for CSS modules under Vitest.
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
-  default: {},
-}));
 // The catalog builder draws each cover with the real image URL builder; the client module itself
 // reads server configuration on import.
 vi.mock('@/lib/sanity/client', async () => {

@@ -83,11 +83,6 @@ vi.mock('@/lib/api-integrations/youtube', () => ({
   fetchYouTubeVideoMetadataBatch: vi.fn(),
 }));
 vi.mock('@sentry/nextjs', () => sentry);
-// Vite cannot load Next's PostCSS plugin configuration; the bookshelf pages' islands import this
-// CSS module, and no body is rendered here.
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
-  default: {},
-}));
 
 import { generateMetadata as bookMetadata } from '@/app/(routes)/(main)/(personal)/bookshelf/[slug]/page';
 import { generateMetadata as shelfMetadata } from '@/app/(routes)/(main)/(personal)/bookshelf/shelf/[shelfSlug]/page';

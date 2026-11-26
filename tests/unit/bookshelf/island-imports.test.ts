@@ -32,6 +32,8 @@ const BOOKSHELF = path.join(SRC, 'app/(routes)/(main)/(personal)/bookshelf');
 
 const CLIENT_ISLANDS = [
   path.join(BOOKSHELF, '_components/bookshelf-stage.tsx'),
+  // Its own island entry on /bookshelf/[slug], not only reached through the stage.
+  path.join(BOOKSHELF, '_components/book-detail-view.tsx'),
   path.join(BOOKSHELF, 'free/_components/free-books-explorer.tsx'),
 ];
 
@@ -104,6 +106,14 @@ function collectValueGraph(entry: string): { files: Set<string>; packages: Set<s
 }
 
 describe('bookshelf client island compartmentalization', () => {
+  // A moved or renamed module would pass the checks below without ever being looked for.
+  it.each(FORBIDDEN_MODULES.map((file) => [path.relative(ROOT, file), file] as const))(
+    '%s exists, so the guard is not vacuous',
+    (_label, file) => {
+      expect(existsSync(file)).toBe(true);
+    },
+  );
+
   // The covers are sized by the site's CDN loader (coverAt in books.ts): that module takes only a
   // type from next/image, so the island stays free of next/image's runtime.
   it('sizes the stage covers through the CDN loader, never through next/image', () => {

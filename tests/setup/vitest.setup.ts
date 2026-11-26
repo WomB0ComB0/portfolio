@@ -133,6 +133,13 @@ vi.mock(
 );
 vi.mock('@/components/console/photo/photo-viewer.module.css', cssModuleNames);
 
+// /bookshelf: the stage, its book slots, the filters, the shelf cards and the book detail. The
+// stage and slot tests read the state class names (`.shelf-shell`, `is-active`).
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css',
+  cssModuleNames,
+);
+
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 

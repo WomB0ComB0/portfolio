@@ -23,15 +23,7 @@
 import { render } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
-
-// Class names resolve to their own keys, so assertions read the real state class names.
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
-  default: new Proxy({} as Record<string, string>, {
-    get: (_target, name) => (typeof name === 'string' ? name : undefined),
-  }),
-}));
-
+import { describe, expect, it } from 'vitest';
 import { BookshelfBookSlot } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot';
 import {
   type BookItem,

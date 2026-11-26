@@ -42,12 +42,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sanity = vi.hoisted(() => ({ sanityFetchWithToken: vi.fn() }));
 
-// The stage's CSS module: each class name is the name itself, so `.shelf-shell` can be found.
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
-  default: new Proxy({} as Record<string, string>, {
-    get: (_target, name) => (typeof name === 'string' ? name : undefined),
-  }),
-}));
 // The catalog draws each cover with the real image URL builder; Sanity answers the fixture.
 vi.mock('@/lib/sanity/client', async () => {
   const { createImageUrlBuilder } = await import('@sanity/image-url');
