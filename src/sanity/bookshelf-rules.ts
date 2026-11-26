@@ -49,7 +49,13 @@ export const isBookStatus = (value: unknown): value is BookStatus =>
  */
 export const BOOK_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** What Studio says about a slug {@link isBookSlug} refuses. */
+/**
+ * Slugs no book may take: fixed pages under /bookshelf whose route wins over a book's
+ * /bookshelf/<slug> page (`free` is the Free Library, /bookshelf/free).
+ */
+export const RESERVED_BOOK_SLUGS = ['free'] as const;
+
+/** What Studio says about a slug {@link isBookSlug} refuses for its shape. */
 export const BOOK_SLUG_MESSAGE =
   'Use lowercase letters and digits joined by single hyphens, e.g. "clean-code"';
 
@@ -57,8 +63,51 @@ export const BOOK_SLUG_MESSAGE =
 export const BOOK_ISBN_MESSAGE =
   'Enter a valid ISBN-13 or ISBN-10 (digits, optional hyphens or spaces, check digit included)';
 
-/** True for a slug the site uses: {@link BOOK_SLUG_PATTERN}. */
-export const isBookSlug = (value: string): boolean => BOOK_SLUG_PATTERN.test(value);
+/** True for one of {@link RESERVED_BOOK_SLUGS}. */
+export const isReservedBookSlug = (value: string): boolean =>
+  (RESERVED_BOOK_SLUGS as readonly string[]).includes(value);
+
+/** What Studio says about a slug {@link isReservedBookSlug} refuses. */
+export const reservedBookSlugMessage = (slug: string): string =>
+  `"${slug}" is reserved: /bookshelf/${slug} is a fixed page of the site. Choose another slug`;
+
+/**
+ * True for a slug the site uses: one {@link BOOK_SLUG_PATTERN} matches that is not one of
+ * {@link RESERVED_BOOK_SLUGS}.
+ */
+export const isBookSlug = (value: string): boolean =>
+  BOOK_SLUG_PATTERN.test(value) && !isReservedBookSlug(value);
+
+/**
+ * A cover's asset reference as Sanity names an image asset, `image-<id>-<width>x<height>-<format>`:
+ * the shape the image URL builder parses. It throws on anything else, such as a file asset
+ * (`file-<id>-pdf`), so the decoder drops a book whose cover is not one rather than lose the
+ * whole catalog to one cover URL.
+ */
+export const BOOK_COVER_REF_PATTERN = /^image-[A-Za-z0-9]+-[1-9]\d*x[1-9]\d*-[a-z0-9]+$/;
+
+/** True for a cover asset reference the image URL builder can draw: {@link BOOK_COVER_REF_PATTERN}. */
+export const isBookCoverRef = (ref: string): boolean => BOOK_COVER_REF_PATTERN.test(ref);
+
+/**
+ * The /bookshelf filter tab that shows every shelf. Shelf titles name the other tabs, so no shelf
+ * may take this one's label.
+ */
+export const ALL_SHELVES_TAB = 'All';
+
+/** A shelf title as Studio compares two of them: trimmed and lower-cased. */
+export const shelfTitleKey = (title: string): string => title.trim().toLowerCase();
+
+/** True for a shelf title that would read as the {@link ALL_SHELVES_TAB} tab, in any case. */
+export const isReservedShelfTitle = (title: string): boolean =>
+  shelfTitleKey(title) === shelfTitleKey(ALL_SHELVES_TAB);
+
+/** What Studio says about a shelf title {@link isReservedShelfTitle} refuses. */
+export const SHELF_TITLE_RESERVED_MESSAGE = `"${ALL_SHELVES_TAB}" is the /bookshelf tab that shows every shelf. Choose another title`;
+
+/** What Studio says about a shelf title another shelf already has. */
+export const SHELF_TITLE_DUPLICATE_MESSAGE =
+  'Another shelf has this title. Each shelf title names its own /bookshelf filter tab, so titles must be unique';
 
 /**
  * Strips everything but digits and X from an ISBN, returning it when it has the length of an

@@ -78,7 +78,11 @@ const spineAuthorOf = (doc: SanityBook): string =>
   doc.authors.split(/[,&]/)[0]?.trim().split(/\s+/).at(-1)?.toUpperCase() ||
   'AUTHOR';
 
-/** The cover on Sanity's CDN at the drawn size, in the best format the browser accepts. */
+/**
+ * The cover on Sanity's CDN at the drawn size, in the best format the browser accepts. The URL
+ * builder throws on a reference that is not an image asset; BookSchema drops such a book when it
+ * is decoded (isBookCoverRef), so one bad cover never reaches here to fail the whole catalog.
+ */
 const coverSrcOf = (doc: SanityBook): string =>
   urlFor(doc.coverImage).width(COVER_WIDTH).height(COVER_HEIGHT).fit('crop').auto('format').url();
 

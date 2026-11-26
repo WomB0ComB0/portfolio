@@ -17,30 +17,51 @@
 /**
  * @file The bookshelf contract has one source (src/sanity/bookshelf-rules.ts): the Studio book
  * schema lists exactly its statuses, labelled by its labels, and the Effect BookSchema accepts
- * exactly those, with a routable slug and a required cover and shelf. A book names its one shelf;
- * `track` and `books[]` are hidden legacy fields, and the dead palette/cover-URL fields are gone.
- * The loaders decode each book on its own, so a book Studio could not have published is dropped
- * and reported rather than patched up.
+ * exactly those, with a routable slug (never a reserved one such as `free`, the Free Library's
+ * /bookshelf/free) and a required cover image asset and shelf. A book names its one shelf; `track`
+ * and `books[]` are hidden legacy fields, and the dead palette/cover-URL fields are gone. The
+ * loaders decode each book on its own, so a book Studio could not have published, or whose cover
+ * the image URL builder cannot draw, is dropped and reported rather than patched up.
+ *
+ * A shelf's title names its /bookshelf filter tab, so Studio refuses "All" (the tab that shows
+ * every shelf) and a title another shelf has; the uniqueness check's query runs on groq-js against
+ * a fake dataset.
  */
 
 import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
 import { Schema } from 'effect';
+import { evaluate, parse } from 'groq-js';
+import type { ValidationContext } from 'sanity';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BookSchema, BookshelfSchema } from '@/hooks/sanity/schemas';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { decodeEach, resetDecodeMemo } from '@/lib/sanity/decode';
 import {
+  ALL_SHELVES_TAB,
   BOOK_DEFAULT_STATUS,
+  BOOK_SLUG_MESSAGE,
   BOOK_STATUS_LABELS,
   BOOK_STATUSES,
+  isBookCoverRef,
   isBookSlug,
   isBookStatus,
   isIsbn,
+  isReservedBookSlug,
+  isReservedShelfTitle,
   normalizeIsbn,
+  RESERVED_BOOK_SLUGS,
+  reservedBookSlugMessage,
+  SHELF_TITLE_DUPLICATE_MESSAGE,
+  SHELF_TITLE_RESERVED_MESSAGE,
+  shelfTitleKey,
 } from '@/sanity/bookshelf-rules';
 import { bookType } from '@/sanity/schemaTypes/book';
-import { bookshelfType } from '@/sanity/schemaTypes/bookshelf';
+import {
+  bookshelfType,
+  publishedShelfId,
+  validateShelfTitle,
+} from '@/sanity/schemaTypes/bookshelf';
 
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
 vi.mock('@sentry/nextjs', () => sentry);
@@ -75,6 +96,41 @@ const fieldOf = (type: { readonly fields: readonly unknown[] }, name: string): S
   if (!field) throw new Error(`No Studio field named ${name}`);
   return field;
 };
+
+/** One call a field's validation makes on its rule. */
+interface RuleCall {
+  readonly method: string;
+  readonly args: readonly unknown[];
+}
+
+/** The calls a field's validation makes, in order, on a rule that records them. */
+function ruleCallsOf(type: { readonly fields: readonly unknown[] }, name: string): RuleCall[] {
+  const calls: RuleCall[] = [];
+  const rule: Record<string, unknown> = new Proxy(
+    {},
+    {
+      get:
+        (_target, method) =>
+        (...args: unknown[]) => {
+          calls.push({ method: String(method), args });
+          return rule;
+        },
+    },
+  );
+  const validation = fieldOf(type, name).validation as (rule: unknown) => unknown;
+  validation(rule);
+  return calls;
+}
+
+/** The function a field's validation passes to `Rule.custom`. */
+function customRuleOf(
+  type: { readonly fields: readonly unknown[] },
+  name: string,
+): (value: unknown) => unknown {
+  const custom = ruleCallsOf(type, name).find((call) => call.method === 'custom')?.args[0];
+  if (typeof custom !== 'function') throw new Error(`No custom rule on the ${name} field`);
+  return custom as (value: unknown) => unknown;
+}
 
 /** A synthetic book, shaped like the documents the books query returns. */
 const BASE_BOOK = {
@@ -204,6 +260,184 @@ describe('book documents', () => {
   });
 });
 
+describe('book covers', () => {
+  const withRef = (_ref: string) => ({
+    ...BASE_BOOK,
+    coverImage: { ...BASE_BOOK.coverImage, asset: { _type: 'reference', _ref } },
+  });
+
+  it.each([
+    'image-Tb9Ew8CXIwaY6R1kjMvI0uRR-2000x3000-jpg',
+    'image-abc123-520x680-webp',
+    'image-0f9e8d7c6b5a-1040x1360-avif',
+  ])('decode with an image asset reference the URL builder can draw: %s', (ref) => {
+    expect(isBookCoverRef(ref)).toBe(true);
+    expect(decodeBook(withRef(ref))._tag).toBe('Success');
+  });
+
+  it.each([
+    ['a file asset', 'file-abc123-pdf'],
+    ['no dimensions', 'image-abc123-webp'],
+    ['no format', 'image-abc123-520x680'],
+    ['a zero width', 'image-abc123-0x680-webp'],
+    ['no asset id', 'image--520x680-webp'],
+    ['nothing', ''],
+  ])('refuse a cover asset reference with %s', (_label, ref) => {
+    expect(isBookCoverRef(ref)).toBe(false);
+    expect(decodeBook(withRef(ref))._tag).toBe('Failure');
+  });
+});
+
+describe('reserved book slugs', () => {
+  it('reserve free, the fixed Free Library page at /bookshelf/free', () => {
+    expect(RESERVED_BOOK_SLUGS).toEqual(['free']);
+    expect(isReservedBookSlug('free')).toBe(true);
+    expect(isBookSlug('free')).toBe(false);
+  });
+
+  it('reserve only the whole slug, not a slug that contains it', () => {
+    for (const slug of ['free-will', 'freedom', 'set-free']) {
+      expect(isReservedBookSlug(slug)).toBe(false);
+      expect(isBookSlug(slug)).toBe(true);
+      expect(decodeBook({ ...BASE_BOOK, slug: { _type: 'slug', current: slug } })._tag).toBe(
+        'Success',
+      );
+    }
+  });
+
+  it('decode no book with a reserved slug', () => {
+    expect(decodeBook({ ...BASE_BOOK, slug: { _type: 'slug', current: 'free' } })._tag).toBe(
+      'Failure',
+    );
+  });
+
+  it('are refused in Studio with a message naming the fixed page', () => {
+    const bookSlug = customRuleOf(bookType, 'slug');
+
+    expect(bookSlug({ _type: 'slug', current: 'free' })).toEqual({
+      message: reservedBookSlugMessage('free'),
+      code: 'custom.book-slug-reserved',
+    });
+    expect(reservedBookSlugMessage('free')).toBe(
+      '"free" is reserved: /bookshelf/free is a fixed page of the site. Choose another slug',
+    );
+    expect(bookSlug({ _type: 'slug', current: 'Free Book' })).toEqual({
+      message: BOOK_SLUG_MESSAGE,
+      code: 'custom.book-slug',
+    });
+    expect(bookSlug({ _type: 'slug', current: 'free-will' })).toBe(true);
+    expect(bookSlug(undefined)).toBe(true);
+  });
+});
+
+describe('shelf titles', () => {
+  /** Shelves (and one book) as the dataset holds them: Systems has a draft beside its document. */
+  const DATASET = [
+    { _id: 'bookshelf-systems', _type: 'bookshelf', title: 'Systems' },
+    { _id: 'drafts.bookshelf-systems', _type: 'bookshelf', title: 'Systems' },
+    { _id: 'versions.rRelease1.bookshelf-systems', _type: 'bookshelf', title: 'Systems' },
+    { _id: 'bookshelf-humanities', _type: 'bookshelf', title: ' Humanities ' },
+    { _id: 'bookshelf-untitled', _type: 'bookshelf' },
+    { _id: 'book-philosophy', _type: 'book', title: 'Philosophy' },
+  ];
+
+  /**
+   * A Studio validation context for the shelf `_id`, whose client answers each query from
+   * {@link DATASET} with groq-js, as Sanity would.
+   */
+  function shelfContext(_id: string) {
+    const fetch = vi.fn(async (query: string, params: Record<string, unknown>) => {
+      const result = await evaluate(parse(query), { dataset: DATASET, params });
+      return result.get();
+    });
+    const getClient = vi.fn((_options: { readonly apiVersion: string }) => ({ fetch }));
+    const context = {
+      getClient,
+      document: { _id, _type: 'bookshelf' },
+    } as unknown as ValidationContext;
+    return { context, getClient, fetch };
+  }
+
+  const duplicate = {
+    message: SHELF_TITLE_DUPLICATE_MESSAGE,
+    code: 'custom.shelf-title-duplicate',
+  };
+
+  it('reserve the All tab, trimmed and in any case', () => {
+    expect(ALL_SHELVES_TAB).toBe('All');
+    for (const title of ['All', ' all ', 'ALL']) expect(isReservedShelfTitle(title)).toBe(true);
+    for (const title of ['All Books', 'Ball', 'Al l'])
+      expect(isReservedShelfTitle(title)).toBe(false);
+  });
+
+  it('compare trimmed and lower-cased', () => {
+    expect(shelfTitleKey('  Systems Design ')).toBe('systems design');
+  });
+
+  it('are required, then checked by the shelf title rule, in Studio', () => {
+    const calls = ruleCallsOf(bookshelfType, 'title');
+
+    expect(calls.map(({ method }) => method)).toEqual(['required', 'custom']);
+    expect(calls[1]?.args[0]).toBe(validateShelfTitle);
+  });
+
+  it('refuse "All" in any case without asking Sanity', async () => {
+    const { context, getClient } = shelfContext('drafts.bookshelf-new');
+
+    for (const title of ['All', ' all ']) {
+      expect(await validateShelfTitle(title, context)).toEqual({
+        message: SHELF_TITLE_RESERVED_MESSAGE,
+        code: 'custom.shelf-title-reserved',
+      });
+    }
+    expect(getClient).not.toHaveBeenCalled();
+  });
+
+  it('leave an empty title to required(), without asking Sanity', async () => {
+    const { context, getClient } = shelfContext('drafts.bookshelf-new');
+
+    for (const title of [undefined, '', '   ']) {
+      expect(await validateShelfTitle(title, context)).toBe(true);
+    }
+    expect(getClient).not.toHaveBeenCalled();
+  });
+
+  it('refuse a title another shelf has, published or draft, trimmed and in any case', async () => {
+    const { context } = shelfContext('drafts.bookshelf-new');
+
+    expect(await validateShelfTitle('Systems', context)).toEqual(duplicate);
+    expect(await validateShelfTitle('humanities', context)).toEqual(duplicate);
+    expect(await validateShelfTitle(' SYSTEMS ', context)).toEqual(duplicate);
+  });
+
+  it.each([
+    ['published document', 'bookshelf-systems'],
+    ['draft', 'drafts.bookshelf-systems'],
+    ['release version', 'versions.rRelease1.bookshelf-systems'],
+  ])("accept the shelf's own title, editing its %s", async (_label, id) => {
+    const { context, getClient, fetch } = shelfContext(id);
+
+    expect(await validateShelfTitle('Systems', context)).toBe(true);
+    expect(getClient).toHaveBeenCalledWith({ apiVersion: '2024-10-14' });
+    expect(fetch.mock.calls[0]?.[1]).toEqual({
+      published: 'bookshelf-systems',
+      draft: 'drafts.bookshelf-systems',
+    });
+  });
+
+  it('accept a title no other shelf has, even one a book has', async () => {
+    const { context } = shelfContext('drafts.bookshelf-new');
+
+    expect(await validateShelfTitle('Philosophy', context)).toBe(true);
+  });
+
+  it('resolve the published id behind draft and release version ids', () => {
+    expect(publishedShelfId('bookshelf-ai')).toBe('bookshelf-ai');
+    expect(publishedShelfId('drafts.bookshelf-ai')).toBe('bookshelf-ai');
+    expect(publishedShelfId('versions.rRelease1.bookshelf-ai')).toBe('bookshelf-ai');
+  });
+});
+
 describe('bookshelf documents', () => {
   it('keep the legacy books list hidden and read-only, and drop the dead fields', () => {
     const books = fieldOf(bookshelfType, 'books');
@@ -265,13 +499,14 @@ describe('ISBNs', () => {
 });
 
 describe('decoding a list of books', () => {
-  /** The `_id`s the one Sentry warning lists, and its capture context. */
+  /** The `_id`s and problems the one Sentry warning lists, and its capture context. */
   const reported = () => {
     const [error, context] = sentry.captureException.mock.calls[0] ?? [];
+    const invalid = (error as { metadata: { invalid: { id: string; problem: string }[] } }).metadata
+      .invalid;
     return {
-      ids: (error as { metadata: { invalid: { id: string }[] } }).metadata.invalid.map(
-        (doc) => doc.id,
-      ),
+      ids: invalid.map((doc) => doc.id),
+      problems: invalid.map((doc) => doc.problem),
       context,
     };
   };
@@ -302,6 +537,24 @@ describe('decoding a list of books', () => {
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     const { ids, context } = reported();
     expect(ids).toEqual([badStatus._id, noCover._id, noShelf._id, nullCover._id]);
+    expect(context).toMatchObject({ level: 'warning', tags: { 'api.context': 'decode books' } });
+  });
+
+  it('drops a book whose cover is a file asset or whose slug is reserved, in one warning', () => {
+    const good = [makeBook(), makeBook()];
+    const fileCover = makeBook({
+      coverImage: { _type: 'image', asset: { _type: 'reference', _ref: 'file-abc123-pdf' } },
+    });
+    const reserved = makeBook({ slug: { _type: 'slug', current: 'free' } });
+
+    const decoded = decodeEach(BookSchema, [good[0], fileCover, reserved, good[1]], 'books');
+
+    expect(decoded.map((book) => book._id)).toEqual(good.map((book) => book._id));
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    const { ids, problems, context } = reported();
+    expect(ids).toEqual([fileCover._id, reserved._id]);
+    expect(problems[0]).toMatch(/^coverImage\.asset\._ref: Expected an image asset reference/);
+    expect(problems[1]).toMatch(/^slug\.current: .*other than free/);
     expect(context).toMatchObject({ level: 'warning', tags: { 'api.context': 'decode books' } });
   });
 });

@@ -24,7 +24,12 @@
 
 import { Option, Predicate, Result, Schema, SchemaGetter, SchemaTransformation } from 'effect';
 import { PLACE_CATEGORIES } from '@/lib/places/categories';
-import { BOOK_STATUSES, isBookSlug } from '@/sanity/bookshelf-rules';
+import {
+  BOOK_STATUSES,
+  isBookCoverRef,
+  isBookSlug,
+  RESERVED_BOOK_SLUGS,
+} from '@/sanity/bookshelf-rules';
 import {
   hasMediaText,
   isCaptionsLanguage,
@@ -604,22 +609,40 @@ export const SiteSettingsDocumentSchema = Schema.Record(Schema.String, Schema.Un
 
 /**
  * A book's slug, checked with the rule Studio applies (src/sanity/bookshelf-rules.ts), so a
- * published book is always a routable /bookshelf/<slug> segment.
+ * published book is always a routable /bookshelf/<slug> segment that no fixed page (such as
+ * /bookshelf/free) takes.
  */
 const BookSlugSchema = Schema.Struct({
   _type: Schema.Literal('slug'),
   current: Schema.String.check(
     Schema.makeFilter(isBookSlug, {
-      message: 'Expected a slug of lowercase letters and digits joined by single hyphens',
+      message: `Expected a slug of lowercase letters and digits joined by single hyphens, other than ${RESERVED_BOOK_SLUGS.join(', ')}`,
     }),
   ),
 });
 
 /**
+ * A book's cover: an image whose asset reference names an image asset (isBookCoverRef in
+ * src/sanity/bookshelf-rules.ts), so the image URL builder can always draw it. Studio's image
+ * field only takes image assets, but the API can write any reference there.
+ */
+const BookCoverSchema = Schema.Struct({
+  ...SanityImageSchema.fields,
+  asset: Schema.Struct({
+    ...SanityImageAssetSchema.fields,
+    _ref: Schema.String.check(
+      Schema.makeFilter(isBookCoverRef, {
+        message: 'Expected an image asset reference, image-<id>-<width>x<height>-<format>',
+      }),
+    ),
+  }),
+});
+
+/**
  * A book, decoded strictly against the rules Studio applies before Publish: its status is one of
- * the shared statuses, its slug is routable, and its cover asset and shelf (`shelfId`, the shelf
- * reference's _id) are required. The loaders decode each document on its own (decodeEach), so an
- * invalid book is dropped and reported once rather than patched up by the site.
+ * the shared statuses, its slug is routable, and its cover image asset and shelf (`shelfId`, the
+ * shelf reference's _id) are required. The loaders decode each document on its own (decodeEach),
+ * so an invalid book is dropped and reported once rather than patched up by the site.
  */
 export const BookSchema = Schema.Struct({
   _id: Schema.String,
@@ -638,7 +661,7 @@ export const BookSchema = Schema.Struct({
   isbn: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   status: Schema.Literals(BOOK_STATUSES),
   summary: Schema.String,
-  coverImage: SanityImageSchema,
+  coverImage: BookCoverSchema,
   shelfId: Schema.String,
   url: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   topics: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),

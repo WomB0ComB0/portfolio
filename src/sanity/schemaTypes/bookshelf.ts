@@ -19,11 +19,84 @@
  * book's required `shelf` reference), so a shelf lists no books itself: the site gathers them by
  * that reference and numbers stages shelf by shelf, in this document's `order`.
  *
+ * The title is the track label its books show and the name of its /bookshelf filter tab, which
+ * tells shelves apart by title: so it must be unique among shelves and must not read as "All", the
+ * tab that shows every shelf (rules shared in ../bookshelf-rules.ts).
+ *
  * `books` is a hidden legacy field: the site code deployed before the shelf reference still reads
  * a shelf's books from it, so it stays until the data migration's finalize step unsets it.
+ *
+ * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
  */
 
-import { defineField, defineType } from 'sanity';
+import {
+  type CustomValidatorResult,
+  defineField,
+  defineType,
+  type ValidationContext,
+} from 'sanity';
+import {
+  isReservedShelfTitle,
+  SHELF_TITLE_DUPLICATE_MESSAGE,
+  SHELF_TITLE_RESERVED_MESSAGE,
+  shelfTitleKey,
+} from '../bookshelf-rules';
+
+/**
+ * The API version the title check reads with. Before 2025-02-19 a query's default perspective is
+ * raw, so the check sees every shelf, published or draft.
+ */
+const SHELF_TITLES_API_VERSION = '2024-10-14';
+
+/**
+ * Every shelf's title except the edited shelf's own (its published `$published` and draft ids).
+ * Release versions (`versions.<release>.<id>`) are left out: they are pending copies of shelves
+ * already counted, and comparing against them would flag a shelf as a duplicate of itself.
+ */
+const OTHER_SHELF_TITLES_QUERY =
+  '*[_type == "bookshelf" && !(_id in path("versions.**")) && !(_id in [$published, $draft])].title';
+
+const DRAFT_PREFIX = 'drafts.';
+const VERSION_PREFIX = 'versions.';
+
+/** The published id behind a published, draft (`drafts.<id>`) or release version id. */
+export function publishedShelfId(id: string): string {
+  if (id.startsWith(DRAFT_PREFIX)) return id.slice(DRAFT_PREFIX.length);
+  if (id.startsWith(VERSION_PREFIX)) return id.split('.').slice(2).join('.');
+  return id;
+}
+
+/**
+ * A title the /bookshelf filter tabs could not tell apart, as an error: "All" in any case, or a
+ * title another shelf has, compared trimmed and in any case. An empty title is left to
+ * `required()`, and the check skips a value with no document to compare against.
+ */
+export async function validateShelfTitle(
+  value: string | undefined,
+  context: ValidationContext,
+): Promise<CustomValidatorResult> {
+  if (!value?.trim()) return true;
+  if (isReservedShelfTitle(value)) {
+    return { message: SHELF_TITLE_RESERVED_MESSAGE, code: 'custom.shelf-title-reserved' };
+  }
+  const id = context.document?._id;
+  if (!id) return true;
+  const published = publishedShelfId(id);
+  const titles = await context
+    .getClient({ apiVersion: SHELF_TITLES_API_VERSION })
+    .fetch<unknown>(
+      OTHER_SHELF_TITLES_QUERY,
+      { published, draft: `${DRAFT_PREFIX}${published}` },
+      { signal: context.signal, tag: 'validation.shelf-title-is-unique' },
+    );
+  const key = shelfTitleKey(value);
+  const taken =
+    Array.isArray(titles) &&
+    titles.some((title) => typeof title === 'string' && shelfTitleKey(title) === key);
+  return taken
+    ? { message: SHELF_TITLE_DUPLICATE_MESSAGE, code: 'custom.shelf-title-duplicate' }
+    : true;
+}
 
 export const bookshelfType = defineType({
   name: 'bookshelf',
@@ -34,7 +107,9 @@ export const bookshelfType = defineType({
       name: 'title',
       title: 'Shelf Title',
       type: 'string',
-      validation: (Rule) => Rule.required(),
+      description:
+        'The track label its books show and its /bookshelf filter tab: unique, and not "All".',
+      validation: (Rule) => Rule.required().custom(validateShelfTitle),
     }),
     defineField({
       name: 'slug',

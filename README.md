@@ -458,20 +458,24 @@ Safari or physical-device coverage.
 - **Content**: edit Sanity documents through the standalone Studio. Configure the site with a
   read-only `SANITY_API_TOKEN`, keeping editor credentials separate from runtime content queries.
 - **Bookshelf**: edit books and shelves in the Studio. Every book needs a cover image and a shelf,
-  and a shelf's title is the track label its books show. Stage numbers run shelf by shelf, in shelf
-  `order`, then book `order`; existing entries use steps of 10, so a new book fits between two
-  others. There is no webhook: an edit appears within about 5 minutes (the shared Sanity cache), and
-  in the sitemap within an hour. `/bookshelf/free` is an external feed, not Studio content.
+  and no book may use the slug `free` (the `/bookshelf/free` page). A shelf's title is the track
+  label its books show and its filter tab, so Studio requires it to be unique and not "All". Stage
+  numbers run shelf by shelf, in shelf `order`, then book `order`; existing entries use steps of 10,
+  so a new book fits between two others. There is no webhook: an edit appears within about 5 minutes
+  (the shared Sanity cache), and in the sitemap within an hour. `/bookshelf/free` is an external
+  feed, not Studio content.
   - The one-time move of the old TypeScript catalog into Sanity runs from the repository root with
     the admin's CLI login (`bunx sanity login`). First back up with
     `bunx sanity datasets export production ../sanity-backups/production-pre-bookshelf.tar.gz`,
     publish or discard any book draft, and deploy the Studio (`bun run sanity:deploy`). Then run
     `bunx sanity exec scripts/bookshelf/migrate-to-sanity.ts --with-user-token -- --dry-run` (the
     default; it writes nothing), then `-- --apply` and `-- --verify`, and check with
-    `bunx sanity documents validate -y --level error`. Studio values that differ from the catalog
-    are kept and listed in the dry run. After the new site is deployed, `-- --finalize` removes the
-    legacy `track` and `books` fields. The script, its catalog and `public/assets/bookshelf/` are
-    deleted afterwards.
+    `bunx sanity documents validate -y --level error`. `--apply` keeps content fields Studio already
+    has (`setIfMissing`; differing values are listed in the dry run), but always sets each book's
+    `status`, `order` and `shelf`, each shelf's `order`, a missing cover and the legacy `track` and
+    `books` from the catalog, so review the dry run before applying. After the new site is deployed,
+    `-- --finalize` removes the legacy `track` and `books` fields. The script, its catalog and
+    `public/assets/bookshelf/` are deleted afterwards.
 - **Project and experience media**: follow the
   [capture and upload guide](docs/guides/portfolio-media.md) for desktop/mobile screenshots, short
   walkthroughs, captions and placement on organizations or individual roles.

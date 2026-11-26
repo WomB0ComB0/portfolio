@@ -23,6 +23,8 @@
  * - stages and topics are numbered continuously across shelves, and a book's track is its
  *   shelf's title;
  * - each cover is drawn from its Sanity asset; the alt is Studio's, else the title and authors;
+ *   a book whose cover is not an image asset never reaches the loader (the decoder drops it), so
+ *   it cannot make the URL builder throw for the whole catalog;
  * - optional facts Studio leaves empty stay undefined;
  * - a book on no published shelf is dropped and reported once; a shelf with no books is left out;
  * - an empty dataset is an empty catalog, and a Sanity outage (a loader rejects) rejects.
@@ -54,7 +56,9 @@ import {
   loadCatalogBookBySlug,
   loadCatalogShelfBySlug,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
+import { BookSchema } from '@/hooks/sanity/schemas';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
+import { decodeEach } from '@/lib/sanity/decode';
 
 const slugOf = (current: string) => ({ _type: 'slug' as const, current });
 
@@ -184,6 +188,25 @@ describe('buildBookshelfCatalog book facts', () => {
       expect(params.get('fit')).toBe('crop');
       expect(params.get('auto')).toBe('format');
     }
+  });
+
+  it('builds from the decoded books when one cover is a file asset, which the decoder drops', () => {
+    const good = makeBook({ shelfId: shelf._id });
+    const fileCover = makeBook({ shelfId: shelf._id, coverImage: coverOf('file-abc123-pdf') });
+    // Undecoded, the one file asset makes the URL builder throw for the whole catalog.
+    expect(() => buildBookshelfCatalog([good, fileCover], [shelf])).toThrow(/Malformed asset/);
+
+    const decoded = decodeEach(BookSchema, [good, fileCover], 'books');
+    const { books } = buildBookshelfCatalog(decoded, [shelf]);
+
+    expect(books.map((book) => book.slug)).toEqual([good.slug.current]);
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    const [error, context] = sentry.captureException.mock.calls[0] ?? [];
+    expect(error).toMatchObject({
+      command: 'sanity:decode:books',
+      metadata: { invalid: [{ id: fileCover._id }] },
+    });
+    expect(context).toMatchObject({ level: 'warning' });
   });
 
   it("uses Studio's alt text for the cover, else the title and authors", () => {

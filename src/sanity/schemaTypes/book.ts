@@ -37,13 +37,22 @@ import {
   isBookSlug,
   isBookStatus,
   isIsbn,
+  isReservedBookSlug,
+  RESERVED_BOOK_SLUGS,
+  reservedBookSlugMessage,
 } from '../bookshelf-rules';
 
-/** A slug the site cannot route, as an error; an empty slug is left to `required()`. */
-const bookSlug = (value: { readonly current?: string } | undefined): CustomValidatorResult =>
-  !value?.current || isBookSlug(value.current)
-    ? true
+/**
+ * A slug the site cannot route, as an error: one a fixed /bookshelf page takes, or one of the
+ * wrong shape. An empty slug is left to `required()`.
+ */
+function bookSlug(value: { readonly current?: string } | undefined): CustomValidatorResult {
+  const slug = value?.current;
+  if (!slug || isBookSlug(slug)) return true;
+  return isReservedBookSlug(slug)
+    ? { message: reservedBookSlugMessage(slug), code: 'custom.book-slug-reserved' }
     : { message: BOOK_SLUG_MESSAGE, code: 'custom.book-slug' };
+}
 
 /** An ISBN with a bad shape or check digit, as an error; the field is optional. */
 const bookIsbn = (value: string | undefined): CustomValidatorResult =>
@@ -64,7 +73,7 @@ export const bookType = defineType({
       name: 'slug',
       title: 'Slug',
       type: 'slug',
-      description: 'The /bookshelf/<slug> URL: lowercase letters and digits joined by hyphens.',
+      description: `The /bookshelf/<slug> URL: lowercase letters and digits joined by hyphens, other than ${RESERVED_BOOK_SLUGS.map((slug) => `"${slug}"`).join(', ')}.`,
       options: {
         source: 'title',
         maxLength: 96,
