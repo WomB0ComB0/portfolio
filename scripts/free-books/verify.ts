@@ -19,9 +19,10 @@
  * .github/workflows/free-books-verify.yml. A thin CLI over src/lib/free-books/sweep.ts, which
  * lists the phases: threat feeds (HaGeZi and OpenPhish, plus URLhaus with a key), Cloudflare
  * 1.1.1.2 and Quad9 per host, optional Google Safe Browsing, a two-pass reachability probe
- * (probeLink, DNS-pinned) and content inspection of each reachable link (plain fetch, not
- * pinned), drift checks with RDAP domain age, and optional sandbox scans of drifted external
- * links on Cloudflare URL Scanner or urlscan.io, so no third-party script runs here.
+ * (probeLink) and content inspection of each reachable link (pinnedFetch), both DNS-pinned so the
+ * runner never connects to a private, loopback, link-local or metadata address, drift checks with
+ * RDAP domain age, and optional sandbox scans of drifted external links on Cloudflare URL Scanner
+ * or urlscan.io, so no third-party script runs here.
  *
  * Flags:
  *   --dry-run          no Redis publish, no file write and no sandbox scans
@@ -49,6 +50,7 @@ import {
   loadVerifierDriftStateFromRedis,
   publishSecurityManifestToRedis,
 } from '../../src/lib/free-books/manifest-store';
+import { pinnedFetch } from '../../src/lib/free-books/pinned-fetch';
 import {
   runSweep,
   type SweepDependencies,
@@ -78,7 +80,8 @@ async function resolveExists(hostname: string): Promise<boolean> {
   }
 }
 
-function connectDependencies(): SweepDependencies {
+/** The real clients: Redis, GitHub raw, DNS, the threat feeds, and the DNS-pinned probe and fetch. */
+export function connectDependencies(): SweepDependencies {
   return {
     readManifest: () => readFileSync(MANIFEST_PATH, 'utf8'),
     writeManifest: (text) => writeFileSync(MANIFEST_PATH, text, 'utf8'),
@@ -91,7 +94,7 @@ function connectDependencies(): SweepDependencies {
     checkHost: checkHostnameThreatIntel,
     checkSafeBrowsing: checkGoogleSafeBrowsing,
     probe: probeLink,
-    fetch: (input, init) => fetch(input, init),
+    fetch: pinnedFetch,
     checkDomainAge: checkRdapDomainAge,
     submitDetonation: submitDeltaDetonation,
   };

@@ -26,8 +26,9 @@ import 'server-only';
  * 2. listTargets: each catalog link that passes the runtime gate (url-screen.ts), and its hosts;
  * 3. checkHosts: every host against the threat feeds, Cloudflare 1.1.1.2 and Quad9;
  * 4. checkSafeBrowsing: every link against Google Safe Browsing, when a key is set;
- * 5. probeUrls: two-pass reachability with probeLink (DNS-pinned), then inspectFinalTarget on each
- *    reachable link (plain fetch, not pinned) for dangerous content and drift;
+ * 5. probeUrls: two-pass reachability with probeLink, then inspectFinalTarget (target-inspection.ts)
+ *    on each reachable link for dangerous content and drift; both are DNS-pinned in the CLI, and
+ *    a hop that resolves to a non-public address quarantines the link;
  * 6. detonateDeltas: drifted external links sent to a sandbox, when asked for and keyed;
  * 7. buildManifest and summarize: the sorted manifest and the counts the CLI prints.
  * Two known bugs are kept as they are until their own PRs (todo cases in the test): a Safe
@@ -36,18 +37,13 @@ import 'server-only';
  */
 
 import type { LinkObservation } from '@/lib/link-health/types';
-import {
-  inspectHtmlSnippet,
-  inspectPdfBytes,
-  isDangerousResponseHeaders,
-  isSuspiciousRedirectChain,
-} from './content-inspection';
 import type { loadFreeProgrammingBooks } from './loader';
 import type {
   loadLiveSecurityManifestFromRedis,
   loadVerifierDriftStateFromRedis,
   publishSecurityManifestToRedis,
 } from './manifest-store';
+import { inspectFinalTarget } from './target-inspection';
 import type {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
@@ -64,22 +60,14 @@ import type {
 } from './types';
 import { classifyHostTrustTier, screenExternalBookUrl } from './url-screen';
 
+export { inspectFinalTarget, type TargetInspectionResult } from './target-inspection';
+
 /** Hosts checked against DNS at once. */
 const DNSBL_CONCURRENCY = 20;
 /** Links probed at once. */
 const PROBE_CONCURRENCY = 16;
-/** The most HTML read from one page for inspectHtmlSnippet. */
-const MAX_HTML_BYTES = 64 * 1024;
-/** The most PDF bytes requested and read for inspectPdfBytes. */
-const MAX_PDF_SNIFF_BYTES = 1024 * 1024;
 /** The most links sent to a sandbox in one run. */
 const MAX_DELTA_DETONATIONS_PER_RUN = 25;
-/** The redirects inspectFinalTarget follows after the first request. */
-const MAX_INSPECTED_REDIRECTS = 5;
-/** Each inspection request gives up after 6 s. */
-const INSPECT_TIMEOUT_MS = 6000;
-/** Sent with every inspection request. */
-const USER_AGENT = 'mikeodnis-portfolio-verifier/1.0 (+https://mikeodnis.dev)';
 
 /** What the sweep needs from outside: the CLI passes the real clients, the tests pass stubs. */
 export interface SweepDependencies {
@@ -96,7 +84,7 @@ export interface SweepDependencies {
   readonly checkHost: typeof checkHostnameThreatIntel;
   readonly checkSafeBrowsing: typeof checkGoogleSafeBrowsing;
   readonly probe: (url: string) => Promise<LinkObservation>;
-  /** The plain fetch inspectFinalTarget uses. */
+  /** The fetch inspectFinalTarget walks redirects with: the DNS-pinned one in the CLI. */
   readonly fetch: FetchLike;
   readonly checkDomainAge: typeof checkRdapDomainAge;
   readonly submitDetonation: typeof submitDeltaDetonation;
@@ -134,13 +122,6 @@ export interface SweepRecords {
   readonly unavailableUrls: Record<string, string>;
   readonly urlFingerprints: Record<string, UrlBaselineFingerprint>;
   readonly deltaDetonations: Record<string, DeltaDetonationRecord>;
-}
-
-/** What inspectFinalTarget found where a link's redirects end. */
-export interface TargetInspectionResult {
-  readonly danger: string | null;
-  readonly finalHost: string;
-  readonly contentType: string;
 }
 
 /** The counts the CLI prints after a run. */
@@ -181,151 +162,6 @@ async function runPool<T>(
     }
   });
   await Promise.all(runners);
-}
-
-async function readBoundedBytes(
-  body: ReadableStream<Uint8Array>,
-  maxBytes: number,
-): Promise<Uint8Array> {
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const remaining = maxBytes - total;
-      if (remaining <= 0) break;
-      const slice = value.byteLength > remaining ? value.subarray(0, remaining) : value;
-      chunks.push(slice);
-      total += slice.byteLength;
-      if (total >= maxBytes) break;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  const combined = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return combined;
-}
-
-/**
- * Follows a reachable link's redirects by hand (auditing the chain) and inspects what it ends
- * on: dangerous headers, active PDF content, or HTML that is parked, a ClickFix lure, an
- * obfuscated loader, a hidden cross-origin iframe or an unsafe meta refresh. This uses plain
- * `fetch`, not probeLink's DNS-pinned transport. A network error finds nothing; the reachability
- * probe has already answered for the link.
- */
-export async function inspectFinalTarget(
-  url: string,
-  hostname: string,
-  fetcher: FetchLike,
-): Promise<TargetInspectionResult> {
-  const hops: string[] = [url];
-  let currentUrl = url;
-  let currentHost = hostname;
-
-  try {
-    for (let hop = 0; hop <= MAX_INSPECTED_REDIRECTS; hop += 1) {
-      const res = await fetcher(currentUrl, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: AbortSignal.timeout(INSPECT_TIMEOUT_MS),
-        headers: {
-          'User-Agent': USER_AGENT,
-          Range: `bytes=0-${MAX_PDF_SNIFF_BYTES - 1}`,
-        },
-      });
-
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get('location');
-        await res.body?.cancel().catch(() => undefined);
-        if (!loc) break;
-        const nextUrl = new URL(loc, currentUrl).href;
-        hops.push(nextUrl);
-        const hopCheck = isSuspiciousRedirectChain(hops);
-        if (hopCheck) {
-          return { danger: hopCheck, finalHost: currentHost, contentType: '' };
-        }
-        currentUrl = nextUrl;
-        currentHost = new URL(nextUrl).hostname.toLowerCase();
-        continue;
-      }
-
-      const rawCt = res.headers.get('content-type') ?? '';
-      const normalizedCt = rawCt.split(';')[0]?.trim().toLowerCase() ?? '';
-      const headerDanger = isDangerousResponseHeaders(
-        rawCt,
-        res.headers.get('content-disposition'),
-      );
-      if (headerDanger) {
-        await res.body?.cancel().catch(() => undefined);
-        return { danger: headerDanger, finalHost: currentHost, contentType: normalizedCt };
-      }
-
-      if (res.ok && res.body) {
-        if (normalizedCt === 'application/pdf' || /\.pdf(?:$|[?#])/i.test(currentUrl)) {
-          const pdfBytes = await readBoundedBytes(res.body, MAX_PDF_SNIFF_BYTES);
-          // Only inspect real PDF bytes, so an HTML landing page behind a .pdf link is not flagged.
-          if (pdfBytes.byteLength >= 5 && pdfBytes[0] === 0x25 && pdfBytes[1] === 0x50) {
-            const pdfDanger = inspectPdfBytes(pdfBytes);
-            if (pdfDanger) {
-              return { danger: pdfDanger, finalHost: currentHost, contentType: 'application/pdf' };
-            }
-          }
-          return { danger: null, finalHost: currentHost, contentType: normalizedCt };
-        }
-
-        if (normalizedCt.includes('text/html')) {
-          const htmlBytes = await readBoundedBytes(res.body, MAX_HTML_BYTES);
-          const html = new TextDecoder('utf-8', { fatal: false }).decode(htmlBytes);
-          const inspection = inspectHtmlSnippet(html, currentHost);
-          if (inspection.parked) {
-            return { danger: 'parked_domain', finalHost: currentHost, contentType: normalizedCt };
-          }
-          if (inspection.clickFixLure) {
-            return { danger: 'clickfix_lure', finalHost: currentHost, contentType: normalizedCt };
-          }
-          if (inspection.obfuscatedScript) {
-            return {
-              danger: 'obfuscated_inline_script',
-              finalHost: currentHost,
-              contentType: normalizedCt,
-            };
-          }
-          if (inspection.hiddenCrossOriginIframe) {
-            return {
-              danger: 'hidden_cross_origin_iframe',
-              finalHost: currentHost,
-              contentType: normalizedCt,
-            };
-          }
-          if (inspection.metaRefreshCrossOrigin) {
-            const refreshVerdict = screenExternalBookUrl(inspection.metaRefreshCrossOrigin);
-            if (!refreshVerdict.safe) {
-              return {
-                danger: `unsafe_meta_refresh:${refreshVerdict.blockReason ?? 'invalid'}`,
-                finalHost: currentHost,
-                contentType: normalizedCt,
-              };
-            }
-          }
-          return { danger: null, finalHost: currentHost, contentType: normalizedCt };
-        }
-      }
-
-      await res.body?.cancel().catch(() => undefined);
-      return { danger: null, finalHost: currentHost, contentType: normalizedCt };
-    }
-  } catch {
-    // Ignore transient content-inspection errors; reachability probe handles status.
-  }
-
-  return { danger: null, finalHost: currentHost, contentType: '' };
 }
 
 /**

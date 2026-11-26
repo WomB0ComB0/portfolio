@@ -23,9 +23,10 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { pinnedFetch } from '@/lib/free-books/pinned-fetch';
 import type { SweepDependencies, SweepSummary } from '@/lib/free-books/sweep';
 import type { FreeBooksSecurityManifest } from '@/lib/free-books/types';
-import { runCli } from '../../../scripts/free-books/verify';
+import { connectDependencies, runCli } from '../../../scripts/free-books/verify';
 import { EMPTY_MANIFEST, observed, stubSweepDependencies } from './sweep-fixture';
 
 /** Runs the CLI on stubbed clients and keeps what it printed. */
@@ -95,6 +96,10 @@ describe('verify CLI', () => {
     expect(code).toBe(0);
     expect(publish).toHaveBeenCalledTimes(1);
     expect(writeManifest).not.toHaveBeenCalled();
+  });
+
+  it('inspects pages through the DNS-pinned fetch, never the global fetch', () => {
+    expect(connectDependencies().fetch).toBe(pinnedFetch);
   });
 
   it('probes no URL with --dnsbl-only and keeps the baseline count of checked URLs', async () => {

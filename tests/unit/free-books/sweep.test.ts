@@ -23,6 +23,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { createPinnedFetch } from '@/lib/free-books/pinned-fetch';
 import {
   buildManifest,
   checkHosts,
@@ -42,6 +43,7 @@ import type {
   FreeBooksSecurityManifest,
   UrlBaselineFingerprint,
 } from '@/lib/free-books/types';
+import type { PinnedGetRequest, PinnedResponse } from '@/lib/link-health/transport';
 import type { LinkObservation } from '@/lib/link-health/types';
 import {
   EMPTY_MANIFEST,
@@ -551,6 +553,53 @@ describe('inspectFinalTarget', () => {
       danger: null,
       finalHost: 'old.example',
       contentType: 'text/html',
+    });
+  });
+
+  describe('over the DNS-pinned fetch', () => {
+    const METADATA_HOP = 'http://169.254.169.254.nip.io/latest/meta-data/';
+
+    /** createPinnedFetch on injected DNS `answers` and a transport that always redirects there. */
+    function pinned(answers: Readonly<Record<string, readonly string[]>>) {
+      const resolve = vi.fn(async (host: string, _signal: AbortSignal) => answers[host] ?? []);
+      const request = vi.fn(
+        async (_target: PinnedGetRequest): Promise<PinnedResponse> => ({
+          status: 302,
+          headers: { location: METADATA_HOP },
+          body: new Blob([]).stream(),
+        }),
+      );
+      return { resolve, request, fetcher: createPinnedFetch({ resolve, request }) };
+    }
+
+    it('quarantines a link whose redirect resolves to a private address, and never connects there', async () => {
+      const h = pinned({
+        'indie.example': ['93.184.216.34'],
+        '169.254.169.254.nip.io': ['169.254.169.254'],
+      });
+
+      const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', h.fetcher);
+
+      expect(result).toEqual({
+        danger: 'unsafe_address:169.254.169.254.nip.io',
+        finalHost: '169.254.169.254.nip.io',
+        contentType: '',
+      });
+      expect(h.resolve.mock.calls.map(([host]) => host)).toEqual([
+        'indie.example',
+        '169.254.169.254.nip.io',
+      ]);
+      expect(h.request).toHaveBeenCalledOnce();
+      expect(h.request.mock.calls[0]?.[0].url.href).toBe(INDIE_GUIDE);
+    });
+
+    it('quarantines a link whose own name now resolves to a private address (rebound after the probe)', async () => {
+      const h = pinned({ 'indie.example': ['127.0.0.1'] });
+
+      const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', h.fetcher);
+
+      expect(result.danger).toBe('unsafe_address:indie.example');
+      expect(h.request).not.toHaveBeenCalled();
     });
   });
 
