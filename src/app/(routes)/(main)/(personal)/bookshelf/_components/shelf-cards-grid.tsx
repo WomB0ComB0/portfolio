@@ -26,6 +26,9 @@ import {
   type BookItem,
   type BookStatus,
   type BookStatusFilter,
+  COVER_HEIGHT,
+  COVER_WIDTH,
+  coverAt,
   type ShelfCollection,
 } from '../_lib/books';
 import { BookStatusBadge } from './book-status-badge';
@@ -34,8 +37,8 @@ import styles from './bookshelf.module.css';
 export interface ShelfCardsGridProps {
   readonly shelves: readonly ShelfCollection[];
   readonly books: readonly BookItem[];
-  /** Currently highlighted section title on the unified shelf, if any. */
-  readonly highlightedSection?: string | null;
+  /** The slug of the shelf the unified shelf's filter names, if any. */
+  readonly highlightedShelfSlug?: string | null;
   /** Active reading status filter on the unified shelf. */
   readonly activeStatus?: BookStatusFilter;
   /** Controlled grouping mode synced to the URL via `nuqs` (`?group=topic|status`). */
@@ -48,7 +51,29 @@ export interface ShelfCardsGridProps {
 
 type GroupingMode = 'topic' | 'status';
 
+/**
+ * A shelf card is not drawn, so its lazy fan covers are not fetched, until it nears the viewport.
+ * Chromium fetches loading="lazy" images up to 3000 px ahead, which on a 375 px phone pulled in
+ * eight cards' covers below the fold (36 covers, 366 KB at DPR 3). A card is 343 px tall at every
+ * width measured (320-1440 px), so that block size is reserved and nothing moves when it draws;
+ * the grid sets the width. A hovered fan's shadow stays inside the card's paint clip. Skipped cards
+ * stay in the accessibility tree and focusable.
+ */
+const DEFERRED_CARD = '[contain-intrinsic-block-size:auto_343px] [content-visibility:auto]';
+
 const MAX_FAN_COVERS = 5;
+/**
+ * A fan cover's drawn width in CSS px: the 96 x 128 card covered by a 520 x 680 portrait draws it
+ * about 98 px wide. Each cover offers this width at 1x, 2x and 3x, never the 520 px source.
+ */
+const FAN_COVER_WIDTH = 100;
+const FAN_COVER_HEIGHT = Math.round((FAN_COVER_WIDTH * COVER_HEIGHT) / COVER_WIDTH);
+
+/** A fan cover's sources: FAN_COVER_WIDTH at 1x, 2x and 3x (capped at the source width). */
+function fanCover(src: string): { readonly src: string; readonly srcSet: string } {
+  const at = (density: number): string => coverAt(src, FAN_COVER_WIDTH * density);
+  return { src: at(1), srcSet: `${at(1)} 1x, ${at(2)} 2x, ${at(3)} 3x` };
+}
 
 function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): ReactElement {
   const previewBooks = books.slice(0, MAX_FAN_COVERS);
@@ -69,6 +94,7 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
       {previewBooks.map((book, idx) => {
         const delta = idx - centerIndex;
         const dist = Math.abs(delta);
+        const cover = fanCover(book.coverSrc);
         return (
           <div
             key={book.slug}
@@ -85,12 +111,13 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
               } as CSSProperties
             }
           >
-            {/* biome-ignore lint/performance/noImgElement: Decorative Sanity CDN cover (urlFor, 520x680, drawn at half size); next.config disables /_next/image. */}
+            {/* biome-ignore lint/performance/noImgElement: Decorative Sanity CDN cover, sized to how it is drawn (coverAt); next.config disables /_next/image. */}
             <img
-              src={book.coverSrc}
+              src={cover.src}
+              srcSet={cover.srcSet}
               alt=""
-              width={260}
-              height={340}
+              width={FAN_COVER_WIDTH}
+              height={FAN_COVER_HEIGHT}
               loading="lazy"
               decoding="async"
               draggable={false}
@@ -111,7 +138,7 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
 export function ShelfCardsGrid({
   shelves,
   books,
-  highlightedSection,
+  highlightedShelfSlug,
   activeStatus = 'all',
   groupBy: controlledGroupBy,
   onGroupByChange,
@@ -172,7 +199,7 @@ export function ShelfCardsGrid({
             const readPct =
               shelfBooks.length > 0 ? Math.round((readCount / shelfBooks.length) * 100) : 0;
             const allRead = shelfBooks.length > 0 && readCount === shelfBooks.length;
-            const isHighlighted = highlightedSection === shelf.title;
+            const isHighlighted = highlightedShelfSlug === shelf.slug;
 
             return (
               <Link
@@ -182,6 +209,7 @@ export function ShelfCardsGrid({
                 className={cn(
                   styles['shelf-card'],
                   isHighlighted && styles['shelf-card-active'],
+                  DEFERRED_CARD,
                   'group flex flex-col justify-between gap-4 rounded-tile p-5 no-underline focus-visible:outline-2 focus-visible:outline-focus',
                 )}
               >

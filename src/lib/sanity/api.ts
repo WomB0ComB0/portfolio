@@ -42,8 +42,7 @@ import type {
 import { sanityFetchWithToken } from './client';
 import {
   articlesQuery,
-  bookshelvesQuery,
-  booksQuery,
+  bookshelfQuery,
   certificationsQuery,
   experiencesQuery,
   featuredProjectsQuery,
@@ -172,12 +171,28 @@ export function getYoutubeVideos(): Promise<YoutubeVideo[]> {
   return fetchList<YoutubeVideo>('youtube-videos', youtubeVideosQuery);
 }
 
-/** All books stored in Sanity. Throws when Sanity fails. */
-export function getBooks(): Promise<SanityBook[]> {
-  return fetchList<SanityBook>('books', booksQuery);
+/** Every book and every bookshelf collection, as one query answers them (bookshelfQuery). */
+export interface BookshelfSnapshot {
+  /** The books, by order and then creation. */
+  readonly books: SanityBook[];
+  /** The shelves, by order and then creation. */
+  readonly shelves: SanityBookshelf[];
 }
 
-/** All bookshelf collections stored in Sanity, ordered by order. Throws when Sanity fails. */
-export function getBookshelves(): Promise<SanityBookshelf[]> {
-  return fetchList<SanityBookshelf>('bookshelves', bookshelvesQuery);
+/**
+ * Every book and every shelf from ONE query, so both lists describe the same moment of the
+ * dataset: a book never names a shelf the answer lacks because the two were read at different
+ * times. Throws when Sanity fails, or answers anything but `{ books, shelves }` lists.
+ */
+export async function getBookshelf(): Promise<BookshelfSnapshot> {
+  const command = 'sanity:bookshelf';
+  const result = await runQuery(command, bookshelfQuery);
+  const { books, shelves } =
+    typeof result === 'object' && result !== null
+      ? (result as { readonly books?: unknown; readonly shelves?: unknown })
+      : {};
+  if (!Array.isArray(books) || !Array.isArray(shelves)) {
+    throw ensureBaseError(new Error('expected { books, shelves } lists'), command);
+  }
+  return { books: books as SanityBook[], shelves: shelves as SanityBookshelf[] };
 }

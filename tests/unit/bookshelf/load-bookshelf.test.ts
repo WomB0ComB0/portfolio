@@ -27,14 +27,18 @@
  *   it cannot make the URL builder throw for the whole catalog;
  * - optional facts Studio leaves empty stay undefined;
  * - a book on no published shelf is dropped and reported once; a shelf with no books is left out;
- * - an empty dataset is an empty catalog, and a Sanity outage (a loader rejects) rejects.
- * The cached Sanity loaders and Sentry are mocked; the image URL builder is the real one.
+ * - an empty dataset is an empty catalog, and a Sanity outage (the snapshot loader rejects)
+ *   rejects;
+ * - a book found by slug comes with its Previous and Next books as their link fields alone,
+ *   wrapping round both ends.
+ * The cached Sanity snapshot loader (loadBookshelf) and Sentry are mocked; the image URL builder
+ * is the real one.
  */
 
 import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const loaders = vi.hoisted(() => ({ loadBooks: vi.fn(), loadBookshelves: vi.fn() }));
+const loaders = vi.hoisted(() => ({ loadBookshelf: vi.fn() }));
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
 
 vi.mock('@/lib/sanity/loaders', () => loaders);
@@ -81,8 +85,7 @@ const reported = () => {
 beforeEach(() => {
   sentry.captureException.mockReset();
   resetApiReportCooldowns();
-  loaders.loadBooks.mockReset().mockResolvedValue([]);
-  loaders.loadBookshelves.mockReset().mockResolvedValue([]);
+  loaders.loadBookshelf.mockReset().mockResolvedValue({ books: [], shelves: [] });
 });
 
 describe('buildBookshelfCatalog order and numbering', () => {
@@ -358,20 +361,19 @@ describe('loadBookshelfCatalog', () => {
   const second = makeBook({ shelfId: shelf._id });
 
   beforeEach(() => {
-    loaders.loadBooks.mockResolvedValue([first, second]);
-    loaders.loadBookshelves.mockResolvedValue([shelf, empty]);
+    loaders.loadBookshelf.mockResolvedValue({ books: [first, second], shelves: [shelf, empty] });
   });
 
-  it('builds the catalog from what the cached Sanity loaders answer', async () => {
+  it('builds the catalog from the books and shelves of the one cached snapshot', async () => {
     const catalog = await loadBookshelfCatalog();
 
     expect(catalog).toEqual(buildBookshelfCatalog([first, second], [shelf, empty]));
     expect(hasBooks(catalog.books)).toBe(true);
+    expect(loaders.loadBookshelf).toHaveBeenCalledTimes(1);
   });
 
   it('answers an empty catalog, with no books for the islands, for an empty dataset', async () => {
-    loaders.loadBooks.mockResolvedValue([]);
-    loaders.loadBookshelves.mockResolvedValue([]);
+    loaders.loadBookshelf.mockResolvedValue({ books: [], shelves: [] });
 
     const catalog = await loadBookshelfCatalog();
 
@@ -379,17 +381,15 @@ describe('loadBookshelfCatalog', () => {
     expect(hasBooks(catalog.books)).toBe(false);
   });
 
-  it.each(['loadBooks', 'loadBookshelves'] as const)(
-    'rejects, with no built-in catalog in its place, when %s rejects',
-    async (loader) => {
-      const outage = new Error('Sanity answered 503');
-      loaders[loader].mockRejectedValue(outage);
+  // The books and shelves are one snapshot, so they can no longer fail one without the other.
+  it('rejects, with no built-in catalog in its place, when the snapshot rejects', async () => {
+    const outage = new Error('Sanity answered 503');
+    loaders.loadBookshelf.mockRejectedValue(outage);
 
-      await expect(loadBookshelfCatalog()).rejects.toBe(outage);
-      await expect(loadCatalogBookBySlug(first.slug.current)).rejects.toBe(outage);
-      await expect(loadCatalogShelfBySlug('systems')).rejects.toBe(outage);
-    },
-  );
+    await expect(loadBookshelfCatalog()).rejects.toBe(outage);
+    await expect(loadCatalogBookBySlug(first.slug.current)).rejects.toBe(outage);
+    await expect(loadCatalogShelfBySlug('systems')).rejects.toBe(outage);
+  });
 
   it('finds a book by slug with its catalog, and answers null for an unknown slug', async () => {
     const hit = await loadCatalogBookBySlug(second.slug.current);
@@ -397,6 +397,37 @@ describe('loadBookshelfCatalog', () => {
     expect(hit?.book).toMatchObject({ slug: second.slug.current, stage: 2 });
     expect(hit?.catalog.books).toHaveLength(2);
     await expect(loadCatalogBookBySlug('no-such-book')).resolves.toBeNull();
+  });
+
+  it("names a book's neighbours by their link fields, wrapping round both ends", async () => {
+    const third = makeBook({ shelfId: shelf._id });
+    loaders.loadBookshelf.mockResolvedValue({ books: [first, second, third], shelves: [shelf] });
+    const link = (doc: ReturnType<typeof makeBook>, stage: number) => ({
+      slug: doc.slug.current,
+      title: doc.title,
+      stageLabel: String(stage).padStart(2, '0'),
+      track: shelf.title,
+    });
+
+    const opener = await loadCatalogBookBySlug(first.slug.current);
+    const middle = await loadCatalogBookBySlug(second.slug.current);
+    const closer = await loadCatalogBookBySlug(third.slug.current);
+
+    // Exactly the link fields: never the whole neighbouring book.
+    expect(opener?.prev).toStrictEqual(link(third, 3));
+    expect(opener?.next).toStrictEqual(link(second, 2));
+    expect(middle?.prev).toStrictEqual(link(first, 1));
+    expect(middle?.next).toStrictEqual(link(third, 3));
+    expect(closer?.next).toStrictEqual(link(first, 1));
+  });
+
+  it('gives a book alone on the shelf itself as both neighbours', async () => {
+    loaders.loadBookshelf.mockResolvedValue({ books: [first], shelves: [shelf] });
+
+    const hit = await loadCatalogBookBySlug(first.slug.current);
+
+    expect(hit?.prev.slug).toBe(first.slug.current);
+    expect(hit?.next.slug).toBe(first.slug.current);
   });
 
   it('finds a shelf with its books in stage order, and answers null for an unknown or empty one', async () => {

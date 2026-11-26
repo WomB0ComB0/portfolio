@@ -45,8 +45,7 @@ const loaders = vi.hoisted(() => ({
   loadPlaces: vi.fn(),
   loadCertifications: vi.fn(),
   loadResume: vi.fn(),
-  loadBooks: vi.fn(),
-  loadBookshelves: vi.fn(),
+  loadBookshelf: vi.fn(),
 }));
 
 // t3-env validates every variable on import; metadata needs none of them.
@@ -97,8 +96,10 @@ loaders.loadPlaces.mockResolvedValue([makePlace()]);
 loaders.loadCertifications.mockResolvedValue([]);
 loaders.loadResume.mockResolvedValue(null);
 const shelf = makeBookshelf();
-loaders.loadBookshelves.mockResolvedValue([shelf]);
-loaders.loadBooks.mockResolvedValue([makeBook({ shelfId: shelf._id })]);
+loaders.loadBookshelf.mockResolvedValue({
+  books: [makeBook({ shelfId: shelf._id })],
+  shelves: [shelf],
+});
 
 afterAll(() => {
   vi.unstubAllEnvs();

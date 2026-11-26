@@ -22,7 +22,13 @@ import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
-import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_lib/books';
+import {
+  type BookItem,
+  type BookNeighbor,
+  getIsbnRegistryLinks,
+  type ReadingMapEntry,
+  type ShelfCollection,
+} from '../_lib/books';
 import { BookCoverFrame } from './book-cover-frame';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
@@ -30,14 +36,20 @@ import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
   readonly book: BookItem;
-  /** The whole catalog in stage order (it holds `book`): the adjacent links and reading map. */
-  readonly books: readonly [BookItem, ...BookItem[]];
-  /** Every shelf in shelf order, for the reading map. */
+  /**
+   * The books before and after `book` in stage order, wrapping round both ends, as the Previous
+   * and Next links name them. With one book on the shelf both are `book`, and there are no links.
+   */
+  readonly prev: BookNeighbor;
+  readonly next: BookNeighbor;
+  /** The reading map's books in stage order (`book` among them): slim entries, never whole books. */
+  readonly mapBooks: readonly ReadingMapEntry[];
+  /** The shelves to map them under, in shelf order. */
   readonly shelves: readonly ShelfCollection[];
   /** Provided when rendered in-page from `/bookshelf` so Back returns smoothly without reloading. */
   readonly onBack?: () => void;
-  /** Provided when stepping between adjacent stages inside `/bookshelf`. */
-  readonly onNavigateBook?: (book: BookItem) => void;
+  /** Provided when stepping between stages inside `/bookshelf`: opens the book with this slug. */
+  readonly onNavigateBook?: (slug: string) => void;
   /** Plays the staggered top-to-bottom wipe reveal when opened from the 3D shelf. */
   readonly entering?: boolean;
 }
@@ -49,23 +61,16 @@ export interface BookDetailViewProps {
  */
 export function BookDetailView({
   book,
-  books,
+  prev,
+  next,
+  mapBooks,
   shelves,
   onBack,
   onNavigateBook,
   entering = false,
 }: BookDetailViewProps): ReactElement {
   const [mapOpen, setMapOpen] = useState(false);
-
-  const { prev, next } = useMemo(() => {
-    const idx = Math.max(
-      0,
-      books.findIndex((item) => item.slug === book.slug),
-    );
-    const prevItem = books[(idx - 1 + books.length) % books.length] ?? book;
-    const nextItem = books[(idx + 1) % books.length] ?? book;
-    return { prev: prevItem, next: nextItem };
-  }, [books, book]);
+  const hasNeighbors = prev.slug !== book.slug;
 
   const topicRows = Math.max(1, Math.ceil(book.topics.length / 2));
   const isbnLinks = useMemo(() => getIsbnRegistryLinks(book.isbn), [book.isbn]);
@@ -236,12 +241,12 @@ export function BookDetailView({
             </div>
           )}
 
-          {books.length > 1 && (
+          {hasNeighbors && (
             <nav aria-label="Adjacent books" className="grid gap-3 pt-2 sm:grid-cols-2">
               {onNavigateBook ? (
                 <button
                   type="button"
-                  onClick={() => onNavigateBook(prev)}
+                  onClick={() => onNavigateBook(prev.slug)}
                   className="group flex flex-col items-start gap-1 rounded-tile bg-surface-1 p-4 text-left transition-colors hover:bg-surface-2"
                 >
                   <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
@@ -267,7 +272,7 @@ export function BookDetailView({
               {onNavigateBook ? (
                 <button
                   type="button"
-                  onClick={() => onNavigateBook(next)}
+                  onClick={() => onNavigateBook(next.slug)}
                   className="group flex flex-col items-end gap-1 rounded-tile bg-surface-1 p-4 text-right transition-colors hover:bg-surface-2"
                 >
                   <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
@@ -304,10 +309,10 @@ export function BookDetailView({
       <ReadingMapDialog
         open={mapOpen}
         activeSlug={book.slug}
-        books={books}
+        books={mapBooks}
         shelves={shelves}
         onClose={() => setMapOpen(false)}
-        onOpenBook={onNavigateBook}
+        onOpenBook={onNavigateBook && ((entry) => onNavigateBook(entry.slug))}
       />
     </PageShell>
   );

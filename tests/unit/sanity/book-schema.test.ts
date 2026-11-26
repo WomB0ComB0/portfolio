@@ -23,9 +23,9 @@
  * loaders decode each book on its own, so a book Studio could not have published, or whose cover
  * the image URL builder cannot draw, is dropped and reported rather than patched up.
  *
- * A shelf's title names its /bookshelf filter tab, so Studio refuses "All" (the tab that shows
- * every shelf) and a title another shelf has; the uniqueness check's query runs on groq-js against
- * a fake dataset.
+ * A shelf's slug identifies its /bookshelf filter and its title labels the filter's chip, so
+ * Studio refuses "All" (the chip that shows every shelf) and a title another shelf has; the
+ * uniqueness check's query runs on groq-js against a fake dataset.
  */
 
 import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';

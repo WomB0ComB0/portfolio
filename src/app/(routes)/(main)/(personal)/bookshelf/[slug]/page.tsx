@@ -19,6 +19,11 @@
  * before anything streams, so an unknown slug answers a real 404 through notFound(), and a Sanity
  * outage with nothing cached a real 500 through the (routes) error view. The metadata and the
  * page share one load: the catalog loader is React-cache()d per request.
+ *
+ * The client view gets the one book in full and nothing else whole: its Previous and Next books
+ * as their link fields, and the catalog as slim reading-map entries plus the shelves. The whole
+ * catalog was 109 KB of props at 69 books and 1.5 MB at 1000, fetched again on every Previous or
+ * Next click (tests/unit/bookshelf/scale-budgets.test.ts holds the budget).
  */
 
 import type { Metadata } from 'next';
@@ -29,7 +34,8 @@ import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils/logging';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookDetailView } from '../_components/book-detail-view';
-import { hasBooks, loadCatalogBookBySlug } from '../_lib/load-bookshelf';
+import { toReadingMapEntry } from '../_lib/books';
+import { loadCatalogBookBySlug } from '../_lib/load-bookshelf';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build book page metadata';
@@ -73,8 +79,15 @@ export default async function BookDetailPage({
 }: BookDetailPageProps): Promise<ReactElement> {
   const { slug } = await params;
   const hit = await loadCatalogBookBySlug(slug);
-  // A found book is in the catalog's list, so the list is never empty here.
-  if (!hit || !hasBooks(hit.catalog.books)) notFound();
+  if (!hit) notFound();
 
-  return <BookDetailView book={hit.book} books={hit.catalog.books} shelves={hit.catalog.shelves} />;
+  return (
+    <BookDetailView
+      book={hit.book}
+      prev={hit.prev}
+      next={hit.next}
+      mapBooks={hit.catalog.books.map(toReadingMapEntry)}
+      shelves={hit.catalog.shelves}
+    />
+  );
 }

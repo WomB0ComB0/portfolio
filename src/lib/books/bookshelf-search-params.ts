@@ -59,6 +59,13 @@ export const BOOKSHELF_URL_OPTIONS = {
 
 /** URL state for `/bookshelf` and `/bookshelf/shelf/[shelfSlug]`. */
 export const bookshelfSearchParsers = {
+  /** The shelf filter: a shelf's slug, or absent for every shelf ("All" is the reset, no value). */
+  shelf: parseAsString,
+  /**
+   * Legacy, read only: the shelf filter before slugs, a shelf's title (`?track=AI`). The stage
+   * maps it to the one shelf with that title and rewrites the URL to `?shelf=<slug>`; nothing
+   * writes it any more.
+   */
   track: parseAsString,
   status: parseAsStringLiteral(BOOKSHELF_STATUS_VALUES).withDefault('all'),
   group: parseAsStringLiteral(BOOKSHELF_GROUP_VALUES).withDefault('topic'),

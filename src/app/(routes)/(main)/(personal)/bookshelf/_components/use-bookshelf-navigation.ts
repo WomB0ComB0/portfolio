@@ -31,6 +31,8 @@ const WHEEL_THRESHOLD = 20;
 const WHEEL_COOLDOWN_MS = 140;
 const DRAG_ACTIVATION_PX = 6;
 const CHAIN_STEP_DURATION_MS = 220;
+/** The keys that move the stage, and only while it (or nothing) has focus. */
+const STAGE_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
 interface DragState {
   pointerId: number;
@@ -54,19 +56,33 @@ export interface UseBookshelfNavigationOptions {
   readonly detailOpenRef: MutableRefObject<boolean>;
   readonly chainTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
   readonly lastStepRef: MutableRefObject<number>;
+  /** A jump's fade-in, while it runs: a drag finishes it, so it never fights --drag-x. */
+  readonly jumpAnimRef: MutableRefObject<Animation | null>;
   readonly finePointer: boolean;
   readonly detailOpen: boolean;
   readonly mapOpen: boolean;
   readonly bookCount: number;
-  readonly highlightedTrack: string | null;
+  /** The shelf filter's slug, or null for every shelf. */
+  readonly activeShelfSlug: string | null;
   readonly statusFilter: BookStatusFilter;
   readonly bookAt: (index: number) => BookItem;
   readonly step: (dir: number, dur?: number) => void;
   readonly stepBy: (delta: number) => void;
-  readonly goToBookIndex: (index: number) => void;
+  /** One move to a book, however far (Home/End). */
+  readonly jumpTo: (index: number) => void;
   readonly openDetail: (book: BookItem) => void;
   readonly closeDetail: () => void;
-  readonly onUpdateUrlFilter: (patch: { track?: string | null; status?: BookStatusFilter }) => void;
+  readonly onUpdateUrlFilter: (patch: { shelf?: string | null; status?: BookStatusFilter }) => void;
+}
+
+/**
+ * True when a stage key should move the stage: focus is on the stage (or inside it), or on
+ * nothing (the page itself). Anywhere else, such as a shelf chip, a link or a button, the key
+ * keeps its own meaning (Home and End scroll the page), as the ARIA carousel pattern has it.
+ */
+function stageHasFocus(stage: HTMLElement | null): boolean {
+  const active = document.activeElement;
+  return active === null || active === document.body || Boolean(stage?.contains(active));
 }
 
 /**
@@ -82,16 +98,17 @@ export function useBookshelfNavigation({
   detailOpenRef,
   chainTimerRef,
   lastStepRef,
+  jumpAnimRef,
   finePointer,
   detailOpen,
   mapOpen,
   bookCount,
-  highlightedTrack,
+  activeShelfSlug,
   statusFilter,
   bookAt,
   step,
   stepBy,
-  goToBookIndex,
+  jumpTo,
   openDetail,
   closeDetail,
   onUpdateUrlFilter,
@@ -165,6 +182,7 @@ export function useBookshelfNavigation({
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (STAGE_KEYS.has(event.key) && !stageHasFocus(stageRef.current)) return;
 
       if (event.key === 'ArrowRight') {
         event.preventDefault();
@@ -174,10 +192,10 @@ export function useBookshelfNavigation({
         step(-1);
       } else if (event.key === 'Home') {
         event.preventDefault();
-        goToBookIndex(0);
+        jumpTo(0);
       } else if (event.key === 'End') {
         event.preventDefault();
-        goToBookIndex(bookCount - 1);
+        jumpTo(bookCount - 1);
       } else if (
         (event.key === 'Enter' || event.key === ' ') &&
         document.activeElement === stageRef.current
@@ -192,7 +210,7 @@ export function useBookshelfNavigation({
   }, [
     mapOpen,
     step,
-    goToBookIndex,
+    jumpTo,
     bookCount,
     openDetail,
     bookAt,
@@ -277,6 +295,8 @@ export function useBookshelfNavigation({
       clearTimeout(chainTimerRef.current);
       chainTimerRef.current = null;
     }
+    jumpAnimRef.current?.finish();
+    jumpAnimRef.current = null;
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -378,9 +398,9 @@ export function useBookshelfNavigation({
       }
       if (!Number.isNaN(offset)) {
         const clickedBook = bookAt(posRef.current + offset);
-        const nextUrlPatch: { track?: string | null; status?: BookStatusFilter } = {};
-        if (highlightedTrack && clickedBook.track !== highlightedTrack) {
-          nextUrlPatch.track = clickedBook.track;
+        const nextUrlPatch: { shelf?: string | null; status?: BookStatusFilter } = {};
+        if (activeShelfSlug && clickedBook.shelfSlug !== activeShelfSlug) {
+          nextUrlPatch.shelf = clickedBook.shelfSlug;
         }
         if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
           nextUrlPatch.status = 'all';

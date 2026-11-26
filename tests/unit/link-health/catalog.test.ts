@@ -22,6 +22,7 @@ import {
   makeExperience,
   makePresentation,
   makeProject,
+  makeScaledBookshelfDocs,
   makeTalk,
   makeVideo,
 } from '@tests/fixtures/sanity-docs';
@@ -36,16 +37,14 @@ const sources = vi.hoisted(() => ({
   certifications: vi.fn(),
   experiences: vi.fn(),
   media: vi.fn(),
-  books: vi.fn(),
-  bookshelves: vi.fn(),
+  bookshelf: vi.fn(),
 }));
 const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
 vi.mock('@/lib/sanity/loaders', () => ({
   loadProjects: sources.projects,
   loadCertifications: sources.certifications,
   loadExperiences: sources.experiences,
-  loadBooks: sources.books,
-  loadBookshelves: sources.bookshelves,
+  loadBookshelf: sources.bookshelf,
 }));
 vi.mock('@/app/(routes)/(dev)/media/_lib/load-feed', () => ({ loadMediaFeed: sources.media }));
 // The bookshelf catalog draws each cover with the real image URL builder; the client module itself
@@ -78,6 +77,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-11-16T18:00:00Z'));
   for (const source of Object.values(sources)) source.mockReset().mockResolvedValue([]);
   sources.media.mockResolvedValue(media([]));
+  sources.bookshelf.mockResolvedValue({ books: [], shelves: [] });
   report.reportApiFailure.mockReset();
 });
 afterEach(() => vi.useRealTimers());
@@ -126,6 +126,12 @@ describe('published link catalog', () => {
     expect(new Set(result).size).toBe(500);
     expect(result[0]).toBe('https://demo.example.com/');
     expect(result.at(-1)).toBe('https://demo.example.com/498');
+    // 521 distinct links: the 21 past the bound are reported, never checked.
+    expect(report.reportApiFailure).toHaveBeenCalledTimes(1);
+    expect(report.reportApiFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { scope: 'projects', kept: 500, dropped: 21 } }),
+      expect.objectContaining({ level: 'warning' }),
+    );
   });
 
   it('keeps selected credential files as well as issuer verification pages', async () => {
@@ -353,8 +359,7 @@ describe('published link catalog', () => {
       // On no published shelf: the bookshelf does not render it, so its link is not checked.
       makeBook({ shelfId: 'bookshelf-unpublished', url: 'https://orphan.example.com/book' }),
     ];
-    sources.books.mockResolvedValue(books);
-    sources.bookshelves.mockResolvedValue(shelves);
+    sources.bookshelf.mockResolvedValue({ books, shelves });
 
     const result = await loadLinkCatalog('bookshelf');
 
@@ -372,20 +377,49 @@ describe('published link catalog', () => {
     expect(sources.media).not.toHaveBeenCalled();
   });
 
+  it('warns once, naming the scope and the dropped count, when 501 books pass the 500-link cap', async () => {
+    const { books, shelves } = makeScaledBookshelfDocs(501);
+    sources.bookshelf.mockResolvedValue({ books, shelves });
+
+    const result = await loadLinkCatalog('bookshelf');
+
+    expect(result).toHaveLength(500);
+    // The catalog keeps stage order, so the last book's link is the one left unchecked.
+    expect(result).not.toContain(normalizeLinkUrl(books.at(-1)?.url));
+    expect(report.reportApiFailure).toHaveBeenCalledTimes(1);
+    expect(report.reportApiFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: 'link-health:catalog',
+        metadata: { scope: 'bookshelf', kept: 500, dropped: 1 },
+      }),
+      { context: 'link-health catalog cap (bookshelf)', level: 'warning' },
+    );
+  });
+
+  it('does not warn at exactly 500 distinct book links, whatever repeats or blanks follow', async () => {
+    const { books, shelves } = makeScaledBookshelfDocs(502);
+    const [first] = books;
+    const withTail = books.map((book, index) => {
+      if (index === 500) return { ...book, url: first?.url };
+      return index === 501 ? { ...book, url: null } : book;
+    });
+    sources.bookshelf.mockResolvedValue({ books: withTail, shelves });
+
+    expect(await loadLinkCatalog('bookshelf')).toHaveLength(500);
+    expect(report.reportApiFailure).not.toHaveBeenCalled();
+  });
+
   it('answers an empty bookshelf catalog when Sanity has no books', async () => {
-    sources.bookshelves.mockResolvedValue([makeBookshelf()]);
+    sources.bookshelf.mockResolvedValue({ books: [], shelves: [makeBookshelf()] });
 
     await expect(loadLinkCatalog('bookshelf')).resolves.toEqual([]);
   });
 
-  it.each(['books', 'bookshelves'] as const)(
-    'does not reinterpret a %s outage as an empty bookshelf catalog',
-    async (source) => {
-      sources[source].mockRejectedValue(new Error('Sanity answered 503'));
+  it('does not reinterpret a bookshelf outage as an empty bookshelf catalog', async () => {
+    sources.bookshelf.mockRejectedValue(new Error('Sanity answered 503'));
 
-      await expect(loadLinkCatalog('bookshelf')).rejects.toThrow('Sanity answered 503');
-    },
-  );
+    await expect(loadLinkCatalog('bookshelf')).rejects.toThrow('Sanity answered 503');
+  });
 
   it('rejects unsupported scopes instead of loading Places or Spotify', async () => {
     await expect(loadLinkCatalog('places' as LinkHealthScope)).rejects.toThrow();

@@ -30,6 +30,9 @@ import 'server-only';
  *   in the background (one shared reload, kept alive past the response with Next's after(), its
  *   failure reported once). Only a server that never loaded the list waits for it. The API
  *   readers and every other page loader still reload in the foreground.
+ * - The books and the shelves are ONE entry, the bookshelf snapshot: one query answers both, so
+ *   they always describe the same moment, share one TTL and fall back to stale data together.
+ *   `readBooks` and `readBookshelves` each answer one list of it, and `loadBookshelf` both.
  *
  * When Sanity fails after a good load, both get the last good answer and the loaders send a
  * warning. When it fails with nothing cached, the loaders reject with the getter's error and
@@ -81,9 +84,9 @@ import {
 } from '@/lib/cache/stale-cache';
 import { reportApiFailure } from '@/lib/observability/report';
 import {
+  type BookshelfSnapshot,
   getArticles,
-  getBooks,
-  getBookshelves,
+  getBookshelf,
   getCertifications,
   getExperiences,
   getFeaturedProjects,
@@ -138,8 +141,9 @@ type ProcessGlobal = typeof globalThis & { [SHARED_READERS_KEY]?: StaleCache<unk
 
 /**
  * The process's cache, created by whichever copy of the module loads first. It holds every
- * collection under its API route key; each key is read by one reader below, so its data always
- * has that reader's type. The clock is read on every call, so a test's faked Date moves it too.
+ * collection under its API route key ('bookshelf' for the books and shelves together); each key
+ * is read by one reader below, so its data always has that reader's type. The clock is read on
+ * every call, so a test's faked Date moves it too.
  */
 function processCache(): StaleCache<unknown> {
   const processGlobal = globalThis as ProcessGlobal;
@@ -176,8 +180,22 @@ export const readPlaces = cachedReader<Place[]>('places', getPlaces);
 export const readResume = cachedReader<Resume | null>('resume', getResume);
 export const readPresentations = cachedReader<Presentation[]>('presentations', getPresentations);
 export const readArticles = cachedReader<Article[]>('articles', getArticles);
-export const readBooks = cachedReader<SanityBook[]>('books', getBooks);
-export const readBookshelves = cachedReader<SanityBookshelf[]>('bookshelves', getBookshelves);
+/** Books and shelves share ONE entry: one query, one TTL, one stale-on-error fallback. */
+const BOOKSHELF_KEY = 'bookshelf';
+const readBookshelf = cachedReader<BookshelfSnapshot>(BOOKSHELF_KEY, getBookshelf);
+
+/** The snapshot's books, raw: the list /api/v1/sanity/books has always answered. */
+export const readBooks: SanityReader<SanityBook[]> = async () => {
+  const result = await readBookshelf();
+  return { ...result, data: result.data.books };
+};
+
+/** The same snapshot's shelves, raw: the list /api/v1/sanity/bookshelves has always answered. */
+export const readBookshelves: SanityReader<SanityBookshelf[]> = async () => {
+  const result = await readBookshelf();
+  return { ...result, data: result.data.shelves };
+};
+
 /**
  * The longest a talks or videos load may run. Both wait on YouTube, whose retries can take 30 s
  * or more, and the browser gives up on the route after 10 s; like the other routes'
@@ -324,13 +342,26 @@ export const loadArticles = cache(
 export const loadTalks = cache(
   (): Promise<readonly Talk[]> => loadList(readTalksForPages, TalkSchema, 'talks'),
 );
-export const loadBooks = cache(
-  (): Promise<readonly SanityBook[]> => loadList(readBooks, BookSchema, 'books'),
-);
-export const loadBookshelves = cache(
-  (): Promise<readonly SanityBookshelf[]> =>
-    loadList(readBookshelves, BookshelfSchema, 'bookshelves'),
-);
+/** The bookshelf snapshot as the pages read it: every book and every shelf, decoded. */
+export interface LoadedBookshelf {
+  readonly books: readonly SanityBook[];
+  readonly shelves: readonly SanityBookshelf[];
+}
+
+/**
+ * The books and shelves of one cached snapshot, each document decoded on its own (invalid ones
+ * are dropped and reported under `decode books` / `decode bookshelves`, as before). Both lists
+ * always come from the same load, so a book never names a shelf the list lacks because one of
+ * two caches was older or failed: while a reload fails, both are the last good snapshot, with one
+ * `load bookshelf for pages` warning.
+ */
+export const loadBookshelf = cache(async (): Promise<LoadedBookshelf> => {
+  const { books, shelves } = await readData(readBookshelf, BOOKSHELF_KEY);
+  return {
+    books: decodeEach(BookSchema, books, 'books'),
+    shelves: decodeEach(BookshelfSchema, shelves, 'bookshelves'),
+  };
+});
 
 /**
  * The active resume, or null when Sanity's fresh answer is that none is active (or it is invalid,

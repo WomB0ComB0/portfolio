@@ -18,8 +18,12 @@
  * Borderless 3D cuboid books projected per slot around --book-h,
  * living cleanly inside <PageShell> without covering site navigation. */
 
+/* The book height is CSS, so the server's HTML is laid out as the browser's (no shift once the
+ * stage hydrates): measureStage's formula (bookshelf-stage.tsx), with .stage's height. It is an
+ * unregistered property on purpose: 88cqi then resolves where it is used, in the books inside
+ * this container, against the shelf shell's width (the stage's own width). */
 .shelf-shell {
-  --book-h: 410px;
+  --book-h: max(220px, min(calc(clamp(300px, 45dvh, 420px) * 0.84), 410px, 88cqi));
   --book-w: calc(var(--book-h) * 0.15);
   --book-c: calc(var(--book-h) * 0.75);
   --shelf-dur: 400ms;
@@ -31,6 +35,7 @@
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;
+  container-type: inline-size;
 }
 
 /* FilterBar-style sliding pill track using Live Console OKLCH tokens */
@@ -41,26 +46,88 @@
   align-items: center;
   gap: 0.25rem;
   align-self: flex-start;
+  min-width: 0;
+  max-width: 100%;
   padding: 0.25rem;
   border-radius: 1.25rem;
   background: var(--surface-1);
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
+/*
+ * Below 48rem the chips keep to one row that scrolls sideways inside the bar, so the bar stays
+ * one chip tall (40px) at any shelf count instead of wrapping above the stage. With no scrollbar,
+ * the cue that it scrolls is a fade over each end with chips past it (data-overflow, set by the
+ * filters bar; 1.5rem is its TRACK_EDGE_FADE_REM). The bar's 0.25rem padding leaves room for a
+ * focused chip's ring, which the scroller clips at its padding box.
+ */
+@container page (width < 48rem) {
+  .track-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+
+    /* A chip the browser scrolls into view (on focus) sits clear of the fades. */
+    scroll-padding-inline: calc(0.25rem + 1.5rem);
+    scrollbar-width: none;
+    border-radius: 9999px;
+  }
+
+  /* Centred, where revealShelfChip puts the current chip, so a snap never moves it under a fade. */
+  .track-bar > .track-chip {
+    flex: none;
+    scroll-snap-align: center;
+  }
+}
+
+.track-bar[data-overflow="end"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+}
+
+.track-bar[data-overflow="start"] {
+  mask-image: linear-gradient(to right, transparent, #000 1.5rem);
+}
+
+.track-bar[data-overflow="both"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.5rem,
+    #000 calc(100% - 1.5rem),
+    transparent
+  );
+}
+
+/*
+ * The current chip's pill: one layer as wide as the chip row (--pill-track), clipped to the
+ * current chip by clip-path inset (--pill-t/r/b/l, measured by the stage), so it slides on
+ * clip-path alone: no width, height or layout. The layer paints the 1px --brand-edge ring over
+ * --brand-subtle; ::before, clipped 1px smaller, fills the inside. Unmeasured, it is clipped away.
+ */
 .track-pill {
   pointer-events: none;
   position: absolute;
-  top: 0;
+  inset-block: 0;
   left: 0;
-  width: 0;
-  height: 2rem;
-  border-radius: 9999px;
+  width: var(--pill-track, 100%);
+  background: linear-gradient(var(--brand-edge), var(--brand-edge)), var(--brand-subtle);
+  clip-path: inset(
+    var(--pill-t, 0) var(--pill-r, 100%) var(--pill-b, 0) var(--pill-l, 0) round 9999px
+  );
+  transition: clip-path var(--motion-spring-in) var(--ease-spring);
+}
+
+.track-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: var(--brand-subtle);
-  box-shadow: inset 0 0 0 1px var(--brand-edge);
-  transition:
-    transform var(--motion-spring-in) var(--ease-spring),
-    width var(--motion-spring-in) var(--ease-spring),
-    height var(--motion-spring-in) var(--ease-spring);
+  clip-path: inset(
+    calc(var(--pill-t, 0px) + 1px) calc(var(--pill-r, 100%) + 1px) calc(var(--pill-b, 0px) + 1px)
+      calc(var(--pill-l, 0px) + 1px) round 9999px
+  );
+  transition: clip-path var(--motion-spring-in) var(--ease-spring);
 }
 
 .track-chip {
@@ -83,8 +150,14 @@
   color: var(--fg);
 }
 
-.track-chip[aria-selected="true"] {
+.track-chip[aria-pressed="true"],
+.track-chip[data-current="true"] {
   color: var(--fg);
+}
+
+/* "All" pressed where the pill is not: its pressed state reads by shape, not by colour alone. */
+.track-chip[aria-pressed="true"]:not([data-current="true"]) {
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 
 .track-count {
@@ -92,7 +165,7 @@
   color: var(--fg-faint);
 }
 
-.track-chip[aria-selected="true"] .track-count {
+.track-chip[data-current="true"] .track-count {
   color: var(--fg-muted);
 }
 
@@ -254,6 +327,8 @@
   position: relative;
   z-index: 0;
   isolation: isolate;
+
+  /* --book-h (.shelf-shell) repeats this height: change the two together. */
   height: clamp(300px, 45dvh, 420px);
   width: 100%;
   overflow: hidden;
@@ -845,7 +920,8 @@
 .slot.no-anim,
 .slot.no-anim .face-cover,
 .slot.no-anim .slot-shadow,
-.track-pill.no-anim {
+.track-pill.no-anim,
+.track-pill.no-anim::before {
   transition: none;
 }
 
