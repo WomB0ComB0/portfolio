@@ -24,8 +24,9 @@
  * passing unchecked.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { importGraph } from '@tests/utils/import-graph';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '../../..');
@@ -52,62 +53,9 @@ const FORBIDDEN_MODULES = [
 
 const FORBIDDEN_PACKAGES = new Set(['dompurify', 'marked', 'server-only']);
 
-const SPECIFIERS =
-  /(?:^|[\s;])(?:import|export)\s+([^'";]*?)\s*from\s*['"]([^'"]+)['"]|(?:^|[\s;])import\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/gm;
-
-function typeOnly(clause: string): boolean {
-  if (/^type\s/.test(clause)) return true;
-  const braces = /^\{([^}]*)\}$/.exec(clause.trim());
-  if (!braces) return false;
-  const names = (braces[1] ?? '')
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean);
-  return names.length > 0 && names.every((name) => name.startsWith('type '));
-}
-
-function resolveLocal(specifier: string, from: string): string | null {
-  let base: string;
-  if (specifier.startsWith('@/')) base = path.join(SRC, specifier.slice(2));
-  else if (specifier.startsWith('.')) base = path.resolve(path.dirname(from), specifier);
-  else return null;
-
-  const candidates = [
-    base,
-    ...['.ts', '.tsx', '.js', '.mjs', '.json'].map((ext) => `${base}${ext}`),
-    ...['index.ts', 'index.tsx'].map((idx) => path.join(base, idx)),
-  ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
-}
-
-function collectValueGraph(entry: string): { files: Set<string>; packages: Set<string> } {
-  const files = new Set<string>([entry]);
-  const packages = new Set<string>();
-  const queue = [entry];
-
-  while (queue.length > 0) {
-    const file = queue.shift();
-    if (!file || file.endsWith('.json') || file.endsWith('.css')) continue;
-    const source = readFileSync(file, 'utf8');
-    for (const match of source.matchAll(SPECIFIERS)) {
-      const clause = match[1] ?? '';
-      const specifier = match[2] ?? match[3] ?? match[4] ?? '';
-      if (!specifier || (match[2] && typeOnly(clause))) continue;
-
-      const resolved = resolveLocal(specifier, file);
-      if (resolved) {
-        if (!files.has(resolved)) {
-          files.add(resolved);
-          queue.push(resolved);
-        }
-      } else {
-        packages.add(specifier);
-      }
-    }
-  }
-
-  return { files, packages };
-}
+/** The island's reach: data and styles are listed but never read. */
+const collectValueGraph = (entry: string) =>
+  importGraph(entry, { src: SRC, leaves: ['.json', '.css'] });
 
 describe('bookshelf client island compartmentalization', () => {
   // A moved or renamed module would pass the checks below without ever being looked for.

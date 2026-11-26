@@ -212,18 +212,7 @@ describe('book documents', () => {
   });
 
   it('refuse to publish a cover that has alt text but no image asset', () => {
-    const calls: string[] = [];
-    const rule: Record<string, unknown> = new Proxy(
-      {},
-      {
-        get: (_target, name) => () => {
-          calls.push(String(name));
-          return rule;
-        },
-      },
-    );
-    const validation = fieldOf(bookType, 'coverImage').validation as (rule: unknown) => unknown;
-    validation(rule);
+    const calls = ruleCallsOf(bookType, 'coverImage').map(({ method }) => method);
     expect(calls).toEqual(expect.arrayContaining(['required', 'assetRequired']));
   });
 
