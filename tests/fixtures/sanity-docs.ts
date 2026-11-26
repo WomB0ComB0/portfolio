@@ -29,6 +29,8 @@ import type {
   Presentation,
   Project,
   Resume,
+  SanityBook,
+  SanityBookshelf,
   Talk,
 } from '@/hooks/sanity/schemas';
 import type { ListedVideo } from '@/lib/sanity/loaders';
@@ -172,6 +174,47 @@ export function makeArticle(overrides: Partial<Article> = {}): Article {
     publicationUrl: `https://example.com/articles/${n}`,
     publishedDate: '2025-06-01',
     order: n,
+    ...overrides,
+  };
+}
+
+/** The shelf a book names when a test gives it none: pass `shelfId: shelf._id` to join a shelf. */
+export const DEFAULT_BOOK_SHELF_ID = 'bookshelf-test';
+
+/**
+ * A book as the books query answers it: queued, with two topics, a 520x680 cover asset and
+ * `shelfId` naming its shelf. Its order is n*10, the gap the migration leaves between stages.
+ */
+export function makeBook(overrides: Partial<SanityBook> = {}): SanityBook {
+  const { n, meta } = nextDocument('book');
+  return {
+    ...meta,
+    _type: 'book',
+    title: `Book ${n}`,
+    slug: { _type: 'slug', current: `book-${n}` },
+    authors: `Author ${n}`,
+    status: 'queued',
+    summary: `What book ${n} teaches.`,
+    coverImage: {
+      _type: 'image',
+      asset: { _type: 'reference', _ref: 'image-abc123-520x680-webp' },
+    },
+    shelfId: DEFAULT_BOOK_SHELF_ID,
+    topics: [`Book ${n} topic one`, `Book ${n} topic two`],
+    order: n * 10,
+    ...overrides,
+  };
+}
+
+/** A bookshelf section as the bookshelves query answers it (flat: its books name it). */
+export function makeBookshelf(overrides: Partial<SanityBookshelf> = {}): SanityBookshelf {
+  const { n, meta } = nextDocument('bookshelf');
+  return {
+    ...meta,
+    _type: 'bookshelf',
+    title: `Shelf ${n}`,
+    slug: { _type: 'slug', current: `shelf-${n}` },
+    order: n * 10,
     ...overrides,
   };
 }

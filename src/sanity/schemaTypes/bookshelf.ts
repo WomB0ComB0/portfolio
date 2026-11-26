@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * @file A shelf on the /bookshelf: a titled, ordered section. Each book names its one shelf (the
+ * book's required `shelf` reference), so a shelf lists no books itself: the site gathers them by
+ * that reference and numbers stages shelf by shelf, in this document's `order`.
+ *
+ * `books` is a hidden legacy field: the site code deployed before the shelf reference still reads
+ * a shelf's books from it, so it stays until the data migration's finalize step unsets it.
+ */
+
 import { defineField, defineType } from 'sanity';
 
 export const bookshelfType = defineType({
@@ -44,32 +53,27 @@ export const bookshelfType = defineType({
       rows: 2,
     }),
     defineField({
-      name: 'accentColor',
-      title: 'Accent Color',
-      type: 'string',
-      description: 'Optional hex color for the shelf indicator dot and underline.',
-    }),
-    defineField({
-      name: 'books',
-      title: 'Books on this Shelf',
-      type: 'array',
-      of: [{ type: 'reference', to: [{ type: 'book' }] }],
-      validation: (Rule) => Rule.required().min(1),
-    }),
-    defineField({
       name: 'order',
       title: 'Display Order',
       type: 'number',
+      description: 'Shelf position; stages are numbered shelf by shelf in this order',
       initialValue: 0,
       validation: (Rule) => Rule.required(),
     }),
+    // Legacy: the site code deployed before the shelf reference reads a shelf's books from here.
+    // Hidden and read-only, never removed from the schema, until the migration's finalize step
+    // unsets it.
     defineField({
-      name: 'featured',
-      title: 'Featured Shelf',
-      type: 'boolean',
-      initialValue: true,
+      name: 'books',
+      title: 'Books on this Shelf (legacy)',
+      type: 'array',
+      of: [{ type: 'reference', to: [{ type: 'book' }] }],
+      hidden: true,
+      readOnly: true,
+      description: "Legacy: replaced by each book's Shelf; removed after the migration",
     }),
   ],
+  orderings: [{ title: 'Position', name: 'orderAsc', by: [{ field: 'order', direction: 'asc' }] }],
   preview: {
     select: {
       title: 'title',

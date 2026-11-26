@@ -63,9 +63,10 @@ presence updates.
   endpoints. Browser requests use [Effect DataLoader](src/providers/server/effect-data-loader.tsx),
   TanStack Query and typed clients. Server pages also call loaders directly, without an HTTP round
   trip through their own API.
-- **Storage and authentication**: Sanity holds projects, roles, credentials, places and media
-  metadata. Firebase handles visitor sign-in and Firestore stores guestbook messages. Upstash Redis
-  holds API rate limits and IP/CIDR bans. Sanity also stores the scheduled link-check results.
+- **Storage and authentication**: Sanity holds projects, roles, credentials, places, media metadata
+  and the bookshelf (books, shelves and cover images). Firebase handles visitor sign-in and
+  Firestore stores guestbook messages. Upstash Redis holds API rate limits and IP/CIDR bans. Sanity
+  also stores the scheduled link-check results.
 - **Observability**: OpenTelemetry, Sentry and Better Stack report requests, errors and uptime.
   Server-rendered navigation links and JSON-LD support crawlers and navigation before hydration.
 
@@ -134,6 +135,10 @@ graph TD
 | `/places`, `/places/[placeId]`      | A map and place directory with photo-journal detail pages, uncropped photos, captions and thumbnail navigation.                         |
 | `/places/photos`                    | A photo gallery drawn from the places collection.                                                                                       |
 | `/guestbook`                        | Visitor notes arranged in a wall by year, with authenticated posting through the API.                                                   |
+| `/bookshelf`                        | A 3D shelf of the books read, being read and queued, shelf by shelf, with status filters, shelf cards and a reading map.                |
+| `/bookshelf/[slug]`                 | A book's stage: cover, publication facts, summary, numbered topics, ISBN registry links and the previous and next books.                |
+| `/bookshelf/shelf/[shelfSlug]`      | One shelf's books on the 3D stage.                                                                                                      |
+| `/bookshelf/free`                   | A searchable library of free programming and security books from the EbookFoundation list (an external feed, not Sanity).               |
 | `/sponsor`                          | Ways to support the work, followed by current and past supporter acknowledgements.                                                      |
 | `/privacy`, `/cookies`, `/licenses` | Privacy, cookie and open-source license disclosures.                                                                                    |
 
@@ -154,22 +159,24 @@ directory spelling is part of the existing source layout.
 
 ### v1 Endpoints (`/api/v1/*`)
 
-| Method | Path                                         | Upstream Source          | Description                                                                                                                                                |
-| :----- | :------------------------------------------- | :----------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/api/v1/now-playing`                        | Spotify Web API          | Current playback state, track metadata, and album art                                                                                                      |
-| `GET`  | `/api/v1/top-tracks`                         | Spotify Web API          | Short-term top tracks with resilient pagination fallback                                                                                                   |
-| `GET`  | `/api/v1/top-artists`                        | Spotify Web API          | Short-term top artists and genres                                                                                                                          |
-| `GET`  | `/api/v1/github-stats`                       | GitHub REST API          | Repository counts, stars, followers, top languages and top repositories                                                                                    |
-| `GET`  | `/api/v1/github-sponsors`                    | GitHub GraphQL API       | Active and past GitHub Sponsors and tier metadata                                                                                                          |
-| `GET`  | `/api/v1/wakatime`                           | WakaTime API             | Total coding time as text, digital, decimal and seconds values                                                                                             |
-| `GET`  | `/api/v1/leetcode`                           | LeetCode GraphQL         | Solved problem counts by difficulty                                                                                                                        |
-| `GET`  | `/api/v1/lanyard`                            | Lanyard API              | Live Discord presence and custom activities                                                                                                                |
-| `GET`  | `/api/v1/blog`                               | Hashnode & Dev.to        | Merged and chronologically sorted blog articles                                                                                                            |
-| `GET`  | `/api/v1/link-health?scope=projects`         | Cached HTTP checks       | Link status for `projects`, `media`, `certifications` or `experience`; accepts a scope, never a target URL                                                 |
-| `GET`  | `/api/v1/link-health/catalog?scope=projects` | Published portfolio data | Fixed-scope URL catalog for the scheduled checker; accepts no target URL                                                                                   |
-| `GET`  | `/api/v1/google`                             | Google Analytics         | Total site pageviews                                                                                                                                       |
-| `POST` | `/api/v1/messages`                           | Firebase Admin           | Sign the guestbook with a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                      |
-| `GET`  | `/api/v1/sanity/*`                           | Sanity CMS               | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos` |
+| Method | Path                                         | Upstream Source             | Description                                                                                                                                                                          |
+| :----- | :------------------------------------------- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/v1/now-playing`                        | Spotify Web API             | Current playback state, track metadata, and album art                                                                                                                                |
+| `GET`  | `/api/v1/top-tracks`                         | Spotify Web API             | Short-term top tracks with resilient pagination fallback                                                                                                                             |
+| `GET`  | `/api/v1/top-artists`                        | Spotify Web API             | Short-term top artists and genres                                                                                                                                                    |
+| `GET`  | `/api/v1/github-stats`                       | GitHub REST API             | Repository counts, stars, followers, top languages and top repositories                                                                                                              |
+| `GET`  | `/api/v1/github-sponsors`                    | GitHub GraphQL API          | Active and past GitHub Sponsors and tier metadata                                                                                                                                    |
+| `GET`  | `/api/v1/wakatime`                           | WakaTime API                | Total coding time as text, digital, decimal and seconds values                                                                                                                       |
+| `GET`  | `/api/v1/leetcode`                           | LeetCode GraphQL            | Solved problem counts by difficulty                                                                                                                                                  |
+| `GET`  | `/api/v1/lanyard`                            | Lanyard API                 | Live Discord presence and custom activities                                                                                                                                          |
+| `GET`  | `/api/v1/blog`                               | Hashnode & Dev.to           | Merged and chronologically sorted blog articles                                                                                                                                      |
+| `GET`  | `/api/v1/link-health?scope=projects`         | Cached HTTP checks          | Link status for `projects`, `media`, `certifications`, `experience` or `bookshelf`; accepts a scope, never a target URL                                                              |
+| `GET`  | `/api/v1/link-health/catalog?scope=projects` | Published portfolio data    | Fixed-scope URL catalog for the scheduled checker; accepts no target URL                                                                                                             |
+| `GET`  | `/api/v1/google`                             | Google Analytics            | Total site pageviews                                                                                                                                                                 |
+| `POST` | `/api/v1/messages`                           | Firebase Admin              | Sign the guestbook with a Firebase ID token (see [Guestbook posts](#guestbook-posts))                                                                                                |
+| `GET`  | `/api/v1/sanity/*`                           | Sanity CMS                  | Sub-routes: `/resume`, `/experiences`, `/projects`, `/projects/featured`, `/certifications`, `/places`, `/presentations`, `/talks`, `/articles`, `/videos`, `/books`, `/bookshelves` |
+| `GET`  | `/api/v1/books/lookup?isbn=...`              | Open Library & Google Books | Book metadata by ISBN or `q` search: Open Library first, Google Books as the fallback                                                                                                |
+| `GET`  | `/api/v1/books/free`                         | EbookFoundation list        | The filtered, paginated free-books library behind `/bookshelf/free`                                                                                                                  |
 
 The v1 router also exposes `/api/v1/`, `/api/v1/health`, `/api/v1/status`, `/api/v1/version` and
 `/api/v1/info` through its [utility module](src/app/api/v1/[[...route]]/utility/index.ts). `/info`
@@ -182,10 +189,10 @@ not have a separate `/api/v1/media` endpoint.
 ### Content-link health
 
 An [hourly workflow](.github/workflows/link-health.yml) checks published project demos and source
-repositories, writing and talk destinations, credentials and experience links. It checks only due
-URLs and saves the results as separate `linkHealth` documents in Sanity. Page visits read cached
-results; they never start external probes. Places, Spotify, standalone video feeds and stable
-service/profile links remain outside the catalog.
+repositories, writing and talk destinations, credentials, experience links and the bookshelf's book
+links. It checks only due URLs and saves the results as separate `linkHealth` documents in Sanity.
+Page visits read cached results; they never start external probes. Places, Spotify, standalone video
+feeds and stable service/profile links remain outside the catalog.
 
 Only a repeatedly confirmed missing page receives an **Unavailable** label. The checker verifies
 `404`/`410` with GET and requires separated observations. Timeouts, authentication walls, rate
@@ -390,6 +397,7 @@ bun run scripts:copyright:check # Check headers without writing
 # Sanity Studio
 bun run sanity:dev             # Start the standalone content studio
 bun run sanity:build           # Build the studio
+bun run sanity:deploy          # Deploy the hosted studio from sanity.config.ts
 ```
 
 ---
@@ -449,6 +457,21 @@ Safari or physical-device coverage.
   location and tagline still use Studio, and clearing Location still hides it.
 - **Content**: edit Sanity documents through the standalone Studio. Configure the site with a
   read-only `SANITY_API_TOKEN`, keeping editor credentials separate from runtime content queries.
+- **Bookshelf**: edit books and shelves in the Studio. Every book needs a cover image and a shelf,
+  and a shelf's title is the track label its books show. Stage numbers run shelf by shelf, in shelf
+  `order`, then book `order`; existing entries use steps of 10, so a new book fits between two
+  others. There is no webhook: an edit appears within about 5 minutes (the shared Sanity cache), and
+  in the sitemap within an hour. `/bookshelf/free` is an external feed, not Studio content.
+  - The one-time move of the old TypeScript catalog into Sanity runs from the repository root with
+    the admin's CLI login (`bunx sanity login`). First back up with
+    `bunx sanity datasets export production ../sanity-backups/production-pre-bookshelf.tar.gz`,
+    publish or discard any book draft, and deploy the Studio (`bun run sanity:deploy`). Then run
+    `bunx sanity exec scripts/bookshelf/migrate-to-sanity.ts --with-user-token -- --dry-run` (the
+    default; it writes nothing), then `-- --apply` and `-- --verify`, and check with
+    `bunx sanity documents validate -y --level error`. Studio values that differ from the catalog
+    are kept and listed in the dry run. After the new site is deployed, `-- --finalize` removes the
+    legacy `track` and `books` fields. The script, its catalog and `public/assets/bookshelf/` are
+    deleted afterwards.
 - **Project and experience media**: follow the
   [capture and upload guide](docs/guides/portfolio-media.md) for desktop/mobile screenshots, short
   walkthroughs, captions and placement on organizations or individual roles.

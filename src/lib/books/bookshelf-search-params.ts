@@ -27,8 +27,9 @@ import {
   parseAsString,
   parseAsStringLiteral,
 } from 'nuqs/server';
+import { BOOK_STATUSES } from '@/sanity/bookshelf-rules';
 
-export const BOOKSHELF_STATUS_VALUES = ['all', 'completed', 'reading', 'queued'] as const;
+export const BOOKSHELF_STATUS_VALUES = ['all', ...BOOK_STATUSES] as const;
 export const BOOKSHELF_GROUP_VALUES = ['topic', 'status'] as const;
 
 export const FREE_BOOKS_SOURCE_VALUES = ['all', 'langs', 'subjects'] as const;

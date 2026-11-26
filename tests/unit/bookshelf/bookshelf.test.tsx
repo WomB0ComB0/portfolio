@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+/**
+ * @file The bookshelf's client islands (the 3D stage, the in-page and standalone detail views,
+ * the reading map and the shelf cards) and the /api/v1/books/lookup route. The islands render a
+ * small fixture catalog built the way the pages build theirs: Sanity-shaped book and shelf
+ * documents (tests/fixtures/sanity-docs.ts) joined by the real buildBookshelfCatalog, with the
+ * real Sanity image URL builder. No production content is read.
+ */
+
 import { act, fireEvent, render as rtlRender, screen, within } from '@testing-library/react';
+import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import type { SanityBookshelf } from '@/hooks/sanity/schemas';
 
 const render = (ui: ReactElement, searchParams?: string) =>
   rtlRender(ui, {
@@ -32,22 +40,31 @@ const render = (ui: ReactElement, searchParams?: string) =>
 vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
   default: {},
 }));
+// The catalog builder draws each cover with the real image URL builder; the client module itself
+// reads server configuration on import.
+vi.mock('@/lib/sanity/client', async () => {
+  const { createImageUrlBuilder } = await import('@sanity/image-url');
+  const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
+  return {
+    sanityFetchWithToken: vi.fn(),
+    urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source),
+  };
+});
+// Only buildBookshelfCatalog is used here; the cached Sanity loaders are never asked.
+vi.mock('@/lib/sanity/loaders', () => ({ loadBooks: vi.fn(), loadBookshelves: vi.fn() }));
 
 import { BookDetailView } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/book-detail-view';
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import {
-  BOOK_SLUGS,
-  BOOK_TRACKS,
-  BOOKS,
+  type BookItem,
   DEFAULT_BOOK_INDEX,
-  DEFAULT_SHELVES,
-  getAdjacentBooks,
-  getBookAt,
-  getBookBySlug,
   getIsbnRegistryLinks,
-  normalizeBookStatus,
-  TOTAL_TOPICS,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import {
+  buildBookshelfCatalog,
+  hasBooks,
+  type NonEmptyBooks,
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
 import {
   cleanIsbn,
@@ -56,105 +73,136 @@ import {
   toBookSlug,
 } from '@/app/api/v1/[[...route]]/books/handlers';
 
-describe('Bookshelf catalog', () => {
-  it('contains 44 uniquely slugged stages numbered 01 through 44 across all 8 tracks', () => {
-    expect(BOOKS).toHaveLength(44);
-    expect(new Set(BOOK_SLUGS).size).toBe(BOOKS.length);
-    expect(BOOKS.map((book) => book.stage)).toEqual(
-      Array.from({ length: BOOKS.length }, (_, idx) => idx + 1),
-    );
-    expect(BOOKS.filter((book) => book.status === 'completed')).toHaveLength(14);
-    expect(BOOKS.filter((book) => book.status === 'queued')).toHaveLength(30);
-    for (const track of BOOK_TRACKS) {
-      expect(BOOKS.some((book) => book.track === track)).toBe(true);
-    }
-  });
+/**
+ * Books per fixture shelf. Three shelves of six make 18 books: more than the stage's window of
+ * book slots, so the unfiltered stage is the circular one and no book is drawn twice.
+ */
+const BOOKS_PER_SHELF = 6;
 
-  it('numbers curriculum topics continuously from 1 to TOTAL_TOPICS without gaps', () => {
-    const numbers = BOOKS.flatMap((book) => book.topics.map((topic) => topic.number));
-    expect(numbers).toHaveLength(TOTAL_TOPICS);
-    expect(numbers[0]).toBe(1);
-    expect(numbers.at(-1)).toBe(TOTAL_TOPICS);
-    for (let index = 1; index < numbers.length; index += 1) {
-      expect(numbers[index]).toBe((numbers[index - 1] ?? 0) + 1);
-    }
-  });
+const shelfDoc = (title: string, slug: string): SanityBookshelf =>
+  makeBookshelf({ title, slug: { _type: 'slug', current: slug } });
 
-  it('has a real local WebP cover asset under public/ for every book', () => {
-    for (const book of BOOKS) {
-      expect(book.coverSrc).toMatch(/^\/assets\/bookshelf\/[a-z0-9-]+\.webp$/);
-      const diskPath = join(process.cwd(), 'public', book.coverSrc);
-      expect(existsSync(diskPath), book.coverSrc).toBe(true);
-    }
-  });
+const BACKEND_SHELF = shelfDoc('Backend', 'backend');
+const AI_SHELF = shelfDoc('AI', 'ai');
+const HUMANITIES_SHELF = shelfDoc('Humanities', 'humanities');
 
-  it('wraps previous and next neighbors cyclically around stage 01 and stage 44', () => {
-    const first = getAdjacentBooks(getBookAt(0).slug);
-    expect(first.prev.stage).toBe(BOOKS.length);
-    expect(first.next.stage).toBe(2);
-
-    const last = getAdjacentBooks(getBookAt(BOOKS.length - 1).slug);
-    expect(last.prev.stage).toBe(BOOKS.length - 1);
-    expect(last.next.stage).toBe(1);
-  });
+/** The book the detail tests open: second on the AI shelf, with an ISBN and four topics. */
+const FEATURED_TITLE = 'Agents in Practice';
+const FEATURED_TOPIC = 'Agents: tools & planning';
+const FEATURED_ISBN = '9780306406157';
+const FEATURED_DOC = makeBook({
+  shelfId: AI_SHELF._id,
+  title: FEATURED_TITLE,
+  isbn: FEATURED_ISBN,
+  topics: ['Prompting', FEATURED_TOPIC, 'Evaluation', 'Serving'],
 });
 
-describe('BookshelfStage Live Console & bidirectional scroll', () => {
-  it('defaults to Stage 04 (Designing Data-Intensive Applications) and steps both directions', () => {
-    render(<BookshelfStage />);
-    const n = BOOKS.length;
+/** `count` books on `shelf`, titled by shelf and position ("AI Book 3"). */
+const shelfBooks = (shelf: SanityBookshelf, count = BOOKS_PER_SHELF) =>
+  Array.from({ length: count }, (_, index) =>
+    makeBook({ shelfId: shelf._id, title: `${shelf.title} Book ${index + 1}` }),
+  );
 
-    const defaultBook = getBookAt(DEFAULT_BOOK_INDEX);
-    expect(screen.getByText(`04 of ${n}: ${defaultBook.title}`)).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Backend/ })).toHaveAttribute('aria-selected', 'true');
+const [FIRST_AI_DOC, ...OTHER_AI_DOCS] = shelfBooks(AI_SHELF, BOOKS_PER_SHELF - 1);
+
+const CATALOG = buildBookshelfCatalog(
+  [
+    ...shelfBooks(BACKEND_SHELF),
+    ...(FIRST_AI_DOC ? [FIRST_AI_DOC] : []),
+    FEATURED_DOC,
+    ...OTHER_AI_DOCS,
+    ...shelfBooks(HUMANITIES_SHELF),
+  ],
+  [BACKEND_SHELF, AI_SHELF, HUMANITIES_SHELF],
+);
+
+/** `books` as the islands take them: a list with at least one book. */
+const nonEmpty = (books: readonly BookItem[]): NonEmptyBooks => {
+  if (!hasBooks(books)) throw new Error('expected at least one fixture book');
+  return books;
+};
+
+const BOOKS = nonEmpty(CATALOG.books);
+const SHELVES = CATALOG.shelves;
+const BOOK_COUNT = BOOKS.length;
+
+/** The book at `index`, wrapping around the circular shelf as the stage does. */
+const bookAt = (index: number): BookItem =>
+  BOOKS[((index % BOOK_COUNT) + BOOK_COUNT) % BOOK_COUNT] ?? BOOKS[0];
+
+/** The stage's live readout for `book`, e.g. "07 of 18: Agents in Practice". */
+const liveTextOf = (book: BookItem): string => `${book.stageLabel} of ${BOOK_COUNT}: ${book.title}`;
+
+/** A topic number as the detail view prints it, three digits wide. */
+const topicLabel = (number: number | undefined): string => String(number).padStart(3, '0');
+
+const bookWithSlug = (slug: string): BookItem => {
+  const book = BOOKS.find((item) => item.slug === slug);
+  if (!book) throw new Error(`no fixture book ${slug}`);
+  return book;
+};
+
+const FEATURED = bookWithSlug(FEATURED_DOC.slug.current);
+
+/** A category tab by its shelf title, whatever count it shows. */
+const tabNamed = (title: string) =>
+  screen.getByRole('tab', { name: new RegExp(`^${title}\\s*\\d`) });
+
+describe('BookshelfStage Live Console & bidirectional scroll', () => {
+  it('defaults to DEFAULT_BOOK_INDEX (stage 01) and steps both directions around the shelf', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+
+    const defaultBook = bookAt(DEFAULT_BOOK_INDEX);
+    const nextBook = bookAt(DEFAULT_BOOK_INDEX + 1);
+    const prevBook = bookAt(DEFAULT_BOOK_INDEX - 1);
+
+    expect(defaultBook.stageLabel).toBe('01');
+    expect(screen.getByText(liveTextOf(defaultBook))).toBeInTheDocument();
+    expect(tabNamed(defaultBook.track)).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Next book' }));
-    const nextBook = getBookAt(DEFAULT_BOOK_INDEX + 1);
-    expect(screen.getByText(`05 of ${n}: ${nextBook.title}`)).toBeInTheDocument();
+    expect(screen.getByText(liveTextOf(nextBook))).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
-    expect(screen.getByText(`04 of ${n}: ${defaultBook.title}`)).toBeInTheDocument();
+    expect(screen.getByText(liveTextOf(defaultBook))).toBeInTheDocument();
 
+    // Stage 01's previous book is the last stage: the shelf is circular.
     fireEvent.click(screen.getByRole('button', { name: 'Previous book' }));
-    const prevBook = getBookAt(DEFAULT_BOOK_INDEX - 1);
-    expect(screen.getByText(`03 of ${n}: ${prevBook.title}`)).toBeInTheDocument();
+    expect(prevBook.stage).toBe(BOOK_COUNT);
+    expect(screen.getByText(liveTextOf(prevBook))).toBeInTheDocument();
   });
 
   it('scrolls right on wheel down and left on wheel up cleanly across direction reversals', () => {
     vi.useFakeTimers();
-    const n = BOOKS.length;
+    const defaultBook = bookAt(DEFAULT_BOOK_INDEX);
+    const nextBook = bookAt(DEFAULT_BOOK_INDEX + 1);
+    const prevBook = bookAt(DEFAULT_BOOK_INDEX - 1);
     try {
-      render(<BookshelfStage />);
+      render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
       const stage = screen.getByRole('region', { name: /Bookshelf/i });
 
       // Advance past initial cooldown
       vi.advanceTimersByTime(300);
       fireEvent.wheel(stage, { deltaY: 120 });
-      expect(
-        screen.getByText(`05 of ${n}: ${getBookAt(DEFAULT_BOOK_INDEX + 1).title}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(liveTextOf(nextBook))).toBeInTheDocument();
 
-      // Momentum during cooldown is ignored, then scrolling up reverses immediately to 04
+      // Momentum during cooldown is ignored, then scrolling up reverses immediately to defaultBook
       fireEvent.wheel(stage, { deltaY: 200 });
       vi.advanceTimersByTime(300);
       fireEvent.wheel(stage, { deltaY: -80 });
-      expect(
-        screen.getByText(`04 of ${n}: ${getBookAt(DEFAULT_BOOK_INDEX).title}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(liveTextOf(defaultBook))).toBeInTheDocument();
 
-      // Another scroll up steps left to 03
+      // Another scroll up steps left to prevBook
       vi.advanceTimersByTime(300);
       fireEvent.wheel(stage, { deltaY: -80 });
-      expect(
-        screen.getByText(`03 of ${n}: ${getBookAt(DEFAULT_BOOK_INDEX - 1).title}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(liveTextOf(prevBook))).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
   });
 
   it('keeps pool DOM nodes in fixed ascending poolIndex order when stepping left and right', () => {
-    const { container } = render(<BookshelfStage />);
+    const { container } = render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
 
     const readOrder = (): string[] =>
       [...container.querySelectorAll<HTMLElement>('[data-pool-index]')].map(
@@ -175,7 +223,7 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
   });
 
   it('scrubs across multiple books during a continuous pointer drag in both directions', () => {
-    render(<BookshelfStage />);
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
     const stage = screen.getByRole('region', { name: /Bookshelf/i });
 
     // Drag left by 260px -> scrubs forward (right) multiple books
@@ -184,9 +232,10 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     fireEvent.pointerMove(stage, { pointerId: 1, clientX: 240, clientY: 200 });
     fireEvent.pointerUp(stage, { pointerId: 1, clientX: 240, clientY: 200 });
 
+    const defaultBook = bookAt(DEFAULT_BOOK_INDEX);
     const liveTextAfterLeftDrag =
-      screen.getByText(new RegExp(`of ${BOOKS.length}:`)).textContent ?? '';
-    expect(liveTextAfterLeftDrag).not.toContain(`04 of ${BOOKS.length}:`);
+      screen.getByText(new RegExp(`of ${BOOK_COUNT}:`)).textContent ?? '';
+    expect(liveTextAfterLeftDrag).not.toContain(`${defaultBook.stageLabel} of ${BOOK_COUNT}:`);
 
     // Drag right by 260px -> scrubs backward (left)
     fireEvent.pointerDown(stage, { pointerId: 2, button: 0, clientX: 240, clientY: 200 });
@@ -195,38 +244,38 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     fireEvent.pointerUp(stage, { pointerId: 2, clientX: 520, clientY: 200 });
 
     const liveTextAfterRightDrag =
-      screen.getByText(new RegExp(`of ${BOOKS.length}:`)).textContent ?? '';
+      screen.getByText(new RegExp(`of ${BOOK_COUNT}:`)).textContent ?? '';
     expect(liveTextAfterRightDrag).not.toBe(liveTextAfterLeftDrag);
   });
 
-  it('opens the reading map dialog and closes on close button', () => {
-    render(<BookshelfStage />);
+  it('opens the reading map dialog with every shelf and closes on close button', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
     const dialog = screen.getByRole('dialog', { name: /Reading map/i });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText(/AI Engineering: Building Applications/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(FEATURED_TITLE)).toBeInTheDocument();
+    for (const shelf of SHELVES) {
+      expect(
+        within(dialog).getByRole('heading', { level: 3, name: shelf.title }),
+      ).toBeInTheDocument();
+    }
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close reading map' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('renders the stage detail view in-page inside PageShell and returns cleanly to Bookshelf', () => {
-    render(<BookshelfStage initialSlug="ai-engineering" />);
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
 
     const stage = screen.getByRole('region', { name: /Bookshelf/i });
     stage.focus();
     fireEvent.keyDown(window, { key: 'Enter' });
 
-    expect(
-      screen.getByRole('heading', {
-        level: 1,
-        name: 'AI Engineering: Building Applications with Foundation Models',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Agents: tools & planning')).toBeInTheDocument();
-    expect(screen.getByText('119')).toBeInTheDocument();
-    expect(screen.getByText('132')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: FEATURED_TITLE })).toBeInTheDocument();
+    expect(screen.getByText(FEATURED_TOPIC)).toBeInTheDocument();
+    expect(screen.getByText(topicLabel(FEATURED.topics[0]?.number))).toBeInTheDocument();
+    expect(screen.getByText(topicLabel(FEATURED.topics.at(-1)?.number))).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
     expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
@@ -234,24 +283,31 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
 
   it('highlights books in the selected section pill and dims non-matching sections until All is clicked', async () => {
     vi.useFakeTimers();
+    const firstAiBook = BOOKS.find((book) => book.track === AI_SHELF.title);
+    expect(firstAiBook).toBeDefined();
+    if (!firstAiBook) return;
+    // Tab clicks walk the shelf one book per 55 ms chain tick, taking the shorter way around the
+    // circular shelf; budget 100 ms per book plus the final settle, from the fixture's distance.
+    const distance = Math.abs(BOOKS.indexOf(firstAiBook) - DEFAULT_BOOK_INDEX);
+    const stepsToFirstAi = Math.min(distance, BOOK_COUNT - distance);
+    // The AI shelf starts several books away, so the click walks a multi-step chain.
+    expect(stepsToFirstAi).toBeGreaterThan(1);
     try {
-      const { container } = render(<BookshelfStage />);
+      const { container } = render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
 
       await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /AI/ }));
-        vi.advanceTimersByTime(600);
+        fireEvent.click(tabNamed(AI_SHELF.title));
+        vi.advanceTimersByTime(600 + stepsToFirstAi * 100);
       });
 
       const highlighted = container.querySelectorAll('[data-highlighted="true"]');
       const dimmed = container.querySelectorAll('[data-dimmed="true"]');
       expect(highlighted.length).toBeGreaterThan(0);
       expect(dimmed.length).toBeGreaterThan(0);
-      expect(
-        screen.getByText(new RegExp(`11 of ${BOOKS.length}: Deep Learning`)),
-      ).toBeInTheDocument();
+      expect(screen.getByText(liveTextOf(firstAiBook))).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Open AI shelf/i })).toHaveAttribute(
         'href',
-        '/bookshelf/shelf/ai',
+        `/bookshelf/shelf/${AI_SHELF.slug.current}`,
       );
 
       await act(async () => {
@@ -264,28 +320,40 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
     }
   });
 
-  it('renders separated fanned shelf cards linking to /bookshelf/shelf/[slug]', () => {
-    render(<BookshelfStage />);
+  it('renders separated fanned shelf cards linking to /bookshelf/shelf/[slug], in shelf order', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
 
     expect(screen.getByRole('heading', { level: 2, name: 'Shelves' })).toBeInTheDocument();
-    for (const shelf of DEFAULT_SHELVES) {
+    expect(SHELVES.map((shelf) => shelf.slug)).toEqual(['backend', 'ai', 'humanities']);
+    for (const shelf of SHELVES) {
       const link = screen.getByRole('link', { name: new RegExp(shelf.title) });
       expect(link).toHaveAttribute('href', `/bookshelf/shelf/${shelf.slug}`);
     }
   });
 
+  it('describes the whole shelf by its shelf titles, in shelf order', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+
+    expect(
+      screen.getByText('Foundational books across Backend, AI, and Humanities.'),
+    ).toBeInTheDocument();
+  });
+
   it('renders focused single-shelf mode finitely without duplicating books', () => {
-    const backendShelf = DEFAULT_SHELVES.find((shelf) => shelf.slug === 'backend');
+    const backendShelf = SHELVES.find((shelf) => shelf.slug === BACKEND_SHELF.slug.current);
     expect(backendShelf).toBeDefined();
     if (!backendShelf) return;
-    const backendBooks = BOOKS.filter((book) => backendShelf.bookSlugs.includes(book.slug));
+    const backendBooks = nonEmpty(BOOKS.filter((book) => book.shelfSlug === backendShelf.slug));
+    expect(backendBooks.map((book) => book.slug)).toEqual(backendShelf.bookSlugs);
 
     const { container } = render(
-      <BookshelfStage books={backendBooks} shelves={DEFAULT_SHELVES} activeShelf={backendShelf} />,
+      <BookshelfStage books={backendBooks} shelves={SHELVES} activeShelf={backendShelf} />,
     );
 
     expect(screen.getByRole('heading', { level: 1, name: 'Backend' })).toBeInTheDocument();
-    expect(screen.getByText('Book 01 / 03')).toBeInTheDocument();
+    expect(
+      screen.getByText(`Book 01 / ${String(backendBooks.length).padStart(2, '0')}`),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /All shelves/i })).toHaveAttribute(
       'href',
       '/bookshelf',
@@ -294,19 +362,13 @@ describe('BookshelfStage Live Console & bidirectional scroll', () => {
   });
 
   it('filters and spotlights books by reading status and groups shelves by status', () => {
-    expect(normalizeBookStatus('completed')).toBe('completed');
-    expect(normalizeBookStatus('reading')).toBe('reading');
-    expect(normalizeBookStatus('unread')).toBe('queued');
-    expect(normalizeBookStatus('to-read')).toBe('queued');
-    expect(normalizeBookStatus(undefined)).toBe('completed');
+    const statusAt = (idx: number) => {
+      if (idx === 0) return 'queued' as const;
+      return idx === 1 ? ('reading' as const) : ('completed' as const);
+    };
+    const mixedBooks = nonEmpty(BOOKS.map((book, idx) => ({ ...book, status: statusAt(idx) })));
 
-    const mixedBooks = BOOKS.map((book, idx) => ({
-      ...book,
-      status:
-        idx === 0 ? ('queued' as const) : idx === 1 ? ('reading' as const) : ('completed' as const),
-    }));
-
-    const { container } = render(<BookshelfStage books={mixedBooks} />);
+    const { container } = render(<BookshelfStage books={mixedBooks} shelves={SHELVES} />);
     const statusGroup = screen.getByRole('group', { name: 'Reading status' });
 
     fireEvent.click(within(statusGroup).getByRole('button', { name: /Unread/i }));
@@ -458,45 +520,63 @@ describe('Books Lookup API (/api/v1/books/lookup)', () => {
 
 describe('BookDetailView standalone', () => {
   it('renders inside PageShell with Back to Bookshelf link and numbered topics', () => {
-    const book = getBookBySlug('ai-engineering');
-    expect(book).toBeDefined();
-    if (!book) return;
-    render(<BookDetailView book={book} />);
+    render(<BookDetailView book={FEATURED} books={BOOKS} shelves={SHELVES} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: FEATURED_TITLE })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Back to Bookshelf/i })).toHaveAttribute(
       'href',
-      '/bookshelf?book=ai-engineering',
+      `/bookshelf?book=${FEATURED.slug}`,
     );
-    expect(screen.getByText('119')).toBeInTheDocument();
-    expect(screen.getByText('132')).toBeInTheDocument();
-    expect(screen.getByText('Agents: tools & planning')).toBeInTheDocument();
+    expect(screen.getByText(topicLabel(FEATURED.topics[0]?.number))).toBeInTheDocument();
+    expect(screen.getByText(topicLabel(FEATURED.topics.at(-1)?.number))).toBeInTheDocument();
+    expect(screen.getByText(FEATURED_TOPIC)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Direct link/i })).not.toBeInTheDocument();
 
-    const links = getIsbnRegistryLinks(book.isbn);
+    const links = getIsbnRegistryLinks(FEATURED.isbn);
     expect(links).toEqual({
-      openLibrary: 'https://openlibrary.org/isbn/9781098166304',
-      worldCat: 'https://search.worldcat.org/isbn/9781098166304',
-      isbnSearch: 'https://isbnsearch.org/isbn/9781098166304',
+      openLibrary: `https://openlibrary.org/isbn/${FEATURED_ISBN}`,
+      worldCat: `https://search.worldcat.org/isbn/${FEATURED_ISBN}`,
+      isbnSearch: `https://isbnsearch.org/isbn/${FEATURED_ISBN}`,
     });
     expect(screen.getByRole('link', { name: /Open Library/i })).toHaveAttribute(
       'href',
-      'https://openlibrary.org/isbn/9781098166304',
+      `https://openlibrary.org/isbn/${FEATURED_ISBN}`,
     );
     expect(screen.getByRole('link', { name: /WorldCat/i })).toHaveAttribute(
       'href',
-      'https://search.worldcat.org/isbn/9781098166304',
+      `https://search.worldcat.org/isbn/${FEATURED_ISBN}`,
     );
     expect(screen.getByRole('link', { name: /ISBN Search/i })).toHaveAttribute(
       'href',
-      'https://isbnsearch.org/isbn/9781098166304',
+      `https://isbnsearch.org/isbn/${FEATURED_ISBN}`,
     );
     expect(getIsbnRegistryLinks('N/A')).toBeNull();
   });
 
+  it("draws the Sanity CDN cover with Studio's alt, or the title and authors", () => {
+    render(<BookDetailView book={FEATURED} books={BOOKS} shelves={SHELVES} />);
+
+    const cover = screen.getByRole('img', { name: `${FEATURED_TITLE} by ${FEATURED_DOC.authors}` });
+    expect(cover.getAttribute('src')).toMatch(
+      /^https:\/\/cdn\.sanity\.io\/images\/test\/test\/abc123-520x680\.webp\?/,
+    );
+  });
+
+  it('leaves out the facts and links Studio has no value for', () => {
+    const bare = bookAt(DEFAULT_BOOK_INDEX);
+    expect(bare.isbn).toBeUndefined();
+    expect(bare.url).toBeUndefined();
+    render(<BookDetailView book={bare} books={BOOKS} shelves={SHELVES} />);
+
+    expect(screen.queryByText(/ISBN/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Explore/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open Library/i })).not.toBeInTheDocument();
+    expect(screen.getByText(bare.authors)).toBeInTheDocument();
+  });
+
   it('renders a unified Live Console ribbon track and progress fill on every topic shelf card', () => {
-    const { container } = render(<BookshelfStage />);
-    for (const shelf of DEFAULT_SHELVES) {
+    const { container } = render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    for (const shelf of SHELVES) {
       const track = container.querySelector(`[data-shelf-ribbon-track="${shelf.slug}"]`);
       const fill = container.querySelector(`[data-shelf-ribbon-fill="${shelf.slug}"]`);
       expect(track, shelf.slug).not.toBeNull();

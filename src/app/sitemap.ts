@@ -15,26 +15,31 @@
  */
 
 /**
- * @file /sitemap.xml: every public page, then every project, experience and place page.
+ * @file /sitemap.xml: every public page, then every project, experience, place, book and
+ * bookshelf shelf page.
  *
  * It is built from the loaders the pages use, and with the rules the pages use (past places
- * only, roles from their first month), so it lists the detail pages that answer 200. It is
- * regenerated at most once an hour (ISR, `revalidate`), not on every crawler's fetch: `next
- * build` renders it once from Sanity, and after an hour the next fetch is served the cached copy
- * while one fresh render runs in the background. A new project, role or past place therefore
- * appears within about an hour, and a role or place that turns listable on a new day as well.
+ * only, roles from their first month, books on a published shelf, shelves with books), so it
+ * lists the detail pages that answer 200. It is regenerated at most once an hour (ISR,
+ * `revalidate`), not on every crawler's fetch: `next build` renders it once from Sanity, and after
+ * an hour the next fetch is served the cached copy while one fresh render runs in the background.
+ * A new project, role, past place, book or shelf therefore appears within about an hour, and a
+ * role or place that turns listable on a new day as well.
  *
- * When Sanity fails with nothing cached for projects, experiences or places, that loader rejects
- * and so does the render: the build fails rather than ship a sitemap without the detail URLs
- * (which would read as those pages being gone), and a failed hourly render keeps serving the last
- * good copy. The certifications and resume loads only date /certifications and /resume, so their
- * failure is reported and those two entries go out without a lastModified: every URL is still
- * listed.
+ * When Sanity fails with nothing cached for projects, experiences, places or the bookshelf, that
+ * loader rejects and so does the render: the build fails rather than ship a sitemap without the
+ * detail URLs (which would read as those pages being gone), and a failed hourly render keeps
+ * serving the last good copy. The certifications and resume loads only date /certifications and
+ * /resume, so their failure is reported and those two entries go out without a lastModified:
+ * every URL is still listed.
  */
 
 import type { MetadataRoute } from 'next';
 import { nyToday } from '@/app/_components/home/data/format';
-import { BOOK_SLUGS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import {
+  type BookshelfCatalog,
+  loadBookshelfCatalog,
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 import { loadPastPlaces } from '@/app/(routes)/(main)/(personal)/places/_lib/past-place-loaders';
 import { listedExperiences } from '@/app/(routes)/(main)/(professioal)/experience/_lib/listed-role';
 import { app } from '@/constants/app';
@@ -55,10 +60,14 @@ export const revalidate = 3600;
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
-/** The system fields of a Sanity document that the sitemap reads. */
-interface DocumentStamp {
-  readonly _id: string;
+/** When something last changed: a Sanity document's `_updatedAt` (ISO 8601). */
+interface ChangeStamp {
   readonly _updatedAt: string;
+}
+
+/** The system fields of a Sanity document that the sitemap reads. */
+interface DocumentStamp extends ChangeStamp {
+  readonly _id: string;
 }
 
 /** Every page with a fixed URL, in the order the sitemap lists them ('' is the home page). */
@@ -91,13 +100,13 @@ const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const CALENDAR_DAY_LENGTH = 'YYYY-MM-DD'.length;
 
 /** The day a document last changed, or undefined when its timestamp does not start with one. */
-function dayOf(doc: DocumentStamp): string | undefined {
+function dayOf(doc: ChangeStamp): string | undefined {
   const day = doc._updatedAt.slice(0, CALENDAR_DAY_LENGTH);
   return CALENDAR_DAY.test(day) ? day : undefined;
 }
 
 /** The day the newest of `docs` changed, or undefined when none has a day. */
-function newestDay(docs: readonly DocumentStamp[]): string | undefined {
+function newestDay(docs: readonly ChangeStamp[]): string | undefined {
   return docs.reduce<string | undefined>((newest, doc) => {
     const day = dayOf(doc);
     return day !== undefined && (newest === undefined || day > newest) ? day : newest;
@@ -118,6 +127,34 @@ function detailEntries(section: DetailSection, docs: readonly DocumentStamp[]): 
   return docs
     .filter((doc) => isSanityDocumentId(doc._id))
     .map((doc) => entryFor(`${section}/${encodeURIComponent(doc._id)}`, dayOf(doc)));
+}
+
+/** A book's or shelf's last change (the catalog's `updatedAt`) as a stamp. */
+const stampOf = ({ updatedAt }: { readonly updatedAt: string }): ChangeStamp => ({
+  _updatedAt: updatedAt,
+});
+
+/** The bookshelf's change stamps: every book and every shelf in the catalog. */
+const bookshelfStamps = (catalog: BookshelfCatalog): ChangeStamp[] =>
+  [...catalog.books, ...catalog.shelves].map(stampOf);
+
+/**
+ * Each book's page, dated by its document, and each shelf's page (the catalog holds only shelves
+ * with books), dated by the newest of the shelf and its books: a book added to a shelf changes
+ * what the shelf's page shows.
+ */
+function bookshelfEntries(catalog: BookshelfCatalog): SitemapEntry[] {
+  const bookBySlug = new Map(catalog.books.map((book) => [book.slug, book]));
+  return [
+    ...catalog.books.map((book) =>
+      entryFor(`/bookshelf/${encodeURIComponent(book.slug)}`, dayOf(stampOf(book))),
+    ),
+    ...catalog.shelves.map((shelf) => {
+      const books = shelf.bookSlugs.flatMap((slug) => bookBySlug.get(slug) ?? []);
+      const lastModified = newestDay([shelf, ...books].map(stampOf));
+      return entryFor(`/bookshelf/shelf/${encodeURIComponent(shelf.slug)}`, lastModified);
+    }),
+  ];
 }
 
 const byUrl = (a: SitemapEntry, b: SitemapEntry): number => {
@@ -154,20 +191,23 @@ async function loadDateSource<T>(
  * @returns The static pages in their fixed order, then every detail page sorted by URL.
  *
  * @remarks
- * - A detail page's lastModified is the day its document last changed. /projects, /experience,
- *   /places and /certifications take their newest document's day, and /resume its resume's.
+ * - A detail page's lastModified is the day its document last changed; a bookshelf shelf's page
+ *   takes the newest of its shelf and books. /projects, /experience, /places, /bookshelf and
+ *   /certifications take their newest document's day, and /resume its resume's.
  * - The other static pages have no lastModified, rather than one claiming they changed on the
  *   day of the request.
- * - Rejects when the projects, experiences or places loader does (Sanity down with nothing
- *   cached), never answering a partial list. A failed certifications or resume load only leaves
- *   /certifications or /resume undated.
+ * - Rejects when the projects, experiences, places or bookshelf loader does (Sanity down with
+ *   nothing cached), never answering a partial list. A failed certifications or resume load only
+ *   leaves /certifications or /resume undated.
  */
 export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [projects, allExperiences, places, certifications, resume] = await Promise.all([
+  const [projects, allExperiences, places, bookshelf, certifications, resume] = await Promise.all([
     loadProjects(),
     loadExperiences(),
     // Past visits only (the owner's rule): a visit still on has no page, URL or date here.
     loadPastPlaces(),
+    // Books on a published shelf and shelves with books: the pages that answer 200.
+    loadBookshelfCatalog(),
     loadDateSource(loadCertifications, 'certifications'),
     loadDateSource(loadResume, 'resume'),
   ]);
@@ -181,6 +221,7 @@ export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
     '/places': newestDay(places),
     // The photos of the same past places: dated as their list is.
     '/places/photos': newestDay(places),
+    '/bookshelf': newestDay(bookshelfStamps(bookshelf)),
     '/certifications': certifications ? newestDay(certifications) : undefined,
     '/resume': resume ? dayOf(resume) : undefined,
   };
@@ -188,7 +229,7 @@ export default async function Sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...STATIC_ROUTES.map((route) => entryFor(route, lastModifiedOf[route])),
     ...sortedUnique([
-      ...BOOK_SLUGS.map((slug) => entryFor(`/bookshelf/${encodeURIComponent(slug)}`, undefined)),
+      ...bookshelfEntries(bookshelf),
       ...detailEntries('/projects', projects),
       ...detailEntries('/experience', experiences),
       ...detailEntries('/places', places),

@@ -20,14 +20,16 @@ import Link from 'next/link';
 import { type ReactElement, useEffect, useMemo, useRef } from 'react';
 import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import { BOOKS, type BookItem, DEFAULT_SHELVES, type ShelfCollection } from '../_lib/books';
+import type { BookItem, ShelfCollection } from '../_lib/books';
 import { BookStatusBadge } from './book-status-badge';
 
 export interface ReadingMapDialogProps {
   readonly open: boolean;
   readonly activeSlug?: string;
-  readonly books?: readonly BookItem[];
-  readonly shelves?: readonly ShelfCollection[];
+  /** The books to map, in stage order. */
+  readonly books: readonly BookItem[];
+  /** The shelves to map them under, in shelf order; a shelf with none of `books` is skipped. */
+  readonly shelves: readonly ShelfCollection[];
   readonly onClose: () => void;
   /** Optional handler to focus a book on the 3D shelf before closing. */
   readonly onSelectBook?: (book: BookItem) => void;
@@ -43,8 +45,8 @@ const formatTopicNumber = (num: number): string => String(num).padStart(3, '0');
 export function ReadingMapDialog({
   open,
   activeSlug,
-  books = BOOKS,
-  shelves = DEFAULT_SHELVES,
+  books,
+  shelves,
   onClose,
   onSelectBook,
   onOpenBook,
@@ -90,7 +92,7 @@ export function ReadingMapDialog({
       >
         <div className="flex items-start justify-between gap-4 px-5 py-5 sm:px-6">
           <div className="min-w-0 space-y-1">
-            <p className="label-mono text-faint">Engineering curriculum</p>
+            <p className="label-mono text-faint">Reading curriculum</p>
             <h2 id="reading-map-heading" className="text-title font-semibold text-foreground">
               Reading map
             </h2>

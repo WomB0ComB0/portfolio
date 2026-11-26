@@ -16,6 +16,8 @@
 
 import {
   makeArticle,
+  makeBook,
+  makeBookshelf,
   makeCertification,
   makeExperience,
   makePresentation,
@@ -26,6 +28,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildFeed, type FeedEntry } from '@/app/(routes)/(dev)/media/_lib/media-feed';
 import type { LinkHealthScope } from '@/lib/link-health/types';
+import { normalizeLinkUrl } from '@/lib/link-health/url';
 
 vi.mock('server-only', () => ({}));
 const sources = vi.hoisted(() => ({
@@ -33,14 +36,34 @@ const sources = vi.hoisted(() => ({
   certifications: vi.fn(),
   experiences: vi.fn(),
   media: vi.fn(),
+  books: vi.fn(),
+  bookshelves: vi.fn(),
 }));
+const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
 vi.mock('@/lib/sanity/loaders', () => ({
   loadProjects: sources.projects,
   loadCertifications: sources.certifications,
   loadExperiences: sources.experiences,
+  loadBooks: sources.books,
+  loadBookshelves: sources.bookshelves,
 }));
 vi.mock('@/app/(routes)/(dev)/media/_lib/load-feed', () => ({ loadMediaFeed: sources.media }));
+// The bookshelf catalog draws each cover with the real image URL builder; the client module itself
+// reads server configuration on import.
+vi.mock('@/lib/sanity/client', async () => {
+  const { createImageUrlBuilder } = await import('@sanity/image-url');
+  const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
+  return {
+    sanityFetchWithToken: vi.fn(),
+    urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source),
+  };
+});
+vi.mock('@/lib/observability/report', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/observability/report')>()),
+  ...report,
+}));
 
+import { buildBookshelfCatalog } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 import { loadLinkCatalog, resetLinkCatalogCache } from '@/lib/link-health/catalog';
 
 const media = (entries: readonly FeedEntry[]) => ({
@@ -55,6 +78,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-11-16T18:00:00Z'));
   for (const source of Object.values(sources)) source.mockReset().mockResolvedValue([]);
   sources.media.mockResolvedValue(media([]));
+  report.reportApiFailure.mockReset();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -312,6 +336,54 @@ describe('published link catalog', () => {
       const source = sources[scope === 'experience' ? 'experiences' : scope];
       source.mockRejectedValue(new Error('source unavailable'));
       await expect(loadLinkCatalog(scope)).rejects.toThrow('source unavailable');
+    },
+  );
+
+  it('selects the URL each rendered book links, in stage order, and no unrendered book', async () => {
+    const firstShelf = makeBookshelf();
+    const secondShelf = makeBookshelf();
+    const shelves = [firstShelf, secondShelf];
+    const books = [
+      makeBook({ shelfId: secondShelf._id, url: 'https://later.example.com/book#contents' }),
+      makeBook({ shelfId: firstShelf._id, url: ' https://first.example.com/book ' }),
+      makeBook({ shelfId: firstShelf._id }),
+      makeBook({ shelfId: firstShelf._id, url: null }),
+      makeBook({ shelfId: firstShelf._id, url: '   ' }),
+      makeBook({ shelfId: firstShelf._id, url: 'https://github.com/example' }),
+      // On no published shelf: the bookshelf does not render it, so its link is not checked.
+      makeBook({ shelfId: 'bookshelf-unpublished', url: 'https://orphan.example.com/book' }),
+    ];
+    sources.books.mockResolvedValue(books);
+    sources.bookshelves.mockResolvedValue(shelves);
+
+    const result = await loadLinkCatalog('bookshelf');
+
+    expect(result).toEqual(['https://first.example.com/book', 'https://later.example.com/book']);
+    // Exactly the links the detail view renders (BookItem.url), less stable profile pages.
+    const rendered = buildBookshelfCatalog(books, shelves).books.flatMap((book) =>
+      book.url ? [normalizeLinkUrl(book.url)] : [],
+    );
+    expect(result).toEqual(rendered.filter((href) => href !== 'https://github.com/example'));
+    expect(report.reportApiFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { books: [books.at(-1)?.slug.current] } }),
+      expect.objectContaining({ level: 'warning' }),
+    );
+    expect(sources.projects).not.toHaveBeenCalled();
+    expect(sources.media).not.toHaveBeenCalled();
+  });
+
+  it('answers an empty bookshelf catalog when Sanity has no books', async () => {
+    sources.bookshelves.mockResolvedValue([makeBookshelf()]);
+
+    await expect(loadLinkCatalog('bookshelf')).resolves.toEqual([]);
+  });
+
+  it.each(['books', 'bookshelves'] as const)(
+    'does not reinterpret a %s outage as an empty bookshelf catalog',
+    async (source) => {
+      sources[source].mockRejectedValue(new Error('Sanity answered 503'));
+
+      await expect(loadLinkCatalog('bookshelf')).rejects.toThrow('Sanity answered 503');
     },
   );
 

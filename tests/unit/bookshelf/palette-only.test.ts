@@ -33,7 +33,6 @@ const BOOKSHELF_DIR = path.resolve(
 
 const FILES = [
   '_lib/books.ts',
-  '_lib/humanities-books.ts',
   '_lib/load-bookshelf.ts',
   '_components/book-cover-frame.tsx',
   '_components/book-detail-view.tsx',

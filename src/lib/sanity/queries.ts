@@ -376,6 +376,10 @@ export const siteSettingsQuery = `
   }
 `;
 
+/**
+ * A book, flat: its shelf is named by `shelfId` (the shelf reference's _id), and its cover is the
+ * raw image object (asset reference, alt, hotspot, crop), resolved to a CDN URL by the loader.
+ */
 const bookProjection = `
   _id,
   _type,
@@ -391,19 +395,18 @@ const bookProjection = `
   edition,
   year,
   isbn,
-  track,
   status,
   summary,
   coverImage,
-  coverUrl,
+  "shelfId": shelf._ref,
   url,
-  spine,
   topics,
   order
 `;
 
 /**
- * Fetch all published books ordered by stage order ascending
+ * All published books, by their order within a shelf and then creation. The bookshelf loader
+ * joins them to their shelves and orders them by shelf first.
  */
 export const booksQuery = `
   *[_type == "book"] | order(order asc, _createdAt asc) {
@@ -412,7 +415,8 @@ export const booksQuery = `
 `;
 
 /**
- * Fetch all published bookshelf collections with dereferenced books
+ * All published bookshelf sections, by display order. A shelf carries no books: each book names
+ * its shelf (`shelfId`), so books are fetched once, by booksQuery.
  */
 export const bookshelvesQuery = `
   *[_type == "bookshelf"] | order(order asc, _createdAt asc) {
@@ -424,11 +428,6 @@ export const bookshelvesQuery = `
     title,
     slug,
     description,
-    accentColor,
-    order,
-    featured,
-    "books": books[]->{
-      ${bookProjection}
-    }
+    order
   }
 `;

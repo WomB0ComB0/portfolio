@@ -16,22 +16,27 @@
  */
 
 /**
- * @file The sitemap lists every public page, then every project, experience and place page, from
- * the loaders the pages use:
- * - each detail page once, dated by the day its document last changed;
+ * @file The sitemap lists every public page, then every project, experience, place, book and
+ * bookshelf shelf page, from the loaders the pages use:
+ * - each detail page once, dated by the day its document last changed (a shelf's page by the
+ *   newest of the shelf and its books);
  * - only the roles /experience lists: one that has not begun by New York's month, or a current
  *   one with no readable start, has a page that answers 404, so it is left out;
+ * - only books on a published shelf, and only shelves with books: the pages that answer 200;
  * - the list pages and /resume dated by their newest document, the other pages not dated at all;
- * - never a partial list: when the projects, experiences or places loader rejects (Sanity down,
- *   nothing cached), so does the sitemap;
+ * - never a partial list: when the projects, experiences, places, books or bookshelves loader
+ *   rejects (Sanity down, nothing cached), so does the sitemap;
  * - but the certifications and resume loads only date a page, so when one rejects the sitemap
  *   still lists every URL, that page undated, and the failure is reported as a warning.
- * The loaders are mocked with fixtures; isSanityDocumentId is the real one.
+ * The loaders are mocked with fixtures; isSanityDocumentId and the bookshelf catalog builder are
+ * the real ones.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  makeBook,
+  makeBookshelf,
   makeCertification,
   makeExperience,
   makePlace,
@@ -52,19 +57,29 @@ const loaders = vi.hoisted(() => ({
   loadPlaces: vi.fn(),
   loadCertifications: vi.fn(),
   loadResume: vi.fn(),
+  loadBooks: vi.fn(),
+  loadBookshelves: vi.fn(),
 }));
 
 const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
 
 // The real loaders module is loaded for isSanityDocumentId only: t3-env validates every variable
-// on import, and the Sanity client is never asked for anything.
+// on import, and the Sanity client is never asked for anything. The bookshelf catalog draws each
+// cover URL with the real image URL builder.
 vi.mock('@/env', () => {
   const env = new Proxy({} as Record<string, unknown>, {
     get: (_target, key) => (key === 'NODE_ENV' ? 'test' : undefined),
   });
   return { env, default: env };
 });
-vi.mock('@/lib/sanity/client', () => ({ sanityFetchWithToken: vi.fn(), urlFor: vi.fn() }));
+vi.mock('@/lib/sanity/client', async () => {
+  const { createImageUrlBuilder } = await import('@sanity/image-url');
+  const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
+  return {
+    sanityFetchWithToken: vi.fn(),
+    urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source),
+  };
+});
 vi.mock('@/lib/sanity/loaders', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/sanity/loaders')>()),
   ...loaders,
@@ -74,7 +89,6 @@ vi.mock('@/lib/observability/report', async (importOriginal) => ({
   ...report,
 }));
 
-import { BOOK_SLUGS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import * as sitemapModule from '@/app/sitemap';
 import Sitemap, { revalidate } from '@/app/sitemap';
 
@@ -126,6 +140,16 @@ const CERTIFICATIONS = [
 ];
 const RESUME = makeResume({ _updatedAt: at('2026-10-02') });
 
+// The newer shelf is dated after all its books; the older shelf has a book newer than itself.
+const OLDER_SHELF = makeBookshelf({ _updatedAt: at('2026-03-01') });
+const NEWER_SHELF = makeBookshelf({ _updatedAt: at('2026-10-20') });
+const SHELVES = [OLDER_SHELF, NEWER_SHELF];
+const BOOKS = [
+  makeBook({ shelfId: OLDER_SHELF._id, _updatedAt: at('2026-04-12') }),
+  makeBook({ shelfId: OLDER_SHELF._id, _updatedAt: at('2026-02-01') }),
+  makeBook({ shelfId: NEWER_SHELF._id, _updatedAt: at('2026-08-15') }),
+];
+
 const DETAIL_DOCS = [
   ...PROJECTS.map((doc) => ({ section: 'projects', doc })),
   ...EXPERIENCES.map((doc) => ({ section: 'experience', doc })),
@@ -145,6 +169,8 @@ beforeEach(() => {
   loaders.loadPlaces.mockReset().mockResolvedValue(PLACES);
   loaders.loadCertifications.mockReset().mockResolvedValue(CERTIFICATIONS);
   loaders.loadResume.mockReset().mockResolvedValue(RESUME);
+  loaders.loadBooks.mockReset().mockResolvedValue(BOOKS);
+  loaders.loadBookshelves.mockReset().mockResolvedValue(SHELVES);
 });
 
 afterAll(() => {
@@ -174,9 +200,49 @@ describe('sitemap entries', () => {
     }
   });
 
+  it('lists every book page once, dated by its own change', async () => {
+    const entries = await Sitemap();
+
+    for (const book of BOOKS) {
+      const url = `${ORIGIN}/bookshelf/${book.slug.current}`;
+      const matches = entries.filter((entry) => entry.url === url);
+      expect(matches).toEqual([{ url, lastModified: book._updatedAt.slice(0, 10) }]);
+    }
+  });
+
+  it('dates each shelf page by the newest of the shelf and its books', async () => {
+    const entries = await Sitemap();
+
+    // A book changed after its shelf: the shelf's page shows that book, so it changed too.
+    expect(entryAt(entries, `/bookshelf/shelf/${OLDER_SHELF.slug.current}`)).toEqual({
+      url: `${ORIGIN}/bookshelf/shelf/${OLDER_SHELF.slug.current}`,
+      lastModified: '2026-04-12',
+    });
+    expect(entryAt(entries, `/bookshelf/shelf/${NEWER_SHELF.slug.current}`)).toEqual({
+      url: `${ORIGIN}/bookshelf/shelf/${NEWER_SHELF.slug.current}`,
+      lastModified: '2026-10-20',
+    });
+  });
+
+  it('lists no book without a published shelf and no shelf without books', async () => {
+    const orphan = makeBook({ shelfId: 'bookshelf-unpublished' });
+    const emptyShelf = makeBookshelf();
+    loaders.loadBooks.mockResolvedValue([...BOOKS, orphan]);
+    loaders.loadBookshelves.mockResolvedValue([...SHELVES, emptyShelf]);
+
+    const paths = (await Sitemap()).map(pathOf);
+
+    expect(paths).not.toContain(`/bookshelf/${orphan.slug.current}`);
+    expect(paths).not.toContain(`/bookshelf/shelf/${emptyShelf.slug.current}`);
+    expect(paths.filter((path) => path.startsWith('/bookshelf/'))).toHaveLength(
+      BOOKS.length + SHELVES.length,
+    );
+  });
+
   it('dates each list page by its newest document and /resume by the resume', async () => {
     const entries = await Sitemap();
 
+    expect(entryAt(entries, '/bookshelf')?.lastModified).toBe('2026-10-20');
     expect(entryAt(entries, '/projects')?.lastModified).toBe('2026-07-04');
     expect(entryAt(entries, '/experience')?.lastModified).toBe('2026-03-15');
     expect(entryAt(entries, '/places')?.lastModified).toBe('2026-09-30');
@@ -189,7 +255,7 @@ describe('sitemap entries', () => {
     const entries = await Sitemap();
     const undated = ['/', '/cookies', '/licenses', '/privacy', '/sponsor', '/media', '/stats'];
 
-    for (const path of [...undated, '/spotify', '/guestbook', '/bookshelf']) {
+    for (const path of [...undated, '/spotify', '/guestbook']) {
       expect(entryAt(entries, path)).toEqual({ url: urlOf(path) });
     }
   });
@@ -207,7 +273,7 @@ describe('sitemap order', () => {
     const details = paths.slice(STATIC_PATHS.length);
 
     expect(paths.slice(0, STATIC_PATHS.length)).toEqual(STATIC_PATHS);
-    expect(details).toHaveLength(DETAIL_DOCS.length + BOOK_SLUGS.length);
+    expect(details).toHaveLength(DETAIL_DOCS.length + BOOKS.length + SHELVES.length);
     expect(details).toEqual([...details].sort());
   });
 
@@ -313,24 +379,31 @@ describe('sitemap edge cases', () => {
 
   it('dates nothing for an empty collection or when no resume is active', async () => {
     loaders.loadProjects.mockResolvedValue([]);
+    loaders.loadBooks.mockResolvedValue([]);
+    loaders.loadBookshelves.mockResolvedValue([]);
     loaders.loadResume.mockResolvedValue(null);
 
     const entries = await Sitemap();
 
     expect(entryAt(entries, '/projects')).toEqual({ url: urlOf('/projects') });
+    expect(entryAt(entries, '/bookshelf')).toEqual({ url: urlOf('/bookshelf') });
     expect(entryAt(entries, '/resume')).toEqual({ url: urlOf('/resume') });
     expect(entries.map(pathOf).filter((path) => path.startsWith('/projects/'))).toEqual([]);
+    expect(entries.map(pathOf).filter((path) => path.startsWith('/bookshelf/'))).toEqual([]);
   });
 
-  it.each(['loadProjects', 'loadExperiences', 'loadPlaces'] as const)(
-    'rejects instead of answering a partial sitemap when %s rejects',
-    async (loader) => {
-      const outage = new Error('Sanity answered 503');
-      loaders[loader].mockRejectedValue(outage);
+  it.each([
+    'loadProjects',
+    'loadExperiences',
+    'loadPlaces',
+    'loadBooks',
+    'loadBookshelves',
+  ] as const)('rejects instead of answering a partial sitemap when %s rejects', async (loader) => {
+    const outage = new Error('Sanity answered 503');
+    loaders[loader].mockRejectedValue(outage);
 
-      await expect(Sitemap()).rejects.toBe(outage);
-    },
-  );
+    await expect(Sitemap()).rejects.toBe(outage);
+  });
 
   it.each([
     ['loadCertifications', '/certifications'],

@@ -34,6 +34,7 @@ e2e/
 │   ├── home-bento.spec.ts
 │   ├── navigation.spec.ts
 │   ├── guestbook.spec.ts
+│   ├── bookshelf.spec.ts
 │   ├── dark-mode.spec.ts
 │   ├── projects.spec.ts
 │   ├── projects-index.spec.ts
@@ -71,6 +72,12 @@ User journey tests that verify end-to-end flows:
   without JavaScript (see [The home bento](#the-home-bento) below)
 - **navigation.spec.ts** - Site navigation, routing, back/forward
 - **guestbook.spec.ts** - Guestbook, read-only against the live data: every message in the server HTML (rows match the stated count, a trailing '+' when the cap cut the list), no literal entities in the page's own text (rows hold visitors' words as typed, so they are checked only for text escaped twice, such as &#039;), no Firebase Auth request until Sign in is pressed (390 mobile and 1280), no sideways scroll, refined type, the sticky compose card below the top edge haze (1280 and 1920). Every context aborts non-GET requests and the auth hosts; nothing signs in or posts
+- **bookshelf.spec.ts** - Bookshelf, read-only against the live Sanity data, with no hard-coded
+  count or slug (the book is read from /api/v1/sanity/books): /bookshelf answers 200 with its h1
+  and covers from cdn.sanity.io (or its "No books yet" state); the first book's page answers 200
+  with its title and its Sanity cover; a shelf link opens a shelf page that answers 200; unknown
+  book and shelf slugs answer 404; the books JSON names each book's shelf and cover and none of
+  the removed fields. Non-GET requests are aborted
 - **dark-mode.spec.ts** - Theme toggle, persistence
 - **projects.spec.ts** - Projects page, modals, filtering
 - **projects-index.spec.ts** - /projects as the open Index (table style 2), against the live data
@@ -103,10 +110,11 @@ User journey tests that verify end-to-end flows:
 The regression guard for the 2026-11-20 WCAG 2.2 AA audit, at a 1440 x 900 desktop and a 390 x 844
 phone (Chromium):
 
-- **axe** 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes: `/`, `/projects`,
-  a project with screens, a project with photos and "See also", `/experience`, a role's page,
-  `/places`, `/places/photos`, a place page, `/stats`, `/media`, `/guestbook`, `/certifications`,
-  `/resume`, `/sponsor`, `/spotify`, `/privacy`, `/cookies`, `/licenses` and a 404. Any failure fails
+- **axe** 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes and `/bookshelf`:
+  `/`, `/projects`, a project with screens, a project with photos and "See also", `/experience`, a
+  role's page, `/places`, `/places/photos`, a place page, `/stats`, `/media`, `/guestbook`,
+  `/bookshelf`, `/certifications`, `/resume`, `/sponsor`, `/spotify`, `/privacy`, `/cookies`,
+  `/licenses` and a 404. Any failure fails
   the test, with each rule's id, impact, help and the failing nodes' HTML. Best-practice violations
   are listed in an annotation and an attachment and never fail it. The detail pages are found from
   the listing pages (`/projects`, `/media`, `/experience`, `/places`), not hard-coded ids.

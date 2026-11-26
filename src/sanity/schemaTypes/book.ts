@@ -14,7 +14,40 @@
  * limitations under the License.
  */
 
-import { defineField, defineType } from 'sanity';
+/**
+ * @file A book on the /bookshelf: its bibliographic facts, reading status, cover asset and the one
+ * shelf (a `bookshelf` document) it sits on. The site numbers stages shelf by shelf, in shelf
+ * order and then in this document's `order`, and takes the track label from the shelf's title.
+ * The 3D spine colours are a UI palette in code, not content.
+ *
+ * Studio and the site's decoder share the status list, slug pattern and ISBN check
+ * (../bookshelf-rules.ts). `track` is a hidden legacy field: the site code deployed before the
+ * shelf reference still reads it, so it stays until the data migration's finalize step unsets it.
+ *
+ * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
+ */
+
+import { type CustomValidatorResult, defineField, defineType } from 'sanity';
+import {
+  BOOK_DEFAULT_STATUS,
+  BOOK_ISBN_MESSAGE,
+  BOOK_SLUG_MESSAGE,
+  BOOK_STATUS_LABELS,
+  BOOK_STATUSES,
+  isBookSlug,
+  isBookStatus,
+  isIsbn,
+} from '../bookshelf-rules';
+
+/** A slug the site cannot route, as an error; an empty slug is left to `required()`. */
+const bookSlug = (value: { readonly current?: string } | undefined): CustomValidatorResult =>
+  !value?.current || isBookSlug(value.current)
+    ? true
+    : { message: BOOK_SLUG_MESSAGE, code: 'custom.book-slug' };
+
+/** An ISBN with a bad shape or check digit, as an error; the field is optional. */
+const bookIsbn = (value: string | undefined): CustomValidatorResult =>
+  !value || isIsbn(value) ? true : { message: BOOK_ISBN_MESSAGE, code: 'custom.book-isbn' };
 
 export const bookType = defineType({
   name: 'book',
@@ -31,11 +64,12 @@ export const bookType = defineType({
       name: 'slug',
       title: 'Slug',
       type: 'slug',
+      description: 'The /bookshelf/<slug> URL: lowercase letters and digits joined by hyphens.',
       options: {
         source: 'title',
         maxLength: 96,
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule) => Rule.required().custom(bookSlug),
     }),
     defineField({
       name: 'spineTitle',
@@ -75,30 +109,17 @@ export const bookType = defineType({
       name: 'isbn',
       title: 'ISBN',
       type: 'string',
-      description: 'ISBN-13 or ISBN-10 (can be looked up via /api/v1/books/lookup?isbn=...)',
+      description:
+        'ISBN-13 or ISBN-10, hyphens optional (can be looked up via /api/v1/books/lookup?isbn=...)',
+      validation: (Rule) => Rule.custom(bookIsbn),
     }),
     defineField({
-      name: 'track',
-      title: 'Section / Track',
-      type: 'string',
+      name: 'shelf',
+      title: 'Shelf',
+      type: 'reference',
+      to: [{ type: 'bookshelf' }],
       description:
-        'Section label used to group books on the shelf (e.g. Foundations, Backend, Infra & Ops, AI, Startups).',
-      options: {
-        list: [
-          { title: 'Foundations', value: 'Foundations' },
-          { title: 'Backend', value: 'Backend' },
-          { title: 'Infra & Ops', value: 'Infra & Ops' },
-          { title: 'AI', value: 'AI' },
-          { title: 'Reasoning & Systems', value: 'Reasoning & Systems' },
-          { title: 'Mind & Society', value: 'Mind & Society' },
-          { title: 'History & Economics', value: 'History & Economics' },
-          { title: 'Power & Institutions', value: 'Power & Institutions' },
-          { title: 'Startups', value: 'Startups' },
-          { title: 'Design', value: 'Design' },
-          { title: 'General', value: 'General' },
-        ],
-      },
-      initialValue: 'Foundations',
+        'The shelf this book sits on. Its title is the track label, and its order places the book on the 3D shelf.',
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -107,14 +128,10 @@ export const bookType = defineType({
       type: 'string',
       description: 'Whether you have read this book, are currently reading it, or have it queued.',
       options: {
-        list: [
-          { title: 'Read (Completed)', value: 'completed' },
-          { title: 'Currently Reading', value: 'reading' },
-          { title: 'Unread (Queued)', value: 'queued' },
-        ],
+        list: BOOK_STATUSES.map((status) => ({ title: BOOK_STATUS_LABELS[status], value: status })),
         layout: 'radio',
       },
-      initialValue: 'completed',
+      initialValue: BOOK_DEFAULT_STATUS,
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -128,32 +145,23 @@ export const bookType = defineType({
       name: 'coverImage',
       title: 'Cover Image',
       type: 'image',
-      options: { hotspot: true },
-    }),
-    defineField({
-      name: 'coverUrl',
-      title: 'External or Local Cover URL',
-      type: 'string',
-      description:
-        'Optional fallback cover URL (e.g. Open Library or /assets/bookshelf/*.webp) when Cover Image is empty.',
+      options: { hotspot: true, accept: 'image/jpeg,image/png,image/webp,image/avif' },
+      fields: [
+        {
+          name: 'alt',
+          type: 'string',
+          title: 'Alternative Text',
+          description: 'Optional; defaults to "<title> by <authors>"',
+        },
+      ],
+      // assetRequired: an alt-only cover would publish, then fail the site's decode and 404 the book.
+      validation: (Rule) => Rule.required().assetRequired(),
     }),
     defineField({
       name: 'url',
       title: 'Book URL',
       type: 'url',
       description: 'Publisher page, official site, or reference link.',
-    }),
-    defineField({
-      name: 'spine',
-      title: '3D Spine Palette',
-      type: 'object',
-      fields: [
-        defineField({ name: 'capBg', title: 'Top Band Color', type: 'string' }),
-        defineField({ name: 'capText', title: 'Top Band Text', type: 'string' }),
-        defineField({ name: 'bodyBg', title: 'Spine Body Color', type: 'string' }),
-        defineField({ name: 'titleColor', title: 'Spine Title Color', type: 'string' }),
-        defineField({ name: 'authorColor', title: 'Spine Author Color', type: 'string' }),
-      ],
     }),
     defineField({
       name: 'topics',
@@ -166,24 +174,40 @@ export const bookType = defineType({
       name: 'order',
       title: 'Stage Order',
       type: 'number',
-      description: 'Lower numbers appear earlier on the shelf.',
-      initialValue: 0,
+      description:
+        'Position within its shelf; books sort by shelf order, then this. Existing books use steps of 10.',
       validation: (Rule) => Rule.required(),
     }),
+    // Legacy: the site code deployed before the shelf reference groups books by this label. Hidden
+    // and read-only, never removed from the schema, until the migration's finalize step unsets it.
+    defineField({
+      name: 'track',
+      title: 'Section / Track (legacy)',
+      type: 'string',
+      hidden: true,
+      readOnly: true,
+      description: 'Legacy: replaced by Shelf; removed after the migration',
+    }),
   ],
+  orderings: [{ title: 'Position', name: 'orderAsc', by: [{ field: 'order', direction: 'asc' }] }],
   preview: {
     select: {
       title: 'title',
-      track: 'track',
+      shelf: 'shelf.title',
       status: 'status',
+      order: 'order',
       media: 'coverImage',
     },
-    prepare({ title, track, status, media }) {
-      const statusLabel =
-        status === 'reading' ? 'Reading' : status === 'queued' ? 'Unread' : 'Read';
+    prepare({ title, shelf, status, order, media }) {
       return {
         title,
-        subtitle: [track, statusLabel].filter(Boolean).join(' · '),
+        subtitle: [
+          shelf,
+          order != null ? `#${order}` : null,
+          isBookStatus(status) ? BOOK_STATUS_LABELS[status] : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
         media,
       };
     },
