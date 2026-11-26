@@ -20,7 +20,7 @@ import {
   buildFreeBooksPageResponse,
   buildFreeProgrammingBooksCatalog,
   loadFreeProgrammingBooks,
-} from '@/lib/books/free-books-loader';
+} from '@/lib/free-books/loader';
 import { constructMetadata } from '@/utils/seo/meta';
 import { FreeBooksExplorer } from './_components/free-books-explorer';
 import { FreeBooksSkeleton } from './_components/free-books-skeleton';

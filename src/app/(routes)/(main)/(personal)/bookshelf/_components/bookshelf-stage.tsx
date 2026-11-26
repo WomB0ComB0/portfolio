@@ -31,7 +31,6 @@ import {
 import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
-import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '@/lib/books/bookshelf-search-params';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
@@ -46,6 +45,7 @@ import {
   type ShelfTab,
   toReadingMapEntry,
 } from '../_lib/books';
+import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '../_lib/bookshelf-filters';
 import { BookDetailView } from './book-detail-view';
 import styles from './bookshelf.module.css';
 import { BookshelfBookSlot, slotOffsetFactor } from './bookshelf-book-slot';

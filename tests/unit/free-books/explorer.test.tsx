@@ -22,26 +22,26 @@ import { FreeBooksExplorer } from '@/app/(routes)/(main)/(personal)/bookshelf/fr
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
 import { BOOKSHELF_COOP_HEADERS, BOOKSHELF_COOP_SOURCES } from '@/config/security-headers';
 import {
-  loadLiveSecurityManifestFromRedis,
-  mergeSecurityManifests,
-  publishSecurityManifestToRedis,
-  REDIS_RUNTIME_MANIFEST_KEY,
-} from '@/lib/books/free-books-manifest-store';
-import {
-  checkGoogleSafeBrowsing,
-  checkHostnameThreatIntel,
-  checkRdapDomainAge,
-  loadUrlhausHostBlocklist,
-  submitDeltaDetonation,
-} from '@/lib/books/free-books-verifier';
-import {
   buildFreeBooksPageResponse,
   buildFreeProgrammingBooksCatalog,
   filterFreeProgrammingBooks,
   parseFreeProgrammingBooksMarkdown,
   parseFreeProgrammingBooksWithStats,
   resetFreeProgrammingBooksCache,
-} from '@/lib/books/free-programming-books';
+} from '@/lib/free-books/catalog';
+import {
+  loadLiveSecurityManifestFromRedis,
+  mergeSecurityManifests,
+  publishSecurityManifestToRedis,
+  REDIS_RUNTIME_MANIFEST_KEY,
+} from '@/lib/free-books/manifest-store';
+import {
+  checkGoogleSafeBrowsing,
+  checkHostnameThreatIntel,
+  checkRdapDomainAge,
+  loadUrlhausHostBlocklist,
+  submitDeltaDetonation,
+} from '@/lib/free-books/threat-intel';
 import {
   classifyHostTrustTier,
   inspectHtmlSnippet,
@@ -49,7 +49,7 @@ import {
   isDangerousResponseHeaders,
   isSuspiciousRedirectChain,
   screenExternalBookUrl,
-} from '@/lib/books/url-security';
+} from '@/lib/free-books/url-screen';
 
 const SAMPLE_LANGS_MD = `
 ### Index

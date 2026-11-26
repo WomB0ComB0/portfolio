@@ -24,13 +24,14 @@
  *   - Rejects non-http(s) URLs for safety
  */
 
-import securityManifest from '@/data/free-books-security.json';
+import type {
+  FreeBooksSortDir,
+  FreeBooksSortField,
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/bookshelf-filters';
 import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
-import type { FreeBooksSortDir, FreeBooksSortField } from './bookshelf-search-params';
-import {
-  loadLiveSecurityManifestFromRedis,
-  mergeSecurityManifests,
-} from './free-books-manifest-store';
+import { loadLiveSecurityManifestFromRedis, mergeSecurityManifests } from './manifest-store';
+import securityManifest from './security-manifest.json';
+import type { FreeBooksSecurityManifest } from './threat-intel';
 import {
   EBOOK_FOUNDATION_REPO_URL,
   type FreeBookCategorySummary,
@@ -40,9 +41,8 @@ import {
   type FreeBooksFilterOptions,
   type FreeBooksPageResponse,
   type FreeProgrammingBooksCatalog,
-} from './free-books-types';
-import type { FreeBooksSecurityManifest } from './free-books-verifier';
-import { screenExternalBookUrl } from './url-security';
+} from './types';
+import { screenExternalBookUrl } from './url-screen';
 
 const RAW_SOURCES: Readonly<Record<FreeBookSource, string>> = {
   langs:

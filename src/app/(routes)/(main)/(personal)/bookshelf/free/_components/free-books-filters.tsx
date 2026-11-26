@@ -18,12 +18,12 @@
 
 import type { ReactElement } from 'react';
 import { FiSearch, FiX } from 'react-icons/fi';
+import { DEFAULT_QUERY_MAX_LENGTH } from '@/lib/filters/normalise';
 import type {
   FreeBookCategorySummary,
   FreeBookFormat,
   FreeBookSource,
-} from '@/lib/books/free-books-types';
-import { DEFAULT_QUERY_MAX_LENGTH } from '@/lib/filters/normalise';
+} from '@/lib/free-books/types';
 import { cn } from '@/lib/utils';
 
 const FORMAT_FILTERS: readonly ('all' | FreeBookFormat)[] = ['all', 'PDF', 'HTML', 'EPUB'];

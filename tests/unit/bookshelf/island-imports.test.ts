@@ -38,11 +38,11 @@ const CLIENT_ISLANDS = [
 ];
 
 const FORBIDDEN_MODULES = [
-  path.join(SRC, 'lib/books/free-programming-books.ts'),
-  path.join(SRC, 'lib/books/free-books-loader.ts'),
-  path.join(SRC, 'lib/books/free-books-manifest-store.ts'),
-  path.join(SRC, 'lib/books/free-books-verifier.ts'),
-  path.join(SRC, 'data/free-books-security.json'),
+  path.join(SRC, 'lib/free-books/catalog.ts'),
+  path.join(SRC, 'lib/free-books/loader.ts'),
+  path.join(SRC, 'lib/free-books/manifest-store.ts'),
+  path.join(SRC, 'lib/free-books/threat-intel.ts'),
+  path.join(SRC, 'lib/free-books/security-manifest.json'),
   path.join(BOOKSHELF, '_lib/load-bookshelf.ts'),
 ];
 

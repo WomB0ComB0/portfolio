@@ -27,4 +27,4 @@ export {
   buildFreeBooksPageResponse,
   buildFreeProgrammingBooksCatalog,
   loadFreeProgrammingBooks,
-} from './free-programming-books';
+} from './catalog';

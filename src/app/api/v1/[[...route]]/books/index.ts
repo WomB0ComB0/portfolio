@@ -15,11 +15,8 @@
  */
 
 import { Elysia, StatusMap } from 'elysia';
-import {
-  buildFreeBooksPageResponse,
-  loadFreeProgrammingBooks,
-} from '@/lib/books/free-books-loader';
 import { normaliseQuery } from '@/lib/filters/normalise';
+import { buildFreeBooksPageResponse, loadFreeProgrammingBooks } from '@/lib/free-books/loader';
 import { lookupBooks } from './handlers';
 import { cacheHeaders, errorHandler, freeBooksCacheHeaders } from './middleware';
 import { booksSchema } from './schema';

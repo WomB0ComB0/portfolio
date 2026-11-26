@@ -20,7 +20,7 @@
  * so `'use client'` islands can import from here without risking server code leakage.
  */
 
-import type { HostTrustTier } from './url-security';
+import type { HostTrustTier } from './url-screen';
 
 export const EBOOK_FOUNDATION_REPO_URL =
   'https://github.com/EbookFoundation/free-programming-books';

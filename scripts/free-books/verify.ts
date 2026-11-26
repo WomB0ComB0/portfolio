@@ -32,19 +32,20 @@
  *    executed on our CI runner).
  *
  * Usage:
- *   bun --conditions=react-server run scripts/books/verify-free-books.ts --dry-run
- *   bun --conditions=react-server run scripts/books/verify-free-books.ts --dnsbl-only --write
- *   bun --conditions=react-server run scripts/books/verify-free-books.ts --write
+ *   bun --conditions=react-server run scripts/free-books/verify.ts --dry-run
+ *   bun --conditions=react-server run scripts/free-books/verify.ts --dnsbl-only --write
+ *   bun --conditions=react-server run scripts/free-books/verify.ts --write
  */
 
 import dns from 'node:dns/promises';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { loadFreeProgrammingBooks } from '../../src/lib/free-books/catalog';
 import {
   loadLiveSecurityManifestFromRedis,
   loadVerifierDriftStateFromRedis,
   publishSecurityManifestToRedis,
-} from '../../src/lib/books/free-books-manifest-store';
+} from '../../src/lib/free-books/manifest-store';
 import {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
@@ -54,8 +55,7 @@ import {
   loadUrlhausHostBlocklist,
   submitDeltaDetonation,
   type UrlBaselineFingerprint,
-} from '../../src/lib/books/free-books-verifier';
-import { loadFreeProgrammingBooks } from '../../src/lib/books/free-programming-books';
+} from '../../src/lib/free-books/threat-intel';
 import {
   classifyHostTrustTier,
   inspectHtmlSnippet,
@@ -63,10 +63,10 @@ import {
   isDangerousResponseHeaders,
   isSuspiciousRedirectChain,
   screenExternalBookUrl,
-} from '../../src/lib/books/url-security';
+} from '../../src/lib/free-books/url-screen';
 import { probeLink } from '../../src/lib/link-health/probe';
 
-const MANIFEST_PATH = resolve(process.cwd(), 'src/data/free-books-security.json');
+const MANIFEST_PATH = resolve(process.cwd(), 'src/lib/free-books/security-manifest.json');
 const DNSBL_CONCURRENCY = 20;
 const PROBE_CONCURRENCY = 16;
 const MAX_HTML_BYTES = 64 * 1024;

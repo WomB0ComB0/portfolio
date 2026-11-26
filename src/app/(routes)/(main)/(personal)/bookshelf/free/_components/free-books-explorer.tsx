@@ -21,14 +21,8 @@ import { type ReactElement, useMemo } from 'react';
 import { FiArrowLeft, FiArrowUpRight } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
-import {
-  FREE_BOOKS_PAGE_SIZES,
-  normalizeFreeBooksPageSize,
-} from '@/lib/books/bookshelf-search-params';
-import {
-  EBOOK_FOUNDATION_REPO_URL,
-  type FreeBooksPageResponse,
-} from '@/lib/books/free-books-types';
+import { EBOOK_FOUNDATION_REPO_URL, type FreeBooksPageResponse } from '@/lib/free-books/types';
+import { FREE_BOOKS_PAGE_SIZES, normalizeFreeBooksPageSize } from '../../_lib/bookshelf-filters';
 import { FreeBooksFilters } from './free-books-filters';
 import { FreeBooksPagination } from './free-books-pagination';
 import { FreeBooksTable } from './free-books-table';

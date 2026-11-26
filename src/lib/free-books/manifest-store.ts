@@ -16,7 +16,7 @@
 
 /**
  * @file Zero-deploy live security manifest store backed by Upstash Redis REST API,
- * with automatic fallback to the committed `src/data/free-books-security.json` baseline.
+ * with automatic fallback to the committed `src/lib/free-books/security-manifest.json` baseline.
  *
  * Uses pure `fetch` (no `node:*` or SDK imports) so callers stay safe across Next.js runtimes,
  * Bun CLI scripts, and Vitest unit tests.
@@ -27,7 +27,7 @@ import type {
   FetchLike,
   FreeBooksSecurityManifest,
   UrlBaselineFingerprint,
-} from './free-books-verifier';
+} from './threat-intel';
 
 export const REDIS_RUNTIME_MANIFEST_KEY = 'bookshelf:free:security-manifest:v1';
 const REDIS_FINGERPRINTS_KEY = 'bookshelf:free:fingerprints:v1';

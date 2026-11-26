@@ -18,9 +18,9 @@
 
 import type { ReactElement } from 'react';
 import { FiArrowDown, FiArrowUp, FiArrowUpRight } from 'react-icons/fi';
-import type { FreeBooksSortDir, FreeBooksSortField } from '@/lib/books/bookshelf-search-params';
-import type { FreeBookEntry } from '@/lib/books/free-books-types';
+import type { FreeBookEntry } from '@/lib/free-books/types';
 import { cn } from '@/lib/utils';
+import type { FreeBooksSortDir, FreeBooksSortField } from '../../_lib/bookshelf-filters';
 
 export interface FreeBooksTableProps {
   readonly books: readonly FreeBookEntry[];

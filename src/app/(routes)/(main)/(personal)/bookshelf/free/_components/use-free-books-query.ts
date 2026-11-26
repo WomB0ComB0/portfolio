@@ -19,19 +19,15 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useQueryStates } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
+import type { FreeBookFormat, FreeBookSource, FreeBooksPageResponse } from '@/lib/free-books/types';
 import {
   BOOKSHELF_URL_OPTIONS,
   type FreeBooksSortDir,
   type FreeBooksSortField,
   freeBooksSearchParsers,
   normalizeFreeBooksPageSize,
-} from '@/lib/books/bookshelf-search-params';
-import type {
-  FreeBookFormat,
-  FreeBookSource,
-  FreeBooksPageResponse,
-} from '@/lib/books/free-books-types';
-import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
+} from '../../_lib/bookshelf-filters';
 
 const CLIENT_STALE_TIME_MS = 5 * 60 * 1000;
 const SEARCH_DEBOUNCE_MS = 250;
