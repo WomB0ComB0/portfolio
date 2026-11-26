@@ -21,8 +21,9 @@ import 'server-only';
  * Redis manifest (manifest-store.ts) and merges it over the committed security-manifest.json,
  * parses each list (parse.ts) and builds the catalog (catalog.ts). The catalog is cached in memory
  * for an hour and one load runs at a time; when a refresh fails, the last catalog is served if
- * there is one. free/page.tsx, `GET /api/v1/books/free` (books/handlers.ts) and the verify sweep
- * (under --conditions=react-server) call it.
+ * there is one. free/page.tsx and `GET /api/v1/books/free` (books/handlers.ts) call it. The verify
+ * sweep (under --conditions=react-server) calls loadSweepCatalog instead: the same lists with no
+ * manifest applied and no cache, so a flagged host or link is checked again every run.
  */
 
 import { buildFreeProgrammingBooksCatalog } from './catalog';
@@ -77,6 +78,41 @@ async function fetchMarkdown(url: string): Promise<string> {
   }
 }
 
+/** Both upstream lists as Markdown; throws when either one fails to load. */
+async function fetchBothLists(): Promise<Readonly<Record<FreeBookSource, string>>> {
+  const [langs, subjects] = await Promise.all([
+    fetchMarkdown(RAW_SOURCES.langs),
+    fetchMarkdown(RAW_SOURCES.subjects),
+  ]);
+  return { langs, subjects };
+}
+
+/**
+ * The raw upstream catalog for the verify sweep: both lists parsed with no security manifest and
+ * no cache, so every host and link is checked again each run, flagged or not. Each URL still
+ * passes screenExternalBookUrl (parse.ts), so an unsafe link never reaches a probe. Throws when
+ * either list fails to load or both parse to no books, so a run never prunes its flags against a
+ * missing catalog.
+ */
+export async function loadSweepCatalog(): Promise<FreeProgrammingBooksCatalog> {
+  const lists = await fetchBothLists();
+  const langsParsed = parseFreeProgrammingBooksWithStats(lists.langs, 'langs');
+  const subjectsParsed = parseFreeProgrammingBooksWithStats(lists.subjects, 'subjects');
+  if (langsParsed.entries.length + subjectsParsed.entries.length === 0) {
+    throw new Error('the upstream lists parsed to no books, so there is nothing to check');
+  }
+  return buildFreeProgrammingBooksCatalog(
+    langsParsed.entries,
+    subjectsParsed.entries,
+    new Date().toISOString(),
+    {
+      quarantinedCount: langsParsed.quarantinedCount + subjectsParsed.quarantinedCount,
+      securityCheckedAt: null,
+      manifestSource: 'bundled',
+    },
+  );
+}
+
 /**
  * Loads the parsed EbookFoundation free programming books catalog, overlaying any live Upstash
  * Redis security manifest on top of the committed baseline so weekly security patches apply
@@ -94,17 +130,20 @@ export async function loadFreeProgrammingBooks(): Promise<FreeProgrammingBooksCa
 
   inflightLoad = (async () => {
     try {
-      const [langsMd, subjectsMd, liveRedisManifest] = await Promise.all([
-        fetchMarkdown(RAW_SOURCES.langs),
-        fetchMarkdown(RAW_SOURCES.subjects),
+      const [lists, liveRedisManifest] = await Promise.all([
+        fetchBothLists(),
         loadLiveSecurityManifestFromRedis(),
       ]);
       const { manifest, source: manifestSource } = mergeSecurityManifests(
         securityManifest as FreeBooksSecurityManifest,
         liveRedisManifest,
       );
-      const langsParsed = parseFreeProgrammingBooksWithStats(langsMd, 'langs', manifest);
-      const subjectsParsed = parseFreeProgrammingBooksWithStats(subjectsMd, 'subjects', manifest);
+      const langsParsed = parseFreeProgrammingBooksWithStats(lists.langs, 'langs', manifest);
+      const subjectsParsed = parseFreeProgrammingBooksWithStats(
+        lists.subjects,
+        'subjects',
+        manifest,
+      );
       const catalog = buildFreeProgrammingBooksCatalog(
         langsParsed.entries,
         subjectsParsed.entries,
