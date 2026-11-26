@@ -30,6 +30,7 @@ import {
 } from '../_lib/books';
 import type { BOOKSHELF_GROUP_VALUES, BookStatusFilter } from '../_lib/bookshelf-filters';
 import { BookStatusBadge } from './book-status-badge';
+import { ARROW_ICON_CLASS } from './bookshelf-classes';
 import chipStyles from './bookshelf-filters-bar.module.css';
 import styles from './shelf-cards-grid.module.css';
 
@@ -221,10 +222,7 @@ export function ShelfCardsGrid({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="tile-title text-foreground">{shelf.title}</span>
-                    <FiArrowUpRight
-                      className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
-                      aria-hidden="true"
-                    />
+                    <FiArrowUpRight className={ARROW_ICON_CLASS} aria-hidden="true" />
                   </div>
                   <p className="line-clamp-2 tile-meta text-muted-foreground">
                     {shelf.description}
@@ -279,10 +277,7 @@ export function ShelfCardsGrid({
                 <div className="w-full space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="tile-title text-foreground">{meta.label}</span>
-                    <FiArrowUpRight
-                      className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
-                      aria-hidden="true"
-                    />
+                    <FiArrowUpRight className={ARROW_ICON_CLASS} aria-hidden="true" />
                   </div>
                   <p className="line-clamp-2 tile-meta text-muted-foreground">{meta.description}</p>
                   <div

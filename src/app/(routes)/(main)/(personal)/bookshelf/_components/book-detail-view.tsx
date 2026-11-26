@@ -29,6 +29,7 @@ import type { ReadingMapEntry } from '../_lib/reading-map';
 import { BookCoverFrame } from './book-cover-frame';
 import styles from './book-detail-view.module.css';
 import { BookStatusBadge } from './book-status-badge';
+import { headerActionClass } from './bookshelf-classes';
 import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
@@ -79,11 +80,7 @@ export function BookDetailView({
   const hasLinks = Boolean(book.url) || isbnLinks !== null;
 
   const backAction = onBack ? (
-    <button
-      type="button"
-      onClick={onBack}
-      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
-    >
+    <button type="button" onClick={onBack} className={headerActionClass('wide', false)}>
       <FiArrowLeft className="size-4" aria-hidden="true" />
       Back to Bookshelf
     </button>
@@ -91,7 +88,7 @@ export function BookDetailView({
     <Link
       href={`/bookshelf?book=${book.slug}`}
       prefetch={false}
-      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+      className={headerActionClass('wide', true)}
     >
       <FiArrowLeft className="size-4" aria-hidden="true" />
       Back to Bookshelf
@@ -128,7 +125,7 @@ export function BookDetailView({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map

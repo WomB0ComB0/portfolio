@@ -68,7 +68,8 @@ import {
 } from '../_lib/shelf-geometry';
 import { BookDetailView } from './book-detail-view';
 import { BookshelfBookSlot, SLOT_NO_ANIM_CLASS } from './bookshelf-book-slot';
-import { BookshelfControlsBar, FreeLibraryDirectoryCard } from './bookshelf-controls-bar';
+import { headerActionClass } from './bookshelf-classes';
+import { BookshelfControlsBar } from './bookshelf-controls-bar';
 import {
   BookshelfFiltersBar,
   measureShelfPill,
@@ -78,6 +79,7 @@ import {
   trackEdgeFadePx,
 } from './bookshelf-filters-bar';
 import styles from './bookshelf-stage.module.css';
+import { FreeLibraryDirectoryCard } from './free-library-card';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
@@ -602,11 +604,7 @@ export function BookshelfStage({
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {activeShelf && (
-            <Link
-              href="/bookshelf"
-              prefetch={false}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
-            >
+            <Link href="/bookshelf" prefetch={false} className={headerActionClass('wide', true)}>
               <FiArrowLeft className="size-4" aria-hidden="true" />
               All shelves
             </Link>
@@ -614,7 +612,7 @@ export function BookshelfStage({
           <Link
             href="/bookshelf/free"
             prefetch={false}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', true)}
           >
             <FiBookOpen className="size-3.5" aria-hidden="true" />
             Free library
@@ -622,7 +620,7 @@ export function BookshelfStage({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map
