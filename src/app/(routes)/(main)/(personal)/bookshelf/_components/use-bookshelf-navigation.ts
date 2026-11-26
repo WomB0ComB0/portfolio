@@ -26,11 +26,20 @@ import {
 } from 'react';
 import type { BookItem } from '../_lib/books';
 import type { BookStatusFilter } from '../_lib/bookshelf-filters';
+import {
+  dragOffset,
+  dragVelocity,
+  flickSteps,
+  isSidewaysDrag,
+  isTap,
+  scrubSteps,
+  scrubUnit,
+  settleStep,
+} from '../_lib/shelf-glide';
 import styles from './bookshelf.module.css';
 
 const WHEEL_THRESHOLD = 20;
 const WHEEL_COOLDOWN_MS = 140;
-const DRAG_ACTIVATION_PX = 6;
 const CHAIN_STEP_DURATION_MS = 220;
 /** The keys that move the stage, and only while it (or nothing) has focus. */
 const STAGE_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
@@ -320,9 +329,7 @@ export function useBookshelfNavigation({
     const totalDy = event.clientY - drag.startY;
 
     if (!drag.isDragging) {
-      if (Math.abs(totalDx) < DRAG_ACTIVATION_PX || Math.abs(totalDy) > Math.abs(totalDx) * 1.4) {
-        return;
-      }
+      if (!isSidewaysDrag(totalDx, totalDy)) return;
       drag.isDragging = true;
       setIsDragging(true);
       event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -331,31 +338,20 @@ export function useBookshelfNavigation({
     const now = performance.now();
     const dt = Math.max(1, now - drag.lastTime);
     const stepDx = event.clientX - drag.lastX;
-    drag.vx = drag.vx * 0.5 + (stepDx / dt) * 0.5;
+    drag.vx = dragVelocity(drag.vx, stepDx, dt);
     drag.lastX = event.clientX;
     drag.lastTime = now;
-    drag.residualX += stepDx;
 
-    const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
-    let stepsToMove = 0;
-    while (drag.residualX <= -scrubUnit) {
-      drag.residualX += scrubUnit;
-      stepsToMove += 1;
-    }
-    while (drag.residualX >= scrubUnit) {
-      drag.residualX -= scrubUnit;
-      stepsToMove -= 1;
-    }
+    const unit = scrubUnit(bookHeightRef.current);
+    const scrub = scrubSteps(drag.residualX + stepDx, unit);
+    drag.residualX = scrub.residual;
 
-    if (stepsToMove !== 0) {
+    if (scrub.steps !== 0) {
       drag.steppedDuringDrag = true;
-      step(stepsToMove, CHAIN_STEP_DURATION_MS);
+      step(scrub.steps, CHAIN_STEP_DURATION_MS);
     }
 
-    const visualOffset = Math.max(
-      -scrubUnit * 0.55,
-      Math.min(scrubUnit * 0.55, drag.residualX * 0.65),
-    );
+    const visualOffset = dragOffset(drag.residualX, unit);
     shelfRef.current?.style.setProperty('--drag-x', `${visualOffset.toFixed(1)}px`);
   };
 
@@ -373,21 +369,19 @@ export function useBookshelfNavigation({
 
       if (cancelled) return;
 
-      const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
-      const speed = Math.abs(drag.vx);
-      if (speed > 0.4) {
-        const extra = Math.min(3, Math.max(1, Math.round(speed * 1.6)));
-        stepBy(drag.vx < 0 ? extra : -extra);
-      } else if (!drag.steppedDuringDrag && Math.abs(drag.residualX) > scrubUnit * 0.3) {
-        step(drag.residualX < 0 ? 1 : -1);
-      }
+      const flick = flickSteps(drag.vx);
+      const settle = settleStep(
+        drag.residualX,
+        scrubUnit(bookHeightRef.current),
+        drag.steppedDuringDrag,
+      );
+      if (flick !== 0) stepBy(flick);
+      else if (settle !== 0) step(settle);
       return;
     }
 
     if (cancelled) return;
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    if (Math.hypot(dx, dy) > 8) return;
+    if (!isTap(event.clientX - drag.startX, event.clientY - drag.startY)) return;
 
     const targetEl = (drag.startTarget ?? event.target) as HTMLElement | null;
     const slotEl = targetEl?.closest<HTMLElement>('[data-slot-offset]');

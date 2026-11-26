@@ -388,7 +388,7 @@ test.describe('bookshelf stage geometry', () => {
         await withPage(browser, { ...options, javaScriptEnabled }, async (page) => {
           await openBookshelf(page);
           const geometry = await page.locator(STAGE).evaluate((stage) => {
-            // measureStage (bookshelf-stage.tsx), on the stage's own box.
+            // measureShelf (_lib/shelf-geometry.ts), on the stage's own box.
             const nextH = Math.round(
               Math.max(220, Math.min(stage.clientHeight * 0.84, 410, stage.clientWidth * 0.88)),
             );

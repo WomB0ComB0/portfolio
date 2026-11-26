@@ -39,6 +39,8 @@ const FILES = [
   '_lib/bookshelf-filters.ts',
   '_lib/load-bookshelf.ts',
   '_lib/reading-map.ts',
+  '_lib/shelf-geometry.ts',
+  '_lib/shelf-glide.ts',
   '_lib/spine-themes.ts',
   '_components/book-cover-frame.tsx',
   '_components/book-detail-view.tsx',

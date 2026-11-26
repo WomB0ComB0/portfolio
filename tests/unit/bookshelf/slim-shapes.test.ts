@@ -16,7 +16,7 @@
 
 /**
  * @file The bookshelf's slim shapes and sizes (reading-map.ts, book-neighbors.ts, book-covers.ts,
- * bookshelf-book-slot.tsx), pure:
+ * shelf-geometry.ts), pure:
  * - toReadingMapEntry / lastTopicOf: a book as the reading map draws it, and nothing more;
  * - toBookNeighbor / neighborsOf: the Previous and Next books, as their links name them,
  *   wrapping round both ends;
@@ -42,7 +42,6 @@ vi.mock('@/lib/sanity/client', async () => {
 // Only buildBookshelfCatalog is used here; the cached Sanity loaders are never asked.
 vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
-import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot';
 import {
   COVER_HEIGHT,
   COVER_WIDTH,
@@ -58,6 +57,7 @@ import {
   lastTopicOf,
   toReadingMapEntry,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
+import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/shelf-geometry';
 
 const SHELF = makeBookshelf();
 const CATALOG = buildBookshelfCatalog(

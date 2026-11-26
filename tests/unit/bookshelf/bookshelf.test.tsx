@@ -74,7 +74,6 @@ vi.mock('@/lib/sanity/client', async () => {
 vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
 import { BookDetailView } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/book-detail-view';
-import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot';
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import {
   neighborsOf,
@@ -91,6 +90,7 @@ import {
   type NonEmptyBooks,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 import { toReadingMapEntry } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
+import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/shelf-geometry';
 import ShelfDetailPage from '@/app/(routes)/(main)/(personal)/bookshelf/shelf/[shelfSlug]/page';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
 import {

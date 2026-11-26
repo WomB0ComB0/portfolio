@@ -52,9 +52,23 @@ import {
   type ShelfTab,
 } from '../_lib/bookshelf-filters';
 import { type ReadingMapEntry, toReadingMapEntry } from '../_lib/reading-map';
+import {
+  buildPoolSlots,
+  clamp,
+  DEFAULT_BOOK_HEIGHT,
+  INITIAL_HALF_WINDOW,
+  jumpDelta,
+  MIN_CIRCULAR_BOOKS,
+  measureShelf,
+  type PoolSlot,
+  SLOT_GEOMETRY,
+  STAGE_FALLBACK_HEIGHT,
+  slotOffsetFactor,
+  wrapIndex,
+} from '../_lib/shelf-geometry';
 import { BookDetailView } from './book-detail-view';
 import styles from './bookshelf.module.css';
-import { BookshelfBookSlot, slotOffsetFactor } from './bookshelf-book-slot';
+import { BookshelfBookSlot } from './bookshelf-book-slot';
 import { BookshelfControlsBar, FreeLibraryDirectoryCard } from './bookshelf-controls-bar';
 import {
   BookshelfFiltersBar,
@@ -85,12 +99,6 @@ export interface BookshelfStageProps {
   readonly activeShelf?: ShelfCollection;
 }
 
-/**
- * The book height drags and the jump fade move by until the first measurement. It is never
- * painted: the stage's CSS sizes the books (--book-h on .shelf-shell, the same formula as
- * measureStage), so the server's HTML is laid out as the browser's.
- */
-const DEFAULT_BOOK_HEIGHT = 360;
 const STEP_DURATION_MS = 400;
 const CHAIN_STEP_DURATION_MS = 220;
 const CHAIN_TICK_MS = 55;
@@ -105,20 +113,9 @@ const JUMP_IN_MS = 220;
 /** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf.module.css). */
 const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 /** How far the shelf slides in from the side it travels toward, in book heights: one slot pitch. */
-const JUMP_IN_SHIFT = 0.19;
+const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
 /** The shelf pill before its first measurement: no clip, so hidden, and placed without a slide. */
 const UNMEASURED_PILL: ShelfPillState = { clip: null, animate: false };
-
-const mod = (a: number, n: number): number => ((a % n) + n) % n;
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-interface PoolSlot {
-  readonly poolIndex: number;
-  readonly slotPosition: number;
-  readonly offset: number;
-  readonly book: BookItem;
-}
 
 /** A jump waiting for its commit: the position it lands on, and the side it travels toward. */
 interface PendingJump {
@@ -140,11 +137,11 @@ export function BookshelfStage({
   activeShelf,
 }: BookshelfStageProps): ReactElement {
   const bookCount = books.length;
-  const isFiniteShelf = Boolean(activeShelf) || bookCount < 9;
+  const isFiniteShelf = Boolean(activeShelf) || bookCount < MIN_CIRCULAR_BOOKS;
 
   const bookAt = useCallback(
     (index: number): BookItem => {
-      const idx = isFiniteShelf ? clamp(index, 0, bookCount - 1) : mod(index, bookCount);
+      const idx = isFiniteShelf ? clamp(index, 0, bookCount - 1) : wrapIndex(index, bookCount);
       return books[idx] ?? books[0];
     },
     [books, bookCount, isFiniteShelf],
@@ -163,7 +160,7 @@ export function BookshelfStage({
   }, [resolvedInitialSlug, books, bookCount, isFiniteShelf]);
 
   const [pos, setPos] = useState<number>(initialPos);
-  const [halfWindow, setHalfWindow] = useState<number>(5);
+  const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
   const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
@@ -219,7 +216,6 @@ export function BookshelfStage({
 
   // Where the pill sits: the filtered shelf, else the shelf of the book on stage.
   const locationShelfSlug = activeShelfSlug ?? activeBook.shelfSlug;
-  const poolSize = isFiniteShelf ? bookCount : 2 * halfWindow + 1;
 
   // Derived from the shelves, so the copy never drifts from what Studio holds.
   const catalogDescription = useMemo(() => describeShelves(shelves), [shelves]);
@@ -227,19 +223,17 @@ export function BookshelfStage({
   /**
    * Measures the stage: the pool size (halfWindow), and the book height drags and the jump fade
    * move by. Nothing painted reads it: the books are sized by the CSS --book-h on .shelf-shell,
-   * this same nextH unrounded, so they never resize after hydration.
+   * the same height unrounded, so they never resize after hydration.
    */
   const measureStage = useCallback((): void => {
     const stageEl = stageRef.current;
     if (!stageEl) return;
-    const sw = stageEl.clientWidth || window.innerWidth;
-    const sh = stageEl.clientHeight || 390;
-    const nextH = Math.round(Math.max(220, Math.min(sh * 0.84, 410, sw * 0.88)));
-    const x1 = nextH * 0.5;
-    const pitch = nextH * 0.18;
-    const nextK = Math.max(3, Math.ceil((sw / 2 - x1) / pitch) + 2);
-    bookHeightRef.current = nextH;
-    setHalfWindow(nextK);
+    const { bookHeight, halfWindow: nextHalfWindow } = measureShelf(
+      stageEl.clientWidth || window.innerWidth,
+      stageEl.clientHeight || STAGE_FALLBACK_HEIGHT,
+    );
+    bookHeightRef.current = bookHeight;
+    setHalfWindow(nextHalfWindow);
   }, []);
 
   /**
@@ -270,31 +264,10 @@ export function BookshelfStage({
     setShelfPill((prev) => (prev.animate ? prev : { ...prev, animate: true }));
   }, [shelfPill, locationShelfSlug]);
 
-  // Fixed ascending `poolIndex` order (`0..poolSize-1`) prevents DOM reordering during transitions.
-  const poolSlots = useMemo<readonly PoolSlot[]>(() => {
-    if (isFiniteShelf) {
-      return books.map((book, index) => ({
-        poolIndex: index,
-        slotPosition: index,
-        offset: index - pos,
-        book,
-      }));
-    }
-    const base = pos - halfWindow;
-    const baseMod = mod(base, poolSize);
-    const slots: PoolSlot[] = [];
-    for (let poolIndex = 0; poolIndex < poolSize; poolIndex += 1) {
-      const shift = mod(poolIndex - baseMod, poolSize);
-      const slotPosition = base + shift;
-      slots.push({
-        poolIndex,
-        slotPosition,
-        offset: slotPosition - pos,
-        book: bookAt(slotPosition),
-      });
-    }
-    return slots;
-  }, [isFiniteShelf, books, pos, halfWindow, poolSize, bookAt]);
+  const poolSlots = useMemo<readonly PoolSlot[]>(
+    () => buildPoolSlots({ books, pos, halfWindow, finite: isFiniteShelf, bookAt }),
+    [isFiniteShelf, books, pos, halfWindow, bookAt],
+  );
 
   const registerSlotRef = useCallback((poolIndex: number, el: HTMLDivElement | null): void => {
     if (el) slotElementsRef.current.set(poolIndex, el);
@@ -401,13 +374,7 @@ export function BookshelfStage({
         clearTimeout(chainTimerRef.current);
         chainTimerRef.current = null;
       }
-      let delta: number;
-      if (isFiniteShelf) {
-        delta = clamp(targetIndex, 0, bookCount - 1) - posRef.current;
-      } else {
-        delta = mod(targetIndex - mod(posRef.current, bookCount), bookCount);
-        if (delta > bookCount / 2) delta -= bookCount;
-      }
+      const delta = jumpDelta(targetIndex, posRef.current, bookCount, isFiniteShelf);
       if (delta === 0) return;
       if (Math.abs(delta) <= JUMP_SLIDE_MAX) {
         step(delta);
@@ -734,7 +701,7 @@ export function BookshelfStage({
           isSingleShelf={Boolean(activeShelf)}
           isFiniteShelf={isFiniteShelf}
           pos={pos}
-          displayIndex={mod(pos, bookCount)}
+          displayIndex={wrapIndex(pos, bookCount)}
           bookCount={bookCount}
           activeBook={activeBook}
           onOpenDetail={(book) => openDetail(book)}
@@ -765,7 +732,7 @@ export function BookshelfStage({
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {activeShelf ? formatStageLabel(mod(pos, bookCount) + 1) : activeBook.stageLabel} of{' '}
+        {activeShelf ? formatStageLabel(wrapIndex(pos, bookCount) + 1) : activeBook.stageLabel} of{' '}
         {bookCount}: {activeBook.title}
       </p>
 
