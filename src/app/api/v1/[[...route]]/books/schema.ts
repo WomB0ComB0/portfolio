@@ -65,8 +65,8 @@ export const freeBookCategorySchema = t.Object({
 
 export const booksSchema = {
   'books.lookup.query': t.Object({
-    q: t.Optional(t.String()),
-    isbn: t.Optional(t.String()),
+    q: t.Optional(t.String({ maxLength: 120 })),
+    isbn: t.Optional(t.String({ maxLength: 32 })),
     limit: t.Optional(t.Numeric({ minimum: 1, maximum: 10 })),
   }),
   'books.lookup.response': t.Object({
@@ -78,9 +78,9 @@ export const booksSchema = {
   }),
   'books.free.query': t.Object({
     source: t.Optional(t.Union([t.Literal('all'), t.Literal('langs'), t.Literal('subjects')])),
-    category: t.Optional(t.String()),
+    category: t.Optional(t.String({ maxLength: 100 })),
     format: t.Optional(t.Union([t.Literal('all'), freeBookFormatSchema])),
-    q: t.Optional(t.String()),
+    q: t.Optional(t.String({ maxLength: 100 })),
     sort: t.Optional(t.Union([t.Literal('title'), t.Literal('category'), t.Literal('host')])),
     dir: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')])),
     hideArchived: t.Optional(t.BooleanString()),

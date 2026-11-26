@@ -20,6 +20,9 @@
  * Studio and dynamic shelf previews.
  */
 
+import { sanitizeUrl } from '@resq-systems/security/sanitize';
+import { normaliseQuery } from '@/lib/filters/normalise';
+
 export interface BookLookupItem {
   readonly title: string;
   readonly slug: string;
@@ -34,6 +37,29 @@ export interface BookLookupItem {
 }
 
 const LOOKUP_TIMEOUT_MS = 6_000;
+const LOOKUP_CACHE_TTL_MS = 15 * 60 * 1000;
+const LOOKUP_CACHE_MAX_ENTRIES = 200;
+
+interface LookupResult {
+  readonly query: string;
+  readonly items: BookLookupItem[];
+}
+
+const lookupCache = new Map<string, { readonly value: LookupResult; readonly expiresAt: number }>();
+const inflightLookups = new Map<string, Promise<LookupResult>>();
+
+function sanitizeExternalUrl(raw?: string | null): string | null {
+  if (!raw) return null;
+  const httpsUrl = raw.replace(/^http:\/\//, 'https://');
+  const safe = sanitizeUrl(httpsUrl, ['https:']);
+  return safe || null;
+}
+
+/** Clears the in-memory lookup cache and single-flight map (for tests). */
+export function resetBookLookupCache(): void {
+  lookupCache.clear();
+  inflightLookups.clear();
+}
 
 export const toBookSlug = (title: string): string =>
   title
@@ -132,16 +158,17 @@ async function lookupOpenLibrary(
         ? (doc.first_sentence[0] ?? '')
         : (doc.first_sentence ?? '');
 
+      const title = normaliseQuery(doc.title, 200);
       return {
-        title: doc.title.trim(),
-        slug: toBookSlug(doc.title),
-        authors: doc.author_name?.join(', ') || 'Unknown Author',
-        publisher: doc.publisher?.[0] ?? '',
+        title,
+        slug: toBookSlug(title),
+        authors: normaliseQuery(doc.author_name?.join(', '), 200) || 'Unknown Author',
+        publisher: normaliseQuery(doc.publisher?.[0], 140),
         year: parseYear(doc.first_publish_year),
         isbn,
-        description: sentence.trim(),
-        coverUrl,
-        url: doc.key ? `https://openlibrary.org${doc.key}` : null,
+        description: normaliseQuery(sentence, 320),
+        coverUrl: sanitizeExternalUrl(coverUrl),
+        url: doc.key ? sanitizeExternalUrl(`https://openlibrary.org${doc.key}`) : null,
         source: 'openlibrary' as const,
       };
     });
@@ -171,21 +198,22 @@ async function lookupGoogleBooks(
       const rawThumb =
         info.imageLinks?.large ?? info.imageLinks?.medium ?? info.imageLinks?.thumbnail ?? null;
       const coverUrl = rawThumb
-        ? rawThumb.replace(/^http:\/\//, 'https://').replace('&edge=curl', '')
+        ? sanitizeExternalUrl(rawThumb.replace('&edge=curl', ''))
         : isbn
           ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`
           : null;
+      const title = normaliseQuery(info.title, 200);
 
       return {
-        title: info.title.trim(),
-        slug: toBookSlug(info.title),
-        authors: info.authors?.join(', ') || 'Unknown Author',
-        publisher: info.publisher ?? '',
+        title,
+        slug: toBookSlug(title),
+        authors: normaliseQuery(info.authors?.join(', '), 200) || 'Unknown Author',
+        publisher: normaliseQuery(info.publisher, 140),
         year: parseYear(info.publishedDate),
         isbn,
-        description: (info.description ?? '').trim().slice(0, 320),
+        description: normaliseQuery(info.description, 320),
         coverUrl,
-        url: info.infoLink?.replace(/^http:\/\//, 'https://') ?? null,
+        url: sanitizeExternalUrl(info.infoLink),
         source: 'googlebooks' as const,
       };
     });
@@ -193,16 +221,17 @@ async function lookupGoogleBooks(
 
 /**
  * Looks up books by ISBN or free-text query, trying Open Library first and falling back to
- * Google Books when Open Library returns no matches.
+ * Google Books when Open Library returns no matches. Deduplicates concurrent in-flight queries
+ * and caches results for 15 minutes in a bounded LRU-like map.
  */
 export async function lookupBooks(options: {
   readonly q?: string;
   readonly isbn?: string;
   readonly limit?: number;
-}): Promise<{ readonly query: string; readonly items: BookLookupItem[] }> {
+}): Promise<LookupResult> {
   const limit = Math.max(1, Math.min(10, options.limit ?? 5));
   const rawIsbn = options.isbn ? cleanIsbn(options.isbn) : '';
-  const rawQuery = options.q?.trim() ?? '';
+  const rawQuery = normaliseQuery(options.q, 120);
 
   const isIsbn = rawIsbn.length >= 10;
   const query = isIsbn ? rawIsbn : rawQuery;
@@ -210,11 +239,39 @@ export async function lookupBooks(options: {
     return { query: '', items: [] };
   }
 
-  const fromOpenLibrary = await lookupOpenLibrary(query, limit, isIsbn);
-  if (fromOpenLibrary.length > 0) {
-    return { query, items: fromOpenLibrary };
+  const cacheKey = `${isIsbn ? 'isbn' : 'q'}:${query.toLowerCase()}:${limit}`;
+  const now = Date.now();
+  const cached = lookupCache.get(cacheKey);
+  if (cached && now < cached.expiresAt) {
+    return cached.value;
   }
 
-  const fromGoogle = await lookupGoogleBooks(query, limit, isIsbn);
-  return { query, items: fromGoogle };
+  const inflight = inflightLookups.get(cacheKey);
+  if (inflight) {
+    return inflight;
+  }
+
+  const task = (async (): Promise<LookupResult> => {
+    try {
+      const fromOpenLibrary = await lookupOpenLibrary(query, limit, isIsbn);
+      const result: LookupResult =
+        fromOpenLibrary.length > 0
+          ? { query, items: fromOpenLibrary }
+          : { query, items: await lookupGoogleBooks(query, limit, isIsbn) };
+
+      if (result.items.length > 0) {
+        if (lookupCache.size >= LOOKUP_CACHE_MAX_ENTRIES) {
+          const oldestKey = lookupCache.keys().next().value;
+          if (oldestKey !== undefined) lookupCache.delete(oldestKey);
+        }
+        lookupCache.set(cacheKey, { value: result, expiresAt: Date.now() + LOOKUP_CACHE_TTL_MS });
+      }
+      return result;
+    } finally {
+      inflightLookups.delete(cacheKey);
+    }
+  })();
+
+  inflightLookups.set(cacheKey, task);
+  return task;
 }

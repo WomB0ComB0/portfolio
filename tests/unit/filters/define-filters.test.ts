@@ -67,6 +67,12 @@ describe('reading the URL', () => {
     expect(projects.parse({ q: `${'x'.repeat(39)} tail` }).q).toBe('x'.repeat(39));
   });
 
+  it('strips HTML tags, nested script schemes, and Trojan Source bidi/zero-width controls from ?q', () => {
+    expect(projects.parse({ q: '<img src=x onerror=alert(1)>Rust' }).q).toBe('Rust');
+    expect(projects.parse({ q: 'javajavascript:script:Next.js' }).q).toBe('Next.js');
+    expect(projects.parse({ q: 'C++\u202E\u200B & C#' }).q).toBe('C++ & C#');
+  });
+
   it('ignores keys it does not know, and never reads the prototype chain', () => {
     expect(projects.parse('?constructor=1&category=toString&tech=__proto__')).toEqual({
       q: '',

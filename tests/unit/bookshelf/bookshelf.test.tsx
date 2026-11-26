@@ -49,7 +49,12 @@ import {
   TOTAL_TOPICS,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { booksRoute } from '@/app/api/v1/[[...route]]/books';
-import { cleanIsbn, lookupBooks, toBookSlug } from '@/app/api/v1/[[...route]]/books/handlers';
+import {
+  cleanIsbn,
+  lookupBooks,
+  resetBookLookupCache,
+  toBookSlug,
+} from '@/app/api/v1/[[...route]]/books/handlers';
 
 describe('Bookshelf catalog', () => {
   it('contains 44 uniquely slugged stages numbered 01 through 44 across all 8 tracks', () => {
@@ -403,7 +408,49 @@ describe('Books Lookup API (/api/v1/books/lookup)', () => {
         coverUrl: 'https://books.google.com/cover.jpg',
         source: 'googlebooks',
       });
+
+      // Second identical lookup hits the in-memory cache with zero additional upstream fetches
+      const callsBefore = fetchSpy.mock.calls.length;
+      const cached = await lookupBooks({ q: 'Designing Data-Intensive Applications' });
+      expect(cached.items[0]?.slug).toBe('designing-data-intensive-applications');
+      expect(fetchSpy.mock.calls.length).toBe(callsBefore);
     } finally {
+      resetBookLookupCache();
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('sanitizes XSS/HTML and unsafe URLs in book lookup inputs and upstream responses', async () => {
+    resetBookLookupCache();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    try {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            docs: [
+              {
+                key: '/works/OL999W',
+                title: '<b>Rust</b> in Action\u202E',
+                author_name: ['Tim <script>alert(1)</script>McNamara'],
+                publisher: ['Manning'],
+                first_publish_year: 2021,
+                first_sentence: 'A <img src=x onerror=alert(1)>practical guide.',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+
+      const res = await lookupBooks({ q: '<script>alert(1)</script>Rust in Action' });
+      expect(res.query).toBe('alert(1)Rust in Action');
+      expect(res.items[0]).toMatchObject({
+        title: 'Rust in Action',
+        authors: 'Tim alert(1)McNamara',
+        description: 'A practical guide.',
+      });
+    } finally {
+      resetBookLookupCache();
       fetchSpy.mockRestore();
     }
   });

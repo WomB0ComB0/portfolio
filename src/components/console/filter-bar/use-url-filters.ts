@@ -29,13 +29,15 @@
  * and hydration matches.
  */
 
-import { useQueryStates } from 'nuqs';
+import { debounce, useQueryStates } from 'nuqs';
 import { useDeferredValue, useMemo, useState } from 'react';
 
 import { type FilterSchema, type FilterState, normaliseQuery } from '@/lib/filters';
 import { type BuiltFilterModel, buildFilterModel } from './model';
 
 const URL_OPTIONS = { history: 'replace', shallow: true, scroll: false } as const;
+/** Debounce URL history updates while typing; local UI filtering stays urgent via useDeferredValue. */
+const SEARCH_URL_DEBOUNCE_MS = 250;
 
 /** The model and the items it keeps, from the URL. */
 export function useUrlFilters<T, K extends string>(
@@ -60,14 +62,17 @@ export function useUrlFilters<T, K extends string>(
    * no filter left is announced ("Showing all 5 projects") rather than kept quiet. nuqs updates
    * its state at once; the URL write is not awaited.
    */
-  const write = (next: FilterState<K>): void => {
+  const write = (next: FilterState<K>, debounceUrl = false): void => {
     setTouched(true);
-    void setRaw({
-      q: next.q === '' ? null : next.q,
-      ...Object.fromEntries(
-        schema.keys.map((key) => [key, next[key].length === 0 ? null : [...next[key]]]),
-      ),
-    } as Parameters<typeof setRaw>[0]);
+    void setRaw(
+      {
+        q: next.q === '' ? null : next.q,
+        ...Object.fromEntries(
+          schema.keys.map((key) => [key, next[key].length === 0 ? null : [...next[key]]]),
+        ),
+      } as Parameters<typeof setRaw>[0],
+      debounceUrl ? { limitUrlUpdates: debounce(SEARCH_URL_DEBOUNCE_MS) } : undefined,
+    );
   };
 
   return buildFilterModel({
@@ -77,8 +82,8 @@ export function useUrlFilters<T, K extends string>(
     active,
     touched,
     actions: {
-      setQuery: (q) => write({ ...draft, q }),
-      submit: () => setTouched(true),
+      setQuery: (q) => write({ ...draft, q }, q !== ''),
+      submit: () => write(draft, false),
       choose: (key, slug) => write(schema.choose(draft, key, slug)),
       toggle: (key, slug) => write(schema.toggle(draft, key, slug)),
       clearAll: () => write(schema.empty()),

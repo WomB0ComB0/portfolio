@@ -19,8 +19,9 @@ import {
   buildFreeBooksPageResponse,
   loadFreeProgrammingBooks,
 } from '@/lib/books/free-programming-books';
+import { normaliseQuery } from '@/lib/filters/normalise';
 import { lookupBooks } from './handlers';
-import { cacheHeaders, errorHandler } from './middleware';
+import { cacheHeaders, errorHandler, freeBooksCacheHeaders } from './middleware';
 import { booksSchema } from './schema';
 
 export const booksRoute = new Elysia({ prefix: '/books' })
@@ -29,7 +30,7 @@ export const booksRoute = new Elysia({ prefix: '/books' })
     '/lookup',
     async ({ query, set }) => {
       try {
-        const q = query.q?.trim();
+        const q = normaliseQuery(query.q, 120);
         const isbn = query.isbn?.trim();
         if (!q && !isbn) {
           set.status = StatusMap['Bad Request'];
@@ -75,7 +76,7 @@ export const booksRoute = new Elysia({ prefix: '/books' })
           offset: query.offset ?? 0,
         });
 
-        Object.assign(set.headers, cacheHeaders());
+        Object.assign(set.headers, freeBooksCacheHeaders());
         return {
           ...page,
           categories: [...page.categories],

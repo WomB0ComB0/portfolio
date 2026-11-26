@@ -16,7 +16,11 @@
 
 import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 
+/** Book metadata lookups (ISBN/title) change rarely — cache for 24h at the edge. */
 export const cacheHeaders = createCacheHeaders('Long');
+
+/** Free books index overlays live Upstash Redis security manifests hourly — cache 1h at the edge. */
+export const freeBooksCacheHeaders = createCacheHeaders('Medium');
 
 export const errorHandler = createErrorHandler({
   context: 'looking up books',

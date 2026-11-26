@@ -25,6 +25,7 @@
  */
 
 import securityManifest from '@/data/free-books-security.json';
+import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
 import type { FreeBooksSortDir, FreeBooksSortField } from './bookshelf-search-params';
 import {
   loadLiveSecurityManifestFromRedis,
@@ -397,14 +398,27 @@ export interface FreeBooksFilterOptions {
   readonly verifiedHostsOnly?: boolean;
 }
 
+/** Pre-indexed lowercase search haystacks keyed by entry object (zero JSON payload overhead). */
+const bookSearchIndex = new WeakMap<FreeBookEntry, string>();
+
+function getBookSearchHaystack(book: FreeBookEntry): string {
+  const cached = bookSearchIndex.get(book);
+  if (cached !== undefined) return cached;
+  const indexed =
+    `${book.title} ${book.authors} ${book.category} ${book.subcategory ?? ''} ${book.host}`.toLowerCase();
+  bookSearchIndex.set(book, indexed);
+  return indexed;
+}
+
 export function filterFreeProgrammingBooks(
   books: readonly FreeBookEntry[],
   options: FreeBooksFilterOptions,
 ): FreeBookEntry[] {
   const source = options.source ?? 'all';
-  const category = options.category?.trim().toLowerCase() ?? '';
+  const category = normaliseQuery(options.category, DEFAULT_QUERY_MAX_LENGTH).toLowerCase();
   const format = options.format ?? 'all';
-  const query = options.q?.trim().toLowerCase() ?? '';
+  const cleanQuery = normaliseQuery(options.q, DEFAULT_QUERY_MAX_LENGTH).toLowerCase();
+  const queryTokens = cleanQuery ? cleanQuery.split(' ').filter(Boolean) : [];
   const hideArchived = options.hideArchived ?? false;
   const hideInProcess = options.hideInProcess ?? false;
   const hideUnavailable = options.hideUnavailable ?? false;
@@ -420,10 +434,11 @@ export function filterFreeProgrammingBooks(
     if (hideUnavailable && book.unavailable) return false;
     if (httpsOnly && book.insecureTransport) return false;
     if (verifiedHostsOnly && book.trustTier !== 'verified') return false;
-    if (query) {
-      const haystack =
-        `${book.title} ${book.authors} ${book.category} ${book.subcategory ?? ''}`.toLowerCase();
-      if (!haystack.includes(query)) return false;
+    if (queryTokens.length > 0) {
+      const haystack = getBookSearchHaystack(book);
+      for (const token of queryTokens) {
+        if (!haystack.includes(token)) return false;
+      }
     }
     return true;
   });

@@ -19,7 +19,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
-import { type ReactElement, useDeferredValue, useMemo } from 'react';
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiArrowDown,
   FiArrowLeft,
@@ -46,6 +46,7 @@ import {
   type FreeBookSource,
   type FreeBooksPageResponse,
 } from '@/lib/books/free-programming-books';
+import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
 import { cn } from '@/lib/utils';
 
 export interface FreeBooksExplorerProps {
@@ -56,6 +57,7 @@ export interface FreeBooksExplorerProps {
 const FORMAT_FILTERS: readonly ('all' | FreeBookFormat)[] = ['all', 'PDF', 'HTML', 'EPUB'];
 const TOP_CATEGORY_CHIPS = 14;
 const CLIENT_STALE_TIME_MS = 5 * 60 * 1000;
+const SEARCH_DEBOUNCE_MS = 250;
 
 interface FreeBooksApiParams {
   readonly source: 'all' | FreeBookSource;
@@ -137,7 +139,55 @@ function SortIcon({
 export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): ReactElement {
   const queryClient = useQueryClient();
   const [state, setState] = useQueryStates(freeBooksSearchParsers, BOOKSHELF_URL_OPTIONS);
-  const deferredQuery = useDeferredValue(state.q);
+  const committedQuery = normaliseQuery(state.q, DEFAULT_QUERY_MAX_LENGTH);
+  const [draftQuery, setDraftQuery] = useState(committedQuery);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingSearch = useCallback((): void => {
+    if (searchTimerRef.current !== null) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
+  }, []);
+
+  // Keep the local input synced when URL state changes externally (Back/Forward, Reset).
+  useEffect(() => {
+    setDraftQuery(committedQuery);
+  }, [committedQuery]);
+
+  useEffect(() => cancelPendingSearch, [cancelPendingSearch]);
+
+  const commitSearchNow = useCallback(
+    (rawValue: string): void => {
+      cancelPendingSearch();
+      const sanitized = normaliseQuery(rawValue, DEFAULT_QUERY_MAX_LENGTH);
+      setDraftQuery(sanitized);
+      if (sanitized !== committedQuery) {
+        void setState({ q: sanitized, page: 1 });
+      }
+    },
+    [cancelPendingSearch, committedQuery, setState],
+  );
+
+  const handleSearchChange = useCallback(
+    (rawValue: string): void => {
+      const capped = rawValue.slice(0, DEFAULT_QUERY_MAX_LENGTH);
+      setDraftQuery(capped);
+      cancelPendingSearch();
+      const sanitized = normaliseQuery(capped, DEFAULT_QUERY_MAX_LENGTH);
+      if (sanitized === '') {
+        if (committedQuery !== '') {
+          void setState({ q: '', page: 1 });
+        }
+        return;
+      }
+      searchTimerRef.current = setTimeout(() => {
+        searchTimerRef.current = null;
+        void setState({ q: sanitized, page: 1 });
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [cancelPendingSearch, committedQuery, setState],
+  );
 
   const pageSize = normalizeFreeBooksPageSize(state.perPage);
   const hideArchived = !state.archived;
@@ -147,9 +197,9 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
   const apiParams: FreeBooksApiParams = useMemo(
     () => ({
       source: state.source,
-      category: state.category,
+      category: normaliseQuery(state.category, DEFAULT_QUERY_MAX_LENGTH) || 'all',
       format: state.format,
-      q: deferredQuery,
+      q: committedQuery,
       sort: state.sort,
       dir: state.dir,
       page: requestedPage,
@@ -164,7 +214,7 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
       state.source,
       state.category,
       state.format,
-      deferredQuery,
+      committedQuery,
       state.sort,
       state.dir,
       requestedPage,
@@ -256,6 +306,8 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
   };
 
   const resetFilters = (): void => {
+    cancelPendingSearch();
+    setDraftQuery('');
     void setState({
       q: '',
       source: 'all',
@@ -277,7 +329,8 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
     state.source !== 'all' ||
     state.category !== 'all' ||
     state.format !== 'all' ||
-    state.q.trim().length > 0 ||
+    draftQuery.trim().length > 0 ||
+    committedQuery.length > 0 ||
     state.archived ||
     state.unavailable ||
     state.hideWip ||
@@ -332,34 +385,42 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
         {/* Search + Source + Format Controls (all synced to URL via nuqs) */}
         <div className="space-y-4 rounded-tile border border-hairline bg-surface-1 p-4 sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative flex-1">
-              <FiSearch
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint"
-              />
-              <input
-                type="search"
-                value={state.q}
-                onChange={(event) => {
-                  void setState({ q: event.target.value, page: 1 });
+            <search className="flex-1">
+              <form
+                className="relative"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  commitSearchNow(draftQuery);
                 }}
-                placeholder="Search title, author, language, or subject (e.g. Rust, Algorithms, OSTEP)..."
-                aria-label="Search free programming books"
-                className="h-10 w-full rounded-lg border border-hairline bg-canvas pl-10 pr-9 text-body-sm text-foreground placeholder:text-faint focus-visible:border-brand-rim focus-visible:outline-2 focus-visible:outline-focus"
-              />
-              {state.q && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void setState({ q: '', page: 1 });
-                  }}
-                  aria-label="Clear search"
-                  className="absolute top-1/2 right-2.5 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-faint hover:bg-surface-2 hover:text-foreground"
-                >
-                  <FiX className="size-3.5" aria-hidden="true" />
-                </button>
-              )}
-            </div>
+              >
+                <FiSearch
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint"
+                />
+                <input
+                  type="search"
+                  value={draftQuery}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  maxLength={DEFAULT_QUERY_MAX_LENGTH}
+                  autoComplete="off"
+                  enterKeyHint="search"
+                  spellCheck={false}
+                  placeholder="Search title, author, language, or subject (e.g. Rust, Algorithms, OSTEP)..."
+                  aria-label="Search free programming books"
+                  className="h-10 w-full rounded-lg border border-hairline bg-canvas pl-10 pr-9 text-body-sm text-foreground placeholder:text-faint focus-visible:border-brand-rim focus-visible:outline-2 focus-visible:outline-focus"
+                />
+                {draftQuery && (
+                  <button
+                    type="button"
+                    onClick={() => commitSearchNow('')}
+                    aria-label="Clear search"
+                    className="absolute top-1/2 right-2.5 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-faint hover:bg-surface-2 hover:text-foreground"
+                  >
+                    <FiX className="size-3.5" aria-hidden="true" />
+                  </button>
+                )}
+              </form>
+            </search>
 
             <fieldset
               aria-label="Book index source"

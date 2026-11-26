@@ -350,6 +350,9 @@ const PaletteDialog = (): JSX.Element => {
       <KBarAnimator className="w-full max-w-[40rem] overflow-hidden rounded-tile border border-hairline bg-surface-2 text-foreground shadow-raised focus-within:border-hairline-strong">
         <KBarSearch
           aria-label={PALETTE_SEARCH_LABEL}
+          maxLength={100}
+          autoComplete="off"
+          spellCheck={false}
           className="w-full border-b border-hairline bg-transparent px-5 py-4 text-body text-foreground outline-none placeholder:text-faint"
           placeholder="Type a command or search..."
         />

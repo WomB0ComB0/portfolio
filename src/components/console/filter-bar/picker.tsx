@@ -31,7 +31,7 @@
 import { type ReactElement, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
-import type { FacetOption } from '@/lib/filters';
+import { type FacetOption, normaliseQuery } from '@/lib/filters';
 import { useFilterBar } from './context';
 import {
   BUTTON_COUNT_CLASS,
@@ -155,7 +155,7 @@ export function FilterBarPicker({
   const shown = visibleOptions({
     options: sorted,
     chosen,
-    query,
+    query: normaliseQuery(query, model.maxLength),
     limited: hydrated && !showAll,
     limit,
   });
@@ -192,7 +192,8 @@ export function FilterBarPicker({
                 <input
                   type="search"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => setQuery(event.target.value.slice(0, model.maxLength))}
+                  maxLength={model.maxLength}
                   placeholder={`Filter ${word}`}
                   autoComplete="off"
                   spellCheck={false}

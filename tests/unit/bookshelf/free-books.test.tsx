@@ -171,6 +171,13 @@ describe('EbookFoundation free-programming-books parser & filters', () => {
     expect(filterFreeProgrammingBooks(catalog.books, { q: 'wengrow' }).map((b) => b.title)).toEqual(
       ['A Common-Sense Guide to Data Structures & Algorithms'],
     );
+
+    // Multi-token AND matching + XSS/bidi sanitization
+    expect(
+      filterFreeProgrammingBooks(catalog.books, {
+        q: '  <script></script>rust\u202E   async  ',
+      }).map((b) => b.title),
+    ).toEqual(['Asynchronous Programming in Rust']);
   });
 
   it('serves paginated filtered results from GET /api/v1/books/free', async () => {
@@ -350,6 +357,70 @@ describe('FreeBooksExplorer UI', () => {
         expect.stringContaining('/api/v1/books/free?'),
         expect.anything(),
       );
+    } finally {
+      fetchSpy.mockRestore();
+      queryClient.clear();
+    }
+  });
+
+  it('debounces rapid typing into a single sanitized incremental API fetch', async () => {
+    const catalog = buildFreeProgrammingBooksCatalog(
+      parseFreeProgrammingBooksMarkdown(SAMPLE_LANGS_MD, 'langs'),
+      parseFreeProgrammingBooksMarkdown(SAMPLE_SUBJECTS_MD, 'subjects'),
+    );
+    const initialPage = buildFreeBooksPageResponse(catalog, {
+      hideArchived: true,
+      hideUnavailable: true,
+      limit: 50,
+      offset: 0,
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const rawUrl =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const parsed = new URL(rawUrl, 'https://mikeodnis.dev');
+      const sp = parsed.searchParams;
+      const payload = buildFreeBooksPageResponse(catalog, {
+        q: sp.get('q') ?? '',
+        hideArchived: sp.get('hideArchived') === 'true',
+        hideUnavailable: sp.get('hideUnavailable') === 'true',
+        limit: Number.parseInt(sp.get('limit') ?? '50', 10),
+        offset: Number.parseInt(sp.get('offset') ?? '0', 10),
+      });
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <NuqsTestingAdapter hasMemory>
+            <FreeBooksExplorer initialPage={initialPage} />
+          </NuqsTestingAdapter>
+        </QueryClientProvider>,
+      );
+
+      const input = screen.getByRole('searchbox', { name: /Search free programming books/i });
+      fireEvent.change(input, { target: { value: 'B' } });
+      fireEvent.change(input, { target: { value: 'Ba' } });
+      fireEvent.change(input, { target: { value: 'Bas' } });
+      fireEvent.change(input, { target: { value: '<img src=x onerror=alert(1)>Basarat\u200B' } });
+
+      // Debounce prevents firing before 250ms
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // After debounce settles, exactly one sanitized request fires
+      await vi.waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      });
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('q=Basarat');
+      expect(String(fetchSpy.mock.calls[0]?.[0])).not.toContain('onerror');
     } finally {
       fetchSpy.mockRestore();
       queryClient.clear();

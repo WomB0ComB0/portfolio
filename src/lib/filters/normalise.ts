@@ -16,15 +16,23 @@
 
 /**
  * @file The one way every filter page reads a URL value: the first of repeated values, search
- * text single-spaced, trimmed and capped, and lookups that never reach the prototype chain (CMS
- * strings and URL values are data, not keys of Object.prototype). Pure and server-safe.
+ * text stripped of invisible/bidi controls and HTML/script injection payloads, single-spaced,
+ * trimmed and capped, and lookups that never reach the prototype chain (CMS strings and URL
+ * values are data, not keys of Object.prototype). Pure, isomorphic, and DOMPurify-free.
  */
+
+import { stripInvisibleCharacters } from '@resq-systems/security/unicode';
+import { validateUserInput } from '@/utils/security/user-input';
 
 /** A search param as Next or a loader passes it. */
 export type ParamValue = string | readonly string[] | null | undefined;
 
 /** The longest search a filter page reads, unless its schema says otherwise. */
 export const DEFAULT_QUERY_MAX_LENGTH = 100;
+
+/** Bound applied before regex/Unicode passes so oversized ?q values stay O(maxLength). */
+const QUERY_PREBOUND_FACTOR = 4;
+const MIN_QUERY_PREBOUND = 256;
 
 /** The first value of a param, or ''. */
 export const firstOf = (value: ParamValue): string =>
@@ -35,11 +43,17 @@ export const allOf = (value: ParamValue): readonly string[] =>
   typeof value === 'string' ? [value] : (value ?? []);
 
 /**
- * Search text as a page reads it: the first value, single-spaced, trimmed, capped, and trimmed
- * again so a cap that lands just after a space leaves none (normalising twice changes nothing).
+ * Search text as a page reads it: the first value, stripped of Trojan Source bidi/zero-width
+ * controls (`@resq-systems/security/unicode`), HTML tags, and nested script URL schemes
+ * (`javascript:`, `data:`, `vbscript:`), single-spaced, trimmed, capped, and trimmed again so
+ * normalising twice changes nothing.
  */
 export function normaliseQuery(value: ParamValue, maxLength = DEFAULT_QUERY_MAX_LENGTH): string {
-  return firstOf(value).replaceAll(/\s+/g, ' ').trim().slice(0, maxLength).trimEnd();
+  const raw = firstOf(value);
+  if (!raw) return '';
+  const bounded = raw.slice(0, Math.max(maxLength * QUERY_PREBOUND_FACTOR, MIN_QUERY_PREBOUND));
+  const visible = stripInvisibleCharacters(bounded);
+  return validateUserInput(visible, maxLength, false).trimEnd();
 }
 
 /** A record's own value for `key`, never one inherited from Object.prototype. */

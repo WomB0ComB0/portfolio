@@ -24,6 +24,7 @@ import 'server-only';
  * published books yet or is unavailable, so `/bookshelf` always renders rich content immediately.
  */
 
+import { cache } from 'react';
 import { urlFor } from '@/lib/sanity/client';
 import {
   loadBooks,
@@ -197,10 +198,11 @@ function mapSanityShelves(
 }
 
 /**
- * Loads the dynamic Bookshelf catalog from Sanity, falling back to the built-in 14-book / 4-shelf
- * engineering catalog when Sanity has no published book documents yet.
+ * Loads the dynamic Bookshelf catalog from Sanity, falling back to the built-in 44-book / 8-shelf
+ * catalog when Sanity has no published book documents yet. React-cache()d per request so metadata
+ * and page renders share a single parallel load and mapping pass.
  */
-export async function loadBookshelfCatalog(): Promise<BookshelfCatalog> {
+export const loadBookshelfCatalog = cache(async (): Promise<BookshelfCatalog> => {
   try {
     const [rawBooks, rawShelves] = await Promise.all([loadBooks(), loadBookshelves()]);
     if (rawBooks.length > 0) {
@@ -220,7 +222,7 @@ export async function loadBookshelfCatalog(): Promise<BookshelfCatalog> {
     shelves: DEFAULT_SHELVES,
     totalTopics: BOOKS.reduce((sum, book) => sum + book.topics.length, 0),
   };
-}
+});
 
 export async function loadCatalogBookBySlug(
   slug: string,
