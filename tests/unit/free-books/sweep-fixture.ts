@@ -23,7 +23,6 @@
  * test file.
  */
 
-import { vi } from 'vitest';
 import { buildFreeProgrammingBooksCatalog } from '@/lib/free-books/catalog';
 import {
   loadLiveSecurityManifestFromRedis,
@@ -135,7 +134,6 @@ export function stubSweepDependencies(
 ): SweepDependencies {
   return {
     readManifest: () => JSON.stringify(EMPTY_MANIFEST),
-    writeManifest: vi.fn(),
     loadLiveManifest: async () => null,
     loadDriftState: async () => null,
     publish: async () => ({ runtimePublished: true, fingerprintsPublished: true }),

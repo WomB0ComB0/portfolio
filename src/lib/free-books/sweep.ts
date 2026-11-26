@@ -73,7 +73,6 @@ const MAX_DELTA_DETONATIONS_PER_RUN = 25;
 export interface SweepDependencies {
   /** The committed manifest's text; a throw or bad JSON starts the sweep from an empty manifest. */
   readonly readManifest: () => string;
-  readonly writeManifest: (text: string) => void;
   readonly loadLiveManifest: typeof loadLiveSecurityManifestFromRedis;
   readonly loadDriftState: typeof loadVerifierDriftStateFromRedis;
   readonly publish: typeof publishSecurityManifestToRedis;
@@ -96,13 +95,10 @@ export interface SweepDependencies {
 export interface SweepOptions {
   readonly dryRun: boolean;
   readonly dnsblOnly: boolean;
-  readonly shouldWrite: boolean;
   readonly shouldPublishRedis: boolean;
   readonly detonateDeltas: boolean;
   /** Probe only the first N links (`--limit=N`); 0 probes them all. */
   readonly maxUrls: number;
-  /** Only printed, after a write. */
-  readonly manifestPath: string;
   readonly urlhausAuthKey?: string;
   readonly safeBrowsingApiKey?: string;
   readonly cloudflareAccountId?: string;
@@ -434,12 +430,12 @@ export async function detonateDeltas(
   }
 }
 
-/** A copy of `record` with its keys in A to Z order, so the committed JSON diffs cleanly. */
+/** A copy of `record` with its keys in A to Z order, so the published JSON diffs cleanly. */
 function sortedRecord<T>(record: Readonly<Record<string, T>>): Record<string, T> {
   return Object.fromEntries(Object.entries(record).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-/** The manifest this run writes and publishes, every record sorted by key. */
+/** The manifest this run publishes, every record sorted by key. */
 export function buildManifest({
   generatedAt,
   checkedHosts,
@@ -495,14 +491,15 @@ export function summarize(
 }
 
 /**
- * One sweep, phase by phase. Publishes to Redis when asked (a failed publish only shows in the
- * summary), prints the summary, then writes the committed manifest when asked.
+ * One sweep, phase by phase. Publishes to Redis when asked, then prints the summary and returns
+ * it, so the CLI can fail the run when a requested publish did not finish. It never writes the
+ * committed manifest.
  */
 export async function runSweep(
   options: SweepOptions,
   deps: SweepDependencies,
   log: Log,
-): Promise<void> {
+): Promise<SweepSummary> {
   const now = deps.now ?? (() => new Date());
   const existing = await hydrateBaseline(deps);
   const catalog = await deps.loadCatalog();
@@ -535,16 +532,7 @@ export async function runSweep(
     records,
   });
   const redisPublishResult = options.shouldPublishRedis ? await deps.publish(manifest) : null;
-  log(
-    JSON.stringify(
-      summarize(manifest, threatFeedHosts.size, redisPublishResult, options.dryRun),
-      null,
-      2,
-    ),
-  );
-
-  if (options.shouldWrite) {
-    deps.writeManifest(`${JSON.stringify(manifest, null, 2)}\n`);
-    log(`Wrote updated security manifest to ${options.manifestPath}`);
-  }
+  const summary = summarize(manifest, threatFeedHosts.size, redisPublishResult, options.dryRun);
+  log(JSON.stringify(summary, null, 2));
+  return summary;
 }
