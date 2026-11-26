@@ -34,7 +34,7 @@ import {
  */
 const siteIcons = (): NonNullable<Metadata['icons']> => ({
   icon: [
-    { url: '/favicon.ico', sizes: '16x16 32x32 48x48' },
+    { url: '/favicon.ico', sizes: 'any' },
     { url: '/pwa/icon.svg', type: 'image/svg+xml' },
   ],
   apple: [{ url: '/pwa/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
