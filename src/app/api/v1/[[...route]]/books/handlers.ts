@@ -23,7 +23,7 @@
 import { sanitizeUrl } from '@resq-systems/security/sanitize';
 import { normaliseQuery } from '@/lib/filters/normalise';
 
-export interface BookLookupItem {
+interface BookLookupItem {
   readonly title: string;
   readonly slug: string;
   readonly authors: string;

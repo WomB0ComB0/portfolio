@@ -44,17 +44,6 @@ import {
 import type { FreeBooksSecurityManifest } from './free-books-verifier';
 import { screenExternalBookUrl } from './url-security';
 
-export {
-  EBOOK_FOUNDATION_REPO_URL,
-  type FreeBookCategorySummary,
-  type FreeBookEntry,
-  type FreeBookFormat,
-  type FreeBookSource,
-  type FreeBooksFilterOptions,
-  type FreeBooksPageResponse,
-  type FreeProgrammingBooksCatalog,
-};
-
 const RAW_SOURCES: Readonly<Record<FreeBookSource, string>> = {
   langs:
     'https://raw.githubusercontent.com/EbookFoundation/free-programming-books/main/books/free-programming-books-langs.md',
@@ -384,7 +373,7 @@ export function filterFreeProgrammingBooks(
 }
 
 /** Deterministic sort shared by SSR initial page, `/api/v1/books/free`, and tests. */
-export function sortFreeProgrammingBooks(
+function sortFreeProgrammingBooks(
   books: readonly FreeBookEntry[],
   sort: FreeBooksSortField = 'title',
   dir: FreeBooksSortDir = 'asc',

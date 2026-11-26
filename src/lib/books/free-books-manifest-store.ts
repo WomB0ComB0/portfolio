@@ -30,7 +30,7 @@ import type {
 } from './free-books-verifier';
 
 export const REDIS_RUNTIME_MANIFEST_KEY = 'bookshelf:free:security-manifest:v1';
-export const REDIS_FINGERPRINTS_KEY = 'bookshelf:free:fingerprints:v1';
+const REDIS_FINGERPRINTS_KEY = 'bookshelf:free:fingerprints:v1';
 
 /** 30-day TTL (refreshed weekly by `free-books-verify.yml`, so live patches never vanish early). */
 const REDIS_MANIFEST_TTL_SECONDS = 30 * 24 * 60 * 60;

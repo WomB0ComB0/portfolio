@@ -16,7 +16,7 @@
 
 import { t } from 'elysia';
 
-export const bookLookupItemSchema = t.Object({
+const bookLookupItemSchema = t.Object({
   title: t.String(),
   slug: t.String(),
   authors: t.String(),
@@ -29,7 +29,7 @@ export const bookLookupItemSchema = t.Object({
   source: t.Union([t.Literal('openlibrary'), t.Literal('googlebooks')]),
 });
 
-export const freeBookFormatSchema = t.Union([
+const freeBookFormatSchema = t.Union([
   t.Literal('PDF'),
   t.Literal('HTML'),
   t.Literal('EPUB'),
@@ -38,7 +38,7 @@ export const freeBookFormatSchema = t.Union([
   t.Literal('AsciiDoc'),
 ]);
 
-export const freeBookEntrySchema = t.Object({
+const freeBookEntrySchema = t.Object({
   id: t.String(),
   title: t.String(),
   url: t.String(),
@@ -57,7 +57,7 @@ export const freeBookEntrySchema = t.Object({
   unavailable: t.Boolean(),
 });
 
-export const freeBookCategorySchema = t.Object({
+const freeBookCategorySchema = t.Object({
   name: t.String(),
   source: t.Union([t.Literal('langs'), t.Literal('subjects')]),
   count: t.Number(),

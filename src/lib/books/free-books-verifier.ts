@@ -25,7 +25,6 @@
  */
 
 import dns from 'node:dns/promises';
-import securityManifest from '@/data/free-books-security.json';
 
 export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -444,9 +443,4 @@ export async function submitDeltaDetonation(
   }
 
   return null;
-}
-
-/** Returns the committed, auditable free-books security & reachability manifest. */
-export function getFreeBooksSecurityManifest(): FreeBooksSecurityManifest {
-  return securityManifest as FreeBooksSecurityManifest;
 }

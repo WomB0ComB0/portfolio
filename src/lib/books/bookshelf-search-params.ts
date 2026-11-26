@@ -20,13 +20,7 @@
  * serializers) and Client Components (`useQueryStates`) stay in lockstep with zero duplicate logic.
  */
 
-import {
-  createSerializer,
-  parseAsBoolean,
-  parseAsInteger,
-  parseAsString,
-  parseAsStringLiteral,
-} from 'nuqs/server';
+import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral } from 'nuqs/server';
 import { BOOK_STATUSES } from '@/sanity/bookshelf-rules';
 
 export const BOOKSHELF_STATUS_VALUES = ['all', ...BOOK_STATUSES] as const;
@@ -91,9 +85,6 @@ export const freeBooksSearchParsers = {
   https: parseAsBoolean.withDefault(false),
   verified: parseAsBoolean.withDefault(false),
 };
-
-export const serializeBookshelfSearch = createSerializer(bookshelfSearchParsers);
-export const serializeFreeBooksSearch = createSerializer(freeBooksSearchParsers);
 
 /** Clamps arbitrary `?perPage=` query input to one of the supported table page sizes. */
 export function normalizeFreeBooksPageSize(raw: number): (typeof FREE_BOOKS_PAGE_SIZES)[number] {
