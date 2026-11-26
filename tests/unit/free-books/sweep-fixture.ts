@@ -15,17 +15,26 @@
  */
 
 /**
- * @file Stubs for the verify sweep and CLI tests: SweepDependencies whose every client finds
- * nothing (no Redis state, no feeds, no blocks, every link reachable as a plain HTML page), a
- * three-link catalog and a fixed clock. A test overrides only the clients it is about, with its
- * own vi.fn when it asserts on the calls. Not a test file.
+ * @file Stubs for the verify sweep, CLI and manifest-store tests: SweepDependencies whose every
+ * client finds nothing (no Redis state, no feeds, no blocks, every link reachable as a plain HTML
+ * page), a three-link catalog, a fixed clock, and an in-memory Upstash REST API behind the real
+ * manifest-store publish and load functions, so runs can follow each other week by week. A test
+ * overrides only the clients it is about, with its own vi.fn when it asserts on the calls. Not a
+ * test file.
  */
 
 import { vi } from 'vitest';
 import { buildFreeProgrammingBooksCatalog } from '@/lib/free-books/catalog';
+import {
+  loadLiveSecurityManifestFromRedis,
+  loadVerifierDriftStateFromRedis,
+  publishSecurityManifestToRedis,
+  type RedisManifestCredentials,
+} from '@/lib/free-books/manifest-store';
 import { parseFreeProgrammingBooksMarkdown } from '@/lib/free-books/parse';
 import type { SweepDependencies } from '@/lib/free-books/sweep';
 import type {
+  FetchLike,
   FreeBooksSecurityManifest,
   FreeProgrammingBooksCatalog,
 } from '@/lib/free-books/types';
@@ -75,6 +84,50 @@ export const pageResponse = (
 /** A probe observation of `kind`. */
 export const observed = (kind: LinkObservation['kind']): LinkObservation =>
   kind === 'reachable' ? { kind, httpStatus: 200 } : { kind };
+
+/** The URL a fetch call asked for, whatever form `input` took. */
+const requestedUrl = (input: string | URL | Request): string =>
+  typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+/**
+ * The Upstash REST API in memory (SET over POST, GET by key), behind the real manifest-store
+ * functions. `clients` drop into stubSweepDependencies; `failReads` makes every GET throw.
+ */
+export function inMemoryRedis() {
+  const store = new Map<string, string>();
+  const credentials: RedisManifestCredentials = {
+    url: 'https://redis.example.upstash.io',
+    token: 'test-token',
+  };
+  let readFailure: Error | null = null;
+  const fetcher: FetchLike = async (input, init) => {
+    if (init?.method === 'POST') {
+      const [, key, value] = JSON.parse(String(init.body)) as [string, string, string];
+      store.set(key, value);
+      return new Response(JSON.stringify({ result: 'OK' }), { status: 200 });
+    }
+    if (readFailure) throw readFailure;
+    const key = decodeURIComponent(requestedUrl(input).split('/get/')[1] ?? '');
+    return new Response(JSON.stringify({ result: store.get(key) ?? null }), { status: 200 });
+  };
+  const clients: Pick<SweepDependencies, 'publish' | 'loadLiveManifest' | 'loadDriftState'> = {
+    publish: (manifest) => publishSecurityManifestToRedis(manifest, { credentials, fetcher }),
+    loadLiveManifest: (options) =>
+      loadLiveSecurityManifestFromRedis({ ...options, credentials, fetcher }),
+    loadDriftState: (options) =>
+      loadVerifierDriftStateFromRedis({ ...options, credentials, fetcher }),
+  };
+  return {
+    store,
+    credentials,
+    fetcher,
+    clients,
+    /** Makes every GET throw `error` until called again with null. */
+    failReads(error: Error | null): void {
+      readFailure = error;
+    },
+  };
+}
 
 /** Clients that find nothing, with `overrides` in their place. */
 export function stubSweepDependencies(
