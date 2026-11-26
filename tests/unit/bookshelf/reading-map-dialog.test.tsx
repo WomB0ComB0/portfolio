@@ -15,14 +15,16 @@
  */
 
 /**
- * @file The reading map (reading-map-dialog.tsx), on the fixture catalog of
- * bookshelf-fixtures.ts. From the stage it lists every shelf and focuses or opens an entry's book
- * on the stage, found by its slug. On a book's page it maps the whole catalog from slim entries:
- * the counts, each shelf's topic range and its books' stage links, with every shelf's section
- * skipping rendering off screen.
+ * @file The reading map (reading-map-dialog.tsx, which loads reading-map-dialog-live.tsx on
+ * intent), on the fixture catalog of bookshelf-fixtures.ts. From the stage it lists every shelf
+ * and focuses or opens an entry's book on the stage, found by its slug. On a book's page it maps
+ * the whole catalog from slim entries: the counts, each shelf's topic range and its books' stage
+ * links, with every shelf's section skipping rendering off screen. It is the site's modal dialog:
+ * focus is trapped inside, the page behind is hidden and holds still, Escape closes only the map
+ * (never the in-page detail under it), and focus goes back to the button that opened it.
  */
 
-import { fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The catalog builder draws each cover with the real image URL builder; the client module itself
@@ -40,6 +42,9 @@ vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
 import { BookDetailView } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/book-detail-view';
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
+import { toBookNeighbor } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/book-neighbors';
+import { DEFAULT_BOOK_INDEX } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import { toReadingMapEntry } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
 import {
   BOOK_COUNT,
   BOOKS,
@@ -50,6 +55,7 @@ import {
   FEATURED_TITLE,
   liveText,
   liveTextOf,
+  oneBookCatalog,
   renderWithNuqs as render,
   SHELVES,
   standaloneProps,
@@ -62,12 +68,31 @@ afterEach(() => {
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
 });
 
+/** The map, once its lazily loaded code has rendered it. */
+const findMap = () => screen.findByRole('dialog', { name: /Reading map/i });
+
+/** Focuses the 'Reading map' button, as a keyboard or a click would, and opens the map. */
+async function openMap(): Promise<{ trigger: HTMLElement; dialog: HTMLElement }> {
+  const trigger = screen.getByRole('button', { name: 'Reading map' });
+  act(() => trigger.focus());
+  fireEvent.click(trigger);
+  return { trigger, dialog: await findMap() };
+}
+
+/** Presses Escape where focus is, then lets the dialog hand focus back (it does so after a tick). */
+async function pressEscape(): Promise<void> {
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
 describe('ReadingMapDialog', () => {
-  it('opens the reading map dialog with every shelf and closes on close button', () => {
+  it('opens the reading map dialog with every shelf and closes on close button', async () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
-    const dialog = screen.getByRole('dialog', { name: /Reading map/i });
+    const dialog = await findMap();
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText(FEATURED_TITLE)).toBeInTheDocument();
     for (const shelf of SHELVES) {
@@ -80,31 +105,31 @@ describe('ReadingMapDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it("focuses and opens a map entry's book on the stage, found by its slug", () => {
+  it("focuses and opens a map entry's book on the stage, found by its slug", async () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
     const at = BOOK_COUNT - 2;
     const target = bookAt(at);
     /** The map's `name` button on the entry of `target` (the entries are in stage order). */
-    const entryButton = (name: string): HTMLElement => {
+    const entryButton = async (name: string): Promise<HTMLElement> => {
       fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
-      const dialog = screen.getByRole('dialog', { name: /Reading map/i });
+      const dialog = await findMap();
       const button = within(dialog).getAllByRole('button', { name })[at];
       if (!button) throw new Error(`no '${name}' button for book ${at}`);
       return button;
     };
 
-    fireEvent.click(entryButton('Focus on shelf'));
+    fireEvent.click(await entryButton('Focus on shelf'));
     expect(liveText()).toBe(liveTextOf(target));
 
-    fireEvent.click(entryButton('Open stage'));
+    fireEvent.click(await entryButton('Open stage'));
     expect(screen.getByRole('heading', { level: 1, name: target.title })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
-  it('maps the whole catalog from slim entries: the counts, topic ranges and stage links', () => {
+  it('maps the whole catalog from slim entries: the counts, topic ranges and stage links', async () => {
     render(<BookDetailView {...standaloneProps(FEATURED)} />);
     fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
-    const dialog = screen.getByRole('dialog', { name: /Reading map/i });
+    const dialog = await findMap();
 
     expect(
       within(dialog).getByText(
@@ -136,5 +161,77 @@ describe('ReadingMapDialog', () => {
     expect(openStage.map((link) => link.getAttribute('href'))).toEqual(
       BOOKS.map((book) => `/bookshelf/${book.slug}`),
     );
+  });
+});
+
+describe('ReadingMapDialog counts', () => {
+  it('says each count in the singular for one: one book, shelf and numbered topic', async () => {
+    const { books, shelves } = oneBookCatalog();
+    const [only] = books;
+    render(
+      <BookDetailView
+        book={only}
+        prev={toBookNeighbor(only)}
+        next={toBookNeighbor(only)}
+        mapBooks={books.map(toReadingMapEntry)}
+        shelves={shelves}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reading map' }));
+    const dialog = await findMap();
+
+    expect(
+      within(dialog).getByText('1 book across 1 shelf, covering 1 numbered topic.'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('1 topic')).toBeInTheDocument();
+  });
+});
+
+describe('ReadingMapDialog as a modal dialog', () => {
+  it('gives focus back to the Reading map button when Escape closes it', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const { trigger } = await openMap();
+
+    await pressEscape();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('keeps focus inside while it is open', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const { trigger, dialog } = await openMap();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    act(() => trigger.focus());
+
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('hides the page behind it from assistive technology and locks its scroll', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const stage = screen.getByRole('region', { name: /Bookshelf/i });
+
+    const { dialog } = await openMap();
+
+    expect(stage.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(dialog.closest('[aria-hidden="true"]')).toBeNull();
+    expect(document.body).toHaveAttribute('data-scroll-locked');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+  });
+
+  it("closes only itself on Escape over the in-page detail, leaving the book's detail open", async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const book = bookAt(DEFAULT_BOOK_INDEX);
+    fireEvent.click(screen.getByRole('button', { name: /Open notes/ }));
+    expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
+
+    const { trigger } = await openMap();
+    await pressEscape();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
   });
 });

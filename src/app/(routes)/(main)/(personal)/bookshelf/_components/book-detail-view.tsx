@@ -25,7 +25,7 @@
  */
 
 import Link from 'next/link';
-import { type CSSProperties, type ReactElement, useMemo, useState } from 'react';
+import { type CSSProperties, type ReactElement, useMemo, useRef, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
@@ -38,7 +38,7 @@ import { BookCoverFrame } from './book-cover-frame';
 import styles from './book-detail-view.module.css';
 import { BookStatusBadge } from './book-status-badge';
 import { headerActionClass } from './bookshelf-classes';
-import { ReadingMapDialog } from './reading-map-dialog';
+import { preloadReadingMap, ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
   readonly book: BookItem;
@@ -75,6 +75,7 @@ export function BookDetailView({
   entering = false,
 }: BookDetailViewProps): ReactElement {
   const [mapOpen, setMapOpen] = useState(false);
+  const mapButtonRef = useRef<HTMLButtonElement>(null);
   const hasNeighbors = prev.slug !== book.slug;
 
   const topicRows = Math.max(1, Math.ceil(book.topics.length / 2));
@@ -130,8 +131,11 @@ export function BookDetailView({
         <div className="flex flex-wrap items-center gap-2">
           {backAction}
           <button
+            ref={mapButtonRef}
             type="button"
             onClick={() => setMapOpen(true)}
+            onPointerEnter={preloadReadingMap}
+            onFocus={preloadReadingMap}
             className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
@@ -313,6 +317,7 @@ export function BookDetailView({
         books={mapBooks}
         shelves={shelves}
         onClose={() => setMapOpen(false)}
+        returnFocus={mapButtonRef}
         onOpenBook={onNavigateBook && ((entry) => onNavigateBook(entry.slug))}
       />
     </PageShell>

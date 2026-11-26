@@ -200,7 +200,9 @@ export function useBookshelfNavigation({
   // Keyboard navigation.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (mapOpen) return;
+      // A key something on top already handled, such as Escape closing the reading map (opened
+      // from the stage or from the detail), is not the stage's.
+      if (event.defaultPrevented || mapOpen) return;
       if (detailOpenRef.current) {
         if (event.key === 'Escape') {
           event.preventDefault();

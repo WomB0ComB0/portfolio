@@ -28,11 +28,15 @@
  * - Unknown book and shelf slugs answer 404.
  * - The public books JSON names each book's shelf and cover, and none of the removed fields
  *   (`coverUrl`, `spine`).
+ * - The reading map, on /bookshelf and on a book's page, is a modal dialog: opened from the
+ *   keyboard, focus stays inside it, the page behind is hidden and holds still, and Escape or a
+ *   click outside closes it with focus back on its button. Over a book's in-page detail, Escape
+ *   closes only the map.
  *
  * The browser aborts every request that is not GET or HEAD, and service workers are blocked.
  */
 
-import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
+import { type APIRequestContext, expect, type Locator, type Page, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
 import { EMPTY_TEXT, LIVE, MAIN, openBookshelf, publishedBooks } from '../fixtures/bookshelf';
@@ -66,6 +70,61 @@ async function bookOnStage(
   const slug = (await publishedBooks(request)).find((book) => book.title === title)?.slug?.current;
   expect(slug, `the books JSON gives the slug of "${title}"`).toEqual(expect.any(String));
   return { slug: slug ?? '', title };
+}
+
+/** The 'Reading map' button, found even while the open map hides the page from assistive tech. */
+const mapButton = (page: Page): Locator =>
+  page.locator(MAIN).getByRole('button', { name: 'Reading map', exact: true, includeHidden: true });
+
+/** Whether focus is inside `locator`'s element. */
+const holdsFocus = (locator: Locator): Promise<boolean> =>
+  locator.evaluate((element) => element.contains(document.activeElement));
+
+/**
+ * Focuses the 'Reading map' button as the keyboard would and presses Enter: the map appears once
+ * its lazily loaded code arrives.
+ */
+async function openReadingMap(page: Page): Promise<{ trigger: Locator; dialog: Locator }> {
+  const trigger = mapButton(page);
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Reading map' });
+  await expect(dialog).toBeVisible();
+  return { trigger, dialog };
+}
+
+/**
+ * The map is the site's modal dialog: focus starts inside and Tab and Shift+Tab keep it there,
+ * the page behind is hidden from assistive technology and its scroll is locked, Escape closes it
+ * and focus goes back to its button, and so does a click outside it.
+ */
+async function expectModalReadingMap(page: Page): Promise<void> {
+  const { trigger, dialog } = await openReadingMap(page);
+  await expect(dialog).toHaveAttribute('aria-modal', 'true');
+  expect(await holdsFocus(dialog), 'focus starts inside the map').toBe(true);
+  for (const key of ['Shift+Tab', 'Tab', 'Tab', 'Tab']) {
+    await page.keyboard.press(key);
+    expect(await holdsFocus(dialog), `focus after ${key}`).toBe(true);
+  }
+  expect(
+    await trigger.evaluate((button) => Boolean(button.closest('[aria-hidden="true"]'))),
+    'the page behind is hidden from assistive technology',
+  ).toBe(true);
+  await expect(page.locator('body')).toHaveAttribute('data-scroll-locked', /.*/);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => holdsFocus(trigger), 'focus back on Reading map').toBe(true);
+  await expect(page.locator('body')).not.toHaveAttribute('data-scroll-locked', /.*/);
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  // Radix arms its click-outside listener on a zero-delay timer after the dialog opens, and a busy
+  // page can take the click first: wait out one such timer, queued after Radix's.
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  // The top-left corner is outside the panel, whose frame keeps at least 1rem from every edge.
+  await page.mouse.click(4, 4);
+  await expect(dialog).toBeHidden();
 }
 
 test.describe('the bookshelf against the live data', () => {
@@ -119,6 +178,47 @@ test.describe('the bookshelf against the live data', () => {
       expect(response.status()).toBe(404);
     });
   }
+
+  test('the reading map on /bookshelf is a modal dialog that gives focus back', async ({
+    page,
+  }) => {
+    const { isEmpty } = await openBookshelf(page);
+    test.skip(isEmpty, 'no book is in the rendered catalog');
+
+    await expectModalReadingMap(page);
+  });
+
+  test("the reading map on the book on stage's page is a modal dialog too", async ({
+    page,
+    request,
+  }) => {
+    const book = await bookOnStage(page, request);
+    test.skip(book === null, 'no book is in the rendered catalog');
+    if (!book) return;
+    await page.goto(urlOf(`/bookshelf/${encodeURIComponent(book.slug)}`));
+    await expect(page.locator(MAIN).getByRole('heading', { level: 1 })).toContainText(book.title);
+
+    await expectModalReadingMap(page);
+  });
+
+  test("Escape on the reading map over a book's in-page detail closes only the map", async ({
+    page,
+  }) => {
+    const { isEmpty } = await openBookshelf(page);
+    test.skip(isEmpty, 'no book is in the rendered catalog');
+    const main = page.locator(MAIN);
+    await expect(page.locator(LIVE)).toHaveText(ON_STAGE_TEXT);
+    const title = ON_STAGE_TEXT.exec(((await page.locator(LIVE).textContent()) ?? '').trim())?.[1];
+    await main.getByRole('button', { name: /^Open notes/ }).click();
+    const heading = main.getByRole('heading', { level: 1 });
+    await expect(heading).toHaveText(title?.trim() ?? '');
+
+    const { dialog } = await openReadingMap(page);
+    await page.keyboard.press('Escape');
+
+    await expect(dialog).toBeHidden();
+    await expect(heading).toHaveText(title?.trim() ?? '');
+  });
 
   test('the public books JSON names a shelf and a cover, and no removed field', async ({
     request,

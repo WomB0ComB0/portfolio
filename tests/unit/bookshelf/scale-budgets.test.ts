@@ -39,7 +39,7 @@ import { makeScaledBookshelfDocs } from '@tests/fixtures/sanity-docs';
 import { stubMediaQuery } from '@tests/utils/match-media';
 import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { createElement, Profiler } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sanity = vi.hoisted(() => ({ sanityFetchWithToken: vi.fn() }));
 
@@ -234,6 +234,13 @@ function focusedStage(): HTMLElement {
   stage.focus();
   return stage;
 }
+
+// The reading map's code loads on intent or on its first open (reading-map-dialog.tsx). Fake
+// timers would hold that first import back, so it is loaded once up front, as a visitor's pointer
+// over the button would.
+beforeAll(async () => {
+  await import('@/app/(routes)/(main)/(personal)/bookshelf/_components/reading-map-dialog-live');
+});
 
 afterEach(() => {
   vi.useRealTimers();

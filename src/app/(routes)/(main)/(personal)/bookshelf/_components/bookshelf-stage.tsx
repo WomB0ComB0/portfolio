@@ -84,7 +84,7 @@ import { BookshelfControlsBar } from './bookshelf-controls-bar';
 import { BookshelfFiltersBar } from './bookshelf-filters-bar';
 import styles from './bookshelf-stage.module.css';
 import { FreeLibraryDirectoryCard } from './free-library-card';
-import { ReadingMapDialog } from './reading-map-dialog';
+import { preloadReadingMap, ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
 import { useInPageDetail } from './use-in-page-detail';
@@ -192,6 +192,7 @@ export function BookshelfStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const mapButtonRef = useRef<HTMLButtonElement>(null);
   const slotElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const activeBook = bookAt(pos);
@@ -442,8 +443,11 @@ export function BookshelfStage({
             Free library
           </Link>
           <button
+            ref={mapButtonRef}
             type="button"
             onClick={() => setMapOpen(true)}
+            onPointerEnter={preloadReadingMap}
+            onFocus={preloadReadingMap}
             className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
@@ -562,6 +566,7 @@ export function BookshelfStage({
         books={mapBooks}
         shelves={shelves}
         onClose={() => setMapOpen(false)}
+        returnFocus={mapButtonRef}
         onSelectBook={(entry: ReadingMapEntry) => {
           const idx = indexBySlug.get(entry.slug);
           if (idx !== undefined) jumpTo(idx);
