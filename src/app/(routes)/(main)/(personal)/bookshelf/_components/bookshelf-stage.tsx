@@ -68,14 +68,7 @@ import { BookDetailView } from './book-detail-view';
 import { BookshelfBookSlot, SLOT_NO_ANIM_CLASS } from './bookshelf-book-slot';
 import { headerActionClass } from './bookshelf-classes';
 import { BookshelfControlsBar } from './bookshelf-controls-bar';
-import {
-  BookshelfFiltersBar,
-  measureShelfPill,
-  revealShelfChip,
-  type ShelfPillState,
-  sameShelfPillClip,
-  trackEdgeFadePx,
-} from './bookshelf-filters-bar';
+import { BookshelfFiltersBar } from './bookshelf-filters-bar';
 import styles from './bookshelf-stage.module.css';
 import { FreeLibraryDirectoryCard } from './free-library-card';
 import { ReadingMapDialog } from './reading-map-dialog';
@@ -83,6 +76,7 @@ import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
 import { useInPageDetail } from './use-in-page-detail';
 import { useShelfMotion } from './use-shelf-motion';
+import { useShelfPill } from './use-shelf-pill';
 
 export interface BookshelfStageProps {
   /** Optional initial book slug (e.g. from `?book=<slug>` when returning from a detail route). */
@@ -107,8 +101,6 @@ const JUMP_IN_MS = 220;
 const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 /** How far the shelf slides in from the side it travels toward, in book heights: one slot pitch. */
 const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
-/** The shelf pill before its first measurement: no clip, so hidden, and placed without a slide. */
-const UNMEASURED_PILL: ShelfPillState = { clip: null, animate: false };
 
 /**
  * Interactive 3D Bookshelf orchestrator built natively inside Live Console `<PageShell>`.
@@ -172,7 +164,6 @@ export function BookshelfStage({
   const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
-  const [shelfPill, setShelfPill] = useState<ShelfPillState>(UNMEASURED_PILL);
 
   // A shelf's slug is its filter's identity; its title is only the chip's label.
   const shelfTabs = useMemo(() => buildShelfTabs(books), [books]);
@@ -188,7 +179,6 @@ export function BookshelfStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const slotElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const activeBook = bookAt(pos);
@@ -208,6 +198,7 @@ export function BookshelfStage({
 
   // Where the pill sits: the filtered shelf, else the shelf of the book on stage.
   const locationShelfSlug = activeShelfSlug ?? activeBook.shelfSlug;
+  const { chipRefs, shelfPill, syncShelfPill, syncShelfPillRef } = useShelfPill(locationShelfSlug);
 
   // Derived from the shelves, so the copy never drifts from what Studio holds.
   const catalogDescription = useMemo(() => describeShelves(shelves), [shelves]);
@@ -227,34 +218,6 @@ export function BookshelfStage({
     bookHeightRef.current = bookHeight;
     setHalfWindow(nextHalfWindow);
   }, [bookHeightRef]);
-
-  /**
-   * Clips the shelf pill to the current chip and keeps that chip in view in a chip row that
-   * scrolls, by scrolling the row alone (revealShelfChip): never scrollIntoView, which would also
-   * scroll the page when the reader is further down it.
-   */
-  const syncShelfPill = useCallback((): void => {
-    const chip = chipRefs.current.get(locationShelfSlug);
-    const bar = chip?.parentElement;
-    if (!chip || !bar) return;
-    const clip = measureShelfPill(bar, chip);
-    setShelfPill((prev) =>
-      prev.clip !== null && sameShelfPillClip(prev.clip, clip) ? prev : { ...prev, clip },
-    );
-    revealShelfChip(bar, chip, trackEdgeFadePx(bar));
-  }, [locationShelfSlug]);
-
-  const syncShelfPillRef = useRef<() => void>(syncShelfPill);
-  syncShelfPillRef.current = syncShelfPill;
-
-  // The pill's first placement lands at once (.no-anim): its clip is committed to style here,
-  // before transitions come on, so it never slides in from the row's start. It slides after that.
-  useLayoutEffect(() => {
-    if (shelfPill.clip === null || shelfPill.animate) return;
-    const pill = chipRefs.current.get(locationShelfSlug)?.parentElement?.firstElementChild;
-    if (pill) void getComputedStyle(pill).clipPath;
-    setShelfPill((prev) => (prev.animate ? prev : { ...prev, animate: true }));
-  }, [shelfPill, locationShelfSlug]);
 
   const poolSlots = useMemo<readonly PoolSlot[]>(
     () => buildPoolSlots({ books, pos, halfWindow, finite: isFiniteShelf, bookAt }),
@@ -343,7 +306,7 @@ export function BookshelfStage({
       window.removeEventListener('resize', onResize);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [measureStage, stageIndexFromHash, bookAt, setPos, setDetailBook]);
+  }, [measureStage, stageIndexFromHash, bookAt, setPos, setDetailBook, syncShelfPillRef]);
 
   useEffect(() => {
     if (detailBook !== null) return;

@@ -19,7 +19,6 @@
 import Link from 'next/link';
 import {
   type CSSProperties,
-  type MutableRefObject,
   type ReactElement,
   type RefObject,
   useLayoutEffect,
@@ -30,80 +29,7 @@ import { cn } from '@/lib/utils';
 import { BOOK_STATUS_META, BOOK_STATUSES, type BookStatus } from '../_lib/books';
 import type { BookStatusFilter, ShelfTab } from '../_lib/bookshelf-filters';
 import styles from './bookshelf-filters-bar.module.css';
-
-/**
- * The shelf pill's clip, in px from each side of its track: the chip row's content width, so a
- * chip scrolled out of a row that scrolls is still covered.
- */
-export interface ShelfPillClip {
-  readonly track: number;
-  readonly top: number;
-  readonly right: number;
-  readonly bottom: number;
-  readonly left: number;
-}
-
-export interface ShelfPillState {
-  /** Null until measured: the pill is then clipped away. */
-  readonly clip: ShelfPillClip | null;
-  /** False for the first placement, which must not slide in from the row's start. */
-  readonly animate: boolean;
-}
-
-/** The width of the fade over each end of a chip row that scrolls (.track-bar[data-overflow]). */
-const TRACK_EDGE_FADE_REM = 1.5;
-/** The root font size when the page reports none (jsdom). */
-const DEFAULT_ROOT_PX = 16;
-
-/** {@link TRACK_EDGE_FADE_REM} in px at the page's root font size. */
-export function trackEdgeFadePx(bar: HTMLElement): number {
-  const root = Number.parseFloat(getComputedStyle(bar.ownerDocument.documentElement).fontSize);
-  return TRACK_EDGE_FADE_REM * (root > 0 ? root : DEFAULT_ROOT_PX);
-}
-
-/**
- * The clip that puts the pill over `chip` in `bar`, measured now. The track ends at the last
- * chip (and the bar's end padding), never past it, so the pill does not hold the row's scroll
- * width open after the chips narrow; a row that wraps is as wide as the bar.
- */
-export function measureShelfPill(bar: HTMLElement, chip: HTMLElement): ShelfPillClip {
-  const last = bar.lastElementChild;
-  const endPadding = Number.parseFloat(getComputedStyle(bar).paddingRight) || 0;
-  const contentEnd =
-    last instanceof HTMLElement ? last.offsetLeft + last.offsetWidth + endPadding : 0;
-  const track = Math.max(bar.clientWidth, contentEnd);
-  return {
-    track,
-    top: chip.offsetTop,
-    left: chip.offsetLeft,
-    right: Math.max(0, track - chip.offsetLeft - chip.offsetWidth),
-    bottom: Math.max(0, bar.clientHeight - chip.offsetTop - chip.offsetHeight),
-  };
-}
-
-/**
- * Scrolls the chip row, and only the row (never the page, as scrollIntoView would), so `chip`
- * shows clear of the fades over its ends: centred when it does not, which is where the row's
- * scroll-snap (centre) rests, so the browser does not snap it back under a fade. At once, so
- * there is no smooth scroll to sit through or to turn off for reduced motion. A no-op when the
- * chip already shows clear, or the row does not scroll.
- */
-export function revealShelfChip(bar: HTMLElement, chip: HTMLElement, fade: number): void {
-  const max = bar.scrollWidth - bar.clientWidth;
-  if (max <= 0) return;
-  const view = bar.getBoundingClientRect();
-  const box = chip.getBoundingClientRect();
-  if (box.left >= view.left + fade && box.right <= view.right - fade) return;
-  const offCentre = box.left + box.width / 2 - (view.left + view.width / 2);
-  bar.scrollLeft = Math.min(max, Math.max(0, Math.round(bar.scrollLeft + offCentre)));
-}
-
-export const sameShelfPillClip = (a: ShelfPillClip, b: ShelfPillClip): boolean =>
-  a.track === b.track &&
-  a.top === b.top &&
-  a.right === b.right &&
-  a.bottom === b.bottom &&
-  a.left === b.left;
+import type { ShelfPillClip, ShelfPillState } from './use-shelf-pill';
 
 /** The custom properties the pill's clip-path reads; none before it is measured. */
 function pillStyle(clip: ShelfPillClip | null): CSSProperties | undefined {
@@ -165,7 +91,7 @@ export interface BookshelfFiltersBarProps {
   readonly locationShelfSlug: string;
   readonly shelfPill: ShelfPillState;
   /** Each shelf chip by its slug, for the stage to measure the pill from. */
-  readonly chipRefs: MutableRefObject<Map<string, HTMLButtonElement>>;
+  readonly chipRefs: RefObject<Map<string, HTMLButtonElement>>;
   /** A shelf's slug, or null for "All" (the reset). */
   readonly onSelectShelf: (slug: string | null) => void;
   readonly statusFilter: BookStatusFilter;
