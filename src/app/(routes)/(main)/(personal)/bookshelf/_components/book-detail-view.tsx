@@ -16,22 +16,28 @@
 
 'use client';
 
+/**
+ * @file A book's detail inside PageShell: its summary, authors and ISBN links, numbered topics,
+ * Previous and Next books and its cover, with the reading map. The stage (bookshelf-stage.tsx)
+ * renders it in place for #/stage/NN, and [slug]/page.tsx renders it as its own island. Guarded
+ * by tests/unit/bookshelf/book-detail-view.test.tsx and scale-budgets.test.ts, and kept free of
+ * server modules by island-imports.test.ts.
+ */
+
 import Link from 'next/link';
 import { type CSSProperties, type ReactElement, useMemo, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
-import {
-  type BookItem,
-  type BookNeighbor,
-  getIsbnRegistryLinks,
-  type ReadingMapEntry,
-  type ShelfCollection,
-} from '../_lib/books';
+import { formatTopicNumber } from '../_lib/book-labels';
+import type { BookNeighbor } from '../_lib/book-neighbors';
+import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_lib/books';
+import type { ReadingMapEntry } from '../_lib/reading-map';
 import { BookCoverFrame } from './book-cover-frame';
+import styles from './book-detail-view.module.css';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf.module.css';
+import { headerActionClass } from './bookshelf-classes';
 import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
@@ -55,9 +61,8 @@ export interface BookDetailViewProps {
 }
 
 /**
- * Live Console book detail view — rendered inside `<PageShell>` so the site navigation rail,
- * typography, and page rhythm stay 100% consistent (used both in-page from `/bookshelf` and on
- * the canonical `/bookshelf/[slug]` route).
+ * One book's detail, in PageShell like every page: in-page on `/bookshelf` (with onBack and
+ * onNavigateBook, so nothing reloads) or on its own `/bookshelf/[slug]` route (with links).
  */
 export function BookDetailView({
   book,
@@ -82,11 +87,7 @@ export function BookDetailView({
   const hasLinks = Boolean(book.url) || isbnLinks !== null;
 
   const backAction = onBack ? (
-    <button
-      type="button"
-      onClick={onBack}
-      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
-    >
+    <button type="button" onClick={onBack} className={headerActionClass('wide', false)}>
       <FiArrowLeft className="size-4" aria-hidden="true" />
       Back to Bookshelf
     </button>
@@ -94,7 +95,7 @@ export function BookDetailView({
     <Link
       href={`/bookshelf?book=${book.slug}`}
       prefetch={false}
-      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+      className={headerActionClass('wide', true)}
     >
       <FiArrowLeft className="size-4" aria-hidden="true" />
       Back to Bookshelf
@@ -131,7 +132,7 @@ export function BookDetailView({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map
@@ -179,7 +180,7 @@ export function BookDetailView({
                 {book.topics.map((topic) => (
                   <li key={topic.number}>
                     <span className={styles['detail-topic-num']}>
-                      {String(topic.number).padStart(3, '0')}
+                      {formatTopicNumber(topic.number)}
                     </span>
                     <span>{topic.title}</span>
                   </li>

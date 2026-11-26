@@ -16,13 +16,19 @@
 
 'use client';
 
-import Link from 'next/link';
+/**
+ * @file The row under the stage: the stage or book number, the active book's title, status and
+ * Open notes link, and the previous and next arrows (disabled at the ends of a shelf's page).
+ * Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx.
+ */
+
 import type { ReactElement } from 'react';
-import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiBookOpen } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowRight, FiArrowUpRight } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
+import { formatStageLabel } from '../_lib/book-labels';
 import type { BookItem } from '../_lib/books';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-controls-bar.module.css';
 
 export interface BookshelfControlsBarProps {
   readonly isSingleShelf: boolean;
@@ -51,8 +57,8 @@ export function BookshelfControlsBar({
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
         <span className="tile-meta tabular-nums text-brand-ink">
           {isSingleShelf
-            ? `Book ${String(displayIndex + 1).padStart(2, '0')} / ${String(bookCount).padStart(2, '0')}`
-            : `Stage ${activeBook.stageLabel} / ${String(bookCount).padStart(2, '0')}`}
+            ? `Book ${formatStageLabel(displayIndex + 1)} / ${formatStageLabel(bookCount)}`
+            : `Stage ${activeBook.stageLabel} / ${formatStageLabel(bookCount)}`}
         </span>
         <span aria-hidden="true" className="text-faint">
           ·
@@ -93,34 +99,5 @@ export function BookshelfControlsBar({
         </button>
       </div>
     </div>
-  );
-}
-
-/** Promo link card to the EbookFoundation Free Programming Books Directory. */
-export function FreeLibraryDirectoryCard(): ReactElement {
-  return (
-    <Link
-      href="/bookshelf/free"
-      prefetch={false}
-      className="group flex flex-wrap items-center justify-between gap-4 rounded-tile border border-hairline bg-surface-1 p-5 no-underline transition-colors hover:border-brand-rim hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-focus"
-    >
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 tile-meta text-brand-ink">
-          <FiBookOpen className="size-3.5" aria-hidden="true" />
-          <span>Open-access index · EbookFoundation</span>
-        </div>
-        <p className="tile-title text-foreground">Free Programming Books Directory</p>
-        <p className="tile-sub text-muted-foreground">
-          Search 2,400+ community-verified open books across 150+ languages and 47 subjects.
-        </p>
-      </div>
-      <span className="inline-flex items-center gap-1.5 tile-label text-brand-ink group-hover:text-foreground">
-        Browse directory
-        <FiArrowUpRight
-          className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-          aria-hidden="true"
-        />
-      </span>
-    </Link>
   );
 }

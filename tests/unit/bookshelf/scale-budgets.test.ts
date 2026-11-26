@@ -36,18 +36,13 @@
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeScaledBookshelfDocs } from '@tests/fixtures/sanity-docs';
+import { stubMediaQuery } from '@tests/utils/match-media';
 import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
-import { createElement, isValidElement, Profiler, type ReactElement, type ReactNode } from 'react';
+import { createElement, Profiler } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sanity = vi.hoisted(() => ({ sanityFetchWithToken: vi.fn() }));
 
-// The stage's CSS module: each class name is the name itself, so `.shelf-shell` can be found.
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
-  default: new Proxy({} as Record<string, string>, {
-    get: (_target, name) => (typeof name === 'string' ? name : undefined),
-  }),
-}));
 // The catalog draws each cover with the real image URL builder; Sanity answers the fixture.
 vi.mock('@/lib/sanity/client', async () => {
   const { createImageUrlBuilder } = await import('@sanity/image-url');
@@ -79,13 +74,14 @@ import {
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import {
   buildBookshelfCatalog,
-  hasBooks,
   type NonEmptyBooks,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 import BookshelfPage from '@/app/(routes)/(main)/(personal)/bookshelf/(list)/page';
 import BookDetailPage from '@/app/(routes)/(main)/(personal)/bookshelf/[slug]/page';
 import ShelfDetailPage from '@/app/(routes)/(main)/(personal)/bookshelf/shelf/[shelfSlug]/page';
+import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import { resetSanityLoaderCaches } from '@/lib/sanity/loaders';
+import { elementOf, liveText, liveTextOf, nonEmpty, shelfChip } from './bookshelf-fixtures';
 
 /** The catalog sizes every budget holds at: production's, and two growth points. */
 const BOOK_COUNTS = [69, 300, 1000] as const;
@@ -128,57 +124,11 @@ const STEP_MS = 400;
 const JUMP_IN_MS = 220;
 /** The only properties the fade-in may animate: the compositor's. */
 const COMPOSITOR_PROPERTIES: readonly string[] = ['opacity', 'transform'];
-const REDUCED_MOTION_QUERY = 'prefers-reduced-motion: reduce';
 
 const wrapper = withNuqsTestingAdapter();
 
 const jsonLength = (value: unknown): number => JSON.stringify(value).length;
 const mod = (a: number, n: number): number => ((a % n) + n) % n;
-const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** `books` as the islands take them: a list with at least one book. */
-function nonEmpty(books: readonly BookItem[]): NonEmptyBooks {
-  if (!hasBooks(books)) throw new Error('expected at least one fixture book');
-  return books;
-}
-
-/** The first element of component `type` in a server page's returned tree, depth first. */
-function findElement<P>(node: ReactNode, type: (props: P) => ReactNode): ReactElement<P> | null {
-  if (Array.isArray(node)) {
-    for (const child of node) {
-      const hit = findElement(child as ReactNode, type);
-      if (hit) return hit;
-    }
-    return null;
-  }
-  if (!isValidElement(node)) return null;
-  if (node.type === type) return node as ReactElement<P>;
-  return findElement((node.props as { readonly children?: ReactNode }).children, type);
-}
-
-function elementOf<P>(node: ReactNode, type: (props: P) => ReactNode, name: string) {
-  const element = findElement(node, type);
-  if (!element) throw new Error(`the page renders no ${name}`);
-  return element;
-}
-
-/** matchMedia that answers only the reduced-motion query. */
-const reducedMotionMatchMedia = (query: string): MediaQueryList =>
-  ({
-    matches: query.includes(REDUCED_MOTION_QUERY),
-    media: query,
-    onchange: null,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-    dispatchEvent: () => false,
-  }) as MediaQueryList;
-
-/** The stage's live readout, e.g. "07 of 69: <title>". */
-const liveText = (): string => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
-const liveTextOf = (book: BookItem, count: number): string =>
-  `${book.stageLabel} of ${count}: ${book.title}`;
 
 /** The stage's step duration, from the inline `--shelf-dur` the shell carries. */
 const shelfDuration = (container: HTMLElement): string =>
@@ -194,13 +144,6 @@ const slotBooks = (container: HTMLElement): ReadonlyMap<string, string> =>
       slot.querySelector('img')?.getAttribute('alt') ?? '',
     ]),
   );
-
-/** A shelf chip by its shelf title, whatever count it shows: a button in the 'Shelves' group. */
-function shelfChip(title: string): HTMLElement {
-  return within(screen.getByRole('group', { name: 'Shelves' })).getByRole('button', {
-    name: new RegExp(`^${escapeRegExp(title)}\\s*\\d`),
-  });
-}
 
 /**
  * Element.prototype.animate (jsdom has none) as a spy that answers a fake Animation, so a test
@@ -484,7 +427,7 @@ describe.each(BOOK_COUNTS)('the bookshelf at %i books on 10 shelves', (count) =>
     });
 
     it('moves at once, with no transition, under reduced motion', async () => {
-      vi.stubGlobal('matchMedia', reducedMotionMatchMedia);
+      stubMediaQuery(REDUCED_MOTION_QUERY, true);
       const { animate } = mockAnimate();
       const farthest = farthestShelfFrom(DEFAULT_BOOK_INDEX);
       const probe = await renderStage(books, shelves, DEFAULT_BOOK_INDEX);

@@ -30,7 +30,7 @@
  * mocked: the getter, the cache, the loaders, the routes and the catalog builder are real.
  */
 
-import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
+import { makeBook, makeBookshelf, slugOf } from '@tests/fixtures/sanity-docs';
 import { Elysia } from 'elysia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SanityBook, SanityBookshelf } from '@/hooks/sanity/schemas';
@@ -77,8 +77,6 @@ import { logger } from '@/utils';
 
 const T0 = new Date('2026-11-26T12:00:00Z').getTime();
 const MINUTE_MS = 60_000;
-
-const slugOf = (current: string) => ({ _type: 'slug' as const, current });
 
 const SYSTEMS = makeBookshelf({ title: 'Systems', slug: slugOf('systems'), order: 10 });
 const AI = makeBookshelf({ title: 'AI', slug: slugOf('ai'), order: 20 });

@@ -1,0 +1,286 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * A book on the stage (bookshelf-book-slot.tsx): a 3D cuboid of spine, cover, back and pages,
+ * sized from --book-h, --book-w and --book-c on the stage's .shelf-shell. The state classes
+ * (active, before and after, highlighted, dimmed) come from props; the stage adds .no-anim
+ * (SLOT_NO_ANIM_CLASS) so a recycled slot lands without a transition. The cover inside the cover
+ * face is book-cover-frame.module.css's.
+ */
+
+/* Each slot has its own perspective, so each book turns about its own centre. */
+.slot {
+  position: absolute;
+  left: calc(var(--book-w) / -2);
+  top: calc(var(--book-h) / -2);
+  width: var(--book-w);
+  height: var(--book-h);
+  perspective: calc(var(--book-h) * 2.2);
+  transform: translate3d(var(--slot-x, 0), 0, 0);
+  transition: transform var(--shelf-dur) var(--shelf-ease);
+}
+
+/* One transform list in every state, so a book's angles interpolate as it turns. */
+.book {
+  --ry: 0deg;
+  --rz: 0deg;
+  --tz: calc(var(--book-c) / -2);
+  --lift: 0px;
+
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: translateY(var(--lift)) translateZ(var(--tz)) rotateZ(var(--rz)) rotateY(var(--ry));
+  transition: transform var(--shelf-dur) var(--shelf-ease);
+}
+
+.is-before .book {
+  --ry: -5deg;
+}
+
+.is-after .book {
+  --ry: 5deg;
+}
+
+.is-active .book {
+  --ry: -100deg;
+  --rz: -4deg;
+  --tz: calc(var(--book-w) * -0.5 + var(--book-h) * 0.02);
+}
+
+.slot.no-anim .book {
+  transition: none;
+}
+
+.slot:not(.is-active):hover .book {
+  --lift: calc(var(--book-h) * -0.02);
+}
+
+/* A shelf or status filter dims the books it leaves out and underlines the ones it matches. */
+.is-dimmed {
+  opacity: 0.22;
+  filter: saturate(0.28);
+  transition:
+    transform var(--shelf-dur) var(--shelf-ease),
+    opacity 240ms var(--ease-effect),
+    filter 240ms var(--ease-effect);
+}
+
+.is-dimmed:hover {
+  opacity: 0.72;
+  filter: saturate(0.8);
+}
+
+.is-highlighted::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -14px;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--brand);
+  box-shadow: 0 0 12px var(--brand-rim);
+  pointer-events: none;
+}
+
+.face {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  backface-visibility: hidden;
+}
+
+.face-spine {
+  left: 0;
+  width: 100%;
+  transform: translateZ(calc(var(--book-c) / 2));
+  background: var(--spine-body);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.face-cover {
+  left: calc((var(--book-w) - var(--book-c)) / 2);
+  width: var(--book-c);
+  overflow: hidden;
+  transform: rotateY(90deg) translateZ(calc(var(--book-w) / 2));
+  box-shadow: 0 0 0 rgb(0 0 0 / 0%);
+  transition: box-shadow var(--shelf-dur) var(--shelf-ease);
+}
+
+.face-back {
+  left: calc((var(--book-w) - var(--book-c)) / 2);
+  width: var(--book-c);
+  transform: rotateY(-90deg) translateZ(calc(var(--book-w) / 2));
+  background: var(--spine-body);
+}
+
+/* Inset page block by 2px so pages sit recessed inside the boards and never peek past the cover corner */
+.face-pages {
+  left: 1px;
+  top: 2px;
+  width: calc(100% - 2px);
+  height: calc(100% - 4px);
+  transform: rotateY(180deg) translateZ(calc(var(--book-c) / 2 - 1px));
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 18%), transparent 30%, transparent 70%, rgb(0 0 0 / 20%)),
+    repeating-linear-gradient(90deg, var(--surface-3) 0 1px, var(--hairline) 1px 2px);
+}
+
+.is-active .face-cover {
+  box-shadow:
+    calc(var(--book-h) * -0.025) calc(var(--book-h) * 0.03) calc(var(--book-h) * 0.075)
+    rgb(0 0 0 / 56%),
+    0 0 36px -14px var(--brand-edge);
+}
+
+.slot-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--book-h) * -0.055);
+  width: calc(var(--book-w) * 1.7);
+  height: calc(var(--book-h) * 0.08);
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgb(0 0 0 / 48%), rgb(0 0 0 / 0%));
+  transition: width var(--shelf-dur) var(--shelf-ease);
+  pointer-events: none;
+}
+
+.is-active .slot-shadow {
+  width: calc(var(--book-c) * 1.05);
+}
+
+/* A flat hit area over the active book's turned cover, so a press anywhere on the cover lands:
+ * the slot itself is only a spine (--book-w) wide. */
+.active-hit {
+  position: absolute;
+  left: calc((var(--book-w) - var(--book-c)) / 2);
+  top: 0;
+  width: var(--book-c);
+  height: 100%;
+  transform: rotateZ(-4deg);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.is-active .active-hit {
+  pointer-events: auto;
+}
+
+/* Spine typography & cylindrical highlight */
+.face-spine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 28%) 0%,
+    rgb(0 0 0 / 7%) 9%,
+    rgb(255 255 255 / 10%) 24%,
+    rgb(255 255 255 / 3%) 45%,
+    rgb(0 0 0 / 5%) 72%,
+    rgb(0 0 0 / 26%) 100%
+  );
+}
+
+.spine-hdr {
+  position: relative;
+  flex: none;
+  height: calc(var(--book-h) * 0.118);
+  background: var(--spine-hdr);
+  border-bottom: 1px solid var(--hairline);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 600;
+  font-size: calc(var(--book-h) * 0.034);
+  line-height: 1;
+  color: var(--spine-num);
+  letter-spacing: 0.02em;
+}
+
+/* A 2px line at the foot of the spine, coloured by reading status. */
+.spine-status-bar {
+  flex: none;
+  height: 2px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.spine-status-completed {
+  background: var(--brand);
+}
+
+.spine-status-reading {
+  background: var(--ongoing);
+}
+
+.spine-status-queued {
+  background: var(--hairline);
+  opacity: 0.45;
+}
+
+.spine-title {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--book-h) * 0.035) 0;
+}
+
+.spine-title span {
+  writing-mode: vertical-rl;
+  white-space: pre-line;
+  text-align: center;
+  font-weight: 600;
+  font-size: calc(var(--book-h) * 0.036);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--spine-ink);
+}
+
+.spine-author {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-bottom: calc(var(--book-h) * 0.028);
+}
+
+.spine-author span {
+  writing-mode: vertical-rl;
+  white-space: pre-line;
+  text-align: end;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 500;
+  font-size: calc(var(--book-h) * 0.0175);
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--spine-ink);
+  opacity: 0.8;
+}
+
+.slot.no-anim,
+.slot.no-anim .face-cover,
+.slot.no-anim .slot-shadow {
+  transition: none;
+}

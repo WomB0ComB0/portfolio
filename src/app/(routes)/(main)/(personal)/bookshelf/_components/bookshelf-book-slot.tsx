@@ -16,19 +16,22 @@
 
 'use client';
 
+/**
+ * @file One book on the stage: a 3D cuboid of spine, cover, back and pages in a slot placed from
+ * the stage's centre by --slot-x, its cover drawn at the width it shows. The server's HTML already
+ * paints its place, tilt and state classes; the stage's teleport effect adds SLOT_NO_ANIM_CLASS to
+ * land a recycled slot without a transition. Guarded by tests/unit/bookshelf/book-slot.test.tsx.
+ */
+
 import { type CSSProperties, memo, type ReactElement } from 'react';
 import { cn } from '@/lib/utils';
-import { type BookItem, COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/books';
-import styles from './bookshelf.module.css';
+import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
+import type { BookItem } from '../_lib/books';
+import coverStyles from './book-cover-frame.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
-/**
- * Where the first book either side of the active one sits from the stage's centre, and the pitch
- * between the books after it, in book heights. A shelf's page spaces its books a little wider.
- */
-const SLOT_GEOMETRY = {
-  circular: { first: 0.515, pitch: 0.19 },
-  finite: { first: 0.53, pitch: 0.205 },
-} as const;
+/** The class that lands a slot without a transition: the stage adds it to a recycled slot. */
+export const SLOT_NO_ANIM_CLASS = styles['no-anim'] ?? '';
 
 /** The books this far from the active one, or nearer, load eagerly: a step or two shows them. */
 const NEAR_OFFSET = 2;
@@ -43,17 +46,6 @@ const NEAR_OFFSET = 2;
  */
 const NEAR_COVER_WIDTH = 260;
 const FAR_COVER_WIDTH = 96;
-
-/**
- * A slot's horizontal place as a factor of the book height: 0 for the active book, negative to
- * its left. The slot renders it as calc(var(--book-h) * factor), so the server's HTML puts every
- * book where the browser will, and a lazy cover off the stage stays unloaded.
- */
-export function slotOffsetFactor(offset: number, finite: boolean): number {
-  if (offset === 0) return 0;
-  const { first, pitch } = finite ? SLOT_GEOMETRY.finite : SLOT_GEOMETRY.circular;
-  return Math.sign(offset) * (first + (Math.abs(offset) - 1) * pitch);
-}
 
 /**
  * A slot's cover sources: the active book's 260 px copy with the source at 2x, a near book's
@@ -149,7 +141,7 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
         </div>
 
         <div data-book-cover className={cn(styles.face, styles['face-cover'])}>
-          <div className={styles.cover}>
+          <div className={coverStyles.cover}>
             {/* biome-ignore lint/performance/noImgElement: Sanity CDN cover, sized to how it is drawn (coverAt); next.config disables /_next/image. */}
             <img
               // Keyed by book: a slot reused for another book (a jump) mounts a fresh <img> and
@@ -163,7 +155,7 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
               loading={Math.abs(offset) <= NEAR_OFFSET ? 'eager' : 'lazy'}
               decoding="async"
               draggable={false}
-              className={styles['cover-img']}
+              className={coverStyles['cover-img']}
             />
           </div>
         </div>
@@ -172,7 +164,7 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
         <div className={cn(styles.face, styles['face-pages'])} />
       </div>
 
-      {/* Full-cover 2D hit plane for active book (eliminates 51px perspective hit clipping) */}
+      {/* A flat hit area over the active book's turned cover: the slot is only a spine wide. */}
       <div
         aria-hidden="true"
         data-active-hit={isActive ? 'true' : 'false'}

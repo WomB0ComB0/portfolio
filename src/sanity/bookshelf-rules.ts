@@ -47,7 +47,7 @@ export const isBookStatus = (value: unknown): value is BookStatus =>
  * A book's URL slug: lowercase letters and digits in words joined by single hyphens, so it is a
  * clean /bookshelf/<slug> path segment and a cover file name.
  */
-export const BOOK_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const BOOK_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
  * Slugs no book may take: fixed pages under /bookshelf whose route wins over a book's
@@ -84,7 +84,7 @@ export const isBookSlug = (value: string): boolean =>
  * (`file-<id>-pdf`), so the decoder drops a book whose cover is not one rather than lose the
  * whole catalog to one cover URL.
  */
-export const BOOK_COVER_REF_PATTERN = /^image-[A-Za-z0-9]+-[1-9]\d*x[1-9]\d*-[a-z0-9]+$/;
+const BOOK_COVER_REF_PATTERN = /^image-[A-Za-z0-9]+-[1-9]\d*x[1-9]\d*-[a-z0-9]+$/;
 
 /** True for a cover asset reference the image URL builder can draw: {@link BOOK_COVER_REF_PATTERN}. */
 export const isBookCoverRef = (ref: string): boolean => BOOK_COVER_REF_PATTERN.test(ref);

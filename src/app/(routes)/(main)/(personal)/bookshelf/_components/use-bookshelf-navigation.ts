@@ -16,21 +16,44 @@
 
 'use client';
 
-import {
-  type MutableRefObject,
-  type PointerEvent,
-  type RefObject,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-import type { BookItem, BookStatusFilter } from '../_lib/books';
-import styles from './bookshelf.module.css';
+/**
+ * @file The stage's input. The wheel steps it, sideways or down, each 20 px of travel past a
+ * cooldown; the arrow keys step and Home and End jump while the stage (or nothing) has focus,
+ * Enter or Space opens the book on stage and Escape closes the detail; a drag scrubs a step per
+ * scrub unit and a flick adds up to three; a tap on a side book steps to it (moving the shelf
+ * filter to its shelf, and clearing a status filter it fails) and a tap on the active one opens
+ * it; with a fine pointer a ring cursor trails the pointer. The drag maths is in
+ * _lib/shelf-glide.ts and the moves in use-shelf-motion.ts. The stage (bookshelf-stage.tsx) calls
+ * it. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx and
+ * tests/unit/bookshelf/scale-budgets.test.ts.
+ */
 
+import { type PointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
+import type { BookItem } from '../_lib/books';
+import type { BookStatusFilter } from '../_lib/bookshelf-filters';
+import {
+  dragOffset,
+  dragVelocity,
+  flickSteps,
+  isSidewaysDrag,
+  isTap,
+  scrubSteps,
+  scrubUnit,
+  settleStep,
+} from '../_lib/shelf-glide';
+import styles from './bookshelf-stage.module.css';
+import { CHAIN_STEP_DURATION_MS, type ShelfMotion } from './use-shelf-motion';
+
+/** The wheel travel, in px, that makes one step. */
 const WHEEL_THRESHOLD = 20;
+/** The wheel is ignored this long after any step starts, so one notch is one step. */
 const WHEEL_COOLDOWN_MS = 140;
-const DRAG_ACTIVATION_PX = 6;
-const CHAIN_STEP_DURATION_MS = 220;
+/** Wheel travel left unused this long is dropped. */
+const WHEEL_ACCUMULATOR_RESET_MS = 150;
+/** The share of the way to the pointer the ring cursor moves each frame. */
+const CURSOR_LERP = 0.28;
+/** Where the ring cursor waits, in px, before the pointer first moves. */
+const CURSOR_OFF_SCREEN_PX = -200;
 /** The keys that move the stage, and only while it (or nothing) has focus. */
 const STAGE_KEYS: ReadonlySet<string> = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
@@ -51,13 +74,8 @@ export interface UseBookshelfNavigationOptions {
   readonly stageRef: RefObject<HTMLDivElement | null>;
   readonly shelfRef: RefObject<HTMLDivElement | null>;
   readonly cursorRef: RefObject<HTMLDivElement | null>;
-  readonly posRef: MutableRefObject<number>;
-  readonly bookHeightRef: MutableRefObject<number>;
-  readonly detailOpenRef: MutableRefObject<boolean>;
-  readonly chainTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
-  readonly lastStepRef: MutableRefObject<number>;
-  /** A jump's fade-in, while it runs: a drag finishes it, so it never fights --drag-x. */
-  readonly jumpAnimRef: MutableRefObject<Animation | null>;
+  /** The stage's position, its refs and the moves (use-shelf-motion.ts). */
+  readonly motion: ShelfMotion;
   readonly finePointer: boolean;
   readonly detailOpen: boolean;
   readonly mapOpen: boolean;
@@ -66,13 +84,18 @@ export interface UseBookshelfNavigationOptions {
   readonly activeShelfSlug: string | null;
   readonly statusFilter: BookStatusFilter;
   readonly bookAt: (index: number) => BookItem;
-  readonly step: (dir: number, dur?: number) => void;
-  readonly stepBy: (delta: number) => void;
-  /** One move to a book, however far (Home/End). */
-  readonly jumpTo: (index: number) => void;
   readonly openDetail: (book: BookItem) => void;
   readonly closeDetail: () => void;
   readonly onUpdateUrlFilter: (patch: { shelf?: string | null; status?: BookStatusFilter }) => void;
+}
+
+/** What the stage binds to its element: whether a drag is on, and the pointer handlers. */
+export interface BookshelfNavigation {
+  readonly isDragging: boolean;
+  readonly handleStagePointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+  readonly handleStagePointerMove: (event: PointerEvent<HTMLDivElement>) => void;
+  /** Ends a press: a drag's flick or settle, or a tap that steps to or opens a book. */
+  readonly finishDrag: (event: PointerEvent<HTMLDivElement>, cancelled?: boolean) => void;
 }
 
 /**
@@ -86,19 +109,28 @@ function stageHasFocus(stage: HTMLElement | null): boolean {
 }
 
 /**
- * Encapsulates bidirectional wheel browsing, keyboard shortcuts, magnetic custom cursor loop,
- * and 1:1 pointer drag scrubbing + flick momentum for the 3D Bookshelf stage.
+ * Whether (`x`, `y`) is on the active book's cover, as its turned face is drawn on screen. A
+ * press that ends there opens the book even when it started off the slot.
  */
+function isOverActiveCover(stage: HTMLElement | null, x: number, y: number): boolean {
+  const cover = stage?.querySelector<HTMLElement>('[data-active-slot="true"] [data-book-cover]');
+  const rect = cover?.getBoundingClientRect();
+  return Boolean(
+    rect &&
+      rect.width > 0 &&
+      x >= rect.left &&
+      x <= rect.right &&
+      y >= rect.top &&
+      y <= rect.bottom,
+  );
+}
+
+/** The stage's wheel, keyboard, pointer and cursor handling. */
 export function useBookshelfNavigation({
   stageRef,
   shelfRef,
   cursorRef,
-  posRef,
-  bookHeightRef,
-  detailOpenRef,
-  chainTimerRef,
-  lastStepRef,
-  jumpAnimRef,
+  motion,
   finePointer,
   detailOpen,
   mapOpen,
@@ -106,19 +138,20 @@ export function useBookshelfNavigation({
   activeShelfSlug,
   statusFilter,
   bookAt,
-  step,
-  stepBy,
-  jumpTo,
   openDetail,
   closeDetail,
   onUpdateUrlFilter,
-}: UseBookshelfNavigationOptions) {
+}: UseBookshelfNavigationOptions): BookshelfNavigation {
+  const { posRef, bookHeightRef, lastStepRef, jumpAnimRef, step, stepBy, jumpTo, cancelChain } =
+    motion;
+  const detailOpenRef = useRef<boolean>(detailOpen);
+  detailOpenRef.current = detailOpen;
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   isDraggingRef.current = isDragging;
   const dragRef = useRef<DragState | null>(null);
 
-  // Bidirectional wheel browsing on the stage.
+  // The wheel steps the stage either way, sideways or down.
   useEffect(() => {
     if (detailOpen) return;
     const stageEl = stageRef.current;
@@ -148,7 +181,7 @@ export function useBookshelfNavigation({
       if (wheelTimer) clearTimeout(wheelTimer);
       wheelTimer = setTimeout(() => {
         wheelAcc = 0;
-      }, 150);
+      }, WHEEL_ACCUMULATOR_RESET_MS);
 
       if (Math.abs(wheelAcc) >= WHEEL_THRESHOLD) {
         step(wheelAcc > 0 ? 1 : -1);
@@ -161,7 +194,7 @@ export function useBookshelfNavigation({
       stageEl.removeEventListener('wheel', onWheel);
       if (wheelTimer) clearTimeout(wheelTimer);
     };
-  }, [detailOpen, mapOpen, step, stageRef, detailOpenRef, lastStepRef]);
+  }, [detailOpen, mapOpen, step, stageRef, lastStepRef]);
 
   // Keyboard navigation.
   useEffect(() => {
@@ -207,23 +240,18 @@ export function useBookshelfNavigation({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    mapOpen,
-    step,
-    jumpTo,
-    bookCount,
-    openDetail,
-    bookAt,
-    closeDetail,
-    stageRef,
-    posRef,
-    detailOpenRef,
-  ]);
+  }, [mapOpen, step, jumpTo, bookCount, openDetail, bookAt, closeDetail, stageRef, posRef]);
 
-  // Magnetic ring -> Open / Grab cursor.
+  // The ring cursor trails the pointer, reads Open over the active book, shrinks while dragging.
   useEffect(() => {
     if (!finePointer || detailOpen) return;
-    const state = { x: -200, y: -200, tx: -200, ty: -200, seen: false };
+    const state = {
+      x: CURSOR_OFF_SCREEN_PX,
+      y: CURSOR_OFF_SCREEN_PX,
+      tx: CURSOR_OFF_SCREEN_PX,
+      ty: CURSOR_OFF_SCREEN_PX,
+      seen: false,
+    };
 
     const onMove = (event: globalThis.PointerEvent): void => {
       if (event.pointerType && event.pointerType !== 'mouse') return;
@@ -244,8 +272,8 @@ export function useBookshelfNavigation({
 
     let rafId = 0;
     const loop = (): void => {
-      state.x += (state.tx - state.x) * 0.28;
-      state.y += (state.ty - state.y) * 0.28;
+      state.x += (state.tx - state.x) * CURSOR_LERP;
+      state.y += (state.ty - state.y) * CURSOR_LERP;
       const cursorEl = cursorRef.current;
       const stageEl = stageRef.current;
       if (cursorEl && stageEl) {
@@ -255,18 +283,7 @@ export function useBookshelfNavigation({
             ? document.elementFromPoint(state.tx, state.ty)
             : null;
         const inStage = isDraggingRef.current || Boolean(hit && stageEl.contains(hit));
-        const activeCoverEl = stageEl.querySelector<HTMLElement>(
-          '[data-active-slot="true"] [data-book-cover]',
-        );
-        const coverRect = activeCoverEl?.getBoundingClientRect();
-        const insideCoverRect = Boolean(
-          coverRect &&
-            coverRect.width > 0 &&
-            state.tx >= coverRect.left &&
-            state.tx <= coverRect.right &&
-            state.ty >= coverRect.top &&
-            state.ty <= coverRect.bottom,
-        );
+        const insideCoverRect = isOverActiveCover(stageEl, state.tx, state.ty);
         const onActive =
           !isDraggingRef.current &&
           inStage &&
@@ -287,14 +304,11 @@ export function useBookshelfNavigation({
       document.documentElement.removeEventListener('mouseleave', onLeave);
       window.cancelAnimationFrame(rafId);
     };
-  }, [finePointer, detailOpen, mapOpen, cursorRef, stageRef, detailOpenRef]);
+  }, [finePointer, detailOpen, mapOpen, cursorRef, stageRef]);
 
   const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
-    if (chainTimerRef.current) {
-      clearTimeout(chainTimerRef.current);
-      chainTimerRef.current = null;
-    }
+    cancelChain();
     jumpAnimRef.current?.finish();
     jumpAnimRef.current = null;
     dragRef.current = {
@@ -319,9 +333,7 @@ export function useBookshelfNavigation({
     const totalDy = event.clientY - drag.startY;
 
     if (!drag.isDragging) {
-      if (Math.abs(totalDx) < DRAG_ACTIVATION_PX || Math.abs(totalDy) > Math.abs(totalDx) * 1.4) {
-        return;
-      }
+      if (!isSidewaysDrag(totalDx, totalDy)) return;
       drag.isDragging = true;
       setIsDragging(true);
       event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -330,31 +342,20 @@ export function useBookshelfNavigation({
     const now = performance.now();
     const dt = Math.max(1, now - drag.lastTime);
     const stepDx = event.clientX - drag.lastX;
-    drag.vx = drag.vx * 0.5 + (stepDx / dt) * 0.5;
+    drag.vx = dragVelocity(drag.vx, stepDx, dt);
     drag.lastX = event.clientX;
     drag.lastTime = now;
-    drag.residualX += stepDx;
 
-    const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
-    let stepsToMove = 0;
-    while (drag.residualX <= -scrubUnit) {
-      drag.residualX += scrubUnit;
-      stepsToMove += 1;
-    }
-    while (drag.residualX >= scrubUnit) {
-      drag.residualX -= scrubUnit;
-      stepsToMove -= 1;
-    }
+    const unit = scrubUnit(bookHeightRef.current);
+    const scrub = scrubSteps(drag.residualX + stepDx, unit);
+    drag.residualX = scrub.residual;
 
-    if (stepsToMove !== 0) {
+    if (scrub.steps !== 0) {
       drag.steppedDuringDrag = true;
-      step(stepsToMove, CHAIN_STEP_DURATION_MS);
+      step(scrub.steps, CHAIN_STEP_DURATION_MS);
     }
 
-    const visualOffset = Math.max(
-      -scrubUnit * 0.55,
-      Math.min(scrubUnit * 0.55, drag.residualX * 0.65),
-    );
+    const visualOffset = dragOffset(drag.residualX, unit);
     shelfRef.current?.style.setProperty('--drag-x', `${visualOffset.toFixed(1)}px`);
   };
 
@@ -372,21 +373,19 @@ export function useBookshelfNavigation({
 
       if (cancelled) return;
 
-      const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
-      const speed = Math.abs(drag.vx);
-      if (speed > 0.4) {
-        const extra = Math.min(3, Math.max(1, Math.round(speed * 1.6)));
-        stepBy(drag.vx < 0 ? extra : -extra);
-      } else if (!drag.steppedDuringDrag && Math.abs(drag.residualX) > scrubUnit * 0.3) {
-        step(drag.residualX < 0 ? 1 : -1);
-      }
+      const flick = flickSteps(drag.vx);
+      const settle = settleStep(
+        drag.residualX,
+        scrubUnit(bookHeightRef.current),
+        drag.steppedDuringDrag,
+      );
+      if (flick !== 0) stepBy(flick);
+      else if (settle !== 0) step(settle);
       return;
     }
 
     if (cancelled) return;
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    if (Math.hypot(dx, dy) > 8) return;
+    if (!isTap(event.clientX - drag.startX, event.clientY - drag.startY)) return;
 
     const targetEl = (drag.startTarget ?? event.target) as HTMLElement | null;
     const slotEl = targetEl?.closest<HTMLElement>('[data-slot-offset]');
@@ -398,13 +397,14 @@ export function useBookshelfNavigation({
       }
       if (!Number.isNaN(offset)) {
         const clickedBook = bookAt(posRef.current + offset);
-        const nextUrlPatch: { shelf?: string | null; status?: BookStatusFilter } = {};
-        if (activeShelfSlug && clickedBook.shelfSlug !== activeShelfSlug) {
-          nextUrlPatch.shelf = clickedBook.shelfSlug;
-        }
-        if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
-          nextUrlPatch.status = 'all';
-        }
+        const nextUrlPatch = {
+          ...(activeShelfSlug && clickedBook.shelfSlug !== activeShelfSlug
+            ? { shelf: clickedBook.shelfSlug }
+            : {}),
+          ...(statusFilter !== 'all' && clickedBook.status !== statusFilter
+            ? { status: 'all' as const }
+            : {}),
+        };
         if (Object.keys(nextUrlPatch).length > 0) {
           onUpdateUrlFilter(nextUrlPatch);
         }
@@ -413,19 +413,8 @@ export function useBookshelfNavigation({
       }
     }
 
-    // Fallback geometric hit-test for the active 3D front cover across all browsers.
-    const activeCoverEl = stageRef.current?.querySelector<HTMLElement>(
-      '[data-active-slot="true"] [data-book-cover]',
-    );
-    const coverRect = activeCoverEl?.getBoundingClientRect();
-    if (
-      coverRect &&
-      coverRect.width > 0 &&
-      event.clientX >= coverRect.left &&
-      event.clientX <= coverRect.right &&
-      event.clientY >= coverRect.top &&
-      event.clientY <= coverRect.bottom
-    ) {
+    // A tap on no slot still opens the active book when it lands on its turned cover.
+    if (isOverActiveCover(stageRef.current, event.clientX, event.clientY)) {
       openDetail(bookAt(posRef.current));
     }
   };

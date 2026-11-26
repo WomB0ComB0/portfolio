@@ -16,10 +16,15 @@
 
 'use client';
 
+/**
+ * @file The Free Library's table: one row per book with its host, trust tier and formats, sortable
+ * by title, category or host (aria-sort on each header), with its loading and empty states.
+ * Known debt: the console FilterBar and IndexTable kits (#624) are not adopted here yet.
+ */
+
 import type { ReactElement } from 'react';
 import { FiArrowDown, FiArrowUp, FiArrowUpRight } from 'react-icons/fi';
-import type { FreeBooksSortDir, FreeBooksSortField } from '@/lib/books/bookshelf-search-params';
-import type { FreeBookEntry } from '@/lib/books/free-books-types';
+import type { FreeBookEntry, FreeBooksSortDir, FreeBooksSortField } from '@/lib/free-books/types';
 import { cn } from '@/lib/utils';
 
 export interface FreeBooksTableProps {

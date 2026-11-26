@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$DRY_RUN" == "true" ]]; then
-            bun --conditions=react-server run scripts/books/verify-free-books.ts --dry-run
+            bun --conditions=react-server run scripts/free-books/verify.ts --dry-run
           else
-            bun --conditions=react-server run scripts/books/verify-free-books.ts --write --publish-redis --detonate-deltas
+            bun --conditions=react-server run scripts/free-books/verify.ts --write --publish-redis --detonate-deltas
           fi

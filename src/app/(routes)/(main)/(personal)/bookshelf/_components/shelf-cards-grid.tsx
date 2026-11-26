@@ -16,23 +16,30 @@
 
 'use client';
 
+/**
+ * @file The shelf cards under the whole shelf's stage, each with a fan of its covers: one card per
+ * shelf, linking to its page, or one per reading status, which filters the stage. The grouping is
+ * URL state (?group), controlled by the stage. Guarded by
+ * tests/unit/bookshelf/shelf-cards-grid.test.tsx and bookshelf-stage.test.tsx.
+ */
+
 import Link from 'next/link';
-import { type CSSProperties, type ReactElement, useState } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { FiArrowUpRight, FiCheck } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
+import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
 import {
   BOOK_STATUS_META,
   BOOK_STATUSES,
   type BookItem,
   type BookStatus,
-  type BookStatusFilter,
-  COVER_HEIGHT,
-  COVER_WIDTH,
-  coverAt,
   type ShelfCollection,
 } from '../_lib/books';
+import type { BookStatusFilter, GroupingMode } from '../_lib/bookshelf-filters';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf.module.css';
+import { ARROW_ICON_CLASS } from './bookshelf-classes';
+import chipStyles from './bookshelf-filters-bar.module.css';
+import styles from './shelf-cards-grid.module.css';
 
 export interface ShelfCardsGridProps {
   readonly shelves: readonly ShelfCollection[];
@@ -42,14 +49,12 @@ export interface ShelfCardsGridProps {
   /** Active reading status filter on the unified shelf. */
   readonly activeStatus?: BookStatusFilter;
   /** Controlled grouping mode synced to the URL via `nuqs` (`?group=topic|status`). */
-  readonly groupBy?: GroupingMode;
+  readonly groupBy: GroupingMode;
   /** Called when the user switches between topic shelves and reading-status stacks. */
-  readonly onGroupByChange?: (mode: GroupingMode) => void;
+  readonly onGroupByChange: (mode: GroupingMode) => void;
   /** Called when a user selects a reading status card in "By status" mode. */
-  readonly onSelectStatus?: (status: BookStatus) => void;
+  readonly onSelectStatus: (status: BookStatus) => void;
 }
-
-type GroupingMode = 'topic' | 'status';
 
 /**
  * A shelf card is not drawn, so its lazy fan covers are not fetched, until it nears the viewport.
@@ -131,28 +136,18 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
 }
 
 /**
- * `seathru.app`-inspired fanned cover-stack collection cards with smooth translucent borders.
- * Supports grouping by topic shelf (`/bookshelf/shelf/[shelfSlug]`) or by reading status
- * (`Read`, `Reading`, `Unread`).
+ * The shelf cards, grouped by shelf (each links to `/bookshelf/shelf/[shelfSlug]`) or by reading
+ * status (`Read`, `Reading`, `Unread`; each filters the stage to it).
  */
 export function ShelfCardsGrid({
   shelves,
   books,
   highlightedShelfSlug,
   activeStatus = 'all',
-  groupBy: controlledGroupBy,
+  groupBy,
   onGroupByChange,
   onSelectStatus,
 }: ShelfCardsGridProps): ReactElement {
-  const [uncontrolledGroupBy, setUncontrolledGroupBy] = useState<GroupingMode>('topic');
-  const groupBy = controlledGroupBy ?? uncontrolledGroupBy;
-  const setGroupBy = (next: GroupingMode): void => {
-    if (onGroupByChange) {
-      onGroupByChange(next);
-    } else {
-      setUncontrolledGroupBy(next);
-    }
-  };
   const bySlug = new Map(books.map((book) => [book.slug, book]));
 
   return (
@@ -169,20 +164,20 @@ export function ShelfCardsGrid({
           </p>
         </div>
 
-        <fieldset className={styles['status-bar']} aria-label="Group shelves">
+        <fieldset className={chipStyles['status-bar']} aria-label="Group shelves">
           <button
             type="button"
             aria-pressed={groupBy === 'topic'}
-            onClick={() => setGroupBy('topic')}
-            className={styles['status-chip']}
+            onClick={() => onGroupByChange('topic')}
+            className={chipStyles['status-chip']}
           >
             By topic
           </button>
           <button
             type="button"
             aria-pressed={groupBy === 'status'}
-            onClick={() => setGroupBy('status')}
-            className={styles['status-chip']}
+            onClick={() => onGroupByChange('status')}
+            className={chipStyles['status-chip']}
           >
             By reading status
           </button>
@@ -231,10 +226,7 @@ export function ShelfCardsGrid({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="tile-title text-foreground">{shelf.title}</span>
-                    <FiArrowUpRight
-                      className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
-                      aria-hidden="true"
-                    />
+                    <FiArrowUpRight className={ARROW_ICON_CLASS} aria-hidden="true" />
                   </div>
                   <p className="line-clamp-2 tile-meta text-muted-foreground">
                     {shelf.description}
@@ -270,7 +262,7 @@ export function ShelfCardsGrid({
               <button
                 key={status}
                 type="button"
-                onClick={() => onSelectStatus?.(status)}
+                onClick={() => onSelectStatus(status)}
                 className={cn(
                   styles['shelf-card'],
                   isActive && styles['shelf-card-active'],
@@ -289,10 +281,7 @@ export function ShelfCardsGrid({
                 <div className="w-full space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="tile-title text-foreground">{meta.label}</span>
-                    <FiArrowUpRight
-                      className="size-4 text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-ink"
-                      aria-hidden="true"
-                    />
+                    <FiArrowUpRight className={ARROW_ICON_CLASS} aria-hidden="true" />
                   </div>
                   <p className="line-clamp-2 tile-meta text-muted-foreground">{meta.description}</p>
                   <div

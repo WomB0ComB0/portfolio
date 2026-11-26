@@ -133,6 +133,42 @@ vi.mock(
 );
 vi.mock('@/components/console/photo/photo-viewer.module.css', cssModuleNames);
 
+// /bookshelf: the stage, its book slots and covers, the filters, the status badge, the shelf
+// cards, the controls and the book detail. The stage and slot tests read the state class names
+// (`.shelf-shell`, `is-active`).
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/book-cover-frame.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-filters-bar.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/book-status-badge.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/shelf-cards-grid.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-controls-bar.module.css',
+  cssModuleNames,
+);
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/book-detail-view.module.css',
+  cssModuleNames,
+);
+
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 

@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/**
+ * @file The Free Library's Suspense fallback (free/page.tsx), shown until the explorer has its
+ * URL state. A server component with no state.
+ */
+
 import type { ReactElement } from 'react';
 
 const SKELETON_ROWS = ['row-1', 'row-2', 'row-3', 'row-4', 'row-5', 'row-6'] as const;

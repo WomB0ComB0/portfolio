@@ -16,6 +16,18 @@
 
 'use client';
 
+/**
+ * @file The /bookshelf island: the whole shelf ((list)/page.tsx) or one shelf's page
+ * (shelf/[shelfSlug]/page.tsx) as a 3D stage of books inside PageShell, with the filters bar, the
+ * controls, the shelf cards and the reading map. It reads the URL state (bookshelf-filters.ts),
+ * renders the pool of book slots and runs the teleport effect; the motion, the in-page detail, the
+ * shelf pill and the input are its hooks (use-shelf-motion.ts, use-in-page-detail.ts,
+ * use-shelf-pill.ts, use-bookshelf-navigation.ts). While a book is open it renders BookDetailView
+ * in place of its shell. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx (and the
+ * filters bar, shelf cards, reading map and detail tests, which render it) and
+ * scale-budgets.test.ts, and kept free of server modules by island-imports.test.ts.
+ */
+
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import {
@@ -30,37 +42,54 @@ import {
 } from 'react';
 import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
-import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
-import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '@/lib/books/bookshelf-search-params';
+import { StatStrip } from '@/components/console/stat-strip';
+import { FINE_POINTER } from '@/hooks/use-fine-pointer';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
+import { describeShelves, formatStageLabel, shelfStats } from '../_lib/book-labels';
+import { neighborsOf } from '../_lib/book-neighbors';
 import {
   type BookItem,
-  type BookStatusFilter,
-  buildShelfTabs,
   DEFAULT_BOOK_INDEX,
-  neighborsOf,
-  type ReadingMapEntry,
-  resolveShelfFilter,
+  type NonEmptyBooks,
   type ShelfCollection,
-  type ShelfTab,
-  toReadingMapEntry,
 } from '../_lib/books';
-import { BookDetailView } from './book-detail-view';
-import styles from './bookshelf.module.css';
-import { BookshelfBookSlot, slotOffsetFactor } from './bookshelf-book-slot';
-import { BookshelfControlsBar, FreeLibraryDirectoryCard } from './bookshelf-controls-bar';
 import {
-  BookshelfFiltersBar,
-  measureShelfPill,
-  revealShelfChip,
-  type ShelfPillState,
-  sameShelfPillClip,
-  trackEdgeFadePx,
-} from './bookshelf-filters-bar';
+  BOOKSHELF_URL_OPTIONS,
+  type BookStatusFilter,
+  bookshelfSearchParsers,
+  buildShelfTabs,
+  countStatuses,
+  matchesFilter,
+  resolveShelfFilter,
+  type ShelfTab,
+} from '../_lib/bookshelf-filters';
+import { type ReadingMapEntry, toReadingMapEntry } from '../_lib/reading-map';
+import {
+  buildPoolSlots,
+  clamp,
+  INITIAL_HALF_WINDOW,
+  MIN_CIRCULAR_BOOKS,
+  measureShelf,
+  type PoolSlot,
+  SLOT_GEOMETRY,
+  STAGE_FALLBACK_HEIGHT,
+  slotOffsetFactor,
+  wrapIndex,
+} from '../_lib/shelf-geometry';
+import { BookDetailView } from './book-detail-view';
+import { BookshelfBookSlot, SLOT_NO_ANIM_CLASS } from './bookshelf-book-slot';
+import { headerActionClass } from './bookshelf-classes';
+import { BookshelfControlsBar } from './bookshelf-controls-bar';
+import { BookshelfFiltersBar } from './bookshelf-filters-bar';
+import styles from './bookshelf-stage.module.css';
+import { FreeLibraryDirectoryCard } from './free-library-card';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
+import { useInPageDetail } from './use-in-page-detail';
+import { useShelfMotion } from './use-shelf-motion';
+import { useShelfPill } from './use-shelf-pill';
 
 export interface BookshelfStageProps {
   /** Optional initial book slug (e.g. from `?book=<slug>` when returning from a detail route). */
@@ -69,7 +98,7 @@ export interface BookshelfStageProps {
    * The books to shelve, in stage order: the whole catalog, or one shelf's books. Never empty: the
    * server page renders the empty state instead of this island when there are none.
    */
-  readonly books: readonly [BookItem, ...BookItem[]];
+  readonly books: NonEmptyBooks;
   /**
    * The shelves of `books`, in shelf order (the shelf cards and the reading map): every shelf on
    * /bookshelf, only `activeShelf` on a shelf's page.
@@ -79,66 +108,18 @@ export interface BookshelfStageProps {
   readonly activeShelf?: ShelfCollection;
 }
 
-/**
- * The book height drags and the jump fade move by until the first measurement. It is never
- * painted: the stage's CSS sizes the books (--book-h on .shelf-shell, the same formula as
- * measureStage), so the server's HTML is laid out as the browser's.
- */
-const DEFAULT_BOOK_HEIGHT = 360;
-const STEP_DURATION_MS = 400;
-const CHAIN_STEP_DURATION_MS = 220;
-const CHAIN_TICK_MS = 55;
-/**
- * The longest jump that slides as one step: measureStage keeps two to three slots off screen on
- * each side (measured at stage widths of 328-1568 px), so a slide of up to two books never shows
- * a recycled slot crossing the stage.
- */
-const JUMP_SLIDE_MAX = 2;
-/** A longer jump teleports every slot, then fades the shelf in over this long. */
+/** A resize re-measures the stage once it has settled this long. */
+const RESIZE_DEBOUNCE_MS = 100;
+/** How long the shelf fades in after a long jump (past JUMP_SLIDE_MAX) teleports the slots. */
 const JUMP_IN_MS = 220;
-/** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf.module.css). */
+/** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
 const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 /** How far the shelf slides in from the side it travels toward, in book heights: one slot pitch. */
-const JUMP_IN_SHIFT = 0.19;
-/** The shelf pill before its first measurement: no clip, so hidden, and placed without a slide. */
-const UNMEASURED_PILL: ShelfPillState = { clip: null, animate: false };
-
-const mod = (a: number, n: number): number => ((a % n) + n) % n;
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-interface PoolSlot {
-  readonly poolIndex: number;
-  readonly slotPosition: number;
-  readonly offset: number;
-  readonly book: BookItem;
-}
-
-/** A jump waiting for its commit: the position it lands on, and the side it travels toward. */
-interface PendingJump {
-  readonly pos: number;
-  /** -1 or 1; 0 lands with no fade (reduced motion). */
-  readonly dir: number;
-}
-
-/** "A", "A and B", or "A, B, and C". Plain joins, so the server and browser render the same text. */
-function listTitles(titles: readonly string[]): string {
-  if (titles.length <= 2) return titles.join(' and ');
-  return `${titles.slice(0, -1).join(', ')}, and ${titles.at(-1)}`;
-}
-
-/** The whole shelf's description: its shelves' titles in shelf order, never a fixed subject list. */
-function describeShelves(shelves: readonly ShelfCollection[]): string {
-  return shelves.length === 0
-    ? 'Foundational books, shelf by shelf.'
-    : `Foundational books across ${listTitles(shelves.map((shelf) => shelf.title))}.`;
-}
+const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
 
 /**
- * Interactive 3D Bookshelf orchestrator built natively inside Live Console `<PageShell>`.
- * Delegates filter chrome (`BookshelfFiltersBar`), 3D cuboid slots (`BookshelfBookSlot`),
- * wheel/keyboard/drag/cursor physics (`useBookshelfNavigation`), and readout controls
- * (`BookshelfControlsBar`) to isolated sub-modules.
+ * The bookshelf stage: the books as a row of 3D slots to step, drag or jump through, the filters
+ * that highlight them, and the in-page detail of the open book.
  */
 export function BookshelfStage({
   initialSlug,
@@ -147,11 +128,11 @@ export function BookshelfStage({
   activeShelf,
 }: BookshelfStageProps): ReactElement {
   const bookCount = books.length;
-  const isFiniteShelf = Boolean(activeShelf) || bookCount < 9;
+  const isFiniteShelf = Boolean(activeShelf) || bookCount < MIN_CIRCULAR_BOOKS;
 
   const bookAt = useCallback(
     (index: number): BookItem => {
-      const idx = isFiniteShelf ? clamp(index, 0, bookCount - 1) : mod(index, bookCount);
+      const idx = isFiniteShelf ? clamp(index, 0, bookCount - 1) : wrapIndex(index, bookCount);
       return books[idx] ?? books[0];
     },
     [books, bookCount, isFiniteShelf],
@@ -169,21 +150,37 @@ export function BookshelfStage({
     return Math.min(DEFAULT_BOOK_INDEX, bookCount - 1);
   }, [resolvedInitialSlug, books, bookCount, isFiniteShelf]);
 
-  const [pos, setPos] = useState<number>(initialPos);
-  const [halfWindow, setHalfWindow] = useState<number>(5);
-  const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [finePointer, setFinePointer] = useState(false);
-  const [detailBook, setDetailBook] = useState<BookItem | null>(null);
-  const [shelfPill, setShelfPill] = useState<ShelfPillState>(UNMEASURED_PILL);
+  const motion = useShelfMotion({ initialPos, finite: isFiniteShelf, bookCount });
+  const { pos, setPos, stepDuration, posRef, bookHeightRef, pendingJumpRef, jumpAnimRef } = motion;
+  const { step, jumpTo } = motion;
 
-  // A shelf's slug is its filter's identity; its title is only the chip's label.
-  const shelfTabs = useMemo(() => buildShelfTabs(books), [books]);
-  const mapBooks = useMemo(() => books.map(toReadingMapEntry), [books]);
   const indexBySlug = useMemo(
     () => new Map(books.map((book, index) => [book.slug, index] as const)),
     [books],
   );
+  const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
+  const {
+    detailBook,
+    setDetailBook,
+    stageIndexFromHash,
+    openDetail,
+    openDetailBySlug,
+    closeDetail,
+  } = useInPageDetail({
+    books,
+    indexBySlug,
+    bookAt,
+    setPos,
+    slotPositionsRef: prevSlotPositionsRef,
+  });
+
+  const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [finePointer, setFinePointer] = useState(false);
+
+  // A shelf's slug is its filter's identity; its title is only the chip's label.
+  const shelfTabs = useMemo(() => buildShelfTabs(books), [books]);
+  const mapBooks = useMemo(() => books.map(toReadingMapEntry), [books]);
   const activeShelfSlug = resolveShelfFilter(urlState.shelf, urlState.track, shelfTabs);
   const activeShelfTab = useMemo<ShelfTab | null>(
     () => shelfTabs.find((tab) => tab.slug === activeShelfSlug) ?? null,
@@ -195,60 +192,26 @@ export function BookshelfStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const slotElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
-  const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
-
-  const posRef = useRef<number>(pos);
-  posRef.current = pos;
-  const bookHeightRef = useRef<number>(DEFAULT_BOOK_HEIGHT);
-  const detailOpenRef = useRef<boolean>(false);
-  detailOpenRef.current = detailBook !== null;
-  const chainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastStepRef = useRef<number>(0);
-  const pendingJumpRef = useRef<PendingJump | null>(null);
-  const jumpAnimRef = useRef<Animation | null>(null);
 
   const activeBook = bookAt(pos);
 
-  const statusCounts = useMemo<Readonly<Record<BookStatusFilter, number>>>(() => {
-    const counts: Record<BookStatusFilter, number> = {
-      all: bookCount,
-      completed: 0,
-      reading: 0,
-      queued: 0,
-    };
-    for (const book of books) {
-      counts[book.status] += 1;
-    }
-    return counts;
-  }, [books, bookCount]);
+  const statusCounts = useMemo(() => countStatuses(books), [books]);
 
-  const totalTopics = useMemo(
-    () => books.reduce((sum, book) => sum + book.topics.length, 0),
-    [books],
-  );
-
-  const statItems = useMemo<readonly StatStripItem[]>(
+  const statItems = useMemo(
     () =>
-      activeShelf
-        ? [
-            { label: bookCount === 1 ? 'book' : 'books', value: bookCount },
-            { label: 'read', value: statusCounts.completed },
-            { label: 'topics', value: totalTopics },
-          ]
-        : [
-            { label: 'books', value: bookCount },
-            { label: 'read', value: statusCounts.completed },
-            { label: shelves.length === 1 ? 'shelf' : 'shelves', value: shelves.length },
-            { label: 'topics', value: totalTopics },
-          ],
-    [activeShelf, bookCount, statusCounts.completed, shelves.length, totalTopics],
+      shelfStats({
+        books,
+        readCount: statusCounts.completed,
+        shelfCount: shelves.length,
+        isSingleShelf: Boolean(activeShelf),
+      }),
+    [books, statusCounts.completed, shelves.length, activeShelf],
   );
 
   // Where the pill sits: the filtered shelf, else the shelf of the book on stage.
   const locationShelfSlug = activeShelfSlug ?? activeBook.shelfSlug;
-  const poolSize = isFiniteShelf ? bookCount : 2 * halfWindow + 1;
+  const { chipRefs, shelfPill, syncShelfPill, syncShelfPillRef } = useShelfPill(locationShelfSlug);
 
   // Derived from the shelves, so the copy never drifts from what Studio holds.
   const catalogDescription = useMemo(() => describeShelves(shelves), [shelves]);
@@ -256,74 +219,23 @@ export function BookshelfStage({
   /**
    * Measures the stage: the pool size (halfWindow), and the book height drags and the jump fade
    * move by. Nothing painted reads it: the books are sized by the CSS --book-h on .shelf-shell,
-   * this same nextH unrounded, so they never resize after hydration.
+   * the same height unrounded, so they never resize after hydration.
    */
   const measureStage = useCallback((): void => {
     const stageEl = stageRef.current;
     if (!stageEl) return;
-    const sw = stageEl.clientWidth || window.innerWidth;
-    const sh = stageEl.clientHeight || 390;
-    const nextH = Math.round(Math.max(220, Math.min(sh * 0.84, 410, sw * 0.88)));
-    const x1 = nextH * 0.5;
-    const pitch = nextH * 0.18;
-    const nextK = Math.max(3, Math.ceil((sw / 2 - x1) / pitch) + 2);
-    bookHeightRef.current = nextH;
-    setHalfWindow(nextK);
-  }, []);
-
-  /**
-   * Clips the shelf pill to the current chip and keeps that chip in view in a chip row that
-   * scrolls, by scrolling the row alone (revealShelfChip): never scrollIntoView, which would also
-   * scroll the page when the reader is further down it.
-   */
-  const syncShelfPill = useCallback((): void => {
-    const chip = chipRefs.current.get(locationShelfSlug);
-    const bar = chip?.parentElement;
-    if (!chip || !bar) return;
-    const clip = measureShelfPill(bar, chip);
-    setShelfPill((prev) =>
-      prev.clip !== null && sameShelfPillClip(prev.clip, clip) ? prev : { ...prev, clip },
+    const { bookHeight, halfWindow: nextHalfWindow } = measureShelf(
+      stageEl.clientWidth || window.innerWidth,
+      stageEl.clientHeight || STAGE_FALLBACK_HEIGHT,
     );
-    revealShelfChip(bar, chip, trackEdgeFadePx(bar));
-  }, [locationShelfSlug]);
+    bookHeightRef.current = bookHeight;
+    setHalfWindow(nextHalfWindow);
+  }, [bookHeightRef]);
 
-  const syncShelfPillRef = useRef<() => void>(syncShelfPill);
-  syncShelfPillRef.current = syncShelfPill;
-
-  // The pill's first placement lands at once (.no-anim): its clip is committed to style here,
-  // before transitions come on, so it never slides in from the row's start. It slides after that.
-  useLayoutEffect(() => {
-    if (shelfPill.clip === null || shelfPill.animate) return;
-    const pill = chipRefs.current.get(locationShelfSlug)?.parentElement?.firstElementChild;
-    if (pill) void getComputedStyle(pill).clipPath;
-    setShelfPill((prev) => (prev.animate ? prev : { ...prev, animate: true }));
-  }, [shelfPill, locationShelfSlug]);
-
-  // Fixed ascending `poolIndex` order (`0..poolSize-1`) prevents DOM reordering during transitions.
-  const poolSlots = useMemo<readonly PoolSlot[]>(() => {
-    if (isFiniteShelf) {
-      return books.map((book, index) => ({
-        poolIndex: index,
-        slotPosition: index,
-        offset: index - pos,
-        book,
-      }));
-    }
-    const base = pos - halfWindow;
-    const baseMod = mod(base, poolSize);
-    const slots: PoolSlot[] = [];
-    for (let poolIndex = 0; poolIndex < poolSize; poolIndex += 1) {
-      const shift = mod(poolIndex - baseMod, poolSize);
-      const slotPosition = base + shift;
-      slots.push({
-        poolIndex,
-        slotPosition,
-        offset: slotPosition - pos,
-        book: bookAt(slotPosition),
-      });
-    }
-    return slots;
-  }, [isFiniteShelf, books, pos, halfWindow, poolSize, bookAt]);
+  const poolSlots = useMemo<readonly PoolSlot[]>(
+    () => buildPoolSlots({ books, pos, halfWindow, finite: isFiniteShelf, bookAt }),
+    [isFiniteShelf, books, pos, halfWindow, bookAt],
+  );
 
   const registerSlotRef = useCallback((poolIndex: number, el: HTMLDivElement | null): void => {
     if (el) slotElementsRef.current.set(poolIndex, el);
@@ -338,8 +250,6 @@ export function BookshelfStage({
       pendingJumpRef.current = null;
       prevSlotPositionsRef.current.clear();
     }
-    const noAnimClass = styles['no-anim'] ?? '';
-
     const teleported: HTMLDivElement[] = [];
 
     for (const slot of poolSlots) {
@@ -350,8 +260,8 @@ export function BookshelfStage({
       const isFresh = prevSlot === undefined || prevSlot !== slot.slotPosition;
       prevSlotPositionsRef.current.set(slot.poolIndex, slot.slotPosition);
 
-      if (isFresh && noAnimClass) {
-        el.classList.add(noAnimClass);
+      if (isFresh && SLOT_NO_ANIM_CLASS) {
+        el.classList.add(SLOT_NO_ANIM_CLASS);
         teleported.push(el);
       }
       // Position (--slot-x), z-index and the state classes are rendered from props, server and
@@ -362,7 +272,7 @@ export function BookshelfStage({
     if (teleported.length > 0) {
       void shelfRef.current?.offsetWidth;
       for (const el of teleported) {
-        if (noAnimClass) el.classList.remove(noAnimClass);
+        if (SLOT_NO_ANIM_CLASS) el.classList.remove(SLOT_NO_ANIM_CLASS);
       }
     }
 
@@ -380,131 +290,12 @@ export function BookshelfStage({
         { duration: JUMP_IN_MS, easing: JUMP_IN_EASE },
       );
     }
-  }, [poolSlots, detailBook]);
-
-  const step = useCallback(
-    (dir: number, dur = STEP_DURATION_MS): void => {
-      pendingJumpRef.current = null;
-      setStepDuration(prefersReducedMotion() ? 0 : dur);
-      lastStepRef.current = performance.now();
-      setPos((current) => (isFiniteShelf ? clamp(current + dir, 0, bookCount - 1) : current + dir));
-    },
-    [isFiniteShelf, bookCount],
-  );
-
-  const stepBy = useCallback(
-    (delta: number): void => {
-      if (chainTimerRef.current) {
-        clearTimeout(chainTimerRef.current);
-        chainTimerRef.current = null;
-      }
-      if (!delta) return;
-      const dir = Math.sign(delta);
-      let left = Math.abs(delta);
-      if (left === 1) {
-        step(dir, STEP_DURATION_MS);
-        return;
-      }
-      const tick = (): void => {
-        left -= 1;
-        step(dir, left > 0 ? CHAIN_STEP_DURATION_MS : STEP_DURATION_MS);
-        if (left > 0) {
-          chainTimerRef.current = setTimeout(tick, CHAIN_TICK_MS);
-        }
-      };
-      tick();
-    },
-    [step],
-  );
-
-  /**
-   * Moves the stage to the book at `targetIndex` in ONE move, however far it is (the shorter way
-   * round the circular shelf): up to JUMP_SLIDE_MAX books slide as one step; a longer jump
-   * teleports every slot and the layout effect fades the shelf in, instantly under reduced
-   * motion. One position change, so one announcement in the live region. Shelf chips, status
-   * chips, Home/End and the reading map jump; arrow keys, drags and clicks on a visible book step.
-   */
-  const jumpTo = useCallback(
-    (targetIndex: number): void => {
-      if (chainTimerRef.current) {
-        clearTimeout(chainTimerRef.current);
-        chainTimerRef.current = null;
-      }
-      let delta: number;
-      if (isFiniteShelf) {
-        delta = clamp(targetIndex, 0, bookCount - 1) - posRef.current;
-      } else {
-        delta = mod(targetIndex - mod(posRef.current, bookCount), bookCount);
-        if (delta > bookCount / 2) delta -= bookCount;
-      }
-      if (delta === 0) return;
-      if (Math.abs(delta) <= JUMP_SLIDE_MAX) {
-        step(delta);
-        return;
-      }
-      const reduced = prefersReducedMotion();
-      const target = posRef.current + delta;
-      pendingJumpRef.current = { pos: target, dir: reduced ? 0 : Math.sign(delta) };
-      setStepDuration(reduced ? 0 : STEP_DURATION_MS);
-      lastStepRef.current = performance.now();
-      setPos(target);
-    },
-    [isFiniteShelf, bookCount, step],
-  );
-
-  const stageIndexFromHash = useCallback((): number => {
-    if (typeof window === 'undefined') return -1;
-    const match = /^#\/stage\/(\d+)/.exec(window.location.hash);
-    if (!match?.[1]) return -1;
-    const label = match[1].padStart(2, '0');
-    return books.findIndex((book) => book.stageLabel === label);
-  }, [books]);
-
-  const openDetail = useCallback(
-    (book: BookItem, { push = true } = {}): void => {
-      const idx = books.findIndex((item) => item.slug === book.slug);
-      if (idx >= 0) setPos(idx);
-      setDetailBook(book);
-      if (push && typeof window !== 'undefined') {
-        const nextHash = `#/stage/${book.stageLabel}`;
-        if (window.location.hash !== nextHash) {
-          window.history.pushState(
-            { stage: book.stageLabel },
-            '',
-            `${window.location.pathname}${window.location.search}${nextHash}`,
-          );
-        }
-      }
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-      }
-    },
-    [books],
-  );
-
-  /** Opens the book with this slug (the detail's Previous/Next, the map's Open stage). */
-  const openDetailBySlug = useCallback(
-    (slug: string): void => {
-      const idx = indexBySlug.get(slug);
-      const book = idx === undefined ? undefined : books[idx];
-      if (book) openDetail(book);
-    },
-    [indexBySlug, books, openDetail],
-  );
-
-  const closeDetail = useCallback(({ fromPop = false } = {}): void => {
-    if (!fromPop && typeof window !== 'undefined' && window.location.hash) {
-      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    }
-    prevSlotPositionsRef.current.clear();
-    setDetailBook(null);
-  }, []);
+  }, [poolSlots, detailBook, pendingJumpRef, posRef, jumpAnimRef, bookHeightRef]);
 
   useEffect(() => {
     measureStage();
     const isFine =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      typeof window.matchMedia === 'function' && window.matchMedia(FINE_POINTER).matches;
     setFinePointer(isFine);
 
     const hashIndex = stageIndexFromHash();
@@ -519,7 +310,7 @@ export function BookshelfStage({
       resizeTimer = setTimeout(() => {
         measureStage();
         syncShelfPillRef.current();
-      }, 100);
+      }, RESIZE_DEBOUNCE_MS);
     };
     window.addEventListener('resize', onResize);
     void document.fonts?.ready.then(() => syncShelfPillRef.current());
@@ -527,14 +318,7 @@ export function BookshelfStage({
       window.removeEventListener('resize', onResize);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [measureStage, stageIndexFromHash, bookAt]);
-
-  useEffect(() => {
-    return () => {
-      if (chainTimerRef.current) clearTimeout(chainTimerRef.current);
-      jumpAnimRef.current?.cancel();
-    };
-  }, []);
+  }, [measureStage, stageIndexFromHash, bookAt, setPos, setDetailBook, syncShelfPillRef]);
 
   useEffect(() => {
     if (detailBook !== null) return;
@@ -554,31 +338,12 @@ export function BookshelfStage({
     if (!isClean) void setUrlState({ shelf: activeShelfSlug, track: null });
   }, [urlState.track, urlState.shelf, activeShelfSlug, setUrlState]);
 
-  useEffect(() => {
-    const onPopState = (): void => {
-      const idx = stageIndexFromHash();
-      if (idx < 0) {
-        closeDetail({ fromPop: true });
-      } else {
-        setPos(idx);
-        setDetailBook(bookAt(idx));
-      }
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, [closeDetail, stageIndexFromHash, bookAt]);
-
   const { isDragging, handleStagePointerDown, handleStagePointerMove, finishDrag } =
     useBookshelfNavigation({
       stageRef,
       shelfRef,
       cursorRef,
-      posRef,
-      bookHeightRef,
-      detailOpenRef,
-      chainTimerRef,
-      lastStepRef,
-      jumpAnimRef,
+      motion,
       finePointer,
       detailOpen: detailBook !== null,
       mapOpen,
@@ -586,9 +351,6 @@ export function BookshelfStage({
       activeShelfSlug,
       statusFilter,
       bookAt,
-      step,
-      stepBy,
-      jumpTo,
       openDetail,
       closeDetail,
       onUpdateUrlFilter: (patch) => void setUrlState({ ...patch, track: null }),
@@ -604,10 +366,8 @@ export function BookshelfStage({
   const handleShelfClick = (slug: string | null): void => {
     void setUrlState({ shelf: slug, track: null });
     if (slug === null) return;
-    const matchesStatus = (book: BookItem): boolean =>
-      statusFilter === 'all' || book.status === statusFilter;
-    if (activeBook.shelfSlug === slug && matchesStatus(activeBook)) return;
-    const firstMatch = books.findIndex((book) => book.shelfSlug === slug && matchesStatus(book));
+    if (matchesFilter(activeBook, slug, statusFilter)) return;
+    const firstMatch = books.findIndex((book) => matchesFilter(book, slug, statusFilter));
     const target =
       firstMatch >= 0 ? firstMatch : books.findIndex((book) => book.shelfSlug === slug);
     if (target >= 0) jumpTo(target);
@@ -616,10 +376,8 @@ export function BookshelfStage({
   const handleStatusClick = (nextStatus: BookStatusFilter, scrollToStage = false): void => {
     let clearShelf = false;
     if (nextStatus !== 'all') {
-      const firstMatch = books.findIndex(
-        (book) =>
-          book.status === nextStatus &&
-          (activeShelfSlug === null || book.shelfSlug === activeShelfSlug),
+      const firstMatch = books.findIndex((book) =>
+        matchesFilter(book, activeShelfSlug, nextStatus),
       );
       if (firstMatch >= 0) {
         jumpTo(firstMatch);
@@ -641,11 +399,7 @@ export function BookshelfStage({
 
   const matchingFilterCount = useMemo(() => {
     if (activeShelfSlug === null && statusFilter === 'all') return bookCount;
-    return books.filter(
-      (book) =>
-        (activeShelfSlug === null || book.shelfSlug === activeShelfSlug) &&
-        (statusFilter === 'all' || book.status === statusFilter),
-    ).length;
+    return books.filter((book) => matchesFilter(book, activeShelfSlug, statusFilter)).length;
   }, [books, bookCount, activeShelfSlug, statusFilter]);
 
   if (detailBook) {
@@ -674,11 +428,7 @@ export function BookshelfStage({
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {activeShelf && (
-            <Link
-              href="/bookshelf"
-              prefetch={false}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
-            >
+            <Link href="/bookshelf" prefetch={false} className={headerActionClass('wide', true)}>
               <FiArrowLeft className="size-4" aria-hidden="true" />
               All shelves
             </Link>
@@ -686,7 +436,7 @@ export function BookshelfStage({
           <Link
             href="/bookshelf/free"
             prefetch={false}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', true)}
           >
             <FiBookOpen className="size-3.5" aria-hidden="true" />
             Free library
@@ -694,7 +444,7 @@ export function BookshelfStage({
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
             Reading map
@@ -723,7 +473,6 @@ export function BookshelfStage({
           onResetFilters={() => void setUrlState({ shelf: null, track: null, status: 'all' })}
         />
 
-        {/* Borderless 3D Shelf Stage */}
         {/* biome-ignore lint/a11y/useSemanticElements: Interactive 3D carousel stage follows ARIA carousel pattern. */}
         <div
           ref={stageRef}
@@ -747,9 +496,7 @@ export function BookshelfStage({
               const isActive = slot.offset === 0;
               const { book } = slot;
               const hasFilter = activeShelfSlug !== null || statusFilter !== 'all';
-              const matchesShelf = activeShelfSlug === null || book.shelfSlug === activeShelfSlug;
-              const matchesStatus = statusFilter === 'all' || book.status === statusFilter;
-              const isHighlighted = hasFilter && matchesShelf && matchesStatus;
+              const isHighlighted = hasFilter && matchesFilter(book, activeShelfSlug, statusFilter);
               const isDimmed = hasFilter && !isHighlighted;
 
               return (
@@ -773,7 +520,7 @@ export function BookshelfStage({
           isSingleShelf={Boolean(activeShelf)}
           isFiniteShelf={isFiniteShelf}
           pos={pos}
-          displayIndex={mod(pos, bookCount)}
+          displayIndex={wrapIndex(pos, bookCount)}
           bookCount={bookCount}
           activeBook={activeBook}
           onOpenDetail={(book) => openDetail(book)}
@@ -804,7 +551,7 @@ export function BookshelfStage({
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {activeShelf ? String(mod(pos, bookCount) + 1).padStart(2, '0') : activeBook.stageLabel} of{' '}
+        {activeShelf ? formatStageLabel(wrapIndex(pos, bookCount) + 1) : activeBook.stageLabel} of{' '}
         {bookCount}: {activeBook.title}
       </p>
 

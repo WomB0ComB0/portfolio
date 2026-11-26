@@ -16,14 +16,21 @@
 
 'use client';
 
+/**
+ * @file The Free Library's filter panel: the search box, source tabs, format pills, category
+ * picker, the safety and visibility toggles, and the top category chips. Controlled: every value
+ * and change comes from the explorer (useFreeBooksQuery).
+ * Known debt: the console FilterBar and IndexTable kits (#624) are not adopted here yet.
+ */
+
 import type { ReactElement } from 'react';
 import { FiSearch, FiX } from 'react-icons/fi';
+import { DEFAULT_QUERY_MAX_LENGTH } from '@/lib/filters/normalise';
 import type {
   FreeBookCategorySummary,
   FreeBookFormat,
   FreeBookSource,
-} from '@/lib/books/free-books-types';
-import { DEFAULT_QUERY_MAX_LENGTH } from '@/lib/filters/normalise';
+} from '@/lib/free-books/types';
 import { cn } from '@/lib/utils';
 
 const FORMAT_FILTERS: readonly ('all' | FreeBookFormat)[] = ['all', 'PDF', 'HTML', 'EPUB'];

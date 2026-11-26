@@ -16,11 +16,16 @@
 
 'use client';
 
+/**
+ * @file The reading-status badge, used by the controls bar, the book detail, the shelf cards and
+ * the reading map. Kept on the palette by tests/unit/bookshelf/palette-only.test.ts.
+ */
+
 import type { ReactElement } from 'react';
 import { FiBookmark, FiCheck } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
 import { BOOK_STATUS_META, type BookStatus } from '../_lib/books';
-import styles from './bookshelf.module.css';
+import styles from './book-status-badge.module.css';
 
 export interface BookStatusBadgeProps {
   readonly status: BookStatus;
@@ -30,10 +35,10 @@ export interface BookStatusBadgeProps {
 }
 
 /**
- * Live Console reading-status pill:
- * - `completed` (Read): luminous `--live` check seal + subtle top highlight & halo.
- * - `reading`: live pulsing `--ongoing` telemetry beacon.
- * - `queued` (Unread): quiet bookmark outline on `--surface-2`.
+ * A reading status as a pill:
+ * - `completed` (Read): a check seal in --brand-ink on --brand-edge, on --brand-subtle.
+ * - `reading`: a pulsing --ongoing beacon on --ongoing-tint.
+ * - `queued` (Unread): a bookmark outline on --surface-2.
  */
 export function BookStatusBadge({
   status,

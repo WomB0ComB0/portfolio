@@ -44,11 +44,13 @@ e2e/
 │   ├── place-photo-strip.spec.ts
 │   └── stats.spec.ts
 ├── performance/          # Performance tests
+│   ├── bookshelf-budgets.spec.ts  # Bookshelf browser budgets, against a production build
 │   └── perf.spec.ts      # Load times, Core Web Vitals, caching
 ├── seo/                  # SEO tests
 │   ├── seo.spec.ts       # Meta tags, OG, structured data
 │   └── server-render.spec.ts
 ├── visual/               # Visual regression tests
+│   ├── bookshelf-chips.spec.ts
 │   ├── edge-haze.spec.ts
 │   ├── homepage.spec.ts
 │   ├── light-rays.spec.ts
@@ -57,6 +59,7 @@ e2e/
 │   ├── a11y.ts           # Request guard, axe runner and route discovery for the a11y spec
 │   ├── auth.setup.ts     # Auth state setup
 │   ├── base.ts           # Extended test fixtures
+│   ├── bookshelf.ts      # Bookshelf selectors, viewports, books JSON and open helpers
 │   └── home-bento.ts     # Home bento selectors, settle wait and masonry measure
 └── README.md
 ```

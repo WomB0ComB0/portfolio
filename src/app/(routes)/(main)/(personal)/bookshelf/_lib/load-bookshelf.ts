@@ -37,16 +37,11 @@ import { ensureBaseError } from '@/classes/error';
 import { reportApiFailure } from '@/lib/observability/report';
 import { urlFor } from '@/lib/sanity/client';
 import { loadBookshelf, type SanityBook, type SanityBookshelf } from '@/lib/sanity/loaders';
-import {
-  type BookItem,
-  type BookNeighbor,
-  COVER_HEIGHT,
-  COVER_WIDTH,
-  getLiveConsoleSpineTheme,
-  neighborsOf,
-  type ShelfCollection,
-  toBookNeighbor,
-} from './books';
+import { COVER_HEIGHT, COVER_WIDTH } from './book-covers';
+import { formatStageLabel } from './book-labels';
+import { type BookNeighbor, neighborsOf, toBookNeighbor } from './book-neighbors';
+import type { BookItem, NonEmptyBooks, ShelfCollection } from './books';
+import { getLiveConsoleSpineTheme } from './spine-themes';
 
 export interface BookshelfCatalog {
   /** Every book on a published shelf, in stage order (shelf order, then book order). */
@@ -56,8 +51,8 @@ export interface BookshelfCatalog {
   readonly totalTopics: number;
 }
 
-/** A list with at least one book: what the bookshelf's client islands take. */
-export type NonEmptyBooks = readonly [BookItem, ...BookItem[]];
+/** Re-exported beside hasBooks, which narrows a catalog's books to it. */
+export type { NonEmptyBooks } from './books';
 
 /** True when `books` holds at least one book, narrowing it for the client islands. */
 export const hasBooks = (books: readonly BookItem[]): books is NonEmptyBooks => books.length > 0;
@@ -102,7 +97,7 @@ function toBookItem(
   return {
     slug: doc.slug.current,
     stage,
-    stageLabel: String(stage).padStart(2, '0'),
+    stageLabel: formatStageLabel(stage),
     title: doc.title,
     spineTitle: doc.spineTitle?.trim() || doc.title,
     authors: doc.authors,
@@ -228,12 +223,15 @@ export async function loadCatalogBookBySlug(slug: string): Promise<CatalogBookHi
   return { book, prev: toBookNeighbor(prev), next: toBookNeighbor(next), catalog };
 }
 
-/** The shelf with this slug, its books in stage order and the catalog, or null when none has it. */
-export async function loadCatalogShelfBySlug(shelfSlug: string): Promise<{
+/** A shelf found by its slug: the shelf, its books in stage order and the catalog it sits in. */
+export interface CatalogShelfHit {
   readonly shelf: ShelfCollection;
   readonly books: readonly BookItem[];
   readonly catalog: BookshelfCatalog;
-} | null> {
+}
+
+/** The shelf with this slug, its books in stage order and the catalog, or null when none has it. */
+export async function loadCatalogShelfBySlug(shelfSlug: string): Promise<CatalogShelfHit | null> {
   const catalog = await loadBookshelfCatalog();
   const shelf = catalog.shelves.find((item) => item.slug === shelfSlug);
   if (!shelf) return null;

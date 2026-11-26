@@ -15,55 +15,29 @@
  */
 
 /**
- * @file Multi-layer Threat Intelligence, RDAP Domain-Age Drift, and Outsourced Delta Detonation
- * helpers for Free Programming Books:
- *   - Layer 1: Cloudflare Security DNS (1.1.1.2 DoH), Quad9 (9.9.9.9), abuse.ch URLhaus host feed,
- *     and optional Google Safe Browsing API v4.
- *   - Layer 2: RDAP domain-registration age check (flags <90-day re-registered/hijacked domains).
- *   - Targeted Layer 3: Outsourced sandbox detonation via urlscan.io or Cloudflare URL Scanner
- *     ONLY for newly added or drifted external URLs (zero untrusted JS executed in our CI).
+ * @file The network clients the weekly verify sweep asks about each host and URL:
+ * - Threat feeds: HaGeZi's threat-intelligence domains and OpenPhish, plus abuse.ch URLhaus when
+ *   URLHAUS_AUTH_KEY is set (loadUrlhausHostBlocklist).
+ * - Cloudflare Security DNS (1.1.1.2 over DoH) and Quad9 (9.9.9.9) per host
+ *   (checkHostnameThreatIntel).
+ * - Google Safe Browsing v4 for URLs, when GOOGLE_SAFE_BROWSING_API_KEY is set.
+ * - RDAP registration dates, to catch a domain re-registered in the last 90 days.
+ * - Outsourced sandbox scans (Cloudflare URL Scanner or urlscan.io) for drifted external URLs
+ *   only, so no third-party script runs on the CI runner.
+ * A failed provider never blocks a host. Each client takes an injectable fetcher; only the sweep
+ * (scripts/free-books/verify.ts) and the tests import this module, which uses node:dns.
+ * Guarded by tests/unit/free-books/threat-intel.test.ts.
  */
 
 import dns from 'node:dns/promises';
-import securityManifest from '@/data/free-books-security.json';
-
-export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+import type { DeltaDetonationRecord, FetchLike } from './types';
+import { registrableApex } from './url-screen';
 
 export interface ThreatIntelVerdict {
   readonly hostname: string;
   readonly blocked: boolean;
   readonly provider: string | null;
   readonly reason: string | null;
-}
-
-export interface UrlBaselineFingerprint {
-  readonly finalHost: string;
-  readonly contentType: string;
-  readonly rdapRegisteredAt?: string | null;
-  readonly checkedAt: string;
-}
-
-export interface DeltaDetonationRecord {
-  readonly provider: 'urlscan.io' | 'cloudflare-url-scanner';
-  readonly verdict: 'submitted' | 'clean' | 'malicious';
-  readonly reportUrl: string | null;
-  readonly scannedAt: string;
-}
-
-export interface FreeBooksSecurityManifest {
-  readonly generatedAt: string;
-  readonly checkedHosts: number;
-  readonly checkedUrls: number;
-  /** Hostnames blocked by Cloudflare 1.1.1.2, Quad9, URLhaus, or Safe Browsing. */
-  readonly blockedHosts: Readonly<Record<string, string>>;
-  /** Specific URLs quarantined for drive-by payloads, PDF exploits, ClickFix, parking, or drift. */
-  readonly quarantinedUrls: Readonly<Record<string, string>>;
-  /** Specific URLs confirmed unavailable (404/410) across two passes. */
-  readonly unavailableUrls: Readonly<Record<string, string>>;
-  /** Baseline host/MIME/RDAP fingerprints used to detect silent domain takeover or PDF->HTML flips. */
-  readonly urlFingerprints?: Readonly<Record<string, UrlBaselineFingerprint>>;
-  /** Outsourced sandbox detonation submissions for newly added / drifted external domains. */
-  readonly deltaDetonations?: Readonly<Record<string, DeltaDetonationRecord>>;
 }
 
 const CLOUDFLARE_SECURITY_DOH = 'https://security.cloudflare-dns.com/dns-query';
@@ -86,7 +60,7 @@ interface DohJsonResponse {
 
 /**
  * Zero-key threat-intelligence DNSBL check for a single hostname:
- * 1. Optional pre-loaded URLhaus active malware host set (abuse.ch).
+ * 1. The threat-feed host set loaded once per sweep (HaGeZi, OpenPhish, optional URLhaus).
  * 2. Cloudflare Security DNS (1.1.1.2 via DoH JSON) — flags sinkholed 0.0.0.0 or EDE 15/16/17.
  * 3. Quad9 (9.9.9.9) — flags domains that resolve normally on default DNS but return NXDOMAIN
  *    on Quad9's aggregated 20+ malware/phishing threat feeds.
@@ -301,18 +275,6 @@ export async function checkGoogleSafeBrowsing(
   return flagged;
 }
 
-/** Extracts an approximate registrable apex domain (eTLD+1) for RDAP queries. */
-function extractRegistrableDomain(hostname: string): string {
-  const parts = hostname.toLowerCase().replace(/\.+$/, '').split('.').filter(Boolean);
-  if (parts.length <= 2) return parts.join('.');
-  const lastTwo = parts.slice(-2).join('.');
-  // Handle common two-level public suffixes (co.uk, ac.uk, org.uk, com.au, edu.au, co.jp, com.br)
-  if (/^(?:co|ac|org|gov|edu|com|net)\.[a-z]{2}$/.test(lastTwo) && parts.length >= 3) {
-    return parts.slice(-3).join('.');
-  }
-  return lastTwo;
-}
-
 /**
  * Checks domain registration date via free RDAP (`rdap.org`) to spot expired-domain takeovers
  * (domains registered or re-registered within the last 90 days).
@@ -332,7 +294,7 @@ export async function checkRdapDomainAge(
   const fetcher = options.fetcher ?? fetch;
   const timeoutMs = options.timeoutMs ?? 4000;
   const nowMs = options.nowMs ?? Date.now();
-  const apex = extractRegistrableDomain(hostname);
+  const apex = registrableApex(hostname);
 
   try {
     const res = await fetcher(`${RDAP_BOOTSTRAP_URL}${encodeURIComponent(apex)}`, {
@@ -444,9 +406,4 @@ export async function submitDeltaDetonation(
   }
 
   return null;
-}
-
-/** Returns the committed, auditable free-books security & reachability manifest. */
-export function getFreeBooksSecurityManifest(): FreeBooksSecurityManifest {
-  return securityManifest as FreeBooksSecurityManifest;
 }

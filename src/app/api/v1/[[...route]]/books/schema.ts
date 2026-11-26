@@ -14,9 +14,40 @@
  * limitations under the License.
  */
 
-import { t } from 'elysia';
+/**
+ * @file The books API models. The free-books unions are built from the tuples in
+ * src/lib/free-books/types.ts (one `t.Literal` per value, in tuple order), so the API accepts and
+ * returns exactly the values the catalog uses; the limits come from the lib and ./handlers.ts.
+ * Only booksSchema is exported, for ./index.ts.
+ */
 
-export const bookLookupItemSchema = t.Object({
+import { t } from 'elysia';
+import {
+  FREE_BOOK_FORMATS,
+  FREE_BOOK_SOURCES,
+  FREE_BOOKS_MAX_PAGE_SIZE,
+  FREE_BOOKS_SORT_DIRS,
+  FREE_BOOKS_SORT_FIELDS,
+  HOST_TRUST_TIERS,
+  MANIFEST_SOURCES,
+} from '@/lib/free-books/types';
+import { BOOK_LOOKUP_QUERY_MAX_LENGTH } from './handlers';
+
+/** One `t.Literal` per tuple value, each keeping its literal type. */
+type LiteralSchemas<T extends readonly string[]> = {
+  -readonly [K in keyof T]: ReturnType<typeof t.Literal<T[K]>>;
+};
+/** The union of those literals, typed as `t.Union` types a tuple of them. */
+type LiteralUnion<T extends readonly string[]> = ReturnType<typeof t.Union<LiteralSchemas<T>>>;
+
+/**
+ * A `t.Union` of one `t.Literal` per tuple value, in tuple order: the same schema as the literals
+ * written out. TypeScript cannot follow `map` over a tuple, hence the cast.
+ */
+const literalUnion = <const T extends readonly string[]>(values: T): LiteralUnion<T> =>
+  t.Union(values.map((value) => t.Literal(value))) as unknown as LiteralUnion<T>;
+
+const bookLookupItemSchema = t.Object({
   title: t.String(),
   slug: t.String(),
   authors: t.String(),
@@ -29,23 +60,17 @@ export const bookLookupItemSchema = t.Object({
   source: t.Union([t.Literal('openlibrary'), t.Literal('googlebooks')]),
 });
 
-export const freeBookFormatSchema = t.Union([
-  t.Literal('PDF'),
-  t.Literal('HTML'),
-  t.Literal('EPUB'),
-  t.Literal('Kindle'),
-  t.Literal('Markdown'),
-  t.Literal('AsciiDoc'),
-]);
+const freeBookFormatSchema = literalUnion(FREE_BOOK_FORMATS);
+const freeBookSourceSchema = literalUnion(FREE_BOOK_SOURCES);
 
-export const freeBookEntrySchema = t.Object({
+const freeBookEntrySchema = t.Object({
   id: t.String(),
   title: t.String(),
   url: t.String(),
   host: t.String(),
-  trustTier: t.Union([t.Literal('verified'), t.Literal('external')]),
+  trustTier: literalUnion(HOST_TRUST_TIERS),
   authors: t.String(),
-  source: t.Union([t.Literal('langs'), t.Literal('subjects')]),
+  source: freeBookSourceSchema,
   category: t.String(),
   subcategory: t.Nullable(t.String()),
   formats: t.Array(freeBookFormatSchema),
@@ -57,15 +82,15 @@ export const freeBookEntrySchema = t.Object({
   unavailable: t.Boolean(),
 });
 
-export const freeBookCategorySchema = t.Object({
+const freeBookCategorySchema = t.Object({
   name: t.String(),
-  source: t.Union([t.Literal('langs'), t.Literal('subjects')]),
+  source: freeBookSourceSchema,
   count: t.Number(),
 });
 
 export const booksSchema = {
   'books.lookup.query': t.Object({
-    q: t.Optional(t.String({ maxLength: 120 })),
+    q: t.Optional(t.String({ maxLength: BOOK_LOOKUP_QUERY_MAX_LENGTH })),
     isbn: t.Optional(t.String({ maxLength: 32 })),
     limit: t.Optional(t.Numeric({ minimum: 1, maximum: 10 })),
   }),
@@ -77,18 +102,18 @@ export const booksSchema = {
     error: t.String(),
   }),
   'books.free.query': t.Object({
-    source: t.Optional(t.Union([t.Literal('all'), t.Literal('langs'), t.Literal('subjects')])),
+    source: t.Optional(literalUnion(['all', ...FREE_BOOK_SOURCES])),
     category: t.Optional(t.String({ maxLength: 100 })),
     format: t.Optional(t.Union([t.Literal('all'), freeBookFormatSchema])),
     q: t.Optional(t.String({ maxLength: 100 })),
-    sort: t.Optional(t.Union([t.Literal('title'), t.Literal('category'), t.Literal('host')])),
-    dir: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')])),
+    sort: t.Optional(literalUnion(FREE_BOOKS_SORT_FIELDS)),
+    dir: t.Optional(literalUnion(FREE_BOOKS_SORT_DIRS)),
     hideArchived: t.Optional(t.BooleanString()),
     hideInProcess: t.Optional(t.BooleanString()),
     hideUnavailable: t.Optional(t.BooleanString()),
     httpsOnly: t.Optional(t.BooleanString()),
     verifiedHostsOnly: t.Optional(t.BooleanString()),
-    limit: t.Optional(t.Numeric({ minimum: 1, maximum: 200 })),
+    limit: t.Optional(t.Numeric({ minimum: 1, maximum: FREE_BOOKS_MAX_PAGE_SIZE })),
     offset: t.Optional(t.Numeric({ minimum: 0 })),
   }),
   'books.free.response': t.Object({
@@ -105,7 +130,7 @@ export const booksSchema = {
     quarantinedCount: t.Number(),
     unavailableCount: t.Number(),
     securityCheckedAt: t.Nullable(t.String()),
-    manifestSource: t.Union([t.Literal('redis'), t.Literal('bundled')]),
+    manifestSource: literalUnion(MANIFEST_SOURCES),
     limit: t.Number(),
     offset: t.Number(),
     categories: t.Array(freeBookCategorySchema),

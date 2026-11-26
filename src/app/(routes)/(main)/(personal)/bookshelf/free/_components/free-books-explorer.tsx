@@ -16,19 +16,23 @@
 
 'use client';
 
+/**
+ * @file The /bookshelf/free island: the Free Library's header, stat strip, filters, table and
+ * pagination, all driven by useFreeBooksQuery (URL state and the page fetches). free/page.tsx
+ * renders it inside Suspense with the server-rendered first page. Guarded by
+ * tests/unit/free-books/explorer.test.tsx, and kept free of server modules by
+ * tests/unit/bookshelf/island-imports.test.ts.
+ * Known debt: the console FilterBar and IndexTable kits (#624) are not adopted here yet.
+ */
+
 import Link from 'next/link';
 import { type ReactElement, useMemo } from 'react';
 import { FiArrowLeft, FiArrowUpRight } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
-import {
-  FREE_BOOKS_PAGE_SIZES,
-  normalizeFreeBooksPageSize,
-} from '@/lib/books/bookshelf-search-params';
-import {
-  EBOOK_FOUNDATION_REPO_URL,
-  type FreeBooksPageResponse,
-} from '@/lib/books/free-books-types';
+import { EBOOK_FOUNDATION_REPO_URL, type FreeBooksPageResponse } from '@/lib/free-books/types';
+import { headerActionClass } from '../../_components/bookshelf-classes';
+import { FREE_BOOKS_PAGE_SIZES, normalizeFreeBooksPageSize } from '../_lib/free-books-filters';
 import { FreeBooksFilters } from './free-books-filters';
 import { FreeBooksPagination } from './free-books-pagination';
 import { FreeBooksTable } from './free-books-table';
@@ -42,9 +46,8 @@ export interface FreeBooksExplorerProps {
 const TOP_CATEGORY_CHIPS = 14;
 
 /**
- * Live Console orchestrator for EbookFoundation's 2,500+ free programming books.
- * Composes isolated URL/query state (`useFreeBooksQuery`), filters (`FreeBooksFilters`),
- * sortable table (`FreeBooksTable`), and pagination (`FreeBooksPagination`).
+ * The Free Library for EbookFoundation's free programming books: URL and query state from
+ * `useFreeBooksQuery`, with `FreeBooksFilters`, `FreeBooksTable` and `FreeBooksPagination`.
  */
 export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): ReactElement {
   const {
@@ -114,11 +117,7 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/bookshelf"
-            prefetch={false}
-            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
-          >
+          <Link href="/bookshelf" prefetch={false} className={headerActionClass('wide', true)}>
             <FiArrowLeft className="size-4" aria-hidden="true" />
             3D Bookshelf
           </Link>
@@ -126,7 +125,7 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
             href={EBOOK_FOUNDATION_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 tile-label text-muted-foreground no-underline transition-colors hover:border-hairline-strong hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus"
+            className={headerActionClass('tight', true)}
           >
             EbookFoundation
             <FiArrowUpRight className="size-3.5" aria-hidden="true" />

@@ -79,9 +79,6 @@ vi.mock('@/app/(routes)/(main)/(personal)/places/_components/map', () => ({
 // Metadata imports traverse the real Spotify body, including its shared CSS-only equaliser.
 // Vite cannot load Next's PostCSS plugin configuration; no body is rendered in this Node test.
 vi.mock('@/app/_components/home/live/equaliser.module.css', () => ({ default: {} }));
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
-  default: {},
-}));
 // The homepage's client component.
 vi.mock('@/app/_components/home', () => ({ HomePage: () => null }));
 

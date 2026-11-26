@@ -1,0 +1,201 @@
+/**
+ * Copyright 2026 Mike Odnis
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The stage (bookshelf-stage.tsx): the shell that sizes every book, the masked stage, the shelf
+ * the book slots hang from, and the custom cursor, whose state classes
+ * use-bookshelf-navigation.ts toggles.
+ */
+
+/* The book height is CSS, so the server's HTML is laid out as the browser's (no shift once the
+ * stage hydrates): measureShelf's formula (_lib/shelf-geometry.ts), with .stage's height. It is an
+ * unregistered property on purpose: 88cqi then resolves where it is used, in the books inside
+ * this container, against the shelf shell's width (the stage's own width). */
+.shelf-shell {
+  --book-h: max(220px, min(calc(clamp(300px, 45dvh, 420px) * 0.84), 410px, 88cqi));
+  --book-w: calc(var(--book-h) * 0.15);
+  --book-c: calc(var(--book-h) * 0.75);
+  --shelf-dur: 400ms;
+  --shelf-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --shelf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+/* The stage: a viewport of fixed height the books pass through, masked to fade out at each end. */
+.stage {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+
+  /* --book-h (.shelf-shell) repeats this height: change the two together. */
+  height: clamp(300px, 45dvh, 420px);
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  touch-action: pan-y;
+  outline: none;
+  cursor: grab;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(0 0 0 / 22%) 4.5%,
+    rgb(0 0 0 / 68%) 9.5%,
+    #000 15.5%,
+    #000 84.5%,
+    rgb(0 0 0 / 68%) 90.5%,
+    rgb(0 0 0 / 22%) 95.5%,
+    transparent 100%
+  );
+}
+
+.shelf-focused .stage {
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(0 0 0 / 55%) 4%,
+    #000 9%,
+    #000 91%,
+    rgb(0 0 0 / 55%) 96%,
+    transparent 100%
+  );
+}
+
+.stage-dragging {
+  cursor: grabbing;
+}
+
+.custom-cursor {
+  cursor: none;
+}
+
+.shelf {
+  --drag-x: 0px;
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translate3d(var(--drag-x), 0, 0);
+  transition: transform 280ms var(--shelf-ease-out);
+}
+
+.shelf-dragging {
+  transition: none;
+}
+
+/*
+ * The custom cursor with a fine pointer: a ring that trails the pointer over the stage
+ * (use-bookshelf-navigation.ts), grows into an Open label over the active book and shrinks while
+ * dragging. --shelf-ease-out is set on .shelf-shell, which this layer sits outside, so the ring's
+ * and the label's transitions do not run today.
+ */
+.cursor-layer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms var(--ease-effect);
+}
+
+.cursor-visible {
+  opacity: 1;
+}
+
+.cursor-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 52px;
+  height: 52px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: var(--brand-glow);
+  box-shadow: inset 0 0 0 1.5px var(--brand-ink);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  transition:
+    width 320ms var(--shelf-ease-out),
+    height 320ms var(--shelf-ease-out),
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.cursor-ring::before {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--brand-ink);
+  transition:
+    transform 220ms ease,
+    opacity 180ms ease;
+}
+
+.cursor-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--canvas);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 180ms ease,
+    transform 280ms var(--shelf-ease-out);
+}
+
+.cursor-open .cursor-ring {
+  width: 84px;
+  height: 84px;
+  background: var(--fg);
+  box-shadow: 0 14px 32px -8px rgb(0 0 0 / 60%);
+}
+
+.cursor-open .cursor-ring::before {
+  opacity: 0;
+  transform: scale(0);
+}
+
+.cursor-open .cursor-label {
+  opacity: 1;
+  transform: none;
+}
+
+.cursor-grabbing .cursor-ring {
+  width: 38px;
+  height: 38px;
+  background: var(--brand-subtle);
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.cursor-grabbing .cursor-label {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-shell {
+    --shelf-dur: 0ms;
+  }
+}

@@ -15,15 +15,34 @@
  */
 
 /**
- * @file Book metadata lookup via Open Library (primary) with Google Books fallback.
- * Normalizes ISBN or title/author search queries into ready-to-import book records for Sanity
- * Studio and dynamic shelf previews.
+ * @file The work behind the two books routes (./index.ts wires them):
+ * - lookupBooks: book metadata by ISBN or title/author, from Open Library first and Google Books
+ *   when Open Library has no match, normalised into records Sanity Studio imports
+ *   (src/sanity/schemaTypes/book.ts). Concurrent identical lookups share one request, and found
+ *   results are cached in memory for 15 minutes.
+ * - readFreeBooksPage: one page of the free programming books catalog (src/lib/free-books), from
+ *   the parsed `GET /books/free` query, with unavailable books hidden unless the query says not to.
  */
 
 import { sanitizeUrl } from '@resq-systems/security/sanitize';
 import { normaliseQuery } from '@/lib/filters/normalise';
+import { buildFreeBooksPageResponse } from '@/lib/free-books/catalog';
+import { loadFreeProgrammingBooks } from '@/lib/free-books/loader';
+import {
+  FREE_BOOKS_DEFAULT_PAGE_SIZE,
+  type FreeBookCategorySummary,
+  type FreeBookEntry,
+  type FreeBookFormat,
+  type FreeBookSource,
+  type FreeBooksPageResponse,
+  type FreeBooksSortDir,
+  type FreeBooksSortField,
+} from '@/lib/free-books/types';
 
-export interface BookLookupItem {
+/** The longest lookup search read: the schema's limit, and the cut for the normalised query. */
+export const BOOK_LOOKUP_QUERY_MAX_LENGTH = 120;
+
+interface BookLookupItem {
   readonly title: string;
   readonly slug: string;
   readonly authors: string;
@@ -231,7 +250,7 @@ export async function lookupBooks(options: {
 }): Promise<LookupResult> {
   const limit = Math.max(1, Math.min(10, options.limit ?? 5));
   const rawIsbn = options.isbn ? cleanIsbn(options.isbn) : '';
-  const rawQuery = normaliseQuery(options.q, 120);
+  const rawQuery = normaliseQuery(options.q, BOOK_LOOKUP_QUERY_MAX_LENGTH);
 
   const isIsbn = rawIsbn.length >= 10;
   const query = isIsbn ? rawIsbn : rawQuery;
@@ -274,4 +293,55 @@ export async function lookupBooks(options: {
 
   inflightLookups.set(cacheKey, task);
   return task;
+}
+
+/** The parsed `GET /books/free` query (booksSchema's 'books.free.query'). */
+interface FreeBooksPageQuery {
+  readonly source?: 'all' | FreeBookSource;
+  readonly category?: string;
+  readonly format?: 'all' | FreeBookFormat;
+  readonly q?: string;
+  readonly sort?: FreeBooksSortField;
+  readonly dir?: FreeBooksSortDir;
+  readonly hideArchived?: boolean;
+  readonly hideInProcess?: boolean;
+  readonly hideUnavailable?: boolean;
+  readonly httpsOnly?: boolean;
+  readonly verifiedHostsOnly?: boolean;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+/** A page as the route sends it: the same fields, with the mutable arrays Elysia's types expect. */
+type FreeBooksPageBody = Omit<FreeBooksPageResponse, 'categories' | 'items'> & {
+  readonly categories: FreeBookCategorySummary[];
+  readonly items: (Omit<FreeBookEntry, 'formats'> & { readonly formats: FreeBookFormat[] })[];
+};
+
+/**
+ * One page of the free books catalog for `GET /books/free`. Unavailable books are hidden unless
+ * `hideUnavailable=false`; with no limit the page has FREE_BOOKS_DEFAULT_PAGE_SIZE rows.
+ */
+export async function readFreeBooksPage(query: FreeBooksPageQuery): Promise<FreeBooksPageBody> {
+  const catalog = await loadFreeProgrammingBooks();
+  const page = buildFreeBooksPageResponse(catalog, {
+    source: query.source,
+    category: query.category,
+    format: query.format,
+    q: query.q,
+    sort: query.sort,
+    dir: query.dir,
+    hideArchived: query.hideArchived,
+    hideInProcess: query.hideInProcess,
+    hideUnavailable: query.hideUnavailable ?? true,
+    httpsOnly: query.httpsOnly,
+    verifiedHostsOnly: query.verifiedHostsOnly,
+    limit: query.limit ?? FREE_BOOKS_DEFAULT_PAGE_SIZE,
+    offset: query.offset ?? 0,
+  });
+  return {
+    ...page,
+    categories: [...page.categories],
+    items: page.items.map((item) => ({ ...item, formats: [...item.formats] })),
+  };
 }

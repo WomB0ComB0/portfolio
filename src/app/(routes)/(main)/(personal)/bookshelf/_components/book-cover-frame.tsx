@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 
+/**
+ * @file A book's upright cover in its frame, with the hinge's shading. BookDetailView draws it, so
+ * it shows in the stage's in-page detail and on /bookshelf/[slug], where it is the page's LCP
+ * image. Guarded by tests/unit/bookshelf/book-detail-view.test.tsx.
+ */
+
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/utils';
-import { type BookItem, COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/books';
-import styles from './bookshelf.module.css';
+import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
+import type { BookItem } from '../_lib/books';
+import styles from './book-cover-frame.module.css';
 
 /**
- * The frame's widths (bookshelf.module.css .detail-cover): 340 px, and 260 px at 900 px wide and
- * under, where the cover moves above the text.
+ * The frame's widths (book-cover-frame.module.css .detail-cover): 340 px, and 260 px at 900 px
+ * wide and under.
  */
 const FRAME_WIDTH = 340;
 const FRAME_SIZES = '(max-width: 900px) 260px, 340px';
@@ -33,9 +40,9 @@ export interface BookCoverFrameProps {
 }
 
 /**
- * Borderless upright book cover with subtle spine-hinge shading and elevation shadow,
- * shared by the standalone `/bookshelf/[slug]` route. With `priority` it is the page's hero (its
- * LCP image): loaded eagerly and at high fetch priority, the one cover that is.
+ * A book's cover in its frame, in the detail view both in-page and on `/bookshelf/[slug]`. With
+ * `priority` it is the page's hero (its LCP image): loaded eagerly and at high fetch priority, the
+ * one cover that is.
  */
 export function BookCoverFrame({
   book,

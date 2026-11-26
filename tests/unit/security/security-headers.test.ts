@@ -28,6 +28,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   API_SECURITY_HEADERS,
   API_SECURITY_HEADERS_SOURCE,
+  BOOKSHELF_COOP_HEADERS,
+  BOOKSHELF_COOP_SOURCES,
   SECURITY_HEADERS,
   SECURITY_HEADERS_SOURCE,
 } from '@/config/security-headers';
@@ -89,6 +91,15 @@ describe('static security headers', () => {
     expect(keys).not.toContain('content-security-policy-report-only');
     // COEP require-corp blocks the Places map and the résumé PDF; nothing needs isolation.
     expect(keys).not.toContain('cross-origin-embedder-policy');
+  });
+});
+
+describe('bookshelf COOP headers', () => {
+  it('isolates /bookshelf and everything under it with strict same-origin COOP', () => {
+    expect(BOOKSHELF_COOP_SOURCES).toContain('/bookshelf/:path*');
+    expect(BOOKSHELF_COOP_HEADERS).toEqual([
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+    ]);
   });
 });
 

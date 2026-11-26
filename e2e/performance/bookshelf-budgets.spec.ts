@@ -64,6 +64,17 @@ import {
   test,
 } from '@playwright/test';
 
+import {
+  type ApiBook,
+  desktop,
+  LIVE,
+  LIVE_TEXT,
+  openStage,
+  phone,
+  SHELF_GROUP,
+  STAGE,
+  tablet,
+} from '../fixtures/bookshelf';
 import { readOnly } from '../fixtures/console-routes';
 
 /** The server to measure. Unset, every test here is skipped. */
@@ -99,43 +110,13 @@ const SESSION_MAX_MS = 5000;
 /** Transitions that move layout instead of the compositor. */
 const LAYOUT_TRANSITIONS: readonly string[] = ['all', 'width', 'height'];
 
-const MAIN = 'main#main-content';
-/** The 3D stage (bookshelf-stage.tsx). */
-const STAGE = `${MAIN} [role="region"][aria-roledescription="carousel"]`;
-/** The live region naming the book on stage, "<stage> of <count>: <title>". */
-const LIVE = `${MAIN} p[aria-live="polite"]`;
-const LIVE_TEXT = /^(\d+) of (\d+): /;
-/** The shelf chips: toggle buttons in the 'Shelves' group, "All" first. */
-const SHELF_GROUP = `${MAIN} [role="group"][aria-label="Shelves"]`;
+/** A shelf chip in the 'Shelves' group (SHELF_GROUP). */
 const SHELF_CHIP = 'button';
 const CHIP_COUNT = '[class*="track-count"]';
 const PILL = '[class*="track-pill"]';
 /** The shell's light rays, behind every page. */
 const LIGHT_RAYS = '.light-rays';
 
-const desktop = (deviceScaleFactor: number): BrowserContextOptions => ({
-  viewport: { width: 1440, height: 900 },
-  deviceScaleFactor,
-  isMobile: false,
-  hasTouch: false,
-});
-const phone = (height: number): BrowserContextOptions => ({
-  viewport: { width: 375, height },
-  deviceScaleFactor: 3,
-  isMobile: true,
-  hasTouch: true,
-});
-const tablet: BrowserContextOptions = {
-  viewport: { width: 768, height: 1024 },
-  deviceScaleFactor: 2,
-  isMobile: true,
-  hasTouch: true,
-};
-
-/** A book as /api/v1/sanity/books answers it: the raw projection, so every field is optional. */
-interface ApiBook {
-  readonly shelfId?: string | null;
-}
 /** A shelf as /api/v1/sanity/bookshelves answers it. */
 interface ApiShelf {
   readonly _id?: string;
@@ -179,13 +160,6 @@ async function withPage<T>(
   }
 }
 
-/** Loads `path` until the network is idle, with the stage's live readout on the page. */
-async function openBookshelf(page: Page, path = '/bookshelf'): Promise<void> {
-  const response = await page.goto(urlOf(path), { waitUntil: 'networkidle' });
-  expect(response?.status(), `GET ${path}`).toBe(200);
-  await expect(page.locator(LIVE)).toHaveText(LIVE_TEXT);
-}
-
 /**
  * The cdn.sanity.io response bytes a fresh load of `path` takes, once the network is idle. A cover
  * request that fails or answers with a non-2xx status fails the measurement instead of counting
@@ -218,7 +192,7 @@ async function coverBytes(
         }),
       );
     });
-    await openBookshelf(page, path);
+    await openStage(page, BASE_URL, path);
     const bodies = await Promise.all(sizes);
     expect(failures, `cover requests failed while loading ${path}`).toEqual([]);
     expect(bodies.length, `no covers loaded on ${path}`).toBeGreaterThan(0);
@@ -265,7 +239,7 @@ async function trackLayoutShifts(page: Page): Promise<void> {
 async function loadCls(browser: Browser, options: BrowserContextOptions): Promise<number> {
   return withPage(browser, options, async (page) => {
     await trackLayoutShifts(page);
-    await openBookshelf(page);
+    await openStage(page, BASE_URL);
     await page.evaluate(async () => {
       await document.fonts.ready;
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -321,7 +295,7 @@ test.beforeAll(async ({ browser }, testInfo) => {
     `runs once, in '${ONE_PROJECT}': it opens its own contexts`,
   );
   devServer = await withPage(browser, desktop(1), async (page) => {
-    await openBookshelf(page);
+    await openStage(page, BASE_URL);
     return isDevServer(page);
   });
 });
@@ -386,9 +360,9 @@ test.describe('bookshelf stage geometry', () => {
         browser,
       }) => {
         await withPage(browser, { ...options, javaScriptEnabled }, async (page) => {
-          await openBookshelf(page);
+          await openStage(page, BASE_URL);
           const geometry = await page.locator(STAGE).evaluate((stage) => {
-            // measureStage (bookshelf-stage.tsx), on the stage's own box.
+            // measureShelf (_lib/shelf-geometry.ts), on the stage's own box.
             const nextH = Math.round(
               Math.max(220, Math.min(stage.clientHeight * 0.84, 410, stage.clientWidth * 0.88)),
             );
@@ -445,7 +419,7 @@ test.describe('bookshelf shelf chips on a 375 x 740 phone', () => {
     browser,
   }) => {
     await withPage(browser, phone(740), async (page) => {
-      await openBookshelf(page);
+      await openStage(page, BASE_URL);
       const group = page.locator(SHELF_GROUP).first();
       await expect(group).toBeVisible();
 
@@ -496,7 +470,7 @@ test.describe('bookshelf chip row and page width', () => {
     browser,
   }) => {
     await withPage(browser, phone(740), async (page) => {
-      await openBookshelf(page);
+      await openStage(page, BASE_URL);
       const group = page.locator(SHELF_GROUP).first();
       const last = group.locator(SHELF_CHIP).last();
       // Scrolled down a little, so a page scroll would show; the row back at its start.
@@ -529,7 +503,7 @@ test.describe('bookshelf chip row and page width', () => {
   ] as const) {
     test(`/bookshelf at ${label} has no horizontal page overflow`, async ({ browser }) => {
       await withPage(browser, options, async (page) => {
-        await openBookshelf(page);
+        await openStage(page, BASE_URL);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         );
@@ -544,7 +518,7 @@ test.describe('bookshelf jump on the real data', () => {
     browser,
   }) => {
     await withPage(browser, desktop(1), async (page) => {
-      await openBookshelf(page);
+      await openStage(page, BASE_URL);
       const live = page.locator(LIVE);
       const [, firstLabel, total] = LIVE_TEXT.exec((await live.textContent()) ?? '') ?? [];
       const bookCount = Number(total);
