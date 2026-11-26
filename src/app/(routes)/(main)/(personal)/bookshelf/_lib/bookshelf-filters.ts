@@ -16,8 +16,8 @@
 
 /**
  * @file The /bookshelf URL contract, on nuqs/server parsers so they are safe to import on the
- * server (src/lib/filters/define-filters.ts does the same). /bookshelf and
- * /bookshelf/shelf/[shelfSlug] read it; the stage (bookshelf-stage.tsx) is its only reader today:
+ * server (src/lib/filters/define-filters.ts does the same). The stage (bookshelf-stage.tsx) reads
+ * it on /bookshelf and /bookshelf/shelf/[shelfSlug]:
  * - ?shelf: a shelf's slug. Absent means every shelf: "All" is the reset, not a value.
  * - ?track: legacy and read only, the shelf filter before slugs (a shelf's title, ?track=AI). The
  *   stage maps it to the one shelf with that title (a title two shelves share is no filter) and
