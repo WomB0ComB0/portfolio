@@ -186,18 +186,11 @@ export function ShelfCardsGrid({
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-2 tile-meta text-muted-foreground">
-                    <span
-                      aria-hidden="true"
-                      className="inline-block size-2 rounded-full"
-                      style={{ backgroundColor: shelf.accentColor }}
-                    />
-                    {shelf.title}
-                  </span>
+                  <span className="tile-meta text-muted-foreground">{shelf.title}</span>
                   <span
                     className={cn(
                       'inline-flex items-center gap-1 tile-meta tabular-nums',
-                      allRead ? 'text-[var(--live)]' : 'text-faint',
+                      allRead ? 'text-brand-ink' : 'text-faint',
                     )}
                   >
                     {allRead && <FiCheck className="size-3 stroke-[2.75]" aria-hidden="true" />}
@@ -225,16 +218,12 @@ export function ShelfCardsGrid({
                   >
                     <div
                       data-shelf-ribbon-track={shelf.slug}
-                      className="absolute inset-0 rounded-full opacity-40 transition-opacity duration-300 group-hover:opacity-65"
-                      style={{ backgroundColor: shelf.accentColor }}
+                      className="absolute inset-0 rounded-full bg-brand-subtle transition-colors duration-300 group-hover:bg-brand-edge"
                     />
                     <div
                       data-shelf-ribbon-fill={shelf.slug}
-                      className="relative h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${readPct}%`,
-                        backgroundColor: shelf.accentColor,
-                      }}
+                      className="relative h-full rounded-full bg-brand transition-all duration-300"
+                      style={{ width: `${readPct}%` }}
                     />
                   </div>
                 </div>
@@ -280,8 +269,14 @@ export function ShelfCardsGrid({
                   <p className="line-clamp-2 tile-meta text-muted-foreground">{meta.description}</p>
                   <div
                     aria-hidden="true"
-                    className="h-[2px] w-10 rounded-full opacity-75 transition-all duration-300 group-hover:w-16 group-hover:opacity-100"
-                    style={{ backgroundColor: meta.accentColor }}
+                    className={cn(
+                      'h-[2px] w-10 rounded-full transition-all duration-300 group-hover:w-16',
+                      status === 'completed'
+                        ? 'bg-brand'
+                        : status === 'reading'
+                          ? 'bg-brand-ink'
+                          : 'bg-hairline-strong',
+                    )}
                   />
                 </div>
               </button>

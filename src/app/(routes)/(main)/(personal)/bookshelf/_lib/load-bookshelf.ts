@@ -38,6 +38,7 @@ import {
   type BookSpineTheme,
   type BookTrack,
   DEFAULT_SHELVES,
+  getLiveConsoleSpineTheme,
   normalizeBookStatus,
   type ShelfCollection,
   slugifyShelf,
@@ -49,54 +50,6 @@ export interface BookshelfCatalog {
   readonly shelves: readonly ShelfCollection[];
   readonly totalTopics: number;
 }
-
-const DEFAULT_SPINE_PALETTES: readonly [BookSpineTheme, ...BookSpineTheme[]] = [
-  {
-    capBg: '#3b82f6',
-    capText: '#f8fafc',
-    bodyBg: '#181c26',
-    titleColor: '#f1f5f9',
-    authorColor: '#94a3b8',
-    borderTint: 'rgba(148, 163, 184, 0.22)',
-  },
-  {
-    capBg: '#dc2626',
-    capText: '#ffffff',
-    bodyBg: '#f4f4f6',
-    titleColor: '#111827',
-    authorColor: '#4b5563',
-    borderTint: 'rgba(17, 24, 39, 0.14)',
-  },
-  {
-    capBg: '#84cc16',
-    capText: '#14260a',
-    bodyBg: '#273152',
-    titleColor: '#f8fafc',
-    authorColor: '#cbd5e1',
-    borderTint: 'rgba(203, 213, 225, 0.2)',
-  },
-  {
-    capBg: '#6b4c3b',
-    capText: '#fef3c7',
-    bodyBg: '#f4f4f6',
-    titleColor: '#111827',
-    authorColor: '#4b5563',
-    borderTint: 'rgba(17, 24, 39, 0.14)',
-  },
-];
-
-const TRACK_ACCENTS: Readonly<Record<string, string>> = {
-  Foundations: '#3987e5',
-  Backend: '#d95926',
-  'Infra & Ops': '#199e70',
-  AI: '#8884d5',
-  'Reasoning & Systems': '#8884d5',
-  'Mind & Society': '#d55181',
-  'History & Economics': '#c98500',
-  'Power & Institutions': '#3987e5',
-  Startups: '#c98500',
-  Design: '#d55181',
-};
 
 function resolveCoverSrc(doc: SanityBook): string {
   if (doc.coverImage?.asset?._ref) {
@@ -110,17 +63,9 @@ function resolveCoverSrc(doc: SanityBook): string {
   return `/assets/bookshelf/${doc.slug.current}.webp`;
 }
 
-function resolveSpine(doc: SanityBook, index: number): BookSpineTheme {
-  const fallback =
-    DEFAULT_SPINE_PALETTES[index % DEFAULT_SPINE_PALETTES.length] ?? DEFAULT_SPINE_PALETTES[0];
-  return {
-    capBg: doc.spine?.capBg?.trim() || fallback.capBg,
-    capText: doc.spine?.capText?.trim() || fallback.capText,
-    bodyBg: doc.spine?.bodyBg?.trim() || fallback.bodyBg,
-    titleColor: doc.spine?.titleColor?.trim() || fallback.titleColor,
-    authorColor: doc.spine?.authorColor?.trim() || fallback.authorColor,
-    borderTint: fallback.borderTint,
-  };
+/** Keeps 3D book spines strictly on the Live Console palette tokens. */
+function resolveSpine(_doc: SanityBook, index: number): BookSpineTheme {
+  return getLiveConsoleSpineTheme(index);
 }
 
 function mapSanityBooks(docs: readonly SanityBook[]): BookItem[] {
@@ -168,7 +113,7 @@ function buildShelvesFromTracks(books: readonly BookItem[]): ShelfCollection[] {
     slug: slugifyShelf(track),
     title: track,
     description: `${items.length} curated ${items.length === 1 ? 'book' : 'books'} in ${track}.`,
-    accentColor: TRACK_ACCENTS[track] ?? '#8884d5',
+    accentColor: 'var(--brand)',
     bookSlugs: items.map((book) => book.slug),
   }));
 }
@@ -190,7 +135,7 @@ function mapSanityShelves(
       description:
         shelf.description?.trim() ||
         `${slugs.length} curated ${slugs.length === 1 ? 'book' : 'books'}.`,
-      accentColor: shelf.accentColor?.trim() || TRACK_ACCENTS[shelf.title] || '#8884d5',
+      accentColor: 'var(--brand)',
       bookSlugs: slugs,
     });
   }

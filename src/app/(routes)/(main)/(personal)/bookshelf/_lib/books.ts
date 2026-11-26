@@ -54,19 +54,19 @@ export const BOOK_STATUS_META: Readonly<Record<BookStatus, BookStatusMeta>> = {
   completed: {
     label: 'Read',
     description: 'Finished books with distilled notes and key takeaways.',
-    accentColor: 'var(--live)',
+    accentColor: 'var(--brand)',
     isRead: true,
   },
   reading: {
     label: 'Reading',
     description: 'Books currently on the desk and actively being annotated.',
-    accentColor: 'var(--ongoing)',
+    accentColor: 'var(--brand-ink)',
     isRead: false,
   },
   queued: {
     label: 'Unread',
     description: 'Queued on the reading list for upcoming deep dives.',
-    accentColor: 'var(--fg-faint)',
+    accentColor: 'var(--hairline-strong)',
     isRead: false,
   },
 };
@@ -144,6 +144,51 @@ export interface BookSpineTheme {
   readonly borderTint: string;
 }
 
+/**
+ * Curated Live Console archival book-binding themes built strictly from CSS palette tokens.
+ * Keeps adjacent 3D spines tactile and distinct while letting real book covers provide the color.
+ */
+export const LIVE_CONSOLE_SPINE_THEMES: readonly [BookSpineTheme, ...BookSpineTheme[]] = [
+  {
+    capBg: 'var(--surface-3)',
+    capText: 'var(--fg-muted)',
+    bodyBg: 'var(--surface-1)',
+    titleColor: 'var(--fg)',
+    authorColor: 'var(--fg-faint)',
+    borderTint: 'var(--hairline)',
+  },
+  {
+    capBg: 'var(--brand-subtle)',
+    capText: 'var(--brand-ink)',
+    bodyBg: 'var(--surface-2)',
+    titleColor: 'var(--fg)',
+    authorColor: 'var(--fg-faint)',
+    borderTint: 'var(--brand-edge)',
+  },
+  {
+    capBg: 'var(--surface-2)',
+    capText: 'var(--fg-faint)',
+    bodyBg: 'var(--canvas)',
+    titleColor: 'var(--fg)',
+    authorColor: 'var(--fg-muted)',
+    borderTint: 'var(--hairline-strong)',
+  },
+  {
+    capBg: 'var(--brand-subtle)',
+    capText: 'var(--fg)',
+    bodyBg: 'var(--surface-1)',
+    titleColor: 'var(--fg)',
+    authorColor: 'var(--fg-muted)',
+    borderTint: 'var(--hairline)',
+  },
+];
+
+/** Deterministic Live Console spine binding theme for a zero-based book index. */
+export function getLiveConsoleSpineTheme(index: number): BookSpineTheme {
+  const len = LIVE_CONSOLE_SPINE_THEMES.length;
+  return LIVE_CONSOLE_SPINE_THEMES[((index % len) + len) % len] ?? LIVE_CONSOLE_SPINE_THEMES[0];
+}
+
 export interface BookItem {
   readonly slug: string;
   readonly stage: number;
@@ -184,14 +229,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'How code actually executes on hardware: bits, assembly, processor pipelining, memory hierarchies, linking, and system-level I/O.',
     coverSrc: '/assets/bookshelf/computer-systems.webp',
     url: 'https://csapp.cs.cmu.edu/',
-    spine: {
-      capBg: '#3b82f6',
-      capText: '#f8fafc',
-      bodyBg: '#181c26',
-      titleColor: '#f1f5f9',
-      authorColor: '#94a3b8',
-      borderTint: 'rgba(148, 163, 184, 0.22)',
-    },
+    spine: getLiveConsoleSpineTheme(0),
     topics: [
       { number: 1, title: 'Bits, integers & IEEE 754 floating point' },
       { number: 2, title: 'x86-64 machine representation & calling conventions' },
@@ -223,14 +261,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'The three pillars of every modern OS kernel: virtualizing the CPU and memory, coordinating concurrency, and persisting state safely on disk.',
     coverSrc: '/assets/bookshelf/operating-systems.webp',
     url: 'https://pages.cs.wisc.edu/~remzi/OSTEP/',
-    spine: {
-      capBg: '#cbd5e1',
-      capText: '#0f172a',
-      bodyBg: '#121318',
-      titleColor: '#f8fafc',
-      authorColor: '#9ca3af',
-      borderTint: 'rgba(203, 213, 225, 0.2)',
-    },
+    spine: getLiveConsoleSpineTheme(1),
     topics: [
       { number: 11, title: 'Processes, fork/exec & limited direct execution' },
       { number: 12, title: 'CPU scheduling: MLFQ, lottery & CFS' },
@@ -262,14 +293,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'How packets cross the internet from application protocols down to the wire: HTTP/3, DNS, TCP congestion control, BGP routing, and TLS.',
     coverSrc: '/assets/bookshelf/computer-networking.webp',
     url: 'https://gaia.cs.umass.edu/kurose_ross/',
-    spine: {
-      capBg: '#e2e8f0',
-      capText: '#7f1d1d',
-      bodyBg: '#991b1b',
-      titleColor: '#fff5f5',
-      authorColor: '#fecaca',
-      borderTint: 'rgba(254, 202, 202, 0.22)',
-    },
+    spine: getLiveConsoleSpineTheme(2),
     topics: [
       { number: 21, title: 'Packet switching, latency budgets & throughput' },
       { number: 22, title: 'HTTP/1.1, HTTP/2 multiplexing & QUIC (HTTP/3)' },
@@ -301,14 +325,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'The blueprint for reliable, scalable, and maintainable data systems: storage engines, replication, partitioning, transactions, consensus, and streams.',
     coverSrc: '/assets/bookshelf/designing-data-intensive-applications.webp',
     url: 'https://dataintensive.net/',
-    spine: {
-      capBg: '#dc2626',
-      capText: '#ffffff',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
+    spine: getLiveConsoleSpineTheme(3),
     topics: [
       { number: 31, title: 'Reliability, scalability & tail-latency percentiles' },
       { number: 32, title: 'Data models: relational, document & graph tradeoffs' },
@@ -342,14 +359,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Practical architecture patterns from zero to millions of users: rate limiters, consistent hashing, key-value stores, feeds, and real-time messaging.',
     coverSrc: '/assets/bookshelf/system-design-interview.webp',
     url: 'https://bytebytego.com/',
-    spine: {
-      capBg: '#84cc16',
-      capText: '#14260a',
-      bodyBg: '#273152',
-      titleColor: '#f8fafc',
-      authorColor: '#cbd5e1',
-      borderTint: 'rgba(203, 213, 225, 0.2)',
-    },
+    spine: getLiveConsoleSpineTheme(4),
     topics: [
       { number: 43, title: 'Back-of-the-envelope capacity & QPS estimation' },
       { number: 44, title: 'Rate limiters: token bucket, sliding window & Redis' },
@@ -381,14 +391,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Modeling service boundaries around domain context, evolving monoliths safely, choosing sync vs async communication, and isolating failures.',
     coverSrc: '/assets/bookshelf/building-microservices.webp',
     url: 'https://samnewman.io/books/building_microservices_2nd_edition/',
-    spine: {
-      capBg: '#eab308',
-      capText: '#1c1917',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
+    spine: getLiveConsoleSpineTheme(5),
     topics: [
       { number: 53, title: 'Bounded contexts, high cohesion & loose coupling' },
       { number: 54, title: 'Strangler fig pattern & monolith decomposition' },
@@ -420,14 +423,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Containers from the Linux kernel up: namespaces, cgroups, OCI image layers, multi-stage builds, container networking, and supply-chain security.',
     coverSrc: '/assets/bookshelf/docker-deep-dive.webp',
     url: 'https://nigelpoulton.com/',
-    spine: {
-      capBg: '#e2e8f0',
-      capText: '#0c4a6e',
-      bodyBg: '#2563a8',
-      titleColor: '#f8fafc',
-      authorColor: '#dbeafe',
-      borderTint: 'rgba(219, 234, 254, 0.24)',
-    },
+    spine: getLiveConsoleSpineTheme(6),
     topics: [
       { number: 63, title: 'Linux namespaces, cgroups v2 & capability dropping' },
       { number: 64, title: 'OCI runtime spec, containerd & runc lifecycle' },
@@ -457,14 +453,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Declarative container orchestration at scale: reconciliation loops, pods, services, ingress, autoscaling, stateful workloads, and operators.',
     coverSrc: '/assets/bookshelf/kubernetes-up-and-running.webp',
     url: 'https://www.oreilly.com/library/view/kubernetes-up-and/9781098110192/',
-    spine: {
-      capBg: '#1d4ed8',
-      capText: '#ffffff',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
+    spine: getLiveConsoleSpineTheme(7),
     topics: [
       { number: 71, title: 'Control plane: API server, etcd, scheduler & kubelet' },
       { number: 72, title: 'Declarative state & controller reconciliation loops' },
@@ -496,14 +485,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Writing production infrastructure as code: remote state locking, composable modules, zero-downtime rollouts, drift detection, and CI pipelines.',
     coverSrc: '/assets/bookshelf/terraform-up-and-running.webp',
     url: 'https://www.terraformupandrunning.com/',
-    spine: {
-      capBg: '#4d6b38',
-      capText: '#f8fafc',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
+    spine: getLiveConsoleSpineTheme(8),
     topics: [
       { number: 81, title: 'Declarative IaC & immutable infrastructure mindset' },
       { number: 82, title: 'Dependency graphs, plans & safe apply workflows' },
@@ -533,14 +515,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Treating operations as a software engineering problem: SLIs, SLOs, error budgets, toil elimination, alerting hygiene, and blameless postmortems.',
     coverSrc: '/assets/bookshelf/site-reliability-engineering.webp',
     url: 'https://sre.google/sre-book/table-of-contents/',
-    spine: {
-      capBg: '#e2e8f0',
-      capText: '#1e3a8a',
-      bodyBg: '#1e5aa8',
-      titleColor: '#f8fafc',
-      authorColor: '#bfdbfe',
-      borderTint: 'rgba(191, 219, 254, 0.24)',
-    },
+    spine: getLiveConsoleSpineTheme(9),
     topics: [
       { number: 89, title: 'Embracing risk: SLIs, SLOs & error budgets' },
       { number: 90, title: 'Eliminating toil through engineering automation' },
@@ -572,14 +547,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'The mathematical foundation of neural networks: linear algebra, probability, backprop, optimization, regularization, sequence modeling, and generative models.',
     coverSrc: '/assets/bookshelf/deep-learning.webp',
     url: 'https://www.deeplearningbook.org/',
-    spine: {
-      capBg: '#d8b4fe',
-      capText: '#1e1b4b',
-      bodyBg: '#1c5f3b',
-      titleColor: '#f0fdf4',
-      authorColor: '#bbf7d0',
-      borderTint: 'rgba(187, 247, 208, 0.2)',
-    },
+    spine: getLiveConsoleSpineTheme(10),
     topics: [
       { number: 99, title: 'Linear algebra, SVD, probability & information theory' },
       { number: 100, title: 'Feedforward networks, activations & universal approximation' },
@@ -609,14 +577,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'End-to-end production ML engineering: data pipelines, feature engineering, offline vs online evaluation, distribution shift, and continual learning.',
     coverSrc: '/assets/bookshelf/designing-machine-learning-systems.webp',
     url: 'https://www.oreilly.com/library/view/designing-machine-learning/9781098107956/',
-    spine: {
-      capBg: '#dc2626',
-      capText: '#ffffff',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
+    spine: getLiveConsoleSpineTheme(11),
     topics: [
       { number: 107, title: 'Framing ML problems & business-aligned objectives' },
       { number: 108, title: 'Sampling, labeling pipelines & class imbalance' },
@@ -644,14 +605,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Demystifying modern LLMs line by line in PyTorch: BPE tokenization, causal self-attention, GPT blocks, pretraining loops, and instruction tuning.',
     coverSrc: '/assets/bookshelf/build-a-large-language-model.webp',
     url: 'https://www.manning.com/books/build-a-large-language-model-from-scratch',
-    spine: {
-      capBg: '#ef4444',
-      capText: '#ffffff',
-      bodyBg: '#121216',
-      titleColor: '#f8fafc',
-      authorColor: '#9ca3af',
-      borderTint: 'rgba(248, 250, 252, 0.16)',
-    },
+    spine: getLiveConsoleSpineTheme(12),
     topics: [
       { number: 113, title: 'Byte-pair encoding (BPE) tokenization & embeddings' },
       { number: 114, title: 'Scaled dot-product & causal multi-head self-attention' },
@@ -679,14 +633,7 @@ const ENGINEERING_BOOKS: readonly [BookItem, ...BookItem[]] = [
       'Shipping on top of foundation models: evaluation, prompting, RAG, agents, finetuning, inference.',
     coverSrc: '/assets/bookshelf/ai-engineering.webp',
     url: 'https://www.oreilly.com/library/view/ai-engineering/9781098166298/',
-    spine: {
-      capBg: '#6b4c3b',
-      capText: '#fef3c7',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
+    spine: getLiveConsoleSpineTheme(13),
     topics: [
       { number: 119, title: 'Foundation models: data, modeling, size' },
       { number: 120, title: 'Sampling strategies' },
@@ -730,7 +677,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     slug: 'foundations',
     title: 'Foundations',
     description: 'Hardware, kernels, virtual memory, concurrency, and how packets cross the wire.',
-    accentColor: '#3987e5',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'Foundations').map((book) => book.slug),
   },
   {
@@ -738,7 +685,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Backend',
     description:
       'Storage engines, replication, distributed consensus, system design, and service boundaries.',
-    accentColor: '#d95926',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'Backend').map((book) => book.slug),
   },
   {
@@ -746,7 +693,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Infra & Ops',
     description:
       'Containers, Kubernetes orchestration, Terraform IaC, SLOs, and production reliability.',
-    accentColor: '#199e70',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'Infra & Ops').map((book) => book.slug),
   },
   {
@@ -754,7 +701,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'AI',
     description:
       'Deep learning math, production ML pipelines, building LLMs from scratch, and AI systems.',
-    accentColor: '#8884d5',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'AI').map((book) => book.slug),
   },
   {
@@ -762,7 +709,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Reasoning & Systems',
     description:
       'Philosophy, argument construction, statistical reasoning, systems thinking, and media ecology.',
-    accentColor: '#8884d5',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'Reasoning & Systems').map(
       (book) => book.slug,
     ),
@@ -772,7 +719,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Mind & Society',
     description:
       'Psychology, cultural anthropology, and sociology—how individuals, norms, and groups shape behavior.',
-    accentColor: '#d55181',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'Mind & Society').map((book) => book.slug),
   },
   {
@@ -780,7 +727,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'History & Economics',
     description:
       'World history, historical method, incentives, markets, and empirical development economics.',
-    accentColor: '#c98500',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'History & Economics').map(
       (book) => book.slug,
     ),
@@ -790,7 +737,7 @@ export const DEFAULT_SHELVES: readonly ShelfCollection[] = [
     title: 'Power & Institutions',
     description:
       'Political theory, state capacity, the rule of law, institutional legibility, and geopolitics.',
-    accentColor: '#3987e5',
+    accentColor: 'var(--brand)',
     bookSlugs: BOOKS.filter((book) => book.track === 'Power & Institutions').map(
       (book) => book.slug,
     ),

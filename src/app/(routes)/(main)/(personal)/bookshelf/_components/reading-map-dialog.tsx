@@ -154,18 +154,13 @@ export function ReadingMapDialog({
                         className={cn(
                           'flex flex-col justify-between gap-3 rounded-lg border p-4 transition-colors',
                           isActive
-                            ? 'border-brand-rim bg-brand-subtle/45'
-                            : 'border-hairline bg-canvas/65 hover:border-hairline-strong hover:bg-canvas/90',
+                            ? 'border-brand-rim bg-brand-subtle'
+                            : 'border-hairline bg-canvas hover:border-hairline-strong hover:bg-surface-2',
                         )}
                       >
                         <div className="space-y-1.5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="inline-flex items-center gap-2 font-mono text-label tabular-nums text-brand-ink">
-                              <span
-                                aria-hidden="true"
-                                className="inline-block h-2.5 w-2.5 rounded-xs"
-                                style={{ backgroundColor: book.spine.capBg }}
-                              />
                               Stage {book.stageLabel}
                             </span>
                             <div className="inline-flex items-center gap-2">
@@ -201,7 +196,7 @@ export function ReadingMapDialog({
                                 onOpenBook(book);
                                 onClose();
                               }}
-                              className="inline-flex min-h-9 items-center gap-1 rounded-md bg-brand-subtle px-2.5 text-label font-medium text-brand-ink transition-colors hover:bg-brand/25 hover:text-foreground"
+                              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-brand-edge bg-brand-subtle px-2.5 text-label font-medium text-brand-ink transition-colors hover:border-brand-rim hover:text-foreground"
                             >
                               Open stage
                               <FiArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -211,7 +206,7 @@ export function ReadingMapDialog({
                               href={`/bookshelf/${book.slug}`}
                               prefetch={false}
                               onClick={onClose}
-                              className="inline-flex min-h-9 items-center gap-1 rounded-md bg-brand-subtle px-2.5 text-label font-medium text-brand-ink no-underline transition-colors hover:bg-brand/25 hover:text-foreground"
+                              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-brand-edge bg-brand-subtle px-2.5 text-label font-medium text-brand-ink no-underline transition-colors hover:border-brand-rim hover:text-foreground"
                             >
                               Open stage
                               <FiArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />

@@ -101,11 +101,6 @@ export function BookDetailView({
       className={cn('pb-12', styles['detail-panel'], entering && styles['detail-entering'])}
       eyebrow={
         <span className="inline-flex flex-wrap items-center gap-2 tabular-nums">
-          <span
-            aria-hidden="true"
-            className="inline-block size-2 rounded-xs"
-            style={{ backgroundColor: book.spine.capBg }}
-          />
           <span>Stage {book.stageLabel}</span>
           <span aria-hidden="true" className="text-faint">
             ·

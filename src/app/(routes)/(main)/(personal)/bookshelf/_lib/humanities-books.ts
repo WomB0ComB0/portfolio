@@ -22,7 +22,7 @@
  * reasoning & systems -> mind & society -> history & economics -> power & institutions.
  */
 
-import type { BookItem, BookSpineTheme, BookTrack } from './books';
+import { type BookItem, type BookTrack, getLiveConsoleSpineTheme } from './books';
 
 interface RawHumanitiesBook {
   readonly slug: string;
@@ -37,7 +37,6 @@ interface RawHumanitiesBook {
   readonly track: BookTrack;
   readonly summary: string;
   readonly url: string;
-  readonly spine: BookSpineTheme;
   readonly topics: readonly string[];
 }
 
@@ -57,14 +56,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'An accessible introduction to foundational philosophical questions—knowledge, mind, free will, identity, and ethics—and what makes an argument stand up to scrutiny.',
     url: 'https://global.oup.com/academic/product/think-9780192854254',
-    spine: {
-      capBg: '#3b4a62',
-      capText: '#f8fafc',
-      bodyBg: '#f3f2ee',
-      titleColor: '#18181b',
-      authorColor: '#52525b',
-      borderTint: 'rgba(24, 24, 27, 0.14)',
-    },
     topics: [
       'Knowledge, skepticism & justified belief',
       'Mind, consciousness & the body problem',
@@ -87,14 +78,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Practical rules for constructing clear arguments, assessing evidence and sources, reasoning by analogy and cause, and spotting hidden fallacies.',
     url: 'https://hackettpublishing.com/a-rulebook-for-arguments-sixth-edition-g',
-    spine: {
-      capBg: '#ea580c',
-      capText: '#ffffff',
-      bodyBg: '#231f6a',
-      titleColor: '#f8fafc',
-      authorColor: '#cbd5e1',
-      borderTint: 'rgba(203, 213, 225, 0.2)',
-    },
     topics: [
       'Composing concise, structured arguments',
       'Arguments by example, analogy & authority',
@@ -117,14 +100,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Examines competing moral philosophies—utilitarianism, libertarianism, Kantian duty, Rawlsian fairness, and virtue—through concrete political and social dilemmas.',
     url: 'https://www.wcfia.harvard.edu/publications/justice-whats-right-thing-do',
-    spine: {
-      capBg: '#b43d18',
-      capText: '#ffffff',
-      bodyBg: '#f6f4ef',
-      titleColor: '#1f2937',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(31, 41, 55, 0.14)',
-    },
     topics: [
       'Utilitarianism & welfare maximization',
       'Libertarian self-ownership & free markets',
@@ -147,14 +122,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Builds statistical literacy for interpreting data, uncertainty, probability, causal claims, and real-world risks without getting misled by noisy headlines.',
     url: 'https://www.hachettebookgroup.com/titles/david-spiegelhalter/the-art-of-statistics/9781541675704/',
-    spine: {
-      capBg: '#0ea5e9',
-      capText: '#082f49',
-      bodyBg: '#121826',
-      titleColor: '#f8fafc',
-      authorColor: '#94a3b8',
-      borderTint: 'rgba(148, 163, 184, 0.22)',
-    },
     topics: [
       'Summarizing distributions & resisting misleading averages',
       'Sampling bias, regression to the mean & confounding',
@@ -177,14 +144,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Introduces stocks, flows, feedback loops, delays, resilience, and leverage points—connecting economics, institutions, and human behavior as dynamic systems.',
     url: 'https://www.chelseagreen.com/product/thinking-in-systems/',
-    spine: {
-      capBg: '#f59e0b',
-      capText: '#1c1917',
-      bodyBg: '#f4f4f2',
-      titleColor: '#18181b',
-      authorColor: '#52525b',
-      borderTint: 'rgba(24, 24, 27, 0.14)',
-    },
     topics: [
       'Stocks, flows & balancing vs reinforcing feedback loops',
       'Delays, oscillations & nonlinear thresholds',
@@ -207,14 +166,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A classic critique of how entertainment-first media architectures reshape epistemology, journalism, politics, and public conversation.',
     url: 'https://www.penguinrandomhouse.com/books/297276/amusing-ourselves-to-death-by-neil-postman/',
-    spine: {
-      capBg: '#facc15',
-      capText: '#18181b',
-      bodyBg: '#dc2626',
-      titleColor: '#ffffff',
-      authorColor: '#fef08a',
-      borderTint: 'rgba(254, 240, 138, 0.24)',
-    },
     topics: [
       'Media as epistemology: print vs broadcast discourse',
       'Orwell vs Huxley: censorship vs distraction',
@@ -239,14 +190,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A broad open-access survey of psychological science covering perception, learning, memory, cognition, motivation, development, and social influence.',
     url: 'https://openstax.org/books/psychology-2e/pages/1-introduction',
-    spine: {
-      capBg: '#10b981',
-      capText: '#052e16',
-      bodyBg: '#0f766e',
-      titleColor: '#f8fafc',
-      authorColor: '#ccfbf1',
-      borderTint: 'rgba(204, 251, 241, 0.2)',
-    },
     topics: [
       'Experimental methods & psychological measurement',
       'Sensation, perception & attentional bottlenecks',
@@ -269,14 +212,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Explores moral intuition, post-hoc rationalization, Moral Foundations Theory, and how group loyalty drives political and ideological disagreement.',
     url: 'https://www.penguinrandomhouse.com/books/73535/the-righteous-mind-by-jonathan-haidt/',
-    spine: {
-      capBg: '#92400e',
-      capText: '#fef3c7',
-      bodyBg: '#f6f3ec',
-      titleColor: '#292524',
-      authorColor: '#57534e',
-      borderTint: 'rgba(41, 37, 36, 0.14)',
-    },
     topics: [
       'Intuition first, strategic reasoning second',
       'The elephant and the rider model of judgment',
@@ -299,14 +234,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Traces human behavior backward across timescales—from milliseconds of neural firing and hormones to adolescence, culture, ecology, and deep evolution.',
     url: 'https://www.penguinrandomhouse.com/books/311787/behave-by-robert-m-sapolsky/9780735222786/',
-    spine: {
-      capBg: '#ea580c',
-      capText: '#ffffff',
-      bodyBg: '#f8f7f3',
-      titleColor: '#18181b',
-      authorColor: '#52525b',
-      borderTint: 'rgba(24, 24, 27, 0.14)',
-    },
     topics: [
       'Amygdala, prefrontal cortex & dopamine dynamics',
       'Endocrinology: testosterone, oxytocin & stress',
@@ -329,14 +256,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A comparative introduction to social and cultural anthropology showing how kinship, reciprocity, ritual, identity, and local custom organize human life.',
     url: 'https://www.plutobooks.com/product/small-places-large-issues/',
-    spine: {
-      capBg: '#0d9488',
-      capText: '#f0fdfa',
-      bodyBg: '#f5f6f7',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
     topics: [
       'Ethnographic fieldwork & cultural comparison',
       'Kinship, descent, marriage & social obligation',
@@ -359,14 +278,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'An open-access introduction to cultural anthropology built around hands-on field exercises for questioning familiar cultural assumptions.',
     url: 'https://anth101.com/book/',
-    spine: {
-      capBg: '#d97706',
-      capText: '#ffffff',
-      bodyBg: '#1c1917',
-      titleColor: '#fafaf9',
-      authorColor: '#d6d3d1',
-      borderTint: 'rgba(214, 211, 209, 0.2)',
-    },
     topics: [
       'Making the familiar strange through fieldwork',
       'Language, shared symbols & cultural framing',
@@ -389,14 +300,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A multi-sited ethnography tracing the matsutake mushroom trade to show how precarious livelihoods, global supply chains, and disturbed ecologies intersect.',
     url: 'https://press.princeton.edu/books/paperback/9780691220550/the-mushroom-at-the-end-of-the-world',
-    spine: {
-      capBg: '#9a6b4c',
-      capText: '#fef3c7',
-      bodyBg: '#f7f3eb',
-      titleColor: '#292524',
-      authorColor: '#57534e',
-      borderTint: 'rgba(41, 37, 36, 0.14)',
-    },
     topics: [
       'Multi-sited ethnography across global supply chains',
       'Salvage accumulation & non-standardized labor',
@@ -419,14 +322,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A foundational open-access sociology survey examining socialization, social stratification, organizations, institutions, and collective change.',
     url: 'https://openstax.org/details/books/introduction-sociology-3e',
-    spine: {
-      capBg: '#eab308',
-      capText: '#1e1b4b',
-      bodyBg: '#1e3a8a',
-      titleColor: '#f8fafc',
-      authorColor: '#bfdbfe',
-      borderTint: 'rgba(191, 219, 254, 0.22)',
-    },
     topics: [
       'Sociological theory: functionalism, conflict & interaction',
       'Socialization, roles & institutional norms',
@@ -449,14 +344,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'The classic manifesto on connecting private troubles with public issues—locating individual biography inside broader social structures and historical forces.',
     url: 'https://books.google.com/books/about/The_Sociological_Imagination.html?id=r9GM5c0MbvQC',
-    spine: {
-      capBg: '#c2410c',
-      capText: '#ffffff',
-      bodyBg: '#d6ccb0',
-      titleColor: '#1c1917',
-      authorColor: '#44403c',
-      borderTint: 'rgba(28, 25, 23, 0.16)',
-    },
     topics: [
       'Personal troubles vs public structural issues',
       'Intersection of biography, history & social structure',
@@ -479,14 +366,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Follows eight families and landlords in Milwaukee to show how housing instability, eviction courts, and private rental markets actively reproduce urban poverty.',
     url: 'https://www.penguinrandomhouse.com/books/247816/evicted-by-matthew-desmond/',
-    spine: {
-      capBg: '#7f1d1d',
-      capText: '#fef2f2',
-      bodyBg: '#e7e5e0',
-      titleColor: '#1c1917',
-      authorColor: '#57534e',
-      borderTint: 'rgba(28, 25, 23, 0.14)',
-    },
     topics: [
       'Ethnographic fieldwork in low-income rental markets',
       'Eviction as a cause—not only symptom—of poverty',
@@ -511,14 +390,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Frames world history as expanding webs of exchange—showing how trade, migration, disease, ideas, and technology linked human societies into a single global network.',
     url: 'https://wwnorton.co.uk/books/9780393925685-the-human-web',
-    spine: {
-      capBg: '#b91c1c',
-      capText: '#ffffff',
-      bodyBg: '#ebe4c8',
-      titleColor: '#1c1917',
-      authorColor: '#44403c',
-      borderTint: 'rgba(28, 25, 23, 0.16)',
-    },
     topics: [
       'Local webs to metropolitan & Old World networks',
       'Information flow, cooperation & competitive selection',
@@ -541,14 +412,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Recenters world history on the Eurasian corridors connecting East and West—tracing how trade routes, religions, silver, oil, and empires shifted global power.',
     url: 'https://www.bloomsbury.com/uk/discover/non-fiction-features/the-silk-roads-by-peter-frankopan/',
-    spine: {
-      capBg: '#ca8a04',
-      capText: '#1c1917',
-      bodyBg: '#1e2948',
-      titleColor: '#fef9c3',
-      authorColor: '#cbd5e1',
-      borderTint: 'rgba(254, 249, 195, 0.2)',
-    },
     topics: [
       'Eurasian trade corridors & cross-cultural transmission',
       'Spread of religions, manuscripts & commercial law',
@@ -571,14 +434,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Scrutinizes how historians select facts, frame causation, and write from their own era—essential tools for reading historical narratives critically.',
     url: 'https://www.penguin.co.uk/books/13521/what-is-history-by-carr-e-h/9780241351901',
-    spine: {
-      capBg: '#1d4ed8',
-      capText: '#ffffff',
-      bodyBg: '#18181b',
-      titleColor: '#f8fafc',
-      authorColor: '#a1a1aa',
-      borderTint: 'rgba(255, 255, 255, 0.16)',
-    },
     topics: [
       'The historian and their facts: selection vs neutrality',
       'Individuals vs structural social forces',
@@ -601,14 +456,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'An open-access modern economics curriculum grounded in empirical data, strategic interaction, labor markets, bargaining power, and macro policy.',
     url: 'https://books.core-econ.org/the-economy/index.html',
-    spine: {
-      capBg: '#e11d48',
-      capText: '#ffffff',
-      bodyBg: '#1f2937',
-      titleColor: '#f9fafb',
-      authorColor: '#fda4af',
-      borderTint: 'rgba(253, 164, 175, 0.2)',
-    },
     topics: [
       'Scarcity, opportunity cost & technological innovation',
       'Game theory, social dilemmas & bargaining power',
@@ -631,14 +478,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Uses everyday scenes—coffee shops, supermarkets, traffic, and healthcare—to unpack scarcity rents, price discrimination, externalities, and asymmetric information.',
     url: 'https://timharford.com/books/undercovereconomist/',
-    spine: {
-      capBg: '#15803d',
-      capText: '#f0fdf4',
-      bodyBg: '#14261c',
-      titleColor: '#f8fafc',
-      authorColor: '#86efac',
-      borderTint: 'rgba(134, 239, 172, 0.2)',
-    },
     topics: [
       'Scarcity power, land rents & location pricing',
       'Price targeting & hidden versioning strategies',
@@ -661,14 +500,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Uses randomized field experiments to investigate the concrete incentives, credit constraints, health traps, and institutional details shaping life in poverty.',
     url: 'https://www.hachettebookgroup.com/titles/abhijit-v-banerjee/poor-economics/9781541706187/',
-    spine: {
-      capBg: '#2563eb',
-      capText: '#ffffff',
-      bodyBg: '#faf8f2',
-      titleColor: '#1e293b',
-      authorColor: '#475569',
-      borderTint: 'rgba(30, 41, 59, 0.14)',
-    },
     topics: [
       'Randomized controlled trials in development economics',
       'Poverty traps vs incremental human-capital gains',
@@ -693,14 +524,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A comprehensive introduction to political science covering power, ideologies, states, constitutions, elections, parties, bureaucracies, and comparative government.',
     url: 'https://www.bloomsbury.com/us/politics-9781350356825/',
-    spine: {
-      capBg: '#65a30d',
-      capText: '#14260a',
-      bodyBg: '#365314',
-      titleColor: '#f7fee7',
-      authorColor: '#d9f99d',
-      borderTint: 'rgba(217, 249, 157, 0.2)',
-    },
     topics: [
       'Concepts of power, authority & political legitimacy',
       'Major political ideologies & competing traditions',
@@ -723,14 +546,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A compact survey of core political philosophy: why political authority is justified, how democracy works, and how liberty, equality, and membership collide.',
     url: 'https://academic.oup.com/book/880',
-    spine: {
-      capBg: '#ea580c',
-      capText: '#ffffff',
-      bodyBg: '#272c44',
-      titleColor: '#f8fafc',
-      authorColor: '#fdba74',
-      borderTint: 'rgba(253, 186, 116, 0.2)',
-    },
     topics: [
       'Political authority & grounds for obedience',
       'Democratic representation & majority limits',
@@ -753,14 +568,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A comparative historical argument showing how modern political order rests on three distinct pillars: a capable state, the rule of law, and accountable government.',
     url: 'https://fukuyama.people.stanford.edu/originsofpoliticalorder',
-    spine: {
-      capBg: '#eab308',
-      capText: '#1c1917',
-      bodyBg: '#991b1b',
-      titleColor: '#fef9c3',
-      authorColor: '#fde047',
-      borderTint: 'rgba(253, 224, 71, 0.22)',
-    },
     topics: [
       'Kinship-based bands to impersonal state bureaucracy',
       'Early Chinese state capacity & meritocratic exams',
@@ -783,14 +590,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A clear, practical breakdown of the eight principles that restrain arbitrary power, guarantee equal legal protection, and keep governments accountable under law.',
     url: 'https://www.penguin.co.uk/books/56375/the-rule-of-law-by-tom-bingham/9780141034539',
-    spine: {
-      capBg: '#374151',
-      capText: '#f9fafb',
-      bodyBg: '#f4f4f6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
     topics: [
       'Accessible, predictable & publicly legible law',
       'Law over discretion in executive action',
@@ -813,14 +612,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Introduces how legal systems function—common law vs civil law, courts, contracts, torts, criminal justice, and the persistent tension between legality and justice.',
     url: 'https://academic.oup.com/book/46428',
-    spine: {
-      capBg: '#7c3aed',
-      capText: '#f5f3ff',
-      bodyBg: '#4c1d95',
-      titleColor: '#f5f3ff',
-      authorColor: '#ddd6fe',
-      borderTint: 'rgba(221, 214, 254, 0.22)',
-    },
     topics: [
       'Legal traditions: common law vs civil law systems',
       'Courts, precedent & statutory interpretation',
@@ -843,14 +634,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'Shows why top-down modernist planning schemes fail when states enforce simplified legibility and metrics while erasing practical local knowledge (mētis).',
     url: 'https://yalebooks.yale.edu/book/9780300246759/seeing-like-a-state/',
-    spine: {
-      capBg: '#0284c7',
-      capText: '#ffffff',
-      bodyBg: '#ecebe6',
-      titleColor: '#111827',
-      authorColor: '#4b5563',
-      borderTint: 'rgba(17, 24, 39, 0.14)',
-    },
     topics: [
       'State legibility: surnames, cadastral maps & standard metrics',
       'Scientific forestry & monoculture fragility',
@@ -873,14 +656,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A comprehensive survey of international relations theories—realism, liberalism, constructivism, and critical perspectives—applied to security, trade, and global governance.',
     url: 'https://www.oup.com.au/books/higher-education/politics/9780192898142',
-    spine: {
-      capBg: '#eab308',
-      capText: '#18181b',
-      bodyBg: '#18181b',
-      titleColor: '#f8fafc',
-      authorColor: '#a1a1aa',
-      borderTint: 'rgba(255, 255, 255, 0.18)',
-    },
     topics: [
       'Realism, liberalism & constructivism in world politics',
       'Sovereignty, balance of power & security dilemmas',
@@ -903,14 +678,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A crisp introduction to how international political order emerged historically, how sovereign states coexist with global norms, and how legitimacy shapes geopolitics.',
     url: 'https://academic.oup.com/book/32697',
-    spine: {
-      capBg: '#9f1239',
-      capText: '#fff1f2',
-      bodyBg: '#3b336b',
-      titleColor: '#f5f3ff',
-      authorColor: '#c4b5fd',
-      borderTint: 'rgba(196, 181, 253, 0.22)',
-    },
     topics: [
       'Historical evolution of sovereign state systems',
       'Empires, decolonization & globalizing order',
@@ -933,14 +700,6 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
     summary:
       'A foundational theoretical work showing how international regimes and institutions lower transaction costs, share information, and sustain cooperation without a single hegemon.',
     url: 'https://press.princeton.edu/books/paperback/9780691122489/after-hegemony',
-    spine: {
-      capBg: '#b45309',
-      capText: '#fef3c7',
-      bodyBg: '#856e28',
-      titleColor: '#fefce8',
-      authorColor: '#fde68a',
-      borderTint: 'rgba(253, 230, 138, 0.22)',
-    },
     topics: [
       'Neoliberal institutionalism vs hegemonic stability',
       'Why rational states build international regimes',
@@ -974,7 +733,7 @@ export function buildHumanitiesBooks(startStage: number, startTopicNumber: numbe
       summary: raw.summary,
       coverSrc: `/assets/bookshelf/${raw.slug}.webp`,
       url: raw.url,
-      spine: raw.spine,
+      spine: getLiveConsoleSpineTheme(stage - 1),
       topics,
     };
   });

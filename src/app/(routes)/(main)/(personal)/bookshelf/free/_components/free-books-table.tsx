@@ -224,7 +224,7 @@ export function FreeBooksTable({
                     book.formats.map((fmt) => (
                       <span
                         key={fmt}
-                        className="rounded-full border border-brand-edge bg-brand-subtle px-2 py-0.5 font-mono text-[10px] font-medium text-brand-ink"
+                        className="rounded-full border border-hairline bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-medium text-muted-foreground"
                       >
                         {fmt}
                       </span>
@@ -233,32 +233,32 @@ export function FreeBooksTable({
                     <span className="font-mono text-[11px] text-faint">Web</span>
                   )}
                   {book.license && (
-                    <span className="rounded-full border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-faint">
+                    <span className="rounded-full border border-hairline bg-surface-1 px-1.5 py-0.5 font-mono text-[10px] text-faint">
                       {book.license}
                     </span>
                   )}
                   {book.insecureTransport && (
-                    <span className="rounded-full border border-hairline-strong bg-[var(--ongoing-tint)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ongoing)]">
+                    <span className="rounded-full border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                       HTTP
                     </span>
                   )}
                   {book.unavailable && (
-                    <span className="rounded-full border border-hairline-strong bg-[var(--down-tint)] px-1.5 py-0.5 font-mono text-[10px] text-down">
+                    <span className="rounded-full border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-down">
                       Unavailable
                     </span>
                   )}
                   {book.inProcess && (
-                    <span className="rounded-full border border-hairline-strong bg-[var(--ongoing-tint)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--ongoing)]">
+                    <span className="rounded-full border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-faint">
                       WIP
                     </span>
                   )}
                   {book.archived && (
-                    <span className="rounded-full border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-faint">
+                    <span className="rounded-full border border-hairline bg-surface-1 px-1.5 py-0.5 font-mono text-[10px] text-faint">
                       Archived
                     </span>
                   )}
                   {book.requiresAccount && (
-                    <span className="rounded-full border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-faint">
+                    <span className="rounded-full border border-hairline bg-surface-1 px-1.5 py-0.5 font-mono text-[10px] text-faint">
                       Account
                     </span>
                   )}
@@ -279,7 +279,7 @@ export function FreeBooksTable({
                       aria-hidden="true"
                       className={cn(
                         'size-1.5 shrink-0 rounded-full',
-                        book.trustTier === 'verified' ? 'bg-[var(--live)]' : 'bg-hairline-strong',
+                        book.trustTier === 'verified' ? 'bg-brand-ink' : 'bg-hairline-strong',
                       )}
                     />
                     <span className="truncate">{book.host}</span>
