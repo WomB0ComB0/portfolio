@@ -69,3 +69,27 @@
   transform: translate3d(var(--fan-x-hover, 0), calc(var(--fan-y, 0) - 4px), 0)
     rotate(var(--fan-rot-hover, 0deg)) scale(var(--fan-scale, 1));
 }
+
+/*
+ * A status card's rule runs out from 40 px to 64 px on hover. It is drawn at 64 px and clipped,
+ * so only the compositor moves, on the spring the filters bar's pill uses.
+ */
+.status-rule {
+  width: 64px;
+  clip-path: inset(0 37.5% 0 0 round 9999px);
+  transition: clip-path var(--motion-spring-in) var(--ease-spring);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shelf-card:hover .status-rule {
+    clip-path: inset(0);
+  }
+}
+
+/* Under reduced motion the fan holds its rest pose on hover. */
+@media (prefers-reduced-motion: reduce) {
+  .shelf-card:hover .fan-card {
+    transform: translate3d(var(--fan-x, 0), var(--fan-y, 0), 0) rotate(var(--fan-rot, 0deg))
+      scale(var(--fan-scale, 1));
+  }
+}

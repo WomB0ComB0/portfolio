@@ -57,12 +57,9 @@
   color: var(--fg-faint);
 }
 
-/*
- * Opened from the stage, each block wipes in from the top, staggered by --d. --shelf-ease-out is
- * set only on the stage's .shelf-shell, which the detail replaces, so the wipe does not run today.
- */
+/* Opened from the stage, each block wipes in from the top, staggered by --d. */
 .detail-entering .rv {
-  animation: rv-wipe var(--rd, 560ms) var(--shelf-ease-out) both;
+  animation: rv-wipe var(--rd, 560ms) var(--ease-out-expo) both;
   animation-delay: var(--d, 0ms);
 }
 

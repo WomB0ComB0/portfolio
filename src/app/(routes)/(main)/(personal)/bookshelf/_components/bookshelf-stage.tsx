@@ -44,7 +44,7 @@ import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip } from '@/components/console/stat-strip';
 import { FINE_POINTER } from '@/hooks/use-fine-pointer';
-import { prefersReducedMotion } from '@/lib/design/motion';
+import { EASE, prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import { describeShelves, formatStageLabel, shelfStats } from '../_lib/book-labels';
 import { neighborsOf } from '../_lib/book-neighbors';
@@ -112,8 +112,8 @@ export interface BookshelfStageProps {
 const RESIZE_DEBOUNCE_MS = 100;
 /** How long the shelf fades in after a long jump (past JUMP_SLIDE_MAX) teleports the slots. */
 const JUMP_IN_MS = 220;
-/** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
-const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
+/** The fade-in's easing: the site's --ease-out-expo, which the shelf's own slide uses too. */
+const JUMP_IN_EASE = `cubic-bezier(${EASE.outExpo.join(', ')})`;
 /** How far the shelf slides in from the side it travels toward, in book heights: one slot pitch. */
 const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
 
@@ -546,6 +546,7 @@ export function BookshelfStage({
 
       <div ref={cursorRef} aria-hidden="true" className={styles['cursor-layer']}>
         <div className={styles['cursor-ring']}>
+          <span className={styles['cursor-disc']} />
           <span className={styles['cursor-label']}>Open</span>
         </div>
       </div>

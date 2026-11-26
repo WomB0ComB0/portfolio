@@ -242,7 +242,7 @@ export function ShelfCardsGrid({
                     />
                     <div
                       data-shelf-ribbon-fill={shelf.slug}
-                      className="relative h-full rounded-full bg-brand transition-all duration-300"
+                      className="relative h-full rounded-full bg-brand"
                       style={{ width: `${readPct}%` }}
                     />
                   </div>
@@ -287,7 +287,8 @@ export function ShelfCardsGrid({
                   <div
                     aria-hidden="true"
                     className={cn(
-                      'h-[2px] w-10 rounded-full transition-all duration-300 group-hover:w-16',
+                      styles['status-rule'],
+                      'h-[2px] rounded-full',
                       status === 'completed'
                         ? 'bg-brand'
                         : status === 'reading'
