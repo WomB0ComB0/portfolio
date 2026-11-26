@@ -20,7 +20,6 @@ import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import {
   type CSSProperties,
-  type PointerEvent,
   type ReactElement,
   useCallback,
   useEffect,
@@ -29,19 +28,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiBookOpen, FiMap } from 'react-icons/fi';
+import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip, type StatStripItem } from '@/components/console/stat-strip';
 import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '@/lib/books/bookshelf-search-params';
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
-  BOOK_STATUS_META,
-  BOOK_STATUSES,
   BOOKS,
   type BookCategory,
   type BookItem,
-  type BookStatus,
   type BookStatusFilter,
   DEFAULT_BOOK_INDEX,
   DEFAULT_SHELVES,
@@ -49,17 +45,20 @@ import {
   slugifyShelf,
 } from '../_lib/books';
 import { BookDetailView } from './book-detail-view';
-import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
+import { BookshelfBookSlot } from './bookshelf-book-slot';
+import { BookshelfControlsBar, FreeLibraryDirectoryCard } from './bookshelf-controls-bar';
+import { BookshelfFiltersBar, type TabIndicatorState } from './bookshelf-filters-bar';
 import { ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
+import { useBookshelfNavigation } from './use-bookshelf-navigation';
 
 export interface BookshelfStageProps {
   /** Optional initial book slug (e.g. from `?book=<slug>` when returning from a detail route). */
   readonly initialSlug?: string;
   /** Dynamic books list from Sanity (falls back to built-in catalog when omitted). */
   readonly books?: readonly BookItem[];
-  /** Dynamic separated shelf collections from Sanity (falls back to built-in 4 shelves). */
+  /** Dynamic separated shelf collections from Sanity (falls back to built-in shelves). */
   readonly shelves?: readonly ShelfCollection[];
   /** When set, renders a focused single-shelf view (`/bookshelf/shelf/[shelfSlug]`). */
   readonly activeShelf?: ShelfCollection;
@@ -69,12 +68,8 @@ const DEFAULT_BOOK_HEIGHT = 360;
 const STEP_DURATION_MS = 400;
 const CHAIN_STEP_DURATION_MS = 220;
 const CHAIN_TICK_MS = 55;
-const WHEEL_THRESHOLD = 20;
-const WHEEL_COOLDOWN_MS = 140;
-const DRAG_ACTIVATION_PX = 6;
 
 const mod = (a: number, n: number): number => ((a % n) + n) % n;
-
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
@@ -85,27 +80,11 @@ interface PoolSlot {
   readonly book: BookItem;
 }
 
-interface DragState {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastTime: number;
-  vx: number;
-  residualX: number;
-  isDragging: boolean;
-  steppedDuringDrag: boolean;
-  startTarget: EventTarget | null;
-}
-
 /**
- * Interactive 3D Engineering Bookshelf built natively inside Live Console `<PageShell>`:
- * - Supports both the unified multi-section shelf (`/bookshelf` with fanned shelf cards below)
- *   and focused finite single-shelf views (`/bookshelf/shelf/[shelfSlug]`).
- * - Clicking a section pill (`Foundations`, `Backend`, `Infra & Ops`, `AI`, etc.) visually
- *   highlights/spotlights that section's books while dimming out-of-section books.
- * - Fixed ascending `poolIndex` DOM order guarantees identical 60fps CSS 3D cuboid animations in
- *   BOTH left and right directions, plus live 1:1 drag scrubbing and bidirectional wheel scroll.
+ * Interactive 3D Bookshelf orchestrator built natively inside Live Console `<PageShell>`.
+ * Delegates filter chrome (`BookshelfFiltersBar`), 3D cuboid slots (`BookshelfBookSlot`),
+ * wheel/keyboard/drag/cursor physics (`useBookshelfNavigation`), and readout controls
+ * (`BookshelfControlsBar`) to isolated sub-modules.
  */
 export function BookshelfStage({
   initialSlug,
@@ -115,7 +94,6 @@ export function BookshelfStage({
 }: BookshelfStageProps): ReactElement {
   const safeBooks = books.length > 0 ? books : BOOKS;
   const bookCount = safeBooks.length;
-  // Focused collections or small Sanity lists stay finite (0..N-1) so no book ever duplicates.
   const isFiniteShelf = Boolean(activeShelf) || bookCount < 9;
 
   const bookAt = useCallback(
@@ -144,17 +122,15 @@ export function BookshelfStage({
   const [stepDuration, setStepDuration] = useState<number>(STEP_DURATION_MS);
   const [mapOpen, setMapOpen] = useState(false);
   const [finePointer, setFinePointer] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [detailBook, setDetailBook] = useState<BookItem | null>(null);
-  const [tabIndicator, setTabIndicator] = useState<{
-    readonly left: number;
-    readonly top: number;
-    readonly width: number;
-    readonly height: number;
-    readonly ready: boolean;
-  }>({ left: 0, top: 0, width: 0, height: 32, ready: false });
+  const [tabIndicator, setTabIndicator] = useState<TabIndicatorState>({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 32,
+    ready: false,
+  });
 
-  // Derive valid tracks once so unknown `?track=` values safely fall back to null (All).
   const validTrackSet = useMemo(() => new Set(safeBooks.map((book) => book.track)), [safeBooks]);
   const highlightedTrack: string | null =
     urlState.track && validTrackSet.has(urlState.track) ? urlState.track : null;
@@ -174,16 +150,11 @@ export function BookshelfStage({
   bookHeightRef.current = bookHeight;
   const detailOpenRef = useRef<boolean>(false);
   detailOpenRef.current = detailBook !== null;
-  const isDraggingRef = useRef<boolean>(false);
-  isDraggingRef.current = isDragging;
-
   const chainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastStepRef = useRef<number>(0);
-  const dragRef = useRef<DragState | null>(null);
 
   const activeBook = bookAt(pos);
 
-  // Derive section pills dynamically from the loaded books' tracks.
   const categories = useMemo<readonly BookCategory[]>(() => {
     const seen = new Set<string>();
     const tracks: string[] = [];
@@ -290,8 +261,7 @@ export function BookshelfStage({
     [bookHeight, isFiniteShelf],
   );
 
-  // CRITICAL: Fixed ascending `poolIndex` order (`0..poolSize-1`) so React NEVER moves DOM children
-  // with `insertBefore` when stepping left vs right!
+  // Fixed ascending `poolIndex` order (`0..poolSize-1`) prevents DOM reordering during transitions.
   const poolSlots = useMemo<readonly PoolSlot[]>(() => {
     if (isFiniteShelf) {
       return safeBooks.map((book, index) => ({
@@ -317,7 +287,11 @@ export function BookshelfStage({
     return slots;
   }, [isFiniteShelf, safeBooks, pos, halfWindow, poolSize, bookAt]);
 
-  // Synchronously position every slot before paint and apply section highlighting/dimming.
+  const registerSlotRef = useCallback((poolIndex: number, el: HTMLDivElement | null): void => {
+    if (el) slotElementsRef.current.set(poolIndex, el);
+    else slotElementsRef.current.delete(poolIndex);
+  }, []);
+
   useLayoutEffect(() => {
     if (detailBook !== null) return;
     const noAnimClass = styles['no-anim'] ?? '';
@@ -370,10 +344,7 @@ export function BookshelfStage({
     (dir: number, dur = STEP_DURATION_MS): void => {
       setStepDuration(prefersReducedMotion() ? 0 : dur);
       lastStepRef.current = performance.now();
-      setPos((current) => {
-        const next = isFiniteShelf ? clamp(current + dir, 0, bookCount - 1) : current + dir;
-        return next;
-      });
+      setPos((current) => (isFiniteShelf ? clamp(current + dir, 0, bookCount - 1) : current + dir));
     },
     [isFiniteShelf, bookCount],
   );
@@ -454,7 +425,6 @@ export function BookshelfStage({
     setDetailBook(null);
   }, []);
 
-  // Boot: measure stage, detect fine pointer, sync initial hash if present.
   useEffect(() => {
     measureStage();
     const isFine =
@@ -484,7 +454,6 @@ export function BookshelfStage({
     };
   }, [measureStage, stageIndexFromHash, bookAt]);
 
-  // Cancel any in-flight multi-step chain only when the component unmounts.
   useEffect(() => {
     return () => {
       if (chainTimerRef.current) clearTimeout(chainTimerRef.current);
@@ -515,305 +484,30 @@ export function BookshelfStage({
     return () => window.removeEventListener('popstate', onPopState);
   }, [closeDetail, stageIndexFromHash, bookAt]);
 
-  // Bidirectional wheel browsing on the stage.
-  useEffect(() => {
-    if (detailBook !== null) return;
-    const stageEl = stageRef.current;
-    if (!stageEl) return;
-
-    let wheelAcc = 0;
-    let wheelTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const onWheel = (event: WheelEvent): void => {
-      if (detailOpenRef.current || mapOpen) return;
-      const rawDelta =
-        Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-      if (rawDelta === 0) return;
-
-      event.preventDefault();
-
-      if (performance.now() - lastStepRef.current < WHEEL_COOLDOWN_MS) {
-        wheelAcc = 0;
-        return;
-      }
-
-      if (wheelAcc !== 0 && Math.sign(rawDelta) !== Math.sign(wheelAcc)) {
-        wheelAcc = 0;
-      }
-
-      wheelAcc += rawDelta;
-      if (wheelTimer) clearTimeout(wheelTimer);
-      wheelTimer = setTimeout(() => {
-        wheelAcc = 0;
-      }, 150);
-
-      if (Math.abs(wheelAcc) >= WHEEL_THRESHOLD) {
-        step(wheelAcc > 0 ? 1 : -1);
-        wheelAcc = 0;
-      }
-    };
-
-    stageEl.addEventListener('wheel', onWheel, { passive: false });
-    return () => {
-      stageEl.removeEventListener('wheel', onWheel);
-      if (wheelTimer) clearTimeout(wheelTimer);
-    };
-  }, [detailBook, mapOpen, step]);
-
-  // Keyboard navigation.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (mapOpen) return;
-      if (detailOpenRef.current) {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          closeDetail();
-        }
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      ) {
-        return;
-      }
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        step(1);
-      } else if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        step(-1);
-      } else if (event.key === 'Home') {
-        event.preventDefault();
-        goToBookIndex(0);
-      } else if (event.key === 'End') {
-        event.preventDefault();
-        goToBookIndex(bookCount - 1);
-      } else if (
-        (event.key === 'Enter' || event.key === ' ') &&
-        document.activeElement === stageRef.current
-      ) {
-        event.preventDefault();
-        openDetail(bookAt(posRef.current));
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [mapOpen, step, goToBookIndex, bookCount, openDetail, bookAt, closeDetail]);
-
-  // Magnetic ring -> Open / Grab cursor.
-  useEffect(() => {
-    if (!finePointer || detailBook !== null) return;
-    const state = { x: -200, y: -200, tx: -200, ty: -200, seen: false };
-
-    const onMove = (event: globalThis.PointerEvent): void => {
-      if (event.pointerType && event.pointerType !== 'mouse') return;
-      state.tx = event.clientX;
-      state.ty = event.clientY;
-      if (!state.seen) {
-        state.x = state.tx;
-        state.y = state.ty;
-      }
-      state.seen = true;
-    };
-    const onLeave = (): void => {
-      state.seen = false;
-    };
-
-    window.addEventListener('pointermove', onMove);
-    document.documentElement.addEventListener('mouseleave', onLeave);
-
-    let rafId = 0;
-    const loop = (): void => {
-      state.x += (state.tx - state.x) * 0.28;
-      state.y += (state.ty - state.y) * 0.28;
-      const cursorEl = cursorRef.current;
-      const stageEl = stageRef.current;
-      if (cursorEl && stageEl) {
-        cursorEl.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
-        const hit =
-          state.seen && !detailOpenRef.current && !mapOpen
-            ? document.elementFromPoint(state.tx, state.ty)
-            : null;
-        const inStage = isDraggingRef.current || Boolean(hit && stageEl.contains(hit));
-        const activeCoverEl = stageEl.querySelector<HTMLElement>(
-          '[data-active-slot="true"] [data-book-cover]',
-        );
-        const coverRect = activeCoverEl?.getBoundingClientRect();
-        const insideCoverRect = Boolean(
-          coverRect &&
-            coverRect.width > 0 &&
-            state.tx >= coverRect.left &&
-            state.tx <= coverRect.right &&
-            state.ty >= coverRect.top &&
-            state.ty <= coverRect.bottom,
-        );
-        const onActive =
-          !isDraggingRef.current &&
-          inStage &&
-          (insideCoverRect || Boolean(hit?.closest('[data-active-slot="true"]')));
-        const visibleClass = styles['cursor-visible'] ?? '';
-        const openClass = styles['cursor-open'] ?? '';
-        const grabClass = styles['cursor-grabbing'] ?? '';
-        if (visibleClass) cursorEl.classList.toggle(visibleClass, inStage);
-        if (openClass) cursorEl.classList.toggle(openClass, onActive);
-        if (grabClass) cursorEl.classList.toggle(grabClass, isDraggingRef.current);
-      }
-      rafId = window.requestAnimationFrame(loop);
-    };
-    rafId = window.requestAnimationFrame(loop);
-
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      document.documentElement.removeEventListener('mouseleave', onLeave);
-      window.cancelAnimationFrame(rafId);
-    };
-  }, [finePointer, detailBook, mapOpen]);
-
-  // Live 1:1 pointer drag & multi-book scrubbing with flick momentum.
-  const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>): void => {
-    if (event.button !== 0) return;
-    if (chainTimerRef.current) {
-      clearTimeout(chainTimerRef.current);
-      chainTimerRef.current = null;
-    }
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      lastX: event.clientX,
-      lastTime: performance.now(),
-      vx: 0,
-      residualX: 0,
-      isDragging: false,
-      steppedDuringDrag: false,
-      startTarget: event.target,
-    };
-  };
-
-  const handleStagePointerMove = (event: PointerEvent<HTMLDivElement>): void => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-
-    const totalDx = event.clientX - drag.startX;
-    const totalDy = event.clientY - drag.startY;
-
-    if (!drag.isDragging) {
-      if (Math.abs(totalDx) < DRAG_ACTIVATION_PX || Math.abs(totalDy) > Math.abs(totalDx) * 1.4) {
-        return;
-      }
-      drag.isDragging = true;
-      setIsDragging(true);
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-    }
-
-    const now = performance.now();
-    const dt = Math.max(1, now - drag.lastTime);
-    const stepDx = event.clientX - drag.lastX;
-    drag.vx = drag.vx * 0.5 + (stepDx / dt) * 0.5;
-    drag.lastX = event.clientX;
-    drag.lastTime = now;
-    drag.residualX += stepDx;
-
-    const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
-    let stepsToMove = 0;
-    while (drag.residualX <= -scrubUnit) {
-      drag.residualX += scrubUnit;
-      stepsToMove += 1;
-    }
-    while (drag.residualX >= scrubUnit) {
-      drag.residualX -= scrubUnit;
-      stepsToMove -= 1;
-    }
-
-    if (stepsToMove !== 0) {
-      drag.steppedDuringDrag = true;
-      step(stepsToMove, CHAIN_STEP_DURATION_MS);
-    }
-
-    const visualOffset = Math.max(
-      -scrubUnit * 0.55,
-      Math.min(scrubUnit * 0.55, drag.residualX * 0.65),
-    );
-    shelfRef.current?.style.setProperty('--drag-x', `${visualOffset.toFixed(1)}px`);
-  };
-
-  const finishDrag = (event: PointerEvent<HTMLDivElement>, cancelled = false): void => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    dragRef.current = null;
-
-    if (drag.isDragging) {
-      setIsDragging(false);
-      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      shelfRef.current?.style.setProperty('--drag-x', '0px');
-
-      if (cancelled) return;
-
-      const scrubUnit = Math.max(70, bookHeightRef.current * 0.24);
-      const speed = Math.abs(drag.vx);
-      if (speed > 0.4) {
-        const extra = Math.min(3, Math.max(1, Math.round(speed * 1.6)));
-        stepBy(drag.vx < 0 ? extra : -extra);
-      } else if (!drag.steppedDuringDrag && Math.abs(drag.residualX) > scrubUnit * 0.3) {
-        step(drag.residualX < 0 ? 1 : -1);
-      }
-      return;
-    }
-
-    if (cancelled) return;
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    if (Math.hypot(dx, dy) > 8) return;
-
-    const targetEl = (drag.startTarget ?? event.target) as HTMLElement | null;
-    const slotEl = targetEl?.closest<HTMLElement>('[data-slot-offset]');
-    if (slotEl) {
-      const offset = Number(slotEl.dataset.slotOffset);
-      if (offset === 0) {
-        openDetail(bookAt(posRef.current));
-        return;
-      }
-      if (!Number.isNaN(offset)) {
-        const clickedBook = bookAt(posRef.current + offset);
-        // Clicking a dimmed out-of-filter book shifts active highlight cleanly in one batched URL update.
-        const nextUrlPatch: { track?: string | null; status?: BookStatusFilter } = {};
-        if (highlightedTrack && clickedBook.track !== highlightedTrack) {
-          nextUrlPatch.track = clickedBook.track;
-        }
-        if (statusFilter !== 'all' && clickedBook.status !== statusFilter) {
-          nextUrlPatch.status = 'all';
-        }
-        if (Object.keys(nextUrlPatch).length > 0) {
-          void setUrlState(nextUrlPatch);
-        }
-        stepBy(offset);
-        return;
-      }
-    }
-
-    // Fallback geometric hit-test for the active 3D front cover across all browsers.
-    const activeCoverEl = stageRef.current?.querySelector<HTMLElement>(
-      '[data-active-slot="true"] [data-book-cover]',
-    );
-    const coverRect = activeCoverEl?.getBoundingClientRect();
-    if (
-      coverRect &&
-      coverRect.width > 0 &&
-      event.clientX >= coverRect.left &&
-      event.clientX <= coverRect.right &&
-      event.clientY >= coverRect.top &&
-      event.clientY <= coverRect.bottom
-    ) {
-      openDetail(bookAt(posRef.current));
-    }
-  };
+  const { isDragging, handleStagePointerDown, handleStagePointerMove, finishDrag } =
+    useBookshelfNavigation({
+      stageRef,
+      shelfRef,
+      cursorRef,
+      posRef,
+      bookHeightRef,
+      detailOpenRef,
+      chainTimerRef,
+      lastStepRef,
+      finePointer,
+      detailOpen: detailBook !== null,
+      mapOpen,
+      bookCount,
+      highlightedTrack,
+      statusFilter,
+      bookAt,
+      step,
+      stepBy,
+      goToBookIndex,
+      openDetail,
+      closeDetail,
+      onUpdateUrlFilter: (patch) => void setUrlState(patch),
+    });
 
   const handleTabClick = (category: BookCategory): void => {
     if (category === 'All') {
@@ -929,99 +623,22 @@ export function BookshelfStage({
           } as CSSProperties
         }
       >
-        {/* Translucent section & reading-status filter controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {!activeShelf && categories.length > 2 && (
-            <div role="tablist" aria-label="Categories" className={styles['track-bar']}>
-              <span
-                aria-hidden="true"
-                className={cn(styles['track-pill'], !tabIndicator.ready && styles['no-anim'])}
-                style={{
-                  width: `${tabIndicator.width}px`,
-                  height: `${tabIndicator.height}px`,
-                  transform: `translate3d(${tabIndicator.left}px, ${tabIndicator.top}px, 0)`,
-                }}
-              />
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  ref={(el) => {
-                    if (el) tabButtonRefs.current.set(category, el);
-                    else tabButtonRefs.current.delete(category);
-                  }}
-                  type="button"
-                  role="tab"
-                  aria-selected={
-                    category === 'All' ? highlightedTrack === null : activeTabCategory === category
-                  }
-                  onClick={() => handleTabClick(category)}
-                  className={styles['track-chip']}
-                >
-                  <span>{category}</span>
-                  <span className={styles['track-count']}>{categoryCounts[category] ?? 0}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <fieldset aria-label="Reading status" className={styles['status-bar']}>
-              <button
-                type="button"
-                aria-pressed={statusFilter === 'all'}
-                onClick={() => handleStatusClick('all')}
-                className={styles['status-chip']}
-              >
-                <span>Any status</span>
-                <span className={styles['track-count']}>{statusCounts.all}</span>
-              </button>
-              {BOOK_STATUSES.map((status: BookStatus) => (
-                <button
-                  key={status}
-                  type="button"
-                  aria-pressed={statusFilter === status}
-                  onClick={() => handleStatusClick(status)}
-                  className={styles['status-chip']}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(styles['status-dot'], styles[`status-dot-${status}`])}
-                  />
-                  <span>{BOOK_STATUS_META[status].label}</span>
-                  <span className={styles['track-count']}>{statusCounts[status]}</span>
-                </button>
-              ))}
-            </fieldset>
-
-            {highlightedTrack && highlightedShelfSlug && (
-              <Link
-                href={`/bookshelf/shelf/${highlightedShelfSlug}`}
-                prefetch={false}
-                className="inline-flex items-center gap-1 tile-meta text-brand-ink no-underline underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Open {highlightedTrack} shelf
-                <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {matchingFilterCount === 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-1 px-4 py-2.5 tile-meta text-muted-foreground">
-            <span>
-              No books match this filter yet — update a book&apos;s reading status in Sanity Studio.
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                void setUrlState({ track: null, status: 'all' });
-              }}
-              className="text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Show all books
-            </button>
-          </div>
-        )}
+        <BookshelfFiltersBar
+          showCategories={!activeShelf && categories.length > 2}
+          categories={categories}
+          categoryCounts={categoryCounts}
+          highlightedTrack={highlightedTrack}
+          activeTabCategory={activeTabCategory}
+          tabIndicator={tabIndicator}
+          tabButtonRefs={tabButtonRefs}
+          onSelectCategory={handleTabClick}
+          statusFilter={statusFilter}
+          statusCounts={statusCounts}
+          onSelectStatus={(status) => handleStatusClick(status)}
+          highlightedShelfSlug={highlightedShelfSlug}
+          matchingFilterCount={matchingFilterCount}
+          onResetFilters={() => void setUrlState({ track: null, status: 'all' })}
+        />
 
         {/* Borderless 3D Shelf Stage */}
         {/* biome-ignore lint/a11y/useSemanticElements: Interactive 3D carousel stage follows ARIA carousel pattern. */}
@@ -1053,130 +670,32 @@ export function BookshelfStage({
               const isDimmed = hasFilter && !isHighlighted;
 
               return (
-                <div
+                <BookshelfBookSlot
                   key={slot.poolIndex}
-                  ref={(el) => {
-                    if (el) slotElementsRef.current.set(slot.poolIndex, el);
-                    else slotElementsRef.current.delete(slot.poolIndex);
-                  }}
-                  data-pool-index={slot.poolIndex}
-                  data-slot-offset={slot.offset}
-                  data-active-slot={isActive ? 'true' : 'false'}
-                  data-book-status={book.status}
-                  data-highlighted={isHighlighted ? 'true' : 'false'}
-                  data-dimmed={isDimmed ? 'true' : 'false'}
-                  className={styles.slot}
-                >
-                  <div
-                    className={styles.book}
-                    style={
-                      {
-                        '--spine-hdr': book.spine.capBg,
-                        '--spine-body': book.spine.bodyBg,
-                        '--spine-num': book.spine.capText,
-                        '--spine-ink': book.spine.titleColor,
-                      } as CSSProperties
-                    }
-                  >
-                    <div className={cn(styles.face, styles['face-spine'])}>
-                      <div className={styles['spine-hdr']}>{book.stageLabel}</div>
-                      <div className={styles['spine-title']}>
-                        <span>{book.spineTitle}</span>
-                      </div>
-                      <div className={styles['spine-author']}>
-                        <span>{book.spineAuthor}</span>
-                      </div>
-                      <div
-                        aria-hidden="true"
-                        className={cn(
-                          styles['spine-status-bar'],
-                          styles[`spine-status-${book.status}`],
-                        )}
-                      />
-                    </div>
-
-                    <div data-book-cover className={cn(styles.face, styles['face-cover'])}>
-                      <div className={styles.cover}>
-                        {/* biome-ignore lint/performance/noImgElement: Local or CDN cover asset served directly without Next optimizer. */}
-                        <img
-                          src={book.coverSrc}
-                          alt={`${book.title} by ${book.authors}`}
-                          width={520}
-                          height={680}
-                          loading={Math.abs(slot.offset) <= 2 ? 'eager' : 'lazy'}
-                          decoding="async"
-                          draggable={false}
-                          className={styles['cover-img']}
-                        />
-                      </div>
-                    </div>
-
-                    <div className={cn(styles.face, styles['face-back'])} />
-                    <div className={cn(styles.face, styles['face-pages'])} />
-                  </div>
-
-                  {/* Full-cover 2D hit plane for active book (eliminates 51px perspective hit clipping) */}
-                  <div
-                    aria-hidden="true"
-                    data-active-hit={isActive ? 'true' : 'false'}
-                    className={styles['active-hit']}
-                  />
-                  <div aria-hidden="true" className={styles['slot-shadow']} />
-                </div>
+                  poolIndex={slot.poolIndex}
+                  offset={slot.offset}
+                  book={book}
+                  isActive={isActive}
+                  isHighlighted={isHighlighted}
+                  isDimmed={isDimmed}
+                  registerRef={registerSlotRef}
+                />
               );
             })}
           </div>
         </div>
 
-        {/* Live stage readout + borderless prev/next controls */}
-        <div className={styles['controls-row']}>
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <span className="tile-meta tabular-nums text-brand-ink">
-              {activeShelf
-                ? `Book ${String(mod(pos, bookCount) + 1).padStart(2, '0')} / ${String(bookCount).padStart(2, '0')}`
-                : `Stage ${activeBook.stageLabel} / ${String(bookCount).padStart(2, '0')}`}
-            </span>
-            <span aria-hidden="true" className="text-faint">
-              ·
-            </span>
-            <span className="tile-sub font-medium text-foreground">{activeBook.title}</span>
-            <BookStatusBadge status={activeBook.status} data-active-status={activeBook.status} />
-            <span aria-hidden="true" className="text-faint">
-              ·
-            </span>
-            <button
-              type="button"
-              onClick={() => openDetail(activeBook)}
-              className="inline-flex items-center gap-1 tile-meta text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Open notes ({activeBook.topics.length} topics)
-              <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-            </button>
-          </div>
+        <BookshelfControlsBar
+          isSingleShelf={Boolean(activeShelf)}
+          isFiniteShelf={isFiniteShelf}
+          pos={pos}
+          displayIndex={mod(pos, bookCount)}
+          bookCount={bookCount}
+          activeBook={activeBook}
+          onOpenDetail={(book) => openDetail(book)}
+          onStep={(delta) => step(delta)}
+        />
 
-          <div className={styles['controls-arrows']}>
-            <button
-              type="button"
-              onClick={() => step(-1)}
-              disabled={isFiniteShelf && pos <= 0}
-              aria-label="Previous book"
-              className={cn(styles.arrow, isFiniteShelf && pos <= 0 && 'opacity-35')}
-            >
-              <FiArrowLeft className="size-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => step(1)}
-              disabled={isFiniteShelf && pos >= bookCount - 1}
-              aria-label="Next book"
-              className={cn(styles.arrow, isFiniteShelf && pos >= bookCount - 1 && 'opacity-35')}
-            >
-              <FiArrowRight className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        {/* Separated `seathru.app`-inspired fanned cover-stack shelf cards */}
         {!activeShelf && shelves.length > 0 && (
           <ShelfCardsGrid
             shelves={shelves}
@@ -1191,35 +710,9 @@ export function BookshelfStage({
           />
         )}
 
-        {/* Open-access free programming books directory link (EbookFoundation) */}
-        {!activeShelf && (
-          <Link
-            href="/bookshelf/free"
-            prefetch={false}
-            className="group flex flex-wrap items-center justify-between gap-4 rounded-tile border border-hairline bg-surface-1 p-5 no-underline transition-colors hover:border-brand-rim hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-focus"
-          >
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 tile-meta text-brand-ink">
-                <FiBookOpen className="size-3.5" aria-hidden="true" />
-                <span>Open-access index · EbookFoundation</span>
-              </div>
-              <p className="tile-title text-foreground">Free Programming Books Directory</p>
-              <p className="tile-sub text-muted-foreground">
-                Search 2,400+ community-verified open books across 150+ languages and 47 subjects.
-              </p>
-            </div>
-            <span className="inline-flex items-center gap-1.5 tile-label text-brand-ink group-hover:text-foreground">
-              Browse directory
-              <FiArrowUpRight
-                className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                aria-hidden="true"
-              />
-            </span>
-          </Link>
-        )}
+        {!activeShelf && <FreeLibraryDirectoryCard />}
       </div>
 
-      {/* Magnetic custom cursor */}
       <div ref={cursorRef} aria-hidden="true" className={styles['cursor-layer']}>
         <div className={styles['cursor-ring']}>
           <span className={styles['cursor-label']}>Open</span>

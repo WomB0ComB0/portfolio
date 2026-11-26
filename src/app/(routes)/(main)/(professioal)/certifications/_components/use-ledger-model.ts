@@ -17,92 +17,24 @@
 'use client';
 
 /**
- * @file The adapter between the Ledger's own URL sync (use-ledger-filters.ts, which handles Back,
- * Forward, shared links and same-tick navigations, each pinned by tests) and the shared FilterBar
- * parts, which read only a FilterModel. The sync stays as it is; this hook only translates: the
- * hook's issuer and skill become the schema's state, the schema counts the chips disjunctively
- * and words the status and empty state, and the parts' setters call the hook's. Links keep the
- * Ledger's URL format (URLSearchParams, issuer, skill, q), so a link, the GET form and an
- * in-place change still write byte-identical URLs.
+ * @file The FilterModel for /certifications, unified onto the shared `nuqs`-backed
+ * `useUrlFilters` hook used by /projects, /places, /places/photos, and /media.
  */
 
 import { useMemo } from 'react';
 
-import { type BuiltFilterModel, buildFilterModel } from '@/components/console/filter-bar';
-import type { FilterPatch } from '@/lib/filters';
+import { type BuiltFilterModel, useUrlFilters } from '@/components/console/filter-bar';
 import {
-  type CertificationFacet,
   type CertificationItem,
   type CertificationLookups,
-  type CertificationState,
   certificationFilters,
-  issuerFilterOf,
-  ledgerStateOf,
 } from '../_lib/certification-filters';
-import { filtersHref, type LedgerFilters, normaliseQuery } from '../_lib/filters';
-import { useLedgerFilters } from './use-ledger-filters';
 
-/** A patch's value for one key: its first value, null to clear, or the current one. */
-function patched(
-  patch: FilterPatch<CertificationFacet>,
-  key: CertificationFacet | 'q',
-  current: string | null,
-): string | null {
-  if (!Object.hasOwn(patch, key)) return current;
-  const value = patch[key];
-  return (typeof value === 'string' ? value : value?.[0]) ?? null;
-}
-
-/** The FilterModel for /certifications, on the Ledger's URL sync, and the rows it keeps. */
+/** The FilterModel for /certifications, backed by the shared nuqs `useUrlFilters` hook. */
 export function useLedgerModel<T extends CertificationItem>(
   rows: readonly T[],
   lookups: CertificationLookups,
-  initial: LedgerFilters,
 ): BuiltFilterModel<T> {
-  const filters = useLedgerFilters(lookups, initial);
   const schema = useMemo(() => certificationFilters<T>(lookups), [lookups]);
-  const { choices, query } = filters;
-  const draft: CertificationState = {
-    ...ledgerStateOf({ ...choices, q: '' }),
-    q: query,
-  };
-
-  /**
-   * Sets one facet through the Ledger's hook and keeps the other facet as it is. An issuer slug
-   * becomes the hook's IssuerFilter (a family, or Other's chip); All, or a slug the ledger cannot
-   * place (Other on a ledger without one), becomes null.
-   */
-  const choose = (key: CertificationFacet, slug: string | null): void =>
-    key === 'issuer'
-      ? filters.choose({
-          issuer: slug === null ? null : issuerFilterOf(slug, lookups),
-          skill: choices.skill,
-        })
-      : filters.choose({ issuer: choices.issuer, skill: slug });
-
-  return buildFilterModel({
-    schema,
-    items: rows,
-    draft,
-    active: ledgerStateOf(filters.active),
-    touched: filters.touched,
-    actions: {
-      setQuery: filters.search,
-      submit: filters.submit,
-      choose,
-      /** Both facets are single-select: the current value clears, any other replaces it. */
-      toggle: (key, slug) => choose(key, draft[key].includes(slug) ? null : slug),
-      clearAll: filters.clearAll,
-    },
-    /**
-     * Links in the Ledger's own format (filtersHref): the patch over the current choices and the
-     * normalised search, so a chip's href matches the URL the hook writes.
-     */
-    hrefFor: (patch) =>
-      filtersHref({
-        issuer: patched(patch, 'issuer', choices.issuer?.slug ?? null),
-        skill: patched(patch, 'skill', choices.skill),
-        q: patched(patch, 'q', normaliseQuery(query)),
-      }),
-  });
+  return useUrlFilters(schema, rows);
 }

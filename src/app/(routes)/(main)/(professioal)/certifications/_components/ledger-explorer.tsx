@@ -70,8 +70,8 @@ export interface LedgerExplorerProps {
   readonly other: IssuerChip | null;
   /** The lookups the URL's filters resolve against: families, raw issuers, skills. */
   readonly index: LedgerIndex;
-  /** The server's reading of the URL, for where no router reports search params. */
-  readonly initial: LedgerFilters;
+  /** Optional server-resolved filters (kept for prop compatibility; live URL state comes from nuqs). */
+  readonly initial?: LedgerFilters;
   /** A chapter (Featured) already opens the page above the bar, so the first year steps down. */
   readonly leadTaken?: boolean;
 }
@@ -82,11 +82,10 @@ export function LedgerExplorer({
   chips,
   other,
   index,
-  initial,
   leadTaken = false,
 }: LedgerExplorerProps): ReactElement {
   const lookups = useMemo(() => ({ chips, other, index }), [chips, other, index]);
-  const { model, results } = useLedgerModel(rows, lookups, initial);
+  const { model, results } = useLedgerModel(rows, lookups);
   const chapters = buildRecord(withSkillFirst(results, model.active.skill?.[0] ?? null));
 
   return (

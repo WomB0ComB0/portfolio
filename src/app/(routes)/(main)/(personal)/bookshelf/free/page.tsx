@@ -15,13 +15,15 @@
  */
 
 import { type ReactElement, Suspense } from 'react';
+import { SectionBoundary } from '@/components/data/section-boundary';
 import {
   buildFreeBooksPageResponse,
   buildFreeProgrammingBooksCatalog,
   loadFreeProgrammingBooks,
-} from '@/lib/books/free-programming-books';
+} from '@/lib/books/free-books-loader';
 import { constructMetadata } from '@/utils/seo/meta';
 import { FreeBooksExplorer } from './_components/free-books-explorer';
+import { FreeBooksSkeleton } from './_components/free-books-skeleton';
 
 export const revalidate = 3_600;
 
@@ -48,8 +50,10 @@ export default async function FreeProgrammingBooksPage(): Promise<ReactElement> 
   });
 
   return (
-    <Suspense fallback={null}>
-      <FreeBooksExplorer initialPage={initialPage} />
-    </Suspense>
+    <SectionBoundary label="free programming books" queryKeys={[['books', 'free']]}>
+      <Suspense fallback={<FreeBooksSkeleton />}>
+        <FreeBooksExplorer initialPage={initialPage} />
+      </Suspense>
+    </SectionBoundary>
   );
 }

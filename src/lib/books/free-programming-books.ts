@@ -31,78 +31,29 @@ import {
   loadLiveSecurityManifestFromRedis,
   mergeSecurityManifests,
 } from './free-books-manifest-store';
+import {
+  EBOOK_FOUNDATION_REPO_URL,
+  type FreeBookCategorySummary,
+  type FreeBookEntry,
+  type FreeBookFormat,
+  type FreeBookSource,
+  type FreeBooksFilterOptions,
+  type FreeBooksPageResponse,
+  type FreeProgrammingBooksCatalog,
+} from './free-books-types';
 import type { FreeBooksSecurityManifest } from './free-books-verifier';
-import { type HostTrustTier, screenExternalBookUrl } from './url-security';
+import { screenExternalBookUrl } from './url-security';
 
-export type FreeBookSource = 'langs' | 'subjects';
-export type FreeBookFormat = 'PDF' | 'HTML' | 'EPUB' | 'Kindle' | 'Markdown' | 'AsciiDoc';
-
-export interface FreeBookEntry {
-  readonly id: string;
-  readonly title: string;
-  readonly url: string;
-  readonly host: string;
-  readonly trustTier: HostTrustTier;
-  readonly authors: string;
-  readonly source: FreeBookSource;
-  readonly category: string;
-  readonly subcategory: string | null;
-  readonly formats: readonly FreeBookFormat[];
-  readonly license: string | null;
-  readonly archived: boolean;
-  readonly inProcess: boolean;
-  readonly requiresAccount: boolean;
-  readonly insecureTransport: boolean;
-  readonly unavailable: boolean;
-}
-
-export interface FreeBookCategorySummary {
-  readonly name: string;
-  readonly source: FreeBookSource;
-  readonly count: number;
-}
-
-export interface FreeProgrammingBooksCatalog {
-  readonly fetchedAt: string;
-  readonly repoUrl: string;
-  readonly license: string;
-  readonly totalBooks: number;
-  readonly langsCount: number;
-  readonly subjectsCount: number;
-  readonly languageCategoriesCount: number;
-  readonly subjectCategoriesCount: number;
-  readonly pdfCount: number;
-  readonly quarantinedCount: number;
-  readonly unavailableCount: number;
-  readonly securityCheckedAt: string | null;
-  readonly manifestSource: 'redis' | 'bundled';
-  readonly categories: readonly FreeBookCategorySummary[];
-  readonly books: readonly FreeBookEntry[];
-}
-
-export interface FreeBooksPageResponse {
-  readonly fetchedAt: string;
-  readonly repoUrl: string;
-  readonly license: string;
-  readonly totalCatalogBooks: number;
-  readonly langsCount: number;
-  readonly subjectsCount: number;
-  readonly languageCategoriesCount: number;
-  readonly subjectCategoriesCount: number;
-  readonly pdfCount: number;
-  readonly totalMatched: number;
-  readonly quarantinedCount: number;
-  readonly unavailableCount: number;
-  readonly securityCheckedAt: string | null;
-  readonly manifestSource: 'redis' | 'bundled';
-  readonly limit: number;
-  readonly offset: number;
-  readonly categories: readonly FreeBookCategorySummary[];
-  readonly items: readonly FreeBookEntry[];
-}
-
-export const EBOOK_FOUNDATION_REPO_URL =
-  'https://github.com/EbookFoundation/free-programming-books';
+export {
+  EBOOK_FOUNDATION_REPO_URL,
+  type FreeBookCategorySummary,
+  type FreeBookEntry,
+  type FreeBookFormat,
+  type FreeBookSource,
+  type FreeBooksFilterOptions,
+  type FreeBooksPageResponse,
+  type FreeProgrammingBooksCatalog,
+};
 
 const RAW_SOURCES: Readonly<Record<FreeBookSource, string>> = {
   langs:
@@ -384,18 +335,6 @@ export function buildFreeProgrammingBooksCatalog(
     categories,
     books,
   };
-}
-
-export interface FreeBooksFilterOptions {
-  readonly source?: 'all' | FreeBookSource;
-  readonly category?: string;
-  readonly format?: 'all' | FreeBookFormat;
-  readonly q?: string;
-  readonly hideArchived?: boolean;
-  readonly hideInProcess?: boolean;
-  readonly hideUnavailable?: boolean;
-  readonly httpsOnly?: boolean;
-  readonly verifiedHostsOnly?: boolean;
 }
 
 /** Pre-indexed lowercase search haystacks keyed by entry object (zero JSON payload overhead). */

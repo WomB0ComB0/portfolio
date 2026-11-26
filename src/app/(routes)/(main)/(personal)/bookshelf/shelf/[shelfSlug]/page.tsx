@@ -18,6 +18,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { type ReactElement, Suspense } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
+import { SectionBoundary } from '@/components/data/section-boundary';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookshelfStage } from '../../_components/bookshelf-stage';
 import { DEFAULT_SHELF_SLUGS } from '../../_lib/books';
@@ -55,8 +56,10 @@ export default async function ShelfDetailPage({
   if (!hit || hit.books.length === 0) notFound();
 
   return (
-    <Suspense fallback={null}>
-      <BookshelfStage books={hit.books} shelves={hit.catalog.shelves} activeShelf={hit.shelf} />
-    </Suspense>
+    <SectionBoundary label={`${hit.shelf.title} shelf`}>
+      <Suspense fallback={null}>
+        <BookshelfStage books={hit.books} shelves={hit.catalog.shelves} activeShelf={hit.shelf} />
+      </Suspense>
+    </SectionBoundary>
   );
 }

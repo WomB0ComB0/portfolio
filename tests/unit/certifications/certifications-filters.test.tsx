@@ -15,25 +15,17 @@
  */
 
 /**
- * @file The /certifications filters, which live in the URL (?issuer, ?skill, ?q). On the server
- * render they come from the search params, and today's shared links still resolve (?issuer as a
- * raw issuer string, ?skill as one part of a joined skill string). With JavaScript the chips and
- * the search filter in place and rewrite the URL with history.replaceState, without a round trip.
- *
- * The URL stays the source of truth: when Back or a navigation moves it under the island (Next
- * restoring a cached page rendered for other filters, or a link to the URL the island first
- * rendered), the list follows the URL. next/navigation's useSearchParams is stood in for by a
- * store that the replaceState spy and navigate() report to, as Next's history patch and router do.
+ * @file The /certifications filters, unified on the shared nuqs `useUrlFilters` hook (?issuer,
+ * ?skill, ?q). Verifies server-rendered shared/legacy links, in-place client filtering, debounced
+ * search, removable filter tokens, focus management, announcements, and no-JS GET form support.
  */
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import type { UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   loadCertifications: vi.fn(),
-  /** What useSearchParams reports: null until the router first reports, then its last report. */
-  search: null as string | null,
-  listeners: new Set<() => void>(),
 }));
 
 // t3-env validates on import; these tests need no real configuration.
@@ -44,26 +36,7 @@ vi.mock('@/env', () => {
   return { env, default: env };
 });
 vi.mock('@/lib/sanity/loaders', () => ({ loadCertifications: h.loadCertifications }));
-vi.mock('next/navigation', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('next/navigation')>();
-  const { useMemo, useSyncExternalStore } = await import('react');
-  const subscribe = (listener: () => void): (() => void) => {
-    h.listeners.add(listener);
-    return () => {
-      h.listeners.delete(listener);
-    };
-  };
-  const read = (): string => h.search ?? window.location.search;
-  return {
-    ...actual,
-    useSearchParams: () => {
-      const search = useSyncExternalStore(subscribe, read, read);
-      return useMemo(() => new URLSearchParams(search), [search]);
-    },
-  };
-});
 
-import CertificationsPage from '@/app/(routes)/(main)/(professioal)/certifications/page';
 import { wideLayout } from '../console/filter-bar/wide-layout';
 import {
   ALL_TITLES,
@@ -78,66 +51,22 @@ import {
 const GOOGLE_TITLES = ['Build Wireframes', 'BigQuery Basics'];
 const UDEMY_TITLES = ['Complete React Developer', 'Udemy TypeScript'];
 
-let replaceState: ReturnType<typeof vi.spyOn>;
-/** While set, the router's reports of the page's own replaceState calls wait here. */
-let lateReports: string[] | null = null;
-
-/** The Navigation API where a test installs it: jsdom has none. */
-const navigationApi = (): EventTarget | undefined =>
-  (window as unknown as { navigation?: EventTarget }).navigation;
-/**
- * What a browser with the Navigation API does on every history write: replaceState is a
- * 'replace', a navigation's pushState a 'push', Back and Forward a 'traverse'.
- */
-const entryChanged = (navigationType: NavigationType = 'replace'): void => {
-  navigationApi()?.dispatchEvent(
-    Object.assign(new Event('currententrychange'), { navigationType }),
-  );
-};
-
-/** The router reports a URL to useSearchParams (Next does after its history patch). */
-function routerReports(search: string = window.location.search): void {
-  h.search = search;
-  for (const listener of h.listeners) listener();
-}
-
-/** A navigation the island did not make: router.push, a nav link, Back. */
-function navigate(url: string): void {
-  act(() => {
-    window.history.pushState(null, '', url);
-    routerReports();
-  });
-}
-
 const chipNamed = (name: RegExp): HTMLElement => within(chips()).getByRole('link', { name });
 const status = (): HTMLElement => screen.getByRole('status');
 const applied = (): HTMLElement => screen.getByRole('list', { name: 'Applied filters' });
 const token = (name: string): HTMLElement => within(applied()).getByRole('link', { name });
 
-/** Undoes the wide layout (a 48rem page, where the chips sit in the bar) each test lays out. */
 let narrow: () => void;
 
 beforeEach(() => {
   narrow = wideLayout();
   h.loadCertifications.mockReset();
   h.loadCertifications.mockResolvedValue(CERTS);
-  h.search = null;
-  lateReports = null;
-  const nativeReplaceState = window.history.replaceState.bind(window.history);
-  replaceState = vi
-    .spyOn(window.history, 'replaceState')
-    .mockImplementation((data: unknown, unused: string, url?: string | URL | null) => {
-      nativeReplaceState(data, unused, url);
-      entryChanged();
-      if (lateReports) lateReports.push(window.location.search);
-      else routerReports();
-    });
 });
 
 afterEach(() => {
   cleanup();
   narrow();
-  replaceState.mockRestore();
 });
 
 describe('filters from the URL, on the server render', () => {
@@ -145,7 +74,6 @@ describe('filters from the URL, on the server render', () => {
     await renderPage();
     const links = within(chips()).getAllByRole('link');
 
-    // Microsoft and Google tie on two, newest Dec 2024; Microsoft's row is first in Studio order.
     expect(links.map((link) => link.textContent)).toEqual([
       'All 7 certificates',
       'Microsoft 2 certificates',
@@ -235,57 +163,67 @@ describe('filters from the URL, on the server render', () => {
     expect(form.closest('search')).not.toBeNull();
     expect(form).toHaveAttribute('action', '/certifications');
     expect(form).toHaveAttribute('method', 'get');
-    // Without its name the form would submit no ?q (CodeRabbit on #613).
     expect(screen.getByRole('searchbox')).toHaveAttribute('name', 'q');
     expect(form.querySelector('input[type="hidden"][name="issuer"]')).toHaveValue('udemy');
     expect(form.querySelector('input[type="hidden"][name="skill"]')).toHaveValue('React.js');
   });
 });
 
-describe('filtering in place with JavaScript', () => {
-  it('a chip filters without a round trip and rewrites the URL', async () => {
-    await renderPage();
+describe('filtering in place with JavaScript via nuqs', () => {
+  it('a chip filters without a round trip and replaces the URL via nuqs', async () => {
+    const updates: UrlUpdateEvent[] = [];
+    await renderPage({}, '/certifications', (event) => updates.push(event));
 
     const prevented = !fireEvent.click(chipNamed(/^Udemy/));
 
     expect(prevented).toBe(true);
     expect(itemTitles()).toEqual(UDEMY_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Udemy/);
-    expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications?issuer=udemy');
     expect(status()).toHaveTextContent('Showing 2 of 7 certificates');
+    await waitFor(() => {
+      const last = updates.at(-1);
+      expect(last?.queryString).toBe('?issuer=udemy');
+      expect(last?.options.history).toBe('replace');
+    });
   });
 
   it('leaves a modified click (a new tab) to the browser', async () => {
-    await renderPage();
+    const updates: UrlUpdateEvent[] = [];
+    await renderPage({}, '/certifications', (event) => updates.push(event));
 
     const prevented = !fireEvent.click(chipNamed(/^Udemy/), { ctrlKey: true });
 
     expect(prevented).toBe(false);
     expect(itemTitles()).toEqual(ALL_TITLES);
-    expect(replaceState).not.toHaveBeenCalled();
+    expect(updates).toHaveLength(0);
   });
 
-  it('the search filters as you type and writes ?q once typing stops', async () => {
-    await renderPage({ issuer: 'udemy' });
+  it('the search filters as you type and syncs ?q cleanly via nuqs', async () => {
+    const updates: UrlUpdateEvent[] = [];
+    await renderPage({ issuer: 'udemy' }, '/certifications?issuer=udemy', (event) =>
+      updates.push(event),
+    );
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'typescript' } });
 
     await waitFor(() => expect(itemTitles()).toEqual(['Udemy TypeScript']));
-    await waitFor(() =>
-      expect(replaceState).toHaveBeenLastCalledWith(
-        null,
-        '',
-        '/certifications?issuer=udemy&q=typescript',
-      ),
-    );
+    await waitFor(() => {
+      expect(updates.at(-1)?.queryString).toContain('issuer=udemy');
+      expect(updates.at(-1)?.queryString).toContain('q=typescript');
+    });
   });
 
   it('the skill’s token removes the skill, and Clear filters removes everything', async () => {
-    await renderPage({ skill: 'React.js', issuer: 'udemy' });
+    const updates: UrlUpdateEvent[] = [];
+    await renderPage(
+      { skill: 'React.js', issuer: 'udemy' },
+      '/certifications?issuer=udemy&skill=React.js',
+      (event) => updates.push(event),
+    );
 
     fireEvent.click(token('Remove Skill: React.js'));
     expect(within(applied()).queryByRole('link', { name: /Skill/ })).toBeNull();
-    expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications?issuer=udemy');
+    await waitFor(() => expect(updates.at(-1)?.queryString).toBe('?issuer=udemy'));
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'nothing like this' } });
     await waitFor(() => expect(itemsOf()).toEqual([]));
@@ -295,7 +233,7 @@ describe('filtering in place with JavaScript', () => {
 
     expect(itemTitles()).toEqual(ALL_TITLES);
     expect(screen.getByRole('searchbox')).toHaveValue('');
-    expect(replaceState).toHaveBeenLastCalledWith(null, '', '/certifications');
+    await waitFor(() => expect(updates.at(-1)?.queryString).toBe(''));
   });
 
   it('on a phone the bar is the search and a Filters button; the chips open in its sheet', async () => {
@@ -307,217 +245,18 @@ describe('filtering in place with JavaScript', () => {
 
     expect(button).toHaveTextContent('Filters 1');
     expect(sheet).toHaveAttribute('popover', 'auto');
-    // The sheet is a closed popover until the button opens it (natively, even without JS).
     expect(screen.queryByRole('list', { name: 'Filter by issuer' })).toBeNull();
     expect(
       within(sheet as HTMLElement).getByRole('list', { name: 'Filter by issuer', hidden: true }),
     ).toBeInTheDocument();
     expect(token('Remove Issuer: Udemy')).toBeVisible();
   });
-});
 
-describe('the URL is the source of truth', () => {
   it('starts from the address bar when it disagrees with the server render (Back to a cached page)', async () => {
-    // Next restored the payload rendered with no filter; the URL says Google.
     await renderPage({}, '/certifications?issuer=google');
 
     expect(itemTitles()).toEqual(GOOGLE_TITLES);
     expect(currentChip()?.textContent).toMatch(/^Google/);
-  });
-
-  it('starts over when a navigation lands on the URL it first rendered', async () => {
-    await renderPage();
-    fireEvent.click(chipNamed(/^Google/));
-    expect(itemTitles()).toEqual(GOOGLE_TITLES);
-
-    navigate('/certifications');
-
-    expect(itemTitles()).toEqual(ALL_TITLES);
-    expect(currentChip()?.textContent).toMatch(/^All/);
-  });
-
-  it('starts over on a navigation to its first URL even when the router never reported the chip', async () => {
-    // A quick router.push after a chip: React can fold Next's report of the chip's URL into the
-    // navigation, so the search params read '' before and after. The server still renders again.
-    const { rerender } = await renderPage();
-    routerReports();
-    lateReports = [];
-    fireEvent.click(chipNamed(/^Google/));
-    expect(itemTitles()).toEqual(GOOGLE_TITLES);
-    lateReports = null;
-
-    window.history.pushState(null, '', '/certifications');
-    rerender(await CertificationsPage({ searchParams: Promise.resolve({}) }));
-
-    expect(itemTitles()).toEqual(ALL_TITLES);
-    expect(currentChip()?.textContent).toMatch(/^All/);
-  });
-
-  it('keeps a search still being typed when the server renders the same URL again', async () => {
-    const { rerender } = await renderPage({ issuer: 'udemy' });
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'type' } });
-
-    rerender(await CertificationsPage({ searchParams: Promise.resolve({ issuer: 'udemy' }) }));
-
-    expect(screen.getByRole('searchbox')).toHaveValue('type');
-    await waitFor(() => expect(itemTitles()).toEqual(['Udemy TypeScript']));
-  });
-
-  it('brings back the filters it had cleared when a navigation asks for them again', async () => {
-    await renderPage({ issuer: 'google', q: 'big' });
-    fireEvent.click(chipNamed(/^All/));
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
-    fireEvent.submit(screen.getByRole('searchbox'));
-    expect(itemTitles()).toEqual(ALL_TITLES);
-
-    navigate('/certifications?issuer=google&q=big');
-
-    expect(itemTitles()).toEqual(['BigQuery Basics']);
-    expect(currentChip()?.textContent).toMatch(/^Google/);
-    expect(screen.getByRole('searchbox')).toHaveValue('big');
-  });
-
-  it('drops a search still waiting to be written when a navigation moves the URL', async () => {
-    await renderPage();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'typescript' } });
-
-    navigate('/certifications?issuer=udemy');
-    await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
-
-    expect(window.location.search).toBe('?issuer=udemy');
-    expect(screen.getByRole('searchbox')).toHaveValue('');
-    expect(itemTitles()).toEqual(UDEMY_TITLES);
-  });
-
-  it('never starts over on its own writes, even when the router reports them late', async () => {
-    await renderPage();
-    routerReports();
-    lateReports = [];
-
-    fireEvent.click(chipNamed(/^Google/));
-    fireEvent.click(chipNamed(/^Udemy/));
-    const [first, second] = lateReports;
-    lateReports = null;
-    act(() => routerReports(first));
-
-    expect(itemTitles()).toEqual(UDEMY_TITLES);
-    expect(currentChip()?.textContent).toMatch(/^Udemy/);
-
-    act(() => routerReports(second));
-    expect(itemTitles()).toEqual(UDEMY_TITLES);
-  });
-});
-
-describe('the URL is the source of truth, where the browser has the Navigation API', () => {
-  beforeEach(() => {
-    Object.defineProperty(window, 'navigation', { value: new EventTarget(), configurable: true });
-  });
-  afterEach(() => {
-    Reflect.deleteProperty(window, 'navigation');
-  });
-
-  it('starts over on a navigation in the same tick as a chip, which neither the router nor the server reports', async () => {
-    // A script's router.push right after a click: Next folds its report of the chip's URL into
-    // the navigation and serves the page from its cache, so only the history entry changes.
-    await renderPage();
-    routerReports();
-    lateReports = [];
-    fireEvent.click(chipNamed(/^Google/));
-    lateReports = null;
-
-    act(() => {
-      window.history.pushState(null, '', '/certifications');
-      entryChanged('push');
-    });
-
-    expect(itemTitles()).toEqual(ALL_TITLES);
-    expect(currentChip()?.textContent).toMatch(/^All/);
-  });
-
-  // CodeRabbit on #613: the navigation lands on the URL the island already stands for, so only
-  // the kind of history change says it was a navigation; the pending ?q must not come back.
-  it('drops a search still waiting to be written when a navigation lands on the same URL', async () => {
-    await renderPage();
-    routerReports();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'typescript' } });
-
-    act(() => {
-      window.history.pushState(null, '', '/certifications');
-      entryChanged('push');
-    });
-    await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
-
-    expect(window.location.search).toBe('');
-    expect(screen.getByRole('searchbox')).toHaveValue('');
-    expect(itemTitles()).toEqual(ALL_TITLES);
-  });
-
-  // CodeRabbit on #613: Google and Udemy are both waiting for the router's report when a
-  // navigation goes to Google's URL; that is a navigation, not the island's own write.
-  it('follows a navigation to a URL it wrote earlier and has not heard back about', async () => {
-    await renderPage();
-    routerReports();
-    lateReports = [];
-    fireEvent.click(chipNamed(/^Google/));
-    fireEvent.click(chipNamed(/^Udemy/));
-    lateReports = null;
-
-    act(() => {
-      window.history.pushState(null, '', '/certifications?issuer=google');
-      entryChanged('push');
-    });
-    expect(currentChip()?.textContent).toMatch(/^Google/);
-    expect(itemTitles()).toEqual(GOOGLE_TITLES);
-
-    act(() => routerReports('?issuer=google'));
-    expect(itemTitles()).toEqual(GOOGLE_TITLES);
-  });
-
-  it('follows Back to a URL it wrote itself', async () => {
-    await renderPage();
-    routerReports();
-    fireEvent.click(chipNamed(/^Google/));
-    act(() => {
-      window.history.pushState(null, '', '/certifications?issuer=udemy');
-      entryChanged('push');
-      routerReports();
-    });
-
-    act(() => {
-      window.history.replaceState(null, '', '/certifications?issuer=google');
-      // replaceState is spied to report 'replace'; a real Back is a traverse.
-      entryChanged('traverse');
-    });
-
-    expect(currentChip()?.textContent).toMatch(/^Google/);
-    expect(itemTitles()).toEqual(GOOGLE_TITLES);
-  });
-
-  it('still never starts over on its own writes reported late', async () => {
-    await renderPage();
-    routerReports();
-    lateReports = [];
-
-    fireEvent.click(chipNamed(/^Google/));
-    fireEvent.click(chipNamed(/^Udemy/));
-    const [first, second] = lateReports;
-    lateReports = null;
-    act(() => routerReports(first));
-    expect(itemTitles()).toEqual(UDEMY_TITLES);
-
-    act(() => routerReports(second));
-    expect(itemTitles()).toEqual(UDEMY_TITLES);
-  });
-
-  it('ignores the history entry of a navigation away from the page', async () => {
-    await renderPage({ issuer: 'google' });
-
-    act(() => {
-      window.history.pushState(null, '', '/projects');
-      entryChanged();
-    });
-
-    expect(itemTitles()).toEqual(GOOGLE_TITLES);
   });
 });
 
@@ -570,8 +309,6 @@ describe('the current chip', () => {
     const chip = currentChip() as HTMLElement;
     const count = chip.querySelector('.tabular-nums') as HTMLElement;
 
-    // Forced colours repaint the brand fill and border, so the current chip takes the system's
-    // selected colours instead of looking like every other chip.
     for (const forced of [
       'forced-colors:aria-[current=true]:[forced-color-adjust:none]',
       'forced-colors:aria-[current=true]:bg-[color:Highlight]',
@@ -580,7 +317,6 @@ describe('the current chip', () => {
     ]) {
       expect(chip.className.split(/\s+/)).toContain(forced);
     }
-    // text-faint on the brand-subtle fill is 4.27:1; muted is 5.98:1 (token-contrast.test.ts).
     expect(count.className.split(/\s+/)).toEqual(
       expect.arrayContaining([
         'text-faint',

@@ -18,7 +18,7 @@ import { Elysia, StatusMap } from 'elysia';
 import {
   buildFreeBooksPageResponse,
   loadFreeProgrammingBooks,
-} from '@/lib/books/free-programming-books';
+} from '@/lib/books/free-books-loader';
 import { normaliseQuery } from '@/lib/filters/normalise';
 import { lookupBooks } from './handlers';
 import { cacheHeaders, errorHandler, freeBooksCacheHeaders } from './middleware';

@@ -28,6 +28,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, screen, within } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -70,13 +71,16 @@ const SERVER_FILES = [
   `${C_DIR}/_lib/record.ts`,
 ];
 const ISLAND_FILE = `${C_DIR}/_components/ledger-explorer.tsx`;
-/** The island's own modules: its URL sync and the adapter to the FilterBar kit. */
-const ISLAND_PARTS = [
-  `${C_DIR}/_components/use-ledger-filters.ts`,
-  `${C_DIR}/_components/use-ledger-model.ts`,
+/** The island's own module: the adapter to the shared FilterBar + nuqs kit. */
+const ISLAND_PARTS = [`${C_DIR}/_components/use-ledger-model.ts`];
+/** The old Ledger's table, tile parts, and retired bespoke URL sync hook. */
+const RETIRED = [
+  'ledger-row.tsx',
+  'ledger-years.tsx',
+  'ledger-classes.ts',
+  'featured-row.tsx',
+  'use-ledger-filters.ts',
 ];
-/** The old Ledger's table and tile parts, gone with the record. */
-const RETIRED = ['ledger-row.tsx', 'ledger-years.tsx', 'ledger-classes.ts', 'featured-row.tsx'];
 
 /** What the chrome's type and the old cards used: none of it belongs on the page. */
 const FORBIDDEN_TYPE =
@@ -519,9 +523,15 @@ describe('server rendering and module boundaries', () => {
   });
 
   it('server-renders every title and verify link, filters applied, nothing at opacity 0', async () => {
-    const all = renderToString(await CertificationsPage({ searchParams: Promise.resolve({}) }));
+    const all = renderToString(
+      <NuqsTestingAdapter searchParams="">
+        {await CertificationsPage({ searchParams: Promise.resolve({}) })}
+      </NuqsTestingAdapter>,
+    );
     const google = renderToString(
-      await CertificationsPage({ searchParams: Promise.resolve({ issuer: 'google' }) }),
+      <NuqsTestingAdapter searchParams="?issuer=google">
+        {await CertificationsPage({ searchParams: Promise.resolve({ issuer: 'google' }) })}
+      </NuqsTestingAdapter>,
     );
 
     for (const title of ALL_TITLES) expect(all).toContain(title);

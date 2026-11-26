@@ -23,6 +23,7 @@
 
 import { render, screen, within } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 
 import CertificationsPage from '@/app/(routes)/(main)/(professioal)/certifications/page';
 
@@ -106,13 +107,22 @@ export function urlOf(params: Params): string {
 }
 
 /**
- * The page rendered on the server for `params`, with the address bar at `at` (by default the
- * same URL, as on a first visit). pushState, so a test's replaceState spy sees only the page's
- * own writes.
+ * The page rendered on the server for `params`, mounted inside `NuqsTestingAdapter` at `at`
+ * (by default the same URL, as on a first visit).
  */
-export async function renderPage(params: Params = {}, at: string = urlOf(params)) {
-  window.history.pushState(null, '', at);
-  return render(await CertificationsPage({ searchParams: Promise.resolve(params) }));
+export async function renderPage(
+  params: Params = {},
+  at: string = urlOf(params),
+  onUrlUpdate?: OnUrlUpdateFunction,
+) {
+  const search = new URL(at, 'https://mikeodnis.dev').search;
+  return render(await CertificationsPage({ searchParams: Promise.resolve(params) }), {
+    wrapper: ({ children }) => (
+      <NuqsTestingAdapter searchParams={search} hasMemory onUrlUpdate={onUrlUpdate}>
+        {children}
+      </NuqsTestingAdapter>
+    ),
+  });
 }
 
 /** Every certificate in the record, in page order: set large in a thin year, or in a group. */

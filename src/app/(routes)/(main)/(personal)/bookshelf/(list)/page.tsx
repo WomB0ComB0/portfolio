@@ -15,6 +15,7 @@
  */
 
 import { type ReactElement, Suspense } from 'react';
+import { SectionBoundary } from '@/components/data/section-boundary';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookshelfStage } from '../_components/bookshelf-stage';
 import { loadBookshelfCatalog } from '../_lib/load-bookshelf';
@@ -44,8 +45,10 @@ export default async function BookshelfPage({
   const initialSlug = typeof rawBook === 'string' ? rawBook : undefined;
 
   return (
-    <Suspense fallback={null}>
-      <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
-    </Suspense>
+    <SectionBoundary label="bookshelf">
+      <Suspense fallback={null}>
+        <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
+      </Suspense>
+    </SectionBoundary>
   );
 }
