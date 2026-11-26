@@ -68,7 +68,6 @@
 
 @media (width <= 900px) {
   .detail-cover {
-    order: -1;
     max-width: 260px;
   }
 }

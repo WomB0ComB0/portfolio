@@ -300,7 +300,7 @@ export function BookDetailView({
         </div>
 
         <div
-          className={cn('lg:sticky lg:top-20', styles.rv)}
+          className={cn(styles['detail-cover-slot'], 'lg:sticky lg:top-20', styles.rv)}
           style={{ '--d': '120ms', '--rd': '640ms' } as CSSProperties}
         >
           <BookCoverFrame book={book} priority />

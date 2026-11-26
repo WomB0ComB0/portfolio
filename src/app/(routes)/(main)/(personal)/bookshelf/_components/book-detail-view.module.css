@@ -20,7 +20,7 @@
  * the stage.
  */
 
-/* Two columns, the text and the cover, stacked at 900px and under. */
+/* Two columns, the text and the cover, stacked at 900px and under with the cover on top. */
 .detail-panel {
   min-width: 0;
 }
@@ -78,6 +78,11 @@
 @media (width <= 900px) {
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked, the cover (the page's LCP image) comes first: its slot is the grid item. */
+  .detail-cover-slot {
+    order: -1;
   }
 }
 

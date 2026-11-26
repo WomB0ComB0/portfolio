@@ -19,8 +19,9 @@
  * in place on the stage and on its own page. In place, it opens from the stage on Enter, steps
  * between books within /bookshelf (#/stage/NN) and returns to the stage. On its own page it shows
  * the title, the numbered topics and the facts and registry links Studio has values for, loads
- * the Sanity CDN cover first, sized to its frame, and links the books before and after, wrapping
- * round. The view takes its neighbours and slim reading-map entries, never the whole catalog.
+ * the Sanity CDN cover first, sized to its frame (and above the text at 900 px and under), and
+ * links the books before and after, wrapping round. The view takes its neighbours and slim
+ * reading-map entries, never the whole catalog.
  */
 
 import { fireEvent, screen, within } from '@testing-library/react';
@@ -47,6 +48,8 @@ import {
   getIsbnRegistryLinks,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { toReadingMapEntry } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
+import { readCss, styleRules } from '../places/module-css';
+import { declarations } from '../styles/css-rules';
 import {
   BOOKS,
   bookAt,
@@ -60,6 +63,12 @@ import {
   standaloneProps,
   topicLabel,
 } from './bookshelf-fixtures';
+
+const COMPONENTS = 'src/app/(routes)/(main)/(personal)/bookshelf/_components';
+const DETAIL_CSS = `${COMPONENTS}/book-detail-view.module.css`;
+const COVER_FRAME_CSS = `${COMPONENTS}/book-cover-frame.module.css`;
+/** Where the detail stacks its text and cover into one column. */
+const NARROW_MEDIA = '@media (width <= 900px)';
 
 // An in-page detail sets #/stage/NN; a stage mounted on that hash opens the detail at once.
 afterEach(() => {
@@ -191,6 +200,27 @@ describe('BookDetailView standalone', () => {
     );
 
     expect(screen.queryByRole('navigation', { name: 'Adjacent books' })).not.toBeInTheDocument();
+  });
+
+  it('puts the cover above the text at 900 px and under: what the narrow rules order is a grid item', () => {
+    const { container } = render(<BookDetailView {...standaloneProps(FEATURED)} />);
+    const ordered = [DETAIL_CSS, COVER_FRAME_CSS].flatMap((css) =>
+      styleRules(readCss(css))
+        .filter((rule) => rule.conditions.includes(NARROW_MEDIA))
+        .filter((rule) => declarations(rule.body).some(([name]) => name === 'order'))
+        .map((rule) => rule.selector),
+    );
+    expect(ordered.length).toBeGreaterThan(0);
+
+    for (const selector of ordered) {
+      const element = container.querySelector(selector);
+      expect(element, selector).not.toBeNull();
+      // `order` moves only a grid item: the cover's own slot in the detail grid.
+      expect(element?.parentElement, selector).toHaveClass('detail-grid');
+      expect(element?.querySelector('img'), selector).toBe(
+        screen.getByRole('img', { name: `${FEATURED_TITLE} by ${FEATURED_DOC.authors}` }),
+      );
+    }
   });
 
   it('loads its hero cover first, at high fetch priority, sized to the frame', () => {
