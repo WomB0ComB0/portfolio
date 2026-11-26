@@ -139,6 +139,11 @@
   box-shadow: inset 0 0 0 1px var(--brand-edge);
 }
 
+/* --fg-faint is 4.27:1 on --brand-subtle; --fg-muted keeps the count at 5.98:1 (WCAG AA 4.5:1). */
+.status-chip[aria-pressed="true"] .track-count {
+  color: var(--fg-muted);
+}
+
 .status-dot {
   width: 0.4375rem;
   height: 0.4375rem;
