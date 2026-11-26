@@ -29,7 +29,7 @@ import { FiArrowUpRight } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
 import { BOOK_STATUS_META, BOOK_STATUSES, type BookStatus } from '../_lib/books';
 import type { BookStatusFilter, ShelfTab } from '../_lib/bookshelf-filters';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
 /**
  * The shelf pill's clip, in px from each side of its track: the chip row's content width, so a

@@ -18,7 +18,7 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
 import type { BookItem } from '../_lib/books';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
 /**
  * The frame's widths (bookshelf.module.css .detail-cover): 340 px, and 260 px at 900 px wide and

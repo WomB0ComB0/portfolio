@@ -67,8 +67,8 @@ import {
   wrapIndex,
 } from '../_lib/shelf-geometry';
 import { BookDetailView } from './book-detail-view';
-import styles from './bookshelf.module.css';
 import { BookshelfBookSlot } from './bookshelf-book-slot';
+import styles from './bookshelf-book-slot.module.css';
 import { BookshelfControlsBar, FreeLibraryDirectoryCard } from './bookshelf-controls-bar';
 import {
   BookshelfFiltersBar,

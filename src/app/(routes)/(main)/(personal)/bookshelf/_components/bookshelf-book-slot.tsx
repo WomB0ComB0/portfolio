@@ -20,7 +20,7 @@ import { type CSSProperties, memo, type ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
 import type { BookItem } from '../_lib/books';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
 /** The books this far from the active one, or nearer, load eagerly: a step or two shows them. */
 const NEAR_OFFSET = 2;

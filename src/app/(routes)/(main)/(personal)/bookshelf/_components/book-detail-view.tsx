@@ -28,7 +28,7 @@ import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_l
 import type { ReadingMapEntry } from '../_lib/reading-map';
 import { BookCoverFrame } from './book-cover-frame';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {

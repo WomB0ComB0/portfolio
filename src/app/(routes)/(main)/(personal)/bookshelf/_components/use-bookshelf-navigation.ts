@@ -36,7 +36,7 @@ import {
   scrubUnit,
   settleStep,
 } from '../_lib/shelf-glide';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
 const WHEEL_THRESHOLD = 20;
 const WHEEL_COOLDOWN_MS = 140;

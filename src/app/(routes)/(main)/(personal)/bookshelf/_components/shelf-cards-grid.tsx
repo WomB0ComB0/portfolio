@@ -30,7 +30,7 @@ import {
 } from '../_lib/books';
 import type { BOOKSHELF_GROUP_VALUES, BookStatusFilter } from '../_lib/bookshelf-filters';
 import { BookStatusBadge } from './book-status-badge';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
 export interface ShelfCardsGridProps {
   readonly shelves: readonly ShelfCollection[];

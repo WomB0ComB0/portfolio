@@ -20,7 +20,7 @@ import type { ReactElement } from 'react';
 import { FiBookmark, FiCheck } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
 import { BOOK_STATUS_META, type BookStatus } from '../_lib/books';
-import styles from './bookshelf.module.css';
+import styles from './bookshelf-book-slot.module.css';
 
 export interface BookStatusBadgeProps {
   readonly status: BookStatus;

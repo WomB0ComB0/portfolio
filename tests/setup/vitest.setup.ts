@@ -136,7 +136,7 @@ vi.mock('@/components/console/photo/photo-viewer.module.css', cssModuleNames);
 // /bookshelf: the stage, its book slots, the filters, the shelf cards and the book detail. The
 // stage and slot tests read the state class names (`.shelf-shell`, `is-active`).
 vi.mock(
-  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css',
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-book-slot.module.css',
   cssModuleNames,
 );
 
