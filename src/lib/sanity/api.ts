@@ -177,7 +177,7 @@ export function getBooks(): Promise<SanityBook[]> {
   return fetchList<SanityBook>('books', booksQuery);
 }
 
-/** All bookshelf collections stored in Sanity with dereferenced books. Throws when Sanity fails. */
+/** All bookshelf collections stored in Sanity, ordered by order. Throws when Sanity fails. */
 export function getBookshelves(): Promise<SanityBookshelf[]> {
   return fetchList<SanityBookshelf>('bookshelves', bookshelvesQuery);
 }

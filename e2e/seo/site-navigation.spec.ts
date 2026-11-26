@@ -41,6 +41,7 @@ const SERVER_PAGES = [
   '/stats',
   '/privacy',
   '/guestbook',
+  '/bookshelf',
 ] as const;
 
 /**
@@ -59,6 +60,7 @@ const NAV_DESTINATIONS = [
   '/places',
   '/spotify',
   '/guestbook',
+  '/bookshelf',
   '/cookies',
   '/privacy',
   '/licenses',

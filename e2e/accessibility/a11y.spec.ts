@@ -20,9 +20,9 @@
  * `A11Y_BASE_URL=http://127.0.0.1:<port> bun run test:a11y` against a local production build
  * (playwright.a11y.config.ts starts no server and refuses to run without that variable).
  *
- * - axe 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes, expecting no
- *   failure. Best-practice violations are reported beside each test (an annotation and an
- *   attachment) and never fail it. The detail pages are found from the listing pages.
+ * - axe 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes and /bookshelf,
+ *   expecting no failure. Best-practice violations are reported beside each test (an annotation
+ *   and an attachment) and never fail it. The detail pages are found from the listing pages.
  * - Keyboard: the skip link; the command menu as a modal dialog that keeps Tab inside and hands
  *   focus back; the rail tooltip, hoverable and dismissed by Escape; a zoomed place photo panned
  *   with the arrow keys, and Previous keeping focus at the first photo; the /stats age's Pause
@@ -66,6 +66,7 @@ const AUDITED_ROUTES: readonly AuditedRoute[] = [
   { label: 'stats', path: '/stats' },
   { label: 'media', path: '/media' },
   { label: 'guestbook', path: '/guestbook' },
+  { label: 'bookshelf', path: '/bookshelf' },
   { label: 'certifications', path: '/certifications' },
   { label: 'resume', path: '/resume' },
   { label: 'sponsor', path: '/sponsor' },

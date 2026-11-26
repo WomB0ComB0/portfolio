@@ -22,13 +22,7 @@ import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
-import {
-  BOOKS,
-  type BookItem,
-  DEFAULT_SHELVES,
-  getIsbnRegistryLinks,
-  type ShelfCollection,
-} from '../_lib/books';
+import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_lib/books';
 import { BookCoverFrame } from './book-cover-frame';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
@@ -36,8 +30,10 @@ import { ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
   readonly book: BookItem;
-  readonly books?: readonly BookItem[];
-  readonly shelves?: readonly ShelfCollection[];
+  /** The whole catalog in stage order (it holds `book`): the adjacent links and reading map. */
+  readonly books: readonly [BookItem, ...BookItem[]];
+  /** Every shelf in shelf order, for the reading map. */
+  readonly shelves: readonly ShelfCollection[];
   /** Provided when rendered in-page from `/bookshelf` so Back returns smoothly without reloading. */
   readonly onBack?: () => void;
   /** Provided when stepping between adjacent stages inside `/bookshelf`. */
@@ -53,8 +49,8 @@ export interface BookDetailViewProps {
  */
 export function BookDetailView({
   book,
-  books = BOOKS,
-  shelves = DEFAULT_SHELVES,
+  books,
+  shelves,
   onBack,
   onNavigateBook,
   entering = false,
@@ -62,18 +58,23 @@ export function BookDetailView({
   const [mapOpen, setMapOpen] = useState(false);
 
   const { prev, next } = useMemo(() => {
-    const list = books.length > 0 ? books : BOOKS;
     const idx = Math.max(
       0,
-      list.findIndex((item) => item.slug === book.slug),
+      books.findIndex((item) => item.slug === book.slug),
     );
-    const prevItem = list[(idx - 1 + list.length) % list.length] ?? book;
-    const nextItem = list[(idx + 1) % list.length] ?? book;
+    const prevItem = books[(idx - 1 + books.length) % books.length] ?? book;
+    const nextItem = books[(idx + 1) % books.length] ?? book;
     return { prev: prevItem, next: nextItem };
   }, [books, book]);
 
   const topicRows = Math.max(1, Math.ceil(book.topics.length / 2));
   const isbnLinks = useMemo(() => getIsbnRegistryLinks(book.isbn), [book.isbn]);
+  // Publisher and year read "Publisher (2020)", or whichever of the two Studio has.
+  const imprint =
+    book.publisher && book.year !== undefined
+      ? `${book.publisher} (${book.year})`
+      : (book.publisher ?? (book.year === undefined ? undefined : String(book.year)));
+  const hasLinks = Boolean(book.url) || isbnLinks !== null;
 
   const backAction = onBack ? (
     <button
@@ -106,10 +107,14 @@ export function BookDetailView({
             ·
           </span>
           <span>{book.track}</span>
-          <span aria-hidden="true" className="text-faint">
-            ·
-          </span>
-          <span className="text-faint">{book.edition}</span>
+          {book.edition && (
+            <>
+              <span aria-hidden="true" className="text-faint">
+                ·
+              </span>
+              <span className="text-faint">{book.edition}</span>
+            </>
+          )}
           <BookStatusBadge status={book.status} data-book-status={book.status} />
         </span>
       }
@@ -135,18 +140,24 @@ export function BookDetailView({
             className={cn('tile-meta text-faint', styles.rv)}
             style={{ '--d': '80ms' } as CSSProperties}
           >
-            {book.authors} · {book.publisher} ({book.year}) ·{' '}
-            {isbnLinks ? (
-              <a
-                href={isbnLinks.openLibrary}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="tabular-nums text-muted-foreground underline-offset-4 hover:text-brand-ink hover:underline"
-              >
-                ISBN {book.isbn}
-              </a>
-            ) : (
-              <span>ISBN {book.isbn}</span>
+            {book.authors}
+            {imprint && ` · ${imprint}`}
+            {book.isbn && (
+              <>
+                {' · '}
+                {isbnLinks ? (
+                  <a
+                    href={isbnLinks.openLibrary}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tabular-nums text-muted-foreground underline-offset-4 hover:text-brand-ink hover:underline"
+                  >
+                    ISBN {book.isbn}
+                  </a>
+                ) : (
+                  <span>ISBN {book.isbn}</span>
+                )}
+              </>
             )}
           </p>
 
@@ -172,52 +183,58 @@ export function BookDetailView({
             </section>
           )}
 
-          <div
-            className={cn('flex flex-wrap items-center gap-x-5 gap-y-2', styles.rv)}
-            style={{ '--d': '220ms' } as CSSProperties}
-          >
-            <a
-              href={book.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 tile-label text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
+          {hasLinks && (
+            <div
+              className={cn('flex flex-wrap items-center gap-x-5 gap-y-2', styles.rv)}
+              style={{ '--d': '220ms' } as CSSProperties}
             >
-              Explore {book.spineTitle}
-              <FiArrowUpRight className="size-4" aria-hidden="true" />
-            </a>
-            <LinkHealthBadge href={book.url} scope="bookshelf" />
-            {isbnLinks && (
-              <>
-                <a
-                  href={isbnLinks.openLibrary}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  Open Library
-                  <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-                </a>
-                <a
-                  href={isbnLinks.worldCat}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  WorldCat
-                  <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-                </a>
-                <a
-                  href={isbnLinks.isbnSearch}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  ISBN Search
-                  <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-                </a>
-              </>
-            )}
-          </div>
+              {book.url && (
+                <>
+                  <a
+                    href={book.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 tile-label text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    Explore {book.spineTitle}
+                    <FiArrowUpRight className="size-4" aria-hidden="true" />
+                  </a>
+                  <LinkHealthBadge href={book.url} scope="bookshelf" />
+                </>
+              )}
+              {isbnLinks && (
+                <>
+                  <a
+                    href={isbnLinks.openLibrary}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    Open Library
+                    <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                  </a>
+                  <a
+                    href={isbnLinks.worldCat}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    WorldCat
+                    <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                  </a>
+                  <a
+                    href={isbnLinks.isbnSearch}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 tile-meta text-muted-foreground no-underline underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    ISBN Search
+                    <FiArrowUpRight className="size-3.5" aria-hidden="true" />
+                  </a>
+                </>
+              )}
+            </div>
+          )}
 
           {books.length > 1 && (
             <nav aria-label="Adjacent books" className="grid gap-3 pt-2 sm:grid-cols-2">

@@ -82,10 +82,10 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
 
         <div data-book-cover className={cn(styles.face, styles['face-cover'])}>
           <div className={styles.cover}>
-            {/* biome-ignore lint/performance/noImgElement: Local or CDN cover asset served directly without Next optimizer. */}
+            {/* biome-ignore lint/performance/noImgElement: Sanity CDN cover, sized by urlFor (520x680); next.config disables /_next/image. */}
             <img
               src={book.coverSrc}
-              alt={`${book.title} by ${book.authors}`}
+              alt={book.coverAlt}
               width={520}
               height={680}
               loading={Math.abs(offset) <= 2 ? 'eager' : 'lazy'}

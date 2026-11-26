@@ -71,6 +71,7 @@ const SERVER_PAGES = [
   '/stats',
   '/privacy',
   '/guestbook',
+  '/bookshelf',
 ] as const;
 
 /** What /resume shows when no resume is published: a state of the page, not an error. */

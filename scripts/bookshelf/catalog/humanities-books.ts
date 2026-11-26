@@ -15,30 +15,22 @@
  */
 
 /**
- * @file Human Behavior, Society & Political Power curriculum: 30 books spanning Philosophy &
- * Reasoning, Statistics, Systems Thinking, Media, Psychology, Anthropology, Sociology, History,
- * Economics, Politics, Law & Institutions, and International Relations.
+ * @file Migration-only input: the Human Behavior, Society & Political Power curriculum, 30 books
+ * spanning Philosophy & Reasoning, Statistics, Systems Thinking, Media, Psychology, Anthropology,
+ * Sociology, History, Economics, Politics, Law & Institutions, and International Relations.
  * Organized into 4 shelf tracks following the progression:
  * reasoning & systems -> mind & society -> history & economics -> power & institutions.
+ * Moved verbatim from the bookshelf `_lib/humanities-books.ts`; all 30 are queued. The one-shot
+ * Sanity migration reads them through build-catalog.ts, and this folder is deleted with it.
+ *
+ * Self-contained on purpose: relative imports only (`sanity exec` cannot resolve '@/'), and nothing
+ * under src/ imports this.
  */
 
-import { type BookItem, type BookTrack, getLiveConsoleSpineTheme } from './books';
+import type { RawCatalogBook } from './types';
 
-interface RawHumanitiesBook {
-  readonly slug: string;
-  readonly title: string;
-  readonly spineTitle: string;
-  readonly authors: string;
-  readonly spineAuthor: string;
-  readonly publisher: string;
-  readonly edition: string;
-  readonly year: number;
-  readonly isbn: string;
-  readonly track: BookTrack;
-  readonly summary: string;
-  readonly url: string;
-  readonly topics: readonly string[];
-}
+/** The curriculum as authored: every book has the same status, set once below. */
+type RawHumanitiesBook = Omit<RawCatalogBook, 'status'>;
 
 const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
   // ── Reasoning & Systems (Philosophy, Statistics, Systems Thinking, Media) ──────────────
@@ -710,31 +702,8 @@ const RAW_HUMANITIES_BOOKS: readonly RawHumanitiesBook[] = [
   },
 ];
 
-/** Builds continuously numbered `BookItem` records starting after `startStage` / `startTopicNumber`. */
-export function buildHumanitiesBooks(startStage: number, startTopicNumber: number): BookItem[] {
-  let topicNum = startTopicNumber;
-  return RAW_HUMANITIES_BOOKS.map((raw, idx) => {
-    const stage = startStage + idx;
-    const topics = raw.topics.map((title) => ({ number: topicNum++, title }));
-    return {
-      slug: raw.slug,
-      stage,
-      stageLabel: String(stage).padStart(2, '0'),
-      title: raw.title,
-      spineTitle: raw.spineTitle,
-      authors: raw.authors,
-      spineAuthor: raw.spineAuthor,
-      publisher: raw.publisher,
-      edition: raw.edition,
-      year: raw.year,
-      isbn: raw.isbn,
-      track: raw.track,
-      status: 'queued',
-      summary: raw.summary,
-      coverSrc: `/assets/bookshelf/${raw.slug}.webp`,
-      url: raw.url,
-      spine: getLiveConsoleSpineTheme(stage - 1),
-      topics,
-    };
-  });
-}
+/** The curriculum, all queued: none of it has been read yet. */
+export const HUMANITIES_BOOKS: readonly RawCatalogBook[] = RAW_HUMANITIES_BOOKS.map((book) => ({
+  ...book,
+  status: 'queued',
+}));

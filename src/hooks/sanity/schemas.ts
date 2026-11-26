@@ -25,6 +25,12 @@
 import { Option, Predicate, Result, Schema, SchemaGetter, SchemaTransformation } from 'effect';
 import { PLACE_CATEGORIES } from '@/lib/places/categories';
 import {
+  BOOK_STATUSES,
+  isBookCoverRef,
+  isBookSlug,
+  RESERVED_BOOK_SLUGS,
+} from '@/sanity/bookshelf-rules';
+import {
   hasMediaText,
   isCaptionsLanguage,
   isMediaFileUrl,
@@ -602,18 +608,41 @@ export const SiteSettingsDocumentSchema = Schema.Record(Schema.String, Schema.Un
 );
 
 /**
- * Sanity Book Spine Palette Schema
+ * A book's slug, checked with the rule Studio applies (src/sanity/bookshelf-rules.ts), so a
+ * published book is always a routable /bookshelf/<slug> segment that no fixed page (such as
+ * /bookshelf/free) takes.
  */
-export const BookSpineSchema = Schema.Struct({
-  capBg: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  capText: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  bodyBg: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  titleColor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  authorColor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+const BookSlugSchema = Schema.Struct({
+  _type: Schema.Literal('slug'),
+  current: Schema.String.check(
+    Schema.makeFilter(isBookSlug, {
+      message: `Expected a slug of lowercase letters and digits joined by single hyphens, other than ${RESERVED_BOOK_SLUGS.join(', ')}`,
+    }),
+  ),
 });
 
 /**
- * Sanity Book Schema with Effect Schema validation
+ * A book's cover: an image whose asset reference names an image asset (isBookCoverRef in
+ * src/sanity/bookshelf-rules.ts), so the image URL builder can always draw it. Studio's image
+ * field only takes image assets, but the API can write any reference there.
+ */
+const BookCoverSchema = Schema.Struct({
+  ...SanityImageSchema.fields,
+  asset: Schema.Struct({
+    ...SanityImageAssetSchema.fields,
+    _ref: Schema.String.check(
+      Schema.makeFilter(isBookCoverRef, {
+        message: 'Expected an image asset reference, image-<id>-<width>x<height>-<format>',
+      }),
+    ),
+  }),
+});
+
+/**
+ * A book, decoded strictly against the rules Studio applies before Publish: its status is one of
+ * the shared statuses, its slug is routable, and its cover image asset and shelf (`shelfId`, the
+ * shelf reference's _id) are required. The loaders decode each document on its own (decodeEach),
+ * so an invalid book is dropped and reported once rather than patched up by the site.
  */
 export const BookSchema = Schema.Struct({
   _id: Schema.String,
@@ -622,7 +651,7 @@ export const BookSchema = Schema.Struct({
   _updatedAt: Schema.String,
   _rev: Schema.String,
   title: Schema.String,
-  slug: SanitySlugSchema,
+  slug: BookSlugSchema,
   spineTitle: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   authors: Schema.String,
   spineAuthor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
@@ -630,19 +659,18 @@ export const BookSchema = Schema.Struct({
   edition: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   year: Schema.optional(Schema.Union([Schema.Number, Schema.Null])),
   isbn: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  track: Schema.String,
-  status: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  status: Schema.Literals(BOOK_STATUSES),
   summary: Schema.String,
-  coverImage: Schema.optional(Schema.Union([SanityImageSchema, Schema.Null])),
-  coverUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  coverImage: BookCoverSchema,
+  shelfId: Schema.String,
   url: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  spine: Schema.optional(Schema.Union([BookSpineSchema, Schema.Null])),
   topics: Schema.optional(Schema.Union([Schema.Array(Schema.String), Schema.Null])),
   order: Schema.Number,
 });
 
 /**
- * Sanity Bookshelf Collection Schema (with dereferenced books)
+ * A bookshelf: a titled, ordered section. It lists no books; each book names its shelf by
+ * `shelfId`, and the bookshelf loader joins the two.
  */
 export const BookshelfSchema = Schema.Struct({
   _id: Schema.String,
@@ -653,10 +681,7 @@ export const BookshelfSchema = Schema.Struct({
   title: Schema.String,
   slug: SanitySlugSchema,
   description: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  accentColor: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
-  books: Schema.optional(Schema.Union([Schema.Array(BookSchema), Schema.Null])),
   order: Schema.Number,
-  featured: NullableBooleanDefaultFalse,
 });
 
 /**

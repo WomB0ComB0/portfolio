@@ -17,14 +17,24 @@
 import 'server-only';
 
 /**
- * @file Dynamic server-side Bookshelf catalog loader.
- * Reads `book` and `bookshelf` documents from Sanity through the shared stale-on-error cache
- * (`loadBooks`, `loadBookshelves`), resolving Sanity image assets and continuous topic numbering.
- * Falls back cleanly to the built-in 14-book / 4-shelf engineering catalog when Sanity has no
- * published books yet or is unavailable, so `/bookshelf` always renders rich content immediately.
+ * @file The one way the site reads the bookshelf. The /bookshelf list, a book's page, a shelf's
+ * page, their metadata, the sitemap and the link-health catalog all read through
+ * loadBookshelfCatalog, which wraps the shared Sanity cache (loadBooks, loadBookshelves) and adds
+ * no request.
+ *
+ * It joins each `book` document to its `bookshelf` (by `shelfId`), orders the books by shelf order
+ * and then book order, numbers stages and topics continuously across shelves, builds each cover's
+ * Sanity CDN URL and gives each book a Live Console spine by its position.
+ *
+ * There is no built-in catalog to fall back to: Sanity is the only source. When Sanity fails with
+ * nothing cached the load rejects, and src/app/(routes)/error.tsx shows the error inside the
+ * shell; an empty dataset gives an empty catalog, which /bookshelf renders as its empty state; an
+ * unknown slug is a 404 (notFound()).
  */
 
 import { cache } from 'react';
+import { ensureBaseError } from '@/classes/error';
+import { reportApiFailure } from '@/lib/observability/report';
 import { urlFor } from '@/lib/sanity/client';
 import {
   loadBooks,
@@ -32,143 +42,169 @@ import {
   type SanityBook,
   type SanityBookshelf,
 } from '@/lib/sanity/loaders';
-import {
-  BOOKS,
-  type BookItem,
-  type BookSpineTheme,
-  type BookTrack,
-  DEFAULT_SHELVES,
-  getLiveConsoleSpineTheme,
-  normalizeBookStatus,
-  type ShelfCollection,
-  slugifyShelf,
-} from './books';
+import { type BookItem, getLiveConsoleSpineTheme, type ShelfCollection } from './books';
 
 export interface BookshelfCatalog {
-  readonly source: 'sanity' | 'fallback';
+  /** Every book on a published shelf, in stage order (shelf order, then book order). */
   readonly books: readonly BookItem[];
+  /** Every shelf with at least one book, in shelf order. */
   readonly shelves: readonly ShelfCollection[];
   readonly totalTopics: number;
 }
 
-function resolveCoverSrc(doc: SanityBook): string {
-  if (doc.coverImage?.asset?._ref) {
-    try {
-      return urlFor(doc.coverImage).width(520).height(680).fit('crop').auto('format').url();
-    } catch {
-      // Fall through to explicit coverUrl or local fallback path.
-    }
-  }
-  if (doc.coverUrl?.trim()) return doc.coverUrl.trim();
-  return `/assets/bookshelf/${doc.slug.current}.webp`;
+/** A list with at least one book: what the bookshelf's client islands take. */
+export type NonEmptyBooks = readonly [BookItem, ...BookItem[]];
+
+/** True when `books` holds at least one book, narrowing it for the client islands. */
+export const hasBooks = (books: readonly BookItem[]): books is NonEmptyBooks => books.length > 0;
+
+/** Groups the orphaned-book warning in Sentry (one event per cooldown window). */
+const REPORT_CONTEXT = 'bookshelf catalog';
+
+/**
+ * The size every cover is drawn at. The covers are 520x680 portraits, so for them the crop is a
+ * no-op resize; a cover of another shape is cropped to it around its hotspot.
+ */
+const COVER_WIDTH = 520;
+const COVER_HEIGHT = 680;
+
+/** A trimmed optional Studio text, or undefined when it is missing or blank. */
+const optionalText = (value: string | null | undefined): string | undefined =>
+  value?.trim() || undefined;
+
+/** The spine's short author: Studio's spineAuthor, else the first author's surname in capitals. */
+const spineAuthorOf = (doc: SanityBook): string =>
+  doc.spineAuthor?.trim() ||
+  doc.authors.split(/[,&]/)[0]?.trim().split(/\s+/).at(-1)?.toUpperCase() ||
+  'AUTHOR';
+
+/**
+ * The cover on Sanity's CDN at the drawn size, in the best format the browser accepts. The URL
+ * builder throws on a reference that is not an image asset; BookSchema drops such a book when it
+ * is decoded (isBookCoverRef), so one bad cover never reaches here to fail the whole catalog.
+ */
+const coverSrcOf = (doc: SanityBook): string =>
+  urlFor(doc.coverImage).width(COVER_WIDTH).height(COVER_HEIGHT).fit('crop').auto('format').url();
+
+/**
+ * One book as the bookshelf renders it, at zero-based `index` in stage order, with its topics
+ * numbered from `firstTopic`. Optional facts Studio leaves empty stay undefined: the UI renders
+ * them only when present.
+ */
+function toBookItem(
+  doc: SanityBook,
+  shelf: SanityBookshelf,
+  index: number,
+  firstTopic: number,
+): BookItem {
+  const stage = index + 1;
+  const topicTitles = (doc.topics ?? []).map((title) => title.trim()).filter(Boolean);
+  return {
+    slug: doc.slug.current,
+    stage,
+    stageLabel: String(stage).padStart(2, '0'),
+    title: doc.title,
+    spineTitle: doc.spineTitle?.trim() || doc.title,
+    authors: doc.authors,
+    spineAuthor: spineAuthorOf(doc),
+    publisher: optionalText(doc.publisher),
+    edition: optionalText(doc.edition),
+    year: doc.year ?? undefined,
+    isbn: optionalText(doc.isbn),
+    track: shelf.title,
+    shelfSlug: shelf.slug.current,
+    status: doc.status,
+    summary: doc.summary,
+    coverSrc: coverSrcOf(doc),
+    coverAlt: doc.coverImage.alt?.trim() || `${doc.title} by ${doc.authors}`,
+    url: optionalText(doc.url),
+    spine: getLiveConsoleSpineTheme(index),
+    topics: topicTitles.map((title, offset) => ({ number: firstTopic + offset, title })),
+    updatedAt: doc._updatedAt,
+  };
 }
 
-/** Keeps 3D book spines strictly on the Live Console palette tokens. */
-function resolveSpine(_doc: SanityBook, index: number): BookSpineTheme {
-  return getLiveConsoleSpineTheme(index);
-}
-
-function mapSanityBooks(docs: readonly SanityBook[]): BookItem[] {
-  let topicCounter = 1;
-  return docs.map((doc, index) => {
-    const stage = index + 1;
-    const rawTopics = (doc.topics ?? []).map((t) => t.trim()).filter(Boolean);
-    const topics = rawTopics.map((title) => ({ number: topicCounter++, title }));
-    const shortAuthor =
-      doc.spineAuthor?.trim() ||
-      doc.authors.split(/[,&]/)[0]?.trim().split(/\s+/).at(-1)?.toUpperCase() ||
-      'AUTHOR';
-
-    return {
-      slug: doc.slug.current,
-      stage,
-      stageLabel: String(stage).padStart(2, '0'),
-      title: doc.title,
-      spineTitle: doc.spineTitle?.trim() || doc.title,
-      authors: doc.authors,
-      spineAuthor: shortAuthor,
-      publisher: doc.publisher?.trim() || 'Independent',
-      edition: doc.edition?.trim() || 'Standard Edition',
-      year: doc.year ?? new Date().getUTCFullYear(),
-      isbn: doc.isbn?.trim() || 'N/A',
-      track: (doc.track.trim() || 'General') as BookTrack,
-      status: normalizeBookStatus(doc.status),
-      summary: doc.summary,
-      coverSrc: resolveCoverSrc(doc),
-      url: doc.url?.trim() || `https://openlibrary.org/search?q=${encodeURIComponent(doc.title)}`,
-      spine: resolveSpine(doc, index),
-      topics,
-    };
-  });
-}
-
-function buildShelvesFromTracks(books: readonly BookItem[]): ShelfCollection[] {
-  const groups = new Map<string, BookItem[]>();
-  for (const book of books) {
-    const existing = groups.get(book.track);
-    if (existing) existing.push(book);
-    else groups.set(book.track, [book]);
-  }
-  return [...groups.entries()].map(([track, items]) => ({
-    slug: slugifyShelf(track),
-    title: track,
-    description: `${items.length} curated ${items.length === 1 ? 'book' : 'books'} in ${track}.`,
-    accentColor: 'var(--brand)',
-    bookSlugs: items.map((book) => book.slug),
-  }));
-}
-
-function mapSanityShelves(
-  docs: readonly SanityBookshelf[],
-  booksBySlug: ReadonlyMap<string, BookItem>,
-  allBooks: readonly BookItem[],
-): ShelfCollection[] {
-  const mapped: ShelfCollection[] = [];
-  for (const shelf of docs) {
-    const slugs = (shelf.books ?? [])
-      .map((book) => book.slug.current)
-      .filter((slug) => booksBySlug.has(slug));
-    if (slugs.length === 0) continue;
-    mapped.push({
-      slug: shelf.slug.current,
-      title: shelf.title,
-      description:
-        shelf.description?.trim() ||
-        `${slugs.length} curated ${slugs.length === 1 ? 'book' : 'books'}.`,
-      accentColor: 'var(--brand)',
-      bookSlugs: slugs,
-    });
-  }
-  return mapped.length > 0 ? mapped : buildShelvesFromTracks(allBooks);
+/** One shelf section with its books (already in stage order). */
+function toShelfCollection(shelf: SanityBookshelf, books: readonly BookItem[]): ShelfCollection {
+  const count = books.length;
+  return {
+    slug: shelf.slug.current,
+    title: shelf.title,
+    description: shelf.description?.trim() || `${count} curated ${count === 1 ? 'book' : 'books'}.`,
+    bookSlugs: books.map((book) => book.slug),
+    updatedAt: shelf._updatedAt,
+  };
 }
 
 /**
- * Loads the dynamic Bookshelf catalog from Sanity, falling back to the built-in 44-book / 8-shelf
- * catalog when Sanity has no published book documents yet. React-cache()d per request so metadata
- * and page renders share a single parallel load and mapping pass.
+ * One warning for the books whose shelf is not among the published shelves (deleted, or never
+ * published). They are left off the bookshelf: without its shelf a book has no place in the
+ * order and no track label.
+ */
+function reportOrphans(orphans: readonly SanityBook[]): void {
+  if (orphans.length === 0) return;
+  const count = orphans.length;
+  const summary = `${count} ${count === 1 ? 'book references' : 'books reference'} no published shelf`;
+  reportApiFailure(
+    ensureBaseError(new Error(summary), 'bookshelf:catalog', {
+      books: orphans.map((doc) => doc.slug.current),
+    }),
+    { context: REPORT_CONTEXT, level: 'warning' },
+  );
+}
+
+/**
+ * The bookshelf from Sanity's decoded `book` and `bookshelf` documents, in the order the queries
+ * answer them (shelves by order, then creation; books by order, then creation).
+ *
+ * - A book whose `shelfId` names no loaded shelf is dropped, and the drops are reported in one
+ *   warning.
+ * - Books are ordered by their shelf's position (a stable sort, so each shelf keeps its books'
+ *   order), then numbered: stage = position + 1, and topics continuously from 1.
+ * - A shelf with no books is left out.
+ */
+export function buildBookshelfCatalog(
+  bookDocs: readonly SanityBook[],
+  shelfDocs: readonly SanityBookshelf[],
+): BookshelfCatalog {
+  const rankById = new Map(shelfDocs.map((shelf, rank) => [shelf._id, rank]));
+  const placed = bookDocs.flatMap((doc) => {
+    const rank = rankById.get(doc.shelfId);
+    const shelf = rank === undefined ? undefined : shelfDocs[rank];
+    return shelf === undefined || rank === undefined ? [] : [{ doc, shelf, rank }];
+  });
+  reportOrphans(bookDocs.filter((doc) => !rankById.has(doc.shelfId)));
+
+  const ordered = [...placed].sort((a, b) => a.rank - b.rank);
+  let nextTopic = 1;
+  const entries = ordered.map(({ doc, shelf }, index) => {
+    const book = toBookItem(doc, shelf, index, nextTopic);
+    nextTopic += book.topics.length;
+    return { shelfId: shelf._id, book };
+  });
+
+  const books = entries.map((entry) => entry.book);
+  const shelves = shelfDocs.flatMap((shelf) => {
+    const shelfBooks = entries
+      .filter((entry) => entry.shelfId === shelf._id)
+      .map((entry) => entry.book);
+    return shelfBooks.length === 0 ? [] : [toShelfCollection(shelf, shelfBooks)];
+  });
+
+  return { books, shelves, totalTopics: nextTopic - 1 };
+}
+
+/**
+ * The bookshelf catalog. React-cache()d per request, so a page's metadata and its render share
+ * one load and one mapping pass. Rejects when either loader does (Sanity down with nothing
+ * cached): without its shelves a book has no order or track label.
  */
 export const loadBookshelfCatalog = cache(async (): Promise<BookshelfCatalog> => {
-  try {
-    const [rawBooks, rawShelves] = await Promise.all([loadBooks(), loadBookshelves()]);
-    if (rawBooks.length > 0) {
-      const books = mapSanityBooks(rawBooks);
-      const bySlug = new Map(books.map((book) => [book.slug, book]));
-      const shelves = mapSanityShelves(rawShelves, bySlug, books);
-      const totalTopics = books.reduce((sum, book) => sum + book.topics.length, 0);
-      return { source: 'sanity', books, shelves, totalTopics };
-    }
-  } catch {
-    // Graceful fallback keeps /bookshelf operational if Sanity credentials or dataset docs are absent.
-  }
-
-  return {
-    source: 'fallback',
-    books: BOOKS,
-    shelves: DEFAULT_SHELVES,
-    totalTopics: BOOKS.reduce((sum, book) => sum + book.topics.length, 0),
-  };
+  const [books, shelves] = await Promise.all([loadBooks(), loadBookshelves()]);
+  return buildBookshelfCatalog(books, shelves);
 });
 
+/** The book with this slug and the catalog it sits in, or null when no book has the slug. */
 export async function loadCatalogBookBySlug(
   slug: string,
 ): Promise<{ readonly book: BookItem; readonly catalog: BookshelfCatalog } | null> {
@@ -177,6 +213,7 @@ export async function loadCatalogBookBySlug(
   return book ? { book, catalog } : null;
 }
 
+/** The shelf with this slug, its books in stage order and the catalog, or null when none has it. */
 export async function loadCatalogShelfBySlug(shelfSlug: string): Promise<{
   readonly shelf: ShelfCollection;
   readonly books: readonly BookItem[];

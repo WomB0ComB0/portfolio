@@ -24,7 +24,13 @@
  * sitemap (its entries without a detail segment) has a module listed here.
  */
 
-import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
+import {
+  makeBook,
+  makeBookshelf,
+  makeExperience,
+  makePlace,
+  makeProject,
+} from '@tests/fixtures/sanity-docs';
 import type { Metadata } from 'next';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -39,6 +45,8 @@ const loaders = vi.hoisted(() => ({
   loadPlaces: vi.fn(),
   loadCertifications: vi.fn(),
   loadResume: vi.fn(),
+  loadBooks: vi.fn(),
+  loadBookshelves: vi.fn(),
 }));
 
 // t3-env validates every variable on import; metadata needs none of them.
@@ -48,8 +56,17 @@ vi.mock('@/env', () => {
   });
   return { env, default: env };
 });
-vi.mock('@/lib/sanity/client', () => ({ sanityFetchWithToken: vi.fn(), urlFor: vi.fn() }));
-// The sitemap's loaders answer one document per detail section; the pages never call theirs.
+// The bookshelf catalog draws its cover URLs with the real image URL builder.
+vi.mock('@/lib/sanity/client', async () => {
+  const { createImageUrlBuilder } = await import('@sanity/image-url');
+  const builder = createImageUrlBuilder({ projectId: 'test', dataset: 'test' });
+  return {
+    sanityFetchWithToken: vi.fn(),
+    urlFor: (source: Parameters<typeof builder.image>[0]) => builder.image(source),
+  };
+});
+// The sitemap's loaders answer one document per detail section (one book on one shelf for the
+// bookshelf); the pages never call theirs.
 vi.mock('@/lib/sanity/loaders', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/sanity/loaders')>()),
   ...loaders,
@@ -69,7 +86,6 @@ vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module
 // The homepage's client component.
 vi.mock('@/app/_components/home', () => ({ HomePage: () => null }));
 
-import { BOOK_SLUGS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import manifest from '@/app/manifest';
 import Sitemap from '@/app/sitemap';
 import { app } from '@/constants';
@@ -80,6 +96,9 @@ loaders.loadExperiences.mockResolvedValue([makeExperience()]);
 loaders.loadPlaces.mockResolvedValue([makePlace()]);
 loaders.loadCertifications.mockResolvedValue([]);
 loaders.loadResume.mockResolvedValue(null);
+const shelf = makeBookshelf();
+loaders.loadBookshelves.mockResolvedValue([shelf]);
+loaders.loadBooks.mockResolvedValue([makeBook({ shelfId: shelf._id })]);
 
 afterAll(() => {
   vi.unstubAllEnvs();
@@ -111,10 +130,11 @@ const STATIC_PAGES: Readonly<Record<string, () => Promise<PageModule>>> = {
 };
 
 /**
- * A detail page: /bookshelf/<slug>, /projects/<id>, /experience/<id> or /places/<id>, but not the
- * static /places/photos.
+ * A detail page: /bookshelf/<slug>, /bookshelf/shelf/<slug>, /projects/<id>, /experience/<id> or
+ * /places/<id>, but not the static /places/photos.
  */
-const DETAIL_PATH = /^\/(?:bookshelf|projects|experience|places)\/(?!photos$)[^/]+$/;
+const DETAIL_PATH =
+  /^\/(?:bookshelf\/shelf\/[^/]+|(?:bookshelf|projects|experience|places)\/(?!photos$)[^/]+)$/;
 
 const STATS_DESCRIPTION =
   "What I'm up to on Discord right now, plus GitHub, LeetCode, coding-time and typing stats that refresh every few hours.";
@@ -134,8 +154,8 @@ describe('static page og:url', () => {
     const detailPaths = paths.filter((path) => DETAIL_PATH.test(path));
     const staticPaths = paths.filter((path) => !DETAIL_PATH.test(path));
 
-    // One detail page per mocked Sanity document plus every bookshelf stage.
-    expect(detailPaths).toHaveLength(3 + BOOK_SLUGS.length);
+    // One detail page per mocked project, experience and place, plus the book and its shelf.
+    expect(detailPaths).toHaveLength(5);
     expect(Object.keys(STATIC_PAGES).sort()).toEqual([...staticPaths].sort());
   });
 

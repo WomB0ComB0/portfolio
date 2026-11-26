@@ -16,8 +16,8 @@
  */
 
 /**
- * @file The project, experience and place detail pages build their metadata through the server
- * loaders, on top of the Sanity getters, which throw when Sanity fails.
+ * @file The project, experience, place, book and bookshelf shelf detail pages build their metadata
+ * through the server loaders, on top of the Sanity getters, which throw when Sanity fails.
  * - With Sanity down and nothing cached, the metadata falls back to the page's defaults (with its
  *   own og:url, since the id may well exist) instead of crashing the page or claiming "Not
  *   Found", and the failure reaches Sentry as one warning.
@@ -30,7 +30,13 @@
  * Sentry are mocked; the loaders, their cache and per-document decoding are real.
  */
 
-import { makeExperience, makePlace, makeProject } from '@tests/fixtures/sanity-docs';
+import {
+  makeBook,
+  makeBookshelf,
+  makeExperience,
+  makePlace,
+  makeProject,
+} from '@tests/fixtures/sanity-docs';
 import type { Metadata } from 'next';
 import { resolveTitle } from 'next/dist/lib/metadata/resolvers/resolve-title';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -78,7 +84,14 @@ vi.mock('@/lib/api-integrations/youtube', () => ({
   fetchYouTubeVideoMetadataBatch: vi.fn(),
 }));
 vi.mock('@sentry/nextjs', () => sentry);
+// Vite cannot load Next's PostCSS plugin configuration; the bookshelf pages' islands import this
+// CSS module, and no body is rendered here.
+vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf.module.css', () => ({
+  default: {},
+}));
 
+import { generateMetadata as bookMetadata } from '@/app/(routes)/(main)/(personal)/bookshelf/[slug]/page';
+import { generateMetadata as shelfMetadata } from '@/app/(routes)/(main)/(personal)/bookshelf/shelf/[shelfSlug]/page';
 import { generateMetadata as placeMetadata } from '@/app/(routes)/(main)/(personal)/places/[placeId]/page';
 import { generateMetadata as experienceMetadata } from '@/app/(routes)/(main)/(professioal)/experience/[id]/page';
 import { generateMetadata as projectMetadata } from '@/app/(routes)/(main)/(professioal)/projects/[id]/page';
@@ -104,6 +117,8 @@ const expectSiteNotFound = (metadata: Metadata) => {
 
 const paramsFor = (id: string) => ({ params: Promise.resolve({ id }) });
 const placeParamsFor = (placeId: string) => ({ params: Promise.resolve({ placeId }) });
+const bookParamsFor = (slug: string) => ({ params: Promise.resolve({ slug }) });
+const shelfParamsFor = (shelfSlug: string) => ({ params: Promise.resolve({ shelfSlug }) });
 const outage = () => new Error('Sanity answered 503');
 
 /** An id Sanity never issues: the loaders answer null for it without asking Sanity. */
@@ -296,5 +311,121 @@ describe('place detail metadata', () => {
       }),
     );
     expectWarning('build place page metadata');
+  });
+});
+
+describe('book detail metadata', () => {
+  const shelf = makeBookshelf({ title: 'Systems' });
+  const opener = makeBook({ shelfId: shelf._id });
+  const book = makeBook({
+    shelfId: shelf._id,
+    title: 'A Book About Queues',
+    summary: 'Why every system is a queue.',
+  });
+
+  it('names the book and its stage, with its own og:url and page card, not its cover', async () => {
+    sanityApi.getBooks.mockResolvedValue([opener, book]);
+    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+
+    const metadata = await bookMetadata(bookParamsFor(book.slug.current));
+
+    expect(metadata.title).toMatchObject({ default: 'A Book About Queues (Stage 02)' });
+    expect(metadata.openGraph).toMatchObject({
+      title: 'A Book About Queues (Stage 02)',
+      description: 'Why every system is a queue.',
+      url: `https://mikeodnis.dev/bookshelf/${book.slug.current}`,
+    });
+    expect(metadata.openGraph?.images).toEqual(
+      constructMetadata({
+        title: 'A Book About Queues (Stage 02)',
+        description: 'Why every system is a queue.',
+      }).openGraph?.images,
+    );
+    expect(JSON.stringify(metadata)).not.toContain('cdn.sanity.io');
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("gives a slug no book has the site's 404 metadata, and reports nothing", async () => {
+    sanityApi.getBooks.mockResolvedValue([opener, book]);
+    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+
+    expectSiteNotFound(await bookMetadata(bookParamsFor('no-such-book')));
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("gives a book on no published shelf the site's 404 metadata, as its page answers", async () => {
+    const unshelved = makeBook({ shelfId: 'bookshelf-unpublished' });
+    sanityApi.getBooks.mockResolvedValue([book, unshelved]);
+    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+
+    expectSiteNotFound(await bookMetadata(bookParamsFor(unshelved.slug.current)));
+    // The catalog leaves the book off and reports it (once) as a content warning.
+    expectWarning('bookshelf catalog');
+  });
+
+  it("falls back to the page's defaults and reports one warning when Sanity fails", async () => {
+    sanityApi.getBooks.mockRejectedValue(outage());
+    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+
+    const metadata = await bookMetadata(bookParamsFor(book.slug.current));
+
+    expect(metadata).toEqual(
+      constructMetadata({
+        title: 'Book',
+        description: 'A book on the shelf',
+        path: `/bookshelf/${book.slug.current}`,
+      }),
+    );
+    expectWarning('build book page metadata');
+  });
+});
+
+describe('bookshelf shelf detail metadata', () => {
+  const shelf = makeBookshelf({
+    title: 'Systems',
+    slug: { _type: 'slug', current: 'systems' },
+    description: 'How machines and teams stay up.',
+  });
+  const empty = makeBookshelf({ title: 'Empty', slug: { _type: 'slug', current: 'empty' } });
+  const book = makeBook({ shelfId: shelf._id });
+
+  it('names the shelf, with its description and its own og:url', async () => {
+    sanityApi.getBooks.mockResolvedValue([book]);
+    sanityApi.getBookshelves.mockResolvedValue([shelf, empty]);
+
+    const metadata = await shelfMetadata(shelfParamsFor('systems'));
+
+    expect(metadata.title).toMatchObject({ default: 'Systems Shelf' });
+    expect(metadata.openGraph).toMatchObject({
+      title: 'Systems Shelf',
+      description: 'How machines and teams stay up.',
+      url: 'https://mikeodnis.dev/bookshelf/shelf/systems',
+    });
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("gives an unknown shelf, or one with no books, the site's 404 metadata", async () => {
+    sanityApi.getBooks.mockResolvedValue([book]);
+    sanityApi.getBookshelves.mockResolvedValue([shelf, empty]);
+
+    expectSiteNotFound(await shelfMetadata(shelfParamsFor('no-such-shelf')));
+    expectSiteNotFound(await shelfMetadata(shelfParamsFor('empty')));
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the page's defaults and reports one warning when Sanity fails", async () => {
+    sanityApi.getBooks.mockResolvedValue([book]);
+    sanityApi.getBookshelves.mockRejectedValue(outage());
+
+    const metadata = await shelfMetadata(shelfParamsFor('systems'));
+
+    expect(metadata).toEqual(
+      constructMetadata({
+        title: 'Shelf',
+        description: 'A shelf on the bookshelf',
+        path: '/bookshelf/shelf/systems',
+      }),
+    );
+    expectWarning('build bookshelf shelf page metadata');
   });
 });

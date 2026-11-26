@@ -37,10 +37,10 @@ export function BookCoverFrame({
   return (
     <div className={cn(styles['detail-cover'], 'select-none', className)}>
       <div className={styles.cover}>
-        {/* biome-ignore lint/performance/noImgElement: Local WebP asset served directly from public/assets/bookshelf (next.config disables /_next/image). */}
+        {/* biome-ignore lint/performance/noImgElement: Sanity CDN cover, sized by urlFor (520x680); next.config disables /_next/image. */}
         <img
           src={book.coverSrc}
-          alt={`${book.title} by ${book.authors}`}
+          alt={book.coverAlt}
           width={520}
           height={680}
           loading={priority ? 'eager' : 'lazy'}

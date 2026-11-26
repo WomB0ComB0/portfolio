@@ -19,7 +19,7 @@ import 'server-only';
 import { nyToday } from '@/app/_components/home/data/format';
 import { loadMediaFeed } from '@/app/(routes)/(dev)/media/_lib/load-feed';
 import type { FeedKind } from '@/app/(routes)/(dev)/media/_lib/media-feed';
-import { BOOKS } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+import { loadBookshelfCatalog } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 import { buildLedger } from '@/app/(routes)/(main)/(professioal)/certifications/_lib/ledger';
 import { linkedHrefs } from '@/app/(routes)/(main)/(professioal)/experience/_lib/linked-text';
 import { buildRoleStory } from '@/app/(routes)/(main)/(professioal)/experience/_lib/role-story';
@@ -27,7 +27,7 @@ import { safeHref } from '@/app/(routes)/(main)/(professioal)/projects/_lib/proj
 import { orderProjects } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-order';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { createStaleCache, type StaleCache } from '@/lib/cache/stale-cache';
-import { loadBooks, loadCertifications, loadExperiences, loadProjects } from '@/lib/sanity/loaders';
+import { loadCertifications, loadExperiences, loadProjects } from '@/lib/sanity/loaders';
 import type { LinkHealthScope } from './types';
 import { normalizeLinkUrl } from './url';
 
@@ -129,14 +129,10 @@ async function renderedTargets(scope: LinkHealthScope): Promise<readonly (string
         ]),
       );
     }
-    case 'bookshelf': {
-      // Load published Sanity books (letting real outages fail closed); fall back to curated list if empty.
-      const sanityBooks = await loadBooks();
-      if (sanityBooks.length > 0) {
-        return sanityBooks.map((book) => book.url ?? null);
-      }
-      return BOOKS.map((book) => book.url);
-    }
+    case 'bookshelf':
+      // The catalog the pages render: books on a published shelf, each with the url its detail
+      // view links (and badges) only when Studio has one. Empty Sanity data is an empty catalog.
+      return (await loadBookshelfCatalog()).books.map((book) => book.url ?? null);
     default:
       throw new Error('Unknown link-health scope');
   }

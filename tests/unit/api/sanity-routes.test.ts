@@ -78,6 +78,8 @@ const ROUTES = [
   ['/talks', 'fetch talks from Sanity'],
   ['/articles', 'fetch articles from Sanity'],
   ['/videos', 'fetch YouTube videos from Sanity'],
+  ['/books', 'fetch books from Sanity'],
+  ['/bookshelves', 'fetch bookshelf collections from Sanity'],
 ] as const;
 
 /**
@@ -263,6 +265,34 @@ describe('GET /sanity/places', () => {
 
     expect(res.headers.get('cache-control')).toBe(STALE_CACHE_CONTROL);
     expect(await res.json()).toEqual([past]);
+  });
+});
+
+describe('GET /sanity/books and /sanity/bookshelves', () => {
+  /** The query the route sent to Sanity. */
+  const queryOf = (): string => String(sanity.sanityFetchWithToken.mock.calls[0]?.[0]);
+
+  it('answers flat books that name their shelf, with no legacy track, cover URL or palette', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    const get = await loadApp();
+
+    const res = await get('/books');
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe(FRESH_CACHE_CONTROL);
+    expect(queryOf()).toMatch(/"shelfId":\s*shelf\._ref/);
+    expect(queryOf()).toMatch(/\bcoverImage\b/);
+    expect(queryOf()).not.toMatch(/\b(?:track|coverUrl|spine)\b/);
+  });
+
+  it('answers flat shelves, with no dereferenced books or dropped fields', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    const get = await loadApp();
+
+    const res = await get('/bookshelves');
+
+    expect(res.status).toBe(200);
+    expect(queryOf()).not.toMatch(/\b(?:books|accentColor|featured)\b/);
   });
 });
 

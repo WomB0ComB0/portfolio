@@ -14,46 +14,69 @@
  * limitations under the License.
  */
 
+/**
+ * @file /bookshelf/shelf/[shelfSlug], rendered on the server. The shelf is looked up in the Sanity
+ * catalog before anything streams, so an unknown slug (or a shelf with no books) answers a real
+ * 404 through notFound(), and a Sanity outage with nothing cached a real 500 through the (routes)
+ * error view. The metadata and the page share one load: the catalog loader is React-cache()d.
+ */
+
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { type ReactElement, Suspense } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { SectionBoundary } from '@/components/data/section-boundary';
+import { reportApiFailure } from '@/lib/observability/report';
+import { logger } from '@/utils/logging';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookshelfStage } from '../../_components/bookshelf-stage';
-import { DEFAULT_SHELF_SLUGS } from '../../_lib/books';
-import { loadCatalogShelfBySlug } from '../../_lib/load-bookshelf';
+import { hasBooks, loadCatalogShelfBySlug } from '../../_lib/load-bookshelf';
+
+/** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
+const METADATA_REPORT_CONTEXT = 'build bookshelf shelf page metadata';
 
 export interface ShelfDetailPageProps {
   readonly params: Promise<{ readonly shelfSlug: string }>;
 }
 
-export function generateStaticParams(): Array<{ shelfSlug: string }> {
-  return DEFAULT_SHELF_SLUGS.map((shelfSlug) => ({ shelfSlug }));
-}
+// No generateStaticParams: the root layout is force-dynamic (the CSP nonce is per request), so
+// every shelf renders on request anyway, and a build-time slug list only made `next build` try
+// and fail to prerender each one.
 
+/**
+ * The shelf's title, description and og:url. An unknown slug gets "Not Found" and no og:url; when
+ * Sanity fails, whether the shelf exists is unknown, so the page's defaults (with their og:url)
+ * are kept and the failure is reported as a warning.
+ */
 export async function generateMetadata({ params }: ShelfDetailPageProps): Promise<Metadata> {
   const { shelfSlug } = await params;
-  const hit = await loadCatalogShelfBySlug(shelfSlug);
-  if (!hit) return NOT_FOUND_METADATA;
+  const path = `/bookshelf/shelf/${encodeURIComponent(shelfSlug)}`;
 
-  return constructMetadata({
-    title: `${hit.shelf.title} Shelf`,
-    description: hit.shelf.description,
-    path: `/bookshelf/shelf/${hit.shelf.slug}`,
-  });
+  try {
+    const hit = await loadCatalogShelfBySlug(shelfSlug);
+    if (!hit) return NOT_FOUND_METADATA;
+    return constructMetadata({
+      title: `${hit.shelf.title} Shelf`,
+      description: hit.shelf.description,
+      path,
+    });
+  } catch (error) {
+    logger.warn('Bookshelf shelf metadata fell back to the defaults', { error });
+    reportApiFailure(error, { context: METADATA_REPORT_CONTEXT, level: 'warning' });
+    return constructMetadata({ title: 'Shelf', description: 'A shelf on the bookshelf', path });
+  }
 }
 
 /**
  * Focused single-shelf 3D view (`/bookshelf/shelf/[shelfSlug]`), displaying only the books in
- * that curated collection with rounded spines and finite browsing.
+ * that shelf with rounded spines and finite browsing. An unknown slug is a 404.
  */
 export default async function ShelfDetailPage({
   params,
 }: ShelfDetailPageProps): Promise<ReactElement> {
   const { shelfSlug } = await params;
   const hit = await loadCatalogShelfBySlug(shelfSlug);
-  if (!hit || hit.books.length === 0) notFound();
+  if (!hit || !hasBooks(hit.books)) notFound();
 
   return (
     <SectionBoundary label={`${hit.shelf.title} shelf`}>

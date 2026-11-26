@@ -85,7 +85,7 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
               } as CSSProperties
             }
           >
-            {/* biome-ignore lint/performance/noImgElement: Local or CDN cover asset served directly without Next optimizer. */}
+            {/* biome-ignore lint/performance/noImgElement: Decorative Sanity CDN cover (urlFor, 520x680, drawn at half size); next.config disables /_next/image. */}
             <img
               src={book.coverSrc}
               alt=""

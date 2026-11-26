@@ -35,14 +35,11 @@ import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '@/lib/books/books
 import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
-  BOOKS,
   type BookCategory,
   type BookItem,
   type BookStatusFilter,
   DEFAULT_BOOK_INDEX,
-  DEFAULT_SHELVES,
   type ShelfCollection,
-  slugifyShelf,
 } from '../_lib/books';
 import { BookDetailView } from './book-detail-view';
 import styles from './bookshelf.module.css';
@@ -56,10 +53,13 @@ import { useBookshelfNavigation } from './use-bookshelf-navigation';
 export interface BookshelfStageProps {
   /** Optional initial book slug (e.g. from `?book=<slug>` when returning from a detail route). */
   readonly initialSlug?: string;
-  /** Dynamic books list from Sanity (falls back to built-in catalog when omitted). */
-  readonly books?: readonly BookItem[];
-  /** Dynamic separated shelf collections from Sanity (falls back to built-in shelves). */
-  readonly shelves?: readonly ShelfCollection[];
+  /**
+   * The books to shelve, in stage order: the whole catalog, or one shelf's books. Never empty: the
+   * server page renders the empty state instead of this island when there are none.
+   */
+  readonly books: readonly [BookItem, ...BookItem[]];
+  /** Every shelf in the catalog, in shelf order (the shelf cards and the reading map). */
+  readonly shelves: readonly ShelfCollection[];
   /** When set, renders a focused single-shelf view (`/bookshelf/shelf/[shelfSlug]`). */
   readonly activeShelf?: ShelfCollection;
 }
@@ -80,6 +80,19 @@ interface PoolSlot {
   readonly book: BookItem;
 }
 
+/** "A", "A and B", or "A, B, and C". Plain joins, so the server and browser render the same text. */
+function listTitles(titles: readonly string[]): string {
+  if (titles.length <= 2) return titles.join(' and ');
+  return `${titles.slice(0, -1).join(', ')}, and ${titles.at(-1)}`;
+}
+
+/** The whole shelf's description: its shelves' titles in shelf order, never a fixed subject list. */
+function describeShelves(shelves: readonly ShelfCollection[]): string {
+  return shelves.length === 0
+    ? 'Foundational books, shelf by shelf.'
+    : `Foundational books across ${listTitles(shelves.map((shelf) => shelf.title))}.`;
+}
+
 /**
  * Interactive 3D Bookshelf orchestrator built natively inside Live Console `<PageShell>`.
  * Delegates filter chrome (`BookshelfFiltersBar`), 3D cuboid slots (`BookshelfBookSlot`),
@@ -88,20 +101,19 @@ interface PoolSlot {
  */
 export function BookshelfStage({
   initialSlug,
-  books = BOOKS,
-  shelves = DEFAULT_SHELVES,
+  books,
+  shelves,
   activeShelf,
 }: BookshelfStageProps): ReactElement {
-  const safeBooks = books.length > 0 ? books : BOOKS;
-  const bookCount = safeBooks.length;
+  const bookCount = books.length;
   const isFiniteShelf = Boolean(activeShelf) || bookCount < 9;
 
   const bookAt = useCallback(
     (index: number): BookItem => {
       const idx = isFiniteShelf ? clamp(index, 0, bookCount - 1) : mod(index, bookCount);
-      return safeBooks[idx] ?? safeBooks[0] ?? BOOKS[0];
+      return books[idx] ?? books[0];
     },
-    [safeBooks, bookCount, isFiniteShelf],
+    [books, bookCount, isFiniteShelf],
   );
 
   const [urlState, setUrlState] = useQueryStates(bookshelfSearchParsers, BOOKSHELF_URL_OPTIONS);
@@ -109,12 +121,12 @@ export function BookshelfStage({
 
   const initialPos = useMemo(() => {
     if (resolvedInitialSlug) {
-      const found = safeBooks.findIndex((book) => book.slug === resolvedInitialSlug);
+      const found = books.findIndex((book) => book.slug === resolvedInitialSlug);
       if (found >= 0) return found;
     }
     if (isFiniteShelf) return 0;
     return Math.min(DEFAULT_BOOK_INDEX, bookCount - 1);
-  }, [resolvedInitialSlug, safeBooks, bookCount, isFiniteShelf]);
+  }, [resolvedInitialSlug, books, bookCount, isFiniteShelf]);
 
   const [pos, setPos] = useState<number>(initialPos);
   const [bookHeight, setBookHeight] = useState<number>(DEFAULT_BOOK_HEIGHT);
@@ -131,7 +143,7 @@ export function BookshelfStage({
     ready: false,
   });
 
-  const validTrackSet = useMemo(() => new Set(safeBooks.map((book) => book.track)), [safeBooks]);
+  const validTrackSet = useMemo(() => new Set(books.map((book) => book.track)), [books]);
   const highlightedTrack: string | null =
     urlState.track && validTrackSet.has(urlState.track) ? urlState.track : null;
   const statusFilter: BookStatusFilter = urlState.status;
@@ -158,22 +170,22 @@ export function BookshelfStage({
   const categories = useMemo<readonly BookCategory[]>(() => {
     const seen = new Set<string>();
     const tracks: string[] = [];
-    for (const book of safeBooks) {
+    for (const book of books) {
       if (!seen.has(book.track)) {
         seen.add(book.track);
         tracks.push(book.track);
       }
     }
     return ['All', ...tracks];
-  }, [safeBooks]);
+  }, [books]);
 
   const categoryCounts = useMemo<Readonly<Record<string, number>>>(() => {
     const counts: Record<string, number> = { All: bookCount };
-    for (const book of safeBooks) {
+    for (const book of books) {
       counts[book.track] = (counts[book.track] ?? 0) + 1;
     }
     return counts;
-  }, [safeBooks, bookCount]);
+  }, [books, bookCount]);
 
   const statusCounts = useMemo<Readonly<Record<BookStatusFilter, number>>>(() => {
     const counts: Record<BookStatusFilter, number> = {
@@ -182,15 +194,15 @@ export function BookshelfStage({
       reading: 0,
       queued: 0,
     };
-    for (const book of safeBooks) {
+    for (const book of books) {
       counts[book.status] += 1;
     }
     return counts;
-  }, [safeBooks, bookCount]);
+  }, [books, bookCount]);
 
   const totalTopics = useMemo(
-    () => safeBooks.reduce((sum, book) => sum + book.topics.length, 0),
-    [safeBooks],
+    () => books.reduce((sum, book) => sum + book.topics.length, 0),
+    [books],
   );
 
   const statItems = useMemo<readonly StatStripItem[]>(
@@ -213,15 +225,17 @@ export function BookshelfStage({
   const activeTabCategory: BookCategory = highlightedTrack ?? activeBook.track;
   const poolSize = isFiniteShelf ? bookCount : 2 * halfWindow + 1;
 
-  const highlightedShelfSlug = useMemo(() => {
-    if (!highlightedTrack) return null;
-    const match = shelves.find(
-      (shelf) =>
-        shelf.title.toLowerCase() === highlightedTrack.toLowerCase() ||
-        shelf.slug === slugifyShelf(highlightedTrack),
-    );
-    return match?.slug ?? null;
-  }, [highlightedTrack, shelves]);
+  // A track is its shelf's title, and each book carries its shelf's slug: no join by name.
+  const highlightedShelfSlug = useMemo(
+    () =>
+      highlightedTrack === null
+        ? null
+        : (books.find((book) => book.track === highlightedTrack)?.shelfSlug ?? null),
+    [highlightedTrack, books],
+  );
+
+  // Derived from the shelves, so the copy never drifts from what Studio holds.
+  const catalogDescription = useMemo(() => describeShelves(shelves), [shelves]);
 
   const measureStage = useCallback((): void => {
     const stageEl = stageRef.current;
@@ -264,7 +278,7 @@ export function BookshelfStage({
   // Fixed ascending `poolIndex` order (`0..poolSize-1`) prevents DOM reordering during transitions.
   const poolSlots = useMemo<readonly PoolSlot[]>(() => {
     if (isFiniteShelf) {
-      return safeBooks.map((book, index) => ({
+      return books.map((book, index) => ({
         poolIndex: index,
         slotPosition: index,
         offset: index - pos,
@@ -285,7 +299,7 @@ export function BookshelfStage({
       });
     }
     return slots;
-  }, [isFiniteShelf, safeBooks, pos, halfWindow, poolSize, bookAt]);
+  }, [isFiniteShelf, books, pos, halfWindow, poolSize, bookAt]);
 
   const registerSlotRef = useCallback((poolIndex: number, el: HTMLDivElement | null): void => {
     if (el) slotElementsRef.current.set(poolIndex, el);
@@ -392,12 +406,12 @@ export function BookshelfStage({
     const match = /^#\/stage\/(\d+)/.exec(window.location.hash);
     if (!match?.[1]) return -1;
     const label = match[1].padStart(2, '0');
-    return safeBooks.findIndex((book) => book.stageLabel === label);
-  }, [safeBooks]);
+    return books.findIndex((book) => book.stageLabel === label);
+  }, [books]);
 
   const openDetail = useCallback(
     (book: BookItem, { push = true } = {}): void => {
-      const idx = safeBooks.findIndex((item) => item.slug === book.slug);
+      const idx = books.findIndex((item) => item.slug === book.slug);
       if (idx >= 0) setPos(idx);
       setDetailBook(book);
       if (push && typeof window !== 'undefined') {
@@ -414,7 +428,7 @@ export function BookshelfStage({
         window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
       }
     },
-    [safeBooks],
+    [books],
   );
 
   const closeDetail = useCallback(({ fromPop = false } = {}): void => {
@@ -515,11 +529,11 @@ export function BookshelfStage({
       return;
     }
     void setUrlState({ track: category });
-    const firstMatch = safeBooks.findIndex(
+    const firstMatch = books.findIndex(
       (book) => book.track === category && (statusFilter === 'all' || book.status === statusFilter),
     );
     const fallbackInTrack =
-      firstMatch >= 0 ? firstMatch : safeBooks.findIndex((book) => book.track === category);
+      firstMatch >= 0 ? firstMatch : books.findIndex((book) => book.track === category);
     if (fallbackInTrack >= 0) {
       goToBookIndex(fallbackInTrack);
     }
@@ -528,7 +542,7 @@ export function BookshelfStage({
   const handleStatusClick = (nextStatus: BookStatusFilter, scrollToStage = false): void => {
     let clearTrack = false;
     if (nextStatus !== 'all') {
-      const firstMatch = safeBooks.findIndex(
+      const firstMatch = books.findIndex(
         (book) =>
           book.status === nextStatus &&
           (highlightedTrack === null || book.track === highlightedTrack),
@@ -536,7 +550,7 @@ export function BookshelfStage({
       if (firstMatch >= 0) {
         goToBookIndex(firstMatch);
       } else if (highlightedTrack !== null) {
-        const anyWithStatus = safeBooks.findIndex((book) => book.status === nextStatus);
+        const anyWithStatus = books.findIndex((book) => book.status === nextStatus);
         if (anyWithStatus >= 0) {
           clearTrack = true;
           goToBookIndex(anyWithStatus);
@@ -551,18 +565,18 @@ export function BookshelfStage({
 
   const matchingFilterCount = useMemo(() => {
     if (highlightedTrack === null && statusFilter === 'all') return bookCount;
-    return safeBooks.filter(
+    return books.filter(
       (book) =>
         (highlightedTrack === null || book.track === highlightedTrack) &&
         (statusFilter === 'all' || book.status === statusFilter),
     ).length;
-  }, [safeBooks, bookCount, highlightedTrack, statusFilter]);
+  }, [books, bookCount, highlightedTrack, statusFilter]);
 
   if (detailBook) {
     return (
       <BookDetailView
         book={detailBook}
-        books={safeBooks}
+        books={books}
         shelves={shelves}
         entering
         onBack={() => closeDetail()}
@@ -576,11 +590,7 @@ export function BookshelfStage({
       sizing="container"
       eyebrow={activeShelf ? 'Shelf collection' : 'Reading'}
       title={activeShelf ? activeShelf.title : 'Bookshelf'}
-      description={
-        activeShelf
-          ? activeShelf.description
-          : 'Foundational books across computer systems, backend architecture, AI, philosophy, psychology, society, economics, and political power.'
-      }
+      description={activeShelf ? activeShelf.description : catalogDescription}
       stats={<StatStrip aria-label="Bookshelf summary" items={statItems} sizing="container" />}
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -699,7 +709,7 @@ export function BookshelfStage({
         {!activeShelf && shelves.length > 0 && (
           <ShelfCardsGrid
             shelves={shelves}
-            books={safeBooks}
+            books={books}
             highlightedSection={highlightedTrack}
             activeStatus={statusFilter}
             groupBy={shelfGroupBy}
@@ -727,11 +737,11 @@ export function BookshelfStage({
       <ReadingMapDialog
         open={mapOpen}
         activeSlug={activeBook.slug}
-        books={safeBooks}
+        books={books}
         shelves={shelves}
         onClose={() => setMapOpen(false)}
         onSelectBook={(book) => {
-          const idx = safeBooks.findIndex((item) => item.slug === book.slug);
+          const idx = books.findIndex((item) => item.slug === book.slug);
           if (idx >= 0) goToBookIndex(idx);
         }}
         onOpenBook={(book) => openDetail(book)}
