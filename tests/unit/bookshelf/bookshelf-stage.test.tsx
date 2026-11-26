@@ -27,7 +27,7 @@
  * 96 px.
  */
 
-import { createEvent, fireEvent, screen, within } from '@testing-library/react';
+import { act, createEvent, fireEvent, screen, within } from '@testing-library/react';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import type { ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
@@ -49,6 +49,8 @@ vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import { DEFAULT_BOOK_INDEX } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/shelf-geometry';
+import { FINE_POINTER } from '@/hooks/use-fine-pointer';
+import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import {
   AI_SHELF,
   BACKEND_SHELF,
@@ -275,6 +277,67 @@ describe('BookshelfStage keyboard scope', () => {
     expect(document.activeElement).toBe(document.body);
     expect(press(document.body, 'End')).toBe(true);
     expect(liveText()).toBe(liveTextOf(bookAt(-1)));
+  });
+});
+
+describe('BookshelfStage ring cursor', () => {
+  /** A media query list that matches when `matches` says so for its query. */
+  const mediaList = (query: string, matches: boolean): MediaQueryList =>
+    ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+
+  /**
+   * Renders the stage with a fine pointer (and reduced motion when asked), moves the pointer from
+   * (100, 100) to (500, 300) and runs one animation frame: the cursor layer's transform then.
+   */
+  function ringAfterOneFrame(reducedMotion: boolean): string {
+    vi.spyOn(globalThis, 'matchMedia').mockImplementation((query: string) =>
+      mediaList(query, query === FINE_POINTER || (reducedMotion && query === REDUCED_MOTION_QUERY)),
+    );
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => null,
+    });
+
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const layer = document.querySelector<HTMLElement>('.cursor-layer');
+    if (!layer) throw new Error('no cursor layer');
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 100, clientY: 100 }));
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 500, clientY: 300 }));
+    });
+    act(() => frames.at(-1)?.(16));
+    return layer.style.transform;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
+  it('sits exactly on the pointer under reduced motion', () => {
+    expect(ringAfterOneFrame(true)).toBe('translate3d(500px, 300px, 0px)');
+  });
+
+  it('still trails the pointer, part of the way each frame, without reduced motion', () => {
+    const transform = ringAfterOneFrame(false);
+
+    expect(transform).toMatch(/^translate3d\(/);
+    expect(transform).not.toBe('translate3d(500px, 300px, 0px)');
   });
 });
 
