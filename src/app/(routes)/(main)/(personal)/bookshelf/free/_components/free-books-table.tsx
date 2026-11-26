@@ -83,11 +83,7 @@ export function FreeBooksTable({
         aria-live="polite"
         className="block rounded-tile border border-hairline bg-surface-1 p-10 text-center"
       >
-        <p className="tile-sub text-foreground">Loading matching books…</p>
-        <p className="mt-1 tile-meta text-muted-foreground">
-          Fetching page {requestedPage} from{' '}
-          <code className="font-mono text-foreground">/api/v1/books/free</code>.
-        </p>
+        <p className="tile-sub text-foreground">Loading page {requestedPage}…</p>
       </output>
     );
   }
