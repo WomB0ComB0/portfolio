@@ -84,6 +84,24 @@ describe('parseFreeProgrammingBooksMarkdown', () => {
       requiresAccount: true,
     });
   });
+
+  it('leaves no tag text in titles, authors or headings, even from nested or unclosed tags', () => {
+    const markdown = [
+      '### <scr<script>ipt>Rust',
+      '',
+      '* [<scr<script>ipt>alert(1) Book](https://example.com/book) - Ada <script (PDF)',
+      '* [Sorting C<sup>2</sup>](https://example.com/sorting) - Grace Hopper',
+    ].join('\n');
+
+    const entries = parseFreeProgrammingBooksMarkdown(markdown, 'langs');
+
+    expect(entries).toHaveLength(2);
+    for (const entry of entries) {
+      expect(`${entry.title} ${entry.authors} ${entry.category}`).not.toMatch(/[<>]/);
+    }
+    expect(entries[0]).toMatchObject({ title: 'iptalert(1) Book', category: 'iptRust' });
+    expect(entries[1]).toMatchObject({ title: 'Sorting C2' });
+  });
 });
 
 describe('parseFreeProgrammingBooksWithStats', () => {

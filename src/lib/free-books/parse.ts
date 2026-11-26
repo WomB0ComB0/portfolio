@@ -172,9 +172,15 @@ function parseEntryLine(
   };
 }
 
+/**
+ * Plain text from inline Markdown/HTML. Tags are stripped, then any `<` or `>` left behind is
+ * dropped too, so nested or unclosed fragments (`<scr<script>ipt>`, `Book <script`) cannot survive
+ * as tag text in the catalog or the public JSON.
+ */
 function cleanInlineMarkdown(raw: string): string {
   return raw
-    .replace(/<[^>]+>/g, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>]/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_`~]/g, '')
     .replace(/\s+/g, ' ')
