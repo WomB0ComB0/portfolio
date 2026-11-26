@@ -44,7 +44,7 @@ import type { BookItem } from './books';
 /** ?status values: 'all' for no filter, or one of the reading statuses. */
 const BOOKSHELF_STATUS_VALUES = ['all', ...BOOK_STATUSES] as const;
 /** ?group values: the shelf cards grouped by topic (their shelf) or by reading status. */
-export const BOOKSHELF_GROUP_VALUES = ['topic', 'status'] as const;
+const BOOKSHELF_GROUP_VALUES = ['topic', 'status'] as const;
 
 /** Shared shallow/replace options: instant client updates, zero server round-trips, clean default URLs. */
 export const BOOKSHELF_URL_OPTIONS = {
@@ -71,6 +71,9 @@ export const bookshelfSearchParsers = {
 
 /** The ?status filter: 'all' for none, or one reading status. */
 export type BookStatusFilter = (typeof BOOKSHELF_STATUS_VALUES)[number];
+
+/** The ?group mode: shelf cards grouped by topic or by reading status. */
+export type GroupingMode = (typeof BOOKSHELF_GROUP_VALUES)[number];
 
 /**
  * One shelf filter chip on /bookshelf: the shelf's slug is its identity (`?shelf=<slug>`), its

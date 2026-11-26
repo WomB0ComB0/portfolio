@@ -22,7 +22,7 @@
  * leaving one side comes back at the other as the next book. A shelf's page (or a short shelf)
  * lines every book up instead. The stage (bookshelf-stage.tsx) and its motion hook
  * (use-shelf-motion.ts) read it. Pure and isomorphic; guarded by
- * tests/unit/bookshelf/slim-shapes.test.ts and tests/unit/bookshelf/scale-budgets.test.ts.
+ * tests/unit/bookshelf/shelf-geometry.test.ts, slim-shapes.test.ts and scale-budgets.test.ts.
  */
 
 import type { BookItem } from './books';

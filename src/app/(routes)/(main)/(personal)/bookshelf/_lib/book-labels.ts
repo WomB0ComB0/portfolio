@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * @file The bookshelf's words and numbers: the whole shelf's description from its shelves'
  * titles, zero-padded stage and topic numbers (03, 007), and the summary strip's figures. The

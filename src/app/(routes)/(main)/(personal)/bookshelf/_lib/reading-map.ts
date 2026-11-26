@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * @file The reading map's slim book: what the map lists for each book and nothing more, so a page
  * that shows one book (/bookshelf/[slug]) can map the whole catalog cheaply. The stage and the

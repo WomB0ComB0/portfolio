@@ -35,7 +35,7 @@ import {
   type BookStatus,
   type ShelfCollection,
 } from '../_lib/books';
-import type { BOOKSHELF_GROUP_VALUES, BookStatusFilter } from '../_lib/bookshelf-filters';
+import type { BookStatusFilter, GroupingMode } from '../_lib/bookshelf-filters';
 import { BookStatusBadge } from './book-status-badge';
 import { ARROW_ICON_CLASS } from './bookshelf-classes';
 import chipStyles from './bookshelf-filters-bar.module.css';
@@ -55,8 +55,6 @@ export interface ShelfCardsGridProps {
   /** Called when a user selects a reading status card in "By status" mode. */
   readonly onSelectStatus: (status: BookStatus) => void;
 }
-
-type GroupingMode = (typeof BOOKSHELF_GROUP_VALUES)[number];
 
 /**
  * A shelf card is not drawn, so its lazy fan covers are not fetched, until it nears the viewport.

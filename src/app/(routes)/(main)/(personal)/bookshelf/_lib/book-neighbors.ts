@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * @file A book's Previous and Next neighbours in stage order, wrapping round both ends, and the
  * few fields their links show. The catalog loader (load-bookshelf.ts) finds them for

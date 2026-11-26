@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * @file The bookshelf's words and numbers (book-labels.ts):
  * - listTitles / describeShelves: the whole shelf's description, from its shelves' titles;

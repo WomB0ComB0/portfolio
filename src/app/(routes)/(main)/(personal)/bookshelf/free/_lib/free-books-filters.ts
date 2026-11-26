@@ -49,6 +49,9 @@ const FREE_BOOKS_FORMAT_VALUES = ['all', ...FREE_BOOK_FORMATS] as const;
 /** The page sizes the table offers. */
 export const FREE_BOOKS_PAGE_SIZES = [25, 50, 100] as const;
 
+/** One of the table's page sizes (?perPage after normalizing). */
+export type FreeBooksPageSize = (typeof FREE_BOOKS_PAGE_SIZES)[number];
+
 /** URL state for `/bookshelf/free` table explorer (filters, sorting, pagination). */
 export const freeBooksSearchParsers = {
   q: parseAsString.withDefault(''),
@@ -70,7 +73,7 @@ export const freeBooksSearchParsers = {
 };
 
 /** Clamps arbitrary `?perPage=` query input to one of the supported table page sizes. */
-export function normalizeFreeBooksPageSize(raw: number): (typeof FREE_BOOKS_PAGE_SIZES)[number] {
+export function normalizeFreeBooksPageSize(raw: number): FreeBooksPageSize {
   if (raw <= 25) return 25;
   if (raw >= 100) return 100;
   return FREE_BOOKS_DEFAULT_PAGE_SIZE;

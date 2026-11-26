@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * @file Cover sizes and sources: every cover's source size, and a smaller copy at the width it is
  * drawn. The catalog loader (load-bookshelf.ts) builds each cover's source URL at COVER_WIDTH x

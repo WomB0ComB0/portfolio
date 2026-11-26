@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * @file The spine bindings the stage draws behind each cover: the cap that holds the stage number,
  * the body, and the title, author and edge inks, all palette tokens. The catalog loader

@@ -19,8 +19,8 @@
  * the runtime gate (url-screen.ts): drive-by executable headers, active content in raw PDF bytes
  * (never rendered), redirect chains through too many external domains, and HTML that is a parked
  * domain, a cross-origin meta refresh, a ClickFix clipboard lure, an obfuscated script loader or a
- * hidden cross-origin iframe. Only the sweep (scripts/free-books/verify.ts) and the tests import
- * it; the site never runs it. Pure, with no network access of its own. Guarded by
+ * hidden cross-origin iframe. Only the sweep (sweep.ts, run by scripts/free-books/verify.ts) and
+ * the tests import it; the site never runs it. Pure, with no network access of its own. Guarded by
  * tests/unit/free-books/content-inspection.test.ts.
  */
 

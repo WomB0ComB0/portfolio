@@ -44,8 +44,8 @@ import {
 import { BOOKSHELF_URL_OPTIONS } from '../../_lib/bookshelf-filters';
 import {
   buildFreeBooksApiUrl,
-  type FREE_BOOKS_PAGE_SIZES,
   type FreeBooksApiParams,
+  type FreeBooksPageSize,
   freeBooksSearchParsers,
   normalizeFreeBooksPageSize,
 } from '../_lib/free-books-filters';
@@ -60,7 +60,7 @@ export interface FreeBooksQuery {
   readonly draftQuery: string;
   readonly handleSearchChange: (rawValue: string) => void;
   readonly commitSearchNow: (rawValue: string) => void;
-  readonly pageSize: (typeof FREE_BOOKS_PAGE_SIZES)[number];
+  readonly pageSize: FreeBooksPageSize;
   readonly hideArchived: boolean;
   readonly hideUnavailable: boolean;
   readonly requestedPage: number;
