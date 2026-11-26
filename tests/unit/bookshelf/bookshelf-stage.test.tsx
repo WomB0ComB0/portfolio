@@ -61,6 +61,7 @@ import {
   liveText,
   liveTextOf,
   nonEmpty,
+  oneBookCatalog,
   pressedChips,
   renderWithNuqs as render,
   SHELVES,
@@ -174,6 +175,13 @@ describe('BookshelfStage', () => {
     const liveTextAfterRightDrag =
       screen.getByText(new RegExp(`of ${BOOK_COUNT}:`)).textContent ?? '';
     expect(liveTextAfterRightDrag).not.toBe(liveTextAfterLeftDrag);
+  });
+
+  it("offers a lone book's notes as 'Open notes (1 topic)'", () => {
+    const { books, shelves } = oneBookCatalog();
+    render(<BookshelfStage books={books} shelves={shelves} />);
+
+    expect(screen.getByRole('button', { name: 'Open notes (1 topic)' })).toBeInTheDocument();
   });
 
   it('describes the whole shelf by its shelf titles, in shelf order', () => {

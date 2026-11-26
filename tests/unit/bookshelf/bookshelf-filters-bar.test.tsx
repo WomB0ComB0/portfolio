@@ -24,7 +24,7 @@
  * each end that has chips past it.
  */
 
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -351,5 +351,29 @@ describe('BookshelfFiltersBar shelf chip row', () => {
       fireEvent.scroll(group);
       expect(group, `scrolled to ${left}`).toHaveAttribute('data-overflow', edges);
     }
+  });
+});
+
+describe('BookshelfFiltersBar empty filter', () => {
+  /** The banner the bar shows when no book matches the filter, and its sentence. */
+  const banner = () => screen.getByRole('button', { name: 'Show all books' }).parentElement;
+
+  it('says plainly that no book is marked Read, never pointing visitors at the CMS', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const statusGroup = screen.getByRole('group', { name: 'Reading status' });
+    // Every fixture book is queued, so Read matches none.
+    fireEvent.click(within(statusGroup).getByRole('button', { name: /^Read\s*0$/ }));
+
+    expect(banner()).toHaveTextContent('No books marked Read.');
+    expect(banner()?.textContent).not.toMatch(/Studio|Sanity/);
+  });
+
+  it('names the shelf and the status that left nothing', () => {
+    render(
+      <BookshelfStage books={BOOKS} shelves={SHELVES} />,
+      `?shelf=${AI_SHELF.slug.current}&status=completed`,
+    );
+
+    expect(banner()).toHaveTextContent('No books on the AI shelf marked Read.');
   });
 });

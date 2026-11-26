@@ -33,7 +33,9 @@ import {
   useRef,
 } from 'react';
 import { FiArrowUpRight } from 'react-icons/fi';
+import { noMatchSentence } from '@/lib/filters/sentences';
 import { cn } from '@/lib/utils';
+import { BOOK_NOUN } from '../_lib/book-labels';
 import { BOOK_STATUS_META, BOOK_STATUSES, type BookStatus } from '../_lib/books';
 import type { BookStatusFilter, ShelfTab } from '../_lib/bookshelf-filters';
 import styles from './bookshelf-filters-bar.module.css';
@@ -49,6 +51,17 @@ function pillStyle(clip: ShelfPillClip | null): CSSProperties | undefined {
     '--pill-b': `${clip.bottom}px`,
     '--pill-l': `${clip.left}px`,
   } as CSSProperties;
+}
+
+/**
+ * What the filter narrows to, as the empty state names it: "on the AI shelf", "marked Read".
+ * noMatchSentence joins them into "No books on the AI shelf marked Read.".
+ */
+function emptyScopes(shelf: ShelfTab | null, status: BookStatusFilter): string[] {
+  return [
+    ...(shelf ? [`on the ${shelf.title} shelf`] : []),
+    ...(status === 'all' ? [] : [`marked ${BOOK_STATUS_META[status].label}`]),
+  ];
 }
 
 /** Which ends of a sideways scroller have content past them, or null when it all shows. */
@@ -218,9 +231,7 @@ export function BookshelfFiltersBar({
 
       {matchingFilterCount === 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-1 px-4 py-2.5 tile-meta text-muted-foreground">
-          <span>
-            No books match this filter yet — update a book&apos;s reading status in Sanity Studio.
-          </span>
+          <span>{noMatchSentence(BOOK_NOUN, '', emptyScopes(activeShelf, statusFilter))}</span>
           <button
             type="button"
             onClick={onResetFilters}

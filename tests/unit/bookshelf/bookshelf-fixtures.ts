@@ -165,6 +165,16 @@ export function catalogOf(
   return { books: nonEmpty(catalog.books), shelves: catalog.shelves };
 }
 
+/** One shelf holding one book with one topic: the catalog every count says in the singular. */
+export function oneBookCatalog() {
+  const doc = shelfDoc('Solo', 'solo');
+  const catalog = buildBookshelfCatalog(
+    [makeBook({ shelfId: doc._id, title: 'Only Book', topics: ['Only'] })],
+    [doc],
+  );
+  return { books: nonEmpty(catalog.books), shelves: catalog.shelves };
+}
+
 /** The width a Sanity image URL asks the CDN for (its `w`). */
 export const widthOf = (src: string | null | undefined): number =>
   Number(new URL(src ?? '').searchParams.get('w'));
