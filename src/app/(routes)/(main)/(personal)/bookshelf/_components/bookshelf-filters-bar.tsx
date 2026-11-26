@@ -27,13 +27,8 @@ import {
 } from 'react';
 import { FiArrowUpRight } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
-import {
-  BOOK_STATUS_META,
-  BOOK_STATUSES,
-  type BookStatus,
-  type BookStatusFilter,
-  type ShelfTab,
-} from '../_lib/books';
+import { BOOK_STATUS_META, BOOK_STATUSES, type BookStatus } from '../_lib/books';
+import type { BookStatusFilter, ShelfTab } from '../_lib/bookshelf-filters';
 import styles from './bookshelf.module.css';
 
 /**

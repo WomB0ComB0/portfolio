@@ -15,13 +15,17 @@
  */
 
 /**
- * @file The /bookshelf shelf filter's identity (books.ts): a shelf's slug, never its title.
+ * @file The /bookshelf filter maths (bookshelf-filters.ts). A shelf filter's identity is the
+ * shelf's slug, never its title.
  * - buildShelfTabs: one chip per shelf slug on the stage, in stage order, with its book count, so
  *   two shelves with one title are two chips.
  * - resolveShelfFilter: `?shelf=<slug>` when it names a shelf on the stage; else a legacy
  *   `?track=<title>` link mapped to the one shelf with that title; else a slug typed into
  *   `?track=`; else no filter. "All" is never a shelf value, so a shelf whose slug is "all" is
  *   a shelf like any other.
+ * - matchesFilter: a book matches when it is on the filtered shelf (any, with none) and has the
+ *   filtered status (any, with 'all').
+ * - countStatuses: the status chips' counts, 'all' being every book.
  * The shelves are the production titles and slugs; the books are fixture documents joined by the
  * real buildBookshelfCatalog.
  */
@@ -43,10 +47,13 @@ vi.mock('@/lib/sanity/client', async () => {
 vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
 import {
+  type BookStatusFilter,
   buildShelfTabs,
+  countStatuses,
+  matchesFilter,
   resolveShelfFilter,
   type ShelfTab,
-} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
+} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/bookshelf-filters';
 import { buildBookshelfCatalog } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
 
 /** Production's shelves (2026-11-26) as chips: title, slug and book count. */
@@ -69,6 +76,21 @@ function booksOn(specs: readonly (readonly [title: string, slug: string, books: 
       Array.from({ length: count }, () => makeBook({ shelfId: doc._id })),
     ),
     shelves.map(({ doc }) => doc),
+  ).books;
+}
+
+/** Two shelves of mixed reading statuses: Backend (read, unread), then AI (reading, read). */
+function mixedBooks() {
+  const backend = makeBookshelf({ title: 'Backend', slug: { _type: 'slug', current: 'backend' } });
+  const ai = makeBookshelf({ title: 'AI', slug: { _type: 'slug', current: 'ai' } });
+  return buildBookshelfCatalog(
+    [
+      makeBook({ shelfId: backend._id, status: 'completed' }),
+      makeBook({ shelfId: backend._id, status: 'queued' }),
+      makeBook({ shelfId: ai._id, status: 'reading' }),
+      makeBook({ shelfId: ai._id, status: 'completed' }),
+    ],
+    [backend, ai],
   ).books;
 }
 
@@ -158,5 +180,36 @@ describe('resolveShelfFilter', () => {
     expect(resolveShelfFilter('all', null, tabs)).toBe('all');
     expect(resolveShelfFilter(null, 'All', tabs)).toBe('all');
     expect(resolveShelfFilter(null, null, tabs)).toBeNull();
+  });
+});
+
+describe('matchesFilter', () => {
+  const books = mixedBooks();
+  const matching = (shelf: string | null, status: BookStatusFilter): readonly string[] =>
+    books
+      .filter((book) => matchesFilter(book, shelf, status))
+      .map((book) => `${book.shelfSlug}:${book.status}`);
+
+  it('matches every book with no shelf and every status', () => {
+    expect(matching(null, 'all')).toHaveLength(books.length);
+  });
+
+  it.each([
+    ['a shelf', 'ai', 'all', ['ai:reading', 'ai:completed']],
+    ['a status', null, 'completed', ['backend:completed', 'ai:completed']],
+    ['a shelf and a status together', 'backend', 'completed', ['backend:completed']],
+    ['nothing for a pair no book has', 'ai', 'queued', []],
+  ] as const)('narrows to %s', (_case, shelf, status, expected) => {
+    expect(matching(shelf, status)).toEqual(expected);
+  });
+});
+
+describe('countStatuses', () => {
+  it('counts each status, with all as every book', () => {
+    expect(countStatuses(mixedBooks())).toEqual({ all: 4, completed: 2, reading: 1, queued: 1 });
+  });
+
+  it('counts zero for every status with no books', () => {
+    expect(countStatuses([])).toEqual({ all: 0, completed: 0, reading: 0, queued: 0 });
   });
 });

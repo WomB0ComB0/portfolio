@@ -31,51 +31,6 @@ export { BOOK_STATUSES, type BookStatus } from '@/sanity/bookshelf-rules';
 /** A resized cover's quality: the CDN loader's own default. */
 const COVER_QUALITY = 75;
 
-/**
- * One shelf filter chip on /bookshelf: the shelf's slug is its identity (`?shelf=<slug>`), its
- * title only the chip's label. "All" is no chip value: it is the reset, a null filter.
- */
-export interface ShelfTab {
-  readonly slug: string;
-  readonly title: string;
-  /** The shelf's books on the stage. */
-  readonly count: number;
-}
-
-/** One chip per shelf on the stage, in stage order (shelf order), each with its book count. */
-export function buildShelfTabs(books: readonly BookItem[]): readonly ShelfTab[] {
-  const tabs = new Map<string, { readonly title: string; count: number }>();
-  for (const book of books) {
-    const tab = tabs.get(book.shelfSlug);
-    if (tab) tab.count += 1;
-    else tabs.set(book.shelfSlug, { title: book.track, count: 1 });
-  }
-  return [...tabs].map(([slug, { title, count }]) => ({ slug, title, count }));
-}
-
-/**
- * The shelf filter the URL names, as the slug of a shelf on the stage, or null for none ("All").
- * In order: `?shelf=<slug>` when that slug is on the stage; else a legacy `?track=<title>` link
- * (the filter before slugs) mapped to the slug of the one shelf with exactly that title; else a
- * slug typed into `?track=`. Anything else is no filter, a title two shelves share included: a
- * value from the URL is never used unless it names a shelf on the stage.
- */
-export function resolveShelfFilter(
-  shelfParam: string | null,
-  trackParam: string | null,
-  tabs: readonly ShelfTab[],
-): string | null {
-  if (shelfParam !== null && tabs.some((tab) => tab.slug === shelfParam)) return shelfParam;
-  if (trackParam === null) return null;
-  const titled = tabs.filter((tab) => tab.title === trackParam);
-  if (titled.length === 1) return titled[0]?.slug ?? null;
-  // A title two shelves share is ambiguous: no filter, even if one of them has it as its slug.
-  if (titled.length > 1) return null;
-  return tabs.some((tab) => tab.slug === trackParam) ? trackParam : null;
-}
-
-export type BookStatusFilter = 'all' | BookStatus;
-
 export interface BookStatusMeta {
   readonly label: string;
   readonly description: string;

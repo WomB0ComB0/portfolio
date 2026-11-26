@@ -35,17 +35,22 @@ import { prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import {
   type BookItem,
-  type BookStatusFilter,
-  buildShelfTabs,
   DEFAULT_BOOK_INDEX,
   neighborsOf,
   type ReadingMapEntry,
-  resolveShelfFilter,
   type ShelfCollection,
-  type ShelfTab,
   toReadingMapEntry,
 } from '../_lib/books';
-import { BOOKSHELF_URL_OPTIONS, bookshelfSearchParsers } from '../_lib/bookshelf-filters';
+import {
+  BOOKSHELF_URL_OPTIONS,
+  type BookStatusFilter,
+  bookshelfSearchParsers,
+  buildShelfTabs,
+  countStatuses,
+  matchesFilter,
+  resolveShelfFilter,
+  type ShelfTab,
+} from '../_lib/bookshelf-filters';
 import { BookDetailView } from './book-detail-view';
 import styles from './bookshelf.module.css';
 import { BookshelfBookSlot, slotOffsetFactor } from './bookshelf-book-slot';
@@ -211,18 +216,7 @@ export function BookshelfStage({
 
   const activeBook = bookAt(pos);
 
-  const statusCounts = useMemo<Readonly<Record<BookStatusFilter, number>>>(() => {
-    const counts: Record<BookStatusFilter, number> = {
-      all: bookCount,
-      completed: 0,
-      reading: 0,
-      queued: 0,
-    };
-    for (const book of books) {
-      counts[book.status] += 1;
-    }
-    return counts;
-  }, [books, bookCount]);
+  const statusCounts = useMemo(() => countStatuses(books), [books]);
 
   const totalTopics = useMemo(
     () => books.reduce((sum, book) => sum + book.topics.length, 0),
@@ -604,10 +598,8 @@ export function BookshelfStage({
   const handleShelfClick = (slug: string | null): void => {
     void setUrlState({ shelf: slug, track: null });
     if (slug === null) return;
-    const matchesStatus = (book: BookItem): boolean =>
-      statusFilter === 'all' || book.status === statusFilter;
-    if (activeBook.shelfSlug === slug && matchesStatus(activeBook)) return;
-    const firstMatch = books.findIndex((book) => book.shelfSlug === slug && matchesStatus(book));
+    if (matchesFilter(activeBook, slug, statusFilter)) return;
+    const firstMatch = books.findIndex((book) => matchesFilter(book, slug, statusFilter));
     const target =
       firstMatch >= 0 ? firstMatch : books.findIndex((book) => book.shelfSlug === slug);
     if (target >= 0) jumpTo(target);
@@ -616,10 +608,8 @@ export function BookshelfStage({
   const handleStatusClick = (nextStatus: BookStatusFilter, scrollToStage = false): void => {
     let clearShelf = false;
     if (nextStatus !== 'all') {
-      const firstMatch = books.findIndex(
-        (book) =>
-          book.status === nextStatus &&
-          (activeShelfSlug === null || book.shelfSlug === activeShelfSlug),
+      const firstMatch = books.findIndex((book) =>
+        matchesFilter(book, activeShelfSlug, nextStatus),
       );
       if (firstMatch >= 0) {
         jumpTo(firstMatch);
@@ -641,11 +631,7 @@ export function BookshelfStage({
 
   const matchingFilterCount = useMemo(() => {
     if (activeShelfSlug === null && statusFilter === 'all') return bookCount;
-    return books.filter(
-      (book) =>
-        (activeShelfSlug === null || book.shelfSlug === activeShelfSlug) &&
-        (statusFilter === 'all' || book.status === statusFilter),
-    ).length;
+    return books.filter((book) => matchesFilter(book, activeShelfSlug, statusFilter)).length;
   }, [books, bookCount, activeShelfSlug, statusFilter]);
 
   if (detailBook) {
@@ -747,9 +733,7 @@ export function BookshelfStage({
               const isActive = slot.offset === 0;
               const { book } = slot;
               const hasFilter = activeShelfSlug !== null || statusFilter !== 'all';
-              const matchesShelf = activeShelfSlug === null || book.shelfSlug === activeShelfSlug;
-              const matchesStatus = statusFilter === 'all' || book.status === statusFilter;
-              const isHighlighted = hasFilter && matchesShelf && matchesStatus;
+              const isHighlighted = hasFilter && matchesFilter(book, activeShelfSlug, statusFilter);
               const isDimmed = hasFilter && !isHighlighted;
 
               return (

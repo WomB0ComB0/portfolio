@@ -25,12 +25,12 @@ import {
   BOOK_STATUSES,
   type BookItem,
   type BookStatus,
-  type BookStatusFilter,
   COVER_HEIGHT,
   COVER_WIDTH,
   coverAt,
   type ShelfCollection,
 } from '../_lib/books';
+import type { BOOKSHELF_GROUP_VALUES, BookStatusFilter } from '../_lib/bookshelf-filters';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf.module.css';
 
@@ -49,7 +49,7 @@ export interface ShelfCardsGridProps {
   readonly onSelectStatus: (status: BookStatus) => void;
 }
 
-type GroupingMode = 'topic' | 'status';
+type GroupingMode = (typeof BOOKSHELF_GROUP_VALUES)[number];
 
 /**
  * A shelf card is not drawn, so its lazy fan covers are not fetched, until it nears the viewport.

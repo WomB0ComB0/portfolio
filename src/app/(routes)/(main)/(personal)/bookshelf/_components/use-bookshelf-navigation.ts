@@ -24,7 +24,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { BookItem, BookStatusFilter } from '../_lib/books';
+import type { BookItem } from '../_lib/books';
+import type { BookStatusFilter } from '../_lib/bookshelf-filters';
 import styles from './bookshelf.module.css';
 
 const WHEEL_THRESHOLD = 20;
