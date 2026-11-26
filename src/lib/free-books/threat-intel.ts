@@ -22,8 +22,8 @@
  *   (checkHostnameThreatIntel).
  * - Google Safe Browsing v4 for URLs, when GOOGLE_SAFE_BROWSING_API_KEY is set.
  * - RDAP registration dates, to catch a domain re-registered in the last 90 days.
- * - Outsourced sandbox scans (Cloudflare URL Scanner or urlscan.io) for new or drifted external
- *   URLs only, so no third-party script runs on the CI runner.
+ * - Outsourced sandbox scans (Cloudflare URL Scanner or urlscan.io) for drifted external URLs
+ *   only, so no third-party script runs on the CI runner.
  * A failed provider never blocks a host. Each client takes an injectable fetcher; only the sweep
  * (scripts/free-books/verify.ts) and the tests import this module, which uses node:dns.
  * Guarded by tests/unit/free-books/threat-intel.test.ts.

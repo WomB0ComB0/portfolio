@@ -15,21 +15,23 @@
  */
 
 /**
- * Multi-layer security + reachability sweep for EbookFoundation/free-programming-books.
+ * The weekly security and reachability sweep of EbookFoundation/free-programming-books, run by
+ * .github/workflows/free-books-verify.yml. A thin CLI over src/lib/free-books/sweep.ts, which
+ * lists the phases: threat feeds (HaGeZi and OpenPhish, plus URLhaus with a key), Cloudflare
+ * 1.1.1.2 and Quad9 per host, optional Google Safe Browsing, a two-pass reachability probe
+ * (probeLink, DNS-pinned) and content inspection of each reachable link (plain fetch, not
+ * pinned), drift checks with RDAP domain age, and optional sandbox scans of drifted external
+ * links on Cloudflare URL Scanner or urlscan.io, so no third-party script runs here.
  *
- * Combines:
- *  - Layer 1 (Threat Intel): Cloudflare Security DNS (1.1.1.2 DoH) + Quad9 (9.9.9.9) +
- *    abuse.ch URLhaus active malware host feed + optional Google Safe Browsing API v4.
- *  - Layer 2 (Zero-Execution Static Scanners & Drift):
- *    * SSRF-safe, DNS-pinned 2-pass reachability probe (`probeLink`)
- *    * Manual redirect-chain auditing (blocks TDS >2 external hops or unsafe intermediate hops)
- *    * Raw PDF active-content & polyglot byte scan (`/JavaScript`, `/Launch`, `/OpenAction`, etc.)
- *    * Bounded 64 KiB HTML scan (parked domains, cross-origin meta-refresh, ClickFix lures,
- *      obfuscated inline script loaders, hidden 0x0 cross-origin iframes)
- *    * Baseline host/MIME drift + RDAP <90-day domain re-registration detection
- *  - Targeted Layer 3 (Outsourced Delta Detonation): submits ONLY newly-added or drifted external
- *    URLs to Cloudflare URL Scanner or urlscan.io when API credentials are configured (zero JS
- *    executed on our CI runner).
+ * Flags:
+ *   --dry-run          no Redis publish, no file write and no sandbox scans
+ *   --dnsbl-only       check the hosts (and Safe Browsing) but probe no URL
+ *   --write            write src/lib/free-books/security-manifest.json and publish to Redis
+ *   --publish-redis    publish to Redis
+ *   --detonate-deltas  send drifted external links to a sandbox, when its keys are set
+ *   --limit=N          probe only the first N links
+ * Any other argument is ignored. The exit code is 0 unless the sweep throws, including when the
+ * Redis publish fails (the summary prints redisPublished: false).
  *
  * Usage:
  *   bun --conditions=react-server run scripts/free-books/verify.ts --dry-run
@@ -40,12 +42,7 @@
 import dns from 'node:dns/promises';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import {
-  inspectHtmlSnippet,
-  inspectPdfBytes,
-  isDangerousResponseHeaders,
-  isSuspiciousRedirectChain,
-} from '../../src/lib/free-books/content-inspection';
+import { pathToFileURL } from 'node:url';
 import { loadFreeProgrammingBooks } from '../../src/lib/free-books/loader';
 import {
   loadLiveSecurityManifestFromRedis,
@@ -53,46 +50,24 @@ import {
   publishSecurityManifestToRedis,
 } from '../../src/lib/free-books/manifest-store';
 import {
+  runSweep,
+  type SweepDependencies,
+  type SweepOptions,
+} from '../../src/lib/free-books/sweep';
+import {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
   checkRdapDomainAge,
   loadUrlhausHostBlocklist,
   submitDeltaDetonation,
 } from '../../src/lib/free-books/threat-intel';
-import type {
-  DeltaDetonationRecord,
-  FreeBooksSecurityManifest,
-  UrlBaselineFingerprint,
-} from '../../src/lib/free-books/types';
-import { classifyHostTrustTier, screenExternalBookUrl } from '../../src/lib/free-books/url-screen';
 import { probeLink } from '../../src/lib/link-health/probe';
 
+/** The committed manifest the sweep reads and, with --write, rewrites. */
 const MANIFEST_PATH = resolve(process.cwd(), 'src/lib/free-books/security-manifest.json');
-const DNSBL_CONCURRENCY = 20;
-const PROBE_CONCURRENCY = 16;
-const MAX_HTML_BYTES = 64 * 1024;
-const MAX_PDF_SNIFF_BYTES = 1024 * 1024;
-const MAX_DELTA_DETONATIONS_PER_RUN = 25;
 
-async function runPool<T>(
-  items: readonly T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    for (;;) {
-      const idx = cursor;
-      cursor += 1;
-      if (idx >= items.length) return;
-      const item = items[idx];
-      if (item !== undefined) {
-        await worker(item);
-      }
-    }
-  });
-  await Promise.all(runners);
-}
+/** Only CI has the provider keys; Redis credentials are read by the manifest store itself. */
+type VerifyEnvironment = Readonly<Record<string, string | undefined>>;
 
 async function resolveExists(hostname: string): Promise<boolean> {
   try {
@@ -103,420 +78,73 @@ async function resolveExists(hostname: string): Promise<boolean> {
   }
 }
 
-async function readBoundedBytes(
-  body: ReadableStream<Uint8Array>,
-  maxBytes: number,
-): Promise<Uint8Array> {
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const remaining = maxBytes - total;
-      if (remaining <= 0) break;
-      const slice = value.byteLength > remaining ? value.subarray(0, remaining) : value;
-      chunks.push(slice);
-      total += slice.byteLength;
-      if (total >= maxBytes) break;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  const combined = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return combined;
-}
-
-interface TargetInspectionResult {
-  readonly danger: string | null;
-  readonly finalHost: string;
-  readonly contentType: string;
-}
-
-async function inspectFinalTarget(url: string, hostname: string): Promise<TargetInspectionResult> {
-  const hops: string[] = [url];
-  let currentUrl = url;
-  let currentHost = hostname;
-
-  try {
-    for (let hop = 0; hop <= 5; hop += 1) {
-      const res = await fetch(currentUrl, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: AbortSignal.timeout(6000),
-        headers: {
-          'User-Agent': 'mikeodnis-portfolio-verifier/1.0 (+https://mikeodnis.dev)',
-          Range: `bytes=0-${MAX_PDF_SNIFF_BYTES - 1}`,
-        },
-      });
-
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get('location');
-        await res.body?.cancel().catch(() => undefined);
-        if (!loc) break;
-        const nextUrl = new URL(loc, currentUrl).href;
-        hops.push(nextUrl);
-        const hopCheck = isSuspiciousRedirectChain(hops);
-        if (hopCheck) {
-          return { danger: hopCheck, finalHost: currentHost, contentType: '' };
-        }
-        currentUrl = nextUrl;
-        currentHost = new URL(nextUrl).hostname.toLowerCase();
-        continue;
-      }
-
-      const rawCt = res.headers.get('content-type') ?? '';
-      const normalizedCt = rawCt.split(';')[0]?.trim().toLowerCase() ?? '';
-      const headerDanger = isDangerousResponseHeaders(
-        rawCt,
-        res.headers.get('content-disposition'),
-      );
-      if (headerDanger) {
-        await res.body?.cancel().catch(() => undefined);
-        return { danger: headerDanger, finalHost: currentHost, contentType: normalizedCt };
-      }
-
-      if (res.ok && res.body) {
-        if (normalizedCt === 'application/pdf' || /\.pdf(?:$|[?#])/i.test(currentUrl)) {
-          const pdfBytes = await readBoundedBytes(res.body, MAX_PDF_SNIFF_BYTES);
-          // Only inspect when server actually returned PDF bytes (avoid flagging HTML landing pages for .pdf links).
-          if (pdfBytes.byteLength >= 5 && pdfBytes[0] === 0x25 && pdfBytes[1] === 0x50) {
-            const pdfDanger = inspectPdfBytes(pdfBytes);
-            if (pdfDanger) {
-              return { danger: pdfDanger, finalHost: currentHost, contentType: 'application/pdf' };
-            }
-          }
-          return { danger: null, finalHost: currentHost, contentType: normalizedCt };
-        }
-
-        if (normalizedCt.includes('text/html')) {
-          const htmlBytes = await readBoundedBytes(res.body, MAX_HTML_BYTES);
-          const html = new TextDecoder('utf-8', { fatal: false }).decode(htmlBytes);
-          const inspection = inspectHtmlSnippet(html, currentHost);
-          if (inspection.parked) {
-            return { danger: 'parked_domain', finalHost: currentHost, contentType: normalizedCt };
-          }
-          if (inspection.clickFixLure) {
-            return { danger: 'clickfix_lure', finalHost: currentHost, contentType: normalizedCt };
-          }
-          if (inspection.obfuscatedScript) {
-            return {
-              danger: 'obfuscated_inline_script',
-              finalHost: currentHost,
-              contentType: normalizedCt,
-            };
-          }
-          if (inspection.hiddenCrossOriginIframe) {
-            return {
-              danger: 'hidden_cross_origin_iframe',
-              finalHost: currentHost,
-              contentType: normalizedCt,
-            };
-          }
-          if (inspection.metaRefreshCrossOrigin) {
-            const refreshVerdict = screenExternalBookUrl(inspection.metaRefreshCrossOrigin);
-            if (!refreshVerdict.safe) {
-              return {
-                danger: `unsafe_meta_refresh:${refreshVerdict.blockReason ?? 'invalid'}`,
-                finalHost: currentHost,
-                contentType: normalizedCt,
-              };
-            }
-          }
-          return { danger: null, finalHost: currentHost, contentType: normalizedCt };
-        }
-      }
-
-      await res.body?.cancel().catch(() => undefined);
-      return { danger: null, finalHost: currentHost, contentType: normalizedCt };
-    }
-  } catch {
-    // Ignore transient content-inspection errors; reachability probe handles status.
-  }
-
-  return { danger: null, finalHost: currentHost, contentType: '' };
-}
-
-async function main(): Promise<void> {
-  const args = new Set(process.argv.slice(2));
-  const dryRun = args.has('--dry-run');
-  const dnsblOnly = args.has('--dnsbl-only');
-  const shouldWrite = args.has('--write') && !dryRun;
-  const shouldPublishRedis = (args.has('--publish-redis') || shouldWrite) && !dryRun;
-  const detonateDeltas = args.has('--detonate-deltas');
-
-  const limitArg = process.argv.find((a) => a.startsWith('--limit='));
-  const maxUrls = limitArg ? Number.parseInt(limitArg.split('=')[1] ?? '0', 10) : 0;
-
-  let existing: FreeBooksSecurityManifest = {
-    generatedAt: new Date(0).toISOString(),
-    checkedHosts: 0,
-    checkedUrls: 0,
-    blockedHosts: {},
-    quarantinedUrls: {},
-    unavailableUrls: {},
-    urlFingerprints: {},
-    deltaDetonations: {},
+function connectDependencies(): SweepDependencies {
+  return {
+    readManifest: () => readFileSync(MANIFEST_PATH, 'utf8'),
+    writeManifest: (text) => writeFileSync(MANIFEST_PATH, text, 'utf8'),
+    loadLiveManifest: loadLiveSecurityManifestFromRedis,
+    loadDriftState: loadVerifierDriftStateFromRedis,
+    publish: publishSecurityManifestToRedis,
+    loadCatalog: loadFreeProgrammingBooks,
+    loadThreatFeeds: loadUrlhausHostBlocklist,
+    resolvesNormally: resolveExists,
+    checkHost: checkHostnameThreatIntel,
+    checkSafeBrowsing: checkGoogleSafeBrowsing,
+    probe: probeLink,
+    fetch: (input, init) => fetch(input, init),
+    checkDomainAge: checkRdapDomainAge,
+    submitDetonation: submitDeltaDetonation,
   };
+}
+
+/** The run's options from its arguments and environment, read as the script always has. */
+function readOptions(args: readonly string[], env: VerifyEnvironment): SweepOptions {
+  const flags = new Set(args);
+  const dryRun = flags.has('--dry-run');
+  const shouldWrite = flags.has('--write') && !dryRun;
+  const limitArg = args.find((arg) => arg.startsWith('--limit='));
+  return {
+    dryRun,
+    dnsblOnly: flags.has('--dnsbl-only'),
+    shouldWrite,
+    shouldPublishRedis: (flags.has('--publish-redis') || shouldWrite) && !dryRun,
+    detonateDeltas: flags.has('--detonate-deltas'),
+    maxUrls: limitArg ? Number.parseInt(limitArg.split('=')[1] ?? '0', 10) : 0,
+    manifestPath: MANIFEST_PATH,
+    urlhausAuthKey: env.URLHAUS_AUTH_KEY?.trim(),
+    safeBrowsingApiKey: env.GOOGLE_SAFE_BROWSING_API_KEY?.trim(),
+    cloudflareAccountId: env.CLOUDFLARE_ACCOUNT_ID?.trim(),
+    cloudflareToken: env.CLOUDFLARE_URL_SCANNER_TOKEN?.trim(),
+    urlscanApiKey: env.URLSCAN_API_KEY?.trim(),
+  };
+}
+
+interface CliOptions {
+  args?: readonly string[];
+  env?: VerifyEnvironment;
+  createDependencies?: () => SweepDependencies;
+  log?: (message: string) => void;
+  error?: (message: string) => void;
+}
+
+/** Runs one sweep; 0 when it finishes, 1 when it throws. */
+export async function runCli({
+  args = process.argv.slice(2),
+  env = process.env,
+  createDependencies = connectDependencies,
+  log = console.log,
+  error = console.error,
+}: CliOptions = {}): Promise<number> {
   try {
-    existing = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as FreeBooksSecurityManifest;
-  } catch {
-    // Start fresh if manifest is missing.
+    await runSweep(readOptions(args, env), createDependencies(), log);
+    return 0;
+  } catch (cause) {
+    error(`Free books verify failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+    return 1;
   }
+}
 
-  // Hydrate previous live manifest & drift baselines from Upstash Redis when configured
-  // so consecutive stateless CI runs diff seamlessly without requiring git commits.
-  const [redisManifest, redisDrift] = await Promise.all([
-    loadLiveSecurityManifestFromRedis(),
-    loadVerifierDriftStateFromRedis(),
-  ]);
-  if (redisManifest) {
-    existing = {
-      ...existing,
-      ...redisManifest,
-      urlFingerprints: {
-        ...(existing.urlFingerprints ?? {}),
-        ...(redisDrift?.urlFingerprints ?? {}),
-      },
-      deltaDetonations: {
-        ...(existing.deltaDetonations ?? {}),
-        ...(redisDrift?.deltaDetonations ?? {}),
-      },
-    };
-  } else if (redisDrift) {
-    existing = {
-      ...existing,
-      urlFingerprints: {
-        ...(existing.urlFingerprints ?? {}),
-        ...redisDrift.urlFingerprints,
-      },
-      deltaDetonations: {
-        ...(existing.deltaDetonations ?? {}),
-        ...redisDrift.deltaDetonations,
-      },
-    };
-  }
-
-  const catalog = await loadFreeProgrammingBooks();
-  const uniqueHosts = new Set<string>();
-  const probeTargets: Array<{ url: string; hostname: string }> = [];
-
-  for (const book of catalog.books) {
-    const verdict = screenExternalBookUrl(book.url);
-    if (verdict.safe && verdict.hostname && verdict.normalizedUrl) {
-      uniqueHosts.add(verdict.hostname);
-      probeTargets.push({ url: verdict.normalizedUrl, hostname: verdict.hostname });
-    }
-  }
-
-  const hostsList = [...uniqueHosts].sort();
-  const blockedHosts: Record<string, string> = {};
-
-  console.log('Loading HaGeZi TIF + OpenPhish (+ optional URLhaus) threat-intel feeds...');
-  const urlhausHosts = await loadUrlhausHostBlocklist({
-    authKey: process.env.URLHAUS_AUTH_KEY?.trim(),
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url)
+  void runCli().then((code) => {
+    process.exitCode = code;
   });
-  console.log(`Loaded ${urlhausHosts.size} threat-intel hosts.`);
-
-  console.log(
-    `Checking ${hostsList.length} unique hostnames against URLhaus + Cloudflare 1.1.1.2 + Quad9...`,
-  );
-  await runPool(hostsList, DNSBL_CONCURRENCY, async (hostname) => {
-    const resolvedNormally = await resolveExists(hostname);
-    const verdict = await checkHostnameThreatIntel(hostname, {
-      domainResolvedNormally: resolvedNormally,
-      urlhausHosts,
-    });
-    if (verdict.blocked) {
-      blockedHosts[hostname] = `${verdict.provider}: ${verdict.reason}`;
-    }
-  });
-
-  const quarantinedUrls: Record<string, string> = { ...existing.quarantinedUrls };
-  const unavailableUrls: Record<string, string> = { ...existing.unavailableUrls };
-  const urlFingerprints: Record<string, UrlBaselineFingerprint> = {
-    ...(existing.urlFingerprints ?? {}),
-  };
-  const deltaDetonations: Record<string, DeltaDetonationRecord> = {
-    ...(existing.deltaDetonations ?? {}),
-  };
-
-  // Optional Layer 1: Google Safe Browsing API v4 batch sweep when API key is configured.
-  const gsbApiKey = process.env.GOOGLE_SAFE_BROWSING_API_KEY?.trim();
-  if (gsbApiKey) {
-    console.log(`Checking ${probeTargets.length} URLs against Google Safe Browsing v4...`);
-    const gsbHits = await checkGoogleSafeBrowsing(
-      probeTargets.map((t) => t.url),
-      gsbApiKey,
-    );
-    for (const [hitUrl, reason] of Object.entries(gsbHits)) {
-      quarantinedUrls[hitUrl] = reason;
-    }
-  }
-
-  let checkedUrls = existing.checkedUrls;
-  const deltaCandidates: string[] = [];
-
-  if (!dnsblOnly) {
-    const targets = maxUrls > 0 ? probeTargets.slice(0, maxUrls) : probeTargets;
-    console.log(
-      `Probing ${targets.length} book URLs with SSRF-safe probe + PDF/ClickFix/drift scanners...`,
-    );
-    checkedUrls = targets.length;
-    const nowIso = new Date().toISOString();
-
-    await runPool(targets, PROBE_CONCURRENCY, async ({ url, hostname }) => {
-      if (blockedHosts[hostname]) return;
-
-      const obs = await probeLink(url);
-      if (obs.kind === 'missing') {
-        const second = await probeLink(url);
-        if (second.kind === 'missing') {
-          unavailableUrls[url] = nowIso;
-        }
-        return;
-      }
-
-      if (obs.kind === 'reachable') {
-        delete unavailableUrls[url];
-        const inspected = await inspectFinalTarget(url, hostname);
-        if (inspected.danger) {
-          quarantinedUrls[url] = inspected.danger;
-          return;
-        }
-
-        const prev = urlFingerprints[url];
-        const hostChanged = Boolean(prev && prev.finalHost !== inspected.finalHost);
-        const pdfFlippedToHtml = Boolean(
-          prev &&
-            prev.contentType === 'application/pdf' &&
-            inspected.contentType.includes('text/html'),
-        );
-
-        if (pdfFlippedToHtml) {
-          quarantinedUrls[url] = `content_drift_pdf_to_html:${inspected.finalHost}`;
-          if (classifyHostTrustTier(inspected.finalHost) === 'external') {
-            deltaCandidates.push(url);
-          }
-          return;
-        }
-
-        let rdapRegisteredAt: string | null = prev?.rdapRegisteredAt ?? null;
-        if ((hostChanged || !prev) && classifyHostTrustTier(inspected.finalHost) === 'external') {
-          if (hostChanged) {
-            const rdap = await checkRdapDomainAge(inspected.finalHost);
-            rdapRegisteredAt = rdap.registeredAt;
-            if (rdap.newlyRegistered) {
-              quarantinedUrls[url] =
-                `domain_re_registered_drift:${inspected.finalHost}(${rdap.ageDays}d)`;
-              deltaCandidates.push(url);
-              return;
-            }
-            deltaCandidates.push(url);
-          }
-        }
-
-        delete quarantinedUrls[url];
-        urlFingerprints[url] = {
-          finalHost: inspected.finalHost,
-          contentType: inspected.contentType,
-          rdapRegisteredAt,
-          checkedAt: nowIso,
-        };
-      }
-    });
-  }
-
-  // Targeted Layer 3: submit only drifted external URLs to outsourced sandbox (Cloudflare/urlscan.io).
-  const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
-  const cfToken = process.env.CLOUDFLARE_URL_SCANNER_TOKEN?.trim();
-  const urlscanKey = process.env.URLSCAN_API_KEY?.trim();
-  if (
-    detonateDeltas &&
-    !dryRun &&
-    deltaCandidates.length > 0 &&
-    ((cfAccountId && cfToken) || urlscanKey)
-  ) {
-    const batch = [...new Set(deltaCandidates)].slice(0, MAX_DELTA_DETONATIONS_PER_RUN);
-    console.log(`Submitting ${batch.length} drifted external URL(s) to outsourced URL sandbox...`);
-    for (const candidateUrl of batch) {
-      const record = await submitDeltaDetonation(candidateUrl, {
-        cloudflareAccountId: cfAccountId,
-        cloudflareToken: cfToken,
-        urlscanApiKey: urlscanKey,
-      });
-      if (record) {
-        deltaDetonations[candidateUrl] = record;
-      }
-    }
-  }
-
-  const manifest: FreeBooksSecurityManifest = {
-    generatedAt: new Date().toISOString(),
-    checkedHosts: hostsList.length,
-    checkedUrls,
-    blockedHosts: Object.fromEntries(
-      Object.entries(blockedHosts).sort(([a], [b]) => a.localeCompare(b)),
-    ),
-    quarantinedUrls: Object.fromEntries(
-      Object.entries(quarantinedUrls).sort(([a], [b]) => a.localeCompare(b)),
-    ),
-    unavailableUrls: Object.fromEntries(
-      Object.entries(unavailableUrls).sort(([a], [b]) => a.localeCompare(b)),
-    ),
-    urlFingerprints: Object.fromEntries(
-      Object.entries(urlFingerprints).sort(([a], [b]) => a.localeCompare(b)),
-    ),
-    deltaDetonations: Object.fromEntries(
-      Object.entries(deltaDetonations).sort(([a], [b]) => a.localeCompare(b)),
-    ),
-  };
-
-  const quarantineBreakdown: Record<string, number> = {};
-  for (const reason of Object.values(manifest.quarantinedUrls)) {
-    const category = reason.split(':')[0] ?? reason;
-    quarantineBreakdown[category] = (quarantineBreakdown[category] ?? 0) + 1;
-  }
-
-  let redisPublishResult: {
-    readonly runtimePublished: boolean;
-    readonly fingerprintsPublished: boolean;
-  } | null = null;
-  if (shouldPublishRedis) {
-    redisPublishResult = await publishSecurityManifestToRedis(manifest);
-  }
-
-  console.log(
-    JSON.stringify(
-      {
-        checkedHosts: manifest.checkedHosts,
-        checkedUrls: manifest.checkedUrls,
-        urlhausFeedSize: urlhausHosts.size,
-        blockedHostsCount: Object.keys(manifest.blockedHosts).length,
-        quarantinedUrlsCount: Object.keys(manifest.quarantinedUrls).length,
-        quarantineBreakdown,
-        unavailableUrlsCount: Object.keys(manifest.unavailableUrls).length,
-        trackedFingerprintsCount: Object.keys(manifest.urlFingerprints ?? {}).length,
-        deltaDetonationsCount: Object.keys(manifest.deltaDetonations ?? {}).length,
-        redisPublished: redisPublishResult?.runtimePublished ?? false,
-        redisFingerprintsPublished: redisPublishResult?.fingerprintsPublished ?? false,
-        dryRun,
-      },
-      null,
-      2,
-    ),
-  );
-
-  if (shouldWrite) {
-    writeFileSync(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
-    console.log(`Wrote updated security manifest to ${MANIFEST_PATH}`);
-  }
-}
-
-await main();
