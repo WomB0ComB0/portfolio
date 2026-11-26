@@ -22,7 +22,8 @@
  * books and shelves come only from Sanity, through the loader, and reach client islands as props.
  * The rest of the bookshelf's pure helpers sit beside it in single-concern modules (filters,
  * covers, labels, neighbours, the reading map and the spine themes). Pure and isomorphic; guarded
- * by tests/unit/bookshelf/load-bookshelf.test.ts and bookshelf.test.tsx.
+ * by tests/unit/bookshelf/load-bookshelf.test.ts, bookshelf-stage.test.tsx and
+ * book-detail-view.test.tsx.
  */
 
 import { BOOK_STATUS_LABELS, type BookStatus, normalizeIsbn } from '@/sanity/bookshelf-rules';

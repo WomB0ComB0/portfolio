@@ -35,7 +35,7 @@
  * is the real one.
  */
 
-import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
+import { makeBook, makeBookshelf, slugOf } from '@tests/fixtures/sanity-docs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const loaders = vi.hoisted(() => ({ loadBookshelf: vi.fn() }));
@@ -63,8 +63,6 @@ import { getLiveConsoleSpineTheme } from '@/app/(routes)/(main)/(personal)/books
 import { BookSchema } from '@/hooks/sanity/schemas';
 import { resetApiReportCooldowns } from '@/lib/observability/report';
 import { decodeEach } from '@/lib/sanity/decode';
-
-const slugOf = (current: string) => ({ _type: 'slug' as const, current });
 
 /** A cover image on the asset `ref`, optionally with Studio alt text. */
 const coverOf = (ref: string, alt?: string) => ({

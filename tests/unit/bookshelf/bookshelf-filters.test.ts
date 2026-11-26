@@ -55,6 +55,7 @@ import {
   type ShelfTab,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/bookshelf-filters';
 import { buildBookshelfCatalog } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/load-bookshelf';
+import { catalogOf } from './bookshelf-fixtures';
 
 /** Production's shelves (2026-11-26) as chips: title, slug and book count. */
 const PRODUCTION_TABS: readonly ShelfTab[] = [
@@ -64,20 +65,6 @@ const PRODUCTION_TABS: readonly ShelfTab[] = [
   { slug: 'infra-and-ops', title: 'Infra & Ops', count: 6 },
   { slug: 'reasoning-and-systems', title: 'Reasoning & Systems', count: 7 },
 ];
-
-/** Shelves of `[title, slug, books]`, in that order, joined into a catalog's books. */
-function booksOn(specs: readonly (readonly [title: string, slug: string, books: number])[]) {
-  const shelves = specs.map(([title, slug, count]) => ({
-    doc: makeBookshelf({ title, slug: { _type: 'slug', current: slug } }),
-    count,
-  }));
-  return buildBookshelfCatalog(
-    shelves.flatMap(({ doc, count }) =>
-      Array.from({ length: count }, () => makeBook({ shelfId: doc._id })),
-    ),
-    shelves.map(({ doc }) => doc),
-  ).books;
-}
 
 /** Two shelves of mixed reading statuses: Backend (read, unread), then AI (reading, read). */
 function mixedBooks() {
@@ -96,7 +83,7 @@ function mixedBooks() {
 
 describe('buildShelfTabs', () => {
   it('makes one chip per shelf slug, in stage order, with its book count', () => {
-    const books = booksOn([
+    const { books } = catalogOf([
       ['Backend', 'backend', 3],
       ['AI', 'ai', 2],
       ['Web & Languages', 'web-and-languages', 1],
@@ -110,7 +97,7 @@ describe('buildShelfTabs', () => {
   });
 
   it('keeps two shelves with one title apart, by slug', () => {
-    const books = booksOn([
+    const { books } = catalogOf([
       ['Systems', 'systems-intro', 2],
       ['Systems', 'systems-advanced', 3],
     ]);

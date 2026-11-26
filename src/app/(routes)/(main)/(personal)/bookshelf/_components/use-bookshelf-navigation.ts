@@ -24,7 +24,7 @@
  * filter to its shelf, and clearing a status filter it fails) and a tap on the active one opens
  * it; with a fine pointer a ring cursor trails the pointer. The drag maths is in
  * _lib/shelf-glide.ts and the moves in use-shelf-motion.ts. The stage (bookshelf-stage.tsx) calls
- * it. Guarded by tests/unit/bookshelf/bookshelf.test.tsx and
+ * it. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx and
  * tests/unit/bookshelf/scale-budgets.test.ts.
  */
 

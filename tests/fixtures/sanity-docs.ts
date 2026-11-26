@@ -178,6 +178,9 @@ export function makeArticle(overrides: Partial<Article> = {}): Article {
   };
 }
 
+/** A slug field holding `current`, as Studio stores a book's or a shelf's slug. */
+export const slugOf = (current: string) => ({ _type: 'slug' as const, current });
+
 /** The shelf a book names when a test gives it none: pass `shelfId: shelf._id` to join a shelf. */
 const DEFAULT_BOOK_SHELF_ID = 'bookshelf-test';
 

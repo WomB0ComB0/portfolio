@@ -20,7 +20,7 @@
  * between steps, and the steps a release adds (a flick's 1-3, or one to settle a half-made step).
  * Distances are in px and speeds in px/ms. The pointer handlers that run it are in
  * use-bookshelf-navigation.ts. Pure and isomorphic; guarded by
- * tests/unit/bookshelf/bookshelf.test.tsx and tests/unit/bookshelf/scale-budgets.test.ts.
+ * tests/unit/bookshelf/shelf-glide.test.ts, bookshelf-stage.test.tsx and scale-budgets.test.ts.
  */
 
 /** How far a press must travel sideways before it is a drag. */

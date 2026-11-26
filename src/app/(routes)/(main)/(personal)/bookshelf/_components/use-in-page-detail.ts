@@ -19,7 +19,8 @@
  * it. Opening a book moves the stage to it, pushes its hash and scrolls to the top; Back and
  * Forward (popstate) open the book the hash names, or close the detail when it names none; closing
  * drops the hash. While a book is open the stage (bookshelf-stage.tsx) renders BookDetailView in
- * place of its shell. Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ * place of its shell. Guarded by tests/unit/bookshelf/book-detail-view.test.tsx and
+ * reading-map-dialog.test.tsx.
  */
 
 import {

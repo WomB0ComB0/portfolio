@@ -20,7 +20,7 @@
  * @file The filters bar over the stage: the shelf chips under the pill that marks where the stage
  * is (measured by use-shelf-pill.ts), the reading-status chips, the shelf shortcut, and a banner
  * when no book matches. Below 48rem the shelf chips keep to one row that scrolls, fading over the
- * ends with chips past them. Guarded by tests/unit/bookshelf/bookshelf.test.tsx and
+ * ends with chips past them. Guarded by tests/unit/bookshelf/bookshelf-filters-bar.test.tsx and
  * e2e/performance/bookshelf-budgets.spec.ts.
  */
 

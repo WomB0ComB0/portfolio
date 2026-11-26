@@ -23,7 +23,7 @@
  * (use-bookshelf-navigation.ts) read the latest values without re-subscribing. It has no layout
  * effect, so the stage's pill and teleport effects keep their order. Guarded by
  * tests/unit/bookshelf/scale-budgets.test.ts (one move and at most 2 commits per jump, 400 ms
- * steps) and tests/unit/bookshelf/bookshelf.test.tsx.
+ * steps) and tests/unit/bookshelf/bookshelf-stage.test.tsx.
  */
 
 import {

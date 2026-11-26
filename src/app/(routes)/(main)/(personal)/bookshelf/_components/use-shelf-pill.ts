@@ -20,7 +20,8 @@
  * that scrolls (by scrolling the row alone, never the page), and lands the pill's first placement
  * without a slide. The stage (bookshelf-stage.tsx) calls it before its teleport layout effect, so
  * the pill's layout effect still runs first; bookshelf-filters-bar.tsx draws the pill. Guarded by
- * tests/unit/bookshelf/bookshelf.test.tsx and e2e/performance/bookshelf-budgets.spec.ts.
+ * tests/unit/bookshelf/bookshelf-filters-bar.test.tsx and
+ * e2e/performance/bookshelf-budgets.spec.ts.
  */
 
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react';

@@ -19,7 +19,8 @@
 /**
  * @file The shelf cards under the whole shelf's stage, each with a fan of its covers: one card per
  * shelf, linking to its page, or one per reading status, which filters the stage. The grouping is
- * URL state (?group), controlled by the stage. Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ * URL state (?group), controlled by the stage. Guarded by
+ * tests/unit/bookshelf/shelf-cards-grid.test.tsx and bookshelf-stage.test.tsx.
  */
 
 import Link from 'next/link';

@@ -23,7 +23,8 @@
  * renders the pool of book slots and runs the teleport effect; the motion, the in-page detail, the
  * shelf pill and the input are its hooks (use-shelf-motion.ts, use-in-page-detail.ts,
  * use-shelf-pill.ts, use-bookshelf-navigation.ts). While a book is open it renders BookDetailView
- * in place of its shell. Guarded by tests/unit/bookshelf/bookshelf.test.tsx and
+ * in place of its shell. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx (and the
+ * filters bar, shelf cards, reading map and detail tests, which render it) and
  * scale-budgets.test.ts, and kept free of server modules by island-imports.test.ts.
  */
 

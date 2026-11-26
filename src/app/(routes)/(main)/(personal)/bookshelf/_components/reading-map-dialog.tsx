@@ -20,7 +20,7 @@
  * @file The reading map: a dialog listing every shelf's books in stage order with their topics,
  * opened from the stage's header and the detail's. From the stage it can focus a book on the shelf
  * or open it; from the detail it opens one. A hand-rolled modal with no focus trap (known debt).
- * Guarded by tests/unit/bookshelf/bookshelf.test.tsx and scale-budgets.test.ts.
+ * Guarded by tests/unit/bookshelf/reading-map-dialog.test.tsx and scale-budgets.test.ts.
  */
 
 import Link from 'next/link';

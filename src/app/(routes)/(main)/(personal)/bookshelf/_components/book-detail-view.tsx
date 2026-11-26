@@ -20,8 +20,8 @@
  * @file A book's detail inside PageShell: its summary, authors and ISBN links, numbered topics,
  * Previous and Next books and its cover, with the reading map. The stage (bookshelf-stage.tsx)
  * renders it in place for #/stage/NN, and [slug]/page.tsx renders it as its own island. Guarded
- * by tests/unit/bookshelf/bookshelf.test.tsx and scale-budgets.test.ts, and kept free of server
- * modules by island-imports.test.ts.
+ * by tests/unit/bookshelf/book-detail-view.test.tsx and scale-budgets.test.ts, and kept free of
+ * server modules by island-imports.test.ts.
  */
 
 import Link from 'next/link';

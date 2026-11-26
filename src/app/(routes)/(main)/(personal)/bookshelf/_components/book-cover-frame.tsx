@@ -17,7 +17,7 @@
 /**
  * @file A book's upright cover in its frame, with the hinge's shading. BookDetailView draws it, so
  * it shows in the stage's in-page detail and on /bookshelf/[slug], where it is the page's LCP
- * image. Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ * image. Guarded by tests/unit/bookshelf/book-detail-view.test.tsx.
  */
 
 import type { ReactElement } from 'react';

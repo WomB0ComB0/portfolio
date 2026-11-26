@@ -19,7 +19,7 @@
 /**
  * @file The row under the stage: the stage or book number, the active book's title, status and
  * Open notes link, and the previous and next arrows (disabled at the ends of a shelf's page).
- * Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ * Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx.
  */
 
 import type { ReactElement } from 'react';
