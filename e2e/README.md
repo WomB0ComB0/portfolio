@@ -172,6 +172,15 @@ Performance and optimization tests:
 - JavaScript performance
 - Font loading
 
+`bookshelf-budgets.spec.ts` holds the bookshelf's browser budgets on the real data (cover bytes on
+first load and the largest shelf's cover requests, the book height in the server's HTML and after
+hydration, CLS, the shelf chip row and stage top on a phone, the chip pill's transition, the
+chosen chip kept in view without a page scroll, no horizontal overflow, and the jump to the
+farthest shelf); the deterministic ones are in
+`tests/unit/bookshelf/scale-budgets.test.ts`. It runs only when `PLAYWRIGHT_TEST_BASE_URL` names a
+server, in the `chromium` project, and skips its byte and CLS checks against a dev server. No CI job
+runs it; its header says how to run it against a local production build.
+
 ### SEO (`e2e/seo/`)
 
 Search engine optimization tests:
@@ -202,6 +211,9 @@ Visual regression and responsive tests:
 - The light rays behind every page (`light-rays.spec.ts`): moving under the hidden top band at the
   top of the page and paused under it once it shows, still at 60% of their peak under reduced
   motion, gone in forced colours and print, and 4.5:1 for every text tier where they are brightest
+- /bookshelf's filter chips (`bookshelf-chips.spec.ts`): screenshots of the shelf and status chips
+  at 320, 768, 1024 and 1440 px, and of the 320 px chip row scrolled to its chosen last chip;
+  attach-only until baselines exist, like `homepage.spec.ts`
 
 The screenshot tests in `homepage.spec.ts` are attach-only until baselines are committed: the
 repository has none yet, so each screenshot is attached to the test report for review and compared

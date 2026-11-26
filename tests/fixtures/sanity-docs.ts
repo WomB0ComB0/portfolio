@@ -219,6 +219,145 @@ export function makeBookshelf(overrides: Partial<SanityBookshelf> = {}): SanityB
   };
 }
 
+/** A bookshelf catalog as the one bookshelf query answers it: books by order, shelves by order. */
+export interface ScaledBookshelfDocs {
+  readonly books: readonly SanityBook[];
+  readonly shelves: readonly SanityBookshelf[];
+}
+
+/**
+ * The production bookshelf's shelf sizes, in shelf order (69 books on 10 shelves, 2026-11-26).
+ * makeScaledBookshelfDocs spreads any number of books over its shelves in these proportions.
+ */
+export const PRODUCTION_SHELF_SIZES: readonly number[] = [7, 6, 6, 4, 4, 12, 6, 9, 6, 9];
+
+/** The production shelf count, the scaled catalog's default. */
+const PRODUCTION_SHELF_COUNT = PRODUCTION_SHELF_SIZES.length;
+/** Every scaled book's topic count, near production's mean of 5.9. */
+const SCALED_TOPICS_PER_BOOK = 6;
+/** Every this many books, one has been read; the rest are queued, as on the production shelf. */
+const SCALED_COMPLETED_EVERY = 23;
+
+/**
+ * `total` split over `weights` in proportion (largest remainder), so the parts always add up to
+ * `total` and weights that already add up to it come back unchanged. While `total` allows it, a
+ * part rounded down to 0 takes one from the largest part: a shelf with no books is left off.
+ */
+function apportion(total: number, weights: readonly number[]): number[] {
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+  const exact = weights.map((weight) => (total * weight) / weightSum);
+  const parts = exact.map((share) => Math.floor(share));
+  const byRemainder = exact
+    .map((share, index) => ({ index, remainder: share - Math.floor(share) }))
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  let left = total - parts.reduce((sum, part) => sum + part, 0);
+  for (const { index } of byRemainder) {
+    if (left === 0) break;
+    parts[index] = (parts[index] ?? 0) + 1;
+    left -= 1;
+  }
+  for (const [index, part] of parts.entries()) {
+    const largest = parts.indexOf(Math.max(...parts));
+    if (part > 0 || (parts[largest] ?? 0) < 2) continue;
+    parts[largest] = (parts[largest] ?? 0) - 1;
+    parts[index] = 1;
+  }
+  return parts;
+}
+
+/** A 40-digit hex id, fixed for `seed`, the length of a Sanity image asset's hash. */
+const assetHash = (seed: number): string =>
+  Array.from({ length: 5 }, (_, part) =>
+    (Math.imul(seed + 1, 2_654_435_761 + part * 40_503) >>> 0).toString(16).padStart(8, '0'),
+  ).join('');
+
+/** ISO system timestamps for the scaled document `n`, one minute apart from the epoch. */
+const scaledMeta = (prefix: string, n: number) => {
+  const at = new Date(FIXTURE_EPOCH_MS + n * MINUTE_MS).toISOString();
+  return { _id: `${prefix}-${n}`, _createdAt: at, _updatedAt: at, _rev: `rev-scaled-${n}` };
+};
+
+/**
+ * A catalog of `bookCount` books on `shelfCount` shelves, built with makeBook and makeBookshelf
+ * and shaped like production, for budget tests at 69, 300 and 1000 books:
+ * - the books are spread over the shelves in production's proportions (PRODUCTION_SHELF_SIZES,
+ *   repeated past 10 shelves): 69 books on 10 shelves are exactly production's 7-12 a shelf;
+ * - each book has a unique `_id` and slug and a global order in steps of 10 that follows stage
+ *   order (shelf by shelf), as the migration left production's (10..690);
+ * - its text has production's lengths: a 48-character title, a 165-character summary, six
+ *   topics of about 45 characters, an alt text, an ISBN, a publisher and edition, and one url;
+ * - one book in SCALED_COMPLETED_EVERY has been read and the one halfway along the stage is
+ *   being read; the rest are queued.
+ * So JSON.stringify(buildBookshelfCatalog(...).books) is 1,400-1,600 B per book, as production's
+ * list payload is (1,409-1,530 B). The same arguments always give the same documents.
+ */
+export function makeScaledBookshelfDocs(
+  bookCount: number,
+  shelfCount = PRODUCTION_SHELF_COUNT,
+): ScaledBookshelfDocs {
+  const weights = Array.from(
+    { length: shelfCount },
+    (_, index) => PRODUCTION_SHELF_SIZES[index % PRODUCTION_SHELF_COUNT] ?? 1,
+  );
+  const shelves = weights.map((_, index) => {
+    const n = index + 1;
+    const label = String(n).padStart(2, '0');
+    return makeBookshelf({
+      ...scaledMeta('bookshelf-scaled', n),
+      title: `Scaled Shelf ${label}`,
+      slug: { _type: 'slug', current: `scaled-shelf-${label}` },
+      description: `Shelf ${label} of the scaled catalog: books shelved the way production shelves them.`,
+      order: n * 10,
+    });
+  });
+  const sizes = apportion(bookCount, weights);
+  const shelfIds = shelves.flatMap((shelf, index) =>
+    Array.from({ length: sizes[index] ?? 0 }, () => shelf._id),
+  );
+  const books = shelfIds.map((shelfId, index) => {
+    const n = index + 1;
+    const label = String(n).padStart(4, '0');
+    const title = `Scaled Book ${label}: Systems, Practice and Design`;
+    const authors = `Author ${label} & Co-Author`;
+    const slug = `scaled-book-${label}-systems`;
+    const status =
+      index === Math.floor(bookCount / 2)
+        ? 'reading'
+        : index % SCALED_COMPLETED_EVERY === SCALED_COMPLETED_EVERY - 1
+          ? 'completed'
+          : 'queued';
+    return makeBook({
+      ...scaledMeta('book-scaled', n),
+      title,
+      slug: { _type: 'slug', current: slug },
+      spineTitle: `Scaled Book ${label}`,
+      authors,
+      spineAuthor: 'AUTHOR',
+      publisher: 'Scaled Press',
+      edition: '2nd Edition',
+      year: 2000 + (n % 26),
+      isbn: `978-0-00-${String(n).padStart(6, '0')}-0`,
+      status,
+      summary:
+        `Book ${label} of the scaled catalog walks through the fundamentals of its subject, ` +
+        'from first principles to production practice, with worked examples and exercises.',
+      coverImage: {
+        _type: 'image',
+        alt: `${title} by ${authors}`,
+        asset: { _type: 'reference', _ref: `image-${assetHash(n)}-520x680-webp` },
+      },
+      shelfId,
+      url: `https://books.example.com/catalog/${slug}`,
+      topics: Array.from(
+        { length: SCALED_TOPICS_PER_BOOK },
+        (_, topic) => `Topic ${topic + 1} of book ${label}: concepts & practice`,
+      ),
+      order: n * 10,
+    });
+  });
+  return { books, shelves };
+}
+
 /** A video as '/api/v1/sanity/videos' and loadVideos() list it: a Sanity video by default. */
 export function makeVideo(overrides: Partial<ListedVideo> = {}): ListedVideo {
   const { n, meta } = nextDocument('video');

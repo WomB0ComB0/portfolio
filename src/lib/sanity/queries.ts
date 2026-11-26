@@ -431,3 +431,13 @@ export const bookshelvesQuery = `
     order
   }
 `;
+
+/**
+ * Every book and every shelf in ONE query. GROQ evaluates it against one revision of the dataset,
+ * so both lists describe the same moment: a book moved to a newly published shelf always arrives
+ * with that shelf. The loaders cache the answer as one entry (getBookshelf, readBookshelf).
+ */
+export const bookshelfQuery = `{
+  "books": ${booksQuery.trim()},
+  "shelves": ${bookshelvesQuery.trim()}
+}`;

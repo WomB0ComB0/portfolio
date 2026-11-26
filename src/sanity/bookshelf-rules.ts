@@ -90,24 +90,29 @@ export const BOOK_COVER_REF_PATTERN = /^image-[A-Za-z0-9]+-[1-9]\d*x[1-9]\d*-[a-
 export const isBookCoverRef = (ref: string): boolean => BOOK_COVER_REF_PATTERN.test(ref);
 
 /**
- * The /bookshelf filter tab that shows every shelf. Shelf titles name the other tabs, so no shelf
- * may take this one's label.
+ * The label of the /bookshelf filter chip that shows every shelf: the reset, which is no shelf.
+ * The filter tells shelves apart by slug (`?shelf=<slug>`), and each other chip is labelled with
+ * its shelf's title, so no shelf may take this label: its chip would read as the reset.
  */
 export const ALL_SHELVES_TAB = 'All';
 
 /** A shelf title as Studio compares two of them: trimmed and lower-cased. */
 export const shelfTitleKey = (title: string): string => title.trim().toLowerCase();
 
-/** True for a shelf title that would read as the {@link ALL_SHELVES_TAB} tab, in any case. */
+/** True for a shelf title that would read as the {@link ALL_SHELVES_TAB} chip, in any case. */
 export const isReservedShelfTitle = (title: string): boolean =>
   shelfTitleKey(title) === shelfTitleKey(ALL_SHELVES_TAB);
 
 /** What Studio says about a shelf title {@link isReservedShelfTitle} refuses. */
-export const SHELF_TITLE_RESERVED_MESSAGE = `"${ALL_SHELVES_TAB}" is the /bookshelf tab that shows every shelf. Choose another title`;
+export const SHELF_TITLE_RESERVED_MESSAGE = `"${ALL_SHELVES_TAB}" labels the /bookshelf filter chip that shows every shelf. Choose another title`;
 
-/** What Studio says about a shelf title another shelf already has. */
+/**
+ * What Studio says about a shelf title another shelf already has. The slug tells the shelves'
+ * filters apart, but the title labels each chip, and old shared links (`?track=<title>`) find
+ * their shelf by its title alone.
+ */
 export const SHELF_TITLE_DUPLICATE_MESSAGE =
-  'Another shelf has this title. Each shelf title names its own /bookshelf filter tab, so titles must be unique';
+  'Another shelf has this title. Each shelf title labels its own /bookshelf filter chip and old shared links find a shelf by its title, so titles must be unique';
 
 /**
  * Strips everything but digits and X from an ISBN, returning it when it has the length of an

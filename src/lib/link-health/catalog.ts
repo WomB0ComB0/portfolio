@@ -25,13 +25,19 @@ import { linkedHrefs } from '@/app/(routes)/(main)/(professioal)/experience/_lib
 import { buildRoleStory } from '@/app/(routes)/(main)/(professioal)/experience/_lib/role-story';
 import { safeHref } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-links';
 import { orderProjects } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-order';
+import { ensureBaseError } from '@/classes/error';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { createStaleCache, type StaleCache } from '@/lib/cache/stale-cache';
+import { reportApiFailure } from '@/lib/observability/report';
 import { loadCertifications, loadExperiences, loadProjects } from '@/lib/sanity/loaders';
 import type { LinkHealthScope } from './types';
 import { normalizeLinkUrl } from './url';
 
-/** A fixed, bounded allowlist of links the published pages actually offer. */
+/**
+ * A fixed, bounded allowlist of links the published pages actually offer. It bounds the public
+ * allowlist and the probe load, so it is not raised when a scope outgrows it: the links past it
+ * (in page order) go unchecked and unbadged, and buildCatalog reports that as a warning.
+ */
 const MAX_CATALOG_LINKS = 500;
 const CATALOG_CACHE_KEY = 'link-health.catalog.v1';
 const CATALOG_TTL_MS = 60_000;
@@ -139,17 +145,39 @@ async function renderedTargets(scope: LinkHealthScope): Promise<readonly (string
 }
 
 /**
- * Normalized, deduplicated destinations from published/validated page loaders, in page order.
+ * One warning that `scope` offers more distinct links than the catalog holds, naming how many
+ * were left out. The catalog is rebuilt once a minute; the per-context cooldown keeps this to one
+ * event per scope per window, and a context per scope keeps one scope from silencing another.
+ */
+function reportCappedCatalog(scope: LinkHealthScope, dropped: number): void {
+  const more = `${dropped} more ${dropped === 1 ? 'link goes' : 'links go'} unchecked`;
+  const summary = `The ${scope} link catalog is capped at ${MAX_CATALOG_LINKS} links: ${more}`;
+  reportApiFailure(
+    ensureBaseError(new Error(summary), 'link-health:catalog', {
+      scope,
+      kept: MAX_CATALOG_LINKS,
+      dropped,
+    }),
+    { context: `link-health catalog cap (${scope})`, level: 'warning' },
+  );
+}
+
+/**
+ * Normalized, deduplicated destinations from published/validated page loaders, in page order,
+ * at most MAX_CATALOG_LINKS of them; the distinct links past the cap are counted and reported.
  * No Places, Spotify, raw CMS scans, image generation or network probing. Loader failures remain
  * failures so the caller can fail closed rather than confuse an outage with an empty catalog.
  */
 async function buildCatalog(scope: LinkHealthScope): Promise<readonly string[]> {
   const unique = new Set<string>();
+  const dropped = new Set<string>();
   for (const target of await renderedTargets(scope)) {
     const href = normalizeLinkUrl(target);
-    if (href && !isStableDestination(href)) unique.add(href);
-    if (unique.size === MAX_CATALOG_LINKS) break;
+    if (!href || isStableDestination(href) || unique.has(href)) continue;
+    if (unique.size < MAX_CATALOG_LINKS) unique.add(href);
+    else dropped.add(href);
   }
+  if (dropped.size > 0) reportCappedCatalog(scope, dropped.size);
   return [...unique];
 }
 

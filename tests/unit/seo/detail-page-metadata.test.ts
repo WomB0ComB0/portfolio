@@ -48,8 +48,7 @@ vi.hoisted(() => {
 
 const sanityApi = vi.hoisted(() => ({
   getArticles: vi.fn(),
-  getBooks: vi.fn(),
-  getBookshelves: vi.fn(),
+  getBookshelf: vi.fn(),
   getCertifications: vi.fn(),
   getExperiences: vi.fn(),
   getFeaturedProjects: vi.fn(),
@@ -324,8 +323,7 @@ describe('book detail metadata', () => {
   });
 
   it('names the book and its stage, with its own og:url and page card, not its cover', async () => {
-    sanityApi.getBooks.mockResolvedValue([opener, book]);
-    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+    sanityApi.getBookshelf.mockResolvedValue({ books: [opener, book], shelves: [shelf] });
 
     const metadata = await bookMetadata(bookParamsFor(book.slug.current));
 
@@ -346,8 +344,7 @@ describe('book detail metadata', () => {
   });
 
   it("gives a slug no book has the site's 404 metadata, and reports nothing", async () => {
-    sanityApi.getBooks.mockResolvedValue([opener, book]);
-    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+    sanityApi.getBookshelf.mockResolvedValue({ books: [opener, book], shelves: [shelf] });
 
     expectSiteNotFound(await bookMetadata(bookParamsFor('no-such-book')));
     expect(sentry.captureException).not.toHaveBeenCalled();
@@ -355,8 +352,7 @@ describe('book detail metadata', () => {
 
   it("gives a book on no published shelf the site's 404 metadata, as its page answers", async () => {
     const unshelved = makeBook({ shelfId: 'bookshelf-unpublished' });
-    sanityApi.getBooks.mockResolvedValue([book, unshelved]);
-    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+    sanityApi.getBookshelf.mockResolvedValue({ books: [book, unshelved], shelves: [shelf] });
 
     expectSiteNotFound(await bookMetadata(bookParamsFor(unshelved.slug.current)));
     // The catalog leaves the book off and reports it (once) as a content warning.
@@ -364,8 +360,7 @@ describe('book detail metadata', () => {
   });
 
   it("falls back to the page's defaults and reports one warning when Sanity fails", async () => {
-    sanityApi.getBooks.mockRejectedValue(outage());
-    sanityApi.getBookshelves.mockResolvedValue([shelf]);
+    sanityApi.getBookshelf.mockRejectedValue(outage());
 
     const metadata = await bookMetadata(bookParamsFor(book.slug.current));
 
@@ -390,8 +385,7 @@ describe('bookshelf shelf detail metadata', () => {
   const book = makeBook({ shelfId: shelf._id });
 
   it('names the shelf, with its description and its own og:url', async () => {
-    sanityApi.getBooks.mockResolvedValue([book]);
-    sanityApi.getBookshelves.mockResolvedValue([shelf, empty]);
+    sanityApi.getBookshelf.mockResolvedValue({ books: [book], shelves: [shelf, empty] });
 
     const metadata = await shelfMetadata(shelfParamsFor('systems'));
 
@@ -405,8 +399,7 @@ describe('bookshelf shelf detail metadata', () => {
   });
 
   it("gives an unknown shelf, or one with no books, the site's 404 metadata", async () => {
-    sanityApi.getBooks.mockResolvedValue([book]);
-    sanityApi.getBookshelves.mockResolvedValue([shelf, empty]);
+    sanityApi.getBookshelf.mockResolvedValue({ books: [book], shelves: [shelf, empty] });
 
     expectSiteNotFound(await shelfMetadata(shelfParamsFor('no-such-shelf')));
     expectSiteNotFound(await shelfMetadata(shelfParamsFor('empty')));
@@ -414,8 +407,7 @@ describe('bookshelf shelf detail metadata', () => {
   });
 
   it("falls back to the page's defaults and reports one warning when Sanity fails", async () => {
-    sanityApi.getBooks.mockResolvedValue([book]);
-    sanityApi.getBookshelves.mockRejectedValue(outage());
+    sanityApi.getBookshelf.mockRejectedValue(outage());
 
     const metadata = await shelfMetadata(shelfParamsFor('systems'));
 

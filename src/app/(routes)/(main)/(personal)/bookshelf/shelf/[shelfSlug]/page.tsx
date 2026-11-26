@@ -23,7 +23,7 @@
 
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { type ReactElement, Suspense } from 'react';
+import type { ReactElement } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
 import { SectionBoundary } from '@/components/data/section-boundary';
 import { reportApiFailure } from '@/lib/observability/report';
@@ -70,6 +70,11 @@ export async function generateMetadata({ params }: ShelfDetailPageProps): Promis
 /**
  * Focused single-shelf 3D view (`/bookshelf/shelf/[shelfSlug]`), displaying only the books in
  * that shelf with rounded spines and finite browsing. An unknown slug is a 404.
+ *
+ * The island gets this shelf alone: the page never shows the shelf cards, and the reading map
+ * then counts this shelf's books across one shelf. No Suspense boundary: nothing inside suspends
+ * (the data comes as props, and the root layout renders every request dynamically), and one
+ * with an empty fallback let React stream the stage after the footer, which then jumped down.
  */
 export default async function ShelfDetailPage({
   params,
@@ -80,9 +85,7 @@ export default async function ShelfDetailPage({
 
   return (
     <SectionBoundary label={`${hit.shelf.title} shelf`}>
-      <Suspense fallback={null}>
-        <BookshelfStage books={hit.books} shelves={hit.catalog.shelves} activeShelf={hit.shelf} />
-      </Suspense>
+      <BookshelfStage books={hit.books} shelves={[hit.shelf]} activeShelf={hit.shelf} />
     </SectionBoundary>
   );
 }

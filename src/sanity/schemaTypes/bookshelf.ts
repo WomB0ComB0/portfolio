@@ -19,9 +19,11 @@
  * book's required `shelf` reference), so a shelf lists no books itself: the site gathers them by
  * that reference and numbers stages shelf by shelf, in this document's `order`.
  *
- * The title is the track label its books show and the name of its /bookshelf filter tab, which
- * tells shelves apart by title: so it must be unique among shelves and must not read as "All", the
- * tab that shows every shelf (rules shared in ../bookshelf-rules.ts).
+ * The slug identifies the shelf: its page (/bookshelf/shelf/<slug>) and its /bookshelf filter
+ * (`?shelf=<slug>`). The title is the track label its books show and the label of its filter
+ * chip, so it must be unique among shelves (old shared `?track=<title>` links find a shelf by its
+ * title) and must not read as "All", the chip that shows every shelf (rules shared in
+ * ../bookshelf-rules.ts).
  *
  * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
  */
@@ -64,7 +66,7 @@ export function publishedShelfId(id: string): string {
 }
 
 /**
- * A title the /bookshelf filter tabs could not tell apart, as an error: "All" in any case, or a
+ * A title the /bookshelf filter chips could not tell apart, as an error: "All" in any case, or a
  * title another shelf has, compared trimmed and in any case. An empty title is left to
  * `required()`, and the check skips a value with no document to compare against.
  */
@@ -105,13 +107,15 @@ export const bookshelfType = defineType({
       title: 'Shelf Title',
       type: 'string',
       description:
-        'The track label its books show and its /bookshelf filter tab: unique, and not "All".',
+        'The track label its books show and the label of its /bookshelf filter chip: unique, and not "All".',
       validation: (Rule) => Rule.required().custom(validateShelfTitle),
     }),
     defineField({
       name: 'slug',
       title: 'Slug',
       type: 'slug',
+      description:
+        'Identifies the shelf: its page (/bookshelf/shelf/<slug>) and its /bookshelf filter (?shelf=<slug>). Changing it breaks links to both.',
       options: {
         source: 'title',
         maxLength: 96,

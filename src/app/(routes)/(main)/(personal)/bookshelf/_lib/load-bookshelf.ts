@@ -19,8 +19,8 @@ import 'server-only';
 /**
  * @file The one way the site reads the bookshelf. The /bookshelf list, a book's page, a shelf's
  * page, their metadata, the sitemap and the link-health catalog all read through
- * loadBookshelfCatalog, which wraps the shared Sanity cache (loadBooks, loadBookshelves) and adds
- * no request.
+ * loadBookshelfCatalog, which wraps the shared Sanity cache's one bookshelf snapshot
+ * (loadBookshelf: every book and every shelf from one query) and adds no request.
  *
  * It joins each `book` document to its `bookshelf` (by `shelfId`), orders the books by shelf order
  * and then book order, numbers stages and topics continuously across shelves, builds each cover's
@@ -36,13 +36,17 @@ import { cache } from 'react';
 import { ensureBaseError } from '@/classes/error';
 import { reportApiFailure } from '@/lib/observability/report';
 import { urlFor } from '@/lib/sanity/client';
+import { loadBookshelf, type SanityBook, type SanityBookshelf } from '@/lib/sanity/loaders';
 import {
-  loadBooks,
-  loadBookshelves,
-  type SanityBook,
-  type SanityBookshelf,
-} from '@/lib/sanity/loaders';
-import { type BookItem, getLiveConsoleSpineTheme, type ShelfCollection } from './books';
+  type BookItem,
+  type BookNeighbor,
+  COVER_HEIGHT,
+  COVER_WIDTH,
+  getLiveConsoleSpineTheme,
+  neighborsOf,
+  type ShelfCollection,
+  toBookNeighbor,
+} from './books';
 
 export interface BookshelfCatalog {
   /** Every book on a published shelf, in stage order (shelf order, then book order). */
@@ -61,13 +65,6 @@ export const hasBooks = (books: readonly BookItem[]): books is NonEmptyBooks => 
 /** Groups the orphaned-book warning in Sentry (one event per cooldown window). */
 const REPORT_CONTEXT = 'bookshelf catalog';
 
-/**
- * The size every cover is drawn at. The covers are 520x680 portraits, so for them the crop is a
- * no-op resize; a cover of another shape is cropped to it around its hotspot.
- */
-const COVER_WIDTH = 520;
-const COVER_HEIGHT = 680;
-
 /** A trimmed optional Studio text, or undefined when it is missing or blank. */
 const optionalText = (value: string | null | undefined): string | undefined =>
   value?.trim() || undefined;
@@ -79,9 +76,12 @@ const spineAuthorOf = (doc: SanityBook): string =>
   'AUTHOR';
 
 /**
- * The cover on Sanity's CDN at the drawn size, in the best format the browser accepts. The URL
- * builder throws on a reference that is not an image asset; BookSchema drops such a book when it
- * is decoded (isBookCoverRef), so one bad cover never reaches here to fail the whole catalog.
+ * The cover on Sanity's CDN at its source size (COVER_WIDTH x COVER_HEIGHT), in the best format
+ * the browser accepts; the islands draw smaller copies of it with coverAt. The covers are 520x680
+ * portraits, so for them the crop is a no-op resize; a cover of another shape is cropped to it
+ * around its hotspot. The URL builder throws on a reference that is not an image asset;
+ * BookSchema drops such a book when it is decoded (isBookCoverRef), so one bad cover never
+ * reaches here to fail the whole catalog.
  */
 const coverSrcOf = (doc: SanityBook): string =>
   urlFor(doc.coverImage).width(COVER_WIDTH).height(COVER_HEIGHT).fit('crop').auto('format').url();
@@ -195,22 +195,37 @@ export function buildBookshelfCatalog(
 }
 
 /**
- * The bookshelf catalog. React-cache()d per request, so a page's metadata and its render share
- * one load and one mapping pass. Rejects when either loader does (Sanity down with nothing
- * cached): without its shelves a book has no order or track label.
+ * The bookshelf catalog, built from one snapshot: the books and the shelves come from the same
+ * query and the same cache entry, so a book moved to a newly published shelf always arrives with
+ * that shelf, and while a reload fails both lists are the last good snapshot. React-cache()d per
+ * request, so a page's metadata and its render share one load and one mapping pass. Rejects when
+ * the snapshot does (Sanity down with nothing cached).
  */
 export const loadBookshelfCatalog = cache(async (): Promise<BookshelfCatalog> => {
-  const [books, shelves] = await Promise.all([loadBooks(), loadBookshelves()]);
+  const { books, shelves } = await loadBookshelf();
   return buildBookshelfCatalog(books, shelves);
 });
 
-/** The book with this slug and the catalog it sits in, or null when no book has the slug. */
-export async function loadCatalogBookBySlug(
-  slug: string,
-): Promise<{ readonly book: BookItem; readonly catalog: BookshelfCatalog } | null> {
+/** A book found by its slug: the book, its stage neighbours and the catalog it sits in. */
+export interface CatalogBookHit {
+  readonly book: BookItem;
+  /**
+   * The books before and after it in stage order, wrapping round both ends (the first book's
+   * previous is the last), as only the Previous and Next links name them.
+   */
+  readonly prev: BookNeighbor;
+  readonly next: BookNeighbor;
+  readonly catalog: BookshelfCatalog;
+}
+
+/** The book with this slug, its neighbours and its catalog, or null when no book has the slug. */
+export async function loadCatalogBookBySlug(slug: string): Promise<CatalogBookHit | null> {
   const catalog = await loadBookshelfCatalog();
-  const book = catalog.books.find((item) => item.slug === slug);
-  return book ? { book, catalog } : null;
+  const index = catalog.books.findIndex((item) => item.slug === slug);
+  const book = catalog.books[index];
+  if (!book || !hasBooks(catalog.books)) return null;
+  const { prev, next } = neighborsOf(catalog.books, index);
+  return { book, prev: toBookNeighbor(prev), next: toBookNeighbor(next), catalog };
 }
 
 /** The shelf with this slug, its books in stage order and the catalog, or null when none has it. */

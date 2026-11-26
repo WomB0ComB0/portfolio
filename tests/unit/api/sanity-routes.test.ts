@@ -271,9 +271,13 @@ describe('GET /sanity/places', () => {
 describe('GET /sanity/books and /sanity/bookshelves', () => {
   /** The query the route sent to Sanity. */
   const queryOf = (): string => String(sanity.sanityFetchWithToken.mock.calls[0]?.[0]);
+  /** What the one bookshelf query answers: both lists, from one revision of the dataset. */
+  const snapshot = (books: unknown[] = [], shelves: unknown[] = []) => ({ books, shelves });
+  const rawShelf = { _id: 'bookshelf-systems', _type: 'bookshelf', title: 'Systems' };
+  const rawBook = { _id: 'book-queues', _type: 'book', title: 'Queues', shelfId: rawShelf._id };
 
   it('answers flat books that name their shelf, with no legacy track, cover URL or palette', async () => {
-    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    sanity.sanityFetchWithToken.mockResolvedValue(snapshot());
     const get = await loadApp();
 
     const res = await get('/books');
@@ -286,14 +290,65 @@ describe('GET /sanity/books and /sanity/bookshelves', () => {
   });
 
   it('answers flat shelves, with no dereferenced books or dropped fields', async () => {
-    sanity.sanityFetchWithToken.mockResolvedValue([]);
+    sanity.sanityFetchWithToken.mockResolvedValue(snapshot());
     const get = await loadApp();
 
     const res = await get('/bookshelves');
 
     expect(res.status).toBe(200);
-    expect(queryOf()).not.toMatch(/\b(?:books|accentColor|featured)\b/);
+    // One query reads both document types; neither list dereferences the other.
+    expect(queryOf()).toContain('_type == "book"');
+    expect(queryOf()).toContain('_type == "bookshelf"');
+    expect(queryOf()).not.toMatch(/->|\b(?:accentColor|featured)\b/);
   });
+
+  it('answers both lists, each in its own shape, from ONE Sanity request per TTL', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValue(snapshot([rawBook], [rawShelf]));
+    const get = await loadApp();
+
+    const books = await get('/books');
+    const shelves = await get('/bookshelves');
+
+    expect(books.status).toBe(200);
+    expect(await books.json()).toEqual([rawBook]);
+    expect(shelves.status).toBe(200);
+    expect(shelves.headers.get('cache-control')).toBe(FRESH_CACHE_CONTROL);
+    expect(await shelves.json()).toEqual([rawShelf]);
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(T0 + AFTER_TTL);
+    await get('/bookshelves');
+    await get('/books');
+    expect(sanity.sanityFetchWithToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('serves both lists stale together when the one reload fails', async () => {
+    sanity.sanityFetchWithToken.mockResolvedValueOnce(snapshot([rawBook], [rawShelf]));
+    const get = await loadApp();
+    await get('/books');
+
+    sanity.sanityFetchWithToken.mockRejectedValueOnce(sanityDown());
+    vi.setSystemTime(T0 + AFTER_TTL);
+    const shelves = await get('/bookshelves');
+
+    expect(shelves.status).toBe(200);
+    expect(shelves.headers.get('cache-control')).toBe(STALE_CACHE_CONTROL);
+    expect(await shelves.json()).toEqual([rawShelf]);
+    expectReport('warning', 'fetch bookshelf collections from Sanity');
+  });
+
+  it.each(['/books', '/bookshelves'])(
+    '%s answers 503 when Sanity answers anything but both lists',
+    async (path) => {
+      sanity.sanityFetchWithToken.mockResolvedValue({ books: [rawBook] });
+      const get = await loadApp();
+
+      const res = await get(path);
+
+      expect(res.status).toBe(503);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+    },
+  );
 });
 
 describe('GET /sanity/resume', () => {

@@ -104,6 +104,15 @@ function collectValueGraph(entry: string): { files: Set<string>; packages: Set<s
 }
 
 describe('bookshelf client island compartmentalization', () => {
+  // The covers are sized by the site's CDN loader (coverAt in books.ts): that module takes only a
+  // type from next/image, so the island stays free of next/image's runtime.
+  it('sizes the stage covers through the CDN loader, never through next/image', () => {
+    const { files, packages } = collectValueGraph(CLIENT_ISLANDS[0] ?? '');
+
+    expect(files.has(path.join(SRC, 'lib/images/cdn-loader.ts'))).toBe(true);
+    expect(packages.has('next/image')).toBe(false);
+  });
+
   it.each(CLIENT_ISLANDS.map((file) => [path.relative(ROOT, file), file] as const))(
     '%s never reaches server loaders, Redis manifest store, security JSON, or DOMPurify',
     (_label, islandPath) => {

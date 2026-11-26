@@ -19,9 +19,13 @@
  * book and shelf as props, or, with no books published, the EmptyState (decided here, since the
  * island's hooks need at least one book). When Sanity fails with nothing cached the load rejects,
  * and src/app/(routes)/error.tsx shows the error inside the shell.
+ *
+ * No Suspense boundary round the island: nothing inside suspends (the data comes as props, and
+ * the root layout renders every request dynamically, so nuqs' useSearchParams needs none), and
+ * one with an empty fallback let React stream the stage after the footer, which then jumped down.
  */
 
-import { type ReactElement, Suspense } from 'react';
+import type { ReactElement } from 'react';
 import { EmptyState } from '@/components/console/empty-state';
 import { PageShell } from '@/components/console/page-shell';
 import { SectionBoundary } from '@/components/data/section-boundary';
@@ -69,9 +73,7 @@ export default async function BookshelfPage({
 
   return (
     <SectionBoundary label="bookshelf">
-      <Suspense fallback={null}>
-        <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
-      </Suspense>
+      <BookshelfStage initialSlug={initialSlug} books={catalog.books} shelves={catalog.shelves} />
     </SectionBoundary>
   );
 }

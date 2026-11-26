@@ -57,8 +57,7 @@ const loaders = vi.hoisted(() => ({
   loadPlaces: vi.fn(),
   loadCertifications: vi.fn(),
   loadResume: vi.fn(),
-  loadBooks: vi.fn(),
-  loadBookshelves: vi.fn(),
+  loadBookshelf: vi.fn(),
 }));
 
 const report = vi.hoisted(() => ({ reportApiFailure: vi.fn() }));
@@ -169,8 +168,7 @@ beforeEach(() => {
   loaders.loadPlaces.mockReset().mockResolvedValue(PLACES);
   loaders.loadCertifications.mockReset().mockResolvedValue(CERTIFICATIONS);
   loaders.loadResume.mockReset().mockResolvedValue(RESUME);
-  loaders.loadBooks.mockReset().mockResolvedValue(BOOKS);
-  loaders.loadBookshelves.mockReset().mockResolvedValue(SHELVES);
+  loaders.loadBookshelf.mockReset().mockResolvedValue({ books: BOOKS, shelves: SHELVES });
 });
 
 afterAll(() => {
@@ -227,8 +225,10 @@ describe('sitemap entries', () => {
   it('lists no book without a published shelf and no shelf without books', async () => {
     const orphan = makeBook({ shelfId: 'bookshelf-unpublished' });
     const emptyShelf = makeBookshelf();
-    loaders.loadBooks.mockResolvedValue([...BOOKS, orphan]);
-    loaders.loadBookshelves.mockResolvedValue([...SHELVES, emptyShelf]);
+    loaders.loadBookshelf.mockResolvedValue({
+      books: [...BOOKS, orphan],
+      shelves: [...SHELVES, emptyShelf],
+    });
 
     const paths = (await Sitemap()).map(pathOf);
 
@@ -379,8 +379,7 @@ describe('sitemap edge cases', () => {
 
   it('dates nothing for an empty collection or when no resume is active', async () => {
     loaders.loadProjects.mockResolvedValue([]);
-    loaders.loadBooks.mockResolvedValue([]);
-    loaders.loadBookshelves.mockResolvedValue([]);
+    loaders.loadBookshelf.mockResolvedValue({ books: [], shelves: [] });
     loaders.loadResume.mockResolvedValue(null);
 
     const entries = await Sitemap();
@@ -392,18 +391,15 @@ describe('sitemap edge cases', () => {
     expect(entries.map(pathOf).filter((path) => path.startsWith('/bookshelf/'))).toEqual([]);
   });
 
-  it.each([
-    'loadProjects',
-    'loadExperiences',
-    'loadPlaces',
-    'loadBooks',
-    'loadBookshelves',
-  ] as const)('rejects instead of answering a partial sitemap when %s rejects', async (loader) => {
-    const outage = new Error('Sanity answered 503');
-    loaders[loader].mockRejectedValue(outage);
+  it.each(['loadProjects', 'loadExperiences', 'loadPlaces', 'loadBookshelf'] as const)(
+    'rejects instead of answering a partial sitemap when %s rejects',
+    async (loader) => {
+      const outage = new Error('Sanity answered 503');
+      loaders[loader].mockRejectedValue(outage);
 
-    await expect(Sitemap()).rejects.toBe(outage);
-  });
+      await expect(Sitemap()).rejects.toBe(outage);
+    },
+  );
 
   it.each([
     ['loadCertifications', '/certifications'],
