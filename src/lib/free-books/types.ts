@@ -149,6 +149,15 @@ export interface DeltaDetonationRecord {
   readonly scannedAt: string;
 }
 
+/**
+ * How many weekly sweeps in a row checked each automated flag and found it clean: a block or
+ * quarantine is lifted at 2. Kept only in the sweep's drift state, never in what the site reads.
+ */
+export interface FlagCleanStreaks {
+  readonly hosts: Readonly<Record<string, number>>;
+  readonly urls: Readonly<Record<string, number>>;
+}
+
 export interface FreeBooksSecurityManifest {
   readonly generatedAt: string;
   readonly checkedHosts: number;
@@ -163,4 +172,6 @@ export interface FreeBooksSecurityManifest {
   readonly urlFingerprints?: Readonly<Record<string, UrlBaselineFingerprint>>;
   /** Outsourced sandbox detonation submissions for newly added / drifted external domains. */
   readonly deltaDetonations?: Readonly<Record<string, DeltaDetonationRecord>>;
+  /** The sweep's clean-run counts per flag (drift state only). */
+  readonly cleanStreaks?: FlagCleanStreaks;
 }
