@@ -463,19 +463,8 @@ Safari or physical-device coverage.
   numbers run shelf by shelf, in shelf `order`, then book `order`; existing entries use steps of 10,
   so a new book fits between two others. There is no webhook: an edit appears within about 5 minutes
   (the shared Sanity cache), and in the sitemap within an hour. `/bookshelf/free` is an external
-  feed, not Studio content.
-  - The one-time move of the old TypeScript catalog into Sanity runs from the repository root with
-    the admin's CLI login (`bunx sanity login`). First back up with
-    `bunx sanity datasets export production ../sanity-backups/production-pre-bookshelf.tar.gz`,
-    publish or discard any book draft, and deploy the Studio (`bun run sanity:deploy`). Then run
-    `bunx sanity exec scripts/bookshelf/migrate-to-sanity.ts --with-user-token -- --dry-run` (the
-    default; it writes nothing), then `-- --apply` and `-- --verify`, and check with
-    `bunx sanity documents validate -y --level error`. `--apply` keeps content fields Studio already
-    has (`setIfMissing`; differing values are listed in the dry run), but always sets each book's
-    `status`, `order` and `shelf`, each shelf's `order`, a missing cover and the legacy `track` and
-    `books` from the catalog, so review the dry run before applying. After the new site is deployed,
-    `-- --finalize` removes the legacy `track` and `books` fields. The script, its catalog and
-    `public/assets/bookshelf/` are deleted afterwards.
+  feed, not Studio content. Schema changes to `book` or `bookshelf` reach editors only after
+  `bun run sanity:deploy`.
 - **Project and experience media**: follow the
   [capture and upload guide](docs/guides/portfolio-media.md) for desktop/mobile screenshots, short
   walkthroughs, captions and placement on organizations or individual roles.

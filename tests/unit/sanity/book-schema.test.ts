@@ -18,8 +18,8 @@
  * @file The bookshelf contract has one source (src/sanity/bookshelf-rules.ts): the Studio book
  * schema lists exactly its statuses, labelled by its labels, and the Effect BookSchema accepts
  * exactly those, with a routable slug (never a reserved one such as `free`, the Free Library's
- * /bookshelf/free) and a required cover image asset and shelf. A book names its one shelf; `track`
- * and `books[]` are hidden legacy fields, and the dead palette/cover-URL fields are gone. The
+ * /bookshelf/free) and a required cover image asset and shelf. A book names its one shelf; the
+ * retired `track` and `books[]` fields and the dead palette/cover-URL fields are gone. The
  * loaders decode each book on its own, so a book Studio could not have published, or whose cover
  * the image URL builder cannot draw, is dropped and reported rather than patched up.
  *
@@ -231,11 +231,9 @@ describe('book documents', () => {
     expect(fieldOf(bookType, 'order').initialValue).toBeUndefined();
   });
 
-  it('keep the legacy track hidden and read-only, and drop the dead fields', () => {
-    const track = fieldOf(bookType, 'track');
-    expect(track.hidden).toBe(true);
-    expect(track.readOnly).toBe(true);
+  it('drop the retired track and the dead palette and cover-URL fields', () => {
     const names = fieldsOf(bookType).map(({ name }) => name);
+    expect(names).not.toContain('track');
     expect(names).not.toContain('spine');
     expect(names).not.toContain('coverUrl');
   });
@@ -439,11 +437,9 @@ describe('shelf titles', () => {
 });
 
 describe('bookshelf documents', () => {
-  it('keep the legacy books list hidden and read-only, and drop the dead fields', () => {
-    const books = fieldOf(bookshelfType, 'books');
-    expect(books.hidden).toBe(true);
-    expect(books.readOnly).toBe(true);
+  it('drop the retired books list and the dead accent and featured fields', () => {
     const names = fieldsOf(bookshelfType).map(({ name }) => name);
+    expect(names).not.toContain('books');
     expect(names).not.toContain('accentColor');
     expect(names).not.toContain('featured');
   });

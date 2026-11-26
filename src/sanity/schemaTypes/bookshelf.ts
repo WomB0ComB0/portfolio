@@ -23,9 +23,6 @@
  * tells shelves apart by title: so it must be unique among shelves and must not read as "All", the
  * tab that shows every shelf (rules shared in ../bookshelf-rules.ts).
  *
- * `books` is a hidden legacy field: the site code deployed before the shelf reference still reads
- * a shelf's books from it, so it stays until the data migration's finalize step unsets it.
- *
  * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
  */
 
@@ -134,18 +131,6 @@ export const bookshelfType = defineType({
       description: 'Shelf position; stages are numbered shelf by shelf in this order',
       initialValue: 0,
       validation: (Rule) => Rule.required(),
-    }),
-    // Legacy: the site code deployed before the shelf reference reads a shelf's books from here.
-    // Hidden and read-only, never removed from the schema, until the migration's finalize step
-    // unsets it.
-    defineField({
-      name: 'books',
-      title: 'Books on this Shelf (legacy)',
-      type: 'array',
-      of: [{ type: 'reference', to: [{ type: 'book' }] }],
-      hidden: true,
-      readOnly: true,
-      description: "Legacy: replaced by each book's Shelf; removed after the migration",
     }),
   ],
   orderings: [{ title: 'Position', name: 'orderAsc', by: [{ field: 'order', direction: 'asc' }] }],
