@@ -35,56 +35,20 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
+import { EMPTY_TEXT, LIVE, MAIN, openBookshelf, publishedBooks } from '../fixtures/bookshelf';
 import { readOnly } from '../fixtures/console-routes';
 
-/** The shell's one `<main>` (src/components/animations/pages/page-transition.tsx). */
-const MAIN = 'main#main-content';
 /** A cover served by the Sanity image CDN, which is where every book cover now lives. */
 const SANITY_COVER = 'img[src^="https://cdn.sanity.io/images/"]';
-/** What /bookshelf says when its catalog has no book (bookshelf/(list)/page.tsx). */
-const EMPTY_TEXT = 'No books yet';
 const SHELF_LINK = `${MAIN} a[href^="/bookshelf/shelf/"]`;
-/** The live region naming the book on stage, "<stage> of <count>: <title>" (bookshelf-stage.tsx). */
-const ON_STAGE = `${MAIN} p[aria-live="polite"]`;
+/** The live region's text, capturing the title of the book on stage. */
 const ON_STAGE_TEXT = /^\d+ of \d+: (.+)$/s;
 const MISSING_PAGES = ['/bookshelf/does-not-exist', '/bookshelf/shelf/does-not-exist'] as const;
-
-/** A book as /api/v1/sanity/books serves it: the raw projection, so every field is optional. */
-interface ApiBook {
-  readonly title?: string;
-  readonly slug?: { readonly current?: string } | null;
-}
 
 const urlOf = (path: string): string => `${getTargetUrl()}${path}`;
 
 test.use({ serviceWorkers: 'block' });
 test.beforeEach(async ({ page }) => readOnly(page));
-
-/** The published books, in the API's order (shelf position first, then creation). */
-async function publishedBooks(request: APIRequestContext): Promise<readonly ApiBook[]> {
-  const response = await request.get(urlOf('/api/v1/sanity/books'));
-  expect(response.ok(), 'GET /api/v1/sanity/books').toBe(true);
-  const body: unknown = await response.json();
-  expect(Array.isArray(body), 'the books JSON is a list').toBe(true);
-  return body as ApiBook[];
-}
-
-/**
- * Opens /bookshelf and waits for its h1. `isEmpty` is true when it shows its empty state: no book
- * is in its catalog, whatever the books JSON lists.
- */
-async function openBookshelf(
-  page: Page,
-): Promise<{ readonly status?: number; readonly isEmpty: boolean }> {
-  const response = await page.goto(urlOf('/bookshelf'));
-  const main = page.locator(MAIN);
-  await expect(main).toHaveCount(1);
-  await expect(
-    main.getByRole('heading', { level: 1, name: 'Bookshelf', exact: true }),
-  ).toBeVisible();
-  const isEmpty = (await main.getByText(EMPTY_TEXT, { exact: true }).count()) > 0;
-  return { status: response?.status(), isEmpty };
-}
 
 /**
  * The book /bookshelf puts on stage first (so one its catalog holds), with its slug from the books
@@ -96,7 +60,7 @@ async function bookOnStage(
 ): Promise<{ readonly slug: string; readonly title: string } | null> {
   const { isEmpty } = await openBookshelf(page);
   if (isEmpty) return null;
-  const onStage = page.locator(ON_STAGE);
+  const onStage = page.locator(LIVE);
   await expect(onStage).toHaveText(ON_STAGE_TEXT);
   const title = ON_STAGE_TEXT.exec(((await onStage.textContent()) ?? '').trim())?.[1]?.trim() ?? '';
   const slug = (await publishedBooks(request)).find((book) => book.title === title)?.slug?.current;
@@ -116,7 +80,7 @@ test.describe('the bookshelf against the live data', () => {
       return;
     }
     await expect(main.locator(SANITY_COVER).first()).toBeAttached();
-    await expect(page.locator(ON_STAGE)).toHaveText(ON_STAGE_TEXT);
+    await expect(page.locator(LIVE)).toHaveText(ON_STAGE_TEXT);
   });
 
   test('the page of the book on stage answers 200 with its title and its Sanity cover', async ({

@@ -39,16 +39,11 @@
 import { existsSync } from 'node:fs';
 import { expect, type Locator, type Page, type TestInfo, test } from '@playwright/test';
 
-import { getTargetUrl } from '../fixtures/base';
+import { openBookshelf, SHELF_GROUP } from '../fixtures/bookshelf';
 import { readOnly } from '../fixtures/console-routes';
 
 const WIDTHS = [320, 768, 1024, 1440] as const;
 const HEIGHT = 900;
-const MAIN = 'main#main-content';
-/** The shelf chips (bookshelf-filters-bar.tsx); their parent row holds the status chips too. */
-const SHELF_GROUP = `${MAIN} [role="group"][aria-label="Shelves"]`;
-/** What /bookshelf says when its catalog has no book (bookshelf/(list)/page.tsx). */
-const EMPTY_TEXT = 'No books yet';
 
 const UPDATE_BASELINES = process.env.UPDATE_VISUAL_BASELINES === '1';
 
@@ -67,13 +62,9 @@ test.beforeEach(async ({ page }) => readOnly(page));
 async function openChips(page: Page, width: number): Promise<Locator | null> {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width, height: HEIGHT });
-  const response = await page.goto(`${getTargetUrl()}/bookshelf`);
-  expect(response?.status()).toBe(200);
-  const main = page.locator(MAIN);
-  await expect(
-    main.getByRole('heading', { level: 1, name: 'Bookshelf', exact: true }),
-  ).toBeVisible();
-  if ((await main.getByText(EMPTY_TEXT, { exact: true }).count()) > 0) return null;
+  const { status, isEmpty } = await openBookshelf(page);
+  expect(status).toBe(200);
+  if (isEmpty) return null;
   const group = page.locator(SHELF_GROUP);
   await expect(group).toBeVisible();
   await page.evaluate(async () => {
