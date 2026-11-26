@@ -173,14 +173,22 @@ function parseEntryLine(
 }
 
 /**
- * Plain text from inline Markdown/HTML. Tags are stripped, then any `<` or `>` left behind is
- * dropped too, so nested or unclosed fragments (`<scr<script>ipt>`, `Book <script`) cannot survive
- * as tag text in the catalog or the public JSON.
+ * Removes HTML tags until none are left, then any stray `<` or `>`, so nested or unclosed fragments
+ * (`<scr<script>ipt>`, `Book <script`) cannot survive as tag text in the catalog or the public JSON.
  */
+function stripTags(raw: string): string {
+  let text = raw;
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^>]*>/g, '');
+  } while (text !== previous);
+  return text.replace(/[<>]/g, '');
+}
+
+/** Plain text from inline Markdown/HTML: tags, link syntax and emphasis marks removed. */
 function cleanInlineMarkdown(raw: string): string {
-  return raw
-    .replace(/<[^>]*>/g, '')
-    .replace(/[<>]/g, '')
+  return stripTags(raw)
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_`~]/g, '')
     .replace(/\s+/g, ' ')
