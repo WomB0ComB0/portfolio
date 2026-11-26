@@ -16,6 +16,13 @@
 
 'use client';
 
+/**
+ * @file One book on the stage: a 3D cuboid of spine, cover, back and pages in a slot placed from
+ * the stage's centre by --slot-x, its cover drawn at the width it shows. The server's HTML already
+ * paints its place, tilt and state classes; the stage's teleport effect adds SLOT_NO_ANIM_CLASS to
+ * land a recycled slot without a transition. Guarded by tests/unit/bookshelf/book-slot.test.tsx.
+ */
+
 import { type CSSProperties, memo, type ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
@@ -157,7 +164,7 @@ export const BookshelfBookSlot = memo(function BookshelfBookSlot({
         <div className={cn(styles.face, styles['face-pages'])} />
       </div>
 
-      {/* Full-cover 2D hit plane for active book (eliminates 51px perspective hit clipping) */}
+      {/* A flat hit area over the active book's turned cover: the slot is only a spine wide. */}
       <div
         aria-hidden="true"
         data-active-hit={isActive ? 'true' : 'false'}

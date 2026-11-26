@@ -242,7 +242,7 @@ export function useBookshelfNavigation({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [mapOpen, step, jumpTo, bookCount, openDetail, bookAt, closeDetail, stageRef, posRef]);
 
-  // The ring cursor: it trails the pointer, reads Open over the active book, shrinks while dragging.
+  // The ring cursor trails the pointer, reads Open over the active book, shrinks while dragging.
   useEffect(() => {
     if (!finePointer || detailOpen) return;
     const state = {

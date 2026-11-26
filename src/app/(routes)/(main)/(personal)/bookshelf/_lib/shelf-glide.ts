@@ -84,7 +84,7 @@ export function scrubSteps(
   return { steps, residual: rest };
 }
 
-/** How far the shelf follows the finger, in px, with `residual` px of travel since the last step. */
+/** The shelf's offset under the finger, in px, for `residual` px of travel since the last step. */
 export const dragOffset = (residual: number, unit: number): number =>
   Math.max(
     -unit * DRAG_OFFSET_MAX_SHARE,

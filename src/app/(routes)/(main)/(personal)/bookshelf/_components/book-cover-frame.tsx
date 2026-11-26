@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/**
+ * @file A book's upright cover in its frame, with the hinge's shading. BookDetailView draws it, so
+ * it shows in the stage's in-page detail and on /bookshelf/[slug], where it is the page's LCP
+ * image. Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ */
+
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/utils';
 import { COVER_HEIGHT, COVER_WIDTH, coverAt } from '../_lib/book-covers';
@@ -34,9 +40,9 @@ export interface BookCoverFrameProps {
 }
 
 /**
- * Borderless upright book cover with subtle spine-hinge shading and elevation shadow,
- * shared by the standalone `/bookshelf/[slug]` route. With `priority` it is the page's hero (its
- * LCP image): loaded eagerly and at high fetch priority, the one cover that is.
+ * A book's cover in its frame, in the detail view both in-page and on `/bookshelf/[slug]`. With
+ * `priority` it is the page's hero (its LCP image): loaded eagerly and at high fetch priority, the
+ * one cover that is.
  */
 export function BookCoverFrame({
   book,

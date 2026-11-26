@@ -16,6 +16,12 @@
 
 'use client';
 
+/**
+ * @file The row under the stage: the stage or book number, the active book's title, status and
+ * Open notes link, and the previous and next arrows (disabled at the ends of a shelf's page).
+ * Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ */
+
 import type { ReactElement } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight } from 'react-icons/fi';
 import { cn } from '@/lib/utils';

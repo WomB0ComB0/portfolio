@@ -16,6 +16,14 @@
 
 'use client';
 
+/**
+ * @file A book's detail inside PageShell: its summary, authors and ISBN links, numbered topics,
+ * Previous and Next books and its cover, with the reading map. The stage (bookshelf-stage.tsx)
+ * renders it in place for #/stage/NN, and [slug]/page.tsx renders it as its own island. Guarded
+ * by tests/unit/bookshelf/bookshelf.test.tsx and scale-budgets.test.ts, and kept free of server
+ * modules by island-imports.test.ts.
+ */
+
 import Link from 'next/link';
 import { type CSSProperties, type ReactElement, useMemo, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
@@ -53,9 +61,8 @@ export interface BookDetailViewProps {
 }
 
 /**
- * Live Console book detail view — rendered inside `<PageShell>` so the site navigation rail,
- * typography, and page rhythm stay 100% consistent (used both in-page from `/bookshelf` and on
- * the canonical `/bookshelf/[slug]` route).
+ * One book's detail, in PageShell like every page: in-page on `/bookshelf` (with onBack and
+ * onNavigateBook, so nothing reloads) or on its own `/bookshelf/[slug]` route (with links).
  */
 export function BookDetailView({
   book,

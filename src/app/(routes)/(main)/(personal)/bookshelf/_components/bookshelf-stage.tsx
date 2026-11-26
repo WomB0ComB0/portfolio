@@ -16,6 +16,17 @@
 
 'use client';
 
+/**
+ * @file The /bookshelf island: the whole shelf ((list)/page.tsx) or one shelf's page
+ * (shelf/[shelfSlug]/page.tsx) as a 3D stage of books inside PageShell, with the filters bar, the
+ * controls, the shelf cards and the reading map. It reads the URL state (bookshelf-filters.ts),
+ * renders the pool of book slots and runs the teleport effect; the motion, the in-page detail, the
+ * shelf pill and the input are its hooks (use-shelf-motion.ts, use-in-page-detail.ts,
+ * use-shelf-pill.ts, use-bookshelf-navigation.ts). While a book is open it renders BookDetailView
+ * in place of its shell. Guarded by tests/unit/bookshelf/bookshelf.test.tsx and
+ * scale-budgets.test.ts, and kept free of server modules by island-imports.test.ts.
+ */
+
 import Link from 'next/link';
 import { useQueryStates } from 'nuqs';
 import {
@@ -98,7 +109,7 @@ export interface BookshelfStageProps {
 
 /** A resize re-measures the stage once it has settled this long. */
 const RESIZE_DEBOUNCE_MS = 100;
-/** A jump past JUMP_SLIDE_MAX (use-shelf-motion.ts) teleports every slot, then fades in this long. */
+/** How long the shelf fades in after a long jump (past JUMP_SLIDE_MAX) teleports the slots. */
 const JUMP_IN_MS = 220;
 /** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
 const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -106,10 +117,8 @@ const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
 
 /**
- * Interactive 3D Bookshelf orchestrator built natively inside Live Console `<PageShell>`.
- * Delegates filter chrome (`BookshelfFiltersBar`), 3D cuboid slots (`BookshelfBookSlot`),
- * wheel/keyboard/drag/cursor physics (`useBookshelfNavigation`), and readout controls
- * (`BookshelfControlsBar`) to isolated sub-modules.
+ * The bookshelf stage: the books as a row of 3D slots to step, drag or jump through, the filters
+ * that highlight them, and the in-page detail of the open book.
  */
 export function BookshelfStage({
   initialSlug,
@@ -463,7 +472,6 @@ export function BookshelfStage({
           onResetFilters={() => void setUrlState({ shelf: null, track: null, status: 'all' })}
         />
 
-        {/* Borderless 3D Shelf Stage */}
         {/* biome-ignore lint/a11y/useSemanticElements: Interactive 3D carousel stage follows ARIA carousel pattern. */}
         <div
           ref={stageRef}

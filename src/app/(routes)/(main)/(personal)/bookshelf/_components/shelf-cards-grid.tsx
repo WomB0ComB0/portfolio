@@ -16,6 +16,12 @@
 
 'use client';
 
+/**
+ * @file The shelf cards under the whole shelf's stage, each with a fan of its covers: one card per
+ * shelf, linking to its page, or one per reading status, which filters the stage. The grouping is
+ * URL state (?group), controlled by the stage. Guarded by tests/unit/bookshelf/bookshelf.test.tsx.
+ */
+
 import Link from 'next/link';
 import type { CSSProperties, ReactElement } from 'react';
 import { FiArrowUpRight, FiCheck } from 'react-icons/fi';
@@ -131,9 +137,8 @@ function FanCoverStack({ books }: { readonly books: readonly BookItem[] }): Reac
 }
 
 /**
- * `seathru.app`-inspired fanned cover-stack collection cards with smooth translucent borders.
- * Supports grouping by topic shelf (`/bookshelf/shelf/[shelfSlug]`) or by reading status
- * (`Read`, `Reading`, `Unread`).
+ * The shelf cards, grouped by shelf (each links to `/bookshelf/shelf/[shelfSlug]`) or by reading
+ * status (`Read`, `Reading`, `Unread`; each filters the stage to it).
  */
 export function ShelfCardsGrid({
   shelves,
