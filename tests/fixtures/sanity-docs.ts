@@ -179,7 +179,7 @@ export function makeArticle(overrides: Partial<Article> = {}): Article {
 }
 
 /** The shelf a book names when a test gives it none: pass `shelfId: shelf._id` to join a shelf. */
-export const DEFAULT_BOOK_SHELF_ID = 'bookshelf-test';
+const DEFAULT_BOOK_SHELF_ID = 'bookshelf-test';
 
 /**
  * A book as the books query answers it: queued, with two topics, a 520x680 cover asset and
@@ -229,7 +229,7 @@ export interface ScaledBookshelfDocs {
  * The production bookshelf's shelf sizes, in shelf order (69 books on 10 shelves, 2026-11-26).
  * makeScaledBookshelfDocs spreads any number of books over its shelves in these proportions.
  */
-export const PRODUCTION_SHELF_SIZES: readonly number[] = [7, 6, 6, 4, 4, 12, 6, 9, 6, 9];
+const PRODUCTION_SHELF_SIZES: readonly number[] = [7, 6, 6, 4, 4, 12, 6, 9, 6, 9];
 
 /** The production shelf count, the scaled catalog's default. */
 const PRODUCTION_SHELF_COUNT = PRODUCTION_SHELF_SIZES.length;

@@ -408,7 +408,7 @@ const bookProjection = `
  * All published books, by their order within a shelf and then creation. The bookshelf loader
  * joins them to their shelves and orders them by shelf first.
  */
-export const booksQuery = `
+const booksQuery = `
   *[_type == "book"] | order(order asc, _createdAt asc) {
     ${bookProjection}
   }
@@ -418,7 +418,7 @@ export const booksQuery = `
  * All published bookshelf sections, by display order. A shelf carries no books: each book names
  * its shelf (`shelfId`), so books are fetched once, by booksQuery.
  */
-export const bookshelvesQuery = `
+const bookshelvesQuery = `
   *[_type == "bookshelf"] | order(order asc, _createdAt asc) {
     _id,
     _type,

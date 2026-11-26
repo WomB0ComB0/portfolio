@@ -17,7 +17,7 @@
 'use client';
 
 import Link from 'next/link';
-import { type CSSProperties, type ReactElement, useState } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { FiArrowUpRight, FiCheck } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
 import {
@@ -42,11 +42,11 @@ export interface ShelfCardsGridProps {
   /** Active reading status filter on the unified shelf. */
   readonly activeStatus?: BookStatusFilter;
   /** Controlled grouping mode synced to the URL via `nuqs` (`?group=topic|status`). */
-  readonly groupBy?: GroupingMode;
+  readonly groupBy: GroupingMode;
   /** Called when the user switches between topic shelves and reading-status stacks. */
-  readonly onGroupByChange?: (mode: GroupingMode) => void;
+  readonly onGroupByChange: (mode: GroupingMode) => void;
   /** Called when a user selects a reading status card in "By status" mode. */
-  readonly onSelectStatus?: (status: BookStatus) => void;
+  readonly onSelectStatus: (status: BookStatus) => void;
 }
 
 type GroupingMode = 'topic' | 'status';
@@ -140,19 +140,10 @@ export function ShelfCardsGrid({
   books,
   highlightedShelfSlug,
   activeStatus = 'all',
-  groupBy: controlledGroupBy,
+  groupBy,
   onGroupByChange,
   onSelectStatus,
 }: ShelfCardsGridProps): ReactElement {
-  const [uncontrolledGroupBy, setUncontrolledGroupBy] = useState<GroupingMode>('topic');
-  const groupBy = controlledGroupBy ?? uncontrolledGroupBy;
-  const setGroupBy = (next: GroupingMode): void => {
-    if (onGroupByChange) {
-      onGroupByChange(next);
-    } else {
-      setUncontrolledGroupBy(next);
-    }
-  };
   const bySlug = new Map(books.map((book) => [book.slug, book]));
 
   return (
@@ -173,7 +164,7 @@ export function ShelfCardsGrid({
           <button
             type="button"
             aria-pressed={groupBy === 'topic'}
-            onClick={() => setGroupBy('topic')}
+            onClick={() => onGroupByChange('topic')}
             className={styles['status-chip']}
           >
             By topic
@@ -181,7 +172,7 @@ export function ShelfCardsGrid({
           <button
             type="button"
             aria-pressed={groupBy === 'status'}
-            onClick={() => setGroupBy('status')}
+            onClick={() => onGroupByChange('status')}
             className={styles['status-chip']}
           >
             By reading status
@@ -270,7 +261,7 @@ export function ShelfCardsGrid({
               <button
                 key={status}
                 type="button"
-                onClick={() => onSelectStatus?.(status)}
+                onClick={() => onSelectStatus(status)}
                 className={cn(
                   styles['shelf-card'],
                   isActive && styles['shelf-card-active'],

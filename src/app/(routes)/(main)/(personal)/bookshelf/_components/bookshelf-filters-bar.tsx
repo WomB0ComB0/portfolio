@@ -56,7 +56,7 @@ export interface ShelfPillState {
 }
 
 /** The width of the fade over each end of a chip row that scrolls (.track-bar[data-overflow]). */
-export const TRACK_EDGE_FADE_REM = 1.5;
+const TRACK_EDGE_FADE_REM = 1.5;
 /** The root font size when the page reports none (jsdom). */
 const DEFAULT_ROOT_PX = 16;
 

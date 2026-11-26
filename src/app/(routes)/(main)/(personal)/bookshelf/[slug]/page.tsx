@@ -40,7 +40,7 @@ import { loadCatalogBookBySlug } from '../_lib/load-bookshelf';
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build book page metadata';
 
-export interface BookDetailPageProps {
+interface BookDetailPageProps {
   readonly params: Promise<{ readonly slug: string }>;
 }
 

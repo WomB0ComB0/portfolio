@@ -26,7 +26,7 @@
 import { cdnImageLoader } from '@/lib/images/cdn-loader';
 import { BOOK_STATUS_LABELS, type BookStatus, normalizeIsbn } from '@/sanity/bookshelf-rules';
 
-export { BOOK_STATUSES, type BookStatus, normalizeIsbn } from '@/sanity/bookshelf-rules';
+export { BOOK_STATUSES, type BookStatus } from '@/sanity/bookshelf-rules';
 
 /** A resized cover's quality: the CDN loader's own default. */
 const COVER_QUALITY = 75;
@@ -79,28 +79,20 @@ export type BookStatusFilter = 'all' | BookStatus;
 export interface BookStatusMeta {
   readonly label: string;
   readonly description: string;
-  readonly accentColor: string;
-  readonly isRead: boolean;
 }
 
 export const BOOK_STATUS_META: Readonly<Record<BookStatus, BookStatusMeta>> = {
   completed: {
     label: BOOK_STATUS_LABELS.completed,
     description: 'Finished books with distilled notes and key takeaways.',
-    accentColor: 'var(--brand)',
-    isRead: true,
   },
   reading: {
     label: BOOK_STATUS_LABELS.reading,
     description: 'Books currently on the desk and actively being annotated.',
-    accentColor: 'var(--brand-ink)',
-    isRead: false,
   },
   queued: {
     label: BOOK_STATUS_LABELS.queued,
     description: 'Queued on the reading list for upcoming deep dives.',
-    accentColor: 'var(--hairline-strong)',
-    isRead: false,
   },
 };
 
@@ -113,13 +105,6 @@ export interface ShelfCollection {
   /** The shelf document's `_updatedAt` (ISO 8601). */
   readonly updatedAt: string;
 }
-
-export const slugifyShelf = (title: string): string =>
-  title
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 
 export interface IsbnRegistryLinks {
   readonly openLibrary: string;
@@ -159,7 +144,7 @@ export interface BookSpineTheme {
  * Curated Live Console archival book-binding themes built strictly from CSS palette tokens.
  * Keeps adjacent 3D spines tactile and distinct while letting real book covers provide the color.
  */
-export const LIVE_CONSOLE_SPINE_THEMES: readonly [BookSpineTheme, ...BookSpineTheme[]] = [
+const LIVE_CONSOLE_SPINE_THEMES: readonly [BookSpineTheme, ...BookSpineTheme[]] = [
   {
     capBg: 'var(--surface-3)',
     capText: 'var(--fg-muted)',

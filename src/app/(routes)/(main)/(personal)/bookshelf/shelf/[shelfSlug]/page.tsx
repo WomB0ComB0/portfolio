@@ -35,7 +35,7 @@ import { hasBooks, loadCatalogShelfBySlug } from '../../_lib/load-bookshelf';
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build bookshelf shelf page metadata';
 
-export interface ShelfDetailPageProps {
+interface ShelfDetailPageProps {
   readonly params: Promise<{ readonly shelfSlug: string }>;
 }
 
