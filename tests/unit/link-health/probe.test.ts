@@ -19,12 +19,19 @@
 import { EventEmitter } from 'node:events';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import type { RequestOptions } from 'node:https';
+import { Readable } from 'node:stream';
 import type { DetailedPeerCertificate } from 'node:tls';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publicAddress } from '@/lib/link-health/ip-policy';
 import { createLinkProbe } from '@/lib/link-health/probe';
 import { resolveHostAddresses } from '@/lib/link-health/resolve';
-import { type ProbeHeaders, type ProbeRequest, requestPinned } from '@/lib/link-health/transport';
+import {
+  type PinnedGetRequest,
+  type ProbeHeaders,
+  type ProbeRequest,
+  requestPinned,
+  requestPinnedResponse,
+} from '@/lib/link-health/transport';
 
 const native = vi.hoisted(() => ({ http: vi.fn(), https: vi.fn() }));
 const dns = vi.hoisted(() => ({ v4: vi.fn(), v6: vi.fn(), cancel: vi.fn(), created: vi.fn() }));
@@ -176,6 +183,12 @@ describe('bounded link observations', () => {
 
   it.each([
     { addresses: [PUBLIC, '10.0.0.1'] },
+    { addresses: ['169.254.169.254'] },
+    { addresses: ['127.0.0.1'] },
+    { addresses: ['::1'] },
+    { addresses: ['fd00::1'] },
+    { addresses: ['::ffff:10.0.0.1'] },
+    { addresses: ['::ffff:a00:1'] },
     { addresses: ['not-an-ip'] },
     { addresses: Array<string>(17).fill(PUBLIC) },
   ])('rejects an unsafe or excessive DNS answer set: $addresses', async ({ addresses }) => {
@@ -459,6 +472,106 @@ describe('actual pinned Node transport configuration', () => {
     expect(await requestPinned(target())).toEqual({ status: 101 });
     expect(response.destroy).toHaveBeenCalledOnce();
     expect(socket.destroy).toHaveBeenCalledOnce();
+  });
+});
+
+describe('pinned GET transport for content inspection', () => {
+  /** node:https answers with a readable body of `chunks`, status and headers. */
+  function installStreaming(
+    status: number,
+    headers: IncomingMessage['headers'],
+    chunks: readonly string[] = [],
+  ) {
+    const response = Object.assign(Readable.from(chunks.map((chunk) => Buffer.from(chunk))), {
+      statusCode: status,
+      headers,
+    }) as unknown as IncomingMessage;
+    const request = new EventEmitter() as ClientRequest;
+    const factory = (_options: RequestOptions, callback: (response: IncomingMessage) => void) => {
+      request.end = vi.fn(() => {
+        callback(response);
+        return request;
+      });
+      return request;
+    };
+    native.http.mockImplementation(factory);
+    native.https.mockImplementation(factory);
+    return { request, response };
+  }
+
+  const target = (): PinnedGetRequest => ({
+    url: new globalThis.URL(URL),
+    address: { address: PUBLIC, family: 4 },
+    signal: new AbortController().signal,
+    range: 'bytes=0-1048575',
+    userAgent: 'verifier/1.0',
+  });
+
+  it('connects to the pinned IP with the original Host, SNI and TLS identity, and streams the body', async () => {
+    installStreaming(200, { 'content-type': 'text/html', 'content-disposition': 'inline' }, [
+      '<html>A ',
+      'free book</html>',
+    ]);
+
+    const response = await requestPinnedResponse(target());
+
+    const options = native.https.mock.calls[0]?.[0] as RequestOptions;
+    expect(options.hostname).toBe(PUBLIC);
+    expect(options.family).toBe(4);
+    expect(options.port).toBe(443);
+    expect(options.method).toBe('GET');
+    expect(options.servername).toBe('content.example.com');
+    expect(options.rejectUnauthorized).toBe(true);
+    expect(options.agent).toBe(false);
+    expect(options.lookup).toBeUndefined();
+    expect(options.headers).toEqual({
+      Host: 'content.example.com',
+      Accept: '*/*',
+      'Accept-Encoding': 'identity',
+      'User-Agent': 'verifier/1.0',
+      Range: 'bytes=0-1048575',
+    });
+    const correct = { subjectaltname: 'DNS:content.example.com' } as DetailedPeerCertificate;
+    const wrong = { subjectaltname: 'DNS:other.example.com' } as DetailedPeerCertificate;
+    expect(options.checkServerIdentity?.(PUBLIC, correct)).toBeUndefined();
+    expect(options.checkServerIdentity?.(PUBLIC, wrong)).toBeInstanceOf(Error);
+    expect(response.status).toBe(200);
+    expect(response.headers).toEqual({ contentType: 'text/html', contentDisposition: 'inline' });
+    expect(await new Response(response.body).text()).toBe('<html>A free book</html>');
+  });
+
+  it('hands back a redirect location for the caller to vet, without following it', async () => {
+    installStreaming(302, { location: 'https://elsewhere.example/' });
+
+    const response = await requestPinnedResponse(target());
+
+    expect(response).toMatchObject({
+      status: 302,
+      headers: { location: 'https://elsewhere.example/' },
+    });
+    expect(native.https).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { name: 'a private address', change: { address: { address: '10.0.0.1', family: 4 as const } } },
+    { name: 'a loopback address', change: { address: { address: '::1', family: 6 as const } } },
+    { name: 'a local name', change: { url: new globalThis.URL('https://intranet/') } },
+    { name: 'a header that would start a new line', change: { range: 'bytes=0-1\r\nX-Evil: 1' } },
+    { name: 'a user agent with a control character', change: { userAgent: 'agent\n' } },
+  ])('refuses $name before any socket is opened', async ({ change }) => {
+    await expect(requestPinnedResponse({ ...target(), ...change })).rejects.toThrow();
+    expect(native.http).not.toHaveBeenCalled();
+    expect(native.https).not.toHaveBeenCalled();
+  });
+
+  it('does not open a socket for an already aborted request', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      requestPinnedResponse({ ...target(), signal: controller.signal }),
+    ).rejects.toThrow();
+    expect(native.https).not.toHaveBeenCalled();
   });
 });
 

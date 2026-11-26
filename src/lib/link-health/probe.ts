@@ -34,9 +34,14 @@ export interface ProbeDependencies {
   readonly request: (target: ProbeRequest) => Promise<ProbeHeaders>;
 }
 
-async function resolveAddress(
+/**
+ * Resolves `hostname` once and vets every answer: a public literal passes as is; otherwise at most
+ * 16 answers, all public (ip-policy.ts), IPv4 preferred. Null when any answer is not public (or
+ * there are too many); throws when DNS has no answer. The caller connects only to the result.
+ */
+export async function resolvePublicAddress(
   hostname: string,
-  deps: ProbeDependencies,
+  deps: Pick<ProbeDependencies, 'resolve'>,
   signal: AbortSignal,
 ): Promise<PublicAddress | null> {
   const literal = publicAddress(hostname);
@@ -94,7 +99,7 @@ async function observe(
     visited.add(key);
     const hostname = probeHostname(url);
     if (!publicHostname(hostname)) return { kind: 'unknown' };
-    const address = await resolveAddress(hostname, deps, signal);
+    const address = await resolvePublicAddress(hostname, deps, signal);
     assertActive();
     if (!address) return { kind: 'unknown' };
     const response = await deps.request({ url, address, method, signal });
