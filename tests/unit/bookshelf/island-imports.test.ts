@@ -15,11 +15,13 @@
  */
 
 /**
- * @file Enforces server/client compartmentalization on `/bookshelf` and `/bookshelf/free`:
- * client islands may import isomorphic types and constants (`free-books-types.ts`,
- * `bookshelf-search-params.ts`, `normalise.ts`), but must NEVER transitively pull server loaders,
- * Upstash Redis manifest code, threat-intel verifiers, the security manifest JSON, DOMPurify, or
- * marked into client bundles.
+ * @file Keeps server code out of the `/bookshelf` and `/bookshelf/free` client islands. An island
+ * may import the isomorphic types and URL parsers (src/lib/free-books/types.ts,
+ * bookshelf/_lib/bookshelf-filters.ts, free/_lib/free-books-filters.ts, normalise.ts), but must
+ * never reach, even transitively, the free-books parser, catalog, loader, Redis store,
+ * threat-intel clients or content inspectors, the security manifest JSON, the bookshelf loader,
+ * DOMPurify or marked. Each forbidden path must exist, so a moved module fails here instead of
+ * passing unchecked.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -38,10 +40,12 @@ const CLIENT_ISLANDS = [
 ];
 
 const FORBIDDEN_MODULES = [
+  path.join(SRC, 'lib/free-books/parse.ts'),
   path.join(SRC, 'lib/free-books/catalog.ts'),
   path.join(SRC, 'lib/free-books/loader.ts'),
   path.join(SRC, 'lib/free-books/manifest-store.ts'),
   path.join(SRC, 'lib/free-books/threat-intel.ts'),
+  path.join(SRC, 'lib/free-books/content-inspection.ts'),
   path.join(SRC, 'lib/free-books/security-manifest.json'),
   path.join(BOOKSHELF, '_lib/load-bookshelf.ts'),
 ];

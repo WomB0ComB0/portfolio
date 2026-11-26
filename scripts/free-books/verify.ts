@@ -40,7 +40,13 @@
 import dns from 'node:dns/promises';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadFreeProgrammingBooks } from '../../src/lib/free-books/catalog';
+import {
+  inspectHtmlSnippet,
+  inspectPdfBytes,
+  isDangerousResponseHeaders,
+  isSuspiciousRedirectChain,
+} from '../../src/lib/free-books/content-inspection';
+import { loadFreeProgrammingBooks } from '../../src/lib/free-books/loader';
 import {
   loadLiveSecurityManifestFromRedis,
   loadVerifierDriftStateFromRedis,
@@ -50,20 +56,15 @@ import {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
   checkRdapDomainAge,
-  type DeltaDetonationRecord,
-  type FreeBooksSecurityManifest,
   loadUrlhausHostBlocklist,
   submitDeltaDetonation,
-  type UrlBaselineFingerprint,
 } from '../../src/lib/free-books/threat-intel';
-import {
-  classifyHostTrustTier,
-  inspectHtmlSnippet,
-  inspectPdfBytes,
-  isDangerousResponseHeaders,
-  isSuspiciousRedirectChain,
-  screenExternalBookUrl,
-} from '../../src/lib/free-books/url-screen';
+import type {
+  DeltaDetonationRecord,
+  FreeBooksSecurityManifest,
+  UrlBaselineFingerprint,
+} from '../../src/lib/free-books/types';
+import { classifyHostTrustTier, screenExternalBookUrl } from '../../src/lib/free-books/url-screen';
 import { probeLink } from '../../src/lib/link-health/probe';
 
 const MANIFEST_PATH = resolve(process.cwd(), 'src/lib/free-books/security-manifest.json');

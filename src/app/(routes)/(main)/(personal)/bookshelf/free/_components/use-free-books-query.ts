@@ -16,54 +16,68 @@
 
 'use client';
 
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useQueryStates } from 'nuqs';
+/**
+ * @file The /bookshelf/free explorer's state: the URL (free-books-filters.ts, through nuqs), a
+ * debounced search draft, and the TanStack Query fetch of each page from `GET /api/v1/books/free`.
+ * The server-rendered first page is the query's initial data, so the default view makes no request.
+ * A new page cancels the stale fetch, the next page is prefetched on hover or focus, and the
+ * search is normalised (normaliseQuery) before it reaches the URL or the API. Guarded by
+ * tests/unit/free-books/explorer.test.tsx.
+ */
+
+import {
+  keepPreviousData,
+  type UseQueryResult,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { type SetValues, useQueryStates, type Values } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
-import type { FreeBookFormat, FreeBookSource, FreeBooksPageResponse } from '@/lib/free-books/types';
 import {
-  BOOKSHELF_URL_OPTIONS,
+  FREE_BOOKS_DEFAULT_PAGE_SIZE,
+  type FreeBookEntry,
+  type FreeBooksPageResponse,
   type FreeBooksSortDir,
   type FreeBooksSortField,
+} from '@/lib/free-books/types';
+import { BOOKSHELF_URL_OPTIONS } from '../../_lib/bookshelf-filters';
+import {
+  buildFreeBooksApiUrl,
+  type FREE_BOOKS_PAGE_SIZES,
+  type FreeBooksApiParams,
   freeBooksSearchParsers,
   normalizeFreeBooksPageSize,
-} from '../../_lib/bookshelf-filters';
+} from '../_lib/free-books-filters';
 
 const CLIENT_STALE_TIME_MS = 5 * 60 * 1000;
 const SEARCH_DEBOUNCE_MS = 250;
 
-export interface FreeBooksApiParams {
-  readonly source: 'all' | FreeBookSource;
-  readonly category: string;
-  readonly format: 'all' | FreeBookFormat;
-  readonly q: string;
-  readonly sort: FreeBooksSortField;
-  readonly dir: FreeBooksSortDir;
-  readonly page: number;
-  readonly pageSize: number;
+/** What the explorer reads and calls; one field per value the hook derives. */
+export interface FreeBooksQuery {
+  readonly state: Values<typeof freeBooksSearchParsers>;
+  readonly setState: SetValues<typeof freeBooksSearchParsers>;
+  readonly draftQuery: string;
+  readonly handleSearchChange: (rawValue: string) => void;
+  readonly commitSearchNow: (rawValue: string) => void;
+  readonly pageSize: (typeof FREE_BOOKS_PAGE_SIZES)[number];
   readonly hideArchived: boolean;
   readonly hideUnavailable: boolean;
-  readonly hideInProcess: boolean;
-  readonly httpsOnly: boolean;
-  readonly verifiedHostsOnly: boolean;
-}
-
-export function buildFreeBooksApiUrl(params: FreeBooksApiParams): string {
-  const qs = new URLSearchParams();
-  if (params.source !== 'all') qs.set('source', params.source);
-  if (params.category !== 'all') qs.set('category', params.category);
-  if (params.format !== 'all') qs.set('format', params.format);
-  if (params.q.trim()) qs.set('q', params.q.trim());
-  qs.set('sort', params.sort);
-  qs.set('dir', params.dir);
-  qs.set('hideArchived', String(params.hideArchived));
-  qs.set('hideUnavailable', String(params.hideUnavailable));
-  if (params.hideInProcess) qs.set('hideInProcess', 'true');
-  if (params.httpsOnly) qs.set('httpsOnly', 'true');
-  if (params.verifiedHostsOnly) qs.set('verifiedHostsOnly', 'true');
-  qs.set('limit', String(params.pageSize));
-  qs.set('offset', String((Math.max(1, params.page) - 1) * params.pageSize));
-  return `/api/v1/books/free?${qs.toString()}`;
+  readonly requestedPage: number;
+  readonly activeData: FreeBooksPageResponse;
+  readonly displayedBooks: readonly FreeBookEntry[];
+  readonly totalMatched: number;
+  readonly totalPages: number;
+  readonly currentPage: number;
+  readonly isFetching: boolean;
+  readonly isPlaceholderData: boolean;
+  readonly isInitialNonDefaultLoading: boolean;
+  readonly isError: boolean;
+  readonly refetch: UseQueryResult<FreeBooksPageResponse>['refetch'];
+  readonly prefetchNextPage: () => void;
+  readonly toggleSort: (field: FreeBooksSortField) => void;
+  readonly resetFilters: () => void;
+  readonly hasActiveFilter: boolean;
 }
 
 async function fetchFreeBooksPage(
@@ -81,11 +95,10 @@ async function fetchFreeBooksPage(
 }
 
 /**
- * URL-synced (`nuqs`), debounced, XSS-sanitized TanStack Query state controller for
- * `/bookshelf/free`. Keeps SSR page 1 zero-fetch via `initialData`, debounces typing by 250ms,
- * cancels stale fetches via `AbortSignal`, and prefetches the next page on hover/focus.
+ * The explorer's URL, search and page state. Typing is debounced by 250 ms; the server-rendered
+ * first page needs no fetch; stale fetches are aborted; the next page can be prefetched.
  */
-export function useFreeBooksQuery(initialPage: FreeBooksPageResponse) {
+export function useFreeBooksQuery(initialPage: FreeBooksPageResponse): FreeBooksQuery {
   const queryClient = useQueryClient();
   const [state, setState] = useQueryStates(freeBooksSearchParsers, BOOKSHELF_URL_OPTIONS);
   const committedQuery = normaliseQuery(state.q, DEFAULT_QUERY_MAX_LENGTH);
@@ -245,7 +258,7 @@ export function useFreeBooksQuery(initialPage: FreeBooksPageResponse) {
       sort: 'title',
       dir: 'asc',
       page: 1,
-      perPage: 50,
+      perPage: FREE_BOOKS_DEFAULT_PAGE_SIZE,
       archived: false,
       unavailable: false,
       hideWip: false,

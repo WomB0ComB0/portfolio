@@ -15,270 +15,26 @@
  */
 
 /**
- * @file Parser and stale-while-revalidate loader for EbookFoundation/free-programming-books
- * (`books/free-programming-books-langs.md` and `books/free-programming-books-subjects.md`).
- * Follows EbookFoundation's upstream `fpb-lint` Markdown conventions:
- *   - Skips `### Index` TOC anchors
- *   - Tracks `### Category` and optional `#### Subcategory`
- *   - Parses `* [Title](https://...) - Author (PDF, HTML) (:card_file_box: archived) (:construction: in process) (CC BY)`
- *   - Rejects non-http(s) URLs for safety
+ * @file The catalog maths: builds the catalog and its category counts from parsed entries, and
+ * answers one page of it (filter, sort, slice). Pure and isomorphic. free/page.tsx and
+ * `GET /api/v1/books/free` (books/handlers.ts) call it with the catalog loader.ts returns. Guarded
+ * by tests/unit/free-books/catalog.test.ts.
  */
 
-import type {
-  FreeBooksSortDir,
-  FreeBooksSortField,
-} from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/bookshelf-filters';
 import { DEFAULT_QUERY_MAX_LENGTH, normaliseQuery } from '@/lib/filters/normalise';
-import { loadLiveSecurityManifestFromRedis, mergeSecurityManifests } from './manifest-store';
-import securityManifest from './security-manifest.json';
-import type { FreeBooksSecurityManifest } from './threat-intel';
 import {
   EBOOK_FOUNDATION_REPO_URL,
+  FREE_BOOKS_DEFAULT_PAGE_SIZE,
+  FREE_BOOKS_MAX_PAGE_SIZE,
   type FreeBookCategorySummary,
   type FreeBookEntry,
-  type FreeBookFormat,
-  type FreeBookSource,
   type FreeBooksFilterOptions,
   type FreeBooksPageResponse,
+  type FreeBooksSortDir,
+  type FreeBooksSortField,
   type FreeProgrammingBooksCatalog,
+  type ManifestSource,
 } from './types';
-import { screenExternalBookUrl } from './url-screen';
-
-const RAW_SOURCES: Readonly<Record<FreeBookSource, string>> = {
-  langs:
-    'https://raw.githubusercontent.com/EbookFoundation/free-programming-books/main/books/free-programming-books-langs.md',
-  subjects:
-    'https://raw.githubusercontent.com/EbookFoundation/free-programming-books/main/books/free-programming-books-subjects.md',
-};
-
-const KNOWN_FORMATS: readonly { readonly pattern: RegExp; readonly label: FreeBookFormat }[] = [
-  { pattern: /\bpdf\b/i, label: 'PDF' },
-  { pattern: /\bhtml\b/i, label: 'HTML' },
-  { pattern: /\bepub\b/i, label: 'EPUB' },
-  { pattern: /\bkindle\b|\bmobi\b/i, label: 'Kindle' },
-  { pattern: /\bmarkdown\b|\bmd\b/i, label: 'Markdown' },
-  { pattern: /\basciidoc\b/i, label: 'AsciiDoc' },
-];
-
-const LICENSE_PATTERN =
-  /\b(CC\s+BY(?:-[A-Z]{2,3})*(?:\s+\d\.\d)?|GFDL|MIT|GPL(?:\s+v?\d)?|Apache(?:\s+2\.0)?)\b/i;
-
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1h in-memory TTL so live Upstash Redis patches apply promptly
-const FETCH_TIMEOUT_MS = 10_000;
-
-interface CacheEntry {
-  readonly catalog: FreeProgrammingBooksCatalog;
-  readonly expiresAt: number;
-}
-
-let cachedCatalog: CacheEntry | null = null;
-let inflightLoad: Promise<FreeProgrammingBooksCatalog> | null = null;
-
-function parseEntryLine(
-  line: string,
-  source: FreeBookSource,
-  category: string,
-  subcategory: string | null,
-  index: number,
-  manifest?: FreeBooksSecurityManifest,
-): { readonly entry: FreeBookEntry | null; readonly quarantined: boolean } {
-  // Match `* [Title](https://...)` with balanced-ish URL handling (no spaces in URL).
-  const match = /^\s*\*\s+\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)(.*)$/.exec(line);
-  if (!match?.[1] || !match[2]) return { entry: null, quarantined: false };
-
-  const title = cleanInlineMarkdown(match[1]);
-  const rawUrl = match[2].trim();
-  if (!title) return { entry: null, quarantined: false };
-
-  // Fail-closed synchronous URL security gate (SSRF, credentials, executables, homographs, abuse TLDs).
-  const verdict = screenExternalBookUrl(rawUrl);
-  if (!verdict.safe || !verdict.normalizedUrl || !verdict.hostname) {
-    return { entry: null, quarantined: true };
-  }
-  const url = verdict.normalizedUrl;
-
-  // Fail-closed manifest quarantine (DNSBL-blocked hosts, parked domains, drive-by MIME payloads).
-  if (
-    manifest &&
-    (Object.hasOwn(manifest.blockedHosts, verdict.hostname) ||
-      Object.hasOwn(manifest.quarantinedUrls, url))
-  ) {
-    return { entry: null, quarantined: true };
-  }
-
-  const unavailable = Boolean(manifest && Object.hasOwn(manifest.unavailableUrls, url));
-
-  const trailing = (match[3] ?? '').trim();
-  const formatsSet = new Set<FreeBookFormat>();
-  let license: string | null = null;
-  let archived = false;
-  let inProcess = false;
-  let requiresAccount = false;
-
-  // Inspect all parenthesized annotations following the link (per fpb-lint rules).
-  const parenGroups = [...trailing.matchAll(/\(([^)]+)\)/g)];
-  let strippedTrailing = trailing;
-
-  for (const group of parenGroups) {
-    const inner = group[1] ?? '';
-    const full = group[0];
-    let isMetaTag = false;
-
-    if (/:card_file_box:|\barchived\b/i.test(inner)) {
-      archived = true;
-      isMetaTag = true;
-    }
-    if (/:construction:|\bin process\b|\bin progress\b|\bwip\b/i.test(inner)) {
-      inProcess = true;
-      isMetaTag = true;
-    }
-    if (/:email:|\bemail\b|\baccount\b|\bregistration\b|\blogin\b|\bsign[- ]?up\b/i.test(inner)) {
-      requiresAccount = true;
-      isMetaTag = true;
-    }
-
-    for (const fmt of KNOWN_FORMATS) {
-      if (fmt.pattern.test(inner)) {
-        formatsSet.add(fmt.label);
-        isMetaTag = true;
-      }
-    }
-
-    const licMatch = LICENSE_PATTERN.exec(inner);
-    if (licMatch?.[1]) {
-      license = licMatch[1].toUpperCase().replace(/\s+/g, ' ');
-      isMetaTag = true;
-    }
-
-    if (isMetaTag) {
-      strippedTrailing = strippedTrailing.replace(full, '');
-    }
-  }
-
-  // Also infer PDF from direct `.pdf` link URLs when not explicitly annotated.
-  if (formatsSet.size === 0 && /\.pdf(?:$|[?#])/i.test(url)) {
-    formatsSet.add('PDF');
-  }
-
-  // Clean author/description after leading ` - ` or ` — ` separator.
-  const authors = cleanInlineMarkdown(
-    strippedTrailing
-      .replace(/^\s*[-–—:]\s*/, '')
-      .replace(/\*?\s*:card_file_box:\s*\*?/gi, '')
-      .replace(/\*?\s*:construction:\s*\*?/gi, '')
-      .replace(/\*?\s*:email:\s*\*?/gi, '')
-      .replace(/\s*,\s*$/, ''),
-  );
-
-  const slugKey = category
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return {
-    entry: {
-      id: `${source}-${slugKey}-${index}`,
-      title,
-      url,
-      host: verdict.hostname,
-      trustTier: verdict.trustTier,
-      authors,
-      source,
-      category,
-      subcategory,
-      formats: [...formatsSet],
-      license,
-      archived,
-      inProcess,
-      requiresAccount,
-      insecureTransport: verdict.insecureTransport,
-      unavailable,
-    },
-    quarantined: false,
-  };
-}
-
-function cleanInlineMarkdown(raw: string): string {
-  return raw
-    .replace(/<[^>]+>/g, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/[*_`~]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Pure parser for an EbookFoundation `free-programming-books` Markdown list.
- * Skips the `### Index` section, runs the synchronous URL security gate, and quarantines
- * blocked/malicious/parked entries when a security manifest is provided.
- */
-export function parseFreeProgrammingBooksMarkdown(
-  markdown: string,
-  source: FreeBookSource,
-  manifest?: FreeBooksSecurityManifest,
-): FreeBookEntry[] {
-  return parseFreeProgrammingBooksWithStats(markdown, source, manifest).entries;
-}
-
-export function parseFreeProgrammingBooksWithStats(
-  markdown: string,
-  source: FreeBookSource,
-  manifest?: FreeBooksSecurityManifest,
-): { readonly entries: FreeBookEntry[]; readonly quarantinedCount: number } {
-  const entries: FreeBookEntry[] = [];
-  const lines = markdown.split(/\r?\n/);
-
-  let currentCategory: string | null = null;
-  let currentSubcategory: string | null = null;
-  let inIndex = false;
-  let seq = 0;
-  let quarantinedCount = 0;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    if (line.startsWith('### ')) {
-      const heading = cleanInlineMarkdown(line.slice(4));
-      if (heading.toLowerCase() === 'index') {
-        inIndex = true;
-        currentCategory = null;
-        currentSubcategory = null;
-        continue;
-      }
-      inIndex = false;
-      currentCategory = heading;
-      currentSubcategory = null;
-      continue;
-    }
-
-    if (line.startsWith('#### ')) {
-      if (!inIndex && currentCategory) {
-        currentSubcategory = cleanInlineMarkdown(line.slice(5));
-      }
-      continue;
-    }
-
-    if (inIndex || !currentCategory || !line.startsWith('*')) continue;
-
-    const { entry, quarantined } = parseEntryLine(
-      line,
-      source,
-      currentCategory,
-      currentSubcategory,
-      seq,
-      manifest,
-    );
-    if (quarantined) {
-      quarantinedCount += 1;
-    } else if (entry) {
-      entries.push(entry);
-      seq += 1;
-    }
-  }
-
-  return { entries, quarantinedCount };
-}
 
 export function buildFreeProgrammingBooksCatalog(
   langsBooks: readonly FreeBookEntry[],
@@ -287,7 +43,7 @@ export function buildFreeProgrammingBooksCatalog(
   options: {
     readonly quarantinedCount?: number;
     readonly securityCheckedAt?: string | null;
-    readonly manifestSource?: 'redis' | 'bundled';
+    readonly manifestSource?: ManifestSource;
   } = {},
 ): FreeProgrammingBooksCatalog {
   const books = [...langsBooks, ...subjectsBooks];
@@ -372,7 +128,7 @@ export function filterFreeProgrammingBooks(
   });
 }
 
-/** Deterministic sort shared by SSR initial page, `/api/v1/books/free`, and tests. */
+/** Sorts a copy by title, by category then title, or by host (verified hosts first) then title. */
 function sortFreeProgrammingBooks(
   books: readonly FreeBookEntry[],
   sort: FreeBooksSortField = 'title',
@@ -409,7 +165,10 @@ export function buildFreeBooksPageResponse(
 ): FreeBooksPageResponse {
   const filtered = filterFreeProgrammingBooks(catalog.books, options);
   const sorted = sortFreeProgrammingBooks(filtered, options.sort ?? 'title', options.dir ?? 'asc');
-  const limit = Math.min(Math.max(1, options.limit ?? 50), 200);
+  const limit = Math.min(
+    Math.max(1, options.limit ?? FREE_BOOKS_DEFAULT_PAGE_SIZE),
+    FREE_BOOKS_MAX_PAGE_SIZE,
+  );
   const offset = Math.max(0, options.offset ?? 0);
   const items = sorted.slice(offset, offset + limit).map((item) => ({
     ...item,
@@ -436,84 +195,4 @@ export function buildFreeBooksPageResponse(
     categories: [...catalog.categories],
     items,
   };
-}
-
-async function fetchMarkdown(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Accept: 'text/plain',
-        'User-Agent': 'mikeodnis-portfolio/1.0 (+https://mikeodnis.dev)',
-      },
-      next: { revalidate: 3_600 },
-    });
-    if (!res.ok) {
-      throw new Error(`GitHub raw fetch failed (${res.status}) for ${url}`);
-    }
-    return await res.text();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * Loads the parsed EbookFoundation free programming books catalog, overlaying any live Upstash
- * Redis security manifest on top of the committed baseline so weekly security patches apply
- * without a redeploy, with stale-on-error fallback if GitHub is transiently unreachable.
- */
-export async function loadFreeProgrammingBooks(): Promise<FreeProgrammingBooksCatalog> {
-  const now = Date.now();
-  if (cachedCatalog && now < cachedCatalog.expiresAt) {
-    return cachedCatalog.catalog;
-  }
-
-  if (inflightLoad) {
-    return inflightLoad;
-  }
-
-  inflightLoad = (async () => {
-    try {
-      const [langsMd, subjectsMd, liveRedisManifest] = await Promise.all([
-        fetchMarkdown(RAW_SOURCES.langs),
-        fetchMarkdown(RAW_SOURCES.subjects),
-        loadLiveSecurityManifestFromRedis(),
-      ]);
-      const { manifest, source: manifestSource } = mergeSecurityManifests(
-        securityManifest as FreeBooksSecurityManifest,
-        liveRedisManifest,
-      );
-      const langsParsed = parseFreeProgrammingBooksWithStats(langsMd, 'langs', manifest);
-      const subjectsParsed = parseFreeProgrammingBooksWithStats(subjectsMd, 'subjects', manifest);
-      const catalog = buildFreeProgrammingBooksCatalog(
-        langsParsed.entries,
-        subjectsParsed.entries,
-        new Date().toISOString(),
-        {
-          quarantinedCount: langsParsed.quarantinedCount + subjectsParsed.quarantinedCount,
-          securityCheckedAt: manifest.checkedHosts > 0 ? manifest.generatedAt : null,
-          manifestSource,
-        },
-      );
-      cachedCatalog = { catalog, expiresAt: Date.now() + CACHE_TTL_MS };
-      return catalog;
-    } catch (error) {
-      if (cachedCatalog) {
-        return cachedCatalog.catalog;
-      }
-      throw error;
-    } finally {
-      inflightLoad = null;
-    }
-  })();
-
-  return inflightLoad;
-}
-
-/** Clears the in-memory cache (for tests). */
-export function resetFreeProgrammingBooksCache(): void {
-  cachedCatalog = null;
-  inflightLoad = null;
 }

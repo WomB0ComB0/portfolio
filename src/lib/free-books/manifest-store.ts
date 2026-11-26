@@ -15,19 +15,21 @@
  */
 
 /**
- * @file Zero-deploy live security manifest store backed by Upstash Redis REST API,
- * with automatic fallback to the committed `src/lib/free-books/security-manifest.json` baseline.
- *
- * Uses pure `fetch` (no `node:*` or SDK imports) so callers stay safe across Next.js runtimes,
- * Bun CLI scripts, and Vitest unit tests.
+ * @file The live security manifest in Upstash Redis, read through the REST API. The weekly sweep
+ * publishes it (and its drift baselines) so a new block reaches the site without a deploy; the
+ * catalog loader (loader.ts) reads it and merges it over the committed security-manifest.json with
+ * mergeSecurityManifests. Plain `fetch` with no `node:*` or SDK import, so the same module runs in
+ * Next.js, in the Bun CLI and in Vitest. A read that fails or times out answers null, and the
+ * committed manifest stays in force. Guarded by tests/unit/free-books/manifest-store.test.ts.
  */
 
 import type {
   DeltaDetonationRecord,
   FetchLike,
   FreeBooksSecurityManifest,
+  ManifestSource,
   UrlBaselineFingerprint,
-} from './threat-intel';
+} from './types';
 
 export const REDIS_RUNTIME_MANIFEST_KEY = 'bookshelf:free:security-manifest:v1';
 const REDIS_FINGERPRINTS_KEY = 'bookshelf:free:fingerprints:v1';
@@ -85,6 +87,8 @@ async function upstashGetJson<T>(
     if (!body.result || typeof body.result !== 'string') return null;
     return JSON.parse(body.result) as T;
   } catch {
+    // Not reported here: the verify CLI shares this module. The caller falls back to the
+    // committed manifest (or a fresh baseline in the sweep).
     return null;
   }
 }
@@ -115,6 +119,7 @@ async function upstashSetJson(
     });
     return res.ok;
   } catch {
+    // The sweep prints the outcome (redisPublished: false); nothing is reported from here.
     return false;
   }
 }
@@ -129,7 +134,7 @@ export function mergeSecurityManifests(
   live: FreeBooksSecurityManifest | null,
 ): {
   readonly manifest: FreeBooksSecurityManifest;
-  readonly source: 'redis' | 'bundled';
+  readonly source: ManifestSource;
 } {
   if (!live || typeof live.generatedAt !== 'string') {
     return { manifest: bundled, source: 'bundled' };

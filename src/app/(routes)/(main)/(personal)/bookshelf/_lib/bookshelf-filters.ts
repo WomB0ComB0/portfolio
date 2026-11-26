@@ -15,33 +15,28 @@
  */
 
 /**
- * @file Shared isomorphic `nuqs` search-param schemas for `/bookshelf`, `/bookshelf/shelf/*`,
- * and `/bookshelf/free`. Uses `nuqs/server` parsers so both Server Components (link builders,
- * serializers) and Client Components (`useQueryStates`) stay in lockstep with zero duplicate logic.
+ * @file The /bookshelf URL contract, on nuqs/server parsers so they are safe to import on the
+ * server (src/lib/filters/define-filters.ts does the same). /bookshelf and
+ * /bookshelf/shelf/[shelfSlug] read it; the stage (bookshelf-stage.tsx) is its only reader today:
+ * - ?shelf: a shelf's slug. Absent means every shelf: "All" is the reset, not a value.
+ * - ?track: legacy and read only, the shelf filter before slugs (a shelf's title, ?track=AI). The
+ *   stage maps it to the one shelf with that title (a title two shelves share is no filter) and
+ *   rewrites the URL to ?shelf=<slug> once; nothing writes it any more.
+ * - ?status: 'all' (the default, left out of the URL) or one reading status.
+ * - ?group: how the shelf cards group, 'topic' (the default) or 'status'.
+ * - ?book: read only, the book the stage starts on.
+ * Writes replace the history entry and stay on the client (BOOKSHELF_URL_OPTIONS); /bookshelf/free
+ * keeps its own parsers in free/_lib/free-books-filters.ts and shares these options. Not ported to
+ * defineFilters, which would change the URL: repeated keys and boolean flags.
  */
 
-import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral } from 'nuqs/server';
+import { parseAsString, parseAsStringLiteral } from 'nuqs/server';
 import { BOOK_STATUSES } from '@/sanity/bookshelf-rules';
 
+/** ?status values: 'all' for no filter, or one of the reading statuses. */
 export const BOOKSHELF_STATUS_VALUES = ['all', ...BOOK_STATUSES] as const;
+/** ?group values: the shelf cards grouped by topic (their shelf) or by reading status. */
 export const BOOKSHELF_GROUP_VALUES = ['topic', 'status'] as const;
-
-export const FREE_BOOKS_SOURCE_VALUES = ['all', 'langs', 'subjects'] as const;
-export const FREE_BOOKS_FORMAT_VALUES = [
-  'all',
-  'PDF',
-  'HTML',
-  'EPUB',
-  'Kindle',
-  'Markdown',
-  'AsciiDoc',
-] as const;
-export const FREE_BOOKS_SORT_VALUES = ['title', 'category', 'host'] as const;
-export const FREE_BOOKS_DIR_VALUES = ['asc', 'desc'] as const;
-export const FREE_BOOKS_PAGE_SIZES = [25, 50, 100] as const;
-
-export type FreeBooksSortField = (typeof FREE_BOOKS_SORT_VALUES)[number];
-export type FreeBooksSortDir = (typeof FREE_BOOKS_DIR_VALUES)[number];
 
 /** Shared shallow/replace options: instant client updates, zero server round-trips, clean default URLs. */
 export const BOOKSHELF_URL_OPTIONS = {
@@ -65,30 +60,3 @@ export const bookshelfSearchParsers = {
   group: parseAsStringLiteral(BOOKSHELF_GROUP_VALUES).withDefault('topic'),
   book: parseAsString,
 };
-
-/** URL state for `/bookshelf/free` table explorer (filters, sorting, pagination). */
-export const freeBooksSearchParsers = {
-  q: parseAsString.withDefault(''),
-  source: parseAsStringLiteral(FREE_BOOKS_SOURCE_VALUES).withDefault('all'),
-  category: parseAsString.withDefault('all'),
-  format: parseAsStringLiteral(FREE_BOOKS_FORMAT_VALUES).withDefault('all'),
-  sort: parseAsStringLiteral(FREE_BOOKS_SORT_VALUES).withDefault('title'),
-  dir: parseAsStringLiteral(FREE_BOOKS_DIR_VALUES).withDefault('asc'),
-  page: parseAsInteger.withDefault(1),
-  perPage: parseAsInteger.withDefault(50),
-  /** Default hides archived entries; `?archived=true` reveals them. */
-  archived: parseAsBoolean.withDefault(false),
-  /** Default hides confirmed-unavailable entries; `?unavailable=true` reveals them. */
-  unavailable: parseAsBoolean.withDefault(false),
-  /** Default shows in-progress entries; `?hideWip=true` hides them. */
-  hideWip: parseAsBoolean.withDefault(false),
-  https: parseAsBoolean.withDefault(false),
-  verified: parseAsBoolean.withDefault(false),
-};
-
-/** Clamps arbitrary `?perPage=` query input to one of the supported table page sizes. */
-export function normalizeFreeBooksPageSize(raw: number): (typeof FREE_BOOKS_PAGE_SIZES)[number] {
-  if (raw <= 25) return 25;
-  if (raw >= 100) return 100;
-  return 50;
-}

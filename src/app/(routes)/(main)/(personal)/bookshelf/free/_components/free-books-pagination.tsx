@@ -16,6 +16,11 @@
 
 'use client';
 
+/**
+ * @file The Free Library's pager: "Page N of M" with Previous and Next buttons; hovering or
+ * focusing Next prefetches that page. Renders nothing for a single page.
+ */
+
 import type { ReactElement } from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 

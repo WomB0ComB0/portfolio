@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/**
+ * @file The books routes' cache headers and error handler (./index.ts uses them): lookups cache
+ * for 24 hours at the edge, free-books pages for 1 hour, and a thrown error from either route is
+ * logged and reported under the one context, 'looking up books', which also names the 500 body.
+ */
+
 import { createCacheHeaders, createErrorHandler } from '@/app/api/_elysia/shared/middleware';
 
 /** Book metadata lookups (ISBN/title) change rarely — cache for 24h at the edge. */
