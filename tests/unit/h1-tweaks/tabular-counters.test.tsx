@@ -23,6 +23,7 @@
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // t3-env validates on import; these tests need no real configuration.
@@ -115,13 +116,14 @@ describe('live counters use tabular figures', () => {
 
   it('the certifications chip counts and year counts, which follow the filters', () => {
     render(
-      <LedgerExplorer
-        rows={LEDGER.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
-        chips={LEDGER.chips}
-        other={LEDGER.other}
-        index={LEDGER.index}
-        initial={{ issuer: null, skill: null, q: '' }}
-      />,
+      <NuqsTestingAdapter hasMemory>
+        <LedgerExplorer
+          rows={LEDGER.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
+          chips={LEDGER.chips}
+          other={LEDGER.other}
+          index={LEDGER.index}
+        />
+      </NuqsTestingAdapter>,
     );
     // From a 48rem page the chips sit in the bar; jsdom computes no container query.
     narrow = wideLayout();

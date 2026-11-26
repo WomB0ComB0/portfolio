@@ -23,6 +23,7 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // t3-env validates on import; these tests need no real configuration.
@@ -50,13 +51,14 @@ describe('FilterBar names on /certifications', () => {
   it('leaves nothing unnamed on /certifications: a named search and a named chip list', () => {
     const ledger = buildLedger([makeCertification({ issuer: 'Amazon Web Services' })]);
     render(
-      <LedgerExplorer
-        rows={ledger.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
-        chips={ledger.chips}
-        other={ledger.other}
-        index={ledger.index}
-        initial={{ issuer: null, skill: null, q: '' }}
-      />,
+      <NuqsTestingAdapter hasMemory>
+        <LedgerExplorer
+          rows={ledger.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
+          chips={ledger.chips}
+          other={ledger.other}
+          index={ledger.index}
+        />
+      </NuqsTestingAdapter>,
     );
     // From a 48rem page the chips sit in the bar; jsdom computes no container query.
     narrow = wideLayout();

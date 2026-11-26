@@ -26,6 +26,7 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { makeCertification } from '@tests/fixtures/sanity-docs';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -99,13 +100,14 @@ describe('muted text stays at or above 4.5:1 on the H1 tokens', () => {
     // fg-faint on brand-subtle is 4.27:1; fg-muted is 5.98:1 (token-contrast.test.ts).
     const narrow = wideLayout();
     render(
-      <LedgerExplorer
-        rows={GOOGLE.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
-        chips={GOOGLE.chips}
-        other={GOOGLE.other}
-        index={GOOGLE.index}
-        initial={{ issuer: GOOGLE.index.families.google ?? null, skill: null, q: '' }}
-      />,
+      <NuqsTestingAdapter searchParams="?issuer=google" hasMemory>
+        <LedgerExplorer
+          rows={GOOGLE.entries.map((entry) => ({ ...entry, row: <tr key={entry.id} /> }))}
+          chips={GOOGLE.chips}
+          other={GOOGLE.other}
+          index={GOOGLE.index}
+        />
+      </NuqsTestingAdapter>,
     );
 
     const google = screen.getByRole('link', { name: 'Google 2 certificates' });
