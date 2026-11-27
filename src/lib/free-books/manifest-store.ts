@@ -16,7 +16,8 @@
 
 /**
  * @file The live security manifest in Upstash Redis, read through the REST API. The weekly sweep
- * publishes it (and its drift state) so a new block reaches the site without a deploy; the
+ * publishes it and its drift state together, in one Upstash transaction (POST /multi-exec), so a
+ * new block reaches the site without a deploy and a failed publish changes neither key; the
  * catalog loader (loader.ts) reads it and merges it over the committed security-manifest.json with
  * mergeSecurityManifests. Plain `fetch` with no `node:*` or SDK import, so the same module runs in
  * Next.js, in the Bun CLI and in Vitest. On the site, a read that fails or times out answers
@@ -46,7 +47,8 @@ import type {
 } from './types';
 
 export const REDIS_RUNTIME_MANIFEST_KEY = 'bookshelf:free:security-manifest:v1';
-const REDIS_FINGERPRINTS_KEY = 'bookshelf:free:fingerprints:v1';
+/** The sweep's drift state: fingerprints, sandbox history and clean-run counts. */
+export const REDIS_FINGERPRINTS_KEY = 'bookshelf:free:fingerprints:v1';
 
 /** 30-day TTL (refreshed weekly by `free-books-verify.yml`, so live patches never vanish early). */
 const REDIS_MANIFEST_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -225,34 +227,50 @@ async function upstashGetJson<T>(key: string, options: RedisReadOptions = {}): P
   }
 }
 
-async function upstashSetJson(
-  key: string,
-  value: unknown,
+/** Whether one entry of a /multi-exec answer says its SET was saved. */
+const isSavedSet = (entry: unknown): boolean =>
+  typeof entry === 'object' && entry !== null && 'result' in entry && entry.result === 'OK';
+
+/**
+ * Saves every [key, value] pair (each as JSON, with the 30-day expiry) in one Upstash
+ * transaction: POST {url}/multi-exec with a JSON array of SET commands. Upstash runs them as one
+ * MULTI/EXEC and answers one `{ result }` or `{ error }` per command, in order; a transaction it
+ * discards answers a single `{ error }` and writes nothing. (Redis does not undo the other
+ * commands when one fails while the transaction runs; a plain SET with a fixed expiry has no such
+ * failure.) Answers, per pair, whether it was saved: all false when the request failed, timed
+ * out, or the transaction did not run.
+ */
+async function upstashSetJsonTogether(
+  entries: readonly (readonly [key: string, value: unknown])[],
   options: {
     readonly credentials?: RedisManifestCredentials;
-    readonly ttlSeconds?: number;
     readonly timeoutMs?: number;
     readonly fetcher?: FetchLike;
   } = {},
-): Promise<boolean> {
+): Promise<readonly boolean[]> {
+  const noneSaved = entries.map(() => false);
   const creds = resolveRedisCredentials(options.credentials);
-  if (!creds) return false;
-  const fetcher = options.fetcher ?? fetch;
-  const ttl = options.ttlSeconds ?? REDIS_MANIFEST_TTL_SECONDS;
+  if (!creds) return noneSaved;
+  const ttl = String(REDIS_MANIFEST_TTL_SECONDS);
   try {
-    const res = await fetcher(creds.url, {
+    const res = await (options.fetcher ?? fetch)(`${creds.url}/multi-exec`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${creds.token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(['SET', key, JSON.stringify(value), 'EX', String(ttl)]),
+      body: JSON.stringify(
+        entries.map(([key, value]) => ['SET', key, JSON.stringify(value), 'EX', ttl]),
+      ),
       signal: AbortSignal.timeout(options.timeoutMs ?? 6000),
     });
-    return res.ok;
+    if (!res.ok) return noneSaved;
+    const answers: unknown = await res.json();
+    if (!Array.isArray(answers) || answers.length !== entries.length) return noneSaved;
+    return answers.map(isSavedSet);
   } catch {
     // The sweep prints the outcome (redisPublished: false); nothing is reported from here.
-    return false;
+    return noneSaved;
   }
 }
 
@@ -317,8 +335,10 @@ export async function loadVerifierDriftStateFromRedis(
 /**
  * Publishes both the slim runtime manifest (`blockedHosts`, `quarantinedUrls`, `unavailableUrls`)
  * and the verifier's drift state (`urlFingerprints`, `deltaDetonations`, `cleanStreaks`) to
- * Upstash Redis so production picks up live security patches with zero code deploys. The runtime
- * payload never carries the drift fields, so what the site reads keeps its shape.
+ * Upstash Redis so production picks up live security patches with zero code deploys. Both keys
+ * go in one transaction, so a failed publish leaves last run's pair as it was and the stored
+ * clean-run counts always belong to the stored flags. The runtime payload never carries the drift
+ * fields, so what the site reads keeps its shape.
  */
 export async function publishSecurityManifestToRedis(
   manifest: FreeBooksSecurityManifest,
@@ -342,10 +362,13 @@ export async function publishSecurityManifestToRedis(
     ...(manifest.cleanStreaks ? { cleanStreaks: manifest.cleanStreaks } : {}),
   };
 
-  const [runtimePublished, fingerprintsPublished] = await Promise.all([
-    upstashSetJson(REDIS_RUNTIME_MANIFEST_KEY, runtimePayload, options),
-    upstashSetJson(REDIS_FINGERPRINTS_KEY, driftPayload, options),
-  ]);
+  const [runtimePublished = false, fingerprintsPublished = false] = await upstashSetJsonTogether(
+    [
+      [REDIS_RUNTIME_MANIFEST_KEY, runtimePayload],
+      [REDIS_FINGERPRINTS_KEY, driftPayload],
+    ],
+    options,
+  );
 
   return { runtimePublished, fingerprintsPublished };
 }

@@ -30,6 +30,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   loadLiveSecurityManifestFromRedis,
   loadVerifierDriftStateFromRedis,
+  REDIS_FINGERPRINTS_KEY,
 } from '@/lib/free-books/manifest-store';
 import { pinnedFetch } from '@/lib/free-books/pinned-fetch';
 import type { SweepDependencies, SweepSummary } from '@/lib/free-books/sweep';
@@ -199,6 +200,22 @@ describe('verify CLI', () => {
     expect(error).toHaveBeenCalledExactlyOnceWith(
       'Free books verify failed: the Redis publish did not finish (live manifest saved: yes, drift state saved: no)',
     );
+  });
+
+  it('exits 1 when the Redis transaction fails, and leaves last week in place', async () => {
+    const redis = inMemoryRedis();
+    expect((await run(['--publish-redis'], redis.clients)).code).toBe(0);
+    const before = new Map(redis.store);
+    redis.failWritesTo(REDIS_FINGERPRINTS_KEY);
+
+    const { code, summary, error } = await run(['--publish-redis'], redis.clients);
+
+    expect(code).toBe(1);
+    expect(summary).toMatchObject({ redisPublished: false, redisFingerprintsPublished: false });
+    expect(error).toHaveBeenCalledExactlyOnceWith(
+      'Free books verify failed: the Redis publish did not finish (live manifest saved: no, drift state saved: no)',
+    );
+    expect(redis.store).toEqual(before);
   });
 
   it('exits 1 with one line on stderr when the sweep throws, having published nothing', async () => {

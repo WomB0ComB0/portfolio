@@ -92,26 +92,82 @@ export const observed = (kind: LinkObservation['kind']): LinkObservation =>
 const requestedUrl = (input: string | URL | Request): string =>
   typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
+/** One `SET key value [EX seconds]`, the only command the stand-in understands. */
+interface SetCommand {
+  readonly key: string;
+  readonly value: string;
+  readonly ttlSeconds: number | null;
+}
+
+/** `command` as a SET with an optional EX, or null for anything else. */
+function readSetCommand(command: unknown): SetCommand | null {
+  if (!Array.isArray(command) || !command.every((part) => typeof part === 'string')) return null;
+  const [name, key, value, ex, seconds, ...rest] = command as string[];
+  if (name?.toUpperCase() !== 'SET' || key === undefined || value === undefined) return null;
+  if (ex === undefined) return { key, value, ttlSeconds: null };
+  if (ex.toUpperCase() !== 'EX' || !/^[1-9]\d*$/.test(seconds ?? '') || rest.length > 0) {
+    return null;
+  }
+  return { key, value, ttlSeconds: Number(seconds) };
+}
+
+const upstashAnswer = (body: unknown, status = 200): Response =>
+  new Response(JSON.stringify(body), { status });
+
 /**
- * The Upstash REST API in memory (SET over POST, GET by key), behind the real manifest-store
- * functions. `clients` drop into stubSweepDependencies; `failReads` makes every GET throw.
+ * The Upstash REST API in memory, behind the real manifest-store functions: GET /get/<key>, one
+ * command POSTed to the base URL, and a transaction POSTed to /multi-exec (a JSON array of
+ * commands, answered with one `{ result }` per command, or one `{ error }` when the whole
+ * transaction is discarded and nothing is written). It understands only SET with an optional EX,
+ * and keeps each key's EX in `ttls`. `clients` drop into stubSweepDependencies; `failReads` makes
+ * every GET throw; `failWritesTo(key)` makes every request that would write `key` answer HTTP 500
+ * and write nothing, so a transaction that includes it writes none of its keys.
  */
 export function inMemoryRedis() {
   const store = new Map<string, string>();
+  const ttls = new Map<string, number | null>();
   const credentials: RedisManifestCredentials = {
     url: 'https://redis.example.upstash.io',
     token: 'test-token',
   };
   let readFailure: Error | null = null;
-  const fetcher: FetchLike = async (input, init) => {
-    if (init?.method === 'POST') {
-      const [, key, value] = JSON.parse(String(init.body)) as [string, string, string];
+  let failingKey: string | null = null;
+  /** Writes every command, or none when one of them writes the failing key. */
+  const commit = (commands: readonly SetCommand[]): boolean => {
+    if (commands.some(({ key }) => key === failingKey)) return false;
+    for (const { key, value, ttlSeconds } of commands) {
       store.set(key, value);
-      return new Response(JSON.stringify({ result: 'OK' }), { status: 200 });
+      ttls.set(key, ttlSeconds);
+    }
+    return true;
+  };
+  const runOne = (body: unknown): Response => {
+    const command = readSetCommand(body);
+    if (!command) return upstashAnswer({ error: 'ERR unsupported command' }, 400);
+    return commit([command])
+      ? upstashAnswer({ result: 'OK' })
+      : upstashAnswer({ error: 'ERR write failed' }, 500);
+  };
+  const runTransaction = (body: unknown): Response => {
+    const commands = Array.isArray(body) ? body.map(readSetCommand) : [];
+    if (commands.length === 0 || commands.some((command) => command === null)) {
+      return upstashAnswer({ error: 'ERR transaction discarded' }, 400);
+    }
+    return commit(commands as SetCommand[])
+      ? upstashAnswer(commands.map(() => ({ result: 'OK' })))
+      : upstashAnswer({ error: 'ERR transaction discarded' }, 500);
+  };
+  const fetcher: FetchLike = async (input, init) => {
+    const url = requestedUrl(input);
+    if (init?.method === 'POST') {
+      const body: unknown = JSON.parse(String(init.body));
+      if (url === `${credentials.url}/multi-exec`) return runTransaction(body);
+      if (url === credentials.url) return runOne(body);
+      return upstashAnswer({ error: 'ERR not found' }, 404);
     }
     if (readFailure) throw readFailure;
-    const key = decodeURIComponent(requestedUrl(input).split('/get/')[1] ?? '');
-    return new Response(JSON.stringify({ result: store.get(key) ?? null }), { status: 200 });
+    const key = decodeURIComponent(url.split('/get/')[1] ?? '');
+    return upstashAnswer({ result: store.get(key) ?? null });
   };
   const clients: Pick<SweepDependencies, 'publish' | 'loadLiveManifest' | 'loadDriftState'> = {
     publish: (manifest) => publishSecurityManifestToRedis(manifest, { credentials, fetcher }),
@@ -122,12 +178,17 @@ export function inMemoryRedis() {
   };
   return {
     store,
+    ttls,
     credentials,
     fetcher,
     clients,
     /** Makes every GET throw `error` until called again with null. */
     failReads(error: Error | null): void {
       readFailure = error;
+    },
+    /** Makes every request that would write `key` fail, writing nothing, until called with null. */
+    failWritesTo(key: string | null): void {
+      failingKey = key;
     },
   };
 }

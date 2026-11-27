@@ -27,10 +27,11 @@ import {
   loadVerifierDriftStateFromRedis,
   mergeSecurityManifests,
   publishSecurityManifestToRedis,
+  REDIS_FINGERPRINTS_KEY,
   REDIS_RUNTIME_MANIFEST_KEY,
   RedisReadError,
 } from '@/lib/free-books/manifest-store';
-import type { FetchLike } from '@/lib/free-books/types';
+import type { FetchLike, FreeBooksSecurityManifest } from '@/lib/free-books/types';
 import { inMemoryRedis } from './sweep-fixture';
 
 const CREDENTIALS = { url: 'https://redis.example.upstash.io', token: 'test-token' };
@@ -89,6 +90,75 @@ describe('manifest store', () => {
       'newly-bad.example': 'Cloudflare: dnsbl_sinkhole',
     });
     expect(merged.manifest.quarantinedUrls['https://parked.example/book']).toBe('parked_domain');
+  });
+});
+
+describe('publishing both keys as one transaction', () => {
+  const week = (generatedAt: string, streak: number): FreeBooksSecurityManifest => ({
+    generatedAt,
+    checkedHosts: 3,
+    checkedUrls: 3,
+    blockedHosts: {},
+    quarantinedUrls: { 'https://indie.example/guide': 'parked_domain' },
+    unavailableUrls: {},
+    urlFingerprints: {},
+    deltaDetonations: {},
+    cleanStreaks: { hosts: {}, urls: { 'https://indie.example/guide': streak } },
+  });
+
+  it('leaves the previous manifest and drift state in place when the drift write fails', async () => {
+    const redis = inMemoryRedis();
+    await redis.clients.publish(week('2026-11-22T05:17:00.000Z', 1));
+    const before = new Map(redis.store);
+    redis.failWritesTo(REDIS_FINGERPRINTS_KEY);
+
+    const result = await redis.clients.publish(week('2026-11-29T05:17:00.000Z', 0));
+
+    expect(result).toEqual({ runtimePublished: false, fingerprintsPublished: false });
+    expect(redis.store).toEqual(before);
+  });
+
+  it('keeps the 30-day expiry on both keys', async () => {
+    const redis = inMemoryRedis();
+
+    await redis.clients.publish(week('2026-11-22T05:17:00.000Z', 1));
+
+    expect(Object.fromEntries(redis.ttls)).toEqual({
+      [REDIS_RUNTIME_MANIFEST_KEY]: 30 * 24 * 60 * 60,
+      [REDIS_FINGERPRINTS_KEY]: 30 * 24 * 60 * 60,
+    });
+  });
+
+  it.each<{ readonly name: string; readonly fetcher: FetchLike; readonly saved: boolean[] }>([
+    {
+      name: 'a discarded transaction',
+      fetcher: answering({ error: 'ERR transaction discarded' }, 400),
+      saved: [false, false],
+    },
+    {
+      name: 'a timeout',
+      fetcher: async () => {
+        throw new DOMException('The operation timed out.', 'TimeoutError');
+      },
+      saved: [false, false],
+    },
+    {
+      name: 'an answer that is not a list',
+      fetcher: answering({ result: 'OK' }),
+      saved: [false, false],
+    },
+    {
+      name: 'one command that failed inside the transaction',
+      fetcher: answering([{ result: 'OK' }, { error: 'ERR invalid expire time' }]),
+      saved: [true, false],
+    },
+  ])('reports what Upstash saved after $name', async ({ fetcher, saved }) => {
+    const result = await publishSecurityManifestToRedis(week('2026-11-22T05:17:00.000Z', 1), {
+      credentials: CREDENTIALS,
+      fetcher,
+    });
+
+    expect([result.runtimePublished, result.fingerprintsPublished]).toEqual(saved);
   });
 });
 
@@ -167,7 +237,7 @@ describe('strict reads for the sweep', () => {
   });
 
   it('reads back a manifest and drift state the sweep published', async () => {
-    const { fetcher, credentials } = inMemoryRedis();
+    const { store, fetcher, credentials } = inMemoryRedis();
     const cleanStreaks = { hosts: { 'indie.example': 1 }, urls: {} };
     await publishSecurityManifestToRedis(
       {
@@ -186,9 +256,12 @@ describe('strict reads for the sweep', () => {
 
     const live = await loadLiveSecurityManifestFromRedis({ credentials, fetcher, strict: true });
     const drift = await loadVerifierDriftStateFromRedis({ credentials, fetcher, strict: true });
+    // The strict reader drops keys it does not know, so check what was stored for the site.
+    const storedRuntime: unknown = JSON.parse(store.get(REDIS_RUNTIME_MANIFEST_KEY) ?? 'null');
 
     expect(live?.blockedHosts).toEqual({ 'indie.example': 'Quad9: quad9_blocked' });
-    expect(live).not.toHaveProperty('cleanStreaks');
+    expect(storedRuntime).toMatchObject({ blockedHosts: live?.blockedHosts });
+    expect(storedRuntime).not.toHaveProperty('cleanStreaks');
     expect(drift).toEqual({ urlFingerprints: {}, deltaDetonations: {}, cleanStreaks });
   });
 
