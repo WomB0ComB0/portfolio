@@ -21,15 +21,16 @@
  * not finish: a host block earns a clean run only when the check behind it (the threat feeds,
  * Cloudflare 1.1.1.2 or Quad9) completed, a hit still counts when another check failed, and a
  * link whose Safe Browsing lookup failed earns no clean run (a Safe Browsing quarantine among them
- * is not even fetched), and a content inspection that did not finish gives a link no clean run and
- * keeps its fingerprint. One case runs the real Cloudflare client on stubbed DoH replies, to show
- * that a SERVFAIL reply is not a completed check. The stored reasons are spelled out, as the
- * format the sweep keeps in Redis.
+ * is not even fetched), a feed that answered an HTML maintenance page is not a loaded feed, and a
+ * content inspection that did not finish gives a link no clean run and keeps its fingerprint. One
+ * case runs the real Cloudflare client on stubbed DoH replies, to show that a SERVFAIL reply is
+ * not a completed check. The stored reasons are spelled out, as the format the sweep keeps in
+ * Redis.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 import type { SweepDependencies } from '@/lib/free-books/sweep';
-import { checkHostnameThreatIntel } from '@/lib/free-books/threat-intel';
+import { checkHostnameThreatIntel, loadUrlhausHostBlocklist } from '@/lib/free-books/threat-intel';
 import type { FetchLike } from '@/lib/free-books/types';
 import {
   INDIE_GUIDE,
@@ -186,6 +187,46 @@ describe('host blocks in a run where a check could not finish', () => {
     );
 
     expect(blocked).toEqual([[HOST], [HOST], [HOST], [HOST], []]);
+  });
+});
+
+describe('threat feeds in a run where one answered a page that is not a feed', () => {
+  const MAINTENANCE = '<a href="https://status.example.com">Service status</a>';
+
+  /**
+   * One week's feeds through the real loader and host check: HaGeZi answers `hagezi` and OpenPhish
+   * `openphish`, Cloudflare answers NOERROR for every host, and no host resolves normally, so
+   * Quad9 is never asked.
+   */
+  function feedWeek(hagezi: string, openphish: string): Partial<SweepDependencies> {
+    const feeds: FetchLike = async (input) =>
+      new Response(String(input).includes('openphish') ? openphish : hagezi);
+    const doh: FetchLike = async () => Response.json({ Status: 0 });
+    return {
+      loadThreatFeeds: (options) => loadUrlhausHostBlocklist({ ...options, fetcher: feeds }),
+      resolvesNormally: async () => false,
+      checkHost: (hostname, options) =>
+        checkHostnameThreatIntel(hostname, { ...options, fetcher: doh }),
+    };
+  }
+
+  it('gives a feed block no clean run in a week a feed answered an HTML maintenance page', async () => {
+    const redis = inMemoryRedis();
+    const listed = `${HOST}\nphish.example\n`;
+    const clean = 'phish.example\n';
+
+    const blocked = await runWeeks(
+      redis,
+      [
+        { deps: feedWeek(listed, listed) },
+        { deps: feedWeek(clean, clean) },
+        { deps: feedWeek(clean, MAINTENANCE) },
+        { deps: feedWeek(clean, clean) },
+      ],
+      'blockedHosts',
+    );
+
+    expect(blocked).toEqual([[HOST], [HOST], [HOST], []]);
   });
 });
 

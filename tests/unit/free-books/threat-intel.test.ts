@@ -17,8 +17,9 @@
 /**
  * @file src/lib/free-books/threat-intel.ts, each provider client with a stubbed fetcher and a
  * stubbed Quad9 resolver (no real network or DNS): DNS blocking and which DNS checks answered,
- * the threat feeds and whether they all loaded, Safe Browsing and the URLs it could not check,
- * RDAP registration age and the sandbox submission.
+ * the threat feeds, the entry formats they are read in and whether they all loaded (a page that
+ * is not a feed, such as an HTML maintenance page, is not), Safe Browsing and the URLs it could
+ * not check, RDAP registration age and the sandbox submission.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -192,6 +193,10 @@ describe('loadUrlhausHostBlocklist', () => {
       },
     },
     { name: 'parses to no hosts', second: async () => new Response('# Moved\n') },
+    {
+      name: 'answers a 200 HTML maintenance page',
+      second: async () => new Response('<a href="https://status.example.com">Service status</a>'),
+    },
   ])('keeps the hosts it loaded but is incomplete when a feed $name', async ({ second }) => {
     const fetcher = vi
       .fn<FetchLike>()
@@ -205,6 +210,64 @@ describe('loadUrlhausHostBlocklist', () => {
       complete: false,
     });
   });
+
+  it.each<{ readonly name: string; readonly body: string; readonly hosts: readonly string[] }>([
+    {
+      name: 'plain domains under comment lines (HaGeZi)',
+      body: '# Title: HaGeZi TIF mini\n# Version: 2026.1126\n\nevil-drop.example\nPhish.Example.\n',
+      hosts: ['evil-drop.example', 'phish.example'],
+    },
+    {
+      name: 'URLs, taking each host, an IPv4 address among them (OpenPhish)',
+      body: 'https://login.bad.example/verify?id=1\nhttp://198.51.100.7/paypal/\n',
+      hosts: ['login.bad.example', '198.51.100.7'],
+    },
+    {
+      name: 'hostfile lines, with tabs, spaces and a trailing comment (URLhaus)',
+      body: '# URLhaus hostfile\n127.0.0.1\tmalware.example\n0.0.0.0 drop.example # added\n',
+      hosts: ['malware.example', 'drop.example'],
+    },
+    {
+      name: 'underscored and punycode labels, with Windows line ends',
+      body: 'cdn_assets.bad.example\r\nxn--80ak6aa92e.example\r\n',
+      hosts: ['cdn_assets.bad.example', 'xn--80ak6aa92e.example'],
+    },
+  ])('loads $name', async ({ body, hosts }) => {
+    const feeds = await loadUrlhausHostBlocklist({ fetcher: async () => new Response(body) });
+
+    expect(feeds).toEqual({ hosts: new Set(hosts), complete: true });
+  });
+
+  it.each<{ readonly name: string; readonly body: string }>([
+    { name: 'a markup snippet', body: '<a href="https://status.example.com">Service status</a>' },
+    {
+      name: 'an HTML page with a host name on a line of its own',
+      body: '<!DOCTYPE html>\n<html><body>\nDown for maintenance, see\nstatus.example.com\n</body></html>',
+    },
+    { name: 'text before the markup', body: 'Maintenance\n<html>\nstatus.example.com\n</html>\n' },
+    { name: 'a sentence naming a host', body: 'Visit status.example.com for updates\n' },
+    { name: 'a JSON error', body: '{"error":"maintenance","status":"status.example.com"}\n' },
+    { name: 'a hostfile-like line that starts with no address', body: 'Service evil.example\n' },
+    {
+      name: 'tokens that are not host names',
+      body: 'localhost\nnot_a_domain\n1.2.3\n999.1.1.1\nexample.123\n-bad.example\n*.wild.example\n',
+    },
+  ])(
+    'counts a feed that answers $name as not loaded, and takes no host from it',
+    async ({ body }) => {
+      const fetcher = vi
+        .fn<FetchLike>()
+        .mockImplementationOnce(async () => new Response(FEED))
+        .mockImplementationOnce(async () => new Response(body));
+
+      const feeds = await loadUrlhausHostBlocklist({ fetcher });
+
+      expect(feeds).toEqual({
+        hosts: new Set(['evil-drop.example', 'phish.example']),
+        complete: false,
+      });
+    },
+  );
 
   it('asks URLhaus only with a key, and is complete when every feed it asked loaded', async () => {
     const fetcher = vi.fn<FetchLike>(async () => new Response(FEED));

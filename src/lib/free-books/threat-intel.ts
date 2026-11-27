@@ -25,16 +25,18 @@
  * - Outsourced sandbox scans (Cloudflare URL Scanner or urlscan.io) for drifted external URLs
  *   only, so no third-party script runs on the CI runner.
  * A failed provider never blocks a host, and it is reported rather than read as "nothing found":
- * a feed that did not load makes the feed load incomplete, a DNS check that did not answer (for
- * Cloudflare, also a reply whose DNS status is not NOERROR or NXDOMAIN, such as SERVFAIL) is left
- * out of the verdict's completedChecks, and a Safe Browsing batch that failed lists its URLs as
- * unchecked, so the sweep gives no clean run on them (host-checks.ts). Each client takes an
- * injectable fetcher; only the sweep (scripts/free-books/verify.ts) and the tests import this
- * module, which uses node:dns. Guarded by tests/unit/free-books/threat-intel.test.ts.
+ * a feed that did not load, or answered a page that lists no valid host (threat-feed-parse.ts),
+ * makes the feed load incomplete, a DNS check that did not answer (for Cloudflare, also a reply
+ * whose DNS status is not NOERROR or NXDOMAIN, such as SERVFAIL) is left out of the verdict's
+ * completedChecks, and a Safe Browsing batch that failed lists its URLs as unchecked, so the sweep
+ * gives no clean run on them (host-checks.ts). Each client takes an injectable fetcher; only the
+ * sweep (scripts/free-books/verify.ts) and the tests import this module, which uses node:dns.
+ * Guarded by tests/unit/free-books/threat-intel.test.ts.
  */
 
 import dns from 'node:dns/promises';
 import { HOST_CHECK_PROVIDERS, type HostCheck } from './host-checks';
+import { parseFeedHosts } from './threat-feed-parse';
 import type { DeltaDetonationRecord, FetchLike } from './types';
 import { registrableApex } from './url-screen';
 
@@ -204,34 +206,12 @@ export async function checkHostnameThreatIntel(
     : { ...unblocked, completedChecks };
 }
 
-function parseHostsIntoSet(text: string, target: Set<string>): void {
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    if (line.startsWith('http://') || line.startsWith('https://')) {
-      try {
-        const parsed = new URL(line);
-        const host = parsed.hostname.toLowerCase().replace(/\.+$/, '');
-        if (host && host !== 'localhost') target.add(host);
-      } catch {
-        // Ignore unparseable feed entries.
-      }
-      continue;
-    }
-    // Supports both plain-domain lines (HaGeZi TIF) and hostfile format (`127.0.0.1 evil.example`)
-    const parts = line.split(/\s+/);
-    const host = (parts.length >= 2 ? parts[1] : parts[0])?.toLowerCase().replace(/\.+$/, '');
-    if (host && host !== 'localhost' && host.includes('.')) {
-      target.add(host);
-    }
-  }
-}
-
 /**
  * Downloads live zero-key malware/phishing host feeds (HaGeZi Threat Intelligence Feeds mini +
  * OpenPhish public feed) plus optional abuse.ch URLhaus when `authKey` is configured. Answers the
- * hosts of every feed that loaded, and `complete: false` when any feed failed, timed out or parsed
- * to no hosts (a placeholder page), so a host missing from the set is not taken as cleared.
+ * hosts of every feed that loaded, and `complete: false` when any feed failed, timed out or listed
+ * no valid host (threat-feed-parse.ts: an HTML maintenance or placeholder page lists none), so a
+ * host missing from the set is not taken as cleared.
  */
 export async function loadUrlhausHostBlocklist(
   options: {
@@ -264,8 +244,7 @@ export async function loadUrlhausHostBlocklist(
           signal: AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) return false;
-        const feedHosts = new Set<string>();
-        parseHostsIntoSet(await res.text(), feedHosts);
+        const feedHosts = parseFeedHosts(await res.text());
         for (const host of feedHosts) hosts.add(host);
         return feedHosts.size > 0;
       } catch {
