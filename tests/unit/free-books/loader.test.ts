@@ -119,4 +119,29 @@ describe('loadSweepCatalog', () => {
 
     await expect(loadSweepCatalog()).rejects.toThrow(/no books/);
   });
+
+  it.each([
+    { empty: 'subjects', lists: { langs: SAMPLE_LANGS_MD, subjects: '# Moved\n' } },
+    { empty: 'langs', lists: { langs: '# Moved\n', subjects: SAMPLE_SUBJECTS_MD } },
+  ])(
+    'rejects when only the $empty list parses to no books, so its flags are not dropped as gone',
+    async ({ empty, lists }) => {
+      stubNetwork(lists);
+
+      await expect(loadSweepCatalog()).rejects.toThrow(
+        `the upstream ${empty} list parsed to no books, so the catalog is incomplete`,
+      );
+    },
+  );
+});
+
+describe('loadFreeProgrammingBooks with one list that parses to no books', () => {
+  it('still serves the books of the other list on the site', async () => {
+    stubNetwork({ langs: SAMPLE_LANGS_MD, subjects: '# Moved\n' });
+
+    const catalog = await loadFreeProgrammingBooks();
+
+    expect(catalog.books.length).toBeGreaterThan(0);
+    expect(catalog.subjectsCount).toBe(0);
+  });
 });

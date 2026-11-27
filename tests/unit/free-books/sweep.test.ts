@@ -485,7 +485,9 @@ describe('runSweep across weekly runs', () => {
         stubSweepDependencies({
           ...redis.clients,
           loadCatalog: async () => {
-            throw new Error('the upstream lists parsed to no books, so there is nothing to check');
+            throw new Error(
+              'the upstream langs list parsed to no books, so the catalog is incomplete',
+            );
           },
         }),
       log: vi.fn(),
