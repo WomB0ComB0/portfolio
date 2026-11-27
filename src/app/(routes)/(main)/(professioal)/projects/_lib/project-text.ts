@@ -47,12 +47,16 @@ const SANITY_DATE = /^(\d{4})-(\d{2})-\d{2}/u;
 /**
  * Spellings the live projects use for one technology, by the key techKey() otherwise gives
  * them (from a GET snapshot of /api/v1/sanity/projects; React.js-style ones for old links).
+ * Express.js and Convex.dev are the main lists' spellings; a project's part may say Express or
+ * Convex, and both must stay one filter entry and one Built with word.
  */
 const TECH_ALIASES: Readonly<Record<string, string>> = {
   reactjs: 'react',
   vuejs: 'vue',
   nodejs: 'node',
   elysiajs: 'elysia',
+  expressjs: 'express',
+  convexdev: 'convex',
   sentrysdk: 'sentry',
   clerkauth: 'clerk',
   googlegemini: 'gemini',

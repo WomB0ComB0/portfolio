@@ -301,6 +301,23 @@ describe('allTechnologiesOf', () => {
     expect(all.filter((tech) => /gemini/i.test(tech))).toEqual(['Google Gemini API']);
   });
 
+  it("lists a part's Express and Convex once beside the main list's Express.js and Convex.dev", () => {
+    const project = owner(
+      [
+        { ...web, technologies: ['Next.js', 'Convex'] },
+        { ...api, technologies: ['Express', 'Puppeteer'] },
+      ],
+      { technologies: ['Next.js', 'Express.js', 'Convex.dev'] },
+    );
+
+    expect(allTechnologiesOf(project)).toEqual([
+      'Next.js',
+      'Express.js',
+      'Convex.dev',
+      'Puppeteer',
+    ]);
+  });
+
   it("ignores a linked part's technologies: that project's own card answers its filter", () => {
     expect(allTechnologiesOf(owner([web, shortener]))).not.toContain('Hono');
   });

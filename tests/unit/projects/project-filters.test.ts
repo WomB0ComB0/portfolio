@@ -387,6 +387,40 @@ describe('a project’s parts feed the Technology filter', () => {
     expect(keep('?tech=rust')).toEqual(['single']);
   });
 
+  it('finds the same projects for Express and Express.js, whichever list spells which', () => {
+    // The gateway's own dashboard part says Convex beside its main list's Convex.dev, and the
+    // scraped project's part says Express where two main lists say Express.js.
+    const spelled = [
+      makeProject({
+        _id: 'gateway',
+        technologies: ['Express.js', 'Convex.dev'],
+        systemParts: [{ ...extension, technologies: ['Convex'] }, linked],
+      }),
+      makeProject({ _id: 'planner', technologies: ['Express.js'] }),
+      makeProject({ _id: 'scraped', technologies: ['React'], systemParts: [scraper, extension] }),
+    ];
+    const lookups = buildProjectLookups(spelled);
+    const index = buildProjectIndex(spelled, () => []);
+    const schema = projectFilters<ProjectEntry>(index.lookups);
+    const found = (search: string) =>
+      schema
+        .filter(index.entries, schema.parse(search))
+        .map(({ id }) => id)
+        .sort();
+
+    // One picker entry each, under the spelling most projects use.
+    expect(lookups.techs.express).toBe('Express.js');
+    expect(lookups.techs.expressjs).toBeUndefined();
+    expect(lookups.techs.convex).toBe('Convex.dev');
+    expect(lookups.techs.convexdev).toBeUndefined();
+    for (const search of ['?tech=express', '?tech=Express.js', '?tech=expressjs']) {
+      expect(found(search), search).toEqual(['gateway', 'planner', 'scraped']);
+    }
+    for (const search of ['?tech=convex', '?tech=Convex.dev']) {
+      expect(found(search), search).toEqual(['gateway']);
+    }
+  });
+
   it('leaves the Kind chips as the categories alone give them', () => {
     const categoriesOnly = buildProjectLookups(
       PROJECTS.map(({ category, technologies }) => ({ category, technologies })),
