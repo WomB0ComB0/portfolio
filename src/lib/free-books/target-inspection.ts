@@ -43,6 +43,8 @@ const MAX_INSPECTED_REDIRECTS = 5;
 const INSPECT_TIMEOUT_MS = 6000;
 /** Sent with every inspection request. */
 const USER_AGENT = 'mikeodnis-portfolio-verifier/1.0 (+https://mikeodnis.dev)';
+/** The most characters of a Content-Encoding written into a danger reason. */
+const MAX_ENCODING_IN_REASON = 32;
 
 /** What inspectFinalTarget found where a link's redirects end. */
 export interface TargetInspectionResult {
@@ -82,12 +84,25 @@ async function readBoundedBytes(
 }
 
 /**
+ * The danger of a body still in a Content-Encoding, whose bytes cannot be inspected as the page
+ * (the pinned transport decodes gzip, deflate and br and names only what it could not); null for
+ * an identity body. The encoding is kept short in the reason.
+ */
+function undecodableEncodingDanger(contentEncoding: string | null): string | null {
+  const encoding = contentEncoding?.trim().toLowerCase() ?? '';
+  if (encoding === '' || encoding === 'identity') return null;
+  return `undecodable_content_encoding:${encoding.slice(0, MAX_ENCODING_IN_REASON)}`;
+}
+
+/**
  * Follows a reachable link's redirects by hand (auditing the chain) and inspects what it ends
  * on: dangerous headers, active PDF content, or HTML that is parked, a ClickFix lure, an
  * obfuscated loader, a hidden cross-origin iframe or an unsafe meta refresh. The CLI passes the
  * DNS-pinned fetch (pinned-fetch.ts), which vets every hop's addresses before it connects: a hop
  * that is or resolves to a non-public address is `unsafe_address:<host>`, which quarantines the
- * link. Any other network error finds nothing; the reachability probe has already answered.
+ * link. A reachable body still in a Content-Encoding is `undecodable_content_encoding:<encoding>`,
+ * never read as the page. Any other network error finds nothing; the reachability probe has
+ * already answered.
  */
 export async function inspectFinalTarget(
   url: string,
@@ -127,10 +142,9 @@ export async function inspectFinalTarget(
 
       const rawCt = res.headers.get('content-type') ?? '';
       const normalizedCt = rawCt.split(';')[0]?.trim().toLowerCase() ?? '';
-      const headerDanger = isDangerousResponseHeaders(
-        rawCt,
-        res.headers.get('content-disposition'),
-      );
+      const headerDanger =
+        isDangerousResponseHeaders(rawCt, res.headers.get('content-disposition')) ??
+        (res.ok ? undecodableEncodingDanger(res.headers.get('content-encoding')) : null);
       if (headerDanger) {
         await res.body?.cancel().catch(() => undefined);
         return { danger: headerDanger, finalHost: currentHost, contentType: normalizedCt };

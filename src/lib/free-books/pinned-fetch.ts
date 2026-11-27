@@ -23,8 +23,9 @@ import 'server-only';
  * unique-local, CGNAT, multicast, IPv4-mapped private or a cloud metadata address (ip-policy.ts),
  * and connects only to the address it vetted (transport.ts requestPinnedResponse), so a name
  * cannot rebind between the check and the connection. It never follows a redirect: the caller
- * vets the next hop and calls again. A refused target throws UnsafeTargetError. Guarded by
- * tests/unit/free-books/pinned-fetch.test.ts.
+ * vets the next hop and calls again. A refused target throws UnsafeTargetError. A body the
+ * transport could not decode keeps its Content-Encoding header, so the inspection can refuse it.
+ * Guarded by tests/unit/free-books/pinned-fetch.test.ts.
  */
 
 import { probeHostname, publicHostname } from '@/lib/link-health/ip-policy';
@@ -95,6 +96,8 @@ function toResponse({ status, headers, body }: PinnedResponse): Response {
     responseHeaders.set('content-disposition', headers.contentDisposition);
   }
   if (headers.location) responseHeaders.set('location', headers.location);
+  // Set only when the transport could not decode the body, so the inspection refuses it.
+  if (headers.contentEncoding) responseHeaders.set('content-encoding', headers.contentEncoding);
   if (NULL_BODY_STATUSES.has(status)) {
     void body.cancel().catch(() => undefined);
     return new Response(null, { status, headers: responseHeaders });

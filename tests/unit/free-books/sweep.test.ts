@@ -874,6 +874,21 @@ describe('inspectFinalTarget', () => {
     });
   });
 
+  it('refuses a reachable body in an encoding it cannot read, naming the encoding', async () => {
+    const zstdPage = new Response('(zstd frame)', {
+      status: 200,
+      headers: { 'content-type': 'text/html', 'content-encoding': 'zstd' },
+    });
+
+    const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', async () => zstdPage);
+
+    expect(result).toEqual({
+      danger: 'undecodable_content_encoding:zstd',
+      finalHost: 'indie.example',
+      contentType: 'text/html',
+    });
+  });
+
   it('finds nothing when the request fails', async () => {
     const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', async () => {
       throw new TypeError('fetch failed');

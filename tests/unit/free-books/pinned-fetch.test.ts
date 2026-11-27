@@ -20,12 +20,34 @@
  * @file src/lib/free-books/pinned-fetch.ts on injected DNS answers and an injected transport (no
  * real DNS or sockets): every request resolves its host once, refuses private, loopback,
  * link-local, unique-local, mapped and metadata addresses, and connects only to the address it
- * vetted, so a name cannot rebind between the check and the connection.
+ * vetted, so a name cannot rebind between the check and the connection. Then the real transport
+ * (with node:https stubbed) under inspectFinalTarget: a body compressed although identity was
+ * asked for is decoded before it is inspected, and one it cannot decode is refused by name.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { EventEmitter } from 'node:events';
+import type { ClientRequest, IncomingMessage } from 'node:http';
+import type { RequestOptions } from 'node:https';
+import { Readable } from 'node:stream';
+import { gzipSync } from 'node:zlib';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPinnedFetch, UnsafeTargetError } from '@/lib/free-books/pinned-fetch';
-import type { PinnedGetRequest, PinnedResponse } from '@/lib/link-health/transport';
+import { inspectFinalTarget } from '@/lib/free-books/target-inspection';
+import {
+  type PinnedGetRequest,
+  type PinnedResponse,
+  requestPinnedResponse,
+} from '@/lib/link-health/transport';
+
+const native = vi.hoisted(() => ({ https: vi.fn() }));
+vi.mock('node:https', async (original) => ({
+  ...(await original<typeof import('node:https')>()),
+  request: native.https,
+}));
+
+afterEach(() => {
+  native.https.mockReset();
+});
 
 const PUBLIC = '93.184.216.34';
 const GET = { method: 'GET', redirect: 'manual' } as const satisfies RequestInit;
@@ -195,5 +217,71 @@ describe('createPinnedFetch', () => {
     h.request.mockResolvedValueOnce({ status: 101, headers: {}, body: new Blob([]).stream() });
 
     await expect(h.fetch('https://books.example/', GET)).rejects.toThrow(/101/);
+  });
+
+  it('passes on an encoding the transport could not decode, for the inspection to refuse', async () => {
+    const h = harness({ 'books.example': [PUBLIC] });
+    h.request.mockResolvedValueOnce({
+      status: 200,
+      headers: { contentType: 'application/pdf', contentEncoding: 'zstd' },
+      body: new Blob(['(zstd frame)']).stream(),
+    });
+
+    const response = await h.fetch('https://books.example/notes.pdf', GET);
+
+    expect(response.headers.get('content-encoding')).toBe('zstd');
+  });
+});
+
+describe('inspecting a compressed body over the real pinned transport', () => {
+  const ACTIVE_PDF = '%PDF-1.7\n1 0 obj << /OpenAction << /S /JS >> >> endobj';
+
+  /** node:https answers 200 with `headers` and `body`; DNS answers PUBLIC for every host. */
+  function serve(headers: IncomingMessage['headers'], body: Buffer) {
+    native.https.mockImplementation(
+      (_options: RequestOptions, callback: (response: IncomingMessage) => void) => {
+        const request = new EventEmitter() as ClientRequest;
+        request.end = vi.fn(() => {
+          callback(Object.assign(Readable.from([body]), { statusCode: 200, headers }) as never);
+          return request;
+        });
+        return request;
+      },
+    );
+    return createPinnedFetch({ resolve: async () => [PUBLIC], request: requestPinnedResponse });
+  }
+
+  it('finds the active content in a gzipped PDF', async () => {
+    const fetcher = serve(
+      { 'content-type': 'application/pdf', 'content-encoding': 'gzip' },
+      gzipSync(Buffer.from(ACTIVE_PDF)),
+    );
+
+    const result = await inspectFinalTarget(
+      'https://books.example/notes.pdf',
+      'books.example',
+      fetcher,
+    );
+
+    expect(result.danger).toMatch(/^pdf_active_object:/);
+  });
+
+  it('refuses a zstd body with an explicit reason rather than reading it as the page', async () => {
+    const fetcher = serve(
+      { 'content-type': 'application/pdf', 'content-encoding': 'zstd' },
+      Buffer.from([0x28, 0xb5, 0x2f, 0xfd, 0x00]),
+    );
+
+    const result = await inspectFinalTarget(
+      'https://books.example/notes.pdf',
+      'books.example',
+      fetcher,
+    );
+
+    expect(result).toEqual({
+      danger: 'undecodable_content_encoding:zstd',
+      finalHost: 'books.example',
+      contentType: 'application/pdf',
+    });
   });
 });

@@ -21,6 +21,7 @@ import type { ClientRequest, IncomingMessage } from 'node:http';
 import type { RequestOptions } from 'node:https';
 import { Readable } from 'node:stream';
 import type { DetailedPeerCertificate } from 'node:tls';
+import { brotliCompressSync, deflateSync, gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publicAddress } from '@/lib/link-health/ip-policy';
 import { createLinkProbe } from '@/lib/link-health/probe';
@@ -476,13 +477,19 @@ describe('actual pinned Node transport configuration', () => {
 });
 
 describe('pinned GET transport for content inspection', () => {
-  /** node:https answers with a readable body of `chunks`, status and headers. */
+  /** node:https answers with a readable body (`chunks`, or a stream), status and headers. */
   function installStreaming(
     status: number,
     headers: IncomingMessage['headers'],
-    chunks: readonly string[] = [],
+    chunks: readonly (string | Buffer)[] | Readable = [],
   ) {
-    const response = Object.assign(Readable.from(chunks.map((chunk) => Buffer.from(chunk))), {
+    const body =
+      chunks instanceof Readable
+        ? chunks
+        : Readable.from(
+            chunks.map((chunk) => (typeof chunk === 'string' ? Buffer.from(chunk) : chunk)),
+          );
+    const response = Object.assign(body, {
       statusCode: status,
       headers,
     }) as unknown as IncomingMessage;
@@ -572,6 +579,53 @@ describe('pinned GET transport for content inspection', () => {
       requestPinnedResponse({ ...target(), signal: controller.signal }),
     ).rejects.toThrow();
     expect(native.https).not.toHaveBeenCalled();
+  });
+
+  describe('a body compressed although identity was asked for', () => {
+    const PAGE = '<html><body>A free book, compressed by a server that ignored us</body></html>';
+    /** `bytes` cut into two chunks, as a socket would deliver them. */
+    const split = (bytes: Buffer): Buffer[] => [bytes.subarray(0, 7), bytes.subarray(7)];
+
+    it.each([
+      { encoding: 'gzip', compress: gzipSync },
+      { encoding: 'x-gzip', compress: gzipSync },
+      { encoding: 'GZip', compress: gzipSync },
+      { encoding: 'deflate', compress: deflateSync },
+      { encoding: 'br', compress: brotliCompressSync },
+    ])('decodes $encoding before the caller reads it', async ({ encoding, compress }) => {
+      installStreaming(
+        200,
+        { 'content-type': 'text/html', 'content-encoding': encoding },
+        split(compress(Buffer.from(PAGE))),
+      );
+
+      const response = await requestPinnedResponse(target());
+
+      expect(response.headers).toEqual({ contentType: 'text/html' });
+      expect(await new Response(response.body).text()).toBe(PAGE);
+    });
+
+    it('keeps an encoding it cannot decode, so the caller can refuse the body', async () => {
+      installStreaming(200, { 'content-type': 'application/pdf', 'content-encoding': 'zstd' }, [
+        'not the page bytes',
+      ]);
+
+      const response = await requestPinnedResponse(target());
+
+      expect(response.headers).toEqual({ contentType: 'application/pdf', contentEncoding: 'zstd' });
+    });
+
+    it('destroys the decoder and the socket when the caller cancels', async () => {
+      const compressed = gzipSync(Buffer.from(PAGE.repeat(64)));
+      const socket = new Readable({ read() {} });
+      socket.push(compressed.subarray(0, 32));
+      installStreaming(200, { 'content-encoding': 'gzip' }, socket);
+
+      const response = await requestPinnedResponse(target());
+      await response.body.cancel();
+
+      await vi.waitFor(() => expect(socket.destroyed).toBe(true));
+    });
   });
 });
 

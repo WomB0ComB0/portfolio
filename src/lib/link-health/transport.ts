@@ -21,15 +21,18 @@ import 'server-only';
  * and vetted (probe.ts resolvePublicAddress), sent to that IP with the original Host, SNI and TLS
  * identity, so a name cannot rebind between the check and the connection. requestPinned answers
  * status and Location for the link probe and never reads a body. requestPinnedResponse keeps the
- * body as a stream for the free-books content inspection (free-books/pinned-fetch.ts). Neither
- * follows a redirect. Guarded by tests/unit/link-health/probe.test.ts.
+ * body as a stream for the free-books content inspection (free-books/pinned-fetch.ts), decoding a
+ * gzip, deflate or br body a server sent although identity was asked for, and naming any other
+ * encoding so the inspection can refuse it. Neither follows a redirect. Guarded by
+ * tests/unit/link-health/probe.test.ts.
  */
 
 import { request as httpRequest, type IncomingMessage } from 'node:http';
 import { request as httpsRequest, type RequestOptions } from 'node:https';
 import { isIP } from 'node:net';
-import { Readable } from 'node:stream';
+import { pipeline, Readable, type Transform } from 'node:stream';
 import { checkServerIdentity } from 'node:tls';
+import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib';
 import { type PublicAddress, probeHostname, publicAddress, publicHostname } from './ip-policy';
 import { normalizeLinkUrl } from './url';
 
@@ -70,6 +73,11 @@ export interface PinnedResponse {
     readonly contentType?: string;
     readonly contentDisposition?: string;
     readonly location?: string;
+    /**
+     * A Content-Encoding the transport could not decode, so the body is still encoded; left out
+     * when the body is the page's own bytes (sent as identity, or decoded here).
+     */
+    readonly contentEncoding?: string;
   };
   readonly body: ReadableStream<Uint8Array>;
 }
@@ -180,11 +188,41 @@ function inspectionHeadersOf(response: IncomingMessage): PinnedResponse['headers
   };
 }
 
+/** The Content-Encodings decoded here, each with a fresh streaming decoder. */
+const DECODERS: ReadonlyMap<string, () => Transform> = new Map([
+  ['gzip', () => createGunzip()],
+  ['x-gzip', () => createGunzip()],
+  ['deflate', () => createInflate()],
+  ['br', () => createBrotliDecompress()],
+]);
+
+/**
+ * The response body as the page's own bytes. An identity body passes as is. A gzip, x-gzip,
+ * deflate or br body (sent although identity was asked for) is piped through its streaming
+ * decoder, which only decodes as fast as the caller reads; destroying the decoder (a cancel)
+ * destroys the socket, and a socket error destroys the decoder. Any other encoding is left encoded
+ * and named in `undecoded`, so the caller can refuse it instead of reading it as the page.
+ */
+function decodedBody(response: IncomingMessage): {
+  readonly body: Readable;
+  readonly undecoded?: string;
+} {
+  const raw = response.headers['content-encoding'];
+  const encoding = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (encoding === '' || encoding === 'identity') return { body: response };
+  const decoder = DECODERS.get(encoding)?.();
+  if (!decoder) return { body: response, undecoded: encoding };
+  pipeline(response, decoder, () => undefined);
+  return { body: decoder };
+}
+
 /**
  * One GET to the vetted address, as requestPinned sends it, that keeps the body: it arrives as a
  * web stream, which the caller reads (bounded) or cancels; cancelling, or the signal firing,
- * destroys the socket. Asks for no compression, so the bytes are the page's own. A redirect is
- * answered, never followed: the caller vets and resolves the next hop itself.
+ * destroys the socket. Asks for no compression; a server that compresses anyway has a gzip,
+ * deflate or br body decoded (decodedBody), and any other encoding reported in
+ * `headers.contentEncoding`, so the bytes handed on are never compressed ones posing as the page.
+ * A redirect is answered, never followed: the caller vets and resolves the next hop itself.
  */
 export async function requestPinnedResponse({
   url,
@@ -205,12 +243,16 @@ export async function requestPinnedResponse({
   return new Promise((resolve, reject) => {
     const request = (secure ? httpsRequest : httpRequest)(options, (response) => {
       response.on('error', () => undefined);
+      const { body, undecoded } = decodedBody(response);
       resolve({
         status: response.statusCode ?? 0,
-        headers: inspectionHeadersOf(response),
+        headers: {
+          ...inspectionHeadersOf(response),
+          ...(undecoded === undefined ? {} : { contentEncoding: undecoded }),
+        },
         // node:stream/web's ReadableStream is the global one at runtime (Node and Bun); only the
         // declarations differ from the DOM lib's, so the cast goes through unknown.
-        body: Readable.toWeb(response) as unknown as ReadableStream<Uint8Array>,
+        body: Readable.toWeb(body) as unknown as ReadableStream<Uint8Array>,
       });
     });
     request.on('error', reject);
