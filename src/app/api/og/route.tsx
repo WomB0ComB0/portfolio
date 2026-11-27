@@ -25,17 +25,18 @@
  * changed card is a new URL. The guard and the 500 stay `no-store`.
  *
  * Each distinct query is a fresh render, so the API guard runs first: the per-IP sliding window
- * and ban lists /api uses (src/lib/security/api-guard.ts), with its 429 and 403 answers. It runs
- * only when the function does, on a CDN miss. The prerendered /opengraph-image and
+ * and ban lists /api uses (src/lib/security/api-guard.ts), with its 429 and 403 answers
+ * (_lib/og-guard.ts, shared with the book and shelf cards under /api/og/book and /api/og/shelf).
+ * It runs only when the function does, on a CDN miss. The prerendered /opengraph-image and
  * /twitter-image do not pass through here.
  */
 
-import { apiGuardHook } from '@/app/api/_elysia/shared/guard';
 import { PageCard, SiteCard } from '@/lib/og/cards';
 import { PAGE_CARD_CACHE_CONTROL } from '@/lib/og/constants';
 import { renderOgCard } from '@/lib/og/render';
 import { type PageCardText, readPageCard } from '@/lib/og/text';
 import { logger } from '@/utils';
+import { guardRefusal } from './_lib/og-guard';
 
 // Explicit: the cards read their faces from disk.
 export const runtime = 'nodejs';
@@ -43,29 +44,6 @@ export const runtime = 'nodejs';
 /** The card for `page`, or the site card when the query names no page. */
 const cardFor = (page: PageCardText | null) =>
   page ? <PageCard title={page.title} description={page.description} /> : <SiteCard />;
-
-/**
- * The API guard's refusal of `request`, or null to draw the card. The guard answers 403 to a
- * banned client and 429 with Retry-After to one over its limit, both `no-store` so the CDN never
- * serves them to anyone else. It fails open: the guard itself allows when Upstash is unset, slow
- * or failing, and anything it throws here draws the card too.
- */
-async function guardRefusal(request: Request): Promise<Response | null> {
-  const set: { status?: number; headers: Record<string, string | number> } = { headers: {} };
-  try {
-    const body = await apiGuardHook({ request, set });
-    if (body === undefined) return null;
-    const headers = Object.fromEntries(
-      Object.entries(set.headers).map(([name, value]) => [name, String(value)]),
-    );
-    return Response.json(body, { status: set.status, headers });
-  } catch (error) {
-    logger.warn('The OG guard failed; drawing the card', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-}
 
 /**
  * The card the query asks for as a PNG the CDN may keep, a 403 or 429 from the guard, or a 500
