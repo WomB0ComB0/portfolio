@@ -303,12 +303,12 @@ describe('BookshelfStage ring cursor', () => {
     }) as MediaQueryList;
 
   /**
-   * Renders the stage with a fine pointer (and reduced motion when asked), moves the pointer from
-   * (100, 100) to (500, 300) and runs one animation frame: the cursor layer's transform then.
+   * Gives the page a fine pointer and `reducedMotion` as its reduced-motion list, and queues each
+   * animation frame instead of running it: the queue.
    */
-  function ringAfterOneFrame(reducedMotion: boolean): string {
+  function stubRingEnvironment(reducedMotion: MediaQueryList): FrameRequestCallback[] {
     vi.spyOn(globalThis, 'matchMedia').mockImplementation((query: string) =>
-      mediaList(query, query === FINE_POINTER || (reducedMotion && query === REDUCED_MOTION_QUERY)),
+      query === REDUCED_MOTION_QUERY ? reducedMotion : mediaList(query, query === FINE_POINTER),
     );
     const frames: FrameRequestCallback[] = [];
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
@@ -320,16 +320,36 @@ describe('BookshelfStage ring cursor', () => {
       configurable: true,
       value: () => null,
     });
+    return frames;
+  }
 
-    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+  /** Moves the pointer through `points` and runs the latest frame: the cursor layer's transform. */
+  function ringAfterMoves(
+    frames: readonly FrameRequestCallback[],
+    points: readonly (readonly [number, number])[],
+  ): string {
     const layer = document.querySelector<HTMLElement>('.cursor-layer');
     if (!layer) throw new Error('no cursor layer');
     act(() => {
-      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 100, clientY: 100 }));
-      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 500, clientY: 300 }));
+      for (const [clientX, clientY] of points) {
+        window.dispatchEvent(new MouseEvent('pointermove', { clientX, clientY }));
+      }
     });
     act(() => frames.at(-1)?.(16));
     return layer.style.transform;
+  }
+
+  /**
+   * Renders the stage with a fine pointer (and reduced motion when asked), moves the pointer from
+   * (100, 100) to (500, 300) and runs one animation frame: the cursor layer's transform then.
+   */
+  function ringAfterOneFrame(reducedMotion: boolean): string {
+    const frames = stubRingEnvironment(mediaList(REDUCED_MOTION_QUERY, reducedMotion));
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    return ringAfterMoves(frames, [
+      [100, 100],
+      [500, 300],
+    ]);
   }
 
   afterEach(() => {
@@ -346,6 +366,36 @@ describe('BookshelfStage ring cursor', () => {
 
     expect(transform).toMatch(/^translate3d\(/);
     expect(transform).not.toBe('translate3d(500px, 300px, 0px)');
+  });
+
+  it('sits on the pointer once reduced motion turns on mid-visit, and stops listening', () => {
+    const listeners = new Set<EventListener>();
+    let reduced = false;
+    const reducedMotion = {
+      ...mediaList(REDUCED_MOTION_QUERY, false),
+      get matches() {
+        return reduced;
+      },
+      addEventListener: (_type: string, listener: EventListener) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: EventListener) => listeners.delete(listener),
+    } as MediaQueryList;
+    const frames = stubRingEnvironment(reducedMotion);
+    const { unmount } = render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    expect(
+      ringAfterMoves(frames, [
+        [100, 100],
+        [500, 300],
+      ]),
+    ).not.toBe('translate3d(500px, 300px, 0px)');
+
+    reduced = true;
+    act(() => {
+      for (const listener of listeners) listener(new Event('change'));
+    });
+
+    expect(ringAfterMoves(frames, [[700, 400]])).toBe('translate3d(700px, 400px, 0px)');
+    unmount();
+    expect(listeners.size).toBe(0);
   });
 });
 

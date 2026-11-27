@@ -22,14 +22,15 @@
  * Enter or Space opens the book on stage and Escape closes the detail; a drag scrubs a step per
  * scrub unit and a flick adds up to three; a tap on a side book steps to it (moving the shelf
  * filter to its shelf, and clearing a status filter it fails) and a tap on the active one opens
- * it; with a fine pointer a ring cursor trails the pointer (under reduced motion it sits on it).
+ * it; with a fine pointer a ring cursor trails the pointer (under reduced motion it sits on it,
+ * following the setting as it changes).
  * The drag maths is in _lib/shelf-glide.ts and the moves in use-shelf-motion.ts. The stage
  * (bookshelf-stage.tsx) calls it. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx and
  * tests/unit/bookshelf/scale-budgets.test.ts.
  */
 
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
-import { prefersReducedMotion } from '@/lib/design/motion';
+import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import type { BookItem } from '../_lib/books';
 import type { BookStatusFilter } from '../_lib/bookshelf-filters';
 import {
@@ -107,6 +108,20 @@ export interface BookshelfNavigation {
 function stageHasFocus(stage: HTMLElement | null): boolean {
   const active = document.activeElement;
   return active === null || active === document.body || Boolean(stage?.contains(active));
+}
+
+/** The share of the way to the pointer the ring moves each frame: all of it with reduced motion. */
+const cursorLerp = (): number => (prefersReducedMotion() ? 1 : CURSOR_LERP);
+
+/**
+ * Calls `onChange` whenever the visitor's reduced-motion setting changes; returns how to stop.
+ * Does nothing where `matchMedia` does not exist.
+ */
+function subscribeToReducedMotion(onChange: () => void): () => void {
+  if (typeof globalThis.matchMedia !== 'function') return () => undefined;
+  const query = globalThis.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
 }
 
 /**
@@ -246,10 +261,14 @@ export function useBookshelfNavigation({
   }, [mapOpen, step, jumpTo, bookCount, openDetail, bookAt, closeDetail, stageRef, posRef]);
 
   // The ring cursor trails the pointer, reads Open over the active book, shrinks while dragging.
-  // Under reduced motion it sits on the pointer instead of trailing it.
+  // Under reduced motion it sits on the pointer instead of trailing it, from the frame after the
+  // setting changes.
   useEffect(() => {
     if (!finePointer || detailOpen) return;
-    const lerp = prefersReducedMotion() ? 1 : CURSOR_LERP;
+    let lerp = cursorLerp();
+    const stopFollowingMotion = subscribeToReducedMotion(() => {
+      lerp = cursorLerp();
+    });
     const state = {
       x: CURSOR_OFF_SCREEN_PX,
       y: CURSOR_OFF_SCREEN_PX,
@@ -308,6 +327,7 @@ export function useBookshelfNavigation({
       window.removeEventListener('pointermove', onMove);
       document.documentElement.removeEventListener('mouseleave', onLeave);
       window.cancelAnimationFrame(rafId);
+      stopFollowingMotion();
     };
   }, [finePointer, detailOpen, mapOpen, cursorRef, stageRef]);
 
