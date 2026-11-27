@@ -86,6 +86,10 @@ export const pageResponse = (
 ): Response => new Response(body, { status: 200, headers: { 'content-type': contentType } });
 
 /** A probe observation of `kind`. */
+/** A 301 to `location`, as one redirect hop. */
+export const redirectTo = (location: string): Response =>
+  new Response(null, { status: 301, headers: { location } });
+
 export const observed = (kind: LinkObservation['kind']): LinkObservation =>
   kind === 'reachable' ? { kind, httpStatus: 200 } : { kind };
 

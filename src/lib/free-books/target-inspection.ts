@@ -20,8 +20,8 @@ import 'server-only';
  * @file The verify sweep's content inspection of one reachable link: inspectFinalTarget walks its
  * redirects one hop at a time over an injected fetch (the DNS-pinned one in the CLI), audits the
  * chain, refuses to follow a hop the caller excludes, reads a bounded slice of what it ends on and
- * runs content-inspection.ts on it. sweep.ts calls it from probeUrls and re-exports it;
- * tests/unit/free-books/sweep.test.ts covers it.
+ * runs content-inspection.ts on it. sweep.ts calls it from probeUrls and re-exports it. Guarded by
+ * tests/unit/free-books/target-inspection.test.ts, and inside a run by sweep.test.ts.
  */
 
 import {
