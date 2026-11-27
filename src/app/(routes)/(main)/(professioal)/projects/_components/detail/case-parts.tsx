@@ -30,7 +30,8 @@
  * - A part with its own page on /projects links there from its name; the link and the repository
  *   link are siblings, never nested.
  * - Technologies are plain words after a spoken "Technologies:" (Built with below links each one,
- *   and a phone would otherwise gain a 44px target per word); their middle dots are hidden.
+ *   and a phone would otherwise gain a 44px target per word); their middle dots are hidden, and
+ *   a wrapped line ends with one rather than starting with it.
  *
  * Palette only (case-body.module.css), nothing animates in, and no JavaScript is needed.
  */
@@ -47,7 +48,12 @@ import { addressParts } from './case-text';
 const PRIVATE_LABEL = 'Private repository';
 const MINE_LABEL = 'My part';
 
-/** A public repository: its owner/repo as a new-tab link, then its link-health badge. */
+/**
+ * A public repository: its owner/repo as a new-tab link, then its link-health badge. The arrow
+ * comes straight after the last visible word and the spoken "code" after the arrow: the space
+ * before "code" is a place a line may break, and with it before the arrow, 200% text at 320px
+ * left the arrow alone on a line under the name. Read aloud it is still "owner/repo code".
+ */
 function RepoLink({ repo }: { readonly repo: PartRepo }): ReactElement {
   return (
     <span className={styles['part-link']}>
@@ -60,8 +66,8 @@ function RepoLink({ repo }: { readonly repo: PartRepo }): ReactElement {
       >
         <span className={styles['part-repo-words']}>
           <Breakable parts={addressParts(repo.label)} />
-          <SrOnlyWords>code</SrOnlyWords>
           <NewTabArrow />
+          <SrOnlyWords>code</SrOnlyWords>
         </span>
         <SrOnlyWords>{NEW_TAB_LABEL}</SrOnlyWords>
       </a>
@@ -70,23 +76,28 @@ function RepoLink({ repo }: { readonly repo: PartRepo }): ReactElement {
   );
 }
 
+/** The dot after a technology, glued to it by a no-break space (as Byline's separator is). */
+const TECH_SEPARATOR = ' ·';
+
 /**
- * The part's own technologies as words. The spaces sit outside the hidden dots, so a screen
- * reader still hears each word apart.
+ * The part's own technologies as words. Each dot is glued to the word before it and followed by
+ * a plain space, so a wrapped line ends with a dot and never starts with one, as the card
+ * bylines do. The dot and its no-break space are hidden; the plain space outside them keeps the
+ * words apart for a screen reader.
  */
 function PartTechs({ technologies }: { readonly technologies: readonly string[] }): ReactElement {
+  const last = technologies.length - 1;
   return (
     <span className={styles['part-techs']} data-case-part-techs="">
       <span className="sr-only">Technologies: </span>
       {technologies.map((tech, index) => (
         <Fragment key={tech}>
-          {index > 0 ? (
+          {tech}
+          {index < last ? (
             <>
-              {' '}
-              <span aria-hidden="true">·</span>{' '}
+              <span aria-hidden="true">{TECH_SEPARATOR}</span>{' '}
             </>
           ) : null}
-          {tech}
         </Fragment>
       ))}
     </span>

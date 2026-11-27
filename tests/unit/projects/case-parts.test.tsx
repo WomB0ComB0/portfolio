@@ -191,6 +191,18 @@ describe('How it fits together', () => {
     expect(badge).toHaveAttribute('data-badge-scope', 'projects');
   });
 
+  it('keeps the new-tab arrow on the line of its repository’s last word', () => {
+    render(partsOnly(SYSTEM));
+    const link = within(partNamed('Browser extension')).getByRole('link');
+    const arrow = link.querySelector('[data-new-tab-arrow]');
+
+    // Nothing a line could break at sits between the visible name and the arrow: a space before
+    // the spoken "code" once let the arrow wrap onto a line of its own at 320px with 200% text.
+    expect(arrow?.previousSibling?.nodeType).toBe(Node.TEXT_NODE);
+    expect(arrow?.previousSibling?.textContent).toBe('example-extension');
+    expect(link).toHaveAccessibleName('example-org/example-extension code (opens in a new tab)');
+  });
+
   it('says "Private repository" for a private part, with no link or badge', () => {
     render(partsOnly(SYSTEM));
     const core = partNamed('Core service');
@@ -227,6 +239,27 @@ describe('How it fits together', () => {
       expect(dot.textContent?.trim()).toBe('·');
     }
     expect(partNamed('Core service').querySelector('[data-case-part-techs]')).toBeNull();
+  });
+
+  it('glues each dot to the technology before it, so a wrapped line never starts with one', () => {
+    render(partsOnly(SYSTEM));
+    const techs = partNamed('Web app').querySelector('[data-case-part-techs]');
+    const shown = [...(techs?.childNodes ?? [])]
+      .filter((node) => !(node instanceof Element && node.classList.contains('sr-only')))
+      .map((node) => node.textContent)
+      .join('');
+
+    // A no-break space before each dot and a plain space after it, as the card bylines do.
+    expect(shown).toBe('Next.js · Supabase');
+    // Read aloud, the hidden dot takes its no-break space with it; the plain space keeps the words
+    // apart.
+    const spoken = techs?.cloneNode(true) as HTMLElement;
+    for (const hidden of spoken.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+    expect(spoken.textContent).toBe('Technologies: Next.js Supabase');
+    for (const dot of techs?.querySelectorAll('[aria-hidden="true"]') ?? []) {
+      expect(dot.textContent).toBe(' ·');
+      expect(dot.nextSibling?.textContent).toBe(' ');
+    }
   });
 
   it('shows "My part" only for a part that has it', () => {
