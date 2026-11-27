@@ -20,8 +20,9 @@
  * dataset and /api/v1/sanity/projects can be read without a token, so a private repository is
  * described by its name and never given an address. The site reads only published documents, so
  * a warning on the draft is the last moment a leak can still be stopped; the checks that only
- * nudge stay warnings and let Publish through. Studio and the site share the repository rules
- * (../project-part-rules.ts).
+ * nudge stay warnings and let Publish through, including the one that asks GitHub whether an
+ * address is public, which stays quiet whenever GitHub can't say. Studio and the site share the
+ * repository rules (../project-part-rules.ts).
  *
  * Relative imports only: the Studio's own build does not resolve the app's '@/' alias.
  */
@@ -32,7 +33,9 @@ import {
   looksLikeRepoSlug,
   MIN_PARTS,
   PART_LIMITS,
+  publicOnGitHub,
   repoPathOf,
+  type StatusFetch,
 } from '../project-part-rules';
 
 /** What the checks read of one part, as Studio holds it (any field may still be missing). */
@@ -99,6 +102,8 @@ export const PART_MESSAGES = {
   ignoredTech:
     'Ignored while "Its own project page" is set: that project\'s own card answers its filter.',
   summaryAlone: 'This sentence shows only with two or more parts.',
+  notPublic:
+    'GitHub does not show this repository to visitors: it is private, deleted or mistyped. If it is private, clear this field and describe the part in its name.',
 } as const;
 
 /**
@@ -168,6 +173,22 @@ export async function warnOtherProjectsRepo(
     return true;
   }
 }
+
+/**
+ * The address check against GitHub, looking through `fetchImpl` (the browser's own unless a test
+ * passes one): it warns only when GitHub definitely hides the repository from an anonymous
+ * visitor (404), which is how a private repository's address looks before Publish makes it
+ * readable by anyone. It fails open: a rate limit, a network or content-policy failure, or an
+ * address that names no GitHub repository leaves it quiet, because it is only a nudge and the
+ * descriptions are the rule. It never blocks Publish.
+ */
+export const notPublicOnGitHubCheck =
+  (fetchImpl?: StatusFetch) =>
+  async (url: string | undefined): Promise<CustomValidatorResult> =>
+    (await publicOnGitHub(url, fetchImpl)) === false ? PART_MESSAGES.notPublic : true;
+
+/** The repoUrl field's GitHub check, through the browser's own fetch. */
+export const warnNotPublicOnGitHub = notPublicOnGitHubCheck();
 
 /** The list's errors: exactly one part, two parts on one repository, two on one project page. */
 export function partsListErrors(value: unknown): CustomValidatorResult {
@@ -256,6 +277,7 @@ export const systemPartsFields = () => [
             validation: (Rule) => [
               Rule.uri({ scheme: ['https'] }),
               Rule.custom(warnOtherProjectsRepo).warning(),
+              Rule.custom(warnNotPublicOnGitHub).warning(),
             ],
           }),
           defineField({

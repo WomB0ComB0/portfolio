@@ -19,17 +19,19 @@
  * (src/sanity/project-part-rules.ts): one threshold, MIN_PARTS, below which a project reads as
  * one repository; the 'owner/repo' path of a GitHub address, which tells two parts (or a part and
  * another project) apart case-insensitively and never matches an organisation's root; the link
- * text a row shows; and the shape of a name that reads like a repository slug, which Studio
- * warns about while the row has no address.
+ * text a row shows; the shape of a name that reads like a repository slug, which Studio
+ * warns about while the row has no address; and whether GitHub shows a repository to an
+ * anonymous visitor, asked through an injected fetch (no test reaches the network).
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   isSameRepo,
   looksLikeRepoSlug,
   MIN_PARTS,
   PART_LIMITS,
+  publicOnGitHub,
   repoLabelOf,
   repoPathOf,
 } from '@/sanity/project-part-rules';
@@ -239,5 +241,118 @@ describe('looksLikeRepoSlug', () => {
     '',
   ])('is false for %j', (text) => {
     expect(looksLikeRepoSlug(text)).toBe(false);
+  });
+});
+
+describe('publicOnGitHub', () => {
+  const REPO = 'https://github.com/example-org/example-repo';
+
+  /** A fetch that answers every request with `status`, recording each call. */
+  const answering = (status: number) =>
+    vi.fn(async (_url: string, _init?: RequestInit) => ({ status }));
+
+  it('is true when GitHub shows the repository to an anonymous visitor', async () => {
+    const fetchImpl = answering(200);
+
+    expect(await publicOnGitHub(REPO, fetchImpl)).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+      'https://api.github.com/repos/example-org/example-repo',
+    );
+  });
+
+  it('is false when GitHub answers 404: private, deleted or mistyped', async () => {
+    expect(await publicOnGitHub(REPO, answering(404))).toBe(false);
+  });
+
+  it.each([403, 429, 500, 503])("is null when GitHub answers %i: it can't tell", async (status) => {
+    expect(await publicOnGitHub(REPO, answering(status))).toBeNull();
+  });
+
+  it('is null when the request fails (offline, or a policy that refuses it)', async () => {
+    const rejecting = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const throwing = vi.fn(() => {
+      throw new TypeError('Illegal invocation');
+    });
+
+    expect(await publicOnGitHub(REPO, rejecting)).toBeNull();
+    expect(await publicOnGitHub(REPO, throwing)).toBeNull();
+  });
+
+  it.each([
+    undefined,
+    null,
+    '',
+    'https://github.com/example-org',
+    'https://github.com/example-org/',
+    'https://gitlab.com/example-org/example-repo',
+    'http//github.com/example-org/example-repo',
+    'not an address',
+  ])('is null for %j without asking GitHub', async (url) => {
+    const fetchImpl = answering(200);
+
+    expect(await publicOnGitHub(url, fetchImpl)).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('sends no cookies, credentials or referrer', async () => {
+    const fetchImpl = answering(200);
+
+    await publicOnGitHub(REPO, fetchImpl);
+
+    expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    });
+  });
+
+  it('asks once per repository: the same one again, in any case or with .git, comes from memory', async () => {
+    const fetchImpl = answering(404);
+
+    const answers = [
+      await publicOnGitHub(REPO, fetchImpl),
+      await publicOnGitHub(REPO, fetchImpl),
+      await publicOnGitHub('https://github.com/Example-Org/Example-Repo.git', fetchImpl),
+      await publicOnGitHub(`${REPO}/tree/main`, fetchImpl),
+    ];
+
+    expect(answers).toEqual([false, false, false, false]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares one request between lookups made while it is still out', async () => {
+    const fetchImpl = answering(200);
+
+    const answers = await Promise.all([
+      publicOnGitHub(REPO, fetchImpl),
+      publicOnGitHub(REPO, fetchImpl),
+    ]);
+
+    expect(answers).toEqual([true, true]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks again for another repository, and keeps each fetch’s answers apart', async () => {
+    const first = answering(200);
+    const second = answering(404);
+
+    expect(await publicOnGitHub(REPO, first)).toBe(true);
+    expect(await publicOnGitHub('https://github.com/example-org/example-other', first)).toBe(true);
+    expect(await publicOnGitHub(REPO, second)).toBe(false);
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the browser's own fetch when none is passed, looked up at call time", async () => {
+    const fetchImpl = answering(404);
+    vi.stubGlobal('fetch', fetchImpl);
+    try {
+      expect(await publicOnGitHub('https://github.com/example-org/example-global')).toBe(false);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -21,6 +21,8 @@
  * (src/app/(routes)/(main)/(professioal)/projects/_lib/project-parts.ts) reads them to build the
  * card count, the page section and the technology filter. So Studio warns about exactly the
  * repository the site would treat as the same one, and both stop at the same number of parts.
+ * Studio alone also asks GitHub whether an address is public (publicOnGitHub), so a private
+ * repository's address is caught on the draft; the site never makes that request.
  *
  * No imports: the Studio's own build loads this by a relative path (it does not resolve the app's
  * '@/' alias), and the view model runs on the server and in nothing that needs more.
@@ -130,3 +132,72 @@ export function repoLabelOf(url: string): string {
  * bare 'CI/CD' is, which is harmless because Studio only warns with it.
  */
 export const looksLikeRepoSlug = (text: string): boolean => REPO_SLUG.test(text.trim());
+
+/** GitHub's REST address for a repository, which answers an anonymous visitor 404 when private. */
+const GITHUB_REPO_API = 'https://api.github.com/repos/';
+const STATUS_SHOWN = 200;
+const STATUS_HIDDEN = 404;
+
+/** What the GitHub lookup needs of fetch: an address and options in, a status back. */
+export type StatusFetch = (url: string, init?: RequestInit) => Promise<{ readonly status: number }>;
+
+/**
+ * Each fetch's answers by lower-cased 'owner/repo'. Kept per fetch so a test's fake never answers
+ * for the browser's, and per repository because Studio re-runs its checks on every edit while
+ * GitHub allows an anonymous address 60 lookups an hour.
+ */
+const visibilityAnswers = new WeakMap<StatusFetch, Map<string, Promise<boolean | null>>>();
+
+/** The answers already asked through `fetchImpl`, started empty on its first lookup. */
+function answersOf(fetchImpl: StatusFetch): Map<string, Promise<boolean | null>> {
+  const known = visibilityAnswers.get(fetchImpl);
+  if (known) return known;
+  const fresh = new Map<string, Promise<boolean | null>>();
+  visibilityAnswers.set(fetchImpl, fresh);
+  return fresh;
+}
+
+/** One anonymous lookup: true on 200, false on 404, null for anything else or a failure. */
+async function askGitHub(path: string, fetchImpl: StatusFetch): Promise<boolean | null> {
+  try {
+    const response = await fetchImpl(`${GITHUB_REPO_API}${path}`, {
+      // Anonymous, as a visitor sees it: a signed-in owner's cookie must not make it look public.
+      credentials: 'omit',
+      // GitHub needn't learn which Studio document is open.
+      referrerPolicy: 'no-referrer',
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (response.status === STATUS_SHOWN) return true;
+    if (response.status === STATUS_HIDDEN) return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether GitHub shows the repository at `url` to an anonymous visitor: true on 200 (a renamed
+ * repository redirects there too), false on 404 (private, deleted or mistyped), null when it
+ * can't tell: not a GitHub repository address, a rate limit (403, 429), a server error, or a
+ * request the network or a content policy refuses. Never rejects. Asked once per repository and
+ * fetch, in any case and with or without '.git'; `fetchImpl` is the browser's own unless a test
+ * passes one, looked up when called. Only Studio asks: it is a warning before Publish, and the
+ * site never calls it.
+ *
+ * @example
+ * await publicOnGitHub('https://github.com/example-org/example-repo') // true, false or null
+ */
+export function publicOnGitHub(
+  url: string | null | undefined,
+  fetchImpl: StatusFetch = globalThis.fetch,
+): Promise<boolean | null> {
+  const path = repoPathOf(url);
+  if (!path || typeof fetchImpl !== 'function') return Promise.resolve(null);
+  const answers = answersOf(fetchImpl);
+  const key = path.toLowerCase();
+  const known = answers.get(key);
+  if (known) return known;
+  const answer = askGitHub(path, fetchImpl);
+  answers.set(key, answer);
+  return answer;
+}

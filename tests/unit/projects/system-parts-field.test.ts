@@ -21,8 +21,9 @@
  * technologies and "My part". Everything typed here is public once published, so the descriptions
  * say so, the collapsed row says "No link (private)" when it has no address, and the checks warn
  * before Publish: a name shaped like a repository slug on a row with no address, another
- * project's repository typed as a plain part, a main repository no part lists. The repository
- * check's query runs on groq-js against a fake dataset; every fixture repository is invented.
+ * project's repository typed as a plain part, a main repository no part lists, and an address
+ * GitHub hides from visitors. The repository check's query runs on groq-js against a fake
+ * dataset, and the GitHub check asks an injected fetch; every fixture repository is invented.
  */
 
 import { evaluate, parse } from 'groq-js';
@@ -32,11 +33,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { MIN_PARTS, PART_LIMITS } from '@/sanity/project-part-rules';
 import { projectType } from '@/sanity/schemaTypes/project';
 import {
+  notPublicOnGitHubCheck,
   PART_MESSAGES,
   partsListErrors,
   partsListWarnings,
   rejectSelfReference,
   warnIgnoredTechnologies,
+  warnNotPublicOnGitHub,
   warnOtherProjectsRepo,
   warnRepoShapedName,
   warnSummaryWithoutParts,
@@ -244,6 +247,7 @@ describe('the field rules', () => {
     expect(customLevelsOf(partField('name'))).toEqual([{ fn: warnRepoShapedName, warning: true }]);
     expect(customLevelsOf(partField('repoUrl'))).toEqual([
       { fn: warnOtherProjectsRepo, warning: true },
+      { fn: warnNotPublicOnGitHub, warning: true },
     ]);
     expect(customLevelsOf(summaryField)).toEqual([{ fn: warnSummaryWithoutParts, warning: true }]);
   });
@@ -633,5 +637,69 @@ describe('warnOtherProjectsRepo', () => {
     expect(
       await warnOtherProjectsRepo('https://github.com/example-org/example-shortener', context),
     ).toBe(true);
+  });
+});
+
+describe('warnNotPublicOnGitHub', () => {
+  /** A fetch that answers every request with `status` (or throws), recording each call. */
+  const answering = (status: number | Error) =>
+    vi.fn(async (_url: string, _init?: RequestInit) => {
+      if (status instanceof Error) throw status;
+      return { status };
+    });
+
+  it('warns when GitHub hides the repository from visitors, and says how to enter a private one', async () => {
+    const check = notPublicOnGitHubCheck(answering(404));
+
+    const result = await check('https://github.com/example-org/example-hidden');
+
+    expect(result).toBe(PART_MESSAGES.notPublic);
+    expect(PART_MESSAGES.notPublic).toContain('private');
+    expect(PART_MESSAGES.notPublic).toContain('clear');
+  });
+
+  it('stays quiet for a repository GitHub shows', async () => {
+    expect(await notPublicOnGitHubCheck(answering(200))('https://github.com/example-org/a')).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ['a rate limit', 403],
+    ['too many requests', 429],
+    ['a server error', 502],
+    ['a refused or failed request', new TypeError('Failed to fetch')],
+  ])('fails open on %s: no warning, nothing blocks Publish', async (_label, status) => {
+    expect(
+      await notPublicOnGitHubCheck(answering(status))('https://github.com/example-org/b'),
+    ).toBe(true);
+  });
+
+  it('asks GitHub nothing for an empty field, an organisation root or another host', async () => {
+    const fetchImpl = answering(404);
+    const check = notPublicOnGitHubCheck(fetchImpl);
+
+    for (const url of [
+      undefined,
+      '',
+      'https://github.com/example-org',
+      'https://gitlab.com/example-org/c',
+    ]) {
+      expect(await check(url)).toBe(true);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("is the field's check, looking through the browser's own fetch", async () => {
+    const fetchImpl = answering(404);
+    vi.stubGlobal('fetch', fetchImpl);
+    try {
+      expect(await warnNotPublicOnGitHub('https://github.com/example-org/d')).toBe(
+        PART_MESSAGES.notPublic,
+      );
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
