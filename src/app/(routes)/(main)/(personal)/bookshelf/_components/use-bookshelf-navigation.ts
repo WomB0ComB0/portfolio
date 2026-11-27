@@ -30,7 +30,7 @@
  */
 
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from 'react';
-import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '@/lib/design/motion';
+import { prefersReducedMotion, subscribeToReducedMotion } from '@/lib/design/motion';
 import type { BookItem } from '../_lib/books';
 import type { BookStatusFilter } from '../_lib/bookshelf-filters';
 import {
@@ -112,17 +112,6 @@ function stageHasFocus(stage: HTMLElement | null): boolean {
 
 /** The share of the way to the pointer the ring moves each frame: all of it with reduced motion. */
 const cursorLerp = (): number => (prefersReducedMotion() ? 1 : CURSOR_LERP);
-
-/**
- * Calls `onChange` whenever the visitor's reduced-motion setting changes; returns how to stop.
- * Does nothing where `matchMedia` does not exist.
- */
-function subscribeToReducedMotion(onChange: () => void): () => void {
-  if (typeof globalThis.matchMedia !== 'function') return () => undefined;
-  const query = globalThis.matchMedia(REDUCED_MOTION_QUERY);
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
 
 /**
  * Whether (`x`, `y`) is on the active book's cover, as its turned face is drawn on screen. A

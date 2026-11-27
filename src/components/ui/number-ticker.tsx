@@ -58,7 +58,7 @@ import {
 } from 'react';
 
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
-import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '@/lib/design/motion';
+import { prefersReducedMotion, subscribeToReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 
 /** How long a count takes, in seconds. */
@@ -83,17 +83,6 @@ interface CountOptions {
   formatter: Intl.NumberFormat;
   onDone: () => void;
 }
-
-/**
- * Calls `onChange` whenever the visitor's reduced-motion setting changes. Does nothing where
- * `matchMedia` does not exist.
- */
-const subscribeToReducedMotion = (onChange: () => void): (() => void) => {
-  if (typeof globalThis.matchMedia !== 'function') return () => {};
-  const query = globalThis.matchMedia(REDUCED_MOTION_QUERY);
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-};
 
 /** Server HTML never counts, so the server snapshot says reduced. */
 const reducedMotionOnServer = (): boolean => true;

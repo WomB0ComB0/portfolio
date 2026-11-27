@@ -96,3 +96,15 @@ export const seconds = (ms: number): number => ms / MS_PER_SECOND;
 export const prefersReducedMotion = (): boolean =>
   typeof globalThis.matchMedia === 'function' &&
   globalThis.matchMedia(REDUCED_MOTION_QUERY).matches;
+
+/**
+ * Calls `onChange` whenever the visitor's reduced-motion setting changes, so motion that is
+ * already running can follow it; answers how to stop. Does nothing where `matchMedia` does not
+ * exist.
+ */
+export const subscribeToReducedMotion = (onChange: () => void): (() => void) => {
+  if (typeof globalThis.matchMedia !== 'function') return () => undefined;
+  const query = globalThis.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
