@@ -18,13 +18,18 @@
  * @file The reading map's code loads only when a visitor asks for it (the #632 pattern). When it
  * fails to arrive (a deploy skew, a dropped connection, a blocked chunk), the bookshelf keeps
  * working instead of falling to the route's error view: the click opens nothing, and focus stays
- * on the button. Its own file because the module mock below replaces the live map for every test
- * in it.
+ * on the button. Each later hover, focus or press asks for the code again, so the map opens once
+ * the code does arrive, without a reload. Its own file because the module mock below stands
+ * between every test in it and the live map; once that module has loaded it stays loaded, so the
+ * test that lets it through runs last.
  */
 
 import { act, fireEvent, screen } from '@testing-library/react';
 import { Component, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/** Fails every request for the live map's module while `failing`; counts the requests. */
+const chunk = vi.hoisted(() => ({ failing: true, requests: 0 }));
 
 // The catalog builder draws each cover with the real image URL builder; the client module itself
 // reads server configuration on import.
@@ -38,9 +43,14 @@ vi.mock('@/lib/sanity/client', async () => {
 });
 // Only buildBookshelfCatalog is used here; the cached Sanity loaders are never asked.
 vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
-vi.mock('@/app/(routes)/(main)/(personal)/bookshelf/_components/reading-map-dialog-live', () => {
-  throw new Error('Loading chunk reading-map-dialog-live failed');
-});
+vi.mock(
+  '@/app/(routes)/(main)/(personal)/bookshelf/_components/reading-map-dialog-live',
+  async (importOriginal) => {
+    chunk.requests += 1;
+    if (chunk.failing) throw new Error('Loading chunk reading-map-dialog-live failed');
+    return importOriginal();
+  },
+);
 
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import { BOOKS, renderWithNuqs as render, SHELVES } from './bookshelf-fixtures';
@@ -67,6 +77,10 @@ async function settle(): Promise<void> {
   }
 }
 
+beforeEach(() => {
+  chunk.failing = true;
+});
+
 afterEach(() => {
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
 });
@@ -88,5 +102,35 @@ describe('a reading map whose code fails to load', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
     expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
+  });
+
+  it('asks for the code again on every hover while it keeps failing', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const trigger = screen.getByRole('button', { name: 'Reading map' });
+    const before = chunk.requests;
+
+    fireEvent.pointerEnter(trigger);
+    await settle();
+    fireEvent.pointerLeave(trigger);
+    fireEvent.pointerEnter(trigger);
+    await settle();
+
+    expect(chunk.requests).toBe(before + 2);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  // Last: the module stays loaded once it arrives.
+  it('opens on the next press once the code arrives, without a reload', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const trigger = screen.getByRole('button', { name: 'Reading map' });
+
+    fireEvent.click(trigger);
+    await settle();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    chunk.failing = false;
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole('dialog', { name: /Reading map/i })).toBeInTheDocument();
   });
 });
