@@ -21,7 +21,7 @@
  *   kinds and AI/ML stays whole, with a trailing qualifier in brackets dropped;
  * - kind slugs and technology keys, which fold spellings of one technology together (React,
  *   React.js, ReactJS, React 19) while keeping C, C++ and C# apart;
- * - the start month in UTC, the detail href and the countable noun.
+ * - the start month in UTC, the detail href and the countable nouns (a project, a repository).
  */
 
 /**
@@ -61,6 +61,9 @@ const TECH_ALIASES: Readonly<Record<string, string>> = {
 };
 
 export const PROJECT_NOUN = { one: 'project', many: 'projects' } as const;
+
+/** A multi-repository project's card byline: '3 repos' (never one: below two it says nothing). */
+export const REPO_NOUN = { one: 'repo', many: 'repos' } as const;
 
 /** A project's start month, for the Started column: "Mar", with its year beside it. */
 export interface ProjectMonth {
