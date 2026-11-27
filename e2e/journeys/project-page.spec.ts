@@ -34,9 +34,9 @@
  * - the neighbours lead to their pages, and Built with to /projects filtered by technology;
  * - a project made of several repositories shows "How it fits together" between The project and
  *   Screens, at 1440 and 375: one h3 per part in Studio order, one h1, a private row with no link,
- *   a part with its own page leading there from its name, repository links 44px tall under a
- *   finger, no sideways scroll at 320 px with 200% text and no page error; a project with fewer
- *   than two parts has no such section.
+ *   a part with its own page leading there from its name, repository links and such a name 44px
+ *   tall under a finger without making the row taller, no sideways scroll at 320 px with 200%
+ *   text and no page error; a project with fewer than two parts has no such section.
  * The cases are picked from the live list (GET /api/v1/sanity/projects); a case the data lacks is
  * skipped, never faked. GET only.
  */
@@ -799,20 +799,61 @@ test.describe('how a multi-repository project fits together', () => {
     }
   });
 
-  test('a part with its own page leads there from its name', async ({ page, request }) => {
+  /** The first part of `project` that links another listed project's page, if any. */
+  const linkedPartOf = (project: ApiProject, listed: ReadonlySet<string>): ApiPart | undefined =>
+    shownParts(project).find(
+      (part) =>
+        filled(part.projectId) &&
+        part.projectId.trim() !== project._id &&
+        listed.has(part.projectId.trim()),
+    );
+
+  /** A project with a part that links another project's page, and that page's path. */
+  async function projectLinkingAPage(
+    request: APIRequestContext,
+  ): Promise<{ readonly project: ApiProject; readonly target: string } | null> {
     const projects = await listPartsProjects<ApiProject>(request);
     const listed = new Set(projects.map(({ _id }) => _id));
-    const linkedPart = (project: ApiProject): ApiPart | undefined =>
-      shownParts(project).find(
-        (part) =>
-          filled(part.projectId) &&
-          part.projectId.trim() !== project._id &&
-          listed.has(part.projectId.trim()),
-      );
-    const project = projects.find((each) => linkedPart(each)) ?? null;
-    test.skip(!project, 'no part links another project’s page yet');
-    if (!project) return;
-    const target = `/projects/${encodeURIComponent(String(linkedPart(project)?.projectId).trim())}`;
+    const project = projects.find((each) => linkedPartOf(each, listed)) ?? null;
+    if (!project) return null;
+    const id = String(linkedPartOf(project, listed)?.projectId).trim();
+    return { project, target: `/projects/${encodeURIComponent(id)}` };
+  }
+
+  test('a part’s name that links its page is at least 44 px tall under a finger, and its row is not', async ({
+    browser,
+    request,
+  }) => {
+    const linking = await projectLinkingAPage(request);
+    test.skip(!linking, 'no part links another project’s page yet');
+    if (!linking) return;
+    const context = await contextAt(browser, { width: 375, height: 812, touch: true });
+    const page = await context.newPage();
+    try {
+      await open(page, linking.project);
+      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+      const name = page
+        .getByRole('region', { name: PARTS_TITLE })
+        .locator(`h3 a[data-case-part-link="page"][href="${linking.target}"]`);
+      await expect(name).toHaveCount(1);
+      const { link, heading } = await name.evaluate((anchor) => ({
+        link: anchor.getBoundingClientRect().height,
+        heading: anchor.closest('h3')?.getBoundingClientRect().height ?? 0,
+      }));
+      expect(link).toBeGreaterThanOrEqual(TOUCH_PX - ROUNDING_PX);
+      // The link reaches into the space around its heading rather than making the row taller.
+      expect(heading).toBeLessThan(link);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('a part with its own page leads there from its name', async ({ page, request }) => {
+    const linking = await projectLinkingAPage(request);
+    test.skip(!linking, 'no part links another project’s page yet');
+    if (!linking) return;
+    const { project, target } = linking;
     await open(page, project);
 
     const name = page

@@ -333,6 +333,16 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The same box as a repository link at rest (and, under a finger, as what its margins leave), so a
+ * private row sits as far below its role as a public one.
+ */
+.part-private {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+}
+
 .part-mine {
   font-size: 0.9375rem;
   line-height: 1.6;
@@ -343,12 +353,22 @@
   font-weight: 500;
 }
 
-/* 44px to a finger, as Built with's links: the box reaches into the gaps and gives them back. */
+/*
+ * 44px to a finger, as Built with's links: the box reaches into the gaps and gives them back. A
+ * linked part's name becomes a box on its heading's 1.5rem line, so it reaches further.
+ */
 @media (pointer: coarse) {
   .part-repo {
     min-height: 2.75rem;
     margin-block: -0.375rem;
     padding-block: 0.375rem;
+  }
+
+  .part-page {
+    display: inline-block;
+    min-height: 2.75rem;
+    margin-block: -0.625rem;
+    padding-block: 0.625rem;
   }
 }
 
