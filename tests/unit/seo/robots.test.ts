@@ -108,6 +108,9 @@ const CRAWLABLE_PATHS = [
   '/sitemap.xml',
   '/api/og',
   '/api/og?title=Projects',
+  // A book's and a shelf's cover cards, the og:image of /bookshelf/<slug> and its shelf pages.
+  '/api/og/book/job-ready-python?v=1a2b3c',
+  '/api/og/shelf/web-and-languages?v=1a2b3c',
 ];
 
 /**

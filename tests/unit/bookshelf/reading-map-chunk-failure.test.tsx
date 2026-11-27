@@ -53,7 +53,7 @@ vi.mock(
 );
 
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
-import { BOOKS, renderWithNuqs as render, SHELVES } from './bookshelf-fixtures';
+import { BOOKS, renderWithNuqs as render, resetAddress, SHELVES } from './bookshelf-fixtures';
 
 /** Stands in for the route's error view: shows "crashed" if anything below throws. */
 class Boundary extends Component<{ readonly children: ReactNode }, { readonly failed: boolean }> {
@@ -81,8 +81,8 @@ beforeEach(() => {
   chunk.failing = true;
 });
 
-afterEach(() => {
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+afterEach(async () => {
+  await resetAddress();
 });
 
 describe('a reading map whose code fails to load', () => {

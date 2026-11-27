@@ -25,6 +25,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
+import { shelfPreviewImage } from '@/app/api/og/_lib/shelf-preview';
 import { SectionBoundary } from '@/components/data/section-boundary';
 import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils/logging';
@@ -44,9 +45,11 @@ interface ShelfDetailPageProps {
 // and fail to prerender each one.
 
 /**
- * The shelf's title, description and og:url. An unknown slug gets "Not Found" and no og:url; when
- * Sanity fails, whether the shelf exists is unknown, so the page's defaults (with their og:url)
- * are kept and the failure is reported as a warning.
+ * The shelf's title, description, og:url and link preview: the shelf's own card
+ * (/api/og/shelf/<shelfSlug>, src/app/api/og/_lib/shelf-preview.ts) with the covers of its first
+ * few books, the same image on X. An unknown slug gets "Not Found" and no og:url; when Sanity
+ * fails, whether the shelf exists is unknown, so the page's defaults (with their og:url and
+ * generic page card) are kept and the failure is reported as a warning.
  */
 export async function generateMetadata({ params }: ShelfDetailPageProps): Promise<Metadata> {
   const { shelfSlug } = await params;
@@ -59,6 +62,7 @@ export async function generateMetadata({ params }: ShelfDetailPageProps): Promis
       title: `${hit.shelf.title} Shelf`,
       description: hit.shelf.description,
       path,
+      image: shelfPreviewImage(hit.shelf, hit.books),
     });
   } catch (error) {
     logger.warn('Bookshelf shelf metadata fell back to the defaults', { error });

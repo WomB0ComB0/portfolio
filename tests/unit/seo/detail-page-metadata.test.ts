@@ -317,7 +317,7 @@ describe('book detail metadata', () => {
     summary: 'Why every system is a queue.',
   });
 
-  it('names the book and its stage, with its own og:url and page card, not its cover', async () => {
+  it('names the book and its stage, with its own og:url', async () => {
     sanityApi.getBookshelf.mockResolvedValue({ books: [opener, book], shelves: [shelf] });
 
     const metadata = await bookMetadata(bookParamsFor(book.slug.current));
@@ -328,14 +328,41 @@ describe('book detail metadata', () => {
       description: 'Why every system is a queue.',
       url: `https://mikeodnis.dev/bookshelf/${book.slug.current}`,
     });
-    expect(metadata.openGraph?.images).toEqual(
-      constructMetadata({
-        title: 'A Book About Queues (Stage 02)',
-        description: 'Why every system is a queue.',
-      }).openGraph?.images,
-    );
-    expect(JSON.stringify(metadata)).not.toContain('cdn.sanity.io');
     expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  // Owner's complaint: a shared book link unfurled as a text card. Its preview is now its own
+  // cover card, keyed by its slug, so the card route fetches only the catalog's own cover.
+  it('previews the book with its slug-keyed cover card, the same image on X, with alt text', async () => {
+    sanityApi.getBookshelf.mockResolvedValue({ books: [opener, book], shelves: [shelf] });
+
+    const metadata = await bookMetadata(bookParamsFor(book.slug.current));
+    const [image] = [metadata.openGraph?.images].flat();
+    const url = new URL(String((image as { url: string }).url), 'https://mikeodnis.dev');
+
+    expect(url.pathname).toBe(`/api/og/book/${book.slug.current}`);
+    expect(url.searchParams.get('v')).toMatch(/^[0-9a-z]+$/);
+    expect(image).toMatchObject({
+      width: 1200,
+      height: 630,
+      type: 'image/png',
+      alt: `Cover of A Book About Queues by ${book.authors}, unread, on the Systems shelf`,
+    });
+    expect(metadata.twitter).toMatchObject({ card: 'summary_large_image', images: [image] });
+    // No cover URL travels in the page's tags: the card route looks the cover up itself.
+    expect(JSON.stringify(metadata)).not.toContain('cdn.sanity.io');
+  });
+
+  it("is og:type 'book' with its author and shelf", async () => {
+    sanityApi.getBookshelf.mockResolvedValue({ books: [opener, book], shelves: [shelf] });
+
+    const metadata = await bookMetadata(bookParamsFor(book.slug.current));
+
+    expect(metadata.openGraph).toMatchObject({
+      type: 'book',
+      authors: [book.authors],
+      tags: ['Systems'],
+    });
   });
 
   it("gives a slug no book has the site's 404 metadata, and reports nothing", async () => {
@@ -391,6 +418,25 @@ describe('bookshelf shelf detail metadata', () => {
       url: 'https://mikeodnis.dev/bookshelf/shelf/systems',
     });
     expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('previews the shelf with its slug-keyed covers card, the same image on X', async () => {
+    sanityApi.getBookshelf.mockResolvedValue({ books: [book], shelves: [shelf, empty] });
+
+    const metadata = await shelfMetadata(shelfParamsFor('systems'));
+    const [image] = [metadata.openGraph?.images].flat();
+    const url = new URL(String((image as { url: string }).url), 'https://mikeodnis.dev');
+
+    expect(url.pathname).toBe('/api/og/shelf/systems');
+    expect(url.searchParams.get('v')).toMatch(/^[0-9a-z]+$/);
+    expect(image).toMatchObject({
+      width: 1200,
+      height: 630,
+      type: 'image/png',
+      alt: `Cover of ${book.title} on the Systems shelf (1 book)`,
+    });
+    expect(metadata.twitter).toMatchObject({ images: [image] });
+    expect(metadata.openGraph).toMatchObject({ type: 'website' });
   });
 
   it("gives an unknown shelf, or one with no books, the site's 404 metadata", async () => {

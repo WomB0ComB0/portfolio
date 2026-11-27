@@ -30,12 +30,14 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { NOT_FOUND_METADATA } from '@/app/(routes)/not-found';
+import { bookPreviewImage } from '@/app/api/og/_lib/book-preview';
 import { reportApiFailure } from '@/lib/observability/report';
 import { logger } from '@/utils/logging';
 import { constructMetadata } from '@/utils/seo/meta';
 import { BookDetailView } from '../_components/book-detail-view';
 import { loadCatalogBookBySlug } from '../_lib/load-bookshelf';
 import { toReadingMapEntry } from '../_lib/reading-map';
+import { bookOpenGraph } from './_lib/book-open-graph';
 
 /** Groups this page's metadata fallbacks in Sentry (one event per cooldown window). */
 const METADATA_REPORT_CONTEXT = 'build book page metadata';
@@ -49,10 +51,13 @@ interface BookDetailPageProps {
 // fail to prerender each one.
 
 /**
- * The book's title, summary and og:url. No image is passed: constructMetadata's generated page
- * card reads better than a portrait cover cropped to a landscape preview. An unknown slug gets
- * "Not Found" and no og:url; when Sanity fails, whether the slug exists is unknown, so the page's
- * defaults (with their og:url) are kept and the failure is reported as a warning.
+ * The book's title, summary, og:url and link preview. The preview is the book's own cover card
+ * (/api/og/book/<slug>, src/app/api/og/_lib/book-preview.ts): the cover beside the title, authors,
+ * shelf and reading status in the site's card style, rather than a portrait cover cropped to a
+ * landscape frame. X gets the same image, with the same alt text. og:type is 'book', with its
+ * authors, ISBN and shelf (book-open-graph.ts). An unknown slug gets "Not Found" and no og:url;
+ * when Sanity fails, whether the slug exists is unknown, so the page's defaults (with their
+ * og:url and generic page card) are kept and the failure is reported as a warning.
  */
 export async function generateMetadata({ params }: BookDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -65,6 +70,8 @@ export async function generateMetadata({ params }: BookDetailPageProps): Promise
       title: `${hit.book.title} (Stage ${hit.book.stageLabel})`,
       description: hit.book.summary,
       path,
+      image: bookPreviewImage(hit.book),
+      book: bookOpenGraph(hit.book),
     });
   } catch (error) {
     logger.warn('Book metadata fell back to the defaults', { error });

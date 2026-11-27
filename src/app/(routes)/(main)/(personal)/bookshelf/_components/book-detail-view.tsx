@@ -19,10 +19,12 @@
 /**
  * @file A book's detail inside PageShell: its summary, authors and ISBN links, numbered topics,
  * Previous and Next books and its cover, with the reading map. The stage (bookshelf-stage.tsx)
- * renders it in place for #/stage/NN, and [slug]/page.tsx renders it as its own island. In place,
- * focus moves to its heading when it opens and when the map's Open stage brings another book here;
- * Previous and Next keep focus where it is. Guarded by
- * tests/unit/bookshelf/book-detail-view.test.tsx, reading-map-dialog.test.tsx and
+ * renders it in place while a book is open there, at the book's own address (/bookshelf/<slug>),
+ * and [slug]/page.tsx renders it as its own island at that address. Previous and Next link to
+ * their books' pages either way: in place a plain click opens the book there (book-link.tsx), on
+ * a book's page it is a client navigation. In place, focus moves to its heading when it opens and
+ * when the map's Open stage brings another book here; Previous and Next keep focus where it is.
+ * Guarded by tests/unit/bookshelf/book-detail-view.test.tsx, reading-map-dialog.test.tsx and
  * scale-budgets.test.ts, and kept free of server modules by island-imports.test.ts.
  */
 
@@ -32,12 +34,14 @@ import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
 import { cn } from '@/lib/utils';
+import { bookPath } from '../_lib/book-address';
 import { formatTopicNumber } from '../_lib/book-labels';
 import type { BookNeighbor } from '../_lib/book-neighbors';
 import { type BookItem, getIsbnRegistryLinks, type ShelfCollection } from '../_lib/books';
 import type { ReadingMapEntry } from '../_lib/reading-map';
 import { BookCoverFrame } from './book-cover-frame';
 import styles from './book-detail-view.module.css';
+import { BookLink } from './book-link';
 import { BookStatusBadge } from './book-status-badge';
 import { headerActionClass } from './bookshelf-classes';
 import { preloadReadingMap, ReadingMapDialog } from './reading-map-dialog';
@@ -78,6 +82,47 @@ function focusHeading(action: HTMLElement | null): void {
   if (!heading) return;
   heading.tabIndex = -1;
   heading.focus({ preventScroll: true });
+}
+
+/** A Previous or Next card: Previous reads from the left, Next from the right. */
+const NEIGHBOR_CLASS =
+  'group flex flex-col gap-1 rounded-tile bg-surface-1 p-4 no-underline transition-colors hover:bg-surface-2';
+
+interface NeighborLinkProps {
+  readonly neighbor: BookNeighbor;
+  readonly direction: 'prev' | 'next';
+  /** In place: opens the neighbour on the stage on a plain click, instead of following the link. */
+  readonly onNavigateBook?: (slug: string) => void;
+}
+
+/** A Previous or Next card, linking to the neighbour's own page. */
+function NeighborLink({ neighbor, direction, onNavigateBook }: NeighborLinkProps): ReactElement {
+  const isNext = direction === 'next';
+  const className = cn(NEIGHBOR_CLASS, isNext ? 'items-end text-right' : 'items-start');
+  const content = (
+    <>
+      <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
+        {!isNext && <FiArrowLeft className="size-3.5" aria-hidden="true" />}
+        Stage {neighbor.stageLabel} · {neighbor.track}
+        {isNext && <FiArrowRight className="size-3.5" aria-hidden="true" />}
+      </span>
+      <span className="tile-sub font-medium text-foreground">{neighbor.title}</span>
+    </>
+  );
+
+  return onNavigateBook ? (
+    <BookLink
+      slug={neighbor.slug}
+      onOpen={() => onNavigateBook(neighbor.slug)}
+      className={className}
+    >
+      {content}
+    </BookLink>
+  ) : (
+    <Link href={bookPath(neighbor.slug)} prefetch={false} className={className}>
+      {content}
+    </Link>
+  );
 }
 
 /**
@@ -277,57 +322,8 @@ export function BookDetailView({
 
           {hasNeighbors && (
             <nav aria-label="Adjacent books" className="grid gap-3 pt-2 sm:grid-cols-2">
-              {onNavigateBook ? (
-                <button
-                  type="button"
-                  onClick={() => onNavigateBook(prev.slug)}
-                  className="group flex flex-col items-start gap-1 rounded-tile bg-surface-1 p-4 text-left transition-colors hover:bg-surface-2"
-                >
-                  <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
-                    <FiArrowLeft className="size-3.5" aria-hidden="true" />
-                    Stage {prev.stageLabel} · {prev.track}
-                  </span>
-                  <span className="tile-sub font-medium text-foreground">{prev.title}</span>
-                </button>
-              ) : (
-                <Link
-                  href={`/bookshelf/${prev.slug}`}
-                  prefetch={false}
-                  className="group flex flex-col items-start gap-1 rounded-tile bg-surface-1 p-4 no-underline transition-colors hover:bg-surface-2"
-                >
-                  <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
-                    <FiArrowLeft className="size-3.5" aria-hidden="true" />
-                    Stage {prev.stageLabel} · {prev.track}
-                  </span>
-                  <span className="tile-sub font-medium text-foreground">{prev.title}</span>
-                </Link>
-              )}
-
-              {onNavigateBook ? (
-                <button
-                  type="button"
-                  onClick={() => onNavigateBook(next.slug)}
-                  className="group flex flex-col items-end gap-1 rounded-tile bg-surface-1 p-4 text-right transition-colors hover:bg-surface-2"
-                >
-                  <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
-                    Stage {next.stageLabel} · {next.track}
-                    <FiArrowRight className="size-3.5" aria-hidden="true" />
-                  </span>
-                  <span className="tile-sub font-medium text-foreground">{next.title}</span>
-                </button>
-              ) : (
-                <Link
-                  href={`/bookshelf/${next.slug}`}
-                  prefetch={false}
-                  className="group flex flex-col items-end gap-1 rounded-tile bg-surface-1 p-4 text-right no-underline transition-colors hover:bg-surface-2"
-                >
-                  <span className="inline-flex items-center gap-1.5 tile-meta tabular-nums text-faint group-hover:text-brand-ink">
-                    Stage {next.stageLabel} · {next.track}
-                    <FiArrowRight className="size-3.5" aria-hidden="true" />
-                  </span>
-                  <span className="tile-sub font-medium text-foreground">{next.title}</span>
-                </Link>
-              )}
+              <NeighborLink neighbor={prev} direction="prev" onNavigateBook={onNavigateBook} />
+              <NeighborLink neighbor={next} direction="next" onNavigateBook={onNavigateBook} />
             </nav>
           )}
         </div>

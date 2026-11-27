@@ -35,7 +35,10 @@ const { passThrough } = vi.hoisted(() => ({
   passThrough: ({ children }: { children?: ReactNode }) => children,
 }));
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/projects' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/projects',
+  useSelectedLayoutSegments: () => ['(main)', '(professioal)', 'projects'],
+}));
 // The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));

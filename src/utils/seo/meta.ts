@@ -64,6 +64,29 @@ export interface MetadataPlayer {
   readonly height: number;
 }
 
+/**
+ * A preview image with what is known about it: its URL and the size, type and alt text it is
+ * drawn at. A book's cover card (/api/og/book/<slug>) is passed this way, so its size and alt
+ * text reach both og:image and twitter:image.
+ */
+export interface MetadataImage {
+  readonly url: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly type?: string;
+  readonly alt?: string;
+}
+
+/** A book, for og:type 'book': its book:author, book:isbn and book:tag tags. */
+export interface MetadataBook {
+  /** Each author's name, one book:author tag each. */
+  readonly authors: readonly string[];
+  /** The ISBN (digits only); no book:isbn tag without one. */
+  readonly isbn?: string;
+  /** One book:tag each; none when empty or missing. */
+  readonly tags?: readonly string[];
+}
+
 /** Options for {@link constructMetadata}. Every field is optional. */
 export interface MetadataOptions {
   /** The page title. Defaults to app.name. */
@@ -71,10 +94,11 @@ export interface MetadataOptions {
   /** The page description. Defaults to app.description. */
   readonly description?: string;
   /**
-   * The preview image URL. Defaults to the site card for the site's own title (the site name),
+   * The preview image: a URL, used as given with no size guessed, or an image object with its
+   * size, type and alt text. Defaults to the site card for the site's own title (the site name),
    * or the page card /api/og draws for any other title and its description.
    */
-  readonly image?: string;
+  readonly image?: string | MetadataImage;
   /** The Twitter card image URL. Defaults to the preview image (the site card's X twin). */
   readonly twitter?: string;
   /** The page's path on the site, e.g. '/stats'. Sets og:url; without it og:url is left out. */
@@ -88,6 +112,8 @@ export interface MetadataOptions {
    * Nothing names a place without it (blank counts as none); the site builds no place in.
    */
   readonly location?: string | null;
+  /** The book a book's page is about: makes og:type 'book' instead of 'website'. */
+  readonly book?: MetadataBook;
 }
 
 interface PreviewImage {
@@ -108,11 +134,17 @@ interface PreviewImages {
 const CARD = { ...OG_IMAGE_SIZE, type: OG_CONTENT_TYPE } as const;
 
 /**
- * The preview images for a page: the caller's image as given (no size guessed), the site card
- * (/opengraph-image, and /twitter-image for X) when the title is the site's own, or the page card
- * /api/og draws from the title and description, with their known size.
+ * The preview images for a page: the caller's image object (a copy each for Open Graph and X),
+ * the caller's image URL as given (no size guessed), the site card (/opengraph-image, and
+ * /twitter-image for X) when the title is the site's own, or the page card /api/og draws from the
+ * title and description, with their known size.
  */
-function previewImages(title: string, description: string, image?: string): PreviewImages {
+function previewImages(
+  title: string,
+  description: string,
+  image?: string | MetadataImage,
+): PreviewImages {
+  if (typeof image === 'object') return { openGraph: { ...image }, twitter: { ...image } };
   if (image) return { openGraph: { url: image }, twitter: { url: image } };
   if (title === app.name) {
     const alt = siteCardAlt();
@@ -135,6 +167,21 @@ function previewImages(title: string, description: string, image?: string): Prev
 function pageTitle(title: string): NonNullable<Metadata['title']> {
   const template = `${title} - %s`;
   return title === app.name ? { absolute: title, template } : { default: title, template };
+}
+
+/**
+ * og:type and the tags that go with it: 'website', or 'book' with its book:author tags and, when
+ * the book has them, book:isbn and book:tag. Spread where og:type always was, so a page without a
+ * book keeps its keys in the same order.
+ */
+function openGraphType(book?: MetadataBook) {
+  if (!book) return { type: 'website' as const };
+  return {
+    type: 'book' as const,
+    authors: [...book.authors],
+    ...(book.isbn && { isbn: book.isbn }),
+    ...(book.tags && book.tags.length > 0 && { tags: [...book.tags] }),
+  };
 }
 
 const twitterCard = (player?: MetadataPlayer) =>
@@ -165,7 +212,12 @@ function placeTags(location: string | null | undefined): Pick<Metadata, 'other'>
  *
  * The preview image is the caller's, or a card in the Live Console look (src/lib/og): the site
  * card for the site's own title (the home page and the layout's defaults), a page card for any
- * other. Every page sets its own, so Next never adds the opengraph-image file's tag itself.
+ * other. Every page sets its own, so Next never adds the opengraph-image file's tag itself. An
+ * image passed as an object keeps its size, type and alt text, and X gets the same one.
+ *
+ * og:type is 'website', or 'book' (with book:author, book:isbn and book:tag) when a book is
+ * passed. A page that passes neither a book nor an image object gets exactly the tags it got
+ * before they existed (tests/unit/seo/meta-unchanged.test.ts).
  *
  * It writes no robots tag. Next writes the one `noindex` on every 404 itself, and the noIndex
  * option this had gave each 404 a second tag (tests/unit/seo/not-found-robots.test.ts).
@@ -198,6 +250,7 @@ export function constructMetadata({
   video,
   player,
   location,
+  book,
 }: MetadataOptions = {}): Metadata {
   const preview = previewImages(title, description, image);
   const place = placeTags(location);
@@ -210,7 +263,7 @@ export function constructMetadata({
       description,
       ...(path !== undefined && { url: new URL(path, app.url).href }),
       siteName: app.name,
-      type: 'website',
+      ...openGraphType(book),
       locale: 'en_US',
       images: [{ ...preview.openGraph }],
       ...(video && { videos: [{ ...video }] }),
