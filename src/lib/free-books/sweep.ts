@@ -42,9 +42,10 @@ import 'server-only';
  * checked again every run against the raw catalog. A flag is lifted after two runs in a row that
  * checked it and found it clean (flag-policy.ts); a run that could not check it gives no credit:
  * a host block whose check (feed, Cloudflare or Quad9) did not complete, a probe that was not
- * reachable, a link past --limit, --dnsbl-only, a link on a blocked host, a link whose Safe
- * Browsing batch failed, or a Safe Browsing flag in a run without the key or whose lookup failed
- * (such a link is not fetched either).
+ * reachable, a content inspection that did not finish (its stored fingerprint is kept), a link
+ * past --limit, --dnsbl-only, a link on a blocked host, a link whose Safe Browsing batch failed,
+ * or a Safe Browsing flag in a run without the key or whose lookup failed (such a link is not
+ * fetched either).
  */
 
 import type { LinkObservation } from '@/lib/link-health/types';
@@ -460,10 +461,10 @@ function excludedHopCheck(
  * inspected, quarantined for dangerous content, a redirect to a target this run will not fetch
  * (excludedHopCheck), a PDF that turned into HTML, or a host that changed to a domain registered
  * in the last 90 days, and otherwise noted as clean (one clean run toward lifting an earlier
- * quarantine) and fingerprinted. A link it does not probe, or that is not reachable, is left
- * unchecked. An external link whose host changed or whose PDF turned into HTML is queued for the
- * sandbox (a new link is not). Answers the URLs checked (the baseline's count when it probes
- * nothing) and the queue.
+ * quarantine) and fingerprinted. A link it does not probe, that is not reachable, or whose
+ * inspection did not finish is left unchecked, with its fingerprint as it was. An external link
+ * whose host changed or whose PDF turned into HTML is queued for the sandbox (a new link is not).
+ * Answers the URLs checked (the baseline's count when it probes nothing) and the queue.
  */
 export async function probeUrls(
   probeTargets: readonly SweepTarget[],
@@ -504,6 +505,8 @@ export async function probeUrls(
         quarantine(records, url, inspected.danger);
         return;
       }
+      // An unfinished inspection checked nothing: no clean run, and the stored fingerprint stays.
+      if (!inspected.complete) return;
 
       const prev = urlFingerprints[url];
       const hostChanged = Boolean(prev && prev.finalHost !== inspected.finalHost);

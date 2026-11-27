@@ -19,8 +19,10 @@
 /**
  * @file src/lib/free-books/target-inspection.ts on stubbed fetches, and over the real DNS-pinned
  * fetch with injected DNS answers: the request it sends and the redirect-chain audit, dangerous
- * headers, active PDF content, a body in an encoding it cannot read, a request that fails, and a
- * hop that resolves to a private address, which quarantines its link and is never connected to.
+ * headers, active PDF content, a body in an encoding it cannot read, a hop that resolves to a
+ * private address (which quarantines its link and is never connected to), and whether the
+ * inspection finished: a failed or timed-out request, an error status, a redirect with no Location
+ * or past the cap finds nothing but reports the inspection as unfinished.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -45,6 +47,7 @@ describe('inspectFinalTarget', () => {
       danger: 'tds_redirect_chain:3_external_domains',
       finalHost: 'hop2.example',
       contentType: '',
+      complete: true,
     });
     expect(fetcher).toHaveBeenCalledWith(
       'https://hop1.example/a',
@@ -68,6 +71,7 @@ describe('inspectFinalTarget', () => {
       danger: 'dangerous_mime:application/x-msdownload',
       finalHost: 'indie.example',
       contentType: 'application/x-msdownload',
+      complete: true,
     });
   });
 
@@ -85,6 +89,7 @@ describe('inspectFinalTarget', () => {
       danger: null,
       finalHost: 'old.example',
       contentType: 'text/html',
+      complete: true,
     });
   });
 
@@ -116,6 +121,7 @@ describe('inspectFinalTarget', () => {
         danger: 'unsafe_address:169.254.169.254.nip.io',
         finalHost: '169.254.169.254.nip.io',
         contentType: '',
+        complete: true,
       });
       expect(h.resolve.mock.calls.map(([host]) => host)).toEqual([
         'indie.example',
@@ -147,14 +153,73 @@ describe('inspectFinalTarget', () => {
       danger: 'undecodable_content_encoding:zstd',
       finalHost: 'indie.example',
       contentType: 'text/html',
+      complete: true,
     });
   });
 
-  it('finds nothing when the request fails', async () => {
+  it('finds nothing but reports an unfinished inspection when the request fails', async () => {
     const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', async () => {
       throw new TypeError('fetch failed');
     });
 
-    expect(result).toEqual({ danger: null, finalHost: 'indie.example', contentType: '' });
+    expect(result).toEqual({
+      danger: null,
+      finalHost: 'indie.example',
+      contentType: '',
+      complete: false,
+    });
+  });
+
+  it.each<{ readonly name: string; readonly fetcher: FetchLike }>([
+    {
+      name: 'the request times out',
+      fetcher: async () => {
+        throw new DOMException('The operation timed out.', 'TimeoutError');
+      },
+    },
+    {
+      name: 'the body fails part way through',
+      fetcher: async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            pull(controller) {
+              controller.error(new TypeError('terminated'));
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'text/html' } },
+        ),
+    },
+    {
+      name: 'the page answers an error status',
+      fetcher: async () => new Response('Bad gateway', { status: 502 }),
+    },
+    {
+      name: 'a redirect has no Location',
+      fetcher: async () => new Response(null, { status: 302 }),
+    },
+    {
+      name: 'the redirects go past the cap',
+      fetcher: async (input) => redirectTo(`${String(input)}/next`),
+    },
+  ])('reports an unfinished inspection, with no danger, when $name', async ({ fetcher }) => {
+    const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', fetcher);
+
+    expect(result).toMatchObject({ danger: null, complete: false });
+  });
+
+  it.each<{ readonly name: string; readonly response: () => Response }>([
+    { name: 'an HTML page', response: () => pageResponse() },
+    {
+      name: 'a PDF',
+      response: () => pageResponse('%PDF-1.7\n%%EOF', 'application/pdf'),
+    },
+    {
+      name: 'a type it does not read',
+      response: () => pageResponse('PK', 'application/epub+zip'),
+    },
+  ])('reports a finished inspection with no danger for $name', async ({ response }) => {
+    const result = await inspectFinalTarget(OLD_NOTES, 'old.example', async () => response());
+
+    expect(result).toMatchObject({ danger: null, finalHost: 'old.example', complete: true });
   });
 });

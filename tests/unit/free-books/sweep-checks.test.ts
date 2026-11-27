@@ -21,7 +21,8 @@
  * not finish: a host block earns a clean run only when the check behind it (the threat feeds,
  * Cloudflare 1.1.1.2 or Quad9) completed, a hit still counts when another check failed, and a
  * link whose Safe Browsing lookup failed earns no clean run (a Safe Browsing quarantine among them
- * is not even fetched). One case runs the real Cloudflare client on stubbed DoH replies, to show
+ * is not even fetched), and a content inspection that did not finish gives a link no clean run and
+ * keeps its fingerprint. One case runs the real Cloudflare client on stubbed DoH replies, to show
  * that a SERVFAIL reply is not a completed check. The stored reasons are spelled out, as the
  * format the sweep keeps in Redis.
  */
@@ -244,4 +245,53 @@ describe('Safe Browsing in a run whose lookup could not finish', () => {
     const drift = await redis.clients.loadDriftState();
     expect(drift?.urlFingerprints[INDIE_GUIDE]?.checkedAt).toBe(SWEEP_NOW.toISOString());
   });
+});
+
+describe('content inspection in a run where it could not finish', () => {
+  const PARKED = '<html><body>This domain is for sale</body></html>';
+
+  /** A fetch that answers INDIE_GUIDE with `indie` and every other link with a clean page. */
+  const serving =
+    (indie: () => Promise<Response>): SweepDependencies['fetch'] =>
+    async (input) =>
+      String(input) === INDIE_GUIDE ? indie() : pageResponse();
+
+  it.each<{ readonly name: string; readonly unfinished: () => Promise<Response> }>([
+    {
+      name: 'timed out',
+      unfinished: async () => {
+        throw new DOMException('The operation timed out.', 'TimeoutError');
+      },
+    },
+    {
+      name: 'answered an error status',
+      unfinished: async () =>
+        new Response('Service unavailable', {
+          status: 503,
+          headers: { 'content-type': 'text/plain' },
+        }),
+    },
+  ])(
+    'keeps a quarantine and its fingerprint when the inspection $name in what would have been its lifting week',
+    async ({ unfinished }) => {
+      const redis = inMemoryRedis();
+
+      const quarantined = await runWeeks(
+        redis,
+        [
+          { deps: { fetch: serving(async () => pageResponse(PARKED)) } },
+          {},
+          { deps: { fetch: serving(unfinished) } },
+        ],
+        'quarantinedUrls',
+      );
+      const drift = await redis.clients.loadDriftState();
+      const nextWeek = await runWeeks(redis, [{}], 'quarantinedUrls');
+
+      expect(quarantined).toEqual([[INDIE_GUIDE], [INDIE_GUIDE], [INDIE_GUIDE]]);
+      expect(drift?.cleanStreaks?.urls).toEqual({ [INDIE_GUIDE]: 1 });
+      expect(drift?.urlFingerprints[INDIE_GUIDE]?.contentType).toBe('text/html');
+      expect(nextWeek).toEqual([[]]);
+    },
+  );
 });

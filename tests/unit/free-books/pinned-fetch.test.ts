@@ -282,6 +282,7 @@ describe('inspecting a compressed body over the real pinned transport', () => {
       danger: 'undecodable_content_encoding:zstd',
       finalHost: 'books.example',
       contentType: 'application/pdf',
+      complete: true,
     });
   });
 });
