@@ -37,6 +37,7 @@ import {
   listTargets,
   probeUrls,
   type SweepDependencies,
+  type SweepOptions,
   type SweepRecords,
   startRecords,
   summarize,
@@ -85,7 +86,7 @@ async function probeAll(
   const deps = stubSweepDependencies(overrides);
   const result = await probeUrls(
     TARGETS,
-    blockedHosts,
+    { blockedHosts, pinnedUrls: {} },
     0,
     records,
     { dnsblOnly: false, maxUrls: 0 },
@@ -484,6 +485,68 @@ describe('runSweep across weekly runs', () => {
     expect(code).toBe(1);
     expect([...redis.store.entries()]).toEqual(before);
   });
+});
+
+describe('runSweep on a link that redirects to a target the run will not fetch', () => {
+  const EVIL = 'https://evil.example/kit';
+  const committed = (pins: Partial<FreeBooksSecurityManifest>) => () =>
+    JSON.stringify({ ...EMPTY_MANIFEST, ...pins });
+
+  it.each<{
+    readonly name: string;
+    readonly target: string;
+    readonly run: { options?: Partial<SweepOptions>; deps: Partial<SweepDependencies> };
+  }>([
+    {
+      name: 'a link the owner pinned',
+      target: EVIL,
+      run: { deps: { readManifest: committed({ quarantinedUrls: { [EVIL]: 'Manual' } }) } },
+    },
+    {
+      name: 'a host the owner pinned',
+      target: EVIL,
+      run: { deps: { readManifest: committed({ blockedHosts: { 'evil.example': 'Manual' } }) } },
+    },
+    {
+      name: 'a host blocked this run',
+      target: 'https://old.example/elsewhere',
+      run: {
+        deps: {
+          checkHost: async (hostname) =>
+            hostname === 'old.example'
+              ? { ...cleanHost(hostname), blocked: true, provider: 'Quad9', reason: 'blocked' }
+              : cleanHost(hostname),
+        },
+      },
+    },
+    {
+      name: 'a Safe Browsing hit this run',
+      target: OLD_NOTES,
+      run: {
+        options: { safeBrowsingApiKey: 'gsb-key' },
+        deps: {
+          checkSafeBrowsing: async () => ({
+            matches: { [OLD_NOTES]: 'google_safe_browsing:MALWARE' },
+            uncheckedUrls: [],
+          }),
+        },
+      },
+    },
+  ])(
+    'quarantines it as unsafe when it redirects to $name, and never fetches that',
+    async ({ target, run }) => {
+      const redis = inMemoryRedis();
+      const fetch = vi.fn<SweepDependencies['fetch']>(async (input) =>
+        String(input) === INDIE_GUIDE ? redirectTo(target) : pageResponse(),
+      );
+
+      await runWeeks(redis, [{ ...run, deps: { ...run.deps, fetch } }], 'quarantinedUrls');
+
+      const live = await redis.clients.loadLiveManifest();
+      expect(live?.quarantinedUrls[INDIE_GUIDE]).toBe('unsafe_redirect_hop:flagged_target');
+      expect(fetch.mock.calls.map(([input]) => String(input))).not.toContain(target);
+    },
+  );
 });
 
 describe('checkSafeBrowsing', () => {

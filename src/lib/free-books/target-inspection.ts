@@ -19,8 +19,9 @@ import 'server-only';
 /**
  * @file The verify sweep's content inspection of one reachable link: inspectFinalTarget walks its
  * redirects one hop at a time over an injected fetch (the DNS-pinned one in the CLI), audits the
- * chain, reads a bounded slice of what it ends on and runs content-inspection.ts on it. sweep.ts
- * calls it from probeUrls and re-exports it; tests/unit/free-books/sweep.test.ts covers it.
+ * chain, refuses to follow a hop the caller excludes, reads a bounded slice of what it ends on and
+ * runs content-inspection.ts on it. sweep.ts calls it from probeUrls and re-exports it;
+ * tests/unit/free-books/sweep.test.ts covers it.
  */
 
 import {
@@ -43,6 +44,8 @@ const MAX_INSPECTED_REDIRECTS = 5;
 const INSPECT_TIMEOUT_MS = 6000;
 /** Sent with every inspection request. */
 const USER_AGENT = 'mikeodnis-portfolio-verifier/1.0 (+https://mikeodnis.dev)';
+/** The danger of a redirect to a hop the caller excludes, which is never fetched. */
+const EXCLUDED_HOP_DANGER = 'unsafe_redirect_hop:flagged_target';
 /** The most characters of a Content-Encoding written into a danger reason. */
 const MAX_ENCODING_IN_REASON = 32;
 
@@ -100,7 +103,9 @@ function undecodableEncodingDanger(contentEncoding: string | null): string | nul
  * obfuscated loader, a hidden cross-origin iframe or an unsafe meta refresh. The CLI passes the
  * DNS-pinned fetch (pinned-fetch.ts), which vets every hop's addresses before it connects: a hop
  * that is or resolves to a non-public address is `unsafe_address:<host>`, which quarantines the
- * link. A reachable body still in a Content-Encoding is `undecodable_content_encoding:<encoding>`,
+ * link. A redirect to a hop the caller excludes (`isExcludedHop`, e.g. a link already known to be
+ * bad) is never fetched and is `unsafe_redirect_hop:flagged_target`, since the link sends visitors
+ * there. A reachable body still in a Content-Encoding is `undecodable_content_encoding:<encoding>`,
  * never read as the page. Any other network error finds nothing; the reachability probe has
  * already answered.
  */
@@ -108,6 +113,7 @@ export async function inspectFinalTarget(
   url: string,
   hostname: string,
   fetcher: FetchLike,
+  isExcludedHop: (hopUrl: string) => boolean = () => false,
 ): Promise<TargetInspectionResult> {
   const hops: string[] = [url];
   let currentUrl = url;
@@ -131,7 +137,8 @@ export async function inspectFinalTarget(
         if (!loc) break;
         const nextUrl = new URL(loc, currentUrl).href;
         hops.push(nextUrl);
-        const hopCheck = isSuspiciousRedirectChain(hops);
+        const hopCheck =
+          isSuspiciousRedirectChain(hops) ?? (isExcludedHop(nextUrl) ? EXCLUDED_HOP_DANGER : null);
         if (hopCheck) {
           return { danger: hopCheck, finalHost: currentHost, contentType: '' };
         }
