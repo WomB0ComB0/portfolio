@@ -181,7 +181,7 @@ describe('BookshelfStage', () => {
     const { books, shelves } = oneBookCatalog();
     render(<BookshelfStage books={books} shelves={shelves} />);
 
-    expect(screen.getByRole('button', { name: 'Open notes (1 topic)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open notes (1 topic)' })).toBeInTheDocument();
   });
 
   it('describes the whole shelf by its shelf titles, in shelf order', () => {

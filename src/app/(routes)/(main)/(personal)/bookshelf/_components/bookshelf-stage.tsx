@@ -47,6 +47,7 @@ import { StatStrip } from '@/components/console/stat-strip';
 import { FINE_POINTER } from '@/hooks/use-fine-pointer';
 import { EASE, prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
+import { listPath } from '../_lib/book-address';
 import { describeShelves, formatStageLabel, shelfStats } from '../_lib/book-labels';
 import { neighborsOf } from '../_lib/book-neighbors';
 import {
@@ -160,19 +161,12 @@ export function BookshelfStage({
     [books],
   );
   const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
-  const {
-    detailBook,
-    setDetailBook,
-    stageIndexFromHash,
-    openDetail,
-    openDetailBySlug,
-    closeDetail,
-  } = useInPageDetail({
+  const { detailBook, openDetail, openDetailBySlug, closeDetail } = useInPageDetail({
     books,
     indexBySlug,
-    bookAt,
     setPos,
     slotPositionsRef: prevSlotPositionsRef,
+    listPath: listPath(activeShelf?.slug),
   });
 
   const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
@@ -300,12 +294,6 @@ export function BookshelfStage({
       typeof window.matchMedia === 'function' && window.matchMedia(FINE_POINTER).matches;
     setFinePointer(isFine);
 
-    const hashIndex = stageIndexFromHash();
-    if (hashIndex >= 0) {
-      setPos(hashIndex);
-      setDetailBook(bookAt(hashIndex));
-    }
-
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const onResize = (): void => {
       if (resizeTimer) clearTimeout(resizeTimer);
@@ -320,7 +308,7 @@ export function BookshelfStage({
       window.removeEventListener('resize', onResize);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [measureStage, stageIndexFromHash, bookAt, setPos, setDetailBook, syncShelfPillRef]);
+  }, [measureStage, syncShelfPillRef]);
 
   useEffect(() => {
     if (detailBook !== null) return;

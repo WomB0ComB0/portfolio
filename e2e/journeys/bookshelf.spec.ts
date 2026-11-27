@@ -22,8 +22,12 @@
  * - /bookshelf answers 200 with the h1 "Bookshelf" and either at least one cover from
  *   cdn.sanity.io and a book on stage, or, with no book in its catalog, its "No books yet" state.
  * - The book /bookshelf puts on stage first has a /bookshelf/<slug> page that answers 200 with
- *   its title in the h1 and its cover image served from https://cdn.sanity.io. /bookshelf renders
- *   no book slug (its books open in place), so the slug is the books JSON's for that title.
+ *   its title in the h1 and its cover image served from https://cdn.sanity.io. Its slug is the
+ *   books JSON's for that title, and its Open notes link names that page.
+ * - A book opened in place, on /bookshelf or on a shelf's page, has its own page's address,
+ *   /bookshelf/<slug>: Back returns to the list's address with that book on stage, Forward opens
+ *   it again, a reload serves the book's page, and so does Back after a page in between. An old
+ *   #/stage/NN link opens its book and becomes the book page's address.
  * - A shelf link on /bookshelf leads to a /bookshelf/shelf/<slug> page that answers 200.
  * - Unknown book and shelf slugs answer 404.
  * - The public books JSON names each book's shelf and cover, and none of the removed fields
@@ -51,6 +55,27 @@ const ON_STAGE_TEXT = /^\d+ of \d+: (.+)$/s;
 const MISSING_PAGES = ['/bookshelf/does-not-exist', '/bookshelf/shelf/does-not-exist'] as const;
 
 const urlOf = (path: string): string => `${getTargetUrl()}${path}`;
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** A book's own page, as a link names it. */
+const bookPathOf = (slug: string): string => `/bookshelf/${encodeURIComponent(slug)}`;
+/** The address of `slug`'s page, with nothing after it. */
+const bookAddress = (slug: string): RegExp =>
+  new RegExp(`^${escapeRegExp(urlOf(bookPathOf(slug)))}$`);
+/** The live region naming `title` as the book on stage. */
+const namesOnStage = (title: string): RegExp =>
+  new RegExp(`^\\d+ of \\d+: ${escapeRegExp(title)}$`);
+/** The stage's Open notes link: to the book on stage's page, opening it in place. */
+const openNotesLink = (page: Page): Locator =>
+  page.locator(MAIN).getByRole('link', { name: /^Open notes/ });
+
+/** Marks the document, so a later check can tell an in-place change from a page load. */
+const markDocument = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    document.documentElement.dataset.sameDocument = 'yes';
+  });
+/** Whether the document marked by markDocument is still the one showing. */
+const isSameDocument = (page: Page): Promise<boolean> =>
+  page.evaluate(() => document.documentElement.dataset.sameDocument === 'yes');
 
 test.use({ serviceWorkers: 'block' });
 test.beforeEach(async ({ page }) => readOnly(page));
@@ -210,7 +235,7 @@ test.describe('the bookshelf against the live data', () => {
     const main = page.locator(MAIN);
     await expect(page.locator(LIVE)).toHaveText(ON_STAGE_TEXT);
     const title = ON_STAGE_TEXT.exec(((await page.locator(LIVE).textContent()) ?? '').trim())?.[1];
-    await main.getByRole('button', { name: /^Open notes/ }).click();
+    await openNotesLink(page).click();
     const heading = main.getByRole('heading', { level: 1 });
     await expect(heading).toHaveText(title?.trim() ?? '');
 
@@ -227,15 +252,119 @@ test.describe('the bookshelf against the live data', () => {
     const { isEmpty } = await openBookshelf(page);
     test.skip(isEmpty, 'no book is in the rendered catalog');
     const { dialog } = await openReadingMap(page);
-    // The map's entries, in stage order: the first entry's title and its Open stage button.
+    // The map's entries, in stage order: the first entry's title and its Open stage link.
     const title = (await dialog.getByRole('heading', { level: 4 }).first().textContent()) ?? '';
-    await dialog.getByRole('button', { name: 'Open stage' }).first().focus();
+    const openStage = dialog.getByRole('link', { name: 'Open stage' }).first();
+    const bookHref = (await openStage.getAttribute('href')) ?? '';
+    expect(bookHref).toMatch(/^\/bookshelf\/[^/?#]+$/);
+    await openStage.focus();
     await page.keyboard.press('Enter');
 
     await expect(dialog).toBeHidden();
     const heading = page.locator(MAIN).getByRole('heading', { level: 1 });
     await expect(heading).toHaveText(title.trim());
     await expect(heading).toBeFocused();
+    await expect(page).toHaveURL(urlOf(bookHref));
+  });
+
+  test("a book opened on /bookshelf has its own page's address, through Back, Forward and a reload", async ({
+    page,
+    request,
+  }) => {
+    const book = await bookOnStage(page, request);
+    test.skip(book === null, 'no book is in the rendered catalog');
+    if (!book) return;
+    const main = page.locator(MAIN);
+    const heading = main.getByRole('heading', { level: 1 });
+    await expect(openNotesLink(page)).toHaveAttribute('href', bookPathOf(book.slug));
+    await markDocument(page);
+
+    await openNotesLink(page).click();
+    await expect(heading).toHaveText(book.title);
+    await expect(page).toHaveURL(bookAddress(book.slug));
+    expect(await isSameDocument(page), 'the book opens in place, with no page load').toBe(true);
+
+    await page.goBack();
+    await expect(page).toHaveURL(urlOf('/bookshelf'));
+    await expect(
+      main.getByRole('heading', { level: 1, name: 'Bookshelf', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(LIVE)).toHaveText(namesOnStage(book.title));
+
+    await page.goForward();
+    await expect(page).toHaveURL(bookAddress(book.slug));
+    await expect(heading).toHaveText(book.title);
+    expect(await isSameDocument(page), 'Back and Forward load no page').toBe(true);
+
+    const response = await page.reload();
+    expect(response?.status()).toBe(200);
+    await expect(heading).toContainText(book.title);
+    await expect(main.locator(SANITY_COVER).first()).toBeVisible();
+  });
+
+  test("a book opened on a shelf's page has its own page's address, and Back returns to the shelf", async ({
+    page,
+  }) => {
+    const { isEmpty } = await openBookshelf(page);
+    test.skip(isEmpty, 'no book is in the rendered catalog');
+    const shelfHref = (await page.locator(SHELF_LINK).first().getAttribute('href')) ?? '';
+    await page.goto(urlOf(shelfHref));
+    await expect(page.locator(LIVE)).toHaveText(ON_STAGE_TEXT);
+    const title = ON_STAGE_TEXT.exec(((await page.locator(LIVE).textContent()) ?? '').trim())?.[1];
+    const bookHref = (await openNotesLink(page).getAttribute('href')) ?? '';
+    expect(bookHref).toMatch(/^\/bookshelf\/[^/?#]+$/);
+    await markDocument(page);
+
+    await openNotesLink(page).click();
+    await expect(page.locator(MAIN).getByRole('heading', { level: 1 })).toHaveText(
+      title?.trim() ?? '',
+    );
+    await expect(page).toHaveURL(urlOf(bookHref));
+
+    await page.goBack();
+    await expect(page).toHaveURL(urlOf(shelfHref));
+    await expect(page.locator(LIVE)).toHaveText(ON_STAGE_TEXT);
+    expect(await isSameDocument(page), 'the book opened and closed in place').toBe(true);
+  });
+
+  test('a book opened in place is still there on Back from a page visited after it', async ({
+    page,
+    request,
+  }) => {
+    const book = await bookOnStage(page, request);
+    test.skip(book === null, 'no book is in the rendered catalog');
+    if (!book) return;
+    await markDocument(page);
+    await openNotesLink(page).click();
+    await expect(page).toHaveURL(bookAddress(book.slug));
+
+    // A client navigation away: the reading map's Open shelf link.
+    const { dialog } = await openReadingMap(page);
+    await dialog.getByRole('link', { name: 'Open shelf' }).first().click();
+    await expect(page).toHaveURL(/\/bookshelf\/shelf\/[^/?#]+$/);
+    await page.goBack();
+
+    await expect(page).toHaveURL(bookAddress(book.slug));
+    await expect(page.locator(MAIN).getByRole('heading', { level: 1 })).toContainText(book.title);
+    expect(await isSameDocument(page), 'every move stayed in the one document').toBe(true);
+  });
+
+  test("an old #/stage/NN link opens its book and becomes the book page's address", async ({
+    page,
+    request,
+  }) => {
+    const book = await bookOnStage(page, request);
+    test.skip(book === null, 'no book is in the rendered catalog');
+    if (!book) return;
+    const stage = /^(\d+) of/.exec(((await page.locator(LIVE).textContent()) ?? '').trim())?.[1];
+    expect(stage, 'the live region names the stage number').toEqual(expect.any(String));
+
+    // A fresh load, as a shared link would be: not a hash change on the open page.
+    await page.goto('about:blank');
+    await page.goto(urlOf(`/bookshelf#/stage/${stage}`));
+
+    await expect(page).toHaveURL(bookAddress(book.slug));
+    await expect(page.locator(MAIN).getByRole('heading', { level: 1 })).toHaveText(book.title);
   });
 
   test('the public books JSON names a shelf and a cover, and no removed field', async ({

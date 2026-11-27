@@ -18,14 +18,15 @@
  * @file What the bookshelf component tests share: a three-shelf fixture catalog built the way the
  * pages build theirs (Sanity-shaped documents from tests/fixtures/sanity-docs.ts joined by the
  * real buildBookshelfCatalog), the book the detail tests open, the stage's live readout and its
- * 'Shelves' chips, a render inside the nuqs testing adapter, and the island a server page
- * returns. Not a test file.
+ * 'Shelves' chips, a render inside the nuqs testing adapter, the island a server page returns,
+ * and waits for jsdom's Back and Forward, which land a few tasks after they are asked for. Not a
+ * test file.
  *
  * It calls no vi.mock. Each test file mocks '@/lib/sanity/client' (the catalog draws its covers
  * with the real image URL builder) before this module builds the catalog on import.
  */
 
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { makeBook, makeBookshelf } from '@tests/fixtures/sanity-docs';
 import { type OnUrlUpdateFunction, withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
@@ -173,6 +174,37 @@ export function oneBookCatalog() {
     [doc],
   );
   return { books: nonEmpty(catalog.books), shelves: catalog.shelves };
+}
+
+/** The whole shelf's address, where the stage tests start and end. */
+export const LIST_ADDRESS = '/bookshelf';
+
+/** The address now: path, query and hash. */
+export const address = (): string =>
+  `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+/** Resolves when the next Back or Forward lands (popstate). Ask before the move starts. */
+export const nextPopState = (): Promise<void> =>
+  new Promise((resolve) => window.addEventListener('popstate', () => resolve(), { once: true }));
+
+/** Waits for a Back or Forward (`landed`, from nextPopState) and for React to render it. */
+export async function afterPopState(landed: Promise<void>): Promise<void> {
+  await act(async () => {
+    await landed;
+  });
+}
+
+/**
+ * Lets any Back or Forward still queued land (jsdom runs each in two queued tasks), so one test's
+ * Back to Bookshelf never moves the next test's history, then puts the address back on the list.
+ */
+export async function resetAddress(): Promise<void> {
+  await act(async () => {
+    for (let task = 0; task < 3; task += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  });
+  window.history.replaceState(null, '', LIST_ADDRESS);
 }
 
 /** The width a Sanity image URL asks the CDN for (its `w`). */

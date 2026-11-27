@@ -17,7 +17,8 @@
 /**
  * @file A book's detail (book-detail-view.tsx) on the fixture catalog of bookshelf-fixtures.ts,
  * in place on the stage and on its own page. In place, it opens from the stage on Enter, steps
- * between books within /bookshelf (#/stage/NN) and returns to the stage. On its own page it shows
+ * between books with Previous and Next, links to each book's own page (/bookshelf/<slug>) that
+ * open it in place, and returns to the stage. On its own page it shows
  * the title, the numbered topics and the facts and registry links Studio has values for, loads
  * the Sanity CDN cover first, sized to its frame (and above the text at 900 px and under), and
  * links the books before and after, wrapping round. The view takes its neighbours and slim
@@ -59,6 +60,7 @@ import {
   FEATURED_TITLE,
   FEATURED_TOPIC,
   renderWithNuqs as render,
+  resetAddress,
   SHELVES,
   standaloneProps,
   topicLabel,
@@ -70,10 +72,10 @@ const COVER_FRAME_CSS = `${COMPONENTS}/book-cover-frame.module.css`;
 /** Where the detail stacks its text and cover into one column. */
 const NARROW_MEDIA = '@media (width <= 900px)';
 
-// An in-page detail sets #/stage/NN; a stage mounted on that hash opens the detail at once.
-afterEach(() => {
+// An in-page detail sets its book's address; a stage mounted on that address opens it at once.
+afterEach(async () => {
   vi.useRealTimers();
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+  await resetAddress();
 });
 
 describe('BookDetailView in place', () => {
@@ -111,7 +113,7 @@ describe('BookDetailView in place', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
-  it('steps to the next and previous books within /bookshelf from the in-page detail', () => {
+  it('steps to the next and previous books in place, by links to their own pages', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
     const at = BOOKS.indexOf(FEATURED);
     screen.getByRole('region', { name: /Bookshelf/i }).focus();
@@ -119,19 +121,25 @@ describe('BookDetailView in place', () => {
     expect(screen.getByRole('heading', { level: 1, name: FEATURED_TITLE })).toBeInTheDocument();
 
     const adjacent = () => screen.getByRole('navigation', { name: 'Adjacent books' });
-    expect(within(adjacent()).queryByRole('link')).not.toBeInTheDocument();
-    fireEvent.click(
-      within(adjacent()).getByRole('button', { name: new RegExp(bookAt(at + 1).title) }),
-    );
+    const neighbourLink = (title: string) =>
+      within(adjacent()).getByRole('link', { name: new RegExp(title) });
+    expect(within(adjacent()).queryByRole('button')).not.toBeInTheDocument();
+    for (const neighbour of [bookAt(at - 1), bookAt(at + 1)]) {
+      expect(neighbourLink(neighbour.title)).toHaveAttribute(
+        'href',
+        `/bookshelf/${neighbour.slug}`,
+      );
+    }
 
+    expect(fireEvent.click(neighbourLink(bookAt(at + 1).title))).toBe(false);
     expect(
       screen.getByRole('heading', { level: 1, name: bookAt(at + 1).title }),
     ).toBeInTheDocument();
-    expect(window.location.hash).toBe(`#/stage/${bookAt(at + 1).stageLabel}`);
+    expect(window.location.pathname).toBe(`/bookshelf/${bookAt(at + 1).slug}`);
 
-    fireEvent.click(within(adjacent()).getByRole('button', { name: new RegExp(FEATURED_TITLE) }));
+    fireEvent.click(neighbourLink(FEATURED_TITLE));
     expect(screen.getByRole('heading', { level: 1, name: FEATURED_TITLE })).toBeInTheDocument();
-    expect(window.location.hash).toBe(`#/stage/${FEATURED.stageLabel}`);
+    expect(window.location.pathname).toBe(`/bookshelf/${FEATURED.slug}`);
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });

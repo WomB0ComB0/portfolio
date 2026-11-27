@@ -18,8 +18,9 @@
 
 /**
  * @file The row under the stage: the stage or book number, the active book's title, status and
- * Open notes link, and the previous and next arrows (disabled at the ends of a shelf's page).
- * Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx.
+ * Open notes link (to the book's own page, opening it in place on a plain click: book-link.tsx),
+ * and the previous and next arrows (disabled at the ends of a shelf's page). Guarded by
+ * tests/unit/bookshelf/bookshelf-stage.test.tsx and use-in-page-detail.test.tsx.
  */
 
 import type { ReactElement } from 'react';
@@ -28,6 +29,7 @@ import { countOf } from '@/components/console/folio/byline-items';
 import { cn } from '@/lib/utils';
 import { formatStageLabel, TOPIC_NOUN } from '../_lib/book-labels';
 import type { BookItem } from '../_lib/books';
+import { BookLink } from './book-link';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf-controls-bar.module.css';
 
@@ -69,14 +71,14 @@ export function BookshelfControlsBar({
         <span aria-hidden="true" className="text-faint">
           ·
         </span>
-        <button
-          type="button"
-          onClick={() => onOpenDetail(activeBook)}
+        <BookLink
+          slug={activeBook.slug}
+          onOpen={() => onOpenDetail(activeBook)}
           className="inline-flex items-center gap-1 tile-meta text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
         >
           Open notes ({countOf(activeBook.topics.length, TOPIC_NOUN)})
           <FiArrowUpRight className="size-3.5" aria-hidden="true" />
-        </button>
+        </BookLink>
       </div>
 
       <div className={styles['controls-arrows']}>

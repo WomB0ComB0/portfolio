@@ -21,8 +21,9 @@
  * Radix dialog (src/components/ui/dialog.tsx). Focus starts on Close and is trapped, the page
  * behind is hidden from assistive technology and holds still, Escape or a click outside closes
  * it, and focus goes back to the button that opened it, except after Open stage: the book's
- * detail it opens takes focus on its heading. reading-map-dialog.tsx fetches this module only
- * when a visitor asks for the map. Guarded by
+ * detail it opens takes focus on its heading. Each Open stage links to its book's own page; on
+ * the stage or an in-place detail a plain click opens the book there instead (book-link.tsx).
+ * reading-map-dialog.tsx fetches this module only when a visitor asks for the map. Guarded by
  * tests/unit/bookshelf/reading-map-dialog.test.tsx and scale-budgets.test.ts.
  */
 
@@ -33,6 +34,7 @@ import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { countOf } from '@/components/console/folio/byline-items';
 import { Dialog, DialogClose, DialogDescription, DialogPortal } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { bookPath } from '../_lib/book-address';
 import {
   BOOK_NOUN,
   formatTopicNumber,
@@ -42,6 +44,7 @@ import {
 } from '../_lib/book-labels';
 import type { ShelfCollection } from '../_lib/books';
 import { lastTopicOf, type ReadingMapEntry } from '../_lib/reading-map';
+import { BookLink } from './book-link';
 import { BookStatusBadge } from './book-status-badge';
 
 /** The canvas behind the map, dimmed by opacity: the overlay the media player's dialog uses. */
@@ -52,6 +55,9 @@ const FRAME_CLASS =
   'pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6';
 const PANEL_CLASS =
   'pointer-events-auto relative flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-tile border border-hairline bg-surface-1 shadow-raised focus:outline-none';
+/** An entry's Open stage link, in place (BookLink) or on a book's page (next/link). */
+const OPEN_STAGE_CLASS =
+  'inline-flex min-h-9 items-center gap-1 rounded-md border border-brand-edge bg-brand-subtle px-2.5 text-label font-medium text-brand-ink no-underline transition-colors hover:border-brand-rim hover:text-foreground';
 const CLOSE_CLASS =
   'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus';
 
@@ -222,24 +228,24 @@ export function ReadingMapDialogLive({
                                 </button>
                               )}
                               {onOpenBook ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
+                                <BookLink
+                                  slug={book.slug}
+                                  onOpen={() => {
                                     openedBookRef.current = true;
                                     onOpenBook(book);
                                     onClose();
                                   }}
-                                  className="inline-flex min-h-9 items-center gap-1 rounded-md border border-brand-edge bg-brand-subtle px-2.5 text-label font-medium text-brand-ink transition-colors hover:border-brand-rim hover:text-foreground"
+                                  className={OPEN_STAGE_CLASS}
                                 >
                                   Open stage
                                   <FiArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-                                </button>
+                                </BookLink>
                               ) : (
                                 <Link
-                                  href={`/bookshelf/${book.slug}`}
+                                  href={bookPath(book.slug)}
                                   prefetch={false}
                                   onClick={onClose}
-                                  className="inline-flex min-h-9 items-center gap-1 rounded-md border border-brand-edge bg-brand-subtle px-2.5 text-label font-medium text-brand-ink no-underline transition-colors hover:border-brand-rim hover:text-foreground"
+                                  className={OPEN_STAGE_CLASS}
                                 >
                                   Open stage
                                   <FiArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />

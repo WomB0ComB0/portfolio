@@ -56,7 +56,13 @@ vi.mock(
 
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import { DEFAULT_BOOK_INDEX } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
-import { BOOKS, bookAt, renderWithNuqs as render, SHELVES } from './bookshelf-fixtures';
+import {
+  BOOKS,
+  bookAt,
+  renderWithNuqs as render,
+  resetAddress,
+  SHELVES,
+} from './bookshelf-fixtures';
 
 /** Lets the map's module arrive, then React render what it got. */
 async function settle(): Promise<void> {
@@ -67,9 +73,9 @@ async function settle(): Promise<void> {
   }
 }
 
-afterEach(() => {
+afterEach(async () => {
   chunk.release();
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+  await resetAddress();
 });
 
 describe('a reading map whose code is still loading when a book opens', () => {
@@ -78,7 +84,7 @@ describe('a reading map whose code is still loading when a book opens', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reading map' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Open notes/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Open notes/ }));
     const book = bookAt(DEFAULT_BOOK_INDEX);
     expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
     chunk.release();

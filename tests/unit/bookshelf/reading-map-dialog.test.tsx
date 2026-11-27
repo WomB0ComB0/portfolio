@@ -59,15 +59,16 @@ import {
   liveTextOf,
   oneBookCatalog,
   renderWithNuqs as render,
+  resetAddress,
   SHELVES,
   standaloneProps,
   topicLabel,
 } from './bookshelf-fixtures';
 
-// An in-page detail sets #/stage/NN; a stage mounted on that hash opens the detail at once.
-afterEach(() => {
+// An in-page detail sets its book's address; a stage mounted on that address opens it at once.
+afterEach(async () => {
   vi.useRealTimers();
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+  await resetAddress();
 });
 
 /** The map, once its lazily loaded code has rendered it. */
@@ -94,12 +95,26 @@ async function pressEscape(): Promise<void> {
   await afterClose();
 }
 
-/** Focuses the open map's `name` button on the entry of the book at `index`, and presses it. */
-async function pressEntryButton(dialog: HTMLElement, name: string, index: number): Promise<void> {
-  const button = within(dialog).getAllByRole('button', { name })[index];
-  if (!button) throw new Error(`no '${name}' button for book ${index}`);
-  act(() => button.focus());
-  fireEvent.click(button);
+/** The control on each map entry: Focus on shelf moves the stage, Open stage links to the book. */
+const ENTRY_ROLE = { 'Focus on shelf': 'button', 'Open stage': 'link' } as const;
+type EntryControl = keyof typeof ENTRY_ROLE;
+
+/** The open map's `name` control on the entry of the book at `index`. */
+function entryControl(dialog: HTMLElement, name: EntryControl, index: number): HTMLElement {
+  const control = within(dialog).getAllByRole(ENTRY_ROLE[name], { name })[index];
+  if (!control) throw new Error(`no '${name}' control for book ${index}`);
+  return control;
+}
+
+/** Focuses the open map's `name` control on the entry of the book at `index`, and presses it. */
+async function pressEntryButton(
+  dialog: HTMLElement,
+  name: EntryControl,
+  index: number,
+): Promise<void> {
+  const control = entryControl(dialog, name, index);
+  act(() => control.focus());
+  fireEvent.click(control);
   await afterClose();
 }
 
@@ -125,13 +140,10 @@ describe('ReadingMapDialog', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
     const at = BOOK_COUNT - 2;
     const target = bookAt(at);
-    /** The map's `name` button on the entry of `target` (the entries are in stage order). */
-    const entryButton = async (name: string): Promise<HTMLElement> => {
+    /** The map's `name` control on the entry of `target` (the entries are in stage order). */
+    const entryButton = async (name: EntryControl): Promise<HTMLElement> => {
       fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
-      const dialog = await findMap();
-      const button = within(dialog).getAllByRole('button', { name })[at];
-      if (!button) throw new Error(`no '${name}' button for book ${at}`);
-      return button;
+      return entryControl(await findMap(), name, at);
     };
 
     fireEvent.click(await entryButton('Focus on shelf'));
@@ -240,7 +252,7 @@ describe('ReadingMapDialog as a modal dialog', () => {
   it("closes only itself on Escape over the in-page detail, leaving the book's detail open", async () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
     const book = bookAt(DEFAULT_BOOK_INDEX);
-    fireEvent.click(screen.getByRole('button', { name: /Open notes/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Open notes/ }));
     expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
 
     const { trigger } = await openMap();
@@ -258,7 +270,7 @@ describe('ReadingMapDialog as a modal dialog', () => {
     const { pathname, search } = window.location;
 
     act(() => {
-      window.history.pushState(null, '', `${pathname}${search}#/stage/${target.stageLabel}`);
+      window.history.pushState(null, '', `/bookshelf/${target.slug}${search}`);
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
     expect(screen.getByRole('heading', { level: 1, name: target.title })).toBeInTheDocument();
@@ -298,7 +310,7 @@ describe('ReadingMapDialog as a modal dialog', () => {
 
   it("moves focus to the new book's heading when Open stage is used over a detail", async () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
-    fireEvent.click(screen.getByRole('button', { name: /Open notes/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Open notes/ }));
     expect(
       screen.getByRole('heading', { level: 1, name: bookAt(DEFAULT_BOOK_INDEX).title }),
     ).toBeInTheDocument();
