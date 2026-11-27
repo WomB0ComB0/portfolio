@@ -145,8 +145,8 @@ describe('verify CLI', () => {
   });
 
   it('reads the provider keys from the environment, trimmed', async () => {
-    const loadThreatFeeds = vi.fn(async () => new Set<string>());
-    const checkSafeBrowsing = vi.fn(async () => ({}));
+    const loadThreatFeeds = vi.fn(async () => ({ hosts: new Set<string>(), complete: true }));
+    const checkSafeBrowsing = vi.fn(async () => ({ matches: {}, uncheckedUrls: [] }));
     await run(
       [],
       { loadThreatFeeds, checkSafeBrowsing },
@@ -166,7 +166,10 @@ describe('verify CLI', () => {
       ['--publish-redis'],
       {
         publish,
-        checkSafeBrowsing: async () => ({ [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' }),
+        checkSafeBrowsing: async () => ({
+          matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+          uncheckedUrls: [],
+        }),
       },
       { GOOGLE_SAFE_BROWSING_API_KEY: 'gsb-key' },
     );

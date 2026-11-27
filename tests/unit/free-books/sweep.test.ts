@@ -36,9 +36,7 @@ import {
   inspectFinalTarget,
   listTargets,
   probeUrls,
-  runSweep,
   type SweepDependencies,
-  type SweepOptions,
   type SweepRecords,
   startRecords,
   summarize,
@@ -52,6 +50,7 @@ import type { PinnedGetRequest, PinnedResponse } from '@/lib/link-health/transpo
 import type { LinkObservation } from '@/lib/link-health/types';
 import { runCli } from '../../../scripts/free-books/verify';
 import {
+  cleanHost,
   EMPTY_MANIFEST,
   INDIE_GUIDE,
   inMemoryRedis,
@@ -59,6 +58,7 @@ import {
   observed,
   pageResponse,
   RUST_BOOK,
+  runWeeks,
   SWEEP_NOW,
   stubSweepDependencies,
   sweepCatalog,
@@ -214,7 +214,10 @@ describe('listTargets', () => {
 describe('checkHosts', () => {
   it('records each blocked host as "provider: reason", from feeds loaded once with the auth key', async () => {
     const feed = new Set(['indie.example']);
-    const loadThreatFeeds = vi.fn<SweepDependencies['loadThreatFeeds']>(async () => feed);
+    const loadThreatFeeds = vi.fn<SweepDependencies['loadThreatFeeds']>(async () => ({
+      hosts: feed,
+      complete: true,
+    }));
     const resolvesNormally = vi.fn(async (hostname: string) => hostname !== 'old.example');
     const checkHost = vi.fn<SweepDependencies['checkHost']>(async (hostname) =>
       hostname === 'indie.example'
@@ -223,12 +226,15 @@ describe('checkHosts', () => {
             blocked: true,
             provider: 'Threat Intel Feed (HaGeZi TIF / OpenPhish / URLhaus)',
             reason: 'threat_intel_feed_blocked_host',
+            completedChecks: [],
           }
-        : { hostname, blocked: false, provider: null, reason: null },
+        : hostname === 'old.example'
+          ? { ...cleanHost(hostname), completedChecks: ['cloudflare'] }
+          : cleanHost(hostname),
     );
     const log = vi.fn();
 
-    const { blockedHosts, threatFeedHosts } = await checkHosts(
+    const { blockedHosts, completedChecks, threatFeedHosts } = await checkHosts(
       ['doc.rust-lang.org', 'indie.example', 'old.example'],
       'auth-key',
       { loadThreatFeeds, resolvesNormally, checkHost },
@@ -241,6 +247,13 @@ describe('checkHosts', () => {
         'Threat Intel Feed (HaGeZi TIF / OpenPhish / URLhaus): threat_intel_feed_blocked_host',
     });
     expect(threatFeedHosts).toBe(feed);
+    expect(completedChecks).toEqual(
+      new Map([
+        ['doc.rust-lang.org', new Set(['threat_feeds', 'cloudflare', 'quad9'])],
+        ['indie.example', new Set(['threat_feeds'])],
+        ['old.example', new Set(['threat_feeds', 'cloudflare'])],
+      ]),
+    );
     expect(checkHost).toHaveBeenCalledWith('old.example', {
       domainResolvedNormally: false,
       urlhausHosts: feed,
@@ -254,28 +267,20 @@ describe('checkHosts', () => {
 });
 
 describe('runSweep across weekly runs', () => {
-  const SCHEDULED: SweepOptions = {
-    dryRun: false,
-    dnsblOnly: false,
-    shouldPublishRedis: true,
-    detonateDeltas: false,
-    maxUrls: 0,
-  };
   const PARKED = '<html><body>This domain is for sale</body></html>';
   const ACTIVE_PDF = '%PDF-1.7\n1 0 obj << /OpenAction << /S /JS >> >> endobj';
   const FEED_BLOCK = {
     blocked: true,
     provider: 'Threat Intel Feed (HaGeZi TIF / OpenPhish / URLhaus)',
     reason: 'threat_intel_feed_blocked_host',
+    completedChecks: [],
   } as const;
 
   /** A checkHost that flags `flaggedHost` and passes every other host. */
   const flagging =
     (flaggedHost: string | null): SweepDependencies['checkHost'] =>
     async (hostname) =>
-      hostname === flaggedHost
-        ? { hostname, ...FEED_BLOCK }
-        : { hostname, blocked: false, provider: null, reason: null };
+      hostname === flaggedHost ? { hostname, ...FEED_BLOCK } : cleanHost(hostname);
 
   /**
    * A fetch that serves a page the inspection flags for `flaggedUrl` (parked HTML, or a PDF with
@@ -290,31 +295,10 @@ describe('runSweep across weekly runs', () => {
         : pageResponse(PARKED);
     };
 
-  /** Runs one week per entry on the same Redis, and answers the keys published after each. */
-  async function weeks(
-    redis: ReturnType<typeof inMemoryRedis>,
-    runs: readonly {
-      readonly options?: Partial<SweepOptions>;
-      readonly deps?: Partial<SweepDependencies>;
-    }[],
-    field: 'blockedHosts' | 'quarantinedUrls',
-  ): Promise<string[][]> {
-    const after: string[][] = [];
-    for (const run of runs) {
-      await runSweep(
-        { ...SCHEDULED, ...run.options },
-        stubSweepDependencies({ ...redis.clients, ...run.deps }),
-        vi.fn(),
-      );
-      after.push(Object.keys((await redis.clients.loadLiveManifest())?.[field] ?? {}));
-    }
-    return after;
-  }
-
   it('carries a blocked host forward and lifts it only after two clean runs in a row', async () => {
     const redis = inMemoryRedis();
 
-    const blocked = await weeks(
+    const blocked = await runWeeks(
       redis,
       [
         { deps: { checkHost: flagging('indie.example') } },
@@ -330,7 +314,7 @@ describe('runSweep across weekly runs', () => {
   it('keeps the clean-run counts in the drift state, not in the manifest the site reads', async () => {
     const redis = inMemoryRedis();
 
-    await weeks(
+    await runWeeks(
       redis,
       [
         { deps: { checkHost: flagging('indie.example'), fetch: dangerousPage(OLD_NOTES) } },
@@ -349,7 +333,7 @@ describe('runSweep across weekly runs', () => {
   it('lifts a quarantine only after two clean runs in a row', async () => {
     const redis = inMemoryRedis();
 
-    const quarantined = await weeks(
+    const quarantined = await runWeeks(
       redis,
       [
         { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
@@ -365,7 +349,7 @@ describe('runSweep across weekly runs', () => {
   it('a link flagged again resets its count', async () => {
     const redis = inMemoryRedis();
 
-    const quarantined = await weeks(
+    const quarantined = await runWeeks(
       redis,
       [
         { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
@@ -385,7 +369,7 @@ describe('runSweep across weekly runs', () => {
     const temporaryForIndie: SweepDependencies['probe'] = async (url) =>
       observed(url === INDIE_GUIDE ? 'temporary' : 'reachable');
 
-    const quarantined = await weeks(
+    const quarantined = await runWeeks(
       redis,
       [
         { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
@@ -412,13 +396,13 @@ describe('runSweep across weekly runs', () => {
     const redis = inMemoryRedis();
     const onlyRust = async () => sweepCatalog([RUST_BOOK]);
 
-    await weeks(
+    await runWeeks(
       redis,
       [{ deps: { checkHost: flagging('indie.example'), fetch: dangerousPage(OLD_NOTES) } }],
       'quarantinedUrls',
     );
     const before = await redis.clients.loadLiveManifest();
-    await weeks(redis, [{ deps: { loadCatalog: onlyRust } }], 'quarantinedUrls');
+    await runWeeks(redis, [{ deps: { loadCatalog: onlyRust } }], 'quarantinedUrls');
     const after = await redis.clients.loadLiveManifest();
 
     expect(Object.keys(before?.blockedHosts ?? {})).toEqual(['indie.example']);
@@ -438,7 +422,7 @@ describe('runSweep across weekly runs', () => {
     const probe = vi.fn(async (_url: string) => observed('reachable'));
     const run = { deps: { readManifest: () => JSON.stringify(pins), probe } };
 
-    await weeks(redis, [run, run, run], 'blockedHosts');
+    await runWeeks(redis, [run, run, run], 'blockedHosts');
     const live = await redis.clients.loadLiveManifest();
 
     expect(live?.blockedHosts).toEqual({ 'indie.example': 'Manual block' });
@@ -452,11 +436,14 @@ describe('runSweep across weekly runs', () => {
     const probe = vi.fn(async (_url: string) => observed('reachable'));
     const hit: Partial<SweepDependencies> = {
       probe,
-      checkSafeBrowsing: async () => ({ [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' }),
+      checkSafeBrowsing: async () => ({
+        matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+        uncheckedUrls: [],
+      }),
     };
     const keyed = { safeBrowsingApiKey: 'gsb-key' };
 
-    const quarantined = await weeks(
+    const quarantined = await runWeeks(
       redis,
       [
         { options: keyed, deps: hit },
@@ -475,7 +462,7 @@ describe('runSweep across weekly runs', () => {
 
   it('refuses to run on an empty catalog, and leaves the overlay as it was', async () => {
     const redis = inMemoryRedis();
-    await weeks(redis, [{ deps: { fetch: dangerousPage(INDIE_GUIDE) } }], 'quarantinedUrls');
+    await runWeeks(redis, [{ deps: { fetch: dangerousPage(INDIE_GUIDE) } }], 'quarantinedUrls');
     const before = [...redis.store.entries()];
 
     const code = await runCli({
@@ -502,7 +489,8 @@ describe('runSweep across weekly runs', () => {
 describe('checkSafeBrowsing', () => {
   it('quarantines each link Safe Browsing flags with its threat type, and asks nothing without a key', async () => {
     const lookup = vi.fn<SweepDependencies['checkSafeBrowsing']>(async () => ({
-      [INDIE_GUIDE]: 'google_safe_browsing:MALWARE',
+      matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+      uncheckedUrls: [],
     }));
     const records = startRecords(EMPTY_MANIFEST);
 
@@ -656,7 +644,12 @@ describe('probeUrls', () => {
       TARGETS,
       'gsb-key',
       records,
-      { checkSafeBrowsing: async () => ({ [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' }) },
+      {
+        checkSafeBrowsing: async () => ({
+          matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+          uncheckedUrls: [],
+        }),
+      },
       vi.fn(),
     );
     const probe = vi.fn(async (_url: string) => observed('reachable'));

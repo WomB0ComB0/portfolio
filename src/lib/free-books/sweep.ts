@@ -25,9 +25,11 @@ import 'server-only';
  *    the way the site merges them (mergeSecurityManifests), plus the drift state;
  * 2. listTargets: each link in the raw upstream catalog that passes the runtime gate (url-screen.ts),
  *    and its hosts;
- * 3. checkHosts: every host against the threat feeds, Cloudflare 1.1.1.2 and Quad9, then the
- *    blocks are settled against the baseline's (flag-policy.ts);
- * 4. checkSafeBrowsing: every link against Google Safe Browsing, when a key is set;
+ * 3. checkHosts: every host against the threat feeds, Cloudflare 1.1.1.2 and Quad9, noting which
+ *    checks completed, then the blocks are settled against the baseline's (host-checks.ts,
+ *    flag-policy.ts);
+ * 4. checkSafeBrowsing: every link against Google Safe Browsing, when a key is set, noting the
+ *    links of any batch that failed;
  * 5. probeUrls: two-pass reachability with probeLink, then inspectFinalTarget (target-inspection.ts)
  *    on each reachable link for dangerous content and drift; both are DNS-pinned in the CLI, and
  *    a hop that resolves to a non-public address quarantines the link;
@@ -39,12 +41,15 @@ import 'server-only';
  * never lifts or fetches and always publishes. Everything else lives in the Redis overlay and is
  * checked again every run against the raw catalog. A flag is lifted after two runs in a row that
  * checked it and found it clean (flag-policy.ts); a run that could not check it gives no credit:
- * a probe that was not reachable, a link past --limit, --dnsbl-only, a link on a blocked host, or
- * a Safe Browsing flag in a run without the key (such a link is not fetched either).
+ * a host block whose check (feed, Cloudflare or Quad9) did not complete, a probe that was not
+ * reachable, a link past --limit, --dnsbl-only, a link on a blocked host, a link whose Safe
+ * Browsing batch failed, or a Safe Browsing flag in a run without the key or whose lookup failed
+ * (such a link is not fetched either).
  */
 
 import type { LinkObservation } from '@/lib/link-health/types';
 import { type FlagObservation, type FlagSettlement, settleFlags } from './flag-policy';
+import { type HostCheck, observeHost } from './host-checks';
 import type { loadSweepCatalog } from './loader';
 import {
   type loadLiveSecurityManifestFromRedis,
@@ -133,6 +138,8 @@ export interface SweepRecords {
   readonly deltaDetonations: Record<string, DeltaDetonationRecord>;
   /** Links Google Safe Browsing listed this run: they stay quarantined and are never fetched. */
   readonly safeBrowsingHits: Set<string>;
+  /** Links in a keyed run whose Safe Browsing batch failed: they earn no clean run. */
+  readonly safeBrowsingUnchecked: Set<string>;
   /** What this run saw for each link's quarantine; a link it did not check is not listed. */
   readonly urlObservations: Map<string, FlagObservation>;
 }
@@ -267,25 +274,32 @@ export function listTargets(catalog: FreeProgrammingBooksCatalog): {
   return { hostsList: [...uniqueHosts].sort(), probeTargets };
 }
 
+/** This run's host checks: the hosts flagged, and the checks that completed for each host. */
+export interface HostCheckResults {
+  /** Each host flagged this run, as "provider: reason". */
+  readonly blockedHosts: Readonly<Record<string, string>>;
+  readonly completedChecks: ReadonlyMap<string, ReadonlySet<HostCheck>>;
+  readonly threatFeedHosts: ReadonlySet<string>;
+}
+
 /**
  * Loads the threat feeds, then checks every host against them, Cloudflare 1.1.1.2 and Quad9.
- * Answers the hosts flagged this run, each as "provider: reason"; settleHostBlocks then carries
- * them over the baseline's blocks.
+ * Answers the hosts flagged this run and, per host, the checks that completed (the feeds count
+ * only when every feed loaded); settleHostBlocks then carries them over the baseline's blocks.
  */
 export async function checkHosts(
   hostsList: readonly string[],
   urlhausAuthKey: string | undefined,
   deps: Pick<SweepDependencies, 'loadThreatFeeds' | 'resolvesNormally' | 'checkHost'>,
   log: Log,
-): Promise<{
-  readonly blockedHosts: Record<string, string>;
-  readonly threatFeedHosts: ReadonlySet<string>;
-}> {
+): Promise<HostCheckResults> {
   const blockedHosts: Record<string, string> = {};
+  const completedChecks = new Map<string, ReadonlySet<HostCheck>>();
 
   log('Loading HaGeZi TIF + OpenPhish (+ optional URLhaus) threat-intel feeds...');
-  const urlhausHosts = await deps.loadThreatFeeds({ authKey: urlhausAuthKey });
-  log(`Loaded ${urlhausHosts.size} threat-intel hosts.`);
+  const feeds = await deps.loadThreatFeeds({ authKey: urlhausAuthKey });
+  log(`Loaded ${feeds.hosts.size} threat-intel hosts.`);
+  if (!feeds.complete) log('A threat feed did not load; feed blocks get no clean run this time.');
 
   log(
     `Checking ${hostsList.length} unique hostnames against URLhaus + Cloudflare 1.1.1.2 + Quad9...`,
@@ -294,31 +308,39 @@ export async function checkHosts(
     const resolvedNormally = await deps.resolvesNormally(hostname);
     const verdict = await deps.checkHost(hostname, {
       domainResolvedNormally: resolvedNormally,
-      urlhausHosts,
+      urlhausHosts: feeds.hosts,
     });
     if (verdict.blocked) {
       blockedHosts[hostname] = `${verdict.provider}: ${verdict.reason}`;
     }
+    const feedChecks: readonly HostCheck[] = feeds.complete ? ['threat_feeds'] : [];
+    completedChecks.set(hostname, new Set([...feedChecks, ...verdict.completedChecks]));
   });
 
-  return { blockedHosts, threatFeedHosts: urlhausHosts };
+  return { blockedHosts, completedChecks, threatFeedHosts: feeds.hosts };
 }
 
 /**
- * The blocks that stand after this run's host checks: every catalog host was checked, so each is
- * flagged (a hit this run) or clean, and settleFlags lifts a block after two clean runs in a row.
+ * The blocks that stand after this run's host checks: a host with a hit is flagged; one without
+ * is clean only when the check behind its standing block completed (host-checks.ts), and
+ * otherwise unchecked; settleFlags lifts a block after two clean runs in a row.
  */
 export function settleHostBlocks(
   baseline: FreeBooksSecurityManifest,
-  flaggedThisRun: Readonly<Record<string, string>>,
+  checks: Pick<HostCheckResults, 'blockedHosts' | 'completedChecks'>,
   hostsList: readonly string[],
   pins: SweepPins,
 ): FlagSettlement {
+  const standing = baseline.blockedHosts;
+  const observe = (host: string): FlagObservation =>
+    observeHost(
+      Object.hasOwn(checks.blockedHosts, host),
+      Object.hasOwn(standing, host) ? standing[host] : undefined,
+      checks.completedChecks.get(host) ?? new Set(),
+    );
   return settleFlags({
-    flags: { ...baseline.blockedHosts, ...flaggedThisRun },
-    observations: new Map(
-      hostsList.map((host) => [host, Object.hasOwn(flaggedThisRun, host) ? 'flagged' : 'clean']),
-    ),
+    flags: { ...standing, ...checks.blockedHosts },
+    observations: new Map(hostsList.map((host) => [host, observe(host)])),
     streaks: baseline.cleanStreaks?.hosts ?? {},
     pins: pins.blockedHosts,
     inCatalog: new Set(hostsList),
@@ -333,6 +355,7 @@ export function startRecords(existing: FreeBooksSecurityManifest): SweepRecords 
     urlFingerprints: { ...(existing.urlFingerprints ?? {}) },
     deltaDetonations: { ...(existing.deltaDetonations ?? {}) },
     safeBrowsingHits: new Set(),
+    safeBrowsingUnchecked: new Set(),
     urlObservations: new Map(),
   };
 }
@@ -343,29 +366,36 @@ function quarantine(records: SweepRecords, url: string, reason: string): void {
   records.urlObservations.set(url, 'flagged');
 }
 
-/** Notes that this run checked `url` and found it clean (unless this run already flagged it). */
+/**
+ * Notes that this run checked `url` and found it clean, unless this run already flagged it or
+ * its Safe Browsing lookup failed (then it stays unchecked).
+ */
 function markClean(records: SweepRecords, url: string): void {
+  if (records.safeBrowsingUnchecked.has(url)) return;
   if (records.urlObservations.get(url) !== 'flagged') records.urlObservations.set(url, 'clean');
 }
 
 /**
  * Whether this run must not fetch `url` at all: an owner's pin, or a link quarantined by Safe
- * Browsing when this run has no key to ask again (the content checks cannot clear such a flag).
+ * Browsing that this run could not ask about again, for want of a key or because its batch
+ * failed (the content checks cannot clear such a flag).
  */
 export function isHeldBack(
   url: string,
-  records: Pick<SweepRecords, 'quarantinedUrls'>,
+  records: Pick<SweepRecords, 'quarantinedUrls' | 'safeBrowsingUnchecked'>,
   pins: SweepPins,
   safeBrowsingApiKey: string | undefined,
 ): boolean {
   if (Object.hasOwn(pins.quarantinedUrls, url)) return true;
   const reason = Object.hasOwn(records.quarantinedUrls, url) ? records.quarantinedUrls[url] : '';
-  return !safeBrowsingApiKey && Boolean(reason?.startsWith(SAFE_BROWSING_REASON));
+  const asked = Boolean(safeBrowsingApiKey) && !records.safeBrowsingUnchecked.has(url);
+  return !asked && Boolean(reason?.startsWith(SAFE_BROWSING_REASON));
 }
 
 /**
  * With an API key, quarantines every link Google Safe Browsing flags, with its threat type, and
- * notes it as a hit so probeUrls never fetches it (the content checks cannot clear it).
+ * notes it as a hit so probeUrls never fetches it (the content checks cannot clear it). Links in a
+ * batch that failed are noted as unchecked, so they earn no clean run.
  */
 export async function checkSafeBrowsing(
   probeTargets: readonly SweepTarget[],
@@ -376,13 +406,19 @@ export async function checkSafeBrowsing(
 ): Promise<void> {
   if (!apiKey) return;
   log(`Checking ${probeTargets.length} URLs against Google Safe Browsing v4...`);
-  const gsbHits = await deps.checkSafeBrowsing(
+  const lookup = await deps.checkSafeBrowsing(
     probeTargets.map((t) => t.url),
     apiKey,
   );
-  for (const [hitUrl, reason] of Object.entries(gsbHits)) {
+  for (const [hitUrl, reason] of Object.entries(lookup.matches)) {
     quarantine(records, hitUrl, reason);
     records.safeBrowsingHits.add(hitUrl);
+  }
+  for (const url of lookup.uncheckedUrls) records.safeBrowsingUnchecked.add(url);
+  if (lookup.uncheckedUrls.length > 0) {
+    log(
+      `Safe Browsing could not check ${lookup.uncheckedUrls.length} URLs; they get no clean run.`,
+    );
   }
 }
 
@@ -609,7 +645,7 @@ export async function runSweep(
   const catalog = await deps.loadCatalog();
   const { hostsList, probeTargets } = listTargets(catalog);
   const hostChecks = await checkHosts(hostsList, options.urlhausAuthKey, deps, log);
-  const hosts = settleHostBlocks(existing, hostChecks.blockedHosts, hostsList, pins);
+  const hosts = settleHostBlocks(existing, hostChecks, hostsList, pins);
 
   const records = startRecords(existing);
   await checkSafeBrowsing(probeTargets, options.safeBrowsingApiKey, records, deps, log);

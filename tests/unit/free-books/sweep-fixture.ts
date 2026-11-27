@@ -16,11 +16,11 @@
 
 /**
  * @file Stubs for the verify sweep, CLI and manifest-store tests: SweepDependencies whose every
- * client finds nothing (no Redis state, no feeds, no blocks, every link reachable as a plain HTML
- * page), a three-link catalog, a fixed clock, and an in-memory Upstash REST API behind the real
- * manifest-store publish and load functions, so runs can follow each other week by week. A test
- * overrides only the clients it is about, with its own vi.fn when it asserts on the calls. Not a
- * test file.
+ * client finds nothing and completes every check (no Redis state, empty but loaded feeds, no
+ * blocks, every link reachable as a plain HTML page), a three-link catalog, a fixed clock, an
+ * in-memory Upstash REST API behind the real manifest-store publish and load functions, and
+ * runWeeks, so runs can follow each other week by week. A test overrides only the clients it is
+ * about, with its own vi.fn when it asserts on the calls. Not a test file.
  */
 
 import { buildFreeProgrammingBooksCatalog } from '@/lib/free-books/catalog';
@@ -31,7 +31,8 @@ import {
   type RedisManifestCredentials,
 } from '@/lib/free-books/manifest-store';
 import { parseFreeProgrammingBooksMarkdown } from '@/lib/free-books/parse';
-import type { SweepDependencies } from '@/lib/free-books/sweep';
+import { runSweep, type SweepDependencies, type SweepOptions } from '@/lib/free-books/sweep';
+import type { ThreatIntelVerdict } from '@/lib/free-books/threat-intel';
 import type {
   FetchLike,
   FreeBooksSecurityManifest,
@@ -87,6 +88,15 @@ export const pageResponse = (
 /** A probe observation of `kind`. */
 export const observed = (kind: LinkObservation['kind']): LinkObservation =>
   kind === 'reachable' ? { kind, httpStatus: 200 } : { kind };
+
+/** A host check with no block, where Cloudflare and Quad9 both answered. */
+export const cleanHost = (hostname: string): ThreatIntelVerdict => ({
+  hostname,
+  blocked: false,
+  provider: null,
+  reason: null,
+  completedChecks: ['cloudflare', 'quad9'],
+});
 
 /** The URL a fetch call asked for, whatever form `input` took. */
 const requestedUrl = (input: string | URL | Request): string =>
@@ -193,6 +203,36 @@ export function inMemoryRedis() {
   };
 }
 
+/** The scheduled workflow's run: publishes to Redis, probes every link, no sandbox scans. */
+export const SCHEDULED_RUN: SweepOptions = {
+  dryRun: false,
+  dnsblOnly: false,
+  shouldPublishRedis: true,
+  detonateDeltas: false,
+  maxUrls: 0,
+};
+
+/** Runs one week per entry on the same Redis, and answers the keys of `field` published after each. */
+export async function runWeeks(
+  redis: ReturnType<typeof inMemoryRedis>,
+  runs: readonly {
+    readonly options?: Partial<SweepOptions>;
+    readonly deps?: Partial<SweepDependencies>;
+  }[],
+  field: 'blockedHosts' | 'quarantinedUrls',
+): Promise<string[][]> {
+  const after: string[][] = [];
+  for (const run of runs) {
+    await runSweep(
+      { ...SCHEDULED_RUN, ...run.options },
+      stubSweepDependencies({ ...redis.clients, ...run.deps }),
+      () => undefined,
+    );
+    after.push(Object.keys((await redis.clients.loadLiveManifest())?.[field] ?? {}));
+  }
+  return after;
+}
+
 /** Clients that find nothing, with `overrides` in their place. */
 export function stubSweepDependencies(
   overrides: Partial<SweepDependencies> = {},
@@ -203,10 +243,10 @@ export function stubSweepDependencies(
     loadDriftState: async () => null,
     publish: async () => ({ runtimePublished: true, fingerprintsPublished: true }),
     loadCatalog: async () => sweepCatalog(),
-    loadThreatFeeds: async () => new Set<string>(),
+    loadThreatFeeds: async () => ({ hosts: new Set<string>(), complete: true }),
     resolvesNormally: async () => true,
-    checkHost: async (hostname) => ({ hostname, blocked: false, provider: null, reason: null }),
-    checkSafeBrowsing: async () => ({}),
+    checkHost: async (hostname) => cleanHost(hostname),
+    checkSafeBrowsing: async () => ({ matches: {}, uncheckedUrls: [] }),
     probe: async () => observed('reachable'),
     fetch: async () => pageResponse(),
     checkDomainAge: async () => ({ registeredAt: null, ageDays: null, newlyRegistered: false }),
