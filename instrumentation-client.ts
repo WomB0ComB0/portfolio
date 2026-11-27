@@ -27,8 +27,8 @@ import {
 
 /** The site's own integrations, added to the SDK's defaults (a same-named default is replaced). */
 const siteIntegrations = [
-  // These are the SDK defaults, spelled out because the privacy policy promises them.
-  Sentry.replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true }),
+  // These are the SDK defaults, spelled out because the privacy policy promises them. Replay,
+  // with the masking the policy describes, is added after init (below).
   Sentry.browserTracingIntegration(),
   Sentry.consoleLoggingIntegration({ levels: ['warn', 'error'] }),
   // Tags errors whose stack has no frame from our bundles (extensions, injected scripts).
@@ -59,5 +59,24 @@ Sentry.init({
   // site's own. Errors, traces and replays keep working; only Release Health sessions stop.
   integrations: (defaults) => [...withoutSessionTracking(defaults), ...siteIntegrations],
 });
+
+// Session Replay loads in its own chunk once init has run (Sentry's lazy-loading pattern), so its
+// ~38 KB no longer sits in the JavaScript every page runs before hydration. The import starts
+// right away, so Replay begins buffering as soon as the chunk arrives; an error thrown before then
+// is still reported, just without a replay. Sample rates still come from the init options above.
+// Where the SDK is disabled (local builds) nothing is fetched, as Replay was never set up there.
+if (Sentry.isEnabled()) {
+  import('@/lib/observability/sentry-replay')
+    .then(({ replayIntegration }) => {
+      Sentry.addIntegration(
+        replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true }),
+      );
+    })
+    .catch(() => {
+      // The chunk did not load (offline, or a deploy replaced it): this visit has no Replay, as
+      // with a content blocker. Errors still report; the failed load is not itself an error in
+      // the page, so it is not reported as an unhandled rejection.
+    });
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

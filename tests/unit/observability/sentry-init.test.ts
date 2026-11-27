@@ -26,6 +26,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sentry = vi.hoisted(() => ({
   init: vi.fn(),
+  // Whether the client init built can send: false for a disabled SDK or one without a DSN.
+  isEnabled: vi.fn(() => true),
+  addIntegration: vi.fn(),
   replayIntegration: vi.fn((options: unknown) => ({ name: 'Replay', options })),
   browserTracingIntegration: vi.fn(() => ({ name: 'BrowserTracing' })),
   consoleLoggingIntegration: vi.fn((options: unknown) => ({ name: 'ConsoleLogs', options })),
@@ -63,7 +66,11 @@ async function initOptionsFor(
   for (const [name, value] of Object.entries(vars)) vi.stubEnv(name, value);
   vi.resetModules();
   sentry.init.mockClear();
+  sentry.addIntegration.mockClear();
+  sentry.replayIntegration.mockClear();
   await import(ENTRY_POINTS[entry]);
+  // The client entry loads Replay with a dynamic import() after init; let it finish.
+  await vi.dynamicImportSettled();
   expect(sentry.init).toHaveBeenCalledTimes(1);
   return sentry.init.mock.calls[0]?.[0] as Record<string, unknown>;
 }
@@ -220,7 +227,7 @@ describe('instrumentation-client', () => {
     expect(options.enabled).toBe(false);
   });
 
-  it('sends only warnings and errors to Logs, masks replays and tags third-party errors', async () => {
+  it('sends only warnings and errors to Logs and tags third-party errors', async () => {
     await initOptionsFor('client', {
       NEXT_PUBLIC_VERCEL_ENV: 'production',
       NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
@@ -228,16 +235,40 @@ describe('instrumentation-client', () => {
     expect(sentry.consoleLoggingIntegration).toHaveBeenLastCalledWith({
       levels: ['warn', 'error'],
     });
-    expect(sentry.replayIntegration).toHaveBeenLastCalledWith({
-      maskAllText: true,
-      maskAllInputs: true,
-      blockAllMedia: true,
-    });
     expect(sentry.thirdPartyErrorFilterIntegration).toHaveBeenLastCalledWith({
       filterKeys: ['mikeodnis-portfolio'],
       behaviour: 'apply-tag-if-exclusively-contains-third-party-frames',
       ignoreSentryInternalFrames: true,
     });
+  });
+
+  it('adds Replay after init, from its own chunk, with all text, inputs and media masked', async () => {
+    const options = await initOptionsFor('client', {
+      NEXT_PUBLIC_VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_URL: DEPLOYMENT_URL,
+    });
+    expect(options.replaysOnErrorSampleRate).toBe(0.25);
+    expect(sentry.replayIntegration).toHaveBeenCalledTimes(1);
+    expect(sentry.replayIntegration).toHaveBeenLastCalledWith({
+      maskAllText: true,
+      maskAllInputs: true,
+      blockAllMedia: true,
+    });
+    expect(sentry.addIntegration).toHaveBeenCalledTimes(1);
+    expect(sentry.addIntegration).toHaveBeenLastCalledWith({
+      name: 'Replay',
+      options: { maskAllText: true, maskAllInputs: true, blockAllMedia: true },
+    });
+    expect(sentry.addIntegration.mock.invocationCallOrder[0]).toBeGreaterThan(
+      sentry.init.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it('loads no Replay where the SDK is disabled, as none was set up there before', async () => {
+    sentry.isEnabled.mockReturnValueOnce(false);
+    await initOptionsFor('client', {});
+    expect(sentry.replayIntegration).not.toHaveBeenCalled();
+    expect(sentry.addIntegration).not.toHaveBeenCalled();
   });
 
   it('sends no client reports, which each cost a /monitoring request', async () => {
@@ -267,7 +298,6 @@ describe('instrumentation-client', () => {
     expect(names).toEqual([
       'InboundFilters',
       'Breadcrumbs',
-      'Replay',
       'BrowserTracing',
       'ConsoleLogs',
       'ThirdPartyErrorsFilter',
