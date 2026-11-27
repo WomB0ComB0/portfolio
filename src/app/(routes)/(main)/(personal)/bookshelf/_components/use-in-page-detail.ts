@@ -25,8 +25,11 @@
  * or close the detail when it names none. A stage that mounts on a book's address (Back from
  * another page) opens that book; one on an old #/stage/NN link opens its book and rewrites the
  * address to the book's page. While a book is open the stage (bookshelf-stage.tsx) renders
- * BookDetailView in place of its shell. Guarded by tests/unit/bookshelf/use-in-page-detail.test.tsx,
- * book-detail-view.test.tsx and reading-map-dialog.test.tsx.
+ * BookDetailView in place of its shell. When it closes, by any of these ways, focus goes back to
+ * the control that opened the book (Open notes) once the list renders it again, else to the stage,
+ * where the book now sits: the detail that held focus is gone. Guarded by
+ * tests/unit/bookshelf/use-in-page-detail.test.tsx, book-detail-view.test.tsx and
+ * reading-map-dialog.test.tsx.
  */
 
 import {
@@ -54,13 +57,21 @@ export interface InPageDetailOptions {
   readonly slotPositionsRef: RefObject<Map<number, number>>;
   /** The list's own path, which closing returns to: /bookshelf, or a shelf's page. */
   readonly listPath: string;
+  /** The stage: focus goes back to it on close when no control on the list opened the book. */
+  readonly returnFocusRef: RefObject<HTMLElement | null>;
 }
+
+/** A control on the list, by the ref the list fills each time it renders the control again. */
+type OpenerRef = RefObject<HTMLElement | null>;
 
 export interface InPageDetail {
   /** The open book, or null while the stage shows. */
   readonly detailBook: BookItem | null;
-  /** Opens `book`: pushes its address from the stage, replaces it from another book's detail. */
-  readonly openDetail: (book: BookItem) => void;
+  /**
+   * Opens `book`: pushes its address from the stage, replaces it from another book's detail.
+   * `opener` is the control on the list that opened it, which takes focus back on close.
+   */
+  readonly openDetail: (book: BookItem, opener?: OpenerRef) => void;
   /** Opens the book with this slug (the detail's Previous/Next, the map's Open stage). */
   readonly openDetailBySlug: (slug: string) => void;
   /** Closes the detail and returns the address to the list's. */
@@ -95,10 +106,13 @@ export function useInPageDetail({
   setPos,
   slotPositionsRef,
   listPath,
+  returnFocusRef,
 }: InPageDetailOptions): InPageDetail {
   const [detailBook, setDetailBook] = useState<BookItem | null>(null);
   // The handlers read it between renders: whether a book is open decides push or replace.
   const detailBookRef = useRef<BookItem | null>(null);
+  // The control that opened the book from the list, kept while the detail moves to another book.
+  const openerRef = useRef<OpenerRef | null>(null);
 
   const show = useCallback((book: BookItem | null): void => {
     detailBookRef.current = book;
@@ -127,10 +141,11 @@ export function useInPageDetail({
   }, [books, indexBySlug, setPos, show]);
 
   const openDetail = useCallback(
-    (book: BookItem): void => {
+    (book: BookItem, opener?: OpenerRef): void => {
       const idx = indexBySlug.get(book.slug);
       if (idx !== undefined) setPos(idx);
       const fromDetail = detailBookRef.current !== null;
+      if (!fromDetail) openerRef.current = opener ?? null;
       show(book);
       if (fromDetail) replaceBookAddress(book.slug);
       else pushBookAddress(book.slug);
@@ -154,8 +169,31 @@ export function useInPageDetail({
   }, [hide, listPath]);
 
   useFollowAddress(openFromAddress, hide);
+  useReturnFocus(detailBook, openerRef, returnFocusRef);
 
   return { detailBook, openDetail, openDetailBySlug, closeDetail };
+}
+
+/**
+ * Once the list renders again after a book closes, moves focus to the control that opened the
+ * book, or to the stage when none did (the map's Open stage, gone with the map, or the address)
+ * or it is not on the list. Without it focus falls to the page's body with the detail that held
+ * it. The opener is used once: a book Forward opens again came from no control.
+ */
+function useReturnFocus(
+  detailBook: BookItem | null,
+  openerRef: RefObject<OpenerRef | null>,
+  returnFocusRef: RefObject<HTMLElement | null>,
+): void {
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = detailBook !== null;
+    if (!wasOpen || detailBook !== null) return;
+    const opener = openerRef.current?.current;
+    openerRef.current = null;
+    (opener?.isConnected ? opener : returnFocusRef.current)?.focus();
+  }, [detailBook, openerRef, returnFocusRef]);
 }
 
 /**

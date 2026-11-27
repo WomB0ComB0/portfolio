@@ -113,6 +113,71 @@ describe('BookDetailView in place', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
+  it("keeps focus on its heading when a phone's or a pen's tap on the cover opens it", () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
+    const activeSlot = (): HTMLElement => {
+      const slot = screen
+        .getByRole('region', { name: /Bookshelf/i })
+        .querySelector<HTMLElement>('[data-slot-offset="0"]');
+      if (!slot) throw new Error('no active slot on the stage');
+      return slot;
+    };
+    const tap = { pointerId: 7, pointerType: 'touch', button: 0, clientX: 120, clientY: 160 };
+
+    // A phone sends a tap's mousedown after its pointerup, so it would land on the detail that
+    // took the stage's place and focus <main>. Cancelling the press tells the browser to send
+    // no such mouse events; a mouse press, whose mousedown comes first, is left alone.
+    const cover = activeSlot();
+    const pressSent = fireEvent.pointerDown(cover, tap);
+    fireEvent.pointerUp(cover, tap);
+
+    expect(pressSent).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+
+    // A pen's press is cancelled the same way: only a mouse press is left alone.
+    const nib = activeSlot();
+    const pen = { ...tap, pointerId: 9, pointerType: 'pen' };
+    expect(fireEvent.pointerDown(nib, pen)).toBe(false);
+    fireEvent.pointerUp(nib, pen);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+
+    const slot = activeSlot();
+    const click = { ...tap, pointerId: 8, pointerType: 'mouse' };
+    expect(fireEvent.pointerDown(slot, click)).toBe(true);
+    fireEvent.pointerUp(slot, click);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+  });
+
+  it("gives the stage focus when a phone's tap steps to a side book, as a mouse press does", () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
+    const stage = screen.getByRole('region', { name: /Bookshelf/i });
+    const side = stage.querySelector<HTMLElement>('[data-slot-offset="1"]');
+    if (!side) throw new Error('no side book on the stage');
+    const tap = { pointerId: 11, pointerType: 'touch', button: 0, clientX: 300, clientY: 160 };
+
+    // The cancelled press sends no mousedown to focus the stage, so the stage takes focus itself:
+    // with a keyboard on a touch device, the arrow keys and Enter then work after a tap. As with a
+    // mouse press, no focus ring: a script's focus would draw one.
+    const focus = vi.spyOn(stage, 'focus');
+    expect(fireEvent.pointerDown(side, tap)).toBe(false);
+    fireEvent.pointerUp(side, tap);
+
+    expect(document.activeElement).toBe(stage);
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ focusVisible: false }));
+    expect(
+      screen.queryByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    ).not.toBeInTheDocument();
+  });
+
   it('steps to the next and previous books in place, by links to their own pages', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
     const at = BOOKS.indexOf(FEATURED);

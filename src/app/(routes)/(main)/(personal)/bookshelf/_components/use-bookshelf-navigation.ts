@@ -22,8 +22,9 @@
  * Enter or Space opens the book on stage and Escape closes the detail; a drag scrubs a step per
  * scrub unit and a flick adds up to three; a tap on a side book steps to it (moving the shelf
  * filter to its shelf, and clearing a status filter it fails) and a tap on the active one opens
- * it; with a fine pointer a ring cursor trails the pointer (under reduced motion it sits on it,
- * following the setting as it changes).
+ * it (a touch or pen press is cancelled, so no mouse event after it moves focus off the opened
+ * book's heading); with a fine pointer a ring cursor trails the pointer (under reduced motion it
+ * sits on it, following the setting as it changes).
  * The drag maths is in _lib/shelf-glide.ts and the moves in use-shelf-motion.ts. The stage
  * (bookshelf-stage.tsx) calls it. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx and
  * tests/unit/bookshelf/scale-budgets.test.ts.
@@ -322,6 +323,17 @@ export function useBookshelfNavigation({
 
   const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
+    // A touch or pen press sends its compatibility mousedown only after pointerup, by when a tap
+    // has opened the book: it lands on the detail in the stage's place and focuses <main>, taking
+    // focus off the detail's heading. Cancelling the press stops those mouse events (not the
+    // click, nor scrolling); the stage reads only pointer events. A mouse's mousedown comes first.
+    // With no mousedown, the stage focuses itself as one would have, so after a tap that steps the
+    // arrow keys and Enter work; a tap that opens the book then moves focus to its heading. Like a
+    // mouse press's focus it draws no ring (a script's focus would draw one in Chromium).
+    if (event.pointerType !== 'mouse') {
+      event.preventDefault();
+      event.currentTarget.focus({ preventScroll: true, focusVisible: false });
+    }
     cancelChain();
     jumpAnimRef.current?.finish();
     jumpAnimRef.current = null;

@@ -192,6 +192,36 @@ describe('ReadingMapDialog', () => {
   });
 });
 
+describe("ReadingMapDialog's current entry", () => {
+  /** The `N topics` label on the map entry titled `title`. */
+  function topicCountOf(dialog: HTMLElement, title: string, topics: number): HTMLElement {
+    const entry = within(dialog).getByRole('heading', { level: 4, name: title }).parentElement
+      ?.parentElement;
+    if (!entry) throw new Error(`no map entry for ${title}`);
+    return within(entry).getByText(`${topics} topics`);
+  }
+
+  // jsdom applies no Tailwind CSS, so this is a class contract. The current entry sits on the
+  // brand-subtle fill, where the faint tier is 4.25:1 and the muted one clears 4.5:1
+  // (token-contrast.test.ts checks both, and design-tokens.test.ts that text-muted-foreground is
+  // --fg-muted). Every other entry sits on the canvas, where the faint tier reads.
+  it("lifts the current entry's topic count to the muted tier on its brand-subtle fill", async () => {
+    render(<BookDetailView {...standaloneProps(FEATURED)} />);
+    fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
+    const dialog = await findMap();
+    const other = bookAt(DEFAULT_BOOK_INDEX);
+
+    const current = topicCountOf(dialog, FEATURED_TITLE, FEATURED.topics.length);
+    expect(current.closest('.bg-brand-subtle')).not.toBeNull();
+    expect(current).toHaveClass('text-muted-foreground');
+    expect(current).not.toHaveClass('text-faint');
+
+    const rest = topicCountOf(dialog, other.title, other.topics.length);
+    expect(rest.closest('.bg-brand-subtle')).toBeNull();
+    expect(rest).toHaveClass('text-faint');
+  });
+});
+
 describe('ReadingMapDialog counts', () => {
   it('says each count in the singular for one: one book, shelf and numbered topic', async () => {
     const { books, shelves } = oneBookCatalog();

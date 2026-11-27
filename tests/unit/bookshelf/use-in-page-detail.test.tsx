@@ -23,10 +23,11 @@
  * on a book's address. Back and Forward open the book the address names, or close the detail. A
  * stage that mounts on a book's address opens that book; one on an old #/stage/NN link opens its
  * book and rewrites the address to the book's page. On a shelf's page the same holds, and the
- * list it returns to is the shelf's page.
+ * list it returns to is the shelf's page. Closing gives focus back to Open notes when it opened
+ * the book, once, and otherwise (or when that control has left the page) to the stage.
  */
 
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The catalog builder draws each cover with the real image URL builder; the client module itself
@@ -43,6 +44,7 @@ vi.mock('@/lib/sanity/client', async () => {
 vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
+import { useInPageDetail } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/use-in-page-detail';
 import {
   AI_SHELF,
   address,
@@ -188,6 +190,133 @@ describe('closing the detail', () => {
 
     expect(heading('Bookshelf')).toBeInTheDocument();
     expect(address()).toBe(LIST);
+  });
+});
+
+describe('focus after closing', () => {
+  const stageRegion = () => screen.getByRole('region', { name: /Bookshelf/i });
+  const openNotes = () => screen.getByRole('link', { name: /^Open notes/ });
+
+  /** Opens the book on stage from its Open notes link, as a keyboard or a tap would. */
+  function openFromNotes(): void {
+    const link = openNotes();
+    act(() => link.focus());
+    fireEvent.click(link);
+    expect(heading(FEATURED_TITLE)).toBeInTheDocument();
+  }
+
+  const closes = [
+    ['Back to Bookshelf', pressBackToBookshelf],
+    ['Escape', () => fireEvent.keyDown(window, { key: 'Escape' })],
+    ['Back', () => window.history.back()],
+  ] as const;
+
+  it.each(closes)('gives it back to the stage that opened the book, on %s', async (_, close) => {
+    renderStage();
+    openOnStage();
+
+    await travel(close);
+
+    expect(heading('Bookshelf')).toBeInTheDocument();
+    expect(document.activeElement).toBe(stageRegion());
+  });
+
+  it.each(closes)(
+    'gives it back to Open notes when it opened the book, on %s',
+    async (_, close) => {
+      renderStage();
+      openFromNotes();
+
+      await travel(close);
+
+      expect(heading('Bookshelf')).toBeInTheDocument();
+      expect(document.activeElement).toBe(openNotes());
+    },
+  );
+
+  it('gives it back to Open notes after Previous and Next moved to another book', async () => {
+    renderStage();
+    const next = bookAt(BOOKS.indexOf(FEATURED) + 1);
+    openFromNotes();
+    fireEvent.click(adjacentLink(next.title));
+    expect(heading(next.title)).toBeInTheDocument();
+
+    await travel(pressBackToBookshelf);
+
+    expect(document.activeElement).toBe(openNotes());
+    expect(openNotes()).toHaveAttribute('href', `/bookshelf/${next.slug}`);
+  });
+
+  it("falls back to the stage when the map's Open stage, now gone, opened the book", async () => {
+    renderStage();
+    const target = bookAt(BOOK_COUNT - 2);
+    fireEvent.click(screen.getByRole('button', { name: 'Reading map' }));
+    const dialog = await screen.findByRole('dialog', { name: /Reading map/i });
+    const link = within(dialog).getAllByRole('link', { name: 'Open stage' })[BOOK_COUNT - 2];
+    if (!link) throw new Error('no Open stage link for the target book');
+    fireEvent.click(link);
+    expect(heading(target.title)).toBeInTheDocument();
+
+    await travel(pressBackToBookshelf);
+
+    expect(document.activeElement).toBe(stageRegion());
+    expect(liveText()).toBe(liveTextOf(target));
+  });
+
+  it('uses Open notes once: a book Forward opens again gives it to the stage on close', async () => {
+    renderStage();
+    openFromNotes();
+    await travel(() => window.history.back());
+    expect(document.activeElement).toBe(openNotes());
+
+    await travel(() => window.history.forward());
+    expect(heading(FEATURED_TITLE)).toBeInTheDocument();
+    await travel(() => window.history.back());
+
+    expect(heading('Bookshelf')).toBeInTheDocument();
+    expect(document.activeElement).toBe(stageRegion());
+  });
+
+  it.each([
+    ["a book's page", pageOf(FEATURED.slug)],
+    ['an old #/stage/NN link', `${LIST}#/stage/${FEATURED.stageLabel}`],
+  ])('falls back to the stage for a book the address opened, on %s', (_, entry) => {
+    window.history.replaceState(null, '', entry);
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />, QUERY);
+    expect(heading(FEATURED_TITLE)).toBeInTheDocument();
+
+    pressBackToBookshelf();
+
+    expect(heading('Bookshelf')).toBeInTheDocument();
+    expect(document.activeElement).toBe(stageRegion());
+  });
+
+  it('falls back to the stage when the control that opened the book has left the page', async () => {
+    // The stage always renders Open notes again, so this is the hook alone: an opener whose ref
+    // still holds a control taken off the page must not swallow the focus.
+    const stage = document.body.appendChild(document.createElement('div'));
+    stage.tabIndex = -1;
+    const opener = document.body.appendChild(document.createElement('button'));
+    const options = {
+      books: BOOKS,
+      indexBySlug: new Map(BOOKS.map((book, index) => [book.slug, index])),
+      setPos: vi.fn(),
+      slotPositionsRef: { current: new Map<number, number>() },
+      listPath: LIST_ADDRESS,
+      returnFocusRef: { current: stage },
+    };
+    try {
+      const { result } = renderHook(() => useInPageDetail(options));
+      act(() => result.current.openDetail(FEATURED, { current: opener }));
+      opener.remove();
+
+      await travel(() => result.current.closeDetail());
+
+      expect(result.current.detailBook).toBeNull();
+      expect(document.activeElement).toBe(stage);
+    } finally {
+      stage.remove();
+    }
   });
 });
 

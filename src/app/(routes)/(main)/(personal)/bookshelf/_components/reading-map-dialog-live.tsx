@@ -203,7 +203,13 @@ export function ReadingMapDialogLive({
                                 </span>
                                 <div className="inline-flex items-center gap-2">
                                   <BookStatusBadge status={book.status} />
-                                  <span className="font-mono text-label tabular-nums text-faint">
+                                  {/* Faint is 4.25:1 on the current entry's fill, muted 5.96:1. */}
+                                  <span
+                                    className={cn(
+                                      'font-mono text-label tabular-nums',
+                                      isActive ? 'text-muted-foreground' : 'text-faint',
+                                    )}
+                                  >
                                     {countOf(book.topicCount, TOPIC_NOUN)}
                                   </span>
                                 </div>
