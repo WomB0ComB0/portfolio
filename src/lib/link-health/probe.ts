@@ -34,9 +34,32 @@ export interface ProbeDependencies {
   readonly request: (target: ProbeRequest) => Promise<ProbeHeaders>;
 }
 
-async function resolveAddress(
+/** What one probe's caller can ask of it. */
+export interface ProbeOptions {
+  /**
+   * Asked about each redirect target (its canonical URL) before it is requested. When it answers
+   * false the probe stops there without requesting it, and its observation reports the refused
+   * redirect. Left out, every safe redirect is followed.
+   */
+  readonly shouldFollowRedirect?: (targetUrl: string) => boolean;
+}
+
+/** A probe's observation; `refusedRedirect` is set only when shouldFollowRedirect refused a hop. */
+export interface ProbeObservation extends LinkObservation {
+  readonly refusedRedirect?: true;
+}
+
+/** A link probe: one observation of `input`, under the caller's options. */
+export type LinkProbe = (input: string, options?: ProbeOptions) => Promise<ProbeObservation>;
+
+/**
+ * Resolves `hostname` once and vets every answer: a public literal passes as is; otherwise at most
+ * 16 answers, all public (ip-policy.ts), IPv4 preferred. Null when any answer is not public (or
+ * there are too many); throws when DNS has no answer. The caller connects only to the result.
+ */
+export async function resolvePublicAddress(
   hostname: string,
-  deps: ProbeDependencies,
+  deps: Pick<ProbeDependencies, 'resolve'>,
   signal: AbortSignal,
 ): Promise<PublicAddress | null> {
   const literal = publicAddress(hostname);
@@ -81,7 +104,8 @@ async function observe(
   deps: ProbeDependencies,
   signal: AbortSignal,
   assertActive: () => void,
-): Promise<LinkObservation> {
+  shouldFollowRedirect: (targetUrl: string) => boolean,
+): Promise<ProbeObservation> {
   let url = initial;
   let method: ProbeRequest['method'] = 'HEAD';
   let redirects = 0;
@@ -94,14 +118,17 @@ async function observe(
     visited.add(key);
     const hostname = probeHostname(url);
     if (!publicHostname(hostname)) return { kind: 'unknown' };
-    const address = await resolveAddress(hostname, deps, signal);
+    const address = await resolvePublicAddress(hostname, deps, signal);
     assertActive();
     if (!address) return { kind: 'unknown' };
     const response = await deps.request({ url, address, method, signal });
     assertActive();
     if (REDIRECTS.has(response.status)) {
       const next = redirectTo(response.location, url);
-      if (!next || redirects >= MAX_REDIRECTS) return { kind: 'unknown' };
+      if (!next) return { kind: 'unknown' };
+      // The caller's refusal is known without a request, so it is asked before the redirect cap.
+      if (!shouldFollowRedirect(next.href)) return { kind: 'unknown', refusedRedirect: true };
+      if (redirects >= MAX_REDIRECTS) return { kind: 'unknown' };
       redirects++;
       url = next;
       missingIsConclusive = missingIsConclusive && canWarnForLink(next.href);
@@ -121,11 +148,12 @@ async function observe(
   }
 }
 
-/** One deadline covers DNS, all redirects and HEAD→GET. Late DNS cannot start a late request. */
-export function createLinkProbe(
-  deps: ProbeDependencies,
-): (input: string) => Promise<LinkObservation> {
-  return async (input) => {
+/**
+ * One deadline covers DNS, all redirects and HEAD→GET. Late DNS cannot start a late request. A
+ * redirect target the caller's shouldFollowRedirect refuses is never requested.
+ */
+export function createLinkProbe(deps: ProbeDependencies): LinkProbe {
+  return async (input, options = {}) => {
     const canonical = normalizeLinkUrl(input);
     if (!canonical) return { kind: 'unknown' };
     const controller = new AbortController();
@@ -144,7 +172,13 @@ export function createLinkProbe(
     });
     try {
       return await Promise.race([
-        observe(new URL(canonical), deps, controller.signal, assertActive),
+        observe(
+          new URL(canonical),
+          deps,
+          controller.signal,
+          assertActive,
+          options.shouldFollowRedirect ?? (() => true),
+        ),
         deadline,
       ]);
     } catch {

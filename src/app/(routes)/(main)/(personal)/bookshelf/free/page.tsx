@@ -44,7 +44,7 @@ const FREE_BOOKS_REPORT_CONTEXT = 'free programming books catalog';
 export const metadata = constructMetadata({
   title: 'Free Programming Books',
   description:
-    'Searchable index of 2,400+ open-access programming books by language and subject, synced live from EbookFoundation/free-programming-books.',
+    'Searchable index of open-access programming books by language and subject, synced live from EbookFoundation/free-programming-books.',
   path: '/bookshelf/free',
 });
 

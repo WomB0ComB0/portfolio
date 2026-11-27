@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Run verification without writing manifest changes
+        description: Run verification without publishing to Redis or sending sandbox scans
         type: boolean
         default: true
 
@@ -73,5 +73,5 @@ jobs:
           if [[ "$DRY_RUN" == "true" ]]; then
             bun --conditions=react-server run scripts/free-books/verify.ts --dry-run
           else
-            bun --conditions=react-server run scripts/free-books/verify.ts --write --publish-redis --detonate-deltas
+            bun --conditions=react-server run scripts/free-books/verify.ts --publish-redis --detonate-deltas
           fi

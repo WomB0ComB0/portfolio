@@ -35,6 +35,9 @@
  * - No horizontal page overflow at 375 x 740 or 1440 x 900.
  * - Clicking the shelf chip farthest from the first book puts that shelf's first book in the
  *   live region within 400 ms.
+ * - At 1440 x 900 the ring cursor's disc and the slot shadow transition transform (never width,
+ *   height or `all`) for a real duration, and a book opened in place wipes in; under reduced
+ *   motion the ring sits on the pointer a frame after it moves and the detail does not wipe.
  *
  * How it runs. No CI job runs e2e/performance: build.yml runs Vitest only, and a11y.yml runs
  * e2e/accessibility with its own config. This file runs ONLY when PLAYWRIGHT_TEST_BASE_URL names a
@@ -69,6 +72,7 @@ import {
   desktop,
   LIVE,
   LIVE_TEXT,
+  MAIN,
   openStage,
   phone,
   SHELF_GROUP,
@@ -116,6 +120,13 @@ const CHIP_COUNT = '[class*="track-count"]';
 const PILL = '[class*="track-pill"]';
 /** The shell's light rays, behind every page. */
 const LIGHT_RAYS = '.light-rays';
+/** The ring cursor's layer (it follows the pointer) and the disc it scales (bookshelf-stage). */
+const CURSOR_LAYER = '[class*="cursor-layer"]';
+const CURSOR_DISC = '[class*="cursor-disc"]';
+/** The shadow under each book slot (bookshelf-book-slot.module.css). */
+const SLOT_SHADOW = '[class*="slot-shadow"]';
+/** The in-page detail's revealed blocks: each sets its wipe's delay, --d, inline. */
+const REVEAL_BLOCK = `${MAIN} [style*="--d"]`;
 
 /** A shelf as /api/v1/sanity/bookshelves answers it. */
 interface ApiShelf {
@@ -511,6 +522,104 @@ test.describe('bookshelf chip row and page width', () => {
       });
     });
   }
+});
+
+/** The middle of the stage, in whole px, where the active book stands. */
+async function stageCentre(page: Page): Promise<{ readonly x: number; readonly y: number }> {
+  const box = await page.locator(STAGE).boundingBox();
+  if (!box) throw new Error('the stage has no box');
+  return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+}
+
+/** `selector`'s first element's transition: its properties, and the time `transform` takes. */
+async function transitionOf(
+  page: Page,
+  selector: string,
+): Promise<{ readonly properties: readonly string[]; readonly transformDuration?: string }> {
+  return page
+    .locator(selector)
+    .first()
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      const properties = style.transitionProperty.split(',').map((name) => name.trim());
+      const durations = style.transitionDuration.split(',').map((time) => time.trim());
+      const at = properties.indexOf('transform');
+      return { properties, transformDuration: at < 0 ? undefined : durations[at] };
+    });
+}
+
+/** Opens the book on stage in place, from the keyboard: its detail wipes in block by block. */
+async function openBookInPlace(page: Page): Promise<Locator> {
+  await page.locator(STAGE).focus();
+  await page.keyboard.press('Enter');
+  const block = page.locator(REVEAL_BLOCK).first();
+  await expect(block).toBeVisible();
+  return block;
+}
+
+test.describe('bookshelf motion on a 1440 x 900 desktop', () => {
+  test('moves the ring cursor and the slot shadow on the compositor, and wipes the detail in', async ({
+    browser,
+  }) => {
+    await withPage(browser, desktop(1), async (page) => {
+      await openStage(page, BASE_URL);
+      const { x, y } = await stageCentre(page);
+      await page.mouse.move(x, y);
+      await expect(page.locator(CURSOR_DISC).first()).toBeAttached();
+
+      for (const [label, selector] of [
+        ['the ring disc', CURSOR_DISC],
+        ['a slot shadow', SLOT_SHADOW],
+      ] as const) {
+        const { properties, transformDuration } = await transitionOf(page, selector);
+        expect.soft(properties, `${label} transitions transform`).toContain('transform');
+        expect
+          .soft(
+            properties.filter((property) => LAYOUT_TRANSITIONS.includes(property)),
+            `${label}'s transition-property (${properties.join(', ')})`,
+          )
+          .toEqual([]);
+        expect.soft(transformDuration, `${label}'s transform duration`).not.toBe('0s');
+      }
+
+      const block = await openBookInPlace(page);
+      expect(await block.evaluate((element) => getComputedStyle(element).animationName)).toMatch(
+        /rv-wipe/,
+      );
+    });
+  });
+
+  test('under reduced motion, puts the ring on the pointer and the detail in place at once', async ({
+    browser,
+  }) => {
+    await withPage(browser, { ...desktop(1), reducedMotion: 'reduce' }, async (page) => {
+      await openStage(page, BASE_URL);
+      const { x, y } = await stageCentre(page);
+      await page.mouse.move(x - 120, y);
+      await page.mouse.move(x, y);
+
+      // Two frames: the move lands, then the cursor loop draws it.
+      const transform = await page.evaluate(
+        (selector) =>
+          new Promise<string>((resolve) => {
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() =>
+                resolve(document.querySelector<HTMLElement>(selector)?.style.transform ?? ''),
+              ),
+            );
+          }),
+        CURSOR_LAYER,
+      );
+      expect(transform, 'the ring, a frame after the pointer moved').toBe(
+        `translate3d(${x}px, ${y}px, 0px)`,
+      );
+
+      const block = await openBookInPlace(page);
+      expect(await block.evaluate((element) => getComputedStyle(element).animationName)).toBe(
+        'none',
+      );
+    });
+  });
 });
 
 test.describe('bookshelf jump on the real data', () => {

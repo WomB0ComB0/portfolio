@@ -17,8 +17,9 @@
 /**
  * @file The card that links /bookshelf to the Free Library (/bookshelf/free), the index of
  * EbookFoundation's free programming books. The stage (bookshelf-stage.tsx) draws it under the
- * shelf cards, on the whole shelf only. Its figures are written-out copy, not read from the
- * catalog. Kept on the palette by tests/unit/bookshelf/palette-only.test.ts.
+ * shelf cards, on the whole shelf only. It describes the library in words and carries no figures:
+ * the island may not read the catalog, so a written figure would only drift from it. Guarded by
+ * tests/unit/bookshelf/free-library-card.test.tsx and kept on the palette by palette-only.test.ts.
  */
 
 import Link from 'next/link';
@@ -40,7 +41,8 @@ export function FreeLibraryDirectoryCard(): ReactElement {
         </div>
         <p className="tile-title text-foreground">Free Programming Books Directory</p>
         <p className="tile-sub text-muted-foreground">
-          Search 2,400+ community-verified open books across 150+ languages and 47 subjects.
+          Free programming books from the EbookFoundation&apos;s community-maintained list,
+          searchable by language and subject.
         </p>
       </div>
       <span className="inline-flex items-center gap-1.5 tile-label text-brand-ink group-hover:text-foreground">

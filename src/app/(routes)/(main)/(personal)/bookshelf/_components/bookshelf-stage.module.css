@@ -30,7 +30,6 @@
   --book-c: calc(var(--book-h) * 0.75);
   --shelf-dur: 400ms;
   --shelf-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --shelf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   position: relative;
   display: flex;
@@ -96,7 +95,7 @@
   width: 0;
   height: 0;
   transform: translate3d(var(--drag-x), 0, 0);
-  transition: transform 280ms var(--shelf-ease-out);
+  transition: transform 280ms var(--ease-out-expo);
 }
 
 .shelf-dragging {
@@ -106,8 +105,10 @@
 /*
  * The custom cursor with a fine pointer: a ring that trails the pointer over the stage
  * (use-bookshelf-navigation.ts), grows into an Open label over the active book and shrinks while
- * dragging. --shelf-ease-out is set on .shelf-shell, which this layer sits outside, so the ring's
- * and the label's transitions do not run today.
+ * dragging. The layer sits outside .shelf-shell, so it reads only the site's motion tokens. The
+ * ring is an unpainted 84 px box; its disc is drawn at that open size and scaled by --ring-scale,
+ * so only the compositor moves, and its inset ring and blur are divided by the scale to keep their
+ * drawn size. The dot and the label are its unscaled siblings.
  */
 .cursor-layer {
   position: fixed;
@@ -124,21 +125,30 @@
 }
 
 .cursor-ring {
+  --ring-scale: calc(52 / 84);
+
   position: absolute;
   left: 0;
   top: 0;
-  width: 52px;
-  height: 52px;
+  width: 84px;
+  height: 84px;
   transform: translate(-50%, -50%);
-  border-radius: 9999px;
-  background: var(--brand-glow);
-  box-shadow: inset 0 0 0 1.5px var(--brand-ink);
-  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
+}
+
+/* Under the dot (::before, drawn first) and the label: z-index -1 inside the ring's own stack. */
+.cursor-disc {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 9999px;
+  background: var(--brand-glow);
+  box-shadow: inset 0 0 0 calc(1.5px / var(--ring-scale)) var(--brand-ink);
+  backdrop-filter: blur(calc(4px / var(--ring-scale)));
+  transform: scale(var(--ring-scale));
   transition:
-    width 320ms var(--shelf-ease-out),
-    height 320ms var(--shelf-ease-out),
+    transform 320ms var(--ease-out-expo),
     background-color 220ms ease,
     box-shadow 220ms ease;
 }
@@ -163,12 +173,14 @@
   transform: scale(0.6);
   transition:
     opacity 180ms ease,
-    transform 280ms var(--shelf-ease-out);
+    transform 280ms var(--ease-out-expo);
 }
 
 .cursor-open .cursor-ring {
-  width: 84px;
-  height: 84px;
+  --ring-scale: 1;
+}
+
+.cursor-open .cursor-disc {
   background: var(--fg);
   box-shadow: 0 14px 32px -8px rgb(0 0 0 / 60%);
 }
@@ -184,10 +196,12 @@
 }
 
 .cursor-grabbing .cursor-ring {
-  width: 38px;
-  height: 38px;
+  --ring-scale: calc(38 / 84);
+}
+
+.cursor-grabbing .cursor-disc {
   background: var(--brand-subtle);
-  box-shadow: inset 0 0 0 2px var(--brand);
+  box-shadow: inset 0 0 0 calc(2px / var(--ring-scale)) var(--brand);
 }
 
 .cursor-grabbing .cursor-label {

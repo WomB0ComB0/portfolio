@@ -17,22 +17,26 @@
  */
 
 /**
- * @file src/lib/free-books/sweep.ts, phase by phase on stubbed clients. These pin what the sweep
- * does today, including how it merges the Redis state, so a later behaviour fix shows up as a
- * deliberate test change. The two known bugs are todo cases until their own PRs.
+ * @file src/lib/free-books/sweep.ts, phase by phase on stubbed clients, then week by week on an
+ * in-memory Redis: the baseline is merged the way the site merges it, flags carry over and are
+ * lifted only after two clean runs that actually checked them, owner pins are never lifted or
+ * fetched, a Safe Browsing hit is never fetched, and a link that redirects to a target the run will
+ * not fetch is quarantined without fetching it. inspectFinalTarget itself is covered by
+ * target-inspection.test.ts. A behaviour change shows up as a deliberate test change.
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { mergeSecurityManifests } from '@/lib/free-books/manifest-store';
 import {
   buildManifest,
   checkHosts,
   checkSafeBrowsing,
   detonateDeltas,
   hydrateBaseline,
-  inspectFinalTarget,
   listTargets,
   probeUrls,
   type SweepDependencies,
+  type SweepOptions,
   type SweepRecords,
   startRecords,
   summarize,
@@ -43,13 +47,18 @@ import type {
   UrlBaselineFingerprint,
 } from '@/lib/free-books/types';
 import type { LinkObservation } from '@/lib/link-health/types';
+import { runCli } from '../../../scripts/free-books/verify';
 import {
+  cleanHost,
   EMPTY_MANIFEST,
   INDIE_GUIDE,
+  inMemoryRedis,
   OLD_NOTES,
   observed,
   pageResponse,
   RUST_BOOK,
+  redirectTo,
+  runWeeks,
   SWEEP_NOW,
   stubSweepDependencies,
   sweepCatalog,
@@ -64,9 +73,6 @@ const fingerprint = (finalHost: string, contentType: string): UrlBaselineFingerp
   checkedAt: '2026-11-22T05:17:00.000Z',
 });
 
-const redirectTo = (location: string): Response =>
-  new Response(null, { status: 301, headers: { location } });
-
 /** probeUrls over the three fixture links, on clients that find nothing unless overridden. */
 async function probeAll(
   overrides: Partial<SweepDependencies>,
@@ -76,7 +82,7 @@ async function probeAll(
   const deps = stubSweepDependencies(overrides);
   const result = await probeUrls(
     TARGETS,
-    blockedHosts,
+    { blockedHosts, isHeldBack: () => false },
     0,
     records,
     { dnsblOnly: false, maxUrls: 0 },
@@ -108,46 +114,53 @@ describe('hydrateBaseline', () => {
     });
   });
 
-  it('lays the live Redis manifest over the committed one, replacing its records, and merges both drift records', async () => {
-    const committed: FreeBooksSecurityManifest = {
-      ...EMPTY_MANIFEST,
-      checkedUrls: 5,
-      quarantinedUrls: { [OLD_NOTES]: 'parked_domain' },
-      urlFingerprints: { [RUST_BOOK]: fingerprint('doc.rust-lang.org', 'text/html') },
-    };
-    const live: FreeBooksSecurityManifest = {
-      generatedAt: '2026-11-20T00:00:00.000Z',
-      checkedHosts: 9,
-      checkedUrls: 7,
-      blockedHosts: { 'bad.example': 'Cloudflare Security DNS (1.1.1.2): dnsbl_sinkhole' },
-      quarantinedUrls: { [INDIE_GUIDE]: 'clickfix_lure' },
-      unavailableUrls: {},
-    };
-    const detonation: DeltaDetonationRecord = {
-      provider: 'urlscan.io',
-      verdict: 'submitted',
-      reportUrl: null,
-      scannedAt: '2026-11-20T00:00:00.000Z',
-    };
+  it.each([
+    { label: 'an older', generatedAt: '2026-10-01T00:00:00.000Z' },
+    { label: 'a newer', generatedAt: '2026-11-20T00:00:00.000Z' },
+  ])(
+    "builds the baseline with the site's merge, for $label live manifest, and merges both drift records",
+    async ({ generatedAt }) => {
+      const committed: FreeBooksSecurityManifest = {
+        ...EMPTY_MANIFEST,
+        checkedUrls: 5,
+        blockedHosts: { 'git-blocked.example': 'Manual block' },
+        quarantinedUrls: { [OLD_NOTES]: 'parked_domain' },
+        unavailableUrls: { [RUST_BOOK]: '2026-10-30T00:00:00.000Z' },
+        urlFingerprints: { [RUST_BOOK]: fingerprint('doc.rust-lang.org', 'text/html') },
+      };
+      const live: FreeBooksSecurityManifest = {
+        generatedAt,
+        checkedHosts: 9,
+        checkedUrls: 7,
+        blockedHosts: { 'bad.example': 'Cloudflare Security DNS (1.1.1.2): dnsbl_sinkhole' },
+        quarantinedUrls: { [INDIE_GUIDE]: 'clickfix_lure' },
+        unavailableUrls: {},
+      };
+      const detonation: DeltaDetonationRecord = {
+        provider: 'urlscan.io',
+        verdict: 'submitted',
+        reportUrl: null,
+        scannedAt: '2026-11-20T00:00:00.000Z',
+      };
 
-    const existing = await hydrateBaseline({
-      readManifest: () => JSON.stringify(committed),
-      loadLiveManifest: async () => live,
-      loadDriftState: async () => ({
-        urlFingerprints: { [INDIE_GUIDE]: fingerprint('indie.example', 'text/html') },
-        deltaDetonations: { [INDIE_GUIDE]: detonation },
-      }),
-    });
+      const existing = await hydrateBaseline({
+        readManifest: () => JSON.stringify(committed),
+        loadLiveManifest: async () => live,
+        loadDriftState: async () => ({
+          urlFingerprints: { [INDIE_GUIDE]: fingerprint('indie.example', 'text/html') },
+          deltaDetonations: { [INDIE_GUIDE]: detonation },
+        }),
+      });
 
-    expect(existing).toEqual({
-      ...live,
-      urlFingerprints: {
+      const { urlFingerprints, deltaDetonations, ...runtime } = existing;
+      expect(runtime).toEqual(mergeSecurityManifests(committed, live).manifest);
+      expect(urlFingerprints).toEqual({
         [RUST_BOOK]: fingerprint('doc.rust-lang.org', 'text/html'),
         [INDIE_GUIDE]: fingerprint('indie.example', 'text/html'),
-      },
-      deltaDetonations: { [INDIE_GUIDE]: detonation },
-    });
-  });
+      });
+      expect(deltaDetonations).toEqual({ [INDIE_GUIDE]: detonation });
+    },
+  );
 
   it('merges only the drift records when Redis has no manifest', async () => {
     const committed: FreeBooksSecurityManifest = {
@@ -198,7 +211,10 @@ describe('listTargets', () => {
 describe('checkHosts', () => {
   it('records each blocked host as "provider: reason", from feeds loaded once with the auth key', async () => {
     const feed = new Set(['indie.example']);
-    const loadThreatFeeds = vi.fn<SweepDependencies['loadThreatFeeds']>(async () => feed);
+    const loadThreatFeeds = vi.fn<SweepDependencies['loadThreatFeeds']>(async () => ({
+      hosts: feed,
+      complete: true,
+    }));
     const resolvesNormally = vi.fn(async (hostname: string) => hostname !== 'old.example');
     const checkHost = vi.fn<SweepDependencies['checkHost']>(async (hostname) =>
       hostname === 'indie.example'
@@ -207,12 +223,15 @@ describe('checkHosts', () => {
             blocked: true,
             provider: 'Threat Intel Feed (HaGeZi TIF / OpenPhish / URLhaus)',
             reason: 'threat_intel_feed_blocked_host',
+            completedChecks: [],
           }
-        : { hostname, blocked: false, provider: null, reason: null },
+        : hostname === 'old.example'
+          ? { ...cleanHost(hostname), completedChecks: ['cloudflare'] }
+          : cleanHost(hostname),
     );
     const log = vi.fn();
 
-    const { blockedHosts, threatFeedHosts } = await checkHosts(
+    const { blockedHosts, completedChecks, threatFeedHosts } = await checkHosts(
       ['doc.rust-lang.org', 'indie.example', 'old.example'],
       'auth-key',
       { loadThreatFeeds, resolvesNormally, checkHost },
@@ -225,6 +244,13 @@ describe('checkHosts', () => {
         'Threat Intel Feed (HaGeZi TIF / OpenPhish / URLhaus): threat_intel_feed_blocked_host',
     });
     expect(threatFeedHosts).toBe(feed);
+    expect(completedChecks).toEqual(
+      new Map([
+        ['doc.rust-lang.org', new Set(['threat_feeds', 'cloudflare', 'quad9'])],
+        ['indie.example', new Set(['threat_feeds'])],
+        ['old.example', new Set(['threat_feeds', 'cloudflare'])],
+      ]),
+    );
     expect(checkHost).toHaveBeenCalledWith('old.example', {
       domainResolvedNormally: false,
       urlhausHosts: feed,
@@ -235,16 +261,319 @@ describe('checkHosts', () => {
       'Checking 3 unique hostnames against URLhaus + Cloudflare 1.1.1.2 + Quad9...',
     ]);
   });
+});
 
-  it.todo(
-    'carries a blocked host into the next run (today the block list starts empty each run, so a block lasts one cycle; fixed in its own PR)',
+describe('runSweep across weekly runs', () => {
+  const PARKED = '<html><body>This domain is for sale</body></html>';
+  const ACTIVE_PDF = '%PDF-1.7\n1 0 obj << /OpenAction << /S /JS >> >> endobj';
+  const FEED_BLOCK = {
+    blocked: true,
+    provider: 'Threat Intel Feed (HaGeZi TIF / OpenPhish / URLhaus)',
+    reason: 'threat_intel_feed_blocked_host',
+    completedChecks: [],
+  } as const;
+
+  /** A checkHost that flags `flaggedHost` and passes every other host. */
+  const flagging =
+    (flaggedHost: string | null): SweepDependencies['checkHost'] =>
+    async (hostname) =>
+      hostname === flaggedHost ? { hostname, ...FEED_BLOCK } : cleanHost(hostname);
+
+  /**
+   * A fetch that serves a page the inspection flags for `flaggedUrl` (parked HTML, or a PDF with
+   * active content for a .pdf link) and a clean page for everything else.
+   */
+  const dangerousPage =
+    (flaggedUrl: string | null): SweepDependencies['fetch'] =>
+    async (input) => {
+      if (flaggedUrl === null || String(input) !== flaggedUrl) return pageResponse();
+      return flaggedUrl.endsWith('.pdf')
+        ? pageResponse(ACTIVE_PDF, 'application/pdf')
+        : pageResponse(PARKED);
+    };
+
+  it('carries a blocked host forward and lifts it only after two clean runs in a row', async () => {
+    const redis = inMemoryRedis();
+
+    const blocked = await runWeeks(
+      redis,
+      [
+        { deps: { checkHost: flagging('indie.example') } },
+        { deps: { checkHost: flagging(null) } },
+        { deps: { checkHost: flagging(null) } },
+      ],
+      'blockedHosts',
+    );
+
+    expect(blocked).toEqual([['indie.example'], ['indie.example'], []]);
+  });
+
+  it('keeps the clean-run counts in the drift state, not in the manifest the site reads', async () => {
+    const redis = inMemoryRedis();
+
+    await runWeeks(
+      redis,
+      [
+        { deps: { checkHost: flagging('indie.example'), fetch: dangerousPage(OLD_NOTES) } },
+        { deps: { checkHost: flagging(null) } },
+      ],
+      'blockedHosts',
+    );
+
+    expect((await redis.clients.loadDriftState())?.cleanStreaks).toEqual({
+      hosts: { 'indie.example': 1 },
+      urls: { [OLD_NOTES]: 1 },
+    });
+    expect(await redis.clients.loadLiveManifest()).not.toHaveProperty('cleanStreaks');
+  });
+
+  it('lifts a quarantine only after two clean runs in a row', async () => {
+    const redis = inMemoryRedis();
+
+    const quarantined = await runWeeks(
+      redis,
+      [
+        { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
+        { deps: { fetch: dangerousPage(null) } },
+        { deps: { fetch: dangerousPage(null) } },
+      ],
+      'quarantinedUrls',
+    );
+
+    expect(quarantined).toEqual([[INDIE_GUIDE], [INDIE_GUIDE], []]);
+  });
+
+  it('a link flagged again resets its count', async () => {
+    const redis = inMemoryRedis();
+
+    const quarantined = await runWeeks(
+      redis,
+      [
+        { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
+        { deps: { fetch: dangerousPage(null) } },
+        { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
+        { deps: { fetch: dangerousPage(null) } },
+        { deps: { fetch: dangerousPage(null) } },
+      ],
+      'quarantinedUrls',
+    );
+
+    expect(quarantined).toEqual([[INDIE_GUIDE], [INDIE_GUIDE], [INDIE_GUIDE], [INDIE_GUIDE], []]);
+  });
+
+  it('gives no credit in a run that could not check the link', async () => {
+    const redis = inMemoryRedis();
+    const temporaryForIndie: SweepDependencies['probe'] = async (url) =>
+      observed(url === INDIE_GUIDE ? 'temporary' : 'reachable');
+
+    const quarantined = await runWeeks(
+      redis,
+      [
+        { deps: { fetch: dangerousPage(INDIE_GUIDE) } },
+        { deps: { probe: temporaryForIndie } },
+        { options: { maxUrls: 1 } },
+        { options: { dnsblOnly: true } },
+        {},
+        {},
+      ],
+      'quarantinedUrls',
+    );
+
+    expect(quarantined).toEqual([
+      [INDIE_GUIDE],
+      [INDIE_GUIDE],
+      [INDIE_GUIDE],
+      [INDIE_GUIDE],
+      [INDIE_GUIDE],
+      [],
+    ]);
+  });
+
+  it('drops a flag once its host or link has left the upstream catalog', async () => {
+    const redis = inMemoryRedis();
+    const onlyRust = async () => sweepCatalog([RUST_BOOK]);
+
+    await runWeeks(
+      redis,
+      [{ deps: { checkHost: flagging('indie.example'), fetch: dangerousPage(OLD_NOTES) } }],
+      'quarantinedUrls',
+    );
+    const before = await redis.clients.loadLiveManifest();
+    await runWeeks(redis, [{ deps: { loadCatalog: onlyRust } }], 'quarantinedUrls');
+    const after = await redis.clients.loadLiveManifest();
+
+    expect(Object.keys(before?.blockedHosts ?? {})).toEqual(['indie.example']);
+    expect(Object.keys(before?.quarantinedUrls ?? {})).toEqual([OLD_NOTES]);
+    expect(after?.blockedHosts).toEqual({});
+    expect(after?.quarantinedUrls).toEqual({});
+    expect((await redis.clients.loadDriftState())?.cleanStreaks).toEqual({ hosts: {}, urls: {} });
+  });
+
+  it('never lifts or probes a pin the owner committed', async () => {
+    const redis = inMemoryRedis();
+    const pins = {
+      ...EMPTY_MANIFEST,
+      blockedHosts: { 'indie.example': 'Manual block' },
+      quarantinedUrls: { [OLD_NOTES]: 'Manual quarantine' },
+    };
+    const probe = vi.fn(async (_url: string) => observed('reachable'));
+    const run = { deps: { readManifest: () => JSON.stringify(pins), probe } };
+
+    await runWeeks(redis, [run, run, run], 'blockedHosts');
+    const live = await redis.clients.loadLiveManifest();
+
+    expect(live?.blockedHosts).toEqual({ 'indie.example': 'Manual block' });
+    expect(live?.quarantinedUrls).toEqual({ [OLD_NOTES]: 'Manual quarantine' });
+    expect(probe.mock.calls.map(([url]) => url)).toEqual([RUST_BOOK, RUST_BOOK, RUST_BOOK]);
+    expect((await redis.clients.loadDriftState())?.cleanStreaks).toEqual({ hosts: {}, urls: {} });
+  });
+
+  it('keeps a Safe Browsing flag, unprobed, in a run without the key; only keyed clean runs lift it', async () => {
+    const redis = inMemoryRedis();
+    const probe = vi.fn(async (_url: string) => observed('reachable'));
+    const hit: Partial<SweepDependencies> = {
+      probe,
+      checkSafeBrowsing: async () => ({
+        matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+        uncheckedUrls: [],
+      }),
+    };
+    const keyed = { safeBrowsingApiKey: 'gsb-key' };
+
+    const quarantined = await runWeeks(
+      redis,
+      [
+        { options: keyed, deps: hit },
+        { deps: { probe } },
+        { deps: { probe } },
+        { options: keyed, deps: { probe } },
+        { options: keyed, deps: { probe } },
+      ],
+      'quarantinedUrls',
+    );
+
+    expect(quarantined).toEqual([[INDIE_GUIDE], [INDIE_GUIDE], [INDIE_GUIDE], [INDIE_GUIDE], []]);
+    const indieProbes = probe.mock.calls.filter(([url]) => url === INDIE_GUIDE).length;
+    expect(indieProbes).toBe(2);
+  });
+
+  it('refuses to run on an empty catalog, and leaves the overlay as it was', async () => {
+    const redis = inMemoryRedis();
+    await runWeeks(redis, [{ deps: { fetch: dangerousPage(INDIE_GUIDE) } }], 'quarantinedUrls');
+    const before = [...redis.store.entries()];
+
+    const code = await runCli({
+      args: ['--publish-redis'],
+      env: {},
+      createDependencies: () =>
+        stubSweepDependencies({
+          ...redis.clients,
+          loadCatalog: async () => {
+            throw new Error(
+              'the upstream langs list parsed to no books, so the catalog is incomplete',
+            );
+          },
+        }),
+      log: vi.fn(),
+      error: vi.fn(),
+    });
+
+    expect(code).toBe(1);
+    expect([...redis.store.entries()]).toEqual(before);
+  });
+});
+
+describe('runSweep on a link that redirects to a target the run will not fetch', () => {
+  const EVIL = 'https://evil.example/kit';
+  const committed = (pins: Partial<FreeBooksSecurityManifest>) => () =>
+    JSON.stringify({ ...EMPTY_MANIFEST, ...pins });
+
+  it.each<{
+    readonly name: string;
+    readonly target: string;
+    readonly run: { options?: Partial<SweepOptions>; deps: Partial<SweepDependencies> };
+  }>([
+    {
+      name: 'a link the owner pinned',
+      target: EVIL,
+      run: { deps: { readManifest: committed({ quarantinedUrls: { [EVIL]: 'Manual' } }) } },
+    },
+    {
+      name: 'a host the owner pinned',
+      target: EVIL,
+      run: { deps: { readManifest: committed({ blockedHosts: { 'evil.example': 'Manual' } }) } },
+    },
+    {
+      name: 'a host blocked this run',
+      target: 'https://old.example/elsewhere',
+      run: {
+        deps: {
+          checkHost: async (hostname) =>
+            hostname === 'old.example'
+              ? { ...cleanHost(hostname), blocked: true, provider: 'Quad9', reason: 'blocked' }
+              : cleanHost(hostname),
+        },
+      },
+    },
+    {
+      name: 'a Safe Browsing hit this run',
+      target: OLD_NOTES,
+      run: {
+        options: { safeBrowsingApiKey: 'gsb-key' },
+        deps: {
+          checkSafeBrowsing: async () => ({
+            matches: { [OLD_NOTES]: 'google_safe_browsing:MALWARE' },
+            uncheckedUrls: [],
+          }),
+        },
+      },
+    },
+  ])(
+    'quarantines it as unsafe when it redirects to $name, and never fetches that',
+    async ({ target, run }) => {
+      const redis = inMemoryRedis();
+      const fetch = vi.fn<SweepDependencies['fetch']>(async (input) =>
+        String(input) === INDIE_GUIDE ? redirectTo(target) : pageResponse(),
+      );
+
+      await runWeeks(redis, [{ ...run, deps: { ...run.deps, fetch } }], 'quarantinedUrls');
+
+      const live = await redis.clients.loadLiveManifest();
+      expect(live?.quarantinedUrls[INDIE_GUIDE]).toBe('unsafe_redirect_hop:flagged_target');
+      expect(fetch.mock.calls.map(([input]) => String(input))).not.toContain(target);
+    },
   );
+
+  it('treats a Safe Browsing quarantine the run could not ask about again as a target it will not fetch', async () => {
+    const redis = inMemoryRedis();
+    const hit: Partial<SweepDependencies> = {
+      checkSafeBrowsing: async () => ({
+        matches: { [OLD_NOTES]: 'google_safe_browsing:MALWARE' },
+        uncheckedUrls: [],
+      }),
+    };
+    const fetch = vi.fn<SweepDependencies['fetch']>(async (input) =>
+      String(input) === INDIE_GUIDE ? redirectTo(OLD_NOTES) : pageResponse(),
+    );
+
+    await runWeeks(
+      redis,
+      [{ options: { safeBrowsingApiKey: 'gsb-key' }, deps: hit }, { deps: { fetch } }],
+      'quarantinedUrls',
+    );
+
+    const live = await redis.clients.loadLiveManifest();
+    expect(live?.quarantinedUrls[OLD_NOTES]).toBe('google_safe_browsing:MALWARE');
+    expect(live?.quarantinedUrls[INDIE_GUIDE]).toBe('unsafe_redirect_hop:flagged_target');
+    expect(fetch.mock.calls.map(([input]) => String(input))).not.toContain(OLD_NOTES);
+  });
 });
 
 describe('checkSafeBrowsing', () => {
   it('quarantines each link Safe Browsing flags with its threat type, and asks nothing without a key', async () => {
     const lookup = vi.fn<SweepDependencies['checkSafeBrowsing']>(async () => ({
-      [INDIE_GUIDE]: 'google_safe_browsing:MALWARE',
+      matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+      uncheckedUrls: [],
     }));
     const records = startRecords(EMPTY_MANIFEST);
 
@@ -274,7 +603,7 @@ describe('probeUrls', () => {
     expect(checkedUrls).toBe(3);
   });
 
-  it('clears an earlier mark and fingerprints a reachable link that inspects clean', async () => {
+  it('clears an earlier unavailable mark and fingerprints a reachable clean link, but one clean probe does not lift its quarantine', async () => {
     const records = startRecords({
       ...EMPTY_MANIFEST,
       unavailableUrls: { [INDIE_GUIDE]: '2026-11-22T05:17:00.000Z' },
@@ -284,7 +613,9 @@ describe('probeUrls', () => {
     const { deltaCandidates } = await probeAll({}, records);
 
     expect(records.unavailableUrls).toEqual({});
-    expect(records.quarantinedUrls).toEqual({});
+    // Lifting takes two clean runs in a row (settleFlags); this run only counts as one.
+    expect(records.quarantinedUrls).toEqual({ [INDIE_GUIDE]: 'parked_domain' });
+    expect(records.urlObservations.get(INDIE_GUIDE)).toBe('clean');
     expect(records.urlFingerprints[INDIE_GUIDE]).toEqual({
       finalHost: 'indie.example',
       contentType: 'text/html',
@@ -390,9 +721,27 @@ describe('probeUrls', () => {
     expect(probe.mock.calls.map(([url]) => url)).toEqual([RUST_BOOK, OLD_NOTES]);
   });
 
-  it.todo(
-    'keeps a Safe Browsing quarantine when that link then probes clean (today the probe deletes it in the same run; fixed in its own PR)',
-  );
+  it('keeps a Safe Browsing quarantine when that link then probes clean', async () => {
+    const records = startRecords(EMPTY_MANIFEST);
+    await checkSafeBrowsing(
+      TARGETS,
+      'gsb-key',
+      records,
+      {
+        checkSafeBrowsing: async () => ({
+          matches: { [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' },
+          uncheckedUrls: [],
+        }),
+      },
+      vi.fn(),
+    );
+    const probe = vi.fn(async (_url: string) => observed('reachable'));
+
+    await probeAll({ probe }, records);
+
+    expect(records.quarantinedUrls).toEqual({ [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' });
+    expect(probe.mock.calls.map(([url]) => url)).not.toContain(INDIE_GUIDE);
+  });
 });
 
 describe('detonateDeltas', () => {
@@ -493,72 +842,5 @@ describe('summarize', () => {
       redisFingerprintsPublished: false,
       dryRun: true,
     });
-  });
-});
-
-describe('inspectFinalTarget', () => {
-  it('asks for at most 1 MiB without following redirects, and flags a chain through three external domains', async () => {
-    const fetcher = vi.fn<SweepDependencies['fetch']>(async (input) => {
-      const url = String(input);
-      if (url === 'https://hop1.example/a') return redirectTo('https://hop2.example/b');
-      if (url === 'https://hop2.example/b') return redirectTo('https://hop3.example/c');
-      return pageResponse();
-    });
-
-    const result = await inspectFinalTarget('https://hop1.example/a', 'hop1.example', fetcher);
-
-    expect(result).toEqual({
-      danger: 'tds_redirect_chain:3_external_domains',
-      finalHost: 'hop2.example',
-      contentType: '',
-    });
-    expect(fetcher).toHaveBeenCalledWith(
-      'https://hop1.example/a',
-      expect.objectContaining({
-        method: 'GET',
-        redirect: 'manual',
-        headers: {
-          'User-Agent': 'mikeodnis-portfolio-verifier/1.0 (+https://mikeodnis.dev)',
-          Range: 'bytes=0-1048575',
-        },
-      }),
-    );
-  });
-
-  it('flags an executable download by its headers', async () => {
-    const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', async () =>
-      pageResponse('MZ', 'application/x-msdownload'),
-    );
-
-    expect(result).toEqual({
-      danger: 'dangerous_mime:application/x-msdownload',
-      finalHost: 'indie.example',
-      contentType: 'application/x-msdownload',
-    });
-  });
-
-  it('flags active content in real PDF bytes, but not an HTML page behind a .pdf link', async () => {
-    const activePdf = await inspectFinalTarget(OLD_NOTES, 'old.example', async () =>
-      pageResponse('%PDF-1.7\n1 0 obj << /OpenAction << /S /JS >> >> endobj', 'application/pdf'),
-    );
-    const landingPage = await inspectFinalTarget(OLD_NOTES, 'old.example', async () =>
-      pageResponse(),
-    );
-
-    expect(activePdf.danger).toContain('pdf_active_object');
-    expect(activePdf.contentType).toBe('application/pdf');
-    expect(landingPage).toEqual({
-      danger: null,
-      finalHost: 'old.example',
-      contentType: 'text/html',
-    });
-  });
-
-  it('finds nothing when the request fails', async () => {
-    const result = await inspectFinalTarget(INDIE_GUIDE, 'indie.example', async () => {
-      throw new TypeError('fetch failed');
-    });
-
-    expect(result).toEqual({ danger: null, finalHost: 'indie.example', contentType: '' });
   });
 });

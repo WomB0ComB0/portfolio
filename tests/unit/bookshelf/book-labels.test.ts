@@ -18,7 +18,8 @@
  * @file The bookshelf's words and numbers (book-labels.ts):
  * - listTitles / describeShelves: the whole shelf's description, from its shelves' titles;
  * - formatStageLabel / formatTopicNumber: stage numbers in two digits, topic numbers in three;
- * - shelfStats: the summary strip, with a shelf count on the whole shelf only.
+ * - shelfStats: the summary strip, with a shelf count on the whole shelf only, each label in the
+ *   singular for one.
  * The books are fixture documents joined by the real buildBookshelfCatalog.
  */
 
@@ -109,6 +110,22 @@ describe('shelfStats', () => {
       { label: 'book', value: 1 },
       { label: 'read', value: 0 },
       { label: 'topics', value: 4 },
+    ]);
+  });
+
+  it('says "book" and "topic" for one of each, on the whole shelf and on one shelf', () => {
+    const { books } = catalogWithTopics([1]);
+
+    expect(shelfStats({ books, readCount: 0, shelfCount: 1, isSingleShelf: false })).toEqual([
+      { label: 'book', value: 1 },
+      { label: 'read', value: 0 },
+      { label: 'shelf', value: 1 },
+      { label: 'topic', value: 1 },
+    ]);
+    expect(shelfStats({ books, readCount: 0, shelfCount: 1, isSingleShelf: true })).toEqual([
+      { label: 'book', value: 1 },
+      { label: 'read', value: 0 },
+      { label: 'topic', value: 1 },
     ]);
   });
 });

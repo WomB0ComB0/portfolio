@@ -21,10 +21,11 @@
  * never reach, even transitively, the free-books parser, catalog, loader, Redis store,
  * threat-intel clients or content inspectors, the security manifest JSON, the bookshelf loader,
  * DOMPurify or marked. Each forbidden path must exist, so a moved module fails here instead of
- * passing unchecked.
+ * passing unchecked. The reading map's Radix dialog stays off the first load: the stage and the
+ * detail reach it only through the lazy import in reading-map-dialog.tsx.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { importGraph } from '@tests/utils/import-graph';
 import { describe, expect, it } from 'vitest';
@@ -52,6 +53,17 @@ const FORBIDDEN_MODULES = [
 ];
 
 const FORBIDDEN_PACKAGES = new Set(['dompurify', 'marked', 'server-only']);
+
+/** The reading map's loader, the live dialog it fetches on intent, and the site's dialog kit. */
+const MAP_LOADER = path.join(BOOKSHELF, '_components/reading-map-dialog.tsx');
+const MAP_LIVE = path.join(BOOKSHELF, '_components/reading-map-dialog-live.tsx');
+const UI_DIALOG = path.join(SRC, 'components/ui/dialog.tsx');
+/** A static value import (not `import type`) or re-export from `specifier`. */
+const staticImportOf = (specifier: string): RegExp =>
+  new RegExp(
+    String.raw`(?:^|[\s;])(?:import|export)\s+(?!type\s)[^'";]*?from\s*['"]${specifier.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}['"]`,
+    'm',
+  );
 
 /** The island's reach: data and styles are listed but never read. */
 const collectValueGraph = (entry: string) =>
@@ -86,6 +98,29 @@ describe('bookshelf client island compartmentalization', () => {
       for (const pkg of FORBIDDEN_PACKAGES) {
         expect(packages.has(pkg), pkg).toBe(false);
       }
+    },
+  );
+
+  it.each(CLIENT_ISLANDS.slice(0, 2).map((file) => [path.relative(ROOT, file), file] as const))(
+    "%s reaches the Radix dialog only through the reading map's lazy import",
+    (_label, islandPath) => {
+      const sources = [...collectValueGraph(islandPath).files]
+        .filter((file) => /\.(?:m?js|tsx?)$/.test(file))
+        .map((file) => ({ file: path.relative(ROOT, file), source: readFileSync(file, 'utf8') }));
+      const importersOf = (specifier: string): string[] =>
+        sources
+          .filter(({ source }) => staticImportOf(specifier).test(source))
+          .map(({ file }) => file)
+          .sort();
+
+      expect(importersOf('@radix-ui/react-dialog')).toEqual(
+        [MAP_LIVE, UI_DIALOG].map((file) => path.relative(ROOT, file)).sort(),
+      );
+      expect(importersOf('@/components/ui/dialog')).toEqual([path.relative(ROOT, MAP_LIVE)]);
+      expect(importersOf('./reading-map-dialog-live')).toEqual([]);
+      expect(readFileSync(MAP_LOADER, 'utf8')).toMatch(
+        /import\(\s*['"]\.\/reading-map-dialog-live['"]\s*\)/,
+      );
     },
   );
 });

@@ -151,20 +151,29 @@
     0 0 36px -14px var(--brand-edge);
 }
 
+/*
+ * The shadow under a book: 1.7 spines wide (--book-w * 1.7) under a side book, a cover wide
+ * (--book-c * 1.05) under the active one. It is drawn at the cover width and scaled on x, so only
+ * the compositor moves. --shadow-sx is the side book's width over the active one's, from the
+ * factors .shelf-shell gives --book-w (0.15) and --book-c (0.75) in bookshelf-stage.module.css:
+ * change them together.
+ */
 .slot-shadow {
+  --shadow-sx: calc((0.15 * 1.7) / (0.75 * 1.05));
+
   position: absolute;
   left: 50%;
   bottom: calc(var(--book-h) * -0.055);
-  width: calc(var(--book-w) * 1.7);
+  width: calc(var(--book-c) * 1.05);
   height: calc(var(--book-h) * 0.08);
-  transform: translateX(-50%);
+  transform: translateX(-50%) scaleX(var(--shadow-sx));
   background: radial-gradient(closest-side, rgb(0 0 0 / 48%), rgb(0 0 0 / 0%));
-  transition: width var(--shelf-dur) var(--shelf-ease);
+  transition: transform var(--shelf-dur) var(--shelf-ease);
   pointer-events: none;
 }
 
 .is-active .slot-shadow {
-  width: calc(var(--book-c) * 1.05);
+  --shadow-sx: 1;
 }
 
 /* A flat hit area over the active book's turned cover, so a press anywhere on the cover lands:

@@ -27,7 +27,7 @@
  * 96 px.
  */
 
-import { createEvent, fireEvent, screen, within } from '@testing-library/react';
+import { act, createEvent, fireEvent, screen, within } from '@testing-library/react';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import type { ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
@@ -49,6 +49,8 @@ vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
 import { DEFAULT_BOOK_INDEX } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { slotOffsetFactor } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/shelf-geometry';
+import { FINE_POINTER } from '@/hooks/use-fine-pointer';
+import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 import {
   AI_SHELF,
   BACKEND_SHELF,
@@ -59,6 +61,7 @@ import {
   liveText,
   liveTextOf,
   nonEmpty,
+  oneBookCatalog,
   pressedChips,
   renderWithNuqs as render,
   SHELVES,
@@ -174,6 +177,13 @@ describe('BookshelfStage', () => {
     expect(liveTextAfterRightDrag).not.toBe(liveTextAfterLeftDrag);
   });
 
+  it("offers a lone book's notes as 'Open notes (1 topic)'", () => {
+    const { books, shelves } = oneBookCatalog();
+    render(<BookshelfStage books={books} shelves={shelves} />);
+
+    expect(screen.getByRole('button', { name: 'Open notes (1 topic)' })).toBeInTheDocument();
+  });
+
   it('describes the whole shelf by its shelf titles, in shelf order', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
 
@@ -275,6 +285,117 @@ describe('BookshelfStage keyboard scope', () => {
     expect(document.activeElement).toBe(document.body);
     expect(press(document.body, 'End')).toBe(true);
     expect(liveText()).toBe(liveTextOf(bookAt(-1)));
+  });
+});
+
+describe('BookshelfStage ring cursor', () => {
+  /** A media query list that matches when `matches` says so for its query. */
+  const mediaList = (query: string, matches: boolean): MediaQueryList =>
+    ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+
+  /**
+   * Gives the page a fine pointer and `reducedMotion` as its reduced-motion list, and queues each
+   * animation frame instead of running it: the queue.
+   */
+  function stubRingEnvironment(reducedMotion: MediaQueryList): FrameRequestCallback[] {
+    vi.spyOn(globalThis, 'matchMedia').mockImplementation((query: string) =>
+      query === REDUCED_MOTION_QUERY ? reducedMotion : mediaList(query, query === FINE_POINTER),
+    );
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => null,
+    });
+    return frames;
+  }
+
+  /** Moves the pointer through `points` and runs the latest frame: the cursor layer's transform. */
+  function ringAfterMoves(
+    frames: readonly FrameRequestCallback[],
+    points: readonly (readonly [number, number])[],
+  ): string {
+    const layer = document.querySelector<HTMLElement>('.cursor-layer');
+    if (!layer) throw new Error('no cursor layer');
+    act(() => {
+      for (const [clientX, clientY] of points) {
+        window.dispatchEvent(new MouseEvent('pointermove', { clientX, clientY }));
+      }
+    });
+    act(() => frames.at(-1)?.(16));
+    return layer.style.transform;
+  }
+
+  /**
+   * Renders the stage with a fine pointer (and reduced motion when asked), moves the pointer from
+   * (100, 100) to (500, 300) and runs one animation frame: the cursor layer's transform then.
+   */
+  function ringAfterOneFrame(reducedMotion: boolean): string {
+    const frames = stubRingEnvironment(mediaList(REDUCED_MOTION_QUERY, reducedMotion));
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    return ringAfterMoves(frames, [
+      [100, 100],
+      [500, 300],
+    ]);
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
+  it('sits exactly on the pointer under reduced motion', () => {
+    expect(ringAfterOneFrame(true)).toBe('translate3d(500px, 300px, 0px)');
+  });
+
+  it('still trails the pointer, part of the way each frame, without reduced motion', () => {
+    const transform = ringAfterOneFrame(false);
+
+    expect(transform).toMatch(/^translate3d\(/);
+    expect(transform).not.toBe('translate3d(500px, 300px, 0px)');
+  });
+
+  it('sits on the pointer once reduced motion turns on mid-visit, and stops listening', () => {
+    const listeners = new Set<EventListener>();
+    let reduced = false;
+    const reducedMotion = {
+      ...mediaList(REDUCED_MOTION_QUERY, false),
+      get matches() {
+        return reduced;
+      },
+      addEventListener: (_type: string, listener: EventListener) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: EventListener) => listeners.delete(listener),
+    } as MediaQueryList;
+    const frames = stubRingEnvironment(reducedMotion);
+    const { unmount } = render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    expect(
+      ringAfterMoves(frames, [
+        [100, 100],
+        [500, 300],
+      ]),
+    ).not.toBe('translate3d(500px, 300px, 0px)');
+
+    reduced = true;
+    act(() => {
+      for (const listener of listeners) listener(new Event('change'));
+    });
+
+    expect(ringAfterMoves(frames, [[700, 400]])).toBe('translate3d(700px, 400px, 0px)');
+    unmount();
+    expect(listeners.size).toBe(0);
   });
 });
 

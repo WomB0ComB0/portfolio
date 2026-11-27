@@ -19,13 +19,15 @@
 /**
  * @file A book's detail inside PageShell: its summary, authors and ISBN links, numbered topics,
  * Previous and Next books and its cover, with the reading map. The stage (bookshelf-stage.tsx)
- * renders it in place for #/stage/NN, and [slug]/page.tsx renders it as its own island. Guarded
- * by tests/unit/bookshelf/book-detail-view.test.tsx and scale-budgets.test.ts, and kept free of
- * server modules by island-imports.test.ts.
+ * renders it in place for #/stage/NN, and [slug]/page.tsx renders it as its own island. In place,
+ * focus moves to its heading when it opens and when the map's Open stage brings another book here;
+ * Previous and Next keep focus where it is. Guarded by
+ * tests/unit/bookshelf/book-detail-view.test.tsx, reading-map-dialog.test.tsx and
+ * scale-budgets.test.ts, and kept free of server modules by island-imports.test.ts.
  */
 
 import Link from 'next/link';
-import { type CSSProperties, type ReactElement, useMemo, useState } from 'react';
+import { type CSSProperties, type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { LinkHealthBadge } from '@/components/link-health/link-health-badge';
@@ -38,7 +40,7 @@ import { BookCoverFrame } from './book-cover-frame';
 import styles from './book-detail-view.module.css';
 import { BookStatusBadge } from './book-status-badge';
 import { headerActionClass } from './bookshelf-classes';
-import { ReadingMapDialog } from './reading-map-dialog';
+import { preloadReadingMap, ReadingMapDialog } from './reading-map-dialog';
 
 export interface BookDetailViewProps {
   readonly book: BookItem;
@@ -58,6 +60,24 @@ export interface BookDetailViewProps {
   readonly onNavigateBook?: (slug: string) => void;
   /** Plays the staggered top-to-bottom wipe reveal when opened from the 3D shelf. */
   readonly entering?: boolean;
+  /**
+   * Moves focus to the heading when the detail first shows. The stage sets it: whatever opened the
+   * book (the stage itself, its Open notes button, the reading map) is gone once the detail takes
+   * its place, and focus would fall back to the start of the page.
+   */
+  readonly focusOnOpen?: boolean;
+}
+
+/**
+ * Focuses the detail's heading: PageShell's one h1, in the header that also holds `action` (the
+ * Reading map button), made focusable by script only. It never scrolls: opening a book in place
+ * already scrolls to the top.
+ */
+function focusHeading(action: HTMLElement | null): void {
+  const heading = action?.closest('header')?.querySelector<HTMLElement>('h1');
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
 }
 
 /**
@@ -73,8 +93,18 @@ export function BookDetailView({
   onBack,
   onNavigateBook,
   entering = false,
+  focusOnOpen = false,
 }: BookDetailViewProps): ReactElement {
   const [mapOpen, setMapOpen] = useState(false);
+  const mapButtonRef = useRef<HTMLButtonElement>(null);
+  // The heading takes focus once this render is on screen: on the first, when the detail opens in
+  // place, and after the map's Open stage brings a book here. Previous and Next keep their focus.
+  const [headingFocusPending, setHeadingFocusPending] = useState(focusOnOpen);
+  useEffect(() => {
+    if (!headingFocusPending) return;
+    setHeadingFocusPending(false);
+    focusHeading(mapButtonRef.current);
+  }, [headingFocusPending]);
   const hasNeighbors = prev.slug !== book.slug;
 
   const topicRows = Math.max(1, Math.ceil(book.topics.length / 2));
@@ -130,8 +160,11 @@ export function BookDetailView({
         <div className="flex flex-wrap items-center gap-2">
           {backAction}
           <button
+            ref={mapButtonRef}
             type="button"
             onClick={() => setMapOpen(true)}
+            onPointerEnter={preloadReadingMap}
+            onFocus={preloadReadingMap}
             className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
@@ -300,7 +333,7 @@ export function BookDetailView({
         </div>
 
         <div
-          className={cn('lg:sticky lg:top-20', styles.rv)}
+          className={cn(styles['detail-cover-slot'], 'lg:sticky lg:top-20', styles.rv)}
           style={{ '--d': '120ms', '--rd': '640ms' } as CSSProperties}
         >
           <BookCoverFrame book={book} priority />
@@ -313,7 +346,14 @@ export function BookDetailView({
         books={mapBooks}
         shelves={shelves}
         onClose={() => setMapOpen(false)}
-        onOpenBook={onNavigateBook && ((entry) => onNavigateBook(entry.slug))}
+        returnFocus={mapButtonRef}
+        onOpenBook={
+          onNavigateBook &&
+          ((entry) => {
+            onNavigateBook(entry.slug);
+            setHeadingFocusPending(true);
+          })
+        }
       />
     </PageShell>
   );

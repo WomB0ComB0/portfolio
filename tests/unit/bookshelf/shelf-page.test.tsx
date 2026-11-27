@@ -72,7 +72,8 @@ describe("A shelf's page", () => {
     }
     render(stage);
     fireEvent.click(screen.getByRole('button', { name: /Reading map/i }));
-    const dialog = screen.getByRole('dialog', { name: /Reading map/i });
+    // The map's code loads on the first open.
+    const dialog = await screen.findByRole('dialog', { name: /Reading map/i });
 
     expect(
       within(dialog).getByText(

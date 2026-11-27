@@ -107,7 +107,7 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
       sizing="container"
       eyebrow="Open Library Index"
       title="Free Programming Books"
-      description="Searchable, URL-synced index of open-access programming books fetched incrementally from EbookFoundation/free-programming-books and screened by our live security manifest."
+      description="Free, open-access programming books from the EbookFoundation's community list, searchable by language and subject, with links checked for safety."
       stats={
         <StatStrip
           aria-label="Free programming books summary"
@@ -167,7 +167,7 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
             role="alert"
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline-strong bg-[var(--down-tint)] px-4 py-2.5 tile-meta text-down"
           >
-            <span>Could not refresh this page from /api/v1/books/free.</span>
+            <span>Couldn&apos;t load this page of books.</span>
             <button
               type="button"
               onClick={() => {
@@ -186,7 +186,8 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
             <span className="text-foreground">
               {rangeStart}–{rangeEnd}
             </span>{' '}
-            of <span className="text-foreground">{totalMatched}</span> matching books
+            of <span className="text-foreground">{totalMatched}</span>{' '}
+            {totalMatched === 1 ? 'matching book' : 'matching books'}
             {state.category !== 'all' ? ` in ${state.category}` : ''}
             {isFetching && <span className="ml-2 font-mono text-[11px] text-faint">Updating…</span>}
           </p>
@@ -251,13 +252,8 @@ export function FreeBooksExplorer({ initialPage }: FreeBooksExplorerProps): Reac
           >
             EbookFoundation/free-programming-books
           </a>{' '}
-          ({activeData.license}) · Screened via{' '}
-          {activeData.manifestSource === 'redis'
-            ? 'live Redis security overlay'
-            : 'bundled security manifest'}
-          {activeData.quarantinedCount > 0 ? ` (${activeData.quarantinedCount} quarantined)` : ''} ·
-          Incremental JSON API at{' '}
-          <code className="font-mono text-muted-foreground">/api/v1/books/free</code>.
+          ({activeData.license}) · Links are checked for safety
+          {activeData.quarantinedCount > 0 ? `, ${activeData.quarantinedCount} hidden` : ''}.
         </p>
       </div>
     </PageShell>

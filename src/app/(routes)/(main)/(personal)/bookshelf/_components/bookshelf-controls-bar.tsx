@@ -24,8 +24,9 @@
 
 import type { ReactElement } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight } from 'react-icons/fi';
+import { countOf } from '@/components/console/folio/byline-items';
 import { cn } from '@/lib/utils';
-import { formatStageLabel } from '../_lib/book-labels';
+import { formatStageLabel, TOPIC_NOUN } from '../_lib/book-labels';
 import type { BookItem } from '../_lib/books';
 import { BookStatusBadge } from './book-status-badge';
 import styles from './bookshelf-controls-bar.module.css';
@@ -73,7 +74,7 @@ export function BookshelfControlsBar({
           onClick={() => onOpenDetail(activeBook)}
           className="inline-flex items-center gap-1 tile-meta text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
         >
-          Open notes ({activeBook.topics.length} topics)
+          Open notes ({countOf(activeBook.topics.length, TOPIC_NOUN)})
           <FiArrowUpRight className="size-3.5" aria-hidden="true" />
         </button>
       </div>

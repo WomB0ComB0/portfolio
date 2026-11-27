@@ -19,7 +19,8 @@
  * contract: the server-rendered first page needs no fetch, every other page, sort, filter and
  * search is fetched from `GET /api/v1/books/free` (stubbed here) and written to the URL, a URL
  * that is not the default view fetches at once, and typing is debounced into one normalised
- * request.
+ * request. Its words are for visitors: counts in the singular for one, and no API path or
+ * storage detail, even while a page loads or fails.
  */
 
 import { fireEvent, screen, within } from '@testing-library/react';
@@ -30,6 +31,7 @@ import {
   buildFreeProgrammingBooksCatalog,
 } from '@/lib/free-books/catalog';
 import { parseFreeProgrammingBooksMarkdown } from '@/lib/free-books/parse';
+import type { FreeProgrammingBooksCatalog } from '@/lib/free-books/types';
 import {
   makeQueryClient,
   renderExplorer,
@@ -37,6 +39,24 @@ import {
   SAMPLE_SUBJECTS_MD,
   stubFreeBooksApi,
 } from './free-books-fixture';
+
+/** A list in EbookFoundation's format with a single book. */
+const ONE_BOOK_MD = `
+### Rust
+
+* [The Rust Programming Language](https://doc.rust-lang.org/book/) - Steve Klabnik (HTML)
+`;
+
+/** The first page the server sends for `catalog`: the default view. */
+const defaultPageOf = (catalog: FreeProgrammingBooksCatalog) =>
+  buildFreeBooksPageResponse(catalog, {
+    hideArchived: true,
+    hideUnavailable: true,
+    sort: 'title',
+    dir: 'asc',
+    limit: 50,
+    offset: 0,
+  });
 
 describe('FreeBooksExplorer', () => {
   it('hydrates SSR page 1 with zero initial fetch, then fetches incrementally via TanStack Query + nuqs', async () => {
@@ -207,5 +227,84 @@ describe('FreeBooksExplorer', () => {
       fetchSpy.mockRestore();
       queryClient.clear();
     }
+  });
+
+  it('says "1 matching book" when one book matches', () => {
+    const catalog = buildFreeProgrammingBooksCatalog(
+      parseFreeProgrammingBooksMarkdown(ONE_BOOK_MD, 'langs'),
+      [],
+    );
+    const queryClient = makeQueryClient();
+
+    try {
+      renderExplorer(queryClient, defaultPageOf(catalog), { hasMemory: true });
+
+      expect(document.body).toHaveTextContent(/Showing 1–1 of 1 matching book(?!s)/);
+    } finally {
+      queryClient.clear();
+    }
+  });
+
+  describe('words for visitors, never for maintainers', () => {
+    const sampleCatalog = () =>
+      buildFreeProgrammingBooksCatalog(
+        parseFreeProgrammingBooksMarkdown(SAMPLE_LANGS_MD, 'langs'),
+        parseFreeProgrammingBooksMarkdown(SAMPLE_SUBJECTS_MD, 'subjects'),
+      );
+
+    it('names no API path, store or sync mechanism anywhere on the page', () => {
+      const queryClient = makeQueryClient();
+
+      try {
+        renderExplorer(queryClient, defaultPageOf(sampleCatalog()), { hasMemory: true });
+
+        expect(document.body.textContent).not.toMatch(
+          /\/api\/|Redis|manifest|URL-synced|incremental/i,
+        );
+        expect(document.body).toHaveTextContent('Links are checked for safety');
+      } finally {
+        queryClient.clear();
+      }
+    });
+
+    it("says it couldn't load a page when the fetch fails, and offers to try again", async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
+      const queryClient = makeQueryClient();
+
+      try {
+        renderExplorer(queryClient, defaultPageOf(sampleCatalog()), {
+          hasMemory: true,
+          searchParams: '?page=2',
+        });
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent("Couldn't load this page of books.");
+        expect(within(alert).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+        expect(alert.textContent).not.toMatch(/\/api\//);
+      } finally {
+        fetchSpy.mockRestore();
+        queryClient.clear();
+      }
+    });
+
+    it('says which page it is loading while the fetch is on its way', async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(() => new Promise<Response>(() => undefined));
+      const queryClient = makeQueryClient();
+
+      try {
+        renderExplorer(queryClient, defaultPageOf(sampleCatalog()), {
+          hasMemory: true,
+          searchParams: '?page=2',
+        });
+
+        expect(await screen.findByText('Loading page 2…')).toBeInTheDocument();
+        expect(document.body.textContent).not.toMatch(/\/api\//);
+      } finally {
+        fetchSpy.mockRestore();
+        queryClient.clear();
+      }
+    });
   });
 });

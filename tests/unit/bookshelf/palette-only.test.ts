@@ -52,6 +52,7 @@ const FILES = [
   '_components/bookshelf-stage.tsx',
   '_components/free-library-card.tsx',
   '_components/reading-map-dialog.tsx',
+  '_components/reading-map-dialog-live.tsx',
   '_components/shelf-cards-grid.tsx',
   '_components/use-bookshelf-navigation.ts',
   '_components/use-in-page-detail.ts',

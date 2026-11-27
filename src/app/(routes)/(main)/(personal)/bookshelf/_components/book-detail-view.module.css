@@ -16,13 +16,22 @@
 
 /*
  * A book's detail (book-detail-view.tsx), in-page on /bookshelf and on /bookshelf/[slug]: the text
- * and cover columns, the numbered topics, and the wipe that reveals each block when it opens from
- * the stage.
+ * and cover columns, the numbered topics, the wipe that reveals each block when it opens from the
+ * stage, and its heading's focus.
  */
 
-/* Two columns, the text and the cover, stacked at 900px and under. */
+/* Two columns, the text and the cover, stacked at 900px and under with the cover on top. */
 .detail-panel {
   min-width: 0;
+}
+
+/*
+ * Opened in place, the detail moves focus to its heading, so the next Tab starts inside it. A
+ * heading is no control, so it draws no ring: the page's <main> doesn't either when the skip link
+ * focuses it.
+ */
+.detail-panel h1:focus-visible {
+  outline: none;
 }
 
 .detail-grid {
@@ -57,12 +66,9 @@
   color: var(--fg-faint);
 }
 
-/*
- * Opened from the stage, each block wipes in from the top, staggered by --d. --shelf-ease-out is
- * set only on the stage's .shelf-shell, which the detail replaces, so the wipe does not run today.
- */
+/* Opened from the stage, each block wipes in from the top, staggered by --d. */
 .detail-entering .rv {
-  animation: rv-wipe var(--rd, 560ms) var(--shelf-ease-out) both;
+  animation: rv-wipe var(--rd, 560ms) var(--ease-out-expo) both;
   animation-delay: var(--d, 0ms);
 }
 
@@ -81,6 +87,11 @@
 @media (width <= 900px) {
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked, the cover (the page's LCP image) comes first: its slot is the grid item. */
+  .detail-cover-slot {
+    order: -1;
   }
 }
 

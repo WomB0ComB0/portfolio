@@ -19,8 +19,9 @@
  * in place on the stage and on its own page. In place, it opens from the stage on Enter, steps
  * between books within /bookshelf (#/stage/NN) and returns to the stage. On its own page it shows
  * the title, the numbered topics and the facts and registry links Studio has values for, loads
- * the Sanity CDN cover first, sized to its frame, and links the books before and after, wrapping
- * round. The view takes its neighbours and slim reading-map entries, never the whole catalog.
+ * the Sanity CDN cover first, sized to its frame (and above the text at 900 px and under), and
+ * links the books before and after, wrapping round. The view takes its neighbours and slim
+ * reading-map entries, never the whole catalog.
  */
 
 import { fireEvent, screen, within } from '@testing-library/react';
@@ -47,6 +48,8 @@ import {
   getIsbnRegistryLinks,
 } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/books';
 import { toReadingMapEntry } from '@/app/(routes)/(main)/(personal)/bookshelf/_lib/reading-map';
+import { readCss, styleRules } from '../places/module-css';
+import { declarations } from '../styles/css-rules';
 import {
   BOOKS,
   bookAt,
@@ -60,6 +63,12 @@ import {
   standaloneProps,
   topicLabel,
 } from './bookshelf-fixtures';
+
+const COMPONENTS = 'src/app/(routes)/(main)/(personal)/bookshelf/_components';
+const DETAIL_CSS = `${COMPONENTS}/book-detail-view.module.css`;
+const COVER_FRAME_CSS = `${COMPONENTS}/book-cover-frame.module.css`;
+/** Where the detail stacks its text and cover into one column. */
+const NARROW_MEDIA = '@media (width <= 900px)';
 
 // An in-page detail sets #/stage/NN; a stage mounted on that hash opens the detail at once.
 afterEach(() => {
@@ -82,6 +91,24 @@ describe('BookDetailView in place', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
     expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
+  });
+
+  it('moves focus to its heading when it opens from the stage, and draws no ring round it', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
+    screen.getByRole('region', { name: /Bookshelf/i }).focus();
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    const heading = screen.getByRole('heading', { level: 1, name: FEATURED_TITLE });
+    expect(document.activeElement).toBe(heading);
+    // The heading is no control: some detail rule turns the focus ring off for it.
+    const ringless = styleRules(readCss(DETAIL_CSS))
+      .filter((rule) =>
+        declarations(rule.body).some(([name, value]) => name === 'outline' && value === 'none'),
+      )
+      .map((rule) => rule.selector.replace(/:focus(?:-visible)?/g, ''));
+    expect(ringless.some((selector) => heading.matches(selector))).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
   it('steps to the next and previous books within /bookshelf from the in-page detail', () => {
@@ -191,6 +218,27 @@ describe('BookDetailView standalone', () => {
     );
 
     expect(screen.queryByRole('navigation', { name: 'Adjacent books' })).not.toBeInTheDocument();
+  });
+
+  it('puts the cover above the text at 900 px and under: what the narrow rules order is a grid item', () => {
+    const { container } = render(<BookDetailView {...standaloneProps(FEATURED)} />);
+    const ordered = [DETAIL_CSS, COVER_FRAME_CSS].flatMap((css) =>
+      styleRules(readCss(css))
+        .filter((rule) => rule.conditions.includes(NARROW_MEDIA))
+        .filter((rule) => declarations(rule.body).some(([name]) => name === 'order'))
+        .map((rule) => rule.selector),
+    );
+    expect(ordered.length).toBeGreaterThan(0);
+
+    for (const selector of ordered) {
+      const element = container.querySelector(selector);
+      expect(element, selector).not.toBeNull();
+      // `order` moves only a grid item: the cover's own slot in the detail grid.
+      expect(element?.parentElement, selector).toHaveClass('detail-grid');
+      expect(element?.querySelector('img'), selector).toBe(
+        screen.getByRole('img', { name: `${FEATURED_TITLE} by ${FEATURED_DOC.authors}` }),
+      );
+    }
   });
 
   it('loads its hero cover first, at high fetch priority, sized to the frame', () => {

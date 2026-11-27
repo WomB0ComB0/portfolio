@@ -23,9 +23,10 @@
  * renders the pool of book slots and runs the teleport effect; the motion, the in-page detail, the
  * shelf pill and the input are its hooks (use-shelf-motion.ts, use-in-page-detail.ts,
  * use-shelf-pill.ts, use-bookshelf-navigation.ts). While a book is open it renders BookDetailView
- * in place of its shell. Guarded by tests/unit/bookshelf/bookshelf-stage.test.tsx (and the
- * filters bar, shelf cards, reading map and detail tests, which render it) and
- * scale-budgets.test.ts, and kept free of server modules by island-imports.test.ts.
+ * in place of its shell, with its heading focused, and the stage's reading map closed. Guarded by
+ * tests/unit/bookshelf/bookshelf-stage.test.tsx (and the filters bar, shelf cards, reading map and
+ * detail tests, which render it, and reading-map-chunk-pending.test.tsx) and scale-budgets.test.ts,
+ * and kept free of server modules by island-imports.test.ts.
  */
 
 import Link from 'next/link';
@@ -44,7 +45,7 @@ import { FiArrowLeft, FiBookOpen, FiMap } from 'react-icons/fi';
 import { PageShell } from '@/components/console/page-shell';
 import { StatStrip } from '@/components/console/stat-strip';
 import { FINE_POINTER } from '@/hooks/use-fine-pointer';
-import { prefersReducedMotion } from '@/lib/design/motion';
+import { EASE, prefersReducedMotion } from '@/lib/design/motion';
 import { cn } from '@/lib/utils';
 import { describeShelves, formatStageLabel, shelfStats } from '../_lib/book-labels';
 import { neighborsOf } from '../_lib/book-neighbors';
@@ -84,7 +85,7 @@ import { BookshelfControlsBar } from './bookshelf-controls-bar';
 import { BookshelfFiltersBar } from './bookshelf-filters-bar';
 import styles from './bookshelf-stage.module.css';
 import { FreeLibraryDirectoryCard } from './free-library-card';
-import { ReadingMapDialog } from './reading-map-dialog';
+import { preloadReadingMap, ReadingMapDialog } from './reading-map-dialog';
 import { ShelfCardsGrid } from './shelf-cards-grid';
 import { useBookshelfNavigation } from './use-bookshelf-navigation';
 import { useInPageDetail } from './use-in-page-detail';
@@ -112,8 +113,8 @@ export interface BookshelfStageProps {
 const RESIZE_DEBOUNCE_MS = 100;
 /** How long the shelf fades in after a long jump (past JUMP_SLIDE_MAX) teleports the slots. */
 const JUMP_IN_MS = 220;
-/** The fade-in's easing: the shelf's --shelf-ease-out (bookshelf-stage.module.css). */
-const JUMP_IN_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
+/** The fade-in's easing: the site's --ease-out-expo, which the shelf's own slide uses too. */
+const JUMP_IN_EASE = `cubic-bezier(${EASE.outExpo.join(', ')})`;
 /** How far the shelf slides in from the side it travels toward, in book heights: one slot pitch. */
 const JUMP_IN_SHIFT = SLOT_GEOMETRY.circular.pitch;
 
@@ -192,6 +193,7 @@ export function BookshelfStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const mapButtonRef = useRef<HTMLButtonElement>(null);
   const slotElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const activeBook = bookAt(pos);
@@ -326,6 +328,13 @@ export function BookshelfStage({
     syncShelfPill();
   }, [detailBook, measureStage, syncShelfPill]);
 
+  // The detail replaces the stage and its map, so a book that opens closes the map too: one asked
+  // for while its code was still loading, or open when Back or Forward brought a book up. Back on
+  // the stage, the map opens only from its button.
+  useEffect(() => {
+    if (detailBook !== null) setMapOpen(false);
+  }, [detailBook]);
+
   useEffect(() => {
     syncShelfPill();
   }, [syncShelfPill]);
@@ -412,6 +421,7 @@ export function BookshelfStage({
         mapBooks={mapBooks}
         shelves={shelves}
         entering
+        focusOnOpen
         onBack={() => closeDetail()}
         onNavigateBook={openDetailBySlug}
       />
@@ -442,8 +452,11 @@ export function BookshelfStage({
             Free library
           </Link>
           <button
+            ref={mapButtonRef}
             type="button"
             onClick={() => setMapOpen(true)}
+            onPointerEnter={preloadReadingMap}
+            onFocus={preloadReadingMap}
             className={headerActionClass('tight', false)}
           >
             <FiMap className="size-3.5" aria-hidden="true" />
@@ -546,6 +559,7 @@ export function BookshelfStage({
 
       <div ref={cursorRef} aria-hidden="true" className={styles['cursor-layer']}>
         <div className={styles['cursor-ring']}>
+          <span className={styles['cursor-disc']} />
           <span className={styles['cursor-label']}>Open</span>
         </div>
       </div>
@@ -561,6 +575,7 @@ export function BookshelfStage({
         books={mapBooks}
         shelves={shelves}
         onClose={() => setMapOpen(false)}
+        returnFocus={mapButtonRef}
         onSelectBook={(entry: ReadingMapEntry) => {
           const idx = indexBySlug.get(entry.slug);
           if (idx !== undefined) jumpTo(idx);
