@@ -17,7 +17,13 @@
  */
 
 import Script from 'next/script';
-import { env } from '@/env';
+
+/**
+ * The GA4 Measurement ID. A literal process.env read, which Next inlines at build time, rather
+ * than '@/env': this client module ships on every page, and importing src/env.ts brought t3-env
+ * and zod into the browser only to re-check a variable the build has already validated.
+ */
+const MEASUREMENT_ID = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
 /**
  * Injects Google Analytics 4 (GA4) script for analytics.
@@ -26,7 +32,7 @@ import { env } from '@/env';
  * @returns {JSX.Element | null} The GA4 script tag or null if Measurement ID is not configured.
  */
 export function AnalyticsScripts({ nonce }: Readonly<{ nonce: string | undefined }>) {
-  if (!env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
+  if (!MEASUREMENT_ID) {
     return null;
   }
 
@@ -34,7 +40,7 @@ export function AnalyticsScripts({ nonce }: Readonly<{ nonce: string | undefined
     <>
       <Script
         id="ga-loader"
-        src={`https://www.googletagmanager.com/gtag/js?id=${env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`}
         strategy="lazyOnload"
         nonce={nonce}
       />
@@ -43,7 +49,7 @@ export function AnalyticsScripts({ nonce }: Readonly<{ nonce: string | undefined
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments)}
           gtag('js', new Date());
-          gtag('config', '${env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}', { anonymize_ip: true });
+          gtag('config', '${MEASUREMENT_ID}', { anonymize_ip: true });
         `}
       </Script>
     </>

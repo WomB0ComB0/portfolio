@@ -22,7 +22,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { KBarProvider } from 'kbar';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type React from 'react';
-import { z } from 'zod';
+import { config as configureZod } from 'zod/v4/core';
 import { WebVitals } from '@/app/_components';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -32,8 +32,10 @@ import { createQueryClient } from '@/providers/server';
 
 // Zod 4 probes for eval support with `new Function('')`. The probe is caught, but under the site's
 // CSP (no 'unsafe-eval') every probe still files a violation report. jitless skips it; Zod then
-// uses its interpreted path, which is fast enough at this scale.
-z.config({ jitless: true });
+// uses its interpreted path, which is fast enough at this scale. The setting comes from zod's core,
+// the same config z.config sets (both write globalThis.__zod_globalConfig): importing `z` from
+// 'zod' here put the whole zod library into every page's JavaScript just to make this call.
+configureZod({ jitless: true });
 
 /** The browser's QueryClient, built on the first render and kept for the whole page load. */
 let browserQueryClient: QueryClient | undefined;

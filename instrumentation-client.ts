@@ -19,7 +19,6 @@
 // commit SHA) and, on Vercel, the environment come from the SDK's build-time defaults.
 
 import * as Sentry from '@sentry/nextjs';
-import { config } from '@/config';
 import {
   buildClientOptions,
   SENTRY_APPLICATION_KEY,
@@ -43,7 +42,10 @@ const siteIntegrations = [
 ];
 
 Sentry.init({
-  dsn: config.sentry.dsn,
+  // A literal read, which Next inlines, rather than '@/config': that module imports src/env.ts,
+  // whose t3-env and zod schemas then loaded ahead of hydration on every page (about 28 KB gzip)
+  // only to check variables the build has already validated.
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   // Literal process.env reads, so Next inlines them into the browser bundle. Vercel inlines
   // NEXT_PUBLIC_VERCEL_URL (the deployment's hostname) into deployment builds only: the browser
   // cannot read VERCEL, and `vercel env pull` writes no NEXT_PUBLIC_VERCEL_* variables.

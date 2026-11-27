@@ -22,6 +22,12 @@
  *   ValidationError only for an instanceof check. Importing it from effect-fetcher brought the
  *   whole effect package, about 60 KB, into every route; it imports the effect-free
  *   validation-error module instead, which effect-fetcher re-exports.
+ * - the Sentry browser entry (instrumentation-client.ts) and the GA4 tag (analytics-scripts.tsx)
+ *   read their NEXT_PUBLIC_ variables with literal process.env reads, which Next inlines. Going
+ *   through '@/config' or '@/env' loaded src/env.ts, t3-env and zod (about 28 KB) ahead of
+ *   hydration, only to re-check variables the build has already validated.
+ * - the GlobalProvider sets zod's jitless option through zod's core config, which is the function
+ *   z.config is; importing `z` from 'zod' for that one call loaded the whole library.
  *
  * Type-only imports are fine, because they are erased before bundling.
  */
@@ -83,5 +89,37 @@ describe('the QueryClient every route loads', () => {
     const fromFetcher = await import('@/lib/http-clients/effect-fetcher');
     const fromModule = await import('@/lib/http-clients/validation-error');
     expect(fromFetcher.ValidationError).toBe(fromModule.ValidationError);
+  });
+});
+
+describe('the Sentry browser entry and the GA4 tag', () => {
+  it.each(['instrumentation-client.ts', 'src/components/scripts/analytics-scripts.tsx'])(
+    '%s loads neither src/env.ts nor zod',
+    (file) => {
+      const specifiers = valueSpecifiers(file);
+      const heavy = specifiers.filter(
+        (specifier) =>
+          specifier === '@/env' ||
+          specifier === '@/config' ||
+          isPackage(specifier, 'zod') ||
+          isPackage(specifier, '@t3-oss/env-nextjs'),
+      );
+      expect(heavy).toEqual([]);
+    },
+  );
+});
+
+describe('the GlobalProvider', () => {
+  it("sets zod's jitless option from zod's core, without loading the zod library", () => {
+    const zodImports = valueSpecifiers('src/app/_providers/global-provider.tsx').filter(
+      (specifier) => isPackage(specifier, 'zod'),
+    );
+    expect(zodImports).toEqual(['zod/v4/core']);
+  });
+
+  it('calls the config that z.config is, so the setting reaches every zod schema', async () => {
+    const { z } = await import('zod');
+    const core = await import('zod/v4/core');
+    expect(core.config).toBe(z.config);
   });
 });

@@ -48,9 +48,6 @@ vi.mock('@/env', () => {
   const env = { NEXT_PUBLIC_SENTRY_DSN: 'https://abc123@o42.ingest.us.sentry.io/7' };
   return { env, default: env };
 });
-vi.mock('@/config', () => ({
-  config: { sentry: { dsn: 'https://abc123@o42.ingest.us.sentry.io/7' } },
-}));
 
 const ENTRY_POINTS = {
   client: '../../../instrumentation-client',
@@ -205,6 +202,13 @@ describe('instrumentation-client', () => {
       });
       expect(options.enabled, String(url)).toBe(false);
     }
+  });
+
+  it('takes its DSN from NEXT_PUBLIC_SENTRY_DSN, which Next inlines into the browser bundle', async () => {
+    const options = await initOptionsFor('client', {
+      NEXT_PUBLIC_SENTRY_DSN: 'https://def456@o42.ingest.us.sentry.io/8',
+    });
+    expect(options.dsn).toBe('https://def456@o42.ingest.us.sentry.io/8');
   });
 
   it('stays off under next dev, even with the deployment variables set', async () => {
