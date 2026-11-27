@@ -22,7 +22,8 @@
  * links, with every shelf's section skipping rendering off screen. It is the site's modal dialog:
  * focus is trapped inside, the page behind is hidden and holds still, Escape closes only the map
  * (never the in-page detail under it), and focus goes back to the button that opened it, except
- * after Open stage, when it lands on the opened book's heading.
+ * after Open stage, when it lands on the opened book's heading. A book that Back or Forward opens
+ * under the map closes it for good.
  */
 
 import { act, fireEvent, screen, within } from '@testing-library/react';
@@ -248,6 +249,27 @@ describe('ReadingMapDialog as a modal dialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('stays closed after Back or Forward opens a book under it, then returns', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const target = bookAt(BOOK_COUNT - 2);
+    await openMap();
+    const { pathname, search } = window.location;
+
+    act(() => {
+      window.history.pushState(null, '', `${pathname}${search}#/stage/${target.stageLabel}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(screen.getByRole('heading', { level: 1, name: target.title })).toBeInTheDocument();
+    act(() => {
+      window.history.replaceState(null, '', `${pathname}${search}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await afterClose();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
   });
 
   it('gives focus back to the Reading map button when Focus on shelf closes it', async () => {

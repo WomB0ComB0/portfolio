@@ -22,9 +22,10 @@
  * fetched when a visitor points at or focuses a 'Reading map' button (preloadReadingMap), or on
  * the first open, so none of it is in the page's first load. A chunk that fails to load resolves
  * to ReadingMapUnavailable, which closes the map again instead of taking the page down to the
- * route's error view; focus never left the button. Guarded by
- * tests/unit/bookshelf/reading-map-dialog.test.tsx, reading-map-chunk-failure.test.tsx and
- * scale-budgets.test.ts.
+ * route's error view; focus never left the button. A book that opens while the code is still on
+ * its way closes the map as well (the stage's), so it never opens later on its own. Guarded by
+ * tests/unit/bookshelf/reading-map-dialog.test.tsx, reading-map-chunk-failure.test.tsx,
+ * reading-map-chunk-pending.test.tsx and scale-budgets.test.ts.
  */
 
 import { type ComponentType, lazy, type ReactElement, Suspense, useEffect } from 'react';

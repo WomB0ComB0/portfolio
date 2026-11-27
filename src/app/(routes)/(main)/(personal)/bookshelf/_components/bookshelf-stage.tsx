@@ -23,10 +23,10 @@
  * renders the pool of book slots and runs the teleport effect; the motion, the in-page detail, the
  * shelf pill and the input are its hooks (use-shelf-motion.ts, use-in-page-detail.ts,
  * use-shelf-pill.ts, use-bookshelf-navigation.ts). While a book is open it renders BookDetailView
- * in place of its shell, with its heading focused. Guarded by
+ * in place of its shell, with its heading focused, and the stage's reading map closed. Guarded by
  * tests/unit/bookshelf/bookshelf-stage.test.tsx (and the filters bar, shelf cards, reading map and
- * detail tests, which render it) and scale-budgets.test.ts, and kept free of server modules by
- * island-imports.test.ts.
+ * detail tests, which render it, and reading-map-chunk-pending.test.tsx) and scale-budgets.test.ts,
+ * and kept free of server modules by island-imports.test.ts.
  */
 
 import Link from 'next/link';
@@ -327,6 +327,13 @@ export function BookshelfStage({
     measureStage();
     syncShelfPill();
   }, [detailBook, measureStage, syncShelfPill]);
+
+  // The detail replaces the stage and its map, so a book that opens closes the map too: one asked
+  // for while its code was still loading, or open when Back or Forward brought a book up. Back on
+  // the stage, the map opens only from its button.
+  useEffect(() => {
+    if (detailBook !== null) setMapOpen(false);
+  }, [detailBook]);
 
   useEffect(() => {
     syncShelfPill();
