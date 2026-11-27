@@ -646,6 +646,9 @@ test.describe('/projects: a project made of several repositories', () => {
       })),
     );
     const shown = new Set(stories.map(({ id }) => id));
+    // With no parts entered yet this says no card has "N repos", which means something only
+    // while cards are on the page to say it.
+    expect(stories.length).toBeGreaterThan(0);
 
     const saying = stories.filter(({ byline }) => REPOS.test(byline)).map(({ id }) => id);
     const expected = projects
