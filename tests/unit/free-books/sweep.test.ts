@@ -82,7 +82,7 @@ async function probeAll(
   const deps = stubSweepDependencies(overrides);
   const result = await probeUrls(
     TARGETS,
-    { blockedHosts, pinnedUrls: {} },
+    { blockedHosts, isHeldBack: () => false },
     0,
     records,
     { dnsblOnly: false, maxUrls: 0 },
@@ -543,6 +543,30 @@ describe('runSweep on a link that redirects to a target the run will not fetch',
       expect(fetch.mock.calls.map(([input]) => String(input))).not.toContain(target);
     },
   );
+
+  it('treats a Safe Browsing quarantine the run could not ask about again as a target it will not fetch', async () => {
+    const redis = inMemoryRedis();
+    const hit: Partial<SweepDependencies> = {
+      checkSafeBrowsing: async () => ({
+        matches: { [OLD_NOTES]: 'google_safe_browsing:MALWARE' },
+        uncheckedUrls: [],
+      }),
+    };
+    const fetch = vi.fn<SweepDependencies['fetch']>(async (input) =>
+      String(input) === INDIE_GUIDE ? redirectTo(OLD_NOTES) : pageResponse(),
+    );
+
+    await runWeeks(
+      redis,
+      [{ options: { safeBrowsingApiKey: 'gsb-key' }, deps: hit }, { deps: { fetch } }],
+      'quarantinedUrls',
+    );
+
+    const live = await redis.clients.loadLiveManifest();
+    expect(live?.quarantinedUrls[OLD_NOTES]).toBe('google_safe_browsing:MALWARE');
+    expect(live?.quarantinedUrls[INDIE_GUIDE]).toBe('unsafe_redirect_hop:flagged_target');
+    expect(fetch.mock.calls.map(([input]) => String(input))).not.toContain(OLD_NOTES);
+  });
 });
 
 describe('checkSafeBrowsing', () => {

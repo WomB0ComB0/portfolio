@@ -426,14 +426,18 @@ export async function checkSafeBrowsing(
 export interface ProbeExclusions {
   /** The blocks that stand after this run's host checks, the owner's pinned hosts among them. */
   readonly blockedHosts: Readonly<Record<string, string>>;
-  /** The owner's pinned links. */
-  readonly pinnedUrls: Readonly<Record<string, string>>;
+  /**
+   * Whether a link is held back this run (isHeldBack): an owner's pin, or a Safe Browsing
+   * quarantine the run could not ask about again.
+   */
+  readonly isHeldBack: (url: string) => boolean;
 }
 
 /**
- * Whether a redirect hop leads to a target this run will not fetch: a Safe Browsing hit, an
- * owner's pinned link, or a link on a blocked host. A hop that fails the URL screen is left to
- * the redirect-chain audit, which refuses it first.
+ * Whether a redirect hop leads to a target this run will not fetch: a Safe Browsing hit, a link
+ * held back (an owner's pin, or a Safe Browsing quarantine the run could not ask about again), or
+ * a link on a blocked host. A hop that fails the URL screen is left to the redirect-chain audit,
+ * which refuses it first.
  */
 function excludedHopCheck(
   exclusions: ProbeExclusions,
@@ -444,7 +448,7 @@ function excludedHopCheck(
     if (!normalizedUrl || !hostname) return false;
     return (
       records.safeBrowsingHits.has(normalizedUrl) ||
-      Object.hasOwn(exclusions.pinnedUrls, normalizedUrl) ||
+      exclusions.isHeldBack(normalizedUrl) ||
       Object.hasOwn(exclusions.blockedHosts, hostname)
     );
   };
@@ -679,9 +683,10 @@ export async function runSweep(
 
   const records = startRecords(existing);
   await checkSafeBrowsing(probeTargets, options.safeBrowsingApiKey, records, deps, log);
+  const heldBack = (url: string) => isHeldBack(url, records, pins, options.safeBrowsingApiKey);
   const { checkedUrls, deltaCandidates } = await probeUrls(
-    probeTargets.filter(({ url }) => !isHeldBack(url, records, pins, options.safeBrowsingApiKey)),
-    { blockedHosts: hosts.flags, pinnedUrls: pins.quarantinedUrls },
+    probeTargets.filter(({ url }) => !heldBack(url)),
+    { blockedHosts: hosts.flags, isHeldBack: heldBack },
     existing.checkedUrls,
     records,
     options,
