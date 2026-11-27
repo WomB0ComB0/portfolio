@@ -20,7 +20,7 @@
  * address all come from /projects' own filter schema, so a link always lands on rows.
  */
 
-import { makeProject } from '@tests/fixtures/sanity-docs';
+import { makeProject, makeProjectPart } from '@tests/fixtures/sanity-docs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -74,6 +74,28 @@ describe('buildTechLinks', () => {
       expect(state.tech).toEqual([key]);
       expect(schema.filter(entries, state)).toHaveLength(link.projects);
     }
+  });
+
+  it("links a technology only a project's part has, to that one project", () => {
+    const parted = [
+      ...PROJECTS,
+      makeProject({
+        technologies: ['TypeScript'],
+        systemParts: [
+          makeProjectPart({ technologies: ['Plasmo'] }),
+          makeProjectPart({ technologies: ['Puppeteer', 'TypeScript'] }),
+        ],
+      }),
+    ];
+    const links = buildTechLinks(parted);
+
+    expect(links.get('puppeteer')).toEqual({
+      href: '/projects?tech=puppeteer',
+      label: 'Puppeteer',
+      projects: 1,
+    });
+    expect(links.get('plasmo')?.projects).toBe(1);
+    expect(links.get('typescript')?.projects).toBe(5);
   });
 
   it('has no links without projects', () => {

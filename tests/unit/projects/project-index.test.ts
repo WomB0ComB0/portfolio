@@ -21,6 +21,7 @@
  * function, so the pure module never imports the Sanity client. Synthetic projects only.
  */
 
+import { makeProjectPart } from '@tests/fixtures/sanity-docs';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -157,5 +158,78 @@ describe('buildProjectIndex', () => {
   it('builds the lookups from the same projects', () => {
     expect(index.lookups.kindOrder).toContain('web-development');
     expect(index.lookups.techs.python).toBe('Python');
+  });
+});
+
+describe('a project made of several repositories (its parts)', () => {
+  const web = makeProjectPart({
+    _key: 'web',
+    name: 'Web app',
+    role: 'Where people sign in.',
+    repoUrl: 'https://github.com/example-org/example-web',
+    technologies: ['React.js', 'Supabase'],
+  });
+  const api = makeProjectPart({
+    _key: 'api',
+    name: 'Scraper API',
+    role: 'Fetches pages for the web app.',
+    repoUrl: 'https://github.com/example-org/example-api',
+    technologies: ['Express', 'Puppeteer'],
+  });
+  const core = makeProjectPart({
+    _key: 'core',
+    name: 'Core service',
+    role: 'Runs the jobs.',
+    repoUrl: undefined,
+    technologies: [],
+  });
+  const system = p('system', {
+    technologies: ['React', 'TypeScript'],
+    liveUrl: 'https://system.example',
+    systemParts: [web, api, core],
+  });
+  const parted = buildProjectIndex([...PROJECTS, system], imagesOf);
+  const entry = parted.entries.find(({ id }) => id === 'system');
+
+  it('reads a project without parts, or with only one, exactly as before: no repoCount key', () => {
+    const lone = p('lone', { technologies: ['Go'] });
+    const before = buildProjectIndex([lone], imagesOf).entries[0];
+    const variants = [null, [], [web], 'bad'].map(
+      (systemParts) =>
+        buildProjectIndex([{ ...lone, systemParts } as TestProject], imagesOf).entries[0],
+    );
+
+    expect(before).toBeDefined();
+    expect(Object.keys(before ?? {})).not.toContain('repoCount');
+    for (const variant of variants) {
+      expect(variant).toEqual(before);
+      expect(Object.keys(variant ?? {})).not.toContain('repoCount');
+      expect(JSON.stringify(variant)).toBe(JSON.stringify(before));
+    }
+  });
+
+  it('counts its repositories, private ones included', () => {
+    expect(entry?.repoCount).toBe(3);
+  });
+
+  it('adds the technologies only a part has, after the main ones', () => {
+    expect(entry?.techKeys).toEqual(['react', 'typescript', 'supabase', 'express', 'puppeteer']);
+    expect(entry?.techLabels).toEqual(['React', 'TypeScript', 'Supabase', 'Express', 'Puppeteer']);
+  });
+
+  it('finds the project by a part’s name, role or public owner/repo', () => {
+    const haystack = entry?.haystack ?? '';
+
+    expect(haystack).toContain('Scraper API');
+    expect(haystack).toContain('Fetches pages for the web app.');
+    expect(haystack).toContain('example-org/example-api');
+    expect(haystack).toContain('Core service');
+  });
+
+  it('leaves the other entries and the header figures as they were', () => {
+    expect(parted.stats).toEqual({ projects: 4, withLive: 2 });
+    for (const before of index.entries) {
+      expect(parted.entries.find(({ id }) => id === before.id)).toEqual(before);
+    }
   });
 });

@@ -23,8 +23,15 @@
  * hands them to the filter island, which lays out every view (Stories, Index, Screens) from them.
  * The image URLs come from an injected function, so this module never imports the Sanity client
  * and stays testable.
+ *
+ * A project made of several repositories (two or more parts, project-parts.ts) also gets its
+ * repository count for the card, its parts' own technologies after the main ones, and its parts'
+ * names, roles and public owner/repo in its search text. The parts themselves stay on the
+ * server: the island receives one number. A project with no parts, or one, gets no repoCount
+ * key, so its entry and the island's JSON are exactly what they were.
  */
 
+import type { ProjectPart } from '@/hooks/sanity/schemas';
 import {
   buildProjectLookups,
   type ProjectFilterItem,
@@ -32,6 +39,7 @@ import {
 } from './project-filters';
 import { safeHref } from './project-links';
 import { groupLabel, type OrderableProject, orderProjects } from './project-order';
+import { allTechnologiesOf, partWords, repoCountOf } from './project-parts';
 import {
   kindSlug,
   kindsOf,
@@ -51,6 +59,7 @@ export interface IndexableProject extends OrderableProject {
   readonly endDate?: string | null;
   readonly githubUrl?: string | null;
   readonly liveUrl?: string | null;
+  readonly systemParts?: readonly ProjectPart[] | null;
 }
 
 /** Where an image's subject sits, as fractions of its width and height (Studio's hotspot). */
@@ -95,6 +104,8 @@ export interface ProjectEntry extends ProjectFilterItem {
   readonly githubUrl: string | null;
   /** The live site's address, only when it is a real web address. */
   readonly liveUrl: string | null;
+  /** How many repositories it is made of: only present for two or more ("3 repos"). */
+  readonly repoCount?: number;
   /** The cover first, then the gallery; empty when it has none. */
   readonly images: readonly ProjectImage[];
 }
@@ -125,17 +136,20 @@ function entryOf<P extends IndexableProject>(
   const { title, summary } = splitTitle(project.title, project.description);
   const kindSlugs = unique(kindsOf(project.category).map(kindSlug));
   const kindLabels = kindSlugs.map((slug) => lookups.kinds[slug] ?? slug);
-  const techKeys = unique(project.technologies.map(techKey).filter((key) => key !== ''));
+  const technologies = allTechnologiesOf(project);
+  const techKeys = unique(technologies.map(techKey).filter((key) => key !== ''));
   const techLabels = techKeys.map((key) => lookups.techs[key] ?? key);
   const ongoing = isInProgress(project.status);
+  const repoCount = repoCountOf(project);
   const haystack = [
     project.title,
     summary,
     project.description,
     project.category,
     ...kindLabels,
-    ...project.technologies,
+    ...technologies,
     ...techLabels,
+    ...partWords(project),
   ].join('\n');
   return {
     id: project._id,
@@ -154,6 +168,8 @@ function entryOf<P extends IndexableProject>(
     order: project.order,
     githubUrl: safeHref(project.githubUrl),
     liveUrl: safeHref(project.liveUrl),
+    // Only for two or more, so a one-repository entry keeps its exact shape and JSON.
+    ...(repoCount > 0 ? { repoCount } : {}),
     haystack,
     images,
   };
