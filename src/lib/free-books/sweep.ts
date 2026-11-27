@@ -21,27 +21,36 @@ import 'server-only';
  * access injected (the link-health/scheduled.ts pattern). Only scripts/free-books/verify.ts
  * imports it, with the real clients; tests/unit/free-books/sweep.test.ts runs it on stubs. In
  * order:
- * 1. hydrateBaseline: the committed manifest (or an empty one), with the live Redis manifest and
- *    drift state laid over it;
- * 2. listTargets: each catalog link that passes the runtime gate (url-screen.ts), and its hosts;
- * 3. checkHosts: every host against the threat feeds, Cloudflare 1.1.1.2 and Quad9;
+ * 1. hydrateBaseline: the committed manifest (or an empty one) merged with the live Redis manifest
+ *    the way the site merges them (mergeSecurityManifests), plus the drift state;
+ * 2. listTargets: each link in the raw upstream catalog that passes the runtime gate (url-screen.ts),
+ *    and its hosts;
+ * 3. checkHosts: every host against the threat feeds, Cloudflare 1.1.1.2 and Quad9, then the
+ *    blocks are settled against the baseline's (flag-policy.ts);
  * 4. checkSafeBrowsing: every link against Google Safe Browsing, when a key is set;
  * 5. probeUrls: two-pass reachability with probeLink, then inspectFinalTarget (target-inspection.ts)
  *    on each reachable link for dangerous content and drift; both are DNS-pinned in the CLI, and
  *    a hop that resolves to a non-public address quarantines the link;
  * 6. detonateDeltas: drifted external links sent to a sandbox, when asked for and keyed;
- * 7. buildManifest and summarize: the sorted manifest and the counts the CLI prints.
- * Two known bugs are kept as they are until their own PRs (todo cases in the test): a Safe
- * Browsing quarantine is deleted again in the same run when that link probes clean, and blocked
- * hosts start empty each run, so a block lasts one cycle.
+ * 7. settleFlags on the quarantines, then buildManifest and summarize: the sorted manifest (with
+ *    the clean-run counts for the drift key) and the counts the CLI prints.
+ *
+ * The flag policy: the committed security-manifest.json holds the owner's pins, which the sweep
+ * never lifts or fetches and always publishes. Everything else lives in the Redis overlay and is
+ * checked again every run against the raw catalog. A flag is lifted after two runs in a row that
+ * checked it and found it clean (flag-policy.ts); a run that could not check it gives no credit:
+ * a probe that was not reachable, a link past --limit, --dnsbl-only, a link on a blocked host, or
+ * a Safe Browsing flag in a run without the key (such a link is not fetched either).
  */
 
 import type { LinkObservation } from '@/lib/link-health/types';
-import type { loadFreeProgrammingBooks } from './loader';
-import type {
-  loadLiveSecurityManifestFromRedis,
-  loadVerifierDriftStateFromRedis,
-  publishSecurityManifestToRedis,
+import { type FlagObservation, type FlagSettlement, settleFlags } from './flag-policy';
+import type { loadSweepCatalog } from './loader';
+import {
+  type loadLiveSecurityManifestFromRedis,
+  type loadVerifierDriftStateFromRedis,
+  mergeSecurityManifests,
+  type publishSecurityManifestToRedis,
 } from './manifest-store';
 import { inspectFinalTarget } from './target-inspection';
 import type {
@@ -54,6 +63,7 @@ import type {
 import type {
   DeltaDetonationRecord,
   FetchLike,
+  FlagCleanStreaks,
   FreeBooksSecurityManifest,
   FreeProgrammingBooksCatalog,
   UrlBaselineFingerprint,
@@ -68,6 +78,8 @@ const DNSBL_CONCURRENCY = 20;
 const PROBE_CONCURRENCY = 16;
 /** The most links sent to a sandbox in one run. */
 const MAX_DELTA_DETONATIONS_PER_RUN = 25;
+/** How a Safe Browsing quarantine's reason starts (threat-intel.ts checkGoogleSafeBrowsing). */
+const SAFE_BROWSING_REASON = 'google_safe_browsing:';
 
 /** What the sweep needs from outside: the CLI passes the real clients, the tests pass stubs. */
 export interface SweepDependencies {
@@ -76,7 +88,8 @@ export interface SweepDependencies {
   readonly loadLiveManifest: typeof loadLiveSecurityManifestFromRedis;
   readonly loadDriftState: typeof loadVerifierDriftStateFromRedis;
   readonly publish: typeof publishSecurityManifestToRedis;
-  readonly loadCatalog: typeof loadFreeProgrammingBooks;
+  /** The raw upstream catalog (no manifest applied), so flagged hosts and links are re-checked. */
+  readonly loadCatalog: typeof loadSweepCatalog;
   readonly loadThreatFeeds: typeof loadUrlhausHostBlocklist;
   /** Whether a host resolves on the default resolver, so a Quad9 NXDOMAIN counts as a block. */
   readonly resolvesNormally: (hostname: string) => Promise<boolean>;
@@ -118,6 +131,16 @@ export interface SweepRecords {
   readonly unavailableUrls: Record<string, string>;
   readonly urlFingerprints: Record<string, UrlBaselineFingerprint>;
   readonly deltaDetonations: Record<string, DeltaDetonationRecord>;
+  /** Links Google Safe Browsing listed this run: they stay quarantined and are never fetched. */
+  readonly safeBrowsingHits: Set<string>;
+  /** What this run saw for each link's quarantine; a link it did not check is not listed. */
+  readonly urlObservations: Map<string, FlagObservation>;
+}
+
+/** The owner's pins: the committed manifest's blocks and quarantines, never lifted or fetched. */
+export interface SweepPins {
+  readonly blockedHosts: Readonly<Record<string, string>>;
+  readonly quarantinedUrls: Readonly<Record<string, string>>;
 }
 
 /** The counts the CLI prints after a run. */
@@ -160,62 +183,69 @@ async function runPool<T>(
   await Promise.all(runners);
 }
 
+/** An empty manifest, for a committed one that cannot be read or parsed. */
+const emptyManifest = (): FreeBooksSecurityManifest => ({
+  generatedAt: new Date(0).toISOString(),
+  checkedHosts: 0,
+  checkedUrls: 0,
+  blockedHosts: {},
+  quarantinedUrls: {},
+  unavailableUrls: {},
+  urlFingerprints: {},
+  deltaDetonations: {},
+});
+
+/** The committed manifest (the owner's pins), or an empty one when it cannot be read or parsed. */
+function readCommittedManifest(readManifest: () => string): FreeBooksSecurityManifest {
+  try {
+    const parsed: unknown = JSON.parse(readManifest());
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as FreeBooksSecurityManifest)
+      : emptyManifest();
+  } catch {
+    return emptyManifest();
+  }
+}
+
+/** The owner's pins: the committed manifest's blocks and quarantines. */
+export function readPins(readManifest: () => string): SweepPins {
+  const committed = readCommittedManifest(readManifest);
+  return {
+    blockedHosts: { ...committed.blockedHosts },
+    quarantinedUrls: { ...committed.quarantinedUrls },
+  };
+}
+
 /**
  * The manifest the sweep starts from: the committed one (an empty one when it cannot be read or
- * parsed), with the live Redis manifest laid over it and both drift records merged in. With no
- * Redis manifest, only the drift records are merged.
+ * parsed) merged with the live Redis manifest exactly as the site merges them
+ * (mergeSecurityManifests: blocks and quarantines unite, unavailable links follow the newer one),
+ * with both drift records merged in and the stored clean-run counts carried over. With `strict`
+ * (a run that will publish), a Redis read it cannot trust throws instead of reading as "no state",
+ * so the run never overwrites last week's overlay; a dry run reads leniently.
  */
 export async function hydrateBaseline(
   deps: Pick<SweepDependencies, 'readManifest' | 'loadLiveManifest' | 'loadDriftState'>,
+  { strict = false }: { readonly strict?: boolean } = {},
 ): Promise<FreeBooksSecurityManifest> {
-  let existing: FreeBooksSecurityManifest = {
-    generatedAt: new Date(0).toISOString(),
-    checkedHosts: 0,
-    checkedUrls: 0,
-    blockedHosts: {},
-    quarantinedUrls: {},
-    unavailableUrls: {},
-    urlFingerprints: {},
-    deltaDetonations: {},
-  };
-  try {
-    existing = JSON.parse(deps.readManifest()) as FreeBooksSecurityManifest;
-  } catch {
-    // Start fresh if manifest is missing.
-  }
-
+  const committed = readCommittedManifest(deps.readManifest);
   // Consecutive CI runs share no files, so the previous run's state comes back from Redis.
   const [redisManifest, redisDrift] = await Promise.all([
-    deps.loadLiveManifest(),
-    deps.loadDriftState(),
+    deps.loadLiveManifest({ strict }),
+    deps.loadDriftState({ strict }),
   ]);
-  if (redisManifest) {
-    existing = {
-      ...existing,
-      ...redisManifest,
-      urlFingerprints: {
-        ...(existing.urlFingerprints ?? {}),
-        ...(redisDrift?.urlFingerprints ?? {}),
-      },
-      deltaDetonations: {
-        ...(existing.deltaDetonations ?? {}),
-        ...(redisDrift?.deltaDetonations ?? {}),
-      },
-    };
-  } else if (redisDrift) {
-    existing = {
-      ...existing,
-      urlFingerprints: {
-        ...(existing.urlFingerprints ?? {}),
-        ...redisDrift.urlFingerprints,
-      },
-      deltaDetonations: {
-        ...(existing.deltaDetonations ?? {}),
-        ...redisDrift.deltaDetonations,
-      },
-    };
-  }
-  return existing;
+  return {
+    ...mergeSecurityManifests(committed, redisManifest).manifest,
+    urlFingerprints: {
+      ...(committed.urlFingerprints ?? {}),
+      ...(redisDrift?.urlFingerprints ?? {}),
+    },
+    deltaDetonations: {
+      ...(committed.deltaDetonations ?? {}),
+      ...(redisDrift?.deltaDetonations ?? {}),
+    },
+    ...(redisDrift?.cleanStreaks ? { cleanStreaks: redisDrift.cleanStreaks } : {}),
+  };
 }
 
 /** The catalog links that pass the runtime gate, and their unique hosts sorted A to Z. */
@@ -239,7 +269,8 @@ export function listTargets(catalog: FreeProgrammingBooksCatalog): {
 
 /**
  * Loads the threat feeds, then checks every host against them, Cloudflare 1.1.1.2 and Quad9.
- * A blocked host is recorded as "provider: reason". The block list starts empty each run.
+ * Answers the hosts flagged this run, each as "provider: reason"; settleHostBlocks then carries
+ * them over the baseline's blocks.
  */
 export async function checkHosts(
   hostsList: readonly string[],
@@ -273,6 +304,27 @@ export async function checkHosts(
   return { blockedHosts, threatFeedHosts: urlhausHosts };
 }
 
+/**
+ * The blocks that stand after this run's host checks: every catalog host was checked, so each is
+ * flagged (a hit this run) or clean, and settleFlags lifts a block after two clean runs in a row.
+ */
+export function settleHostBlocks(
+  baseline: FreeBooksSecurityManifest,
+  flaggedThisRun: Readonly<Record<string, string>>,
+  hostsList: readonly string[],
+  pins: SweepPins,
+): FlagSettlement {
+  return settleFlags({
+    flags: { ...baseline.blockedHosts, ...flaggedThisRun },
+    observations: new Map(
+      hostsList.map((host) => [host, Object.hasOwn(flaggedThisRun, host) ? 'flagged' : 'clean']),
+    ),
+    streaks: baseline.cleanStreaks?.hosts ?? {},
+    pins: pins.blockedHosts,
+    inCatalog: new Set(hostsList),
+  });
+}
+
 /** Copies of the baseline's records, for the phases to update. */
 export function startRecords(existing: FreeBooksSecurityManifest): SweepRecords {
   return {
@@ -280,10 +332,41 @@ export function startRecords(existing: FreeBooksSecurityManifest): SweepRecords 
     unavailableUrls: { ...existing.unavailableUrls },
     urlFingerprints: { ...(existing.urlFingerprints ?? {}) },
     deltaDetonations: { ...(existing.deltaDetonations ?? {}) },
+    safeBrowsingHits: new Set(),
+    urlObservations: new Map(),
   };
 }
 
-/** With an API key, quarantines every link Google Safe Browsing flags, with its threat type. */
+/** Quarantines `url` for `reason` and notes that this run flagged it. */
+function quarantine(records: SweepRecords, url: string, reason: string): void {
+  records.quarantinedUrls[url] = reason;
+  records.urlObservations.set(url, 'flagged');
+}
+
+/** Notes that this run checked `url` and found it clean (unless this run already flagged it). */
+function markClean(records: SweepRecords, url: string): void {
+  if (records.urlObservations.get(url) !== 'flagged') records.urlObservations.set(url, 'clean');
+}
+
+/**
+ * Whether this run must not fetch `url` at all: an owner's pin, or a link quarantined by Safe
+ * Browsing when this run has no key to ask again (the content checks cannot clear such a flag).
+ */
+export function isHeldBack(
+  url: string,
+  records: Pick<SweepRecords, 'quarantinedUrls'>,
+  pins: SweepPins,
+  safeBrowsingApiKey: string | undefined,
+): boolean {
+  if (Object.hasOwn(pins.quarantinedUrls, url)) return true;
+  const reason = Object.hasOwn(records.quarantinedUrls, url) ? records.quarantinedUrls[url] : '';
+  return !safeBrowsingApiKey && Boolean(reason?.startsWith(SAFE_BROWSING_REASON));
+}
+
+/**
+ * With an API key, quarantines every link Google Safe Browsing flags, with its threat type, and
+ * notes it as a hit so probeUrls never fetches it (the content checks cannot clear it).
+ */
 export async function checkSafeBrowsing(
   probeTargets: readonly SweepTarget[],
   apiKey: string | undefined,
@@ -298,15 +381,18 @@ export async function checkSafeBrowsing(
     apiKey,
   );
   for (const [hitUrl, reason] of Object.entries(gsbHits)) {
-    records.quarantinedUrls[hitUrl] = reason;
+    quarantine(records, hitUrl, reason);
+    records.safeBrowsingHits.add(hitUrl);
   }
 }
 
 /**
- * Unless `dnsblOnly`, probes each link not on a blocked host (the first `maxUrls` when set): a
- * link missing on two probes is unavailable; a reachable one is inspected, quarantined for
- * dangerous content, a PDF that turned into HTML, or a host that changed to a domain registered
- * in the last 90 days, and otherwise un-quarantined and fingerprinted. An external link whose
+ * Unless `dnsblOnly`, probes each link not on a blocked host and not a Safe Browsing hit this run
+ * (the first `maxUrls` when set): a link missing on two probes is unavailable; a reachable one is
+ * inspected, quarantined for dangerous content, a PDF that turned into HTML, or a host that
+ * changed to a domain registered in the last 90 days, and otherwise noted as clean (one clean run
+ * toward lifting an earlier quarantine) and fingerprinted. A link it does not probe, or that is not
+ * reachable, is left unchecked. An external link whose
  * host changed or whose PDF turned into HTML is queued for the sandbox (a new link is not).
  * Answers the URLs checked (the baseline's count when it probes nothing) and the queue.
  */
@@ -319,7 +405,7 @@ export async function probeUrls(
   deps: Pick<SweepDependencies, 'probe' | 'fetch' | 'checkDomainAge' | 'now'>,
   log: Log,
 ): Promise<{ readonly checkedUrls: number; readonly deltaCandidates: readonly string[] }> {
-  const { quarantinedUrls, unavailableUrls, urlFingerprints } = records;
+  const { unavailableUrls, urlFingerprints } = records;
   let checkedUrls = baselineCheckedUrls;
   const deltaCandidates: string[] = [];
   if (options.dnsblOnly) return { checkedUrls, deltaCandidates };
@@ -330,7 +416,7 @@ export async function probeUrls(
   const nowIso = (deps.now ?? (() => new Date()))().toISOString();
 
   await runPool(targets, PROBE_CONCURRENCY, async ({ url, hostname }) => {
-    if (blockedHosts[hostname]) return;
+    if (blockedHosts[hostname] || records.safeBrowsingHits.has(url)) return;
 
     const obs = await deps.probe(url);
     if (obs.kind === 'missing') {
@@ -345,7 +431,7 @@ export async function probeUrls(
       delete unavailableUrls[url];
       const inspected = await inspectFinalTarget(url, hostname, deps.fetch);
       if (inspected.danger) {
-        quarantinedUrls[url] = inspected.danger;
+        quarantine(records, url, inspected.danger);
         return;
       }
 
@@ -358,7 +444,7 @@ export async function probeUrls(
       );
 
       if (pdfFlippedToHtml) {
-        quarantinedUrls[url] = `content_drift_pdf_to_html:${inspected.finalHost}`;
+        quarantine(records, url, `content_drift_pdf_to_html:${inspected.finalHost}`);
         if (classifyHostTrustTier(inspected.finalHost) === 'external') {
           deltaCandidates.push(url);
         }
@@ -371,8 +457,11 @@ export async function probeUrls(
           const rdap = await deps.checkDomainAge(inspected.finalHost);
           rdapRegisteredAt = rdap.registeredAt;
           if (rdap.newlyRegistered) {
-            quarantinedUrls[url] =
-              `domain_re_registered_drift:${inspected.finalHost}(${rdap.ageDays}d)`;
+            quarantine(
+              records,
+              url,
+              `domain_re_registered_drift:${inspected.finalHost}(${rdap.ageDays}d)`,
+            );
             deltaCandidates.push(url);
             return;
           }
@@ -380,7 +469,7 @@ export async function probeUrls(
         }
       }
 
-      delete quarantinedUrls[url];
+      markClean(records, url);
       urlFingerprints[url] = {
         finalHost: inspected.finalHost,
         contentType: inspected.contentType,
@@ -442,12 +531,18 @@ export function buildManifest({
   checkedUrls,
   blockedHosts,
   records,
+  cleanStreaks,
 }: {
   readonly generatedAt: string;
   readonly checkedHosts: number;
   readonly checkedUrls: number;
   readonly blockedHosts: Readonly<Record<string, string>>;
-  readonly records: SweepRecords;
+  readonly records: Pick<
+    SweepRecords,
+    'quarantinedUrls' | 'unavailableUrls' | 'urlFingerprints' | 'deltaDetonations'
+  >;
+  /** The clean-run counts, published only in the drift key. */
+  readonly cleanStreaks?: FlagCleanStreaks;
 }): FreeBooksSecurityManifest {
   return {
     generatedAt,
@@ -458,6 +553,14 @@ export function buildManifest({
     unavailableUrls: sortedRecord(records.unavailableUrls),
     urlFingerprints: sortedRecord(records.urlFingerprints),
     deltaDetonations: sortedRecord(records.deltaDetonations),
+    ...(cleanStreaks
+      ? {
+          cleanStreaks: {
+            hosts: sortedRecord(cleanStreaks.hosts),
+            urls: sortedRecord(cleanStreaks.urls),
+          },
+        }
+      : {}),
   };
 }
 
@@ -501,21 +604,18 @@ export async function runSweep(
   log: Log,
 ): Promise<SweepSummary> {
   const now = deps.now ?? (() => new Date());
-  const existing = await hydrateBaseline(deps);
+  const existing = await hydrateBaseline(deps, { strict: options.shouldPublishRedis });
+  const pins = readPins(deps.readManifest);
   const catalog = await deps.loadCatalog();
   const { hostsList, probeTargets } = listTargets(catalog);
-  const { blockedHosts, threatFeedHosts } = await checkHosts(
-    hostsList,
-    options.urlhausAuthKey,
-    deps,
-    log,
-  );
+  const hostChecks = await checkHosts(hostsList, options.urlhausAuthKey, deps, log);
+  const hosts = settleHostBlocks(existing, hostChecks.blockedHosts, hostsList, pins);
 
   const records = startRecords(existing);
   await checkSafeBrowsing(probeTargets, options.safeBrowsingApiKey, records, deps, log);
   const { checkedUrls, deltaCandidates } = await probeUrls(
-    probeTargets,
-    blockedHosts,
+    probeTargets.filter(({ url }) => !isHeldBack(url, records, pins, options.safeBrowsingApiKey)),
+    hosts.flags,
     existing.checkedUrls,
     records,
     options,
@@ -523,16 +623,29 @@ export async function runSweep(
     log,
   );
   await detonateDeltas(deltaCandidates, records, options, deps, log);
+  const urls = settleFlags({
+    flags: records.quarantinedUrls,
+    observations: records.urlObservations,
+    streaks: existing.cleanStreaks?.urls ?? {},
+    pins: pins.quarantinedUrls,
+    inCatalog: new Set(probeTargets.map(({ url }) => url)),
+  });
 
   const manifest = buildManifest({
     generatedAt: now().toISOString(),
     checkedHosts: hostsList.length,
     checkedUrls,
-    blockedHosts,
-    records,
+    blockedHosts: hosts.flags,
+    records: { ...records, quarantinedUrls: urls.flags },
+    cleanStreaks: { hosts: hosts.streaks, urls: urls.streaks },
   });
   const redisPublishResult = options.shouldPublishRedis ? await deps.publish(manifest) : null;
-  const summary = summarize(manifest, threatFeedHosts.size, redisPublishResult, options.dryRun);
+  const summary = summarize(
+    manifest,
+    hostChecks.threatFeedHosts.size,
+    redisPublishResult,
+    options.dryRun,
+  );
   log(JSON.stringify(summary, null, 2));
   return summary;
 }

@@ -35,9 +35,11 @@
  * Arguments are read strictly: any other argument, a value on a flag that takes none, or a
  * --limit that is not a whole number above 0 prints one line and runs nothing.
  *
- * Exit code: 0 when the sweep finishes. 1 when the arguments are refused, when the sweep throws,
- * or when --publish-redis was asked for and either Redis key was not saved (the summary prints
- * first, then one line on stderr says which key failed).
+ * Exit code: 0 when the sweep finishes. 1 when the arguments are refused, when the sweep throws
+ * (a run that will publish throws when it cannot read and trust last week's Redis state, so it
+ * never overwrites it; a dry run reads leniently and runs without Upstash credentials), or when
+ * --publish-redis was asked for and either Redis key was not saved (the summary prints first,
+ * then one line on stderr says which key failed).
  *
  * Usage:
  *   bun --conditions=react-server run scripts/free-books/verify.ts --dry-run
@@ -50,7 +52,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type ParseArgsConfig, parseArgs } from 'node:util';
-import { loadFreeProgrammingBooks } from '../../src/lib/free-books/loader';
+import { loadSweepCatalog } from '../../src/lib/free-books/loader';
 import {
   loadLiveSecurityManifestFromRedis,
   loadVerifierDriftStateFromRedis,
@@ -106,7 +108,7 @@ export function connectDependencies(): SweepDependencies {
     loadLiveManifest: loadLiveSecurityManifestFromRedis,
     loadDriftState: loadVerifierDriftStateFromRedis,
     publish: publishSecurityManifestToRedis,
-    loadCatalog: loadFreeProgrammingBooks,
+    loadCatalog: loadSweepCatalog,
     loadThreatFeeds: loadUrlhausHostBlocklist,
     resolvesNormally: resolveExists,
     checkHost: checkHostnameThreatIntel,

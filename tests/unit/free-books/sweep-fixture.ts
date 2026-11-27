@@ -59,15 +59,19 @@ export const RUST_BOOK = 'https://doc.rust-lang.org/book/';
 export const INDIE_GUIDE = 'https://indie.example/guide';
 export const OLD_NOTES = 'https://old.example/notes.pdf';
 
-export const sweepCatalog = (): FreeProgrammingBooksCatalog =>
+const CATALOG_LINES: Readonly<Record<string, string>> = {
+  [RUST_BOOK]: `* [Rust Book](${RUST_BOOK}) - Team (HTML)`,
+  [INDIE_GUIDE]: `* [Indie Guide](${INDIE_GUIDE}) - Someone (HTML)`,
+  [OLD_NOTES]: `* [Old Notes](${OLD_NOTES}) - Someone (PDF)`,
+};
+
+/** The fixture catalog, or only the `links` given (as upstream removing the others). */
+export const sweepCatalog = (
+  links: readonly string[] = [RUST_BOOK, INDIE_GUIDE, OLD_NOTES],
+): FreeProgrammingBooksCatalog =>
   buildFreeProgrammingBooksCatalog(
     parseFreeProgrammingBooksMarkdown(
-      [
-        '### Rust',
-        `* [Rust Book](${RUST_BOOK}) - Team (HTML)`,
-        `* [Indie Guide](${INDIE_GUIDE}) - Someone (HTML)`,
-        `* [Old Notes](${OLD_NOTES}) - Someone (PDF)`,
-      ].join('\n'),
+      ['### Rust', ...links.map((link) => CATALOG_LINES[link] ?? '')].join('\n'),
       'langs',
     ),
     [],

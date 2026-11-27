@@ -20,18 +20,29 @@
  * @file scripts/free-books/verify.ts, the CLI over the sweep, with every client stubbed: which
  * flags publish, probe or scan (the scheduled workflow's own flags among them, which publish to
  * Redis and write no file), where the provider keys come from, that arguments are read strictly,
- * that a requested publish that fails exits 1 after the summary, and that a sweep that throws
- * exits 1 with one line on stderr.
+ * that a requested publish that fails exits 1 after the summary, that a publishing run refuses a
+ * Redis read it cannot trust, and that a sweep that throws exits 1 with one line on stderr.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  loadLiveSecurityManifestFromRedis,
+  loadVerifierDriftStateFromRedis,
+} from '@/lib/free-books/manifest-store';
 import { pinnedFetch } from '@/lib/free-books/pinned-fetch';
 import type { SweepDependencies, SweepSummary } from '@/lib/free-books/sweep';
-import type { FreeBooksSecurityManifest } from '@/lib/free-books/types';
+import type { FetchLike, FreeBooksSecurityManifest } from '@/lib/free-books/types';
 import { connectDependencies, runCli } from '../../../scripts/free-books/verify';
-import { EMPTY_MANIFEST, observed, stubSweepDependencies } from './sweep-fixture';
+import {
+  EMPTY_MANIFEST,
+  INDIE_GUIDE,
+  inMemoryRedis,
+  observed,
+  pageResponse,
+  stubSweepDependencies,
+} from './sweep-fixture';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -145,6 +156,27 @@ describe('verify CLI', () => {
     expect(checkSafeBrowsing).toHaveBeenCalledWith(expect.any(Array), 'gsb-key');
   });
 
+  it('publishes a Safe Browsing hit as a quarantine, even though the page itself looks clean', async () => {
+    const publish = vi.fn(async (_manifest: FreeBooksSecurityManifest) => ({
+      runtimePublished: true,
+      fingerprintsPublished: true,
+    }));
+    const { code, summary } = await run(
+      ['--publish-redis'],
+      {
+        publish,
+        checkSafeBrowsing: async () => ({ [INDIE_GUIDE]: 'google_safe_browsing:MALWARE' }),
+      },
+      { GOOGLE_SAFE_BROWSING_API_KEY: 'gsb-key' },
+    );
+
+    expect(code).toBe(0);
+    expect(publish.mock.calls[0]?.[0].quarantinedUrls).toEqual({
+      [INDIE_GUIDE]: 'google_safe_browsing:MALWARE',
+    });
+    expect(summary?.quarantineBreakdown).toEqual({ google_safe_browsing: 1 });
+  });
+
   it('exits 1 when the Redis publish fails, after printing the summary', async () => {
     const { code, summary, error } = await run(['--publish-redis'], {
       publish: async () => ({ runtimePublished: false, fingerprintsPublished: false }),
@@ -234,4 +266,84 @@ describe('verify CLI', () => {
       expect(probe).not.toHaveBeenCalled();
     },
   );
+
+  it('refuses to publish when the Redis read fails, and leaves last week in place', async () => {
+    const redis = inMemoryRedis();
+    const parked = await run(['--publish-redis'], {
+      ...redis.clients,
+      fetch: async (input) =>
+        String(input) === INDIE_GUIDE
+          ? pageResponse('<html><body>This domain is for sale</body></html>')
+          : pageResponse(),
+    });
+    expect(parked.code).toBe(0);
+
+    redis.failReads(new DOMException('The operation timed out.', 'TimeoutError'));
+    const publish = vi.fn(redis.clients.publish);
+    const { code, error, summary } = await run(['--publish-redis'], {
+      ...redis.clients,
+      publish,
+      probe: async (url) => observed(url === INDIE_GUIDE ? 'temporary' : 'reachable'),
+    });
+    redis.failReads(null);
+
+    expect(code).toBe(1);
+    expect(error).toHaveBeenCalledExactlyOnceWith(
+      expect.stringMatching(
+        /^Free books verify failed: could not read the (live manifest|drift state) from Redis \(timed out\)$/,
+      ),
+    );
+    expect(summary).toBeNull();
+    expect(publish).not.toHaveBeenCalled();
+    expect(Object.keys((await redis.clients.loadLiveManifest())?.quarantinedUrls ?? {})).toEqual([
+      INDIE_GUIDE,
+    ]);
+  });
+
+  describe('without Upstash credentials', () => {
+    /** The real Redis reads, with the credentials blanked and a fetch that must never be used. */
+    function realReadsWithoutCredentials() {
+      vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+      vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+      const fetcher = vi.fn<FetchLike>(async () => {
+        throw new Error('no network in tests');
+      });
+      const reads: Partial<SweepDependencies> = {
+        loadLiveManifest: (options) => loadLiveSecurityManifestFromRedis({ ...options, fetcher }),
+        loadDriftState: (options) => loadVerifierDriftStateFromRedis({ ...options, fetcher }),
+      };
+      return { fetcher, reads };
+    }
+    const pinned = JSON.stringify({
+      ...EMPTY_MANIFEST,
+      blockedHosts: { 'indie.example': 'Manual block' },
+    });
+
+    it('still runs a dry run, from the committed baseline', async () => {
+      const { fetcher, reads } = realReadsWithoutCredentials();
+      const { code, summary, error } = await run(['--dry-run'], {
+        ...reads,
+        readManifest: () => pinned,
+      });
+
+      expect(code).toBe(0);
+      expect(error).not.toHaveBeenCalled();
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(summary).toMatchObject({ dryRun: true, blockedHostsCount: 1 });
+    });
+
+    it('refuses a publishing run before it checks anything', async () => {
+      const { reads } = realReadsWithoutCredentials();
+      const publish = vi.fn(async () => ({ runtimePublished: true, fingerprintsPublished: true }));
+      const { code, error } = await run(['--publish-redis'], { ...reads, publish });
+
+      expect(code).toBe(1);
+      expect(error).toHaveBeenCalledExactlyOnceWith(
+        expect.stringMatching(
+          /^Free books verify failed: could not read the (live manifest|drift state) from Redis \(UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not set\)$/,
+        ),
+      );
+      expect(publish).not.toHaveBeenCalled();
+    });
+  });
 });
