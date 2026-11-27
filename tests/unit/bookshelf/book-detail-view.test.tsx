@@ -157,6 +157,27 @@ describe('BookDetailView in place', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
+  it("gives the stage focus when a phone's tap steps to a side book, as a mouse press does", () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
+    const stage = screen.getByRole('region', { name: /Bookshelf/i });
+    const side = stage.querySelector<HTMLElement>('[data-slot-offset="1"]');
+    if (!side) throw new Error('no side book on the stage');
+    const tap = { pointerId: 11, pointerType: 'touch', button: 0, clientX: 300, clientY: 160 };
+
+    // The cancelled press sends no mousedown to focus the stage, so the stage takes focus itself:
+    // with a keyboard on a touch device, the arrow keys and Enter then work after a tap. As with a
+    // mouse press, no focus ring: a script's focus would draw one.
+    const focus = vi.spyOn(stage, 'focus');
+    expect(fireEvent.pointerDown(side, tap)).toBe(false);
+    fireEvent.pointerUp(side, tap);
+
+    expect(document.activeElement).toBe(stage);
+    expect(focus).toHaveBeenCalledWith(expect.objectContaining({ focusVisible: false }));
+    expect(
+      screen.queryByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    ).not.toBeInTheDocument();
+  });
+
   it('steps to the next and previous books in place, by links to their own pages', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
     const at = BOOKS.indexOf(FEATURED);

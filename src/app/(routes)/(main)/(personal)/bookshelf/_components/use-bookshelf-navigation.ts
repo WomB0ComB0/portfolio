@@ -327,7 +327,13 @@ export function useBookshelfNavigation({
     // has opened the book: it lands on the detail in the stage's place and focuses <main>, taking
     // focus off the detail's heading. Cancelling the press stops those mouse events (not the
     // click, nor scrolling); the stage reads only pointer events. A mouse's mousedown comes first.
-    if (event.pointerType !== 'mouse') event.preventDefault();
+    // With no mousedown, the stage focuses itself as one would have, so after a tap that steps the
+    // arrow keys and Enter work; a tap that opens the book then moves focus to its heading. Like a
+    // mouse press's focus it draws no ring (a script's focus would draw one in Chromium).
+    if (event.pointerType !== 'mouse') {
+      event.preventDefault();
+      event.currentTarget.focus({ preventScroll: true, focusVisible: false });
+    }
     cancelChain();
     jumpAnimRef.current?.finish();
     jumpAnimRef.current = null;
