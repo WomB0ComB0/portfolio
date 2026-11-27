@@ -23,7 +23,8 @@
  * renders the pool of book slots and runs the teleport effect; the motion, the in-page detail, the
  * shelf pill and the input are its hooks (use-shelf-motion.ts, use-in-page-detail.ts,
  * use-shelf-pill.ts, use-bookshelf-navigation.ts). While a book is open it renders BookDetailView
- * in place of its shell, with its heading focused, and the stage's reading map closed. Guarded by
+ * in place of its shell, with its heading focused, and the stage's reading map closed; on close,
+ * focus goes back to Open notes when it opened the book, else to the stage. Guarded by
  * tests/unit/bookshelf/bookshelf-stage.test.tsx (and the filters bar, shelf cards, reading map and
  * detail tests, which render it, and reading-map-chunk-pending.test.tsx) and scale-budgets.test.ts,
  * and kept free of server modules by island-imports.test.ts.
@@ -161,12 +162,15 @@ export function BookshelfStage({
     [books],
   );
   const prevSlotPositionsRef = useRef<Map<number, number>>(new Map());
+  const stageRef = useRef<HTMLDivElement>(null);
+  const openNotesRef = useRef<HTMLAnchorElement>(null);
   const { detailBook, openDetail, openDetailBySlug, closeDetail } = useInPageDetail({
     books,
     indexBySlug,
     setPos,
     slotPositionsRef: prevSlotPositionsRef,
     listPath: listPath(activeShelf?.slug),
+    returnFocusRef: stageRef,
   });
 
   const [halfWindow, setHalfWindow] = useState<number>(INITIAL_HALF_WINDOW);
@@ -184,7 +188,6 @@ export function BookshelfStage({
   const statusFilter: BookStatusFilter = urlState.status;
   const shelfGroupBy = urlState.group;
 
-  const stageRef = useRef<HTMLDivElement>(null);
   const shelfRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const mapButtonRef = useRef<HTMLButtonElement>(null);
@@ -524,7 +527,8 @@ export function BookshelfStage({
           displayIndex={wrapIndex(pos, bookCount)}
           bookCount={bookCount}
           activeBook={activeBook}
-          onOpenDetail={(book) => openDetail(book)}
+          openNotesRef={openNotesRef}
+          onOpenDetail={(book) => openDetail(book, openNotesRef)}
           onStep={(delta) => step(delta)}
         />
 

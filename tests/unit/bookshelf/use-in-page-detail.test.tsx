@@ -191,6 +191,88 @@ describe('closing the detail', () => {
   });
 });
 
+describe('focus after closing', () => {
+  const stageRegion = () => screen.getByRole('region', { name: /Bookshelf/i });
+  const openNotes = () => screen.getByRole('link', { name: /^Open notes/ });
+
+  /** Opens the book on stage from its Open notes link, as a keyboard or a tap would. */
+  function openFromNotes(): void {
+    const link = openNotes();
+    act(() => link.focus());
+    fireEvent.click(link);
+    expect(heading(FEATURED_TITLE)).toBeInTheDocument();
+  }
+
+  const closes = [
+    ['Back to Bookshelf', pressBackToBookshelf],
+    ['Escape', () => fireEvent.keyDown(window, { key: 'Escape' })],
+    ['Back', () => window.history.back()],
+  ] as const;
+
+  it.each(closes)('gives it back to the stage that opened the book, on %s', async (_, close) => {
+    renderStage();
+    openOnStage();
+
+    await travel(close);
+
+    expect(heading('Bookshelf')).toBeInTheDocument();
+    expect(document.activeElement).toBe(stageRegion());
+  });
+
+  it.each(closes)(
+    'gives it back to Open notes when it opened the book, on %s',
+    async (_, close) => {
+      renderStage();
+      openFromNotes();
+
+      await travel(close);
+
+      expect(heading('Bookshelf')).toBeInTheDocument();
+      expect(document.activeElement).toBe(openNotes());
+    },
+  );
+
+  it('gives it back to Open notes after Previous and Next moved to another book', async () => {
+    renderStage();
+    const next = bookAt(BOOKS.indexOf(FEATURED) + 1);
+    openFromNotes();
+    fireEvent.click(adjacentLink(next.title));
+    expect(heading(next.title)).toBeInTheDocument();
+
+    await travel(pressBackToBookshelf);
+
+    expect(document.activeElement).toBe(openNotes());
+    expect(openNotes()).toHaveAttribute('href', `/bookshelf/${next.slug}`);
+  });
+
+  it("falls back to the stage when the map's Open stage, now gone, opened the book", async () => {
+    renderStage();
+    const target = bookAt(BOOK_COUNT - 2);
+    fireEvent.click(screen.getByRole('button', { name: 'Reading map' }));
+    const dialog = await screen.findByRole('dialog', { name: /Reading map/i });
+    const link = within(dialog).getAllByRole('link', { name: 'Open stage' })[BOOK_COUNT - 2];
+    if (!link) throw new Error('no Open stage link for the target book');
+    fireEvent.click(link);
+    expect(heading(target.title)).toBeInTheDocument();
+
+    await travel(pressBackToBookshelf);
+
+    expect(document.activeElement).toBe(stageRegion());
+    expect(liveText()).toBe(liveTextOf(target));
+  });
+
+  it('falls back to the stage for a book the address opened, on a page entered on it', () => {
+    window.history.replaceState(null, '', pageOf(FEATURED.slug));
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />, QUERY);
+    expect(heading(FEATURED_TITLE)).toBeInTheDocument();
+
+    pressBackToBookshelf();
+
+    expect(heading('Bookshelf')).toBeInTheDocument();
+    expect(document.activeElement).toBe(stageRegion());
+  });
+});
+
 describe('Back and Forward', () => {
   it('closes the detail on Back and opens the book again on Forward', async () => {
     renderStage();

@@ -113,6 +113,40 @@ describe('BookDetailView in place', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
+  it("keeps focus on its heading when a phone's tap on the cover opens it", () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
+    const activeSlot = (): HTMLElement => {
+      const slot = screen
+        .getByRole('region', { name: /Bookshelf/i })
+        .querySelector<HTMLElement>('[data-slot-offset="0"]');
+      if (!slot) throw new Error('no active slot on the stage');
+      return slot;
+    };
+    const tap = { pointerId: 7, pointerType: 'touch', button: 0, clientX: 120, clientY: 160 };
+
+    // A phone sends a tap's mousedown after its pointerup, so it would land on the detail that
+    // took the stage's place and focus <main>. Cancelling the press tells the browser to send
+    // no such mouse events; a mouse press, whose mousedown comes first, is left alone.
+    const cover = activeSlot();
+    const pressSent = fireEvent.pointerDown(cover, tap);
+    fireEvent.pointerUp(cover, tap);
+
+    expect(pressSent).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+
+    const slot = activeSlot();
+    const click = { ...tap, pointerId: 8, pointerType: 'mouse' };
+    expect(fireEvent.pointerDown(slot, click)).toBe(true);
+    fireEvent.pointerUp(slot, click);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+  });
+
   it('steps to the next and previous books in place, by links to their own pages', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
     const at = BOOKS.indexOf(FEATURED);

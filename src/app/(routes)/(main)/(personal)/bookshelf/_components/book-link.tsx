@@ -26,10 +26,10 @@
  * takes over. Guarded by tests/unit/bookshelf/book-link.test.tsx.
  */
 
-import type { ComponentPropsWithoutRef, MouseEvent, ReactElement } from 'react';
+import type { ComponentPropsWithRef, MouseEvent, ReactElement } from 'react';
 import { bookPath } from '../_lib/book-address';
 
-export interface BookLinkProps extends Omit<ComponentPropsWithoutRef<'a'>, 'href' | 'onClick'> {
+export interface BookLinkProps extends Omit<ComponentPropsWithRef<'a'>, 'href' | 'onClick'> {
   /** The book whose page the link names. */
   readonly slug: string;
   /** Opens the book in place: called on a plain left click instead of following the link. */

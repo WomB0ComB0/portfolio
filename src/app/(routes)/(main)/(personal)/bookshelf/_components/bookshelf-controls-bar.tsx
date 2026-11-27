@@ -23,7 +23,7 @@
  * tests/unit/bookshelf/bookshelf-stage.test.tsx and use-in-page-detail.test.tsx.
  */
 
-import type { ReactElement } from 'react';
+import type { ReactElement, Ref } from 'react';
 import { FiArrowLeft, FiArrowRight, FiArrowUpRight } from 'react-icons/fi';
 import { countOf } from '@/components/console/folio/byline-items';
 import { cn } from '@/lib/utils';
@@ -40,6 +40,8 @@ export interface BookshelfControlsBarProps {
   readonly displayIndex: number;
   readonly bookCount: number;
   readonly activeBook: BookItem;
+  /** The Open notes link: focus goes back to it when the book it opened closes. */
+  readonly openNotesRef: Ref<HTMLAnchorElement>;
   readonly onOpenDetail: (book: BookItem) => void;
   readonly onStep: (delta: number) => void;
 }
@@ -52,6 +54,7 @@ export function BookshelfControlsBar({
   displayIndex,
   bookCount,
   activeBook,
+  openNotesRef,
   onOpenDetail,
   onStep,
 }: BookshelfControlsBarProps): ReactElement {
@@ -72,6 +75,7 @@ export function BookshelfControlsBar({
           ·
         </span>
         <BookLink
+          ref={openNotesRef}
           slug={activeBook.slug}
           onOpen={() => onOpenDetail(activeBook)}
           className="inline-flex items-center gap-1 tile-meta text-brand-ink underline-offset-4 hover:text-foreground hover:underline"
