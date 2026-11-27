@@ -20,12 +20,18 @@
  * used spelling). It picks the Kind chips here: the most used kinds while they fit the bar's
  * widest row (kind-chip-budget.ts), the rest folded under Other. Pure and server-safe.
  *
+ * A project's technologies include those only its parts have (allTechnologiesOf in
+ * project-parts.ts), so a part-only technology gets a label, a count and a working ?tech=, and a
+ * part's spelling of a technology the main list already has is not a second use.
+ *
  * Only the server imports this module (the page's index, project-index.ts), so the chip-width
  * estimate never reaches the browser. The client island imports the schema itself from
  * project-schema.ts, which this module re-exports for its server importers.
  */
 
+import type { ProjectPart } from '@/hooks/sanity/schemas';
 import { kindChipCount } from './kind-chip-budget';
+import { allTechnologiesOf } from './project-parts';
 import { OTHER_KIND, type ProjectLookups } from './project-schema';
 import { kindSlug, kindsOf, techKey } from './project-text';
 
@@ -36,10 +42,11 @@ export {
   projectFilters,
 } from './project-schema';
 
-/** What the lookups are built from: each project's category and technologies. */
+/** What the lookups are built from: each project's category, technologies and parts. */
 export interface LookupSource {
   readonly category: string;
   readonly technologies: readonly string[];
+  readonly systemParts?: readonly ProjectPart[] | null;
 }
 
 /** Adds one use of `label` under `key`. */
@@ -62,9 +69,9 @@ const uses = (spellings: ReadonlyMap<string, number> | undefined): number =>
 export function buildProjectLookups(sources: readonly LookupSource[]): ProjectLookups {
   const kindTally = new Map<string, Map<string, number>>();
   const techTally = new Map<string, Map<string, number>>();
-  for (const { category, technologies } of sources) {
-    for (const label of kindsOf(category)) countUse(kindTally, kindSlug(label), label);
-    for (const tech of technologies) {
+  for (const source of sources) {
+    for (const label of kindsOf(source.category)) countUse(kindTally, kindSlug(label), label);
+    for (const tech of allTechnologiesOf(source)) {
       const key = techKey(tech);
       if (key !== '') countUse(techTally, key, tech.trim());
     }

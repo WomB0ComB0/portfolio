@@ -31,14 +31,29 @@
  * - the Visit address wraps only after a dot (or at a hyphen), never mid-word, even at 320 px
  *   with 200% text; a long name in the prose ('links.example.dev') stays whole whenever it fits
  *   its line;
- * - the neighbours lead to their pages, and Built with to /projects filtered by technology.
+ * - the neighbours lead to their pages, and Built with to /projects filtered by technology;
+ * - a project made of several repositories shows "How it fits together" between The project and
+ *   Screens, at 1440 and 375: one h3 per part in Studio order, one h1, a private row with no link,
+ *   a part with its own page leading there from its name, repository links and such a name 44px
+ *   tall under a finger without making the row taller, no sideways scroll at 320 px with 200%
+ *   text and no page error; a project with fewer than two parts has no such section.
  * The cases are picked from the live list (GET /api/v1/sanity/projects); a case the data lacks is
  * skipped, never faked. GET only.
  */
 
-import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
+import { type APIRequestContext, type Browser, expect, type Page, test } from '@playwright/test';
 
 import { getTargetUrl } from '../fixtures/base';
+import {
+  type ApiPart,
+  filled,
+  hasParts,
+  isPrivatePart,
+  listPartsProjects,
+  oneLine,
+  partRow,
+  shownParts,
+} from '../fixtures/project-parts';
 
 interface ApiImage {
   readonly asset?: { readonly _ref?: string } | null;
@@ -55,6 +70,7 @@ interface ApiProject {
   readonly description?: string | null;
   readonly longDescription?: string | null;
   readonly technologies?: readonly string[] | null;
+  readonly systemParts?: readonly ApiPart[] | null;
 }
 
 const ASSET = /^image-[A-Za-z0-9]+-(\d+)x(\d+)-[a-z0-9]+$/;
@@ -666,5 +682,222 @@ test.describe('the narrow layout', () => {
     // A long address or path keeps its own breaks at its dots and slashes, never a hyphen.
     for (const value of narrow.addresses) expect(value).toBe('manual');
     await noSidewaysScroll(page);
+  });
+});
+
+test.describe('how a multi-repository project fits together', () => {
+  const PARTS_TITLE = 'How it fits together';
+  /** A touch target's least height: 2.75rem at the default 16px text. */
+  const TOUCH_PX = 44;
+  /** Sub-pixel rounding in a box's measured height. */
+  const ROUNDING_PX = 0.5;
+
+  /** The project with the most parts among `projects`, or null. */
+  const mostParts = (projects: readonly ApiProject[]): ApiProject | null =>
+    projects.reduce<ApiProject | null>(
+      (best, each) =>
+        shownParts(each).length > (best ? shownParts(best).length : 0) ? each : best,
+      null,
+    );
+
+  /**
+   * The project whose section has the most to check: one with a private part when any has (so
+   * the private rows are checked whenever the data holds one), then the one with the most parts.
+   */
+  async function fullestParts(request: APIRequestContext): Promise<ApiProject | null> {
+    const withParts = (await listPartsProjects<ApiProject>(request)).filter(hasParts);
+    return (
+      mostParts(withParts.filter((each) => shownParts(each).some(isPrivatePart))) ??
+      mostParts(withParts)
+    );
+  }
+
+  /** A new context at `size`, as a phone under a finger when `touch`. */
+  const contextAt = (browser: Browser, size: { width: number; height: number; touch: boolean }) =>
+    browser.newContext({
+      viewport: { width: size.width, height: size.height },
+      hasTouch: size.touch,
+      isMobile: size.touch,
+    });
+
+  for (const size of [
+    { width: 1440, height: 900, touch: false },
+    { width: 375, height: 812, touch: true },
+  ]) {
+    test(`shows one heading per part, in order, and links no private part at ${size.width} px`, async ({
+      browser,
+      request,
+    }) => {
+      const project = await fullestParts(request);
+      test.skip(!project, 'no project has two or more parts yet');
+      if (!project) return;
+      const parts = shownParts(project);
+      const context = await contextAt(browser, size);
+      const page = await context.newPage();
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      try {
+        await open(page, project);
+
+        const section = page.getByRole('region', { name: PARTS_TITLE });
+        await section.scrollIntoViewIfNeeded();
+        await expect(section).toBeVisible();
+        await expect(page.locator('h1')).toHaveCount(1);
+        await expect(section.locator('ul[data-case-parts] > li')).toHaveCount(parts.length);
+        // Each name once, in Studio order (a linked name's arrow is hidden from the name).
+        const names = (await section.locator('h3').allTextContents()).map((text) =>
+          oneLine(text.replace('→', '')),
+        );
+        expect(names).toEqual(parts.map((part) => oneLine(String(part.name))));
+        for (const part of parts.filter(isPrivatePart)) {
+          const row = section.locator(partRow(part));
+          await expect(row).toContainText('Private repository');
+          await expect(row.locator('a')).toHaveCount(0);
+        }
+        // Between The project and Screens, and before Built with.
+        const order = await page
+          .locator('[data-case-section]')
+          .evaluateAll((sections) =>
+            sections.map((each) => each.getAttribute('data-case-section') ?? ''),
+          );
+        const at = order.indexOf('parts');
+        expect(at).toBeGreaterThan(order.indexOf('about'));
+        for (const later of ['screens', 'built-with'].filter((name) => order.includes(name))) {
+          expect(order.indexOf(later), later).toBeGreaterThan(at);
+        }
+        await noSidewaysScroll(page);
+        expect(errors).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test('a repository link is at least 44 px tall under a finger', async ({ browser, request }) => {
+    const project =
+      (await listPartsProjects<ApiProject>(request)).find((each) =>
+        shownParts(each).some((part) => filled(part.repoUrl)),
+      ) ?? null;
+    test.skip(!project, 'no project with parts links a public repository yet');
+    if (!project) return;
+    const context = await contextAt(browser, { width: 375, height: 812, touch: true });
+    const page = await context.newPage();
+    try {
+      await open(page, project);
+      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+      const links = page
+        .getByRole('region', { name: PARTS_TITLE })
+        .locator('[data-case-part-link="repo"]');
+      expect(await links.count()).toBeGreaterThan(0);
+      const heights = await links.evaluateAll((each) =>
+        each.map((link) => link.getBoundingClientRect().height),
+      );
+      for (const height of heights) expect(height).toBeGreaterThanOrEqual(TOUCH_PX - ROUNDING_PX);
+    } finally {
+      await context.close();
+    }
+  });
+
+  /** The first part of `project` that links another listed project's page, if any. */
+  const linkedPartOf = (project: ApiProject, listed: ReadonlySet<string>): ApiPart | undefined =>
+    shownParts(project).find(
+      (part) =>
+        filled(part.projectId) &&
+        part.projectId.trim() !== project._id &&
+        listed.has(part.projectId.trim()),
+    );
+
+  /** A project with a part that links another project's page, and that page's path. */
+  async function projectLinkingAPage(
+    request: APIRequestContext,
+  ): Promise<{ readonly project: ApiProject; readonly target: string } | null> {
+    const projects = await listPartsProjects<ApiProject>(request);
+    const listed = new Set(projects.map(({ _id }) => _id));
+    const project = projects.find((each) => linkedPartOf(each, listed)) ?? null;
+    if (!project) return null;
+    const id = String(linkedPartOf(project, listed)?.projectId).trim();
+    return { project, target: `/projects/${encodeURIComponent(id)}` };
+  }
+
+  test('a part’s name that links its page is at least 44 px tall under a finger, and its row is not', async ({
+    browser,
+    request,
+  }) => {
+    const linking = await projectLinkingAPage(request);
+    test.skip(!linking, 'no part links another project’s page yet');
+    if (!linking) return;
+    const context = await contextAt(browser, { width: 375, height: 812, touch: true });
+    const page = await context.newPage();
+    try {
+      await open(page, linking.project);
+      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+      const name = page
+        .getByRole('region', { name: PARTS_TITLE })
+        .locator(`h3 a[data-case-part-link="page"][href="${linking.target}"]`);
+      await expect(name).toHaveCount(1);
+      const { link, heading } = await name.evaluate((anchor) => ({
+        link: anchor.getBoundingClientRect().height,
+        heading: anchor.closest('h3')?.getBoundingClientRect().height ?? 0,
+      }));
+      expect(link).toBeGreaterThanOrEqual(TOUCH_PX - ROUNDING_PX);
+      // The link reaches into the space around its heading rather than making the row taller.
+      expect(heading).toBeLessThan(link);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('a part with its own page leads there from its name', async ({ page, request }) => {
+    const linking = await projectLinkingAPage(request);
+    test.skip(!linking, 'no part links another project’s page yet');
+    if (!linking) return;
+    const { project, target } = linking;
+    await open(page, project);
+
+    const name = page
+      .getByRole('region', { name: PARTS_TITLE })
+      .locator(`h3 a[data-case-part-link="page"][href="${target}"]`);
+    await expect(name).toHaveCount(1);
+    await name.click();
+    await expect(page).toHaveURL(new RegExp(`${target}$`));
+    await expect(page.locator('h1')).not.toHaveText(project.title);
+  });
+
+  test('never scrolls sideways at 320 px with 200% text', async ({
+    page,
+    request,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'the browser text size is set through Chromium’s CDP');
+    const project = await fullestParts(request);
+    test.skip(!project, 'no project has two or more parts yet');
+    if (!project) return;
+    await page.setViewportSize({ width: 320, height: 640 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 26 } });
+    await open(page, project);
+
+    const section = page.getByRole('region', { name: PARTS_TITLE });
+    await section.scrollIntoViewIfNeeded();
+    await expect(section).toBeVisible();
+    await noSidewaysScroll(page);
+    const past = await section.evaluate((root) =>
+      [...root.querySelectorAll('*')]
+        .filter((each) => each.getBoundingClientRect().right > window.innerWidth + 1)
+        .map((each) => (each.textContent ?? '').trim().slice(0, 40)),
+    );
+    expect(past, 'past the window’s right edge').toEqual([]);
+  });
+
+  test('a project with fewer than two parts has no such section', async ({ page, request }) => {
+    const project = (await listPartsProjects<ApiProject>(request)).find((each) => !hasParts(each));
+    test.skip(!project, 'every project has parts');
+    if (!project) return;
+    await open(page, project);
+
+    await expect(page.locator('[data-case-section="parts"]')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: PARTS_TITLE })).toHaveCount(0);
   });
 });

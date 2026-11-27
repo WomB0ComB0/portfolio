@@ -241,6 +241,8 @@ export interface DynamicRoutes {
   readonly projectWithScreens: string | null;
   /** A project with "See also" (writing and video about it), with photos and videos if any has. */
   readonly projectWithSeeAlso: string | null;
+  /** A project made of several repositories: its case study has "How it fits together". */
+  readonly projectWithParts: string | null;
   /** The first role on /experience. */
   readonly experience: string | null;
   /** A place with two or more photos, so its viewer has Previous and Next. */
@@ -250,6 +252,7 @@ export interface DynamicRoutes {
 /** The markup that marks each part, as the server renders it. */
 const MARKS = {
   screens: 'data-case-section="screens"',
+  parts: 'data-case-section="parts"',
   seeAlso: 'data-project-media=""',
   photosAndVideos: 'id="project-media"',
   severalPhotos: 'aria-label="Next photo"',
@@ -313,6 +316,7 @@ async function discover(request: APIRequestContext): Promise<DynamicRoutes> {
   const firstWhere = detailFinder(request);
 
   const projectWithScreens = await firstWhere(projects, (html) => html.includes(MARKS.screens));
+  const projectWithParts = await firstWhere(projects, (html) => html.includes(MARKS.parts));
   const projectWithSeeAlso =
     (await firstWhere(
       projectsWithMedia,
@@ -324,6 +328,7 @@ async function discover(request: APIRequestContext): Promise<DynamicRoutes> {
   return {
     projectWithScreens,
     projectWithSeeAlso,
+    projectWithParts,
     experience: detailLinks(experienceHtml, 'experience')[0] ?? null,
     place,
   };

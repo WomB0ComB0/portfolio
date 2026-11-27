@@ -109,6 +109,15 @@ describe('techKey', () => {
     expect(techKey('Shadcn/ui')).toBe(techKey('Shadcn UI'));
   });
 
+  it('folds Express.js into Express and Convex.dev into Convex, as a part may spell them', () => {
+    for (const raw of ['Express', 'Express.js', 'ExpressJS', 'express']) {
+      expect(techKey(raw)).toBe('express');
+    }
+    for (const raw of ['Convex', 'Convex.dev', 'convex']) {
+      expect(techKey(raw)).toBe('convex');
+    }
+  });
+
   it('keeps distinct technologies distinct', () => {
     expect(techKey('React Native')).not.toBe(techKey('React'));
     expect(techKey('Go')).toBe('go');

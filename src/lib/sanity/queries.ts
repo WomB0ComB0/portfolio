@@ -27,6 +27,14 @@ const portfolioMediaProjection = `media[]{
 }`;
 
 /**
+ * A multi-repository project's parts and their lead sentence, identical in every project query.
+ * The page link stays an id (project._ref, no ->): the page resolves it against the project list
+ * it already loads, so an unpublished or deleted project simply gives no link.
+ */
+const projectSystemProjection = `systemSummary,
+    "systemParts": systemParts[]{_key, _type, name, role, repoUrl, "projectId": project._ref, technologies, contribution}`;
+
+/**
  * Fetch all experiences ordered by explicit order then start date (most recent first)
  */
 export const experiencesQuery = `
@@ -127,6 +135,7 @@ export const projectsQuery = `
     ${portfolioMediaProjection},
     technologies,
     githubUrl,
+    ${projectSystemProjection},
     liveUrl,
     featured,
     featuredRank,
@@ -157,6 +166,7 @@ export const featuredProjectsQuery = `
     ${portfolioMediaProjection},
     technologies,
     githubUrl,
+    ${projectSystemProjection},
     liveUrl,
     featured,
     featuredRank,
@@ -187,6 +197,7 @@ export const projectBySlugQuery = `
     ${portfolioMediaProjection},
     technologies,
     githubUrl,
+    ${projectSystemProjection},
     liveUrl,
     featured,
     featuredRank,

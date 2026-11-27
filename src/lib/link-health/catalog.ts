@@ -25,6 +25,7 @@ import { linkedHrefs } from '@/app/(routes)/(main)/(professioal)/experience/_lib
 import { buildRoleStory } from '@/app/(routes)/(main)/(professioal)/experience/_lib/role-story';
 import { safeHref } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-links';
 import { orderProjects } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-order';
+import { partRepoHrefs } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-parts';
 import { ensureBaseError } from '@/classes/error';
 import { processGlobal, resetProcessGlobal } from '@/lib/cache/process-global';
 import { createStaleCache, type StaleCache } from '@/lib/cache/stale-cache';
@@ -100,10 +101,14 @@ function isStableDestination(href: string): boolean {
 async function renderedTargets(scope: LinkHealthScope): Promise<readonly (string | null)[]> {
   switch (scope) {
     case 'projects':
-      // These are the same two helpers/fields used by the list and CaseLinks, without loading images.
+      // These are the same two helpers/fields used by the list and CaseLinks, without loading images,
+      // then the repository links a project page's "How it fits together" section draws (the same
+      // threshold and safeHref rule), so each of their badges has an entry; a private part has no
+      // link and is never probed.
       return orderProjects(await loadProjects()).flatMap(({ item }) => [
         safeHref(item.liveUrl),
         safeHref(item.githubUrl),
+        ...partRepoHrefs(item),
       ]);
     case 'certifications':
       // Featured entries are also in entries. Stored files are links even when verifies is false.

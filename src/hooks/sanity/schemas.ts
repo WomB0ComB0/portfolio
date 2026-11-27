@@ -261,6 +261,45 @@ export const ExperienceSchema = Schema.Struct({
 });
 
 /**
+ * One part of a multi-repository project, as the project queries' parts projection answers it.
+ * Only the key is required: Studio requires a name and a role, but an old or half-typed draft
+ * must never drop its project, so the /projects view model drops a nameless row instead.
+ */
+export const ProjectPartSchema = Schema.Struct({
+  _key: Schema.String,
+  _type: optionalNullable(Schema.Literal('projectPart')),
+  name: optionalNullable(Schema.String),
+  role: optionalNullable(Schema.String),
+  repoUrl: optionalNullable(Schema.String),
+  /** The id of another project's page this part links, unresolved (project._ref). */
+  projectId: optionalNullable(Schema.String),
+  technologies: optionalNullable(Schema.Array(Schema.String)),
+  contribution: optionalNullable(Schema.String),
+});
+export type ProjectPart = Schema.Schema.Type<typeof ProjectPartSchema>;
+
+/**
+ * A malformed part must not invalidate its readable project: the loaders drop a whole document
+ * that fails to decode, which would take the project off /projects, its page, the sitemap and
+ * the home page. Copied from experienceSubRolesValue rather than shared, so experience decoding
+ * stays exactly as it is.
+ */
+const projectPartsValue = Schema.Unknown.pipe(
+  Schema.decodeTo(Schema.NullOr(Schema.Array(ProjectPartSchema)), {
+    decode: SchemaGetter.transform((value) => {
+      if (value === null) return null;
+      if (!Array.isArray(value)) return [];
+      const decode = Schema.decodeUnknownResult(ProjectPartSchema);
+      return value.flatMap((part) => {
+        const result = decode(part);
+        return Result.isSuccess(result) ? [result.success] : [];
+      });
+    }),
+    encode: SchemaGetter.passthrough(),
+  }),
+);
+
+/**
  * Sanity Project Schema with Effect Schema validation
  */
 export const ProjectSchema = Schema.Struct({
@@ -288,6 +327,13 @@ export const ProjectSchema = Schema.Struct({
   featuredRank: optionalNullable(Schema.Number),
   liveUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   githubUrl: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
+  /**
+   * "How it fits together": the repositories a multi-repository project is made of, in Studio
+   * order. GROQ answers null for a document without them; a malformed part is dropped alone.
+   */
+  systemParts: Schema.optional(projectPartsValue),
+  /** The parts' optional lead sentence; null (every document written before it) reads as absent. */
+  systemSummary: optionalNullable(Schema.String),
   startDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   endDate: Schema.optional(Schema.Union([Schema.String, Schema.Null])),
   order: Schema.Number,

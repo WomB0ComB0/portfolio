@@ -43,6 +43,7 @@ const FILES = [
   '_lib/project-screens.ts',
   '_lib/project-views.ts',
   '_lib/project-links.ts',
+  '_lib/project-parts.ts',
   '_components/story-parts.tsx',
   '_components/lead-story.tsx',
   '_components/project-brief.tsx',

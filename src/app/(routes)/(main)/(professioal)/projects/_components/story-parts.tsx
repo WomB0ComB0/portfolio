@@ -18,7 +18,8 @@
  * @file The parts every /projects story shares (the lead story, a feature, a brief): the cover in
  * its frame (the image, or the Folio type cover when a project has none), the title's link (the
  * story's one link to its page, stretched over the whole story), Code and Live above it, and the
- * byline's words. Server-safe (no directive, no hooks), so the filter island can draw them and
+ * byline's words: the kind, the date, '3 repos' for a project made of several repositories (plain
+ * words, no link), then the in-progress dot last. Server-safe (no directive, no hooks), so the filter island can draw them and
  * the HTML reads without JavaScript.
  *
  * The hover is one system: the story is `group/story`; its cover lifts 4px on translate (the
@@ -29,7 +30,7 @@
 
 import Link from 'next/link';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
-import type { BylinePart } from '@/components/console/folio/byline-items';
+import { type BylinePart, countOf } from '@/components/console/folio/byline-items';
 import { TypeCover } from '@/components/console/folio/type-cover';
 import { widestWordUnits } from '@/components/console/folio/word-measure';
 import { NEW_TAB_LABEL, SrOnlyWords } from '@/components/console/tile-link';
@@ -40,7 +41,7 @@ import { cn } from '@/lib/utils';
 import { WIDE_MIN_RATIO } from '../_lib/project-chapters';
 import type { ProjectEntry, ProjectImage } from '../_lib/project-index';
 import { focusPosition } from '../_lib/project-screens';
-import { projectHref } from '../_lib/project-text';
+import { projectHref, REPO_NOUN } from '../_lib/project-text';
 import { monthYear } from '../_lib/project-words';
 
 /**
@@ -267,16 +268,24 @@ export const ARROW_CLASS = [
 const statusPart = (entry: Pick<ProjectEntry, 'ongoing'>): BylinePart =>
   entry.ongoing ? { text: 'In progress', tone: 'ongoing' } : null;
 
-/** A brief's byline: 'CLI Tool · Feb 2026 · In progress'. */
+/** '3 repos' for a project made of several repositories; nothing otherwise (no repoCount key). */
+const repoPart = (entry: Pick<ProjectEntry, 'repoCount'>): BylinePart =>
+  entry.repoCount ? countOf(entry.repoCount, REPO_NOUN) : null;
+
+/** A brief's byline: 'CLI Tool · Feb 2026 · 3 repos · In progress'. */
 export const briefByline = (
-  entry: Pick<ProjectEntry, 'kindLabels' | 'started' | 'ongoing'>,
+  entry: Pick<ProjectEntry, 'kindLabels' | 'started' | 'ongoing' | 'repoCount'>,
 ): BylinePart[] => [
   entry.kindLabels[0],
   entry.started ? monthYear(entry.started) : null,
+  repoPart(entry),
   statusPart(entry),
 ];
 
-/** A lead story's byline, with the whole run: 'Public Safety · Apr 2026 – now · In progress'. */
+/**
+ * A lead story's byline, with the whole run: 'Public Safety · Apr 2026 – now · 3 repos ·
+ * In progress'.
+ */
 export const leadByline = (
-  entry: Pick<ProjectEntry, 'kindLabels' | 'period' | 'ongoing'>,
-): BylinePart[] => [entry.kindLabels[0], entry.period, statusPart(entry)];
+  entry: Pick<ProjectEntry, 'kindLabels' | 'period' | 'ongoing' | 'repoCount'>,
+): BylinePart[] => [entry.kindLabels[0], entry.period, repoPart(entry), statusPart(entry)];

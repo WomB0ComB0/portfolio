@@ -16,6 +16,7 @@
 
 import { defineField, defineType } from 'sanity';
 import { portfolioMediaField } from './portfolio-media';
+import { systemPartsFields } from './project-parts';
 
 export const projectType = defineType({
   name: 'project',
@@ -135,6 +136,7 @@ export const projectType = defineType({
       description:
         'The repository, e.g. https://github.com/WomB0ComB0/grepo, or an organization, e.g. https://github.com/ElysiumOSS. The home page shows this project as your "Latest work" when your own commits reached this repository (or any of the organization’s) in the last 30 days. Only commits GitHub counts as yours do: on the default branch of a public repository that is not a fork. A fork, a private repository, a GitLab or Bitbucket link, or this website never is.',
     }),
+    ...systemPartsFields(),
     defineField({
       name: 'startDate',
       title: 'Start Date',

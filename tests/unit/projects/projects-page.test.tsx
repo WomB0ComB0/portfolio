@@ -31,7 +31,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { makeProject } from '@tests/fixtures/sanity-docs';
+import { makeProject, makeProjectPart } from '@tests/fixtures/sanity-docs';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import type { ReactElement } from 'react';
 import { hydrateRoot, type Root } from 'react-dom/client';
@@ -313,6 +313,95 @@ describe('/projects Stories on the server', () => {
       .map((link) => link.getAttribute('href'));
 
     expect(hrefs).toEqual(['#featured', '#y2025', '#y2024', '#y2023', '#y2022', '#undated']);
+  });
+});
+
+describe('/projects cards of a project made of several repositories', () => {
+  const MAIN_CODE = 'https://github.com/example-org/example-main';
+  /**
+   * The 2025 lead (index 2) in progress with three parts, a 2025 brief (index 4, already in
+   * progress) with two, and a 2024 brief (index 5) with only one, which reads as one repository.
+   */
+  const PARTED: readonly Project[] = PROJECTS.map((project, index) => {
+    if (index === 2) {
+      return {
+        ...project,
+        status: 'In Progress',
+        githubUrl: MAIN_CODE,
+        liveUrl: 'https://main.example',
+        systemParts: [
+          makeProjectPart({ repoUrl: MAIN_CODE }),
+          makeProjectPart(),
+          makeProjectPart({ repoUrl: undefined, name: 'Core service' }),
+        ],
+      };
+    }
+    if (index === 4) return { ...project, systemParts: [makeProjectPart(), makeProjectPart()] };
+    if (index === 5) return { ...project, systemParts: [makeProjectPart()] };
+    return project;
+  });
+  const idAt = (index: number): string => PROJECTS[index]?._id ?? '';
+  const bylineOf = (selector: string, index: number): Element | null =>
+    document.querySelector(`${selector}[data-project-id="${idAt(index)}"] [data-byline]`);
+
+  beforeEach(() => {
+    loaders.loadProjects.mockResolvedValue(PARTED);
+  });
+
+  it('adds "N repos" to the lead’s byline, before the in-progress dot', async () => {
+    await renderPage();
+    const lead = document.querySelector(
+      `[data-project-story="lead"][data-project-id="${idAt(2)}"]`,
+    );
+
+    expect(lead).not.toBeNull();
+    expect(bylineOf('[data-project-story="lead"]', 2)).toHaveTextContent(
+      'Web Development · Sep 2025 – now · 3 repos · In progress',
+    );
+  });
+
+  it('adds it to a brief’s byline, and leaves a project with one part, or none, as it was', async () => {
+    await renderPage();
+
+    expect(bylineOf('[data-project-story]', 4)).toHaveTextContent(
+      'Mobile · Jan 2025 · 2 repos · In progress',
+    );
+    expect(bylineOf('[data-project-story]', 5)).toHaveTextContent(/^Mobile · May 2024$/);
+    expect(bylineOf('[data-project-story]', 6)?.textContent).not.toMatch(/repo/);
+    expect(document.body.textContent).not.toMatch(/\b1 repo\b/);
+  });
+
+  it('adds it in the Index view too', async () => {
+    await renderPage('?view=index');
+
+    expect(bylineOf('[data-project-entry]', 2)).toHaveTextContent(
+      'Web Development · Sep 2025 · 3 repos · In progress',
+    );
+    expect(bylineOf('[data-project-entry]', 4)).toHaveTextContent('2 repos');
+    expect(bylineOf('[data-project-entry]', 5)?.textContent).not.toMatch(/repo/);
+  });
+
+  it('adds no link: the story keeps its one page link, and Code is still the main repository', async () => {
+    await renderPage();
+    const lead = document.querySelector(
+      `[data-project-story="lead"][data-project-id="${idAt(2)}"]`,
+    );
+    const links = Array.from(lead?.querySelectorAll('a') ?? []);
+
+    expect(lead?.querySelectorAll('a[data-story-link]')).toHaveLength(1);
+    expect(
+      Array.from(lead?.querySelectorAll('a[data-project-link]') ?? []).map((link) => [
+        link.getAttribute('data-project-link'),
+        link.getAttribute('href'),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['code', MAIN_CODE],
+        ['live', 'https://main.example'],
+      ]),
+    );
+    expect(lead?.querySelectorAll('a[data-project-link]')).toHaveLength(2);
+    expect(links.every((link) => !link.getAttribute('href')?.includes('example-part'))).toBe(true);
   });
 });
 

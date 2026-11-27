@@ -23,6 +23,7 @@
  * spellings that fold together.
  */
 
+import { makeProject, makeProjectPart } from '@tests/fixtures/sanity-docs';
 import { describe, expect, it } from 'vitest';
 
 import { MAX_KIND_CHIPS } from '@/app/(routes)/(main)/(professioal)/projects/_lib/kind-chip-budget';
@@ -32,6 +33,10 @@ import {
   type ProjectFilterItem,
   projectFilters,
 } from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-filters';
+import {
+  buildProjectIndex,
+  type ProjectEntry,
+} from '@/app/(routes)/(main)/(professioal)/projects/_lib/project-index';
 import {
   kindSlug,
   kindsOf,
@@ -312,5 +317,117 @@ describe('counts, links and words', () => {
     expect(schema.maxLength).toBe(100);
     expect(shown('?q=elysium')).toEqual(['p02']);
     expect(shown('?q=TENSORFLOW')).toEqual(['p05']);
+  });
+});
+
+describe('a project’s parts feed the Technology filter', () => {
+  const extension = makeProjectPart({
+    _key: 'extension',
+    name: 'Browser extension',
+    repoUrl: 'https://github.com/example-org/example-extension',
+    technologies: ['Plasmo', 'React.js'],
+  });
+  const scraper = makeProjectPart({
+    _key: 'scraper',
+    name: 'Scraper API',
+    repoUrl: 'https://github.com/example-org/example-scraper',
+    technologies: ['Express', 'Puppeteer'],
+  });
+  const linked = makeProjectPart({
+    _key: 'linked',
+    name: 'Example Shortener',
+    repoUrl: 'https://github.com/example-org/example-shortener',
+    projectId: 'proj-shortener',
+    technologies: ['Hono'],
+  });
+  const lonely = makeProjectPart({ _key: 'lonely', technologies: ['Zig'] });
+  const PROJECTS = [
+    makeProject({ _id: 'parent', technologies: ['React'], systemParts: [extension, scraper] }),
+    makeProject({ _id: 'platform', technologies: ['Go'], systemParts: [scraper, linked] }),
+    makeProject({ _id: 'single', technologies: ['Rust'], systemParts: [lonely] }),
+    // One React and one React.js elsewhere: a second use from the parent's part would flip the
+    // label to React.js.
+    makeProject({ _id: 'plain', technologies: ['React.js', 'Puppeteer 22'] }),
+  ];
+  const withParts = buildProjectLookups(PROJECTS);
+  const { entries, lookups: indexLookups } = buildProjectIndex(PROJECTS, () => []);
+  const partsSchema = projectFilters<ProjectEntry>(indexLookups);
+  const keep = (search: string) =>
+    partsSchema.filter(entries, partsSchema.parse(search)).map(({ id }) => id);
+
+  it('labels a technology only a part has', () => {
+    expect(withParts.techs.plasmo).toBe('Plasmo');
+    expect(withParts.techs.express).toBe('Express');
+  });
+
+  it('filters by a part-only technology to its parent project, through the page’s own schema', () => {
+    const address = new URL('/projects?tech=plasmo', 'https://example.test');
+
+    expect(partsSchema.parse(address).tech).toEqual(['plasmo']);
+    expect(partsSchema.filter(entries, partsSchema.parse(address)).map(({ id }) => id)).toEqual([
+      'parent',
+    ]);
+    expect(keep('?tech=express')).toEqual(expect.arrayContaining(['parent', 'platform']));
+    expect(keep('?tech=express')).toHaveLength(2);
+  });
+
+  it('counts a part spelling under the main list’s key, without a second use for the parent', () => {
+    expect(keep('?tech=react')).toEqual(expect.arrayContaining(['parent', 'plain']));
+    expect(keep('?tech=react')).toHaveLength(2);
+    expect(withParts.techs.react).toBe('React');
+  });
+
+  it('adds nothing for a part that links another project’s page', () => {
+    expect(withParts.techs.hono).toBeUndefined();
+    expect(partsSchema.parse('?tech=hono').tech).toEqual([]);
+  });
+
+  it('adds nothing for a project with only one part', () => {
+    expect(withParts.techs.zig).toBeUndefined();
+    expect(keep('?tech=rust')).toEqual(['single']);
+  });
+
+  it('finds the same projects for Express and Express.js, whichever list spells which', () => {
+    // The gateway's own dashboard part says Convex beside its main list's Convex.dev, and the
+    // scraped project's part says Express where two main lists say Express.js.
+    const spelled = [
+      makeProject({
+        _id: 'gateway',
+        technologies: ['Express.js', 'Convex.dev'],
+        systemParts: [{ ...extension, technologies: ['Convex'] }, linked],
+      }),
+      makeProject({ _id: 'planner', technologies: ['Express.js'] }),
+      makeProject({ _id: 'scraped', technologies: ['React'], systemParts: [scraper, extension] }),
+    ];
+    const lookups = buildProjectLookups(spelled);
+    const index = buildProjectIndex(spelled, () => []);
+    const schema = projectFilters<ProjectEntry>(index.lookups);
+    const found = (search: string) =>
+      schema
+        .filter(index.entries, schema.parse(search))
+        .map(({ id }) => id)
+        .sort();
+
+    // One picker entry each, under the spelling most projects use.
+    expect(lookups.techs.express).toBe('Express.js');
+    expect(lookups.techs.expressjs).toBeUndefined();
+    expect(lookups.techs.convex).toBe('Convex.dev');
+    expect(lookups.techs.convexdev).toBeUndefined();
+    for (const search of ['?tech=express', '?tech=Express.js', '?tech=expressjs']) {
+      expect(found(search), search).toEqual(['gateway', 'planner', 'scraped']);
+    }
+    for (const search of ['?tech=convex', '?tech=Convex.dev']) {
+      expect(found(search), search).toEqual(['gateway']);
+    }
+  });
+
+  it('leaves the Kind chips as the categories alone give them', () => {
+    const categoriesOnly = buildProjectLookups(
+      PROJECTS.map(({ category, technologies }) => ({ category, technologies })),
+    );
+
+    expect(withParts.kinds).toEqual(categoriesOnly.kinds);
+    expect(withParts.kindOrder).toEqual(categoriesOnly.kindOrder);
+    expect(withParts.folded).toEqual(categoriesOnly.folded);
   });
 });
