@@ -117,7 +117,9 @@ phone (Chromium):
   `/`, `/projects`, a project with screens, a project with photos and "See also", `/experience`, a
   role's page, `/places`, `/places/photos`, a place page, `/stats`, `/media`, `/guestbook`,
   `/bookshelf`, `/certifications`, `/resume`, `/sponsor`, `/spotify`, `/privacy`, `/cookies`,
-  `/licenses` and a 404. Any failure fails
+  `/licenses` and a 404, plus a project made of several repositories ("How it fits together"),
+  also at 375 x 812 with touch in the desktop project; that route is skipped until a project lists
+  two or more parts. Any failure fails
   the test, with each rule's id, impact, help and the failing nodes' HTML. Best-practice violations
   are listed in an annotation and an attachment and never fail it. The detail pages are found from
   the listing pages (`/projects`, `/media`, `/experience`, `/places`), not hard-coded ids.

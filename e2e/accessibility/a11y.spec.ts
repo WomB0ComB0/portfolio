@@ -20,9 +20,11 @@
  * `A11Y_BASE_URL=http://127.0.0.1:<port> bun run test:a11y` against a local production build
  * (playwright.a11y.config.ts starts no server and refuses to run without that variable).
  *
- * - axe 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes and /bookshelf,
+ * - axe 4.10 (WCAG 2.0, 2.1 and 2.2, Levels A and AA) on the audit's 20 routes, /bookshelf and a
+ *   project made of several repositories ("How it fits together"; also at 375 x 812 with touch),
  *   expecting no failure. Best-practice violations are reported beside each test (an annotation
- *   and an attachment) and never fail it. The detail pages are found from the listing pages.
+ *   and an attachment) and never fail it. The detail pages are found from the listing pages; a
+ *   route no listed page has yet is skipped.
  * - Keyboard: the skip link; the command menu as a modal dialog that keeps Tab inside and hands
  *   focus back; the rail tooltip, hoverable and dismissed by Escape; a zoomed place photo panned
  *   with the arrow keys, and Previous keeping focus at the first photo; the /stats age's Pause
@@ -58,6 +60,7 @@ const AUDITED_ROUTES: readonly AuditedRoute[] = [
   { label: 'projects', path: '/projects' },
   { label: 'a project with screens', path: (routes) => routes.projectWithScreens },
   { label: 'a project with media and See also', path: (routes) => routes.projectWithSeeAlso },
+  { label: 'a project with parts', path: (routes) => routes.projectWithParts },
   { label: 'experience', path: '/experience' },
   { label: 'an experience page', path: (routes) => routes.experience },
   { label: 'places', path: '/places' },
@@ -109,6 +112,23 @@ test.describe('axe on the audited routes (WCAG 2.2 A and AA)', () => {
       await expectNoAxeFailures(page, testInfo, `${path} (${testInfo.project.name})`);
     });
   }
+});
+
+test.describe('axe on a project with parts at 375 x 812, touch', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
+
+  test('has no WCAG A or AA failures', async ({ page }, testInfo) => {
+    // The phone project runs every route at 390 already; this narrower pass is the desktop's.
+    test.skip(testInfo.project.name !== 'desktop', 'runs once, in the desktop project');
+    const path = await pathOf(page, {
+      label: 'a project with parts',
+      path: (routes) => routes.projectWithParts,
+    });
+    await openPage(page, path);
+    await readyForAxe(page);
+
+    await expectNoAxeFailures(page, testInfo, `${path} at 375 (${testInfo.project.name})`);
+  });
 });
 
 test.describe('keyboard', () => {

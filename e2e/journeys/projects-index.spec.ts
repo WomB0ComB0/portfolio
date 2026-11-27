@@ -40,6 +40,9 @@
  *   uncut Screens names at 200% text: projects-index-layout.spec.ts.
  * - The Kind chips (the shared bar, unchanged): at 1440 every chip shows; at 1024 the
  *   row fades over a clipped end; a focused chip's ring has room; the phone sheet's chips wrap.
+ * - A project made of several repositories: its card says "N repos" in Stories and in Index, and
+ *   no other card says it (the parts are read from GET /api/v1/sanity/projects; the count's
+ *   own case skips until a project lists two or more parts).
  * GET only, on the lab guard (127.0.0.1:3131); nothing signs in or writes.
  */
 
@@ -61,6 +64,7 @@ import {
   type Viewport,
   WIDE,
 } from '../fixtures/project-index';
+import { hasParts, listPartsProjects, shownParts } from '../fixtures/project-parts';
 
 /** Every project's one link to its page. */
 const STORY = 'a[data-story-link]';
@@ -618,6 +622,58 @@ test.describe('/projects layout', () => {
       .poll(() => cover.evaluate((e) => getComputedStyle(e, '::after').opacity))
       .toBe('1');
     expect(await cover.evaluate((e) => getComputedStyle(e).translate)).toBe('none');
+  });
+});
+
+test.describe('/projects: a project made of several repositories', () => {
+  /** A byline's repository count ('3 repos'); never '1 repo', which no card says. */
+  const REPOS = /(?:^|\D)\d+ repos\b/;
+  /** The byline that says exactly `count` repos. */
+  const reposOf = (count: number): RegExp => new RegExp(`(?:^|\\D)${count} repos\\b`);
+
+  test('only a project with two or more parts says "N repos" on its card', async ({
+    page,
+    request,
+  }) => {
+    const projects = await listPartsProjects(request);
+    const main = await openAt(page, '', WIDE);
+    const stories = await main.locator('[data-project-story]').evaluateAll((each) =>
+      each.map((story) => ({
+        id: story.getAttribute('data-project-id') ?? '',
+        byline: [...story.querySelectorAll('[data-byline]')]
+          .map((line) => line.textContent ?? '')
+          .join(' '),
+      })),
+    );
+    const shown = new Set(stories.map(({ id }) => id));
+
+    const saying = stories.filter(({ byline }) => REPOS.test(byline)).map(({ id }) => id);
+    const expected = projects
+      .filter((project) => hasParts(project) && shown.has(project._id))
+      .map(({ _id }) => _id);
+    expect(saying.sort()).toEqual(expected.sort());
+  });
+
+  test('its card says how many repos, in Stories and in Index', async ({ page, request }) => {
+    const project = (await listPartsProjects(request)).find(hasParts) ?? null;
+    test.skip(!project, 'no project has two or more parts yet');
+    if (!project) return;
+    const count = reposOf(shownParts(project).length);
+    const id = JSON.stringify(project._id);
+
+    const stories = await openAt(page, '', WIDE);
+    await expect(
+      stories
+        .locator(`[data-project-story][data-project-id=${id}] [data-byline]`)
+        .filter({ hasText: count }),
+    ).toHaveCount(1);
+
+    const index = await openAt(page, '?view=index', WIDE);
+    await expect(
+      index
+        .locator(`[data-project-entry][data-project-id=${id}] [data-byline]`)
+        .filter({ hasText: count }),
+    ).toHaveCount(1);
   });
 });
 
