@@ -24,8 +24,12 @@ import 'server-only';
  *   Visit and Source, and the cover in a browser frame with the next screen peeking behind it, on
  *   the QuietStage light instead of a blurred copy;
  * - 'Where it sits' (where-it-sits.tsx): its place on one time line, between named neighbours;
- * - the case study (case-study.tsx): only sections Studio has text for; Screens holds every
- *   screen but the cover the header already shows, as one figure, a strip or a contact sheet;
+ * - the case study (case-study.tsx): only sections Studio has text for; How it fits together
+ *   holds a multi-repository project's parts (project-parts.ts resolves a part's page link
+ *   against the project list the page already loads, so there is no extra fetch); Screens holds
+ *   every screen but the cover the header already shows, as one figure, a strip or a contact
+ *   sheet; Built with lists the main technologies first, then those only a part has, so a ?tech=
+ *   link from /projects always lands on a page that shows that technology;
  * - whatever the page adds (its children: See also), and "Back to all projects" last.
  * Every image is a link to the whole image; the shared viewer (src/components/console/photo) is
  * the only client code and opens them in the /places dialog's look. Nothing animates in, so the
@@ -46,6 +50,7 @@ import { CaseStudy } from '../../_components/detail/case-study';
 import { caseTitle } from '../../_components/detail/case-text';
 import { WhereItSits } from '../../_components/detail/where-it-sits';
 import { featuredOf } from '../../_lib/project-order';
+import { allTechnologiesOf, caseSystemOf } from '../../_lib/project-parts';
 import type { ProjectDetailProps } from './project-detail.types';
 
 const BACK_LABEL = 'Back to all projects';
@@ -58,6 +63,7 @@ export function ProjectDetail({ project, projects, children }: ProjectDetailProp
   const all = projects ?? [project];
   const line = projectLine(project._id, all);
   const featured = featuredOf(all).some((each) => each._id === project._id);
+  const system = caseSystemOf(project, all);
   return (
     <PhotoViewerRoot
       items={viewerItems(screens)}
@@ -69,8 +75,9 @@ export function ProjectDetail({ project, projects, children }: ProjectDetailProp
         <WhereItSits line={line} />
         <CaseStudy
           longDescription={project.longDescription}
-          technologies={project.technologies}
+          technologies={allTechnologiesOf(project)}
           screens={screens}
+          system={system}
         />
         <div className={bodyStyles.after}>
           <PortfolioMedia id="project-media" media={project.media} />

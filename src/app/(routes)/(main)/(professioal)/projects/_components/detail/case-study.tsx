@@ -21,9 +21,12 @@ import 'server-only';
  * source text is left out, never written for the owner:
  * - The project: Studio's long description, its first sentence set as the lead when it has more
  *   than one, or Studio's own bullet list;
+ * - How it fits together: for a project made of two or more repositories, the lead sentence and
+ *   a row per part (case-parts.tsx); none for a one-repository project, which reads as before;
  * - Screens: every screen but the cover the header shows, as a figure, a strip or a contact
  *   sheet; none for a project with one image or none (the header then holds it all);
- * - Built with: the technologies as a word list (no pills), each a link to /projects filtered by it;
+ * - Built with: the technologies as a word list (no pills), each a link to /projects filtered by it
+ *   (a project's parts add theirs after the main ones, project-detail.tsx);
  *   a hyphenated or slashed word in a name ('Speech-to-Text') or a long address moves whole to the
  *   next line whenever it fits there, and splits only when it is wider than the column.
  */
@@ -32,8 +35,10 @@ import Link from 'next/link';
 import type { ReactElement, ReactNode } from 'react';
 
 import { breaksInside, WholeWords } from '@/components/console/photo/whole-words';
+import type { CaseSystem } from '../../_lib/project-parts';
 import { Prose } from './breakable';
 import styles from './case-body.module.css';
+import { CaseParts } from './case-parts';
 import { type Screen, screensLayout, sectionScreens } from './case-screens';
 import { type CaseBody, caseBody, leadSplit, proseRuns } from './case-text';
 import { ScreensSheet } from './screens-sheet';
@@ -44,6 +49,8 @@ export interface CaseStudyProps {
   readonly longDescription: string | null | undefined;
   readonly technologies: readonly string[];
   readonly screens: readonly Screen[];
+  /** How it fits together: null (or left out) for a project of one repository. */
+  readonly system?: CaseSystem | null;
 }
 
 interface CaseSectionProps {
@@ -148,17 +155,23 @@ export function CaseStudy({
   longDescription,
   technologies,
   screens,
+  system = null,
 }: CaseStudyProps): ReactElement | null {
   const body = caseBody(longDescription);
   const shown = sectionScreens(screens);
   const layout = screensLayout(shown.length);
   const techs = [...new Set(technologies.map((tech) => tech.trim()).filter(Boolean))];
-  if (!body && !layout && techs.length === 0) return null;
+  if (!body && !layout && techs.length === 0 && !system) return null;
   return (
     <div className={styles.case} data-case-study="">
       {body ? (
         <CaseSection id="about" label="The project">
           <ProjectText body={body} />
+        </CaseSection>
+      ) : null}
+      {system ? (
+        <CaseSection id="parts" label="How it fits together">
+          <CaseParts system={system} />
         </CaseSection>
       ) : null}
       {layout ? (

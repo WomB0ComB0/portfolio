@@ -33,7 +33,7 @@
  */
 
 import { render, screen, within } from '@testing-library/react';
-import { makeProject } from '@tests/fixtures/sanity-docs';
+import { makeProject, makeProjectPart } from '@tests/fixtures/sanity-docs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '@/hooks/sanity/schemas';
 
@@ -481,5 +481,151 @@ describe('/projects/[id] case study', () => {
       'href',
       '/projects',
     );
+  });
+});
+
+describe('/projects/[id] How it fits together', () => {
+  const SUMMARY = 'People study in the web app; it sends pages to one scraper.';
+  /** A project of four parts: two public, one private, one with its own page (LinkThing). */
+  const SYSTEM = makeProject({
+    title: 'Spark - A learning hub',
+    longDescription: 'A learning hub for students. It has several parts.',
+    technologies: ['Next.js', 'Google Gemini API'],
+    image: imageOf('sparkcover', 'Spark home'),
+    images: [imageOf('sparkfirst', 'Spark study view')],
+    githubUrl: 'https://github.com/example-org/example-web',
+    systemSummary: SUMMARY,
+    systemParts: [
+      makeProjectPart({
+        _key: 'web',
+        name: 'Web app',
+        role: 'Where students sign in.',
+        repoUrl: 'https://github.com/example-org/example-web',
+        technologies: ['Next.js', 'Gemini', 'Supabase'],
+        contribution: 'The scraper and the PWA.',
+      }),
+      makeProjectPart({
+        _key: 'scraper',
+        name: 'Scraper API',
+        role: 'Fetches pages for the web app.',
+        repoUrl: 'https://github.com/example-org/example-scraper',
+        technologies: ['Express', 'Puppeteer'],
+      }),
+      makeProjectPart({
+        _key: 'core',
+        name: 'Core service',
+        role: 'Runs the jobs.',
+        repoUrl: undefined,
+        technologies: [],
+      }),
+      makeProjectPart({
+        _key: 'linked',
+        name: 'LinkThing',
+        role: 'Short links.',
+        repoUrl: undefined,
+        projectId: NO_IMAGE._id,
+        technologies: ['Hono'],
+      }),
+    ],
+  });
+  /** Two private parts and nothing else Studio could show: no text, no screens, no technologies. */
+  const BARE = makeProject({
+    title: 'Bare',
+    technologies: [],
+    systemParts: [
+      makeProjectPart({ _key: 'one', name: 'One', repoUrl: undefined, technologies: [] }),
+      makeProjectPart({ _key: 'two', name: 'Two', repoUrl: undefined, technologies: [] }),
+    ],
+  });
+  const sectionsOf = (root: ParentNode): (string | null)[] =>
+    Array.from(root.querySelectorAll('[data-case-section]')).map((section) =>
+      section.getAttribute('data-case-section'),
+    );
+
+  beforeEach(() => {
+    sanity.sanityFetchWithToken.mockResolvedValue([
+      GREPO,
+      EARLIER,
+      LATER,
+      NO_IMAGE,
+      COVER_ONLY,
+      DUO,
+      SYSTEM,
+      BARE,
+    ]);
+  });
+
+  it('sits between The project and Screens, before Built with', async () => {
+    const { container } = render(await pageFor(SYSTEM._id));
+
+    expect(sectionsOf(container)).toEqual(['about', 'parts', 'screens', 'built-with']);
+    const parts = screen.getByRole('region', { name: 'How it fits together' });
+    expect(within(parts).getAllByRole('heading', { level: 3 })).toHaveLength(4);
+    expect(within(parts).getByText(SUMMARY)).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('links the part with its own page there, and calls only the empty row private', async () => {
+    render(await pageFor(SYSTEM._id));
+    const parts = screen.getByRole('region', { name: 'How it fits together' });
+
+    expect(within(parts).getByRole('link', { name: 'LinkThing' })).toHaveAttribute(
+      'href',
+      `/projects/${NO_IMAGE._id}`,
+    );
+    expect(within(parts).getAllByText('Private repository')).toHaveLength(1);
+    expect(
+      within(parts)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual([
+      'https://github.com/example-org/example-web',
+      'https://github.com/example-org/example-scraper',
+      `/projects/${NO_IMAGE._id}`,
+    ]);
+  });
+
+  it('lists the main technologies first in Built with, then those only a part has', async () => {
+    render(await pageFor(SYSTEM._id));
+    const built = screen.getByRole('region', { name: 'Built with' });
+
+    expect(
+      within(built)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Next.js', 'Google Gemini API', 'Supabase', 'Express', 'Puppeteer']);
+    // A ?tech= only a part answers lands on a page that shows it as a Built with link.
+    expect(within(built).getByRole('link', { name: 'Puppeteer' })).toHaveAttribute(
+      'href',
+      '/projects?tech=Puppeteer',
+    );
+    expect(within(built).queryByRole('link', { name: 'Hono' })).toBeNull();
+  });
+
+  it('keeps Source on the main repository', async () => {
+    render(await pageFor(SYSTEM._id));
+
+    expect(screen.getByRole('link', { name: 'Source code (opens in a new tab)' })).toHaveAttribute(
+      'href',
+      'https://github.com/example-org/example-web',
+    );
+  });
+
+  it('leaves a project without parts exactly as it was', async () => {
+    const { container } = render(await pageFor(GREPO._id));
+
+    expect(sectionsOf(container)).toEqual(['about', 'screens', 'built-with']);
+    expect(container.querySelector('[data-case-section="parts"]')).toBeNull();
+    expect(
+      within(screen.getByRole('region', { name: 'Built with' }))
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['TypeScript', 'Bun', 'OpenAI GPT-3.5-turbo', 'Google Speech-to-Text']);
+  });
+
+  it('draws the parts section alone for a project with nothing else Studio could show', async () => {
+    const { container } = render(await pageFor(BARE._id));
+
+    expect(sectionsOf(container)).toEqual(['parts']);
   });
 });
