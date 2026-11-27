@@ -28,6 +28,7 @@ import type {
   Place,
   Presentation,
   Project,
+  ProjectPart,
   Resume,
   SanityBook,
   SanityBookshelf,
@@ -70,6 +71,28 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     status: 'Completed',
     featured: false,
     order: n,
+    ...overrides,
+  };
+}
+
+/** Counts parts across the test run, so part keys never repeat. */
+let partCount = 0;
+
+/**
+ * One part of a multi-repository project, as the project queries answer it: a public row on an
+ * invented example-org repository. Pass `repoUrl: undefined` for a private row ("Core service")
+ * and `projectId` for a row that links another project's page.
+ */
+export function makeProjectPart(overrides: Partial<ProjectPart> = {}): ProjectPart {
+  partCount += 1;
+  const n = partCount;
+  return {
+    _key: `part-${n}`,
+    _type: 'projectPart',
+    name: `Part ${n}`,
+    role: `What part ${n} does in the system.`,
+    repoUrl: `https://github.com/example-org/example-part-${n}`,
+    technologies: ['TypeScript'],
     ...overrides,
   };
 }
