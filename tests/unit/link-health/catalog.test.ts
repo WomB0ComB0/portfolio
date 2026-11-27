@@ -22,6 +22,7 @@ import {
   makeExperience,
   makePresentation,
   makeProject,
+  makeProjectPart,
   makeScaledBookshelfDocs,
   makeTalk,
   makeVideo,
@@ -111,6 +112,55 @@ describe('published link catalog', () => {
     expect(sources.media).not.toHaveBeenCalled();
     expect(sources.certifications).not.toHaveBeenCalled();
     expect(sources.experiences).not.toHaveBeenCalled();
+  });
+
+  it('adds the repository links a project page’s parts render, after its Live and Code, in page order', async () => {
+    sources.projects.mockResolvedValue([
+      makeProject({
+        _id: 'later',
+        order: 1,
+        startDate: '2023-01-01',
+        githubUrl: 'https://github.com/example-org/later',
+        systemParts: [
+          makeProjectPart({ repoUrl: 'https://github.com/example-org/later' }),
+          makeProjectPart({ repoUrl: 'https://github.com/example-org/later-worker' }),
+        ],
+      }),
+      makeProject({
+        _id: 'system',
+        order: 0,
+        startDate: '2025-01-01',
+        liveUrl: 'https://system.example.com',
+        githubUrl: 'https://github.com/example-org/system-web',
+        systemParts: [
+          makeProjectPart({ repoUrl: 'https://github.com/example-org/system-web' }),
+          makeProjectPart({ repoUrl: 'https://github.com/example-org/system-api' }),
+          makeProjectPart({ repoUrl: undefined, name: 'Core service' }),
+          makeProjectPart({ repoUrl: 'javascript:alert(1)' }),
+          makeProjectPart({
+            repoUrl: 'https://github.com/example-org/system-shortener',
+            projectId: 'proj-shortener',
+          }),
+        ],
+      }),
+      makeProject({
+        _id: 'single',
+        order: 2,
+        startDate: '2024-01-01',
+        githubUrl: 'https://github.com/example-org/single',
+        systemParts: [makeProjectPart({ repoUrl: 'https://github.com/example-org/single-extra' })],
+      }),
+    ]);
+
+    expect(await loadLinkCatalog('projects')).toEqual([
+      'https://system.example.com/',
+      'https://github.com/example-org/system-web',
+      'https://github.com/example-org/system-api',
+      'https://github.com/example-org/system-shortener',
+      'https://github.com/example-org/single',
+      'https://github.com/example-org/later',
+      'https://github.com/example-org/later-worker',
+    ]);
   });
 
   it('normalizes and deduplicates before applying the 500 URL bound', async () => {
