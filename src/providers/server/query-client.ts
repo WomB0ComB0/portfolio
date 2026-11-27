@@ -25,7 +25,7 @@ import {
 } from '@tanstack/react-query';
 import { cache } from 'react';
 import SuperJSON from 'superjson';
-import { ValidationError } from '@/lib/http-clients/effect-fetcher';
+import { ValidationError } from '@/lib/http-clients/validation-error';
 import { logger } from '@/utils';
 
 /** Retries a failing query gets in the browser. Its queryFn's fetch should not retry as well. */

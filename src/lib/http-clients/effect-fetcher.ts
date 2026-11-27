@@ -18,6 +18,7 @@ import { Duration, Effect, pipe, Result, Schedule, Schema, SchemaIssue } from 'e
 import { HttpClient, HttpClientRequest } from 'effect/http';
 import { env } from '@/env';
 import type { TimedOut } from '@/lib/async/deadline';
+import { ValidationError } from '@/lib/http-clients/validation-error';
 import { getURL } from '@/utils';
 
 /**
@@ -209,49 +210,9 @@ const RequestBody = Schema.Union([
   Schema.Null,
 ]);
 
-/**
- * Custom error class for validation-specific errors.
- * Includes detailed validation problems from effect/Schema.
- */
-export class ValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly url: string,
-    public readonly problems: string,
-    public readonly responseData: unknown,
-    public readonly attempt?: number,
-  ) {
-    super(message);
-    this.name = 'ValidationError';
-    Object.setPrototypeOf(this, ValidationError.prototype);
-    void this.stack; // Formatted now: V8's unformatted stack keeps its frames, and a body, alive.
-  }
-
-  [Symbol.toStringTag] = 'ValidationError';
-
-  [Symbol.for('nodejs.util.inspect.custom')]() {
-    return this.toString();
-  }
-
-  [Symbol.for('Deno.customInspect')]() {
-    return this.toString();
-  }
-
-  [Symbol.for('react.element')]() {
-    return this.toString();
-  }
-
-  toString(): string {
-    return `ValidationError: ${this.message} (URL: ${this.url}${this.attempt ? `, Attempt: ${this.attempt}` : ''})`;
-  }
-
-  /**
-   * Get a formatted string of all validation problems
-   */
-  getProblemsString(): string {
-    return this.problems;
-  }
-}
+// Defined in its own effect-free module so the QueryClient can import it without effect; it is
+// re-exported here so every existing import of it from this module keeps working.
+export { ValidationError };
 
 /**
  * Custom error class for fetcher-specific errors.
