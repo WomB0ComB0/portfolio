@@ -31,7 +31,8 @@
  * - The reading map, on /bookshelf and on a book's page, is a modal dialog: opened from the
  *   keyboard, focus stays inside it, the page behind is hidden and holds still, and Escape or a
  *   click outside closes it with focus back on its button. Over a book's in-page detail, Escape
- *   closes only the map.
+ *   closes only the map. Its Open stage opens that book's detail in place, with focus on the
+ *   detail's heading.
  *
  * The browser aborts every request that is not GET or HEAD, and service workers are blocked.
  */
@@ -218,6 +219,23 @@ test.describe('the bookshelf against the live data', () => {
 
     await expect(dialog).toBeHidden();
     await expect(heading).toHaveText(title?.trim() ?? '');
+  });
+
+  test("Open stage on the reading map opens the book's detail with focus on its heading", async ({
+    page,
+  }) => {
+    const { isEmpty } = await openBookshelf(page);
+    test.skip(isEmpty, 'no book is in the rendered catalog');
+    const { dialog } = await openReadingMap(page);
+    // The map's entries, in stage order: the first entry's title and its Open stage button.
+    const title = (await dialog.getByRole('heading', { level: 4 }).first().textContent()) ?? '';
+    await dialog.getByRole('button', { name: 'Open stage' }).first().focus();
+    await page.keyboard.press('Enter');
+
+    await expect(dialog).toBeHidden();
+    const heading = page.locator(MAIN).getByRole('heading', { level: 1 });
+    await expect(heading).toHaveText(title.trim());
+    await expect(heading).toBeFocused();
   });
 
   test('the public books JSON names a shelf and a cover, and no removed field', async ({

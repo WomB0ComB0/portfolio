@@ -21,7 +21,8 @@
  * the whole catalog from slim entries: the counts, each shelf's topic range and its books' stage
  * links, with every shelf's section skipping rendering off screen. It is the site's modal dialog:
  * focus is trapped inside, the page behind is hidden and holds still, Escape closes only the map
- * (never the in-page detail under it), and focus goes back to the button that opened it.
+ * (never the in-page detail under it), and focus goes back to the button that opened it, except
+ * after Open stage, when it lands on the opened book's heading.
  */
 
 import { act, fireEvent, screen, within } from '@testing-library/react';
@@ -79,12 +80,26 @@ async function openMap(): Promise<{ trigger: HTMLElement; dialog: HTMLElement }>
   return { trigger, dialog: await findMap() };
 }
 
-/** Presses Escape where focus is, then lets the dialog hand focus back (it does so after a tick). */
-async function pressEscape(): Promise<void> {
-  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+/** Lets a closed map hand focus on: the dialog does so a tick after it goes. */
+async function afterClose(): Promise<void> {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+}
+
+/** Presses Escape where focus is, then lets the dialog hand focus back. */
+async function pressEscape(): Promise<void> {
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+  await afterClose();
+}
+
+/** Focuses the open map's `name` button on the entry of the book at `index`, and presses it. */
+async function pressEntryButton(dialog: HTMLElement, name: string, index: number): Promise<void> {
+  const button = within(dialog).getAllByRole('button', { name })[index];
+  if (!button) throw new Error(`no '${name}' button for book ${index}`);
+  act(() => button.focus());
+  fireEvent.click(button);
+  await afterClose();
 }
 
 describe('ReadingMapDialog', () => {
@@ -233,5 +248,46 @@ describe('ReadingMapDialog as a modal dialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: book.title })).toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('gives focus back to the Reading map button when Focus on shelf closes it', async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const { trigger, dialog } = await openMap();
+
+    await pressEntryButton(dialog, 'Focus on shelf', BOOK_COUNT - 2);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(liveText()).toBe(liveTextOf(bookAt(BOOK_COUNT - 2)));
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("moves focus to the book's heading when Open stage opens it in place", async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    const target = bookAt(BOOK_COUNT - 2);
+    const { dialog } = await openMap();
+
+    await pressEntryButton(dialog, 'Open stage', BOOK_COUNT - 2);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: target.title }),
+    );
+  });
+
+  it("moves focus to the new book's heading when Open stage is used over a detail", async () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} />);
+    fireEvent.click(screen.getByRole('button', { name: /Open notes/ }));
+    expect(
+      screen.getByRole('heading', { level: 1, name: bookAt(DEFAULT_BOOK_INDEX).title }),
+    ).toBeInTheDocument();
+    const target = bookAt(BOOK_COUNT - 2);
+    const { dialog } = await openMap();
+
+    await pressEntryButton(dialog, 'Open stage', BOOK_COUNT - 2);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: target.title }),
+    );
   });
 });

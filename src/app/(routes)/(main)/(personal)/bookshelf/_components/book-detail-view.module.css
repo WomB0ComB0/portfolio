@@ -16,13 +16,22 @@
 
 /*
  * A book's detail (book-detail-view.tsx), in-page on /bookshelf and on /bookshelf/[slug]: the text
- * and cover columns, the numbered topics, and the wipe that reveals each block when it opens from
- * the stage.
+ * and cover columns, the numbered topics, the wipe that reveals each block when it opens from the
+ * stage, and its heading's focus.
  */
 
 /* Two columns, the text and the cover, stacked at 900px and under with the cover on top. */
 .detail-panel {
   min-width: 0;
+}
+
+/*
+ * Opened in place, the detail moves focus to its heading, so the next Tab starts inside it. A
+ * heading is no control, so it draws no ring: the page's <main> doesn't either when the skip link
+ * focuses it.
+ */
+.detail-panel h1:focus-visible {
+  outline: none;
 }
 
 .detail-grid {

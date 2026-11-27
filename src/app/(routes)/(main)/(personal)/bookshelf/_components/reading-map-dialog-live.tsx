@@ -20,14 +20,15 @@
  * @file The open reading map: every shelf's books in stage order with their topics, on the site's
  * Radix dialog (src/components/ui/dialog.tsx). Focus starts on Close and is trapped, the page
  * behind is hidden from assistive technology and holds still, Escape or a click outside closes
- * it, and focus goes back to the button that opened it. reading-map-dialog.tsx fetches this
- * module only when a visitor asks for the map. Guarded by
+ * it, and focus goes back to the button that opened it, except after Open stage: the book's
+ * detail it opens takes focus on its heading. reading-map-dialog.tsx fetches this module only
+ * when a visitor asks for the map. Guarded by
  * tests/unit/bookshelf/reading-map-dialog.test.tsx and scale-budgets.test.ts.
  */
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import Link from 'next/link';
-import { type ReactElement, type RefObject, useMemo } from 'react';
+import { type ReactElement, type RefObject, useMemo, useRef } from 'react';
 import { FiArrowUpRight, FiX } from 'react-icons/fi';
 import { countOf } from '@/components/console/folio/byline-items';
 import { Dialog, DialogClose, DialogDescription, DialogPortal } from '@/components/ui/dialog';
@@ -61,11 +62,11 @@ export interface ReadingMapDialogLiveProps {
   /** The shelves to map them under, in shelf order; a shelf with none of `books` is skipped. */
   readonly shelves: readonly ShelfCollection[];
   readonly onClose: () => void;
-  /** The button that opened the map: focus goes back to it when the map closes. */
+  /** The button that opened the map: focus goes back to it on close, except after Open stage. */
   readonly returnFocus: RefObject<HTMLElement | null>;
   /** Optional handler to focus a book on the 3D shelf before closing. */
   readonly onSelectBook?: (entry: ReadingMapEntry) => void;
-  /** Optional handler to open a book's detail view directly. */
+  /** Optional handler to open a book's detail view directly; that detail takes focus. */
   readonly onOpenBook?: (entry: ReadingMapEntry) => void;
 }
 
@@ -86,6 +87,8 @@ export function ReadingMapDialogLive({
   onSelectBook,
   onOpenBook,
 }: ReadingMapDialogLiveProps): ReactElement {
+  // Set by Open stage: the detail it opens takes focus, so closing gives none back to the button.
+  const openedBookRef = useRef(false);
   const bySlug = useMemo(() => new Map(books.map((book) => [book.slug, book])), [books]);
   const totalTopics = useMemo(() => books.reduce((sum, book) => sum + book.topicCount, 0), [books]);
   // "18 books across 3 shelves, covering 72 numbered topics.", each noun singular for one.
@@ -111,8 +114,10 @@ export function ReadingMapDialogLive({
             aria-modal="true"
             className={PANEL_CLASS}
             onCloseAutoFocus={(event) => {
-              // The opener is no Dialog.Trigger, so Radix can't find it: give focus back by ref.
+              // The opener is no Dialog.Trigger, so Radix can't find it: give focus back by ref,
+              // unless Open stage closed the map, when the opened book's detail has taken it.
               event.preventDefault();
+              if (openedBookRef.current) return;
               if (returnFocus.current?.isConnected) {
                 returnFocus.current.focus({ preventScroll: true });
               }
@@ -220,6 +225,7 @@ export function ReadingMapDialogLive({
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    openedBookRef.current = true;
                                     onOpenBook(book);
                                     onClose();
                                   }}

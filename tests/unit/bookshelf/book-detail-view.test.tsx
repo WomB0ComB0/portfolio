@@ -93,6 +93,24 @@ describe('BookDetailView in place', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Bookshelf' })).toBeInTheDocument();
   });
 
+  it('moves focus to its heading when it opens from the stage, and draws no ring round it', () => {
+    render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
+    screen.getByRole('region', { name: /Bookshelf/i }).focus();
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    const heading = screen.getByRole('heading', { level: 1, name: FEATURED_TITLE });
+    expect(document.activeElement).toBe(heading);
+    // The heading is no control: some detail rule turns the focus ring off for it.
+    const ringless = styleRules(readCss(DETAIL_CSS))
+      .filter((rule) =>
+        declarations(rule.body).some(([name, value]) => name === 'outline' && value === 'none'),
+      )
+      .map((rule) => rule.selector.replace(/:focus(?:-visible)?/g, ''));
+    expect(ringless.some((selector) => heading.matches(selector))).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+  });
+
   it('steps to the next and previous books within /bookshelf from the in-page detail', () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
     const at = BOOKS.indexOf(FEATURED);
