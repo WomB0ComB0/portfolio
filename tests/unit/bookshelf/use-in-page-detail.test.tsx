@@ -23,10 +23,11 @@
  * on a book's address. Back and Forward open the book the address names, or close the detail. A
  * stage that mounts on a book's address opens that book; one on an old #/stage/NN link opens its
  * book and rewrites the address to the book's page. On a shelf's page the same holds, and the
- * list it returns to is the shelf's page.
+ * list it returns to is the shelf's page. Closing gives focus back to Open notes when it opened
+ * the book, once, and otherwise (or when that control has left the page) to the stage.
  */
 
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The catalog builder draws each cover with the real image URL builder; the client module itself
@@ -43,6 +44,7 @@ vi.mock('@/lib/sanity/client', async () => {
 vi.mock('@/lib/sanity/loaders', () => ({ loadBookshelf: vi.fn() }));
 
 import { BookshelfStage } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/bookshelf-stage';
+import { useInPageDetail } from '@/app/(routes)/(main)/(personal)/bookshelf/_components/use-in-page-detail';
 import {
   AI_SHELF,
   address,
@@ -261,8 +263,25 @@ describe('focus after closing', () => {
     expect(liveText()).toBe(liveTextOf(target));
   });
 
-  it('falls back to the stage for a book the address opened, on a page entered on it', () => {
-    window.history.replaceState(null, '', pageOf(FEATURED.slug));
+  it('uses Open notes once: a book Forward opens again gives it to the stage on close', async () => {
+    renderStage();
+    openFromNotes();
+    await travel(() => window.history.back());
+    expect(document.activeElement).toBe(openNotes());
+
+    await travel(() => window.history.forward());
+    expect(heading(FEATURED_TITLE)).toBeInTheDocument();
+    await travel(() => window.history.back());
+
+    expect(heading('Bookshelf')).toBeInTheDocument();
+    expect(document.activeElement).toBe(stageRegion());
+  });
+
+  it.each([
+    ["a book's page", pageOf(FEATURED.slug)],
+    ['an old #/stage/NN link', `${LIST}#/stage/${FEATURED.stageLabel}`],
+  ])('falls back to the stage for a book the address opened, on %s', (_, entry) => {
+    window.history.replaceState(null, '', entry);
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} />, QUERY);
     expect(heading(FEATURED_TITLE)).toBeInTheDocument();
 
@@ -270,6 +289,34 @@ describe('focus after closing', () => {
 
     expect(heading('Bookshelf')).toBeInTheDocument();
     expect(document.activeElement).toBe(stageRegion());
+  });
+
+  it('falls back to the stage when the control that opened the book has left the page', async () => {
+    // The stage always renders Open notes again, so this is the hook alone: an opener whose ref
+    // still holds a control taken off the page must not swallow the focus.
+    const stage = document.body.appendChild(document.createElement('div'));
+    stage.tabIndex = -1;
+    const opener = document.body.appendChild(document.createElement('button'));
+    const options = {
+      books: BOOKS,
+      indexBySlug: new Map(BOOKS.map((book, index) => [book.slug, index])),
+      setPos: vi.fn(),
+      slotPositionsRef: { current: new Map<number, number>() },
+      listPath: LIST_ADDRESS,
+      returnFocusRef: { current: stage },
+    };
+    try {
+      const { result } = renderHook(() => useInPageDetail(options));
+      act(() => result.current.openDetail(FEATURED, { current: opener }));
+      opener.remove();
+
+      await travel(() => result.current.closeDetail());
+
+      expect(result.current.detailBook).toBeNull();
+      expect(document.activeElement).toBe(stage);
+    } finally {
+      stage.remove();
+    }
   });
 });
 

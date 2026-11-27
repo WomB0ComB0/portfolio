@@ -113,7 +113,7 @@ describe('BookDetailView in place', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
   });
 
-  it("keeps focus on its heading when a phone's tap on the cover opens it", () => {
+  it("keeps focus on its heading when a phone's or a pen's tap on the cover opens it", () => {
     render(<BookshelfStage books={BOOKS} shelves={SHELVES} initialSlug={FEATURED.slug} />);
     const activeSlot = (): HTMLElement => {
       const slot = screen
@@ -132,6 +132,16 @@ describe('BookDetailView in place', () => {
     fireEvent.pointerUp(cover, tap);
 
     expect(pressSent).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Back to Bookshelf/i }));
+
+    // A pen's press is cancelled the same way: only a mouse press is left alone.
+    const nib = activeSlot();
+    const pen = { ...tap, pointerId: 9, pointerType: 'pen' };
+    expect(fireEvent.pointerDown(nib, pen)).toBe(false);
+    fireEvent.pointerUp(nib, pen);
     expect(document.activeElement).toBe(
       screen.getByRole('heading', { level: 1, name: FEATURED_TITLE }),
     );
