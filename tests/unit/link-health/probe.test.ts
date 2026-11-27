@@ -373,6 +373,65 @@ describe('bounded link observations', () => {
   });
 });
 
+describe('redirect targets the caller refuses', () => {
+  const REFUSED = 'https://refused.example.com/kit';
+
+  it('asks about each redirect target before requesting it, and stops at a refused one without requesting it', async () => {
+    const h = harness();
+    h.request
+      .mockResolvedValueOnce({ status: 302, location: '/next' })
+      .mockResolvedValueOnce({ status: 301, location: `${REFUSED}#part` });
+    const shouldFollowRedirect = vi.fn((target: string) => target !== REFUSED);
+
+    expect(await h.probe(URL, { shouldFollowRedirect })).toEqual({
+      kind: 'unknown',
+      refusedRedirect: true,
+    });
+    expect(shouldFollowRedirect.mock.calls.map(([target]) => target)).toEqual([
+      'https://content.example.com/next',
+      REFUSED,
+    ]);
+    expect(h.request.mock.calls.map(([r]) => r.url.href)).toEqual([
+      URL,
+      'https://content.example.com/next',
+    ]);
+    expect(h.resolve.mock.calls.map(([host]) => host)).toEqual([
+      'content.example.com',
+      'content.example.com',
+    ]);
+  });
+
+  it('refuses a target past the redirect allowance as well, since it knows it without a request', async () => {
+    const h = harness();
+    for (const path of ['/b', '/c', '/d'])
+      h.request.mockResolvedValueOnce({ status: 302, location: path });
+    h.request.mockResolvedValueOnce({ status: 302, location: REFUSED });
+
+    const observation = await h.probe(URL, {
+      shouldFollowRedirect: (target) => target !== REFUSED,
+    });
+
+    expect(observation).toEqual({ kind: 'unknown', refusedRedirect: true });
+    expect(h.request).toHaveBeenCalledTimes(4);
+  });
+
+  it('follows the targets the caller allows exactly as it does without the option', async () => {
+    const h = harness();
+    h.request.mockResolvedValueOnce({ status: 301, location: '/new' });
+    const shouldFollowRedirect = vi.fn(() => true);
+
+    expect(await h.probe(URL, { shouldFollowRedirect })).toEqual({
+      kind: 'reachable',
+      httpStatus: 200,
+    });
+    expect(shouldFollowRedirect).toHaveBeenCalledOnce();
+    expect(h.request.mock.calls.map(([r]) => r.url.href)).toEqual([
+      URL,
+      'https://content.example.com/new',
+    ]);
+  });
+});
+
 describe('actual pinned Node transport configuration', () => {
   function install(status = 200, headers: IncomingMessage['headers'] = {}) {
     const response = new EventEmitter() as IncomingMessage;

@@ -22,7 +22,8 @@
  * (probeLink) and content inspection of each reachable link (pinnedFetch), both DNS-pinned so the
  * runner never connects to a private, loopback, link-local or metadata address, drift checks with
  * RDAP domain age, and optional sandbox scans of drifted external links on Cloudflare URL Scanner
- * or urlscan.io, so no third-party script runs here.
+ * or urlscan.io, so no third-party script runs here. Neither the probe nor the inspection requests
+ * a redirect hop to a link or host the run will not fetch.
  *
  * Flags:
  *   --dry-run          no Redis publish and no sandbox scans

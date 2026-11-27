@@ -47,7 +47,7 @@ const INSPECT_TIMEOUT_MS = 6000;
 /** Sent with every inspection request. */
 const USER_AGENT = 'mikeodnis-portfolio-verifier/1.0 (+https://mikeodnis.dev)';
 /** The danger of a redirect to a hop the caller excludes, which is never fetched. */
-const EXCLUDED_HOP_DANGER = 'unsafe_redirect_hop:flagged_target';
+export const EXCLUDED_HOP_DANGER = 'unsafe_redirect_hop:flagged_target';
 /** The most characters of a Content-Encoding written into a danger reason. */
 const MAX_ENCODING_IN_REASON = 32;
 

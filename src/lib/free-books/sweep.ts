@@ -30,9 +30,10 @@ import 'server-only';
  *    flag-policy.ts);
  * 4. checkSafeBrowsing: every link against Google Safe Browsing, when a key is set, noting the
  *    links of any batch that failed;
- * 5. probeUrls: two-pass reachability with probeLink, then inspectFinalTarget (target-inspection.ts)
- *    on each reachable link for dangerous content and drift; both are DNS-pinned in the CLI, and
- *    a hop that resolves to a non-public address quarantines the link;
+ * 5. probeUrls: two-pass reachability with probeLink (reachability.ts), then inspectFinalTarget
+ *    (target-inspection.ts) on each reachable link for dangerous content and drift; both are
+ *    DNS-pinned in the CLI, neither requests a redirect hop to a target the run will not fetch
+ *    (that quarantines the link), and a hop that resolves to a non-public address quarantines it;
  * 6. detonateDeltas: drifted external links sent to a sandbox, when asked for and keyed;
  * 7. settleFlags on the quarantines, then buildManifest and summarize: the sorted manifest (with
  *    the clean-run counts for the drift key) and the counts the CLI prints.
@@ -48,7 +49,7 @@ import 'server-only';
  * fetched either).
  */
 
-import type { LinkObservation } from '@/lib/link-health/types';
+import type { LinkProbe } from '@/lib/link-health/probe';
 import { type FlagObservation, type FlagSettlement, settleFlags } from './flag-policy';
 import { type HostCheck, observeHost } from './host-checks';
 import type { loadSweepCatalog } from './loader';
@@ -58,7 +59,8 @@ import {
   mergeSecurityManifests,
   type publishSecurityManifestToRedis,
 } from './manifest-store';
-import { inspectFinalTarget } from './target-inspection';
+import { excludedHopCheck, observeReachability, type ProbeExclusions } from './reachability';
+import { EXCLUDED_HOP_DANGER, inspectFinalTarget } from './target-inspection';
 import type {
   checkGoogleSafeBrowsing,
   checkHostnameThreatIntel,
@@ -76,6 +78,7 @@ import type {
 } from './types';
 import { classifyHostTrustTier, screenExternalBookUrl } from './url-screen';
 
+export type { ProbeExclusions } from './reachability';
 export { inspectFinalTarget, type TargetInspectionResult } from './target-inspection';
 
 /** Hosts checked against DNS at once. */
@@ -101,7 +104,8 @@ export interface SweepDependencies {
   readonly resolvesNormally: (hostname: string) => Promise<boolean>;
   readonly checkHost: typeof checkHostnameThreatIntel;
   readonly checkSafeBrowsing: typeof checkGoogleSafeBrowsing;
-  readonly probe: (url: string) => Promise<LinkObservation>;
+  /** The reachability probe; it asks its shouldFollowRedirect option before each redirect. */
+  readonly probe: LinkProbe;
   /** The fetch inspectFinalTarget walks redirects with: the DNS-pinned one in the CLI. */
   readonly fetch: FetchLike;
   readonly checkDomainAge: typeof checkRdapDomainAge;
@@ -423,48 +427,17 @@ export async function checkSafeBrowsing(
   }
 }
 
-/** What probeUrls never fetches, as a catalog link or as a redirect hop. */
-export interface ProbeExclusions {
-  /** The blocks that stand after this run's host checks, the owner's pinned hosts among them. */
-  readonly blockedHosts: Readonly<Record<string, string>>;
-  /**
-   * Whether a link is held back this run (isHeldBack): an owner's pin, or a Safe Browsing
-   * quarantine the run could not ask about again.
-   */
-  readonly isHeldBack: (url: string) => boolean;
-}
-
-/**
- * Whether a redirect hop leads to a target this run will not fetch: a Safe Browsing hit, a link
- * held back (an owner's pin, or a Safe Browsing quarantine the run could not ask about again), or
- * a link on a blocked host. A hop that fails the URL screen is left to the redirect-chain audit,
- * which refuses it first.
- */
-function excludedHopCheck(
-  exclusions: ProbeExclusions,
-  records: Pick<SweepRecords, 'safeBrowsingHits'>,
-): (hopUrl: string) => boolean {
-  return (hopUrl) => {
-    const { normalizedUrl, hostname } = screenExternalBookUrl(hopUrl);
-    if (!normalizedUrl || !hostname) return false;
-    return (
-      records.safeBrowsingHits.has(normalizedUrl) ||
-      exclusions.isHeldBack(normalizedUrl) ||
-      Object.hasOwn(exclusions.blockedHosts, hostname)
-    );
-  };
-}
-
 /**
  * Unless `dnsblOnly`, probes each link not on a blocked host and not a Safe Browsing hit this run
- * (the first `maxUrls` when set): a link missing on two probes is unavailable; a reachable one is
- * inspected, quarantined for dangerous content, a redirect to a target this run will not fetch
- * (excludedHopCheck), a PDF that turned into HTML, or a host that changed to a domain registered
- * in the last 90 days, and otherwise noted as clean (one clean run toward lifting an earlier
- * quarantine) and fingerprinted. A link it does not probe, that is not reachable, or whose
- * inspection did not finish is left unchecked, with its fingerprint as it was. An external link
- * whose host changed or whose PDF turned into HTML is queued for the sandbox (a new link is not).
- * Answers the URLs checked (the baseline's count when it probes nothing) and the queue.
+ * (the first `maxUrls` when set): a link whose probe meets a redirect to a target this run will
+ * not fetch (excludedHopCheck) is quarantined without requesting it; a link missing on two probes
+ * is unavailable; a reachable one is inspected, quarantined for dangerous content, such a
+ * redirect, a PDF that turned into HTML, or a host that changed to a domain registered in the
+ * last 90 days, and otherwise noted as clean (one clean run toward lifting an earlier quarantine)
+ * and fingerprinted. A link it does not probe, that is not reachable, or whose inspection did not
+ * finish is left unchecked, with its fingerprint as it was. An external link whose host changed
+ * or whose PDF turned into HTML is queued for the sandbox (a new link is not). Answers the URLs
+ * checked (the baseline's count when it probes nothing) and the queue.
  */
 export async function probeUrls(
   probeTargets: readonly SweepTarget[],
@@ -484,21 +457,17 @@ export async function probeUrls(
   log(`Probing ${targets.length} book URLs with SSRF-safe probe + PDF/ClickFix/drift scanners...`);
   checkedUrls = targets.length;
   const nowIso = (deps.now ?? (() => new Date()))().toISOString();
-  const isExcludedHop = excludedHopCheck(exclusions, records);
+  const isExcludedHop = excludedHopCheck(exclusions, records.safeBrowsingHits);
+  const probeOptions = { shouldFollowRedirect: (hopUrl: string) => !isExcludedHop(hopUrl) };
 
   await runPool(targets, PROBE_CONCURRENCY, async ({ url, hostname }) => {
     if (exclusions.blockedHosts[hostname] || records.safeBrowsingHits.has(url)) return;
 
-    const obs = await deps.probe(url);
-    if (obs.kind === 'missing') {
-      const second = await deps.probe(url);
-      if (second.kind === 'missing') {
-        unavailableUrls[url] = nowIso;
-      }
-      return;
-    }
+    const reach = await observeReachability(url, deps.probe, probeOptions);
+    if (reach === 'excluded_hop') quarantine(records, url, EXCLUDED_HOP_DANGER);
+    if (reach === 'unavailable') unavailableUrls[url] = nowIso;
 
-    if (obs.kind === 'reachable') {
+    if (reach === 'reachable') {
       delete unavailableUrls[url];
       const inspected = await inspectFinalTarget(url, hostname, deps.fetch, isExcludedHop);
       if (inspected.danger) {
