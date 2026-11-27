@@ -22,15 +22,15 @@
  * Leaving goes Back when the entry was pushed over the list's, so no second list entry piles up,
  * and otherwise (a page entered on a book's address) writes the list's address in its place.
  *
- * Next's App Router patches pushState and replaceState: a plain write with a new URL becomes a
- * route change, so usePathname() would turn to /bookshelf/<slug> and the site's PageEnter, keyed
- * by pathname, would remount the whole page (the stage would lose its place, the page would fade
- * in again). A book's entry is therefore written with the state Next keeps on the list's entry
- * (its `__NA` mark and route tree) plus our own mark. Next passes a write that carries its mark
- * straight through, so its route stays on the list's; and a Back or Forward from another page
- * still finds the list's route tree on the entry, so Next renders the stage, which opens the book
- * its address names. A list's address is written plainly: Next takes it in, and as its pathname
- * is the route's own, nothing remounts. Client only; guarded by
+ * Next's App Router patches pushState and replaceState: a plain write with a new URL is taken in
+ * as the router's URL, so usePathname() would turn to /bookshelf/<slug> while the list is still
+ * what renders (the site's nav reads that pathname for its active state). A book's entry is
+ * therefore written with the state Next keeps on the list's entry (its `__NA` mark and route
+ * tree) plus our own mark. Next passes a write that carries its mark straight through, so its
+ * URL and route stay the list's; and a Back or Forward still finds the list's route tree on the
+ * entry, so Next renders the stage, which opens the book its address names. The page itself does
+ * not remount either way: the site's PageEnter restarts only when the rendered route segments
+ * change. A list's address is written plainly, and Next takes it in. Client only; guarded by
  * tests/unit/bookshelf/detail-history.test.ts.
  */
 

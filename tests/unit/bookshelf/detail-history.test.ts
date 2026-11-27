@@ -17,8 +17,8 @@
 /**
  * @file The history entries of a book opened in place (detail-history.ts), against a stand-in
  * for Next's patched history methods: like Next's, it takes any write that lacks Next's `__NA`
- * mark in as a route change (which would turn usePathname and remount the page under the
- * site's PageEnter). A book's address is pushed over the list's with the list's query kept and
+ * mark in as the router's URL (which would turn usePathname to the book's address while the
+ * list still renders). A book's address is pushed over the list's with the list's query kept and
  * the state Next keeps for the list entry carried along, so the router stays on the list; another
  * book replaces it, keeping whether the entry was pushed; leaving goes Back from a pushed entry,
  * and otherwise writes the list's address plainly in its place, which the router takes in.
