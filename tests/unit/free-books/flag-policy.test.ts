@@ -77,6 +77,33 @@ describe('settleFlags', () => {
       expected: { flag: REASON, streak: 1 },
     },
     {
+      name: 'never lifts an unchecked flag whose stored count is already at the threshold',
+      flag: REASON,
+      observation: 'unchecked',
+      streak: 2,
+      expected: { flag: REASON, streak: 1 },
+    },
+    {
+      name: 'never lifts an unseen flag whose stored count is past the threshold',
+      flag: REASON,
+      streak: 7,
+      expected: { flag: REASON, streak: 1 },
+    },
+    {
+      name: 'lifts a flag with a stored count past the threshold on its next clean run',
+      flag: REASON,
+      observation: 'clean',
+      streak: 7,
+      expected: {},
+    },
+    {
+      name: 'resets a stored count past the threshold when the flag is raised again',
+      flag: REASON,
+      observation: 'flagged',
+      streak: 2,
+      expected: { flag: REASON },
+    },
+    {
       name: 'reads a malformed count as 0',
       flag: REASON,
       observation: 'clean',

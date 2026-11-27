@@ -17,12 +17,13 @@
 /**
  * @file When the weekly sweep lifts an automated block or quarantine, as pure functions in the
  * style of link-health/state.ts. A flag is lifted after LIFT_AFTER_CLEAN_RUNS runs in a row that
- * checked it and found it clean. A run that could not check it counts for nothing, a new hit resets
- * the count, and a flag whose host or link has left the upstream catalog is dropped. The owner's
- * committed pins are always kept and never counted. Two runs, because the providers fail open (a
- * feed or DoH outage reads as clean), so one clean run is not evidence. Only the counts are stored,
- * as the drift state's cleanStreaks. sweep.ts settles blocked hosts and quarantined links with it;
- * guarded by tests/unit/free-books/flag-policy.test.ts.
+ * checked it and found it clean, and only ever by a clean run: a run that could not check it counts
+ * for nothing (a stored count already at the threshold is read as one short, never as a lift), a
+ * new hit resets the count, and a flag whose host or link has left the upstream catalog is dropped.
+ * The owner's committed pins are always kept and never counted. Two runs, because one clean answer
+ * from a provider is weak evidence. Only the counts are stored, as the drift state's cleanStreaks.
+ * sweep.ts settles blocked hosts and quarantined links with it; guarded by
+ * tests/unit/free-books/flag-policy.test.ts.
  */
 
 /** Clean runs in a row that lift a flag. */
@@ -57,8 +58,19 @@ export function readCleanStreak(value: unknown): number {
 }
 
 /**
+ * A standing flag's stored count, at most one short of lifting: a count at or past
+ * LIFT_AFTER_CLEAN_RUNS cannot belong to a flag that still stands, so it is read as one clean run
+ * short. Only a clean observation can then lift the flag.
+ */
+function priorStreak(streaks: Readonly<Record<string, unknown>>, key: string): number {
+  const stored = Object.hasOwn(streaks, key) ? readCleanStreak(streaks[key]) : 0;
+  return Math.min(stored, LIFT_AFTER_CLEAN_RUNS - 1);
+}
+
+/**
  * The flags that stand after this run and their counts. Flagged keeps the new reason with no
- * count; clean adds one and lifts at LIFT_AFTER_CLEAN_RUNS; unchecked keeps the flag and its count.
+ * count; clean adds one and lifts at LIFT_AFTER_CLEAN_RUNS; unchecked keeps the flag and its count,
+ * and never lifts it, whatever count was stored.
  */
 export function settleFlags({
   flags,
@@ -76,9 +88,9 @@ export function settleFlags({
       standing.set(key, reason);
       continue;
     }
-    const prior = Object.hasOwn(streaks, key) ? readCleanStreak(streaks[key]) : 0;
+    const prior = priorStreak(streaks, key);
     const streak = observation === 'clean' ? prior + 1 : prior;
-    if (streak >= LIFT_AFTER_CLEAN_RUNS) continue;
+    if (observation === 'clean' && streak >= LIFT_AFTER_CLEAN_RUNS) continue;
     standing.set(key, reason);
     if (streak > 0) counts.set(key, streak);
   }
