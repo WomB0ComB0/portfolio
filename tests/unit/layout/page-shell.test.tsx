@@ -33,8 +33,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SiteLayout from '@/app/(routes)/layout';
 import { REDUCED_MOTION_QUERY } from '@/lib/design/motion';
 
-const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn(() => '/stats') }));
-vi.mock('next/navigation', () => ({ usePathname }));
+const { usePathname, useSelectedLayoutSegments } = vi.hoisted(() => ({
+  usePathname: vi.fn(() => '/stats'),
+  useSelectedLayoutSegments: vi.fn((): string[] => ['(dev)', 'stats']),
+}));
+vi.mock('next/navigation', () => ({ usePathname, useSelectedLayoutSegments }));
 // The command palette and the tile spotlight's pointer listener are not under test.
 vi.mock('@/components/cmd', () => ({ default: () => null }));
 vi.mock('@/components/console/spotlight-root', () => ({ SpotlightRoot: () => null }));
@@ -116,8 +119,14 @@ const afterLinkNavigation = (): Promise<void> =>
     setImmediate(resolve);
   });
 
+/** Puts the router on a route: the address it reports and the segments its tree renders. */
+const routeTo = (pathname: string, segments: readonly string[]): void => {
+  usePathname.mockReturnValue(pathname);
+  useSelectedLayoutSegments.mockReturnValue([...segments]);
+};
+
 beforeEach(() => {
-  usePathname.mockReturnValue('/stats');
+  routeTo('/stats', ['(dev)', 'stats']);
 });
 
 afterEach(() => {
@@ -265,7 +274,7 @@ describe('Per-page fade', () => {
     expect(main).not.toHaveAttribute('style');
   });
 
-  it('remounts the page on a pathname change but keeps the same <main>, navs and footer', async () => {
+  it('remounts the page on a route change but keeps the same <main>, navs and footer', async () => {
     const { rerender } = render(
       <SiteLayout>
         <Probe />
@@ -275,7 +284,7 @@ describe('Per-page fade', () => {
     const firstFrame = frameOf(screen.getByRole('main'));
     await waitFor(() => expect(firstFrame.style.opacity).toBe('1'));
 
-    usePathname.mockReturnValue('/projects');
+    routeTo('/projects', ['(main)', '(professioal)', 'projects']);
     rerender(
       <SiteLayout>
         <Probe />
@@ -302,7 +311,7 @@ describe('Per-page fade', () => {
 
     expect(frameOf(screen.getByRole('main')).style.opacity).toBe('1');
 
-    usePathname.mockReturnValue('/projects');
+    routeTo('/projects', ['(main)', '(professioal)', 'projects']);
     rerender(
       <SiteLayout>
         <Probe />

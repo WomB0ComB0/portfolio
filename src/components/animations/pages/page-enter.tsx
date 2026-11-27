@@ -17,7 +17,7 @@
  */
 
 import { motion } from 'motion/react';
-import { usePathname } from 'next/navigation';
+import { useSelectedLayoutSegments } from 'next/navigation';
 import { useState } from 'react';
 import { useIsServerHtmlRender } from '@/hooks/use-is-server-html-render';
 import { DURATION_MS, EASE, prefersReducedMotion, seconds } from '@/lib/design/motion';
@@ -56,14 +56,26 @@ const PageEnterFrame = ({ children }: PageEnterProps) => {
 };
 
 /**
+ * The route rendered below the layout that renders PageEnter, as a key: its selected segments,
+ * read from the router's tree (route groups included, a dynamic segment as its value, the page's
+ * own segment and so the search params left out). JSON keeps a catch-all's joined value, such as
+ * ['blog', 'a/b'], apart from ['blog', 'a', 'b'].
+ */
+const useRouteKey = (): string => JSON.stringify(useSelectedLayoutSegments());
+
+/**
  * Fades the page in on each client navigation while the shell around it stays mounted.
  *
- * The frame is keyed by pathname, so a new path mounts a new frame (and remounts the page under
- * it) that plays the fade again; a change of search params alone keeps the page mounted. There
- * is no exit animation: the old page is replaced at once.
+ * The frame is keyed by the rendered route, so a navigation to another route, or to another value
+ * of a dynamic segment, mounts a new frame (and remounts the page under it) that plays the fade
+ * again; a change of search params alone keeps the page mounted. It is not keyed by pathname: Back
+ * or Forward onto an entry written with another entry's route tree (pushState carrying Next's
+ * history state) restores that tree under its own URL, so the address changes while the same route
+ * stays rendered, and the page keeps its state. There is no exit animation: the old page is
+ * replaced at once.
  */
 export const PageEnter = ({ children }: PageEnterProps) => {
-  const pathname = usePathname();
-  return <PageEnterFrame key={pathname}>{children}</PageEnterFrame>;
+  const routeKey = useRouteKey();
+  return <PageEnterFrame key={routeKey}>{children}</PageEnterFrame>;
 };
 PageEnter.displayName = 'PageEnter';
