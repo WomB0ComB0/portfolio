@@ -89,7 +89,7 @@ vi.mock('@/lib/observability/report', async (importOriginal) => ({
 }));
 
 import * as sitemapModule from '@/app/sitemap';
-import Sitemap, { revalidate } from '@/app/sitemap';
+import Sitemap, { dynamic } from '@/app/sitemap';
 
 type Entry = MetadataRoute.Sitemap[number];
 
@@ -176,16 +176,18 @@ afterAll(() => {
 });
 
 describe('sitemap entries', () => {
-  it('is regenerated at most once an hour, not rendered on every fetch', () => {
-    expect(revalidate).toBe(3600);
-    expect(sitemapModule).not.toHaveProperty('dynamic');
+  it('renders on request, so Vercel serves it from a function rather than a build-time file', () => {
+    // A prerendered sitemap (`revalidate`) ships as a static file on Vercel and never refreshes
+    // (vercel/next.js#99055); Vercel's CDN keeps this one up to an hour (sitemap-cache.ts).
+    expect(dynamic).toBe('force-dynamic');
+    expect(sitemapModule).not.toHaveProperty('revalidate');
   });
 
-  it('keeps `revalidate` a plain number literal in the source, which Next reads statically', () => {
+  it('keeps `dynamic` a plain string literal in the source, which Next reads statically', () => {
     const source = readFileSync(join(process.cwd(), 'src/app/sitemap.ts'), 'utf8');
 
-    expect(source).toMatch(/^export const revalidate = 3600;$/m);
-    expect(source).not.toMatch(/^export const dynamic\b/m);
+    expect(source).toMatch(/^export const dynamic = 'force-dynamic';$/m);
+    expect(source).not.toMatch(/^export const revalidate\b/m);
   });
 
   it('lists every project, experience and place page once, dated by its own change', async () => {
