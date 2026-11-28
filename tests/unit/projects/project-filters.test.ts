@@ -109,9 +109,10 @@ const projectsOf = (kinds: readonly (readonly [string, number])[]) =>
   );
 
 describe('the Kind chips fit the bar’s widest row, whatever the kinds are called', () => {
-  // Today's most used kinds (a GET of the site's projects): Financial Technology's chip is the
-  // widest, and with it the row ran 19px past its edge at every desktop width from 1280.
-  const today = buildProjectLookups(
+  // The kinds before the 2026-11-27 content consolidation (a GET of the site's projects):
+  // Financial Technology's chip is the widest, and with it the row once ran 19px past its edge at
+  // every desktop width from 1280.
+  const beforeConsolidation = buildProjectLookups(
     projectsOf([
       ['Web Development', 8],
       ['CLI Tool', 5],
@@ -123,16 +124,21 @@ describe('the Kind chips fit the bar’s widest row, whatever the kinds are call
     ]),
   );
 
-  it('gives today’s kinds Web Development, CLI Tool, Developer Tools and AI/ML, then Other', () => {
-    const schema = projectFilters(today);
+  it('gave the kinds before the consolidation Web Development, CLI Tool, Developer Tools and AI/ML, then Other', () => {
+    const schema = projectFilters(beforeConsolidation);
 
-    expect(today.kindOrder).toEqual(['web-development', 'cli-tool', 'developer-tools', 'ai-ml']);
-    expect(today.folded).toContain('financial-technology');
-    expect(schema.facets.category.values).toEqual([...today.kindOrder, OTHER_KIND]);
+    expect(beforeConsolidation.kindOrder).toEqual([
+      'web-development',
+      'cli-tool',
+      'developer-tools',
+      'ai-ml',
+    ]);
+    expect(beforeConsolidation.folded).toContain('financial-technology');
+    expect(schema.facets.category.values).toEqual([...beforeConsolidation.kindOrder, OTHER_KIND]);
   });
 
   it('still selects a folded kind from an old link, in Other’s place under its own name', () => {
-    const schema = projectFilters<ProjectFilterItem & { readonly id: number }>(today);
+    const schema = projectFilters<ProjectFilterItem & { readonly id: number }>(beforeConsolidation);
     const items = projectsOf([
       ['Web Development', 1],
       ['Financial Technology', 2],
@@ -155,20 +161,26 @@ describe('the Kind chips fit the bar’s widest row, whatever the kinds are call
     expect(options.map(({ slug }) => slug)).not.toContain(OTHER_KIND);
   });
 
-  it(`gives five short kinds a chip each, and a sixth never (at most ${MAX_KIND_CHIPS})`, () => {
-    const short = buildProjectLookups(
-      projectsOf([
-        ['Web', 9],
-        ['CLI Tool', 8],
-        ['AI/ML', 7],
-        ['Games', 6],
-        ['Education', 5],
-        ['Robotics', 4],
-      ]),
-    );
+  it(`gives a lone sixth kind Other's place, and folds two of seven (${MAX_KIND_CHIPS} chips beside Other)`, () => {
+    const six: readonly (readonly [string, number])[] = [
+      ['Web', 9],
+      ['CLI Tool', 8],
+      ['AI/ML', 7],
+      ['Games', 6],
+      ['Education', 5],
+      ['Robotics', 4],
+    ];
+    const short = buildProjectLookups(projectsOf(six));
+    const seven = buildProjectLookups(projectsOf([...six, ['IoT', 3]]));
+    const sixSchema = projectFilters(short);
 
-    expect(short.kindOrder).toEqual(['web', 'cli-tool', 'ai-ml', 'games', 'education']);
-    expect(short.folded).toEqual(['robotics']);
+    expect(short.kindOrder).toEqual(['web', 'cli-tool', 'ai-ml', 'games', 'education', 'robotics']);
+    expect(short.folded).toEqual([]);
+    // With no kind folded there is no Other chip, and an old ?category=other picks no kind.
+    expect(sixSchema.facets.category.values).not.toContain(OTHER_KIND);
+    expect(sixSchema.parse('?category=other').category).toEqual([]);
+    expect(seven.kindOrder).toEqual(['web', 'cli-tool', 'ai-ml', 'games', 'education']);
+    expect(seven.folded).toEqual(['robotics', 'iot']);
   });
 });
 

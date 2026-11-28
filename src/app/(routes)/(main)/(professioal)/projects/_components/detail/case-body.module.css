@@ -411,11 +411,16 @@
   break-inside: avoid;
 }
 
-/* A long name ('@scope/package') wraps after its slash rather than past the column. */
+/*
+ * A long name ('@scope/package') wraps after its slash rather than past the column. A two-letter
+ * name ('Go', 'C#') draws under 24px, so the link holds at least 1.5rem of width: WCAG 2.2's
+ * least target size (2.5.8), with the name still at the left of it.
+ */
 .tech {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
+  min-width: 1.5rem;
   min-height: 2rem;
   overflow-wrap: break-word;
   border-radius: 0.25rem;
