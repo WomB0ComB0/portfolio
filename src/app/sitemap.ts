@@ -20,16 +20,19 @@
  *
  * It is built from the loaders the pages use, and with the rules the pages use (past places
  * only, roles from their first month, books on a published shelf, shelves with books), so it
- * lists the detail pages that answer 200. It is regenerated at most once an hour (ISR,
- * `revalidate`), not on every crawler's fetch: `next build` renders it once from Sanity, and after
- * an hour the next fetch is served the cached copy while one fresh render runs in the background.
- * A new project, role, past place, book or shelf therefore appears within about an hour, and a
- * role or place that turns listable on a new day as well.
+ * lists the detail pages that answer 200. It renders on request (`dynamic`), and Vercel's CDN
+ * keeps each answer for up to an hour (src/config/sitemap-cache.ts), so a crawler's fetch is
+ * served from the cache and each region renders it about once an hour. A new project, role, past
+ * place, book or shelf therefore appears within about an hour (plus the loaders' few minutes of
+ * caching), and a role or place that turns listable on a new day as well. It is not prerendered:
+ * with Next's build adapter on Vercel, a prerendered sitemap with `revalidate` ships as a static
+ * file that only a new deploy replaces (vercel/next.js#99055).
  *
  * When Sanity fails with nothing cached for projects, experiences, places or the bookshelf, that
- * loader rejects and so does the render: the build fails rather than ship a sitemap without the
- * detail URLs (which would read as those pages being gone), and a failed hourly render keeps
- * serving the last good copy. The certifications and resume loads only date /certifications and
+ * loader rejects and so does the render: the request fails rather than answer a sitemap without
+ * the detail URLs (which would read as those pages being gone). An error is never cached, and the
+ * CDN serves the last good copy for up to a day instead (stale-if-error), so the next fetch tries
+ * again. The certifications and resume loads only date /certifications and
  * /resume, so their failure is reported and those two entries go out without a lastModified:
  * every URL is still listed.
  */
@@ -53,10 +56,12 @@ import {
 } from '@/lib/sanity/loaders';
 
 /**
- * Regenerate at most once an hour (seconds). It used to render on every fetch (force-dynamic),
- * running five Sanity loaders per crawler request. A literal, as Next reads it statically.
+ * Render on request, never at build time. `revalidate` would prerender it, and on Vercel a
+ * prerendered sitemap is a static file that never refreshes (see the file comment); the CDN
+ * header in src/config/sitemap-cache.ts keeps crawlers from running its Sanity loaders on
+ * every fetch. A literal, as Next reads it statically.
  */
-export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 

@@ -30,6 +30,7 @@ import {
   RETIRED_SERVICE_WORKER_SOURCE,
 } from '@/config/retired-service-worker';
 import { SECURITY_HEADERS } from '@/config/security-headers';
+import { SITEMAP_CDN_HEADERS, SITEMAP_SOURCE } from '@/config/sitemap-cache';
 
 // next.config.ts validates the environment on import and wraps the config in build plugins. None
 // of that affects headers(), so the env is empty and each plugin hands the config back unchanged.
@@ -92,6 +93,41 @@ describe('next.config.ts headers()', () => {
   it('does not put the no-store rule on pages or other scripts', () => {
     for (const path of ['/', '/places', '/sw.js.map', '/a/sw.js', '/_next/static/chunks/x.js']) {
       expect(headersFor(path).get('cache-control'), path).not.toBe(retiredCacheControl);
+    }
+  });
+});
+
+describe('/sitemap.xml at Vercel’s CDN', () => {
+  /** A directive's seconds in a cache header value; NaN when it is missing. */
+  const seconds = (value: string, directive: string): number =>
+    Number(new RegExp(`(?:^|,)\\s*${directive}=(\\d+)`).exec(value)?.[1]);
+
+  it('is cached by Vercel’s CDN for at most an hour, its stale window included', () => {
+    const value = headersFor(SITEMAP_SOURCE).get('vercel-cdn-cache-control') ?? '';
+    const fresh = seconds(value, 'max-age');
+    const stale = seconds(value, 'stale-while-revalidate');
+
+    expect(SITEMAP_CDN_HEADERS).toContainEqual({ key: 'Vercel-CDN-Cache-Control', value });
+    expect(fresh).toBeGreaterThan(0);
+    expect(stale).toBeGreaterThan(0);
+    expect(fresh + stale).toBeLessThanOrEqual(3600);
+  });
+
+  it('keeps serving the last good copy when a render fails, not the error', () => {
+    const value = headersFor(SITEMAP_SOURCE).get('vercel-cdn-cache-control') ?? '';
+
+    expect(seconds(value, 'stale-if-error')).toBeGreaterThanOrEqual(3600);
+  });
+
+  it('caches no other path that way', () => {
+    for (const path of [
+      '/',
+      '/projects',
+      '/robots.txt',
+      '/sitemap.xml/x',
+      '/api/v1/sanity/projects',
+    ]) {
+      expect(headersFor(path).has('vercel-cdn-cache-control'), path).toBe(false);
     }
   });
 });

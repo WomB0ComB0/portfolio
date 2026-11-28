@@ -38,6 +38,7 @@ import {
   SECURITY_HEADERS_SOURCE,
 } from './src/config/security-headers';
 import { buildSentryBuildOptions, shouldApplySentryConfig } from './src/config/sentry-build';
+import { SITEMAP_CDN_HEADERS, SITEMAP_SOURCE } from './src/config/sitemap-cache';
 import { env } from './src/env';
 
 function safeReadJSON(p: string) {
@@ -312,6 +313,8 @@ const config: NextConfig = {
       ...(SANITY_CAPTIONS_REWRITE
         ? [{ source: SANITY_CAPTIONS_REWRITE.source, headers: [...SANITY_CAPTIONS_HEADERS] }]
         : []),
+      // The sitemap renders on request; Vercel's CDN keeps each answer up to an hour.
+      { source: SITEMAP_SOURCE, headers: [...SITEMAP_CDN_HEADERS] },
       // The script that retires the service worker older builds registered (public/sw.js). Kept
       // last so nothing above can override its Cache-Control.
       {
