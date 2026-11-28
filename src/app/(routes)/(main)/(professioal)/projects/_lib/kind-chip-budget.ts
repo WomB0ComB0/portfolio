@@ -18,7 +18,9 @@
  * @file How many Kind chips /projects can show, pure and server-safe. The most used kinds get a
  * chip of their own while every chip, All and Other included, fits the bar's one line where the
  * bar is widest (from a 1280px window), whatever the kinds are called; the rest fold under Other.
- * Below that width the row scrolls sideways (the FilterBar kit's `scroll` layout).
+ * A lone kind that would fold takes Other's place instead when its chip fits there, since a menu
+ * of one hides a kind behind a click and saves no chip. Below that width the row scrolls
+ * sideways (the FilterBar kit's `scroll` layout).
  *
  * A chip's width is estimated from its words on the safe side, never under the real chip: the
  * label is counted by grapheme (what a reader sees as one character: Intl.Segmenter), and each
@@ -36,17 +38,23 @@
  * The island receives the kinds it chose as data, so server and client can never disagree.
  */
 
-/** Never more kind chips than this, however short their names. */
+/**
+ * Never more kind chips than this beside the Other chip, however short their names. With nothing
+ * to fold there is no Other chip, so one kind more may stand in its place: the row never holds
+ * more than All, this many kinds and one chip after them.
+ */
 export const MAX_KIND_CHIPS = 5;
 /** The gap between two chips (gap-1.5). */
 export const CHIP_GAP_PX = 6;
 /**
- * The row's inside width where the bar is widest (a conservative budget from a 1280px window,
- * less 24px for the Technology button growing by a two-digit count beside it, less the row's 4px
- * padding each end). With FilterBar controls aligned flush on the page axis, the row has even
- * more room than this conservative cap.
+ * The row's inside width where the bar is widest, on the safe side: the row measured 826px at a
+ * 1265px viewport (1255px of layout once the page's thin scrollbar gutter is reserved), a little
+ * under the 835px it has in any 1280px window with or without a classic scrollbar (the bar's
+ * cap); less 24px for the Technology button growing by a two-digit count beside it (117px to
+ * 140px, plus a pixel); less the row's 4px padding each end. Measured in Linux Chromium,
+ * 2026-11-27.
  */
-export const KIND_ROW_PX = 767;
+export const KIND_ROW_PX = 794;
 /** A chip's frame: 12px padding and a 1px border each side, and the 6px gap before its count. */
 const CHIP_FRAME_PX = 32;
 /** One digit of the count (tabular figures: 9px each). */
@@ -223,7 +231,8 @@ function rowFits(kinds: readonly KindUse[], total: number, other: boolean): bool
 
 /**
  * How many of `kinds` (most used first) get a chip: every one when they all fit beside All
- * alone, so no Other is needed (unless `otherAnyway`: a kind is folded whatever happens); else
+ * alone, so no Other is needed (unless `otherAnyway`: a kind is folded whatever happens), up to
+ * one more than MAX_KIND_CHIPS, since a lone kind that would fold stands in Other's place; else
  * the most used that fit beside All and Other, up to MAX_KIND_CHIPS, stopping at the first that
  * does not, so the chips stay the most used.
  */
@@ -232,7 +241,7 @@ export function kindChipCount(
   total: number,
   otherAnyway = false,
 ): number {
-  if (!otherAnyway && kinds.length <= MAX_KIND_CHIPS && rowFits(kinds, total, false)) {
+  if (!otherAnyway && kinds.length <= MAX_KIND_CHIPS + 1 && rowFits(kinds, total, false)) {
     return kinds.length;
   }
   const most = Math.min(kinds.length, MAX_KIND_CHIPS);

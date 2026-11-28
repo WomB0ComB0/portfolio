@@ -472,7 +472,10 @@ test.describe('/projects without JavaScript', () => {
     await page.evaluate(() => document.fonts.ready);
     const row = await chipRow(main);
 
-    expect(row.chips.map(({ label }) => label).join(' | ')).toMatch(/Other \d+ projects?$/);
+    // Which chips follow All depends on the data (a lone folded kind takes Other's place); the
+    // loop below checks every one, the last included.
+    expect(row.chips[0]?.label).toMatch(/^All \d+ projects?$/);
+    expect(row.chips.length).toBeGreaterThan(1);
     for (const { label, box } of row.chips) {
       expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
     }
@@ -698,7 +701,10 @@ test.describe('/projects: the Kind chips', () => {
     await hydrated(page);
     const row = await chipRow(main);
 
-    expect(row.chips.map(({ label }) => label).join(' | ')).toMatch(/Other \d+ projects?$/);
+    // Which chips follow All depends on the data (a lone folded kind takes Other's place); the
+    // loop below checks every one, the last included.
+    expect(row.chips[0]?.label).toMatch(/^All \d+ projects?$/);
+    expect(row.chips.length).toBeGreaterThan(1);
     for (const { label, box } of row.chips) {
       expect(inside(box, row.box), `${label} is past the row's edge`).toBe(true);
     }
@@ -752,7 +758,7 @@ test.describe('/projects: the Kind chips', () => {
     expect(inside(focused.chip, focused.list, RING_PX)).toBe(true);
   });
 
-  test('on a phone the sheet’s chips wrap, every one inside the sheet, Other included', async ({
+  test('on a phone the sheet’s chips wrap, every one inside the sheet, the last included', async ({
     page,
   }) => {
     const main = await openAt(page, '', PHONE);
@@ -768,6 +774,6 @@ test.describe('/projects: the Kind chips', () => {
       ),
     }));
     for (const right of widths.chips) expect(right).toBeLessThanOrEqual(widths.sheet + SAME_PX);
-    await expect(kindChips(sheet).getByRole('link', { name: /^Other \d+/ })).toBeInViewport();
+    await expect(kindChips(sheet).getByRole('link').last()).toBeInViewport();
   });
 });

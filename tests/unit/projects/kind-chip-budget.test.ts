@@ -34,7 +34,7 @@ import {
 
 /**
  * [label, count, px]: real chips measured in the /projects row at 1440 (13px Geist 500 on Linux,
- * whose hinting draws the widest glyphs), from a GET of the site on 2026-11-13: today's top kinds
+ * whose hinting draws the widest glyphs), from a GET of the site on 2026-11-13: that day's top kinds
  * with their counts, the other live kinds and some made-up names of the widest glyphs with a
  * two-digit count, and All and Other with a three-digit one.
  */
@@ -157,18 +157,25 @@ const NOT_TWICE_RATIO = 1.35;
 const kindsUsed = (kinds: readonly KindUse[], total: number): readonly KindUse[] =>
   kinds.slice(0, kindChipCount(kinds, total));
 
-/** The row the estimates add up to: All, the kinds with a chip and Other, with their gaps. */
+/**
+ * The row the estimates add up to: All, the kinds with a chip and, when a kind is folded, Other,
+ * with their gaps.
+ */
 const estimatedRow = (kinds: readonly KindUse[], total: number): number => {
+  const used = kindsUsed(kinds, total);
   const chips = [
     chipPx('All', total),
-    ...kindsUsed(kinds, total).map(({ label, uses }) => chipPx(label, uses)),
-    chipPx('Other', total),
+    ...used.map(({ label, uses }) => chipPx(label, uses)),
+    ...(used.length < kinds.length ? [chipPx('Other', total)] : []),
   ];
   return chips.reduce((sum, px) => sum + px, 0) + (chips.length - 1) * CHIP_GAP_PX;
 };
 
-/** Today's most used kinds (a GET of the site's 32 projects), most used first, ties A to Z. */
-const TODAY: readonly KindUse[] = [
+/**
+ * The kinds before the 2026-11-27 content consolidation (a GET of the site's 32 projects), most
+ * used first, ties A to Z.
+ */
+const BEFORE_CONSOLIDATION: readonly KindUse[] = [
   { label: 'Web Development', uses: 8 },
   { label: 'CLI Tool', uses: 5 },
   { label: 'Developer Tools', uses: 4 },
@@ -185,6 +192,20 @@ const SHORT: readonly KindUse[] = [
   { label: 'Games', uses: 6 },
   { label: 'Education', uses: 5 },
   { label: 'Robotics', uses: 4 },
+];
+
+/**
+ * The kinds since the content consolidation (a GET of the site's 33 projects on 2026-11-27), most
+ * used first, ties A to Z: six, so before a lone sixth could take Other's place, Platform was
+ * folded under an Other chip of its own.
+ */
+const CONSOLIDATED: readonly KindUse[] = [
+  { label: 'Web app', uses: 13 },
+  { label: 'Developer tool', uses: 7 },
+  { label: 'Website', uses: 7 },
+  { label: 'AI/ML', uses: 2 },
+  { label: 'Mobile', uses: 2 },
+  { label: 'Platform', uses: 2 },
 ];
 
 describe('chipPx: a chip’s width, on the safe side', () => {
@@ -228,8 +249,8 @@ describe('chipPx: a chip’s width, on the safe side', () => {
 });
 
 describe('kindChipCount: the most used kinds that fit the widest row', () => {
-  it('gives today’s first four kinds a chip and folds Financial Technology under Other', () => {
-    expect(kindsUsed(TODAY, 32).map(({ label }) => label)).toEqual([
+  it('gave the first four kinds before the consolidation a chip and folded Financial Technology', () => {
+    expect(kindsUsed(BEFORE_CONSOLIDATION, 32).map(({ label }) => label)).toEqual([
       'Web Development',
       'CLI Tool',
       'Developer Tools',
@@ -237,17 +258,35 @@ describe('kindChipCount: the most used kinds that fit the widest row', () => {
     ]);
   });
 
-  it(`gives five short kinds a chip each, and a sixth never (at most ${MAX_KIND_CHIPS})`, () => {
+  it(`gives a lone sixth kind Other's place, never a chip more than All, ${MAX_KIND_CHIPS} kinds and Other`, () => {
     expect(MAX_KIND_CHIPS).toBe(5);
-    expect(kindChipCount(SHORT, 39)).toBe(5);
+    expect(kindChipCount(SHORT, 39)).toBe(6);
+    // Seven short kinds fit beside All alone, but a seventh would make a chip more than All, five
+    // kinds and Other, so two fold under Other.
+    expect(kindChipCount([...SHORT, { label: 'IoT', uses: 3 }], 42)).toBe(5);
+    // Names this short leave room for six kinds beside All and Other, but five is the most.
+    const tiny = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((label) => ({ label, uses: 1 }));
+    expect(kindChipCount(tiny, 7)).toBe(5);
+    // A kind folded whatever happens (one called Other) brings the Other chip, so no sixth.
+    expect(kindChipCount(SHORT, 39, true)).toBe(5);
+  });
+
+  it('gives each of the six kinds since the consolidation a chip, with no Other', () => {
+    expect(kindChipCount(CONSOLIDATED, 33)).toBe(6);
+  });
+
+  it('folds a lone sixth kind under Other when its chip does not fit in Other’s place', () => {
+    const kinds = [...CONSOLIDATED.slice(0, 5), { label: 'Healthcare Technology', uses: 2 }];
+
+    expect(kindChipCount(kinds, 33)).toBe(5);
   });
 
   it('gives every kind a chip, with no Other, when they all fit beside All alone', () => {
     const kinds = [
+      { label: 'Financial Technology', uses: 4 },
       { label: 'Full-Stack', uses: 4 },
       { label: 'Machine Learning', uses: 4 },
       { label: 'Mobile', uses: 4 },
-      { label: 'Web Development', uses: 4 },
     ];
 
     expect(kindChipCount(kinds, 12)).toBe(4);
@@ -269,14 +308,18 @@ describe('kindChipCount: the most used kinds that fit the widest row', () => {
   });
 
   it.each([
-    ['today’s kinds', TODAY, 32],
-    ['five short kinds', SHORT, 39],
-    ['today’s kinds at a thousand projects', TODAY, 1000],
+    ['the kinds before the consolidation', BEFORE_CONSOLIDATION, 32],
+    ['six short kinds', SHORT, 39],
+    ['the kinds before the consolidation at a thousand projects', BEFORE_CONSOLIDATION, 1000],
+    ['the six kinds since the consolidation', CONSOLIDATED, 33],
+    ['the six kinds since the consolidation at a thousand projects', CONSOLIDATED, 1000],
   ] as const)('keeps the estimated row inside the budget: %s', (_name, kinds, total) => {
     expect(estimatedRow(kinds, total)).toBeLessThanOrEqual(KIND_ROW_PX);
   });
 
   it('makes room for All’s and Other’s counts at the total’s digits', () => {
-    expect(kindChipCount(TODAY, 10_000_000)).toBeLessThan(kindChipCount(TODAY, 32));
+    expect(kindChipCount(BEFORE_CONSOLIDATION, 10_000_000)).toBeLessThan(
+      kindChipCount(BEFORE_CONSOLIDATION, 32),
+    );
   });
 });
